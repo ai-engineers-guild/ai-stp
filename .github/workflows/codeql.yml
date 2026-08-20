@@ -1,0 +1,52 @@
+# Static security analysis, which a public repository gets at no cost.
+#
+# Deliberately separate from `check`: it answers a different question, takes
+# longer than the gate, and a security finding should not be reported as a
+# broken build. It also runs on a schedule, because a vulnerability class can
+# be published after the code that contains it stopped changing.
+name: codeql
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Weekly, offset off the hour so it does not join the crowd at midnight.
+    - cron: "23 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyse:
+    name: analyse (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [python, javascript-typescript, actions]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      # Pinned by commit, like every other action here, and chosen as the
+      # current release rather than whatever was current when this was
+      # written: `codeql-bundle-v2.26.3`.
+      - name: Initialise CodeQL
+        uses: github/codeql-action/init@c16c0f3f2812ec4bb3750a5ed64873fe2ce0fbef
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-and-quality
+      - name: Analyse
+        uses: github/codeql-action/analyze@c16c0f3f2812ec4bb3750a5ed64873fe2ce0fbef
+        with:
+          category: /language:${{ matrix.language }}

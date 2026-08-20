@@ -1,0 +1,35 @@
+# Version updates, not only the security ones GitHub raises by itself.
+#
+# Actions are pinned by commit here, which is the right default for a public
+# repository and also the reason this file exists: a pinned commit does not
+# drift, so nothing tells you it has gone stale unless something looks.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(ci)"
+  - package-ecosystem: npm
+    directory: /docs_scripts
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(docs)"
+  - package-ecosystem: npm
+    directory: /apps/web
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(web)"
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"

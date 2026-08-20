@@ -50,6 +50,14 @@ jobs:
           test -n "${python_path}"
           echo "UV_PYTHON=${python_path}" >> "${GITHUB_ENV}"
           echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-docs" >> "${GITHUB_ENV}"
+      # `uv sync` resolves and downloads the same locked dependencies on every
+      # job of every run. Keyed by the lock, so a hit is exact and a change to
+      # the lock misses on purpose.
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
+          restore-keys: ${{ runner.os }}-uv-
       - name: Install pinned uv and just
         run: |
           set -euo pipefail
@@ -82,6 +90,14 @@ jobs:
           test -n "${python_path}"
           echo "UV_PYTHON=${python_path}" >> "${GITHUB_ENV}"
           echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-package" >> "${GITHUB_ENV}"
+      # `uv sync` resolves and downloads the same locked dependencies on every
+      # job of every run. Keyed by the lock, so a hit is exact and a change to
+      # the lock misses on purpose.
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
+          restore-keys: ${{ runner.os }}-uv-
       - name: Install pinned uv and just
         run: |
           set -euo pipefail
@@ -127,6 +143,14 @@ jobs:
           test -n "${python_path}"
           echo "UV_PYTHON=${python_path}" >> "${GITHUB_ENV}"
           echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-tests" >> "${GITHUB_ENV}"
+      # `uv sync` resolves and downloads the same locked dependencies on every
+      # job of every run. Keyed by the lock, so a hit is exact and a change to
+      # the lock misses on purpose.
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
+          restore-keys: ${{ runner.os }}-uv-
       - name: Install pinned uv and just
         run: |
           set -euo pipefail
@@ -168,6 +192,14 @@ jobs:
           test -n "${python_path}"
           echo "UV_PYTHON=${python_path}" >> "${GITHUB_ENV}"
           echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-web" >> "${GITHUB_ENV}"
+      # `uv sync` resolves and downloads the same locked dependencies on every
+      # job of every run. Keyed by the lock, so a hit is exact and a change to
+      # the lock misses on purpose.
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
+          restore-keys: ${{ runner.os }}-uv-
       - name: Install pinned bun, uv and just
         run: |
           set -euo pipefail
@@ -176,6 +208,21 @@ jobs:
           python -m pip install --disable-pip-version-check "uv==${UV_VERSION}"
           JUST_INSTALL_DIR="${RUNNER_TEMP}/bin" python docs_scripts/bootstrap_just.py
           echo "${RUNNER_TEMP}/bin" >> "${GITHUB_PATH}"
+      - name: Cache bun packages
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('apps/web/bun.lock') }}
+          restore-keys: ${{ runner.os }}-bun-
+      # The browser is downloaded by `playwright install` on every run
+      # otherwise. Keyed by the lock, which pins the `@playwright/test` version
+      # the browser has to match.
+      - name: Cache the Playwright browser
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('apps/web/bun.lock') }}
+          restore-keys: ${{ runner.os }}-playwright-
       - name: Prepare and check the web application
         run: |
           source .github/scripts/provider-safe-path.sh
@@ -220,6 +267,14 @@ jobs:
       # without it, and that refusal is the point: a fixture that inherits only
       # PATH and HOME must still find the tools. The bootstrap script ships
       # Linux and macOS archives only, so Windows takes the packaged build.
+      # `uv sync` resolves and downloads the same locked dependencies on every
+      # job of every run. Keyed by the lock, so a hit is exact and a change to
+      # the lock misses on purpose.
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
+          restore-keys: ${{ runner.os }}-uv-
       - name: Install pinned uv and just
         run: |
           set -euo pipefail
@@ -239,4 +294,10 @@ jobs:
           source .github/scripts/provider-safe-path.sh
           ai_stp_use_provider_safe_path
           uv sync --locked --group docs --group dev
-          uv run pytest tests/unit tests/contract --no-cov -q -n auto
+          # Verbose on purpose. A job that ends on its own timeout reports only
+          # that it ended: `-q` prints buffered progress, so the last dot says
+          # nothing about which test was running. Per-test lines carry the
+          # runner's timestamps, which is what turns "macOS is slow" into a
+          # name. The Linux leg does the same work in four minutes, so the
+          # output volume is not what costs anything here.
+          uv run pytest tests/unit tests/contract --no-cov -v -n auto

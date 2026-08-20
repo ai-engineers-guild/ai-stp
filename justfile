@@ -204,6 +204,11 @@ public-report:
 public-build:
     {{run}} python -m release_scripts.public_export
 
+# Публикует собранное дерево в `ai-stp` одним коммитом от identity из global
+# git config. Дельта считается через API, поэтому скачивать ничего не нужно.
+public-publish tree message:
+    {{run}} python -m release_scripts.public_publish --tree "{{tree}}" --message-file "{{message}}"
+
 back-static:
     {{run}} ruff format --check .
     {{run}} ruff check .
