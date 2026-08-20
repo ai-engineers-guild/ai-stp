@@ -1,0 +1,45 @@
+name: Дефект
+description: Наблюдаемое поведение расходится с documented или ожидаемым
+labels: ["defect"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Не публикуйте здесь уязвимости, секреты, токены и содержимое `.env`.
+        Для уязвимости есть `SECURITY.md` и приватные отчёты GitHub.
+  - type: textarea
+    id: observed
+    attributes:
+      label: Что произошло
+      description: Точная команда или запрос и то, что вернулось. Вывод `--json` полезнее пересказа.
+      render: console
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Что ожидалось
+      description: И почему — со ссылкой на документ или контракт, если он есть.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Воспроизведение
+      description: Наименьшая последовательность шагов, приводящая к наблюдаемому.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Версия
+      description: Вывод `ai-stp version --json` или точный commit.
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Платформа
+      options: [Linux, macOS, Windows, другая]
+    validations:
+      required: true
