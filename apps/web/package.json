@@ -85,7 +85,7 @@
     "prettier-plugin-tailwindcss": "^0.6.14",
     "storybook": "8.6.18",
     "tailwindcss": "^4.1.11",
-    "typescript": "6.0.3",
+    "typescript": "7.0.2",
     "typescript-eslint": "^8.39.0",
     "typescript7": "npm:typescript@7.0.2",
     "vite": "6.4.3",
