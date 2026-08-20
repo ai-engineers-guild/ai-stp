@@ -1,0 +1,32 @@
+name: Изменение
+description: Предложение изменить поведение, контракт или документацию
+labels: ["change"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Какая задача не решается сейчас
+      description: Опишите наблюдаемую нехватку, а не желаемую реализацию.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Предложение
+      description: Что должно стать наблюдаемым после изменения.
+    validations:
+      required: true
+  - type: textarea
+    id: boundaries
+    attributes:
+      label: Границы
+      description: Что изменение затрагивает и чего оно намеренно не касается.
+  - type: checkboxes
+    id: contracts
+    attributes:
+      label: Что изменение затрагивает
+      options:
+        - label: Наблюдаемое поведение CLI или API
+        - label: Машинный контракт или схему
+        - label: Набор состояний или ошибок
+        - label: Только документацию
