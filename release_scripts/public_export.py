@@ -126,11 +126,17 @@ def _is_withheld(name: str, manifest: Manifest) -> bool:
 
 
 def unnamed_roots(files: tuple[str, ...], manifest: Manifest) -> tuple[str, ...]:
-    """Tracked top-level entries the manifest neither publishes nor withholds.
+    """Tracked top-level entries nothing accounts for.
 
-    Reported rather than assumed private. Silence would let a new top-level
-    directory sit unpublished and unexplained, which is how an export starts
-    lying about being complete.
+        Reported rather than assumed private. Silence would let a new top-level
+        directory sit unpublished and unexplained, which is how an export starts
+        lying about being complete.
+
+    `roots` names what the built tree may contain, whether the source or the
+        overlay puts it there, so the overlay is not a separate account. Treating it
+        as one would pass here and still fail inside the built tree, where the
+        overlay does not exist and the published repository runs this same report in
+        its own gate — the worst place to learn it.
     """
     named = set(manifest.roots) | {name.split("/", 1)[0] for name in manifest.withheld}
     seen = {name.split("/", 1)[0] if "/" in name else name for name in files}

@@ -39,6 +39,10 @@ roots = [
   ".gitleaks.toml",
   ".env.dev.example",
   ".env.prod.example",
+  # Supplied by the overlay rather than by this tree, and named here all the
+  # same: `roots` describes what the built tree may contain, and the built
+  # tree runs this same report in its own gate.
+  "CODE_OF_CONDUCT.md",
   "LICENSE",
   "README.md",
   "SECURITY.md",
