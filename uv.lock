@@ -148,7 +148,7 @@ docs = [
     { name = "smmap", specifier = "==5.0.3" },
     { name = "urllib3", specifier = "==2.7.0" },
     { name = "watchdog", specifier = "==6.0.0" },
-    { name = "wcmatch", specifier = "==11.0" },
+    { name = "wcmatch", specifier = "==11.0.1" },
     { name = "yamllint", specifier = "==1.35.1" },
 ]
 
@@ -3032,14 +3032,14 @@ wheels = [
 
 [[package]]
 name = "wcmatch"
-version = "11.0"
+version = "11.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bracex" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/16/25/1da725838132221e33568973da484ff43813662ccc06ebf7f6e3abddfcd5/wcmatch-11.0.tar.gz", hash = "sha256:55d95c2447789712774b198ceec72939e88b5618f1f8f0a9b605bf7740b63b96", size = 141360, upload-time = "2026-07-10T05:50:24.183Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/57/43/30e407989e313677dbb9d5f045f966549a7254834571e342eaa4b55cc67b/wcmatch-11.0.1.tar.gz", hash = "sha256:1ea2b4fa678b8ca268253798d5963935df39132d47c3e241c0a0732224005e7d", size = 144662, upload-time = "2026-08-14T15:20:40.477Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/28/12/f38b6fee116274d7221743caab07d765032e1370bb54cad8714f87aeb0e8/wcmatch-11.0-py3-none-any.whl", hash = "sha256:3a5977ace27e075eef67eb03d539563f1a19018b62881949a42932cf66926934", size = 42914, upload-time = "2026-07-10T05:50:22.995Z" },
+    { url = "https://files.pythonhosted.org/packages/ce/77/7a02b0f05b3ffcdbef9719ce3ee0b508d6a29b58e95299f1580055671db3/wcmatch-11.0.1-py3-none-any.whl", hash = "sha256:fd149ecddb9f0a88ea780017d6dde17c994e494e7f7303d4e3c9d6251f978f4b", size = 43449, upload-time = "2026-08-14T15:20:39.379Z" },
 ]
 
 [[package]]
