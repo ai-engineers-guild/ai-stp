@@ -63,7 +63,7 @@ jobs:
     # timeout means the job was starved rather than the target being late.
     timeout-minutes: 18
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
           persist-credentials: false
