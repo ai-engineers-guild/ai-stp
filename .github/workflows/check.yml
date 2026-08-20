@@ -53,7 +53,7 @@ jobs:
       # `uv sync` resolves and downloads the same locked dependencies on every
       # job of every run. Keyed by the lock, so a hit is exact and a change to
       # the lock misses on purpose.
-      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ~/.cache/uv
           key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
@@ -93,7 +93,7 @@ jobs:
       # `uv sync` resolves and downloads the same locked dependencies on every
       # job of every run. Keyed by the lock, so a hit is exact and a change to
       # the lock misses on purpose.
-      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ~/.cache/uv
           key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
@@ -146,7 +146,7 @@ jobs:
       # `uv sync` resolves and downloads the same locked dependencies on every
       # job of every run. Keyed by the lock, so a hit is exact and a change to
       # the lock misses on purpose.
-      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ~/.cache/uv
           key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
@@ -195,7 +195,7 @@ jobs:
       # `uv sync` resolves and downloads the same locked dependencies on every
       # job of every run. Keyed by the lock, so a hit is exact and a change to
       # the lock misses on purpose.
-      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ~/.cache/uv
           key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
@@ -209,7 +209,7 @@ jobs:
           JUST_INSTALL_DIR="${RUNNER_TEMP}/bin" python docs_scripts/bootstrap_just.py
           echo "${RUNNER_TEMP}/bin" >> "${GITHUB_PATH}"
       - name: Cache bun packages
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-bun-${{ hashFiles('apps/web/bun.lock') }}
@@ -218,7 +218,7 @@ jobs:
       # otherwise. Keyed by the lock, which pins the `@playwright/test` version
       # the browser has to match.
       - name: Cache the Playwright browser
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('apps/web/bun.lock') }}
@@ -270,7 +270,7 @@ jobs:
       # `uv sync` resolves and downloads the same locked dependencies on every
       # job of every run. Keyed by the lock, so a hit is exact and a change to
       # the lock misses on purpose.
-      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ~/.cache/uv
           key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
