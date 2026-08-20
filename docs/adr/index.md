@@ -1,0 +1,112 @@
+---
+description: "Принятые архитектурные решения и их последствия."
+last_verified: "2026-08-03"
+---
+
+# ADR
+
+<!-- СОДЕРЖИМОЕ: генерируется через just docs-gen, руками не править -->
+
+| Документ | О чём | Сверено |
+| -------- | ----- | ------- |
+| [ADR-0001-record-architecture-decisions.md](ADR-0001-record-architecture-decisions.md) | Решение фиксировать значимые и труднообратимые архитектурные изменения в ADR. | 2026-08-03 |
+| [ADR-0002-own-core-and-public-providers.md](ADR-0002-own-core-and-public-providers.md) | Решение владеть доменной моделью ai_stp и делегировать запись target публичным NDDev providers. | 2026-08-03 |
+| [ADR-0003-five-harness-scope-and-undefined.md](ADR-0003-five-harness-scope-and-undefined.md) | Решение: ограничить MVP пятью харнессами. | 2026-08-04 |
+| [ADR-0004-setup-component-versioning.md](ADR-0004-setup-component-versioning.md) | Решение: использовать версии x.y и major-line access. | 2026-08-03 |
+| [ADR-0005-local-cloud-revision-sync.md](ADR-0005-local-cloud-revision-sync.md) | Решение: синхронизировать через revision graph. | 2026-08-03 |
+| [ADR-0006-full-auto-and-confirmation-boundary.md](ADR-0006-full-auto-and-confirmation-boundary.md) | Решение: разделить full-auto и чувствительные действия. | 2026-08-03 |
+| [ADR-0007-local-attestation-trust-levels.md](ADR-0007-local-attestation-trust-levels.md) | Решение: не считать подпись устройства platform execution. | 2026-08-03 |
+| [ADR-0008-provider-release-distribution.md](ADR-0008-provider-release-distribution.md) | Решение: доставлять providers release artifacts. | 2026-08-03 |
+| [ADR-0009-postgresql-rustfs-platform.md](ADR-0009-postgresql-rustfs-platform.md) | Решение: использовать postgresql и rustfs. | 2026-08-03 |
+| [ADR-0010-public-profile-and-private-passport.md](ADR-0010-public-profile-and-private-passport.md) | Решение: отделить публичный профиль от паспорта. | 2026-08-03 |
+| [ADR-0011-provider-release-trust-policy.md](ADR-0011-provider-release-trust-policy.md) | Решение закрепить версионируемую политику доверия к выпускам провайдеров. | 2026-08-03 |
+| [ADR-0012-passport-model-and-single-write-path.md](ADR-0012-passport-model-and-single-write-path.md) | Решение сделать паспорт единственным описанием объекта и оставить один путь записи в харнесс. | 2026-08-04 |
+| [ADR-0013-cli-framework.md](ADR-0013-cli-framework.md) | Решение использовать Typer в качестве разборщика команд CLI. | 2026-08-04 |
+| [ADR-0014-harness-specific-setup-identity.md](ADR-0014-harness-specific-setup-identity.md) | Решение привязать сетап к одному харнессу и убрать вариант сетапа из идентичности. | 2026-08-04 |
+| [ADR-0015-marketplace-as-provider-projection.md](ADR-0015-marketplace-as-provider-projection.md) | Решение считать marketplace проекцией провайдера, а не видом компонента. | 2026-08-04 |
+| [ADR-0016-recommendation-trust-lanes.md](ADR-0016-recommendation-trust-lanes.md) | Решение ввести три линии доверия и явное согласие на непроверенные объекты. | 2026-08-04 |
+| [ADR-0017-three-independent-automation-axes.md](ADR-0017-three-independent-automation-axes.md) | Решение развести профиль выполнения, изоляцию проверок и целостность изменения. | 2026-08-04 |
+| [ADR-0018-web-mvp-and-interface-ownership.md](ADR-0018-web-mvp-and-interface-ownership.md) | Решение вернуть в веб MVP управление аккаунтом и сохранить владение созданием за CLI. | 2026-08-04 |
+| [ADR-0019-full-toolchain-index-and-offline-boundary.md](ADR-0019-full-toolchain-index-and-offline-boundary.md) | Решение ставить полный набор инструментов сразу и индексировать любой безопасный текст. | 2026-08-04 |
+| [ADR-0020-access-grants-by-verified-email.md](ADR-0020-access-grants-by-verified-email.md) | Решение выдавать доступ по подтверждённой почте через отдельное приглашение. | 2026-08-04 |
+| [ADR-0021-fact-origin-and-confirmation.md](ADR-0021-fact-origin-and-confirmation.md) | Решение разделить происхождение факта и его подтверждение пользователем. | 2026-08-04 |
+| [ADR-0022-agent-authored-passports-without-model-api.md](ADR-0022-agent-authored-passports-without-model-api.md) | Решение оставить создание паспортов агенту пользователя и не вызывать модель из ai_stp. | 2026-08-04 |
+| [ADR-0023-public-profile-as-authored-object.md](ADR-0023-public-profile-as-authored-object.md) | Решение сделать публичный профиль отдельно заполняемым объектом, а не проекцией паспорта. | 2026-08-04 |
+| [ADR-0024-closed-tag-vocabulary.md](ADR-0024-closed-tag-vocabulary.md) | Решение публиковать теги только из закрытого версионируемого словаря. | 2026-08-04 |
+| [ADR-0025-developer-device-project-context-owners.md](ADR-0025-developer-device-project-context-owners.md) | Решение разделить контекст на паспорта разработчика, устройства и проекта. | 2026-08-04 |
+| [ADR-0026-credentialed-evidence-and-complete-publication.md](ADR-0026-credentialed-evidence-and-complete-publication.md) | Решение принимать авторское подписанное доказательство для credential-зависимых проверок и запретить публикацию с невыполненной обязательной проверкой. | 2026-08-04 |
+| [ADR-0027-proposal-confirmation-setup-version.md](ADR-0027-proposal-confirmation-setup-version.md) | Решение сделать предложения состава недолговечными и создавать SetupVersion только из явного подтверждения. | 2026-08-09 |
+| [ADR-0028-simple-deterministic-mvp-builder.md](ADR-0028-simple-deterministic-mvp-builder.md) | Решение ограничить сборщик MVP детерминированными операциями без смыслового слияния при сохранении расширяемого графа. | 2026-08-04 |
+| [ADR-0029-scoped-unverified-consent.md](ADR-0029-scoped-unverified-consent.md) | Решение убрать бессрочное глобальное согласие на непроверенное и ввести исключения по издателю и основной линии объекта. | 2026-08-04 |
+| [ADR-0030-major-line-grants-forks-derived-publication.md](ADR-0030-major-line-grants-forks-derived-publication.md) | Решение определить право на основную линию, форк получателя, производную публикацию и последствия отзыва. | 2026-08-04 |
+| [ADR-0031-report-cases-and-moderation.md](ADR-0031-report-cases-and-moderation.md) | Решение добавить закрытые случаи жалоб из веба и CLI с аудируемой модерацией без автоматических публичных issue. | 2026-08-04 |
+| [ADR-0032-install-eligibility-from-current-evidence.md](ADR-0032-install-eligibility-from-current-evidence.md) | Решение выводить пригодность версии к установке из актуальности обязательных доказательств без удалённого отключения целей. | 2026-08-04 |
+| [ADR-0033-harness-promotion-from-undefined.md](ADR-0033-harness-promotion-from-undefined.md) | Решение считать пять харнессов набором MVP и определить платформенный процесс продвижения нового харнесса из undefined. | 2026-08-04 |
+| [ADR-0034-first-party-launch-corpus.md](ADR-0034-first-party-launch-corpus.md) | Решение сделать первопартийный каталог запуска измеримым выпускным барьером с подтверждённым пространством имён гильдии. | 2026-08-17 |
+| [ADR-0035-product-and-catalog-languages.md](ADR-0035-product-and-catalog-languages.md) | Решение о языках продукта: веб и навык двуязычные, содержимое каталога запуска — английское. | 2026-08-04 |
+| [ADR-0036-content-addressed-revision-ids.md](ADR-0036-content-addressed-revision-ids.md) | Решение сделать идентификатор ревизии контентным: revision_ и 64 hex хэша канонических данных в домене ревизии. | 2026-08-05 |
+| [ADR-0037-api-feature-slice-architecture.md](ADR-0037-api-feature-slice-architecture.md) | Решение строить серверные приложения вертикальными слайсами с общим ядром и разделять DTO, доменную сущность и ORM. | 2026-08-05 |
+| [ADR-0038-custom-postgres-job-queue.md](ADR-0038-custom-postgres-job-queue.md) | Решение реализовать собственную минимальную очередь заданий на PostgreSQL вместо внешней библиотеки или брокера. | 2026-08-05 |
+| [ADR-0039-observability-otel-structured-logs.md](ADR-0039-observability-otel-structured-logs.md) | Решение о наблюдаемости: провайдер OpenTelemetry, корреляция трассы в конверте и дневные структурные файловые логи. | 2026-08-05 |
+| [ADR-0040-runtime-topology-deployment.md](ADR-0040-runtime-topology-deployment.md) | Решение о топологии среды выполнения: multi-stage образы, обратный прокси Caddy, compose dev и prod, сетевая изоляция, healthcheck и watchdog. | 2026-08-07 |
+| [ADR-0041-oauth-server-session-and-device-challenge.md](ADR-0041-oauth-server-session-and-device-challenge.md) | Решение о механизме входа OAuth, форме серверной сессии и аутентификации устройства по Ed25519. | 2026-08-06 |
+| [ADR-0042-anonymous-catalog-read-model.md](ADR-0042-anonymous-catalog-read-model.md) | Решение о модели анонимного чтения публичного каталога: непрозрачный курсор, недоступность для перечисления и механизм выдачи байтов объекта. | 2026-08-06 |
+| [ADR-0043-web-app-stack-and-typed-contract-client.md](ADR-0043-web-app-stack-and-typed-contract-client.md) | Решение о стеке apps/web: Next.js App Router, TypeScript 7 с боковым TS6 для линта, Tailwind 4 с токенами, стандартный shadcn/ui по atomic design, Zustand и клиент из #71. | 2026-08-06 |
+| [ADR-0044-web-tier-staging-deploy-backup-rollback.md](ADR-0044-web-tier-staging-deploy-backup-rollback.md) | Решение о web-ярусе staging, маршрутизации Caddy, резервных копиях, откате и блокировке развёртывания для #84. | 2026-08-07 |
+| [ADR-0045-private-registry-sync-ledger.md](ADR-0045-private-registry-sync-ledger.md) | Решение о минимальной серверной синхронизации через revision ledger и account-scoped outbox. | 2026-08-07 |
+| [ADR-0046-ci-deploy-trust-domains.md](ADR-0046-ci-deploy-trust-domains.md) | Решение разделить постоянные CI- и deployment-раннеры, закрепить SSH identity и проверять публичный staging-маршрут. | 2026-08-12 |
+| [ADR-0047-provider-network-capability.md](ADR-0047-provider-network-capability.md) | Версионированная сетевая граница провайдера и честное доказательство её исполнения. | 2026-08-09 |
+| [ADR-0048-two-stage-python-release.md](ADR-0048-two-stage-python-release.md) | Разделение воспроизводимой сборки Python candidate и ручной OIDC-публикации. | 2026-08-08 |
+| [ADR-0049-canonical-harness-bundle-container.md](ADR-0049-canonical-harness-bundle-container.md) | Канонический ZIP-контейнер HarnessBundle с отдельной логической и побайтовой идентичностью. | 2026-08-09 |
+| [ADR-0050-exact-bundle-provider-plan-binding.md](ADR-0050-exact-bundle-provider-plan-binding.md) | Решение связать provider plan и применение с одними точными байтами HarnessBundle. | 2026-08-09 |
+| [ADR-0051-setup-version-definition-artifact.md](ADR-0051-setup-version-definition-artifact.md) | Независимый definition artifact и полный паспорт подтверждённой SetupVersion. | 2026-08-09 |
+| [ADR-0052-provider-observed-authorization-readiness.md](ADR-0052-provider-observed-authorization-readiness.md) | Решение выводить readiness авторизации из exact SetupVersion и наблюдаемого статуса provider target. | 2026-08-09 |
+| [ADR-0053-explicit-scope-exhaustive-git-discovery.md](ADR-0053-explicit-scope-exhaustive-git-discovery.md) | Решение полностью обходить явно названную область Git-discovery и честно сообщать неполноту. | 2026-08-09 |
+| [ADR-0054-declared-native-component-layouts.md](ADR-0054-declared-native-component-layouts.md) | Декларативные native-layouts пяти харнессов и воспроизводимая идентичность кандидата discovery. | 2026-08-09 |
+| [ADR-0055-exact-installed-component-provenance.md](ADR-0055-exact-installed-component-provenance.md) | Fail-closed происхождение установленных GitHub-компонентов из ограниченной цепочки manifest-доказательств. | 2026-08-09 |
+| [ADR-0056-pi-git-cache-provenance.md](ADR-0056-pi-git-cache-provenance.md) | Точное происхождение Pi Git packages из объявленного глобального cache без чтения пользовательских настроек и запуска Git. | 2026-08-09 |
+| [ADR-0057-click-as-cli-parser.md](ADR-0057-click-as-cli-parser.md) | Решение использовать Click напрямую вместо Typer и строить разборщик из реестра команд. | 2026-08-06 |
+| [ADR-0058-device-key-and-credential-storage.md](ADR-0058-device-key-and-credential-storage.md) | Решение хранить ключ устройства и облачные учётные данные ярусами с обязательным именованием яруса. | 2026-08-06 |
+| [ADR-0059-local-registry-without-alembic.md](ADR-0059-local-registry-without-alembic.md) | Решение вести локальный реестр на стандартном sqlite3 с собственным раннером миграций вместо Alembic. | 2026-08-06 |
+| [ADR-0060-local-owner-identity.md](ADR-0060-local-owner-identity.md) | Решение выдавать локальную идентичность владельца до входа и переносить владение паспортами при первом входе. | 2026-08-06 |
+| [ADR-0061-capability-negotiated-provider-protocol-v3.md](ADR-0061-capability-negotiated-provider-protocol-v3.md) | Capability-negotiated provider protocol v3 with one planned operation path. | 2026-08-09 |
+| [ADR-0062-linux-first-release-evidence.md](ADR-0062-linux-first-release-evidence.md) | Linux x86_64 как текущий обязательный release-evidence profile без неподтверждённой macOS support claim. | 2026-08-09 |
+| [ADR-0063-versioned-safe-markdown-descriptions.md](ADR-0063-versioned-safe-markdown-descriptions.md) | Версионированный безопасный CommonMark-профиль для неизменяемых описаний версий. | 2026-08-09 |
+| [ADR-0064-canonical-cli-web-deep-links.md](ADR-0064-canonical-cli-web-deep-links.md) | Версионированные agent-first deep links между CLI и web без сетевого поиска и скрытого запуска браузера. | 2026-08-09 |
+| [ADR-0065-manifest-led-mcp-server-discovery.md](ADR-0065-manifest-led-mcp-server-discovery.md) | Bounded обнаружение MCP server packages только по согласованной цепочке package manifest и entry point. | 2026-08-10 |
+| [ADR-0066-local-component-draft-enrichment.md](ADR-0066-local-component-draft-enrichment.md) | Безопасное обогащение локального component draft через подтверждённые content-addressed ревизии. | 2026-08-10 |
+| [ADR-0067-publication-validation-grants-reports.md](ADR-0067-publication-validation-grants-reports.md) | Решение материализовать серверный контур публикации, validation jobs, grants, жалоб и staff-аудита поверх существующей очереди PostgreSQL. | 2026-08-08 |
+| [ADR-0068-web-publication-access-moderation.md](ADR-0068-web-publication-access-moderation.md) | Решение о web owner-read models и безопасных потоках публикации, прав и модерации. | 2026-08-08 |
+| [ADR-0069-public-profile-revisions-media-and-preview.md](ADR-0069-public-profile-revisions-media-and-preview.md) | Решение хранить публичный профиль ревизиями и изолировать его media/preview. | 2026-08-08 |
+| [ADR-0070-versioned-public-documents-and-policies.md](ADR-0070-versioned-public-documents-and-policies.md) | Решение хранить публичные документы и политики ревизиями с репозиторным импортом. | 2026-08-08 |
+| [ADR-0071-production-readiness-evidence-gate.md](ADR-0071-production-readiness-evidence-gate.md) | Решение о доказательном выпускном барьере production: явное подтверждение владельца, data governance, защита от злоупотреблений и тренировки восстановления. | 2026-08-08 |
+| [ADR-0072-public-beta-support-evidence-read-model.md](ADR-0072-public-beta-support-evidence-read-model.md) | Решение о публичной read-model для beta-поддержки, evidence и freshness. | 2026-08-09 |
+| [ADR-0073-catalog-query-pagination-and-reactions.md](ADR-0073-catalog-query-pagination-and-reactions.md) | Catalog QL, два режима пагинации и изолированные реакции. | 2026-08-09 |
+| [ADR-0074-component-type-presentation-registry.md](ADR-0074-component-type-presentation-registry.md) | Клиентский presentation registry видов компонентов и путь переноса медиа. | 2026-08-09 |
+| [ADR-0075-component-media-gallery-and-reactions.md](ADR-0075-component-media-gallery-and-reactions.md) | Решение хранить оформление компонента отдельно от immutable passport и безопасно доставлять media. | 2026-08-10 |
+| [ADR-0076-machine-projection-as-addressable-route.md](ADR-0076-machine-projection-as-addressable-route.md) | Решение: machine-проекция web является адресуемым серверным маршрутом и отдельным документом. | 2026-08-10 |
+| [ADR-0077-public-user-documentation-site.md](ADR-0077-public-user-documentation-site.md) | Решение вести публичную пользовательскую документацию отдельно от внутреннего docs/ и собирать её MkDocs Material. | 2026-08-10 |
+| [ADR-0078-user-docs-container-and-subdomain.md](ADR-0078-user-docs-container-and-subdomain.md) | Решение отдавать публичную пользовательскую документацию отдельным контейнером и subdomain-route. | 2026-08-10 |
+| [ADR-0079-catalog-integrity-is-not-a-miss.md](ADR-0079-catalog-integrity-is-not-a-miss.md) | Достижимая опубликованная запись, не прошедшая проверку целостности, отвечает отдельным кодом, а не отсутствием. | 2026-08-12 |
+| [ADR-0081-schema-downgrade-is-an-operation-not-a-taboo.md](ADR-0081-schema-downgrade-is-an-operation-not-a-taboo.md) | Решение разрешить явный откат схемы отдельной операцией с проверенной резервной копией, сохранив запрет неявного отката внутри отката приложения. | 2026-08-12 |
+| [ADR-0082-github-archive-as-external-evidence.md](ADR-0082-github-archive-as-external-evidence.md) | Решение хранить GitHub archived state как внешнее evidence, а не автоматический lifecycle. | 2026-08-13 |
+| [ADR-0083-federated-sources-remain-observations.md](ADR-0083-federated-sources-remain-observations.md) | Решение разделить local ports и metadata adapters общим descriptor без передачи им доверия или target. | 2026-08-13 |
+| [ADR-0084-single-deployed-environment.md](ADR-0084-single-deployed-environment.md) | Решение убрать отдельный ярус staging: одна развёрнутая среда, обновляемая напрямую из dev, без предпродакшн-гейта. | 2026-08-14 |
+| [ADR-0085-provider-kit-identity-is-its-content-digest.md](ADR-0085-provider-kit-identity-is-its-content-digest.md) | Решение дать публичному комплекту provider protocol v3 адресуемую содержимым личность и правило поднятия версии. | 2026-08-15 |
+| [ADR-0086-the-deployed-environment-is-named-prod.md](ADR-0086-the-deployed-environment-is-named-prod.md) | Решение назвать единственную развёрнутую среду prod и снять границу переименования, оставленную ADR-0084. | 2026-08-15 |
+| [ADR-0088-external-product-catalog-metadata.md](ADR-0088-external-product-catalog-metadata.md) | Решение хранить внешний сервис и страны как изменяемые catalog metadata вне passport. | 2026-08-12 |
+| [ADR-0089-build-time-web-feature-profiles.md](ADR-0089-build-time-web-feature-profiles.md) | Решение: web deploy-поверхности управляются build-time Git/YAML profiles. | 2026-08-12 |
+| [ADR-0090-catalog-refinement-responsive-surfaces.md](ADR-0090-catalog-refinement-responsive-surfaces.md) | Решение закрепить для каталога UX-инварианты уточнения выдачи вместо жёсткого выбора modal/drawer. | 2026-08-14 |
+| [ADR-0091-sync-last-nonempty-page-cursor.md](ADR-0091-sync-last-nonempty-page-cursor.md) | Решение возвращать подписанный курсор на каждой непустой странице sync pull. | 2026-08-15 |
+| [ADR-0092-full-author-attestation-on-the-wire.md](ADR-0092-full-author-attestation-on-the-wire.md) | Решение передавать на /v1 полную signed-запись авторского подтверждения и проверять её Ed25519-подпись. | 2026-08-15 |
+| [ADR-0093-plan-scoped-artifact-upload.md](ADR-0093-plan-scoped-artifact-upload.md) | Решение привязывать байты публикации plan-scoped upload, а не съёмом с Git. | 2026-08-15 |
+| [ADR-0094-server-owned-consumer-read-models.md](ADR-0094-server-owned-consumer-read-models.md) | Server-owned read models для внешнего evidence и account-scoped selection impact без изменения доменного доверия. | 2026-08-15 |
+| [ADR-0095-split-public-and-private-web-fetch-policy.md](ADR-0095-split-public-and-private-web-fetch-policy.md) | ADR-0095: Разделить public cacheable и private request-scoped web fetch policy. | 2026-08-15 |
+| [ADR-0096-on-demand-metadata-and-local-impact-boundary.md](ADR-0096-on-demand-metadata-and-local-impact-boundary.md) | ADR-0096: On-demand GitHub metadata, локальный blast radius и shared context estimator. | 2026-08-15 |
+| [ADR-0097-privacy-preserving-catalog-usage-counters.md](ADR-0097-privacy-preserving-catalog-usage-counters.md) | Решение считать публичное использование через короткоживущую дедупликацию без пользовательской аналитики. | 2026-08-16 |
+| [ADR-0103-target-pulls-a-monotonic-deployment-ref.md](ADR-0103-target-pulls-a-monotonic-deployment-ref.md) | Решение убрать GitHub Actions runner с production-хоста и развёртывать только монотонно продвигаемый ref после зелёного CI. | 2026-08-20 |
+| [ADR-0106-a-declared-key-proves-mcp-inside-a-setting-file.md](ADR-0106-a-declared-key-proves-mcp-inside-a-setting-file.md) | Решение доказывать клиентские MCP внутри setting-файла объявленным ключом и читать только имена серверов. | 2026-08-20 |
+| [ADR-0108-the-public-tree-is-built-from-an-allowlist.md](ADR-0108-the-public-tree-is-built-from-an-allowlist.md) | Решение собирать публичный репозиторий из манифеста-allowlist с проверкой запрещённого содержимого, а не удалять лишнее из копии. | 2026-08-20 |
+| [template.md](template.md) | Шаблон записи архитектурного решения. | 2026-08-03 |
+
+<!-- КОНЕЦ СОДЕРЖИМОГО -->

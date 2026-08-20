@@ -1,0 +1,225 @@
+{
+  "$defs": {
+    "ComponentType": {
+      "enum": [
+        "instruction",
+        "skill",
+        "mcp",
+        "hook",
+        "command",
+        "agent",
+        "plugin",
+        "setting"
+      ],
+      "type": "string"
+    },
+    "EvaluationBudget": {
+      "additionalProperties": false,
+      "description": "Closed resource ceiling for one evaluation check.",
+      "properties": {
+        "max_network_requests": {
+          "default": 0,
+          "maximum": 1024,
+          "minimum": 0,
+          "title": "Max Network Requests",
+          "type": "integer"
+        },
+        "max_output_bytes": {
+          "maximum": 16777216,
+          "minimum": 1,
+          "title": "Max Output Bytes",
+          "type": "integer"
+        },
+        "timeout_seconds": {
+          "maximum": 3600,
+          "minimum": 1,
+          "title": "Timeout Seconds",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "timeout_seconds",
+        "max_output_bytes"
+      ],
+      "title": "EvaluationBudget",
+      "type": "object"
+    },
+    "EvaluationCheck": {
+      "additionalProperties": false,
+      "description": "One declared assertion and the runner class allowed to evaluate it.",
+      "properties": {
+        "assertion": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Assertion",
+          "type": "string"
+        },
+        "budget": {
+          "$ref": "#/$defs/EvaluationBudget"
+        },
+        "check_id": {
+          "pattern": "^[a-z][a-z0-9_.-]{2,95}$",
+          "title": "Check Id",
+          "type": "string"
+        },
+        "component_type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ComponentType"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "isolation_requirements": {
+          "default": [],
+          "items": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Isolation Requirements",
+          "type": "array"
+        },
+        "method": {
+          "enum": [
+            "deterministic",
+            "model_assisted",
+            "human_review"
+          ],
+          "title": "Method",
+          "type": "string"
+        },
+        "runner": {
+          "enum": [
+            "local_static",
+            "isolated_process",
+            "model",
+            "human"
+          ],
+          "title": "Runner",
+          "type": "string"
+        },
+        "tolerance": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Tolerance",
+          "type": "string"
+        }
+      },
+      "required": [
+        "check_id",
+        "method",
+        "runner",
+        "assertion",
+        "tolerance",
+        "budget"
+      ],
+      "title": "EvaluationCheck",
+      "type": "object"
+    },
+    "Permissions": {
+      "additionalProperties": false,
+      "description": "Declared file, network and process permissions.",
+      "properties": {
+        "filesystem": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Filesystem",
+          "type": "array"
+        },
+        "network": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Network",
+          "type": "array"
+        },
+        "process": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Process",
+          "type": "array"
+        }
+      },
+      "title": "Permissions",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-setup-eval-profile",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Reusable evaluation intent, independent from one setup version.",
+  "properties": {
+    "checks": {
+      "items": {
+        "$ref": "#/$defs/EvaluationCheck"
+      },
+      "maxItems": 256,
+      "minItems": 1,
+      "title": "Checks",
+      "type": "array"
+    },
+    "component_types": {
+      "items": {
+        "$ref": "#/$defs/ComponentType"
+      },
+      "maxItems": 8,
+      "minItems": 1,
+      "title": "Component Types",
+      "type": "array"
+    },
+    "eval_permissions": {
+      "$ref": "#/$defs/Permissions"
+    },
+    "preconditions": {
+      "items": {
+        "maxLength": 240,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Preconditions",
+      "type": "array"
+    },
+    "profile_id": {
+      "pattern": "^[a-z][a-z0-9_.-]{2,95}$",
+      "title": "Profile Id",
+      "type": "string"
+    },
+    "profile_version": {
+      "const": "setup-eval/1",
+      "default": "setup-eval/1",
+      "title": "Profile Version",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "scope": {
+      "enum": [
+        "component",
+        "subset",
+        "setup"
+      ],
+      "title": "Scope",
+      "type": "string"
+    }
+  },
+  "required": [
+    "profile_id",
+    "scope",
+    "component_types",
+    "preconditions",
+    "checks",
+    "eval_permissions"
+  ],
+  "title": "SetupEvalProfile",
+  "type": "object"
+}

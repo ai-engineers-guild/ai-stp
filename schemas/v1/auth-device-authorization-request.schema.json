@@ -1,0 +1,39 @@
+{
+  "$defs": {
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    },
+    "OAuthProvider": {
+      "enum": [
+        "google",
+        "github"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:auth-device-authorization-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Start a sign-in. Carries the provider and the key that makes it repeatable.\n\nDeliberately not the device identity: at this point no human has approved\nanything, so there is nothing to bind a key to and no reason to accept one.\n\n`idempotency_key` is here because this route creates. `http-api.md` has always\nrequired one for creates, and `DeviceRevokeRequest` has always carried one —\nthis request simply did not, so a client whose response was lost had no way\nto retry without asking for a second authorization. The value is chosen by\nthe client and opaque to the server, which is what lets one logical start\nsurvive any number of transport attempts.",
+  "properties": {
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "provider": {
+      "$ref": "#/$defs/OAuthProvider"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "provider",
+    "idempotency_key"
+  ],
+  "title": "DeviceAuthorizationRequest",
+  "type": "object"
+}

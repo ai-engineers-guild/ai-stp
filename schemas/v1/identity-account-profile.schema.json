@@ -1,0 +1,108 @@
+{
+  "$defs": {
+    "AccountId": {
+      "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "type": "string"
+    },
+    "LinkedIdentity": {
+      "additionalProperties": true,
+      "description": "One provider linked to the account.\n\nNo address: an identity is named by its provider and when it was linked. The\naddress belongs to the provider and adding it here would put personal data\non a route that does not need it (SPEC-013). Optional avatar_url is a\nprovider-hosted HTTPS image URL, not an email or long-lived token.",
+      "properties": {
+        "avatar_url": {
+          "anyOf": [
+            {
+              "maxLength": 2048,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Avatar Url"
+        },
+        "display_name": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Display Name"
+        },
+        "linked_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "provider": {
+          "$ref": "#/$defs/OAuthProvider"
+        }
+      },
+      "required": [
+        "avatar_url",
+        "display_name",
+        "linked_at",
+        "provider"
+      ],
+      "title": "LinkedIdentity",
+      "type": "object"
+    },
+    "OAuthProvider": {
+      "enum": [
+        "google",
+        "github"
+      ],
+      "type": "string"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:identity-account-profile",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "The current account, as the caller who holds it sees it.\n\nSeparate from `PublicProfile` (ADR-0023, ADR-0010), which is an authored\npublic object and is not derived from this one.",
+  "properties": {
+    "account_id": {
+      "$ref": "#/$defs/AccountId"
+    },
+    "allow_publisher_listing": {
+      "title": "Allow Publisher Listing",
+      "type": "boolean"
+    },
+    "created_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "identities": {
+      "items": {
+        "$ref": "#/$defs/LinkedIdentity"
+      },
+      "maxItems": 8,
+      "minItems": 1,
+      "title": "Identities",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "show_profile_publicly": {
+      "title": "Show Profile Publicly",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "account_id",
+    "allow_publisher_listing",
+    "created_at",
+    "identities",
+    "schema_version",
+    "show_profile_publicly"
+  ],
+  "title": "AccountProfile",
+  "type": "object"
+}

@@ -1,0 +1,833 @@
+{
+  "$defs": {
+    "AnswerSource": {
+      "enum": [
+        "online",
+        "cache"
+      ],
+      "type": "string"
+    },
+    "CatalogKind": {
+      "enum": [
+        "component",
+        "setup"
+      ],
+      "type": "string"
+    },
+    "CatalogSupport": {
+      "additionalProperties": true,
+      "description": "Provider support status, separate from object trust and verification.",
+      "properties": {
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/CatalogSupportEvidence"
+          },
+          "maxItems": 32,
+          "title": "Evidence",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "state": {
+          "$ref": "#/$defs/SupportState"
+        },
+        "tier": {
+          "$ref": "#/$defs/SupportTier"
+        }
+      },
+      "required": [
+        "evidence",
+        "schema_version",
+        "state",
+        "tier"
+      ],
+      "title": "CatalogSupport",
+      "type": "object"
+    },
+    "CatalogSupportEvidence": {
+      "additionalProperties": true,
+      "description": "Safe public summary of one provider support check (SPEC-033, ADR-0072).",
+      "properties": {
+        "architecture": {
+          "$ref": "#/$defs/SupportArchitecture"
+        },
+        "check_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Check Id",
+          "type": "string"
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "mandatory": {
+          "default": true,
+          "title": "Mandatory",
+          "type": "boolean"
+        },
+        "observed_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "operating_system": {
+          "$ref": "#/$defs/SupportOperatingSystem"
+        },
+        "policy_version": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Policy Version",
+          "type": "string"
+        },
+        "provider_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Provider Id",
+          "type": "string"
+        },
+        "provider_version": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Provider Version",
+          "type": "string"
+        },
+        "release_reference": {
+          "pattern": "^(?:[0-9a-f]{40,64}|sha256:[0-9a-f]{64})$",
+          "title": "Release Reference",
+          "type": "string"
+        },
+        "result": {
+          "$ref": "#/$defs/SupportEvidenceResult"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source": {
+          "$ref": "#/$defs/SupportEvidenceSource"
+        }
+      },
+      "required": [
+        "architecture",
+        "check_id",
+        "expires_at",
+        "mandatory",
+        "observed_at",
+        "operating_system",
+        "policy_version",
+        "provider_id",
+        "provider_version",
+        "release_reference",
+        "result",
+        "schema_version",
+        "source"
+      ],
+      "title": "CatalogSupportEvidence",
+      "type": "object"
+    },
+    "CatalogTrust": {
+      "additionalProperties": true,
+      "description": "Why a published version may appear in results, and on whose evidence.\n\nThe two verification flags are independent axes (ADR-0016) and neither may\nbe computed from the other. `authoritative` additionally requires both, and\nthat implication is enforced below — enforcing it is not the same as\nderiving one axis from the other, and a client must still read the flags.",
+      "properties": {
+        "author_verified": {
+          "title": "Author Verified",
+          "type": "boolean"
+        },
+        "component_verified": {
+          "title": "Component Verified",
+          "type": "boolean"
+        },
+        "trust_lane": {
+          "$ref": "#/$defs/CatalogTrustLane"
+        }
+      },
+      "required": [
+        "author_verified",
+        "component_verified",
+        "trust_lane"
+      ],
+      "title": "CatalogTrust",
+      "type": "object"
+    },
+    "CatalogTrustLane": {
+      "enum": [
+        "authoritative",
+        "experimental"
+      ],
+      "type": "string"
+    },
+    "CatalogUsageMetrics": {
+      "additionalProperties": true,
+      "description": "Server aggregate of public detail views and completed artifact bytes.\n\nAbsence of this object means the feature is off or the value is unavailable,\nnot zero. Download is not install success.",
+      "properties": {
+        "artifact_downloads_count": {
+          "minimum": 0,
+          "title": "Artifact Downloads Count",
+          "type": "integer"
+        },
+        "detail_views_count": {
+          "minimum": 0,
+          "title": "Detail Views Count",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "artifact_downloads_count",
+        "detail_views_count",
+        "schema_version"
+      ],
+      "title": "CatalogUsageMetrics",
+      "type": "object"
+    },
+    "CheckResult": {
+      "enum": [
+        "passed",
+        "warning",
+        "failed",
+        "degraded",
+        "not_run",
+        "not_applicable",
+        "skipped",
+        "running"
+      ],
+      "type": "string"
+    },
+    "ChecksStatus": {
+      "enum": [
+        "pending",
+        "available",
+        "empty",
+        "incomplete"
+      ],
+      "type": "string"
+    },
+    "ComponentId": {
+      "pattern": "^component_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "type": "string"
+    },
+    "ComponentSummary": {
+      "additionalProperties": true,
+      "description": "Search-result card for a component.\n\nNaming is mechanical rather than a judgement call: a field without a prefix\nidentifies the **object**, and every `latest_` field is a fact of its latest\noffered **version**, copied from that version's passport. There is no\nobject-level passport (ADR-0012), so a card cannot carry an object-level\n`name` or `tags` however stable they look in practice — and a test ties\nevery `latest_` field back to a real passport field so the rule cannot rot.",
+      "properties": {
+        "github_stars": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Github Stars"
+        },
+        "latest_checks": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SafetyChecksSummary"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "latest_component_type": {
+          "$ref": "#/$defs/ComponentType"
+        },
+        "latest_description": {
+          "$ref": "#/$defs/DescriptionExcerpt"
+        },
+        "latest_harness_id": {
+          "$ref": "#/$defs/HarnessId"
+        },
+        "latest_lifecycle": {
+          "$ref": "#/$defs/PublicLifecycle"
+        },
+        "latest_name": {
+          "title": "Latest Name",
+          "type": "string"
+        },
+        "latest_projection_kind": {
+          "$ref": "#/$defs/ProjectionKind"
+        },
+        "latest_published_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "latest_requirements_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Latest Requirements Count",
+          "type": "integer"
+        },
+        "latest_requires_credentials": {
+          "default": false,
+          "title": "Latest Requires Credentials",
+          "type": "boolean"
+        },
+        "latest_support": {
+          "$ref": "#/$defs/CatalogSupport"
+        },
+        "latest_tags": {
+          "$ref": "#/$defs/Tags"
+        },
+        "latest_trust": {
+          "$ref": "#/$defs/CatalogTrust"
+        },
+        "latest_version": {
+          "$ref": "#/$defs/Version"
+        },
+        "likes_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Likes Count",
+          "type": "integer"
+        },
+        "publisher_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Publisher Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "stable_id": {
+          "$ref": "#/$defs/ComponentId"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "usage_metrics": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CatalogUsageMetrics"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "github_stars",
+        "latest_checks",
+        "latest_component_type",
+        "latest_description",
+        "latest_harness_id",
+        "latest_lifecycle",
+        "latest_name",
+        "latest_projection_kind",
+        "latest_published_at",
+        "latest_requirements_count",
+        "latest_requires_credentials",
+        "latest_support",
+        "latest_tags",
+        "latest_trust",
+        "latest_version",
+        "likes_count",
+        "publisher_id",
+        "schema_version",
+        "stable_id",
+        "updated_at",
+        "usage_metrics"
+      ],
+      "title": "ComponentSummary",
+      "type": "object"
+    },
+    "ComponentType": {
+      "enum": [
+        "instruction",
+        "skill",
+        "mcp",
+        "hook",
+        "command",
+        "agent",
+        "plugin",
+        "setting"
+      ],
+      "type": "string"
+    },
+    "DescriptionExcerpt": {
+      "maxLength": 240,
+      "minLength": 1,
+      "type": "string"
+    },
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build"
+      ],
+      "type": "string"
+    },
+    "ProjectionKind": {
+      "enum": [
+        "marketplace",
+        "plugin",
+        "native_files",
+        "package"
+      ],
+      "type": "string"
+    },
+    "PublicLifecycle": {
+      "enum": [
+        "active",
+        "deprecated",
+        "blocked"
+      ],
+      "type": "string"
+    },
+    "SafetyCheckEntry": {
+      "additionalProperties": true,
+      "description": "One check line on an audit list.",
+      "properties": {
+        "check_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Check Id",
+          "type": "string"
+        },
+        "family": {
+          "default": "",
+          "maxLength": 64,
+          "title": "Family",
+          "type": "string"
+        },
+        "mandatory": {
+          "default": true,
+          "title": "Mandatory",
+          "type": "boolean"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "result": {
+          "$ref": "#/$defs/CheckResult"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source": {
+          "default": "platform_safety_scan",
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "check_id",
+        "family",
+        "mandatory",
+        "reason",
+        "result",
+        "schema_version",
+        "source"
+      ],
+      "title": "SafetyCheckEntry",
+      "type": "object"
+    },
+    "SafetyChecksSummary": {
+      "additionalProperties": true,
+      "description": "Card/detail projection for checks percent and status.",
+      "properties": {
+        "checks": {
+          "items": {
+            "$ref": "#/$defs/SafetyCheckEntry"
+          },
+          "maxItems": 128,
+          "title": "Checks",
+          "type": "array"
+        },
+        "checks_passed_percent": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Checks Passed Percent"
+        },
+        "coverage_complete": {
+          "default": true,
+          "title": "Coverage Complete",
+          "type": "boolean"
+        },
+        "failed": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Failed",
+          "type": "integer"
+        },
+        "not_run": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Not Run",
+          "type": "integer"
+        },
+        "passed": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Passed",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "status": {
+          "$ref": "#/$defs/ChecksStatus"
+        },
+        "total_countable": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Total Countable",
+          "type": "integer"
+        },
+        "warning": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Warning",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "checks",
+        "checks_passed_percent",
+        "coverage_complete",
+        "failed",
+        "not_run",
+        "passed",
+        "schema_version",
+        "status",
+        "total_countable",
+        "warning"
+      ],
+      "title": "SafetyChecksSummary",
+      "type": "object"
+    },
+    "SetupId": {
+      "pattern": "^setup_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "type": "string"
+    },
+    "SetupSummary": {
+      "additionalProperties": true,
+      "description": "Search-result card for a setup. A setup has no variant axis (ADR-0014).\n\n`latest_harness_id` keeps the prefix even though a setup belongs to one\nharness from creation: the value is still read out of the version passport,\nand one rule with no exceptions is cheaper to verify than a rule with one.",
+      "properties": {
+        "github_stars": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Github Stars"
+        },
+        "latest_checks": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SafetyChecksSummary"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "latest_description": {
+          "$ref": "#/$defs/DescriptionExcerpt"
+        },
+        "latest_harness_id": {
+          "$ref": "#/$defs/HarnessId"
+        },
+        "latest_lifecycle": {
+          "$ref": "#/$defs/PublicLifecycle"
+        },
+        "latest_name": {
+          "title": "Latest Name",
+          "type": "string"
+        },
+        "latest_published_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "latest_purpose": {
+          "title": "Latest Purpose",
+          "type": "string"
+        },
+        "latest_requirements_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Latest Requirements Count",
+          "type": "integer"
+        },
+        "latest_requires_credentials": {
+          "default": false,
+          "title": "Latest Requires Credentials",
+          "type": "boolean"
+        },
+        "latest_support": {
+          "$ref": "#/$defs/CatalogSupport"
+        },
+        "latest_tags": {
+          "$ref": "#/$defs/Tags"
+        },
+        "latest_target_role": {
+          "title": "Latest Target Role",
+          "type": "string"
+        },
+        "latest_trust": {
+          "$ref": "#/$defs/CatalogTrust"
+        },
+        "latest_version": {
+          "$ref": "#/$defs/Version"
+        },
+        "likes_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Likes Count",
+          "type": "integer"
+        },
+        "publisher_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Publisher Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "stable_id": {
+          "$ref": "#/$defs/SetupId"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "usage_metrics": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CatalogUsageMetrics"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "github_stars",
+        "latest_checks",
+        "latest_description",
+        "latest_harness_id",
+        "latest_lifecycle",
+        "latest_name",
+        "latest_published_at",
+        "latest_purpose",
+        "latest_requirements_count",
+        "latest_requires_credentials",
+        "latest_support",
+        "latest_tags",
+        "latest_target_role",
+        "latest_trust",
+        "latest_version",
+        "likes_count",
+        "publisher_id",
+        "schema_version",
+        "stable_id",
+        "updated_at",
+        "usage_metrics"
+      ],
+      "title": "SetupSummary",
+      "type": "object"
+    },
+    "SupportArchitecture": {
+      "enum": [
+        "x86_64",
+        "arm64"
+      ],
+      "type": "string"
+    },
+    "SupportEvidenceResult": {
+      "enum": [
+        "passed",
+        "warning",
+        "failed",
+        "degraded",
+        "not_run",
+        "expired"
+      ],
+      "type": "string"
+    },
+    "SupportEvidenceSource": {
+      "const": "provider_release_evidence",
+      "type": "string"
+    },
+    "SupportOperatingSystem": {
+      "enum": [
+        "ubuntu",
+        "macos"
+      ],
+      "type": "string"
+    },
+    "SupportState": {
+      "enum": [
+        "verified",
+        "stale",
+        "missing",
+        "not_verified"
+      ],
+      "type": "string"
+    },
+    "SupportTier": {
+      "enum": [
+        "primary",
+        "beta"
+      ],
+      "type": "string"
+    },
+    "TagId": {
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "type": "string"
+    },
+    "Tags": {
+      "items": {
+        "$ref": "#/$defs/TagId"
+      },
+      "maxItems": 8,
+      "minItems": 1,
+      "type": "array"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    },
+    "Version": {
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-catalog-search",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "One page of public catalogue results, and where it came from.",
+  "properties": {
+    "checked_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "experimental": {
+      "items": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ComponentSummary"
+          },
+          {
+            "$ref": "#/$defs/SetupSummary"
+          }
+        ]
+      },
+      "title": "Experimental",
+      "type": "array"
+    },
+    "items": {
+      "items": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ComponentSummary"
+          },
+          {
+            "$ref": "#/$defs/SetupSummary"
+          }
+        ]
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "kind": {
+      "$ref": "#/$defs/CatalogKind"
+    },
+    "next_cursor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Cursor"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "source": {
+      "$ref": "#/$defs/AnswerSource"
+    }
+  },
+  "required": [
+    "checked_at",
+    "experimental",
+    "items",
+    "kind",
+    "next_cursor",
+    "schema_version",
+    "source"
+  ],
+  "title": "CatalogSearchResult",
+  "type": "object"
+}

@@ -1,0 +1,56 @@
+# Профиль набора инструментов `mvp-full` (SPEC-014).
+#
+# Состав задаётся политикой, а не содержимым выбранного проекта (REQ-1402):
+# пустой проект и проект с одной документацией получают одно и то же.
+#
+# Каждая запись обязана нести точную версию, точный источник, доказательство
+# целостности, лицензию и матрицу систем (REQ-1403). Проверка отвергает запись,
+# в которой чего-то из этого нет, поэтому добавить инструмент «пока без суммы»
+# невозможно — это осознанное ограничение, а не недосмотр.
+#
+# `digest_source` различает две вещи разной силы: сумму, опубликованную самим
+# поставщиком, и сумму, посчитанную нами при однократной загрузке. Вторая
+# защищает от подмены после закрепления, но не подтверждает, что закрепили
+# правильное. Смешивать их в одном поле значило бы потерять это различие.
+
+schema_version = 1
+profile = "mvp-full"
+
+# Пять экосистем по REQ-1407. Экосистема без инструмента остаётся объявленной и
+# отвечает `not_available` с причиной — это честнее, чем молча её не показать.
+[ecosystems]
+python = "Python"
+typescript = "TypeScript и JavaScript"
+rust = "Rust"
+go = "Go"
+dart = "Dart и Flutter"
+
+[[tools]]
+id = "ruff"
+ecosystem = "python"
+purpose = "linter"
+version = "0.16.1"
+license = "MIT"
+entry_point = "ruff"
+digest_source = "vendor_published"
+# Суммы взяты из файлов `<asset>.sha256` самого релиза 0.16.1.
+
+[tools.artifacts.linux-x86_64]
+url = "https://github.com/astral-sh/ruff/releases/download/0.16.1/ruff-x86_64-unknown-linux-gnu.tar.gz"
+digest = "sha256:7e1cc9b3da4911bb2c98c076302fd8997d822fac74dd8f1e30371701e70a4c56"
+
+[tools.artifacts.linux-aarch64]
+url = "https://github.com/astral-sh/ruff/releases/download/0.16.1/ruff-aarch64-unknown-linux-gnu.tar.gz"
+digest = "sha256:52b67c61ca7355a535dfab77f87a4a3ae3550191bead41c70aadded8b5dd33a4"
+
+[tools.artifacts.darwin-arm64]
+url = "https://github.com/astral-sh/ruff/releases/download/0.16.1/ruff-aarch64-apple-darwin.tar.gz"
+digest = "sha256:a8df4e8e9f22e3b0ae0b9f165ddaafb7e34df692197a6c1a361e7426f90681d5"
+
+[tools.artifacts.darwin-x86_64]
+url = "https://github.com/astral-sh/ruff/releases/download/0.16.1/ruff-x86_64-apple-darwin.tar.gz"
+digest = "sha256:00396fb9db4cb04e07ad277e6b10d845e6767f0a2aae67e1a57aa65fa01334f0"
+
+[tools.artifacts.windows-x86_64]
+url = "https://github.com/astral-sh/ruff/releases/download/0.16.1/ruff-x86_64-pc-windows-msvc.zip"
+digest = "sha256:f37898d133acba7df8cbd130abc3b58b98243d7f3ab751087193dde8887955c4"

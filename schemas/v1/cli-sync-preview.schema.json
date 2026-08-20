@@ -1,0 +1,78 @@
+{
+  "$id": "urn:ai-stp:schema:v1:cli-sync-preview",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "A read-only decision over the local heads of one syncable entity.",
+  "properties": {
+    "affected_fields": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Affected Fields",
+      "type": "array"
+    },
+    "candidate_revision_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Candidate Revision Id"
+    },
+    "common_ancestor_revision_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Common Ancestor Revision Id"
+    },
+    "head_revision_ids": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Head Revision Ids",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stable_id": {
+      "minLength": 1,
+      "title": "Stable Id",
+      "type": "string"
+    },
+    "state": {
+      "enum": [
+        "up_to_date",
+        "fast_forward",
+        "merge_ready",
+        "conflict",
+        "manual_resolution"
+      ],
+      "title": "State",
+      "type": "string"
+    }
+  },
+  "required": [
+    "affected_fields",
+    "candidate_revision_id",
+    "common_ancestor_revision_id",
+    "head_revision_ids",
+    "schema_version",
+    "stable_id",
+    "state"
+  ],
+  "title": "SyncPreview",
+  "type": "object"
+}

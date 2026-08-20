@@ -1,0 +1,63 @@
+{
+  "$defs": {
+    "DeviceCode": {
+      "pattern": "^[A-Za-z0-9_-]{32,256}$",
+      "type": "string"
+    },
+    "UserCode": {
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:auth-device-authorization-response",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "What the CLI shows the user and then polls with.",
+  "properties": {
+    "device_code": {
+      "$ref": "#/$defs/DeviceCode"
+    },
+    "expires_in": {
+      "maximum": 1800,
+      "minimum": 60,
+      "title": "Expires In",
+      "type": "integer"
+    },
+    "interval": {
+      "maximum": 60,
+      "minimum": 1,
+      "title": "Interval",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "user_code": {
+      "$ref": "#/$defs/UserCode"
+    },
+    "verification_uri": {
+      "pattern": "^(https://[^\\s]+|http://localhost(:[0-9]+)?(/[^\\s]*)?)$",
+      "title": "Verification Uri",
+      "type": "string"
+    },
+    "verification_uri_complete": {
+      "pattern": "^(https://[^\\s]+|http://localhost(:[0-9]+)?(/[^\\s]*)?)$",
+      "title": "Verification Uri Complete",
+      "type": "string"
+    }
+  },
+  "required": [
+    "device_code",
+    "expires_in",
+    "interval",
+    "schema_version",
+    "user_code",
+    "verification_uri",
+    "verification_uri_complete"
+  ],
+  "title": "DeviceAuthorizationResponse",
+  "type": "object"
+}

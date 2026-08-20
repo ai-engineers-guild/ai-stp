@@ -1,0 +1,68 @@
+{
+  "$defs": {
+    "DoctorCheck": {
+      "additionalProperties": true,
+      "description": "One thing `doctor` looked at.",
+      "properties": {
+        "detail": {
+          "title": "Detail",
+          "type": "string"
+        },
+        "name": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/SetupState"
+        }
+      },
+      "required": [
+        "detail",
+        "name",
+        "state"
+      ],
+      "title": "DoctorCheck",
+      "type": "object"
+    },
+    "SetupState": {
+      "enum": [
+        "ready",
+        "needs_user_action",
+        "partial",
+        "failed"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-doctor-report",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "What `doctor` found.\n\nA report, not a verdict. `state` is the worst state among the checks, so a\ncaller that reads one field still gets the truth.",
+  "properties": {
+    "checks": {
+      "items": {
+        "$ref": "#/$defs/DoctorCheck"
+      },
+      "minItems": 1,
+      "title": "Checks",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "state": {
+      "$ref": "#/$defs/SetupState"
+    }
+  },
+  "required": [
+    "checks",
+    "schema_version",
+    "state"
+  ],
+  "title": "DoctorReport",
+  "type": "object"
+}

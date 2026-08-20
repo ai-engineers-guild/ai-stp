@@ -1,0 +1,72 @@
+{
+  "$defs": {
+    "CheckResult": {
+      "enum": [
+        "passed",
+        "warning",
+        "failed",
+        "degraded",
+        "not_run",
+        "expired"
+      ],
+      "type": "string"
+    },
+    "EvidenceSource": {
+      "enum": [
+        "author_attested",
+        "platform_digest_verified",
+        "platform_structure_verified",
+        "platform_safety_scan",
+        "provider_installation_tested",
+        "runtime_tested"
+      ],
+      "type": "string"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:publication-evidence-binding",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "One accepted evidence binding on a snapshot.",
+  "properties": {
+    "check_id": {
+      "title": "Check Id",
+      "type": "string"
+    },
+    "expires_at": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "result": {
+      "$ref": "#/$defs/CheckResult"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "source": {
+      "$ref": "#/$defs/EvidenceSource"
+    }
+  },
+  "required": [
+    "check_id",
+    "expires_at",
+    "result",
+    "schema_version",
+    "source"
+  ],
+  "title": "EvidenceBindingView",
+  "type": "object"
+}

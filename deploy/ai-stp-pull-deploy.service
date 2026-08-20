@@ -1,0 +1,28 @@
+[Unit]
+Description=Deploy the exact ai_stp commit promoted by green CI
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+Environment="GIT_SSH_COMMAND=/usr/bin/ssh -F /home/ubuntu/.ssh/ai-stp-prod-pull.conf"
+Environment=AI_STP_ROOT=/home/ubuntu/ai_stp
+Environment=AI_STP_PULL_STATE_ROOT=/var/lib/ai-stp-deployer
+ExecStart=/home/ubuntu/ai_stp/deploy/pull-deploy.sh
+StateDirectory=ai-stp-deployer
+StateDirectoryMode=0700
+TimeoutStartSec=3600
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+# `/home/ubuntu/.docker` belongs here because `ProtectHome=read-only` covers it
+# and `docker buildx` writes there on every build: it stamps
+# `~/.docker/buildx/activity/<builder>` before it starts. Without the path the
+# unit fails with `read-only file system` after `compose_config_ok`, the timer
+# retries a minute later, and the loop is silent — the promotion succeeded, the
+# ref moved, and the deployed identity simply never changes. Measured on the
+# host 2026-08-20: every invocation between 03:32 and 03:33 died there.
+ReadWritePaths=/home/ubuntu/ai_stp /var/lib/ai-stp-deployer /home/ubuntu/.docker

@@ -1,0 +1,67 @@
+{
+  "schema": "ai-stp-safe-markdown-corpus/1",
+  "description_format": "commonmark_v1",
+  "renderer_version": "safe_markdown_v1",
+  "accepted": [
+    {
+      "id": "plain",
+      "source": "Простой текст.",
+      "html": "<p>Простой текст.</p>\n",
+      "excerpt": "Простой текст."
+    },
+    {
+      "id": "formatting",
+      "source": "## Заголовок\n\n**Жирный** и `код`.",
+      "html": "<h2>Заголовок</h2>\n<p><strong>Жирный</strong> и <code>код</code>.</p>\n",
+      "excerpt": "Заголовок Жирный и код."
+    },
+    {
+      "id": "lists",
+      "source": "1. Первый\n2. Второй\n\n- Альфа\n- Бета",
+      "html": "<ol>\n<li>Первый</li>\n<li>Второй</li>\n</ol>\n<ul>\n<li>Альфа</li>\n<li>Бета</li>\n</ul>\n",
+      "excerpt": "Первый Второй Альфа Бета"
+    },
+    {
+      "id": "quote-and-code",
+      "source": "> Цитата\n\n```text\nprint(1)\n```",
+      "html": "<blockquote>\n<p>Цитата</p>\n</blockquote>\n<pre><code class=\"language-text\">print(1)\n</code></pre>\n",
+      "excerpt": "Цитата print(1)"
+    },
+    {
+      "id": "external-link",
+      "source": "[Документация](https://example.com/docs?q=1#part)",
+      "html": "<p><a href=\"https://example.com/docs?q=1#part\" rel=\"nofollow noopener noreferrer\">Документация</a></p>\n",
+      "excerpt": "Документация"
+    },
+    {
+      "id": "fragment-link",
+      "source": "[Раздел](#part)",
+      "html": "<p><a href=\"#part\">Раздел</a></p>\n",
+      "excerpt": "Раздел"
+    },
+    {
+      "id": "hard-break",
+      "source": "Первая  \nвторая",
+      "html": "<p>Первая<br />\nвторая</p>\n",
+      "excerpt": "Первая вторая"
+    }
+  ],
+  "rejected": [
+    {"id": "blank", "source": "   ", "code": "empty"},
+    {"id": "raw-html", "source": "<script>alert(1)</script>", "code": "raw_html"},
+    {"id": "inline-html", "source": "text <em>x</em>", "code": "raw_html"},
+    {"id": "remote-image", "source": "![alt](https://example.com/a.png)", "code": "image"},
+    {"id": "javascript-link", "source": "[x](javascript:alert(1))", "code": "unsafe_link"},
+    {"id": "data-link", "source": "[x](data:text/html,x)", "code": "unsafe_link"},
+    {"id": "http-link", "source": "[x](http://example.com)", "code": "unsafe_link"},
+    {"id": "relative-link", "source": "[x](/path)", "code": "unsafe_link"},
+    {"id": "protocol-relative-link", "source": "[x](//example.com)", "code": "unsafe_link"},
+    {"id": "credential-link", "source": "[x](https://u:p@example.com)", "code": "unsafe_link"},
+    {"id": "empty-fragment", "source": "[x](#)", "code": "unsafe_link"},
+    {"id": "crlf", "source": "a\r\nb", "code": "non_lf_newline"},
+    {"id": "nul", "source": "a\u0000b", "code": "control_character"},
+    {"id": "bidi-control", "source": "safe\u202eevil", "code": "control_character"},
+    {"id": "non-nfc", "source": "Café", "code": "not_nfc"},
+    {"id": "no-readable-text", "source": "---", "code": "empty_text"}
+  ]
+}

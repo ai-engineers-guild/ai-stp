@@ -1,0 +1,27 @@
+# Development frontend image (SPEC-024 REQ-2403, ADR-0044).
+# Bun installs deps; real Node runs Next.js (Bun's node shim lacks async_hooks
+# and makes next dev multi-second even for warm routes).
+# Base tags are pinned; bump only via a separate reviewed change.
+
+FROM oven/bun:1.2.19-alpine
+
+# Real Node for the Next.js server process (not Bun's node fallback symlink).
+RUN apk add --no-cache nodejs
+
+WORKDIR /app
+
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile
+
+COPY . .
+
+ENV NEXT_TELEMETRY_DISABLED=1 \
+    HOSTNAME=0.0.0.0 \
+    PORT=3000 \
+    # Prefer the real Node binary over Bun's fallback `node` on PATH.
+    PATH="/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/sbin:/bin"
+
+EXPOSE 3000
+
+# Turbopack + Node: fast HMR and avoids Bun runtime incompatibilities.
+CMD ["node", "node_modules/next/dist/bin/next", "dev", "--turbopack", "--hostname", "0.0.0.0", "--port", "3000"]

@@ -1,0 +1,205 @@
+{
+  "$defs": {
+    "AccountId": {
+      "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "type": "string"
+    },
+    "CheckResult": {
+      "enum": [
+        "passed",
+        "warning",
+        "failed",
+        "degraded",
+        "not_run",
+        "expired"
+      ],
+      "type": "string"
+    },
+    "ContentDigest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "DeviceId": {
+      "pattern": "^device_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "type": "string"
+    },
+    "EvidenceBindingView": {
+      "additionalProperties": true,
+      "description": "One accepted evidence binding on a snapshot.",
+      "properties": {
+        "check_id": {
+          "title": "Check Id",
+          "type": "string"
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "result": {
+          "$ref": "#/$defs/CheckResult"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source": {
+          "$ref": "#/$defs/EvidenceSource"
+        }
+      },
+      "required": [
+        "check_id",
+        "expires_at",
+        "result",
+        "schema_version",
+        "source"
+      ],
+      "title": "EvidenceBindingView",
+      "type": "object"
+    },
+    "EvidenceSource": {
+      "enum": [
+        "author_attested",
+        "platform_digest_verified",
+        "platform_structure_verified",
+        "platform_safety_scan",
+        "provider_installation_tested",
+        "runtime_tested"
+      ],
+      "type": "string"
+    },
+    "ObjectKind": {
+      "enum": [
+        "component",
+        "setup"
+      ],
+      "type": "string"
+    },
+    "PlanId": {
+      "maxLength": 64,
+      "minLength": 8,
+      "type": "string"
+    },
+    "PlanState": {
+      "enum": [
+        "draft",
+        "ready",
+        "validating",
+        "publish_planned",
+        "published",
+        "failed",
+        "cancelled",
+        "stale"
+      ],
+      "type": "string"
+    },
+    "PolicyVersion": {
+      "maxLength": 32,
+      "minLength": 1,
+      "type": "string"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    },
+    "Version": {
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-publication-plan",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "The wire publication plan returned unchanged through the CLI boundary.",
+  "properties": {
+    "actor_id": {
+      "$ref": "#/$defs/AccountId"
+    },
+    "component_verified": {
+      "default": false,
+      "title": "Component Verified",
+      "type": "boolean"
+    },
+    "content_digest": {
+      "$ref": "#/$defs/ContentDigest"
+    },
+    "device_id": {
+      "$ref": "#/$defs/DeviceId"
+    },
+    "effects": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Effects",
+      "type": "array"
+    },
+    "evidence": {
+      "items": {
+        "$ref": "#/$defs/EvidenceBindingView"
+      },
+      "title": "Evidence",
+      "type": "array"
+    },
+    "expires_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "object_kind": {
+      "$ref": "#/$defs/ObjectKind"
+    },
+    "plan_hash": {
+      "maxLength": 128,
+      "minLength": 16,
+      "title": "Plan Hash",
+      "type": "string"
+    },
+    "plan_id": {
+      "$ref": "#/$defs/PlanId"
+    },
+    "policy_version": {
+      "$ref": "#/$defs/PolicyVersion"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stable_id": {
+      "title": "Stable Id",
+      "type": "string"
+    },
+    "state": {
+      "$ref": "#/$defs/PlanState"
+    },
+    "version": {
+      "$ref": "#/$defs/Version"
+    }
+  },
+  "required": [
+    "actor_id",
+    "component_verified",
+    "content_digest",
+    "device_id",
+    "effects",
+    "evidence",
+    "expires_at",
+    "object_kind",
+    "plan_hash",
+    "plan_id",
+    "policy_version",
+    "schema_version",
+    "stable_id",
+    "state",
+    "version"
+  ],
+  "title": "PublicationPlanView",
+  "type": "object"
+}

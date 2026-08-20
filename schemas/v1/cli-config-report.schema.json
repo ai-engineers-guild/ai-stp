@@ -1,0 +1,92 @@
+{
+  "$defs": {
+    "ConfigValue": {
+      "additionalProperties": true,
+      "description": "One effective configuration value and where it came from.\n\n`SPEC-011` REQ-1116 requires the effective value **and** its source, because\n\"it is 20 because that is the default\" and \"it is 20 because you wrote 20\"\nlead to different next actions. No secret is representable: the config\ncarries none by contract (`docs/contracts/cli-config.md`).",
+      "properties": {
+        "path": {
+          "pattern": "^[a-z][a-z0-9_.]*$",
+          "title": "Path",
+          "type": "string"
+        },
+        "source": {
+          "enum": [
+            "default",
+            "config_file",
+            "command_argument"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Value"
+        }
+      },
+      "required": [
+        "path",
+        "source",
+        "value"
+      ],
+      "title": "ConfigValue",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-config-report",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "The effective configuration, field by field.",
+  "properties": {
+    "config_path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Config Path"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "values": {
+      "items": {
+        "$ref": "#/$defs/ConfigValue"
+      },
+      "minItems": 1,
+      "title": "Values",
+      "type": "array"
+    }
+  },
+  "required": [
+    "config_path",
+    "schema_version",
+    "values"
+  ],
+  "title": "ConfigReport",
+  "type": "object"
+}

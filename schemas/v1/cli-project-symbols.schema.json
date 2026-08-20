@@ -1,0 +1,146 @@
+{
+  "$defs": {
+    "LanguageOutline": {
+      "additionalProperties": true,
+      "description": "What one language contributes to a project (`SPEC-004` REQ-404).\n\n`method` carries the strength of the answer, and it is not decoration.\n`syntax_tree` means a real parser read the file; `line_scan` means the words\nwere recognised line by line and a string containing them would be\nindistinguishable from a declaration. Reporting both as plain symbol counts\nwould hide that difference exactly where a caller decides how far to trust\nthem.",
+      "properties": {
+        "entry_points": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Entry Points",
+          "type": "array"
+        },
+        "files": {
+          "minimum": 0,
+          "title": "Files",
+          "type": "integer"
+        },
+        "language": {
+          "minLength": 1,
+          "title": "Language",
+          "type": "string"
+        },
+        "method": {
+          "anyOf": [
+            {
+              "enum": [
+                "syntax_tree",
+                "line_scan"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Method"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "state": {
+          "enum": [
+            "available",
+            "not_available"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "symbols": {
+          "minimum": 0,
+          "title": "Symbols",
+          "type": "integer"
+        },
+        "tests": {
+          "minimum": 0,
+          "title": "Tests",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "entry_points",
+        "files",
+        "language",
+        "method",
+        "reason",
+        "schema_version",
+        "state",
+        "symbols",
+        "tests"
+      ],
+      "title": "LanguageOutline",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-project-symbols",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "The table of contents of one project, and nothing deeper (`REQ-411`).\n\nNo call graph, no vector representations, no symbol bodies. `state` is\n`partial` when the file budget was reached, for the same reason the index\nsays so: a short answer that looks complete is the worse failure.",
+  "properties": {
+    "languages": {
+      "items": {
+        "$ref": "#/$defs/LanguageOutline"
+      },
+      "title": "Languages",
+      "type": "array"
+    },
+    "root": {
+      "minLength": 1,
+      "title": "Root",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "state": {
+      "enum": [
+        "complete",
+        "partial"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "stopped_by": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Stopped By"
+    }
+  },
+  "required": [
+    "languages",
+    "root",
+    "schema_version",
+    "state",
+    "stopped_by"
+  ],
+  "title": "ProjectSymbols",
+  "type": "object"
+}

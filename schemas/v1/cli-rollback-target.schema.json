@@ -1,0 +1,65 @@
+{
+  "$defs": {
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-rollback-target",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "The exact previous verified version this pair can go back to.\n\n\"Previous\" is the one before the current in verification order, not the\nnewest that is not current. The two differ the moment somebody rolls back\ntwice, and the second answer walks forwards.",
+  "properties": {
+    "harness_id": {
+      "$ref": "#/$defs/HarnessId"
+    },
+    "operation_id": {
+      "minLength": 1,
+      "title": "Operation Id",
+      "type": "string"
+    },
+    "project_id": {
+      "minLength": 1,
+      "title": "Project Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "setup_stable_id": {
+      "minLength": 1,
+      "title": "Setup Stable Id",
+      "type": "string"
+    },
+    "setup_version": {
+      "pattern": "^\\d+\\.\\d+$",
+      "title": "Setup Version",
+      "type": "string"
+    },
+    "verified_at": {
+      "default": "",
+      "title": "Verified At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "harness_id",
+    "operation_id",
+    "project_id",
+    "schema_version",
+    "setup_stable_id",
+    "setup_version",
+    "verified_at"
+  ],
+  "title": "RollbackTarget",
+  "type": "object"
+}

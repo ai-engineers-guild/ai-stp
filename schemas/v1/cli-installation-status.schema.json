@@ -1,0 +1,90 @@
+{
+  "$defs": {
+    "RecoveryView": {
+      "additionalProperties": true,
+      "description": "What a stopped operation left behind, and what may be done next.\n\nAll four things `operation.md` asks a recovery report for. Three of them\nwithout the fourth leaves a person to guess at the one thing they must not\nguess at.",
+      "properties": {
+        "backup_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Backup Ref"
+        },
+        "effects_recorded": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Effects Recorded",
+          "type": "array"
+        },
+        "next_actions": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Next Actions",
+          "type": "array"
+        },
+        "operation_id": {
+          "minLength": 1,
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "state": {
+          "minLength": 1,
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "backup_ref",
+        "effects_recorded",
+        "next_actions",
+        "operation_id",
+        "schema_version",
+        "state"
+      ],
+      "title": "RecoveryView",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-installation-status",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Every operation that stopped without a settled outcome.\n\n`partial` appears here even though it is terminal: it is an outcome that\nstill needs a person, and an operation nobody is told about is one nobody\nrecovers.",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stopped": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/RecoveryView"
+      },
+      "title": "Stopped",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "stopped"
+  ],
+  "title": "InstallationStatus",
+  "type": "object"
+}

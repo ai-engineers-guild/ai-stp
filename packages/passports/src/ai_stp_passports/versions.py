@@ -1,0 +1,209 @@
+"""Component and setup version passports (docs/contracts/component-setup-passports.md).
+
+Immutable snapshots extending the passport envelope with version identity:
+exact source and artifact, closed component taxonomy, split dependencies,
+declared access needs, conflicts, permissions and license. A setup belongs
+to exactly one harness and has no variant axis (ADR-0014) — the model
+rejects a ``variant_id`` even through the preserved-fields channel.
+
+Mutable lifecycle state (deprecated/blocked/hidden) deliberately lives
+outside these hashed bytes per SPEC-005: it never changes the snapshot.
+"""
+
+import re
+from typing import Annotated, Final, Literal
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from ai_stp_foundation.digests import DIGEST_PATTERN
+from ai_stp_foundation.harnesses import HarnessId
+from ai_stp_foundation.ids import stable_id_pattern
+from ai_stp_foundation.refs import ComponentRef, SetupRef, Version
+from ai_stp_passports.envelope import PassportEnvelope
+from ai_stp_passports.markdown import validate_safe_markdown
+
+# Tag IDs follow the vocabulary form (docs/contracts/tag-vocabulary.md);
+# 1..8 tags per version (ADR-0024).
+TAG_PATTERN: Final[str] = r"^[a-z0-9]+(-[a-z0-9]+)*$"
+MAX_TAGS: Final[int] = 8
+
+# Capabilities come from the closed dotted dictionary (component-setup-passports.md).
+CAPABILITY_PATTERN: Final[str] = r"^[a-z0-9]+(\.[a-z0-9-]+)+$"
+
+ENV_NAME_PATTERN: Final[str] = r"^[A-Z][A-Z0-9_]*$"
+COMMIT_PATTERN: Final[str] = r"^[0-9a-f]{40}$"
+
+type TagId = Annotated[str, Field(pattern=TAG_PATTERN)]
+type CapabilityId = Annotated[str, Field(pattern=CAPABILITY_PATTERN)]
+
+#: The closed component taxonomy (AGENTS.md, "Канонические термины"). Named so
+#: the catalog wire contract reuses this one owner instead of restating the
+#: eight values, which would be two normative copies free to drift apart.
+type ComponentType = Literal[
+    "instruction", "skill", "mcp", "hook", "command", "agent", "plugin", "setting"
+]
+
+#: How a component is packaged natively for its harness. `marketplace` is a
+#: packaging projection, never a component kind (ADR-0015).
+type ProjectionKind = Literal["marketplace", "plugin", "native_files", "package"]
+
+_TRAVERSAL_RE: Final[re.Pattern[str]] = re.compile(r"(^|/)\.\.(/|$)")
+
+
+def _relative_path(value: str) -> str:
+    if not value or value.startswith("/") or _TRAVERSAL_RE.search(value):
+        raise ValueError(f"path must be relative without traversal: {value!r}")
+    return value
+
+
+class GitSource(BaseModel):
+    """Exact public origin: repository, commit and component root subpath."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    repository: Annotated[str, Field(pattern=r"^https://[^\s]+$")]
+    commit: Annotated[str, Field(pattern=COMMIT_PATTERN)]
+    path: str
+
+    @model_validator(mode="after")
+    def _safe_path(self) -> "GitSource":
+        _relative_path(self.path)
+        return self
+
+
+class ArtifactRef(BaseModel):
+    """Content-addressed artifact bytes: digest and size."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    size_bytes: Annotated[int, Field(ge=0)]
+
+
+class EnvVarRequirement(BaseModel):
+    """Required environment variable: name and purpose, never a value."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    name: Annotated[str, Field(pattern=ENV_NAME_PATTERN)]
+    purpose: str
+
+
+class Permissions(BaseModel):
+    """Declared file, network and process permissions."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    filesystem: list[str] = Field(default_factory=list)
+    network: list[str] = Field(default_factory=list)
+    process: list[str] = Field(default_factory=list)
+
+
+class Conflicts(BaseModel):
+    """Declared conflicts by native surface."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    paths: list[str] = Field(default_factory=list)
+    commands: list[str] = Field(default_factory=list)
+    hooks: list[str] = Field(default_factory=list)
+    mcp: list[str] = Field(default_factory=list)
+    agents: list[str] = Field(default_factory=list)
+    plugins: list[str] = Field(default_factory=list)
+
+
+class LicenseInfo(BaseModel):
+    """License identity and the redistribution decision."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    spdx_id: str
+    redistribution_allowed: bool
+
+
+class _VersionPassportBase(PassportEnvelope):
+    """Shared identity fields of immutable version passports."""
+
+    name: str
+    description: str
+    version: Version
+    tags: Annotated[list[TagId], Field(min_length=1, max_length=MAX_TAGS)]
+    source: GitSource | None = None
+    artifact: ArtifactRef
+    harness_id: HarnessId
+    required_env: list[EnvVarRequirement] = Field(default_factory=list[EnvVarRequirement])
+    requires_credentials: bool = False
+    requires_authorization: Literal["none", "user_account", "external_service"] = "none"
+    permissions: Permissions = Field(default_factory=Permissions)
+    external_endpoints: list[Annotated[str, Field(pattern=r"^https://[^\s]+$")]] = Field(
+        default_factory=list
+    )
+    license: LicenseInfo
+    compatibility_evidence_refs: list[str] = Field(default_factory=list)
+
+    @field_validator("description")
+    @classmethod
+    def _safe_description(cls, value: str) -> str:
+        return validate_safe_markdown(value)
+
+    @model_validator(mode="after")
+    def _immutable_snapshot(self) -> "_VersionPassportBase":
+        if self.parent_revision_ids:
+            raise ValueError("an immutable version snapshot has no parent revisions")
+        return self
+
+
+class ComponentVersionPassport(_VersionPassportBase):
+    """Immutable component version passport."""
+
+    # Narrowing the envelope kind to one literal is safe on a frozen model.
+    kind: Literal["component"] = "component"  # pyright: ignore[reportIncompatibleVariableOverride]
+    component_type: ComponentType
+    projection_kind: ProjectionKind
+    variant_id: Annotated[str, Field(pattern=stable_id_pattern("variant"))] | None = None
+    provides_capabilities: list[CapabilityId] = Field(default_factory=list)
+    requires_components: list[ComponentRef] = Field(default_factory=list[ComponentRef])
+    requires_capabilities: list[CapabilityId] = Field(default_factory=list)
+    conflicts: Conflicts = Field(default_factory=Conflicts)
+    managed_paths: list[str] = Field(default_factory=list)
+    native_ids: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _safe_managed_paths(self) -> "ComponentVersionPassport":
+        for path in self.managed_paths:
+            _relative_path(path)
+        return self
+
+
+class SetupVersionPassport(_VersionPassportBase):
+    """Immutable setup version passport: exactly one harness, no variant axis."""
+
+    # Narrowing the envelope kind to one literal is safe on a frozen model.
+    kind: Literal["setup"] = "setup"  # pyright: ignore[reportIncompatibleVariableOverride]
+    purpose: str
+    target_role: str
+    supported_tasks: list[str] = Field(default_factory=list)
+    components: Annotated[list[ComponentRef], Field(min_length=1)]
+    ported_from: SetupRef | None = None
+    related_setup_ids: list[Annotated[str, Field(pattern=stable_id_pattern("setup"))]] = Field(
+        default_factory=list
+    )
+    execution_profile: Literal["full-auto"] = "full-auto"
+    supported_harness_versions: list[str] = Field(default_factory=list)
+    supported_os: list[Literal["linux", "macos"]] = Field(
+        default_factory=list[Literal["linux", "macos"]]
+    )
+    supported_arch: list[Literal["x86_64", "arm64"]] = Field(
+        default_factory=list[Literal["x86_64", "arm64"]]
+    )
+    composition_report_ref: str | None = None
+    conversion_report_ref: str | None = None
+    install_evidence_ref: str | None = None
+    launch_evidence_ref: str | None = None
+
+    @model_validator(mode="after")
+    def _no_variant_axis(self) -> "SetupVersionPassport":
+        extras = self.model_extra or {}
+        if "variant_id" in extras:
+            raise ValueError("a setup has no variant axis (ADR-0014)")
+        return self

@@ -1,0 +1,156 @@
+{
+  "$defs": {
+    "ComponentType": {
+      "enum": [
+        "instruction",
+        "skill",
+        "mcp",
+        "hook",
+        "command",
+        "agent",
+        "plugin",
+        "setting"
+      ],
+      "type": "string"
+    },
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build"
+      ],
+      "type": "string"
+    },
+    "SetupImportComponent": {
+      "additionalProperties": true,
+      "description": "One native component proposed by a read-only setup import plan.",
+      "properties": {
+        "byte_length": {
+          "minimum": 0,
+          "title": "Byte Length",
+          "type": "integer"
+        },
+        "candidate_id": {
+          "minLength": 1,
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "component_type": {
+          "$ref": "#/$defs/ComponentType"
+        },
+        "file_set_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "File Set Digest",
+          "type": "string"
+        },
+        "native_role": {
+          "minLength": 1,
+          "title": "Native Role",
+          "type": "string"
+        },
+        "paths": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Paths",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "byte_length",
+        "candidate_id",
+        "component_type",
+        "file_set_digest",
+        "native_role",
+        "paths",
+        "schema_version"
+      ],
+      "title": "SetupImportComponent",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-setup-import-plan",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Deterministic read-only decomposition of one native setup candidate.",
+  "properties": {
+    "blocked_by": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Blocked By",
+      "type": "array"
+    },
+    "components": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/SetupImportComponent"
+      },
+      "title": "Components",
+      "type": "array"
+    },
+    "effects": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Effects",
+      "type": "array"
+    },
+    "excluded": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Excluded",
+      "type": "array"
+    },
+    "harness_id": {
+      "$ref": "#/$defs/HarnessId"
+    },
+    "inspection_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Inspection Digest",
+      "type": "string"
+    },
+    "plan_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Plan Digest",
+      "type": "string"
+    },
+    "root": {
+      "minLength": 1,
+      "title": "Root",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "blocked_by",
+    "components",
+    "effects",
+    "excluded",
+    "harness_id",
+    "inspection_digest",
+    "plan_digest",
+    "root",
+    "schema_version"
+  ],
+  "title": "SetupImportPlan",
+  "type": "object"
+}

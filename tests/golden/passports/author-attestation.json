@@ -1,0 +1,30 @@
+{
+  "name": "author-attestation",
+  "value": {
+    "schema_version": 1,
+    "object_digest": "sha256:6b519391321d7c891f412b45d6d837ed72d0ea7c4747f9648326ee245e4fb876",
+    "subject": {
+      "stable_id": "component_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "variant_id": null,
+      "version": "1.0",
+      "passport_digest": "sha256:b36e549b421e1f919872e5ac11bc9750bfca724122909f56b8d3552a1b06168d"
+    },
+    "check_id": "mcp-remote-handshake",
+    "policy_version": "1.0",
+    "tool_versions": {
+      "scanner": "2.1.0"
+    },
+    "harness_id": "claude-code",
+    "harness_version": "3.5.0",
+    "provider_version": "1.2",
+    "test_case_ids": [
+      "handshake-basic"
+    ],
+    "result": "passed",
+    "account_id": "account_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    "device_id": "device_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    "attested_at": "2026-08-05T10:00:00.000Z",
+    "signature": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+  },
+  "attestation_digest": "sha256:90ad0dcb1150c1c15f1159269386ee02f65cb4598137009eb24dc7040a6b43e6"
+}

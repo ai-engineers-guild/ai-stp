@@ -1,0 +1,272 @@
+{
+  "$defs": {
+    "Cursor": {
+      "pattern": "^[A-Za-z0-9_-]{1,512}$",
+      "type": "string"
+    },
+    "DetectedHarness": {
+      "additionalProperties": true,
+      "description": "One harness observed on the device, with the version that was observed.\n\nOnly the five supported harnesses are itemised. An unknown harness stays a\nlocal observation and never leaves the machine (SPEC-011 REQ-1109): it\ncreates no managed object, so listing it here would put an environment fact\non the wire for something the platform cannot act on.",
+      "properties": {
+        "harness_id": {
+          "$ref": "#/$defs/HarnessId"
+        },
+        "version": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "harness_id",
+        "version"
+      ],
+      "title": "DetectedHarness",
+      "type": "object"
+    },
+    "DeviceId": {
+      "pattern": "^device_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "type": "string"
+    },
+    "DeviceRecord": {
+      "additionalProperties": true,
+      "description": "One device as the account owner sees it, in the web or through the CLI.",
+      "properties": {
+        "approximate_location": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Approximate Location"
+        },
+        "device_id": {
+          "$ref": "#/$defs/DeviceId"
+        },
+        "device_type": {
+          "enum": [
+            "cli",
+            "web"
+          ],
+          "title": "Device Type",
+          "type": "string"
+        },
+        "etag": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Etag",
+          "type": "string"
+        },
+        "last_active_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "registered_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "state": {
+          "$ref": "#/$defs/DeviceState"
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DeviceSummary"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "user_agent": {
+          "anyOf": [
+            {
+              "maxLength": 512,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "User Agent"
+        }
+      },
+      "required": [
+        "approximate_location",
+        "device_id",
+        "device_type",
+        "etag",
+        "last_active_at",
+        "registered_at",
+        "schema_version",
+        "state",
+        "summary",
+        "user_agent"
+      ],
+      "title": "DeviceRecord",
+      "type": "object"
+    },
+    "DeviceState": {
+      "enum": [
+        "active",
+        "revoked"
+      ],
+      "type": "string"
+    },
+    "DeviceSummary": {
+      "additionalProperties": true,
+      "description": "The closed five-fact summary a device is allowed to publish.\n\nClosed by `device-passport.md`: display name, operating system and\narchitecture, detected harnesses with versions, toolchain profile version,\nand when the summary was last refreshed. Secret values, environment variable\nvalues and absolute user paths are excluded there and unrepresentable here.\n\nNote the wire policy still tolerates additive fields, as everywhere else —\nthe closure is a rule about what a *conforming server* sends, and the\nfixtures and contract tests are what hold it.",
+      "properties": {
+        "architecture": {
+          "enum": [
+            "x86_64",
+            "arm64"
+          ],
+          "title": "Architecture",
+          "type": "string"
+        },
+        "detected_harnesses": {
+          "items": {
+            "$ref": "#/$defs/DetectedHarness"
+          },
+          "maxItems": 16,
+          "title": "Detected Harnesses",
+          "type": "array"
+        },
+        "display_name": {
+          "$ref": "#/$defs/DisplayName"
+        },
+        "operating_system": {
+          "enum": [
+            "linux",
+            "macos",
+            "windows"
+          ],
+          "title": "Operating System",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "summary_updated_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "toolchain_profile_version": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Toolchain Profile Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "architecture",
+        "detected_harnesses",
+        "display_name",
+        "operating_system",
+        "schema_version",
+        "summary_updated_at",
+        "toolchain_profile_version"
+      ],
+      "title": "DeviceSummary",
+      "type": "object"
+    },
+    "DisplayName": {
+      "maxLength": 100,
+      "minLength": 1,
+      "type": "string"
+    },
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build"
+      ],
+      "type": "string"
+    },
+    "PageInfo": {
+      "additionalProperties": true,
+      "description": "Cursor pagination state (docs/contracts/http-api.md).\n\nNo total is exposed. Reporting one would let a caller detect objects it is\nnot allowed to read, so a hidden or deleted object leaks through neither a\ncount nor a cursor.",
+      "properties": {
+        "next_cursor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Cursor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "page_size": {
+          "$ref": "#/$defs/PageSize"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "next_cursor",
+        "page_size",
+        "schema_version"
+      ],
+      "title": "PageInfo",
+      "type": "object"
+    },
+    "PageSize": {
+      "maximum": 100,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:identity-device-list",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Every device of the current account, newest activity first.",
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/$defs/DeviceRecord"
+      },
+      "maxItems": 100,
+      "title": "Items",
+      "type": "array"
+    },
+    "page": {
+      "$ref": "#/$defs/PageInfo"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "items",
+    "page",
+    "schema_version"
+  ],
+  "title": "DeviceListResponse",
+  "type": "object"
+}

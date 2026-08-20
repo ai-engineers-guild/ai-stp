@@ -1,0 +1,4767 @@
+{
+  "schema_version": 1,
+  "cli_version": "0.0.0-pinned",
+  "global_options": [
+    {
+      "name": "json",
+      "kind": "option",
+      "value_type": "boolean",
+      "required": false,
+      "repeatable": false,
+      "summary": "Emit exactly one JSON envelope on stdout and nothing else.",
+      "choices": []
+    }
+  ],
+  "commands": [
+    {
+      "path": [
+        "attestation",
+        "sign"
+      ],
+      "summary": "Sign exact credential-dependent test evidence with the active device key.",
+      "mutability": "apply",
+      "confirmation": "explicit_flag",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Released component stable identifier.",
+          "choices": []
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact released X.Y version.",
+          "choices": []
+        },
+        {
+          "name": "check-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Executed policy check identifier.",
+          "choices": []
+        },
+        {
+          "name": "policy-version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact validation policy version.",
+          "choices": []
+        },
+        {
+          "name": "tool-version",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "Executed tool as name=version.",
+          "choices": []
+        },
+        {
+          "name": "harness-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Harness used for the check.",
+          "choices": []
+        },
+        {
+          "name": "harness-version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact harness version.",
+          "choices": []
+        },
+        {
+          "name": "provider-version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact provider version.",
+          "choices": []
+        },
+        {
+          "name": "test-case-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": true,
+          "summary": "Executed test-case identifier.",
+          "choices": []
+        },
+        {
+          "name": "result",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Observed result.",
+          "choices": [
+            "passed",
+            "failed"
+          ]
+        },
+        {
+          "name": "output",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "New owner-only JSON attestation file.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": true,
+          "repeatable": false,
+          "summary": "Confirm signing these exact observed facts.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-signed-attestation",
+      "next_actions": [
+        "publication plan"
+      ]
+    },
+    {
+      "path": [
+        "auth",
+        "complete"
+      ],
+      "summary": "Finish the pending sign-in once the user has approved it.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "wait",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Keep asking until the sign-in is approved, declined or expires. Bounded. For a person at a terminal; a machine caller asks again itself.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-auth-status",
+      "next_actions": [
+        "auth status"
+      ]
+    },
+    {
+      "path": [
+        "auth",
+        "login"
+      ],
+      "summary": "Start a sign-in and report the code the user must approve.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "provider",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Which identity provider to sign in with: google or github.",
+          "choices": [
+            "google",
+            "github"
+          ]
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-device-approval",
+      "next_actions": [
+        "auth complete",
+        "auth status"
+      ]
+    },
+    {
+      "path": [
+        "auth",
+        "logout"
+      ],
+      "summary": "End the cloud session on the server and here, keeping all local data.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-auth-status",
+      "next_actions": [
+        "auth status"
+      ]
+    },
+    {
+      "path": [
+        "auth",
+        "status"
+      ],
+      "summary": "Report the platform relationship: local-only, authenticated, expired or revoked.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-auth-status",
+      "next_actions": [
+        "device show"
+      ]
+    },
+    {
+      "path": [
+        "capabilities"
+      ],
+      "summary": "Report what this installation can do right now.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-capabilities",
+      "next_actions": [
+        "doctor",
+        "help --agent"
+      ]
+    },
+    {
+      "path": [
+        "component",
+        "adopt"
+      ],
+      "summary": "Register one discovered component in the local registry.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "path",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact path discovery reported.",
+          "choices": []
+        },
+        {
+          "name": "root",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Project root the component was discovered under.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-passport-view",
+      "next_actions": [
+        "component passport show",
+        "component discover"
+      ]
+    },
+    {
+      "path": [
+        "component",
+        "discover"
+      ],
+      "summary": "List native components in the harness roots and one project. Changes nothing.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "root",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Project root to look inside, beside the roots.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-native-components",
+      "next_actions": [
+        "component adopt"
+      ]
+    },
+    {
+      "path": [
+        "component",
+        "find"
+      ],
+      "summary": "Search the local registry by prefix, phrase, tag or field. No model, no network.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "prefix",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Match the start of a name.",
+          "choices": []
+        },
+        {
+          "name": "phrase",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Match inside a name or description.",
+          "choices": []
+        },
+        {
+          "name": "tag",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Require this tag. Repeat to require several.",
+          "choices": []
+        },
+        {
+          "name": "field",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "One declared field to match exactly.",
+          "choices": []
+        },
+        {
+          "name": "value",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "The value that field must equal.",
+          "choices": []
+        },
+        {
+          "name": "include-unverified",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Show unverified candidates for this command only. Never stored.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-local-search",
+      "next_actions": [
+        "component version list"
+      ]
+    },
+    {
+      "path": [
+        "component",
+        "forget"
+      ],
+      "summary": "Mark a registered component deleted, keeping its history.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Stable identifier of a registered component.",
+          "choices": []
+        },
+        {
+          "name": "reason",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Why it is being removed.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-passport-view",
+      "next_actions": [
+        "component discover"
+      ]
+    },
+    {
+      "path": [
+        "component",
+        "fork"
+      ],
+      "summary": "Copy one recorded version under a new identity. The original is untouched.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Stable identifier of the object being forked.",
+          "choices": []
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "The exact X.Y being forked.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-version-line",
+      "next_actions": [
+        "component version list"
+      ]
+    },
+    {
+      "path": [
+        "component",
+        "passport",
+        "quality"
+      ],
+      "summary": "Show optional mechanical authoring hints without changing trust or readiness.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable identifier of an adopted component.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-component-quality-report",
+      "next_actions": [
+        "component passport update",
+        "component passport validate"
+      ]
+    },
+    {
+      "path": [
+        "component",
+        "passport",
+        "show"
+      ],
+      "summary": "Show the current local passport draft for one adopted component.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable identifier of an adopted component.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-passport-view",
+      "next_actions": [
+        "component passport suggest",
+        "component passport update"
+      ]
+    },
+    {
+      "path": [
+        "component",
+        "passport",
+        "suggest"
+      ],
+      "summary": "Suggest exact manifest facts for confirmation without changing the draft.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable identifier of an adopted component.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-component-passport-suggestions",
+      "next_actions": [
+        "component passport update",
+        "component passport validate"
+      ]
+    },
+    {
+      "path": [
+        "component",
+        "passport",
+        "update"
+      ],
+      "summary": "Add confirmed declared facts as a new content-addressed passport revision.",
+      "mutability": "apply",
+      "confirmation": "explicit_flag",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable identifier of an adopted component.",
+          "choices": []
+        },
+        {
+          "name": "expected-revision",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact current revision this patch was prepared against.",
+          "choices": []
+        },
+        {
+          "name": "from",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Path to a bounded closed-schema JSON patch.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Confirm every declared fact in the patch.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-passport-view",
+      "next_actions": [
+        "component passport validate",
+        "component passport show"
+      ]
+    },
+    {
+      "path": [
+        "component",
+        "passport",
+        "validate"
+      ],
+      "summary": "Report every structural blocker to publishing the current passport revision.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable identifier of an adopted component.",
+          "choices": []
+        },
+        {
+          "name": "for-publication",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": true,
+          "repeatable": false,
+          "summary": "Select the strict public-publication readiness profile.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-component-passport-validation",
+      "next_actions": [
+        "component passport update",
+        "component version release"
+      ]
+    },
+    {
+      "path": [
+        "component",
+        "scaffold",
+        "apply"
+      ],
+      "summary": "Create exactly the confirmed component scaffold without overwriting a path.",
+      "mutability": "apply",
+      "confirmation": "explicit_flag",
+      "parameters": [
+        {
+          "name": "type",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "One closed-vocabulary component type.",
+          "choices": [
+            "instruction",
+            "skill",
+            "mcp",
+            "hook",
+            "command",
+            "agent",
+            "plugin",
+            "setting"
+          ]
+        },
+        {
+          "name": "language",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "None for declarative types or one executable language.",
+          "choices": [
+            "none",
+            "python",
+            "typescript",
+            "javascript",
+            "rust",
+            "go",
+            "dart-flutter"
+          ]
+        },
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Portable base or one concrete harness variant.",
+          "choices": [
+            "portable",
+            "claude-code",
+            "codex",
+            "pi",
+            "opencode",
+            "grok-build"
+          ]
+        },
+        {
+          "name": "name",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Lowercase component slug.",
+          "choices": []
+        },
+        {
+          "name": "output",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "New scaffold directory to create.",
+          "choices": []
+        },
+        {
+          "name": "expected-plan-digest",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact digest returned by scaffold plan.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": true,
+          "repeatable": false,
+          "summary": "Confirm exact scaffold creation.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-component-scaffold-result",
+      "next_actions": [
+        "component passport validate",
+        "component adopt"
+      ]
+    },
+    {
+      "path": [
+        "component",
+        "scaffold",
+        "plan"
+      ],
+      "summary": "Preview exact files and digests for one versioned component scaffold.",
+      "mutability": "plan",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "type",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "One closed-vocabulary component type.",
+          "choices": [
+            "instruction",
+            "skill",
+            "mcp",
+            "hook",
+            "command",
+            "agent",
+            "plugin",
+            "setting"
+          ]
+        },
+        {
+          "name": "language",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "None for declarative types or one executable language.",
+          "choices": [
+            "none",
+            "python",
+            "typescript",
+            "javascript",
+            "rust",
+            "go",
+            "dart-flutter"
+          ]
+        },
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Portable base or one concrete harness variant.",
+          "choices": [
+            "portable",
+            "claude-code",
+            "codex",
+            "pi",
+            "opencode",
+            "grok-build"
+          ]
+        },
+        {
+          "name": "name",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Lowercase component slug.",
+          "choices": []
+        },
+        {
+          "name": "output",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "New scaffold directory to preview.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-component-scaffold-plan",
+      "next_actions": [
+        "component scaffold apply"
+      ]
+    },
+    {
+      "path": [
+        "component",
+        "source",
+        "evidence",
+        "history"
+      ],
+      "summary": "Show bounded append-only GitHub archived evidence history.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable identifier of a local object.",
+          "choices": []
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact recorded X.Y version.",
+          "choices": []
+        },
+        {
+          "name": "limit",
+          "kind": "option",
+          "value_type": "integer",
+          "required": false,
+          "repeatable": false,
+          "summary": "Newest observations to return, from 1 to 100.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-github-archive-history",
+      "next_actions": [
+        "component source evidence show"
+      ]
+    },
+    {
+      "path": [
+        "component",
+        "source",
+        "evidence",
+        "refresh"
+      ],
+      "summary": "Refresh official GitHub archived evidence for one exact local version.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable identifier of a local object.",
+          "choices": []
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact recorded X.Y version.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-github-archive-evidence",
+      "next_actions": [
+        "component source evidence show",
+        "component source evidence history"
+      ]
+    },
+    {
+      "path": [
+        "component",
+        "source",
+        "evidence",
+        "show"
+      ],
+      "summary": "Show the latest local GitHub archived evidence and freshness.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable identifier of a local object.",
+          "choices": []
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact recorded X.Y version.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-github-archive-evidence",
+      "next_actions": [
+        "component source evidence refresh",
+        "component source evidence history"
+      ]
+    },
+    {
+      "path": [
+        "component",
+        "source",
+        "parse"
+      ],
+      "summary": "Parse an external component source as untrusted structured intent.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "source",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Published slug, GitHub identity, local path or collection.",
+          "choices": []
+        },
+        {
+          "name": "root",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Base directory used only to normalize a relative local path.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-external-source-identity",
+      "next_actions": [
+        "component source resolve",
+        "component discover"
+      ]
+    },
+    {
+      "path": [
+        "component",
+        "source",
+        "resolve"
+      ],
+      "summary": "Bind a GitHub source intent to one exact full commit SHA.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "source",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "GitHub shorthand or credential-free HTTPS URL.",
+          "choices": []
+        },
+        {
+          "name": "commit",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Exact lowercase 40-character Git commit SHA.",
+          "choices": []
+        },
+        {
+          "name": "root",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Base directory used only to normalize a relative local path.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-external-source-identity",
+      "next_actions": [
+        "component discover",
+        "component adopt"
+      ]
+    },
+    {
+      "path": [
+        "component",
+        "template",
+        "render"
+      ],
+      "summary": "Render and validate a portable template for one concrete harness.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "template",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Existing UTF-8 authoring template.",
+          "choices": []
+        },
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Concrete target from the closed harness registry.",
+          "choices": [
+            "claude-code",
+            "codex",
+            "pi",
+            "opencode",
+            "grok-build"
+          ]
+        },
+        {
+          "name": "name",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Lowercase component slug.",
+          "choices": []
+        },
+        {
+          "name": "component-root",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Bounded relative POSIX path for the native component.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-component-template",
+      "next_actions": [
+        "component adopt",
+        "component scaffold plan"
+      ]
+    },
+    {
+      "path": [
+        "component",
+        "version",
+        "list"
+      ],
+      "summary": "Every recorded version of one object, and the next minor number.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Stable identifier of a registered object.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-version-line",
+      "next_actions": [
+        "component version release"
+      ]
+    },
+    {
+      "path": [
+        "component",
+        "version",
+        "release"
+      ],
+      "summary": "Give the current head an immutable X.Y number. Minor unless told otherwise.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Stable identifier of a registered object.",
+          "choices": []
+        },
+        {
+          "name": "major",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Open the next major line instead of the next minor.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "The explicit decision a major line requires.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-version-line",
+      "next_actions": [
+        "component version list"
+      ]
+    },
+    {
+      "path": [
+        "config",
+        "init"
+      ],
+      "summary": "Create the configuration file if it is absent, and validate it either way.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-config-report",
+      "next_actions": [
+        "config show"
+      ]
+    },
+    {
+      "path": [
+        "config",
+        "set"
+      ],
+      "summary": "Write declared values to the configuration file.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "set",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "One declared field to write, as path=value. Repeat for several.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-config-report",
+      "next_actions": [
+        "config show"
+      ]
+    },
+    {
+      "path": [
+        "config",
+        "show"
+      ],
+      "summary": "Show the effective configuration and where each value came from.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "set",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "Override one declared field for this call only, as path=value. Never writes the file.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-config-report",
+      "next_actions": [
+        "doctor"
+      ]
+    },
+    {
+      "path": [
+        "config",
+        "unset"
+      ],
+      "summary": "Remove declared values so their defaults apply again.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "field",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "One declared field to remove. Repeat for several.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-config-report",
+      "next_actions": [
+        "config show"
+      ]
+    },
+    {
+      "path": [
+        "config",
+        "validate"
+      ],
+      "summary": "Read the configuration file and refuse it if it cannot be honoured.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-config-report",
+      "next_actions": [
+        "config show"
+      ]
+    },
+    {
+      "path": [
+        "consent",
+        "allow"
+      ],
+      "summary": "Record consent to unverified objects of one publisher or major line.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "scope",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "publisher or object_major. No wider form exists.",
+          "choices": []
+        },
+        {
+          "name": "target",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "The publisher or object major line it covers.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-consent-record",
+      "next_actions": [
+        "consent list"
+      ]
+    },
+    {
+      "path": [
+        "consent",
+        "list"
+      ],
+      "summary": "Every consent still in force, and what each covered when given.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-consent-summary",
+      "next_actions": [
+        "consent allow"
+      ]
+    },
+    {
+      "path": [
+        "consent",
+        "revoke"
+      ],
+      "summary": "Withdraw a consent. Takes effect immediately for later requests.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "scope",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "publisher or object_major.",
+          "choices": []
+        },
+        {
+          "name": "target",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "The publisher or object major line it covers.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-consent-record",
+      "next_actions": [
+        "consent list"
+      ]
+    },
+    {
+      "path": [
+        "device",
+        "init"
+      ],
+      "summary": "Create the identity of this installation, or return the existing one.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-device-identity",
+      "next_actions": [
+        "device show"
+      ]
+    },
+    {
+      "path": [
+        "device",
+        "reset"
+      ],
+      "summary": "Retire this device identity and create a new one.",
+      "mutability": "destructive",
+      "confirmation": "explicit_flag",
+      "parameters": [
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": true,
+          "repeatable": false,
+          "summary": "Required. Confirms discarding the current device key.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-device-identity",
+      "next_actions": [
+        "device show"
+      ]
+    },
+    {
+      "path": [
+        "device",
+        "show"
+      ],
+      "summary": "Show this device identity and where its key is kept.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-device-identity",
+      "next_actions": [
+        "auth status"
+      ]
+    },
+    {
+      "path": [
+        "doctor"
+      ],
+      "summary": "Report the setup state of this installation without changing it.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-doctor-report",
+      "next_actions": [
+        "config show"
+      ]
+    },
+    {
+      "path": [
+        "eval",
+        "plan"
+      ],
+      "summary": "Bind a reference evaluation profile to one exact local setup graph.",
+      "mutability": "plan",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "setup-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact local setup identifier.",
+          "choices": []
+        },
+        {
+          "name": "setup-version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact local setup X.Y version.",
+          "choices": []
+        },
+        {
+          "name": "component-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "Optional exact component subset from the setup graph.",
+          "choices": []
+        },
+        {
+          "name": "harness-version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact evaluated harness version.",
+          "choices": []
+        },
+        {
+          "name": "provider-version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact evaluated provider version.",
+          "choices": []
+        },
+        {
+          "name": "runner-version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact evaluation runner version.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-setup-eval-plan",
+      "next_actions": [
+        "eval run"
+      ]
+    },
+    {
+      "path": [
+        "eval",
+        "profile"
+      ],
+      "summary": "Show the versioned reference evaluation profile for all or one component type.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "type",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Limit the reference profile to one component type.",
+          "choices": [
+            "instruction",
+            "skill",
+            "mcp",
+            "hook",
+            "command",
+            "agent",
+            "plugin",
+            "setting"
+          ]
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-setup-eval-profile",
+      "next_actions": [
+        "eval plan"
+      ]
+    },
+    {
+      "path": [
+        "eval",
+        "run"
+      ],
+      "summary": "Run local deterministic checks for one confirmed exact evaluation plan.",
+      "mutability": "apply",
+      "confirmation": "explicit_flag",
+      "parameters": [
+        {
+          "name": "plan-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stored evaluation plan identifier.",
+          "choices": []
+        },
+        {
+          "name": "expected-plan-digest",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact content digest shown by eval plan.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": true,
+          "repeatable": false,
+          "summary": "Confirm the exact evaluation plan.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-setup-eval-result",
+      "next_actions": [
+        "eval status",
+        "eval show"
+      ]
+    },
+    {
+      "path": [
+        "eval",
+        "show"
+      ],
+      "summary": "Show full immutable local evidence for one evaluation run.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "run-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Evaluation run identifier.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-setup-eval-result",
+      "next_actions": []
+    },
+    {
+      "path": [
+        "eval",
+        "status"
+      ],
+      "summary": "Read the immutable status of one local evaluation run.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "run-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Evaluation run identifier.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-setup-eval-result",
+      "next_actions": [
+        "eval show"
+      ]
+    },
+    {
+      "path": [
+        "grant",
+        "accept"
+      ],
+      "summary": "Accept an invitation using a token read from a named environment variable.",
+      "mutability": "apply",
+      "confirmation": "explicit_flag",
+      "parameters": [
+        {
+          "name": "invitation-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Invitation identifier.",
+          "choices": []
+        },
+        {
+          "name": "token-env",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Environment variable holding the invitation token.",
+          "choices": []
+        },
+        {
+          "name": "idempotency-key",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable key for this exact intent.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": true,
+          "repeatable": false,
+          "summary": "Confirm accepting this exact invitation.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-grant-access",
+      "next_actions": [
+        "grant list"
+      ]
+    },
+    {
+      "path": [
+        "grant",
+        "direct"
+      ],
+      "summary": "Grant one exact object major line to an explicit account identifier.",
+      "mutability": "apply",
+      "confirmation": "explicit_flag",
+      "parameters": [
+        {
+          "name": "kind",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Object kind.",
+          "choices": [
+            "component",
+            "setup"
+          ]
+        },
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable object identifier.",
+          "choices": []
+        },
+        {
+          "name": "major",
+          "kind": "option",
+          "value_type": "integer",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact major line to grant.",
+          "choices": []
+        },
+        {
+          "name": "recipient-kind",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "How the recipient is identified.",
+          "choices": [
+            "github_username",
+            "user_id"
+          ]
+        },
+        {
+          "name": "recipient",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Recipient value in the selected namespace.",
+          "choices": []
+        },
+        {
+          "name": "idempotency-key",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable key for this exact intent.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": true,
+          "repeatable": false,
+          "summary": "Confirm creating this exact grant.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-grant-access",
+      "next_actions": [
+        "grant list"
+      ]
+    },
+    {
+      "path": [
+        "grant",
+        "invitation",
+        "revoke"
+      ],
+      "summary": "Revoke one pending invitation without deleting local bytes.",
+      "mutability": "destructive",
+      "confirmation": "explicit_flag",
+      "parameters": [
+        {
+          "name": "invitation-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Invitation identifier.",
+          "choices": []
+        },
+        {
+          "name": "reason",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Bounded reason recorded with the revocation.",
+          "choices": []
+        },
+        {
+          "name": "idempotency-key",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable key for this exact intent.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": true,
+          "repeatable": false,
+          "summary": "Confirm revoking this exact invitation.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-grant-revoke",
+      "next_actions": [
+        "grant list"
+      ]
+    },
+    {
+      "path": [
+        "grant",
+        "invite"
+      ],
+      "summary": "Create an email invitation for one exact object major line.",
+      "mutability": "apply",
+      "confirmation": "explicit_flag",
+      "parameters": [
+        {
+          "name": "kind",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Object kind.",
+          "choices": [
+            "component",
+            "setup"
+          ]
+        },
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable object identifier.",
+          "choices": []
+        },
+        {
+          "name": "major",
+          "kind": "option",
+          "value_type": "integer",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact major line to grant.",
+          "choices": []
+        },
+        {
+          "name": "email",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Verified recipient email address.",
+          "choices": []
+        },
+        {
+          "name": "ttl-seconds",
+          "kind": "option",
+          "value_type": "integer",
+          "required": false,
+          "repeatable": false,
+          "summary": "Invitation lifetime; defaults to seven days.",
+          "choices": []
+        },
+        {
+          "name": "idempotency-key",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable key for this exact intent.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": true,
+          "repeatable": false,
+          "summary": "Confirm creating this exact invitation.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-grant-invitation",
+      "next_actions": [
+        "grant list"
+      ]
+    },
+    {
+      "path": [
+        "grant",
+        "list"
+      ],
+      "summary": "List invitations and major-line grants owned by the current account.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-grant-list",
+      "next_actions": [
+        "grant invite",
+        "grant direct"
+      ]
+    },
+    {
+      "path": [
+        "grant",
+        "revoke"
+      ],
+      "summary": "Revoke one active grant forward-only while retaining local bytes.",
+      "mutability": "destructive",
+      "confirmation": "explicit_flag",
+      "parameters": [
+        {
+          "name": "grant-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Access grant identifier.",
+          "choices": []
+        },
+        {
+          "name": "reason",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Bounded reason recorded with the revocation.",
+          "choices": []
+        },
+        {
+          "name": "idempotency-key",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable key for this exact intent.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": true,
+          "repeatable": false,
+          "summary": "Confirm revoking this exact grant.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-grant-revoke",
+      "next_actions": [
+        "grant list"
+      ]
+    },
+    {
+      "path": [
+        "help"
+      ],
+      "summary": "Emit the full command registry for an agent.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "agent",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": true,
+          "repeatable": false,
+          "summary": "Required. Selects the machine registry rather than usage text.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-machine-help",
+      "next_actions": [
+        "capabilities"
+      ]
+    },
+    {
+      "path": [
+        "install",
+        "apply"
+      ],
+      "summary": "Carry out one approved plan through its provider and record what happened.",
+      "mutability": "apply",
+      "confirmation": "plan_digest",
+      "parameters": [
+        {
+          "name": "operation",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The approved operation to apply.",
+          "choices": []
+        },
+        {
+          "name": "provider",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The provider executable that owns the target.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-installation",
+      "next_actions": [
+        "install status"
+      ]
+    },
+    {
+      "path": [
+        "install",
+        "approve"
+      ],
+      "summary": "Approve one plan by its exact digest. Nothing else approves it.",
+      "mutability": "apply",
+      "confirmation": "plan_digest",
+      "parameters": [
+        {
+          "name": "operation",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The operation whose plan is approved.",
+          "choices": []
+        },
+        {
+          "name": "plan-digest",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The exact plan digest the user saw.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-installation",
+      "next_actions": [
+        "install apply"
+      ]
+    },
+    {
+      "path": [
+        "install",
+        "cancel"
+      ],
+      "summary": "Abandon a plan before anything is applied. Refused once applying began.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "operation",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The operation being abandoned.",
+          "choices": []
+        },
+        {
+          "name": "reason",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Why it is being abandoned.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-installation",
+      "next_actions": [
+        "install status"
+      ]
+    },
+    {
+      "path": [
+        "install",
+        "plan"
+      ],
+      "summary": "Compute an immutable installation plan. Has no effect of its own.",
+      "mutability": "plan",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "proposal",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "The newly confirmed composition to install.",
+          "choices": []
+        },
+        {
+          "name": "setup",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "An immutable prepared SetupVersion as <stable_id>@<X.Y>.",
+          "choices": []
+        },
+        {
+          "name": "project",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Local project root that binds a catalogue setup to the current context.",
+          "choices": []
+        },
+        {
+          "name": "provider",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The provider executable that owns the target.",
+          "choices": []
+        },
+        {
+          "name": "provider-manifest",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Signed manifest whose exact artifact is the provider executable. Required by protocol v3 unless unverified-provider is given.",
+          "choices": []
+        },
+        {
+          "name": "unverified-provider",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Install from a provider executable no signed release covers. Local development only: the pinned trust policy checks nothing here.",
+          "choices": []
+        },
+        {
+          "name": "provider-release-recovery",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Explicitly recover an older exact provider release verified on this machine.",
+          "choices": []
+        },
+        {
+          "name": "action",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Provider lifecycle action.",
+          "choices": [
+            "install",
+            "update",
+            "backup",
+            "remove",
+            "rollback"
+          ]
+        },
+        {
+          "name": "protocol-version",
+          "kind": "option",
+          "value_type": "integer",
+          "required": false,
+          "repeatable": false,
+          "summary": "Provider protocol selected before invocation. Defaults to frozen v1.",
+          "choices": []
+        },
+        {
+          "name": "target",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Existing absolute provider target directory. Required by protocol v2/v3.",
+          "choices": []
+        },
+        {
+          "name": "backup-ref",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Exact provider-owned BackupRef required by a protocol-v3 rollback.",
+          "choices": []
+        },
+        {
+          "name": "permission-profile",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Provider-declared execution posture, separate from setup identity.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [
+        {
+          "kind": "exactly_one",
+          "parameters": [
+            "proposal",
+            "setup"
+          ],
+          "when_parameter": "",
+          "when_values": []
+        },
+        {
+          "kind": "required_when",
+          "parameters": [
+            "project"
+          ],
+          "when_parameter": "setup",
+          "when_values": [
+            "present"
+          ]
+        },
+        {
+          "kind": "required_when",
+          "parameters": [
+            "target"
+          ],
+          "when_parameter": "protocol-version",
+          "when_values": [
+            "2",
+            "3"
+          ]
+        }
+      ],
+      "result_schema": "urn:ai-stp:schema:v1:cli-installation",
+      "next_actions": [
+        "install approve"
+      ]
+    },
+    {
+      "path": [
+        "install",
+        "recover"
+      ],
+      "summary": "What one stopped operation left, and what may be done. Recovers nothing itself.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "operation",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The stopped operation.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-recovery-report",
+      "next_actions": [
+        "install resume",
+        "install plan"
+      ]
+    },
+    {
+      "path": [
+        "install",
+        "resume"
+      ],
+      "summary": "Finish the result check an interrupted apply never made. Applies nothing.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "operation",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The interrupted operation.",
+          "choices": []
+        },
+        {
+          "name": "provider",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The provider executable to ask.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-installation",
+      "next_actions": [
+        "target status"
+      ]
+    },
+    {
+      "path": [
+        "install",
+        "status"
+      ],
+      "summary": "Operations that stopped without a settled outcome. Changes nothing.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-installation-status",
+      "next_actions": [
+        "install recover"
+      ]
+    },
+    {
+      "path": [
+        "link",
+        "web"
+      ],
+      "summary": "Print a canonical web URL and round-trippable CLI reference.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "kind",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Target kind: component, setup or publisher.",
+          "choices": []
+        },
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Canonical stable identifier of the target.",
+          "choices": []
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Optional exact X.Y for a component or setup.",
+          "choices": []
+        },
+        {
+          "name": "locale",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Canonical web locale: ru or en. Defaults to ru.",
+          "choices": []
+        },
+        {
+          "name": "report",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Link to the report action for an exact component or setup version.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-deep-link",
+      "next_actions": []
+    },
+    {
+      "path": [
+        "owner",
+        "object",
+        "show"
+      ],
+      "summary": "Read one server-authorized owned object and its exact versions.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "kind",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Object kind.",
+          "choices": [
+            "component",
+            "setup"
+          ]
+        },
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable object identifier.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-owner-object-detail",
+      "next_actions": [
+        "owner version show"
+      ]
+    },
+    {
+      "path": [
+        "owner",
+        "objects"
+      ],
+      "summary": "List objects owned by the authenticated account.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "kind",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Optional object-kind filter.",
+          "choices": [
+            "component",
+            "setup"
+          ]
+        },
+        {
+          "name": "cursor",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Opaque cursor returned by the previous page.",
+          "choices": []
+        },
+        {
+          "name": "page-size",
+          "kind": "option",
+          "value_type": "integer",
+          "required": false,
+          "repeatable": false,
+          "summary": "Requested bounded page size; defaults to 20.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-owner-object-list",
+      "next_actions": [
+        "owner object show"
+      ]
+    },
+    {
+      "path": [
+        "owner",
+        "version",
+        "show"
+      ],
+      "summary": "Read one exact owned version and its server lifecycle evidence.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "kind",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Object kind.",
+          "choices": [
+            "component",
+            "setup"
+          ]
+        },
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable object identifier.",
+          "choices": []
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact object version.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-owner-version-detail",
+      "next_actions": [
+        "publication plan"
+      ]
+    },
+    {
+      "path": [
+        "passport",
+        "developer",
+        "init"
+      ],
+      "summary": "Create the developer passport of this installation.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-passport-view",
+      "next_actions": [
+        "passport developer show"
+      ]
+    },
+    {
+      "path": [
+        "passport",
+        "developer",
+        "show"
+      ],
+      "summary": "Show the developer passport at its current head.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-passport-view",
+      "next_actions": [
+        "passport device show"
+      ]
+    },
+    {
+      "path": [
+        "passport",
+        "developer",
+        "update"
+      ],
+      "summary": "Declare developer facts, adding one revision.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "set",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": true,
+          "summary": "Declare one field as name=value; a comma-separated value becomes a list.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-passport-view",
+      "next_actions": [
+        "passport developer show"
+      ]
+    },
+    {
+      "path": [
+        "passport",
+        "device",
+        "refresh"
+      ],
+      "summary": "Create this device passport, or bring it up to what is observable now.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-passport-view",
+      "next_actions": [
+        "passport device show"
+      ]
+    },
+    {
+      "path": [
+        "passport",
+        "device",
+        "show"
+      ],
+      "summary": "Show this device passport at its current head.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-passport-view",
+      "next_actions": [
+        "passport developer show"
+      ]
+    },
+    {
+      "path": [
+        "project",
+        "discover"
+      ],
+      "summary": "List the projects inside a directory you name. Scans nothing else.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "root",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Directory to look inside. The home directory is refused.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-project-candidates",
+      "next_actions": [
+        "doctor"
+      ]
+    },
+    {
+      "path": [
+        "project",
+        "index"
+      ],
+      "summary": "Index one project root, bounded, skipping secrets and binary content.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "root",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Exact project root to index.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-project-index",
+      "next_actions": [
+        "project discover"
+      ]
+    },
+    {
+      "path": [
+        "project",
+        "passport"
+      ],
+      "summary": "Record a project passport revision pinning the index, toolchain and config.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "root",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Exact project root to record.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-passport-view",
+      "next_actions": [
+        "project symbols"
+      ]
+    },
+    {
+      "path": [
+        "project",
+        "symbols"
+      ],
+      "summary": "Read a project's public symbols, entry points and tests. No call graph.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "root",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Exact project root to read.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-project-symbols",
+      "next_actions": [
+        "project index"
+      ]
+    },
+    {
+      "path": [
+        "provider",
+        "conformance"
+      ],
+      "summary": "Check one provider against an explicitly selected protocol. Changes nothing.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The harness this provider claims.",
+          "choices": []
+        },
+        {
+          "name": "executable",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The provider executable to check.",
+          "choices": []
+        },
+        {
+          "name": "target",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Directory passed to the provider as its target.",
+          "choices": []
+        },
+        {
+          "name": "protocol-version",
+          "kind": "option",
+          "value_type": "integer",
+          "required": false,
+          "repeatable": false,
+          "summary": "Protocol version to check explicitly. Defaults to frozen v1.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-conformance-report",
+      "next_actions": [
+        "toolchain harnesses"
+      ]
+    },
+    {
+      "path": [
+        "provider",
+        "network"
+      ],
+      "summary": "Report observed protocol-v2 network isolation on this machine.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-provider-network-capability",
+      "next_actions": [
+        "provider conformance"
+      ]
+    },
+    {
+      "path": [
+        "provider",
+        "trust"
+      ],
+      "summary": "Report the pinned provider trust policy, and check one release against it.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "manifest",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Release manifest to check. Omit to report the policy.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-provider-trust",
+      "next_actions": [
+        "provider conformance"
+      ]
+    },
+    {
+      "path": [
+        "publication",
+        "confirm"
+      ],
+      "summary": "Confirm one exact unexpired publication plan hash.",
+      "mutability": "apply",
+      "confirmation": "explicit_flag",
+      "parameters": [
+        {
+          "name": "plan-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Publication plan identifier.",
+          "choices": []
+        },
+        {
+          "name": "plan-hash",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact immutable hash returned by publication plan.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Confirm the exact plan and its listed effects.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-publication-plan",
+      "next_actions": [
+        "publication status"
+      ]
+    },
+    {
+      "path": [
+        "publication",
+        "plan"
+      ],
+      "summary": "Create an immutable server plan for one exact released component version.",
+      "mutability": "plan",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable identifier of the released component.",
+          "choices": []
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact local X.Y version to publish.",
+          "choices": []
+        },
+        {
+          "name": "attestation-file",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "Full locally signed attestation bound to this exact version.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-publication-plan",
+      "next_actions": [
+        "publication confirm",
+        "publication status"
+      ]
+    },
+    {
+      "path": [
+        "publication",
+        "status"
+      ],
+      "summary": "Read the current server state of one publication plan.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "plan-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Publication plan identifier.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-publication-plan",
+      "next_actions": [
+        "publication confirm"
+      ]
+    },
+    {
+      "path": [
+        "registry",
+        "acquire"
+      ],
+      "summary": "Acquire one exact published setup graph for local offline compilation.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable identifier of the published setup.",
+          "choices": []
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact two-integer setup version.",
+          "choices": []
+        },
+        {
+          "name": "offline",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Use only verified cached passports and artifacts.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-catalog-setup-acquisition",
+      "next_actions": [
+        "install plan"
+      ]
+    },
+    {
+      "path": [
+        "registry",
+        "fetch"
+      ],
+      "summary": "Fetch the exact bytes of one published version into the local cache.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "kind",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Object kind.",
+          "choices": [
+            "component",
+            "setup"
+          ]
+        },
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Typed stable identifier of the object.",
+          "choices": []
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact two-integer version. A range is not a reference.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-catalog-artifact",
+      "next_actions": [
+        "registry version"
+      ]
+    },
+    {
+      "path": [
+        "registry",
+        "port",
+        "discover"
+      ],
+      "summary": "Find compatible SX and APM snapshots under one explicit local root.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "root",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact local directory to inspect.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-store-port-discovery",
+      "next_actions": [
+        "registry port inspect"
+      ]
+    },
+    {
+      "path": [
+        "registry",
+        "port",
+        "import"
+      ],
+      "summary": "Import a confirmed exact SX or APM snapshot into the local registry only.",
+      "mutability": "apply",
+      "confirmation": "plan_digest",
+      "parameters": [
+        {
+          "name": "root",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact local directory named by the plan.",
+          "choices": []
+        },
+        {
+          "name": "adapter",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Store contract.",
+          "choices": [
+            "sx",
+            "apm"
+          ]
+        },
+        {
+          "name": "expected-plan-digest",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact digest returned by plan.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Confirm this exact local registry import.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-store-port-import-result",
+      "next_actions": [
+        "component passport validate"
+      ]
+    },
+    {
+      "path": [
+        "registry",
+        "port",
+        "inspect"
+      ],
+      "summary": "Inspect one setup-store mapping without importing or running its CLI.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "root",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact local directory to inspect.",
+          "choices": []
+        },
+        {
+          "name": "adapter",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Store contract.",
+          "choices": [
+            "sx",
+            "apm"
+          ]
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-store-port-inspection",
+      "next_actions": [
+        "registry port plan"
+      ]
+    },
+    {
+      "path": [
+        "registry",
+        "port",
+        "plan"
+      ],
+      "summary": "Preview a local-only setup-store import and bind it to exact manifest bytes.",
+      "mutability": "plan",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "root",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact local directory to inspect.",
+          "choices": []
+        },
+        {
+          "name": "adapter",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Store contract.",
+          "choices": [
+            "sx",
+            "apm"
+          ]
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-store-port-import-plan",
+      "next_actions": [
+        "registry port import"
+      ]
+    },
+    {
+      "path": [
+        "registry",
+        "search"
+      ],
+      "summary": "Search the public catalogue without an account.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "kind",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Which half of the catalogue.",
+          "choices": [
+            "component",
+            "setup"
+          ]
+        },
+        {
+          "name": "query",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Free text to match.",
+          "choices": []
+        },
+        {
+          "name": "cursor",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Opaque cursor from a previous page.",
+          "choices": []
+        },
+        {
+          "name": "limit",
+          "kind": "option",
+          "value_type": "integer",
+          "required": false,
+          "repeatable": false,
+          "summary": "Results per page, within the contract's bound.",
+          "choices": []
+        },
+        {
+          "name": "include-experimental",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Also return the experimental lane, in its own section.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-catalog-search",
+      "next_actions": [
+        "registry show"
+      ]
+    },
+    {
+      "path": [
+        "registry",
+        "show"
+      ],
+      "summary": "Show one catalogue object and its published versions.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "kind",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Which half of the catalogue.",
+          "choices": [
+            "component",
+            "setup"
+          ]
+        },
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The object's stable identifier.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-catalog-object",
+      "next_actions": [
+        "registry search"
+      ]
+    },
+    {
+      "path": [
+        "registry",
+        "version"
+      ],
+      "summary": "Show one exact published version and its verified passport.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "kind",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Which half of the catalogue.",
+          "choices": [
+            "component",
+            "setup"
+          ]
+        },
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The object's stable identifier.",
+          "choices": []
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The exact version, as X.Y.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-catalog-version",
+      "next_actions": [
+        "registry show"
+      ]
+    },
+    {
+      "path": [
+        "report",
+        "confirm"
+      ],
+      "summary": "Submit one exact durable report preview after explicit confirmation.",
+      "mutability": "apply",
+      "confirmation": "explicit_flag",
+      "parameters": [
+        {
+          "name": "plan-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Prepared local report plan identifier.",
+          "choices": []
+        },
+        {
+          "name": "plan-digest",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact digest returned by report preview.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": true,
+          "repeatable": false,
+          "summary": "Confirm sending the exact previewed payload.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-report-case",
+      "next_actions": [
+        "report list"
+      ]
+    },
+    {
+      "path": [
+        "report",
+        "list"
+      ],
+      "summary": "List the current account's closed report cases.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-report-list",
+      "next_actions": [
+        "report preview"
+      ]
+    },
+    {
+      "path": [
+        "report",
+        "preview"
+      ],
+      "summary": "Prepare and show the exact bounded report payload without sending it.",
+      "mutability": "plan",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "kind",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Object kind.",
+          "choices": [
+            "component",
+            "setup"
+          ]
+        },
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable object identifier.",
+          "choices": []
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact object version.",
+          "choices": []
+        },
+        {
+          "name": "content-digest",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact reported content digest.",
+          "choices": []
+        },
+        {
+          "name": "harness-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Harness identifier, when relevant.",
+          "choices": []
+        },
+        {
+          "name": "harness-version",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Harness version, when known.",
+          "choices": []
+        },
+        {
+          "name": "provider-version",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Provider version, when known.",
+          "choices": []
+        },
+        {
+          "name": "operation-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Related local operation identifier.",
+          "choices": []
+        },
+        {
+          "name": "error-code",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Related registered error code.",
+          "choices": []
+        },
+        {
+          "name": "validation-snapshot-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "Validation snapshot identifier.",
+          "choices": []
+        },
+        {
+          "name": "diagnostics-file",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Bounded pre-reviewed UTF-8 diagnostics file.",
+          "choices": []
+        },
+        {
+          "name": "vulnerability",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Mark a possible security vulnerability.",
+          "choices": []
+        },
+        {
+          "name": "idempotency-key",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable key for this exact report.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-report-preview",
+      "next_actions": [
+        "report confirm"
+      ]
+    },
+    {
+      "path": [
+        "select",
+        "blast-radius"
+      ],
+      "summary": "Show local setup, project, device and installed-target references to a component.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "component-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Component stable identifier.",
+          "choices": []
+        },
+        {
+          "name": "component-version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Component exact X.Y version.",
+          "choices": []
+        },
+        {
+          "name": "scenario",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Read-only impact scenario.",
+          "choices": [
+            "update",
+            "deprecation",
+            "blocked",
+            "expired_evidence",
+            "advisory"
+          ]
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-blast-radius-report",
+      "next_actions": [
+        "select impact"
+      ]
+    },
+    {
+      "path": [
+        "select",
+        "bundle"
+      ],
+      "summary": "Compile the deterministic package for one composition. Writes to no target.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The harness being composed for.",
+          "choices": []
+        },
+        {
+          "name": "proposal",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The composition being bundled.",
+          "choices": []
+        },
+        {
+          "name": "project",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Project root whose facts the target is built from.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-harness-bundle",
+      "next_actions": [
+        "select reports"
+      ]
+    },
+    {
+      "path": [
+        "select",
+        "cancel"
+      ],
+      "summary": "Close one proposal without creating a version or changing a target.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "proposal",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The proposal being cancelled.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-proposal-session",
+      "next_actions": [
+        "select session"
+      ]
+    },
+    {
+      "path": [
+        "select",
+        "confirm"
+      ],
+      "summary": "Freeze one proposal as a private setup version, its trace and its pin.",
+      "mutability": "apply",
+      "confirmation": "explicit_flag",
+      "parameters": [
+        {
+          "name": "proposal",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The proposal being confirmed.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": true,
+          "repeatable": false,
+          "summary": "Confirm freezing this exact proposal as a setup version.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-confirmation",
+      "next_actions": [
+        "select session"
+      ]
+    },
+    {
+      "path": [
+        "select",
+        "eligibility"
+      ],
+      "summary": "Which candidates a harness may be composed from, and why each refusal happened.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The harness being composed for.",
+          "choices": []
+        },
+        {
+          "name": "project",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Project root whose facts the target is built from.",
+          "choices": []
+        },
+        {
+          "name": "include-unverified",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Consent to consider unverified candidates for this command only. Never stored, and never enough to select one automatically.",
+          "choices": []
+        },
+        {
+          "name": "for-redistribution",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "The composition is meant to be redistributed, so redistribution rights apply.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-eligibility-report",
+      "next_actions": [
+        "component find"
+      ]
+    },
+    {
+      "path": [
+        "select",
+        "eligibility-matrix"
+      ],
+      "summary": "Where one object may be composed, answered for every supported harness.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "Narrow the answer to these harnesses. Repeat to name several; omit to cover every supported one.",
+          "choices": []
+        },
+        {
+          "name": "project",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Project root whose facts the target is built from.",
+          "choices": []
+        },
+        {
+          "name": "include-unverified",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Consent to consider unverified candidates for this command only. Never stored, and never enough to select one automatically.",
+          "choices": []
+        },
+        {
+          "name": "for-redistribution",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "The composition is meant to be redistributed, so redistribution rights apply.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-eligibility-matrix",
+      "next_actions": [
+        "select eligibility"
+      ]
+    },
+    {
+      "path": [
+        "select",
+        "graph"
+      ],
+      "summary": "Resolve the exact dependency closure, or name every reason it cannot be.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "proposal",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Resolve the closure of this proposal's members.",
+          "choices": []
+        },
+        {
+          "name": "member",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "One exact root as <stable_id>@<X.Y>. Repeat for each. Use instead of --proposal.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-setup-graph",
+      "next_actions": [
+        "select propose"
+      ]
+    },
+    {
+      "path": [
+        "select",
+        "impact"
+      ],
+      "summary": "Compare context, token cost and capabilities of exact local setup versions.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "setup-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Candidate setup stable identifier.",
+          "choices": []
+        },
+        {
+          "name": "setup-version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Candidate exact X.Y version.",
+          "choices": []
+        },
+        {
+          "name": "against-setup-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Optional baseline setup stable identifier.",
+          "choices": []
+        },
+        {
+          "name": "against-setup-version",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Optional baseline exact X.Y version.",
+          "choices": []
+        },
+        {
+          "name": "project-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Use that project's installed or selected setup as the baseline when explicit baseline is absent.",
+          "choices": []
+        },
+        {
+          "name": "tokenizer-profile",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Versioned deterministic local estimator.",
+          "choices": [
+            "ai-stp:utf8-bytes/1",
+            "ai-stp:unicode-chars-div4/1"
+          ]
+        },
+        {
+          "name": "price-profile",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Explicit local token-price profile JSON file.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-selection-impact-report",
+      "next_actions": [
+        "select blast-radius"
+      ]
+    },
+    {
+      "path": [
+        "select",
+        "propose"
+      ],
+      "summary": "Record one composition proposal. Creates no version and no target.",
+      "mutability": "plan",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The harness being composed for.",
+          "choices": []
+        },
+        {
+          "name": "project",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Project root whose passport anchors the session.",
+          "choices": []
+        },
+        {
+          "name": "member",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "One exact member as <stable_id>@<X.Y>. Repeat for each.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-proposal-session",
+      "next_actions": [
+        "select confirm"
+      ]
+    },
+    {
+      "path": [
+        "select",
+        "reports"
+      ],
+      "summary": "Composition and conversion reports: what is chosen, what conflicts, what is lost.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The harness being composed for.",
+          "choices": []
+        },
+        {
+          "name": "proposal",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The composition being reported on.",
+          "choices": []
+        },
+        {
+          "name": "project",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Project root whose facts the target is built from.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-composition-reports",
+      "next_actions": [
+        "select confirm"
+      ]
+    },
+    {
+      "path": [
+        "select",
+        "session"
+      ],
+      "summary": "Open proposals for one project and harness, and the version selected.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The harness being composed for.",
+          "choices": []
+        },
+        {
+          "name": "project",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Project root whose passport anchors the session.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-proposal-session",
+      "next_actions": [
+        "select propose"
+      ]
+    },
+    {
+      "path": [
+        "setup",
+        "import",
+        "inspect"
+      ],
+      "summary": "Read one native configuration and report what it holds. Writes nothing.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "root",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The native configuration directory to read.",
+          "choices": []
+        },
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Which harness this configuration belongs to.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-import-inspection",
+      "next_actions": [
+        "setup import plan"
+      ]
+    },
+    {
+      "path": [
+        "setup",
+        "import",
+        "plan"
+      ],
+      "summary": "Plan exact component and setup drafts from one native configuration.",
+      "mutability": "plan",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "root",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The native configuration directory to inspect.",
+          "choices": []
+        },
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Which harness this configuration belongs to.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-setup-import-plan",
+      "next_actions": [
+        "setup import register"
+      ]
+    },
+    {
+      "path": [
+        "setup",
+        "import",
+        "register"
+      ],
+      "summary": "Register an inspected configuration as your own setup. No secret value is stored.",
+      "mutability": "apply",
+      "confirmation": "explicit_flag",
+      "parameters": [
+        {
+          "name": "root",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The native configuration directory to read.",
+          "choices": []
+        },
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Which harness this configuration belongs to.",
+          "choices": []
+        },
+        {
+          "name": "backup-ref",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The provider's reference to the backup it already made.",
+          "choices": []
+        },
+        {
+          "name": "plan-digest",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The exact digest returned by setup import plan.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": true,
+          "repeatable": false,
+          "summary": "Confirm the exact plan and listed effects.",
+          "choices": []
+        },
+        {
+          "name": "target",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Which target the backup was taken from.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-imported-setup",
+      "next_actions": [
+        "component find"
+      ]
+    },
+    {
+      "path": [
+        "skill",
+        "install"
+      ],
+      "summary": "Install the canonical Agent Skill at a named destination.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "target",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Directory the harness reads its native skill from.",
+          "choices": []
+        },
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Install the native projection for this harness instead of the canonical skill.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-skill-delivery",
+      "next_actions": [
+        "skill status"
+      ]
+    },
+    {
+      "path": [
+        "skill",
+        "remove"
+      ],
+      "summary": "Remove the Agent Skill this installation put at a destination.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "target",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Directory the harness reads its native skill from.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-skill-delivery",
+      "next_actions": [
+        "skill status"
+      ]
+    },
+    {
+      "path": [
+        "skill",
+        "status"
+      ],
+      "summary": "Report what Agent Skill is at a destination and who owns it.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "target",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Directory the harness reads its native skill from.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-skill-delivery",
+      "next_actions": [
+        "capabilities"
+      ]
+    },
+    {
+      "path": [
+        "sync",
+        "merge"
+      ],
+      "summary": "Commit a mechanically clean merge of two developer-passport heads.",
+      "mutability": "apply",
+      "confirmation": "explicit_flag",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable identifier with two local heads.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": true,
+          "repeatable": false,
+          "summary": "Confirm the exact merge candidate.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-sync-preview",
+      "next_actions": [
+        "sync push",
+        "sync preview"
+      ]
+    },
+    {
+      "path": [
+        "sync",
+        "preview"
+      ],
+      "summary": "Preview local fast-forward, merge or conflict without changing a head.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable identifier whose local heads are compared.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-sync-preview",
+      "next_actions": [
+        "passport developer show"
+      ]
+    },
+    {
+      "path": [
+        "sync",
+        "pull"
+      ],
+      "summary": "Pull and atomically apply one bounded page from the account stream.",
+      "mutability": "apply",
+      "confirmation": "explicit_flag",
+      "parameters": [
+        {
+          "name": "page-size",
+          "kind": "option",
+          "value_type": "integer",
+          "required": false,
+          "repeatable": false,
+          "summary": "Maximum events in this page.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": true,
+          "repeatable": false,
+          "summary": "Confirm the local registry update.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-sync-pull",
+      "next_actions": [
+        "sync pull",
+        "sync preview"
+      ]
+    },
+    {
+      "path": [
+        "sync",
+        "push"
+      ],
+      "summary": "Push one exact local head with a durable replay-safe event.",
+      "mutability": "apply",
+      "confirmation": "explicit_flag",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable identifier whose head is pushed.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": true,
+          "repeatable": false,
+          "summary": "Confirm the exact cloud write.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-sync-push",
+      "next_actions": [
+        "sync pull",
+        "sync preview"
+      ]
+    },
+    {
+      "path": [
+        "target",
+        "diff"
+      ],
+      "summary": "What installing the selected version would change. Changes nothing.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "project",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The project passport's stable id.",
+          "choices": []
+        },
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The harness of the pair.",
+          "choices": [
+            "claude-code",
+            "codex",
+            "grok-build",
+            "opencode",
+            "pi"
+          ]
+        },
+        {
+          "name": "provider",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Provider executable, to read the target as it is now.",
+          "choices": []
+        },
+        {
+          "name": "protocol-version",
+          "kind": "option",
+          "value_type": "integer",
+          "required": false,
+          "repeatable": false,
+          "summary": "Provider protocol selected before invocation. Defaults to frozen v1.",
+          "choices": []
+        },
+        {
+          "name": "target",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Existing absolute provider target directory. Required by protocol v2.",
+          "choices": []
+        },
+        {
+          "name": "requires-env",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "An additional uppercase variable this target needs beyond its setup passport. Never NAME=value.",
+          "choices": []
+        },
+        {
+          "name": "catalog-version",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Newest known version, to report catalog drift.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-target-diff",
+      "next_actions": [
+        "install plan"
+      ]
+    },
+    {
+      "path": [
+        "target",
+        "rollback"
+      ],
+      "summary": "Name the exact previous verified version. Rolls nothing back itself.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "project",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The project passport's stable id.",
+          "choices": []
+        },
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The harness of the pair.",
+          "choices": [
+            "claude-code",
+            "codex",
+            "grok-build",
+            "opencode",
+            "pi"
+          ]
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-rollback-target",
+      "next_actions": [
+        "install plan"
+      ]
+    },
+    {
+      "path": [
+        "target",
+        "status"
+      ],
+      "summary": "The daily state of one project and harness. Reads; never updates anything.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "project",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The project passport's stable id.",
+          "choices": []
+        },
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The harness of the pair.",
+          "choices": [
+            "claude-code",
+            "codex",
+            "grok-build",
+            "opencode",
+            "pi"
+          ]
+        },
+        {
+          "name": "provider",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Provider executable, to read the target as it is now.",
+          "choices": []
+        },
+        {
+          "name": "protocol-version",
+          "kind": "option",
+          "value_type": "integer",
+          "required": false,
+          "repeatable": false,
+          "summary": "Provider protocol selected before invocation. Defaults to frozen v1.",
+          "choices": []
+        },
+        {
+          "name": "target",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Existing absolute provider target directory. Required by protocol v2.",
+          "choices": []
+        },
+        {
+          "name": "requires-env",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "An additional uppercase variable this target needs beyond its setup passport. Never NAME=value.",
+          "choices": []
+        },
+        {
+          "name": "catalog-version",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Newest known version, to report catalog drift.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-target-survey",
+      "next_actions": [
+        "install plan",
+        "target rollback"
+      ]
+    },
+    {
+      "path": [
+        "toolchain",
+        "harness-capabilities"
+      ],
+      "summary": "Report declared layouts, projections, support tiers and known gaps for every harness.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-harness-capability-table",
+      "next_actions": [
+        "toolchain harnesses",
+        "component discover"
+      ]
+    },
+    {
+      "path": [
+        "toolchain",
+        "harnesses"
+      ],
+      "summary": "Report every supported harness and whether it is on this machine.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-harness-survey",
+      "next_actions": [
+        "toolchain profile"
+      ]
+    },
+    {
+      "path": [
+        "toolchain",
+        "install"
+      ],
+      "summary": "Install one pinned tool into the managed directory. Runs nothing from it.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "tool",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Identifier of a tool the profile pins.",
+          "choices": []
+        },
+        {
+          "name": "offline",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Use only the verified cache; never the network.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-toolchain-installation",
+      "next_actions": [
+        "toolchain profile"
+      ]
+    },
+    {
+      "path": [
+        "toolchain",
+        "profile"
+      ],
+      "summary": "Show the managed toolchain profile as it resolves on this machine.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-toolchain-profile",
+      "next_actions": [
+        "doctor"
+      ]
+    },
+    {
+      "path": [
+        "toolchain",
+        "remove"
+      ],
+      "summary": "Remove one managed tool, touching only paths this CLI created.",
+      "mutability": "destructive",
+      "confirmation": "explicit_flag",
+      "parameters": [
+        {
+          "name": "tool",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Identifier of an installed tool.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": true,
+          "repeatable": false,
+          "summary": "Confirm removing the paths this CLI created for that tool.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-toolchain-installation",
+      "next_actions": [
+        "toolchain profile"
+      ]
+    },
+    {
+      "path": [
+        "version"
+      ],
+      "summary": "Report the running build and the contract versions it speaks.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-version-report",
+      "next_actions": [
+        "doctor"
+      ]
+    }
+  ],
+  "error_codes": [
+    {
+      "code": "AI_STP_AUTHORIZATION_DECLINED",
+      "exit_class": 3,
+      "handling": "restart_authorization",
+      "description": "the user declined the device authorization"
+    },
+    {
+      "code": "AI_STP_AUTHORIZATION_EXPIRED",
+      "exit_class": 3,
+      "handling": "restart_authorization",
+      "description": "the device authorization request expired before approval"
+    },
+    {
+      "code": "AI_STP_AUTHORIZATION_PENDING",
+      "exit_class": 3,
+      "handling": "await_authorization",
+      "description": "the device authorization is not approved yet"
+    },
+    {
+      "code": "AI_STP_AUTH_REQUIRED",
+      "exit_class": 3,
+      "handling": "authenticate",
+      "description": "the operation needs a signed-in account"
+    },
+    {
+      "code": "AI_STP_CATALOG_INTEGRITY",
+      "exit_class": 70,
+      "handling": "report_bug",
+      "description": "a stored catalog object failed integrity verification"
+    },
+    {
+      "code": "AI_STP_CONFLICT",
+      "exit_class": 4,
+      "handling": "reconcile_state",
+      "description": "concurrent change or revision mismatch"
+    },
+    {
+      "code": "AI_STP_DEPENDENCY_UNAVAILABLE",
+      "exit_class": 5,
+      "handling": "retry_if_retryable",
+      "description": "a required service or resource is unreachable"
+    },
+    {
+      "code": "AI_STP_DEVICE_REVOKED",
+      "exit_class": 3,
+      "handling": "restart_authorization",
+      "description": "the device key is revoked for cloud operations"
+    },
+    {
+      "code": "AI_STP_INTERNAL",
+      "exit_class": 70,
+      "handling": "report_bug",
+      "description": "unexpected internal error"
+    },
+    {
+      "code": "AI_STP_NOT_FOUND",
+      "exit_class": 2,
+      "handling": "correct_request",
+      "description": "referenced object or version does not exist"
+    },
+    {
+      "code": "AI_STP_PARTIAL_OPERATION",
+      "exit_class": 6,
+      "handling": "recover_partial",
+      "description": "a mutating operation stopped in a partial state"
+    },
+    {
+      "code": "AI_STP_PERMISSION_DENIED",
+      "exit_class": 3,
+      "handling": "stop_for_permission",
+      "description": "the account lacks the required grant or role"
+    },
+    {
+      "code": "AI_STP_PLAN_STALE",
+      "exit_class": 4,
+      "handling": "reconcile_state",
+      "description": "the immutable plan no longer matches its preconditions"
+    },
+    {
+      "code": "AI_STP_PRECONDITION_FAILED",
+      "exit_class": 4,
+      "handling": "reconcile_state",
+      "description": "the supplied revision or ETag no longer matches the object"
+    },
+    {
+      "code": "AI_STP_RATE_LIMITED",
+      "exit_class": 5,
+      "handling": "retry_if_retryable",
+      "description": "the server asked to slow down"
+    },
+    {
+      "code": "AI_STP_SCHEMA_UNSUPPORTED",
+      "exit_class": 2,
+      "handling": "correct_request",
+      "description": "the requested schema or API major version is not supported"
+    },
+    {
+      "code": "AI_STP_TIMEOUT_UNCONFIRMED",
+      "exit_class": 5,
+      "handling": "inspect_effect",
+      "description": "the call timed out without a confirmed effect"
+    },
+    {
+      "code": "AI_STP_UNSUPPORTED_APPLY",
+      "exit_class": 2,
+      "handling": "correct_request",
+      "description": "apply requested for an unsupported harness"
+    },
+    {
+      "code": "AI_STP_USER_DECISION_REQUIRED",
+      "exit_class": 4,
+      "handling": "ask_user",
+      "description": "a sensitive action needs an explicit user decision"
+    },
+    {
+      "code": "AI_STP_VALIDATION_ERROR",
+      "exit_class": 2,
+      "handling": "correct_request",
+      "description": "input or schema validation failed"
+    }
+  ]
+}

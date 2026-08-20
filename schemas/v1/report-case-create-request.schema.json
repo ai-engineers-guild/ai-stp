@@ -1,0 +1,116 @@
+{
+  "$defs": {
+    "ContentDigest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    },
+    "ObjectKind": {
+      "enum": [
+        "component",
+        "setup"
+      ],
+      "type": "string"
+    },
+    "Version": {
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:report-case-create-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "POST /v1/reports body.",
+  "properties": {
+    "content_digest": {
+      "$ref": "#/$defs/ContentDigest"
+    },
+    "diagnostics": {
+      "default": "",
+      "maxLength": 4000,
+      "title": "Diagnostics",
+      "type": "string"
+    },
+    "diagnostics_previewed": {
+      "default": false,
+      "title": "Diagnostics Previewed",
+      "type": "boolean"
+    },
+    "error_code": {
+      "default": "",
+      "maxLength": 64,
+      "title": "Error Code",
+      "type": "string"
+    },
+    "harness_id": {
+      "default": "",
+      "maxLength": 64,
+      "title": "Harness Id",
+      "type": "string"
+    },
+    "harness_version": {
+      "default": "",
+      "maxLength": 32,
+      "title": "Harness Version",
+      "type": "string"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "object_kind": {
+      "$ref": "#/$defs/ObjectKind"
+    },
+    "operation_id": {
+      "default": "",
+      "maxLength": 64,
+      "title": "Operation Id",
+      "type": "string"
+    },
+    "provider_version": {
+      "default": "",
+      "maxLength": 32,
+      "title": "Provider Version",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stable_id": {
+      "maxLength": 64,
+      "minLength": 8,
+      "title": "Stable Id",
+      "type": "string"
+    },
+    "validation_snapshot_ids": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 16,
+      "title": "Validation Snapshot Ids",
+      "type": "array"
+    },
+    "version": {
+      "$ref": "#/$defs/Version"
+    },
+    "vulnerability": {
+      "default": false,
+      "title": "Vulnerability",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "object_kind",
+    "stable_id",
+    "version",
+    "content_digest",
+    "idempotency_key"
+  ],
+  "title": "ReportCaseCreateRequest",
+  "type": "object"
+}

@@ -1,0 +1,29 @@
+{
+  "$id": "urn:ai-stp:schema:v1:error-code",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Closed registry of stable ai_stp machine error codes.",
+  "enum": [
+    "AI_STP_AUTHORIZATION_DECLINED",
+    "AI_STP_AUTHORIZATION_EXPIRED",
+    "AI_STP_AUTHORIZATION_PENDING",
+    "AI_STP_AUTH_REQUIRED",
+    "AI_STP_CATALOG_INTEGRITY",
+    "AI_STP_CONFLICT",
+    "AI_STP_DEPENDENCY_UNAVAILABLE",
+    "AI_STP_DEVICE_REVOKED",
+    "AI_STP_INTERNAL",
+    "AI_STP_NOT_FOUND",
+    "AI_STP_PARTIAL_OPERATION",
+    "AI_STP_PERMISSION_DENIED",
+    "AI_STP_PLAN_STALE",
+    "AI_STP_PRECONDITION_FAILED",
+    "AI_STP_RATE_LIMITED",
+    "AI_STP_SCHEMA_UNSUPPORTED",
+    "AI_STP_TIMEOUT_UNCONFIRMED",
+    "AI_STP_UNSUPPORTED_APPLY",
+    "AI_STP_USER_DECISION_REQUIRED",
+    "AI_STP_VALIDATION_ERROR"
+  ],
+  "title": "ErrorCode",
+  "type": "string"
+}

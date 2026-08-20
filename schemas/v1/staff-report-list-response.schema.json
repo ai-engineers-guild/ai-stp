@@ -1,0 +1,161 @@
+{
+  "$defs": {
+    "ContentDigest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "Cursor": {
+      "pattern": "^[A-Za-z0-9_-]{1,512}$",
+      "type": "string"
+    },
+    "ObjectKind": {
+      "enum": [
+        "component",
+        "setup"
+      ],
+      "type": "string"
+    },
+    "PageInfo": {
+      "additionalProperties": true,
+      "description": "Cursor pagination state (docs/contracts/http-api.md).\n\nNo total is exposed. Reporting one would let a caller detect objects it is\nnot allowed to read, so a hidden or deleted object leaks through neither a\ncount nor a cursor.",
+      "properties": {
+        "next_cursor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Cursor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "page_size": {
+          "$ref": "#/$defs/PageSize"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "next_cursor",
+        "page_size",
+        "schema_version"
+      ],
+      "title": "PageInfo",
+      "type": "object"
+    },
+    "PageSize": {
+      "maximum": 100,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "StaffReportSummary": {
+      "additionalProperties": true,
+      "description": "One staff worklist case.",
+      "properties": {
+        "case_id": {
+          "maxLength": 64,
+          "minLength": 8,
+          "title": "Case Id",
+          "type": "string"
+        },
+        "content_digest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ContentDigest"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "created_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "object_kind": {
+          "$ref": "#/$defs/ObjectKind"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "stable_id": {
+          "maxLength": 64,
+          "minLength": 8,
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "state": {
+          "maxLength": 32,
+          "minLength": 1,
+          "title": "State",
+          "type": "string"
+        },
+        "version": {
+          "$ref": "#/$defs/Version"
+        },
+        "vulnerability": {
+          "default": false,
+          "title": "Vulnerability",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "case_id",
+        "content_digest",
+        "created_at",
+        "object_kind",
+        "schema_version",
+        "stable_id",
+        "state",
+        "version",
+        "vulnerability"
+      ],
+      "title": "StaffReportSummary",
+      "type": "object"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    },
+    "Version": {
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:staff-report-list-response",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Staff worklist (allowlist only).",
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/$defs/StaffReportSummary"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "page": {
+      "$ref": "#/$defs/PageInfo"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "items",
+    "page",
+    "schema_version"
+  ],
+  "title": "StaffReportListResponse",
+  "type": "object"
+}

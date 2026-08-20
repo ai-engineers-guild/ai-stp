@@ -1,0 +1,91 @@
+# Promote the exact commit a green `check` proved, for the target to deploy.
+#
+# The target is not a GitHub runner and this workflow never reaches it. It
+# advances one monotonic ref; the host fetches that ref with a read-only deploy
+# key on its own timer and performs the locked, idempotent deployment locally.
+#
+# That shape is deliberate, and it is why this workflow holds no deployment
+# credential at all: a public repository's CI cannot leak an SSH key it was
+# never given. Application secrets live on the target, in an environment file
+# that no workflow reads or writes.
+name: deploy
+
+on:
+  workflow_run:
+    workflows: [check]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    name: promote
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Serialising promotion is the point: two runs advancing one ref would
+    # race, and a deployment interrupted between transfer and health check
+    # leaves a state no verdict describes, so a queued promotion waits rather
+    # than cancelling the one ahead of it. Declared on this job rather than the
+    # workflow, because the proof below promotes nothing and only reads.
+    concurrency:
+      group: deploy-promotion
+      cancel-in-progress: false
+    steps:
+      - name: Verify the source of this promotion and advance the ref
+        env:
+          EVENT: ${{ github.event.workflow_run.event }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # A manually requested check answers the question without deploying.
+          test "${EVENT}" = "push"
+          test "$(gh api "repos/${REPOSITORY}/commits/${HEAD_SHA}" --jq .sha)" = "${HEAD_SHA}"
+          if gh api "repos/${REPOSITORY}/git/ref/heads/deploy/prod" >/dev/null 2>&1; then
+            gh api --method PATCH "repos/${REPOSITORY}/git/refs/heads/deploy/prod" \
+              -f sha="${HEAD_SHA}" -F force=false >/dev/null
+          else
+            gh api --method POST "repos/${REPOSITORY}/git/refs" \
+              -f ref=refs/heads/deploy/prod -f sha="${HEAD_SHA}" >/dev/null
+          fi
+          promoted="$(gh api "repos/${REPOSITORY}/git/ref/heads/deploy/prod" --jq .object.sha)"
+          test "${promoted}" = "${HEAD_SHA}"
+
+  verify-public:
+    name: verify-public
+    needs: promote
+    runs-on: ubuntu-latest
+    # The wait below plus checkout and setup. Larger than the wait, so a
+    # timeout means the job was starved rather than the target being late.
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.14"
+      # Promotion and deployment are separate events, so an immediate check
+      # would measure whether the target had already deployed a commit promoted
+      # seconds earlier — it never has. Waiting a bounded time is what makes a
+      # green deployment a claim rather than a formality. Twelve minutes is
+      # measured: the target's timer ticks every sixty seconds and an observed
+      # deploy took about six from first tick to readiness.
+      - name: Prove the target deployed the promoted commit
+        env:
+          ORIGIN: ${{ vars.AI_STP_PUBLIC_ORIGIN }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          test -n "${ORIGIN}"
+          python3 deploy/verify_public.py \
+            --origin "${ORIGIN}" \
+            --expected-commit "${HEAD_SHA}" \
+            --migrations-dir migrations/versions \
+            --expected-environment prod \
+            --wait-seconds 720

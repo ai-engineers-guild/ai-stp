@@ -1,0 +1,49 @@
+[project]
+name = "ai-stp-cli"
+version = "0.1.0"
+description = "The ai_stp command line interface: a strict machine contract an agent drives."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
+authors = [{ name = "AI Engineers Guild" }]
+keywords = ["ai", "cli", "developer-tools", "setup", "agents"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Typing :: Typed",
+]
+dependencies = [
+    "ai-stp-assurance==0.1.0",
+    "ai-stp-contracts==0.1.0",
+    "ai-stp-foundation==0.1.0",
+    "ai-stp-passports==0.1.0",
+    "click>=8.1",
+    "cryptography>=45",
+    "httpx>=0.28",
+    "keyring>=25.6",
+    "pydantic>=2.9",
+    "pyyaml>=6",
+]
+
+[project.scripts]
+ai-stp = "ai_stp_cli.app:run"
+
+[project.urls]
+Homepage = "https://github.com/ai-engineers-guild/ai_stp"
+Repository = "https://github.com/ai-engineers-guild/ai_stp"
+Issues = "https://github.com/ai-engineers-guild/ai_stp/issues"
+
+[tool.uv.sources]
+ai-stp-assurance = { workspace = true }
+ai-stp-contracts = { workspace = true }
+ai-stp-foundation = { workspace = true }
+
+[build-system]
+requires = ["uv_build>=0.11,<0.13"]
+build-backend = "uv_build"

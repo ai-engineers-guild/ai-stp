@@ -1,0 +1,61 @@
+import { Meta } from "@storybook/blocks";
+
+<Meta title="Foundations/Introduction" />
+
+# ai_stp UI kit & theme
+
+Portable design system for the web app. Specs:
+
+- `docs/product/BRAND.md` — voice, mark, palette roles
+- `docs/product/DESIGN.md` — layout, components, rules
+- `apps/web/DESIGN.md` — runtime map for engineers
+
+## Layers
+
+| Layer             | Path                                                 | Role                                         |
+| ----------------- | ---------------------------------------------------- | -------------------------------------------- |
+| **Tokens**        | `src/theme/tokens.json`                              | Colors, space, radius, type, icons, motion   |
+| **CSS variables** | `src/app/globals.css`                                | Runtime light/dark                           |
+| **Typed access**  | `src/theme/tokens.ts`                                | TS helpers                                   |
+| **Icons**         | `src/theme/icons.tsx`                                | Single registry — no lucide in product pages |
+| **UI kit**        | `src/components/{atoms,molecules,organisms,layouts}` | Atomic components used by routes             |
+
+## Modes
+
+- **Human (light)** — white canvas, ink text, sand cards
+- **Machine (dark)** — near-black canvas, ink surfaces, white text
+
+Signal orange (`primary`) is high-signal only: CTAs, focus ring, brand mark bar.
+
+## Full inventory
+
+### Atoms
+
+Badge · Button · Dialog · Input · Label · Skeleton · Textarea
+
+### Molecules
+
+RouteLoading · SearchField · StatePanel · ThemeToggle
+
+### Organisms
+
+CatalogFilters · CatalogResults · DeviceList · IdentityList · InstallBlock · ObjectCard · ProfileForm
+
+### Layouts
+
+AppShell · SiteHeader
+
+### Providers (runtime only)
+
+AppProviders — ThemeProvider + Toaster (wired in Storybook decorators)
+
+## How to rebrand
+
+1. Edit `src/theme/tokens.json`.
+2. Mirror into `globals.css` `:root` / `.dark`.
+3. Keep class names semantic (`bg-primary`, `text-muted-foreground`).
+4. Icons: only `src/theme/icons.tsx`.
+
+## Storybook toolbar
+
+**Theme** switcher toggles `dark` on `html`.

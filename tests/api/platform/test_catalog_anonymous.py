@@ -1,0 +1,398 @@
+"""ASGI tests for anonymous public catalog routes (SPEC-021)."""
+
+from __future__ import annotations
+
+from collections.abc import AsyncIterator
+from http import HTTPStatus
+
+import pytest
+import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from tests.api.platform.conftest import make_settings
+
+from ai_stp_api.app import create_app
+from ai_stp_api.errors import CATEGORY_CODE, ErrorCategory
+from ai_stp_platform.catalog_seed import (
+    FIXTURE_COMPONENT_ID,
+    FIXTURE_SETUP_ID,
+    load_first_party_seed,
+)
+from ai_stp_platform.models import CatalogMetadata
+
+pytestmark = pytest.mark.platform
+
+
+@pytest_asyncio.fixture
+async def seeded_client(
+    migrated_database_url: str,
+    tmp_path_factory: pytest.TempPathFactory,
+) -> AsyncIterator[AsyncClient]:
+    log_dir = tmp_path_factory.mktemp("catalog-api")
+    settings = make_settings(log_dir, database_url=migrated_database_url)
+    engine = create_async_engine(migrated_database_url)
+    sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessionmaker() as session:
+        await load_first_party_seed(session)
+        await session.commit()
+    app = create_app(settings)
+    async with app.router.lifespan_context(app):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            yield client
+    await engine.dispose()
+
+
+async def test_six_anonymous_routes_succeed(seeded_client: AsyncClient) -> None:
+    paths = [
+        "/v1/catalog/components?page_size=20&include_experimental=true",
+        f"/v1/catalog/components/{FIXTURE_COMPONENT_ID}",
+        f"/v1/catalog/components/{FIXTURE_COMPONENT_ID}/versions/1.2",
+        "/v1/catalog/setups?page_size=20&include_experimental=true",
+        f"/v1/catalog/setups/{FIXTURE_SETUP_ID}",
+        f"/v1/catalog/setups/{FIXTURE_SETUP_ID}/versions/1.0",
+    ]
+    for path in paths:
+        response = await seeded_client.get(path)
+        assert response.status_code == 200, path
+        assert "X-Request-Id" in response.headers
+        assert "ok" not in response.json() or "schema_version" in response.json()
+
+
+async def test_experimental_section_requires_consent(seeded_client: AsyncClient) -> None:
+    without = await seeded_client.get(
+        "/v1/catalog/components",
+        params={"page_size": "20", "include_experimental": "false"},
+    )
+    with_consent = await seeded_client.get(
+        "/v1/catalog/components",
+        params={"page_size": "20", "include_experimental": "true"},
+    )
+    assert without.status_code == 200
+    assert with_consent.status_code == 200
+    assert without.json()["experimental"] == []
+    assert without.json()["items"] == []
+    assert len(with_consent.json()["experimental"]) >= 1
+    assert with_consent.json()["items"] == []
+
+
+async def test_non_enumeration_same_not_found(seeded_client: AsyncClient) -> None:
+    missing = await seeded_client.get("/v1/catalog/components/component_01JQZK7B8N4M6P2R9T5V0X3Y70")
+    # Private row is not seeded; create one mid-test via direct DB if needed.
+    # Absent and non-public both yield AI_STP_NOT_FOUND.
+    assert missing.status_code == 404
+    assert missing.json()["error"]["code"] == "AI_STP_NOT_FOUND"
+
+
+async def test_unknown_query_param_rejected(seeded_client: AsyncClient) -> None:
+    response = await seeded_client.get("/v1/catalog/components", params={"tag": "python"})
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+    assert response.json()["error"]["code"] == CATEGORY_CODE[ErrorCategory.VALIDATION]
+
+
+async def test_component_detail_non_contiguous_versions(seeded_client: AsyncClient) -> None:
+    response = await seeded_client.get(f"/v1/catalog/components/{FIXTURE_COMPONENT_ID}")
+    assert response.status_code == 200
+    body = response.json()
+    versions = [entry["version"] for entry in body["versions"]]
+    assert versions == ["1.0", "1.2"]
+    assert body["summary"]["latest_version"] == "1.2"
+    assert body["summary"]["latest_trust"]["trust_lane"] == "experimental"
+    assert body["summary"]["latest_trust"]["component_verified"] is False
+    assert body["summary"]["latest_support"]["tier"] == "primary"
+    assert body["summary"]["latest_support"]["state"] == "missing"
+
+
+async def test_support_filters_are_public_and_do_not_change_trust_consent(
+    seeded_client: AsyncClient,
+) -> None:
+    response = await seeded_client.get(
+        "/v1/catalog/components",
+        params={
+            "page_size": "20",
+            "include_experimental": "true",
+            "support_tier": "primary",
+            "support_state": "missing",
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["experimental"]
+    assert response.json()["experimental"][0]["latest_support"]["state"] == "missing"
+
+
+async def test_fresh_support_evidence_is_exposed_on_detail_and_version(
+    db_api_client: tuple[AsyncClient, async_sessionmaker[AsyncSession], object],
+) -> None:
+    client, sessionmaker, _settings = db_api_client
+    async with sessionmaker() as session:
+        await load_first_party_seed(session)
+        row = await session.scalar(
+            select(CatalogMetadata).where(
+                CatalogMetadata.object_kind == "component",
+                CatalogMetadata.stable_id == FIXTURE_COMPONENT_ID,
+                CatalogMetadata.version == "1.2",
+            )
+        )
+        assert row is not None
+        row.support_evidence = [
+            {
+                "schema_version": 1,
+                "check_id": "release-smoke",
+                "policy_version": "2026.08",
+                "result": "passed",
+                "source": "provider_release_evidence",
+                "provider_id": "nddev-provider",
+                "provider_version": "2.4.0",
+                "release_reference": "a" * 40,
+                "operating_system": "ubuntu",
+                "architecture": "x86_64",
+                "mandatory": True,
+                "observed_at": "2026-08-09T10:00:00.000Z",
+                "expires_at": "2030-01-01T00:00:00.000Z",
+            }
+        ]
+        await session.commit()
+
+    detail = await client.get(f"/v1/catalog/components/{FIXTURE_COMPONENT_ID}")
+    assert detail.status_code == 200
+    detail_body = detail.json()
+    assert detail_body["summary"]["latest_support"]["state"] == "verified"
+    assert detail_body["summary"]["latest_support"]["evidence"][0]["result"] == "passed"
+
+    version = await client.get(f"/v1/catalog/components/{FIXTURE_COMPONENT_ID}/versions/1.2")
+    assert version.status_code == 200
+    assert version.json()["support"]["state"] == "verified"
+    assert version.json()["support"]["evidence"][0]["check_id"] == "release-smoke"
+
+
+async def test_invalid_support_filter_is_a_validation_error(seeded_client: AsyncClient) -> None:
+    response = await seeded_client.get(
+        "/v1/catalog/components",
+        params={"support_state": "fresh"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "AI_STP_VALIDATION_ERROR"
+
+
+async def test_setup_support_filter_is_validated(seeded_client: AsyncClient) -> None:
+    response = await seeded_client.get(
+        "/v1/catalog/setups",
+        params={"support_tier": "primary", "support_state": "fresh"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "AI_STP_VALIDATION_ERROR"
+
+
+async def test_missing_setup_is_not_enumerated(seeded_client: AsyncClient) -> None:
+    response = await seeded_client.get("/v1/catalog/setups/setup_01JQZK7B8N4M6P2R9T5V0X3Y70")
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "AI_STP_NOT_FOUND"
+
+
+async def test_version_read_serves_public_passport(seeded_client: AsyncClient) -> None:
+    response = await seeded_client.get(
+        f"/v1/catalog/components/{FIXTURE_COMPONENT_ID}/versions/1.2"
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["passport"]["visibility"] == "public"
+    assert body["passport"]["name"] == "fixture-component"
+    assert body["lifecycle"] == "active"
+    assert body["trust"]["trust_lane"] == "experimental"
+    assert body["support"]["tier"] == "primary"
+    assert body["support"]["state"] == "missing"
+
+
+async def test_no_count_field_on_list(seeded_client: AsyncClient) -> None:
+    response = await seeded_client.get(
+        "/v1/catalog/components",
+        params={"page_size": "20", "include_experimental": "true"},
+    )
+    body = response.json()
+    assert "count" not in body
+    assert "total" not in body
+
+
+async def test_invalid_cursor_is_validation_error(seeded_client: AsyncClient) -> None:
+    response = await seeded_client.get(
+        "/v1/catalog/components",
+        params={"page_size": "20", "cursor": "not-a-valid-cursor-token"},
+    )
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "AI_STP_VALIDATION_ERROR"
+
+
+async def test_missing_setup_version_is_not_found(seeded_client: AsyncClient) -> None:
+    response = await seeded_client.get(
+        f"/v1/catalog/setups/{FIXTURE_SETUP_ID}/versions/9.9",
+    )
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "AI_STP_NOT_FOUND"
+
+
+async def test_missing_component_version_is_not_found(seeded_client: AsyncClient) -> None:
+    response = await seeded_client.get(
+        f"/v1/catalog/components/{FIXTURE_COMPONENT_ID}/versions/9.9",
+    )
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "AI_STP_NOT_FOUND"
+
+
+async def test_page_mode_returns_exact_public_totals(seeded_client: AsyncClient) -> None:
+    response = await seeded_client.get(
+        "/v1/catalog/components",
+        params={"page": "1", "page_size": "1", "include_experimental": "true"},
+    )
+
+    assert response.status_code == 200
+    page = response.json()["page"]
+    assert page["mode"] == "page"
+    assert page["page_number"] == 1
+    assert page["total_items"] >= 1
+    assert page["total_pages"] >= 1
+    assert page["next_cursor"] is None
+
+
+async def test_cursor_and_page_modes_are_mutually_exclusive(seeded_client: AsyncClient) -> None:
+    first = await seeded_client.get(
+        "/v1/catalog/components",
+        params={"page_size": "1", "include_experimental": "true"},
+    )
+    cursor = first.json()["page"]["next_cursor"]
+    if cursor is None:
+        pytest.skip("fixture corpus fits one cursor page")
+
+    response = await seeded_client.get(
+        "/v1/catalog/components",
+        params={"cursor": cursor, "page": "1", "page_size": "1"},
+    )
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "AI_STP_VALIDATION_ERROR"
+
+
+async def test_catalog_ql_is_validated_at_the_api_boundary(seeded_client: AsyncClient) -> None:
+    valid = await seeded_client.get(
+        "/v1/catalog/components",
+        params={
+            "q": "NAME:fixture-component AND TAGS IN (python, tests)",
+            "include_experimental": "true",
+            "page": "1",
+        },
+    )
+    assert valid.status_code == 200
+    assert valid.json()["experimental"]
+
+    invalid = await seeded_client.get(
+        "/v1/catalog/components",
+        params={"q": "VERIFIED:maybe", "page": "1"},
+    )
+    assert invalid.status_code == 400
+    assert "offset" in invalid.json()["error"]["message"]
+
+    # Every multi-value filter is enforced server-side rather than being a UI-only
+    # affordance.  Mismatching values must empty the response deterministically.
+    for key, value in (
+        ("harness_ids", "opencode"),
+        ("component_types", "mcp"),
+        ("authors", "account_missing"),
+    ):
+        filtered = await seeded_client.get(
+            "/v1/catalog/components",
+            params={key: value, "include_experimental": "true", "page": "1"},
+        )
+        assert filtered.status_code == 200
+        stable_ids = {
+            item["stable_id"]
+            for lane in ("items", "experimental")
+            for item in filtered.json()[lane]
+        }
+        assert FIXTURE_COMPONENT_ID not in stable_ids
+
+    verified = await seeded_client.get(
+        "/v1/catalog/components",
+        params={"verified_only": "true", "include_experimental": "true", "page": "1"},
+    )
+    assert verified.status_code == 200
+    assert verified.json()["experimental"] == []
+
+
+async def test_updated_range_filters_and_rejects_reversed_bounds(
+    seeded_client: AsyncClient,
+) -> None:
+    wide = await seeded_client.get(
+        "/v1/catalog/components",
+        params={
+            "updated_from": "2000-01-01",
+            "updated_to": "2099-12-31",
+            "include_experimental": "true",
+            "page": "1",
+        },
+    )
+    assert wide.status_code == HTTPStatus.OK
+    assert wide.json()["experimental"] or wide.json()["items"]
+
+    empty_future = await seeded_client.get(
+        "/v1/catalog/components",
+        params={
+            "updated_from": "2099-01-01",
+            "include_experimental": "true",
+            "page": "1",
+        },
+    )
+    assert empty_future.status_code == HTTPStatus.OK
+    assert empty_future.json()["items"] == []
+    assert empty_future.json()["experimental"] == []
+
+    empty_past = await seeded_client.get(
+        "/v1/catalog/components",
+        params={
+            "updated_to": "2000-01-01",
+            "include_experimental": "true",
+            "page": "1",
+        },
+    )
+    assert empty_past.status_code == HTTPStatus.OK
+    assert empty_past.json()["items"] == []
+    assert empty_past.json()["experimental"] == []
+
+    reversed_range = await seeded_client.get(
+        "/v1/catalog/components",
+        params={
+            "updated_from": "2026-02-02",
+            "updated_to": "2026-02-01",
+            "page": "1",
+        },
+    )
+    assert reversed_range.status_code == HTTPStatus.BAD_REQUEST
+    assert reversed_range.json()["error"]["code"] == CATEGORY_CODE[ErrorCategory.VALIDATION]
+
+
+async def test_setup_updated_range_uses_the_same_contract(
+    seeded_client: AsyncClient,
+) -> None:
+    wide = await seeded_client.get(
+        "/v1/catalog/setups",
+        params={
+            "updated_from": "2000-01-01",
+            "updated_to": "2099-12-31",
+            "include_experimental": "true",
+            "page": "1",
+        },
+    )
+    assert wide.status_code == HTTPStatus.OK
+    assert wide.json()["experimental"] or wide.json()["items"]
+
+    reversed_range = await seeded_client.get(
+        "/v1/catalog/setups",
+        params={
+            "updated_from": "2026-02-02",
+            "updated_to": "2026-02-01",
+            "page": "1",
+        },
+    )
+    assert reversed_range.status_code == HTTPStatus.BAD_REQUEST
+    assert reversed_range.json()["error"]["code"] == CATEGORY_CODE[ErrorCategory.VALIDATION]

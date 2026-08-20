@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "devDependencies": {
+    "@mermaid-js/mermaid-cli": "11.16.0",
+    "markdownlint-cli2": "0.23.2"
+  }
+}

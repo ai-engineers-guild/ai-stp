@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en" class="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ai_stp</title>
+  <link rel="stylesheet" href="../shared/tokens.css" />
+  <link rel="stylesheet" href="../shared/ui.css" />
+</head>
+<body>
+  <div class="shell" data-od-id="page-landing">
+
+    <a href="#main-content" class="sr-only">Skip to content</a>
+    <header class="topbar" data-od-id="site-header">
+      <div class="topbar-inner">
+        <nav class="nav" aria-label="Primary">
+          <a href="landing.html" class="brand"><img src="../shared/brand/logo-mark.png" alt="" width="28" height="28" aria-hidden="true">ai_stp</a>
+          <a href="catalog.html" class="nav-link" title="Browse published components and setups">Catalog</a>
+        </nav>
+        <div class="top-actions">
+          <label class="sr-only" for="locale-select">Language</label>
+          <select id="locale-select" class="locale-select" aria-label="Language">
+            <option value="ru">ru</option>
+            <option value="en" selected>en</option>
+          </select>
+          <button type="button" class="icon-btn" data-action="theme" data-theme-label data-od-id="theme-toggle" aria-label="Dark">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-icon-moon aria-hidden="true"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-icon-sun hidden aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+          </button>
+          <a class="icon-btn outline" href="login.html" title="Sign in to your account" aria-label="Sign in"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg></a>
+        </div>
+      </div>
+    </header>
+    <main class="main" id="main-content">
+
+<div class="stack">
+  <section class="hero-grid">
+    <div class="stack-md">
+      <img class="logo-lockup" src="../shared/brand/logo-lockup.svg" alt="ai_stp">
+      <p class="eyebrow">Five in the loop — a human crew group</p>
+      <h1>One setup for every coding harness</h1>
+      <p class="lede">Browse verified components and setups, install the CLI, and keep local and cloud state aligned.</p>
+      <div class="row">
+        <a class="btn btn-primary" href="catalog.html">Browse catalog</a>
+        <a class="btn btn-outline" href="login.html">Sign in</a>
+      </div>
+    </div>
+    <div class="hero-media" aria-label="ai_stp workflow preview">
+      <img src="../shared/brand/hero-preview-poster.png" alt="">
+      <div class="hero-media-fade"></div>
+      <div class="hero-media-caption">Discover · verify · assemble · apply</div>
+    </div>
+  </section>
+  <section class="panel stack-sm" aria-labelledby="install-heading">
+    <h2 id="install-heading">Install the CLI</h2>
+    <p class="lede-sm">Run this command exactly. It comes from a single canonical module.</p>
+    <div class="row" style="align-items:stretch">
+      <code class="codebox">uv tool install ai-stp-cli</code>
+      <button type="button" class="btn btn-secondary" data-action="copy" data-copy="uv tool install ai-stp-cli">Copy</button>
+    </div>
+    <div>
+      <h3 class="text-sm" style="font-weight:500">Prerequisites</h3>
+      <ul class="list-disc">
+        <li><code>uv</code></li>
+        <li><code>python&gt;=3.12</code></li>
+      </ul>
+    </div>
+  </section>
+</div>
+    </main>
+
+    <footer class="footer" data-od-id="site-footer">
+      <div class="footer-inner">
+        <div>ai_stp · setup passports</div>
+        <nav class="footer-links" aria-label="Site policies">
+          <a href="docs.html">Documentation</a>
+          <a href="legal-privacy.html">Privacy</a>
+          <a href="legal-cookies.html">Cookies</a>
+          <a href="legal-service-rules.html">Service rules</a>
+          <a href="legal-licensing.html">Licensing</a>
+        </nav>
+      </div>
+    </footer>
+  </div>
+  <div class="proto-note">prototype · /</div>
+  <script src="../shared/shell.js"></script>
+</body>
+</html>

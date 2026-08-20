@@ -1,0 +1,113 @@
+{
+  "$defs": {
+    "JsonValue": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "integer"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "items": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "array"
+        },
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-consent-record",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "One durable consent to unverified objects (`unverified-consent.md`).\n\n`fingerprint` is what the candidate required when the user agreed, and it is\nstored rather than recomputed: the whole mechanism is \"does this now need\nmore than it did then\", which cannot be answered without the older answer.",
+  "properties": {
+    "consent_id": {
+      "minLength": 1,
+      "title": "Consent Id",
+      "type": "string"
+    },
+    "created_at": {
+      "minLength": 1,
+      "title": "Created At",
+      "type": "string"
+    },
+    "decided_by": {
+      "minLength": 1,
+      "title": "Decided By",
+      "type": "string"
+    },
+    "fingerprint": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "default": {},
+      "title": "Fingerprint",
+      "type": "object"
+    },
+    "origin": {
+      "minLength": 1,
+      "title": "Origin",
+      "type": "string"
+    },
+    "revoked_at": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Revoked At"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "scope": {
+      "enum": [
+        "publisher",
+        "object_major"
+      ],
+      "title": "Scope",
+      "type": "string"
+    },
+    "target": {
+      "minLength": 1,
+      "title": "Target",
+      "type": "string"
+    }
+  },
+  "required": [
+    "consent_id",
+    "created_at",
+    "decided_by",
+    "fingerprint",
+    "origin",
+    "revoked_at",
+    "schema_version",
+    "scope",
+    "target"
+  ],
+  "title": "ConsentRecord",
+  "type": "object"
+}

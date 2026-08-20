@@ -1,0 +1,91 @@
+{
+  "$defs": {
+    "FactConfirmation": {
+      "enum": [
+        "none",
+        "user_confirmed"
+      ],
+      "type": "string"
+    },
+    "FactOrigin": {
+      "enum": [
+        "declared",
+        "observed",
+        "derived",
+        "imported"
+      ],
+      "type": "string"
+    },
+    "JsonValue": {},
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:fact",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "One passport fact: value, provenance axes and bounded source links.",
+  "properties": {
+    "confidence": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Confidence"
+    },
+    "confirmation": {
+      "$ref": "#/$defs/FactConfirmation"
+    },
+    "confirmed_at": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "observed_at": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "origin": {
+      "$ref": "#/$defs/FactOrigin"
+    },
+    "source_refs": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 16,
+      "title": "Source Refs",
+      "type": "array"
+    },
+    "value": {
+      "$ref": "#/$defs/JsonValue"
+    }
+  },
+  "required": [
+    "value",
+    "origin",
+    "confirmation"
+  ],
+  "title": "Fact",
+  "type": "object"
+}

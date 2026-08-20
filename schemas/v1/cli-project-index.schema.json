@@ -1,0 +1,176 @@
+{
+  "$defs": {
+    "ExcludedPath": {
+      "additionalProperties": true,
+      "description": "One path left out of the index, and why.",
+      "properties": {
+        "path": {
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "path",
+        "reason",
+        "schema_version"
+      ],
+      "title": "ExcludedPath",
+      "type": "object"
+    },
+    "IndexedFile": {
+      "additionalProperties": true,
+      "description": "One file the index knows about, described without keeping its content.",
+      "properties": {
+        "digest": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Digest"
+        },
+        "kind": {
+          "enum": [
+            "manifest",
+            "lock",
+            "agent_surface",
+            "source",
+            "document",
+            "config",
+            "text"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "language": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Language"
+        },
+        "lines": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lines"
+        },
+        "path": {
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "size_bytes": {
+          "minimum": 0,
+          "title": "Size Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "digest",
+        "kind",
+        "language",
+        "lines",
+        "path",
+        "schema_version",
+        "size_bytes"
+      ],
+      "title": "IndexedFile",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-project-index",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "The bounded second-level index of one project root (`SPEC-004`).\n\n`state` is `partial` when a size, depth, entry or time bound was reached.\nSaying so is the point: a short answer that looks complete is worse than a\ncomplete answer that says where it stopped.",
+  "properties": {
+    "excluded": {
+      "items": {
+        "$ref": "#/$defs/ExcludedPath"
+      },
+      "title": "Excluded",
+      "type": "array"
+    },
+    "files": {
+      "items": {
+        "$ref": "#/$defs/IndexedFile"
+      },
+      "title": "Files",
+      "type": "array"
+    },
+    "root": {
+      "minLength": 1,
+      "title": "Root",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "state": {
+      "enum": [
+        "complete",
+        "partial"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "stopped_by": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Stopped By"
+    }
+  },
+  "required": [
+    "excluded",
+    "files",
+    "root",
+    "schema_version",
+    "state",
+    "stopped_by"
+  ],
+  "title": "ProjectIndex",
+  "type": "object"
+}

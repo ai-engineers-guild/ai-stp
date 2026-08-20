@@ -1,0 +1,261 @@
+# Development stack (SPEC-019, ADR-0040, SPEC-024, ADR-0044). Self-contained: runs
+# out of the box without any .env.dev. An optional .env.dev overrides these defaults.
+# Postgres and RustFS stay internal. No Caddy in dev: web (:3000) and api (:8000)
+# are published on the host; browser /v1/* is rewritten by Next to the API.
+
+x-app-env: &app-env
+  AI_STP_DB_URL: postgresql+asyncpg://ai_stp:ai_stp_dev@postgres:5432/ai_stp
+  AI_STP_STORAGE_ENDPOINT: http://rustfs:9000
+  AI_STP_STORAGE_BUCKET: ai-stp-dev
+  AI_STP_STORAGE_ACCESS_KEY_ID: ai_stp
+  AI_STP_STORAGE_SECRET_ACCESS_KEY: ai_stp_dev
+  AI_STP_STORAGE_REGION: us-east-1
+  AI_STP_STORAGE_KEY_PREFIX: objects
+  AI_STP_API_ENVIRONMENT: dev
+  AI_STP_API_LOG_DIR: /var/log/ai_stp
+  AI_STP_WORKER_LOG_DIR: /var/log/ai_stp
+  AI_STP_WORKER_WORKER_ID: worker-dev
+  # Dev-only HMAC secret for opaque public-catalog cursors (ADR-0042, min 32 chars).
+  # Throwaway like the other dev credentials above; prod uses .env.prod.
+  AI_STP_CATALOG_CURSOR_SIGNING_SECRET: dev-only-catalog-cursor-secret-change-me-32chars
+  AI_STP_CATALOG_USAGE_ENABLED: "true"
+  AI_STP_CATALOG_USAGE_SECRET: dev-only-catalog-usage-secret-change-me-32chars
+  # Safety validate path (worker-safety image): external CLIs + offline OSV mount.
+  AI_STP_SAFETY_EXTERNAL_CLI: "1"
+  AI_STP_SAFETY_SANDBOX: auto
+  AI_STP_OSV_OFFLINE_DIR: /var/lib/ai_stp/osv
+  # osv-scanner offline packs root (must match AI_STP_OSV_OFFLINE_DIR volume).
+  OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY: /var/lib/ai_stp/osv
+  AI_STP_OSV_MAX_AGE_HOURS: "36"
+
+x-web-env: &web-env
+  # Structural web surfaces are selected before the Next dev/build process starts.
+  AI_STP_WEB_PROFILE: ${AI_STP_WEB_PROFILE:-public_saas}
+  AI_STP_FEATURE_CONTENT_HUB: ${AI_STP_FEATURE_CONTENT_HUB:-}
+  AI_STP_FEATURE_SAAS_PUBLIC_PAGES: ${AI_STP_FEATURE_SAAS_PUBLIC_PAGES:-}
+  AI_STP_FEATURE_CATALOG_USAGE_METRICS: "true"
+  # Browser-facing origin is the published web port (no reverse proxy in dev).
+  NEXT_PUBLIC_APP_URL: http://localhost:3000
+  # Public user docs are a separate MkDocs container; /docs remains API docs.
+  AI_STP_USER_DOCS_URL: http://localhost:${AI_STP_USER_DOCS_PORT:-8011}
+  AI_STP_API_BASE_URL: http://api:8000
+  # Real API for catalog and auth (OAuth credentials from .env.dev).
+  AI_STP_USE_MOCKS: "false"
+  AI_STP_MOCK_AUTH: "false"
+  AI_STP_SESSION_SECRET: dev-only-change-me-to-a-long-random-string
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ai_stp
+      POSTGRES_PASSWORD: ai_stp_dev
+      POSTGRES_DB: ai_stp
+    env_file:
+      - path: .env.dev
+        required: false
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # Localhost-only access lets the platform test fixtures create isolated
+    # databases without exposing PostgreSQL beyond the developer workstation.
+    ports:
+      - "127.0.0.1:${AI_STP_TEST_DB_PORT:-55433}:5432"
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  rustfs:
+    # Same digest as production. A development stack that resolves a
+    # different build is a development stack that cannot reproduce the
+    # failure production had (`#394`).
+    image: rustfs/rustfs@sha256:fa19210ac4697c79d7ccca1ec9b0eb91aebacc6691991ffb14014bb3c67e6cc3
+    environment:
+      # Must match AI_STP_STORAGE_* in x-app-env. If these are missing at first
+      # start, rustfs falls back to built-in defaults and API gets HeadBucket 403.
+      RUSTFS_ACCESS_KEY: ai_stp
+      RUSTFS_SECRET_KEY: ai_stp_dev
+    env_file:
+      - path: .env.dev
+        required: false
+    volumes:
+      - rustfs:/data
+    networks: [internal]
+    healthcheck:
+      # Alpine/busybox image: curl is present; any HTTP response means the port is up.
+      # `/health`, not `/minio/health/live`. The same image answers 403 on the
+      # MinIO-compatible path and 200 on this one, which took production down
+      # for several minutes on 2026-08-20 (`#394`). Development pinned the
+      # same broken path, so it could not have reproduced that.
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:9000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: .
+      target: worker
+    command: ["alembic", "upgrade", "head"]
+    environment: *app-env
+    env_file:
+      - path: .env.dev
+        required: false
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [internal]
+    restart: "no"
+
+  seed:
+    build:
+      context: .
+      target: worker
+    command: ["python", "-m", "ai_stp_platform.seed_cli"]
+    environment: *app-env
+    env_file:
+      - path: .env.dev
+        required: false
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks: [internal]
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      target: api
+    environment:
+      <<: *app-env
+      AI_STP_API_GIT_COMMIT: ${AI_STP_API_GIT_COMMIT:-}
+    env_file:
+      - path: .env.dev
+        required: false
+    # Host :8000 for OAuth provider callbacks when Google/GitHub still list
+    # http://localhost:8000/v1/auth/{provider}/callback (site itself is :3000).
+    ports:
+      - "8000:8000"
+    volumes:
+      - logs:/var/log/ai_stp
+    networks: [internal]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rustfs:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      seed:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://localhost:8000/v1/health/live')
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  worker:
+    # Publication validate uses pinned scanner CLIs (not the bare worker target).
+    build:
+      context: .
+      dockerfile: Dockerfile.worker-safety
+      target: worker-safety
+    environment: *app-env
+    env_file:
+      - path: .env.dev
+        required: false
+    volumes:
+      - logs:/var/log/ai_stp
+      - osv_offline:/var/lib/ai_stp/osv
+    networks: [internal]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rustfs:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile.dev
+    environment:
+      <<: *web-env
+      # Keep compile cache off the Windows bind mount (major I/O win under Docker Desktop).
+      NEXT_TELEMETRY_DISABLED: "1"
+    env_file:
+      - path: .env.dev
+        required: false
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./apps/web:/app
+      - web_node_modules:/app/node_modules
+      # .next on a Linux volume: avoid 9p/virtiofs latency for webpack/turbopack output.
+      - web_next:/app/.next
+    networks: [internal]
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3000/').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 60s
+    restart: unless-stopped
+
+  docs:
+    build:
+      context: .
+      dockerfile: Dockerfile.user-docs
+      target: dev
+    environment:
+      AI_STP_USER_DOCS_SITE_URL: http://localhost:${AI_STP_USER_DOCS_PORT:-8011}/
+    ports:
+      - "${AI_STP_USER_DOCS_PORT:-8011}:8000"
+    volumes:
+      - ./user-docs:/app/user-docs:ro
+      - ./docs_scripts/user-mkdocs.yml:/app/docs_scripts/user-mkdocs.yml:ro
+    networks: [internal]
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/')
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 20s
+    restart: unless-stopped
+
+networks:
+  internal:
+
+volumes:
+  pgdata:
+  rustfs:
+  logs:
+  osv_offline:
+  web_node_modules:
+  web_next:

@@ -1,0 +1,18 @@
+[project]
+name = "ai-stp-worker"
+version = "0.1.0"
+description = "Background worker: custom PostgreSQL job queue runner with bounded polling and graceful drain."
+requires-python = ">=3.12"
+dependencies = [
+    "ai-stp-foundation",
+    "ai-stp-platform",
+    "pydantic-settings>=2.5",
+    "structlog>=24.4",
+]
+
+[project.scripts]
+ai-stp-worker = "ai_stp_worker.__main__:main"
+
+[build-system]
+requires = ["uv_build>=0.11,<0.13"]
+build-backend = "uv_build"

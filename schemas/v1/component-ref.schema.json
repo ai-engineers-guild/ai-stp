@@ -1,0 +1,49 @@
+{
+  "$defs": {
+    "PassportDigest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "Version": {
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:component-ref",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Exact reference to a component version, optionally to one realization.",
+  "properties": {
+    "passport_digest": {
+      "$ref": "#/$defs/PassportDigest"
+    },
+    "stable_id": {
+      "pattern": "^component_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Stable Id",
+      "type": "string"
+    },
+    "variant_id": {
+      "anyOf": [
+        {
+          "pattern": "^variant_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Variant Id"
+    },
+    "version": {
+      "$ref": "#/$defs/Version"
+    }
+  },
+  "required": [
+    "stable_id",
+    "version",
+    "passport_digest"
+  ],
+  "title": "ComponentRef",
+  "type": "object"
+}

@@ -1,0 +1,36 @@
+{
+  "$defs": {
+    "PassportDigest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "Version": {
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:setup-ref",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Exact reference to a setup version; a setup has no variant axis.",
+  "properties": {
+    "passport_digest": {
+      "$ref": "#/$defs/PassportDigest"
+    },
+    "stable_id": {
+      "pattern": "^setup_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Stable Id",
+      "type": "string"
+    },
+    "version": {
+      "$ref": "#/$defs/Version"
+    }
+  },
+  "required": [
+    "stable_id",
+    "version",
+    "passport_digest"
+  ],
+  "title": "SetupRef",
+  "type": "object"
+}

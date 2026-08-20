@@ -1,0 +1,120 @@
+{
+  "$defs": {
+    "ExactCoordinate": {
+      "additionalProperties": false,
+      "properties": {
+        "passport_digest": {
+          "minLength": 1,
+          "title": "Passport Digest",
+          "type": "string"
+        },
+        "stable_id": {
+          "minLength": 1,
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^[0-9]+\\.[0-9]+$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "stable_id",
+        "version",
+        "passport_digest"
+      ],
+      "title": "ExactCoordinate",
+      "type": "object"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-blast-radius-report",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "action": {
+      "const": "none",
+      "default": "none",
+      "title": "Action",
+      "type": "string"
+    },
+    "authority_boundary": {
+      "const": "local_registry",
+      "default": "local_registry",
+      "title": "Authority Boundary",
+      "type": "string"
+    },
+    "component": {
+      "$ref": "#/$defs/ExactCoordinate"
+    },
+    "devices": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Devices",
+      "type": "array"
+    },
+    "freshness": {
+      "const": "local_snapshot",
+      "default": "local_snapshot",
+      "title": "Freshness",
+      "type": "string"
+    },
+    "generated_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "installed_targets": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Installed Targets",
+      "type": "array"
+    },
+    "projects": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Projects",
+      "type": "array"
+    },
+    "scenario": {
+      "enum": [
+        "update",
+        "deprecation",
+        "blocked",
+        "expired_evidence",
+        "advisory"
+      ],
+      "title": "Scenario",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "setup_versions": {
+      "items": {
+        "$ref": "#/$defs/ExactCoordinate"
+      },
+      "title": "Setup Versions",
+      "type": "array"
+    }
+  },
+  "required": [
+    "generated_at",
+    "scenario",
+    "component",
+    "setup_versions",
+    "projects",
+    "devices",
+    "installed_targets"
+  ],
+  "title": "BlastRadiusReport",
+  "type": "object"
+}

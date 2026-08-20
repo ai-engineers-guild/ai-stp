@@ -1,0 +1,45 @@
+{
+  "$defs": {
+    "AccountId": {
+      "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "type": "string"
+    },
+    "DeviceId": {
+      "pattern": "^device_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:auth-me-response",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "GET /v1/auth/me resource body.",
+  "properties": {
+    "account_id": {
+      "$ref": "#/$defs/AccountId"
+    },
+    "device_id": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DeviceId"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "account_id",
+    "device_id",
+    "schema_version"
+  ],
+  "title": "AuthMeResponse",
+  "type": "object"
+}

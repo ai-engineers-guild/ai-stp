@@ -1,0 +1,122 @@
+{
+  "$defs": {
+    "AccountId": {
+      "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "type": "string"
+    },
+    "DirectRecipientKind": {
+      "enum": [
+        "github_username",
+        "user_id"
+      ],
+      "type": "string"
+    },
+    "GrantState": {
+      "enum": [
+        "active",
+        "revoked"
+      ],
+      "type": "string"
+    },
+    "ObjectKind": {
+      "enum": [
+        "component",
+        "setup"
+      ],
+      "type": "string"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:grant-access-response",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "One major-line access grant.",
+  "properties": {
+    "created_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "grant_id": {
+      "maxLength": 64,
+      "minLength": 8,
+      "title": "Grant Id",
+      "type": "string"
+    },
+    "grantee_account_id": {
+      "$ref": "#/$defs/AccountId"
+    },
+    "major": {
+      "title": "Major",
+      "type": "integer"
+    },
+    "object_kind": {
+      "$ref": "#/$defs/ObjectKind"
+    },
+    "owner_account_id": {
+      "$ref": "#/$defs/AccountId"
+    },
+    "recipient": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Recipient"
+    },
+    "recipient_kind": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DirectRecipientKind"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "revoked_at": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stable_id": {
+      "title": "Stable Id",
+      "type": "string"
+    },
+    "state": {
+      "$ref": "#/$defs/GrantState"
+    }
+  },
+  "required": [
+    "created_at",
+    "grant_id",
+    "grantee_account_id",
+    "major",
+    "object_kind",
+    "owner_account_id",
+    "recipient",
+    "recipient_kind",
+    "revoked_at",
+    "schema_version",
+    "stable_id",
+    "state"
+  ],
+  "title": "AccessGrantResponse",
+  "type": "object"
+}

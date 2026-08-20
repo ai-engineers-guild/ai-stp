@@ -1,0 +1,142 @@
+{
+  "$defs": {
+    "JsonValue": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "integer"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "items": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "array"
+        },
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "SearchHit": {
+      "additionalProperties": true,
+      "description": "One local object a search matched, and the lane it is in (`ADR-0016`).",
+      "properties": {
+        "fields": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "default": {},
+          "title": "Fields",
+          "type": "object"
+        },
+        "lane": {
+          "enum": [
+            "authoritative",
+            "local_owner_or_pinned",
+            "experimental"
+          ],
+          "title": "Lane",
+          "type": "string"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "revision_id": {
+          "minLength": 1,
+          "title": "Revision Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "stable_id": {
+          "minLength": 1,
+          "title": "Stable Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "fields",
+        "lane",
+        "reason",
+        "revision_id",
+        "schema_version",
+        "stable_id"
+      ],
+      "title": "SearchHit",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-local-search",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "What a local search found, one section per trust lane.\n\nSeparate lists rather than one labelled list: `SPEC-006` REQ-603 requires\nthe unverified candidates to come back as a *separate section*, and a caller\nrendering a flat list of rows has already lost the distinction it asks for.",
+  "properties": {
+    "authoritative": {
+      "items": {
+        "$ref": "#/$defs/SearchHit"
+      },
+      "title": "Authoritative",
+      "type": "array"
+    },
+    "experimental": {
+      "items": {
+        "$ref": "#/$defs/SearchHit"
+      },
+      "title": "Experimental",
+      "type": "array"
+    },
+    "experimental_reason": {
+      "minLength": 1,
+      "title": "Experimental Reason",
+      "type": "string"
+    },
+    "local_owner_or_pinned": {
+      "items": {
+        "$ref": "#/$defs/SearchHit"
+      },
+      "title": "Local Owner Or Pinned",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "truncated": {
+      "default": false,
+      "title": "Truncated",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "authoritative",
+    "experimental",
+    "experimental_reason",
+    "local_owner_or_pinned",
+    "schema_version",
+    "truncated"
+  ],
+  "title": "LocalSearchResults",
+  "type": "object"
+}

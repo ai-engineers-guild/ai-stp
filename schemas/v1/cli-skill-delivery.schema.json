@@ -1,0 +1,70 @@
+{
+  "$id": "urn:ai-stp:schema:v1:cli-skill-delivery",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Where the canonical Agent Skill is, and whether this build put it there.\n\nThe Skill is what an agent reads to learn how to drive this CLI, so an\ninstallation that carries the binary and not the procedure has delivered\nhalf a product. `state` distinguishes a destination this installation owns\nfrom one somebody else wrote, because replacing the second would be taking\nover a file that is not ours.",
+  "properties": {
+    "available_harnesses": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Available Harnesses",
+      "type": "array"
+    },
+    "digest": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Digest"
+    },
+    "harness": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Harness"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "state": {
+      "enum": [
+        "absent",
+        "owned",
+        "foreign",
+        "stale"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "target": {
+      "minLength": 1,
+      "title": "Target",
+      "type": "string"
+    }
+  },
+  "required": [
+    "available_harnesses",
+    "digest",
+    "harness",
+    "schema_version",
+    "state",
+    "target"
+  ],
+  "title": "SkillDelivery",
+  "type": "object"
+}

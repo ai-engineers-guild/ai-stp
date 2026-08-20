@@ -1,0 +1,143 @@
+{
+  "$defs": {
+    "DiscoveryDiagnostic": {
+      "additionalProperties": true,
+      "description": "One path skipped while examining an explicit project discovery root.",
+      "properties": {
+        "code": {
+          "enum": [
+            "excluded",
+            "entry_limit",
+            "symlink",
+            "unreadable"
+          ],
+          "title": "Code",
+          "type": "string"
+        },
+        "path": {
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "code",
+        "path",
+        "reason",
+        "schema_version"
+      ],
+      "title": "DiscoveryDiagnostic",
+      "type": "object"
+    },
+    "ProjectCandidate": {
+      "additionalProperties": true,
+      "description": "One directory that could be registered as a project (`SPEC-004`).",
+      "properties": {
+        "kind": {
+          "enum": [
+            "project",
+            "nested_repository"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "markers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Markers",
+          "type": "array"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "root": {
+          "minLength": 1,
+          "title": "Root",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "state": {
+          "enum": [
+            "new",
+            "established"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "markers",
+        "reason",
+        "root",
+        "schema_version",
+        "state"
+      ],
+      "title": "ProjectCandidate",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-project-candidates",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Everything found inside one directory the user named.",
+  "properties": {
+    "candidates": {
+      "items": {
+        "$ref": "#/$defs/ProjectCandidate"
+      },
+      "title": "Candidates",
+      "type": "array"
+    },
+    "complete": {
+      "title": "Complete",
+      "type": "boolean"
+    },
+    "diagnostics": {
+      "items": {
+        "$ref": "#/$defs/DiscoveryDiagnostic"
+      },
+      "title": "Diagnostics",
+      "type": "array"
+    },
+    "discovery_root": {
+      "minLength": 1,
+      "title": "Discovery Root",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "candidates",
+    "complete",
+    "diagnostics",
+    "discovery_root",
+    "schema_version"
+  ],
+  "title": "ProjectCandidates",
+  "type": "object"
+}

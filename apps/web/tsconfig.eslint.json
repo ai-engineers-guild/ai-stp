@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    "eslint.config.mjs",
+    "vitest.config.ts",
+    "playwright.config.ts",
+    "openapi-ts.config.ts",
+    "postcss.config.mjs"
+  ],
+  "exclude": ["node_modules", ".next", "src/lib/api/generated"]
+}

@@ -1,0 +1,579 @@
+#!/usr/bin/env python3
+"""Publish the first-party launch corpus through the ordinary authenticated pipeline.
+
+Review stores the exact corpus digest, object coordinates, plan IDs/hashes and
+blockers. Apply binds exact bytes and confirms each saved plan. The tool never
+writes the catalog and never changes validation policy.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import sys
+import time
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Literal, cast
+
+from pydantic import BaseModel, ConfigDict, ValidationError
+
+from ai_stp_cli.cloud import login, publication
+from ai_stp_cli.cloud.client import Endpoint
+from ai_stp_cli.cloud.session import Session
+from ai_stp_cli.commands import auth, cloud_auth
+from ai_stp_cli.errors import CliFailure
+from ai_stp_contracts.first_party import OWNER_ID, FirstPartyVersion
+from ai_stp_contracts.first_party import versions as first_party_versions
+from ai_stp_contracts.publication import (
+    PublicationConfirmRequest,
+    PublicationPlanCreateRequest,
+    PublicationPlanResponse,
+)
+from ai_stp_foundation.canonical import JsonValue, canonize
+from ai_stp_passports.versions import SetupVersionPassport
+
+IN_PROGRESS_STATES = frozenset({"draft", "ready", "validating", "publish_planned"})
+PUBLISHED = "published"
+BLOCKED = "blocked"
+PENDING = "pending"
+TERMINAL_FAILURES = frozenset({"failed", "cancelled", "stale"})
+DEFAULT_POLLS = 60
+
+
+@dataclass(frozen=True)
+class Pin:
+    stable_id: str
+    version: str
+    passport_digest: str
+
+
+@dataclass(frozen=True)
+class LaunchObject:
+    kind: Literal["component", "setup"]
+    stable_id: str
+    version: str
+    content_digest: str
+    passport_digest: str
+    passport: dict[str, object]
+    artifact: bytes
+    component_pins: tuple[Pin, ...]
+
+
+class PinRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    stable_id: str
+    version: str
+    passport_digest: str
+
+
+class ObjectRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["component", "setup"]
+    stable_id: str
+    version: str
+    content_digest: str
+    passport_digest: str
+    component_pins: list[PinRecord]
+    create_idempotency_key: str
+    confirm_idempotency_key: str
+    plan_id: str | None = None
+    plan_hash: str | None = None
+    state: str = PENDING
+    blocker: str | None = None
+
+
+class BatchState(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal[1] = 1
+    corpus_digest: str
+    account_id: str
+    device_id: str
+    objects: list[ObjectRecord]
+
+
+def launch_objects(versions: Sequence[FirstPartyVersion] | None = None) -> tuple[LaunchObject, ...]:
+    """Project the immutable first-party snapshot into publication coordinates."""
+    corpus = first_party_versions() if versions is None else versions
+    objects: list[LaunchObject] = []
+    for item in corpus:
+        pins: tuple[Pin, ...] = ()
+        if item.kind == "setup":
+            if not isinstance(item.passport, SetupVersionPassport):
+                raise CliFailure(
+                    "AI_STP_VALIDATION_ERROR",
+                    "a first-party setup is missing exact component pins",
+                )
+            pins = tuple(
+                Pin(
+                    stable_id=ref.stable_id,
+                    version=ref.version,
+                    passport_digest=ref.passport_digest,
+                )
+                for ref in item.passport.components
+            )
+        objects.append(
+            LaunchObject(
+                kind=item.kind,
+                stable_id=item.passport.stable_id,
+                version=item.passport.version,
+                content_digest=item.passport.artifact.digest,
+                passport_digest=item.passport_digest,
+                passport=cast(dict[str, object], item.passport.model_dump(mode="json")),
+                artifact=item.artifact,
+                component_pins=pins,
+            )
+        )
+    return tuple(objects)
+
+
+def publication_order(objects: Sequence[LaunchObject]) -> tuple[LaunchObject, ...]:
+    """Components first, then setups, preserving relative corpus order."""
+    components = tuple(item for item in objects if item.kind == "component")
+    setups = tuple(item for item in objects if item.kind == "setup")
+    return components + setups
+
+
+def corpus_digest(objects: Sequence[LaunchObject]) -> str:
+    payload = canonize(
+        cast(
+            JsonValue,
+            {
+                "schema_version": 1,
+                "kind": "first_party_launch_corpus",
+                "objects": [
+                    {
+                        "kind": item.kind,
+                        "stable_id": item.stable_id,
+                        "version": item.version,
+                        "passport_digest": item.passport_digest,
+                        "content_digest": item.content_digest,
+                    }
+                    for item in objects
+                ],
+            },
+        )
+    )
+    return "sha256:" + hashlib.sha256(payload).hexdigest()
+
+
+def snapshot(objects: Sequence[LaunchObject] | None = None) -> tuple[str, tuple[LaunchObject, ...]]:
+    ordered = publication_order(launch_objects() if objects is None else objects)
+    _require_closed_pins(ordered)
+    return corpus_digest(ordered), ordered
+
+
+def _require_closed_pins(objects: Sequence[LaunchObject]) -> None:
+    known = {
+        (item.stable_id, item.version, item.passport_digest)
+        for item in objects
+        if item.kind == "component"
+    }
+    for item in objects:
+        for pin in item.component_pins:
+            if (pin.stable_id, pin.version, pin.passport_digest) not in known:
+                raise CliFailure(
+                    "AI_STP_PRECONDITION_FAILED",
+                    "a setup pins a component that is not in the launch corpus",
+                    details={"stable_id": item.stable_id},
+                )
+
+
+def _require_owner(held: Session) -> None:
+    if held.account_id != OWNER_ID:
+        raise CliFailure(
+            "AI_STP_PERMISSION_DENIED",
+            "first-party launch publication requires the platform owner account",
+        )
+
+
+def _load_state(path: Path) -> BatchState | None:
+    if not path.is_file():
+        return None
+    try:
+        return BatchState.model_validate_json(path.read_text(encoding="utf-8"))
+    except (OSError, ValidationError, ValueError) as error:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "the launch publication state file is not a valid batch snapshot",
+            details={"exception": type(error).__name__},
+        ) from error
+
+
+def _save_state(path: Path, state: BatchState) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = (state.model_dump_json(indent=2) + "\n").encode("utf-8")
+    scratch = path.with_name(path.name + ".tmp")
+    scratch.write_bytes(payload)
+    scratch.replace(path)
+
+
+def _index_objects(objects: Sequence[LaunchObject]) -> dict[tuple[str, str, str], LaunchObject]:
+    return {(item.stable_id, item.version, item.content_digest): item for item in objects}
+
+
+def _pins_published(state: BatchState, pins: Sequence[PinRecord]) -> bool:
+    published = {
+        (item.stable_id, item.version, item.passport_digest)
+        for item in state.objects
+        if item.state == PUBLISHED
+    }
+    return all((pin.stable_id, pin.version, pin.passport_digest) in published for pin in pins)
+
+
+def _record_for(state: BatchState, item: LaunchObject) -> ObjectRecord:
+    for record in state.objects:
+        if (
+            record.stable_id == item.stable_id
+            and record.version == item.version
+            and record.content_digest == item.content_digest
+        ):
+            return record
+    raise CliFailure(
+        "AI_STP_PRECONDITION_FAILED",
+        "the batch snapshot is missing a reviewed corpus object",
+        details={"stable_id": item.stable_id},
+    )
+
+
+def _apply_plan(record: ObjectRecord, plan: PublicationPlanResponse) -> None:
+    record.plan_id = plan.plan_id
+    record.plan_hash = plan.plan_hash
+    record.state = plan.state
+    if plan.state == PUBLISHED:
+        record.blocker = None
+
+
+def _plan_create(
+    endpoint: Endpoint,
+    held: Session,
+    item: LaunchObject,
+    record: ObjectRecord,
+) -> None:
+    request = PublicationPlanCreateRequest(
+        object_kind=item.kind,
+        stable_id=item.stable_id,
+        version=item.version,
+        content_digest=item.content_digest,
+        passport=item.passport,
+        attestations=[],
+        idempotency_key=record.create_idempotency_key,
+        device_id=held.device_id,
+    )
+    plan = publication.create(endpoint, held.access_token, request)
+    _apply_plan(record, plan)
+
+
+def review(
+    *,
+    state_path: Path,
+    endpoint: Endpoint,
+    held: Session,
+    objects: Sequence[LaunchObject] | None = None,
+) -> BatchState:
+    """Create exact plans for the ordered corpus and persist resume coordinates."""
+    _require_owner(held)
+    digest, ordered = snapshot(objects)
+    existing = _load_state(state_path)
+    if existing is not None:
+        if existing.corpus_digest != digest:
+            raise CliFailure(
+                "AI_STP_CONFLICT",
+                "the stored batch snapshot belongs to another corpus digest",
+                details={"expected": existing.corpus_digest},
+            )
+        if existing.account_id != held.account_id or existing.device_id != held.device_id:
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "the stored batch snapshot belongs to another owner or device",
+            )
+        state = existing
+    else:
+        state = BatchState(
+            corpus_digest=digest,
+            account_id=held.account_id,
+            device_id=held.device_id,
+            objects=[
+                ObjectRecord(
+                    kind=item.kind,
+                    stable_id=item.stable_id,
+                    version=item.version,
+                    content_digest=item.content_digest,
+                    passport_digest=item.passport_digest,
+                    component_pins=[
+                        PinRecord(
+                            stable_id=pin.stable_id,
+                            version=pin.version,
+                            passport_digest=pin.passport_digest,
+                        )
+                        for pin in item.component_pins
+                    ],
+                    create_idempotency_key=login.new_idempotency_key(),
+                    confirm_idempotency_key=login.new_idempotency_key(),
+                )
+                for item in ordered
+            ],
+        )
+    by_object = _index_objects(ordered)
+    for record in state.objects:
+        item = by_object[(record.stable_id, record.version, record.content_digest)]
+        if record.plan_id is not None and record.blocker is None:
+            continue
+        try:
+            _plan_create(endpoint, held, item, record)
+            record.blocker = None
+        except CliFailure as error:
+            record.blocker = error.message
+            if record.state not in TERMINAL_FAILURES and record.state != PUBLISHED:
+                record.state = BLOCKED
+        _save_state(state_path, state)
+    return state
+
+
+def _wait_terminal(
+    endpoint: Endpoint,
+    held: Session,
+    record: ObjectRecord,
+    *,
+    pause: Callable[[float], None],
+    max_polls: int,
+) -> PublicationPlanResponse:
+    if record.plan_id is None:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "a reviewed object has no publication plan to poll",
+            details={"stable_id": record.stable_id},
+        )
+    plan: PublicationPlanResponse | None = None
+    for _ in range(max(1, max_polls)):
+        plan = publication.status(endpoint, held.access_token, record.plan_id)
+        _apply_plan(record, plan)
+        if plan.state == PUBLISHED or plan.state in TERMINAL_FAILURES:
+            return plan
+        if plan.state not in IN_PROGRESS_STATES:
+            record.blocker = f"publication plan entered unexpected state {plan.state}"
+            record.state = BLOCKED
+            return plan
+        pause(1.0)
+    record.blocker = "publication did not reach a terminal state"
+    record.state = BLOCKED
+    assert plan is not None
+    return plan
+
+
+def apply(
+    *,
+    state_path: Path,
+    endpoint: Endpoint,
+    held: Session,
+    corpus_digest_value: str,
+    confirm: bool,
+    objects: Sequence[LaunchObject] | None = None,
+    pause: Callable[[float], None] = time.sleep,
+    max_polls: int = DEFAULT_POLLS,
+) -> BatchState:
+    """Bind exact bytes and confirm each reviewed plan, components before setups."""
+    if not confirm:
+        raise CliFailure(
+            "AI_STP_USER_DECISION_REQUIRED",
+            "apply requires explicit confirmation of the exact reviewed corpus digest",
+            details={"corpus_digest": corpus_digest_value},
+            next_actions=[
+                "first_party_launch_publication.py apply "
+                f"--state {state_path} --corpus-digest {corpus_digest_value} --confirm"
+            ],
+        )
+    _require_owner(held)
+    digest, ordered = snapshot(objects)
+    if digest != corpus_digest_value:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the confirmed corpus digest does not match the current first-party snapshot",
+            details={"expected": digest},
+        )
+    state = _load_state(state_path)
+    if state is None:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "apply requires a reviewed batch snapshot",
+            next_actions=[f"first_party_launch_publication.py review --state {state_path}"],
+        )
+    if state.corpus_digest != corpus_digest_value:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "apply requires the exact reviewed corpus digest",
+            details={"expected": state.corpus_digest},
+        )
+    if state.account_id != held.account_id or state.device_id != held.device_id:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the stored batch snapshot belongs to another owner or device",
+        )
+    for item in ordered:
+        record = _record_for(state, item)
+        if record.state == PUBLISHED:
+            continue
+        if record.kind == "setup" and not _pins_published(state, record.component_pins):
+            record.blocker = "exact component pins are not published"
+            record.state = BLOCKED
+            _save_state(state_path, state)
+            continue
+        try:
+            if record.plan_id is None:
+                _plan_create(endpoint, held, item, record)
+            current = publication.status(endpoint, held.access_token, cast(str, record.plan_id))
+            _apply_plan(record, current)
+            if current.state == PUBLISHED:
+                record.blocker = None
+                _save_state(state_path, state)
+                continue
+            if current.state in TERMINAL_FAILURES:
+                record.blocker = f"publication plan is {current.state}"
+                _save_state(state_path, state)
+                continue
+            if current.state in {"ready", "draft"}:
+                publication.bind(
+                    endpoint,
+                    held.access_token,
+                    current.plan_id,
+                    item.artifact,
+                    pause=pause,
+                )
+                if record.plan_hash is None:
+                    raise CliFailure(
+                        "AI_STP_PRECONDITION_FAILED",
+                        "a reviewed plan is missing its exact hash",
+                        details={"stable_id": record.stable_id},
+                    )
+                confirmed = publication.confirm(
+                    endpoint,
+                    held.access_token,
+                    current.plan_id,
+                    PublicationConfirmRequest(
+                        plan_hash=record.plan_hash,
+                        confirmed=True,
+                        idempotency_key=record.confirm_idempotency_key,
+                    ),
+                )
+                _apply_plan(record, confirmed)
+            finished = _wait_terminal(endpoint, held, record, pause=pause, max_polls=max_polls)
+            if finished.state != PUBLISHED:
+                record.blocker = record.blocker or f"publication plan is {finished.state}"
+                if finished.state in TERMINAL_FAILURES:
+                    record.state = finished.state
+        except CliFailure as error:
+            record.blocker = error.message
+            if record.state not in TERMINAL_FAILURES and record.state != PUBLISHED:
+                record.state = BLOCKED
+        _save_state(state_path, state)
+    return state
+
+
+def refresh_status(
+    *,
+    state_path: Path,
+    endpoint: Endpoint,
+    held: Session,
+) -> BatchState:
+    _require_owner(held)
+    state = _load_state(state_path)
+    if state is None:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "status requires a reviewed batch snapshot",
+        )
+    if state.account_id != held.account_id or state.device_id != held.device_id:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the stored batch snapshot belongs to another owner or device",
+        )
+    for record in state.objects:
+        if record.plan_id is None:
+            continue
+        plan = publication.status(endpoint, held.access_token, record.plan_id)
+        _apply_plan(record, plan)
+    _save_state(state_path, state)
+    return state
+
+
+def report(state: BatchState) -> dict[str, object]:
+    published = sum(1 for item in state.objects if item.state == PUBLISHED)
+    blocked = [item for item in state.objects if item.blocker]
+    return {
+        "corpus_digest": state.corpus_digest,
+        "object_count": len(state.objects),
+        "component_count": sum(1 for item in state.objects if item.kind == "component"),
+        "setup_count": sum(1 for item in state.objects if item.kind == "setup"),
+        "published": published,
+        "blocked": len(blocked),
+        "blockers": [
+            {
+                "kind": item.kind,
+                "stable_id": item.stable_id,
+                "version": item.version,
+                "state": item.state,
+                "blocker": item.blocker,
+            }
+            for item in blocked
+        ],
+        "objects": [
+            {
+                "kind": item.kind,
+                "stable_id": item.stable_id,
+                "version": item.version,
+                "content_digest": item.content_digest,
+                "plan_id": item.plan_id,
+                "plan_hash": item.plan_hash,
+                "state": item.state,
+                "blocker": item.blocker,
+            }
+            for item in state.objects
+        ],
+    }
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    sub = parser.add_subparsers(dest="command", required=True)
+    review_cmd = sub.add_parser("review")
+    review_cmd.add_argument("--state", required=True, type=Path)
+    apply_cmd = sub.add_parser("apply")
+    apply_cmd.add_argument("--state", required=True, type=Path)
+    apply_cmd.add_argument("--corpus-digest", required=True)
+    apply_cmd.add_argument("--confirm", action="store_true")
+    status_cmd = sub.add_parser("status")
+    status_cmd.add_argument("--state", required=True, type=Path)
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _parser().parse_args(argv)
+    try:
+        held = cloud_auth.required("first-party launch publication")
+        endpoint = auth.endpoint()
+        if args.command == "review":
+            state = review(state_path=args.state, endpoint=endpoint, held=held)
+        elif args.command == "apply":
+            state = apply(
+                state_path=args.state,
+                endpoint=endpoint,
+                held=held,
+                corpus_digest_value=args.corpus_digest,
+                confirm=bool(args.confirm),
+            )
+        else:
+            state = refresh_status(state_path=args.state, endpoint=endpoint, held=held)
+    except CliFailure as error:
+        print(f"first_party_launch_publication.py: ERROR: {error.code}: {error}", file=sys.stderr)
+        return error.exit_code
+    print(json.dumps(report(state), sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

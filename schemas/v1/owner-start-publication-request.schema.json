@@ -1,0 +1,39 @@
+{
+  "$id": "urn:ai-stp:schema:v1:owner-start-publication-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "POST start publication plan from an exact owned version (no browser passport).",
+  "properties": {
+    "device_id": {
+      "maxLength": 64,
+      "minLength": 8,
+      "title": "Device Id",
+      "type": "string"
+    },
+    "idempotency_key": {
+      "maxLength": 128,
+      "minLength": 16,
+      "title": "Idempotency Key",
+      "type": "string"
+    },
+    "policy_version": {
+      "default": "1",
+      "maxLength": 32,
+      "minLength": 1,
+      "title": "Policy Version",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "device_id",
+    "idempotency_key"
+  ],
+  "title": "OwnerStartPublicationRequest",
+  "type": "object"
+}

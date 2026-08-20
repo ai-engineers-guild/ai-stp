@@ -1,0 +1,67 @@
+{
+  "$defs": {
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    },
+    "ObjectKind": {
+      "enum": [
+        "component",
+        "setup"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:grant-invitation-create-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "POST /v1/grants/invitations body.",
+  "properties": {
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "major": {
+      "maximum": 9999,
+      "minimum": 0,
+      "title": "Major",
+      "type": "integer"
+    },
+    "object_kind": {
+      "$ref": "#/$defs/ObjectKind"
+    },
+    "recipient_email": {
+      "maxLength": 320,
+      "minLength": 3,
+      "title": "Recipient Email",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stable_id": {
+      "maxLength": 64,
+      "minLength": 8,
+      "title": "Stable Id",
+      "type": "string"
+    },
+    "ttl_seconds": {
+      "default": 604800,
+      "maximum": 2592000,
+      "minimum": 60,
+      "title": "Ttl Seconds",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "object_kind",
+    "stable_id",
+    "major",
+    "recipient_email",
+    "idempotency_key"
+  ],
+  "title": "GrantInvitationCreateRequest",
+  "type": "object"
+}

@@ -1,0 +1,12 @@
+{
+  "enableInstallTelemetry": false,
+  "enableAnalytics": false,
+  "enableSkillCommands": true,
+  "skills": [],
+  "packages": [],
+  "nddev": {
+    "schema_version": 2,
+    "setup_id": "nddev-builder",
+    "builder_projection": "skills+package"
+  }
+}

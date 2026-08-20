@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en" class="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ai_stp · HTML prototypes index</title>
+  <link rel="stylesheet" href="./shared/tokens.css" />
+  <link rel="stylesheet" href="./shared/ui.css" />
+  <style>
+    body { margin:0; min-height:100vh; font-family:var(--font-sans); background:hsl(var(--background)); color:hsl(var(--foreground)); padding:48px 24px; }
+    .wrap { max-width:800px; margin:0 auto; }
+    h1 { font-size:28px; font-weight:500; letter-spacing:-0.02em; margin:0 0 8px; }
+    .intro { color:hsl(var(--muted-foreground)); margin:0 0 28px; line-height:1.5; }
+    .section-title { font-family:var(--font-mono); font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:hsl(var(--muted-foreground)); margin:28px 0 12px; }
+    .card { border:1px solid hsl(var(--border)); background:hsl(var(--card)); border-radius:8px; padding:14px 16px; margin-bottom:10px; }
+    .card a { color:hsl(var(--foreground)); font-weight:500; text-decoration:none; }
+    .card a:hover { color:hsl(var(--primary)); }
+    .mono { font-family:var(--font-mono); font-size:11px; color:hsl(var(--muted-foreground)); margin-top:6px; }
+    .row-actions { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:12px; }
+    .badge { display:inline-block; font-family:var(--font-mono); font-size:10px; letter-spacing:0.04em; text-transform:uppercase; color:hsl(var(--primary)); border:1px solid hsl(var(--primary)); border-radius:4px; padding:2px 6px; margin-left:8px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>ai_stp · HTML prototypes</h1>
+    <p class="intro">Rebuilt 1:1 from live <code class="mono" style="color:inherit">localhost:3000</code> (Playwright screenshots + DOM). Shared tokens match <code class="mono" style="color:inherit">apps/web</code>.</p>
+    <div class="row-actions">
+      <a class="btn btn-primary" href="./pages/landing.html">Landing</a>
+      <a class="btn btn-outline" href="./branding.html">Branding</a>
+      <button type="button" class="btn btn-outline btn-sm" data-action="theme" data-theme-label aria-label="Dark">Theme</button>
+    </div>
+    <div class="card" style="border-color:hsl(var(--primary))">
+      <a href="./branding.html">Branding / design tokens</a><span class="badge">brand</span>
+      <div class="mono">branding.html · mark, color, type, rules</div>
+    </div>
+    <p class="section-title">Product screens (matched to live)</p>
+    <div class="card">
+      <a href="./pages/landing.html">Home</a>
+      <div class="mono">/ · pages/landing.html</div>
+    </div>
+    <div class="card">
+      <a href="./pages/login.html">Sign in</a>
+      <div class="mono">/login · pages/login.html</div>
+    </div>
+    <div class="card">
+      <a href="./pages/catalog.html">Catalog</a>
+      <div class="mono">/catalog · pages/catalog.html</div>
+    </div>
+    <div class="card">
+      <a href="./pages/component.html">Component detail</a>
+      <div class="mono">/catalog/components/[id] · pages/component.html</div>
+    </div>
+    <div class="card">
+      <a href="./pages/setup.html">Setup detail</a>
+      <div class="mono">/catalog/setups/[id] · pages/setup.html</div>
+    </div>
+    <div class="card">
+      <a href="./pages/component-preview.html">Component preview</a>
+      <div class="mono">version preview · pages/component-preview.html</div>
+    </div>
+    <div class="card">
+      <a href="./pages/setup-preview.html">Setup preview</a>
+      <div class="mono">version preview · pages/setup-preview.html</div>
+    </div>
+    <div class="card">
+      <a href="./pages/component-edit.html">Component edit</a>
+      <div class="mono">metadata edit · pages/component-edit.html</div>
+    </div>
+    <div class="card">
+      <a href="./pages/setup-edit.html">Setup edit</a>
+      <div class="mono">metadata edit · pages/setup-edit.html</div>
+    </div>
+    <div class="card">
+      <a href="./pages/publisher.html">Publisher</a>
+      <div class="mono">/publishers/[account] · pages/publisher.html</div>
+    </div>
+    <div class="card">
+      <a href="./pages/account.html">Account</a>
+      <div class="mono">/account · pages/account.html</div>
+    </div>
+    <div class="card">
+      <a href="./pages/account-empty.html">Account · empty</a>
+      <div class="mono">/account empty · pages/account-empty.html</div>
+    </div>
+    <div class="card">
+      <a href="./pages/profile.html">Profile</a>
+      <div class="mono">/account/profile · pages/profile.html</div>
+    </div>
+    <div class="card">
+      <a href="./pages/profile-preview.html">Profile preview</a>
+      <div class="mono">/account/profile/preview · pages/profile-preview.html</div>
+    </div>
+    <div class="card">
+      <a href="./pages/privacy.html">Account privacy</a>
+      <div class="mono">/account/privacy · pages/privacy.html</div>
+    </div>
+    <div class="card">
+      <a href="./pages/devices.html">Devices</a>
+      <div class="mono">/devices · pages/devices.html</div>
+    </div>
+    <div class="card">
+      <a href="./pages/docs.html">Documentation</a>
+      <div class="mono">/docs · pages/docs.html</div>
+    </div>
+    <div class="card">
+      <a href="./pages/legal-privacy.html">Legal · Privacy</a>
+      <div class="mono">/legal/privacy · pages/legal-privacy.html</div>
+    </div>
+    <div class="card">
+      <a href="./pages/legal-cookies.html">Legal · Cookies</a>
+      <div class="mono">/legal/cookies · pages/legal-cookies.html</div>
+    </div>
+    <div class="card">
+      <a href="./pages/legal-service-rules.html">Legal · Service rules</a>
+      <div class="mono">/legal/service-rules · pages/legal-service-rules.html</div>
+    </div>
+    <div class="card">
+      <a href="./pages/legal-licensing.html">Legal · Licensing</a>
+      <div class="mono">/legal/licensing · pages/legal-licensing.html</div>
+    </div>
+    <div class="card">
+      <a href="./pages/not-found.html">404</a>
+      <div class="mono">/404 · pages/not-found.html</div>
+    </div>
+    <div class="card">
+      <a href="./pages/error-500.html">500</a>
+      <div class="mono">/500 · pages/error-500.html</div>
+    </div>
+  </div>
+  <script src="./shared/shell.js"></script>
+</body>
+</html>

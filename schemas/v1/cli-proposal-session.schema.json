@@ -1,0 +1,259 @@
+{
+  "$defs": {
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build"
+      ],
+      "type": "string"
+    },
+    "ProposalMember": {
+      "additionalProperties": true,
+      "description": "One exact reference inside a proposal, and why it was allowed in.\n\nThe lane travels with the member rather than being recomputed when the\nproposal is confirmed. `REQ-616` wants the trace to record the lane of each\ncandidate, and a lane derived later could differ from the one the user was\nactually shown.",
+      "properties": {
+        "consent_source": {
+          "default": "",
+          "title": "Consent Source",
+          "type": "string"
+        },
+        "lane": {
+          "enum": [
+            "authoritative",
+            "local_owner_or_pinned",
+            "experimental"
+          ],
+          "title": "Lane",
+          "type": "string"
+        },
+        "lane_reason": {
+          "minLength": 1,
+          "title": "Lane Reason",
+          "type": "string"
+        },
+        "overlay_revision_id": {
+          "default": "",
+          "title": "Overlay Revision Id",
+          "type": "string"
+        },
+        "passport_digest": {
+          "minLength": 1,
+          "title": "Passport Digest",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "stable_id": {
+          "minLength": 1,
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^\\d+\\.\\d+$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "consent_source",
+        "lane",
+        "lane_reason",
+        "overlay_revision_id",
+        "passport_digest",
+        "schema_version",
+        "stable_id",
+        "version"
+      ],
+      "title": "ProposalMember",
+      "type": "object"
+    },
+    "ProposalView": {
+      "additionalProperties": true,
+      "description": "One short-lived composition proposal (`ADR-0027`).\n\nShowing this creates nothing. `state` distinguishes the four situations a\ncaller must act on differently — still open, already confirmed, cancelled,\nor expired — because \"not open\" would leave all three failures looking the\nsame.",
+      "properties": {
+        "confirmed_stable_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confirmed Stable Id"
+        },
+        "confirmed_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confirmed Version"
+        },
+        "created_at": {
+          "minLength": 1,
+          "title": "Created At",
+          "type": "string"
+        },
+        "expires_at": {
+          "minLength": 1,
+          "title": "Expires At",
+          "type": "string"
+        },
+        "harness_id": {
+          "$ref": "#/$defs/HarnessId"
+        },
+        "members": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ProposalMember"
+          },
+          "title": "Members",
+          "type": "array"
+        },
+        "project_id": {
+          "minLength": 1,
+          "title": "Project Id",
+          "type": "string"
+        },
+        "proposal_id": {
+          "minLength": 1,
+          "title": "Proposal Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "snapshot": {
+          "minLength": 1,
+          "title": "Snapshot",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "open",
+            "confirmed",
+            "cancelled",
+            "expired"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "confirmed_stable_id",
+        "confirmed_version",
+        "created_at",
+        "expires_at",
+        "harness_id",
+        "members",
+        "project_id",
+        "proposal_id",
+        "schema_version",
+        "snapshot",
+        "state"
+      ],
+      "title": "ProposalView",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-proposal-session",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "What one project-and-harness pair currently has open and selected.",
+  "properties": {
+    "harness_id": {
+      "$ref": "#/$defs/HarnessId"
+    },
+    "policy_version": {
+      "minLength": 1,
+      "title": "Policy Version",
+      "type": "string"
+    },
+    "project_id": {
+      "minLength": 1,
+      "title": "Project Id",
+      "type": "string"
+    },
+    "proposals": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ProposalView"
+      },
+      "title": "Proposals",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "selected_stable_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Selected Stable Id"
+    },
+    "selected_state": {
+      "anyOf": [
+        {
+          "enum": [
+            "pending_install",
+            "installed"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Selected State"
+    },
+    "selected_version": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Selected Version"
+    }
+  },
+  "required": [
+    "harness_id",
+    "policy_version",
+    "project_id",
+    "proposals",
+    "schema_version",
+    "selected_stable_id",
+    "selected_state",
+    "selected_version"
+  ],
+  "title": "ProposalSession",
+  "type": "object"
+}

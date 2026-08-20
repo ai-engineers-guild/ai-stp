@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case_id": "readSelectionImpact.accountSnapshot",
+      "operation_id": "readSelectionImpact",
+      "kind": "positive",
+      "why": "An account snapshot reports the candidate setup and an unavailable token price without leaking local-only authority.",
+      "request": {
+        "query": {
+          "candidate_id": "setup_01J00000000000000000000000",
+          "candidate_version": "1.0"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "generated_at": "2026-08-15T00:00:00.000Z",
+        "authority_boundary": "account",
+        "freshness": "account_snapshot",
+        "source_revision": "revision_01J00000000000000000000000",
+        "action": "none",
+        "status": "ready",
+        "unavailable_reason": null,
+        "candidate_setup": {
+          "stable_id": "setup_01J00000000000000000000000",
+          "version": "1.0",
+          "passport_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "baseline_setup": null,
+        "baseline_source": "none",
+        "estimator": {
+          "schema_version": 1,
+          "profile": "ai-stp:utf8-bytes/1",
+          "accuracy": "exact",
+          "method": "utf8_byte_count",
+          "model": null,
+          "local_only": true
+        },
+        "candidate_context": {
+          "always_tokens": 0,
+          "conditional_tokens": 0,
+          "unavailable_components": 0,
+          "components": []
+        },
+        "baseline_context": null,
+        "context_delta": null,
+        "candidate_capabilities": {
+          "tools": [],
+          "mcp_servers": [],
+          "hooks": [],
+          "network_requirements": [],
+          "credential_requirements": [],
+          "filesystem_permissions": [],
+          "network_permissions": [],
+          "process_permissions": []
+        },
+        "baseline_capabilities": null,
+        "capability_delta": null,
+        "token_cost": {
+          "status": "unavailable",
+          "amount": null,
+          "currency": null,
+          "profile_id": null,
+          "source": null,
+          "fetched_at": null,
+          "reason": "no_price_profile"
+        }
+      }
+    }
+  ]
+}

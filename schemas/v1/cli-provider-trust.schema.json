@@ -1,0 +1,199 @@
+{
+  "$defs": {
+    "PinnedRelease": {
+      "additionalProperties": true,
+      "description": "One exact provider artifact this machine approved, and who may deliver it.\n\nReported as all three fields because that is what the policy decides on. A\ndigest alone would describe a rule the machine does not apply: the same\napproved bytes presented under another provider identity are refused.",
+      "properties": {
+        "artifact_digest": {
+          "minLength": 1,
+          "title": "Artifact Digest",
+          "type": "string"
+        },
+        "provider_id": {
+          "minLength": 1,
+          "title": "Provider Id",
+          "type": "string"
+        },
+        "repository": {
+          "minLength": 1,
+          "title": "Repository",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "artifact_digest",
+        "provider_id",
+        "repository",
+        "schema_version"
+      ],
+      "title": "PinnedRelease",
+      "type": "object"
+    },
+    "ReleaseRefusal": {
+      "additionalProperties": true,
+      "description": "One reason a provider release is not acceptable.",
+      "properties": {
+        "code": {
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "details": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "title": "Details",
+          "type": "object"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "summary": {
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "details",
+        "schema_version",
+        "summary"
+      ],
+      "title": "ReleaseRefusal",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-provider-trust",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "What this machine will accept from a provider, and why (`SPEC-008` REQ-811).\n\nThe policy is reported as it is pinned, not as a manifest describes itself.\nAn empty `allowed_keys` accepts nothing and is the correct state before the\nowner pins a real signing key — an invented key would be a trust anchor\nnobody chose.",
+  "properties": {
+    "accepted": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Accepted"
+    },
+    "allowed_keys": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Allowed Keys",
+      "type": "array"
+    },
+    "allowed_publishers": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Allowed Publishers",
+      "type": "array"
+    },
+    "allowed_repositories": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Allowed Repositories",
+      "type": "array"
+    },
+    "known_sequence": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Known Sequence"
+    },
+    "minimum_sequence": {
+      "minimum": 0,
+      "title": "Minimum Sequence",
+      "type": "integer"
+    },
+    "pinned_releases": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/PinnedRelease"
+      },
+      "title": "Pinned Releases",
+      "type": "array"
+    },
+    "policy_id": {
+      "minLength": 1,
+      "title": "Policy Id",
+      "type": "string"
+    },
+    "policy_schema_version": {
+      "minimum": 1,
+      "title": "Policy Schema Version",
+      "type": "integer"
+    },
+    "refusals": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ReleaseRefusal"
+      },
+      "title": "Refusals",
+      "type": "array"
+    },
+    "revoked_keys": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Revoked Keys",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "signature_subject": {
+      "minLength": 1,
+      "title": "Signature Subject",
+      "type": "string"
+    }
+  },
+  "required": [
+    "accepted",
+    "allowed_keys",
+    "allowed_publishers",
+    "allowed_repositories",
+    "known_sequence",
+    "minimum_sequence",
+    "pinned_releases",
+    "policy_id",
+    "policy_schema_version",
+    "refusals",
+    "revoked_keys",
+    "schema_version",
+    "signature_subject"
+  ],
+  "title": "ProviderTrust",
+  "type": "object"
+}

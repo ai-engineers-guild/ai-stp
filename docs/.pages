@@ -1,0 +1,9 @@
+# Порядок разделов в навигации сайта.
+nav:
+  - index.md
+  - product
+  - architecture
+  - engineering
+  - operations
+  - documentation
+  - adr

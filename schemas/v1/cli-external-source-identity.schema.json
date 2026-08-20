@@ -1,0 +1,138 @@
+{
+  "$id": "urn:ai-stp:schema:v1:cli-external-source-identity",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A parsed external source intent or separately proven exact identity.",
+  "properties": {
+    "canonical": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Canonical",
+      "type": "string"
+    },
+    "collection_handle": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Collection Handle"
+    },
+    "collection_owner": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Collection Owner"
+    },
+    "kind": {
+      "enum": [
+        "published",
+        "github",
+        "github/exact",
+        "local",
+        "collection"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "local_path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Local Path"
+    },
+    "owner": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Owner"
+    },
+    "provenance_proven": {
+      "default": false,
+      "title": "Provenance Proven",
+      "type": "boolean"
+    },
+    "ref": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Ref"
+    },
+    "repository": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Repository"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "selector": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Selector"
+    },
+    "subpath": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Subpath"
+    }
+  },
+  "required": [
+    "kind",
+    "canonical"
+  ],
+  "title": "ExternalSourceIdentity",
+  "type": "object"
+}

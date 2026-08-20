@@ -1,0 +1,85 @@
+{
+  "$id": "urn:ai-stp:schema:v1:cli-toolchain-installation",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "The outcome of one managed install (`SPEC-014` REQ-1405, REQ-1410, REQ-1411).\n\n`action` is what happened, not what was attempted. `needs_user_action` means\nsomething outside the managed directory would have to change, and the plan\nsays exactly what — `REQ-1410` forbids the agent obtaining a password to do\nit instead.",
+  "properties": {
+    "action": {
+      "enum": [
+        "installed",
+        "already_installed",
+        "needs_user_action",
+        "removed"
+      ],
+      "title": "Action",
+      "type": "string"
+    },
+    "binary": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Binary"
+    },
+    "kept": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Kept",
+      "type": "array"
+    },
+    "offline_capable": {
+      "default": false,
+      "title": "Offline Capable",
+      "type": "boolean"
+    },
+    "paths": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Paths",
+      "type": "array"
+    },
+    "reason": {
+      "minLength": 1,
+      "title": "Reason",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "tool_id": {
+      "minLength": 1,
+      "title": "Tool Id",
+      "type": "string"
+    },
+    "version": {
+      "minLength": 1,
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "action",
+    "binary",
+    "kept",
+    "offline_capable",
+    "paths",
+    "reason",
+    "schema_version",
+    "tool_id",
+    "version"
+  ],
+  "title": "ToolInstallation",
+  "type": "object"
+}

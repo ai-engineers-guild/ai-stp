@@ -1,0 +1,24 @@
+{
+  "$id": "urn:ai-stp:schema:v1:auth-logout-response",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "POST /v1/auth/logout resource body.",
+  "properties": {
+    "revoked": {
+      "title": "Revoked",
+      "type": "boolean"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "revoked",
+    "schema_version"
+  ],
+  "title": "AuthLogoutResponse",
+  "type": "object"
+}

@@ -1,0 +1,304 @@
+{
+  "$defs": {
+    "CommandDescriptor": {
+      "additionalProperties": true,
+      "description": "Everything the agent needs to invoke one command correctly.\n\nA command that does not work is absent rather than described: the Skill is\ntold not to guess flags, so a declared-but-unimplemented command would let\nit plan a step around something that cannot run.",
+      "properties": {
+        "confirmation": {
+          "$ref": "#/$defs/ConfirmationKind"
+        },
+        "mutability": {
+          "$ref": "#/$defs/MutabilityClass"
+        },
+        "next_actions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Next Actions",
+          "type": "array"
+        },
+        "parameter_rules": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/CommandParameterRule"
+          },
+          "title": "Parameter Rules",
+          "type": "array"
+        },
+        "parameters": {
+          "items": {
+            "$ref": "#/$defs/CommandParameter"
+          },
+          "title": "Parameters",
+          "type": "array"
+        },
+        "path": {
+          "$ref": "#/$defs/CommandPath"
+        },
+        "result_schema": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Result Schema"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "confirmation",
+        "mutability",
+        "next_actions",
+        "parameter_rules",
+        "parameters",
+        "path",
+        "result_schema",
+        "summary"
+      ],
+      "title": "CommandDescriptor",
+      "type": "object"
+    },
+    "CommandParameter": {
+      "additionalProperties": true,
+      "description": "One parameter of one command, as the agent must supply it.",
+      "properties": {
+        "choices": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Choices",
+          "type": "array"
+        },
+        "kind": {
+          "$ref": "#/$defs/ParameterKind"
+        },
+        "name": {
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "repeatable": {
+          "title": "Repeatable",
+          "type": "boolean"
+        },
+        "required": {
+          "title": "Required",
+          "type": "boolean"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        },
+        "value_type": {
+          "$ref": "#/$defs/ParameterType"
+        }
+      },
+      "required": [
+        "choices",
+        "kind",
+        "name",
+        "repeatable",
+        "required",
+        "summary",
+        "value_type"
+      ],
+      "title": "CommandParameter",
+      "type": "object"
+    },
+    "CommandParameterRule": {
+      "additionalProperties": false,
+      "description": "A cross-parameter invocation rule that consumers must not parse from prose.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "exactly_one",
+            "required_when"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "parameters": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Parameters",
+          "type": "array"
+        },
+        "when_parameter": {
+          "default": "",
+          "title": "When Parameter",
+          "type": "string"
+        },
+        "when_values": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "When Values",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "parameters"
+      ],
+      "title": "CommandParameterRule",
+      "type": "object"
+    },
+    "CommandPath": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 4,
+      "minItems": 1,
+      "type": "array"
+    },
+    "ConfirmationKind": {
+      "enum": [
+        "none",
+        "explicit_flag",
+        "plan_digest"
+      ],
+      "type": "string"
+    },
+    "ErrorHandling": {
+      "enum": [
+        "correct_request",
+        "authenticate",
+        "await_authorization",
+        "restart_authorization",
+        "stop_for_permission",
+        "reconcile_state",
+        "ask_user",
+        "retry_if_retryable",
+        "inspect_effect",
+        "recover_partial",
+        "report_bug"
+      ],
+      "type": "string"
+    },
+    "ExitClass": {
+      "enum": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        70
+      ],
+      "type": "integer"
+    },
+    "MachineErrorDescriptor": {
+      "additionalProperties": true,
+      "description": "One stable failure and the first disposition an agent should take.",
+      "properties": {
+        "code": {
+          "pattern": "^AI_STP_[A-Z0-9]+(?:_[A-Z0-9]+)*$",
+          "title": "Code",
+          "type": "string"
+        },
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "exit_class": {
+          "$ref": "#/$defs/ExitClass"
+        },
+        "handling": {
+          "$ref": "#/$defs/ErrorHandling"
+        }
+      },
+      "required": [
+        "code",
+        "description",
+        "exit_class",
+        "handling"
+      ],
+      "title": "MachineErrorDescriptor",
+      "type": "object"
+    },
+    "MutabilityClass": {
+      "enum": [
+        "read",
+        "plan",
+        "apply",
+        "destructive"
+      ],
+      "type": "string"
+    },
+    "ParameterKind": {
+      "enum": [
+        "option",
+        "argument"
+      ],
+      "type": "string"
+    },
+    "ParameterType": {
+      "enum": [
+        "string",
+        "boolean",
+        "integer"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-machine-help",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "The whole command registry, rendered for an agent.",
+  "properties": {
+    "cli_version": {
+      "minLength": 1,
+      "title": "Cli Version",
+      "type": "string"
+    },
+    "commands": {
+      "items": {
+        "$ref": "#/$defs/CommandDescriptor"
+      },
+      "minItems": 1,
+      "title": "Commands",
+      "type": "array"
+    },
+    "error_codes": {
+      "items": {
+        "$ref": "#/$defs/MachineErrorDescriptor"
+      },
+      "minItems": 1,
+      "title": "Error Codes",
+      "type": "array"
+    },
+    "global_options": {
+      "items": {
+        "$ref": "#/$defs/CommandParameter"
+      },
+      "minItems": 1,
+      "title": "Global Options",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "cli_version",
+    "commands",
+    "error_codes",
+    "global_options",
+    "schema_version"
+  ],
+  "title": "MachineHelp",
+  "type": "object"
+}

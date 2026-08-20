@@ -1,0 +1,71 @@
+# Секреты и конфигурация окружения
+.env
+.env.*
+!.env.example
+!.env.dev.example
+!.env.prod.example
+
+# Локальная рабочая доска задач
+.work/
+public/build/
+
+# Agent/session local notes and check reports (not product docs)
+plans/
+
+# Рабочий каталог агентского инструмента ревью: скриншоты, отчёт Lighthouse и
+# логи запущенного dev-сервера. Он уже попадал в коммиты, потому что добавление
+# всего рабочего дерева одной командой затягивает служебные каталоги — ровно то,
+# что запрещает docs/engineering/git-workflow.md. Правило превентивное: уже
+# отслеживаемый файл оно не исключает. Каталоги других инструментов сюда
+# добавляются по факту появления, а не заранее.
+.impeccable/
+
+# Deploy state and local backup artifacts (SPEC-024). Never commit.
+.deploy-state/
+.backups/
+
+# Local browser-automation artifacts (Playwright MCP scratch output)
+.playwright-mcp/
+apps/web/test-results/
+apps/web/playwright-report/
+apps/web/blob-report/
+
+# Зависимости
+node_modules/
+__pycache__/
+*.py[cod]
+.venv/
+.venv-check/
+venv/
+
+# Сборка
+dist/
+build/
+*.egg-info/
+
+# Кэш инструментов
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.serena/cache/
+.serena.local-backup-before-ff/
+
+# Редакторы и ОС
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Собранный сайт документации
+.site/
+.site-user-docs/
+
+# Локальный корпус исследований и выгрузок диалога
+research_sources/
+.coverage
+.coverage.*
+htmlcov/
+
+# ImageGen originals are preserved in the Codex asset store; web uses optimized WebP.
+apps/web/public/catalog-art/*.png

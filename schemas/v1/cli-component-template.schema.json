@@ -1,0 +1,68 @@
+{
+  "$id": "urn:ai-stp:schema:v1:cli-component-template",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A deterministic concrete projection of one authoring template.",
+  "properties": {
+    "component_name": {
+      "minLength": 1,
+      "title": "Component Name",
+      "type": "string"
+    },
+    "component_root": {
+      "minLength": 1,
+      "title": "Component Root",
+      "type": "string"
+    },
+    "content": {
+      "maxLength": 65536,
+      "title": "Content",
+      "type": "string"
+    },
+    "harness_id": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build"
+      ],
+      "title": "Harness Id",
+      "type": "string"
+    },
+    "placeholders": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Placeholders",
+      "type": "array"
+    },
+    "rendered_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Rendered Digest",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "source_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Source Digest",
+      "type": "string"
+    }
+  },
+  "required": [
+    "harness_id",
+    "component_name",
+    "component_root",
+    "source_digest",
+    "rendered_digest",
+    "placeholders",
+    "content"
+  ],
+  "title": "ComponentTemplateView",
+  "type": "object"
+}

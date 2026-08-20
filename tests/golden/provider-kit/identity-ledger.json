@@ -1,0 +1,9 @@
+{
+  "schema": "ai-stp-provider-kit-identity-ledger/1",
+  "released": [
+    {
+      "kit_version": "0.2.0",
+      "aggregate_digest": "sha256:d45add27fded30962f411441547c92cc9d06264035c2d314357c24d3d983b819"
+    }
+  ]
+}

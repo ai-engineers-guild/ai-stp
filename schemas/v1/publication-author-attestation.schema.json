@@ -1,0 +1,207 @@
+{
+  "$defs": {
+    "ComponentRef": {
+      "additionalProperties": false,
+      "description": "Exact reference to a component version, optionally to one realization.",
+      "properties": {
+        "passport_digest": {
+          "$ref": "#/$defs/PassportDigest"
+        },
+        "stable_id": {
+          "pattern": "^component_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "variant_id": {
+          "anyOf": [
+            {
+              "pattern": "^variant_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Variant Id"
+        },
+        "version": {
+          "$ref": "#/$defs/Version"
+        }
+      },
+      "required": [
+        "stable_id",
+        "version",
+        "passport_digest"
+      ],
+      "title": "ComponentRef",
+      "type": "object"
+    },
+    "ContentDigest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "DeviceId": {
+      "pattern": "^device_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "type": "string"
+    },
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build"
+      ],
+      "type": "string"
+    },
+    "PassportDigest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "PolicyVersion": {
+      "maxLength": 32,
+      "minLength": 1,
+      "type": "string"
+    },
+    "SetupRef": {
+      "additionalProperties": false,
+      "description": "Exact reference to a setup version; a setup has no variant axis.",
+      "properties": {
+        "passport_digest": {
+          "$ref": "#/$defs/PassportDigest"
+        },
+        "stable_id": {
+          "pattern": "^setup_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "version": {
+          "$ref": "#/$defs/Version"
+        }
+      },
+      "required": [
+        "stable_id",
+        "version",
+        "passport_digest"
+      ],
+      "title": "SetupRef",
+      "type": "object"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    },
+    "Version": {
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:publication-author-attestation",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Full closed author attestation on the /v1 wire (ADR-0092).",
+  "properties": {
+    "account_id": {
+      "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Account Id",
+      "type": "string"
+    },
+    "attested_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "check_id": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Check Id",
+      "type": "string"
+    },
+    "device_id": {
+      "$ref": "#/$defs/DeviceId"
+    },
+    "harness_id": {
+      "$ref": "#/$defs/HarnessId"
+    },
+    "harness_version": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Harness Version",
+      "type": "string"
+    },
+    "object_digest": {
+      "$ref": "#/$defs/ContentDigest"
+    },
+    "policy_version": {
+      "$ref": "#/$defs/PolicyVersion"
+    },
+    "provider_version": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Provider Version",
+      "type": "string"
+    },
+    "result": {
+      "enum": [
+        "passed",
+        "failed"
+      ],
+      "title": "Result",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "signature": {
+      "pattern": "^[A-Za-z0-9+/]{86}==$",
+      "title": "Signature",
+      "type": "string"
+    },
+    "subject": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ComponentRef"
+        },
+        {
+          "$ref": "#/$defs/SetupRef"
+        }
+      ],
+      "title": "Subject"
+    },
+    "test_case_ids": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 64,
+      "minItems": 1,
+      "title": "Test Case Ids",
+      "type": "array"
+    },
+    "tool_versions": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Tool Versions",
+      "type": "object"
+    }
+  },
+  "required": [
+    "object_digest",
+    "subject",
+    "check_id",
+    "policy_version",
+    "harness_id",
+    "harness_version",
+    "provider_version",
+    "test_case_ids",
+    "result",
+    "account_id",
+    "device_id",
+    "attested_at",
+    "signature"
+  ],
+  "title": "AuthorAttestation",
+  "type": "object"
+}

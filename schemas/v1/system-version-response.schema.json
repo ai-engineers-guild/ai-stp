@@ -1,0 +1,59 @@
+{
+  "$id": "urn:ai-stp:schema:v1:system-version-response",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "GET /v1/system/version resource body (safe diagnostics only).",
+  "properties": {
+    "environment": {
+      "maxLength": 32,
+      "minLength": 1,
+      "title": "Environment",
+      "type": "string"
+    },
+    "git_commit": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Git Commit"
+    },
+    "schema_revision": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Schema Revision"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "version": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "environment",
+    "git_commit",
+    "schema_revision",
+    "schema_version",
+    "version"
+  ],
+  "title": "SystemVersionResponse",
+  "type": "object"
+}

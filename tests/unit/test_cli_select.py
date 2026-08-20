@@ -1,0 +1,758 @@
+"""`select eligibility`: the constraint decision seen from the command surface."""
+
+import io
+import os
+import sqlite3
+import zipfile
+from collections.abc import Iterator
+from contextlib import closing
+from pathlib import Path
+from typing import cast
+
+import pytest
+
+from ai_stp_cli.commands import select
+from ai_stp_cli.errors import CliFailure
+from ai_stp_cli.local import cache, content, passports, project_passport, revisions, versions
+from ai_stp_cli.local.database import configured_path, open_readonly, open_registry
+from ai_stp_cli.local.passports import owner
+from ai_stp_cli.paths import data_dir
+from ai_stp_contracts.machine_help import EligibilityMatrix, EligibilityReport
+from ai_stp_foundation.canonical import JsonValue
+from ai_stp_foundation.harnesses import HARNESS_IDS
+
+MOMENT = "2026-08-08T10:00:00.000Z"
+DEVICE = "device_test"
+
+
+@pytest.fixture
+def registry() -> Iterator[sqlite3.Connection]:
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        yield connection
+
+
+def _register(connection: sqlite3.Connection, suffix: str, *, harness_id: str) -> str:
+    stable_id = f"component_01J0000000000000000000000{suffix}"
+    connection.execute(
+        "INSERT INTO entity (stable_id, kind, created_at) VALUES (?, 'component', ?)",
+        (stable_id, MOMENT),
+    )
+    revisions.commit(
+        connection,
+        {  # pyright: ignore[reportArgumentType]
+            "schema_version": 1,
+            "kind": "component",
+            "stable_id": stable_id,
+            "owner_id": owner().account_id,
+            "created_at": MOMENT,
+            "visibility": "private",
+            "parent_revision_ids": [],
+            "facts": {
+                "harness_id": {
+                    "value": harness_id,
+                    "origin": "observed",
+                    "confirmation": "none",
+                    "observed_at": MOMENT,
+                },
+                "component_type": {
+                    "value": "skill",
+                    "origin": "observed",
+                    "confirmation": "none",
+                    "observed_at": MOMENT,
+                },
+            },
+        },
+        device_id=DEVICE,
+    )
+    connection.commit()
+    return stable_id
+
+
+def _report(root: Path, **parameters: object) -> EligibilityReport:
+    return select.eligible({"harness": "claude-code", "project": str(root), **parameters}).payload
+
+
+@pytest.mark.parametrize("given", ["", "undefined", "not-a-harness"])
+def test_an_unsupported_harness_is_refused_before_anything_is_read(given: str) -> None:
+    with pytest.raises(CliFailure) as raised:
+        select.eligible({"harness": given})
+    assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+
+
+def test_an_empty_registry_is_an_honest_empty_report(tmp_path: Path) -> None:
+    """`no_candidate` is a normal state in `SPEC-006`, not an error."""
+    report = _report(tmp_path)
+    assert report.candidates == []
+    assert report.admissible_count == 0
+    assert report.auto_selectable_count == 0
+
+
+def test_the_report_carries_the_facts_the_verdict_was_reached_from(tmp_path: Path) -> None:
+    report = _report(tmp_path)
+    assert report.harness_id == "claude-code"
+    assert report.os
+    assert report.arch
+    assert report.capability_vocabulary_version
+
+
+def test_a_project_fact_reaches_the_target_as_a_capability(tmp_path: Path) -> None:
+    (tmp_path / "main.py").write_text("print(1)\n", encoding="utf-8")
+    (tmp_path / "AGENTS.md").write_text("# rules\n", encoding="utf-8")
+    held = set(_report(tmp_path).capabilities)
+    assert {"project.language.python", "project.surface.agents_md"} <= held
+
+
+def test_a_local_object_for_this_harness_is_admissible(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    stable_id = _register(registry, "A", harness_id="claude-code")
+    report = _report(tmp_path)
+    assert [item.stable_id for item in report.candidates] == [stable_id]
+    only = report.candidates[0]
+    assert only.lane == "local_owner_or_pinned"
+    assert only.admissible
+    assert only.auto_selectable
+    assert report.admissible_count == 1
+
+
+def test_eligibility_reads_a_legacy_owner_without_recreating_the_owner_file(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    passports.init_developer(registry, device_id=DEVICE)
+    stable_id = _register(registry, "E", harness_id="claude-code")
+    (data_dir() / "owner.json").unlink()
+
+    report = _report(tmp_path)
+
+    assert [item.stable_id for item in report.candidates] == [stable_id]
+    assert report.candidates[0].admissible
+    assert not (data_dir() / "owner.json").exists()
+
+
+def _matrix(root: Path, **parameters: object) -> EligibilityMatrix:
+    return select.eligible_everywhere({"project": str(root), **parameters}).payload
+
+
+def test_the_matrix_answers_for_every_supported_harness_installed_or_not(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """Whether an object fits Pi is a property of the object, not of this machine.
+
+    `select eligibility` answers for the harness it was given, and with only
+    that available an agent answered "where does this fit" with the harness its
+    own session happened to run in — a portable skill then carried that
+    `harness_id` into a draft passport (`#380`, `REQ-629`).
+
+    None of the five is installed in this test, and all five have a row.
+    """
+    _register(registry, "M", harness_id="claude-code")
+
+    matrix = _matrix(tmp_path)
+
+    answered = [report.harness_id for report in matrix.harnesses]
+    assert answered == sorted(HARNESS_IDS)
+    assert list(matrix.requested) == answered
+    assert len(answered) == len(set(answered))
+
+
+def test_the_matrix_refuses_a_harness_the_object_does_not_declare(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """An object laid out for one harness does not become eligible for another."""
+    _register(registry, "N", harness_id="claude-code")
+
+    rows = {report.harness_id: report for report in _matrix(tmp_path).harnesses}
+
+    assert rows["claude-code"].admissible_count == 1
+    for other in sorted(set(HARNESS_IDS) - {"claude-code"}):
+        assert rows[other].admissible_count == 0, other
+        refused = rows[other].candidates[0]
+        assert [item.code for item in refused.refusals] == ["harness_mismatch"]
+
+
+def test_naming_a_harness_narrows_the_matrix_without_emptying_it(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """Explicit narrowing stays allowed; it is the *default* that had to change."""
+    _register(registry, "Q", harness_id="codex")
+
+    narrowed = _matrix(tmp_path, harness=("codex", "pi"))
+
+    assert [report.harness_id for report in narrowed.harnesses] == ["codex", "pi"]
+    assert list(narrowed.requested) == ["codex", "pi"]
+
+    with pytest.raises(CliFailure) as refused:
+        _matrix(tmp_path, harness=("codex", "not-a-harness"))
+    assert refused.value.code == "AI_STP_VALIDATION_ERROR"
+    assert refused.value.next_actions
+
+
+def test_a_local_object_for_another_harness_is_refused_by_name(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    _register(registry, "B", harness_id="codex")
+    only = _report(tmp_path).candidates[0]
+    assert not only.admissible
+    assert [item.code for item in only.refusals] == ["harness_mismatch"]
+    assert only.refusals[0].family == "compatibility"
+    assert only.refusals[0].details == {"declared": "codex", "target": "claude-code"}
+
+
+def test_looking_at_what_is_allowed_creates_nothing(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """`ADR-0027` makes a durable object the result of a confirmation, not a look."""
+    _register(registry, "C", harness_id="claude-code")
+    before = registry.execute("SELECT count(*) AS held FROM revision").fetchone()["held"]
+    _report(tmp_path)
+    _report(tmp_path)
+    after = registry.execute("SELECT count(*) AS held FROM revision").fetchone()["held"]
+    assert after == before
+
+
+def test_two_runs_over_the_same_facts_agree(registry: sqlite3.Connection, tmp_path: Path) -> None:
+    _register(registry, "D", harness_id="claude-code")
+    _register(registry, "E", harness_id="codex")
+    assert _report(tmp_path).model_dump(mode="json") == _report(tmp_path).model_dump(mode="json")
+
+
+def _ready(connection: sqlite3.Connection, root: Path) -> str:
+    """A machine with the three passports a session needs (`REQ-621`)."""
+    passports.init_developer(connection, device_id=DEVICE)
+    passports.ensure_device(connection, device_id=DEVICE)
+    found = project_passport.scan(connection, root)
+    project_passport.record(connection, found, device_id=DEVICE)
+    connection.commit()
+    return found.stable_id
+
+
+def _released(connection: sqlite3.Connection, suffix: str) -> str:
+    """One component with one released version, which a member must have."""
+    stable_id = _register(connection, suffix, harness_id="claude-code")
+    stored = revisions.head(connection, stable_id)
+    assert stored is not None
+    versions.record(
+        connection,
+        stable_id=stable_id,
+        version="1.0",
+        passport_digest=cache.digest_of(stored.envelope.model_dump(mode="json")),
+        revision_id=stored.revision_id,
+        at=MOMENT,
+    )
+    connection.commit()
+    return stable_id
+
+
+def test_a_session_needs_a_project_passport_before_it_can_start(tmp_path: Path) -> None:
+    with pytest.raises(CliFailure) as raised:
+        select.session({"harness": "claude-code", "project": str(tmp_path)})
+    assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
+
+
+def test_proposing_and_confirming_through_the_command_surface(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    project_id = _ready(registry, tmp_path)
+    stable_id = _released(registry, "F")
+
+    session = select.propose(
+        {
+            "harness": "claude-code",
+            "project": str(tmp_path),
+            "member": [f"{stable_id}@1.0"],
+        }
+    ).payload
+    assert session.project_id == project_id
+    assert len(session.proposals) == 1
+    assert session.selected_stable_id is None
+    proposal_id = session.proposals[0].proposal_id
+    assert session.proposals[0].members[0].stable_id == stable_id
+
+    confirmed = select.confirm({"proposal": proposal_id, "confirm": True}).payload
+    assert confirmed.created
+    assert confirmed.state == "pending_install"
+    assert confirmed.trace["policy_version"] == session.policy_version
+
+    after = select.session({"harness": "claude-code", "project": str(tmp_path)}).payload
+    assert after.selected_stable_id == confirmed.stable_id
+    assert after.selected_state == "pending_install"
+    assert after.proposals == [], "a confirmed proposal is no longer open"
+
+
+def test_a_repeat_confirmation_returns_the_same_version(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    _ready(registry, tmp_path)
+    stable_id = _released(registry, "G")
+    session = select.propose(
+        {"harness": "claude-code", "project": str(tmp_path), "member": [f"{stable_id}@1.0"]}
+    ).payload
+    proposal_id = session.proposals[0].proposal_id
+
+    first = select.confirm({"proposal": proposal_id, "confirm": True}).payload
+    second = select.confirm({"proposal": proposal_id, "confirm": True}).payload
+    assert (second.stable_id, second.version) == (first.stable_id, first.version)
+    assert first.created and not second.created
+
+
+def test_a_member_named_without_an_exact_version_is_refused(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    _ready(registry, tmp_path)
+    stable_id = _released(registry, "H")
+    with pytest.raises(CliFailure) as raised:
+        select.propose({"harness": "claude-code", "project": str(tmp_path), "member": [stable_id]})
+    assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+
+
+def test_a_member_with_no_recorded_version_is_not_found(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    _ready(registry, tmp_path)
+    stable_id = _register(registry, "J", harness_id="claude-code")
+    registry.commit()
+    with pytest.raises(CliFailure) as raised:
+        select.propose(
+            {"harness": "claude-code", "project": str(tmp_path), "member": [f"{stable_id}@1.0"]}
+        )
+    assert raised.value.code == "AI_STP_NOT_FOUND"
+
+
+def test_a_member_for_another_harness_is_refused_before_it_is_proposed(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """`REQ-601`: the mechanical stage runs before selection, and proposing is one."""
+    _ready(registry, tmp_path)
+    stable_id = _register(registry, "K", harness_id="codex")
+    stored = revisions.head(registry, stable_id)
+    assert stored is not None
+    versions.record(
+        registry,
+        stable_id=stable_id,
+        version="1.0",
+        passport_digest=cache.digest_of(stored.envelope.model_dump(mode="json")),
+        revision_id=stored.revision_id,
+        at=MOMENT,
+    )
+    registry.commit()
+
+    with pytest.raises(CliFailure) as raised:
+        select.propose(
+            {"harness": "claude-code", "project": str(tmp_path), "member": [f"{stable_id}@1.0"]}
+        )
+    assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
+    assert "harness_mismatch" in str(raised.value.details)
+
+
+def test_cancelling_removes_a_proposal_from_the_session(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    _ready(registry, tmp_path)
+    stable_id = _released(registry, "M")
+    session = select.propose(
+        {"harness": "claude-code", "project": str(tmp_path), "member": [f"{stable_id}@1.0"]}
+    ).payload
+    after = select.cancel({"proposal": session.proposals[0].proposal_id}).payload
+    assert after.proposals == []
+    assert after.selected_stable_id is None
+
+
+def test_confirming_without_naming_a_proposal_is_refused() -> None:
+    with pytest.raises(CliFailure) as raised:
+        select.confirm({})
+    assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+
+
+def test_the_policy_version_names_the_setting_it_came_from(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """`REQ-620`: a changed limit changes behaviour without an edit to the code."""
+    _ready(registry, tmp_path)
+    reported = select.session({"harness": "claude-code", "project": str(tmp_path)}).payload
+    assert "result_limit=" in reported.policy_version
+
+
+def test_the_closure_of_a_proposal_resolves_through_the_command(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    _ready(registry, tmp_path)
+    stable_id = _released(registry, "N")
+    session = select.propose(
+        {"harness": "claude-code", "project": str(tmp_path), "member": [f"{stable_id}@1.0"]}
+    ).payload
+
+    resolved = select.dependency_graph({"proposal": session.proposals[0].proposal_id}).payload
+    assert resolved.resolved
+    assert resolved.order == [f"{stable_id}@1.0"]
+    assert resolved.max_depth >= 1
+
+
+def test_a_closure_can_be_checked_before_anything_is_proposed(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    _ready(registry, tmp_path)
+    stable_id = _released(registry, "P")
+    resolved = select.dependency_graph({"member": [f"{stable_id}@1.0"]}).payload
+    assert resolved.resolved
+    assert [item.stable_id for item in resolved.nodes] == [stable_id]
+
+
+def test_the_graph_command_takes_a_proposal_or_members_but_not_both(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    _ready(registry, tmp_path)
+    stable_id = _released(registry, "Q")
+    session = select.propose(
+        {"harness": "claude-code", "project": str(tmp_path), "member": [f"{stable_id}@1.0"]}
+    ).payload
+
+    for parameters in (
+        {},
+        {"proposal": session.proposals[0].proposal_id, "member": [f"{stable_id}@1.0"]},
+    ):
+        with pytest.raises(CliFailure) as raised:
+            select.dependency_graph(parameters)
+        assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+
+
+def test_the_graph_command_never_takes_a_digest_from_the_caller(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """It is read from the registry, so the two statements cannot disagree."""
+    _ready(registry, tmp_path)
+    stable_id = _released(registry, "R")
+    resolved = select.dependency_graph({"member": [f"{stable_id}@1.0"]}).payload
+    recorded = versions.held(registry, stable_id, "1.0")
+    assert recorded is not None
+    assert resolved.nodes[0].passport_digest == recorded.passport_digest
+
+
+def test_an_unknown_proposal_has_no_closure(registry: sqlite3.Connection, tmp_path: Path) -> None:
+    _ready(registry, tmp_path)
+    with pytest.raises(CliFailure) as raised:
+        select.dependency_graph({"proposal": "proposal_01J0000000000000000000000Z"})
+    assert raised.value.code == "AI_STP_NOT_FOUND"
+
+
+def test_the_reports_come_back_together_through_the_command(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    _ready(registry, tmp_path)
+    stable_id = _released(registry, "S")
+    session = select.propose(
+        {"harness": "claude-code", "project": str(tmp_path), "member": [f"{stable_id}@1.0"]}
+    ).payload
+
+    both = select.reports(
+        {
+            "harness": "claude-code",
+            "project": str(tmp_path),
+            "proposal": session.proposals[0].proposal_id,
+        }
+    ).payload
+    assert [item.stable_id for item in both.chosen] == [stable_id]
+    assert set(both.operations) <= {
+        "canonical_ordering",
+        "exact_reference_deduplication",
+        "dependency_closure",
+        "disjoint_managed_path_union",
+        "deterministic_report_generation",
+    }
+    assert both.conversion, "a report with no conversion entries answers half the question"
+
+
+def test_reports_need_a_proposal(registry: sqlite3.Connection, tmp_path: Path) -> None:
+    _ready(registry, tmp_path)
+    with pytest.raises(CliFailure) as raised:
+        select.reports({"harness": "claude-code", "project": str(tmp_path)})
+    assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+
+
+def test_there_are_no_reports_until_the_closure_resolves(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """Reporting on a composition that cannot exist would describe a fiction."""
+    _ready(registry, tmp_path)
+    stable_id = _released(registry, "T")
+    session = select.propose(
+        {"harness": "claude-code", "project": str(tmp_path), "member": [f"{stable_id}@1.0"]}
+    ).payload
+    registry.execute("DELETE FROM object_version WHERE stable_id = ?", (stable_id,))
+    registry.commit()
+
+    with pytest.raises(CliFailure) as raised:
+        select.reports(
+            {
+                "harness": "claude-code",
+                "project": str(tmp_path),
+                "proposal": session.proposals[0].proposal_id,
+            }
+        )
+    assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
+    assert "dependency_missing" in str(raised.value.details)
+
+
+def _adopted(registry: sqlite3.Connection, tmp_path: Path, name: str) -> str:
+    """One component adopted from a real file, so its bytes are in the store."""
+    from ai_stp_cli.commands import component as command
+
+    place = tmp_path / ".claude" / "skills"
+    place.mkdir(parents=True, exist_ok=True)
+    (place / name).write_text(f"# {name}\n", encoding="utf-8")
+    stable_id = command.adopt({"path": str(place / name), "root": str(tmp_path)}).payload.stable_id
+    command.version_release({"id": stable_id})
+    return stable_id
+
+
+def test_a_bundle_compiles_from_adopted_content(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    _ready(registry, tmp_path)
+    stable_id = _adopted(registry, tmp_path, "review.md")
+    session = select.propose(
+        {"harness": "claude-code", "project": str(tmp_path), "member": [f"{stable_id}@1.0"]}
+    ).payload
+    select.confirm({"proposal": session.proposals[0].proposal_id, "confirm": True})
+
+    compiled = select.harness_bundle(
+        {
+            "harness": "claude-code",
+            "project": str(tmp_path),
+            "proposal": session.proposals[0].proposal_id,
+        }
+    ).payload
+    assert compiled.compiled
+    assert compiled.digest.startswith("sha256:")
+    assert compiled.artifact_digest.startswith("sha256:")
+    assert compiled.byte_length > compiled.files[0].byte_length
+    assert [item.path for item in compiled.files] == ["skills/review.md"]
+    assert compiled.files[0].owner == stable_id
+
+
+def test_a_bundle_preserves_every_file_and_mode_from_an_adopted_skill_tree(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    from ai_stp_cli.commands import component as command
+
+    _ready(registry, tmp_path)
+    skill = tmp_path / ".claude" / "skills" / "reviewer"
+    (skill / "references").mkdir(parents=True)
+    (skill / "scripts").mkdir()
+    (skill / "SKILL.md").write_bytes(b"# reviewer\n")
+    (skill / "references" / "policy.md").write_bytes(b"policy\n")
+    script = skill / "scripts" / "check.sh"
+    script.write_bytes(b"#!/bin/sh\nexit 0\n")
+    script.chmod(0o755)
+    stable_id = command.adopt({"path": str(skill), "root": str(tmp_path)}).payload.stable_id
+    command.version_release({"id": stable_id})
+    session = select.propose(
+        {"harness": "claude-code", "project": str(tmp_path), "member": [f"{stable_id}@1.0"]}
+    ).payload
+    proposal_id = session.proposals[0].proposal_id
+    select.confirm({"proposal": proposal_id, "confirm": True})
+
+    compiled = select.compile_harness_bundle(registry, proposal_id, "claude-code")
+    assert compiled.compiled
+    paths_modes = [(item.path, item.mode) for item in compiled.files]
+    if os.name == "nt":
+        # Windows does not retain Unix executable bits; every file is owner-read/write.
+        assert [path for path, _ in paths_modes] == [
+            "skills/reviewer/SKILL.md",
+            "skills/reviewer/references/policy.md",
+            "skills/reviewer/scripts/check.sh",
+        ]
+    else:
+        assert paths_modes == [
+            ("skills/reviewer/SKILL.md", 0o644),
+            ("skills/reviewer/references/policy.md", 0o644),
+            ("skills/reviewer/scripts/check.sh", 0o755),
+        ]
+    with zipfile.ZipFile(io.BytesIO(compiled.archive), "r") as archive:
+        assert archive.read("files/skills/reviewer/references/policy.md") == b"policy\n"
+
+
+def test_a_confirmed_bundle_reads_the_exact_graph_revision_not_a_later_head(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """A mutable draft head cannot rewrite an already confirmed setup version."""
+    _ready(registry, tmp_path)
+    stable_id = _adopted(registry, tmp_path, "pinned.md")
+    session = select.propose(
+        {"harness": "claude-code", "project": str(tmp_path), "member": [f"{stable_id}@1.0"]}
+    ).payload
+    proposal_id = session.proposals[0].proposal_id
+    select.confirm({"proposal": proposal_id, "confirm": True})
+
+    released = revisions.head(registry, stable_id)
+    assert released is not None
+    released_document = cast(dict[str, JsonValue], released.envelope.model_dump(mode="json"))
+    released_facts = cast(dict[str, JsonValue], released_document["facts"])
+    released_digest_fact = cast(dict[str, JsonValue], released_facts["content_digest"])
+    released_digest = str(released_digest_fact["value"])
+    released_bytes = content.get(registry, released_digest)
+
+    later = content.put(registry, b"# unconfirmed later draft\n", at=MOMENT)
+    later_document = cast(dict[str, JsonValue], released.envelope.model_dump(mode="json"))
+    later_document["parent_revision_ids"] = []
+    later_facts = cast(dict[str, JsonValue], later_document["facts"])
+    later_digest_fact = cast(dict[str, JsonValue], later_facts["content_digest"])
+    later_digest_fact["value"] = later.digest
+    moved = revisions.commit(registry, later_document, device_id=DEVICE)
+    registry.commit()
+    assert moved.revision_id != released.revision_id
+    assert {item.revision_id for item in revisions.heads(registry, stable_id)} == {
+        released.revision_id,
+        moved.revision_id,
+    }
+
+    compiled = select.compile_harness_bundle(registry, proposal_id, "claude-code")
+    with zipfile.ZipFile(io.BytesIO(compiled.archive), "r") as archive:
+        assert archive.read("files/skills/pinned.md") == released_bytes
+
+
+def test_an_unconfirmed_proposal_has_no_setup_version_to_bundle(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    _ready(registry, tmp_path)
+    stable_id = _adopted(registry, tmp_path, "unconfirmed.md")
+    session = select.propose(
+        {"harness": "claude-code", "project": str(tmp_path), "member": [f"{stable_id}@1.0"]}
+    ).payload
+
+    with pytest.raises(CliFailure) as raised:
+        select.harness_bundle(
+            {
+                "harness": "claude-code",
+                "project": str(tmp_path),
+                "proposal": session.proposals[0].proposal_id,
+            }
+        )
+    assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
+
+
+def test_compiling_the_same_composition_twice_gives_one_digest(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """The acceptance criterion, through the command surface."""
+    _ready(registry, tmp_path)
+    stable_id = _adopted(registry, tmp_path, "again.md")
+    session = select.propose(
+        {"harness": "claude-code", "project": str(tmp_path), "member": [f"{stable_id}@1.0"]}
+    ).payload
+    confirmed = select.confirm(
+        {"proposal": session.proposals[0].proposal_id, "confirm": True}
+    ).payload
+    parameters = {
+        "harness": "claude-code",
+        "project": str(tmp_path),
+        "proposal": session.proposals[0].proposal_id,
+    }
+    assert (
+        select.harness_bundle(parameters).payload.digest
+        == select.harness_bundle(parameters).payload.digest
+    )
+    with closing(open_readonly(configured_path())) as connection:
+        prepared = select.compile_setup_version_bundle(
+            connection,
+            confirmed.stable_id,
+            confirmed.version,
+            expected_harness="claude-code",
+        )
+    composed = select.compile_harness_bundle(
+        registry, session.proposals[0].proposal_id, "claude-code"
+    )
+    assert prepared.digest == composed.digest
+    assert prepared.artifact_digest == composed.artifact_digest
+    assert prepared.archive == composed.archive
+
+
+def test_a_bundle_needs_a_proposal(registry: sqlite3.Connection, tmp_path: Path) -> None:
+    _ready(registry, tmp_path)
+    with pytest.raises(CliFailure) as raised:
+        select.harness_bundle({"harness": "claude-code", "project": str(tmp_path)})
+    assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+
+
+def test_a_missing_passport_names_the_command_that_creates_it() -> None:
+    """A refusal that points at a diagnostic is a dead end.
+
+    `select propose` refused with `next_actions: ["doctor --json"]`, and `doctor`
+    creates nothing — it answered `ready` on the very installation that had just
+    been refused. Following the advice confirmed nothing was wrong and left the
+    caller exactly where they started.
+    """
+    from ai_stp_cli.local import passports
+
+    creates = passports.CREATES_PASSPORT
+    assert creates["developer"] == "passport developer init --json"
+    assert creates["device"] == "passport device refresh --json"
+    for action in creates.values():
+        assert "doctor" not in action
+
+
+def test_every_named_passport_command_is_a_real_command() -> None:
+    """A next action that does not parse is worse than none."""
+    from ai_stp_cli.local import passports
+    from ai_stp_cli.registry import COMMANDS
+
+    known = {command.name for command in COMMANDS}
+    creates = passports.CREATES_PASSPORT
+    for action in creates.values():
+        path = action.removesuffix(" --json")
+        assert path in known, f"{path!r} is not a declared command"
+
+
+def test_select_confirm_declares_a_flag_it_can_actually_check() -> None:
+    """`explicit_flag` is a promise the command has to keep itself.
+
+    `_require_declared_flags` skips confirmation flags on purpose: a missing
+    confirmation is `AI_STP_USER_DECISION_REQUIRED` and exit class 4, not a
+    malformed call, so the use case that knows what is being confirmed raises
+    it. `select confirm` declared `explicit_flag` and carried no flag to check,
+    so the one command whose whole purpose is the user's decision was the only
+    one of seventeen that never asked, and a bare call froze an immutable
+    setup version.
+    """
+    from ai_stp_cli.registry import COMMANDS
+
+    declared = {
+        command.name: command.descriptor
+        for command in COMMANDS
+        if command.descriptor.confirmation == "explicit_flag"
+    }
+    assert "select confirm" in declared
+    for name, descriptor in declared.items():
+        booleans = {
+            parameter.name
+            for parameter in descriptor.parameters
+            if parameter.value_type == "boolean"
+        }
+        assert "confirm" in booleans, f"{name} promises explicit_flag with no flag to check"
+
+
+def test_every_destructive_command_asks_for_a_decision_of_its_own() -> None:
+    """`destructive` is defined as needing that decision.
+
+    "removes data, a target or a backup, and needs a decision of its own even
+    when the caller already approved the surrounding work". `toolchain remove`
+    declared the class, set no `confirmation` at all so the default `none`
+    applied, and deleted files from disk on a bare call.
+    """
+    from ai_stp_cli.registry import COMMANDS
+
+    for command in COMMANDS:
+        if command.descriptor.mutability != "destructive":
+            continue
+        assert command.descriptor.confirmation == "explicit_flag", (
+            f"{command.name} removes data and declares no confirmation"
+        )
+
+
+def test_confirming_without_the_flag_is_a_user_decision_not_a_validation_error() -> None:
+    """Exit class 4 says "ask the user"; class 2 says "you called it wrong"."""
+    from ai_stp_cli.commands import select as select_command
+
+    with pytest.raises(CliFailure) as raised:
+        select_command.confirm({"proposal": "proposal_01ARZ3NDEKTSV4RRFFQ69G5FAV"})
+    assert raised.value.code == "AI_STP_USER_DECISION_REQUIRED"
+    assert any("--confirm" in action for action in raised.value.next_actions)

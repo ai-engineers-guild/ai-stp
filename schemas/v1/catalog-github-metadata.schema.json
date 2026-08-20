@@ -1,0 +1,46 @@
+{
+  "$id": "urn:ai-stp:schema:v1:catalog-github-metadata",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Best-effort on-demand stars and archive state (SPEC-049).",
+  "properties": {
+    "archived": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Archived"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stars": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Stars"
+    }
+  },
+  "required": [
+    "archived",
+    "schema_version",
+    "stars"
+  ],
+  "title": "GitHubMetadata",
+  "type": "object"
+}

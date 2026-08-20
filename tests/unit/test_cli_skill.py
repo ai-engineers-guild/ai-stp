@@ -1,0 +1,111 @@
+"""Delivering the Agent Skill: shipped, owned, and never taking over a file."""
+
+from pathlib import Path
+
+import pytest
+
+from ai_stp_cli import skill
+from ai_stp_cli.commands import skill as skill_commands
+from ai_stp_cli.errors import CliFailure
+
+
+def test_every_declared_harness_has_a_projection_in_the_package() -> None:
+    # The defect: the projections existed in the repository and nowhere a user
+    # could reach. An installed wheel gave the agent a binary and no procedure.
+    canonical = skill.available(None)
+    assert "ai-stp doctor --json" in canonical
+    for harness in skill.HARNESSES:
+        text = skill.available(harness)
+        assert harness in text
+        assert text != canonical
+
+
+def test_a_harness_with_no_projection_is_named_rather_than_guessed() -> None:
+    with pytest.raises(CliFailure, match="no projection is shipped") as raised:
+        skill.available("emacs")
+    assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+
+
+def test_installing_is_idempotent_and_owned(tmp_path: Path) -> None:
+    assert skill.inspect(tmp_path).state == "absent"
+
+    first = skill.install(tmp_path, "claude-code")
+    assert first.state == "owned"
+    assert first.harness == "claude-code"
+    written = (tmp_path / skill.SKILL_FILENAME).read_bytes()
+
+    again = skill.install(tmp_path, "claude-code")
+    assert again.digest == first.digest
+    assert (tmp_path / skill.SKILL_FILENAME).read_bytes() == written
+
+
+def test_a_skill_this_installation_did_not_write_is_never_replaced(tmp_path: Path) -> None:
+    # A harness configuration someone wrote by hand is theirs.
+    (tmp_path / skill.SKILL_FILENAME).write_text("hand written", encoding="utf-8")
+    assert skill.inspect(tmp_path).state == "foreign"
+
+    with pytest.raises(CliFailure, match="does not own") as raised:
+        skill.install(tmp_path, None)
+    assert raised.value.code == "AI_STP_CONFLICT"
+    assert (tmp_path / skill.SKILL_FILENAME).read_text(encoding="utf-8") == "hand written"
+
+    with pytest.raises(CliFailure, match="not installed by this installation"):
+        skill.remove(tmp_path)
+    assert (tmp_path / skill.SKILL_FILENAME).exists()
+
+
+def test_an_edited_installation_is_reported_rather_than_overwritten(tmp_path: Path) -> None:
+    skill.install(tmp_path, None)
+    (tmp_path / skill.SKILL_FILENAME).write_text("edited since", encoding="utf-8")
+
+    assert skill.inspect(tmp_path).state == "stale"
+    with pytest.raises(CliFailure, match="edited after this installation wrote it"):
+        skill.install(tmp_path, None)
+
+
+def test_removing_takes_back_only_what_was_installed(tmp_path: Path) -> None:
+    keepsake = tmp_path / "settings.json"
+    keepsake.write_text('{"theirs": true}', encoding="utf-8")
+    skill.install(tmp_path, "codex")
+
+    assert skill.remove(tmp_path).state == "absent"
+    assert not (tmp_path / skill.SKILL_FILENAME).exists()
+    assert not (tmp_path / skill.MANIFEST).exists()
+    # Their file is a different thing and was never ours.
+    assert keepsake.read_text(encoding="utf-8") == '{"theirs": true}'
+
+    # Removing what is not there is the state the caller asked for.
+    assert skill.remove(tmp_path).state == "absent"
+
+
+@pytest.mark.parametrize("damaged", ["{not json", '["a list"]'])
+def test_a_damaged_ownership_record_is_treated_as_someone_elses_file(
+    damaged: str, tmp_path: Path
+) -> None:
+    skill.install(tmp_path, None)
+    (tmp_path / skill.MANIFEST).write_text(damaged, encoding="utf-8")
+    # Failing closed: without a readable claim there is no evidence it is ours,
+    # and taking over a file on a guess is the thing this refuses to do.
+    assert skill.inspect(tmp_path).state == "foreign"
+
+
+def test_the_commands_report_the_destination_without_the_home_path(tmp_path: Path) -> None:
+    asked = {"target": str(tmp_path)}
+    assert skill_commands.status(asked).payload.state == "absent"
+
+    installed = skill_commands.install({**asked, "harness": "pi"}).payload
+    assert installed.state == "owned"
+    assert installed.harness == "pi"
+    assert installed.available_harnesses == list(skill.HARNESSES)
+    assert str(Path.home()) not in installed.target
+
+    assert skill_commands.remove(asked).payload.state == "absent"
+
+    with pytest.raises(CliFailure, match="destination directory is required"):
+        skill_commands.status({})
+
+
+def test_status_creates_nothing_at_all(tmp_path: Path) -> None:
+    absent = tmp_path / "never-made"
+    assert skill_commands.status({"target": str(absent)}).payload.state == "absent"
+    assert not absent.exists()

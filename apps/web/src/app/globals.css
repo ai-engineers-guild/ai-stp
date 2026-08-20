@@ -1,0 +1,551 @@
+@import "tailwindcss";
+
+/* Sonner's default transition animates toast height and forces layout on every frame. */
+[data-sonner-toast] {
+  transition-property: transform, opacity, box-shadow !important;
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant machine (&:where(.machine, .machine *));
+
+/*
+ * Semantic theme (REQ-2214) — ai_stp design system.
+ * Portable source: src/theme/tokens.json
+ * Spec: docs/product/DESIGN.md · docs/product/BRAND.md
+ * Components use token utilities only — never raw hex/rgb/hsl literals.
+ * When rebranding: edit tokens.json, then mirror channels here.
+ */
+
+/* IBM Plex Sans and IBM Plex Mono, SIL Open Font License 1.1. They replace
+ * Gerstner Programm and FT System Mono, whose own metadata forbids storing on
+ * publicly available servers and redistributing — which is what this repository
+ * does by becoming public under AGPL. `just fonts-licence` reads those terms
+ * out of any tracked font and is what caught it.
+ *
+ * The pair is one superfamily, so the sans/mono relationship the brand leans on
+ * survives the swap, and both carry Cyrillic. The faces they replace did not:
+ * the Russian interface was silently falling back to Arial.
+ *
+ * Split by unicode-range so a Latin page never downloads Cyrillic outlines. */
+
+@font-face {
+  font-family: "plexSans";
+  src: url("/fonts/plex-sans-latin-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "plexSans";
+  src: url("/fonts/plex-sans-cyrillic-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+
+@font-face {
+  font-family: "plexSans";
+  src: url("/fonts/plex-sans-latin-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "plexSans";
+  src: url("/fonts/plex-sans-cyrillic-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+
+@font-face {
+  font-family: "plexMono";
+  src: url("/fonts/plex-mono-latin-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "plexMono";
+  src: url("/fonts/plex-mono-cyrillic-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+
+@font-face {
+  font-family: "plexMono";
+  src: url("/fonts/plex-mono-latin-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "plexMono";
+  src: url("/fonts/plex-mono-cyrillic-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+
+:root {
+  /* Color (HSL channels) — human / light */
+  --background: 0 0% 100%;
+  --foreground: 0 0% 9%;
+  --card: 48 29% 97%;
+  --card-foreground: 0 0% 9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 9%;
+  --primary: 17 86% 42%;
+  --primary-foreground: 0 0% 100%;
+  --primary-hover: 17 82% 37%;
+  --secondary: 48 20% 94%;
+  --secondary-foreground: 0 0% 9%;
+  --muted: 48 20% 94%;
+  /* Slightly darker than pure mid-gray so small body text meets WCAG AA. */
+  --muted-foreground: 30 2% 32%;
+  --accent: 48 20% 94%;
+  --accent-foreground: 0 0% 9%;
+  --destructive: 1 63% 45%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 45 9% 81%;
+  --input: 45 9% 81%;
+  --ring: 19 97% 55%;
+  --success: 100 54% 30%;
+  --success-foreground: 0 0% 100%;
+  --warning: 43 69% 45%;
+  --warning-foreground: 0 0% 100%;
+
+  /* Radius — 8px base, 4px controls, 6px chips */
+  --radius: 0.5rem;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 1rem;
+
+  /* Space scale */
+  --space-0: 0;
+  --space-0-5: 0.125rem;
+  --space-1: 0.25rem;
+  --space-1-5: 0.375rem;
+  --space-2: 0.5rem;
+  --space-2-5: 0.625rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* Typography */
+  --font-sans: plexSans, Arial, system-ui, -apple-system, "Segoe UI", "Helvetica Neue", sans-serif;
+  --font-mono:
+    plexMono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --leading-tight: 1.25;
+  --leading-snug: 1.375;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.625;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Icon sizes */
+  --icon-sm: 1rem;
+  --icon-md: 1.25rem;
+  --icon-lg: 1.5rem;
+
+  /* Motion */
+  --duration-fast: 150ms;
+  --duration-normal: 200ms;
+
+  /* Elevation */
+  --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.06);
+  --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.1), 0 2px 4px -2px hsl(0 0% 0% / 0.08);
+}
+
+.dark {
+  /* Independent dark color theme. */
+  --background: 0 0% 6%;
+  --foreground: 0 0% 100%;
+  --card: 0 0% 9%;
+  --card-foreground: 0 0% 100%;
+  --popover: 0 0% 9%;
+  --popover-foreground: 0 0% 100%;
+  --primary: 19 97% 55%;
+  --primary-foreground: 0 0% 6%;
+  --primary-hover: 19 89% 60%;
+  --secondary: 0 0% 12%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 0 0% 12%;
+  --muted-foreground: 30 1% 62%;
+  --accent: 0 0% 12%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 1 63% 50%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 0 0% 26%;
+  --input: 0 0% 26%;
+  --ring: 19 97% 55%;
+  --success: 100 54% 46%;
+  --success-foreground: 0 0% 6%;
+  --warning: 43 69% 54%;
+  --warning-foreground: 0 0% 9%;
+  --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.35);
+  --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.4), 0 2px 4px -2px hsl(0 0% 0% / 0.3);
+}
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-primary-hover: hsl(var(--primary-hover));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-success: hsl(var(--success));
+  --color-success-foreground: hsl(var(--success-foreground));
+  --color-warning: hsl(var(--warning));
+  --color-warning-foreground: hsl(var(--warning-foreground));
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+
+  --text-xs: var(--text-xs);
+  --text-sm: var(--text-sm);
+  --text-base: var(--text-base);
+  --text-lg: var(--text-lg);
+  --text-xl: var(--text-xl);
+  --text-2xl: var(--text-2xl);
+  --text-3xl: var(--text-3xl);
+
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  min-width: 320px;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+html {
+  scrollbar-color: hsl(var(--muted-foreground)) hsl(var(--background));
+  scrollbar-gutter: stable;
+}
+
+kbd {
+  font-variant-numeric: tabular-nums;
+}
+
+input,
+textarea,
+select {
+  caret-color: hsl(var(--primary));
+}
+
+a {
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+/* Fixed projection dock: outside document flow, centered, translucent (REQ-3604). */
+.projection-dock {
+  position: fixed;
+  inset-block-end: 1.5rem;
+  inset-inline-start: 50%;
+  z-index: 50;
+  transform: translateX(-50%);
+  background-color: color-mix(in oklab, hsl(var(--foreground)) 88%, transparent);
+  box-shadow: var(--shadow-md);
+  color: hsl(var(--background));
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  backdrop-filter: blur(10px) saturate(140%);
+}
+
+.projection-dock__option {
+  color: hsl(var(--background));
+  opacity: 0.9;
+}
+
+.projection-dock__option:hover {
+  opacity: 0.9;
+}
+
+.projection-dock__option[aria-current="true"] {
+  /* Segmented control: the active half is an inverted chip, so the pair reads
+   * as a switch rather than as two links. */
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  opacity: 1;
+}
+
+.projection-dock__option[aria-current="true"] .projection-dock__dot {
+  background-color: hsl(var(--primary));
+  border-color: hsl(var(--primary));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:focus-within {
+    scroll-behavior: auto !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-play-state: paused !important;
+    transition-property: color, background-color, border-color, box-shadow, opacity !important;
+    transition-duration: 80ms !important;
+  }
+}
+
+.prose-docs {
+  color: hsl(var(--foreground));
+  line-height: 1.75;
+}
+
+.prose-docs > * + * {
+  margin-top: 1rem;
+}
+.prose-docs h1 {
+  font-size: 2.25rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+.prose-docs h2 {
+  border-top: 1px solid hsl(var(--border));
+  font-size: 1.5rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  margin-top: 2.5rem;
+  padding-top: 2rem;
+}
+.prose-docs h3 {
+  font-size: 1.125rem;
+  font-weight: 650;
+  margin-top: 1.75rem;
+}
+.prose-docs ul,
+.prose-docs ol {
+  padding-left: 1.5rem;
+}
+.prose-docs ul {
+  list-style: disc;
+}
+.prose-docs ol {
+  list-style: decimal;
+}
+.prose-docs a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.prose-docs code {
+  background: hsl(var(--muted));
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  padding: 0.15rem 0.35rem;
+}
+.prose-docs pre {
+  background: hsl(var(--muted));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  padding: 1rem;
+}
+.prose-docs pre code {
+  background: transparent;
+  padding: 0;
+}
+.prose-docs blockquote {
+  border-left: 1px solid hsl(var(--border));
+  color: hsl(var(--muted-foreground));
+  padding-left: 1rem;
+}
+
+.article-prose__body {
+  color: var(--color-muted-foreground);
+  font-size: 1.0625rem;
+  line-height: 1.8;
+}
+
+.article-prose__body > * + * {
+  margin-top: 1.5rem;
+}
+
+.article-prose__body h2,
+.article-prose__body h3,
+.article-prose__body h4 {
+  color: var(--color-foreground);
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+  margin-top: 3.5rem;
+}
+
+.article-prose__body h2 {
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+}
+.article-prose__body h3 {
+  font-size: clamp(1.35rem, 3vw, 1.8rem);
+}
+.article-prose__body ul,
+.article-prose__body ol {
+  padding-left: 1.4rem;
+}
+.article-prose__body ul {
+  list-style: disc;
+}
+.article-prose__body ol {
+  list-style: decimal;
+}
+.article-prose__body li + li {
+  margin-top: 0.65rem;
+}
+.article-prose__body strong {
+  color: var(--color-foreground);
+  font-weight: 500;
+}
+.article-prose__body a {
+  color: var(--color-foreground);
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+}
+.article-prose__body code {
+  color: var(--color-foreground);
+  font-family: var(--font-mono);
+}
+.article-prose__body pre {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+.article-prose__body img {
+  display: block;
+  width: 100%;
+  margin-block: 2.5rem;
+  border-radius: 0.75rem;
+  background: var(--color-muted);
+}
+
+/* Regional services: one authored CIS constellation. Reduced-motion is handled
+ * by the global pause rule above; content stays visible in the default state. */
+.cis-constellation {
+  position: relative;
+  aspect-ratio: 1;
+  width: min(100%, 22rem);
+  margin-inline: auto;
+}
+
+.cis-constellation__orbit {
+  position: absolute;
+  inset: 14%;
+  border: 1px solid hsl(var(--primary) / 0.38);
+  border-radius: 50%;
+}
+
+.cis-constellation__orbit--inner {
+  inset: 30%;
+  border-color: hsl(var(--primary) / 0.18);
+}
+
+.cis-constellation__ring {
+  position: absolute;
+  inset: 0;
+  animation: cis-orbit 80s linear infinite;
+}
+
+.cis-constellation__node {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  translate: -50% -50%;
+  animation: cis-counter 80s linear infinite;
+}
+
+.cis-constellation__hub {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+}
+
+@keyframes cis-orbit {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@keyframes cis-counter {
+  to {
+    transform: rotate(-1turn);
+  }
+}

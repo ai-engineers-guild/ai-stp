@@ -1,0 +1,83 @@
+# Публичная пользовательская документация собирается отдельно от внутреннего
+# нормативного docs/. Пути заданы относительно этого файла.
+
+site_name: ai_stp user docs
+site_description: Пользовательская документация ai_stp для разработчиков и агентов.
+site_url: !ENV [AI_STP_USER_DOCS_SITE_URL, "http://localhost:8011/"]
+repo_url: https://github.com/ai-engineers-guild/ai_stp
+edit_uri: edit/main/user-docs/
+
+docs_dir: ../user-docs
+site_dir: ../.site-user-docs
+
+theme:
+  name: material
+  language: ru
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+    - content.action.edit
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: black
+      accent: deep orange
+      toggle:
+        icon: material/weather-night
+        name: Тёмная тема
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: deep orange
+      toggle:
+        icon: material/weather-sunny
+        name: Светлая тема
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - footnotes
+  - def_list
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+plugins:
+  - search:
+      lang: ru
+  - awesome-pages
+  - git-revision-date-localized:
+      type: date
+      locale: ru
+      enable_creation_date: false
+      fallback_to_build_date: true
+      strict: false
+
+validation:
+  nav:
+    omitted_files: warn
+    not_found: warn
+  links:
+    not_found: warn
+    anchors: warn
+
+strict: true

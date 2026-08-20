@@ -1,0 +1,237 @@
+# Every check this repository has, on GitHub-hosted runners.
+#
+# Split by what each job needs rather than by taste: only the test jobs need a
+# database, only the web job needs a browser, and the rest need neither. No job
+# depends on another, so the run ends when the slowest one does rather than
+# after their sum.
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.14"
+  NODE_VERSION: "24"
+  UV_VERSION: "0.12.1"
+  BUN_VERSION: "1.3.14"
+
+jobs:
+  docs:
+    name: docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: docs_scripts/package-lock.json
+      - name: Isolate this job's Python environment
+        run: |
+          set -euo pipefail
+          python_path="$(python -c 'import sys; print(sys.executable)')"
+          test -n "${python_path}"
+          echo "UV_PYTHON=${python_path}" >> "${GITHUB_ENV}"
+          echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-docs" >> "${GITHUB_ENV}"
+      - name: Install pinned uv and just
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check "uv==${UV_VERSION}"
+          JUST_INSTALL_DIR="${RUNNER_TEMP}/bin" python docs_scripts/bootstrap_just.py
+          echo "${RUNNER_TEMP}/bin" >> "${GITHUB_PATH}"
+      - name: Prepare and check the documentation
+        run: |
+          source .github/scripts/provider-safe-path.sh
+          ai_stp_use_provider_safe_path
+          just setup-docs
+          just docs-check
+
+  package:
+    name: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Isolate this job's Python environment
+        run: |
+          set -euo pipefail
+          python_path="$(python -c 'import sys; print(sys.executable)')"
+          test -n "${python_path}"
+          echo "UV_PYTHON=${python_path}" >> "${GITHUB_ENV}"
+          echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-package" >> "${GITHUB_ENV}"
+      - name: Install pinned uv and just
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check "uv==${UV_VERSION}"
+          JUST_INSTALL_DIR="${RUNNER_TEMP}/bin" python docs_scripts/bootstrap_just.py
+          echo "${RUNNER_TEMP}/bin" >> "${GITHUB_PATH}"
+      - name: Static analysis, packaging and the install regression
+        run: |
+          source .github/scripts/provider-safe-path.sh
+          ai_stp_use_provider_safe_path
+          just setup-python
+          just back-static back-build back-regress
+
+  tests:
+    name: tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ai_stp
+          POSTGRES_PASSWORD: ai_stp_dev
+          POSTGRES_DB: ai_stp
+        options: >-
+          --health-cmd "pg_isready -U ai_stp -d ai_stp"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+        ports: ["5432:5432"]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Isolate this job's Python environment
+        run: |
+          set -euo pipefail
+          python_path="$(python -c 'import sys; print(sys.executable)')"
+          test -n "${python_path}"
+          echo "UV_PYTHON=${python_path}" >> "${GITHUB_ENV}"
+          echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-tests" >> "${GITHUB_ENV}"
+      - name: Install pinned uv and just
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check "uv==${UV_VERSION}"
+          JUST_INSTALL_DIR="${RUNNER_TEMP}/bin" python docs_scripts/bootstrap_just.py
+          echo "${RUNNER_TEMP}/bin" >> "${GITHUB_PATH}"
+      # Without a database the platform tests skip and coverage falls under its
+      # threshold, so the URL is part of the check rather than an optional extra.
+      - name: Run the test suite against a real database
+        env:
+          AI_STP_TEST_DB_URL: postgresql+asyncpg://ai_stp:ai_stp_dev@127.0.0.1:5432/ai_stp
+        run: |
+          source .github/scripts/provider-safe-path.sh
+          ai_stp_use_provider_safe_path
+          just setup-python
+          just back-test back-resource
+
+  web:
+    name: web
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      # Through npm rather than a setup action, and asserted: an unpinned bun
+      # changes the lockfile resolution the web checks depend on.
+      - name: Isolate this job's Python environment
+        run: |
+          set -euo pipefail
+          python_path="$(python -c 'import sys; print(sys.executable)')"
+          test -n "${python_path}"
+          echo "UV_PYTHON=${python_path}" >> "${GITHUB_ENV}"
+          echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-web" >> "${GITHUB_ENV}"
+      - name: Install pinned bun, uv and just
+        run: |
+          set -euo pipefail
+          npm install --global --no-fund --no-audit "bun@${BUN_VERSION}"
+          test "$(bun --version)" = "${BUN_VERSION}"
+          python -m pip install --disable-pip-version-check "uv==${UV_VERSION}"
+          JUST_INSTALL_DIR="${RUNNER_TEMP}/bin" python docs_scripts/bootstrap_just.py
+          echo "${RUNNER_TEMP}/bin" >> "${GITHUB_PATH}"
+      - name: Prepare and check the web application
+        run: |
+          source .github/scripts/provider-safe-path.sh
+          ai_stp_use_provider_safe_path
+          just setup-web
+          just web-check security
+
+  cli:
+    name: cli (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    # The helper above is a bash script, and the Windows runner defaults to
+    # PowerShell. Bash is present on all three images.
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Isolate this job's Python environment
+        run: |
+          set -euo pipefail
+          python_path="$(python -c 'import sys; print(sys.executable)')"
+          test -n "${python_path}"
+          echo "UV_PYTHON=${python_path}" >> "${GITHUB_ENV}"
+          echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/cli-${{ matrix.os }}" >> "${GITHUB_ENV}"
+      # `just` is here because the provider-safe path refuses to build a PATH
+      # without it, and that refusal is the point: a fixture that inherits only
+      # PATH and HOME must still find the tools. The bootstrap script ships
+      # Linux and macOS archives only, so Windows takes the packaged build.
+      - name: Install pinned uv and just
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check "uv==${UV_VERSION}"
+          if [ "${RUNNER_OS}" = "Windows" ]; then
+            choco install just --version=1.43.0 --no-progress -y >/dev/null
+          else
+            JUST_INSTALL_DIR="${RUNNER_TEMP}/bin" python docs_scripts/bootstrap_just.py
+            echo "${RUNNER_TEMP}/bin" >> "${GITHUB_PATH}"
+          fi
+      # The database-backed platform tests and the wheel regression are Linux
+      # jobs above. What runs here is the part that has to behave identically on
+      # three operating systems: discovery, passports, selection and the CLI
+      # surface, which read a real filesystem and resolve real executables.
+      - name: Run the cross-platform surface
+        run: |
+          source .github/scripts/provider-safe-path.sh
+          ai_stp_use_provider_safe_path
+          uv sync --locked --group docs --group dev
+          uv run pytest tests/unit tests/contract --no-cov -q

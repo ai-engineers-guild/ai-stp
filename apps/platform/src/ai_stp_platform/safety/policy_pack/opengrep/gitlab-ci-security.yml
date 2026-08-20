@@ -1,0 +1,19 @@
+rules:
+  - id: gitlab-ci-mutable-ref
+    message: |
+      GitLab CI configuration includes a template from a mutable ref (branch/tag).
+      This breaks supply-chain reproducibility and allows upstream compromise
+      to instantly compromise your CI. Pin to a full 40-character commit SHA.
+    severity: WARNING
+    languages:
+      - yaml
+    patterns:
+      - pattern-inside: |
+          include:
+            ...
+      - pattern: |
+          ref: $REF
+      - metavariable-regex:
+          metavariable: $REF
+          # Flag refs that do NOT look like a 40-character hex SHA
+          regex: '^(?![0-9a-f]{40}$).+'

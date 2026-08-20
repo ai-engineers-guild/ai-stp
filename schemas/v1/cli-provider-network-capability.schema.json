@@ -1,0 +1,61 @@
+{
+  "$id": "urn:ai-stp:schema:v1:cli-provider-network-capability",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Observed protocol-v2 network boundary on this exact machine.\n\nThe report never turns absence into support. Evidence names the launcher\nversion/digest and transport probes when enforcement is observed; an\nunavailable result remains actionable machine data rather than a log line.",
+  "properties": {
+    "evidence": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Evidence",
+      "type": "array"
+    },
+    "launcher_id": {
+      "default": "",
+      "title": "Launcher Id",
+      "type": "string"
+    },
+    "local_actions_available": {
+      "title": "Local Actions Available",
+      "type": "boolean"
+    },
+    "network_enforcement": {
+      "enum": [
+        "enforced",
+        "unavailable"
+      ],
+      "title": "Network Enforcement",
+      "type": "string"
+    },
+    "os_name": {
+      "minLength": 1,
+      "title": "Os Name",
+      "type": "string"
+    },
+    "protocol_version": {
+      "const": 2,
+      "default": 2,
+      "title": "Protocol Version",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "evidence",
+    "launcher_id",
+    "local_actions_available",
+    "network_enforcement",
+    "os_name",
+    "protocol_version",
+    "schema_version"
+  ],
+  "title": "ProviderNetworkCapability",
+  "type": "object"
+}

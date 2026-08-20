@@ -1,0 +1,195 @@
+{
+  "$defs": {
+    "AccountId": {
+      "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "type": "string"
+    },
+    "ContentDigest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "Cursor": {
+      "pattern": "^[A-Za-z0-9_-]{1,512}$",
+      "type": "string"
+    },
+    "DeviceId": {
+      "pattern": "^device_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "type": "string"
+    },
+    "EntityId": {
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+    },
+    "EventId": {
+      "pattern": "^[A-Za-z0-9._~-]{8,128}$",
+      "type": "string"
+    },
+    "PageInfo": {
+      "additionalProperties": true,
+      "description": "Cursor pagination state (docs/contracts/http-api.md).\n\nNo total is exposed. Reporting one would let a caller detect objects it is\nnot allowed to read, so a hidden or deleted object leaks through neither a\ncount nor a cursor.",
+      "properties": {
+        "next_cursor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Cursor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "page_size": {
+          "$ref": "#/$defs/PageSize"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "next_cursor",
+        "page_size",
+        "schema_version"
+      ],
+      "title": "PageInfo",
+      "type": "object"
+    },
+    "PageSize": {
+      "maximum": 100,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "RevisionId": {
+      "pattern": "^revision_[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "SyncEntityKind": {
+      "enum": [
+        "developer_passport",
+        "device_summary",
+        "component_private",
+        "setup_private",
+        "unverified_consent"
+      ],
+      "type": "string"
+    },
+    "SyncOperation": {
+      "enum": [
+        "upsert",
+        "tombstone"
+      ],
+      "type": "string"
+    },
+    "SyncStreamEvent": {
+      "additionalProperties": true,
+      "description": "One accepted event as delivered on pull from the server outbox.",
+      "properties": {
+        "actor_id": {
+          "$ref": "#/$defs/AccountId"
+        },
+        "content_digest": {
+          "$ref": "#/$defs/ContentDigest"
+        },
+        "created_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "device_id": {
+          "$ref": "#/$defs/DeviceId"
+        },
+        "entity_id": {
+          "$ref": "#/$defs/EntityId"
+        },
+        "entity_kind": {
+          "$ref": "#/$defs/SyncEntityKind"
+        },
+        "event_id": {
+          "$ref": "#/$defs/EventId"
+        },
+        "operation": {
+          "$ref": "#/$defs/SyncOperation"
+        },
+        "parent_revision_ids": {
+          "items": {
+            "$ref": "#/$defs/RevisionId"
+          },
+          "maxItems": 8,
+          "title": "Parent Revision Ids",
+          "type": "array"
+        },
+        "payload": {
+          "additionalProperties": true,
+          "title": "Payload",
+          "type": "object"
+        },
+        "revision_id": {
+          "$ref": "#/$defs/RevisionId"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "sequence": {
+          "minimum": 1,
+          "title": "Sequence",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "actor_id",
+        "content_digest",
+        "created_at",
+        "device_id",
+        "entity_id",
+        "entity_kind",
+        "event_id",
+        "operation",
+        "parent_revision_ids",
+        "payload",
+        "revision_id",
+        "schema_version",
+        "sequence"
+      ],
+      "title": "SyncStreamEvent",
+      "type": "object"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:sync-pull-response",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Bounded ordered packet from the account outbox.",
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/$defs/SyncStreamEvent"
+      },
+      "maxItems": 100,
+      "title": "Items",
+      "type": "array"
+    },
+    "page": {
+      "$ref": "#/$defs/PageInfo"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "items",
+    "page",
+    "schema_version"
+  ],
+  "title": "SyncPullResponse",
+  "type": "object"
+}

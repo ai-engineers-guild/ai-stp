@@ -1,0 +1,71 @@
+{
+  "$defs": {
+    "DirectRecipientKind": {
+      "enum": [
+        "github_username",
+        "user_id"
+      ],
+      "type": "string"
+    },
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    },
+    "ObjectKind": {
+      "enum": [
+        "component",
+        "setup"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:grant-direct-create-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "POST /v1/grants/direct body with an explicit recipient identifier kind.",
+  "properties": {
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "major": {
+      "maximum": 9999,
+      "minimum": 0,
+      "title": "Major",
+      "type": "integer"
+    },
+    "object_kind": {
+      "$ref": "#/$defs/ObjectKind"
+    },
+    "recipient": {
+      "maxLength": 320,
+      "minLength": 1,
+      "title": "Recipient",
+      "type": "string"
+    },
+    "recipient_kind": {
+      "$ref": "#/$defs/DirectRecipientKind"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stable_id": {
+      "maxLength": 64,
+      "minLength": 8,
+      "title": "Stable Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "object_kind",
+    "stable_id",
+    "major",
+    "recipient_kind",
+    "recipient",
+    "idempotency_key"
+  ],
+  "title": "DirectGrantCreateRequest",
+  "type": "object"
+}

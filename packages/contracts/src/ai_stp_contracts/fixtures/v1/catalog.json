@@ -1,0 +1,612 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case_id": "likeCatalogObject.idempotent",
+      "operation_id": "likeCatalogObject",
+      "kind": "positive",
+      "why": "Liking the same public object is idempotent, so the current account remains liked and the aggregate stays at one.",
+      "request": {
+        "path_params": {
+          "object_kind": "component",
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "liked": true,
+        "likes_count": 1
+      }
+    },
+    {
+      "case_id": "listCatalogReactions.currentAccount",
+      "operation_id": "listCatalogReactions",
+      "kind": "positive",
+      "why": "The authenticated account sees its own liked objects through public catalog summaries without any reacting account identifiers.",
+      "request": {},
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "items": [
+          {
+            "object_kind": "component",
+            "summary": {
+              "schema_version": 1,
+              "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+              "publisher_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+              "likes_count": 1,
+              "github_stars": null,
+              "updated_at": "2026-08-05T00:00:00.000Z",
+              "latest_version": "1.2",
+              "latest_name": "fixture-component",
+              "latest_description": "fixture-component-description",
+              "latest_harness_id": "claude-code",
+              "latest_component_type": "skill",
+              "latest_projection_kind": "native_files",
+              "latest_tags": [
+                "python",
+                "tests"
+              ],
+              "latest_lifecycle": "active",
+              "latest_requirements_count": 0,
+              "latest_requires_credentials": false,
+              "latest_trust": {
+                "trust_lane": "experimental",
+                "author_verified": false,
+                "component_verified": false
+              },
+              "latest_published_at": "2026-08-05T00:00:00.000Z",
+              "latest_support": {
+                "schema_version": 1,
+                "tier": "primary",
+                "state": "missing",
+                "evidence": []
+              },
+              "latest_checks": null,
+              "usage_metrics": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "unlikeCatalogObject.idempotent",
+      "operation_id": "unlikeCatalogObject",
+      "kind": "positive",
+      "why": "Removing the current account's reaction is idempotent, so the object remains unliked and its aggregate does not become negative.",
+      "request": {
+        "path_params": {
+          "object_kind": "component",
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "liked": false,
+        "likes_count": 0
+      }
+    },
+    {
+      "case_id": "searchComponents.emptyAuthoritativeLane",
+      "operation_id": "searchComponents",
+      "kind": "positive",
+      "why": "Without consent the experimental lane is not returned at all, and an empty authoritative lane is an honest answer rather than an error.",
+      "request": {
+        "query": {
+          "q": "pytest",
+          "page_size": 20,
+          "include_experimental": false
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "items": [],
+        "experimental": [],
+        "page": {
+          "schema_version": 1,
+          "next_cursor": null,
+          "page_size": 20
+        }
+      }
+    },
+    {
+      "case_id": "searchComponents.experimentalOnConsent",
+      "operation_id": "searchComponents",
+      "kind": "positive",
+      "why": "With consent the experimental candidates arrive in their own section, never interleaved into items (SPEC-006 REQ-603). Sprint 1 has no validation pipeline, so nothing can honestly claim component_verified and the authoritative lane is legitimately empty.",
+      "request": {
+        "query": {
+          "q": "pytest",
+          "page_size": 20,
+          "include_experimental": true
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "items": [],
+        "experimental": [
+          {
+            "schema_version": 1,
+            "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "publisher_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "likes_count": 0,
+            "github_stars": null,
+            "updated_at": "2026-08-05T00:00:00.000Z",
+            "latest_version": "1.2",
+            "latest_name": "fixture-component",
+            "latest_description": "fixture-component-description",
+            "latest_harness_id": "claude-code",
+            "latest_component_type": "skill",
+            "latest_projection_kind": "native_files",
+            "latest_tags": [
+              "python",
+              "tests"
+            ],
+            "latest_lifecycle": "active",
+            "latest_requirements_count": 0,
+            "latest_requires_credentials": false,
+            "latest_trust": {
+              "trust_lane": "experimental",
+              "author_verified": false,
+              "component_verified": false
+            },
+            "latest_published_at": "2026-08-05T00:00:00.000Z",
+            "latest_support": {
+              "schema_version": 1,
+              "tier": "primary",
+              "state": "missing",
+              "evidence": []
+            },
+            "latest_checks": null,
+            "usage_metrics": null
+          }
+        ],
+        "page": {
+          "schema_version": 1,
+          "next_cursor": null,
+          "page_size": 20
+        }
+      }
+    },
+    {
+      "case_id": "searchComponents.unknownFilter",
+      "operation_id": "searchComponents",
+      "kind": "rejected_request",
+      "why": "A silently ignored filter is not forward compatibility: the caller asked to narrow the result, would receive the unfiltered catalogue, and the answer would look complete. A mistyped tag must fail loudly.",
+      "request": {
+        "query": {
+          "tag": "python"
+        }
+      },
+      "status": 400,
+      "error_code": "AI_STP_VALIDATION_ERROR"
+    },
+    {
+      "case_id": "searchSetups.emptyPage",
+      "operation_id": "searchSetups",
+      "kind": "positive",
+      "why": "Setups are a separate resource with their own cursor sequence, so a setup search is answered independently of a component search.",
+      "request": {
+        "query": {
+          "page_size": 20,
+          "include_experimental": false
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "items": [],
+        "experimental": [],
+        "page": {
+          "schema_version": 1,
+          "next_cursor": null,
+          "page_size": 20
+        }
+      }
+    },
+    {
+      "case_id": "readComponent.nonContiguousVersions",
+      "operation_id": "readComponent",
+      "kind": "positive",
+      "why": "Hiding a version does not free its number, so 1.0 then 1.2 is a legal answer. The contract states the non-contiguity rather than implying a dense sequence it cannot deliver.",
+      "request": {
+        "path_params": {
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "summary": {
+          "schema_version": 1,
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "publisher_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "likes_count": 0,
+          "github_stars": null,
+          "updated_at": "2026-08-05T00:00:00.000Z",
+          "latest_version": "1.2",
+          "latest_name": "fixture-component",
+          "latest_description": "fixture-component-description",
+          "latest_harness_id": "claude-code",
+          "latest_component_type": "skill",
+          "latest_projection_kind": "native_files",
+          "latest_tags": [
+            "python",
+            "tests"
+          ],
+          "latest_lifecycle": "active",
+          "latest_requirements_count": 0,
+          "latest_requires_credentials": false,
+          "latest_trust": {
+            "trust_lane": "experimental",
+            "author_verified": false,
+            "component_verified": false
+          },
+          "latest_published_at": "2026-08-05T00:00:00.000Z",
+          "latest_support": {
+            "schema_version": 1,
+            "tier": "primary",
+            "state": "missing",
+            "evidence": []
+          },
+          "latest_checks": null,
+          "usage_metrics": null
+        },
+        "versions": [
+          {
+            "version": "1.0",
+            "passport_digest": "sha256:21d097f41e14dd7423f6074f4376c912d9a907ad07cba2e5d2e702ab46df0362",
+            "lifecycle": "active",
+            "trust": {
+              "trust_lane": "experimental",
+              "author_verified": false,
+              "component_verified": false
+            },
+            "published_at": "2026-08-05T00:00:00.000Z",
+            "support": {
+              "schema_version": 1,
+              "tier": "primary",
+              "state": "missing",
+              "evidence": []
+            },
+            "checks": null
+          },
+          {
+            "version": "1.2",
+            "passport_digest": "sha256:402217ff8818c58f5ac093923f49a25c10d8955bac59f4d4e837012641a2f51a",
+            "lifecycle": "active",
+            "trust": {
+              "trust_lane": "experimental",
+              "author_verified": false,
+              "component_verified": false
+            },
+            "published_at": "2026-08-05T00:00:00.000Z",
+            "support": {
+              "schema_version": 1,
+              "tier": "primary",
+              "state": "missing",
+              "evidence": []
+            },
+            "checks": null
+          }
+        ],
+        "media": [],
+        "country_codes": [],
+        "services": []
+      }
+    },
+    {
+      "case_id": "readComponent.unknownObject",
+      "operation_id": "readComponent",
+      "kind": "rejected_request",
+      "why": "An absent object is not a bare validation error: the caller sent a well-formed identifier and must be able to tell not-found from malformed.",
+      "request": {
+        "path_params": {
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y70"
+        }
+      },
+      "status": 404,
+      "error_code": "AI_STP_NOT_FOUND"
+    },
+    {
+      "case_id": "searchComponents.authoritativeWithoutEvidence",
+      "operation_id": "searchComponents",
+      "kind": "invalid_response",
+      "why": "A server labelling an unverified object authoritative would drive a CLI that gates automatic installation on that lane into installing it. The lane requires both verification flags.",
+      "request": {
+        "query": {
+          "page_size": 20,
+          "include_experimental": false
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "items": [
+          {
+            "schema_version": 1,
+            "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "latest_version": "1.2",
+            "latest_name": "fixture-component",
+            "latest_description": "fixture-component-description",
+            "latest_harness_id": "claude-code",
+            "latest_component_type": "skill",
+            "latest_projection_kind": "native_files",
+            "latest_tags": [
+              "python",
+              "tests"
+            ],
+            "latest_lifecycle": "active",
+            "latest_trust": {
+              "trust_lane": "authoritative",
+              "author_verified": false,
+              "component_verified": false
+            },
+            "latest_published_at": "2026-08-05T00:00:00.000Z",
+            "latest_support": {
+              "schema_version": 1,
+              "tier": "primary",
+              "state": "missing",
+              "evidence": []
+            },
+            "latest_checks": null,
+            "usage_metrics": null
+          }
+        ],
+        "experimental": [],
+        "page": {
+          "schema_version": 1,
+          "next_cursor": null,
+          "page_size": 20
+        }
+      }
+    },
+    {
+      "case_id": "searchComponents.hiddenLifecycle",
+      "operation_id": "searchComponents",
+      "kind": "invalid_response",
+      "why": "A hidden object is not disclosed at all, so no lifecycle value on the public wire may admit that one exists.",
+      "request": {
+        "query": {
+          "page_size": 20,
+          "include_experimental": false
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "items": [
+          {
+            "schema_version": 1,
+            "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "latest_version": "1.2",
+            "latest_name": "fixture-component",
+            "latest_description": "fixture-component-description",
+            "latest_harness_id": "claude-code",
+            "latest_component_type": "skill",
+            "latest_projection_kind": "native_files",
+            "latest_tags": [
+              "python",
+              "tests"
+            ],
+            "latest_lifecycle": "hidden",
+            "latest_trust": {
+              "trust_lane": "experimental",
+              "author_verified": false,
+              "component_verified": false
+            },
+            "latest_published_at": "2026-08-05T00:00:00.000Z",
+            "latest_support": {
+              "schema_version": 1,
+              "tier": "primary",
+              "state": "missing",
+              "evidence": []
+            },
+            "latest_checks": null,
+            "usage_metrics": null
+          }
+        ],
+        "experimental": [],
+        "page": {
+          "schema_version": 1,
+          "next_cursor": null,
+          "page_size": 20
+        }
+      }
+    },
+    {
+      "case_id": "readComponentVersion.published",
+      "operation_id": "readComponentVersion",
+      "kind": "positive",
+      "why": "The passport is the description of the version (ADR-0012); its digest is served alongside so the client can verify cached bytes independently of the transport. The revision id is a real content seal over this exact body.",
+      "request": {
+        "path_params": {
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.2"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "passport": {
+          "schema_version": 1,
+          "kind": "component",
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "revision_id": "revision_9f90ce539ce28826fef5fbb669a1566ae8d6b4a57018611f9ef85eded3ab36cc",
+          "parent_revision_ids": [],
+          "owner_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "created_at": "2026-08-05T00:00:00.000Z",
+          "visibility": "public",
+          "facts": {},
+          "name": "fixture-component",
+          "description": "fixture-component-description",
+          "version": "1.2",
+          "tags": [
+            "python",
+            "tests"
+          ],
+          "source": null,
+          "artifact": {
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "size_bytes": 1024
+          },
+          "harness_id": "claude-code",
+          "required_env": [],
+          "requires_credentials": false,
+          "requires_authorization": "none",
+          "permissions": {
+            "filesystem": [],
+            "network": [],
+            "process": []
+          },
+          "external_endpoints": [],
+          "license": {
+            "spdx_id": "AGPL-3.0-or-later",
+            "redistribution_allowed": true
+          },
+          "compatibility_evidence_refs": [],
+          "component_type": "skill",
+          "projection_kind": "native_files",
+          "variant_id": null,
+          "provides_capabilities": [],
+          "requires_components": [],
+          "requires_capabilities": [],
+          "conflicts": {
+            "paths": [],
+            "commands": [],
+            "hooks": [],
+            "mcp": [],
+            "agents": [],
+            "plugins": []
+          },
+          "managed_paths": [],
+          "native_ids": []
+        },
+        "passport_digest": "sha256:402217ff8818c58f5ac093923f49a25c10d8955bac59f4d4e837012641a2f51a",
+        "lifecycle": "active",
+        "trust": {
+          "trust_lane": "experimental",
+          "author_verified": false,
+          "component_verified": false
+        },
+        "published_at": "2026-08-05T00:00:00.000Z",
+        "support": {
+          "schema_version": 1,
+          "tier": "primary",
+          "state": "missing",
+          "evidence": []
+        },
+        "checks": null,
+        "usage_metrics": null
+      }
+    },
+    {
+      "case_id": "readComponentVersion.privatePassport",
+      "operation_id": "readComponentVersion",
+      "kind": "invalid_response",
+      "why": "The passport models are shared with the local registry, where private is the default. On an anonymous route that default is a disclosure channel: source repository, exact commit, subpath, required environment variable names and owner id. The contract cannot fix the server's authorization but it can refuse to represent the mistake.",
+      "request": {
+        "path_params": {
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.2"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "passport": {
+          "schema_version": 1,
+          "kind": "component",
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "revision_id": "revision_c2ef2e74d79879bda31bcebee4f0f9d71031750f1f8d682d59d42845c248fc6f",
+          "parent_revision_ids": [],
+          "owner_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "created_at": "2026-08-05T00:00:00.000Z",
+          "visibility": "private",
+          "facts": {},
+          "name": "fixture-component",
+          "description": "fixture-component-description",
+          "version": "1.2",
+          "tags": [
+            "python",
+            "tests"
+          ],
+          "source": null,
+          "artifact": {
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "size_bytes": 1024
+          },
+          "harness_id": "claude-code",
+          "required_env": [],
+          "requires_credentials": false,
+          "requires_authorization": "none",
+          "permissions": {
+            "filesystem": [],
+            "network": [],
+            "process": []
+          },
+          "external_endpoints": [],
+          "license": {
+            "spdx_id": "AGPL-3.0-or-later",
+            "redistribution_allowed": true
+          },
+          "compatibility_evidence_refs": [],
+          "component_type": "skill",
+          "projection_kind": "native_files",
+          "variant_id": null,
+          "provides_capabilities": [],
+          "requires_components": [],
+          "requires_capabilities": [],
+          "conflicts": {
+            "paths": [],
+            "commands": [],
+            "hooks": [],
+            "mcp": [],
+            "agents": [],
+            "plugins": []
+          },
+          "managed_paths": [],
+          "native_ids": []
+        },
+        "passport_digest": "sha256:a0b29e900e8e1f0a5269a5094500cebc1829dc346b1f0147c5e6603eeddb79c5",
+        "lifecycle": "active",
+        "trust": {
+          "trust_lane": "experimental",
+          "author_verified": false,
+          "component_verified": false
+        },
+        "published_at": "2026-08-05T00:00:00.000Z",
+        "support": {
+          "schema_version": 1,
+          "tier": "primary",
+          "state": "missing",
+          "evidence": []
+        },
+        "checks": null,
+        "usage_metrics": null
+      }
+    },
+    {
+      "case_id": "readComponentGithubMetadata.unavailable",
+      "operation_id": "readComponentGithubMetadata",
+      "kind": "positive",
+      "why": "On-demand GitHub metadata is nullable when the source is missing or the request fails.",
+      "request": {
+        "path_params": {
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.2"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "stars": null,
+        "archived": null
+      }
+    }
+  ]
+}

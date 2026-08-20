@@ -1,0 +1,72 @@
+{
+  "$defs": {
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-capabilities",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "What this installation can do right now.\n\nDeliberately not a copy of the registry: it carries the few facts that\ndecide whether a later call is even worth making. `command_paths` is the\nindex into `help --agent`, not a substitute for it.",
+  "properties": {
+    "catalog_enabled": {
+      "title": "Catalog Enabled",
+      "type": "boolean"
+    },
+    "cli_version": {
+      "minLength": 1,
+      "title": "Cli Version",
+      "type": "string"
+    },
+    "command_paths": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Command Paths",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "supported_harnesses": {
+      "items": {
+        "$ref": "#/$defs/HarnessId"
+      },
+      "minItems": 1,
+      "title": "Supported Harnesses",
+      "type": "array"
+    },
+    "sync_enabled": {
+      "title": "Sync Enabled",
+      "type": "boolean"
+    },
+    "wire_schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Wire Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "catalog_enabled",
+    "cli_version",
+    "command_paths",
+    "schema_version",
+    "supported_harnesses",
+    "sync_enabled",
+    "wire_schema_version"
+  ],
+  "title": "Capabilities",
+  "type": "object"
+}

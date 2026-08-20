@@ -1,0 +1,36 @@
+[project]
+name = "ai-stp-platform"
+version = "0.1.0"
+description = "Shared server runtime: async database access, the custom job queue and readiness probes."
+requires-python = ">=3.12"
+dependencies = [
+    "ai-stp-foundation",
+    "ai-stp-passports",
+    "ai-stp-contracts",
+    "ai-stp-assurance",
+    "cryptography>=44.0.0",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "asyncpg>=0.30",
+    "alembic>=1.13",
+    "pydantic-settings>=2.5",
+    "httpx>=0.27",
+    "structlog>=24.4",
+    "aiobotocore>=3.9.0",
+]
+
+[tool.uv.sources]
+ai-stp-foundation = { workspace = true }
+ai-stp-passports = { workspace = true }
+ai-stp-contracts = { workspace = true }
+ai-stp-assurance = { workspace = true }
+
+[build-system]
+requires = ["uv_build>=0.11,<0.13"]
+build-backend = "uv_build"
+
+# Include non-Python safety policy assets (opengrep yml, yara rules).
+[tool.uv.build-backend]
+module-name = "ai_stp_platform"
+module-root = "src"
+# uv_build includes package data under the module tree by default; policy_pack
+# lives at src/ai_stp_platform/safety/policy_pack/.

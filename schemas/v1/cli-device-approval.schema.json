@@ -1,0 +1,67 @@
+{
+  "$defs": {
+    "DeviceId": {
+      "pattern": "^device_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-device-approval",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "What a person must approve before a sign-in can complete (issue #75).\n\nReturned rather than waited on. `#72` fixed that the CLI never blocks for a\nhuman decision — a command that polled until someone walked to their browser\nwould hang in CI and in a container, which is the same reason the sign-in is\na device-code flow and not a loopback redirect. So this is the first half of\nthe answer, and `auth login --await` is the second.\n\nNo secret is representable here. The device code the client polls with is\nkept in the credential store, not published: it is the bearer of the\npending authorization.",
+  "properties": {
+    "browser_opened": {
+      "title": "Browser Opened",
+      "type": "boolean"
+    },
+    "device_id": {
+      "$ref": "#/$defs/DeviceId"
+    },
+    "expires_in": {
+      "minimum": 1,
+      "title": "Expires In",
+      "type": "integer"
+    },
+    "provider": {
+      "enum": [
+        "google",
+        "github"
+      ],
+      "title": "Provider",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "user_code": {
+      "minLength": 1,
+      "title": "User Code",
+      "type": "string"
+    },
+    "verification_uri": {
+      "minLength": 1,
+      "title": "Verification Uri",
+      "type": "string"
+    },
+    "verification_uri_complete": {
+      "minLength": 1,
+      "title": "Verification Uri Complete",
+      "type": "string"
+    }
+  },
+  "required": [
+    "browser_opened",
+    "device_id",
+    "expires_in",
+    "provider",
+    "schema_version",
+    "user_code",
+    "verification_uri",
+    "verification_uri_complete"
+  ],
+  "title": "DeviceApproval",
+  "type": "object"
+}

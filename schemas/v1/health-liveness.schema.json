@@ -1,0 +1,26 @@
+{
+  "$id": "urn:ai-stp:schema:v1:health-liveness",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "The process is running and able to answer.",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "status": {
+      "const": "alive",
+      "default": "alive",
+      "title": "Status",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "status"
+  ],
+  "title": "LivenessResponse",
+  "type": "object"
+}

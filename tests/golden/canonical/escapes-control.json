@@ -1,0 +1,17 @@
+{
+  "name": "escapes-control",
+  "value": {
+    "text": "line1\nline2\ttab \"quoted\" back\\slash",
+    "bell": "\u0007",
+    "del": ""
+  },
+  "canonical": "{\"bell\":\"\\u0007\",\"del\":\"\",\"text\":\"line1\\nline2\\ttab \\\"quoted\\\" back\\\\slash\"}",
+  "digests": {
+    "ai-stp:artifact:v1": "sha256:3c466171f6cf2b79d4486ff9158798dfabf8b01d6bab08d421a1536510453f06",
+    "ai-stp:attestation:v1": "sha256:bbb68fe9686541dc2a28ab3dc5076f03db63f3c007c2028aae40f36dc77b1b06",
+    "ai-stp:bundle:v1": "sha256:f1ca305f8443e6b3131ad84d64fe1787d6273d71f5bd86238591f288b1292ad2",
+    "ai-stp:passport:v1": "sha256:e54130caf8b0e7f6098e2361ac6945433ada9f88ac9cc2b469eae0d630a33ac3",
+    "ai-stp:plan:v1": "sha256:d221c93ac4530cf4786d8ea75bc0090bf77454cf6508eac6f9e924296187cf62",
+    "ai-stp:revision:v1": "sha256:e9bee9180dabceea9c2c9f975143727ef25b5b3204b1c91b421c556cddf13f65"
+  }
+}

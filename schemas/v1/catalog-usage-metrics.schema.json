@@ -1,0 +1,31 @@
+{
+  "$id": "urn:ai-stp:schema:v1:catalog-usage-metrics",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Server aggregate of public detail views and completed artifact bytes.\n\nAbsence of this object means the feature is off or the value is unavailable,\nnot zero. Download is not install success.",
+  "properties": {
+    "artifact_downloads_count": {
+      "minimum": 0,
+      "title": "Artifact Downloads Count",
+      "type": "integer"
+    },
+    "detail_views_count": {
+      "minimum": 0,
+      "title": "Detail Views Count",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "artifact_downloads_count",
+    "detail_views_count",
+    "schema_version"
+  ],
+  "title": "CatalogUsageMetrics",
+  "type": "object"
+}

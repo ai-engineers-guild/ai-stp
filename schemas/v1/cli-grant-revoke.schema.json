@@ -1,0 +1,31 @@
+{
+  "$id": "urn:ai-stp:schema:v1:cli-grant-revoke",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "CLI view of a revocation, separate from the HTTP schema boundary.",
+  "properties": {
+    "local_bytes_retained": {
+      "default": true,
+      "title": "Local Bytes Retained",
+      "type": "boolean"
+    },
+    "revoked": {
+      "default": true,
+      "title": "Revoked",
+      "type": "boolean"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "local_bytes_retained",
+    "revoked",
+    "schema_version"
+  ],
+  "title": "CliGrantRevokeView",
+  "type": "object"
+}

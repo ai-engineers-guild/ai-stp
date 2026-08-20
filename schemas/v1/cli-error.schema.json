@@ -1,0 +1,39 @@
+{
+  "$defs": {
+    "JsonValue": {}
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-error",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Typed error payload with a stable machine code.",
+  "properties": {
+    "code": {
+      "pattern": "^AI_STP_[A-Z0-9]+(_[A-Z0-9]+)*$",
+      "title": "Code",
+      "type": "string"
+    },
+    "details": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "title": "Details",
+      "type": "object"
+    },
+    "message": {
+      "title": "Message",
+      "type": "string"
+    },
+    "retryable": {
+      "title": "Retryable",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "code",
+    "details",
+    "message",
+    "retryable"
+  ],
+  "title": "CliError",
+  "type": "object"
+}

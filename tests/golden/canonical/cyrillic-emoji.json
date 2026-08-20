@@ -1,0 +1,19 @@
+{
+  "name": "cyrillic-emoji",
+  "value": {
+    "описание": "Запускает pytest 🚀",
+    "теги": [
+      "python",
+      "тесты"
+    ]
+  },
+  "canonical": "{\"описание\":\"Запускает pytest 🚀\",\"теги\":[\"python\",\"тесты\"]}",
+  "digests": {
+    "ai-stp:artifact:v1": "sha256:3c7c79a30fc2476d171c6f2ffe257fbdcf667b07b692f67d9a7bdae4e10579d1",
+    "ai-stp:attestation:v1": "sha256:9e4da31b51a88c9fefbf5abf515ce36a0e27d19bfdb830c15412d515f592fd09",
+    "ai-stp:bundle:v1": "sha256:fde3e9f6dd9fc92cf9f7b88b0cf07f0c5e69192afe54e3ac53a5a86ade031e37",
+    "ai-stp:passport:v1": "sha256:a0a3f4ac2dedaea18252645ade9ea057f42fbbc6cb8e903f55dfaadcfe55a26d",
+    "ai-stp:plan:v1": "sha256:c5bf93a5150a0f851ec58c72ceb7d98e4f86325fae6e7ca4b42ba31b0d958515",
+    "ai-stp:revision:v1": "sha256:4548a84c5cb78d689a5b5cb7099250aa06abf59877eab8b6070ce31e17d6074b"
+  }
+}

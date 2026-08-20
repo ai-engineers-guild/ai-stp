@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en" class="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Account · ai_stp</title>
+  <link rel="stylesheet" href="../shared/tokens.css" />
+  <link rel="stylesheet" href="../shared/ui.css" />
+</head>
+<body>
+  <div class="shell" data-od-id="page-account">
+
+    <a href="#main-content" class="sr-only">Skip to content</a>
+    <header class="topbar" data-od-id="site-header">
+      <div class="topbar-inner">
+        <nav class="nav" aria-label="Primary">
+          <a href="landing.html" class="brand"><img src="../shared/brand/logo-mark.png" alt="" width="28" height="28" aria-hidden="true">ai_stp</a>
+          <a href="catalog.html" class="nav-link" title="Browse published components and setups">Catalog</a>
+        </nav>
+        <div class="top-actions">
+          <label class="sr-only" for="locale-select">Language</label>
+          <select id="locale-select" class="locale-select" aria-label="Language">
+            <option value="ru">ru</option>
+            <option value="en" selected>en</option>
+          </select>
+          <button type="button" class="icon-btn" data-action="theme" data-theme-label data-od-id="theme-toggle" aria-label="Dark">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-icon-moon aria-hidden="true"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-icon-sun hidden aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+          </button>
+          <a class="icon-btn outline" href="login.html" title="Sign in to your account" aria-label="Sign in"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg></a>
+        </div>
+      </div>
+    </header>
+    <main class="main" id="main-content">
+
+<div class="stack-lg">
+  <header class="stack-sm" style="gap:0.5rem">
+    <h1 style="font-size:1.875rem">Account</h1>
+    <p class="lede-sm">Signed-in shell. Session is cookie-backed.</p>
+  </header>
+  <div class="grid-2">
+    <a class="card" href="profile.html" style="padding:1rem;text-decoration:none">
+      <div class="card-body" style="padding:0">
+        <h3>Profile</h3>
+        <p>Display name, handle, and public publisher surface.</p>
+      </div>
+    </a>
+    <a class="card" href="privacy.html" style="padding:1rem;text-decoration:none">
+      <div class="card-body" style="padding:0">
+        <h3>Privacy</h3>
+        <p>Visibility and data controls for your account.</p>
+      </div>
+    </a>
+    <a class="card" href="devices.html" style="padding:1rem;text-decoration:none">
+      <div class="card-body" style="padding:0">
+        <h3>Devices</h3>
+        <p>CLI device authorizations linked to this account.</p>
+      </div>
+    </a>
+  </div>
+  <div class="panel stack-sm">
+    <h2 style="font-size:1rem">Session</h2>
+    <dl class="dl text-sm">
+      <div><dt class="muted">Account id</dt><dd class="mono">account_01JQZK7B8N4M6P2R9T5V0X3YZZ</dd></div>
+      <div><dt class="muted">Email</dt><dd>you@example.com</dd></div>
+      <div><dt class="muted">Providers</dt><dd>Google</dd></div>
+    </dl>
+    <div class="row"><a class="btn btn-outline" href="landing.html">Sign out</a></div>
+  </div>
+</div>
+    </main>
+
+    <footer class="footer" data-od-id="site-footer">
+      <div class="footer-inner">
+        <div>ai_stp · setup passports</div>
+        <nav class="footer-links" aria-label="Site policies">
+          <a href="docs.html">Documentation</a>
+          <a href="legal-privacy.html">Privacy</a>
+          <a href="legal-cookies.html">Cookies</a>
+          <a href="legal-service-rules.html">Service rules</a>
+          <a href="legal-licensing.html">Licensing</a>
+        </nav>
+      </div>
+    </footer>
+  </div>
+  <div class="proto-note">prototype · /account</div>
+  <script src="../shared/shell.js"></script>
+</body>
+</html>

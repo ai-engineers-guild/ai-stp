@@ -1,0 +1,599 @@
+{
+  "$defs": {
+    "ArtifactRef": {
+      "additionalProperties": false,
+      "description": "Content-addressed artifact bytes: digest and size.",
+      "properties": {
+        "digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Digest",
+          "type": "string"
+        },
+        "size_bytes": {
+          "minimum": 0,
+          "title": "Size Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "digest",
+        "size_bytes"
+      ],
+      "title": "ArtifactRef",
+      "type": "object"
+    },
+    "ComponentRef": {
+      "additionalProperties": false,
+      "description": "Exact reference to a component version, optionally to one realization.",
+      "properties": {
+        "passport_digest": {
+          "$ref": "#/$defs/PassportDigest"
+        },
+        "stable_id": {
+          "pattern": "^component_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "variant_id": {
+          "anyOf": [
+            {
+              "pattern": "^variant_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Variant Id"
+        },
+        "version": {
+          "$ref": "#/$defs/Version"
+        }
+      },
+      "required": [
+        "stable_id",
+        "version",
+        "passport_digest"
+      ],
+      "title": "ComponentRef",
+      "type": "object"
+    },
+    "EnvVarRequirement": {
+      "additionalProperties": false,
+      "description": "Required environment variable: name and purpose, never a value.",
+      "properties": {
+        "name": {
+          "pattern": "^[A-Z][A-Z0-9_]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "purpose": {
+          "title": "Purpose",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "purpose"
+      ],
+      "title": "EnvVarRequirement",
+      "type": "object"
+    },
+    "Fact": {
+      "additionalProperties": true,
+      "description": "One passport fact: value, provenance axes and bounded source links.",
+      "properties": {
+        "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "confirmation": {
+          "$ref": "#/$defs/FactConfirmation"
+        },
+        "confirmed_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "observed_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "origin": {
+          "$ref": "#/$defs/FactOrigin"
+        },
+        "source_refs": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 16,
+          "title": "Source Refs",
+          "type": "array"
+        },
+        "value": {
+          "$ref": "#/$defs/JsonValue"
+        }
+      },
+      "required": [
+        "value",
+        "origin",
+        "confirmation"
+      ],
+      "title": "Fact",
+      "type": "object"
+    },
+    "FactConfirmation": {
+      "enum": [
+        "none",
+        "user_confirmed"
+      ],
+      "type": "string"
+    },
+    "FactOrigin": {
+      "enum": [
+        "declared",
+        "observed",
+        "derived",
+        "imported"
+      ],
+      "type": "string"
+    },
+    "GitSource": {
+      "additionalProperties": false,
+      "description": "Exact public origin: repository, commit and component root subpath.",
+      "properties": {
+        "commit": {
+          "pattern": "^[0-9a-f]{40}$",
+          "title": "Commit",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "repository": {
+          "pattern": "^https://[^\\s]+$",
+          "title": "Repository",
+          "type": "string"
+        }
+      },
+      "required": [
+        "repository",
+        "commit",
+        "path"
+      ],
+      "title": "GitSource",
+      "type": "object"
+    },
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build"
+      ],
+      "type": "string"
+    },
+    "JsonValue": {},
+    "LicenseInfo": {
+      "additionalProperties": false,
+      "description": "License identity and the redistribution decision.",
+      "properties": {
+        "redistribution_allowed": {
+          "title": "Redistribution Allowed",
+          "type": "boolean"
+        },
+        "spdx_id": {
+          "title": "Spdx Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "spdx_id",
+        "redistribution_allowed"
+      ],
+      "title": "LicenseInfo",
+      "type": "object"
+    },
+    "PassportDigest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "Permissions": {
+      "additionalProperties": false,
+      "description": "Declared file, network and process permissions.",
+      "properties": {
+        "filesystem": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Filesystem",
+          "type": "array"
+        },
+        "network": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Network",
+          "type": "array"
+        },
+        "process": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Process",
+          "type": "array"
+        }
+      },
+      "title": "Permissions",
+      "type": "object"
+    },
+    "RevisionId": {
+      "pattern": "^revision_[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "SetupRef": {
+      "additionalProperties": false,
+      "description": "Exact reference to a setup version; a setup has no variant axis.",
+      "properties": {
+        "passport_digest": {
+          "$ref": "#/$defs/PassportDigest"
+        },
+        "stable_id": {
+          "pattern": "^setup_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "version": {
+          "$ref": "#/$defs/Version"
+        }
+      },
+      "required": [
+        "stable_id",
+        "version",
+        "passport_digest"
+      ],
+      "title": "SetupRef",
+      "type": "object"
+    },
+    "TagId": {
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "type": "string"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    },
+    "Version": {
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:setup-version-passport",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Immutable setup version passport: exactly one harness, no variant axis.",
+  "properties": {
+    "artifact": {
+      "$ref": "#/$defs/ArtifactRef"
+    },
+    "compatibility_evidence_refs": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Compatibility Evidence Refs",
+      "type": "array"
+    },
+    "components": {
+      "items": {
+        "$ref": "#/$defs/ComponentRef"
+      },
+      "minItems": 1,
+      "title": "Components",
+      "type": "array"
+    },
+    "composition_report_ref": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Composition Report Ref"
+    },
+    "conversion_report_ref": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Conversion Report Ref"
+    },
+    "created_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "description": {
+      "title": "Description",
+      "type": "string"
+    },
+    "execution_profile": {
+      "const": "full-auto",
+      "default": "full-auto",
+      "title": "Execution Profile",
+      "type": "string"
+    },
+    "external_endpoints": {
+      "items": {
+        "pattern": "^https://[^\\s]+$",
+        "type": "string"
+      },
+      "title": "External Endpoints",
+      "type": "array"
+    },
+    "facts": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Fact"
+      },
+      "title": "Facts",
+      "type": "object"
+    },
+    "harness_id": {
+      "$ref": "#/$defs/HarnessId"
+    },
+    "install_evidence_ref": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Install Evidence Ref"
+    },
+    "kind": {
+      "const": "setup",
+      "default": "setup",
+      "title": "Kind",
+      "type": "string"
+    },
+    "launch_evidence_ref": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Launch Evidence Ref"
+    },
+    "license": {
+      "$ref": "#/$defs/LicenseInfo"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "owner_id": {
+      "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Owner Id",
+      "type": "string"
+    },
+    "parent_revision_ids": {
+      "items": {
+        "$ref": "#/$defs/RevisionId"
+      },
+      "title": "Parent Revision Ids",
+      "type": "array"
+    },
+    "permissions": {
+      "$ref": "#/$defs/Permissions"
+    },
+    "ported_from": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SetupRef"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "purpose": {
+      "title": "Purpose",
+      "type": "string"
+    },
+    "related_setup_ids": {
+      "items": {
+        "pattern": "^setup_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+        "type": "string"
+      },
+      "title": "Related Setup Ids",
+      "type": "array"
+    },
+    "required_env": {
+      "items": {
+        "$ref": "#/$defs/EnvVarRequirement"
+      },
+      "title": "Required Env",
+      "type": "array"
+    },
+    "requires_authorization": {
+      "default": "none",
+      "enum": [
+        "none",
+        "user_account",
+        "external_service"
+      ],
+      "title": "Requires Authorization",
+      "type": "string"
+    },
+    "requires_credentials": {
+      "default": false,
+      "title": "Requires Credentials",
+      "type": "boolean"
+    },
+    "revision_id": {
+      "$ref": "#/$defs/RevisionId"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "source": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GitSource"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "stable_id": {
+      "title": "Stable Id",
+      "type": "string"
+    },
+    "supported_arch": {
+      "items": {
+        "enum": [
+          "x86_64",
+          "arm64"
+        ],
+        "type": "string"
+      },
+      "title": "Supported Arch",
+      "type": "array"
+    },
+    "supported_harness_versions": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Supported Harness Versions",
+      "type": "array"
+    },
+    "supported_os": {
+      "items": {
+        "enum": [
+          "linux",
+          "macos"
+        ],
+        "type": "string"
+      },
+      "title": "Supported Os",
+      "type": "array"
+    },
+    "supported_tasks": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Supported Tasks",
+      "type": "array"
+    },
+    "tags": {
+      "items": {
+        "$ref": "#/$defs/TagId"
+      },
+      "maxItems": 8,
+      "minItems": 1,
+      "title": "Tags",
+      "type": "array"
+    },
+    "target_role": {
+      "title": "Target Role",
+      "type": "string"
+    },
+    "version": {
+      "$ref": "#/$defs/Version"
+    },
+    "visibility": {
+      "default": "private",
+      "enum": [
+        "private",
+        "public"
+      ],
+      "title": "Visibility",
+      "type": "string"
+    }
+  },
+  "required": [
+    "artifact",
+    "compatibility_evidence_refs",
+    "components",
+    "composition_report_ref",
+    "conversion_report_ref",
+    "created_at",
+    "description",
+    "execution_profile",
+    "external_endpoints",
+    "facts",
+    "harness_id",
+    "install_evidence_ref",
+    "kind",
+    "launch_evidence_ref",
+    "license",
+    "name",
+    "owner_id",
+    "parent_revision_ids",
+    "permissions",
+    "ported_from",
+    "purpose",
+    "related_setup_ids",
+    "required_env",
+    "requires_authorization",
+    "requires_credentials",
+    "revision_id",
+    "schema_version",
+    "source",
+    "stable_id",
+    "supported_arch",
+    "supported_harness_versions",
+    "supported_os",
+    "supported_tasks",
+    "tags",
+    "target_role",
+    "version",
+    "visibility"
+  ],
+  "title": "SetupVersionPassport",
+  "type": "object"
+}

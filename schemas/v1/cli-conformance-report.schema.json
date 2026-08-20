@@ -1,0 +1,95 @@
+{
+  "$defs": {
+    "ConformanceCase": {
+      "additionalProperties": true,
+      "description": "One conformance check and what it decided.\n\n`detail` names what was wanted and what was got. The audience for a failure\nhere is somebody writing a provider against a protocol they cannot see, and\n\"failed\" alone is nothing to work from.",
+      "properties": {
+        "detail": {
+          "minLength": 1,
+          "title": "Detail",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "detail",
+        "name",
+        "passed",
+        "schema_version"
+      ],
+      "title": "ConformanceCase",
+      "type": "object"
+    },
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-conformance-report",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Whether one provider conforms to the frozen protocol (`SPEC-008` REQ-802).\n\n`reported_version` is kept beside `protocol_version` rather than compared\naway: a provider announcing a version this build does not speak is a\ndifferent situation from one that speaks it and fails a case, and the two\nare fixed by different people.",
+  "properties": {
+    "cases": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ConformanceCase"
+      },
+      "title": "Cases",
+      "type": "array"
+    },
+    "conforms": {
+      "title": "Conforms",
+      "type": "boolean"
+    },
+    "harness_id": {
+      "$ref": "#/$defs/HarnessId"
+    },
+    "protocol_version": {
+      "minimum": 1,
+      "title": "Protocol Version",
+      "type": "integer"
+    },
+    "reported_version": {
+      "minimum": 0,
+      "title": "Reported Version",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "cases",
+    "conforms",
+    "harness_id",
+    "protocol_version",
+    "reported_version",
+    "schema_version"
+  ],
+  "title": "ConformanceReport",
+  "type": "object"
+}

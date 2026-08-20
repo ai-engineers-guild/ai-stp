@@ -1,0 +1,139 @@
+{
+  "$defs": {
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build"
+      ],
+      "type": "string"
+    },
+    "ImportedFile": {
+      "additionalProperties": true,
+      "description": "One configuration file an inspection read.",
+      "properties": {
+        "byte_length": {
+          "minimum": 0,
+          "title": "Byte Length",
+          "type": "integer"
+        },
+        "digest": {
+          "default": "",
+          "title": "Digest",
+          "type": "string"
+        },
+        "oversized": {
+          "default": false,
+          "title": "Oversized",
+          "type": "boolean"
+        },
+        "path": {
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "redacted_keys": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Redacted Keys",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "unreadable": {
+          "default": "",
+          "title": "Unreadable",
+          "type": "string"
+        }
+      },
+      "required": [
+        "byte_length",
+        "digest",
+        "oversized",
+        "path",
+        "redacted_keys",
+        "schema_version",
+        "unreadable"
+      ],
+      "title": "ImportedFile",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-import-inspection",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "What one native configuration holds, read and nothing more (`REQ-813`).\n\n`detection_rule` says how secrets were looked for. A report that will not\nsay how it looked cannot be told apart from one that looked properly, and\nthis one is deliberately partial — it matches key names, so a credential\nstored under a name that says nothing is not found.",
+  "properties": {
+    "detection_rule": {
+      "minLength": 1,
+      "title": "Detection Rule",
+      "type": "string"
+    },
+    "files": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ImportedFile"
+      },
+      "title": "Files",
+      "type": "array"
+    },
+    "harness_id": {
+      "$ref": "#/$defs/HarnessId"
+    },
+    "oversized": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Oversized",
+      "type": "array"
+    },
+    "redacted_keys": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Redacted Keys",
+      "type": "array"
+    },
+    "root": {
+      "minLength": 1,
+      "title": "Root",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "unreadable": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Unreadable",
+      "type": "array"
+    }
+  },
+  "required": [
+    "detection_rule",
+    "files",
+    "harness_id",
+    "oversized",
+    "redacted_keys",
+    "root",
+    "schema_version",
+    "unreadable"
+  ],
+  "title": "ImportInspection",
+  "type": "object"
+}

@@ -1,0 +1,28 @@
+{
+  "$defs": {
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:identity-device-revoke-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Revoke one device.\n\nIdempotent by key, so a retried revoke after a timeout does not become a\nsecond operation. The expected `etag` travels in the `If-Match` header\nrather than the body; it is named here only so the contract states that the\nprecondition is required.",
+  "properties": {
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "idempotency_key"
+  ],
+  "title": "DeviceRevokeRequest",
+  "type": "object"
+}

@@ -1,0 +1,53 @@
+# The locally pinned provider trust policy (`docs/contracts/provider-release.md`).
+#
+# Nothing inside a downloaded manifest widens what this file allows. That is the
+# whole point of pinning a policy rather than reading one: a release describes
+# itself, and this describes what this machine is willing to believe.
+#
+# The release key below is the offline Ed25519 trust anchor selected for the
+# first immutable NDDev provider line. A downloaded manifest cannot add or
+# replace this material.
+
+schema_version = 2
+policy_id = "nddev/provider/1"
+
+# What a signature must be over. A signature over anything else is a valid
+# signature of the wrong thing.
+signature_subject = "ai-stp:provider-release-manifest:v1"
+
+# The floor for every provider, independent of what any single machine has
+# installed. Raising it after a compromise refuses old releases everywhere,
+# including on machines that never installed anything.
+minimum_sequence = 0
+
+allowed_publishers = ["NDDev-it-com"]
+
+allowed_repositories = [
+  "github.com/NDDev-it-com/nddev-claude-app",
+  "github.com/NDDev-it-com/nddev-codex-app",
+  "github.com/NDDev-it-com/nddev-grok-build-app",
+  "github.com/NDDev-it-com/nddev-opencode-app",
+  "github.com/NDDev-it-com/nddev-pi-app",
+]
+
+allowed_keys = ["ed25519:b1d0fb8743bd1c0bacbb3c61"]
+# key id -> base64 raw 32-byte Ed25519 public key
+public_keys = { "ed25519:b1d0fb8743bd1c0bacbb3c61" = "lVYflQZMC2amM4zVuPyH3H/ZRhsInCmp+YBTxDNzE/g=" }
+revoked_keys = []
+supported_protocols = [1, 3]
+
+# Exact Linux x86_64 provider v3 artifacts published by the five allowed
+# repositories. The policy pins bytes rather than tags or URLs, and pins them
+# together with the provider and repository that may present them: a digest on
+# its own would let one provider's approved bytes be installed under another
+# provider's name, carried by a manifest that is perfectly signed.
+#
+# Adding a release here is the approval. A release that is published, signed and
+# reachable but absent from this table is refused with `release_not_pinned`.
+releases = [
+  { provider_id = "nddev-claude-app", repository = "github.com/NDDev-it-com/nddev-claude-app", artifact_digest = "sha256:57f9da3c8d821c8443fdff1d119dffb788ef78e73c35317e30c3914662c494f0" },
+  { provider_id = "nddev-codex-app", repository = "github.com/NDDev-it-com/nddev-codex-app", artifact_digest = "sha256:79ca9431db7e3d602f8fd70d1c03bc52c6bf2d14c5d7f7048f10a34231305adc" },
+  { provider_id = "nddev-grok-build-app", repository = "github.com/NDDev-it-com/nddev-grok-build-app", artifact_digest = "sha256:3da44c75c42efa1dbc6de1900fb6820af3d6ada903847df7e0dfa8f5c6e9a3aa" },
+  { provider_id = "nddev-opencode-app", repository = "github.com/NDDev-it-com/nddev-opencode-app", artifact_digest = "sha256:97bcd9c18fe580d7c2fb5d0ca3b9a960bb5a7834ad1c12d1a7d4b2b2c361d498" },
+  { provider_id = "nddev-pi-app", repository = "github.com/NDDev-it-com/nddev-pi-app", artifact_digest = "sha256:beb1ede511b3568591382a732d5668cd3f451b1fbad6005353dc9cc32694b2d3" },
+]

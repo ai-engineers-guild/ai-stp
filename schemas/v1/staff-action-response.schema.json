@@ -1,0 +1,32 @@
+{
+  "$id": "urn:ai-stp:schema:v1:staff-action-response",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Generic staff mutation outcome.",
+  "properties": {
+    "action": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Action",
+      "type": "string"
+    },
+    "applied": {
+      "default": true,
+      "title": "Applied",
+      "type": "boolean"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "action",
+    "applied",
+    "schema_version"
+  ],
+  "title": "StaffActionResponse",
+  "type": "object"
+}

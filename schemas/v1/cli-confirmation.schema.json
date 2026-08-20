@@ -1,0 +1,93 @@
+{
+  "$defs": {
+    "JsonValue": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "integer"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "items": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "array"
+        },
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-confirmation",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "The single object a confirmation froze (`REQ-623`).\n\n`created` separates \"this call made it\" from \"this call found it already\nmade\". `REQ-624` makes a repeat a success rather than a conflict, and a\ncaller still has to be able to tell the two apart.",
+  "properties": {
+    "created": {
+      "title": "Created",
+      "type": "boolean"
+    },
+    "revision_id": {
+      "minLength": 1,
+      "title": "Revision Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stable_id": {
+      "minLength": 1,
+      "title": "Stable Id",
+      "type": "string"
+    },
+    "state": {
+      "enum": [
+        "pending_install",
+        "installed"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "trace": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "default": {},
+      "title": "Trace",
+      "type": "object"
+    },
+    "version": {
+      "pattern": "^\\d+\\.\\d+$",
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "created",
+    "revision_id",
+    "schema_version",
+    "stable_id",
+    "state",
+    "trace",
+    "version"
+  ],
+  "title": "ConfirmationView",
+  "type": "object"
+}

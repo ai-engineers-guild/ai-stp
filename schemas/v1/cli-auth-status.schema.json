@@ -1,0 +1,82 @@
+{
+  "$defs": {
+    "AccountId": {
+      "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "type": "string"
+    },
+    "CredentialStore": {
+      "enum": [
+        "os_keyring",
+        "file"
+      ],
+      "type": "string"
+    },
+    "SessionState": {
+      "enum": [
+        "local_only",
+        "authenticated",
+        "expired",
+        "revoked"
+      ],
+      "type": "string"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-auth-status",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Whether this installation currently holds cloud credentials.\n\nDistinct from `DeviceIdentity`: a device identity always exists, a session\nmay not. Reporting them as one fact would make \"no account yet\" and \"no\ndevice identity\" indistinguishable, and their next actions differ.",
+  "properties": {
+    "account_id": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AccountId"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "credential_store": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CredentialStore"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "expires_at": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "state": {
+      "$ref": "#/$defs/SessionState"
+    }
+  },
+  "required": [
+    "account_id",
+    "credential_store",
+    "expires_at",
+    "schema_version",
+    "state"
+  ],
+  "title": "AuthStatus",
+  "type": "object"
+}

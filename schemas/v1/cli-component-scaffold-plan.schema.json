@@ -1,0 +1,182 @@
+{
+  "$defs": {
+    "ComponentScaffoldFile": {
+      "additionalProperties": false,
+      "description": "One exact regular file produced by a scaffold plan.",
+      "properties": {
+        "byte_length": {
+          "minimum": 0,
+          "title": "Byte Length",
+          "type": "integer"
+        },
+        "digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Digest",
+          "type": "string"
+        },
+        "mode": {
+          "const": 384,
+          "default": 384,
+          "title": "Mode",
+          "type": "integer"
+        },
+        "path": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "digest",
+        "byte_length"
+      ],
+      "title": "ComponentScaffoldFile",
+      "type": "object"
+    },
+    "ComponentTemplateDescriptor": {
+      "additionalProperties": false,
+      "description": "Exact generator choice recorded inside every scaffold.",
+      "properties": {
+        "component_type": {
+          "$ref": "#/$defs/ComponentType"
+        },
+        "executable": {
+          "title": "Executable",
+          "type": "boolean"
+        },
+        "generator_version": {
+          "const": "ai-stp/1",
+          "default": "ai-stp/1",
+          "title": "Generator Version",
+          "type": "string"
+        },
+        "harness_variant": {
+          "enum": [
+            "portable",
+            "claude-code",
+            "codex",
+            "pi",
+            "opencode",
+            "grok-build"
+          ],
+          "title": "Harness Variant",
+          "type": "string"
+        },
+        "language": {
+          "enum": [
+            "none",
+            "python",
+            "typescript",
+            "javascript",
+            "rust",
+            "go",
+            "dart-flutter"
+          ],
+          "title": "Language",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "template_version": {
+          "const": "component-scaffold/1",
+          "default": "component-scaffold/1",
+          "title": "Template Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "component_type",
+        "language",
+        "harness_variant",
+        "executable"
+      ],
+      "title": "ComponentTemplateDescriptor",
+      "type": "object"
+    },
+    "ComponentType": {
+      "enum": [
+        "instruction",
+        "skill",
+        "mcp",
+        "hook",
+        "command",
+        "agent",
+        "plugin",
+        "setting"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-component-scaffold-plan",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Content-addressed preview of a complete authoring directory.",
+  "properties": {
+    "component_name": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Component Name",
+      "type": "string"
+    },
+    "descriptor": {
+      "$ref": "#/$defs/ComponentTemplateDescriptor"
+    },
+    "files": {
+      "items": {
+        "$ref": "#/$defs/ComponentScaffoldFile"
+      },
+      "minItems": 6,
+      "title": "Files",
+      "type": "array"
+    },
+    "output": {
+      "minLength": 1,
+      "title": "Output",
+      "type": "string"
+    },
+    "plan_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Plan Digest",
+      "type": "string"
+    },
+    "plan_id": {
+      "pattern": "^scaffold_plan_[0-9a-f]{24}$",
+      "title": "Plan Id",
+      "type": "string"
+    },
+    "publication_ready": {
+      "const": false,
+      "default": false,
+      "title": "Publication Ready",
+      "type": "boolean"
+    },
+    "requires_exact_source_before_publication": {
+      "const": true,
+      "default": true,
+      "title": "Requires Exact Source Before Publication",
+      "type": "boolean"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "plan_id",
+    "plan_digest",
+    "output",
+    "component_name",
+    "descriptor",
+    "files"
+  ],
+  "title": "ComponentScaffoldPlan",
+  "type": "object"
+}

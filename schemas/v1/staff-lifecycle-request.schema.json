@@ -1,0 +1,73 @@
+{
+  "$defs": {
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    },
+    "LifecycleAction": {
+      "enum": [
+        "block",
+        "hide",
+        "restore"
+      ],
+      "type": "string"
+    },
+    "ObjectKind": {
+      "enum": [
+        "component",
+        "setup"
+      ],
+      "type": "string"
+    },
+    "Version": {
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:staff-lifecycle-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "POST /v1/staff/versions/lifecycle body.",
+  "properties": {
+    "action": {
+      "$ref": "#/$defs/LifecycleAction"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "object_kind": {
+      "$ref": "#/$defs/ObjectKind"
+    },
+    "reason": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Reason",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stable_id": {
+      "maxLength": 64,
+      "minLength": 8,
+      "title": "Stable Id",
+      "type": "string"
+    },
+    "version": {
+      "$ref": "#/$defs/Version"
+    }
+  },
+  "required": [
+    "object_kind",
+    "stable_id",
+    "version",
+    "action",
+    "reason",
+    "idempotency_key"
+  ],
+  "title": "StaffLifecycleRequest",
+  "type": "object"
+}

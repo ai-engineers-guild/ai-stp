@@ -1,0 +1,290 @@
+{
+  "$defs": {
+    "CandidateEligibility": {
+      "additionalProperties": true,
+      "description": "What the mechanical stage decided about one candidate, and why.\n\nTwo booleans because there are two questions. `admissible` is \"may this be\ninstalled\" and a trust lane never softens it; `auto_selectable` is \"may this\nbe chosen without asking\", and `experimental` answers no to that even with\nconsent (`SPEC-006` REQ-603). A single flag would have made a consented\nunverified object silently installable, which is the failure `ADR-0016`\nexists to prevent.",
+      "properties": {
+        "admissible": {
+          "title": "Admissible",
+          "type": "boolean"
+        },
+        "auto_selectable": {
+          "title": "Auto Selectable",
+          "type": "boolean"
+        },
+        "lane": {
+          "enum": [
+            "authoritative",
+            "local_owner_or_pinned",
+            "experimental"
+          ],
+          "title": "Lane",
+          "type": "string"
+        },
+        "lane_reason": {
+          "minLength": 1,
+          "title": "Lane Reason",
+          "type": "string"
+        },
+        "notes": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/EligibilityNote"
+          },
+          "title": "Notes",
+          "type": "array"
+        },
+        "refusals": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/EligibilityRefusal"
+          },
+          "title": "Refusals",
+          "type": "array"
+        },
+        "revision_id": {
+          "minLength": 1,
+          "title": "Revision Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "stable_id": {
+          "minLength": 1,
+          "title": "Stable Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "admissible",
+        "auto_selectable",
+        "lane",
+        "lane_reason",
+        "notes",
+        "refusals",
+        "revision_id",
+        "schema_version",
+        "stable_id"
+      ],
+      "title": "CandidateEligibility",
+      "type": "object"
+    },
+    "EligibilityNote": {
+      "additionalProperties": true,
+      "description": "One state worth saying that blocks nothing.\n\nA separate model rather than a refusal with a flag. A missing mandatory\nenvironment variable must not stop an install (`SPEC-001` REQ-111,\n`SPEC-008` REQ-816), and the cheapest way to keep that true is to make a\nnote structurally incapable of being counted as a refusal.",
+      "properties": {
+        "code": {
+          "enum": [
+            "required_env_missing",
+            "authorization_required",
+            "credentials_required"
+          ],
+          "title": "Code",
+          "type": "string"
+        },
+        "details": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "title": "Details",
+          "type": "object"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "summary": {
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "details",
+        "schema_version",
+        "summary"
+      ],
+      "title": "EligibilityNote",
+      "type": "object"
+    },
+    "EligibilityRefusal": {
+      "additionalProperties": true,
+      "description": "One mechanical constraint a candidate failed (`docs/contracts/eligibility-constraints.md`).\n\n`code` is the machine identity and `summary` is for a person: the text may\nbe reworded, the code may not. A caller branching on the sentence would\nbreak the first time somebody improved the wording.",
+      "properties": {
+        "code": {
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "details": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "title": "Details",
+          "type": "object"
+        },
+        "family": {
+          "enum": [
+            "compatibility",
+            "access",
+            "trust",
+            "license",
+            "entitlement",
+            "provider"
+          ],
+          "title": "Family",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "summary": {
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "details",
+        "family",
+        "schema_version",
+        "summary"
+      ],
+      "title": "EligibilityRefusal",
+      "type": "object"
+    },
+    "EligibilityReport": {
+      "additionalProperties": true,
+      "description": "Every candidate assessed against one target (`SPEC-006` REQ-601, REQ-621).\n\nThe target is echoed back because a verdict without the facts it was reached\nfrom cannot be checked. `no_candidate` is an honest state here rather than\nan error: `SPEC-006` says so explicitly, and an empty admissible list with\nthe reasons beside it is what makes it honest.",
+      "properties": {
+        "admissible_count": {
+          "minimum": 0,
+          "title": "Admissible Count",
+          "type": "integer"
+        },
+        "arch": {
+          "minLength": 1,
+          "title": "Arch",
+          "type": "string"
+        },
+        "auto_selectable_count": {
+          "minimum": 0,
+          "title": "Auto Selectable Count",
+          "type": "integer"
+        },
+        "candidates": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/CandidateEligibility"
+          },
+          "title": "Candidates",
+          "type": "array"
+        },
+        "capabilities": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Capabilities",
+          "type": "array"
+        },
+        "capability_vocabulary_version": {
+          "minLength": 1,
+          "title": "Capability Vocabulary Version",
+          "type": "string"
+        },
+        "harness_id": {
+          "$ref": "#/$defs/HarnessId"
+        },
+        "harness_version": {
+          "default": "",
+          "title": "Harness Version",
+          "type": "string"
+        },
+        "os": {
+          "minLength": 1,
+          "title": "Os",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "admissible_count",
+        "arch",
+        "auto_selectable_count",
+        "candidates",
+        "capabilities",
+        "capability_vocabulary_version",
+        "harness_id",
+        "harness_version",
+        "os",
+        "schema_version"
+      ],
+      "title": "EligibilityReport",
+      "type": "object"
+    },
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-eligibility-matrix",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "One eligibility report per supported harness, whether or not it is here.\n\n`EligibilityReport` answers for the harness that was named, which is the\nright answer to \"compose this for Codex\" and the wrong one to \"where does\nthis object fit\". Asked the second way with only the first available, an\nagent answered with the harness its own session happened to run in, and a\nportable skill acquired that `harness_id` on the way into a draft passport\n(`#380`).\n\nEvery row of the closed harness set is present. A harness absent from this\nmachine is a row with a reason, never a missing row: whether an object fits\nPi is a property of the object, and deleting the question because nobody\ninstalled Pi answers a different one. Installation is an input to *running*\nsomething, not to whether it may be composed.",
+  "properties": {
+    "harnesses": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/EligibilityReport"
+      },
+      "title": "Harnesses",
+      "type": "array"
+    },
+    "requested": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/HarnessId"
+      },
+      "title": "Requested",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "harnesses",
+    "requested",
+    "schema_version"
+  ],
+  "title": "EligibilityMatrix",
+  "type": "object"
+}

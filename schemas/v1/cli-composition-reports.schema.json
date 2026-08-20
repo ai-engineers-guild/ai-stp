@@ -1,0 +1,231 @@
+{
+  "$defs": {
+    "CompositionChoice": {
+      "additionalProperties": true,
+      "description": "One component in the composition, with the lane it came in on.",
+      "properties": {
+        "lane": {
+          "enum": [
+            "authoritative",
+            "local_owner_or_pinned",
+            "experimental"
+          ],
+          "title": "Lane",
+          "type": "string"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "stable_id": {
+          "minLength": 1,
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^\\d+\\.\\d+$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "lane",
+        "reason",
+        "schema_version",
+        "stable_id",
+        "version"
+      ],
+      "title": "CompositionChoice",
+      "type": "object"
+    },
+    "CompositionConflict": {
+      "additionalProperties": true,
+      "description": "One reason a composition cannot be built (`SPEC-006` REQ-606).\n\nNothing resolves it automatically. `REQ-626` forbids semantic merging,\nequivalent selection and composition optimisation, so this is a statement\nfor a person to act on rather than a step in a repair.",
+      "properties": {
+        "code": {
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "details": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "title": "Details",
+          "type": "object"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "summary": {
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "details",
+        "schema_version",
+        "summary"
+      ],
+      "title": "CompositionConflict",
+      "type": "object"
+    },
+    "ConversionEntry": {
+      "additionalProperties": true,
+      "description": "What one component becomes on the target harness, and what is lost.\n\n`losses` names each one. A report that says something was lost without\nsaying what cannot be acted on, and `REQ-609` asks for a loss-aware report\nrather than a loss-counting one.",
+      "properties": {
+        "component_type": {
+          "default": "",
+          "title": "Component Type",
+          "type": "string"
+        },
+        "losses": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Losses",
+          "type": "array"
+        },
+        "native_surface": {
+          "default": "",
+          "title": "Native Surface",
+          "type": "string"
+        },
+        "projection_kind": {
+          "default": "native_files",
+          "enum": [
+            "marketplace",
+            "plugin",
+            "native_files",
+            "package"
+          ],
+          "title": "Projection Kind",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "stable_id": {
+          "minLength": 1,
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "complete",
+            "partial",
+            "unsupported"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "component_type",
+        "losses",
+        "native_surface",
+        "projection_kind",
+        "schema_version",
+        "stable_id",
+        "state"
+      ],
+      "title": "ConversionEntry",
+      "type": "object"
+    },
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-composition-reports",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "The composition and conversion reports a bundle must carry (`REQ-609`).\n\nBoth, always, and together: the first explains what is in the composition\nand the second what survives translation to the harness. A bundle carrying\none of them would answer half the question a person has before installing.",
+  "properties": {
+    "blocked": {
+      "title": "Blocked",
+      "type": "boolean"
+    },
+    "chosen": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CompositionChoice"
+      },
+      "title": "Chosen",
+      "type": "array"
+    },
+    "conflicts": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CompositionConflict"
+      },
+      "title": "Conflicts",
+      "type": "array"
+    },
+    "conversion": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ConversionEntry"
+      },
+      "title": "Conversion",
+      "type": "array"
+    },
+    "conversion_complete": {
+      "default": true,
+      "title": "Conversion Complete",
+      "type": "boolean"
+    },
+    "harness_id": {
+      "$ref": "#/$defs/HarnessId"
+    },
+    "operations": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Operations",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "blocked",
+    "chosen",
+    "conflicts",
+    "conversion",
+    "conversion_complete",
+    "harness_id",
+    "operations",
+    "schema_version"
+  ],
+  "title": "CompositionReports",
+  "type": "object"
+}

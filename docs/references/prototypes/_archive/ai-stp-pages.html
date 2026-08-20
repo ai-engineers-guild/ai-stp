@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="ru" data-mode="machine">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ai_stp · multi-screen prototype</title>
+  <style>
+/* design tokens */
+/* ai_stp design tokens for HTML prototypes — keep in sync with apps/web/src/theme */
+
+
+
+
+
+
+:root,
+[data-mode="machine"] {
+  --bg: #101010;
+  --surface: #181818;
+  --surface-2: #1f1f1f;
+  --fg: #ffffff;
+  --muted: #858483;
+  --border: #434343;
+  --border-subtle: #2a2a2a;
+  --accent: #fb631b;
+  --accent-hover: #f4793f;
+  --accent-text: #ffffff;
+  --success: #63b436;
+  --warning: #dbaa36;
+  --error: #db6866;
+  --font-sans: gerstnerProgramm, Arial, system-ui, -apple-system, "Segoe UI", "Helvetica Neue", sans-serif;
+  --font-mono: ftSystemMono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --radius-control: 4px;
+  --radius-chip: 6px;
+  --radius: 8px;
+  --radius-lg: 16px;
+  --space-2: 4px;
+  --space-3: 8px;
+  --space-4: 12px;
+  --space-5: 16px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --control-h: 36px;
+  --line: 1px;
+  --ease: cubic-bezier(0.215, 0.61, 0.355, 1);
+  --dur: 160ms;
+  color-scheme: dark;
+}
+
+[data-mode="human"] {
+  --bg: #ffffff;
+  --surface: #f9f8f4;
+  --surface-2: #f0eee6;
+  --fg: #181818;
+  --muted: #6b6a68;
+  --border: #d4d2cb;
+  --border-subtle: #e8e6df;
+  --accent: #fb631b;
+  --accent-hover: #f4793f;
+  --accent-text: #ffffff;
+  color-scheme: light;
+}
+
+/* page styles */
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--fg);
+      font-size: 15px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; text-decoration: none; }
+    button, input, select, textarea { font: inherit; color: inherit; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .shell { min-height: 100vh; display: flex; flex-direction: column; }
+    .topbar {
+      position: sticky; top: 0; z-index: 40;
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      padding: 12px 24px; border-bottom: var(--line) solid var(--border);
+      background: color-mix(in srgb, var(--bg) 92%, transparent);
+      backdrop-filter: blur(8px);
+    }
+    .brand {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 14px; font-weight: 500; letter-spacing: -0.01em;
+    }
+    .brand-mark {
+      width: 4px; height: 14px; border-radius: 1px; background: var(--accent); flex-shrink: 0;
+    }
+    .nav { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+    .nav a, .nav button.linkish {
+      background: none; border: 0; padding: 0; cursor: pointer;
+      color: var(--muted); font-size: 14px; transition: color var(--dur) var(--ease);
+    }
+    .nav a:hover, .nav a.is-active { color: var(--fg); }
+    .top-actions { display: flex; align-items: center; gap: 8px; }
+    .main { width: min(1120px, 100%); margin: 0 auto; padding: 40px 24px 64px; flex: 1; }
+    .footer {
+      border-top: var(--line) solid var(--border); color: var(--muted);
+      font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.04em;
+      text-align: center; padding: 24px;
+    }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      min-height: var(--control-h); padding: 0 16px; border-radius: var(--radius-control);
+      border: var(--line) solid transparent; cursor: pointer;
+      font-size: 14px; font-weight: 500;
+      transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease), color var(--dur) var(--ease);
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary { background: var(--accent); color: var(--accent-text); }
+    .btn-primary:hover:not(:disabled) { background: var(--accent-hover); color: var(--accent-text); }
+    .btn-secondary { background: var(--surface-2); color: var(--fg); border-color: var(--border); }
+    .btn-secondary:hover:not(:disabled) { background: var(--surface); color: var(--fg); }
+    .btn-outline { background: transparent; color: var(--fg); border-color: var(--border); }
+    .btn-outline:hover:not(:disabled) { background: var(--surface); color: var(--fg); }
+    .btn-block { width: 100%; }
+    .btn-sm { min-height: 28px; padding: 0 12px; font-size: 12px; }
+    .chip {
+      display: inline-flex; align-items: center;
+      padding: 2px 8px; border-radius: var(--radius-chip);
+      border: var(--line) solid var(--border);
+      font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+      color: var(--fg); background: transparent;
+    }
+    .chip-soft { background: var(--surface-2); border-color: transparent; color: var(--muted); }
+    .chip-ok {
+      background: color-mix(in srgb, var(--success) 18%, transparent);
+      border-color: transparent; color: var(--success);
+    }
+    .card {
+      background: var(--surface); border: var(--line) solid var(--border);
+      border-radius: var(--radius); padding: 16px;
+      display: flex; flex-direction: column; gap: 12px;
+      transition: border-color var(--dur) var(--ease);
+    }
+    .card:hover { border-color: color-mix(in srgb, var(--muted) 50%, var(--border)); }
+    .card h3 { margin: 0; font-size: 17px; font-weight: 500; line-height: 1.3; }
+    .card p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.55; }
+    .card-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; font-size: 13px; }
+    .card-meta dt { color: var(--muted); font-size: 11px; }
+    .card-meta dd { margin: 0; font-family: var(--font-mono); font-size: 12px; }
+    .card-foot {
+      display: flex; flex-wrap: wrap; gap: 12px 16px;
+      border-top: var(--line) solid var(--border); padding-top: 12px;
+      font-family: var(--font-mono); font-size: 11px; color: var(--muted);
+    }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field label { font-size: 13px; font-weight: 500; }
+    .field input, .field select {
+      min-height: var(--control-h); padding: 0 12px;
+      border-radius: var(--radius-control); border: var(--line) solid var(--border);
+      background: var(--bg); color: var(--fg);
+    }
+    .field input.mono { font-family: var(--font-mono); letter-spacing: 0.12em; }
+    .panel {
+      border: var(--line) solid var(--border); border-radius: var(--radius);
+      background: var(--surface); padding: 16px 18px;
+    }
+    .panel-empty { color: var(--muted); }
+    h1 {
+      margin: 0 0 8px; font-size: clamp(28px, 4vw, 36px); font-weight: 500;
+      letter-spacing: -0.02em; line-height: 1.15;
+    }
+    h2 { margin: 0 0 8px; font-size: 20px; font-weight: 500; }
+    .lede { margin: 0; max-width: 42rem; color: var(--muted); font-size: 16px; }
+    .mono { font-family: var(--font-mono); }
+    .muted { color: var(--muted); }
+    .stack { display: flex; flex-direction: column; gap: 24px; }
+    .stack-sm { display: flex; flex-direction: column; gap: 12px; }
+    .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .grid-2 { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+    .grid-3 { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+    .narrow { max-width: 440px; margin: 0 auto; width: 100%; }
+    .mid { max-width: 560px; margin: 0 auto; width: 100%; }
+    .dl { display: grid; gap: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .dl > div { min-width: 0; }
+    .dl dt { color: var(--muted); font-size: 12px; margin-bottom: 2px; }
+    .dl dd { margin: 0; font-size: 14px; word-break: break-word; }
+    .dl .span-2 { grid-column: 1 / -1; }
+    .codebox {
+      font-family: var(--font-mono); font-size: 13px;
+      border: var(--line) solid var(--border); background: var(--surface-2);
+      border-radius: var(--radius-control); padding: 12px 14px; overflow-x: auto;
+    }
+    .filters {
+      display: grid; gap: 12px; grid-template-columns: 1fr auto; align-items: end;
+      padding: 16px; border: var(--line) solid var(--border);
+      border-radius: var(--radius); background: var(--surface);
+    }
+    .search-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; align-items:end; }
+    .filter-wrap { position:relative; }
+    .filter-popover {
+      position:absolute; right:0; top:calc(100% + 8px); z-index:30; width:min(520px, calc(100vw - 32px));
+      border:var(--line) solid var(--border); border-radius:var(--radius); background:var(--surface);
+      padding:16px; box-shadow:0 16px 42px color-mix(in srgb, var(--bg) 72%, transparent);
+    }
+    .filter-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    .filter-foot { display:flex; justify-content:flex-end; gap:8px; border-top:var(--line) solid var(--border); padding-top:12px; margin-top:16px; }
+    .filter-help { position:relative; display:inline-flex; }
+    .icon-btn { width:24px; height:24px; padding:0; border:var(--line) solid var(--border); background:transparent; color:var(--muted); border-radius:50%; cursor:pointer; font-family:var(--font-mono); font-size:12px; }
+    .icon-btn:hover { color:var(--fg); background:var(--surface-2); }
+    .help-pop { position:absolute; left:0; top:28px; z-index:34; width:220px; padding:10px; border:var(--line) solid var(--border); border-radius:var(--radius-control); background:var(--surface); color:var(--muted); font-size:12px; line-height:1.45; box-shadow:0 12px 28px color-mix(in srgb, var(--bg) 75%, transparent); }
+    .applied-chips { display:flex; flex-wrap:wrap; gap:8px; min-height:24px; }
+    .chip button { border:0; padding:0 0 0 6px; background:none; color:inherit; cursor:pointer; font-size:15px; line-height:1; }
+    .checkline { display:flex; align-items:center; gap:8px; min-height:28px; color:var(--muted); font-size:13px; }
+    .checkline input { accent-color:var(--accent); }
+    .avatar { width:72px; height:72px; border-radius:50%; display:grid; place-items:center; flex:0 0 auto; border:var(--line) solid var(--border); background:var(--surface-2); color:var(--fg); font-size:20px; font-weight:500; }
+    .avatar-sm { width:44px; height:44px; font-size:14px; }
+    .profile-head { display:flex; align-items:flex-start; gap:16px; }
+    .field textarea { min-height:96px; padding:10px 12px; resize:vertical; border-radius:var(--radius-control); border:var(--line) solid var(--border); background:var(--bg); color:var(--fg); }
+    .field-error { color:var(--error); font-size:12px; }
+    .link-row { display:grid; grid-template-columns:24px minmax(90px,.6fr) minmax(140px,1fr) auto; gap:8px; align-items:end; }
+    .drag { color:var(--muted); font-family:var(--font-mono); text-align:center; padding-bottom:9px; cursor:grab; }
+    .sticky-actions { position:sticky; bottom:0; z-index:20; display:flex; justify-content:space-between; gap:12px; align-items:center; padding:12px 0; border-top:var(--line) solid var(--border); background:color-mix(in srgb, var(--bg) 94%, transparent); backdrop-filter:blur(8px); }
+    .banner { display:flex; justify-content:space-between; gap:12px; align-items:center; padding:8px 10px; border:var(--line) solid var(--border); border-radius:var(--radius-control); background:var(--surface-2); font-size:13px; }
+    .object-description { border-top:var(--line) solid var(--border); padding-top:24px; max-width:760px; }
+    .markdown { color:var(--fg); font-size:15px; line-height:1.6; }
+    .markdown h3 { margin:0 0 10px; font-size:17px; font-weight:500; }
+    .markdown p { margin:0 0 12px; color:var(--muted); }
+    .markdown a { color:var(--fg); text-decoration:underline; text-underline-offset:3px; }
+    .markdown code { font-family:var(--font-mono); font-size:.9em; padding:1px 4px; border:var(--line) solid var(--border); border-radius:3px; background:var(--surface-2); color:var(--fg); }
+    .markdown pre { margin:12px 0; padding:14px; overflow:auto; border:var(--line) solid var(--border); border-radius:var(--radius-control); background:var(--surface-2); font:12px/1.6 var(--font-mono); color:var(--fg); }
+    .version-note { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 12px; border:var(--line) solid var(--border); border-radius:var(--radius-control); font-size:13px; }
+    .docs-layout { display:grid; grid-template-columns:208px minmax(0,1fr); gap:32px; align-items:start; }
+    .docs-nav { position:sticky; top:76px; display:flex; flex-direction:column; gap:2px; border-right:var(--line) solid var(--border); padding-right:16px; }
+    .docs-nav button { border:0; border-radius:var(--radius-control); padding:7px 8px; text-align:left; background:transparent; color:var(--muted); cursor:pointer; font-size:13px; }
+    .docs-nav button:hover, .docs-nav button.is-on { color:var(--fg); background:var(--surface-2); }
+    .select-compact { min-height:28px; padding:0 26px 0 8px; border:var(--line) solid var(--border); border-radius:var(--radius-control); background:transparent; color:var(--fg); font:11px var(--font-mono); }
+    .legal { max-width:720px; }
+    .legal-meta { display:flex; flex-wrap:wrap; gap:12px; padding-bottom:16px; border-bottom:var(--line) solid var(--border); color:var(--muted); font:11px var(--font-mono); }
+    .error-page { min-height:52vh; display:flex; flex-direction:column; justify-content:center; gap:16px; max-width:480px; }
+    .footer-links { display:flex; justify-content:center; gap:14px; flex-wrap:wrap; margin-top:8px; }
+    .footer-links a:hover { color:var(--fg); }
+    .filters-row { display: flex; flex-wrap: wrap; gap: 10px; grid-column: 1 / -1; }
+    .seg {
+      display: inline-flex; border: var(--line) solid var(--border);
+      border-radius: var(--radius-control); overflow: hidden;
+    }
+    .seg button {
+      border: 0; background: transparent; color: var(--muted);
+      padding: 8px 14px; cursor: pointer; font-size: 13px;
+    }
+    .seg button.is-on { background: var(--surface-2); color: var(--fg); }
+    .list-item {
+      display: flex; justify-content: space-between; gap: 12px; align-items: center;
+      border: var(--line) solid var(--border); border-radius: var(--radius);
+      padding: 12px 14px; background: var(--surface);
+    }
+    .back {
+      display: inline-flex; align-items: center; gap: 6px;
+      color: var(--muted); font-size: 13px; cursor: pointer;
+      background: none; border: 0; padding: 0;
+    }
+    .back:hover { color: var(--fg); }
+    .proto-note {
+      position: fixed; right: 16px; bottom: 16px; z-index: 50;
+      font-family: var(--font-mono); font-size: 11px; color: var(--muted);
+      background: var(--surface); border: var(--line) solid var(--border);
+      border-radius: var(--radius); padding: 8px 10px; max-width: 260px;
+    }
+    @media (max-width: 720px) {
+      .dl { grid-template-columns: 1fr; }
+      .filters { grid-template-columns: 1fr; }
+      .topbar { padding: 12px 16px; }
+      .main { padding: 28px 16px 48px; }
+      .search-row { grid-template-columns:1fr; }
+      .filter-popover { position:fixed; inset:auto 0 0; width:100%; border-radius:var(--radius-lg) var(--radius-lg) 0 0; max-height:80vh; overflow:auto; padding:20px 16px calc(16px + env(safe-area-inset-bottom)); }
+      .filter-grid { grid-template-columns:1fr; }
+      .filter-foot { position:sticky; bottom:-16px; padding:12px 0 calc(12px + env(safe-area-inset-bottom)); background:var(--surface); }
+      .profile-head { align-items:center; }
+      .link-row { grid-template-columns:20px 1fr auto; }
+      .link-row .field:last-of-type { grid-column:2 / 3; }
+      .docs-layout { grid-template-columns:1fr; gap:20px; }
+      .docs-nav { position:static; flex-direction:row; overflow:auto; border-right:0; border-bottom:var(--line) solid var(--border); padding:0 0 10px; }
+      .docs-nav button { white-space:nowrap; }
+      .sticky-actions { align-items:flex-start; flex-direction:column; }
+      .sticky-actions .row { width:100%; }
+      .sticky-actions .btn { flex:1; }
+    }
+
+  </style>
+</head>
+<body>
+  <div class="shell" id="app"></div>
+  <div class="proto-note">prototype · ai_stp · hash routes · machine/human mode</div>
+  <nav class="route-rail" data-od-id="route-rail" aria-label="Быстрые экраны">
+    <button type="button" data-rail="landing">Landing</button>
+    <button type="button" data-rail="catalog">Catalog</button>
+    <button type="button" data-rail="component">Component</button>
+    <button type="button" data-rail="setup">Setup</button>
+    <button type="button" data-rail="login">Login</button>
+    <button type="button" data-rail="account">Account</button>
+    <button type="button" data-rail="profile">Profile</button>
+    <button type="button" data-rail="publisher">Publisher</button>
+    <button type="button" data-rail="devices">Devices</button>
+    <button type="button" data-rail="docs">Docs</button>
+    <button type="button" data-rail="legal-privacy">Legal</button>
+    <button type="button" data-rail="not-found">404</button>
+    <button type="button" data-rail="error-500">500</button>
+  </nav>
+  <style>
+    .route-rail {
+      position: fixed; left: 12px; top: 50%; transform: translateY(-50%);
+      z-index: 60; display: flex; flex-direction: column; gap: 4px;
+      max-height: 80vh; overflow: auto; padding: 8px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; width: 112px;
+      box-shadow: 0 12px 32px color-mix(in srgb, var(--bg) 70%, transparent);
+    }
+    .route-rail button {
+      border: 0; background: transparent; color: var(--muted);
+      text-align: left; padding: 6px 8px; border-radius: 4px;
+      font: 11px/1.2 var(--font-mono); cursor: pointer;
+    }
+    .route-rail button:hover, .route-rail button.is-on { color: var(--fg); background: var(--surface-2); }
+    .shell { margin-left: 0; }
+    @media (min-width: 900px) {
+      .shell { margin-left: 128px; }
+      .topbar { padding-left: 16px; }
+    }
+    @media (max-width: 899px) {
+      .route-rail {
+        left: 0; right: 0; top: auto; bottom: 0; transform: none;
+        flex-direction: row; width: auto; max-height: none;
+        border-radius: 12px 12px 0 0; overflow-x: auto;
+      }
+      .route-rail button { white-space: nowrap; }
+      .proto-note { bottom: 64px; }
+    }
+  </style>
+  <script>
+/* ai_stp HTML prototype — extended route and interaction reference */
+(function () {
+  const FIX = {
+    account: "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+    northwind: "account_01JQZK7B8N4M6P2R9T5V0X3YA0",
+    hook: "component_01JQZK7B8N4M6P2R9T5V0X3YB3",
+    skill: "component_01JQZK7B8N4M6P2R9T5V0X3YB5",
+    setup: "setup_01JQZK7B8N4M6P2R9T5V0X3YC0",
+    install: "uv tool install ai-stp-cli",
+    ts: "2026-08-05",
+  };
+  const COMPONENTS = [
+    { id: FIX.hook, name: "firstparty-audit-hook", desc: "Audit lifecycle hook for Claude Code sessions.", type: "hook", harness: "claude-code", version: "1.0", tags: ["security", "devops"], trust: "experimental", lifecycle: "published", verified: false, owner: FIX.account, ownerName: "ai_stp First Party", projection: "native_files", published: FIX.ts },
+    { id: FIX.skill, name: "northwind-refactor-skill", desc: "Python refactor skill for Codex harness.", type: "skill", harness: "codex", version: "1.0", tags: ["python", "refactor"], trust: "experimental", lifecycle: "published", verified: false, owner: FIX.northwind, ownerName: "Northwind Labs", projection: "native_files", published: "2026-08-06" },
+    { id: "component_01JQZK7B8N4M6P2R9T5V0X3YBC", name: "river-docs-mcp", desc: "Documentation MCP server for the Pi harness.", type: "mcp", harness: "pi", version: "1.0", tags: ["documentation"], trust: "experimental", lifecycle: "published", verified: false, owner: "account_01JQZK7B8N4M6P2R9T5V0X3YA1", ownerName: "River Guild", projection: "package", published: FIX.ts },
+  ];
+  const SETUPS = [
+    { id: FIX.setup, name: "claude-code first-party setup", desc: "Pinned first-party composition for Claude Code harness.", harness: "claude-code", version: "1.0", purpose: "baseline-dev", role: "developer", tags: ["security", "devops"], trust: "experimental", lifecycle: "published", verified: false, owner: FIX.account, ownerName: "ai_stp First Party", published: FIX.ts, components: [FIX.hook], os: ["linux", "darwin"], arch: ["x86_64", "arm64"] },
+    { id: "setup_01JQZK7B8N4M6P2R9T5V0X3YC1", name: "codex northwind setup", desc: "Codex-focused composition from Northwind Labs.", harness: "codex", version: "1.0", purpose: "refactor", role: "developer", tags: ["python", "refactor"], trust: "experimental", lifecycle: "published", verified: false, owner: FIX.northwind, ownerName: "Northwind Labs", published: "2026-08-06", components: [FIX.skill], os: ["linux"], arch: ["x86_64"] },
+  ];
+  const PROFILES = {
+    [FIX.account]: { initials: "AS", name: "ai_stp First Party", bio: "Platform first-party publisher for launch corpus and fixture parity.", links: [{ label: "GitHub", url: "https://github.com/ai-stp" }], verified: true },
+    [FIX.northwind]: { initials: "NL", name: "Northwind Labs", bio: "Codex-focused tooling publisher: review skills, MCP bridges, session hooks.", links: [{ label: "GitHub", url: "https://github.com/northwind" }], verified: true },
+    account_01JQZK7B8N4M6P2R9T5V0X3YA1: { initials: "RG", name: "River Guild", bio: "Pi harness publisher for documentation workflows and planning agents.", links: [{ label: "Site", url: "https://example.com" }], verified: false },
+  };
+  const state = {
+    route: "landing", signedIn: false, mode: localStorage.getItem("ai_stp_proto_mode") || "machine",
+    catalogResource: "components", q: "", filters: { harness: "", type: "", trust: "", lifecycle: "", verified: "", tag: "" },
+    draftFilters: {}, filterOpen: false, help: "", componentId: FIX.skill, setupId: FIX.setup, publisherId: FIX.northwind,
+    ownerEmpty: false, copyStatus: "", profileDirty: false, profileStatus: "published", profileDraft: { name: "ai_stp First Party", bio: "Platform first-party publisher for launch corpus and fixture parity.", links: [{ label: "GitHub", url: "https://github.com/ai-stp" }] },
+    docsSection: "getting-started", legal: "privacy", requestId: "req_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+  };
+  document.documentElement.setAttribute("data-mode", state.mode);
+  state.draftFilters = Object.assign({ resource: state.catalogResource }, state.filters);
+  const esc = (v) => String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;");
+  const currentProfile = () => PROFILES[state.publisherId] || PROFILES[FIX.northwind];
+  const owner = (item) => state.signedIn && item.owner === FIX.account;
+  function go(route, patch) {
+    Object.assign(state, patch || {}, { route });
+    if (location.hash.replace(/^#/, "") !== route) location.hash = route;
+    render();
+    window.scrollTo(0, 0);
+  }
+  function chip(text, kind) { return '<span class="chip ' + (kind || "") + '">' + esc(text) + "</span>"; }
+  function trust(t) { return chip(t, t === "authoritative" ? "chip-ok" : "chip-soft"); }
+  function avatar(p, small) { return '<div class="avatar ' + (small ? "avatar-sm" : "") + '" aria-label="Аватар ' + esc(p.name) + '">' + esc(p.initials) + "</div>"; }
+  function objectCard(item, kind) {
+    const route = kind === "component" ? "component" : "setup";
+    const label = kind === "component" ? "Компонент · " + item.type : "Сетап";
+    return '<article class="card" data-od-id="card-' + esc(item.id) + '"><div class="row" style="justify-content:space-between;align-items:flex-start"><div class="stack-sm" style="gap:4px;min-width:0"><div class="mono muted" style="font-size:11px;letter-spacing:.06em;text-transform:uppercase">' + esc(label) + '</div><h3><a href="#" data-nav="' + route + '" data-id="' + esc(item.id) + '">' + esc(item.name) + '</a></h3></div><div class="row" style="gap:6px">' + trust(item.trust) + chip(item.harness) + '</div></div><p>' + esc(item.desc) + '</p><dl class="card-meta"><div><dt>Версия</dt><dd>' + esc(item.version) + '</dd></div><div><dt>Lifecycle</dt><dd>' + esc(item.lifecycle) + '</dd></div><div style="grid-column:1/-1"><dt>Издатель</dt><dd>' + esc(item.ownerName) + '</dd></div></dl><div class="row">' + item.tags.map((t) => chip(t)).join("") + '</div></article>';
+  }
+  function header() {
+    const catalogActive = ["catalog", "component", "setup", "component-preview", "setup-preview"].includes(state.route);
+    const nav = (route, text, active) => '<a href="#" class="' + ((active || state.route === route) ? "is-active" : "") + '" data-nav="' + route + '">' + text + "</a>";
+    const themeLabel = state.mode === "machine" ? "Тёмная" : "Светлая";
+    const themeIcon = state.mode === "machine"
+      ? '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M12.8 10.2A5.5 5.5 0 0 1 5.8 3.2 5.6 5.6 0 1 0 12.8 10.2Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>'
+      : '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="3.2" stroke="currentColor" stroke-width="1.4"/><path d="M8 1.5v1.8M8 12.7v1.8M1.5 8h1.8M12.7 8h1.8M3.4 3.4l1.3 1.3M11.3 11.3l1.3 1.3M3.4 12.6l1.3-1.3M11.3 4.7l1.3-1.3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
+    return '<header class="topbar" data-od-id="site-header"><nav class="nav" aria-label="Основная навигация"><a href="#" class="brand" data-nav="landing"><span class="brand-mark" aria-hidden="true"></span>ai_stp</a>' + nav("catalog", "Каталог", catalogActive) + (state.signedIn ? nav("account", "Аккаунт") + nav("devices", "Устройства") : "") + '</nav><div class="top-actions"><span class="mono muted" style="font-size:11px">ru</span><button type="button" class="btn btn-outline btn-sm" data-action="theme" data-od-id="theme-toggle" aria-label="Сменить тему" title="Сменить тему">' + themeIcon + '<span>' + themeLabel + '</span></button>' + (state.signedIn ? '<button type="button" class="btn btn-outline btn-sm" data-action="logout">Выйти</button>' : '<button type="button" class="btn btn-outline btn-sm" data-nav="login" data-od-id="header-login">Войти</button>') + "</div></header>";
+  }
+  function footer() { return '<footer class="footer" data-od-id="site-footer"><div class="row" style="justify-content:center;gap:12px"><div>ai_stp · setup passports</div><button type="button" class="btn btn-outline btn-sm" data-action="mode" data-od-id="mode-toggle" aria-label="Режим агента" title="Режим агента">режим · ' + state.mode + '</button></div><div class="footer-links"><a href="#" data-nav="docs">Документация</a><a href="#" data-nav="legal-privacy">Privacy</a><a href="#" data-nav="legal-cookies">Cookies</a><a href="#" data-nav="legal-service-rules">Service rules</a><a href="#" data-nav="legal-licensing">Licensing / author content responsibility</a></div></footer>'; }
+  function pageLanding() { return '<div class="stack" data-od-id="page-landing"><section class="stack-sm" style="gap:16px"><h1>Один сетап для каждого coding-харнесса</h1><p class="lede" data-od-id="landing-brand" style="display:inline-flex;align-items:center;gap:10px;max-width:none"><span class="brand-mark" aria-hidden="true" style="height:16px"></span><span class="row" style="gap:8px;align-items:baseline"><span style="color:var(--fg);font-weight:500;letter-spacing:-0.01em">ai_stp</span><span class="mono muted" style="font-size:12px;letter-spacing:0.04em">hand to hand harness ai setup</span></span></p><div class="row"><button class="btn btn-primary" data-nav="catalog" data-od-id="cta-catalog">Открыть каталог</button><button class="btn btn-outline" data-nav="login">Войти</button></div></section>' + installBlock() + "</div>"; }
+  function installBlock(item) {
+    const command = item ? "ai-stp use " + item.id + "@" + item.version : FIX.install;
+    return '<section class="panel stack-sm" data-od-id="cli-install"><h2>Использовать через CLI</h2><p class="muted" style="margin:0;font-size:14px">Команда использует стабильный идентификатор и версию объекта.</p><div class="row" style="align-items:stretch"><code class="codebox" style="flex:1">' + esc(command) + '</code><button type="button" class="btn btn-secondary" data-action="copy" data-copy="' + esc(command) + '">' + (state.copyStatus || "Copy") + '</button></div><a href="#" class="muted" style="font-size:13px;text-decoration:underline" data-nav="docs">Документация по CLI</a></section>';
+  }
+  function pageLogin() { return '<div class="narrow stack" data-od-id="page-login"><div><h1>Вход</h1><p class="lede" style="font-size:14px">Войдите через поддерживаемого провайдера. Сессия хранится в защищённой HttpOnly cookie.</p></div><div class="stack-sm"><button class="btn btn-primary btn-block" data-action="signin">Войти через Google</button><button class="btn btn-secondary btn-block" data-action="signin">Войти через GitHub</button></div></div>'; }
+  function select(label, key, options, value) { return '<label class="field"><span>' + label + '</span><select data-filter-key="' + key + '"><option value="">Все</option>' + options.map((x) => '<option value="' + esc(x) + '" ' + (value === x ? "selected" : "") + ">" + esc(x) + "</option>").join("") + "</select></label>"; }
+  function filterHelp(key, copy) { return '<span class="filter-help"><button class="icon-btn" type="button" data-action="help" data-help="' + key + '" aria-label="Что означает ' + key + '">?</button>' + (state.help === key ? '<span class="help-pop">' + copy + "</span>" : "") + "</span>"; }
+  function catalogFilters() {
+    const f = state.draftFilters;
+    return '<div class="filter-popover" role="dialog" aria-label="Фильтры каталога" data-od-id="catalog-filter-panel"><div class="row" style="justify-content:space-between"><strong style="font-size:15px;font-weight:500">Фильтры</strong><button class="back" data-action="close-filters">Закрыть</button></div><div class="filter-grid" style="margin-top:14px">' + select("Тип ресурса", "resource", ["components", "setups"], f.resource) + select("Харнесс", "harness", ["claude-code", "codex", "pi"], f.harness) + select("Тип компонента", "type", ["hook", "skill", "mcp"], f.type) + '<div class="field"><span class="row" style="gap:6px">Trust line ' + filterHelp("trust", "Trust line описывает источник и уровень доверия к опубликованной версии.") + '</span><select data-filter-key="trust"><option value="">Все</option><option value="experimental" ' + (f.trust === "experimental" ? "selected" : "") + '>experimental</option><option value="authoritative" ' + (f.trust === "authoritative" ? "selected" : "") + '>authoritative</option></select></div>' + select("Lifecycle", "lifecycle", ["published", "draft"], f.lifecycle) + '<div class="field"><span class="row" style="gap:6px">Verified ' + filterHelp("verified", "Verified подтверждает, что объект прошёл опубликованную проверку. Это не оценка его пригодности для каждого сценария.") + '</span><select data-filter-key="verified"><option value="">Все</option><option value="yes" ' + (f.verified === "yes" ? "selected" : "") + '>Да</option><option value="no" ' + (f.verified === "no" ? "selected" : "") + '>Нет</option></select></div>' + select("Теги", "tag", ["security", "devops", "python", "documentation", "go"], f.tag) + '</div><div class="filter-foot"><button class="btn btn-outline" data-action="reset-filters">Сбросить всё</button><button class="btn btn-primary" data-action="apply-filters">Применить</button></div></div>';
+  }
+  function appliedFilters() { const labels = { harness: "Харнесс", type: "Тип", trust: "Trust", lifecycle: "Lifecycle", verified: "Verified", tag: "Тег" }; return Object.keys(state.filters).filter((k) => state.filters[k]).map((k) => '<span class="chip" data-od-id="filter-' + k + '">' + labels[k] + ": " + esc(state.filters[k]) + '<button type="button" aria-label="Удалить фильтр" data-action="remove-filter" data-key="' + k + '">×</button></span>').join(""); }
+  function pageCatalog() {
+    const f = state.filters, q = state.q.trim().toLowerCase(), source = state.catalogResource === "components" ? COMPONENTS : SETUPS;
+    const items = source.filter((x) => (!q || [x.name, x.desc, x.harness].concat(x.tags).join(" ").toLowerCase().includes(q)) && (!f.harness || x.harness === f.harness) && (!f.type || x.type === f.type) && (!f.trust || x.trust === f.trust) && (!f.lifecycle || x.lifecycle === f.lifecycle) && (!f.verified || (f.verified === "yes" ? x.verified : !x.verified)) && (!f.tag || x.tags.includes(f.tag)));
+    const haveFilters = Object.values(f).some(Boolean), empty = items.length === 0;
+    return `<div class="stack" data-od-id="page-catalog"><div><h1>Каталог</h1><p class="lede" style="font-size:14px">Компоненты и полные сетапы из опубликованного каталога.</p></div><section class="stack-sm" data-od-id="catalog-filters"><div class="search-row"><div class="field"><label for="q">Поиск</label><input id="q" value="${esc(state.q)}" placeholder="Поиск компонентов и сетапов" data-bind="q" /></div><div class="filter-wrap"><button class="btn btn-outline" data-action="open-filters" data-od-id="catalog-filter-toggle">Фильтры${haveFilters ? " · " + Object.values(f).filter(Boolean).length : ""}</button>${state.filterOpen ? catalogFilters() : ""}</div></div><div class="row"><div class="seg" role="group" aria-label="Тип ресурса"><button class="${state.catalogResource === "components" ? "is-on" : ""}" data-action="resource" data-resource="components">Компоненты</button><button class="${state.catalogResource === "setups" ? "is-on" : ""}" data-action="resource" data-resource="setups">Сетапы</button></div><span class="mono muted" style="font-size:12px">${items.length}</span></div>${haveFilters ? '<div class="applied-chips" aria-label="Применённые фильтры">' + appliedFilters() + "</div>" : ""}</section><section class="stack-sm"><div class="row" style="justify-content:space-between"><h2 style="margin:0">${state.catalogResource === "components" ? "Компоненты" : "Сетапы"}</h2>${haveFilters ? '<span class="mono muted" style="font-size:12px">фильтры активны</span>' : ""}</div>${empty ? '<div class="panel panel-empty" data-od-id="catalog-empty">' + (haveFilters ? "Фильтры не дали результатов. Сбросьте один из фильтров или измените запрос." : "По этому запросу ничего не найдено.") + "</div>" : '<div class="' + (state.catalogResource === "components" ? "grid-3" : "grid-2") + '">' + items.map((x) => objectCard(x, state.catalogResource === "components" ? "component" : "setup")).join("") + "</div>"}</section></div>`;
+  }
+  function markdownDescription(item, kind) { return `<section class="object-description stack-sm" data-od-id="object-description"><div class="row" style="justify-content:space-between"><h2>Описание</h2><div class="version-note"><span class="mono">v${esc(item.version)}</span><a href="#" data-action="history" style="text-decoration:underline">История</a></div></div><div class="markdown"><h3>Назначение</h3><p>${esc(item.desc)} Версия сохраняет паспорт объекта и его совместимость с <a href="#" data-nav="docs">публичным контрактом</a>.</p><ul><li>Публикуется с <code>${esc(item.lifecycle)}</code> lifecycle.</li><li>Использует harness <code>${esc(item.harness)}</code>.</li><li>Теги: ${item.tags.map((x) => "<code>" + esc(x) + "</code>").join(" ")}.</li></ul><pre>${esc(kind === "component" ? "ai-stp component inspect " + item.id : "ai-stp setup show " + item.id)}</pre><p>Перед применением проверьте источник и версию в <a href="#" data-nav="docs">документации CLI</a>.</p></div></section>`; }
+  function objectDetails(item, kind, preview) {
+    const isComponent = kind === "component", route = isComponent ? "component" : "setup";
+    const details = isComponent ? [["Версия", item.version, "mono"], ["Lifecycle", item.lifecycle], ["Харнесс", item.harness], ["Тип", item.type], ["Проекция", item.projection, "mono"], ["Опубликовано", item.published, "mono"]] : [["Назначение", item.purpose], ["Целевая роль", item.role], ["Версия", item.version, "mono"], ["Харнесс", item.harness], ["Lifecycle", item.lifecycle], ["Опубликовано", item.published, "mono"]];
+    return '<article class="stack" data-od-id="page-' + route + (preview ? "-preview" : "") + '"><button class="back" data-nav="' + (preview ? route + "-edit" : "catalog") + '">← ' + (preview ? "Назад к редактированию" : "Назад в каталог") + '</button>' + (preview ? '<div class="banner"><span>Черновик / не опубликовано · видите только вы</span><button class="btn btn-outline btn-sm" data-nav="' + route + '-edit">Редактировать</button></div>' : "") + '<div class="stack-sm"><h1>' + esc(item.name) + '</h1><p class="lede" style="font-size:15px">' + esc(item.desc) + '</p><div class="row">' + trust(item.trust) + chip(item.harness) + (owner(item) && !preview ? '<button class="btn btn-outline btn-sm" data-nav="' + route + '-edit">Редактировать</button>' : "") + '</div></div><dl class="dl">' + details.map((d) => '<div><dt>' + d[0] + '</dt><dd class="' + (d[2] || "") + '">' + esc(d[1]) + "</dd></div>").join("") + '<div><dt>Verified</dt><dd>' + (item.verified ? "Да" : "Нет") + '</dd></div><div><dt>Trust line</dt><dd>' + esc(item.trust) + '</dd></div><div class="span-2"><dt>Издатель</dt><dd><a href="#" class="mono" style="text-decoration:underline" data-nav="publisher" data-id="' + esc(item.owner) + '">' + esc(item.owner) + "</a> · " + esc(item.ownerName) + '</dd></div><div class="span-2"><dt>Теги</dt><dd class="row">' + item.tags.map((t) => chip(t)).join("") + "</dd></div></dl>" + markdownDescription(item, kind) + (isComponent ? '<section class="stack-sm"><h2>Совместимость</h2><dl class="dl"><div><dt>Учётные данные</dt><dd>Не требуются</dd></div><div><dt>Лицензия</dt><dd class="mono">Apache-2.0</dd></div></dl></section>' : '<section class="stack-sm"><h2>Закреплённые компоненты</h2>' + item.components.map((id) => '<div class="list-item"><a href="#" data-nav="component" data-id="' + id + '" class="mono" style="text-decoration:underline">' + id + '</a><span class="muted">Версия 1.0</span></div>').join("") + '</section>') + installBlock(item) + '<p class="mono muted" style="font-size:11px;margin:0">route: /catalog/' + (isComponent ? "components" : "setups") + "/[stableId]</p></article>";
+  }
+  function pageObjectEdit(kind) { const item = kind === "component" ? COMPONENTS.find((x) => x.id === FIX.hook) : SETUPS[0]; return '<div class="mid stack" data-od-id="page-' + kind + '-edit"><button class="back" data-nav="account">← Рабочая область</button><div class="row" style="justify-content:space-between"><div><h1>Редактирование версии</h1><p class="lede" style="font-size:14px">Паспорт версии редактируется в CLI; веб показывает статус и предпросмотр.</p></div><button class="btn btn-outline" data-nav="' + kind + '-preview">Предпросмотр версии</button></div><div class="panel stack-sm"><strong style="font-weight:500">' + esc(item.name) + '</strong><span class="mono muted" style="font-size:12px">' + esc(item.id) + '</span><p class="muted" style="margin:0;font-size:14px">Состав ' + (kind === "setup" ? "сетапа" : "компонента") + ' не редактируется в веб-интерфейсе. Синхронизируйте изменения через CLI.</p><div class="row"><code class="codebox" style="flex:1">ai-stp ' + kind + ' sync ' + esc(item.id) + '</code><button class="btn btn-secondary" data-action="copy" data-copy="ai-stp ' + kind + ' sync ' + esc(item.id) + '">Copy</button></div></div></div>'; }
+  function publisherPublic(p, id, preview) {
+    const comps = COMPONENTS.filter((x) => x.owner === id), setups = SETUPS.filter((x) => x.owner === id);
+    const links = p.links.map((l) => '<a href="' + esc(l.url) + '" target="_blank" rel="noreferrer" class="muted" style="text-decoration:underline;font-size:14px">' + esc(l.label) + "</a>").join("");
+    return '<article class="stack" data-od-id="page-publisher"><button class="back" data-nav="' + (preview ? "profile" : "catalog") + '">← ' + (preview ? "К редактированию" : "Назад в каталог") + '</button>' + (preview ? '<div class="banner"><span>Предпросмотр — видите только вы</span><button class="btn btn-outline btn-sm" data-nav="profile">Редактировать</button></div>' : "") + '<section class="profile-head"><div>' + avatar(p) + '</div><div class="stack-sm" style="gap:8px;min-width:0"><div class="row"><h1 style="margin:0">' + esc(p.name) + '</h1>' + (p.verified ? chip("verified", "chip-ok") : "") + '</div><p class="muted" style="margin:0;max-width:62ch">' + esc(p.bio) + '</p><div class="row">' + links + '</div>' + (state.signedIn && id === FIX.account && !preview ? '<button class="btn btn-outline btn-sm" data-nav="profile">Редактировать публичный профиль</button>' : "") + '</div></section><section class="stack-sm"><h2>Компоненты</h2>' + (comps.length ? '<div class="grid-2">' + comps.map((x) => objectCard(x, "component")).join("") + "</div>" : '<div class="panel panel-empty">Опубликованных компонентов нет.</div>') + '</section><section class="stack-sm"><h2>Сетапы</h2>' + (setups.length ? '<div class="grid-2">' + setups.map((x) => objectCard(x, "setup")).join("") + "</div>" : '<div class="panel panel-empty">Опубликованных сетапов нет.</div>') + '<p class="mono muted" style="font-size:11px;margin:0">route: /publishers/[account]</p></section></article>';
+  }
+  function profileLinks() { return state.profileDraft.links.map((l, i) => '<div class="link-row" data-od-id="profile-link-' + i + '"><span class="drag" title="Перетащить">⋮⋮</span><label class="field"><span>Label</span><input value="' + esc(l.label) + '" data-profile-link="' + i + '" data-profile-part="label" /></label><label class="field"><span>URL</span><input value="' + esc(l.url) + '" data-profile-link="' + i + '" data-profile-part="url" /></label><button class="btn btn-outline btn-sm" data-action="remove-link" data-index="' + i + '" aria-label="Удалить ссылку">Удалить</button></div>').join(""); }
+  function pageProfile() {
+    const p = state.profileDraft, nameError = !p.name.trim() ? "Укажите публичное имя." : "", bioError = p.bio.length > 180 ? "Короткое bio — до 180 символов." : "";
+    return '<div class="mid stack" data-od-id="page-profile"><button class="back" data-nav="account">← Аккаунт</button><div class="row" style="justify-content:space-between"><div><h1>Публичный профиль</h1><div class="row"><span class="chip ' + (state.profileStatus === "published" ? "chip-ok" : "chip-soft") + '">' + state.profileStatus + '</span>' + (state.profileDirty ? '<span class="mono muted" style="font-size:11px">несохранённые изменения</span>' : "") + '</div></div><button class="btn btn-outline" data-nav="profile-preview">Предпросмотр</button></div><section class="stack-sm"><div class="profile-head"><div>' + avatar({ initials: "AS", name: p.name }) + '</div><div class="row"><button class="btn btn-outline btn-sm" data-action="avatar">Загрузить файл</button><button class="btn btn-outline btn-sm" data-action="avatar">Выбрать из GitHub</button><button class="btn btn-outline btn-sm" data-action="avatar">Выбрать из Google</button><button class="btn btn-outline btn-sm" data-action="avatar-remove">Удалить</button></div></div><label class="field"><span>Display name</span><input value="' + esc(p.name) + '" data-profile="name" aria-invalid="' + Boolean(nameError) + '" />' + (nameError ? '<span class="field-error">' + nameError + "</span>" : "") + '</label><label class="field"><span>Короткое bio</span><textarea data-profile="bio" aria-invalid="' + Boolean(bioError) + '">' + esc(p.bio) + '</textarea><span class="muted" style="font-size:12px">Plain text · ' + p.bio.length + '/180</span>' + (bioError ? '<span class="field-error">' + bioError + "</span>" : "") + '</label><div class="stack-sm"><div class="row" style="justify-content:space-between"><strong style="font-weight:500">Ссылки</strong><button class="btn btn-outline btn-sm" data-action="add-link">Добавить ссылку</button></div>' + profileLinks() + '</div></section><div class="sticky-actions" data-od-id="profile-sticky-actions"><span class="mono muted" style="font-size:11px">' + (state.profileDirty ? "Изменения не опубликованы" : "Все изменения сохранены") + '</span><div class="row"><button class="btn btn-secondary" data-action="save-profile">Сохранить черновик</button><button class="btn btn-primary" data-action="publish-profile" ' + (nameError || bioError ? "disabled" : "") + '>Опубликовать изменения</button></div></div></div>';
+  }
+  function pageAccount() {
+    const myComponents = COMPONENTS.filter((x) => x.owner === FIX.account), mySetups = SETUPS.filter((x) => x.owner === FIX.account);
+    const empty = '<section class="panel stack-sm" data-od-id="owner-empty"><h2>Пока нет опубликованных объектов</h2><p class="muted" style="margin:0;font-size:14px">Компонент или сетап создаётся и синхронизируется через CLI. Веб-интерфейс не редактирует состав объектов.</p><div class="row"><code class="codebox" style="flex:1">ai-stp component sync ./my-component</code><button class="btn btn-secondary" data-action="copy" data-copy="ai-stp component sync ./my-component">Copy</button></div><a href="#" class="muted" style="font-size:13px;text-decoration:underline" data-nav="docs">Документация по CLI</a></section>';
+    return '<div class="stack" data-od-id="page-account"><div class="row" style="justify-content:space-between"><div><h1>Аккаунт</h1><p class="mono muted" style="font-size:12px;margin:6px 0 0">' + FIX.account + '</p></div><div class="row"><button class="btn btn-outline btn-sm" data-nav="publisher" data-id="' + FIX.account + '">Открыть публичную страницу</button><button class="btn btn-outline btn-sm" data-nav="profile-preview">Предпросмотр</button><button class="btn btn-outline btn-sm" data-nav="profile">Редактировать</button></div></div>' + (state.ownerEmpty ? empty : '<section class="stack-sm"><div class="row" style="justify-content:space-between"><h2>Мои объекты</h2><button class="back" data-action="toggle-empty">Показать пустое состояние</button></div><div class="grid-2">' + myComponents.map((x) => objectCard(x, "component")).join("") + mySetups.map((x) => objectCard(x, "setup")).join("") + "</div></section>") + '<section class="stack-sm"><h2>Привязанные идентичности</h2><div class="list-item"><div class="row">' + chip("google", "chip-soft") + '<span class="mono muted" style="font-size:12px">' + FIX.ts + '</span></div><button class="btn btn-outline btn-sm" disabled>Отвязать</button></div></section></div>';
+  }
+  function pagePrivacy() { return '<div class="stack" data-od-id="page-account-privacy"><button class="back" data-nav="account">← Аккаунт</button><h1>Приватность</h1><div class="panel panel-empty">Настройки приватности ограничены данными привязанных идентичностей.</div></div>'; }
+  function pageDevices() { return '<div class="stack" data-od-id="page-devices"><h1>Устройства</h1><div class="card"><div class="row" style="justify-content:space-between"><div><strong style="font-weight:500">fixture-device</strong><div class="mono muted" style="font-size:12px;margin-top:4px">device_01JQZK7B8N4M6P2R9T5V0X3Y7Z</div></div>' + chip("active · current", "chip-ok") + '</div><dl class="card-meta"><div><dt>ОС</dt><dd>linux</dd></div><div><dt>Harness</dt><dd>claude-code 2.1.0</dd></div></dl></div></div>'; }
+  function docsContent() { const pages = { "getting-started": ["Начало работы", "Установите CLI, авторизуйте устройство и синхронизируйте первый объект."], catalog: ["Каталог", "Каталог хранит опубликованные паспорта компонентов и сетапов. Фильтры применяются к выдаче, а не меняют сам объект."], publishing: ["Публикация", "Публичный профиль и паспорта версий отображают только опубликованные сведения. Черновики доступны владельцу через private preview."], cli: ["CLI", "Команды используют stable id и версию. Это позволяет воспроизводимо применять состав на устройстве."] }; const p = pages[state.docsSection]; return '<article class="markdown"><h1>' + p[0] + '</h1><p>' + p[1] + '</p><h3>Быстрый путь</h3><ol><li>Установите <code>ai-stp-cli</code>.</li><li>Проверьте текущую сессию.</li><li>Синхронизируйте опубликованный объект.</li></ol><pre>ai-stp login\nai-stp catalog search --harness codex\nai-stp setup use setup_…@1.0</pre><p>Контракты и примеры хранятся в репозитории. См. <a href="#" data-nav="catalog">каталог</a> для выбора версии.</p></article>'; }
+  function pageDocs() { const sections = [["getting-started", "Начало работы"], ["catalog", "Каталог"], ["publishing", "Публикация"], ["cli", "CLI"]]; return '<div class="docs-layout" data-od-id="page-docs"><aside class="docs-nav" aria-label="Разделы документации">' + sections.map((x) => '<button class="' + (state.docsSection === x[0] ? "is-on" : "") + '" data-action="docs-section" data-section="' + x[0] + '">' + x[1] + "</button>").join("") + '</aside><section class="stack-sm"><div class="row" style="justify-content:space-between"><span class="mono muted" style="font-size:11px">docs / ' + state.docsSection + '</span><div class="row"><select class="select-compact" aria-label="Версия"><option>v1.0</option></select><select class="select-compact" aria-label="Язык"><option>Русский</option><option>English</option></select></div></div>' + docsContent() + '<a href="https://github.com/" target="_blank" rel="noreferrer" class="muted" style="font-size:13px;text-decoration:underline">Открыть исходный Markdown в репозитории</a></section></div>'; }
+  function pageLegal(kind) { const map = { privacy: ["Privacy", "Как обрабатываются данные аккаунта и устройства."], cookies: ["Cookies", "Какие необходимые cookies поддерживают вход и безопасность сессии."], "service-rules": ["Service rules", "Правила использования публичного каталога и CLI."], licensing: ["Licensing / author content responsibility", "Автор отвечает за права на публикуемый контент и указание лицензии."] }; const p = map[kind] || map.privacy; return '<article class="legal stack" data-od-id="page-legal-' + kind + '"><button class="back" data-nav="landing">← На главную</button><div><h1>' + p[0] + '</h1><div class="legal-meta"><span>Версия 1.0</span><span>Вступает в силу 05.08.2026</span><span>Русский</span></div></div><div class="markdown"><h3>Содержание</h3><ol><li>Назначение</li><li>Обработка данных</li><li>Контакты</li></ol><h3>Назначение</h3><p>' + p[1] + '</p><p>Текст страницы является спокойной публичной справкой. Вопросы по условиям направляются через официальные каналы проекта.</p><h3>Обработка данных</h3><p>Сведения об аккаунте используются для предоставления доступа к объектам и устройствам. Технические идентификаторы остаются отдельными от публичного профиля.</p></div></article>'; }
+  function pageError(code) { const is500 = code === "500"; return '<section class="error-page" data-od-id="page-error-' + code + '"><span class="mono muted" style="font-size:12px">HTTP ' + code + '</span><h1>' + (is500 ? "Что-то пошло не так" : "Страница не найдена") + '</h1><p class="lede" style="font-size:15px">' + (is500 ? "Попробуйте повторить действие. Если проблема сохранится, обратитесь в поддержку." : "Возможно, адрес устарел или объект больше не доступен.") + '</p>' + (is500 ? '<span class="mono muted" style="font-size:12px">request id: ' + state.requestId + '</span><div class="row"><button class="btn btn-primary" data-action="retry">Попробовать снова</button><button class="btn btn-outline" data-nav="landing">На главную</button></div>' : '<div class="row"><button class="btn btn-primary" data-nav="catalog">В каталог</button><button class="btn btn-outline" data-nav="landing">На главную</button></div>') + '</section>'; }
+  function body() {
+    const component = COMPONENTS.find((x) => x.id === state.componentId) || COMPONENTS[0], setup = SETUPS.find((x) => x.id === state.setupId) || SETUPS[0];
+    if (["account", "profile", "profile-preview", "component-edit", "setup-edit"].includes(state.route) && !state.signedIn) return pageLogin();
+    switch (state.route) {
+      case "landing": return pageLanding(); case "login": return pageLogin(); case "catalog": return pageCatalog(); case "component": return objectDetails(component, "component"); case "setup": return objectDetails(setup, "setup"); case "component-preview": return objectDetails(COMPONENTS[0], "component", true); case "setup-preview": return objectDetails(SETUPS[0], "setup", true); case "component-edit": return pageObjectEdit("component"); case "setup-edit": return pageObjectEdit("setup"); case "publisher": return publisherPublic(currentProfile(), state.publisherId, false); case "account": return pageAccount(); case "profile": return pageProfile(); case "profile-preview": return publisherPublic(Object.assign({}, PROFILES[FIX.account], { name: state.profileDraft.name, bio: state.profileDraft.bio, links: state.profileDraft.links }), FIX.account, true); case "privacy": return pagePrivacy(); case "devices": return pageDevices(); case "docs": return pageDocs(); case "legal-privacy": return pageLegal("privacy"); case "legal-cookies": return pageLegal("cookies"); case "legal-service-rules": return pageLegal("service-rules"); case "legal-licensing": return pageLegal("licensing"); case "error-500": return pageError("500"); case "not-found": return pageError("404"); default: return pageError("404");
+    }
+  }
+  function markDirty() { state.profileDirty = true; }
+  function copy(value, el) { const done = () => { state.copyStatus = "Скопировано"; render(); setTimeout(() => { state.copyStatus = ""; render(); }, 1400); }; const fail = () => { state.copyStatus = "Ошибка копирования"; render(); setTimeout(() => { state.copyStatus = ""; render(); }, 1800); }; if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(value).then(done).catch(fail); else fail(); }
+  function bind(root) {
+    root.querySelectorAll("[data-nav]").forEach((el) => el.addEventListener("click", (e) => { e.preventDefault(); const nav = el.dataset.nav, id = el.dataset.id; if (nav === "component") go(nav, { componentId: id || state.componentId }); else if (nav === "setup") go(nav, { setupId: id || state.setupId }); else if (nav === "publisher") go(nav, { publisherId: id || state.publisherId }); else go(nav); }));
+    root.querySelectorAll("[data-action]").forEach((el) => el.addEventListener("click", () => { const a = el.dataset.action; if (a === "mode" || a === "theme") { state.mode = state.mode === "machine" ? "human" : "machine"; localStorage.setItem("ai_stp_proto_mode", state.mode); document.documentElement.setAttribute("data-mode", state.mode); render(); } else if (a === "signin") { state.signedIn = true; go("account"); } else if (a === "logout") { state.signedIn = false; go("landing"); } else if (a === "copy") copy(el.dataset.copy, el); else if (a === "open-filters") { state.filterOpen = true; state.draftFilters = Object.assign({ resource: state.catalogResource }, state.filters); render(); } else if (a === "close-filters") { state.filterOpen = false; state.help = ""; render(); } else if (a === "apply-filters") { root.querySelectorAll("[data-filter-key]").forEach((x) => { state.draftFilters[x.dataset.filterKey] = x.value; }); state.catalogResource = state.draftFilters.resource; delete state.draftFilters.resource; state.filters = Object.assign({}, state.draftFilters); state.filterOpen = false; render(); } else if (a === "reset-filters") { state.draftFilters = { resource: state.catalogResource, harness: "", type: "", trust: "", lifecycle: "", verified: "", tag: "" }; render(); } else if (a === "remove-filter") { state.filters[el.dataset.key] = ""; state.draftFilters[el.dataset.key] = ""; render(); } else if (a === "resource") { state.catalogResource = el.dataset.resource; state.draftFilters.resource = state.catalogResource; render(); } else if (a === "help") { state.help = state.help === el.dataset.help ? "" : el.dataset.help; render(); } else if (a === "toggle-empty") { state.ownerEmpty = !state.ownerEmpty; render(); } else if (a === "add-link") { state.profileDraft.links.push({ label: "Новая ссылка", url: "https://" }); markDirty(); render(); } else if (a === "remove-link") { state.profileDraft.links.splice(Number(el.dataset.index), 1); markDirty(); render(); } else if (a === "save-profile") { state.profileDirty = false; state.profileStatus = "draft"; render(); } else if (a === "publish-profile") { state.profileDirty = false; state.profileStatus = "published"; render(); } else if (a === "avatar" || a === "avatar-remove" || a === "history") { state.copyStatus = a === "history" ? "История версии откроется в репозитории" : "Действие доступно в продуктовой реализации"; render(); setTimeout(() => { state.copyStatus = ""; render(); }, 1800); } else if (a === "docs-section") { state.docsSection = el.dataset.section; render(); } else if (a === "retry") { state.requestId = "req_01JQZK7B8N4M6P2R9T5V0X3Y7" + Math.floor(Math.random() * 9); render(); } }));
+    const q = root.querySelector("[data-bind=q]"); if (q) q.addEventListener("change", () => { state.q = q.value; render(); });
+    root.querySelectorAll("[data-profile]").forEach((el) => el.addEventListener("change", () => { state.profileDraft[el.dataset.profile] = el.value; markDirty(); render(); }));
+    root.querySelectorAll("[data-profile-link]").forEach((el) => el.addEventListener("change", () => { state.profileDraft.links[Number(el.dataset.profileLink)][el.dataset.profilePart] = el.value; markDirty(); render(); }));
+  }
+  function render() { const app = document.getElementById("app"); app.innerHTML = header() + '<main class="main" id="main-content">' + body() + "</main>" + footer(); bind(app); }
+  const allowed = ["landing", "login", "catalog", "component", "setup", "component-preview", "setup-preview", "component-edit", "setup-edit", "publisher", "account", "profile", "profile-preview", "privacy", "devices", "docs", "legal-privacy", "legal-cookies", "legal-service-rules", "legal-licensing", "not-found", "error-500"];
+  const hash = location.hash.replace(/^#/, ""); if (hash && allowed.includes(hash)) state.route = hash;
+  window.addEventListener("hashchange", () => {
+    const next = location.hash.replace(/^#/, "");
+    state.route = allowed.includes(next) ? next : "not-found";
+    render();
+    window.scrollTo(0, 0);
+  });
+  render();
+})();
+
+  // route rail for Open Design page hopping
+  (function () {
+    function syncRail() {
+      var hash = location.hash.replace(/^#/, '') || 'landing';
+      document.querySelectorAll('.route-rail button').forEach(function (b) {
+        b.classList.toggle('is-on', b.getAttribute('data-rail') === hash);
+      });
+    }
+    document.querySelectorAll('.route-rail button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        location.hash = b.getAttribute('data-rail');
+      });
+    });
+    window.addEventListener('hashchange', syncRail);
+    syncRail();
+  })();
+  </script>
+</body>
+</html>

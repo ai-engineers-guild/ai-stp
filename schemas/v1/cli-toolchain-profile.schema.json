@@ -1,0 +1,162 @@
+{
+  "$defs": {
+    "EcosystemCoverage": {
+      "additionalProperties": true,
+      "description": "What the profile offers for one ecosystem, including nothing.",
+      "properties": {
+        "ecosystem": {
+          "minLength": 1,
+          "title": "Ecosystem",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "state": {
+          "enum": [
+            "available",
+            "not_available"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "tools": {
+          "items": {
+            "$ref": "#/$defs/PinnedTool"
+          },
+          "title": "Tools",
+          "type": "array"
+        }
+      },
+      "required": [
+        "ecosystem",
+        "reason",
+        "schema_version",
+        "state",
+        "title",
+        "tools"
+      ],
+      "title": "EcosystemCoverage",
+      "type": "object"
+    },
+    "PinnedTool": {
+      "additionalProperties": true,
+      "description": "One tool the managed profile pins (`SPEC-014` REQ-1403).",
+      "properties": {
+        "digest": {
+          "minLength": 1,
+          "title": "Digest",
+          "type": "string"
+        },
+        "digest_source": {
+          "enum": [
+            "vendor_published",
+            "pinned_on_download"
+          ],
+          "title": "Digest Source",
+          "type": "string"
+        },
+        "license": {
+          "minLength": 1,
+          "title": "License",
+          "type": "string"
+        },
+        "purpose": {
+          "minLength": 1,
+          "title": "Purpose",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source": {
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "tool_id": {
+          "minLength": 1,
+          "title": "Tool Id",
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "digest",
+        "digest_source",
+        "license",
+        "purpose",
+        "schema_version",
+        "source",
+        "tool_id",
+        "version"
+      ],
+      "title": "PinnedTool",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-toolchain-profile",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "The managed toolchain as it resolves on this machine (`SPEC-014`).\n\nPolicy, not project: `REQ-1402` makes an empty project and a documentation\nproject resolve to the same profile, because what a developer needs\ninstalled is not deducible from what they have written so far.",
+  "properties": {
+    "ecosystems": {
+      "items": {
+        "$ref": "#/$defs/EcosystemCoverage"
+      },
+      "title": "Ecosystems",
+      "type": "array"
+    },
+    "platform": {
+      "minLength": 1,
+      "title": "Platform",
+      "type": "string"
+    },
+    "profile": {
+      "minLength": 1,
+      "title": "Profile",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "ecosystems",
+    "platform",
+    "profile",
+    "schema_version"
+  ],
+  "title": "ToolchainProfile",
+  "type": "object"
+}

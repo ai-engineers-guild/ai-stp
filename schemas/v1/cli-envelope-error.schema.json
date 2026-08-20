@@ -1,0 +1,99 @@
+{
+  "$defs": {
+    "CliError": {
+      "additionalProperties": true,
+      "description": "Typed error payload with a stable machine code.",
+      "properties": {
+        "code": {
+          "pattern": "^AI_STP_[A-Z0-9]+(_[A-Z0-9]+)*$",
+          "title": "Code",
+          "type": "string"
+        },
+        "details": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Details",
+          "type": "object"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "retryable": {
+          "title": "Retryable",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "code",
+        "details",
+        "message",
+        "retryable"
+      ],
+      "title": "CliError",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "OperationId": {
+      "pattern": "^operation_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "type": "string"
+    },
+    "RequestId": {
+      "pattern": "^request_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-envelope-error",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "The single JSON object of a failed or partial machine invocation.",
+  "properties": {
+    "error": {
+      "$ref": "#/$defs/CliError"
+    },
+    "next_actions": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Next Actions",
+      "type": "array"
+    },
+    "ok": {
+      "const": false,
+      "default": false,
+      "title": "Ok",
+      "type": "boolean"
+    },
+    "operation_id": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/OperationId"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "request_id": {
+      "$ref": "#/$defs/RequestId"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "error",
+    "next_actions",
+    "ok",
+    "operation_id",
+    "request_id",
+    "schema_version"
+  ],
+  "title": "ErrorEnvelope",
+  "type": "object"
+}

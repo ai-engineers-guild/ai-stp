@@ -1,0 +1,1050 @@
+{
+  "$defs": {
+    "ArtifactRef": {
+      "additionalProperties": false,
+      "description": "Content-addressed artifact bytes: digest and size.",
+      "properties": {
+        "digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Digest",
+          "type": "string"
+        },
+        "size_bytes": {
+          "minimum": 0,
+          "title": "Size Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "digest",
+        "size_bytes"
+      ],
+      "title": "ArtifactRef",
+      "type": "object"
+    },
+    "CapabilityId": {
+      "pattern": "^[a-z0-9]+(\\.[a-z0-9-]+)+$",
+      "type": "string"
+    },
+    "CatalogSupport": {
+      "additionalProperties": true,
+      "description": "Provider support status, separate from object trust and verification.",
+      "properties": {
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/CatalogSupportEvidence"
+          },
+          "maxItems": 32,
+          "title": "Evidence",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "state": {
+          "$ref": "#/$defs/SupportState"
+        },
+        "tier": {
+          "$ref": "#/$defs/SupportTier"
+        }
+      },
+      "required": [
+        "evidence",
+        "schema_version",
+        "state",
+        "tier"
+      ],
+      "title": "CatalogSupport",
+      "type": "object"
+    },
+    "CatalogSupportEvidence": {
+      "additionalProperties": true,
+      "description": "Safe public summary of one provider support check (SPEC-033, ADR-0072).",
+      "properties": {
+        "architecture": {
+          "$ref": "#/$defs/SupportArchitecture"
+        },
+        "check_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Check Id",
+          "type": "string"
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "mandatory": {
+          "default": true,
+          "title": "Mandatory",
+          "type": "boolean"
+        },
+        "observed_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "operating_system": {
+          "$ref": "#/$defs/SupportOperatingSystem"
+        },
+        "policy_version": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Policy Version",
+          "type": "string"
+        },
+        "provider_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Provider Id",
+          "type": "string"
+        },
+        "provider_version": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Provider Version",
+          "type": "string"
+        },
+        "release_reference": {
+          "pattern": "^(?:[0-9a-f]{40,64}|sha256:[0-9a-f]{64})$",
+          "title": "Release Reference",
+          "type": "string"
+        },
+        "result": {
+          "$ref": "#/$defs/SupportEvidenceResult"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source": {
+          "$ref": "#/$defs/SupportEvidenceSource"
+        }
+      },
+      "required": [
+        "architecture",
+        "check_id",
+        "expires_at",
+        "mandatory",
+        "observed_at",
+        "operating_system",
+        "policy_version",
+        "provider_id",
+        "provider_version",
+        "release_reference",
+        "result",
+        "schema_version",
+        "source"
+      ],
+      "title": "CatalogSupportEvidence",
+      "type": "object"
+    },
+    "CatalogTrust": {
+      "additionalProperties": true,
+      "description": "Why a published version may appear in results, and on whose evidence.\n\nThe two verification flags are independent axes (ADR-0016) and neither may\nbe computed from the other. `authoritative` additionally requires both, and\nthat implication is enforced below — enforcing it is not the same as\nderiving one axis from the other, and a client must still read the flags.",
+      "properties": {
+        "author_verified": {
+          "title": "Author Verified",
+          "type": "boolean"
+        },
+        "component_verified": {
+          "title": "Component Verified",
+          "type": "boolean"
+        },
+        "trust_lane": {
+          "$ref": "#/$defs/CatalogTrustLane"
+        }
+      },
+      "required": [
+        "author_verified",
+        "component_verified",
+        "trust_lane"
+      ],
+      "title": "CatalogTrust",
+      "type": "object"
+    },
+    "CatalogTrustLane": {
+      "enum": [
+        "authoritative",
+        "experimental"
+      ],
+      "type": "string"
+    },
+    "CatalogUsageMetrics": {
+      "additionalProperties": true,
+      "description": "Server aggregate of public detail views and completed artifact bytes.\n\nAbsence of this object means the feature is off or the value is unavailable,\nnot zero. Download is not install success.",
+      "properties": {
+        "artifact_downloads_count": {
+          "minimum": 0,
+          "title": "Artifact Downloads Count",
+          "type": "integer"
+        },
+        "detail_views_count": {
+          "minimum": 0,
+          "title": "Detail Views Count",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "artifact_downloads_count",
+        "detail_views_count",
+        "schema_version"
+      ],
+      "title": "CatalogUsageMetrics",
+      "type": "object"
+    },
+    "CheckResult": {
+      "enum": [
+        "passed",
+        "warning",
+        "failed",
+        "degraded",
+        "not_run",
+        "not_applicable",
+        "skipped",
+        "running"
+      ],
+      "type": "string"
+    },
+    "ChecksStatus": {
+      "enum": [
+        "pending",
+        "available",
+        "empty",
+        "incomplete"
+      ],
+      "type": "string"
+    },
+    "ComponentRef": {
+      "additionalProperties": false,
+      "description": "Exact reference to a component version, optionally to one realization.",
+      "properties": {
+        "passport_digest": {
+          "$ref": "#/$defs/PassportDigest"
+        },
+        "stable_id": {
+          "pattern": "^component_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "variant_id": {
+          "anyOf": [
+            {
+              "pattern": "^variant_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Variant Id"
+        },
+        "version": {
+          "$ref": "#/$defs/Version"
+        }
+      },
+      "required": [
+        "stable_id",
+        "version",
+        "passport_digest"
+      ],
+      "title": "ComponentRef",
+      "type": "object"
+    },
+    "ComponentType": {
+      "enum": [
+        "instruction",
+        "skill",
+        "mcp",
+        "hook",
+        "command",
+        "agent",
+        "plugin",
+        "setting"
+      ],
+      "type": "string"
+    },
+    "ComponentVersionPassport": {
+      "additionalProperties": true,
+      "description": "Immutable component version passport.",
+      "properties": {
+        "artifact": {
+          "$ref": "#/$defs/ArtifactRef"
+        },
+        "compatibility_evidence_refs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Compatibility Evidence Refs",
+          "type": "array"
+        },
+        "component_type": {
+          "$ref": "#/$defs/ComponentType"
+        },
+        "conflicts": {
+          "$ref": "#/$defs/Conflicts"
+        },
+        "created_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "external_endpoints": {
+          "items": {
+            "pattern": "^https://[^\\s]+$",
+            "type": "string"
+          },
+          "title": "External Endpoints",
+          "type": "array"
+        },
+        "facts": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Fact"
+          },
+          "title": "Facts",
+          "type": "object"
+        },
+        "harness_id": {
+          "$ref": "#/$defs/HarnessId"
+        },
+        "kind": {
+          "const": "component",
+          "default": "component",
+          "title": "Kind",
+          "type": "string"
+        },
+        "license": {
+          "$ref": "#/$defs/LicenseInfo"
+        },
+        "managed_paths": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Managed Paths",
+          "type": "array"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "native_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Native Ids",
+          "type": "array"
+        },
+        "owner_id": {
+          "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Owner Id",
+          "type": "string"
+        },
+        "parent_revision_ids": {
+          "items": {
+            "$ref": "#/$defs/RevisionId"
+          },
+          "title": "Parent Revision Ids",
+          "type": "array"
+        },
+        "permissions": {
+          "$ref": "#/$defs/Permissions"
+        },
+        "projection_kind": {
+          "$ref": "#/$defs/ProjectionKind"
+        },
+        "provides_capabilities": {
+          "items": {
+            "$ref": "#/$defs/CapabilityId"
+          },
+          "title": "Provides Capabilities",
+          "type": "array"
+        },
+        "required_env": {
+          "items": {
+            "$ref": "#/$defs/EnvVarRequirement"
+          },
+          "title": "Required Env",
+          "type": "array"
+        },
+        "requires_authorization": {
+          "default": "none",
+          "enum": [
+            "none",
+            "user_account",
+            "external_service"
+          ],
+          "title": "Requires Authorization",
+          "type": "string"
+        },
+        "requires_capabilities": {
+          "items": {
+            "$ref": "#/$defs/CapabilityId"
+          },
+          "title": "Requires Capabilities",
+          "type": "array"
+        },
+        "requires_components": {
+          "items": {
+            "$ref": "#/$defs/ComponentRef"
+          },
+          "title": "Requires Components",
+          "type": "array"
+        },
+        "requires_credentials": {
+          "default": false,
+          "title": "Requires Credentials",
+          "type": "boolean"
+        },
+        "revision_id": {
+          "$ref": "#/$defs/RevisionId"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GitSource"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "stable_id": {
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "tags": {
+          "items": {
+            "$ref": "#/$defs/TagId"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Tags",
+          "type": "array"
+        },
+        "variant_id": {
+          "anyOf": [
+            {
+              "pattern": "^variant_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Variant Id"
+        },
+        "version": {
+          "$ref": "#/$defs/Version"
+        },
+        "visibility": {
+          "default": "private",
+          "enum": [
+            "private",
+            "public"
+          ],
+          "title": "Visibility",
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifact",
+        "compatibility_evidence_refs",
+        "component_type",
+        "conflicts",
+        "created_at",
+        "description",
+        "external_endpoints",
+        "facts",
+        "harness_id",
+        "kind",
+        "license",
+        "managed_paths",
+        "name",
+        "native_ids",
+        "owner_id",
+        "parent_revision_ids",
+        "permissions",
+        "projection_kind",
+        "provides_capabilities",
+        "required_env",
+        "requires_authorization",
+        "requires_capabilities",
+        "requires_components",
+        "requires_credentials",
+        "revision_id",
+        "schema_version",
+        "source",
+        "stable_id",
+        "tags",
+        "variant_id",
+        "version",
+        "visibility"
+      ],
+      "title": "ComponentVersionPassport",
+      "type": "object"
+    },
+    "Conflicts": {
+      "additionalProperties": false,
+      "description": "Declared conflicts by native surface.",
+      "properties": {
+        "agents": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Agents",
+          "type": "array"
+        },
+        "commands": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Commands",
+          "type": "array"
+        },
+        "hooks": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Hooks",
+          "type": "array"
+        },
+        "mcp": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Mcp",
+          "type": "array"
+        },
+        "paths": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Paths",
+          "type": "array"
+        },
+        "plugins": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Plugins",
+          "type": "array"
+        }
+      },
+      "title": "Conflicts",
+      "type": "object"
+    },
+    "EnvVarRequirement": {
+      "additionalProperties": false,
+      "description": "Required environment variable: name and purpose, never a value.",
+      "properties": {
+        "name": {
+          "pattern": "^[A-Z][A-Z0-9_]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "purpose": {
+          "title": "Purpose",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "purpose"
+      ],
+      "title": "EnvVarRequirement",
+      "type": "object"
+    },
+    "Fact": {
+      "additionalProperties": true,
+      "description": "One passport fact: value, provenance axes and bounded source links.",
+      "properties": {
+        "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "confirmation": {
+          "$ref": "#/$defs/FactConfirmation"
+        },
+        "confirmed_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "observed_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "origin": {
+          "$ref": "#/$defs/FactOrigin"
+        },
+        "source_refs": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 16,
+          "title": "Source Refs",
+          "type": "array"
+        },
+        "value": {
+          "$ref": "#/$defs/JsonValue"
+        }
+      },
+      "required": [
+        "value",
+        "origin",
+        "confirmation"
+      ],
+      "title": "Fact",
+      "type": "object"
+    },
+    "FactConfirmation": {
+      "enum": [
+        "none",
+        "user_confirmed"
+      ],
+      "type": "string"
+    },
+    "FactOrigin": {
+      "enum": [
+        "declared",
+        "observed",
+        "derived",
+        "imported"
+      ],
+      "type": "string"
+    },
+    "GitSource": {
+      "additionalProperties": false,
+      "description": "Exact public origin: repository, commit and component root subpath.",
+      "properties": {
+        "commit": {
+          "pattern": "^[0-9a-f]{40}$",
+          "title": "Commit",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "repository": {
+          "pattern": "^https://[^\\s]+$",
+          "title": "Repository",
+          "type": "string"
+        }
+      },
+      "required": [
+        "repository",
+        "commit",
+        "path"
+      ],
+      "title": "GitSource",
+      "type": "object"
+    },
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build"
+      ],
+      "type": "string"
+    },
+    "JsonValue": {},
+    "LicenseInfo": {
+      "additionalProperties": false,
+      "description": "License identity and the redistribution decision.",
+      "properties": {
+        "redistribution_allowed": {
+          "title": "Redistribution Allowed",
+          "type": "boolean"
+        },
+        "spdx_id": {
+          "title": "Spdx Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "spdx_id",
+        "redistribution_allowed"
+      ],
+      "title": "LicenseInfo",
+      "type": "object"
+    },
+    "PassportDigest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "Permissions": {
+      "additionalProperties": false,
+      "description": "Declared file, network and process permissions.",
+      "properties": {
+        "filesystem": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Filesystem",
+          "type": "array"
+        },
+        "network": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Network",
+          "type": "array"
+        },
+        "process": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Process",
+          "type": "array"
+        }
+      },
+      "title": "Permissions",
+      "type": "object"
+    },
+    "ProjectionKind": {
+      "enum": [
+        "marketplace",
+        "plugin",
+        "native_files",
+        "package"
+      ],
+      "type": "string"
+    },
+    "PublicLifecycle": {
+      "enum": [
+        "active",
+        "deprecated",
+        "blocked"
+      ],
+      "type": "string"
+    },
+    "RevisionId": {
+      "pattern": "^revision_[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "SafetyCheckEntry": {
+      "additionalProperties": true,
+      "description": "One check line on an audit list.",
+      "properties": {
+        "check_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Check Id",
+          "type": "string"
+        },
+        "family": {
+          "default": "",
+          "maxLength": 64,
+          "title": "Family",
+          "type": "string"
+        },
+        "mandatory": {
+          "default": true,
+          "title": "Mandatory",
+          "type": "boolean"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "result": {
+          "$ref": "#/$defs/CheckResult"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source": {
+          "default": "platform_safety_scan",
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "check_id",
+        "family",
+        "mandatory",
+        "reason",
+        "result",
+        "schema_version",
+        "source"
+      ],
+      "title": "SafetyCheckEntry",
+      "type": "object"
+    },
+    "SafetyChecksSummary": {
+      "additionalProperties": true,
+      "description": "Card/detail projection for checks percent and status.",
+      "properties": {
+        "checks": {
+          "items": {
+            "$ref": "#/$defs/SafetyCheckEntry"
+          },
+          "maxItems": 128,
+          "title": "Checks",
+          "type": "array"
+        },
+        "checks_passed_percent": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Checks Passed Percent"
+        },
+        "coverage_complete": {
+          "default": true,
+          "title": "Coverage Complete",
+          "type": "boolean"
+        },
+        "failed": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Failed",
+          "type": "integer"
+        },
+        "not_run": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Not Run",
+          "type": "integer"
+        },
+        "passed": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Passed",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "status": {
+          "$ref": "#/$defs/ChecksStatus"
+        },
+        "total_countable": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Total Countable",
+          "type": "integer"
+        },
+        "warning": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Warning",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "checks",
+        "checks_passed_percent",
+        "coverage_complete",
+        "failed",
+        "not_run",
+        "passed",
+        "schema_version",
+        "status",
+        "total_countable",
+        "warning"
+      ],
+      "title": "SafetyChecksSummary",
+      "type": "object"
+    },
+    "SupportArchitecture": {
+      "enum": [
+        "x86_64",
+        "arm64"
+      ],
+      "type": "string"
+    },
+    "SupportEvidenceResult": {
+      "enum": [
+        "passed",
+        "warning",
+        "failed",
+        "degraded",
+        "not_run",
+        "expired"
+      ],
+      "type": "string"
+    },
+    "SupportEvidenceSource": {
+      "const": "provider_release_evidence",
+      "type": "string"
+    },
+    "SupportOperatingSystem": {
+      "enum": [
+        "ubuntu",
+        "macos"
+      ],
+      "type": "string"
+    },
+    "SupportState": {
+      "enum": [
+        "verified",
+        "stale",
+        "missing",
+        "not_verified"
+      ],
+      "type": "string"
+    },
+    "SupportTier": {
+      "enum": [
+        "primary",
+        "beta"
+      ],
+      "type": "string"
+    },
+    "TagId": {
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "type": "string"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    },
+    "Version": {
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:catalog-component-version",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Exact read of one immutable component version.\n\nThe passport is the description of the version (ADR-0012): there is no\nseparate manifest entity. `passport_digest` is served alongside it so the\nclient can verify the bytes it cached independently of the transport.",
+  "properties": {
+    "checks": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SafetyChecksSummary"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "lifecycle": {
+      "$ref": "#/$defs/PublicLifecycle"
+    },
+    "passport": {
+      "$ref": "#/$defs/ComponentVersionPassport"
+    },
+    "passport_digest": {
+      "$ref": "#/$defs/PassportDigest"
+    },
+    "published_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "support": {
+      "$ref": "#/$defs/CatalogSupport"
+    },
+    "trust": {
+      "$ref": "#/$defs/CatalogTrust"
+    },
+    "usage_metrics": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CatalogUsageMetrics"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "checks",
+    "lifecycle",
+    "passport",
+    "passport_digest",
+    "published_at",
+    "schema_version",
+    "support",
+    "trust",
+    "usage_metrics"
+  ],
+  "title": "ComponentVersionResponse",
+  "type": "object"
+}

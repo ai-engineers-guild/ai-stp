@@ -1,0 +1,201 @@
+{
+  "$defs": {
+    "Cursor": {
+      "pattern": "^[A-Za-z0-9_-]{1,512}$",
+      "type": "string"
+    },
+    "LifecycleState": {
+      "enum": [
+        "draft",
+        "active",
+        "deprecated",
+        "blocked",
+        "hidden",
+        "published",
+        "ready",
+        "validating",
+        "publish_planned",
+        "failed",
+        "stale",
+        "cancelled"
+      ],
+      "type": "string"
+    },
+    "ObjectKind": {
+      "enum": [
+        "component",
+        "setup"
+      ],
+      "type": "string"
+    },
+    "OwnerObjectSummary": {
+      "additionalProperties": true,
+      "description": "One owned object in the owner workspace list.",
+      "properties": {
+        "author_verified": {
+          "default": false,
+          "title": "Author Verified",
+          "type": "boolean"
+        },
+        "component_verified": {
+          "default": false,
+          "title": "Component Verified",
+          "type": "boolean"
+        },
+        "latest_version": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Version"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "lifecycle_state": {
+          "$ref": "#/$defs/LifecycleState"
+        },
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "object_kind": {
+          "$ref": "#/$defs/ObjectKind"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "stable_id": {
+          "maxLength": 64,
+          "minLength": 8,
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "trust_lane": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TrustLane"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "visibility": {
+          "enum": [
+            "public",
+            "private"
+          ],
+          "title": "Visibility",
+          "type": "string"
+        }
+      },
+      "required": [
+        "author_verified",
+        "component_verified",
+        "latest_version",
+        "lifecycle_state",
+        "name",
+        "object_kind",
+        "schema_version",
+        "stable_id",
+        "trust_lane",
+        "updated_at",
+        "visibility"
+      ],
+      "title": "OwnerObjectSummary",
+      "type": "object"
+    },
+    "PageInfo": {
+      "additionalProperties": true,
+      "description": "Cursor pagination state (docs/contracts/http-api.md).\n\nNo total is exposed. Reporting one would let a caller detect objects it is\nnot allowed to read, so a hidden or deleted object leaks through neither a\ncount nor a cursor.",
+      "properties": {
+        "next_cursor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Cursor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "page_size": {
+          "$ref": "#/$defs/PageSize"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "next_cursor",
+        "page_size",
+        "schema_version"
+      ],
+      "title": "PageInfo",
+      "type": "object"
+    },
+    "PageSize": {
+      "maximum": 100,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    },
+    "TrustLane": {
+      "enum": [
+        "authoritative",
+        "experimental"
+      ],
+      "type": "string"
+    },
+    "Version": {
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-owner-object-list",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "CLI owner list view, separate from the HTTP schema boundary.",
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/$defs/OwnerObjectSummary"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "page": {
+      "$ref": "#/$defs/PageInfo"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "items",
+    "page",
+    "schema_version"
+  ],
+  "title": "CliOwnerObjectListView",
+  "type": "object"
+}

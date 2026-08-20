@@ -1,0 +1,204 @@
+{
+  "$defs": {
+    "BundleFile": {
+      "additionalProperties": true,
+      "description": "One record in the bundle's file manifest.",
+      "properties": {
+        "byte_length": {
+          "minimum": 0,
+          "title": "Byte Length",
+          "type": "integer"
+        },
+        "digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Digest",
+          "type": "string"
+        },
+        "mode": {
+          "enum": [
+            420,
+            493
+          ],
+          "title": "Mode",
+          "type": "integer"
+        },
+        "owner": {
+          "default": "",
+          "title": "Owner",
+          "type": "string"
+        },
+        "path": {
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "byte_length",
+        "digest",
+        "mode",
+        "owner",
+        "path",
+        "schema_version"
+      ],
+      "title": "BundleFile",
+      "type": "object"
+    },
+    "BundleRefusal": {
+      "additionalProperties": true,
+      "description": "One reason a bundle could not be compiled.",
+      "properties": {
+        "code": {
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "details": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "title": "Details",
+          "type": "object"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "summary": {
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "details",
+        "schema_version",
+        "summary"
+      ],
+      "title": "BundleRefusal",
+      "type": "object"
+    },
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-harness-bundle",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "A compiled bundle, or every reason it could not be compiled.\n\n`digest` and `files` are empty exactly when `compiled` is false. A manifest\nbeside a list of refusals would read as \"almost built\", and a bundle holding\na file that was not accepted is not installable at all.",
+  "properties": {
+    "artifact_digest": {
+      "default": "",
+      "pattern": "^(|sha256:[0-9a-f]{64})$",
+      "title": "Artifact Digest",
+      "type": "string"
+    },
+    "builder_version": {
+      "minLength": 1,
+      "title": "Builder Version",
+      "type": "string"
+    },
+    "bundle_format": {
+      "const": "ai-stp-bundle/1",
+      "default": "ai-stp-bundle/1",
+      "title": "Bundle Format",
+      "type": "string"
+    },
+    "byte_length": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Byte Length",
+      "type": "integer"
+    },
+    "compiled": {
+      "title": "Compiled",
+      "type": "boolean"
+    },
+    "digest": {
+      "default": "",
+      "pattern": "^(|sha256:[0-9a-f]{64})$",
+      "title": "Digest",
+      "type": "string"
+    },
+    "files": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/BundleFile"
+      },
+      "title": "Files",
+      "type": "array"
+    },
+    "harness_id": {
+      "$ref": "#/$defs/HarnessId"
+    },
+    "max_bundle_bytes": {
+      "minimum": 1,
+      "title": "Max Bundle Bytes",
+      "type": "integer"
+    },
+    "max_file_bytes": {
+      "minimum": 1,
+      "title": "Max File Bytes",
+      "type": "integer"
+    },
+    "max_files": {
+      "minimum": 1,
+      "title": "Max Files",
+      "type": "integer"
+    },
+    "protocol_version": {
+      "minimum": 1,
+      "title": "Protocol Version",
+      "type": "integer"
+    },
+    "refusals": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/BundleRefusal"
+      },
+      "title": "Refusals",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "artifact_digest",
+    "builder_version",
+    "bundle_format",
+    "byte_length",
+    "compiled",
+    "digest",
+    "files",
+    "harness_id",
+    "max_bundle_bytes",
+    "max_file_bytes",
+    "max_files",
+    "protocol_version",
+    "refusals",
+    "schema_version"
+  ],
+  "title": "HarnessBundle",
+  "type": "object"
+}

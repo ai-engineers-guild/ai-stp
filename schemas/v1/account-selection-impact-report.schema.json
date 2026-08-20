@@ -1,0 +1,573 @@
+{
+  "$defs": {
+    "AccountFreshness": {
+      "enum": [
+        "account_snapshot",
+        "stale",
+        "unavailable"
+      ],
+      "type": "string"
+    },
+    "AccountImpactStatus": {
+      "enum": [
+        "ready",
+        "partial",
+        "stale",
+        "invalid_graph"
+      ],
+      "type": "string"
+    },
+    "CapabilityDelta": {
+      "additionalProperties": false,
+      "properties": {
+        "added": {
+          "$ref": "#/$defs/CapabilitySnapshot"
+        },
+        "removed": {
+          "$ref": "#/$defs/CapabilitySnapshot"
+        }
+      },
+      "required": [
+        "added",
+        "removed"
+      ],
+      "title": "CapabilityDelta",
+      "type": "object"
+    },
+    "CapabilitySnapshot": {
+      "additionalProperties": false,
+      "properties": {
+        "credential_requirements": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Credential Requirements",
+          "type": "array"
+        },
+        "filesystem_permissions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Filesystem Permissions",
+          "type": "array"
+        },
+        "hooks": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Hooks",
+          "type": "array"
+        },
+        "mcp_servers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Mcp Servers",
+          "type": "array"
+        },
+        "network_permissions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Network Permissions",
+          "type": "array"
+        },
+        "network_requirements": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Network Requirements",
+          "type": "array"
+        },
+        "process_permissions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Process Permissions",
+          "type": "array"
+        },
+        "tools": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Tools",
+          "type": "array"
+        }
+      },
+      "required": [
+        "tools",
+        "mcp_servers",
+        "hooks",
+        "network_requirements",
+        "credential_requirements",
+        "filesystem_permissions",
+        "network_permissions",
+        "process_permissions"
+      ],
+      "title": "CapabilitySnapshot",
+      "type": "object"
+    },
+    "ComponentTokenMeasurement": {
+      "additionalProperties": false,
+      "properties": {
+        "component": {
+          "$ref": "#/$defs/ExactCoordinate"
+        },
+        "component_type": {
+          "enum": [
+            "instruction",
+            "skill",
+            "agent",
+            "command"
+          ],
+          "title": "Component Type",
+          "type": "string"
+        },
+        "loading": {
+          "enum": [
+            "always",
+            "conditional"
+          ],
+          "title": "Loading",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "status": {
+          "enum": [
+            "exact",
+            "estimated",
+            "unavailable"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "tokens": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Tokens"
+        },
+        "utf8_bytes": {
+          "minimum": 0,
+          "title": "Utf8 Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "component",
+        "component_type",
+        "loading",
+        "status",
+        "tokens",
+        "utf8_bytes"
+      ],
+      "title": "ComponentTokenMeasurement",
+      "type": "object"
+    },
+    "ContextBudget": {
+      "additionalProperties": false,
+      "properties": {
+        "always_tokens": {
+          "minimum": 0,
+          "title": "Always Tokens",
+          "type": "integer"
+        },
+        "components": {
+          "items": {
+            "$ref": "#/$defs/ComponentTokenMeasurement"
+          },
+          "title": "Components",
+          "type": "array"
+        },
+        "conditional_tokens": {
+          "minimum": 0,
+          "title": "Conditional Tokens",
+          "type": "integer"
+        },
+        "unavailable_components": {
+          "minimum": 0,
+          "title": "Unavailable Components",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "always_tokens",
+        "conditional_tokens",
+        "unavailable_components",
+        "components"
+      ],
+      "title": "ContextBudget",
+      "type": "object"
+    },
+    "ContextDelta": {
+      "additionalProperties": false,
+      "properties": {
+        "always_tokens": {
+          "title": "Always Tokens",
+          "type": "integer"
+        },
+        "conditional_tokens": {
+          "title": "Conditional Tokens",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "always_tokens",
+        "conditional_tokens"
+      ],
+      "title": "ContextDelta",
+      "type": "object"
+    },
+    "ExactCoordinate": {
+      "additionalProperties": false,
+      "properties": {
+        "passport_digest": {
+          "minLength": 1,
+          "title": "Passport Digest",
+          "type": "string"
+        },
+        "stable_id": {
+          "minLength": 1,
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^[0-9]+\\.[0-9]+$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "stable_id",
+        "version",
+        "passport_digest"
+      ],
+      "title": "ExactCoordinate",
+      "type": "object"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    },
+    "TokenCost": {
+      "additionalProperties": false,
+      "properties": {
+        "amount": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Amount"
+        },
+        "currency": {
+          "anyOf": [
+            {
+              "const": "USD",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Currency"
+        },
+        "fetched_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "profile_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Profile Id"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reason"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Source"
+        },
+        "status": {
+          "enum": [
+            "available",
+            "stale",
+            "unavailable"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "amount",
+        "currency",
+        "profile_id",
+        "source",
+        "fetched_at",
+        "reason"
+      ],
+      "title": "TokenCost",
+      "type": "object"
+    },
+    "TokenEstimator": {
+      "additionalProperties": false,
+      "properties": {
+        "accuracy": {
+          "enum": [
+            "exact",
+            "estimated"
+          ],
+          "title": "Accuracy",
+          "type": "string"
+        },
+        "local_only": {
+          "const": true,
+          "default": true,
+          "title": "Local Only",
+          "type": "boolean"
+        },
+        "method": {
+          "enum": [
+            "utf8_byte_count",
+            "unicode_codepoints_div_4"
+          ],
+          "title": "Method",
+          "type": "string"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model"
+        },
+        "profile": {
+          "enum": [
+            "ai-stp:utf8-bytes/1",
+            "ai-stp:unicode-chars-div4/1"
+          ],
+          "title": "Profile",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "profile",
+        "accuracy",
+        "method"
+      ],
+      "title": "TokenEstimator",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:account-selection-impact-report",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Server-owned account projection. Local v1 ``SelectionImpactReport`` stays unchanged.",
+  "properties": {
+    "action": {
+      "const": "none",
+      "default": "none",
+      "title": "Action",
+      "type": "string"
+    },
+    "authority_boundary": {
+      "const": "account",
+      "default": "account",
+      "title": "Authority Boundary",
+      "type": "string"
+    },
+    "baseline_capabilities": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CapabilitySnapshot"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "baseline_context": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ContextBudget"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "baseline_setup": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ExactCoordinate"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "baseline_source": {
+      "enum": [
+        "explicit",
+        "installed",
+        "selected",
+        "none"
+      ],
+      "title": "Baseline Source",
+      "type": "string"
+    },
+    "candidate_capabilities": {
+      "$ref": "#/$defs/CapabilitySnapshot"
+    },
+    "candidate_context": {
+      "$ref": "#/$defs/ContextBudget"
+    },
+    "candidate_setup": {
+      "$ref": "#/$defs/ExactCoordinate"
+    },
+    "capability_delta": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CapabilityDelta"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "context_delta": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ContextDelta"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "estimator": {
+      "$ref": "#/$defs/TokenEstimator"
+    },
+    "freshness": {
+      "$ref": "#/$defs/AccountFreshness"
+    },
+    "generated_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "source_revision": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Source Revision"
+    },
+    "status": {
+      "$ref": "#/$defs/AccountImpactStatus"
+    },
+    "token_cost": {
+      "$ref": "#/$defs/TokenCost"
+    },
+    "unavailable_reason": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Unavailable Reason"
+    }
+  },
+  "required": [
+    "generated_at",
+    "freshness",
+    "source_revision",
+    "status",
+    "candidate_setup",
+    "baseline_setup",
+    "baseline_source",
+    "estimator",
+    "candidate_context",
+    "baseline_context",
+    "context_delta",
+    "candidate_capabilities",
+    "baseline_capabilities",
+    "capability_delta",
+    "token_cost"
+  ],
+  "title": "AccountSelectionImpactReport",
+  "type": "object"
+}

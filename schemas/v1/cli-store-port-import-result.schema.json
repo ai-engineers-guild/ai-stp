@@ -1,0 +1,80 @@
+{
+  "$defs": {
+    "StorePortImportedObject": {
+      "additionalProperties": false,
+      "description": "One local object created by or reused for an exact external record.",
+      "properties": {
+        "external_id": {
+          "title": "External Id",
+          "type": "string"
+        },
+        "revision_id": {
+          "title": "Revision Id",
+          "type": "string"
+        },
+        "stable_id": {
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "imported",
+            "already_imported"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "external_id",
+        "stable_id",
+        "revision_id",
+        "state"
+      ],
+      "title": "StorePortImportedObject",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-store-port-import-result",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Result of applying one still-current exact import plan.",
+  "properties": {
+    "external_store_changed": {
+      "const": false,
+      "default": false,
+      "title": "External Store Changed",
+      "type": "boolean"
+    },
+    "harness_target_changed": {
+      "const": false,
+      "default": false,
+      "title": "Harness Target Changed",
+      "type": "boolean"
+    },
+    "imported": {
+      "items": {
+        "$ref": "#/$defs/StorePortImportedObject"
+      },
+      "title": "Imported",
+      "type": "array"
+    },
+    "plan_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Plan Digest",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "plan_digest",
+    "imported"
+  ],
+  "title": "StorePortImportResult",
+  "type": "object"
+}

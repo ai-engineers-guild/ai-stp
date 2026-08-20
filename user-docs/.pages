@@ -1,0 +1,12 @@
+nav:
+  - Главная: index.md
+  - Быстрый старт: quickstart.md
+  - Харнессы: harnesses.md
+  - Понятия: concepts
+  - CLI: cli
+  - Каталог: catalog
+  - Компоненты: components
+  - Сетапы: setups
+  - Публикация: publishing
+  - Доверие и безопасность: trust-and-safety
+  - Диагностика: troubleshooting

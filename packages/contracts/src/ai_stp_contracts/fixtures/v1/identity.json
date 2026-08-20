@@ -1,0 +1,350 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case_id": "readAccount.linkedGithub",
+      "operation_id": "readAccount",
+      "kind": "positive",
+      "why": "The account read answers who am I: an identifier, when it was created and which providers are linked. No address appears anywhere.",
+      "request": {},
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "created_at": "2026-08-05T00:00:00.000Z",
+        "show_profile_publicly": true,
+        "allow_publisher_listing": true,
+        "identities": [
+          {
+            "provider": "github",
+            "linked_at": "2026-08-05T00:00:00.000Z",
+            "avatar_url": null,
+            "display_name": null
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "updateAccountPrivacy.hidden",
+      "operation_id": "updateAccountPrivacy",
+      "kind": "positive",
+      "why": "Privacy preferences are replaced explicitly and the response confirms the stored server state.",
+      "request": {
+        "body": {
+          "schema_version": 1,
+          "show_profile_publicly": false,
+          "allow_publisher_listing": false
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "created_at": "2026-08-05T00:00:00.000Z",
+        "show_profile_publicly": false,
+        "allow_publisher_listing": false,
+        "identities": [
+          {
+            "provider": "github",
+            "linked_at": "2026-08-05T00:00:00.000Z",
+            "avatar_url": null,
+            "display_name": null
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "readAccount.noIdentity",
+      "operation_id": "readAccount",
+      "kind": "invalid_response",
+      "why": "An account exists because an identity linked to it; zero identities describes an account no one can sign into.",
+      "request": {},
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "created_at": "2026-08-05T00:00:00.000Z",
+        "identities": []
+      }
+    },
+    {
+      "case_id": "listDevices.oneActiveOneSummaryless",
+      "operation_id": "listDevices",
+      "kind": "positive",
+      "why": "Synchronisation is off by default, so a device that never published a summary must still be listed: the owner has to be able to revoke it.",
+      "request": {},
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "items": [
+          {
+            "schema_version": 1,
+            "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "state": "active",
+            "registered_at": "2026-08-05T00:00:00.000Z",
+            "last_active_at": "2026-08-05T00:00:00.000Z",
+            "device_type": "cli",
+            "approximate_location": null,
+            "user_agent": null,
+            "summary": {
+              "schema_version": 1,
+              "display_name": "fixture-device",
+              "operating_system": "linux",
+              "architecture": "x86_64",
+              "detected_harnesses": [
+                {
+                  "harness_id": "claude-code",
+                  "version": "2.1.0"
+                }
+              ],
+              "toolchain_profile_version": "mvp-full/1.0",
+              "summary_updated_at": "2026-08-05T00:00:00.000Z"
+            },
+            "etag": "W/\"7\""
+          },
+          {
+            "schema_version": 1,
+            "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y70",
+            "state": "active",
+            "registered_at": "2026-08-05T00:00:00.000Z",
+            "last_active_at": "2026-08-05T00:00:00.000Z",
+            "device_type": "cli",
+            "approximate_location": null,
+            "user_agent": null,
+            "summary": null,
+            "etag": "W/\"1\""
+          }
+        ],
+        "page": {
+          "schema_version": 1,
+          "next_cursor": null,
+          "page_size": 20
+        }
+      }
+    },
+    {
+      "case_id": "listDevices.summaryCarriesEnvironment",
+      "operation_id": "listDevices",
+      "kind": "invalid_response",
+      "why": "device-passport.md closes the summary to five facts and excludes environment values and absolute user paths; a summary carrying them is a disclosure, not a richer payload.",
+      "request": {},
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "items": [
+          {
+            "schema_version": 1,
+            "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "state": "active",
+            "registered_at": "2026-08-05T00:00:00.000Z",
+            "last_active_at": "2026-08-05T00:00:00.000Z",
+            "device_type": "cli",
+            "approximate_location": null,
+            "user_agent": null,
+            "summary": {
+              "schema_version": 1,
+              "display_name": "fixture-device",
+              "operating_system": "linux",
+              "architecture": "x86_64",
+              "detected_harnesses": [
+                {
+                  "harness_id": "undefined",
+                  "version": "0.0.1"
+                }
+              ],
+              "toolchain_profile_version": "mvp-full/1.0",
+              "summary_updated_at": "2026-08-05T00:00:00.000Z"
+            },
+            "etag": "W/\"7\""
+          }
+        ],
+        "page": {
+          "schema_version": 1,
+          "next_cursor": null,
+          "page_size": 20
+        }
+      }
+    },
+    {
+      "case_id": "revokeDevice.forwardActing",
+      "operation_id": "revokeDevice",
+      "kind": "positive",
+      "why": "Revocation stops future cloud work and leaves the record and the local data alone: the summary is marked revoked, never deleted.",
+      "request": {
+        "path_params": {
+          "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "headers": {
+          "Idempotency-Key": "0123456789abcdef",
+          "If-Match": "W/\"7\""
+        },
+        "body": {
+          "schema_version": 1,
+          "idempotency_key": "0123456789abcdef"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "device": {
+          "schema_version": 1,
+          "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "state": "revoked",
+          "registered_at": "2026-08-05T00:00:00.000Z",
+          "last_active_at": "2026-08-05T00:00:00.000Z",
+          "device_type": "cli",
+          "approximate_location": null,
+          "user_agent": null,
+          "summary": {
+            "schema_version": 1,
+            "display_name": "fixture-device",
+            "operating_system": "linux",
+            "architecture": "x86_64",
+            "detected_harnesses": [
+              {
+                "harness_id": "claude-code",
+                "version": "2.1.0"
+              }
+            ],
+            "toolchain_profile_version": "mvp-full/1.0",
+            "summary_updated_at": "2026-08-05T00:00:00.000Z"
+          },
+          "etag": "W/\"8\""
+        },
+        "revoked_at": "2026-08-05T00:00:00.000Z"
+      }
+    },
+    {
+      "case_id": "revokeDevice.stalePrecondition",
+      "operation_id": "revokeDevice",
+      "kind": "rejected_request",
+      "why": "A stale If-Match is a precondition failure, not a concurrent-change conflict; the caller re-reads and retries rather than deciding, so the two may not share a code.",
+      "request": {
+        "path_params": {
+          "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "headers": {
+          "Idempotency-Key": "0123456789abcdef",
+          "If-Match": "W/\"3\""
+        },
+        "body": {
+          "schema_version": 1,
+          "idempotency_key": "0123456789abcdef"
+        }
+      },
+      "status": 412,
+      "error_code": "AI_STP_PRECONDITION_FAILED"
+    },
+    {
+      "case_id": "revokeDevice.shortIdempotencyKey",
+      "operation_id": "revokeDevice",
+      "kind": "rejected_request",
+      "why": "A key too short to be unique in practice would let a retry after a timeout become a second effect.",
+      "request": {
+        "path_params": {
+          "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "headers": {
+          "Idempotency-Key": "short",
+          "If-Match": "W/\"7\""
+        },
+        "body": {
+          "schema_version": 1,
+          "idempotency_key": "short"
+        }
+      },
+      "status": 400,
+      "error_code": "AI_STP_VALIDATION_ERROR"
+    },
+    {
+      "case_id": "revokeDevice.anotherAccountsDevice",
+      "operation_id": "revokeDevice",
+      "kind": "rejected_request",
+      "why": "Holding a device identifier is not an authorization; the owner check is per object and per action.",
+      "request": {
+        "path_params": {
+          "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y70"
+        },
+        "headers": {
+          "Idempotency-Key": "0123456789abcdef",
+          "If-Match": "W/\"1\""
+        },
+        "body": {
+          "schema_version": 1,
+          "idempotency_key": "0123456789abcdef"
+        }
+      },
+      "status": 403,
+      "error_code": "AI_STP_PERMISSION_DENIED"
+    },
+    {
+      "case_id": "unlinkAccountIdentity.remainingGithub",
+      "operation_id": "unlinkAccountIdentity",
+      "kind": "positive",
+      "why": "Unlinking one provider leaves the account signed in through the remaining provider and returns the thinned profile.",
+      "request": {
+        "path_params": {
+          "provider": "google"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "created_at": "2026-08-05T00:00:00.000Z",
+        "show_profile_publicly": true,
+        "allow_publisher_listing": true,
+        "identities": [
+          {
+            "provider": "github",
+            "linked_at": "2026-08-05T00:00:00.000Z",
+            "avatar_url": null,
+            "display_name": null
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "createDeviceChallenge.issued",
+      "operation_id": "createDeviceChallenge",
+      "kind": "positive",
+      "why": "A challenge is a one-time nonce bound to a public key; without it registration cannot prove possession.",
+      "request": {
+        "body": {
+          "schema_version": 1,
+          "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "nonce": "fixture-challenge-nonce-01",
+        "expires_in": 300
+      }
+    },
+    {
+      "case_id": "registerDevice.created",
+      "operation_id": "registerDevice",
+      "kind": "positive",
+      "why": "Successful registration returns the device record the account will list, including whether this call created it.",
+      "request": {},
+      "status": 201,
+      "body": {
+        "schema_version": 1,
+        "created": true,
+        "device": {
+          "schema_version": 1,
+          "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "state": "active",
+          "registered_at": "2026-08-05T00:00:00.000Z",
+          "last_active_at": "2026-08-05T00:00:00.000Z",
+          "device_type": "cli",
+          "approximate_location": null,
+          "user_agent": null,
+          "summary": null,
+          "etag": "W/\"1\""
+        }
+      }
+    }
+  ]
+}

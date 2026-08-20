@@ -1,0 +1,35 @@
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it } from "vitest";
+
+import { CatalogQueryField } from "@/components/molecules/catalog-query-field";
+
+describe("CatalogQueryField", () => {
+  it("autocompletes reserved words and applies a typo correction", async () => {
+    const user = userEvent.setup();
+    render(
+      <CatalogQueryField
+        label="Search"
+        placeholder="Query"
+        submitLabel="Apply"
+        defaultValue=""
+        correctionLabel="Did you mean"
+      />,
+    );
+
+    const input = screen.getByRole("combobox", { name: "Search" });
+    await user.type(input, "TA");
+    expect(screen.getByRole("option", { name: "TAGS" })).toBeInTheDocument();
+    await user.click(screen.getByRole("option", { name: "TAGS" }));
+    expect(input).toHaveValue("TAGS");
+
+    await user.clear(input);
+    await user.type(input, "harnes:codex");
+    await user.click(screen.getByRole("button", { name: /Did you mean/ }));
+    expect(input).toHaveValue("HARNESS:codex");
+
+    await user.clear(input);
+    await user.type(input, "author tags");
+    expect(screen.queryByRole("button", { name: /Did you mean/ })).toBeNull();
+  });
+});

@@ -1,0 +1,91 @@
+{
+  "$defs": {
+    "ContentDigest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "ObjectKind": {
+      "enum": [
+        "component",
+        "setup"
+      ],
+      "type": "string"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    },
+    "Version": {
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:staff-report-summary",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "One staff worklist case.",
+  "properties": {
+    "case_id": {
+      "maxLength": 64,
+      "minLength": 8,
+      "title": "Case Id",
+      "type": "string"
+    },
+    "content_digest": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ContentDigest"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "created_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "object_kind": {
+      "$ref": "#/$defs/ObjectKind"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stable_id": {
+      "maxLength": 64,
+      "minLength": 8,
+      "title": "Stable Id",
+      "type": "string"
+    },
+    "state": {
+      "maxLength": 32,
+      "minLength": 1,
+      "title": "State",
+      "type": "string"
+    },
+    "version": {
+      "$ref": "#/$defs/Version"
+    },
+    "vulnerability": {
+      "default": false,
+      "title": "Vulnerability",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "case_id",
+    "content_digest",
+    "created_at",
+    "object_kind",
+    "schema_version",
+    "stable_id",
+    "state",
+    "version",
+    "vulnerability"
+  ],
+  "title": "StaffReportSummary",
+  "type": "object"
+}

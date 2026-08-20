@@ -1,0 +1,108 @@
+{
+  "$defs": {
+    "StorePortDescriptor": {
+      "additionalProperties": false,
+      "description": "One compatible local store found under an explicitly named root.",
+      "properties": {
+        "adapter": {
+          "enum": [
+            "sx",
+            "apm"
+          ],
+          "title": "Adapter",
+          "type": "string"
+        },
+        "cli_status": {
+          "enum": [
+            "available",
+            "absent",
+            "not_required"
+          ],
+          "title": "Cli Status",
+          "type": "string"
+        },
+        "contract_version": {
+          "maxLength": 32,
+          "minLength": 1,
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "manifest": {
+          "minLength": 1,
+          "title": "Manifest",
+          "type": "string"
+        },
+        "port_version": {
+          "const": "setup-store-port/1",
+          "default": "setup-store-port/1",
+          "title": "Port Version",
+          "type": "string"
+        },
+        "root": {
+          "minLength": 1,
+          "title": "Root",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "snapshot_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Snapshot Digest",
+          "type": "string"
+        }
+      },
+      "required": [
+        "adapter",
+        "contract_version",
+        "root",
+        "manifest",
+        "snapshot_digest",
+        "cli_status"
+      ],
+      "title": "StorePortDescriptor",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-store-port-discovery",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "All supported stores visible at one root, without importing them.",
+  "properties": {
+    "diagnostics": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Diagnostics",
+      "type": "array"
+    },
+    "root": {
+      "minLength": 1,
+      "title": "Root",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stores": {
+      "items": {
+        "$ref": "#/$defs/StorePortDescriptor"
+      },
+      "title": "Stores",
+      "type": "array"
+    }
+  },
+  "required": [
+    "root",
+    "stores",
+    "diagnostics"
+  ],
+  "title": "StorePortDiscovery",
+  "type": "object"
+}

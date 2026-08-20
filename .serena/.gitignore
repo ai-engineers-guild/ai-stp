@@ -1,0 +1,11 @@
+# Долговечное знание проекта отслеживается: project.yml и memories/.
+# Здесь перечислено только состояние конкретного checkout, которое инструменты
+# переписывают в течение сессии. Оно содержит SHA, ветку и абсолютные пути
+# машины, поэтому в общей истории означает не факт проекта, а чужой checkout.
+/cache
+/project.local.yml
+/.auto_sync_head
+/.flow_blocker_ack.json
+/.flow_post_task_state.json
+/.flow_sync_marker
+/.serena_sync_state.json

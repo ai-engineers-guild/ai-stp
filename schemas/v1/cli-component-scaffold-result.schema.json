@@ -1,0 +1,54 @@
+{
+  "$id": "urn:ai-stp:schema:v1:cli-component-scaffold-result",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Applied scaffold, bound to the exact preview digest.",
+  "properties": {
+    "files_written": {
+      "minimum": 6,
+      "title": "Files Written",
+      "type": "integer"
+    },
+    "generator_version": {
+      "const": "ai-stp/1",
+      "default": "ai-stp/1",
+      "title": "Generator Version",
+      "type": "string"
+    },
+    "output": {
+      "minLength": 1,
+      "title": "Output",
+      "type": "string"
+    },
+    "plan_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Plan Digest",
+      "type": "string"
+    },
+    "plan_id": {
+      "minLength": 1,
+      "title": "Plan Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "template_version": {
+      "const": "component-scaffold/1",
+      "default": "component-scaffold/1",
+      "title": "Template Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "plan_id",
+    "plan_digest",
+    "output",
+    "files_written"
+  ],
+  "title": "ComponentScaffoldResult",
+  "type": "object"
+}

@@ -1,0 +1,51 @@
+{
+  "$id": "urn:ai-stp:schema:v1:cli-component-scaffold",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One safely created component authoring template.",
+  "properties": {
+    "byte_length": {
+      "exclusiveMinimum": 0,
+      "title": "Byte Length",
+      "type": "integer"
+    },
+    "component_name": {
+      "minLength": 1,
+      "title": "Component Name",
+      "type": "string"
+    },
+    "component_type": {
+      "enum": [
+        "instruction",
+        "skill",
+        "mcp",
+        "hook",
+        "command",
+        "agent",
+        "plugin",
+        "setting"
+      ],
+      "title": "Component Type",
+      "type": "string"
+    },
+    "output": {
+      "minLength": 1,
+      "title": "Output",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "component_type",
+    "component_name",
+    "output",
+    "byte_length"
+  ],
+  "title": "ComponentScaffoldView",
+  "type": "object"
+}

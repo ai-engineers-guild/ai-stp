@@ -1,0 +1,171 @@
+{
+  "$defs": {
+    "Fact": {
+      "additionalProperties": true,
+      "description": "One passport fact: value, provenance axes and bounded source links.",
+      "properties": {
+        "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "confirmation": {
+          "$ref": "#/$defs/FactConfirmation"
+        },
+        "confirmed_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "observed_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "origin": {
+          "$ref": "#/$defs/FactOrigin"
+        },
+        "source_refs": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 16,
+          "title": "Source Refs",
+          "type": "array"
+        },
+        "value": {
+          "$ref": "#/$defs/JsonValue"
+        }
+      },
+      "required": [
+        "value",
+        "origin",
+        "confirmation"
+      ],
+      "title": "Fact",
+      "type": "object"
+    },
+    "FactConfirmation": {
+      "enum": [
+        "none",
+        "user_confirmed"
+      ],
+      "type": "string"
+    },
+    "FactOrigin": {
+      "enum": [
+        "declared",
+        "observed",
+        "derived",
+        "imported"
+      ],
+      "type": "string"
+    },
+    "JsonValue": {},
+    "PassportKind": {
+      "enum": [
+        "developer",
+        "device",
+        "project",
+        "component",
+        "setup"
+      ],
+      "type": "string"
+    },
+    "RevisionId": {
+      "pattern": "^revision_[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:passport-envelope",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Common envelope of every passport kind.",
+  "properties": {
+    "created_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "facts": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Fact"
+      },
+      "title": "Facts",
+      "type": "object"
+    },
+    "kind": {
+      "$ref": "#/$defs/PassportKind"
+    },
+    "owner_id": {
+      "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Owner Id",
+      "type": "string"
+    },
+    "parent_revision_ids": {
+      "items": {
+        "$ref": "#/$defs/RevisionId"
+      },
+      "title": "Parent Revision Ids",
+      "type": "array"
+    },
+    "revision_id": {
+      "$ref": "#/$defs/RevisionId"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stable_id": {
+      "title": "Stable Id",
+      "type": "string"
+    },
+    "visibility": {
+      "default": "private",
+      "enum": [
+        "private",
+        "public"
+      ],
+      "title": "Visibility",
+      "type": "string"
+    }
+  },
+  "required": [
+    "created_at",
+    "facts",
+    "kind",
+    "owner_id",
+    "parent_revision_ids",
+    "revision_id",
+    "schema_version",
+    "stable_id",
+    "visibility"
+  ],
+  "title": "PassportEnvelope",
+  "type": "object"
+}

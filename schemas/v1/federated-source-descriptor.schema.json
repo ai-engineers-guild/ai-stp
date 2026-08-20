@@ -1,0 +1,191 @@
+{
+  "$defs": {
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:federated-source-descriptor",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "attribution": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Attribution",
+      "type": "string"
+    },
+    "author_verified": {
+      "const": false,
+      "default": false,
+      "title": "Author Verified",
+      "type": "boolean"
+    },
+    "authority": {
+      "const": "external_observation",
+      "default": "external_observation",
+      "title": "Authority",
+      "type": "string"
+    },
+    "canonical_url": {
+      "maxLength": 2048,
+      "pattern": "^https://[^\\s]+$",
+      "title": "Canonical Url",
+      "type": "string"
+    },
+    "checked_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "component_verified": {
+      "const": false,
+      "default": false,
+      "title": "Component Verified",
+      "type": "boolean"
+    },
+    "dedup_key": {
+      "maxLength": 1024,
+      "minLength": 3,
+      "title": "Dedup Key",
+      "type": "string"
+    },
+    "descriptor_version": {
+      "const": "federated-source/1",
+      "default": "federated-source/1",
+      "title": "Descriptor Version",
+      "type": "string"
+    },
+    "expires_at": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "external_identifier": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "External Identifier",
+      "type": "string"
+    },
+    "external_state": {
+      "enum": [
+        "present",
+        "archived",
+        "unavailable"
+      ],
+      "title": "External State",
+      "type": "string"
+    },
+    "fetched_at": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "freshness": {
+      "enum": [
+        "local_snapshot",
+        "fresh",
+        "stale",
+        "unavailable"
+      ],
+      "title": "Freshness",
+      "type": "string"
+    },
+    "provenance": {
+      "enum": [
+        "exact_local_snapshot",
+        "official_remote_observation"
+      ],
+      "title": "Provenance",
+      "type": "string"
+    },
+    "provider": {
+      "enum": [
+        "sx",
+        "apm",
+        "github",
+        "skills_sh",
+        "nori",
+        "modelcontextprotocol"
+      ],
+      "title": "Provider",
+      "type": "string"
+    },
+    "rate_limit_policy": {
+      "enum": [
+        "not_applicable",
+        "adapter_owned"
+      ],
+      "title": "Rate Limit Policy",
+      "type": "string"
+    },
+    "registry_effect": {
+      "enum": [
+        "none",
+        "confirmed_private_draft_import"
+      ],
+      "title": "Registry Effect",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "source_kind": {
+      "enum": [
+        "local_port",
+        "metadata_adapter"
+      ],
+      "title": "Source Kind",
+      "type": "string"
+    },
+    "target_write": {
+      "const": false,
+      "default": false,
+      "title": "Target Write",
+      "type": "boolean"
+    },
+    "terms_url": {
+      "anyOf": [
+        {
+          "maxLength": 2048,
+          "pattern": "^https://[^\\s]+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Terms Url"
+    }
+  },
+  "required": [
+    "provider",
+    "source_kind",
+    "canonical_url",
+    "external_identifier",
+    "dedup_key",
+    "checked_at",
+    "fetched_at",
+    "freshness",
+    "external_state",
+    "rate_limit_policy",
+    "provenance",
+    "attribution",
+    "registry_effect"
+  ],
+  "title": "FederatedSourceDescriptor",
+  "type": "object"
+}

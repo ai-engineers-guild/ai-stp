@@ -1,0 +1,38 @@
+{
+  "$id": "urn:ai-stp:schema:v1:cli-version-report",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Which build is running, and which contracts it speaks.",
+  "properties": {
+    "cli_version": {
+      "minLength": 1,
+      "title": "Cli Version",
+      "type": "string"
+    },
+    "python_version": {
+      "pattern": "^\\d+\\.\\d+\\.\\d+",
+      "title": "Python Version",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "wire_schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Wire Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "cli_version",
+    "python_version",
+    "schema_version",
+    "wire_schema_version"
+  ],
+  "title": "VersionReport",
+  "type": "object"
+}

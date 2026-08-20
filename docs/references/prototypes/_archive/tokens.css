@@ -1,0 +1,79 @@
+/* ai_stp design tokens for HTML prototypes — keep in sync with apps/web/src/theme */
+
+@font-face {
+  font-family: "gerstnerProgramm";
+  src: url("./fonts/Gerstner_ProgrammRegular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "gerstnerProgramm";
+  src: url("./fonts/Gerstner_ProgrammMedium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "ftSystemMono";
+  src: url("./fonts/FTSystemMono_Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "ftSystemMono";
+  src: url("./fonts/FTSystemMono_Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root,
+[data-mode="machine"] {
+  --bg: #101010;
+  --surface: #181818;
+  --surface-2: #1f1f1f;
+  --fg: #ffffff;
+  --muted: #858483;
+  --border: #434343;
+  --border-subtle: #2a2a2a;
+  --accent: #fb631b;
+  --accent-hover: #f4793f;
+  --accent-text: #ffffff;
+  --success: #63b436;
+  --warning: #dbaa36;
+  --error: #db6866;
+  --font-sans: gerstnerProgramm, Arial, system-ui, -apple-system, "Segoe UI", "Helvetica Neue", sans-serif;
+  --font-mono: ftSystemMono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --radius-control: 4px;
+  --radius-chip: 6px;
+  --radius: 8px;
+  --radius-lg: 16px;
+  --space-2: 4px;
+  --space-3: 8px;
+  --space-4: 12px;
+  --space-5: 16px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --control-h: 36px;
+  --line: 1px;
+  --ease: cubic-bezier(0.215, 0.61, 0.355, 1);
+  --dur: 160ms;
+  color-scheme: dark;
+}
+
+[data-mode="human"] {
+  --bg: #ffffff;
+  --surface: #f9f8f4;
+  --surface-2: #f0eee6;
+  --fg: #181818;
+  --muted: #6b6a68;
+  --border: #d4d2cb;
+  --border-subtle: #e8e6df;
+  --accent: #fb631b;
+  --accent-hover: #f4793f;
+  --accent-text: #ffffff;
+  color-scheme: light;
+}

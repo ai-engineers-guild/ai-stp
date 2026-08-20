@@ -1,0 +1,131 @@
+/* Generated from ai_stp_contracts fixtures/deep-links/v1.json. Do not edit. */
+
+export const DEEP_LINK_CORPUS = {
+  "schema_version": 1,
+  "positive": [
+    {
+      "case": "component-object-default-locale",
+      "platform_base": "https://ai-stp.example",
+      "target": {
+        "kind": "component",
+        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+      },
+      "web_url": "https://ai-stp.example/ru/catalog/components/component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+      "cli_argv": [
+        "ai-stp",
+        "link",
+        "web",
+        "--kind",
+        "component",
+        "--id",
+        "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "--locale",
+        "ru",
+        "--json"
+      ]
+    },
+    {
+      "case": "component-version-english",
+      "platform_base": "https://ai-stp.example",
+      "target": {
+        "kind": "component",
+        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "version": "1.2",
+        "locale": "en"
+      },
+      "web_url": "https://ai-stp.example/en/catalog/components/component_01JQZK7B8N4M6P2R9T5V0X3Y7Z/versions/1.2",
+      "cli_argv": [
+        "ai-stp",
+        "link",
+        "web",
+        "--kind",
+        "component",
+        "--id",
+        "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "--version",
+        "1.2",
+        "--locale",
+        "en",
+        "--json"
+      ]
+    },
+    {
+      "case": "setup-version-report",
+      "platform_base": "https://ai-stp.example/base",
+      "target": {
+        "kind": "setup",
+        "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "version": "0.0",
+        "intent": "report"
+      },
+      "web_url": "https://ai-stp.example/base/ru/catalog/setups/setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z/versions/0.0#report",
+      "cli_argv": [
+        "ai-stp",
+        "link",
+        "web",
+        "--kind",
+        "setup",
+        "--id",
+        "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "--version",
+        "0.0",
+        "--locale",
+        "ru",
+        "--report",
+        "--json"
+      ]
+    },
+    {
+      "case": "publisher-profile",
+      "platform_base": "http://localhost:8000",
+      "target": {
+        "kind": "publisher",
+        "stable_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "locale": "en"
+      },
+      "web_url": "http://localhost:8000/en/publishers/account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+      "cli_argv": [
+        "ai-stp",
+        "link",
+        "web",
+        "--kind",
+        "publisher",
+        "--id",
+        "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "--locale",
+        "en",
+        "--json"
+      ]
+    }
+  ],
+  "invalid_targets": [
+    {
+      "kind": "component",
+      "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+    },
+    {
+      "kind": "publisher",
+      "stable_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+      "version": "1.0"
+    },
+    {
+      "kind": "setup",
+      "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+      "version": "01.0"
+    },
+    {
+      "kind": "component",
+      "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+      "intent": "report"
+    }
+  ],
+  "invalid_urls": [
+    "https://user@example.test/ru/catalog/components/component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+    "https://example.test/ru/catalog/components/component_01JQZK7B8N4M6P2R9T5V0X3Y7Z?token=secret",
+    "https://example.test/ru/catalog/components/component_01JQZK7B8N4M6P2R9T5V0X3Y7Z#other",
+    "https://example.test/ru/catalog/components/component_01JQZK7B8N4M6P2R9T5V0X3Y7Z%2Fversions%2F1.0",
+    "https://elsewhere.test/ru/catalog/components/component_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+  ]
+} as const;
+
+export type DeepLinkCorpus = typeof DEEP_LINK_CORPUS;

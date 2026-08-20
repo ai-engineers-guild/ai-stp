@@ -1,0 +1,230 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case_id": "readSetup.singleVersion",
+      "operation_id": "readSetup",
+      "kind": "positive",
+      "why": "A setup is a separate resource from a component: its card carries purpose and target role, and it has no variant axis because a setup belongs to one harness from creation (ADR-0014).",
+      "request": {
+        "path_params": {
+          "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "summary": {
+          "schema_version": 1,
+          "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "publisher_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "likes_count": 0,
+          "github_stars": null,
+          "updated_at": "2026-08-05T00:00:00.000Z",
+          "latest_version": "1.0",
+          "latest_name": "fixture-setup",
+          "latest_description": "fixture-setup-description",
+          "latest_harness_id": "claude-code",
+          "latest_purpose": "fixture-purpose",
+          "latest_target_role": "fixture-role",
+          "latest_tags": [
+            "python"
+          ],
+          "latest_lifecycle": "active",
+          "latest_requirements_count": 3,
+          "latest_requires_credentials": false,
+          "latest_trust": {
+            "trust_lane": "experimental",
+            "author_verified": false,
+            "component_verified": false
+          },
+          "latest_published_at": "2026-08-05T00:00:00.000Z",
+          "latest_support": {
+            "schema_version": 1,
+            "tier": "primary",
+            "state": "missing",
+            "evidence": []
+          },
+          "latest_checks": null,
+          "usage_metrics": null
+        },
+        "versions": [
+          {
+            "version": "1.0",
+            "passport_digest": "sha256:53c480998fb72ee6148691623b346937ac898600b8e9f2f943733473889dd5e9",
+            "lifecycle": "active",
+            "trust": {
+              "trust_lane": "experimental",
+              "author_verified": false,
+              "component_verified": false
+            },
+            "published_at": "2026-08-05T00:00:00.000Z",
+            "support": {
+              "schema_version": 1,
+              "tier": "primary",
+              "state": "missing",
+              "evidence": []
+            },
+            "checks": null
+          }
+        ],
+        "country_codes": [],
+        "services": []
+      }
+    },
+    {
+      "case_id": "readSetupVersion.published",
+      "operation_id": "readSetupVersion",
+      "kind": "positive",
+      "why": "A setup version pins its components by exact reference, never a range or latest, and the revision id is a real content seal over this exact body.",
+      "request": {
+        "path_params": {
+          "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.0"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "passport": {
+          "schema_version": 1,
+          "kind": "setup",
+          "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "revision_id": "revision_17c0933d0091430a6750bddf86e03277cd06675b7520a340f75cd30a439c7045",
+          "parent_revision_ids": [],
+          "owner_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "created_at": "2026-08-05T00:00:00.000Z",
+          "visibility": "public",
+          "facts": {},
+          "name": "fixture-setup",
+          "description": "fixture-setup-description",
+          "version": "1.0",
+          "tags": [
+            "python"
+          ],
+          "source": null,
+          "artifact": {
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "size_bytes": 2048
+          },
+          "harness_id": "claude-code",
+          "required_env": [],
+          "requires_credentials": false,
+          "requires_authorization": "none",
+          "permissions": {
+            "filesystem": [],
+            "network": [],
+            "process": []
+          },
+          "external_endpoints": [],
+          "license": {
+            "spdx_id": "AGPL-3.0-or-later",
+            "redistribution_allowed": true
+          },
+          "compatibility_evidence_refs": [],
+          "purpose": "fixture-purpose",
+          "target_role": "fixture-role",
+          "supported_tasks": [
+            "fixture-task"
+          ],
+          "components": [
+            {
+              "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+              "variant_id": null,
+              "version": "1.2",
+              "passport_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+            }
+          ],
+          "ported_from": null,
+          "related_setup_ids": [],
+          "execution_profile": "full-auto",
+          "supported_harness_versions": [
+            "2.1.0"
+          ],
+          "supported_os": [
+            "linux"
+          ],
+          "supported_arch": [
+            "x86_64"
+          ],
+          "composition_report_ref": null,
+          "conversion_report_ref": null,
+          "install_evidence_ref": null,
+          "launch_evidence_ref": null
+        },
+        "passport_digest": "sha256:53c480998fb72ee6148691623b346937ac898600b8e9f2f943733473889dd5e9",
+        "lifecycle": "active",
+        "trust": {
+          "trust_lane": "experimental",
+          "author_verified": false,
+          "component_verified": false
+        },
+        "published_at": "2026-08-05T00:00:00.000Z",
+        "support": {
+          "schema_version": 1,
+          "tier": "primary",
+          "state": "missing",
+          "evidence": []
+        },
+        "checks": null,
+        "usage_metrics": null
+      }
+    },
+    {
+      "case_id": "readSetupGithubMetadata.unavailable",
+      "operation_id": "readSetupGithubMetadata",
+      "kind": "positive",
+      "why": "Setup GitHub metadata is the same nullable pair and does not invent stars.",
+      "request": {
+        "path_params": {
+          "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.0"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "stars": null,
+        "archived": null
+      }
+    },
+    {
+      "case_id": "readSetupContextBudget.ready",
+      "operation_id": "readSetupContextBudget",
+      "kind": "positive",
+      "why": "The public context budget is an absolute estimate of visible exact setup tokens.",
+      "request": {
+        "path_params": {
+          "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.0"
+        },
+        "query": {
+          "estimator_profile": "ai-stp:utf8-bytes/1"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "coordinate": {
+          "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.0",
+          "passport_digest": "sha256:53c480998fb72ee6148691623b346937ac898600b8e9f2f943733473889dd5e9"
+        },
+        "estimator": {
+          "schema_version": 1,
+          "profile": "ai-stp:utf8-bytes/1",
+          "accuracy": "exact",
+          "method": "utf8_byte_count",
+          "model": null,
+          "local_only": true
+        },
+        "always_tokens": 0,
+        "conditional_tokens": 0,
+        "total_tokens": 0,
+        "unavailable_components": 0,
+        "status": "ready",
+        "components": []
+      }
+    }
+  ]
+}

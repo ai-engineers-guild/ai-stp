@@ -1,0 +1,231 @@
+{
+  "$defs": {
+    "ContentDigest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "LifecycleState": {
+      "enum": [
+        "draft",
+        "active",
+        "deprecated",
+        "blocked",
+        "hidden",
+        "published",
+        "ready",
+        "validating",
+        "publish_planned",
+        "failed",
+        "stale",
+        "cancelled"
+      ],
+      "type": "string"
+    },
+    "ObjectKind": {
+      "enum": [
+        "component",
+        "setup"
+      ],
+      "type": "string"
+    },
+    "OwnerEvidenceRow": {
+      "additionalProperties": true,
+      "description": "One evidence binding for owner version view.",
+      "properties": {
+        "check_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Check Id",
+          "type": "string"
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "result": {
+          "maxLength": 32,
+          "minLength": 1,
+          "title": "Result",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "check_id",
+        "expires_at",
+        "result",
+        "schema_version",
+        "source"
+      ],
+      "title": "OwnerEvidenceRow",
+      "type": "object"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    },
+    "TrustLane": {
+      "enum": [
+        "authoritative",
+        "experimental"
+      ],
+      "type": "string"
+    },
+    "Version": {
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:owner-version-detail",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Exact owned version for publication entry and evidence display.",
+  "properties": {
+    "author_verified": {
+      "default": false,
+      "title": "Author Verified",
+      "type": "boolean"
+    },
+    "can_start_publication": {
+      "default": false,
+      "title": "Can Start Publication",
+      "type": "boolean"
+    },
+    "component_verified": {
+      "default": false,
+      "title": "Component Verified",
+      "type": "boolean"
+    },
+    "content_digest": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ContentDigest"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "description": {
+      "default": "",
+      "maxLength": 2000,
+      "title": "Description",
+      "type": "string"
+    },
+    "evidence": {
+      "items": {
+        "$ref": "#/$defs/OwnerEvidenceRow"
+      },
+      "title": "Evidence",
+      "type": "array"
+    },
+    "install_eligible": {
+      "default": false,
+      "title": "Install Eligible",
+      "type": "boolean"
+    },
+    "lifecycle_state": {
+      "$ref": "#/$defs/LifecycleState"
+    },
+    "name": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "object_kind": {
+      "$ref": "#/$defs/ObjectKind"
+    },
+    "open_publication_plan_id": {
+      "default": "",
+      "maxLength": 64,
+      "title": "Open Publication Plan Id",
+      "type": "string"
+    },
+    "published_at": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stable_id": {
+      "maxLength": 64,
+      "minLength": 8,
+      "title": "Stable Id",
+      "type": "string"
+    },
+    "trust_lane": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TrustLane"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "version": {
+      "$ref": "#/$defs/Version"
+    },
+    "visibility": {
+      "enum": [
+        "public",
+        "private"
+      ],
+      "title": "Visibility",
+      "type": "string"
+    }
+  },
+  "required": [
+    "author_verified",
+    "can_start_publication",
+    "component_verified",
+    "content_digest",
+    "description",
+    "evidence",
+    "install_eligible",
+    "lifecycle_state",
+    "name",
+    "object_kind",
+    "open_publication_plan_id",
+    "published_at",
+    "schema_version",
+    "stable_id",
+    "trust_lane",
+    "version",
+    "visibility"
+  ],
+  "title": "OwnerVersionDetail",
+  "type": "object"
+}

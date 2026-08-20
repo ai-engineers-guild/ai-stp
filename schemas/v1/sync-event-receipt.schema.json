@@ -1,0 +1,151 @@
+{
+  "$defs": {
+    "Cursor": {
+      "pattern": "^[A-Za-z0-9_-]{1,512}$",
+      "type": "string"
+    },
+    "EventId": {
+      "pattern": "^[A-Za-z0-9._~-]{8,128}$",
+      "type": "string"
+    },
+    "RevisionId": {
+      "pattern": "^revision_[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "SyncConflictInfo": {
+      "additionalProperties": true,
+      "description": "Enough graph material for the client to locate a common ancestor.",
+      "properties": {
+        "affected_fields": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Affected Fields",
+          "type": "array"
+        },
+        "client_head_revision_id": {
+          "$ref": "#/$defs/RevisionId"
+        },
+        "common_ancestor_revision_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RevisionId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "server_head_revision_id": {
+          "$ref": "#/$defs/RevisionId"
+        }
+      },
+      "required": [
+        "affected_fields",
+        "client_head_revision_id",
+        "common_ancestor_revision_id",
+        "schema_version",
+        "server_head_revision_id"
+      ],
+      "title": "SyncConflictInfo",
+      "type": "object"
+    },
+    "SyncReceiptState": {
+      "enum": [
+        "accepted",
+        "rejected",
+        "conflict",
+        "superseded"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:sync-event-receipt",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Durable outcome of one event (SPEC-009 receipt states).",
+  "properties": {
+    "conflict": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SyncConflictInfo"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "cursor": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Cursor"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "error_code": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Error Code"
+    },
+    "event_id": {
+      "$ref": "#/$defs/EventId"
+    },
+    "revision_id": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RevisionId"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "server_head_revision_id": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RevisionId"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "state": {
+      "$ref": "#/$defs/SyncReceiptState"
+    }
+  },
+  "required": [
+    "conflict",
+    "cursor",
+    "error_code",
+    "event_id",
+    "revision_id",
+    "schema_version",
+    "server_head_revision_id",
+    "state"
+  ],
+  "title": "SyncEventReceipt",
+  "type": "object"
+}

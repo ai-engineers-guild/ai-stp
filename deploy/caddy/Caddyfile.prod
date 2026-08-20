@@ -1,0 +1,35 @@
+# Production reverse proxy (SPEC-019 REQ-1903, SPEC-024 REQ-2404/2406, ADR-0044).
+# Caddy is the only public entrypoint. Main host path split: API under /v1 and
+# OpenAPI docs to api; everything else to web. User docs use a dedicated host.
+#
+# Set AI_STP_PUBLIC_HOST to the real public domain so Caddy obtains certificates via ACME
+# (REQ-2406). Local compose rehearsals may keep the default localhost (internal CA).
+# Set AI_STP_DOCS_HOST to the user documentation subdomain, for example docs.example.com.
+#
+# A site address without a scheme turns automatic HTTPS on, and Caddy then keeps
+# asking a public CA for a certificate for as long as it runs. Behind a host
+# proxy that already terminates TLS, give both addresses an explicit `http://`;
+# the defaults below do, so an unconfigured deployment stays inert instead of
+# ordering certificates for a name nobody owns.
+
+{$AI_STP_DOCS_HOST:http://docs.localhost} {
+	reverse_proxy docs:8080
+}
+
+{$AI_STP_PUBLIC_HOST:http://localhost} {
+	handle /v1/* {
+		reverse_proxy api:8000
+	}
+	handle /docs* {
+		reverse_proxy api:8000
+	}
+	handle /redoc* {
+		reverse_proxy api:8000
+	}
+	handle /openapi.json {
+		reverse_proxy api:8000
+	}
+	handle {
+		reverse_proxy web:3000
+	}
+}

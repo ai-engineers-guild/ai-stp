@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en" class="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ai_stp · Branding</title>
+  <link rel="stylesheet" href="./shared/tokens.css" />
+  <link rel="stylesheet" href="./shared/ui.css" />
+  <style>
+    .brand-hero { display:flex; flex-direction:column; gap:20px; padding:8px 0 32px; border-bottom:1px solid hsl(var(--border)); margin-bottom:32px; }
+    .swatch-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:12px; }
+    .swatch { border:1px solid hsl(var(--border)); border-radius:8px; overflow:hidden; background:hsl(var(--card)); }
+    .swatch .chip-color { height:72px; }
+    .swatch .meta { padding:10px 12px; font-size:12px; }
+    .swatch .meta strong { display:block; font-weight:500; margin-bottom:4px; }
+    .type-sample { border:1px solid hsl(var(--border)); border-radius:8px; padding:20px; background:hsl(var(--card)); }
+    .type-sample .display { font-size:36px; font-weight:500; letter-spacing:-0.02em; margin:0 0 8px; }
+    .type-sample .body { margin:0 0 12px; color:hsl(var(--muted-foreground)); }
+    .type-sample .mono-line { font-family:var(--font-mono); font-size:13px; margin:0; }
+    .rule-list { margin:0; padding-left:18px; color:hsl(var(--muted-foreground)); line-height:1.7; }
+    .rule-list li { margin-bottom:6px; }
+    .panel-label { font-family:var(--font-mono); font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:hsl(var(--muted-foreground)); margin:0 0 10px; }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <a href="#main-content" class="sr-only">Skip to content</a>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <nav class="nav" aria-label="Primary">
+          <a href="./pages/landing.html" class="brand"><img src="./shared/brand/logo-mark.png" alt="" width="28" height="28" aria-hidden="true">ai_stp</a>
+          <a href="./pages/catalog.html" class="nav-link">Catalog</a>
+        </nav>
+        <div class="top-actions">
+          <button type="button" class="icon-btn" data-action="theme" data-theme-label aria-label="Dark">Theme</button>
+          <a class="btn btn-outline btn-sm" href="./index.html">All screens</a>
+        </div>
+      </div>
+    </header>
+    <main class="main" id="main-content">
+      <div class="brand-hero">
+        <p class="eyebrow">Brand system · from live apps/web</p>
+        <img src="./shared/brand/logo-lockup.svg" alt="ai_stp" class="logo-lockup">
+        <p class="lede">Tokens mirrored from <code class="mono text-sm">globals.css</code> / <code class="mono text-sm">tokens.json</code>. Light = human default, dark = machine mode.</p>
+      </div>
+
+      <section class="stack-md" style="margin-bottom:32px">
+        <h2>Color</h2>
+        <div class="swatch-grid">
+          <div class="swatch"><div class="chip-color" style="background:hsl(var(--background))"></div><div class="meta"><strong>background</strong><span class="mono muted">#ffffff / #101010</span></div></div>
+          <div class="swatch"><div class="chip-color" style="background:hsl(var(--foreground))"></div><div class="meta"><strong>foreground</strong><span class="mono muted">#181818 / #fff</span></div></div>
+          <div class="swatch"><div class="chip-color" style="background:hsl(var(--card))"></div><div class="meta"><strong>card</strong><span class="mono muted">#f9f8f4 / #181818</span></div></div>
+          <div class="swatch"><div class="chip-color" style="background:hsl(var(--primary))"></div><div class="meta"><strong>primary</strong><span class="mono muted">#fb631b</span></div></div>
+          <div class="swatch"><div class="chip-color" style="background:hsl(var(--muted))"></div><div class="meta"><strong>muted</strong><span class="mono muted">sand / ink-12</span></div></div>
+          <div class="swatch"><div class="chip-color" style="background:hsl(var(--border))"></div><div class="meta"><strong>border</strong><span class="mono muted">#d4d2cb / #434343</span></div></div>
+        </div>
+      </section>
+
+      <section class="stack-md" style="margin-bottom:32px">
+        <h2>Type</h2>
+        <div class="type-sample">
+          <p class="display">One setup for every coding harness</p>
+          <p class="body">Browse verified components and setups, install the CLI, and keep local and cloud state aligned.</p>
+          <p class="mono-line">gerstnerProgramm · ftSystemMono · primary CTA only on brand orange</p>
+        </div>
+      </section>
+
+      <section class="stack-md" style="margin-bottom:32px">
+        <h2>Rules (from live product)</h2>
+        <ul class="rule-list">
+          <li>Primary orange is high-signal CTA only — never large brand washes.</li>
+          <li>Light mode is the default human canvas; dark is machine mode.</li>
+          <li>Cards use sand surface on light; mono labels for metadata and chips.</li>
+          <li>Controls use 4px radius; cards 8px; large shells 16px.</li>
+          <li>Author verification is independent of content safety messaging.</li>
+        </ul>
+      </section>
+
+      <section class="stack-md">
+        <p class="panel-label">Mark assets</p>
+        <div class="row" style="gap:24px;align-items:center">
+          <img src="./shared/brand/logo-mark.png" alt="mark" width="64" height="64">
+          <img src="./shared/brand/logo-lockup.svg" alt="lockup" style="height:40px;width:auto">
+        </div>
+      </section>
+    </main>
+    <footer class="footer">
+      <div class="footer-inner">
+        <div>ai_stp · setup passports</div>
+        <nav class="footer-links">
+          <a href="./pages/landing.html">Landing</a>
+          <a href="./index.html">All screens</a>
+        </nav>
+      </div>
+    </footer>
+  </div>
+  <script src="./shared/shell.js"></script>
+</body>
+</html>

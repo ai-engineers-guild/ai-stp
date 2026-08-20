@@ -1,0 +1,131 @@
+{
+  "$defs": {
+    "HarnessCapabilityRow": {
+      "additionalProperties": false,
+      "description": "One executable row from the closed harness capability catalog.",
+      "properties": {
+        "component_types": {
+          "items": {
+            "enum": [
+              "instruction",
+              "skill",
+              "mcp",
+              "hook",
+              "command",
+              "agent",
+              "plugin",
+              "setting"
+            ],
+            "type": "string"
+          },
+          "title": "Component Types",
+          "type": "array"
+        },
+        "gaps": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Gaps",
+          "type": "array"
+        },
+        "global_layouts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Global Layouts",
+          "type": "array"
+        },
+        "harness_id": {
+          "enum": [
+            "claude-code",
+            "codex",
+            "pi",
+            "opencode",
+            "grok-build",
+            "undefined"
+          ],
+          "title": "Harness Id",
+          "type": "string"
+        },
+        "layout_sources": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Layout Sources",
+          "type": "array"
+        },
+        "project_layouts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Project Layouts",
+          "type": "array"
+        },
+        "projection_capabilities": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Projection Capabilities",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "support": {
+          "enum": [
+            "primary",
+            "beta",
+            "portable"
+          ],
+          "title": "Support",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "harness_id",
+        "title",
+        "support",
+        "component_types",
+        "projection_capabilities",
+        "global_layouts",
+        "project_layouts",
+        "layout_sources",
+        "gaps"
+      ],
+      "title": "HarnessCapabilityRow",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-harness-capability-table",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The complete supported harness table, including shared conventions.",
+  "properties": {
+    "harnesses": {
+      "items": {
+        "$ref": "#/$defs/HarnessCapabilityRow"
+      },
+      "title": "Harnesses",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "harnesses"
+  ],
+  "title": "HarnessCapabilityTable",
+  "type": "object"
+}

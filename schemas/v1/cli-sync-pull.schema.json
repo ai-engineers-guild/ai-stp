@@ -1,0 +1,48 @@
+{
+  "$id": "urn:ai-stp:schema:v1:cli-sync-pull",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One atomically applied page from the private account stream.",
+  "properties": {
+    "applied": {
+      "minimum": 0,
+      "title": "Applied",
+      "type": "integer"
+    },
+    "next_cursor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Cursor"
+    },
+    "received": {
+      "minimum": 0,
+      "title": "Received",
+      "type": "integer"
+    },
+    "replayed": {
+      "minimum": 0,
+      "title": "Replayed",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "received",
+    "applied",
+    "replayed",
+    "next_cursor"
+  ],
+  "title": "SyncPullView",
+  "type": "object"
+}

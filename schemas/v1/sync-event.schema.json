@@ -1,0 +1,136 @@
+{
+  "$defs": {
+    "AccountId": {
+      "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "type": "string"
+    },
+    "ContentDigest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "DeviceId": {
+      "pattern": "^device_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "type": "string"
+    },
+    "EntityId": {
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+    },
+    "EventId": {
+      "pattern": "^[A-Za-z0-9._~-]{8,128}$",
+      "type": "string"
+    },
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    },
+    "RevisionId": {
+      "pattern": "^revision_[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "SyncEntityKind": {
+      "enum": [
+        "developer_passport",
+        "device_summary",
+        "component_private",
+        "setup_private",
+        "unverified_consent"
+      ],
+      "type": "string"
+    },
+    "SyncOperation": {
+      "enum": [
+        "upsert",
+        "tombstone"
+      ],
+      "type": "string"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:sync-event",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One push event: a candidate revision and its idempotency key.\n\n``device_id`` must match the session-bound active device; the server never\ntrusts a different device claim (REQ-2508). ``payload`` is the allowlisted\nrevision document body; tombstone may send an empty object.",
+  "properties": {
+    "actor_id": {
+      "$ref": "#/$defs/AccountId"
+    },
+    "content_digest": {
+      "$ref": "#/$defs/ContentDigest"
+    },
+    "created_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "device_id": {
+      "$ref": "#/$defs/DeviceId"
+    },
+    "entity_id": {
+      "$ref": "#/$defs/EntityId"
+    },
+    "entity_kind": {
+      "$ref": "#/$defs/SyncEntityKind"
+    },
+    "event_id": {
+      "$ref": "#/$defs/EventId"
+    },
+    "expected_head_revision_id": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RevisionId"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "operation": {
+      "$ref": "#/$defs/SyncOperation"
+    },
+    "parent_revision_ids": {
+      "items": {
+        "$ref": "#/$defs/RevisionId"
+      },
+      "maxItems": 8,
+      "title": "Parent Revision Ids",
+      "type": "array"
+    },
+    "payload": {
+      "additionalProperties": true,
+      "title": "Payload",
+      "type": "object"
+    },
+    "revision_id": {
+      "$ref": "#/$defs/RevisionId"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "event_id",
+    "entity_id",
+    "entity_kind",
+    "revision_id",
+    "parent_revision_ids",
+    "device_id",
+    "actor_id",
+    "operation",
+    "content_digest",
+    "created_at",
+    "idempotency_key",
+    "expected_head_revision_id",
+    "payload"
+  ],
+  "title": "SyncEvent",
+  "type": "object"
+}

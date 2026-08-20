@@ -1,0 +1,12 @@
+schema_version: 1
+default_profile: public_saas
+
+profiles:
+  public_saas:
+    content_hub: true
+    saas_public_pages: true
+    catalog_usage_metrics: false
+  self_hosted:
+    content_hub: false
+    saas_public_pages: false
+    catalog_usage_metrics: false

@@ -1,0 +1,1620 @@
+"""`ai-stp select` — the mechanical stage and the recommendation session.
+
+`SPEC-006` REQ-601 puts mechanical constraints before an agent chooses, and
+`eligibility` is where that stage becomes observable (#163). It decides nothing
+about which candidate is best: it answers which ones are allowed to be
+considered at all, and names the stable reason behind every refusal from
+`docs/contracts/eligibility-constraints.md`.
+
+`propose`, `confirm` and `cancel` are the session of `ADR-0027` (#164). Showing
+a composition creates nothing; one explicit confirmation freezes exactly one
+private `SetupVersion` with its trace and its pin, atomically. That asymmetry is
+the point — an agent may show as many compositions as it likes, and only the
+user's confirmation puts one in the registry.
+
+The target and the context are assembled the way REQ-621 requires — from the
+developer, device and project passports and the chosen harness — and every fact
+they were built from comes back in the answer. A verdict whose inputs are
+invisible cannot be checked, and this stage exists precisely to be checkable.
+"""
+
+import os
+import platform
+import sqlite3
+from collections.abc import Mapping, Sequence
+from contextlib import closing
+from datetime import timedelta
+from pathlib import Path
+from typing import Final, cast
+
+from ai_stp_cli.answer import Answer
+from ai_stp_cli.config import effective_config
+from ai_stp_cli.errors import CliFailure
+from ai_stp_cli.local import (
+    bundle,
+    components,
+    composition,
+    content,
+    eligibility,
+    graph,
+    harnesses,
+    impact,
+    lifecycle,
+    passports,
+    project_index,
+    project_passport,
+    provider_releases,
+    revisions,
+    selection,
+    symbols,
+    versions,
+)
+from ai_stp_cli.local.database import configured_path, open_readonly, open_registry
+from ai_stp_cli.local.passports import moment, owner
+from ai_stp_cli.paths import redact_home
+from ai_stp_cli.provider import (
+    conformance,
+    conformance_v2,
+    conformance_v3,
+    invocation_v2,
+    invocation_v3,
+    network_launcher,
+    protocol,
+    protocol_v2,
+    protocol_v3,
+    release,
+)
+from ai_stp_cli.toolchain import install
+from ai_stp_cli.toolchain import load as load_manifest
+from ai_stp_contracts.impact import BlastRadiusReport, SelectionImpactReport
+from ai_stp_contracts.machine_help import (
+    BundleFile,
+    BundleRefusal,
+    CandidateEligibility,
+    CompositionChoice,
+    CompositionConflict,
+    CompositionReports,
+    ConfirmationView,
+    ConformanceCase,
+    ConformanceReport,
+    ConversionEntry,
+    EligibilityMatrix,
+    EligibilityNote,
+    EligibilityRefusal,
+    EligibilityReport,
+    GraphNode,
+    GraphReference,
+    GraphRefusal,
+    HarnessBundle,
+    PinnedRelease,
+    ProposalMember,
+    ProposalSession,
+    ProposalView,
+    ProviderNetworkCapability,
+    ProviderTrust,
+    ReleaseRefusal,
+    SetupGraph,
+)
+from ai_stp_foundation.canonical import JsonValue
+from ai_stp_foundation.harnesses import HARNESS_IDS
+from ai_stp_foundation.timestamps import format_timestamp, parse_timestamp
+
+
+def eligible(parameters: Mapping[str, object]) -> Answer[EligibilityReport]:
+    """Assess every local candidate against one harness on this machine.
+
+    Reads and reports. Nothing here writes a passport, a version or a target:
+    `ADR-0027` makes a durable object the result of an explicit confirmation,
+    and looking at what is allowed must not be a way to create one.
+    """
+    harness = str(parameters.get("harness") or "")
+    if harness not in HARNESS_IDS:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "a supported harness identifier is required",
+            details={"supported": ", ".join(sorted(HARNESS_IDS))},
+            next_actions=["toolchain harnesses --json"],
+        )
+
+    root = Path(str(parameters.get("project") or Path.cwd()))
+    registry = configured_path()
+    redistribution = bool(parameters.get("for-redistribution"))
+    if not registry.exists():
+        return Answer(
+            _eligibility_report(
+                _target(harness, root, for_redistribution=redistribution, owner_id=""),
+                (),
+            )
+        )
+
+    def work(connection: sqlite3.Connection) -> EligibilityReport:
+        target = _target(
+            harness,
+            root,
+            for_redistribution=redistribution,
+            owner_id=_registry_owner_id(connection),
+        )
+        assessed = eligibility.assess_all(
+            _candidates(connection, consented=bool(parameters.get("include-unverified"))),
+            target,
+        )
+        return _eligibility_report(target, assessed)
+
+    with closing(open_readonly(registry)) as connection:
+        return Answer(work(connection))
+
+
+def eligible_everywhere(parameters: Mapping[str, object]) -> Answer[EligibilityMatrix]:
+    """Assess every local candidate against every supported harness.
+
+    `select eligibility` answers for the harness it was given, which is right
+    for "compose this for Codex" and wrong for "where does this object fit".
+    With only the first available, an agent answered the second question with
+    the harness its own session happened to run in, and a portable skill
+    acquired that `harness_id` on the way into a draft passport (`#380`).
+
+    What this does **not** read is whether a harness is installed here. Whether
+    an object fits Pi is a property of the object; a machine without Pi still
+    gets a Pi row, with a reason from the constraint families rather than
+    silence. Installation is an input to running something, not to whether it
+    may be composed.
+    """
+    named = parameters.get("harness")
+    if named is None:
+        requested = tuple(sorted(HARNESS_IDS))
+    else:
+        supplied: tuple[object, ...] = (
+            tuple(cast(list[object] | tuple[object, ...], named))
+            if isinstance(named, list | tuple)
+            else (named,)
+        )
+        requested = tuple(str(item) for item in supplied)
+        unknown = sorted(set(requested) - set(HARNESS_IDS))
+        if unknown or not requested:
+            raise CliFailure(
+                "AI_STP_VALIDATION_ERROR",
+                "a supported harness identifier is required",
+                details={
+                    "unknown": ", ".join(unknown),
+                    "supported": ", ".join(sorted(HARNESS_IDS)),
+                },
+                next_actions=["toolchain harnesses --json"],
+            )
+        requested = tuple(sorted(set(requested)))
+
+    root = Path(str(parameters.get("project") or Path.cwd()))
+    registry = configured_path()
+    redistribution = bool(parameters.get("for-redistribution"))
+    consented = bool(parameters.get("include-unverified"))
+
+    def rows(connection: sqlite3.Connection | None) -> list[EligibilityReport]:
+        owner = _registry_owner_id(connection) if connection is not None else ""
+        held: tuple[eligibility.CandidateFacts, ...] = (
+            () if connection is None else _candidates(connection, consented=consented)
+        )
+        reports: list[EligibilityReport] = []
+        for harness in requested:
+            # Built once per harness rather than once: the target carries the
+            # harness version, capabilities and OS facts the assessment reads,
+            # and reusing one row's target for another is how a matrix quietly
+            # answers the same question five times.
+            target = _target(harness, root, for_redistribution=redistribution, owner_id=owner)
+            reports.append(_eligibility_report(target, eligibility.assess_all(held, target)))
+        return reports
+
+    def matrix(reports: list[EligibilityReport]) -> EligibilityMatrix:
+        return EligibilityMatrix(
+            harnesses=reports,
+            requested=list(requested),  # pyright: ignore[reportArgumentType]
+        )
+
+    if not registry.exists():
+        return Answer(matrix(rows(None)))
+    with closing(open_readonly(registry)) as connection:
+        return Answer(matrix(rows(connection)))
+
+
+def impact_report(parameters: Mapping[str, object]) -> Answer[SelectionImpactReport]:
+    """Report context, cost and capability effects for exact local setup versions."""
+    registry = configured_path()
+    if not registry.exists():
+        raise CliFailure("AI_STP_NOT_FOUND", "the local registry does not exist")
+    setup_id = str(parameters.get("setup-id") or "")
+    setup_version = str(parameters.get("setup-version") or "")
+    if not setup_id or not setup_version:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR", "an exact candidate setup id and version are required"
+        )
+    raw_price = str(parameters.get("price-profile") or "")
+    with closing(open_readonly(registry)) as connection:
+        return Answer(
+            impact.selection_report(
+                connection,
+                setup_id=setup_id,
+                setup_version=setup_version,
+                baseline_id=str(parameters.get("against-setup-id") or ""),
+                baseline_version=str(parameters.get("against-setup-version") or ""),
+                project_id=str(parameters.get("project-id") or ""),
+                estimator_profile=str(
+                    parameters.get("tokenizer-profile") or "ai-stp:unicode-chars-div4/1"
+                ),
+                price_profile_path=None if not raw_price else Path(raw_price),
+                at=moment(),
+            )
+        )
+
+
+def blast_radius(parameters: Mapping[str, object]) -> Answer[BlastRadiusReport]:
+    """Report exact local reverse references for one component and scenario."""
+    registry = configured_path()
+    if not registry.exists():
+        raise CliFailure("AI_STP_NOT_FOUND", "the local registry does not exist")
+    component_id = str(parameters.get("component-id") or "")
+    component_version = str(parameters.get("component-version") or "")
+    if not component_id or not component_version:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR", "an exact component id and version are required"
+        )
+    with closing(open_readonly(registry)) as connection:
+        return Answer(
+            impact.blast_radius(
+                connection,
+                component_id=component_id,
+                component_version=component_version,
+                scenario=str(parameters.get("scenario") or "update"),
+                at=moment(),
+            )
+        )
+
+
+def _eligibility_report(
+    target: eligibility.Target,
+    assessed: tuple[eligibility.Assessment, ...],
+) -> EligibilityReport:
+    return EligibilityReport(
+        harness_id=target.harness_id,  # pyright: ignore[reportArgumentType]
+        harness_version=target.harness_version,
+        os=target.os,
+        arch=target.arch,
+        capability_vocabulary_version=eligibility.CAPABILITY_VOCABULARY_VERSION,
+        capabilities=sorted(target.capabilities),
+        candidates=[_view(item) for item in assessed],
+        admissible_count=len(eligibility.admissible(assessed)),
+        auto_selectable_count=len(eligibility.selectable(assessed)),
+    )
+
+
+def _registry_owner_id(connection: sqlite3.Connection) -> str:
+    local = passports.known_owner()
+    if local is not None:
+        return local.account_id
+    stable_id = passports.developer_stable_id(connection)
+    stored = None if stable_id is None else revisions.head(connection, stable_id)
+    return "" if stored is None else stored.envelope.owner_id
+
+
+def _target(
+    harness: str,
+    root: Path,
+    *,
+    for_redistribution: bool,
+    owner_id: str | None = None,
+) -> eligibility.Target:
+    """Build the target from what this machine and project actually show.
+
+    The harness version is read from the survey rather than assumed. It is
+    allowed to come back empty — `REQ-1415` has `unknown_version` — and the
+    engine treats that as unreadable rather than as "any version", which is why
+    it is passed through instead of being defaulted to something plausible.
+    """
+    resolved = root.resolve()
+    index = project_index.build(resolved)
+    survey = symbols.survey(
+        index.root, [(item.path, item.language) for item in index.entries if item.language]
+    )
+    detector = next(item for item in harnesses.DETECTORS if item.harness_id == harness)
+
+    return eligibility.Target(
+        harness_id=harness,
+        os=_operating_system(),
+        arch=platform.machine().lower(),
+        harness_version=_version_of(harnesses.detect(detector)),
+        capabilities=eligibility.observed_capabilities(
+            languages=[item.language for item in survey.languages if item.files],
+            surfaces=[Path(item.path).name for item in index.entries],
+            git=(index.root / ".git").exists(),
+            tools_current=[
+                tool.tool_id
+                for tool in load_manifest().tools
+                if install.current_target(tool.tool_id) is not None
+            ],
+        ),
+        owner_id=owner().account_id if owner_id is None else owner_id,
+        # A provider covers the closed set of supported harnesses and nothing
+        # else. `undefined` reaches no provider by construction, and phase 6
+        # narrows this to what it releases without the engine changing.
+        provider_harnesses=frozenset(HARNESS_IDS),
+        for_redistribution=for_redistribution,
+    )
+
+
+def _operating_system() -> str:
+    system = platform.system().lower()
+    return {"darwin": "darwin", "linux": "linux", "windows": "windows"}.get(system, system)
+
+
+def _version_of(found: harnesses.Found) -> str:
+    """The version of the installation this machine would actually use.
+
+    The first on `PATH`, because that is the one a harness command resolves to.
+    The survey spells an unreadable version `unknown`, and that word is turned
+    back into nothing here: passed through, it would travel as though it were a
+    version and be reported as one in the answer.
+    """
+    for installation in found.installations:
+        if installation.version and installation.version != "unknown":
+            return installation.version
+    return ""
+
+
+def _candidates(
+    connection: sqlite3.Connection, *, consented: bool
+) -> tuple[eligibility.CandidateFacts, ...]:
+    """Every locally registered object, as the constraint engine sees it.
+
+    Everything here is the user's own: it was adopted or authored on this
+    machine and no platform ever confirmed it. Claiming otherwise would invent
+    a confirmation, so the trust axes stay false and `owned_or_pinned` carries
+    the truth — which is also what keeps a licence and a grant from being
+    demanded of somebody for their own work.
+    """
+    rows = connection.execute(
+        "SELECT stable_id FROM entity WHERE kind IN ('component', 'setup')"
+    ).fetchall()
+    held: list[eligibility.CandidateFacts] = []
+    for row in rows:
+        stored = revisions.head(connection, str(row["stable_id"]))
+        if stored is None:
+            continue
+        document = cast(dict[str, JsonValue], stored.envelope.model_dump(mode="json"))
+        facts = cast(dict[str, JsonValue], document["facts"])
+        held.append(
+            eligibility.CandidateFacts(
+                stable_id=stored.stable_id,
+                revision_id=stored.revision_id,
+                harness_id=str(_value(facts.get("harness_id")) or ""),
+                owner_id=str(document.get("owner_id") or ""),
+                owned_or_pinned=True,
+                registrable=lifecycle.registrable(connection, stored),
+                consented=consented,
+            )
+        )
+    return tuple(held)
+
+
+def _value(fact: JsonValue) -> JsonValue:
+    return fact.get("value") if isinstance(fact, dict) else fact
+
+
+def _view(assessment: eligibility.Assessment) -> CandidateEligibility:
+    return CandidateEligibility(
+        stable_id=assessment.stable_id,
+        revision_id=assessment.revision_id,
+        lane=assessment.lane,  # pyright: ignore[reportArgumentType]
+        lane_reason=assessment.lane_reason,
+        admissible=assessment.admissible,
+        auto_selectable=assessment.auto_selectable,
+        refusals=[
+            EligibilityRefusal(
+                family=item.family,  # pyright: ignore[reportArgumentType]
+                code=item.code,
+                summary=item.summary,
+                details=item.details,
+            )
+            for item in assessment.refusals
+        ],
+        notes=[
+            EligibilityNote(
+                code=item.code,  # pyright: ignore[reportArgumentType]
+                summary=item.summary,
+                details=item.details,
+            )
+            for item in assessment.notes
+        ],
+    )
+
+
+#: How long a proposal stays open. Long enough for an agent to show several and
+#: a person to read them; short enough that a stale one is refused rather than
+#: silently confirmed against context that has moved on.
+PROPOSAL_TTL_SECONDS: Final[int] = 3600
+
+
+def propose(parameters: Mapping[str, object]) -> Answer[ProposalSession]:
+    """Record one composition proposal. Creates no version and no target.
+
+    `REQ-622` in full: this writes a session row and nothing else. Whether to
+    show one proposal or five is the agent's decision, so several may be open
+    for the same pair at once and none of them is more real than the others
+    until the user confirms exactly one.
+    """
+    harness = _harness_of(parameters)
+    root = Path(str(parameters.get("project") or Path.cwd()))
+    wanted = _members_named(parameters)
+
+    def work(connection: sqlite3.Connection) -> ProposalSession:
+        context = context_for_project(connection, harness, root)
+        at = moment()
+        members = _resolve(connection, wanted, harness=harness, root=root)
+        selection.propose(
+            connection,
+            context=context,
+            members=members,
+            at=at,
+            expires_at=_plus(at, PROPOSAL_TTL_SECONDS),
+        )
+        return _session(connection, context, at)
+
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        return Answer(work(connection))
+
+
+def confirm(parameters: Mapping[str, object]) -> Answer[ConfirmationView]:
+    """Freeze exactly one proposal as a private `SetupVersion` (`REQ-623`).
+
+    The only path from a shown composition to a stored object. Repeating it
+    returns the version already created rather than making a second one, which
+    `REQ-624` makes a success and not a conflict.
+
+    The confirmation flag is checked here because `_require_declared_flags`
+    deliberately does not: a missing confirmation is a decision the user has not
+    made, which is `AI_STP_USER_DECISION_REQUIRED` and exit class 4, not a
+    malformed call. This command declared `explicit_flag` and then carried no
+    flag to check, so the one command whose whole purpose is the user's decision
+    was the only one of seventeen that never asked for it, and a bare call froze
+    an immutable version.
+    """
+    proposal_id = str(parameters.get("proposal") or "")
+    if not proposal_id:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "the proposal being confirmed must be named",
+            next_actions=["select propose --harness <id> --json"],
+        )
+    # After the proposal is known, not before: a call naming nothing is
+    # malformed, and only a well-formed call can be a decision left unmade.
+    if parameters.get("confirm") is not True:
+        raise CliFailure(
+            "AI_STP_USER_DECISION_REQUIRED",
+            "select confirm requires explicit confirmation",
+            next_actions=[f"select confirm --proposal {proposal_id} --confirm --json"],
+        )
+
+    def work(connection: sqlite3.Connection) -> ConfirmationView:
+        proposal = selection.held(connection, proposal_id)
+        if proposal is None:
+            raise CliFailure(
+                "AI_STP_NOT_FOUND",
+                "no proposal with that identifier is held by this session",
+                details={"proposal_id": proposal_id},
+                next_actions=["select propose --harness <id> --json"],
+            )
+        context = context_for_project(
+            connection, proposal.harness_id, _root_of(connection, proposal)
+        )
+        confirmed = selection.confirm(
+            connection,
+            proposal_id,
+            context=context,
+            owner_id=owner().account_id,
+            device_id=_device(connection),
+            at=moment(),
+        )
+        return ConfirmationView(
+            stable_id=confirmed.stable_id,
+            version=confirmed.version,
+            revision_id=confirmed.revision_id,
+            state=confirmed.state,  # pyright: ignore[reportArgumentType]
+            created=confirmed.created,
+            trace=selection.trace_of(connection, confirmed.stable_id, confirmed.version),
+        )
+
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        return Answer(work(connection))
+
+
+def cancel(parameters: Mapping[str, object]) -> Answer[ProposalSession]:
+    """Close one proposal, persisting only its idempotent session outcome."""
+    proposal_id = str(parameters.get("proposal") or "")
+    if not proposal_id:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "the proposal being cancelled must be named",
+            next_actions=["select session --harness <id> --json"],
+        )
+
+    def work(connection: sqlite3.Connection) -> ProposalSession:
+        at = moment()
+        proposal = selection.cancel(connection, proposal_id, at=at)
+        context = context_for_project(
+            connection, proposal.harness_id, _root_of(connection, proposal)
+        )
+        return _session(connection, context, at)
+
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        return Answer(work(connection))
+
+
+def session(parameters: Mapping[str, object]) -> Answer[ProposalSession]:
+    """What one project and harness currently has open, and what is selected."""
+    harness = _harness_of(parameters)
+    root = Path(str(parameters.get("project") or Path.cwd()))
+
+    def work(connection: sqlite3.Connection) -> ProposalSession:
+        return _session(connection, context_for_project(connection, harness, root), moment())
+
+    registry = configured_path()
+    if not registry.exists():
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "this project has no passport, so there is nothing to compose against",
+            details={"root": redact_home(root.resolve())},
+            next_actions=[f"project passport --root {root} --json"],
+        )
+    with closing(open_readonly(registry)) as connection:
+        return Answer(work(connection))
+
+
+def _harness_of(parameters: Mapping[str, object]) -> str:
+    harness = str(parameters.get("harness") or "")
+    if harness not in HARNESS_IDS:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "a supported harness identifier is required",
+            details={"supported": ", ".join(sorted(HARNESS_IDS))},
+            next_actions=["toolchain harnesses --json"],
+        )
+    return harness
+
+
+def _members_named(parameters: Mapping[str, object]) -> tuple[tuple[str, str], ...]:
+    """Read `--member id@X.Y` values. Exact references only, never a range.
+
+    A member is named by an exact version because a setup pins exact versions —
+    a floating reference would make two machines compose different things from
+    the same proposal.
+    """
+    given: object = parameters.get("member")
+    if given is None:
+        raw: tuple[str, ...] = ()
+    elif isinstance(given, list | tuple):
+        raw = tuple(str(item) for item in cast(list[object], given))
+    else:
+        raw = (str(given),)
+
+    named: list[tuple[str, str]] = []
+    for item in raw:
+        stable_id, separator, version = item.partition("@")
+        if not separator or not stable_id or not version:
+            raise CliFailure(
+                "AI_STP_VALIDATION_ERROR",
+                "a member is named as <stable_id>@<X.Y>",
+                details={"given": item},
+                next_actions=["component version list --id <stable_id> --json"],
+            )
+        named.append((stable_id, version))
+    return tuple(named)
+
+
+def _resolve(
+    connection: sqlite3.Connection,
+    named: tuple[tuple[str, str], ...],
+    *,
+    harness: str,
+    root: Path,
+) -> tuple[selection.Member, ...]:
+    """Turn named references into members, refusing anything inadmissible.
+
+    The digest is read from the registry rather than accepted from the caller:
+    a digest supplied alongside the reference would be a second statement about
+    the same bytes, and the two could disagree.
+
+    Eligibility runs here rather than only at confirmation because a proposal
+    that cannot be confirmed is not worth showing — `REQ-601` puts the
+    mechanical stage before selection, and a proposal *is* a selection.
+    """
+    target = _target(harness, root, for_redistribution=False)
+    assessed = {
+        item.stable_id: item
+        for item in eligibility.assess_all(_candidates(connection, consented=False), target)
+    }
+
+    members: list[selection.Member] = []
+    for stable_id, version in named:
+        recorded = versions.held(connection, stable_id, version)
+        if recorded is None:
+            raise CliFailure(
+                "AI_STP_NOT_FOUND",
+                "no such exact version is recorded on this machine",
+                details={"stable_id": stable_id, "version": version},
+                next_actions=["component version list --id <stable_id> --json"],
+            )
+        verdict = assessed.get(stable_id)
+        if verdict is None or not verdict.admissible:
+            reasons = "; ".join(item.code for item in verdict.refusals) if verdict else "unknown"
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "a named member is not admissible for this harness",
+                details={"stable_id": stable_id, "refusals": reasons},
+                next_actions=[f"select eligibility --harness {harness} --json"],
+            )
+        members.append(
+            selection.Member(
+                stable_id=stable_id,
+                version=version,
+                passport_digest=recorded.passport_digest,
+                lane=verdict.lane,
+                lane_reason=verdict.lane_reason,
+            )
+        )
+    return tuple(members)
+
+
+def context_for_project(
+    connection: sqlite3.Connection, harness: str, root: Path
+) -> selection.Context:
+    """Assemble the session input from the three passports (`REQ-621`).
+
+    Each one is required rather than defaulted. A session built without the
+    device passport would silently drop the environment facts REQ-621 names as
+    its source, and a default is exactly how that goes unnoticed.
+    """
+    project_id = project_passport.stable_id_for(connection, root.resolve())
+    if project_id is None:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "this project has no passport, so there is nothing to compose against",
+            details={"root": redact_home(root.resolve())},
+            next_actions=[f"project passport --root {root} --json"],
+        )
+    return selection.Context(
+        project_id=project_id,
+        harness_id=harness,
+        developer_revision=_revision(
+            connection, passports.developer_stable_id(connection), "developer"
+        ),
+        device_revision=_revision(connection, passports.device_stable_id(connection), "device"),
+        project_revision=_revision(connection, project_id, "project"),
+        policy_version=_policy_version(),
+    )
+
+
+def _revision(connection: sqlite3.Connection, stable_id: str | None, kind: str) -> str:
+    if stable_id is not None:
+        stored = revisions.head(connection, stable_id)
+        if stored is not None:
+            return stored.revision_id
+    raise CliFailure(
+        "AI_STP_PRECONDITION_FAILED",
+        f"the {kind} passport is required before a composition can be proposed",
+        details={"missing": kind},
+        next_actions=[passports.CREATES_PASSPORT.get(kind, "doctor --json")],
+    )
+
+
+def _policy_version() -> str:
+    """The effective selection policy, spelled so a person can read it.
+
+    Derived from configuration rather than pinned in code: `REQ-620` wants the
+    limit changed without an edit here, and `REQ-624` then makes every open
+    proposal stale on its own when it changes. A digest would satisfy both and
+    tell nobody which setting moved.
+    """
+    values = {item.path: item.value for item in effective_config().values}
+    return f"selection-policy/1;result_limit={values.get('search.result_limit')}"
+
+
+def _device(connection: sqlite3.Connection) -> str:
+    stable_id = passports.device_stable_id(connection)
+    if stable_id is None:  # pragma: no cover - `_context` already required it
+        raise CliFailure("AI_STP_PRECONDITION_FAILED", "this installation has no device passport")
+    return stable_id
+
+
+def _root_of(connection: sqlite3.Connection, proposal: selection.Proposal) -> Path:
+    row = connection.execute(
+        "SELECT root FROM project_root WHERE stable_id = ?", (proposal.project_id,)
+    ).fetchone()
+    if row is None:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the project this proposal belongs to is no longer known",
+            details={"project_id": proposal.project_id},
+            next_actions=["project passport --root <path> --json"],
+        )
+    return Path(str(row["root"]))
+
+
+def _session(
+    connection: sqlite3.Connection, context: selection.Context, now: str
+) -> ProposalSession:
+    pinned = selection.selected(
+        connection, project_id=context.project_id, harness_id=context.harness_id
+    )
+    open_now = selection.open_proposals(
+        connection, project_id=context.project_id, harness_id=context.harness_id, now=now
+    )
+    return ProposalSession(
+        project_id=context.project_id,
+        harness_id=context.harness_id,  # pyright: ignore[reportArgumentType]
+        policy_version=context.policy_version,
+        proposals=[_proposal(item, now) for item in open_now],
+        selected_stable_id=None if pinned is None else pinned[0],
+        selected_version=None if pinned is None else pinned[1],
+        selected_state=None if pinned is None else pinned[2],  # pyright: ignore[reportArgumentType]
+    )
+
+
+def _proposal(proposal: selection.Proposal, now: str) -> ProposalView:
+    return ProposalView(
+        proposal_id=proposal.proposal_id,
+        project_id=proposal.project_id,
+        harness_id=proposal.harness_id,  # pyright: ignore[reportArgumentType]
+        state=proposal.state(now),  # pyright: ignore[reportArgumentType]
+        snapshot=proposal.snapshot,
+        members=[
+            ProposalMember(
+                stable_id=item.stable_id,
+                version=item.version,
+                passport_digest=item.passport_digest,
+                lane=item.lane,  # pyright: ignore[reportArgumentType]
+                lane_reason=item.lane_reason,
+                consent_source=item.consent_source,
+                overlay_revision_id=item.overlay_revision_id,
+            )
+            for item in proposal.members
+        ],
+        created_at=proposal.created_at,
+        expires_at=proposal.expires_at,
+        confirmed_stable_id=proposal.confirmed_stable_id,
+        confirmed_version=proposal.confirmed_version,
+    )
+
+
+def _plus(at: str, seconds: int) -> str:
+    return format_timestamp(parse_timestamp(at) + timedelta(seconds=seconds))
+
+
+def dependency_graph(parameters: Mapping[str, object]) -> Answer[SetupGraph]:
+    """Resolve the exact dependency closure of a composition (`REQ-605`).
+
+    Roots come from a named proposal or from `--member` values directly, so a
+    closure can be checked before anything is proposed as well as after. Both
+    forms give the resolver the same thing: exact references with digests.
+
+    Reads and reports. A closure is a question about what is already stored, and
+    answering it must not change what is stored.
+    """
+    proposal_id = str(parameters.get("proposal") or "")
+    named = _members_named(parameters)
+    if bool(proposal_id) == bool(named):
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "name either one proposal or one or more members, not both and not neither",
+            next_actions=["select session --harness <id> --json"],
+        )
+
+    def work(connection: sqlite3.Connection) -> SetupGraph:
+        roots = (
+            _roots_of_proposal(connection, proposal_id)
+            if proposal_id
+            else _roots_of_members(connection, named)
+        )
+        return _graph(graph.resolve(connection, roots))
+
+    with closing(open_readonly(configured_path())) as connection:
+        return Answer(work(connection))
+
+
+def _roots_of_proposal(
+    connection: sqlite3.Connection, proposal_id: str
+) -> tuple[graph.Reference, ...]:
+    proposal = selection.held(connection, proposal_id)
+    if proposal is None:
+        raise CliFailure(
+            "AI_STP_NOT_FOUND",
+            "no proposal with that identifier is held by this session",
+            details={"proposal_id": proposal_id},
+            next_actions=["select propose --harness <id> --json"],
+        )
+    return tuple(
+        graph.Reference(
+            stable_id=item.stable_id,
+            version=item.version,
+            passport_digest=item.passport_digest,
+        )
+        for item in proposal.members
+    )
+
+
+def _roots_of_members(
+    connection: sqlite3.Connection, named: tuple[tuple[str, str], ...]
+) -> tuple[graph.Reference, ...]:
+    """Named members as roots, with the digest read from the registry.
+
+    The digest is never accepted from the caller. Supplied alongside the
+    reference it would be a second statement about the same bytes, and the two
+    could disagree — which is precisely the mismatch the resolver exists to
+    catch, arriving from the one place it cannot.
+    """
+    roots: list[graph.Reference] = []
+    for stable_id, version in named:
+        recorded = versions.held(connection, stable_id, version)
+        if recorded is None:
+            raise CliFailure(
+                "AI_STP_NOT_FOUND",
+                "no such exact version is recorded on this machine",
+                details={"stable_id": stable_id, "version": version},
+                next_actions=["component version list --id <stable_id> --json"],
+            )
+        roots.append(
+            graph.Reference(
+                stable_id=stable_id, version=version, passport_digest=recorded.passport_digest
+            )
+        )
+    return tuple(roots)
+
+
+def _graph(closure: graph.Closure) -> SetupGraph:
+    return SetupGraph(
+        resolved=closure.resolved,
+        nodes=[
+            GraphNode(
+                stable_id=item.stable_id,
+                version=item.version,
+                passport_digest=item.passport_digest,
+                revision_id=item.revision_id,
+                depth=item.depth,
+                requires=[_reference(edge) for edge in item.requires],
+            )
+            for item in closure.nodes
+        ],
+        order=list(closure.order),
+        refusals=[
+            GraphRefusal(code=item.code, summary=item.summary, details=item.details)
+            for item in closure.refusals
+        ],
+        max_depth=closure.max_depth,
+        max_nodes=closure.max_nodes,
+    )
+
+
+def _reference(reference: graph.Reference) -> GraphReference:
+    return GraphReference(
+        stable_id=reference.stable_id,
+        version=reference.version,
+        passport_digest=reference.passport_digest,
+        required_by=reference.required_by,
+    )
+
+
+def reports(parameters: Mapping[str, object]) -> Answer[CompositionReports]:
+    """Produce the composition and conversion reports for one composition.
+
+    Both together (`REQ-609`). The first says what is in the composition and why
+    it is blocked when it is; the second says what survives translation to the
+    harness and names every loss. A caller given one of them would have half the
+    answer they need before installing anything.
+
+    The closure is resolved first: a composition whose dependencies do not
+    resolve has nothing to report on, and reporting anyway would describe a
+    state that cannot exist.
+    """
+    harness = _harness_of(parameters)
+    proposal_id = str(parameters.get("proposal") or "")
+    if not proposal_id:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "the proposal being reported on must be named",
+            next_actions=["select session --harness <id> --json"],
+        )
+
+    def work(connection: sqlite3.Connection) -> CompositionReports:
+        closure = graph.resolve(connection, _roots_of_proposal(connection, proposal_id))
+        if not closure.resolved:
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "this composition has no reports until its dependency closure resolves",
+                details={"refusals": ", ".join(item.code for item in closure.refusals)},
+                next_actions=[f"select graph --proposal {proposal_id} --json"],
+            )
+
+        surfaces = _surfaces(connection, closure)
+        target = _composition_target(harness)
+        composed = composition.compose(surfaces, target)
+        converted = composition.convert(surfaces, target)
+        return CompositionReports(
+            harness_id=harness,  # pyright: ignore[reportArgumentType]
+            blocked=composed.blocked,
+            chosen=[
+                CompositionChoice(
+                    stable_id=item.stable_id,
+                    version=item.version,
+                    lane=item.lane,  # pyright: ignore[reportArgumentType]
+                    reason=item.reason,
+                )
+                for item in composed.chosen
+            ],
+            conflicts=[
+                CompositionConflict(code=item.code, summary=item.summary, details=item.details)
+                for item in composed.conflicts
+            ],
+            operations=list(composed.operations),
+            conversion=[
+                ConversionEntry(
+                    stable_id=item.stable_id,
+                    component_type=item.component_type,
+                    native_surface=item.native_surface,
+                    projection_kind=item.projection_kind,  # pyright: ignore[reportArgumentType]
+                    state=item.state,  # pyright: ignore[reportArgumentType]
+                    losses=list(item.losses),
+                )
+                for item in converted.entries
+            ],
+            conversion_complete=converted.complete,
+        )
+
+    with closing(open_readonly(configured_path())) as connection:
+        return Answer(work(connection))
+
+
+def _composition_target(harness: str) -> composition.Target:
+    """What this machine allows a composition to need.
+
+    Permissions and entitlements start empty: nothing has granted any yet, and
+    an empty set refuses honestly rather than permitting by default. The
+    declared environment is what this machine actually has, by name only.
+    """
+    return composition.Target(
+        harness_id=harness,
+        os=_operating_system(),
+        arch=platform.machine().lower(),
+        declared_env=frozenset(os.environ),
+        supported_platforms=frozenset(),
+        for_redistribution=False,
+    )
+
+
+def _surfaces(
+    connection: sqlite3.Connection, closure: graph.Closure
+) -> tuple[composition.Surface, ...]:
+    """Read what each node in the closure contributes, from its passport."""
+    surfaces: list[composition.Surface] = []
+    for node in closure.nodes:
+        stored = revisions.get(connection, node.revision_id)
+        if stored is None:  # pragma: no cover - the closure already read it
+            continue
+        document = cast(dict[str, JsonValue], stored.envelope.model_dump(mode="json"))
+        facts = cast(dict[str, JsonValue], document.get("facts") or {})
+        source = document.get("source")
+        source_path = str(source.get("path") or "") if isinstance(source, dict) else ""
+        surfaces.append(
+            composition.Surface(
+                stable_id=node.stable_id,
+                version=node.version,
+                component_type=str(
+                    document.get("component_type") or _value(facts.get("component_type")) or ""
+                ),
+                harness_id=str(document.get("harness_id") or _value(facts.get("harness_id")) or ""),
+                revision_id=node.revision_id,
+                source_name=str(_value(facts.get("source_name")) or source_path.rsplit("/", 1)[-1]),
+                content_format=str(
+                    document.get("artifact_format") or _value(facts.get("content_format")) or ""
+                ),
+                managed_paths=_document_strings(document, facts, "managed_paths"),
+                native_ids=_document_strings(document, facts, "native_ids"),
+                permissions=_document_permissions(document, facts),
+                required_env=_document_required_env(document, facts),
+                external_endpoints=_document_strings(document, facts, "external_endpoints"),
+                redistribution=_document_redistribution(document, facts),
+                precedence=_number(facts.get("precedence")),
+                hook_event=str(_value(facts.get("hook_event")) or ""),
+                hook_order=_number(facts.get("hook_order")),
+            )
+        )
+    return tuple(surfaces)
+
+
+def _strings(fact: JsonValue | None) -> tuple[str, ...]:
+    value = _value(fact) if fact is not None else None
+    return tuple(str(item) for item in value) if isinstance(value, list) else ()
+
+
+def _document_strings(
+    document: dict[str, JsonValue], facts: dict[str, JsonValue], name: str
+) -> tuple[str, ...]:
+    direct = document.get(name)
+    if isinstance(direct, list):
+        return tuple(str(item) for item in direct)
+    return _strings(facts.get(name))
+
+
+def _document_permissions(
+    document: dict[str, JsonValue], facts: dict[str, JsonValue]
+) -> tuple[str, ...]:
+    direct = document.get("permissions")
+    if not isinstance(direct, dict):
+        return _strings(facts.get("permissions"))
+    values: list[str] = []
+    for family in ("filesystem", "network", "process"):
+        declared = direct.get(family)
+        if isinstance(declared, list):
+            values.extend(f"{family}:{item}" for item in declared)
+    return tuple(values)
+
+
+def _document_required_env(
+    document: dict[str, JsonValue], facts: dict[str, JsonValue]
+) -> tuple[str, ...]:
+    direct = document.get("required_env")
+    if not isinstance(direct, list):
+        return _strings(facts.get("required_env"))
+    return tuple(
+        str(item.get("name"))
+        for item in direct
+        if isinstance(item, dict) and isinstance(item.get("name"), str)
+    )
+
+
+def _document_redistribution(document: dict[str, JsonValue], facts: dict[str, JsonValue]) -> bool:
+    license_info = document.get("license")
+    if isinstance(license_info, dict):
+        allowed = license_info.get("redistribution_allowed")
+        if isinstance(allowed, bool):
+            return allowed
+    declared = _value(facts.get("redistribution"))
+    return declared if isinstance(declared, bool) else True
+
+
+def _number(fact: JsonValue | None) -> int | None:
+    """A declared integer, or `None` when nothing was declared.
+
+    `None` and zero are different: zero is a position somebody chose and can
+    collide with another, and absence never collides with anything.
+    """
+    value = _value(fact) if fact is not None else None
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
+def harness_bundle(parameters: Mapping[str, object]) -> Answer[HarnessBundle]:
+    """Compile the deterministic bundle for one confirmed composition (`#167`).
+
+    Compiles and reports. Nothing here writes to a harness: `ADR-0012` gives the
+    final write to the provider alone, and installing these bytes is a separate
+    plan with its own confirmation.
+
+    The composition must have reports first. A bundle carries both of them
+    (`REQ-609`), so compiling one for a blocked composition would produce a
+    package describing conflicts it also claims to have resolved.
+    """
+    harness = _harness_of(parameters)
+    proposal_id = str(parameters.get("proposal") or "")
+    if not proposal_id:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "the composition being bundled must be named",
+            next_actions=["select session --harness <id> --json"],
+        )
+
+    def work(connection: sqlite3.Connection) -> HarnessBundle:
+        return _bundle_view(compile_harness_bundle(connection, proposal_id, harness), harness)
+
+    with closing(open_readonly(configured_path())) as connection:
+        return Answer(work(connection))
+
+
+def compile_harness_bundle(
+    connection: sqlite3.Connection, proposal_id: str, harness: str
+) -> bundle.Bundle:
+    """Compile exact bytes for a confirmed proposal without opening another registry."""
+    proposal = selection.held(connection, proposal_id)
+    if proposal is None:
+        raise CliFailure(
+            "AI_STP_NOT_FOUND",
+            "no proposal with that identifier is held by this session",
+            details={"proposal_id": proposal_id},
+        )
+    if proposal.harness_id != harness:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the requested harness differs from the confirmed composition",
+            details={"requested": harness, "proposal": proposal.harness_id},
+        )
+    if proposal.confirmed_stable_id is None or proposal.confirmed_version is None:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "only a confirmed composition has a SetupVersion passport to bundle",
+            details={"proposal_id": proposal_id},
+            next_actions=[f"select confirm --proposal {proposal_id} --json"],
+        )
+    return compile_setup_version_bundle(
+        connection,
+        proposal.confirmed_stable_id,
+        proposal.confirmed_version,
+        expected_harness=harness,
+    )
+
+
+def compile_setup_version_bundle(
+    connection: sqlite3.Connection,
+    stable_id: str,
+    version: str,
+    *,
+    expected_harness: str | None = None,
+) -> bundle.Bundle:
+    """Compile one stored immutable SetupVersion through the canonical bundle path.
+
+    Prepared and newly composed setups meet here.  The former names this exact
+    version directly; the latter reaches it through its confirmed proposal.
+    Nothing below consults mutable entity heads.
+    """
+    setup_version = versions.held(connection, stable_id, version)
+    if setup_version is None:  # pragma: no cover - confirmation is atomic
+        raise CliFailure(
+            "AI_STP_NOT_FOUND",
+            "the exact prepared SetupVersion is not held by this registry",
+            details={"stable_id": stable_id, "version": version},
+        )
+    setup_revision = revisions.get(connection, setup_version.revision_id)
+    if setup_revision is None:  # pragma: no cover - version references are constrained
+        raise CliFailure(
+            "AI_STP_CONFLICT",
+            "the exact prepared SetupVersion has no passport revision",
+            details={"stable_id": stable_id, "version": version},
+        )
+
+    setup_document = cast(dict[str, JsonValue], setup_revision.envelope.model_dump(mode="json"))
+    harness = str(setup_document.get("harness_id") or "")
+    if not harness or (expected_harness is not None and harness != expected_harness):
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the prepared SetupVersion belongs to another harness",
+            details={"expected": expected_harness or "declared", "reported": harness},
+        )
+    raw_components = setup_document.get("components")
+    if not isinstance(raw_components, list) or not raw_components:
+        raise CliFailure(
+            "AI_STP_CONFLICT",
+            "the prepared SetupVersion has no exact component graph",
+            details={"stable_id": stable_id, "version": version},
+        )
+    roots: list[graph.Reference] = []
+    for item in raw_components:
+        if not isinstance(item, dict):
+            raise CliFailure(
+                "AI_STP_CONFLICT",
+                "the prepared SetupVersion contains a malformed component reference",
+                details={"stable_id": stable_id, "version": version},
+            )
+        roots.append(
+            graph.Reference(
+                stable_id=str(item.get("stable_id") or ""),
+                version=str(item.get("version") or ""),
+                passport_digest=str(item.get("passport_digest") or ""),
+            )
+        )
+    closure = graph.resolve(connection, tuple(roots))
+    if not closure.resolved:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the prepared SetupVersion no longer resolves to its exact component graph",
+            details={"refusals": ", ".join(item.code for item in closure.refusals)},
+        )
+
+    surfaces = _surfaces(connection, closure)
+    target = _composition_target(harness)
+    composed = composition.compose(surfaces, target)
+    if composed.blocked:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "this composition has conflicts, so there is no package to build",
+            details={"conflicts": ", ".join(item.code for item in composed.conflicts)},
+            next_actions=["select eligibility --harness <id> --json"],
+        )
+
+    converted = composition.convert(surfaces, target)
+    if not converted.complete:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "this composition cannot preserve every component on the native target",
+            details={"losses": "; ".join(converted.losses)},
+            next_actions=["select eligibility --harness <id> --json"],
+        )
+    setup_facts = setup_document.get("facts")
+    snapshot = ""
+    if isinstance(setup_facts, dict):
+        snapshot = str(_value(setup_facts.get("snapshot")) or "")
+    sources = _bundle_sources(connection, surfaces, target)
+    return bundle.compile_bundle(
+        sources,
+        setup_stable_id=setup_version.stable_id,
+        setup_version=setup_version.version,
+        setup_digest=setup_version.passport_digest,
+        harness_id=harness,
+        declared_paths=frozenset(item.path for item in sources),
+        setup_passport=cast(JsonValue, setup_revision.envelope.model_dump(mode="json")),
+        composition_report=_as_json(composed),
+        conversion_report=_conversion_json(converted),
+        input_digest=snapshot,
+    )
+
+
+def _bundle_view(compiled: bundle.Bundle, harness: str) -> HarnessBundle:
+    return HarnessBundle(
+        compiled=compiled.compiled,
+        harness_id=harness,  # pyright: ignore[reportArgumentType]
+        bundle_format=bundle.BUNDLE_FORMAT,
+        digest=compiled.digest,
+        artifact_digest=compiled.artifact_digest,
+        byte_length=len(compiled.archive),
+        builder_version=bundle.BUILDER_VERSION,
+        protocol_version=bundle.PROTOCOL_VERSION,
+        files=[
+            BundleFile(
+                path=item.path,
+                digest=item.digest,
+                byte_length=item.byte_length,
+                mode=item.mode,  # pyright: ignore[reportArgumentType]
+                owner=item.owner,
+            )
+            for item in compiled.files
+        ],
+        refusals=[
+            BundleRefusal(code=item.code, summary=item.summary, details=item.details)
+            for item in compiled.refusals
+        ],
+        max_files=bundle.MAX_FILES,
+        max_file_bytes=bundle.MAX_FILE_BYTES,
+        max_bundle_bytes=bundle.MAX_BUNDLE_BYTES,
+    )
+
+
+def _bundle_sources(
+    connection: sqlite3.Connection,
+    surfaces: tuple[composition.Surface, ...],
+    target: composition.Target,
+) -> tuple[bundle.Source, ...]:
+    """The bytes each component contributes, at the path it lands on.
+
+    Content comes from the content store by digest, so what is bundled is
+    exactly what was adopted — reading the original file again could pick up a
+    change made since, and the bundle would then describe something nobody
+    reviewed.
+    """
+    sources: list[bundle.Source] = []
+    for item in sorted(surfaces, key=lambda item: item.stable_id):
+        stored = revisions.get(connection, item.revision_id)
+        if stored is None:  # pragma: no cover - the closure already read it
+            continue
+        if stored.stable_id != item.stable_id:  # pragma: no cover - revision identity is sealed
+            raise CliFailure(
+                "AI_STP_CONFLICT",
+                "the resolved component revision belongs to another object",
+                details={"stable_id": item.stable_id, "revision_id": item.revision_id},
+            )
+        document = cast(dict[str, JsonValue], stored.envelope.model_dump(mode="json"))
+        facts = cast(dict[str, JsonValue], document.get("facts") or {})
+        artifact = document.get("artifact")
+        direct_digest = artifact.get("digest") if isinstance(artifact, dict) else None
+        digest = str(_value(facts.get("content_digest")) or direct_digest or "")
+        if not digest:
+            continue
+        rule = composition.rule_for(item.component_type, target.harness_id)
+        if rule is None:
+            continue
+        name = item.source_name
+        content_format = str(
+            document.get("artifact_format") or _value(facts.get("content_format")) or ""
+        )
+        payload = content.get(connection, digest)
+        expanded = components.expand(
+            payload,
+            content_format or components.COMPONENT_FILE_FORMAT,
+        )
+        if rule.shape == "file" and (len(expanded) != 1 or expanded[0].path):
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "a directory artifact cannot project onto one native file",
+                details={"stable_id": item.stable_id, "native_surface": rule.relative},
+            )
+        for member in expanded:
+            if rule.shape == "directory":
+                root = f"{rule.relative}/{name}" if name else rule.relative
+                place = f"{root}/{member.path}" if member.path else root
+            else:
+                place = rule.relative
+            sources.append(
+                bundle.Source(
+                    path=place,
+                    content=member.content,
+                    owner=item.stable_id,
+                    mode=member.mode,
+                )
+            )
+    return tuple(sources)
+
+
+def _as_json(report: composition.CompositionReport) -> JsonValue:
+    return {
+        "chosen": [
+            {"stable_id": item.stable_id, "version": item.version, "lane": item.lane}
+            for item in report.chosen
+        ],
+        "operations": list(report.operations),
+    }
+
+
+def _conversion_json(report: composition.ConversionReport) -> JsonValue:
+    return {
+        "entries": [
+            {
+                "stable_id": item.stable_id,
+                "component_type": item.component_type,
+                "native_surface": item.native_surface,
+                "projection_kind": item.projection_kind,
+                "state": item.state,
+                "losses": list(item.losses),
+            }
+            for item in report.entries
+        ],
+        "complete": report.complete,
+    }
+
+
+def provider_conformance(parameters: Mapping[str, object]) -> Answer[ConformanceReport]:
+    """Run one explicitly selected conformance kit against a provider (`#169`).
+
+    Reads and reports. Every case runs even after one fails, because the
+    audience for a failure is somebody writing a provider against a protocol
+    they cannot see, and one line of it is not enough to work from.
+
+    Frozen v1 uses the common process boundary without a network claim. V2 adds
+    an exact phase and requires observed network enforcement before every local
+    spawn. A provider answer never selects its own protocol version.
+    """
+    executable = str(parameters.get("executable") or "")
+    harness = _harness_of(parameters)
+    if not executable:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "the provider executable to check must be named",
+            next_actions=["toolchain harnesses --json"],
+        )
+    place = Path(executable).expanduser()
+    try:
+        resolved_executable = conformance.resolve_executable(executable)
+    except FileNotFoundError:
+        raise CliFailure(
+            "AI_STP_NOT_FOUND",
+            "no executable sits at that path",
+            details={"executable": redact_home(place)},
+        ) from None
+    except PermissionError:
+        raise CliFailure(
+            "AI_STP_DEPENDENCY_UNAVAILABLE",
+            "the provider artifact exists but is not executable on this host",
+            details={"executable": redact_home(place)},
+            next_actions=["provider trust --json"],
+        ) from None
+
+    requested = parameters.get("protocol-version")
+    version = 1 if requested is None else int(cast(int, requested))
+    if version not in (protocol.VERSION, protocol_v2.VERSION, protocol_v3.VERSION):
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "only provider protocol version 1, 2 or 3 can be checked",
+            details={"protocol_version": str(version)},
+        )
+    target = Path(str(parameters.get("target") or Path.cwd())).resolve()
+    if version == protocol.VERSION:
+        report = conformance.run(
+            conformance.subprocess_invoker(resolved_executable, str(target)),
+            harness_id=harness,
+        )
+    else:
+        if target.is_symlink() or not target.is_dir():
+            raise CliFailure(
+                "AI_STP_VALIDATION_ERROR",
+                "provider protocol v2/v3 requires an existing real target directory",
+                details={"target": redact_home(target)},
+            )
+        launcher, capability = network_launcher.discover_bubblewrap()
+
+        if version == protocol_v3.VERSION:
+
+            def invoke_v3(command: str, arguments: Sequence[str]) -> JsonValue:
+                return invocation_v3.invoke(
+                    resolved_executable,
+                    str(target),
+                    command,
+                    arguments,
+                    launcher=launcher,
+                    capability=capability,
+                )
+
+            try:
+                report = conformance_v3.run(
+                    invoke_v3,
+                    harness_id=harness,
+                    target=target,
+                )
+            except protocol_v2.NetworkCapabilityUnavailable as error:
+                decision = error.decision
+                raise CliFailure(
+                    error.error_code,
+                    "provider protocol v3 network isolation is unavailable before invocation",
+                    details={
+                        "command": decision.command,
+                        "phase": decision.phase.value,
+                        "network_enforcement": decision.enforcement.value,
+                    },
+                    next_actions=["provider network --json"],
+                ) from None
+            return Answer(
+                ConformanceReport(
+                    harness_id=harness,  # pyright: ignore[reportArgumentType]
+                    protocol_version=version,
+                    reported_version=report.protocol_version,
+                    conforms=report.conforms,
+                    cases=[
+                        ConformanceCase(
+                            name=item.name,
+                            passed=item.passed,
+                            detail=item.detail,
+                        )
+                        for item in report.cases
+                    ],
+                )
+            )
+
+        def invoke_v2(
+            command: str,
+            phase: protocol_v2.ActionPhase,
+            arguments: Sequence[str],
+        ) -> invocation_v2.InvocationResult:
+            return invocation_v2.invoke(
+                resolved_executable,
+                str(target),
+                command,
+                phase,
+                arguments,
+                launcher=launcher,
+                capability=capability,
+            )
+
+        try:
+            report = conformance_v2.run(invoke_v2, harness_id=harness)
+        except protocol_v2.NetworkCapabilityUnavailable as error:
+            decision = error.decision
+            raise CliFailure(
+                error.error_code,
+                "provider protocol v2 network isolation is unavailable before invocation",
+                details={
+                    "command": decision.command,
+                    "phase": decision.phase.value,
+                    "network_enforcement": decision.enforcement.value,
+                },
+                next_actions=["provider network --json"],
+            ) from None
+    return Answer(
+        ConformanceReport(
+            harness_id=harness,  # pyright: ignore[reportArgumentType]
+            protocol_version=version,
+            reported_version=report.protocol_version,
+            conforms=report.conforms,
+            cases=[
+                ConformanceCase(name=item.name, passed=item.passed, detail=item.detail)
+                for item in report.cases
+            ],
+        )
+    )
+
+
+def provider_network(_parameters: Mapping[str, object]) -> Answer[ProviderNetworkCapability]:
+    """Report observed v2 network enforcement without launching a provider."""
+    launcher, capability = network_launcher.discover_bubblewrap()
+    decision = protocol_v2.decide(
+        "provider-info",
+        protocol_v2.ActionPhase.EXECUTE,
+        capability,
+    )
+    try:
+        protocol_v2.require_execution(decision)
+    except protocol_v2.NetworkCapabilityUnavailable:
+        available = False
+    else:
+        available = launcher is not None
+    enforcement = (
+        "enforced"
+        if decision.enforcement is protocol_v2.NetworkEnforcement.ENFORCED
+        else "unavailable"
+    )
+    return Answer(
+        ProviderNetworkCapability(
+            os_name=capability.os_name,
+            network_enforcement=enforcement,
+            launcher_id=capability.launcher_id or "",
+            evidence=list(capability.evidence),
+            local_actions_available=available,
+        )
+    )
+
+
+def provider_trust(parameters: Mapping[str, object]) -> Answer[ProviderTrust]:
+    """Report the pinned trust policy, and check one release against it (`#172`).
+
+    Reads and reports. Nothing here installs, and nothing removes a target: a
+    revoked key blocks new installs and leaves what is running alone
+    (`REQ-812`), and there is no argument shape that says otherwise.
+
+    Without `--manifest` the policy is reported and `accepted` stays absent.
+    Absent is not `false`: nothing was checked, and saying "not accepted" about
+    a release nobody named would be a verdict on nothing.
+    """
+    policy = release.pinned_policy()
+    view = ProviderTrust(
+        policy_id=policy.policy_id,
+        policy_schema_version=policy.schema_version,
+        signature_subject=policy.signature_subject,
+        allowed_publishers=sorted(policy.allowed_publishers),
+        allowed_keys=sorted(policy.allowed_keys),
+        allowed_repositories=sorted(policy.allowed_repositories),
+        revoked_keys=sorted(policy.revoked_keys),
+        minimum_sequence=policy.minimum_sequence,
+        pinned_releases=[
+            PinnedRelease(
+                provider_id=pin.provider_id,
+                repository=pin.repository,
+                artifact_digest=pin.artifact_digest,
+            )
+            # Sorted rather than file order: the report is read by a machine,
+            # and a set has no order to preserve honestly.
+            for pin in sorted(
+                policy.pinned_releases,
+                key=lambda pin: (pin.provider_id, pin.artifact_digest),
+            )
+        ],
+    )
+
+    given = parameters.get("manifest")
+    if given is None:
+        return Answer(view)
+
+    place = Path(str(given)).expanduser()
+    if not place.is_file():
+        raise CliFailure(
+            "AI_STP_NOT_FOUND",
+            "no release manifest sits at that path",
+            details={"manifest": redact_home(place)},
+        )
+    manifest = release.parse_manifest(place.read_text("utf-8"))
+    known_sequence = 0
+    registry = configured_path()
+    if registry.exists():
+        with closing(open_readonly(registry)) as connection:
+            known_sequence = provider_releases.observed_minimum_sequence(
+                connection, manifest.provider_id
+            )
+    verdict = release.verify(manifest, policy, known_sequence=known_sequence)
+    return Answer(
+        view.model_copy(
+            update={
+                "accepted": verdict.accepted,
+                "known_sequence": known_sequence,
+                "refusals": [
+                    ReleaseRefusal(code=item.code, summary=item.summary, details=item.details)
+                    for item in verdict.refusals
+                ],
+            }
+        )
+    )

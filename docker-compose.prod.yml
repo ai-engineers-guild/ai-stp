@@ -1,0 +1,227 @@
+# Production stack (SPEC-019, ADR-0040, SPEC-024, ADR-0044, ADR-0086).
+# Copy .env.prod.example to .env.prod and fill secrets before bring-up.
+# Postgres and RustFS stay internal; only Caddy is published.
+
+services:
+  postgres:
+    image: postgres:16
+    env_file:
+      - path: .env.prod
+        required: false
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: always
+
+  rustfs:
+    # Pinned by digest, like every other dependency here. `:latest` moved under
+    # us on 2026-08-20: the image pulled that morning answered 403 on the
+    # MinIO-compatible health path the check had always used, `api` waits on a
+    # healthy `rustfs` through `depends_on` and never left `Created`, and the
+    # site served 502 until the path was corrected (`#394`).
+    #
+    # A tag cannot record that its endpoints changed, so the next such change
+    # would look like a broken deployment again rather than like the dependency
+    # change it is. This digest is the image observed running and healthy on the
+    # production host; it self-reports `1.0.0-beta.8`. Moving it is a deliberate
+    # edit that shows up in a diff, which is the whole point.
+    image: rustfs/rustfs@sha256:fa19210ac4697c79d7ccca1ec9b0eb91aebacc6691991ffb14014bb3c67e6cc3
+    # RUSTFS_ACCESS_KEY / RUSTFS_SECRET_KEY must match AI_STP_STORAGE_* in .env.prod.
+    env_file:
+      - path: .env.prod
+        required: false
+    volumes:
+      - rustfs:/data
+    networks: [internal]
+    healthcheck:
+      # `/health`, not `/minio/health/live`. The MinIO-compatible path answers
+      # 403 on this image and `/health` answers 200 — probed inside the running
+      # container on 2026-08-20, when the check failed 34 times in a row, `api`
+      # never left `Created` because it waits for a healthy `rustfs`, and the
+      # site served 502.
+      #
+      # The image is `:latest`, so the endpoint moved under a tag that cannot
+      # record that it moved. Pinning it is `#394`.
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:9000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+    restart: always
+
+  migrate:
+    build:
+      context: .
+      target: worker
+    command: ["alembic", "upgrade", "head"]
+    env_file:
+      - path: .env.prod
+        required: false
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [internal]
+    restart: "no"
+
+  seed:
+    build:
+      context: .
+      target: worker
+    command: ["python", "-m", "ai_stp_platform.seed_cli"]
+    env_file:
+      - path: .env.prod
+        required: false
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks: [internal]
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      target: api
+    environment:
+      AI_STP_API_GIT_COMMIT: ${AI_STP_API_GIT_COMMIT:-}
+    env_file:
+      - path: .env.prod
+        required: false
+    volumes:
+      - logs:/var/log/ai_stp
+    networks: [internal, edge]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rustfs:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      seed:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://localhost:8000/v1/health/live')
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: always
+
+  worker:
+    # Safety validate path: pinned scanners + EXTERNAL_CLI (see Dockerfile.worker-safety).
+    build:
+      context: .
+      dockerfile: Dockerfile.worker-safety
+      target: worker-safety
+    environment:
+      AI_STP_SAFETY_EXTERNAL_CLI: "1"
+      AI_STP_SAFETY_SANDBOX: auto
+      AI_STP_OSV_OFFLINE_DIR: /var/lib/ai_stp/osv
+      OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY: /var/lib/ai_stp/osv
+      AI_STP_OSV_MAX_AGE_HOURS: ${AI_STP_OSV_MAX_AGE_HOURS:-36}
+    env_file:
+      - path: .env.prod
+        required: false
+    volumes:
+      - logs:/var/log/ai_stp
+      - osv_offline:/var/lib/ai_stp/osv
+    networks: [internal]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rustfs:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: always
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile.prod
+      args:
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://app.example.invalid}
+        AI_STP_WEB_PROFILE: ${AI_STP_WEB_PROFILE:-public_saas}
+        AI_STP_FEATURE_CONTENT_HUB: ${AI_STP_FEATURE_CONTENT_HUB:-}
+        AI_STP_FEATURE_SAAS_PUBLIC_PAGES: ${AI_STP_FEATURE_SAAS_PUBLIC_PAGES:-}
+    environment:
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://app.example.invalid}
+      AI_STP_USER_DOCS_URL: ${AI_STP_USER_DOCS_URL:-https://docs.example.invalid}
+      AI_STP_API_BASE_URL: http://api:8000
+      AI_STP_USE_MOCKS: "false"
+    env_file:
+      - path: .env.prod
+        required: false
+    networks: [internal, edge]
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3000/').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 30s
+    restart: always
+
+  docs:
+    build:
+      context: .
+      dockerfile: Dockerfile.user-docs
+      target: prod
+      args:
+        AI_STP_USER_DOCS_SITE_URL: ${AI_STP_USER_DOCS_URL:-https://docs.example.invalid}
+    networks: [edge]
+    restart: always
+
+  caddy:
+    image: caddy:2
+    environment:
+      AI_STP_PUBLIC_HOST: ${AI_STP_PUBLIC_HOST:-localhost}
+      AI_STP_DOCS_HOST: ${AI_STP_DOCS_HOST:-docs.example.invalid}
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+      docs:
+        condition: service_started
+    # Published address is configurable so the stack can share a host that
+    # already serves something on 80/443. The defaults are exactly the previous
+    # values, so an untouched deployment behaves as before; a co-tenant sets
+    # `127.0.0.1:58080` and puts the host's own proxy in front.
+    ports:
+      - "${AI_STP_CADDY_HTTP_BIND:-80}:80"
+      - "${AI_STP_CADDY_HTTPS_BIND:-443}:443"
+    volumes:
+      - ./deploy/caddy/Caddyfile.prod:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [edge]
+    restart: always
+
+networks:
+  internal:
+  edge:
+
+volumes:
+  pgdata:
+  rustfs:
+  logs:
+  osv_offline:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,236 @@
+{
+  "$defs": {
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:catalog-metadata-observation",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Closed allowlist for one catalog metadata adapter observation (SPEC-050).",
+  "properties": {
+    "attribution": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Attribution",
+      "type": "string"
+    },
+    "author_verified": {
+      "const": false,
+      "default": false,
+      "title": "Author Verified",
+      "type": "boolean"
+    },
+    "authority": {
+      "const": "external_observation",
+      "default": "external_observation",
+      "title": "Authority",
+      "type": "string"
+    },
+    "checked_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "component_verified": {
+      "const": false,
+      "default": false,
+      "title": "Component Verified",
+      "type": "boolean"
+    },
+    "dedup_key": {
+      "maxLength": 1024,
+      "minLength": 3,
+      "title": "Dedup Key",
+      "type": "string"
+    },
+    "display_name": {
+      "anyOf": [
+        {
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Display Name"
+    },
+    "expires_at": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "external_identifier": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "External Identifier",
+      "type": "string"
+    },
+    "external_state": {
+      "enum": [
+        "present",
+        "archived",
+        "unavailable"
+      ],
+      "title": "External State",
+      "type": "string"
+    },
+    "fetched_at": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "freshness": {
+      "enum": [
+        "fresh",
+        "stale",
+        "unavailable"
+      ],
+      "title": "Freshness",
+      "type": "string"
+    },
+    "homepage_url": {
+      "anyOf": [
+        {
+          "maxLength": 2048,
+          "pattern": "^https://[^\\s]+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Homepage Url"
+    },
+    "popularity_count": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Popularity Count"
+    },
+    "provider": {
+      "enum": [
+        "skills_sh",
+        "nori",
+        "modelcontextprotocol"
+      ],
+      "title": "Provider",
+      "type": "string"
+    },
+    "published_at": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "registry_effect": {
+      "const": "none",
+      "default": "none",
+      "title": "Registry Effect",
+      "type": "string"
+    },
+    "repository_url": {
+      "anyOf": [
+        {
+          "maxLength": 2048,
+          "pattern": "^https://[^\\s]+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Repository Url"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "source_url": {
+      "maxLength": 2048,
+      "pattern": "^https://[^\\s]+$",
+      "title": "Source Url",
+      "type": "string"
+    },
+    "summary": {
+      "anyOf": [
+        {
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Summary"
+    },
+    "target_write": {
+      "const": false,
+      "default": false,
+      "title": "Target Write",
+      "type": "boolean"
+    },
+    "terms_url": {
+      "maxLength": 2048,
+      "pattern": "^https://[^\\s]+$",
+      "title": "Terms Url",
+      "type": "string"
+    },
+    "updated_at": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "provider",
+    "external_identifier",
+    "dedup_key",
+    "source_url",
+    "attribution",
+    "terms_url",
+    "fetched_at",
+    "checked_at",
+    "expires_at",
+    "freshness",
+    "external_state"
+  ],
+  "title": "CatalogMetadataObservation",
+  "type": "object"
+}

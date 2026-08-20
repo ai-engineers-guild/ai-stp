@@ -1,0 +1,42 @@
+{
+  "$defs": {
+    "Cursor": {
+      "pattern": "^[A-Za-z0-9_-]{1,512}$",
+      "type": "string"
+    },
+    "PageSize": {
+      "maximum": 100,
+      "minimum": 1,
+      "type": "integer"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:sync-pull-query",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "GET /v1/sync/pull query parameters.",
+  "properties": {
+    "cursor": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Cursor"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "page_size": {
+      "$ref": "#/$defs/PageSize",
+      "default": 20
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "title": "SyncPullQuery",
+  "type": "object"
+}

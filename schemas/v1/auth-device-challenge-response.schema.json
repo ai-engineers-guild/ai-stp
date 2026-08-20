@@ -1,0 +1,33 @@
+{
+  "$id": "urn:ai-stp:schema:v1:auth-device-challenge-response",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "POST /v1/devices/challenge resource body.",
+  "properties": {
+    "expires_in": {
+      "maximum": 3600,
+      "minimum": 30,
+      "title": "Expires In",
+      "type": "integer"
+    },
+    "nonce": {
+      "maxLength": 2048,
+      "minLength": 16,
+      "title": "Nonce",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "expires_in",
+    "nonce",
+    "schema_version"
+  ],
+  "title": "DeviceChallengeResponse",
+  "type": "object"
+}

@@ -1,0 +1,27 @@
+{
+  "name": "developer-envelope",
+  "value": {
+    "schema_version": 1,
+    "kind": "developer",
+    "stable_id": "developer_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    "revision_id": "revision_fe97c0072266cc017e56d25d548eaf3e087f13baa188004dd87ea773f88009df",
+    "parent_revision_ids": [],
+    "owner_id": "account_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    "created_at": "2026-08-05T10:00:00.000Z",
+    "visibility": "private",
+    "facts": {
+      "role": {
+        "value": "backend developer",
+        "origin": "declared",
+        "confirmation": "user_confirmed",
+        "source_refs": [],
+        "observed_at": null,
+        "confirmed_at": "2026-08-05T10:05:00.000Z",
+        "confidence": null
+      }
+    }
+  },
+  "canonical": "{\"created_at\":\"2026-08-05T10:00:00.000Z\",\"facts\":{\"role\":{\"confidence\":null,\"confirmation\":\"user_confirmed\",\"confirmed_at\":\"2026-08-05T10:05:00.000Z\",\"observed_at\":null,\"origin\":\"declared\",\"source_refs\":[],\"value\":\"backend developer\"}},\"kind\":\"developer\",\"owner_id\":\"account_01ARZ3NDEKTSV4RRFFQ69G5FAV\",\"parent_revision_ids\":[],\"revision_id\":\"revision_fe97c0072266cc017e56d25d548eaf3e087f13baa188004dd87ea773f88009df\",\"schema_version\":1,\"stable_id\":\"developer_01ARZ3NDEKTSV4RRFFQ69G5FAV\",\"visibility\":\"private\"}",
+  "passport_digest": "sha256:bc965c4e8855af044aec6fe9ce1d4a58633570553bad3fabec73cf27526c8614",
+  "revision_id": "revision_fe97c0072266cc017e56d25d548eaf3e087f13baa188004dd87ea773f88009df"
+}

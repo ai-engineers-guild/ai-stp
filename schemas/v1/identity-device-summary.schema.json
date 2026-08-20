@@ -1,0 +1,104 @@
+{
+  "$defs": {
+    "DetectedHarness": {
+      "additionalProperties": true,
+      "description": "One harness observed on the device, with the version that was observed.\n\nOnly the five supported harnesses are itemised. An unknown harness stays a\nlocal observation and never leaves the machine (SPEC-011 REQ-1109): it\ncreates no managed object, so listing it here would put an environment fact\non the wire for something the platform cannot act on.",
+      "properties": {
+        "harness_id": {
+          "$ref": "#/$defs/HarnessId"
+        },
+        "version": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "harness_id",
+        "version"
+      ],
+      "title": "DetectedHarness",
+      "type": "object"
+    },
+    "DisplayName": {
+      "maxLength": 100,
+      "minLength": 1,
+      "type": "string"
+    },
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build"
+      ],
+      "type": "string"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:identity-device-summary",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "The closed five-fact summary a device is allowed to publish.\n\nClosed by `device-passport.md`: display name, operating system and\narchitecture, detected harnesses with versions, toolchain profile version,\nand when the summary was last refreshed. Secret values, environment variable\nvalues and absolute user paths are excluded there and unrepresentable here.\n\nNote the wire policy still tolerates additive fields, as everywhere else —\nthe closure is a rule about what a *conforming server* sends, and the\nfixtures and contract tests are what hold it.",
+  "properties": {
+    "architecture": {
+      "enum": [
+        "x86_64",
+        "arm64"
+      ],
+      "title": "Architecture",
+      "type": "string"
+    },
+    "detected_harnesses": {
+      "items": {
+        "$ref": "#/$defs/DetectedHarness"
+      },
+      "maxItems": 16,
+      "title": "Detected Harnesses",
+      "type": "array"
+    },
+    "display_name": {
+      "$ref": "#/$defs/DisplayName"
+    },
+    "operating_system": {
+      "enum": [
+        "linux",
+        "macos",
+        "windows"
+      ],
+      "title": "Operating System",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "summary_updated_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "toolchain_profile_version": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Toolchain Profile Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "architecture",
+    "detected_harnesses",
+    "display_name",
+    "operating_system",
+    "schema_version",
+    "summary_updated_at",
+    "toolchain_profile_version"
+  ],
+  "title": "DeviceSummary",
+  "type": "object"
+}

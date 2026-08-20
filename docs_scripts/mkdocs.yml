@@ -1,0 +1,109 @@
+# Конфиг лежит рядом со скриптами, а не в корне: пути ниже заданы относительно
+# него. Запуск только через just, чтобы флаг -f не приходилось помнить.
+# Плейсхолдеры в кавычках: без них YAML читает {{ как начало отображения.
+
+site_name: "{{PROJECT_NAME}}"
+site_description: "{{ОДНО_ПРЕДЛОЖЕНИЕ_О_НАЗНАЧЕНИИ}}"
+repo_url: https://github.com/{{OWNER}}/{{REPO}}
+edit_uri: edit/main/docs/
+
+docs_dir: ../docs
+site_dir: ../.site
+
+# Индекс прототипов публикуется как Markdown-страница: одноимённый HTML
+# остаётся исходным артефактом и не должен конкурировать за тот же маршрут.
+exclude_docs: |
+  references/prototypes/index.html
+
+# specs в сайт не входят: это рабочие артефакты, а не документация
+# для читателя.
+
+theme:
+  name: material
+  language: ru
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+    - content.action.edit
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Тёмная тема
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Светлая тема
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - footnotes
+  - def_list
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.caret
+  - pymdownx.mark
+  - pymdownx.tilde
+  # Рендер mermaid без внешних скриптов. Нативная интеграция Material
+  # предпочтительнее плагина mermaid2: она совместима с остальными фичами темы
+  # и не тянет отдельную зависимость.
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+plugins:
+  - search:
+      lang: ru
+  # Навигация собирается из структуры папок. Явный nav пришлось бы
+  # синхронизировать руками при каждом новом документе, и он молча
+  # расходился бы с деревом.
+  - awesome-pages
+  # Дата последнего изменения из git. Рядом с полем last_verified она
+  # показывает главное: документ правили позже, чем сверяли с кодом.
+  - git-revision-date-localized:
+      type: date
+      locale: ru
+      enable_creation_date: false
+      fallback_to_build_date: true
+      # Отсутствие истории у файла не должно ломать сборку: свежий клон и
+      # первый коммит - нормальные состояния, а mkdocs --strict превращает
+      # любое предупреждение в ошибку.
+      strict: false
+
+validation:
+  nav:
+    omitted_files: warn
+    not_found: warn
+  links:
+    # Документы ссылаются на AGENTS.md, SECURITY.md и specs/, которых
+    # нет в сайте намеренно. Эти ссылки верны при чтении репозитория, а
+    # репозиторий и есть основной способ потребления: агент читает файлы.
+    # Целостность ссылок проверяет docs_lint.py, он видит всё дерево.
+    not_found: ignore
+    unrecognized_links: ignore
+    absolute_links: ignore
+    anchors: warn
+
+strict: true

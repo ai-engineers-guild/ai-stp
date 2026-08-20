@@ -1,0 +1,24 @@
+# Optional local OpenObserve profile for #187. It is intentionally not included
+# by docker-compose.prod.yml, so the product remains runnable without it.
+services:
+  openobserve:
+    # Required value must be an owner-approved immutable image digest.
+    image: ${AI_STP_OPENOBSERVE_IMAGE:?set an immutable OpenObserve image digest}
+    env_file:
+      - path: .env.prod
+        required: false
+    environment:
+      ZO_NODE_ROLE: all
+      ZO_DATA_DIR: /data
+      ZO_META_STORE: sqlite
+      ZO_HTTP_PORT: 5080
+    volumes:
+      - openobserve_data:/data
+    networks: [internal]
+    # UI access is local to the host; OTLP is available only on the internal network.
+    ports:
+      - "127.0.0.1:${AI_STP_OPENOBSERVE_UI_PORT:-5080}:5080"
+    restart: unless-stopped
+
+volumes:
+  openobserve_data:

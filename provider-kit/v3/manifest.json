@@ -1,0 +1,200 @@
+{
+  "apply_commands": [
+    "apply-operation",
+    "recover-operation"
+  ],
+  "commands": [
+    "provider-info",
+    "validate-bundle",
+    "plan-operation",
+    "apply-operation",
+    "recover-operation",
+    "status",
+    "launch"
+  ],
+  "component_kinds": [
+    "instruction",
+    "skill",
+    "mcp",
+    "hook",
+    "command",
+    "agent",
+    "plugin",
+    "setting"
+  ],
+  "core_commands": [
+    "provider-info",
+    "validate-bundle",
+    "plan-operation",
+    "apply-operation",
+    "recover-operation",
+    "status"
+  ],
+  "core_operations": [
+    "backup",
+    "install",
+    "remove",
+    "replace",
+    "restore"
+  ],
+  "decision": "docs/adr/ADR-0061-capability-negotiated-provider-protocol-v3.md",
+  "generated_from": "apps/cli/src/ai_stp_cli/provider/protocol_v3.py",
+  "kit_version": "0.2.0",
+  "operation_network": {
+    "backup": [
+      {
+        "network_requirement": "none",
+        "phase": "plan"
+      },
+      {
+        "network_requirement": "none",
+        "phase": "apply"
+      }
+    ],
+    "install": [
+      {
+        "network_requirement": "none",
+        "phase": "plan"
+      },
+      {
+        "network_requirement": "none",
+        "phase": "apply"
+      }
+    ],
+    "launch": [
+      {
+        "network_requirement": "runtime_external",
+        "phase": "execute"
+      }
+    ],
+    "remove": [
+      {
+        "network_requirement": "none",
+        "phase": "plan"
+      },
+      {
+        "network_requirement": "none",
+        "phase": "apply"
+      }
+    ],
+    "replace": [
+      {
+        "network_requirement": "none",
+        "phase": "plan"
+      },
+      {
+        "network_requirement": "none",
+        "phase": "apply"
+      }
+    ],
+    "restore": [
+      {
+        "network_requirement": "none",
+        "phase": "plan"
+      },
+      {
+        "network_requirement": "none",
+        "phase": "apply"
+      }
+    ],
+    "software_install": [
+      {
+        "network_requirement": "none",
+        "phase": "plan"
+      },
+      {
+        "network_requirement": "artifact_download",
+        "phase": "download"
+      },
+      {
+        "network_requirement": "none",
+        "phase": "apply"
+      }
+    ],
+    "software_remove": [
+      {
+        "network_requirement": "none",
+        "phase": "plan"
+      },
+      {
+        "network_requirement": "none",
+        "phase": "apply"
+      }
+    ],
+    "software_update": [
+      {
+        "network_requirement": "none",
+        "phase": "plan"
+      },
+      {
+        "network_requirement": "artifact_download",
+        "phase": "download"
+      },
+      {
+        "network_requirement": "none",
+        "phase": "apply"
+      }
+    ]
+  },
+  "optional_commands": [
+    "launch"
+  ],
+  "optional_operations": [
+    "launch",
+    "software_install",
+    "software_remove",
+    "software_update"
+  ],
+  "projection_kinds": [
+    "marketplace",
+    "plugin",
+    "native_files",
+    "package"
+  ],
+  "protocol_version": 3,
+  "provenance_fields": [
+    "state_schema",
+    "protocol_version",
+    "provider_id",
+    "provider_version",
+    "provider_build_digest",
+    "provider_release_digest",
+    "harness_id",
+    "canonical_target",
+    "target_identity_digest",
+    "setup_stable_id",
+    "setup_version",
+    "setup_version_passport_digest",
+    "setup_definition_digest",
+    "component_refs",
+    "bundle_format",
+    "bundle_digest",
+    "artifact_digest",
+    "projection_profile_digest",
+    "provider_plan_digest",
+    "operation_id",
+    "target_precondition_digest",
+    "native_ownership",
+    "backup_ref",
+    "previous_verified_identity",
+    "drift_state"
+  ],
+  "read_commands": [
+    "plan-operation",
+    "provider-info",
+    "status",
+    "validate-bundle"
+  ],
+  "requirements": "specs/active/SPEC-008-provider-installation.md",
+  "schema": "ai-stp-provider-conformance-kit/1",
+  "unsupported_reasons": [
+    "unsupported_operation",
+    "unsupported_component_kind",
+    "unsupported_native_surface",
+    "unsupported_bundle_format",
+    "unsupported_protocol_version",
+    "projection_profile_mismatch",
+    "unsupported_platform",
+    "unsupported_architecture"
+  ]
+}

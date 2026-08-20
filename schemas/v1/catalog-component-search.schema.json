@@ -1,0 +1,301 @@
+{
+  "$defs": {
+    "CatalogSort": {
+      "enum": [
+        "relevance",
+        "updated_at",
+        "likes"
+      ],
+      "type": "string"
+    },
+    "CatalogSortDirection": {
+      "enum": [
+        "asc",
+        "desc"
+      ],
+      "type": "string"
+    },
+    "CatalogUpdatedDate": {
+      "format": "date",
+      "type": "string"
+    },
+    "ComponentType": {
+      "enum": [
+        "instruction",
+        "skill",
+        "mcp",
+        "hook",
+        "command",
+        "agent",
+        "plugin",
+        "setting"
+      ],
+      "type": "string"
+    },
+    "CountryCode": {
+      "pattern": "^[A-Z]{2}$",
+      "type": "string"
+    },
+    "CountryFilterValue": {
+      "pattern": "^(?:[A-Z]{2}|unspecified)$",
+      "type": "string"
+    },
+    "Cursor": {
+      "pattern": "^[A-Za-z0-9_-]{1,512}$",
+      "type": "string"
+    },
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build"
+      ],
+      "type": "string"
+    },
+    "PageNumber": {
+      "maximum": 10000,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "PageSize": {
+      "maximum": 100,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "SupportState": {
+      "enum": [
+        "verified",
+        "stale",
+        "missing",
+        "not_verified"
+      ],
+      "type": "string"
+    },
+    "SupportTier": {
+      "enum": [
+        "primary",
+        "beta"
+      ],
+      "type": "string"
+    },
+    "TagId": {
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:catalog-component-search",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Query for `/v1/catalog/components`.\n\nStrict on purpose (`strict_request_object`): an unknown parameter is a\ndropped filter, not forward compatibility.",
+  "properties": {
+    "authors": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 20,
+      "title": "Authors",
+      "type": "array"
+    },
+    "component_type": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ComponentType"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "component_types": {
+      "items": {
+        "$ref": "#/$defs/ComponentType"
+      },
+      "maxItems": 8,
+      "title": "Component Types",
+      "type": "array"
+    },
+    "country_code": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CountryCode"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "country_codes": {
+      "description": "ISO country codes implied by linked services. The sentinel unspecified matches a linked service that has no country, not an object without a service.",
+      "items": {
+        "$ref": "#/$defs/CountryFilterValue"
+      },
+      "maxItems": 20,
+      "title": "Country Codes",
+      "type": "array"
+    },
+    "cursor": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Cursor"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "harness_id": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/HarnessId"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "harness_ids": {
+      "items": {
+        "$ref": "#/$defs/HarnessId"
+      },
+      "maxItems": 6,
+      "title": "Harness Ids",
+      "type": "array"
+    },
+    "include_experimental": {
+      "default": false,
+      "title": "Include Experimental",
+      "type": "boolean"
+    },
+    "page": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PageNumber"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "page_size": {
+      "$ref": "#/$defs/PageSize",
+      "default": 20
+    },
+    "q": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Q"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "service_domain": {
+      "anyOf": [
+        {
+          "maxLength": 253,
+          "minLength": 3,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Service Domain"
+    },
+    "service_domains": {
+      "description": "External service domains. The sentinel unspecified matches objects with no linked service.",
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 20,
+      "title": "Service Domains",
+      "type": "array"
+    },
+    "sort": {
+      "$ref": "#/$defs/CatalogSort",
+      "default": "relevance"
+    },
+    "sort_direction": {
+      "$ref": "#/$defs/CatalogSortDirection",
+      "default": "desc"
+    },
+    "support_state": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SupportState"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "support_tier": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SupportTier"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "tags": {
+      "items": {
+        "$ref": "#/$defs/TagId"
+      },
+      "maxItems": 8,
+      "title": "Tags",
+      "type": "array"
+    },
+    "updated_from": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CatalogUpdatedDate"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "updated_to": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CatalogUpdatedDate"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "verified_only": {
+      "default": false,
+      "title": "Verified Only",
+      "type": "boolean"
+    }
+  },
+  "title": "ComponentSearchRequest",
+  "type": "object"
+}

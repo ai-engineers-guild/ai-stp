@@ -1,0 +1,71 @@
+{
+  "$defs": {
+    "CheckStatus": {
+      "enum": [
+        "pass",
+        "fail"
+      ],
+      "type": "string"
+    },
+    "ReadinessChecks": {
+      "additionalProperties": true,
+      "description": "The closed set of dependencies readiness depends on.\n\nClosed on purpose: a new dependency arrives as an additional optional\nfield, which keeps an older reader working inside the same major.",
+      "properties": {
+        "database": {
+          "$ref": "#/$defs/CheckStatus"
+        },
+        "migrations": {
+          "$ref": "#/$defs/CheckStatus"
+        },
+        "object_storage": {
+          "$ref": "#/$defs/CheckStatus"
+        }
+      },
+      "required": [
+        "database",
+        "migrations",
+        "object_storage"
+      ],
+      "title": "ReadinessChecks",
+      "type": "object"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:health-readiness",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Whether the deployment may take traffic.",
+  "properties": {
+    "checked_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "checks": {
+      "$ref": "#/$defs/ReadinessChecks"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "status": {
+      "enum": [
+        "ready",
+        "not_ready"
+      ],
+      "title": "Status",
+      "type": "string"
+    }
+  },
+  "required": [
+    "checked_at",
+    "checks",
+    "schema_version",
+    "status"
+  ],
+  "title": "ReadinessResponse",
+  "type": "object"
+}

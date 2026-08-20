@@ -1,0 +1,19 @@
+{
+  "name": "numbers",
+  "value": {
+    "int": 9007199254740991,
+    "neg": -7,
+    "half": 0.5,
+    "zero": 0,
+    "float": 3.14
+  },
+  "canonical": "{\"float\":3.14,\"half\":0.5,\"int\":9007199254740991,\"neg\":-7,\"zero\":0}",
+  "digests": {
+    "ai-stp:artifact:v1": "sha256:02f2810b69e9111e065aa1e1b735276d23a7f6b736532d0885e1dda6e432eed0",
+    "ai-stp:attestation:v1": "sha256:1cc5ad09ed161c04cda1ef659ee8d788df84062b1b61e27145841c9ccbff9483",
+    "ai-stp:bundle:v1": "sha256:e17b6900eef0522ca51307f11cdc88b620ff8383443d98ef383b6cb8060c3527",
+    "ai-stp:passport:v1": "sha256:6e6852f6776d444836f8ad5ec721c12c4dc14d586b8b1e0e7b1f1cfb5959765e",
+    "ai-stp:plan:v1": "sha256:f8a1ddb6d0d0a215c2a1097b8f4e536e255963fb062e8822fdd0a86fc0df7da1",
+    "ai-stp:revision:v1": "sha256:0bc9b67fef80d4901ef3eee7fef0e17d13a67f49c8590b7debbc10b59db23128"
+  }
+}

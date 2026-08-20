@@ -1,0 +1,82 @@
+{
+  "$defs": {
+    "EstimatorProfile": {
+      "enum": [
+        "ai-stp:utf8-bytes/1",
+        "ai-stp:unicode-chars-div4/1"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:account-selection-impact-query",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Authenticated query for one account-scoped selection impact report.",
+  "properties": {
+    "baseline_id": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Baseline Id"
+    },
+    "baseline_version": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9]+\\.[0-9]+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Baseline Version"
+    },
+    "candidate_id": {
+      "minLength": 1,
+      "title": "Candidate Id",
+      "type": "string"
+    },
+    "candidate_version": {
+      "pattern": "^[0-9]+\\.[0-9]+$",
+      "title": "Candidate Version",
+      "type": "string"
+    },
+    "estimator_profile": {
+      "$ref": "#/$defs/EstimatorProfile",
+      "default": "ai-stp:utf8-bytes/1"
+    },
+    "project_id": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Project Id"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "candidate_id",
+    "candidate_version"
+  ],
+  "title": "AccountSelectionImpactQuery",
+  "type": "object"
+}

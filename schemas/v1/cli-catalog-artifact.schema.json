@@ -1,0 +1,81 @@
+{
+  "$defs": {
+    "AnswerSource": {
+      "enum": [
+        "online",
+        "cache"
+      ],
+      "type": "string"
+    },
+    "CatalogKind": {
+      "enum": [
+        "component",
+        "setup"
+      ],
+      "type": "string"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-catalog-artifact",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Where the verified bytes of one exact version now are (issue #76).\n\nAnswered after the bytes have been checked against the passport, so a caller\nthat receives this knows the file at `path` hashes to `digest` and is\n`size_bytes` long. `source` says whether the network was involved, which is\nwhat an offline caller needs to know about its own cache.",
+  "properties": {
+    "checked_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "digest": {
+      "minLength": 1,
+      "title": "Digest",
+      "type": "string"
+    },
+    "kind": {
+      "$ref": "#/$defs/CatalogKind"
+    },
+    "path": {
+      "minLength": 1,
+      "title": "Path",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "size_bytes": {
+      "minimum": 0,
+      "title": "Size Bytes",
+      "type": "integer"
+    },
+    "source": {
+      "$ref": "#/$defs/AnswerSource"
+    },
+    "stable_id": {
+      "minLength": 1,
+      "title": "Stable Id",
+      "type": "string"
+    },
+    "version": {
+      "minLength": 1,
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "checked_at",
+    "digest",
+    "kind",
+    "path",
+    "schema_version",
+    "size_bytes",
+    "source",
+    "stable_id",
+    "version"
+  ],
+  "title": "CatalogArtifactView",
+  "type": "object"
+}

@@ -1,0 +1,114 @@
+{
+  "$defs": {
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build"
+      ],
+      "type": "string"
+    },
+    "ManagedPathChange": {
+      "additionalProperties": false,
+      "description": "One stable managed-path drift class without an absolute local path.",
+      "properties": {
+        "code": {
+          "enum": [
+            "modified",
+            "added",
+            "deleted"
+          ],
+          "title": "Code",
+          "type": "string"
+        },
+        "expected_digest": {
+          "default": "",
+          "pattern": "^(?:^sha256:[0-9a-f]{64}$)?$",
+          "title": "Expected Digest",
+          "type": "string"
+        },
+        "observed_digest": {
+          "default": "",
+          "pattern": "^(?:^sha256:[0-9a-f]{64}$|unsafe)?$",
+          "title": "Observed Digest",
+          "type": "string"
+        },
+        "path": {
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "code",
+        "path"
+      ],
+      "title": "ManagedPathChange",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-target-diff",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "What moved between two readings of one pair, named field by field.\n\nNamed rather than counted: \"three things changed\" is not something anybody\ncan act on, and finding out *which* is the reason to compare at all.",
+  "properties": {
+    "changes": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Changes",
+      "type": "array"
+    },
+    "harness_id": {
+      "$ref": "#/$defs/HarnessId"
+    },
+    "managed_changes": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ManagedPathChange"
+      },
+      "title": "Managed Changes",
+      "type": "array"
+    },
+    "managed_detail": {
+      "default": "not_applicable",
+      "enum": [
+        "not_applicable",
+        "available",
+        "unavailable"
+      ],
+      "title": "Managed Detail",
+      "type": "string"
+    },
+    "project_id": {
+      "minLength": 1,
+      "title": "Project Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "changes",
+    "harness_id",
+    "managed_changes",
+    "managed_detail",
+    "project_id",
+    "schema_version"
+  ],
+  "title": "TargetDiff",
+  "type": "object"
+}

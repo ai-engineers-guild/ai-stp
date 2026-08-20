@@ -1,0 +1,200 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case_id": "pushSyncEvents.initialAccepted",
+      "operation_id": "pushSyncEvents",
+      "kind": "positive",
+      "why": "An initial developer-passport revision with no parents and a null expected head is accepted and returns the new server head plus an opaque cursor.",
+      "request": {
+        "body": {
+          "schema_version": 1,
+          "events": [
+            {
+              "schema_version": 1,
+              "event_id": "event-init-0001",
+              "entity_id": "developer_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+              "entity_kind": "developer_passport",
+              "revision_id": "revision_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "parent_revision_ids": [],
+              "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+              "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+              "operation": "upsert",
+              "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "created_at": "2026-08-07T00:00:00.000Z",
+              "idempotency_key": "0123456789abcdef",
+              "expected_head_revision_id": null,
+              "payload": {
+                "preference": "dark"
+              }
+            }
+          ]
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "receipts": [
+          {
+            "schema_version": 1,
+            "event_id": "event-init-0001",
+            "state": "accepted",
+            "revision_id": "revision_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "server_head_revision_id": "revision_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "cursor": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "conflict": null,
+            "error_code": null
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "pushSyncEvents.conflictHeads",
+      "operation_id": "pushSyncEvents",
+      "kind": "example",
+      "why": "Divergent history returns a typed conflict receipt with both heads and optional common ancestor without advancing the server head.",
+      "request": {
+        "body": {
+          "schema_version": 1,
+          "events": [
+            {
+              "schema_version": 1,
+              "event_id": "event-conflict-0001",
+              "entity_id": "developer_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+              "entity_kind": "developer_passport",
+              "revision_id": "revision_cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "parent_revision_ids": [
+                "revision_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+              ],
+              "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+              "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+              "operation": "upsert",
+              "content_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "created_at": "2026-08-07T00:01:00.000Z",
+              "idempotency_key": "fedcba9876543210",
+              "expected_head_revision_id": "revision_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "payload": {
+                "preference": "light"
+              }
+            }
+          ]
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "receipts": [
+          {
+            "schema_version": 1,
+            "event_id": "event-conflict-0001",
+            "state": "conflict",
+            "revision_id": null,
+            "server_head_revision_id": "revision_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "cursor": null,
+            "conflict": {
+              "schema_version": 1,
+              "server_head_revision_id": "revision_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "client_head_revision_id": "revision_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "common_ancestor_revision_id": "revision_0000000000000000000000000000000000000000000000000000000000000000",
+              "affected_fields": [
+                "preference"
+              ]
+            },
+            "error_code": null
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "pushSyncEvents.emptyEvents",
+      "operation_id": "pushSyncEvents",
+      "kind": "rejected_request",
+      "why": "A push with zero events is not a no-op: the contract requires at least one event so the client cannot claim success without a receipt.",
+      "request": {
+        "body": {
+          "schema_version": 1,
+          "events": []
+        }
+      },
+      "status": 400,
+      "error_code": "AI_STP_VALIDATION_ERROR"
+    },
+    {
+      "case_id": "pullSyncEvents.emptyStream",
+      "operation_id": "pullSyncEvents",
+      "kind": "positive",
+      "why": "An account with no accepted events receives an empty page and a null next_cursor, which means only that this read is complete, not that future events will never appear.",
+      "request": {
+        "query": {
+          "schema_version": 1,
+          "page_size": 20
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "items": [],
+        "page": {
+          "schema_version": 1,
+          "next_cursor": null,
+          "page_size": 20
+        }
+      }
+    },
+    {
+      "case_id": "pullSyncEvents.oneEvent",
+      "operation_id": "pullSyncEvents",
+      "kind": "example",
+      "why": "A pull packet carries accepted events in outbox order with the sealed payload and a cursor at the last delivered sequence even when no further rows exist.",
+      "request": {
+        "query": {
+          "schema_version": 1,
+          "page_size": 20
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "items": [
+          {
+            "schema_version": 1,
+            "event_id": "event-init-0001",
+            "entity_id": "developer_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "entity_kind": "developer_passport",
+            "revision_id": "revision_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "parent_revision_ids": [],
+            "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "operation": "upsert",
+            "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "created_at": "2026-08-07T00:00:00.000Z",
+            "payload": {
+              "preference": "dark"
+            },
+            "sequence": 1
+          }
+        ],
+        "page": {
+          "schema_version": 1,
+          "next_cursor": "cursorAfterSequence1",
+          "page_size": 20
+        }
+      }
+    },
+    {
+      "case_id": "pullSyncEvents.invalidCursorShape",
+      "operation_id": "pullSyncEvents",
+      "kind": "rejected_request",
+      "why": "A cursor that violates the opaque wire pattern is rejected before any outbox read.",
+      "request": {
+        "query": {
+          "schema_version": 1,
+          "cursor": "bad.cursor!",
+          "page_size": 20
+        }
+      },
+      "status": 400,
+      "error_code": "AI_STP_VALIDATION_ERROR"
+    }
+  ]
+}

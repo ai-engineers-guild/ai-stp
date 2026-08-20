@@ -1,0 +1,51 @@
+# Production frontend image (SPEC-024 REQ-2403, ADR-0044).
+# Multi-stage: bun builds Next.js standalone, then a minimal non-root Node runtime.
+# Base tags are pinned; bump only via a separate reviewed change.
+
+FROM oven/bun:1.2.19-alpine AS deps
+WORKDIR /app
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile
+
+FROM oven/bun:1.2.19-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+# Public URL is baked into the client bundle at build time.
+ARG NEXT_PUBLIC_APP_URL=http://localhost:8080
+ARG AI_STP_WEB_PROFILE=public_saas
+ARG AI_STP_FEATURE_CONTENT_HUB
+ARG AI_STP_FEATURE_SAAS_PUBLIC_PAGES
+ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL} \
+    AI_STP_WEB_PROFILE=${AI_STP_WEB_PROFILE} \
+    AI_STP_FEATURE_CONTENT_HUB=${AI_STP_FEATURE_CONTENT_HUB} \
+    AI_STP_FEATURE_SAAS_PUBLIC_PAGES=${AI_STP_FEATURE_SAAS_PUBLIC_PAGES} \
+    NEXT_TELEMETRY_DISABLED=1 \
+    # Build-time placeholders only; runtime secrets come from env at process start.
+    AI_STP_API_BASE_URL=http://api:8000 \
+    AI_STP_USE_MOCKS=false \
+    AI_STP_SESSION_SECRET=build-time-placeholder-not-for-runtime-use
+
+RUN bun run build
+
+FROM node:22.18.0-slim AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    PORT=3000 \
+    HOSTNAME=0.0.0.0
+
+RUN groupadd --system --gid 10001 appuser \
+    && useradd --system --uid 10001 --gid appuser --home /app --shell /usr/sbin/nologin appuser
+
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=appuser:appuser /app/.next/standalone ./
+COPY --from=builder --chown=appuser:appuser /app/.next/static ./.next/static
+
+USER appuser
+
+EXPOSE 3000
+
+CMD ["node", "server.js"]

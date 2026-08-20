@@ -1,0 +1,17 @@
+node_modules
+.next*
+test-results
+playwright-report
+coverage
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+.git
+.DS_Store
+tests
+playwright.config.ts
+vitest.config.ts
+eslint.config.mjs
+prettier.config.mjs
+tsconfig.tsbuildinfo

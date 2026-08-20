@@ -1,0 +1,45 @@
+{
+  "$defs": {
+    "Cursor": {
+      "pattern": "^[A-Za-z0-9_-]{1,512}$",
+      "type": "string"
+    },
+    "PageSize": {
+      "maximum": 100,
+      "minimum": 1,
+      "type": "integer"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:page-info",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Cursor pagination state (docs/contracts/http-api.md).\n\nNo total is exposed. Reporting one would let a caller detect objects it is\nnot allowed to read, so a hidden or deleted object leaks through neither a\ncount nor a cursor.",
+  "properties": {
+    "next_cursor": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Cursor"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "page_size": {
+      "$ref": "#/$defs/PageSize"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "next_cursor",
+    "page_size",
+    "schema_version"
+  ],
+  "title": "PageInfo",
+  "type": "object"
+}

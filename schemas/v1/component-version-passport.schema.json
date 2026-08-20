@@ -1,0 +1,578 @@
+{
+  "$defs": {
+    "ArtifactRef": {
+      "additionalProperties": false,
+      "description": "Content-addressed artifact bytes: digest and size.",
+      "properties": {
+        "digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Digest",
+          "type": "string"
+        },
+        "size_bytes": {
+          "minimum": 0,
+          "title": "Size Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "digest",
+        "size_bytes"
+      ],
+      "title": "ArtifactRef",
+      "type": "object"
+    },
+    "CapabilityId": {
+      "pattern": "^[a-z0-9]+(\\.[a-z0-9-]+)+$",
+      "type": "string"
+    },
+    "ComponentRef": {
+      "additionalProperties": false,
+      "description": "Exact reference to a component version, optionally to one realization.",
+      "properties": {
+        "passport_digest": {
+          "$ref": "#/$defs/PassportDigest"
+        },
+        "stable_id": {
+          "pattern": "^component_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "variant_id": {
+          "anyOf": [
+            {
+              "pattern": "^variant_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Variant Id"
+        },
+        "version": {
+          "$ref": "#/$defs/Version"
+        }
+      },
+      "required": [
+        "stable_id",
+        "version",
+        "passport_digest"
+      ],
+      "title": "ComponentRef",
+      "type": "object"
+    },
+    "ComponentType": {
+      "enum": [
+        "instruction",
+        "skill",
+        "mcp",
+        "hook",
+        "command",
+        "agent",
+        "plugin",
+        "setting"
+      ],
+      "type": "string"
+    },
+    "Conflicts": {
+      "additionalProperties": false,
+      "description": "Declared conflicts by native surface.",
+      "properties": {
+        "agents": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Agents",
+          "type": "array"
+        },
+        "commands": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Commands",
+          "type": "array"
+        },
+        "hooks": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Hooks",
+          "type": "array"
+        },
+        "mcp": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Mcp",
+          "type": "array"
+        },
+        "paths": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Paths",
+          "type": "array"
+        },
+        "plugins": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Plugins",
+          "type": "array"
+        }
+      },
+      "title": "Conflicts",
+      "type": "object"
+    },
+    "EnvVarRequirement": {
+      "additionalProperties": false,
+      "description": "Required environment variable: name and purpose, never a value.",
+      "properties": {
+        "name": {
+          "pattern": "^[A-Z][A-Z0-9_]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "purpose": {
+          "title": "Purpose",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "purpose"
+      ],
+      "title": "EnvVarRequirement",
+      "type": "object"
+    },
+    "Fact": {
+      "additionalProperties": true,
+      "description": "One passport fact: value, provenance axes and bounded source links.",
+      "properties": {
+        "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "confirmation": {
+          "$ref": "#/$defs/FactConfirmation"
+        },
+        "confirmed_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "observed_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "origin": {
+          "$ref": "#/$defs/FactOrigin"
+        },
+        "source_refs": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 16,
+          "title": "Source Refs",
+          "type": "array"
+        },
+        "value": {
+          "$ref": "#/$defs/JsonValue"
+        }
+      },
+      "required": [
+        "value",
+        "origin",
+        "confirmation"
+      ],
+      "title": "Fact",
+      "type": "object"
+    },
+    "FactConfirmation": {
+      "enum": [
+        "none",
+        "user_confirmed"
+      ],
+      "type": "string"
+    },
+    "FactOrigin": {
+      "enum": [
+        "declared",
+        "observed",
+        "derived",
+        "imported"
+      ],
+      "type": "string"
+    },
+    "GitSource": {
+      "additionalProperties": false,
+      "description": "Exact public origin: repository, commit and component root subpath.",
+      "properties": {
+        "commit": {
+          "pattern": "^[0-9a-f]{40}$",
+          "title": "Commit",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "repository": {
+          "pattern": "^https://[^\\s]+$",
+          "title": "Repository",
+          "type": "string"
+        }
+      },
+      "required": [
+        "repository",
+        "commit",
+        "path"
+      ],
+      "title": "GitSource",
+      "type": "object"
+    },
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build"
+      ],
+      "type": "string"
+    },
+    "JsonValue": {},
+    "LicenseInfo": {
+      "additionalProperties": false,
+      "description": "License identity and the redistribution decision.",
+      "properties": {
+        "redistribution_allowed": {
+          "title": "Redistribution Allowed",
+          "type": "boolean"
+        },
+        "spdx_id": {
+          "title": "Spdx Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "spdx_id",
+        "redistribution_allowed"
+      ],
+      "title": "LicenseInfo",
+      "type": "object"
+    },
+    "PassportDigest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "Permissions": {
+      "additionalProperties": false,
+      "description": "Declared file, network and process permissions.",
+      "properties": {
+        "filesystem": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Filesystem",
+          "type": "array"
+        },
+        "network": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Network",
+          "type": "array"
+        },
+        "process": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Process",
+          "type": "array"
+        }
+      },
+      "title": "Permissions",
+      "type": "object"
+    },
+    "ProjectionKind": {
+      "enum": [
+        "marketplace",
+        "plugin",
+        "native_files",
+        "package"
+      ],
+      "type": "string"
+    },
+    "RevisionId": {
+      "pattern": "^revision_[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "TagId": {
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "type": "string"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    },
+    "Version": {
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:component-version-passport",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Immutable component version passport.",
+  "properties": {
+    "artifact": {
+      "$ref": "#/$defs/ArtifactRef"
+    },
+    "compatibility_evidence_refs": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Compatibility Evidence Refs",
+      "type": "array"
+    },
+    "component_type": {
+      "$ref": "#/$defs/ComponentType"
+    },
+    "conflicts": {
+      "$ref": "#/$defs/Conflicts"
+    },
+    "created_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "description": {
+      "title": "Description",
+      "type": "string"
+    },
+    "external_endpoints": {
+      "items": {
+        "pattern": "^https://[^\\s]+$",
+        "type": "string"
+      },
+      "title": "External Endpoints",
+      "type": "array"
+    },
+    "facts": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Fact"
+      },
+      "title": "Facts",
+      "type": "object"
+    },
+    "harness_id": {
+      "$ref": "#/$defs/HarnessId"
+    },
+    "kind": {
+      "const": "component",
+      "default": "component",
+      "title": "Kind",
+      "type": "string"
+    },
+    "license": {
+      "$ref": "#/$defs/LicenseInfo"
+    },
+    "managed_paths": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Managed Paths",
+      "type": "array"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "native_ids": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Native Ids",
+      "type": "array"
+    },
+    "owner_id": {
+      "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Owner Id",
+      "type": "string"
+    },
+    "parent_revision_ids": {
+      "items": {
+        "$ref": "#/$defs/RevisionId"
+      },
+      "title": "Parent Revision Ids",
+      "type": "array"
+    },
+    "permissions": {
+      "$ref": "#/$defs/Permissions"
+    },
+    "projection_kind": {
+      "$ref": "#/$defs/ProjectionKind"
+    },
+    "provides_capabilities": {
+      "items": {
+        "$ref": "#/$defs/CapabilityId"
+      },
+      "title": "Provides Capabilities",
+      "type": "array"
+    },
+    "required_env": {
+      "items": {
+        "$ref": "#/$defs/EnvVarRequirement"
+      },
+      "title": "Required Env",
+      "type": "array"
+    },
+    "requires_authorization": {
+      "default": "none",
+      "enum": [
+        "none",
+        "user_account",
+        "external_service"
+      ],
+      "title": "Requires Authorization",
+      "type": "string"
+    },
+    "requires_capabilities": {
+      "items": {
+        "$ref": "#/$defs/CapabilityId"
+      },
+      "title": "Requires Capabilities",
+      "type": "array"
+    },
+    "requires_components": {
+      "items": {
+        "$ref": "#/$defs/ComponentRef"
+      },
+      "title": "Requires Components",
+      "type": "array"
+    },
+    "requires_credentials": {
+      "default": false,
+      "title": "Requires Credentials",
+      "type": "boolean"
+    },
+    "revision_id": {
+      "$ref": "#/$defs/RevisionId"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "source": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GitSource"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "stable_id": {
+      "title": "Stable Id",
+      "type": "string"
+    },
+    "tags": {
+      "items": {
+        "$ref": "#/$defs/TagId"
+      },
+      "maxItems": 8,
+      "minItems": 1,
+      "title": "Tags",
+      "type": "array"
+    },
+    "variant_id": {
+      "anyOf": [
+        {
+          "pattern": "^variant_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Variant Id"
+    },
+    "version": {
+      "$ref": "#/$defs/Version"
+    },
+    "visibility": {
+      "default": "private",
+      "enum": [
+        "private",
+        "public"
+      ],
+      "title": "Visibility",
+      "type": "string"
+    }
+  },
+  "required": [
+    "artifact",
+    "compatibility_evidence_refs",
+    "component_type",
+    "conflicts",
+    "created_at",
+    "description",
+    "external_endpoints",
+    "facts",
+    "harness_id",
+    "kind",
+    "license",
+    "managed_paths",
+    "name",
+    "native_ids",
+    "owner_id",
+    "parent_revision_ids",
+    "permissions",
+    "projection_kind",
+    "provides_capabilities",
+    "required_env",
+    "requires_authorization",
+    "requires_capabilities",
+    "requires_components",
+    "requires_credentials",
+    "revision_id",
+    "schema_version",
+    "source",
+    "stable_id",
+    "tags",
+    "variant_id",
+    "version",
+    "visibility"
+  ],
+  "title": "ComponentVersionPassport",
+  "type": "object"
+}

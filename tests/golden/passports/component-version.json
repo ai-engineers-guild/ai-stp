@@ -1,0 +1,64 @@
+{
+  "name": "component-version",
+  "value": {
+    "schema_version": 1,
+    "kind": "component",
+    "stable_id": "component_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    "revision_id": "revision_357ce4892c3d5c20ce3cff4c884b13ac81373d5d6fb1828dc6fa8b734a81e64f",
+    "parent_revision_ids": [],
+    "owner_id": "account_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    "created_at": "2026-08-05T10:00:00.000Z",
+    "visibility": "public",
+    "facts": {},
+    "name": "pytest-runner",
+    "description": "Runs pytest and parses the report.",
+    "version": "1.0",
+    "tags": [
+      "python",
+      "tests"
+    ],
+    "source": {
+      "repository": "https://github.com/example/pytest-runner",
+      "commit": "6f1b0f5f7f3f4f2a1c9d8e7b6a5f4e3d2c1b0a99",
+      "path": "components/pytest-runner"
+    },
+    "artifact": {
+      "digest": "sha256:6b519391321d7c891f412b45d6d837ed72d0ea7c4747f9648326ee245e4fb876",
+      "size_bytes": 128
+    },
+    "harness_id": "claude-code",
+    "required_env": [],
+    "requires_credentials": false,
+    "requires_authorization": "none",
+    "permissions": {
+      "filesystem": [],
+      "network": [],
+      "process": []
+    },
+    "external_endpoints": [],
+    "license": {
+      "spdx_id": "MIT",
+      "redistribution_allowed": true
+    },
+    "compatibility_evidence_refs": [],
+    "component_type": "skill",
+    "projection_kind": "native_files",
+    "variant_id": null,
+    "provides_capabilities": [],
+    "requires_components": [],
+    "requires_capabilities": [],
+    "conflicts": {
+      "paths": [],
+      "commands": [],
+      "hooks": [],
+      "mcp": [],
+      "agents": [],
+      "plugins": []
+    },
+    "managed_paths": [],
+    "native_ids": []
+  },
+  "canonical": "{\"artifact\":{\"digest\":\"sha256:6b519391321d7c891f412b45d6d837ed72d0ea7c4747f9648326ee245e4fb876\",\"size_bytes\":128},\"compatibility_evidence_refs\":[],\"component_type\":\"skill\",\"conflicts\":{\"agents\":[],\"commands\":[],\"hooks\":[],\"mcp\":[],\"paths\":[],\"plugins\":[]},\"created_at\":\"2026-08-05T10:00:00.000Z\",\"description\":\"Runs pytest and parses the report.\",\"external_endpoints\":[],\"facts\":{},\"harness_id\":\"claude-code\",\"kind\":\"component\",\"license\":{\"redistribution_allowed\":true,\"spdx_id\":\"MIT\"},\"managed_paths\":[],\"name\":\"pytest-runner\",\"native_ids\":[],\"owner_id\":\"account_01ARZ3NDEKTSV4RRFFQ69G5FAV\",\"parent_revision_ids\":[],\"permissions\":{\"filesystem\":[],\"network\":[],\"process\":[]},\"projection_kind\":\"native_files\",\"provides_capabilities\":[],\"required_env\":[],\"requires_authorization\":\"none\",\"requires_capabilities\":[],\"requires_components\":[],\"requires_credentials\":false,\"revision_id\":\"revision_357ce4892c3d5c20ce3cff4c884b13ac81373d5d6fb1828dc6fa8b734a81e64f\",\"schema_version\":1,\"source\":{\"commit\":\"6f1b0f5f7f3f4f2a1c9d8e7b6a5f4e3d2c1b0a99\",\"path\":\"components/pytest-runner\",\"repository\":\"https://github.com/example/pytest-runner\"},\"stable_id\":\"component_01ARZ3NDEKTSV4RRFFQ69G5FAV\",\"tags\":[\"python\",\"tests\"],\"variant_id\":null,\"version\":\"1.0\",\"visibility\":\"public\"}",
+  "passport_digest": "sha256:b6af793cea10ca443316ba6a315fe5e014eb6a513acbd57f7f7ab37a5894edbe",
+  "revision_id": "revision_357ce4892c3d5c20ce3cff4c884b13ac81373d5d6fb1828dc6fa8b734a81e64f"
+}

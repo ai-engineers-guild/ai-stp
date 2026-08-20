@@ -1,0 +1,114 @@
+{
+  "$defs": {
+    "DeepLinkIntent": {
+      "enum": [
+        "view",
+        "report"
+      ],
+      "type": "string"
+    },
+    "DeepLinkKind": {
+      "enum": [
+        "component",
+        "setup",
+        "publisher"
+      ],
+      "type": "string"
+    },
+    "DeepLinkLocale": {
+      "enum": [
+        "ru",
+        "en"
+      ],
+      "type": "string"
+    },
+    "DeepLinkTarget": {
+      "additionalProperties": false,
+      "description": "One normalized identity and navigation intent.",
+      "properties": {
+        "grammar_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Grammar Version",
+          "type": "integer"
+        },
+        "intent": {
+          "$ref": "#/$defs/DeepLinkIntent",
+          "default": "view"
+        },
+        "kind": {
+          "$ref": "#/$defs/DeepLinkKind"
+        },
+        "locale": {
+          "$ref": "#/$defs/DeepLinkLocale",
+          "default": "ru"
+        },
+        "stable_id": {
+          "pattern": "(?:component_[0-7][0-9A-HJKMNP-TV-Z]{25}|setup_[0-7][0-9A-HJKMNP-TV-Z]{25}|account_[0-7][0-9A-HJKMNP-TV-Z]{25})",
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        }
+      },
+      "required": [
+        "kind",
+        "stable_id"
+      ],
+      "title": "DeepLinkTarget",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-deep-link",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A target projected into the web and agent-facing CLI forms.",
+  "properties": {
+    "cli_argv": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Cli Argv",
+      "type": "array"
+    },
+    "cli_command": {
+      "minLength": 1,
+      "title": "Cli Command",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "target": {
+      "$ref": "#/$defs/DeepLinkTarget"
+    },
+    "web_url": {
+      "minLength": 1,
+      "title": "Web Url",
+      "type": "string"
+    }
+  },
+  "required": [
+    "target",
+    "web_url",
+    "cli_argv",
+    "cli_command"
+  ],
+  "title": "DeepLinkView",
+  "type": "object"
+}

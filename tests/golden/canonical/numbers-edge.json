@@ -1,0 +1,18 @@
+{
+  "name": "numbers-edge",
+  "value": {
+    "negzero": -0.0,
+    "big": 1e+21,
+    "small": 1e-07,
+    "third": 0.30000000000000004
+  },
+  "canonical": "{\"big\":1e+21,\"negzero\":0,\"small\":1e-7,\"third\":0.30000000000000004}",
+  "digests": {
+    "ai-stp:artifact:v1": "sha256:74f702d995963043e62621baed531e94fe2aefe4ff3e16d115b8bcf1359fc683",
+    "ai-stp:attestation:v1": "sha256:9696229314c5bc9f54cc285d6d6d3c0b84f040d0f79058943fdb43d9b7238080",
+    "ai-stp:bundle:v1": "sha256:cb30cb248a35a887b32d8bc2fb3f24d0618b86bfe74c03006a4bc4ef26e01a60",
+    "ai-stp:passport:v1": "sha256:abd00a9b6f688e908880f5b79455a8343a21543f8aa0f0aa0f05006e64760947",
+    "ai-stp:plan:v1": "sha256:312b0f1437b1df379d587df9d47e86bac6df92e44eca75d1a67be36f7174b133",
+    "ai-stp:revision:v1": "sha256:700a2fc306b7a0f5a9dffbcae9c5453a9ccd2d223b631cd9f98148e1d62d1c30"
+  }
+}

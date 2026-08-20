@@ -1,0 +1,306 @@
+{
+  "$defs": {
+    "ComponentType": {
+      "enum": [
+        "instruction",
+        "skill",
+        "mcp",
+        "hook",
+        "command",
+        "agent",
+        "plugin",
+        "setting"
+      ],
+      "type": "string"
+    },
+    "StorePortDescriptor": {
+      "additionalProperties": false,
+      "description": "One compatible local store found under an explicitly named root.",
+      "properties": {
+        "adapter": {
+          "enum": [
+            "sx",
+            "apm"
+          ],
+          "title": "Adapter",
+          "type": "string"
+        },
+        "cli_status": {
+          "enum": [
+            "available",
+            "absent",
+            "not_required"
+          ],
+          "title": "Cli Status",
+          "type": "string"
+        },
+        "contract_version": {
+          "maxLength": 32,
+          "minLength": 1,
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "manifest": {
+          "minLength": 1,
+          "title": "Manifest",
+          "type": "string"
+        },
+        "port_version": {
+          "const": "setup-store-port/1",
+          "default": "setup-store-port/1",
+          "title": "Port Version",
+          "type": "string"
+        },
+        "root": {
+          "minLength": 1,
+          "title": "Root",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "snapshot_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Snapshot Digest",
+          "type": "string"
+        }
+      },
+      "required": [
+        "adapter",
+        "contract_version",
+        "root",
+        "manifest",
+        "snapshot_digest",
+        "cli_status"
+      ],
+      "title": "StorePortDescriptor",
+      "type": "object"
+    },
+    "StorePortInspection": {
+      "additionalProperties": false,
+      "description": "Bounded conversion report for one immutable local snapshot.",
+      "properties": {
+        "descriptor": {
+          "$ref": "#/$defs/StorePortDescriptor"
+        },
+        "diagnostics": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Diagnostics",
+          "type": "array"
+        },
+        "mappings": {
+          "items": {
+            "$ref": "#/$defs/StorePortMapping"
+          },
+          "title": "Mappings",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "unknown_fields": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Unknown Fields",
+          "type": "array"
+        }
+      },
+      "required": [
+        "descriptor",
+        "mappings",
+        "unknown_fields",
+        "diagnostics"
+      ],
+      "title": "StorePortInspection",
+      "type": "object"
+    },
+    "StorePortMapping": {
+      "additionalProperties": false,
+      "description": "One external record and its explicit canonical conversion decision.",
+      "properties": {
+        "component_type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ComponentType"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "external_id": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "External Id",
+          "type": "string"
+        },
+        "external_type": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "External Type",
+          "type": "string"
+        },
+        "external_version": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "External Version"
+        },
+        "local_content_digest": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Local Content Digest"
+        },
+        "local_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Local Path"
+        },
+        "omissions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Omissions",
+          "type": "array"
+        },
+        "preserved_metadata": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Preserved Metadata",
+          "type": "object"
+        },
+        "source_coordinate": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Source Coordinate",
+          "type": "string"
+        },
+        "source_digest": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Digest"
+        },
+        "state": {
+          "enum": [
+            "component",
+            "omitted"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "external_id",
+        "external_type",
+        "source_coordinate",
+        "state",
+        "omissions",
+        "preserved_metadata"
+      ],
+      "title": "StorePortMapping",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-store-port-import-plan",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Exact no-side-effect import plan bound to its source snapshot.",
+  "properties": {
+    "conflicts": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Conflicts",
+      "type": "array"
+    },
+    "importable_count": {
+      "minimum": 0,
+      "title": "Importable Count",
+      "type": "integer"
+    },
+    "inspection": {
+      "$ref": "#/$defs/StorePortInspection"
+    },
+    "omitted_count": {
+      "minimum": 0,
+      "title": "Omitted Count",
+      "type": "integer"
+    },
+    "plan_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Plan Digest",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "trust_consequences": {
+      "items": {
+        "enum": [
+          "local_only",
+          "author_verified_false",
+          "component_verified_false",
+          "external_store_unchanged",
+          "harness_target_unchanged"
+        ],
+        "type": "string"
+      },
+      "title": "Trust Consequences",
+      "type": "array"
+    }
+  },
+  "required": [
+    "plan_digest",
+    "inspection",
+    "importable_count",
+    "omitted_count",
+    "conflicts",
+    "trust_consequences"
+  ],
+  "title": "StorePortImportPlan",
+  "type": "object"
+}

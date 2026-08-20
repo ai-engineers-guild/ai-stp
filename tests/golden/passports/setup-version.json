@@ -1,0 +1,64 @@
+{
+  "name": "setup-version",
+  "value": {
+    "schema_version": 1,
+    "kind": "setup",
+    "stable_id": "setup_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    "revision_id": "revision_3775ed0c1cd095e91a2664fcf450364874e018ac6ed5975aeebfb115f2f017d6",
+    "parent_revision_ids": [],
+    "owner_id": "account_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    "created_at": "2026-08-05T10:00:00.000Z",
+    "visibility": "private",
+    "facts": {},
+    "name": "backend-setup",
+    "description": "Backend role setup for Codex.",
+    "version": "1.0",
+    "tags": [
+      "backend"
+    ],
+    "source": null,
+    "artifact": {
+      "digest": "sha256:6b519391321d7c891f412b45d6d837ed72d0ea7c4747f9648326ee245e4fb876",
+      "size_bytes": 128
+    },
+    "harness_id": "codex",
+    "required_env": [],
+    "requires_credentials": false,
+    "requires_authorization": "none",
+    "permissions": {
+      "filesystem": [],
+      "network": [],
+      "process": []
+    },
+    "external_endpoints": [],
+    "license": {
+      "spdx_id": "MIT",
+      "redistribution_allowed": true
+    },
+    "compatibility_evidence_refs": [],
+    "purpose": "Backend development.",
+    "target_role": "backend",
+    "supported_tasks": [],
+    "components": [
+      {
+        "stable_id": "component_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+        "variant_id": null,
+        "version": "1.0",
+        "passport_digest": "sha256:b36e549b421e1f919872e5ac11bc9750bfca724122909f56b8d3552a1b06168d"
+      }
+    ],
+    "ported_from": null,
+    "related_setup_ids": [],
+    "execution_profile": "full-auto",
+    "supported_harness_versions": [],
+    "supported_os": [],
+    "supported_arch": [],
+    "composition_report_ref": null,
+    "conversion_report_ref": null,
+    "install_evidence_ref": null,
+    "launch_evidence_ref": null
+  },
+  "canonical": "{\"artifact\":{\"digest\":\"sha256:6b519391321d7c891f412b45d6d837ed72d0ea7c4747f9648326ee245e4fb876\",\"size_bytes\":128},\"compatibility_evidence_refs\":[],\"components\":[{\"passport_digest\":\"sha256:b36e549b421e1f919872e5ac11bc9750bfca724122909f56b8d3552a1b06168d\",\"stable_id\":\"component_01ARZ3NDEKTSV4RRFFQ69G5FAV\",\"variant_id\":null,\"version\":\"1.0\"}],\"composition_report_ref\":null,\"conversion_report_ref\":null,\"created_at\":\"2026-08-05T10:00:00.000Z\",\"description\":\"Backend role setup for Codex.\",\"execution_profile\":\"full-auto\",\"external_endpoints\":[],\"facts\":{},\"harness_id\":\"codex\",\"install_evidence_ref\":null,\"kind\":\"setup\",\"launch_evidence_ref\":null,\"license\":{\"redistribution_allowed\":true,\"spdx_id\":\"MIT\"},\"name\":\"backend-setup\",\"owner_id\":\"account_01ARZ3NDEKTSV4RRFFQ69G5FAV\",\"parent_revision_ids\":[],\"permissions\":{\"filesystem\":[],\"network\":[],\"process\":[]},\"ported_from\":null,\"purpose\":\"Backend development.\",\"related_setup_ids\":[],\"required_env\":[],\"requires_authorization\":\"none\",\"requires_credentials\":false,\"revision_id\":\"revision_3775ed0c1cd095e91a2664fcf450364874e018ac6ed5975aeebfb115f2f017d6\",\"schema_version\":1,\"source\":null,\"stable_id\":\"setup_01ARZ3NDEKTSV4RRFFQ69G5FAV\",\"supported_arch\":[],\"supported_harness_versions\":[],\"supported_os\":[],\"supported_tasks\":[],\"tags\":[\"backend\"],\"target_role\":\"backend\",\"version\":\"1.0\",\"visibility\":\"private\"}",
+  "passport_digest": "sha256:948c96c6f7f0bb202cc21e9f08d38c5f9689ace19622ebd140f9925d4350cc59",
+  "revision_id": "revision_3775ed0c1cd095e91a2664fcf450364874e018ac6ed5975aeebfb115f2f017d6"
+}

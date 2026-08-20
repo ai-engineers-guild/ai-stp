@@ -1,0 +1,28 @@
+{
+  "$defs": {
+    "PublicKey": {
+      "pattern": "^[A-Za-z0-9+/]{43}=$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:auth-device-challenge-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "POST /v1/devices/challenge body.",
+  "properties": {
+    "public_key": {
+      "$ref": "#/$defs/PublicKey"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "public_key"
+  ],
+  "title": "DeviceChallengeRequest",
+  "type": "object"
+}

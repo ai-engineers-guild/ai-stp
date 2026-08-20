@@ -1,0 +1,638 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case_id": "createPublicationPlan.ready",
+      "operation_id": "createPublicationPlan",
+      "kind": "positive",
+      "why": "A complete passport plan is accepted and returns plan_hash without executing validation.",
+      "request": {
+        "body": {
+          "schema_version": 1,
+          "object_kind": "component",
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.0",
+          "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "policy_version": "1",
+          "passport": {
+            "name": "demo",
+            "version": "1.0",
+            "tags": ["review"],
+            "license": {"spdx_id": "MIT"},
+            "source": {
+              "repository": "https://github.com/example/demo",
+              "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "subpath": "skills/demo"
+            },
+            "artifact": {
+              "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "size_bytes": 12
+            }
+          },
+          "attestations": [],
+          "idempotency_key": "0123456789abcdef",
+          "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 201,
+      "body": {
+        "schema_version": 1,
+        "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "plan_hash": "plan_cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "state": "ready",
+        "object_kind": "component",
+        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "version": "1.0",
+        "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "policy_version": "1",
+        "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "expires_at": "2026-08-09T00:00:00.000Z",
+        "component_verified": false,
+        "evidence": [],
+        "effects": ["validate", "publish_catalog_version"]
+      }
+    },
+    {
+      "case_id": "readPublicationPlan.ready",
+      "operation_id": "readPublicationPlan",
+      "kind": "positive",
+      "why": "The owner reads back the plan they created.",
+      "request": {
+        "path_params": {
+          "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "plan_hash": "plan_cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "state": "ready",
+        "object_kind": "component",
+        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "version": "1.0",
+        "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "policy_version": "1",
+        "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "expires_at": "2026-08-09T00:00:00.000Z",
+        "component_verified": false,
+        "evidence": [],
+        "effects": ["validate", "publish_catalog_version"]
+      }
+    },
+    {
+      "case_id": "bindPublicationArtifact.bound",
+      "operation_id": "bindPublicationArtifact",
+      "kind": "positive",
+      "why": "Exact plan digest bytes are accepted and the plan stays ready until confirm.",
+      "request": {
+        "path_params": {
+          "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "plan_hash": "plan_cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "state": "ready",
+        "object_kind": "component",
+        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "version": "1.0",
+        "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "policy_version": "1",
+        "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "expires_at": "2026-08-09T00:00:00.000Z",
+        "component_verified": false,
+        "evidence": [],
+        "effects": ["validate", "publish_catalog_version"]
+      }
+    },
+    {
+      "case_id": "confirmPublicationPlan.validating",
+      "operation_id": "confirmPublicationPlan",
+      "kind": "positive",
+      "why": "Confirm with the exact plan_hash moves the plan to validating.",
+      "request": {
+        "path_params": {
+          "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "schema_version": 1,
+          "plan_hash": "plan_cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "confirmed": true,
+          "idempotency_key": "confirmkey0000001"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "plan_hash": "plan_cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "state": "validating",
+        "object_kind": "component",
+        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "version": "1.0",
+        "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "policy_version": "1",
+        "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "expires_at": "2026-08-09T00:00:00.000Z",
+        "component_verified": false,
+        "evidence": [],
+        "effects": ["validate", "publish_catalog_version"]
+      }
+    },
+    {
+      "case_id": "createGrantInvitation.pending",
+      "operation_id": "createGrantInvitation",
+      "kind": "positive",
+      "why": "Owner invitation returns a pending invitation without the raw token.",
+      "request": {
+        "body": {
+          "schema_version": 1,
+          "object_kind": "component",
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "major": 1,
+          "recipient_email": "friend@example.com",
+          "idempotency_key": "invitekey00000001",
+          "ttl_seconds": 604800
+        }
+      },
+      "status": 201,
+      "body": {
+        "schema_version": 1,
+        "invitation_id": "invite_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "object_kind": "component",
+        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "major": 1,
+        "state": "pending",
+        "expires_at": "2026-08-15T00:00:00.000Z",
+        "created_at": "2026-08-08T00:00:00.000Z"
+      }
+    },
+    {
+      "case_id": "listGrants.empty",
+      "operation_id": "listGrants",
+      "kind": "positive",
+      "why": "An account with no invitations or grants still gets an empty list.",
+      "request": {},
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "invitations": [],
+        "grants": []
+      }
+    },
+    {
+      "case_id": "createDirectGrant.githubUsername",
+      "operation_id": "createDirectGrant",
+      "kind": "positive",
+      "why": "An explicit GitHub username resolves to one stable account grant.",
+      "request": {
+        "body": {
+          "schema_version": 1,
+          "object_kind": "component",
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "major": 1,
+          "recipient_kind": "github_username",
+          "recipient": "octocat",
+          "idempotency_key": "directgrantkey001"
+        }
+      },
+      "status": 201,
+      "body": {
+        "schema_version": 1,
+        "grant_id": "grant_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "object_kind": "component",
+        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "major": 1,
+        "grantee_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y70",
+        "owner_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "state": "active",
+        "created_at": "2026-08-08T00:00:00.000Z",
+        "revoked_at": null,
+        "recipient_kind": "github_username",
+        "recipient": "octocat"
+      }
+    },
+    {
+      "case_id": "acceptGrantInvitation.active",
+      "operation_id": "acceptGrantInvitation",
+      "kind": "positive",
+      "why": "A verified email match converts the invitation into an active grant.",
+      "request": {
+        "path_params": {
+          "invitation_id": "invite_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "schema_version": 1,
+          "token": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "idempotency_key": "acceptkey00000001"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "grant_id": "grant_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "object_kind": "component",
+        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "major": 1,
+        "grantee_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y70",
+        "owner_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "state": "active",
+        "created_at": "2026-08-08T00:00:00.000Z",
+        "revoked_at": null,
+        "recipient_kind": null,
+        "recipient": null
+      }
+    },
+    {
+      "case_id": "revokeGrantInvitation.pending",
+      "operation_id": "revokeGrantInvitation",
+      "kind": "positive",
+      "why": "Owner revokes a pending invitation without deleting local bytes.",
+      "request": {
+        "path_params": {
+          "invitation_id": "invite_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "schema_version": 1,
+          "reason": "cancelled",
+          "idempotency_key": "revokekey00000001"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "revoked": true,
+        "local_bytes_retained": true
+      }
+    },
+    {
+      "case_id": "revokeAccessGrant.forward",
+      "operation_id": "revokeAccessGrant",
+      "kind": "positive",
+      "why": "Owner revokes an active grant; local bytes stay with the grantee.",
+      "request": {
+        "path_params": {
+          "grant_id": "grant_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "schema_version": 1,
+          "reason": "done",
+          "idempotency_key": "revokekey00000002"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "revoked": true,
+        "local_bytes_retained": true
+      }
+    },
+    {
+      "case_id": "createReportCase.submitted",
+      "operation_id": "createReportCase",
+      "kind": "positive",
+      "why": "Authenticated reporter creates a closed case without diagnostics.",
+      "request": {
+        "body": {
+          "schema_version": 1,
+          "object_kind": "component",
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.0",
+          "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "harness_id": "claude-code",
+          "harness_version": "2.1.0",
+          "provider_version": "1.0.0",
+          "operation_id": "install",
+          "error_code": "AI_STP_VALIDATION_ERROR",
+          "validation_snapshot_ids": [],
+          "diagnostics": "",
+          "diagnostics_previewed": false,
+          "vulnerability": false,
+          "idempotency_key": "reportkey00000001"
+        }
+      },
+      "status": 201,
+      "body": {
+        "schema_version": 1,
+        "case_id": "report_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "object_kind": "component",
+        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "version": "1.0",
+        "state": "submitted",
+        "vulnerability": false,
+        "created_at": "2026-08-08T00:00:00.000Z"
+      }
+    },
+    {
+      "case_id": "listReportCases.one",
+      "operation_id": "listReportCases",
+      "kind": "positive",
+      "why": "Reporter lists only their own cases.",
+      "request": {},
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "items": [
+          {
+            "schema_version": 1,
+            "case_id": "report_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "object_kind": "component",
+            "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "version": "1.0",
+            "state": "submitted",
+            "vulnerability": false,
+            "created_at": "2026-08-08T00:00:00.000Z"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "staffTriageReport.triaged",
+      "operation_id": "staffTriageReport",
+      "kind": "positive",
+      "why": "Staff moves a submitted case to triaged with a reason.",
+      "request": {
+        "path_params": {
+          "case_id": "report_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "schema_version": 1,
+          "state": "triaged",
+          "reason": "reproduced",
+          "idempotency_key": "triagekey00000001"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "case_id": "report_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "object_kind": "component",
+        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "version": "1.0",
+        "state": "triaged",
+        "vulnerability": false,
+        "created_at": "2026-08-08T00:00:00.000Z"
+      }
+    },
+    {
+      "case_id": "staffVersionLifecycle.block",
+      "operation_id": "staffVersionLifecycle",
+      "kind": "positive",
+      "why": "Staff blocks a version; report count alone never does this.",
+      "request": {
+        "body": {
+          "schema_version": 1,
+          "object_kind": "component",
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.0",
+          "action": "block",
+          "reason": "malicious",
+          "idempotency_key": "blockkey000000001"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "applied": true,
+        "action": "block"
+      }
+    },
+    {
+      "case_id": "staffAuthorVerified.issue",
+      "operation_id": "staffAuthorVerified",
+      "kind": "positive",
+      "why": "Staff issues author_verified for an account with a reason.",
+      "request": {
+        "body": {
+          "schema_version": 1,
+          "subject_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "verified": true,
+          "reason": "github-org-ownership",
+          "idempotency_key": "authorkey00000001"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "applied": true,
+        "action": "author_verified_issue"
+      }
+    },
+    {
+      "case_id": "listOwnerObjects.empty",
+      "operation_id": "listOwnerObjects",
+      "kind": "positive",
+      "why": "An owner with no private or public objects still gets an empty workspace list.",
+      "request": {
+        "query": {
+          "schema_version": 1,
+          "page_size": 20
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "items": [],
+        "page": {
+          "schema_version": 1,
+          "next_cursor": null,
+          "page_size": 20
+        }
+      }
+    },
+    {
+      "case_id": "listOwnerObjects.one",
+      "operation_id": "listOwnerObjects",
+      "kind": "example",
+      "why": "A non-empty owner workspace lists owned objects without private bytes.",
+      "request": {
+        "query": {
+          "schema_version": 1,
+          "page_size": 20
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "items": [
+          {
+            "schema_version": 1,
+            "object_kind": "component",
+            "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "name": "demo-skill",
+            "latest_version": "1.0",
+            "visibility": "private",
+            "lifecycle_state": "draft",
+            "trust_lane": "experimental",
+            "author_verified": false,
+            "component_verified": false,
+            "updated_at": "2026-08-08T00:00:00.000Z"
+          }
+        ],
+        "page": {
+          "schema_version": 1,
+          "next_cursor": null,
+          "page_size": 20
+        }
+      }
+    },
+    {
+      "case_id": "readOwnerObject.detail",
+      "operation_id": "readOwnerObject",
+      "kind": "positive",
+      "why": "Owner object detail lists exact versions the account owns.",
+      "request": {
+        "path_params": {
+          "object_kind": "component",
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "object_kind": "component",
+        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "name": "demo-skill",
+        "versions": [
+          {
+            "schema_version": 1,
+            "version": "1.0",
+            "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "lifecycle_state": "draft",
+            "visibility": "private",
+            "trust_lane": "experimental",
+            "author_verified": false,
+            "component_verified": false,
+            "install_eligible": false,
+            "published_at": null,
+            "can_start_publication": true
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "readOwnerVersion.detail",
+      "operation_id": "readOwnerVersion",
+      "kind": "positive",
+      "why": "Exact owner version exposes lifecycle, trust axes and publication entry.",
+      "request": {
+        "path_params": {
+          "object_kind": "component",
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.0"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "object_kind": "component",
+        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "name": "demo-skill",
+        "version": "1.0",
+        "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "lifecycle_state": "draft",
+        "visibility": "private",
+        "trust_lane": "experimental",
+        "author_verified": false,
+        "component_verified": false,
+        "install_eligible": false,
+        "published_at": null,
+        "can_start_publication": true,
+        "open_publication_plan_id": "",
+        "evidence": [],
+        "description": ""
+      }
+    },
+    {
+      "case_id": "startOwnerPublication.ready",
+      "operation_id": "startOwnerPublication",
+      "kind": "positive",
+      "why": "Starting publication from an owned version returns a reviewable plan without browser passport composition.",
+      "request": {
+        "path_params": {
+          "object_kind": "component",
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.0"
+        },
+        "body": {
+          "schema_version": 1,
+          "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "idempotency_key": "startpub0000000001",
+          "policy_version": "1"
+        }
+      },
+      "status": 201,
+      "body": {
+        "schema_version": 1,
+        "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "plan_hash": "plan_cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "state": "ready",
+        "object_kind": "component",
+        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "version": "1.0",
+        "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "policy_version": "1",
+        "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "expires_at": "2026-08-09T00:00:00.000Z",
+        "component_verified": false,
+        "evidence": [],
+        "effects": ["validate", "publish_catalog_version"]
+      }
+    },
+    {
+      "case_id": "listStaffReports.empty",
+      "operation_id": "listStaffReports",
+      "kind": "positive",
+      "why": "Staff allowlist account may receive an empty worklist.",
+      "request": {
+        "query": {
+          "schema_version": 1,
+          "page_size": 20
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "items": [],
+        "page": {
+          "schema_version": 1,
+          "next_cursor": null,
+          "page_size": 20
+        }
+      }
+    },
+    {
+      "case_id": "readStaffReport.detail",
+      "operation_id": "readStaffReport",
+      "kind": "positive",
+      "why": "Staff case detail never includes reporter identity.",
+      "request": {
+        "path_params": {
+          "case_id": "report_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "case_id": "report_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "object_kind": "component",
+        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "version": "1.0",
+        "state": "submitted",
+        "vulnerability": false,
+        "created_at": "2026-08-08T00:00:00.000Z",
+        "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "error_code": "AI_STP_VALIDATION_ERROR",
+        "harness_id": "claude-code"
+      }
+    }
+  ]
+}

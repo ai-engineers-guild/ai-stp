@@ -1,0 +1,78 @@
+{
+  "$id": "urn:ai-stp:schema:v1:cli-sync-push",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Durable outcome of pushing one exact local revision.",
+  "properties": {
+    "conflict_fields": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Conflict Fields",
+      "type": "array"
+    },
+    "event_id": {
+      "minLength": 8,
+      "title": "Event Id",
+      "type": "string"
+    },
+    "local_revision_id": {
+      "minLength": 1,
+      "title": "Local Revision Id",
+      "type": "string"
+    },
+    "processed_events": {
+      "minimum": 1,
+      "title": "Processed Events",
+      "type": "integer"
+    },
+    "remote_revision_id": {
+      "minLength": 1,
+      "title": "Remote Revision Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "server_head_revision_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Server Head Revision Id"
+    },
+    "stable_id": {
+      "minLength": 1,
+      "title": "Stable Id",
+      "type": "string"
+    },
+    "state": {
+      "enum": [
+        "accepted",
+        "rejected",
+        "conflict",
+        "superseded"
+      ],
+      "title": "State",
+      "type": "string"
+    }
+  },
+  "required": [
+    "stable_id",
+    "processed_events",
+    "local_revision_id",
+    "event_id",
+    "remote_revision_id",
+    "state",
+    "server_head_revision_id"
+  ],
+  "title": "SyncPushView",
+  "type": "object"
+}

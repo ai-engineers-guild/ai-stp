@@ -1,0 +1,63 @@
+{
+  "$defs": {
+    "AccountId": {
+      "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "type": "string"
+    },
+    "DeviceId": {
+      "pattern": "^device_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:auth-device-token-response",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Credentials for one approved device.\n\nA pending, expired or declined poll is **not** this payload: it is a typed\nerror (`AI_STP_AUTHORIZATION_PENDING`, `_EXPIRED`, `_DECLINED`), so a client\ncan never mistake \"not yet\" for \"no credentials issued\".",
+  "properties": {
+    "access_token": {
+      "minLength": 1,
+      "title": "Access Token",
+      "type": "string"
+    },
+    "account_id": {
+      "$ref": "#/$defs/AccountId"
+    },
+    "device_id": {
+      "$ref": "#/$defs/DeviceId"
+    },
+    "expires_in": {
+      "maximum": 86400,
+      "minimum": 60,
+      "title": "Expires In",
+      "type": "integer"
+    },
+    "refresh_token": {
+      "minLength": 1,
+      "title": "Refresh Token",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "token_type": {
+      "const": "Bearer",
+      "default": "Bearer",
+      "title": "Token Type",
+      "type": "string"
+    }
+  },
+  "required": [
+    "access_token",
+    "account_id",
+    "device_id",
+    "expires_in",
+    "refresh_token",
+    "schema_version",
+    "token_type"
+  ],
+  "title": "DeviceTokenResponse",
+  "type": "object"
+}

@@ -1,0 +1,29 @@
+{
+  "$id": "urn:ai-stp:schema:v1:catalog-reaction-state",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Private state of the current account's reaction.",
+  "properties": {
+    "liked": {
+      "title": "Liked",
+      "type": "boolean"
+    },
+    "likes_count": {
+      "minimum": 0,
+      "title": "Likes Count",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "liked",
+    "likes_count"
+  ],
+  "title": "CatalogReactionState",
+  "type": "object"
+}

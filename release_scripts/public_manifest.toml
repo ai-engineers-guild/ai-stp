@@ -1,0 +1,105 @@
+# What the public `ai-stp` repository contains, and what it may never contain.
+#
+# An allowlist, deliberately. Discovery elsewhere in this repository uses a
+# denylist because a mistake there hides a component; here a mistake publishes
+# one, so a path that nobody named stays private by default.
+#
+# `roots` are top-level tracked entries. Everything under a named root is
+# published unless `exclude_paths` removes it or `forbidden` rejects it.
+
+roots = [
+  "apps",
+  "packages",
+  "tests",
+  "schemas",
+  "migrations",
+  "specs",
+  "docs",
+  "docs_scripts",
+  "user-docs",
+  "deploy",
+  "skills",
+  "scripts",
+  "release_scripts",
+  "provider-kit",
+  ".repo-safety",
+  ".serena",
+  "alembic.ini",
+  "justfile",
+  "pyproject.toml",
+  "uv.lock",
+  "docker-compose.dev.yml",
+  "docker-compose.prod.yml",
+  "Dockerfile",
+  "Dockerfile.user-docs",
+  "Dockerfile.worker-safety",
+  ".dockerignore",
+  ".gitattributes",
+  ".gitignore",
+  ".gitleaks.toml",
+  ".env.dev.example",
+  ".env.prod.example",
+  "LICENSE",
+  "README.md",
+  "SECURITY.md",
+  "CONTRIBUTING.md",
+  "PRODUCT.md",
+  "QUICKSTART.md",
+]
+
+# Named so the reason survives, rather than left out silently. A key may be a
+# top-level root or a single path; both are matched against the tracked name.
+[withheld]
+# The Serena project config and its ignore rules are ordinary contributor
+# hygiene and are published; only the memories are this working copy's own.
+".serena/memories" = "agent memory: internal narrative, host names, private issue numbers"
+".impeccable" = "review screenshots and development logs, not implementation"
+".gds" = "GDS artifacts, owned by another system"
+"plans" = "dated internal planning notes, superseded by specs"
+".claude" = "agent entry point for the private working copy"
+".agents" = "agent entry point for the private working copy"
+"AGENTS.md" = "internal working rules: fleet classes, deployment host, private tracker"
+".github" = "workflows address a private runner fleet; the overlay supplies public ones"
+"release_scripts/public_forbidden.toml" = "names the private infrastructure it exists to refuse"
+"release_scripts/public_overlay" = "its files are published at their target paths, not at this one"
+
+# Decisions about a runner fleet and a deployment host that only this working
+# copy has. They are not redacted, because a redacted decision record is worse
+# than an absent one: it reads as complete while its reasoning has been cut out.
+"docs/adr/ADR-0080-ci-on-ephemeral-fleet-scale-set.md" = "private fleet decision"
+"docs/adr/ADR-0098-deployment-runs-on-the-ephemeral-fleet.md" = "private fleet decision"
+"docs/adr/ADR-0099-deployment-runs-on-the-target-host.md" = "private fleet decision"
+"docs/adr/ADR-0100-checks-are-routed-by-required-capability.md" = "private fleet decision"
+"docs/adr/ADR-0101-release-candidate-runs-on-ephemeral-workers.md" = "private fleet decision"
+"docs/adr/ADR-0102-checks-depend-on-one-proven-fleet-class.md" = "private fleet decision"
+"docs/adr/ADR-0104-the-gate-runs-in-parallel-and-distributes-its-tests.md" = "private fleet decision"
+"docs/adr/ADR-0105-the-gate-is-five-jobs-shaped-by-capability.md" = "private fleet decision"
+"docs/adr/ADR-0107-a-class-is-chosen-by-measurement-not-by-capability.md" = "private fleet decision"
+
+# Status of one team against one internal plan, on one private infrastructure.
+"docs/engineering/audit-remediation-status.md" = "internal status report"
+"docs/engineering/mvp-completion-plan.md" = "internal status report"
+"docs/engineering/runner-separation-readiness.md" = "internal status report"
+"docs/engineering/sprint1-completion-report.md" = "internal status report"
+
+# How this deployment is operated, which is specific to one host and one fleet.
+"docs/operations/ci-cd.md" = "operates the private fleet"
+"docs/operations/infrastructure.md" = "describes the private host"
+"docs/operations/provider-integration-state.md" = "internal integration status"
+"docs/operations/runbooks/deploy.md" = "operates the private host"
+"docs/operations/runbooks/pypi-release.md" = "operates the private fleet"
+
+# These assert what *this* working copy's workflows say. Published unchanged
+# they would not merely be redundant, they would be false: the public tree runs
+# on GitHub-hosted runners, so an assertion that a job names a fleet class fails
+# there. The overlay carries the public equivalent instead.
+"tests/unit/test_deploy_hardening.py" = "asserts the private workflow contract"
+"tests/contract/test_release_candidate.py" = "asserts the private workflow contract"
+"tests/unit/test_provider_kit.py" = "names the private harness repository"
+
+# These read artefacts only this working copy has: the audit status document
+# withheld above, this repository's branch protections, and the export's own
+# private half. Published unchanged they would fail rather than inform.
+"tests/contract/test_audit_remediation_status.py" = "reads a withheld document"
+"tests/contract/test_repository_protections.py" = "asserts this repository's protections"
+"tests/contract/test_public_export.py" = "asserts the export's private half"

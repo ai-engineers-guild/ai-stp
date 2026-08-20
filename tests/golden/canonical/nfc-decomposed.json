@@ -1,0 +1,16 @@
+{
+  "name": "nfc-decomposed",
+  "value": {
+    "name": "Amélie",
+    "city": "Almáty"
+  },
+  "canonical": "{\"city\":\"Almáty\",\"name\":\"Amélie\"}",
+  "digests": {
+    "ai-stp:artifact:v1": "sha256:c6578c841c3fe5f71e27b9dd61be4ebe214e57499baaf812585a1e8cec90c30c",
+    "ai-stp:attestation:v1": "sha256:dee0d778522e4e11ba268a8a1d6c1a84c2ef6a72cc3ed4dbd17da72661bf01b0",
+    "ai-stp:bundle:v1": "sha256:7bc8dc85c1a22f6879822351d08cccae24a314d6de9c9fe6945d2209622f579f",
+    "ai-stp:passport:v1": "sha256:1c3849506b66c810b0fcfa0f9fa6a62992f5ab4a36e08c2d4c00c3fb4ab87a12",
+    "ai-stp:plan:v1": "sha256:7c80f94079dc53e0cc93d3938e7022c950e98593cdf9ee6e1ddc4955bcd25884",
+    "ai-stp:revision:v1": "sha256:cd631322f4b161eae2f712be55df77fba43b60f58bfdb266b4101f41ce0de1e6"
+  }
+}

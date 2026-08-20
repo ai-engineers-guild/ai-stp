@@ -1,0 +1,18 @@
+{
+  "name": "basic-object",
+  "value": {
+    "zulu": 1,
+    "alpha": true,
+    "mid": null,
+    "count": 42
+  },
+  "canonical": "{\"alpha\":true,\"count\":42,\"mid\":null,\"zulu\":1}",
+  "digests": {
+    "ai-stp:artifact:v1": "sha256:7a61cb3f984d4746d06f7c2a1288286a11d6995aef51b3573efc1640f934f456",
+    "ai-stp:attestation:v1": "sha256:f0b28d2e1de8166850845c5b40f5a9b335201fdaaffd01f5e24cb19fef994afb",
+    "ai-stp:bundle:v1": "sha256:fbc4e4e25eb77decaee3066defbdf80578344add9f5c0f9cc844daf16aa36e85",
+    "ai-stp:passport:v1": "sha256:0947192dee99aeff2766bdb868c691ceb365f35947bf698b10e178453d8a347b",
+    "ai-stp:plan:v1": "sha256:20a7eff143d10d2adfdea2a5a95b4cde12a25bb1c4a4d016677a5efb7f895904",
+    "ai-stp:revision:v1": "sha256:6ce6d949c4f7e217d9d246fd69ba19f0e794bb7f68ad8c3b6e1913bd0fb542ec"
+  }
+}

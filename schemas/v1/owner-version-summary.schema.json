@@ -1,0 +1,134 @@
+{
+  "$defs": {
+    "ContentDigest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "LifecycleState": {
+      "enum": [
+        "draft",
+        "active",
+        "deprecated",
+        "blocked",
+        "hidden",
+        "published",
+        "ready",
+        "validating",
+        "publish_planned",
+        "failed",
+        "stale",
+        "cancelled"
+      ],
+      "type": "string"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    },
+    "TrustLane": {
+      "enum": [
+        "authoritative",
+        "experimental"
+      ],
+      "type": "string"
+    },
+    "Version": {
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:owner-version-summary",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "One owned exact version in object detail.",
+  "properties": {
+    "author_verified": {
+      "default": false,
+      "title": "Author Verified",
+      "type": "boolean"
+    },
+    "can_start_publication": {
+      "default": false,
+      "title": "Can Start Publication",
+      "type": "boolean"
+    },
+    "component_verified": {
+      "default": false,
+      "title": "Component Verified",
+      "type": "boolean"
+    },
+    "content_digest": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ContentDigest"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "install_eligible": {
+      "default": false,
+      "title": "Install Eligible",
+      "type": "boolean"
+    },
+    "lifecycle_state": {
+      "$ref": "#/$defs/LifecycleState"
+    },
+    "published_at": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "trust_lane": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TrustLane"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "version": {
+      "$ref": "#/$defs/Version"
+    },
+    "visibility": {
+      "enum": [
+        "public",
+        "private"
+      ],
+      "title": "Visibility",
+      "type": "string"
+    }
+  },
+  "required": [
+    "author_verified",
+    "can_start_publication",
+    "component_verified",
+    "content_digest",
+    "install_eligible",
+    "lifecycle_state",
+    "published_at",
+    "schema_version",
+    "trust_lane",
+    "version",
+    "visibility"
+  ],
+  "title": "OwnerVersionSummary",
+  "type": "object"
+}

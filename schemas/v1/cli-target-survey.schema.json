@@ -1,0 +1,115 @@
+{
+  "$defs": {
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-target-survey",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "The daily state of one project-and-harness pair (`#177`).\n\n`states` is a list because a pair can be waiting to install *and* missing a\nvariable at once. Answering with one would send somebody to fix a thing and\nmeet the other immediately after.",
+  "properties": {
+    "catalog_version": {
+      "default": "",
+      "title": "Catalog Version",
+      "type": "string"
+    },
+    "harness_id": {
+      "$ref": "#/$defs/HarnessId"
+    },
+    "installed_stable_id": {
+      "default": "",
+      "title": "Installed Stable Id",
+      "type": "string"
+    },
+    "installed_version": {
+      "default": "",
+      "title": "Installed Version",
+      "type": "string"
+    },
+    "missing_env": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Missing Env",
+      "type": "array"
+    },
+    "observed_target_digest": {
+      "default": "",
+      "title": "Observed Target Digest",
+      "type": "string"
+    },
+    "pending_authorization": {
+      "default": "",
+      "title": "Pending Authorization",
+      "type": "string"
+    },
+    "project_id": {
+      "minLength": 1,
+      "title": "Project Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "selected_stable_id": {
+      "default": "",
+      "title": "Selected Stable Id",
+      "type": "string"
+    },
+    "selected_version": {
+      "default": "",
+      "title": "Selected Version",
+      "type": "string"
+    },
+    "states": {
+      "items": {
+        "enum": [
+          "not_selected",
+          "pending_install",
+          "local_drift",
+          "catalog_drift",
+          "needs_configuration",
+          "installed"
+        ],
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "States",
+      "type": "array"
+    },
+    "verified_target_digest": {
+      "default": "",
+      "title": "Verified Target Digest",
+      "type": "string"
+    }
+  },
+  "required": [
+    "catalog_version",
+    "harness_id",
+    "installed_stable_id",
+    "installed_version",
+    "missing_env",
+    "observed_target_digest",
+    "pending_authorization",
+    "project_id",
+    "schema_version",
+    "selected_stable_id",
+    "selected_version",
+    "states",
+    "verified_target_digest"
+  ],
+  "title": "TargetSurvey",
+  "type": "object"
+}

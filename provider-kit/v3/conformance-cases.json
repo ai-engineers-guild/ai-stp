@@ -1,0 +1,94 @@
+{
+  "bundle_rejections": [
+    {
+      "case": "digest_mismatch",
+      "expected_reason": "digest_mismatch"
+    },
+    {
+      "case": "limit_exceeded",
+      "expected_reason": "limit_exceeded"
+    },
+    {
+      "case": "link_not_allowed",
+      "expected_reason": "link_not_allowed"
+    },
+    {
+      "case": "path_duplicate",
+      "expected_reason": "path_duplicate"
+    },
+    {
+      "case": "path_escapes_target",
+      "expected_reason": "path_escapes_target"
+    },
+    {
+      "case": "path_not_relative",
+      "expected_reason": "path_not_relative"
+    },
+    {
+      "case": "special_file_not_allowed",
+      "expected_reason": "special_file_not_allowed"
+    },
+    {
+      "case": "unsupported_bundle_format",
+      "expected_reason": "unsupported_bundle_format"
+    },
+    {
+      "case": "unsupported_component_kind",
+      "expected_reason": "unsupported_component_kind"
+    },
+    {
+      "case": "unsupported_native_surface",
+      "expected_reason": "unsupported_native_surface"
+    },
+    {
+      "case": "unsupported_protocol_version",
+      "expected_reason": "unsupported_protocol_version"
+    }
+  ],
+  "capability_rejections": [
+    {
+      "case": "unsupported_operation",
+      "expected_reason": "unsupported_operation"
+    },
+    {
+      "case": "unsupported_component_kind",
+      "expected_reason": "unsupported_component_kind"
+    },
+    {
+      "case": "unsupported_native_surface",
+      "expected_reason": "unsupported_native_surface"
+    },
+    {
+      "case": "unsupported_bundle_format",
+      "expected_reason": "unsupported_bundle_format"
+    },
+    {
+      "case": "unsupported_protocol_version",
+      "expected_reason": "unsupported_protocol_version"
+    },
+    {
+      "case": "projection_profile_mismatch",
+      "expected_reason": "projection_profile_mismatch"
+    },
+    {
+      "case": "unsupported_platform",
+      "expected_reason": "unsupported_platform"
+    },
+    {
+      "case": "unsupported_architecture",
+      "expected_reason": "unsupported_architecture"
+    }
+  ],
+  "forbidden_in_safe_conformance": [
+    "apply-operation",
+    "launch"
+  ],
+  "protocol_version": 3,
+  "pure_commands": [
+    "plan-operation",
+    "provider-info",
+    "status",
+    "validate-bundle"
+  ],
+  "schema": "ai-stp-provider-conformance-cases/1"
+}

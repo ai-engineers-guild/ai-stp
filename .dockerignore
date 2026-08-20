@@ -1,0 +1,66 @@
+# Root build context for Dockerfile (api/worker/migrate/seed).
+# Without this file Docker Desktop sent ~350MB+ (web node_modules, .next, .venv).
+# Web image uses context ./apps/web and apps/web/.dockerignore separately.
+
+# VCS / IDE
+.git
+.github
+.gds
+.claude
+.serena
+.serena.local-backup-before-ff
+.agents
+.work
+.playwright-mcp
+*.md
+!README.md
+
+# Local Python / caches
+.venv
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.ruff_cache
+**/.hypothesis
+**/.mypy_cache
+**/.pyright
+**/*.egg-info
+.coverage
+htmlcov
+dist
+.site
+.site-user-docs
+
+# Node / frontend (not needed in Python images; apps/web has its own Dockerfile)
+**/node_modules
+**/.next
+**/coverage
+**/test-results
+**/playwright-report
+**/*.tsbuildinfo
+apps/web
+
+# Docs toolchain (mkdocs node deps)
+docs_scripts/node_modules
+docs
+!docs_scripts/user-mkdocs.yml
+!user-docs/
+!user-docs/**
+
+# Research / plans / local env
+research_sources
+plans
+specs
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Tests not required to build runtime images
+tests
+
+# Deploy is host-side; not baked into api/worker images
+deploy
+!deploy/
+!deploy/caddy/
+!deploy/caddy/Caddyfile.user-docs

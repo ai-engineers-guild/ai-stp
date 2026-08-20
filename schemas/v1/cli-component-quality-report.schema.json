@@ -1,0 +1,189 @@
+{
+  "$defs": {
+    "ComponentQualityCheck": {
+      "additionalProperties": false,
+      "description": "One deterministic authoring hint, never a verification result.",
+      "properties": {
+        "code": {
+          "pattern": "^[a-z][a-z0-9_]{2,63}$",
+          "title": "Code",
+          "type": "string"
+        },
+        "fields": {
+          "default": [],
+          "items": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Fields",
+          "type": "array"
+        },
+        "message": {
+          "maxLength": 240,
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "status": {
+          "enum": [
+            "passed",
+            "hint"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "status",
+        "message"
+      ],
+      "title": "ComponentQualityCheck",
+      "type": "object"
+    },
+    "ComponentQualityDimension": {
+      "additionalProperties": false,
+      "description": "Mechanical checks grouped under one author-facing quality dimension.",
+      "properties": {
+        "checks": {
+          "items": {
+            "$ref": "#/$defs/ComponentQualityCheck"
+          },
+          "minItems": 1,
+          "title": "Checks",
+          "type": "array"
+        },
+        "dimension": {
+          "enum": [
+            "safety",
+            "clarity",
+            "reusability",
+            "completeness",
+            "actionability"
+          ],
+          "title": "Dimension",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "status": {
+          "enum": [
+            "passed",
+            "hint"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dimension",
+        "status",
+        "checks"
+      ],
+      "title": "ComponentQualityDimension",
+      "type": "object"
+    },
+    "ComponentType": {
+      "enum": [
+        "instruction",
+        "skill",
+        "mcp",
+        "hook",
+        "command",
+        "agent",
+        "plugin",
+        "setting"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-component-quality-report",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Optional mechanical guidance separated from trust and publication readiness.",
+  "properties": {
+    "affects_component_verified": {
+      "const": false,
+      "default": false,
+      "title": "Affects Component Verified",
+      "type": "boolean"
+    },
+    "affects_publication_readiness": {
+      "const": false,
+      "default": false,
+      "title": "Affects Publication Readiness",
+      "type": "boolean"
+    },
+    "affects_trust_lane": {
+      "const": false,
+      "default": false,
+      "title": "Affects Trust Lane",
+      "type": "boolean"
+    },
+    "component_type": {
+      "$ref": "#/$defs/ComponentType"
+    },
+    "dimensions": {
+      "items": {
+        "$ref": "#/$defs/ComponentQualityDimension"
+      },
+      "maxItems": 5,
+      "minItems": 5,
+      "title": "Dimensions",
+      "type": "array"
+    },
+    "informational_only": {
+      "const": true,
+      "default": true,
+      "title": "Informational Only",
+      "type": "boolean"
+    },
+    "profile_version": {
+      "const": "mechanical/1",
+      "default": "mechanical/1",
+      "title": "Profile Version",
+      "type": "string"
+    },
+    "revision_id": {
+      "minLength": 1,
+      "title": "Revision Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stable_id": {
+      "minLength": 1,
+      "title": "Stable Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "affects_component_verified",
+    "affects_publication_readiness",
+    "affects_trust_lane",
+    "component_type",
+    "dimensions",
+    "informational_only",
+    "profile_version",
+    "revision_id",
+    "schema_version",
+    "stable_id"
+  ],
+  "title": "ComponentQualityReport",
+  "type": "object"
+}

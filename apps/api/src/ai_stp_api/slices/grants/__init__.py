@@ -1,0 +1,1 @@
+"""Grants feature slice."""

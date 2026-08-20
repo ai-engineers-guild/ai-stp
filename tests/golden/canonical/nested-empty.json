@@ -1,0 +1,31 @@
+{
+  "name": "nested-empty",
+  "value": {
+    "list": [
+      {
+        "b": [],
+        "a": {}
+      },
+      [
+        1,
+        [
+          2,
+          [
+            3
+          ]
+        ]
+      ]
+    ],
+    "empty": {},
+    "s": ""
+  },
+  "canonical": "{\"empty\":{},\"list\":[{\"a\":{},\"b\":[]},[1,[2,[3]]]],\"s\":\"\"}",
+  "digests": {
+    "ai-stp:artifact:v1": "sha256:86ceb308a2694e2c2c768523de62544aa5122626a6b1f8194e783214a54f24f8",
+    "ai-stp:attestation:v1": "sha256:4b1a411907beca58bea89a4d1a2e6dc7c98528a814ad803f9684a020a830abab",
+    "ai-stp:bundle:v1": "sha256:944a9db4ffab84d05501c0a06f30e17a17d12afedadc5de070f5f7ac67065585",
+    "ai-stp:passport:v1": "sha256:96dbfc40feb7432900fee13e8900f5aedfa0c32d38d5408f42b0e94daca56365",
+    "ai-stp:plan:v1": "sha256:6902dcec57f1dc51b4cbc81b765fabaf7b6134b4f4588bfcf4c2e12a59269630",
+    "ai-stp:revision:v1": "sha256:9d539e140d1eecc41942b2581fe917ac4c94c5bc3c1b3f453b6b8d4ed27c3913"
+  }
+}

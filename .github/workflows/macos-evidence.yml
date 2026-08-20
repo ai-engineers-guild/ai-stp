@@ -1,0 +1,131 @@
+# Manual CLI/package evidence on a standard GitHub-hosted macOS machine. Real provider
+# lifecycle evidence is a separate gate after exact signed provider releases.
+name: macos-evidence
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-evidence
+  cancel-in-progress: false
+
+jobs:
+  cli-package:
+    name: cli-package-python-${{ matrix.python }}
+    runs-on: macos-15
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        python: ["3.12", "3.14"]
+    env:
+      AI_STP_FORCE_FILE_CREDENTIAL_STORE: "1"
+    steps:
+      - name: Проверить физическую macOS-среду
+        run: |
+          set -euo pipefail
+          test "${RUNNER_OS}" = "macOS"
+          test "$(uname -s)" = "Darwin"
+          uname -a
+          sw_vers
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Изолировать exact Python-окружение job
+        run: |
+          set -euo pipefail
+          python_path="$(python -c 'import sys; print(sys.executable)')"
+          test -n "${python_path}"
+          echo "UV_PYTHON=${python_path}" >> "${GITHUB_ENV}"
+          echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-python-${{ matrix.python }}" \
+            >> "${GITHUB_ENV}"
+      - name: Установить закреплённый uv и Python dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check "uv==0.12.1"
+          uv sync --locked --group docs --group dev
+      - name: Установить закреплённый just
+        env:
+          JUST_INSTALL_DIR: ${{ runner.temp }}/bin
+        run: |
+          set -euo pipefail
+          uv run --locked python docs_scripts/bootstrap_just.py
+          echo "${RUNNER_TEMP}/bin" >> "${GITHUB_PATH}"
+      - name: Проверить Python source и generated contracts
+        run: just back-static
+      - name: Проверить CLI, SQLite, Skill и cross-platform bundle
+        run: |
+          set -euo pipefail
+          source .github/scripts/provider-safe-path.sh
+          ai_stp_use_provider_safe_path
+          mkdir -p .evidence
+          uv run --locked pytest --no-cov -m "not platform" \
+            --junitxml ".evidence/python-${{ matrix.python }}.xml"
+      - name: Собрать и проверить wheel вне checkout
+        run: just back-build back-regress
+      - name: Проверить exact five-wheel release candidate
+        run: |
+          set -euo pipefail
+          just release-candidate
+          uv run --locked python -m release_scripts.verify_candidate_install \
+            dist/release-candidate \
+            --expected-sha "${GITHUB_SHA}" \
+            --expected-python "${{ matrix.python }}" \
+            --python "${UV_PYTHON}" \
+            > ".evidence/release-candidate-python-${{ matrix.python }}.json"
+      - name: Доказать честный provider network boundary на Darwin
+        run: |
+          set -euo pipefail
+          uv run --locked ai-stp provider network --json \
+            > ".evidence/provider-network-python-${{ matrix.python }}.json"
+          EVIDENCE_PATH=".evidence/provider-network-python-${{ matrix.python }}.json" \
+            uv run --locked python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          report = json.loads(Path(os.environ["EVIDENCE_PATH"]).read_text("utf-8"))
+          assert report["ok"] is True
+          data = report["data"]
+          assert data["os_name"] == "darwin"
+          assert data["network_enforcement"] in {"enforced", "unavailable"}
+          if data["network_enforcement"] == "unavailable":
+              assert data["local_actions_available"] is False
+          PY
+      - name: Записать безопасную идентичность evidence
+        run: |
+          set -euo pipefail
+          {
+            echo "sha=${GITHUB_SHA}"
+            echo "runner=${RUNNER_NAME}"
+            uname -a
+            sw_vers
+            python --version
+            uv --version
+          } > ".evidence/system-python-${{ matrix.python }}.txt"
+          shasum -a 256 dist/*.whl dist/*.tar.gz \
+            > ".evidence/distributions-python-${{ matrix.python }}.sha256"
+          cp dist/release-candidate/release-manifest.json \
+            ".evidence/release-manifest-python-${{ matrix.python }}.json"
+          cp dist/release-candidate/SHA256SUMS \
+            ".evidence/release-candidate-python-${{ matrix.python }}.sha256"
+          shasum -a 256 tests/golden/bundle/* \
+            > ".evidence/bundle-oracle-python-${{ matrix.python }}.sha256"
+          git diff --exit-code
+          git diff --cached --exit-code
+      - name: Сохранить отчёт точного запуска
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: macos-cli-python-${{ matrix.python }}-${{ github.sha }}
+          path: .evidence/
+          if-no-files-found: warn
+          retention-days: 30

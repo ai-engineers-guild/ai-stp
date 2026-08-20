@@ -1,0 +1,246 @@
+{
+  "$defs": {
+    "InstallationStep": {
+      "additionalProperties": true,
+      "description": "One recorded step of an installation. Append-only and safe to show.",
+      "properties": {
+        "at": {
+          "minLength": 1,
+          "title": "At",
+          "type": "string"
+        },
+        "result": {
+          "minLength": 1,
+          "title": "Result",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "sequence": {
+          "minimum": 1,
+          "title": "Sequence",
+          "type": "integer"
+        },
+        "state_after": {
+          "minLength": 1,
+          "title": "State After",
+          "type": "string"
+        },
+        "state_before": {
+          "default": "",
+          "title": "State Before",
+          "type": "string"
+        }
+      },
+      "required": [
+        "at",
+        "result",
+        "schema_version",
+        "sequence",
+        "state_after",
+        "state_before"
+      ],
+      "title": "InstallationStep",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-installation",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "One installation operation: its plan, its state and how it got there.\n\n`plan_digest` is what a confirmation is given against. `operation.md` binds\nan approval to an exact hash and says it does not carry to a new plan, so a\ncaller approving must send this value back rather than a flag.",
+  "properties": {
+    "action": {
+      "enum": [
+        "install",
+        "update",
+        "backup",
+        "remove",
+        "rollback"
+      ],
+      "title": "Action",
+      "type": "string"
+    },
+    "backup_ref": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Backup Ref"
+    },
+    "bundle_artifact_digest": {
+      "default": "",
+      "title": "Bundle Artifact Digest",
+      "type": "string"
+    },
+    "bundle_digest": {
+      "default": "",
+      "title": "Bundle Digest",
+      "type": "string"
+    },
+    "bundle_format": {
+      "default": "",
+      "title": "Bundle Format",
+      "type": "string"
+    },
+    "bundle_size": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Bundle Size",
+      "type": "integer"
+    },
+    "effects": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Effects",
+      "type": "array"
+    },
+    "expected_target_digest": {
+      "minLength": 1,
+      "title": "Expected Target Digest",
+      "type": "string"
+    },
+    "expires_at": {
+      "minLength": 1,
+      "title": "Expires At",
+      "type": "string"
+    },
+    "managed_paths": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Managed Paths",
+      "type": "array"
+    },
+    "operation_id": {
+      "minLength": 1,
+      "title": "Operation Id",
+      "type": "string"
+    },
+    "plan_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Plan Digest",
+      "type": "string"
+    },
+    "provider_plan_digest": {
+      "default": "",
+      "title": "Provider Plan Digest",
+      "type": "string"
+    },
+    "provider_protocol_version": {
+      "default": 1,
+      "minimum": 1,
+      "title": "Provider Protocol Version",
+      "type": "integer"
+    },
+    "provider_release_recovery": {
+      "default": false,
+      "title": "Provider Release Recovery",
+      "type": "boolean"
+    },
+    "provider_release_trusted": {
+      "default": false,
+      "title": "Provider Release Trusted",
+      "type": "boolean"
+    },
+    "provider_target": {
+      "default": "",
+      "title": "Provider Target",
+      "type": "string"
+    },
+    "provider_version": {
+      "default": "",
+      "title": "Provider Version",
+      "type": "string"
+    },
+    "recovery_action": {
+      "default": "",
+      "title": "Recovery Action",
+      "type": "string"
+    },
+    "required_authorization": {
+      "default": "none",
+      "enum": [
+        "none",
+        "user_account",
+        "external_service"
+      ],
+      "title": "Required Authorization",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "state": {
+      "enum": [
+        "planned",
+        "approved",
+        "applying",
+        "applied_unverified",
+        "verified",
+        "partial",
+        "failed",
+        "stale",
+        "cancelled",
+        "rolled_back"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "steps": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/InstallationStep"
+      },
+      "title": "Steps",
+      "type": "array"
+    },
+    "target_id": {
+      "minLength": 1,
+      "title": "Target Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "action",
+    "backup_ref",
+    "bundle_artifact_digest",
+    "bundle_digest",
+    "bundle_format",
+    "bundle_size",
+    "effects",
+    "expected_target_digest",
+    "expires_at",
+    "managed_paths",
+    "operation_id",
+    "plan_digest",
+    "provider_plan_digest",
+    "provider_protocol_version",
+    "provider_release_recovery",
+    "provider_release_trusted",
+    "provider_target",
+    "provider_version",
+    "recovery_action",
+    "required_authorization",
+    "schema_version",
+    "state",
+    "steps",
+    "target_id"
+  ],
+  "title": "InstallationView",
+  "type": "object"
+}

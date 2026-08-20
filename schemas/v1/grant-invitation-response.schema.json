@@ -1,0 +1,74 @@
+{
+  "$defs": {
+    "InvitationState": {
+      "enum": [
+        "pending",
+        "accepted",
+        "expired",
+        "revoked"
+      ],
+      "type": "string"
+    },
+    "ObjectKind": {
+      "enum": [
+        "component",
+        "setup"
+      ],
+      "type": "string"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:grant-invitation-response",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Invitation create/list item. Never includes the raw token.",
+  "properties": {
+    "created_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "expires_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "invitation_id": {
+      "maxLength": 64,
+      "minLength": 8,
+      "title": "Invitation Id",
+      "type": "string"
+    },
+    "major": {
+      "title": "Major",
+      "type": "integer"
+    },
+    "object_kind": {
+      "$ref": "#/$defs/ObjectKind"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stable_id": {
+      "title": "Stable Id",
+      "type": "string"
+    },
+    "state": {
+      "$ref": "#/$defs/InvitationState"
+    }
+  },
+  "required": [
+    "created_at",
+    "expires_at",
+    "invitation_id",
+    "major",
+    "object_kind",
+    "schema_version",
+    "stable_id",
+    "state"
+  ],
+  "title": "GrantInvitationResponse",
+  "type": "object"
+}

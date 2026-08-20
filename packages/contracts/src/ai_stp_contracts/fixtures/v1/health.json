@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case_id": "healthLive.answering",
+      "operation_id": "healthLive",
+      "kind": "positive",
+      "why": "Liveness says only that the process answers; it carries no version, host or dependency address.",
+      "request": {},
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "status": "alive"
+      }
+    },
+    {
+      "case_id": "healthReady.serving",
+      "operation_id": "healthReady",
+      "kind": "positive",
+      "why": "Every required dependency answers, so the deployment may take traffic.",
+      "request": {},
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "status": "ready",
+        "checks": {
+          "database": "pass",
+          "migrations": "pass",
+          "object_storage": "pass"
+        },
+        "checked_at": "2026-08-05T00:00:00.000Z"
+      }
+    },
+    {
+      "case_id": "healthReady.halfMigrated",
+      "operation_id": "healthReady",
+      "kind": "example",
+      "why": "Migrations are not applied, so readiness answers 503 with the failing check rather than an error envelope that would hide which dependency is at fault. Not replayable: the same probe selects this or the serving body by the deployment's state, not by anything in the request.",
+      "request": {},
+      "status": 503,
+      "body": {
+        "schema_version": 1,
+        "status": "not_ready",
+        "checks": {
+          "database": "pass",
+          "migrations": "fail",
+          "object_storage": "pass"
+        },
+        "checked_at": "2026-08-05T00:00:00.000Z"
+      }
+    },
+    {
+      "case_id": "healthReady.readyDespiteFailure",
+      "operation_id": "healthReady",
+      "kind": "invalid_response",
+      "why": "A handler computing status from a stale value would advertise a half-migrated deployment as serving, and every probe reading only status would route traffic to it. A conforming client must refuse this.",
+      "request": {},
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "status": "ready",
+        "checks": {
+          "database": "pass",
+          "migrations": "fail",
+          "object_storage": "pass"
+        },
+        "checked_at": "2026-08-05T00:00:00.000Z"
+      }
+    },
+    {
+      "case_id": "healthReady.impossibleMoment",
+      "operation_id": "healthReady",
+      "kind": "invalid_response",
+      "why": "The timestamp matches the pattern but is not a moment that exists; accepting it would crash the first consumer that parses it, after validation already reported success.",
+      "request": {},
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "status": "ready",
+        "checks": {
+          "database": "pass",
+          "migrations": "pass",
+          "object_storage": "pass"
+        },
+        "checked_at": "2026-13-40T25:61:61.999Z"
+      }
+    },
+    {
+      "case_id": "readSystemVersion.safe",
+      "operation_id": "readSystemVersion",
+      "kind": "positive",
+      "why": "Version diagnostics stay free of hostnames, dependency addresses and secrets so an unauthenticated probe cannot become reconnaissance.",
+      "request": {},
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "version": "0.1.0",
+        "environment": "prod",
+        "git_commit": "0123456789abcdef0123456789abcdef01234567",
+        "schema_revision": "v1"
+      }
+    }
+  ]
+}

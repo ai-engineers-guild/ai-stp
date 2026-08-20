@@ -1,0 +1,370 @@
+{
+  "$defs": {
+    "NativeComponent": {
+      "additionalProperties": true,
+      "description": "One native component found on this machine (`SPEC-005` REQ-517).\n\nReported without its content being read. `holds_secret` is decided from the\npath's *name*: opening a file to learn whether it holds a credential is the\nharm REQ-518 exists to prevent, so the flag says \"named as one\", never\n\"contains one\".",
+      "properties": {
+        "byte_length": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Byte Length"
+        },
+        "candidate_id": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "component_type": {
+          "enum": [
+            "instruction",
+            "skill",
+            "mcp",
+            "hook",
+            "command",
+            "agent",
+            "plugin",
+            "setting"
+          ],
+          "title": "Component Type",
+          "type": "string"
+        },
+        "entry_points": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Entry Points",
+          "type": "array"
+        },
+        "evidence_refs": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "harness_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Harness Id"
+        },
+        "holds_secret": {
+          "default": false,
+          "title": "Holds Secret",
+          "type": "boolean"
+        },
+        "layout_source": {
+          "minLength": 1,
+          "title": "Layout Source",
+          "type": "string"
+        },
+        "native_role": {
+          "anyOf": [
+            {
+              "enum": [
+                "mcp_client_config",
+                "mcp_server"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Native Role"
+        },
+        "provenance": {
+          "$ref": "#/$defs/NativeComponentProvenance"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "scope": {
+          "enum": [
+            "global",
+            "project"
+          ],
+          "title": "Scope",
+          "type": "string"
+        },
+        "source_path": {
+          "minLength": 1,
+          "title": "Source Path",
+          "type": "string"
+        },
+        "transport_capabilities": {
+          "items": {
+            "enum": [
+              "stdio",
+              "http"
+            ],
+            "type": "string"
+          },
+          "title": "Transport Capabilities",
+          "type": "array"
+        }
+      },
+      "required": [
+        "byte_length",
+        "candidate_id",
+        "component_type",
+        "entry_points",
+        "evidence_refs",
+        "harness_id",
+        "holds_secret",
+        "layout_source",
+        "native_role",
+        "provenance",
+        "reason",
+        "schema_version",
+        "scope",
+        "source_path",
+        "transport_capabilities"
+      ],
+      "title": "NativeComponent",
+      "type": "object"
+    },
+    "NativeComponentProvenance": {
+      "additionalProperties": true,
+      "description": "Allowlisted origin evidence for one native discovery candidate.",
+      "properties": {
+        "digest": {
+          "anyOf": [
+            {
+              "pattern": "^(?:sha1:[0-9a-f]{40}|sha256:[0-9a-f]{64})$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Digest"
+        },
+        "evidence": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "kind": {
+          "enum": [
+            "filesystem",
+            "github",
+            "package"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "package_name": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Package Name"
+        },
+        "package_version": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Package Version"
+        },
+        "repository": {
+          "anyOf": [
+            {
+              "pattern": "^https://github\\.com/[A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9_.-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Repository"
+        },
+        "revision": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{40}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Revision"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "state": {
+          "enum": [
+            "local",
+            "exact",
+            "observed"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "subpath": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subpath"
+        }
+      },
+      "required": [
+        "digest",
+        "evidence",
+        "kind",
+        "package_name",
+        "package_version",
+        "repository",
+        "revision",
+        "schema_version",
+        "state",
+        "subpath"
+      ],
+      "title": "NativeComponentProvenance",
+      "type": "object"
+    },
+    "NativeDiscoveryDiagnostic": {
+      "additionalProperties": true,
+      "description": "A safe reason an optional provenance adapter could not classify input.",
+      "properties": {
+        "code": {
+          "enum": [
+            "missing_manifest",
+            "invalid_manifest",
+            "unsupported_manifest",
+            "invalid_record",
+            "missing_source_entry",
+            "bounded_limit"
+          ],
+          "title": "Code",
+          "type": "string"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source": {
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "reason",
+        "schema_version",
+        "source"
+      ],
+      "title": "NativeDiscoveryDiagnostic",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-native-components",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Everything discovery found, and nothing it changed (`REQ-518`).",
+  "properties": {
+    "components": {
+      "items": {
+        "$ref": "#/$defs/NativeComponent"
+      },
+      "title": "Components",
+      "type": "array"
+    },
+    "diagnostics": {
+      "items": {
+        "$ref": "#/$defs/NativeDiscoveryDiagnostic"
+      },
+      "title": "Diagnostics",
+      "type": "array"
+    },
+    "project": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Project"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "components",
+    "diagnostics",
+    "project",
+    "schema_version"
+  ],
+  "title": "NativeComponents",
+  "type": "object"
+}

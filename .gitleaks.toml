@@ -1,0 +1,12 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Deterministic test fixtures, generated contracts, and documentation examples"
+paths = [
+  '''^schemas/v1/openapi\.json$''',
+  '''^packages/contracts/src/ai_stp_contracts/fixtures/v1/''',
+  '''^tests/''',
+  '''^\.serena/memories/quality-gates-and-commands\.md$''',
+  '''^apps/cli/src/ai_stp_cli/identity\.py$''',
+]

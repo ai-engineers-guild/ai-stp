@@ -1,0 +1,147 @@
+{
+  "$defs": {
+    "AnswerSource": {
+      "enum": [
+        "online",
+        "cache"
+      ],
+      "type": "string"
+    },
+    "CatalogKind": {
+      "enum": [
+        "component",
+        "setup"
+      ],
+      "type": "string"
+    },
+    "CatalogTrust": {
+      "additionalProperties": true,
+      "description": "Why a published version may appear in results, and on whose evidence.\n\nThe two verification flags are independent axes (ADR-0016) and neither may\nbe computed from the other. `authoritative` additionally requires both, and\nthat implication is enforced below — enforcing it is not the same as\nderiving one axis from the other, and a client must still read the flags.",
+      "properties": {
+        "author_verified": {
+          "title": "Author Verified",
+          "type": "boolean"
+        },
+        "component_verified": {
+          "title": "Component Verified",
+          "type": "boolean"
+        },
+        "trust_lane": {
+          "$ref": "#/$defs/CatalogTrustLane"
+        }
+      },
+      "required": [
+        "author_verified",
+        "component_verified",
+        "trust_lane"
+      ],
+      "title": "CatalogTrust",
+      "type": "object"
+    },
+    "CatalogTrustLane": {
+      "enum": [
+        "authoritative",
+        "experimental"
+      ],
+      "type": "string"
+    },
+    "JsonValue": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "integer"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "items": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "array"
+        },
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "PublicLifecycle": {
+      "enum": [
+        "active",
+        "deprecated",
+        "blocked"
+      ],
+      "type": "string"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-catalog-version",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "One exact published version and the passport it promises (issue #76).\n\nThe digest travels with the passport because a client verifies one against\nthe other: a passport offered under a digest that does not describe it is a\ntruncated download or a substituted body, and both are refused rather than\ncached.",
+  "properties": {
+    "checked_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "kind": {
+      "$ref": "#/$defs/CatalogKind"
+    },
+    "lifecycle": {
+      "$ref": "#/$defs/PublicLifecycle"
+    },
+    "passport": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "title": "Passport",
+      "type": "object"
+    },
+    "passport_digest": {
+      "minLength": 1,
+      "title": "Passport Digest",
+      "type": "string"
+    },
+    "published_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "source": {
+      "$ref": "#/$defs/AnswerSource"
+    },
+    "trust": {
+      "$ref": "#/$defs/CatalogTrust"
+    }
+  },
+  "required": [
+    "checked_at",
+    "kind",
+    "lifecycle",
+    "passport",
+    "passport_digest",
+    "published_at",
+    "schema_version",
+    "source",
+    "trust"
+  ],
+  "title": "CatalogVersionView",
+  "type": "object"
+}

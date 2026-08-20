@@ -1,0 +1,125 @@
+{
+  "$defs": {
+    "ComponentPassportSuggestion": {
+      "additionalProperties": true,
+      "description": "One exact fact copied from named immutable evidence, awaiting confirmation.",
+      "properties": {
+        "field": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Field",
+          "type": "string"
+        },
+        "requires_confirmation": {
+          "const": true,
+          "default": true,
+          "title": "Requires Confirmation",
+          "type": "boolean"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source_refs": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Source Refs",
+          "type": "array"
+        },
+        "value": {
+          "$ref": "#/$defs/JsonValue"
+        }
+      },
+      "required": [
+        "field",
+        "requires_confirmation",
+        "schema_version",
+        "source_refs",
+        "value"
+      ],
+      "title": "ComponentPassportSuggestion",
+      "type": "object"
+    },
+    "JsonValue": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "integer"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "items": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "array"
+        },
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-component-passport-suggestions",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Read-only enrichment candidates for one exact component revision.",
+  "properties": {
+    "revision_id": {
+      "minLength": 1,
+      "title": "Revision Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stable_id": {
+      "minLength": 1,
+      "title": "Stable Id",
+      "type": "string"
+    },
+    "suggestions": {
+      "items": {
+        "$ref": "#/$defs/ComponentPassportSuggestion"
+      },
+      "title": "Suggestions",
+      "type": "array"
+    },
+    "unresolved_fields": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Unresolved Fields",
+      "type": "array"
+    }
+  },
+  "required": [
+    "revision_id",
+    "schema_version",
+    "stable_id",
+    "suggestions",
+    "unresolved_fields"
+  ],
+  "title": "ComponentPassportSuggestions",
+  "type": "object"
+}

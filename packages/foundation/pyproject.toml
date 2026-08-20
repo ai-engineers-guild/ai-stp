@@ -1,0 +1,33 @@
+[project]
+name = "ai-stp-foundation"
+version = "0.1.0"
+description = "Cross-cutting primitives: typed stable IDs, canonical JSON, digest domains, exact references, machine envelope."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
+authors = [{ name = "AI Engineers Guild" }]
+keywords = ["ai", "canonical-json", "developer-tools", "setup"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Typing :: Typed",
+]
+dependencies = [
+    "pydantic>=2.9",
+    "python-ulid>=3.0",
+    "rfc8785>=0.1.4",
+]
+
+[project.urls]
+Homepage = "https://github.com/ai-engineers-guild/ai_stp"
+Repository = "https://github.com/ai-engineers-guild/ai_stp"
+Issues = "https://github.com/ai-engineers-guild/ai_stp/issues"
+
+[build-system]
+requires = ["uv_build>=0.11,<0.13"]
+build-backend = "uv_build"

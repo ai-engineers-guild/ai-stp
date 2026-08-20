@@ -1,0 +1,35 @@
+{
+  "$defs": {
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:grant-accept-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "POST /v1/grants/invitations/{invitation_id}/accept body.",
+  "properties": {
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "token": {
+      "maxLength": 256,
+      "minLength": 16,
+      "title": "Token",
+      "type": "string"
+    }
+  },
+  "required": [
+    "token",
+    "idempotency_key"
+  ],
+  "title": "GrantAcceptRequest",
+  "type": "object"
+}

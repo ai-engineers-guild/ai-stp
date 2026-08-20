@@ -1,0 +1,35 @@
+{
+  "$id": "urn:ai-stp:schema:v1:catalog-external-coordinate",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Exact provider/external identifier pair; names and URLs do not create a link.",
+  "properties": {
+    "external_identifier": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "External Identifier",
+      "type": "string"
+    },
+    "provider": {
+      "enum": [
+        "skills_sh",
+        "nori",
+        "modelcontextprotocol"
+      ],
+      "title": "Provider",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "provider",
+    "external_identifier"
+  ],
+  "title": "CatalogExternalCoordinate",
+  "type": "object"
+}

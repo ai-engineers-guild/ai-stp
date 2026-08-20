@@ -1,0 +1,53 @@
+{
+  "$defs": {
+    "DeviceCode": {
+      "pattern": "^[A-Za-z0-9_-]{32,256}$",
+      "type": "string"
+    },
+    "DeviceId": {
+      "pattern": "^device_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "type": "string"
+    },
+    "DisplayName": {
+      "maxLength": 100,
+      "minLength": 1,
+      "type": "string"
+    },
+    "PublicKey": {
+      "pattern": "^[A-Za-z0-9+/]{43}=$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:auth-device-token-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Poll for the result and, on success, bind this device.\n\nThe key travels here rather than at start, so a device identity only ever\nreaches the account a human actually approved.",
+  "properties": {
+    "device_code": {
+      "$ref": "#/$defs/DeviceCode"
+    },
+    "device_id": {
+      "$ref": "#/$defs/DeviceId"
+    },
+    "display_name": {
+      "$ref": "#/$defs/DisplayName"
+    },
+    "public_key": {
+      "$ref": "#/$defs/PublicKey"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "device_code",
+    "device_id",
+    "public_key",
+    "display_name"
+  ],
+  "title": "DeviceTokenRequest",
+  "type": "object"
+}

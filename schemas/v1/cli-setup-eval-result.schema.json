@@ -1,0 +1,486 @@
+{
+  "$defs": {
+    "ComponentType": {
+      "enum": [
+        "instruction",
+        "skill",
+        "mcp",
+        "hook",
+        "command",
+        "agent",
+        "plugin",
+        "setting"
+      ],
+      "type": "string"
+    },
+    "EvalComponentCoordinate": {
+      "additionalProperties": false,
+      "description": "Exact component identity inside the evaluated setup graph.",
+      "properties": {
+        "artifact_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Artifact Digest",
+          "type": "string"
+        },
+        "component_type": {
+          "$ref": "#/$defs/ComponentType"
+        },
+        "passport_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Passport Digest",
+          "type": "string"
+        },
+        "stable_id": {
+          "minLength": 1,
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^[0-9]+\\.[0-9]+$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "stable_id",
+        "version",
+        "passport_digest",
+        "artifact_digest",
+        "component_type"
+      ],
+      "title": "EvalComponentCoordinate",
+      "type": "object"
+    },
+    "EvaluationBudget": {
+      "additionalProperties": false,
+      "description": "Closed resource ceiling for one evaluation check.",
+      "properties": {
+        "max_network_requests": {
+          "default": 0,
+          "maximum": 1024,
+          "minimum": 0,
+          "title": "Max Network Requests",
+          "type": "integer"
+        },
+        "max_output_bytes": {
+          "maximum": 16777216,
+          "minimum": 1,
+          "title": "Max Output Bytes",
+          "type": "integer"
+        },
+        "timeout_seconds": {
+          "maximum": 3600,
+          "minimum": 1,
+          "title": "Timeout Seconds",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "timeout_seconds",
+        "max_output_bytes"
+      ],
+      "title": "EvaluationBudget",
+      "type": "object"
+    },
+    "EvaluationCheck": {
+      "additionalProperties": false,
+      "description": "One declared assertion and the runner class allowed to evaluate it.",
+      "properties": {
+        "assertion": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Assertion",
+          "type": "string"
+        },
+        "budget": {
+          "$ref": "#/$defs/EvaluationBudget"
+        },
+        "check_id": {
+          "pattern": "^[a-z][a-z0-9_.-]{2,95}$",
+          "title": "Check Id",
+          "type": "string"
+        },
+        "component_type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ComponentType"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "isolation_requirements": {
+          "default": [],
+          "items": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Isolation Requirements",
+          "type": "array"
+        },
+        "method": {
+          "enum": [
+            "deterministic",
+            "model_assisted",
+            "human_review"
+          ],
+          "title": "Method",
+          "type": "string"
+        },
+        "runner": {
+          "enum": [
+            "local_static",
+            "isolated_process",
+            "model",
+            "human"
+          ],
+          "title": "Runner",
+          "type": "string"
+        },
+        "tolerance": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Tolerance",
+          "type": "string"
+        }
+      },
+      "required": [
+        "check_id",
+        "method",
+        "runner",
+        "assertion",
+        "tolerance",
+        "budget"
+      ],
+      "title": "EvaluationCheck",
+      "type": "object"
+    },
+    "EvaluationCheckResult": {
+      "additionalProperties": false,
+      "description": "Observed result of one check without promotion of unavailable runners.",
+      "properties": {
+        "check_id": {
+          "minLength": 1,
+          "title": "Check Id",
+          "type": "string"
+        },
+        "component_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Component Ids",
+          "type": "array"
+        },
+        "message": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "method": {
+          "enum": [
+            "deterministic",
+            "model_assisted",
+            "human_review"
+          ],
+          "title": "Method",
+          "type": "string"
+        },
+        "runner": {
+          "minLength": 1,
+          "title": "Runner",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "passed",
+            "failed",
+            "not_run",
+            "degraded"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "check_id",
+        "method",
+        "runner",
+        "status",
+        "message"
+      ],
+      "title": "EvaluationCheckResult",
+      "type": "object"
+    },
+    "Permissions": {
+      "additionalProperties": false,
+      "description": "Declared file, network and process permissions.",
+      "properties": {
+        "filesystem": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Filesystem",
+          "type": "array"
+        },
+        "network": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Network",
+          "type": "array"
+        },
+        "process": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Process",
+          "type": "array"
+        }
+      },
+      "title": "Permissions",
+      "type": "object"
+    },
+    "SetupEvalPlan": {
+      "additionalProperties": false,
+      "description": "Content-addressed evaluation plan bound to exact setup coordinates.",
+      "properties": {
+        "components": {
+          "items": {
+            "$ref": "#/$defs/EvalComponentCoordinate"
+          },
+          "minItems": 1,
+          "title": "Components",
+          "type": "array"
+        },
+        "harness_id": {
+          "minLength": 1,
+          "title": "Harness Id",
+          "type": "string"
+        },
+        "harness_version": {
+          "minLength": 1,
+          "title": "Harness Version",
+          "type": "string"
+        },
+        "plan_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Plan Digest",
+          "type": "string"
+        },
+        "plan_id": {
+          "pattern": "^eval_plan_[0-9a-f]{24}$",
+          "title": "Plan Id",
+          "type": "string"
+        },
+        "planned_at": {
+          "minLength": 1,
+          "title": "Planned At",
+          "type": "string"
+        },
+        "profile": {
+          "$ref": "#/$defs/SetupEvalProfile"
+        },
+        "provider_version": {
+          "minLength": 1,
+          "title": "Provider Version",
+          "type": "string"
+        },
+        "runner_version": {
+          "minLength": 1,
+          "title": "Runner Version",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "setup_artifact_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Setup Artifact Digest",
+          "type": "string"
+        },
+        "setup_id": {
+          "minLength": 1,
+          "title": "Setup Id",
+          "type": "string"
+        },
+        "setup_passport_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Setup Passport Digest",
+          "type": "string"
+        },
+        "setup_version": {
+          "pattern": "^[0-9]+\\.[0-9]+$",
+          "title": "Setup Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "plan_id",
+        "plan_digest",
+        "profile",
+        "setup_id",
+        "setup_version",
+        "setup_passport_digest",
+        "setup_artifact_digest",
+        "harness_id",
+        "harness_version",
+        "provider_version",
+        "runner_version",
+        "components",
+        "planned_at"
+      ],
+      "title": "SetupEvalPlan",
+      "type": "object"
+    },
+    "SetupEvalProfile": {
+      "additionalProperties": false,
+      "description": "Reusable evaluation intent, independent from one setup version.",
+      "properties": {
+        "checks": {
+          "items": {
+            "$ref": "#/$defs/EvaluationCheck"
+          },
+          "maxItems": 256,
+          "minItems": 1,
+          "title": "Checks",
+          "type": "array"
+        },
+        "component_types": {
+          "items": {
+            "$ref": "#/$defs/ComponentType"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Component Types",
+          "type": "array"
+        },
+        "eval_permissions": {
+          "$ref": "#/$defs/Permissions"
+        },
+        "preconditions": {
+          "items": {
+            "maxLength": 240,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Preconditions",
+          "type": "array"
+        },
+        "profile_id": {
+          "pattern": "^[a-z][a-z0-9_.-]{2,95}$",
+          "title": "Profile Id",
+          "type": "string"
+        },
+        "profile_version": {
+          "const": "setup-eval/1",
+          "default": "setup-eval/1",
+          "title": "Profile Version",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "scope": {
+          "enum": [
+            "component",
+            "subset",
+            "setup"
+          ],
+          "title": "Scope",
+          "type": "string"
+        }
+      },
+      "required": [
+        "profile_id",
+        "scope",
+        "component_types",
+        "preconditions",
+        "checks",
+        "eval_permissions"
+      ],
+      "title": "SetupEvalProfile",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-setup-eval-result",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Immutable local evaluation evidence for one exact plan.",
+  "properties": {
+    "checks": {
+      "items": {
+        "$ref": "#/$defs/EvaluationCheckResult"
+      },
+      "minItems": 1,
+      "title": "Checks",
+      "type": "array"
+    },
+    "executed_at": {
+      "minLength": 1,
+      "title": "Executed At",
+      "type": "string"
+    },
+    "immutable_published_bytes_changed": {
+      "const": false,
+      "default": false,
+      "title": "Immutable Published Bytes Changed",
+      "type": "boolean"
+    },
+    "plan": {
+      "$ref": "#/$defs/SetupEvalPlan"
+    },
+    "provider_permissions_used": {
+      "const": false,
+      "default": false,
+      "title": "Provider Permissions Used",
+      "type": "boolean"
+    },
+    "result_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Result Digest",
+      "type": "string"
+    },
+    "run_id": {
+      "pattern": "^eval_run_[0-9a-f]{24}$",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "status": {
+      "enum": [
+        "passed",
+        "failed",
+        "not_run",
+        "degraded"
+      ],
+      "title": "Status",
+      "type": "string"
+    }
+  },
+  "required": [
+    "run_id",
+    "result_digest",
+    "plan",
+    "status",
+    "executed_at",
+    "checks"
+  ],
+  "title": "SetupEvalResult",
+  "type": "object"
+}
