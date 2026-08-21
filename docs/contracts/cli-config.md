@@ -24,6 +24,9 @@ search:
   result_limit: 20
 projects:
   discovery_roots: []
+telemetry:
+  enabled: false
+  url: "https://telemetry.ai-stp.example"
 ```
 
 | Поле | По умолчанию | Смысл |

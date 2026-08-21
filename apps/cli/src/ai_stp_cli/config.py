@@ -73,6 +73,16 @@ def declared_fields() -> tuple[Field, ...]:
         Field("registry.path", default_registry_path(), "Where the local registry lives.", True),
         Field("search.result_limit", 20, "Upper bound on candidates in a result."),
         Field("projects.discovery_roots", [], "Explicit roots searched for projects.", True),
+        # `ADR-0112`. Off by default and staying off until a consent command
+        # says otherwise: writing `true` here directly is refused, because
+        # consent is an event and a value edited into a file has no provenance.
+        Field("telemetry.enabled", False, "Whether the anonymous install ping is sent."),
+        Field(
+            "telemetry.url",
+            "https://telemetry.ai-stp.example",
+            "Where the anonymous install ping goes. HTTPS, or cleartext to a"
+            " loopback host for local development, as for the catalogue.",
+        ),
     )
 
 
