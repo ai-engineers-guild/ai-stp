@@ -12,7 +12,7 @@ from ai_stp_foundation.digests import digest_bytes, digest_canonical
 from ai_stp_passports.envelope import seal_envelope, verify_revision_id
 from ai_stp_passports.versions import ComponentVersionPassport, SetupVersionPassport
 
-OWNER_ID: Final[str] = "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+OWNER_ID: Final[str] = "account_01KZET6ZKJN7S72T5H4WDV62T0"
 VERSION: Final[str] = "1.0"
 PUBLISHED_AT: Final[str] = "2026-08-13T00:00:00.000Z"
 COMPONENT_FORMAT: Final[str] = "ai-stp-component-tree/1"

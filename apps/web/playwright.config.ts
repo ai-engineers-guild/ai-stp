@@ -21,6 +21,11 @@ export default defineConfig({
   reporter: "list",
   use: {
     baseURL,
+    // Google Chrome as installed, not Playwright's bundled Chromium. What ships
+    // to people is Chrome, and the two differ in exactly the places a browser
+    // test is worth having — codecs, PDF, DRM and the release cadence itself.
+    // A regression that only Chrome shows is one this suite could not see.
+    channel: "chrome",
     trace: "on-first-retry",
     storageState: {
       cookies: [
