@@ -4556,6 +4556,64 @@
     },
     {
       "path": [
+        "telemetry",
+        "consent"
+      ],
+      "summary": "Answer the telemetry screen. Sends nothing itself.",
+      "mutability": "apply",
+      "confirmation": "explicit_flag",
+      "parameters": [
+        {
+          "name": "accept",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Agree to the anonymous install ping.",
+          "choices": []
+        },
+        {
+          "name": "decline",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Refuse it. Nothing asks again.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": true,
+          "repeatable": false,
+          "summary": "Required by both answers.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-telemetry-status",
+      "next_actions": [
+        "telemetry show"
+      ]
+    },
+    {
+      "path": [
+        "telemetry",
+        "show"
+      ],
+      "summary": "What the anonymous install ping would carry, and whether it is on.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-telemetry-status",
+      "next_actions": [
+        "telemetry consent"
+      ]
+    },
+    {
+      "path": [
         "toolchain",
         "harness-capabilities"
       ],

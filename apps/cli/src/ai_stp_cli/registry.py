@@ -43,6 +43,7 @@ from ai_stp_cli.commands import (
     select,
     skill,
     sync,
+    telemetry,
     toolchain,
     version,
 )
@@ -1749,6 +1750,27 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("catalog-version", "string", "Newest known version, to report catalog drift."),
         ),
         next_actions=("install plan",),
+    ),
+    Declaration(
+        path=["telemetry", "show"],
+        summary="What the anonymous install ping would carry, and whether it is on.",
+        result_schema="urn:ai-stp:schema:v1:cli-telemetry-status",
+        handler=telemetry.show,
+        next_actions=("telemetry consent",),
+    ),
+    Declaration(
+        path=["telemetry", "consent"],
+        summary="Answer the telemetry screen. Sends nothing itself.",
+        result_schema="urn:ai-stp:schema:v1:cli-telemetry-status",
+        handler=telemetry.consent,
+        mutability="apply",
+        confirmation="explicit_flag",
+        parameters=(
+            option("accept", "boolean", "Agree to the anonymous install ping."),
+            option("decline", "boolean", "Refuse it. Nothing asks again."),
+            option("confirm", "boolean", "Required by both answers.", required=True),
+        ),
+        next_actions=("telemetry show",),
     ),
     Declaration(
         path=["target", "backups"],

@@ -29,12 +29,14 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Final, cast
 
+from ai_stp_cli import config, telemetry
 from ai_stp_cli.answer import Answer
 from ai_stp_cli.commands import select as select_command
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import (
     bundle,
     cache,
+    harnesses,
     installation,
     journal,
     managed_diff,
@@ -62,6 +64,7 @@ from ai_stp_cli.provider import (
 from ai_stp_cli.provider import (
     status as provider_status,
 )
+from ai_stp_cli.runtime import cli_version
 from ai_stp_contracts.machine_help import (
     InstallationStatus,
     InstallationStep,
@@ -1066,6 +1069,163 @@ def _mapped(connection: sqlite3.Connection, operation_id: str, reported: str) ->
         ) from error
 
 
+def _report_installation(connection: sqlite3.Connection, plan: installation.Plan) -> None:
+    """Send the consented anonymous ping, once per component, or nothing at all.
+
+    Everything here is best-effort by construction (`REQ-1318`). An installation
+    that is verified stays verified whatever this does or fails to do: the
+    result is a property of the target, not of a collector, a network or a
+    version probe. So the whole body is guarded, and every path out of it is
+    "no ping" rather than an error.
+
+    Only `install` and `update` report. A backup, a restore or a removal did not
+    put a component anywhere, and the question this answers is what people
+    install on.
+    """
+    try:
+        _report_installation_unguarded(connection, plan)
+    except Exception:
+        # Deliberately everything, and deliberately silent. This runs inside the
+        # transaction that settles an operation; an exception escaping here
+        # would turn a healthy install into a failed one over analytics.
+        return
+
+
+def _report_installation_unguarded(connection: sqlite3.Connection, plan: installation.Plan) -> None:
+    if plan.action not in {"install", "update"}:
+        return
+    answer = telemetry.consent()
+    if not answer.accepted or telemetry.suppressed():
+        return
+    values = config.effective_config()
+    enabled = any(item.path == "telemetry.enabled" and item.value is True for item in values.values)
+    if not enabled:
+        return
+    url = next(
+        (str(item.value) for item in values.values if item.path == "telemetry.url"),
+        "",
+    )
+    if not url:
+        return
+
+    _, _, harness_id = plan.target_id.partition(":")
+    harness_version = _observed_harness_version(harness_id)
+    if not harness_version:
+        # A version nobody observed is not one to guess at, and a ping missing
+        # a declared field is not a ping (`REQ-1317`).
+        return
+
+    for component in _installed_components(connection, plan):
+        fields = telemetry.ping(
+            operating_system=platform.system().lower(),
+            harness=harness_id,
+            harness_version=harness_version,
+            ai_stp_version=cli_version(),
+            component_type=component.kind,
+            name=component.name,
+            source=component.source,
+            identifier=component.identifier,
+            version=component.version,
+            anon=answer.anon,
+        )
+        if fields is not None:
+            telemetry.send(url, fields)
+
+
+@dataclass(frozen=True)
+class _Installed:
+    """One component of the installed setup, named only in public terms."""
+
+    kind: str
+    name: str
+    source: str
+    identifier: str
+    version: str
+
+
+def _installed_components(
+    connection: sqlite3.Connection, plan: installation.Plan
+) -> tuple[_Installed, ...]:
+    """The components this operation put on the target, as far as they are public.
+
+    Anything that cannot be described without describing the machine is left
+    out rather than approximated: no name, no kind, or no public source means no
+    entry, and therefore no ping for it (`REQ-1317`).
+    """
+    if not plan.setup_stable_id or not plan.setup_version:
+        return ()
+    setup = _passport_document(connection, plan.setup_stable_id, plan.setup_version)
+    if setup is None:
+        return ()
+    refs = setup.get("components")
+    if not isinstance(refs, list):
+        return ()
+
+    found: list[_Installed] = []
+    for raw in cast(list[object], refs):
+        if not isinstance(raw, dict):
+            continue
+        ref = cast(dict[str, object], raw)
+        stable_id = str(ref.get("stable_id") or "")
+        version = str(ref.get("version") or "")
+        if not stable_id or not version:
+            continue
+        document = _passport_document(connection, stable_id, version)
+        if document is None:
+            continue
+        identifier, source = _public_identity(document, stable_id)
+        if not identifier:
+            continue
+        found.append(
+            _Installed(
+                kind=str(document.get("kind") or ""),
+                name=str(document.get("name") or ""),
+                source=source,
+                identifier=identifier,
+                version=version,
+            )
+        )
+    return tuple(found)
+
+
+def _public_identity(document: Mapping[str, object], stable_id: str) -> tuple[str, str]:
+    """How this object is publicly named, and by whom.
+
+    A stable id is public only once the object is on the platform. Before that
+    the honest public name is the repository it came from, and if there is
+    neither, there is nothing to send.
+    """
+    visibility = str(document.get("visibility") or "")
+    if visibility == "public":
+        return stable_id, "platform"
+    source = document.get("source")
+    if isinstance(source, dict):
+        repository = str(cast(dict[str, object], source).get("repository") or "")
+        if repository.startswith("https://github.com/"):
+            return repository, "github"
+    return "", ""
+
+
+def _passport_document(
+    connection: sqlite3.Connection, stable_id: str, version: str
+) -> Mapping[str, object] | None:
+    recorded = versions.held(connection, stable_id, version)
+    if recorded is None:
+        return None
+    revision = revisions.get(connection, recorded.revision_id)
+    if revision is None:
+        return None
+    return cast(Mapping[str, object], revision.envelope.model_dump(mode="json"))
+
+
+def _observed_harness_version(harness_id: str) -> str:
+    detector = next((item for item in harnesses.DETECTORS if item.harness_id == harness_id), None)
+    if detector is None:
+        return ""
+    found = harnesses.detect(detector)
+    return found.installations[0].version if found.installations else ""
+
+
 def _verify(
     connection: sqlite3.Connection,
     operation_id: str,
@@ -1092,6 +1252,8 @@ def _verify(
             evidence=reported,
             observed_target_digest=observed_target_digest,
         )
+        if state == installation.STATE_VERIFIED:
+            _report_installation(connection, plan)
         if state == installation.STATE_VERIFIED and trusted_release is not None:
             provider_releases.record_verified(
                 connection,

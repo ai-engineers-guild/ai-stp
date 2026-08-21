@@ -1937,6 +1937,38 @@ class RollbackTarget(BaseModel):
     operation_id: Annotated[str, Field(min_length=1)]
 
 
+class TelemetryStatus(BaseModel):
+    """Whether the anonymous install ping is on, and everything it would send.
+
+    One model for the consent screen and for the status read, because they
+    answer the same question and two shapes would let them drift into saying
+    different things about the same feature.
+    """
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+
+    #: `not_asked`, `declined` or `accepted`. Observably identical on the
+    #: network for the first two; they differ only in whether anything asks
+    #: again (`REQ-1316`).
+    state: Literal["not_asked", "declined", "accepted"]
+
+    #: Whether a ping would actually be sent. Consent alone is not enough: the
+    #: switch in the configuration can turn it off without withdrawing consent.
+    enabled: bool = False
+
+    #: Where a ping would go, and whether that came from the configuration or
+    #: from the default. Named so an operator can see a redirected collector.
+    url: str = ""
+    url_source: Literal["default", "config"] = "default"
+
+    #: Exactly the query fields a ping carries, so the screen shows the closed
+    #: set rather than describing it. The anonymous identifier is named here as
+    #: a field and never printed as a value.
+    collected: list[str] = Field(default_factory=list[str])
+
+
 class TargetBackup(BaseModel):
     """One provider-owned copy of a target, and what the target held when it was taken.
 

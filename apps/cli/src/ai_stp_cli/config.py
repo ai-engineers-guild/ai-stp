@@ -396,10 +396,49 @@ def set_values(assignments: Mapping[str, str]) -> tuple[Path, tuple[str, ...]]:
     for dotted, text in assignments.items():
         field = _declared_or_refused(dotted)
         parsed = _parse_scalar(text, field)
+        _refuse_consent_by_assignment(dotted, parsed)
         if dotted not in held or held[dotted] != parsed:
             changed.append(dotted)
         held[dotted] = parsed
-    return write_config(held), tuple(sorted(changed))
+    path = write_config(held)
+    _forget_identifier_if_disabled(assignments, held)
+    return path, tuple(sorted(changed))
+
+
+def _refuse_consent_by_assignment(dotted: str, parsed: object) -> None:
+    """Consent is an event; it cannot be granted by editing a value.
+
+    Turning telemetry on this way would leave "enabled" in a file with nothing
+    able to say who agreed to what, or when. `ADR-0112` makes the consent
+    command the only way in — and this refusal is the whole of what makes that
+    true (`REQ-1316`).
+
+    Turning it *off* is unrestricted, deliberately. Withdrawal must never be
+    harder than the thing it withdraws.
+    """
+    if dotted == "telemetry.enabled" and parsed is True:
+        raise CliFailure(
+            "AI_STP_USER_DECISION_REQUIRED",
+            "telemetry is turned on by consenting, not by setting a value",
+            details={"field": dotted},
+            next_actions=["telemetry consent --accept --confirm --json"],
+        )
+
+
+def _forget_identifier_if_disabled(
+    assignments: Mapping[str, str], held: Mapping[str, object]
+) -> None:
+    """Switching telemetry off drops the anonymous identifier with it.
+
+    Off that keeps one is off in name only: the identifier is the single thing
+    consent was needed for. The recorded answer is left alone, because being
+    switched off is not the same as having been asked and refused.
+    """
+    if "telemetry.enabled" not in assignments or held.get("telemetry.enabled") is not False:
+        return
+    from ai_stp_cli import telemetry
+
+    telemetry.forget()
 
 
 def unset_values(names: tuple[str, ...]) -> tuple[Path, tuple[str, ...]]:

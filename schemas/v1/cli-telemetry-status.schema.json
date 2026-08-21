@@ -1,0 +1,59 @@
+{
+  "$id": "urn:ai-stp:schema:v1:cli-telemetry-status",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Whether the anonymous install ping is on, and everything it would send.\n\nOne model for the consent screen and for the status read, because they\nanswer the same question and two shapes would let them drift into saying\ndifferent things about the same feature.",
+  "properties": {
+    "collected": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Collected",
+      "type": "array"
+    },
+    "enabled": {
+      "default": false,
+      "title": "Enabled",
+      "type": "boolean"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "state": {
+      "enum": [
+        "not_asked",
+        "declined",
+        "accepted"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "url": {
+      "default": "",
+      "title": "Url",
+      "type": "string"
+    },
+    "url_source": {
+      "default": "default",
+      "enum": [
+        "default",
+        "config"
+      ],
+      "title": "Url Source",
+      "type": "string"
+    }
+  },
+  "required": [
+    "collected",
+    "enabled",
+    "schema_version",
+    "state",
+    "url",
+    "url_source"
+  ],
+  "title": "TelemetryStatus",
+  "type": "object"
+}
