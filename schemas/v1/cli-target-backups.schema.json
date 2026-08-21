@@ -1,0 +1,102 @@
+{
+  "$defs": {
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build"
+      ],
+      "type": "string"
+    },
+    "TargetBackup": {
+      "additionalProperties": true,
+      "description": "One provider-owned copy of a target, and what the target held when it was taken.\n\nA reference and never bytes. The provider owns the copy; recording it here\nwould give one recovery two owners, and only one of them can restore\n(`REQ-814`).",
+      "properties": {
+        "backup_ref": {
+          "minLength": 1,
+          "title": "Backup Ref",
+          "type": "string"
+        },
+        "created_at": {
+          "default": "",
+          "title": "Created At",
+          "type": "string"
+        },
+        "operation_id": {
+          "minLength": 1,
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "provider_target": {
+          "default": "",
+          "title": "Provider Target",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "setup_stable_id": {
+          "default": "",
+          "title": "Setup Stable Id",
+          "type": "string"
+        },
+        "setup_version": {
+          "default": "",
+          "title": "Setup Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "backup_ref",
+        "created_at",
+        "operation_id",
+        "provider_target",
+        "schema_version",
+        "setup_stable_id",
+        "setup_version"
+      ],
+      "title": "TargetBackup",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-target-backups",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Every provider-owned copy this pair can restore from, oldest first.\n\nThe read half that `SPEC-012` assumed and no command answered: a `BackupRef`\nappeared once, in the answer to `install apply`, and an agent that did not\nkeep that stdout could not name the copy again. Restoring is still an\nordinary plan with an ordinary approval; this only says which copies exist.",
+  "properties": {
+    "backups": {
+      "items": {
+        "$ref": "#/$defs/TargetBackup"
+      },
+      "title": "Backups",
+      "type": "array"
+    },
+    "harness_id": {
+      "$ref": "#/$defs/HarnessId"
+    },
+    "project_id": {
+      "minLength": 1,
+      "title": "Project Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "backups",
+    "harness_id",
+    "project_id",
+    "schema_version"
+  ],
+  "title": "TargetBackups",
+  "type": "object"
+}

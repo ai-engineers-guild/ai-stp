@@ -1937,6 +1937,54 @@ class RollbackTarget(BaseModel):
     operation_id: Annotated[str, Field(min_length=1)]
 
 
+class TargetBackup(BaseModel):
+    """One provider-owned copy of a target, and what the target held when it was taken.
+
+    A reference and never bytes. The provider owns the copy; recording it here
+    would give one recovery two owners, and only one of them can restore
+    (`REQ-814`).
+    """
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+
+    #: Exactly what `install plan --action rollback --backup-ref` takes.
+    backup_ref: Annotated[str, Field(min_length=1)]
+
+    #: The operation that took the copy. Provenance, not an instruction: a
+    #: restore is a new plan rather than a replay of this one.
+    operation_id: Annotated[str, Field(min_length=1)]
+
+    #: What was installed when the copy was taken. Empty when the copy predates
+    #: any verified setup identity on this pair, which is a fact rather than a
+    #: defect: a backup can be taken of a target nobody has installed onto.
+    setup_stable_id: str = ""
+    setup_version: str = ""
+
+    #: The provider target this copy belongs to. A backup of one target is not
+    #: offered for another, and the field is what lets a reader see that.
+    provider_target: str = ""
+    created_at: str = ""
+
+
+class TargetBackups(BaseModel):
+    """Every provider-owned copy this pair can restore from, oldest first.
+
+    The read half that `SPEC-012` assumed and no command answered: a `BackupRef`
+    appeared once, in the answer to `install apply`, and an agent that did not
+    keep that stdout could not name the copy again. Restoring is still an
+    ordinary plan with an ordinary approval; this only says which copies exist.
+    """
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    project_id: Annotated[str, Field(min_length=1)]
+    harness_id: HarnessId
+    backups: list[TargetBackup] = Field(default_factory=list[TargetBackup])
+
+
 class LanguageOutline(BaseModel):
     """What one language contributes to a project (`SPEC-004` REQ-404).
 

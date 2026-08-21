@@ -4305,6 +4305,46 @@
     {
       "path": [
         "target",
+        "backups"
+      ],
+      "summary": "Provider-owned copies this pair can restore from. Restores nothing itself.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "project",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The project passport's stable id.",
+          "choices": []
+        },
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The harness of the pair.",
+          "choices": [
+            "claude-code",
+            "codex",
+            "grok-build",
+            "opencode",
+            "pi"
+          ]
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-target-backups",
+      "next_actions": [
+        "install plan"
+      ]
+    },
+    {
+      "path": [
+        "target",
         "diff"
       ],
       "summary": "What installing the selected version would change. Changes nothing.",
@@ -4424,6 +4464,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-rollback-target",
       "next_actions": [
+        "target backups",
         "install plan"
       ]
     },

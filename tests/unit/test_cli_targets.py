@@ -542,3 +542,116 @@ def test_nothing_here_installs_anything() -> None:
         "subprocess.run(",
     ):
         assert call not in source
+
+
+def _backed_up(
+    connection: sqlite3.Connection,
+    *,
+    ref: str,
+    version: str,
+    at: str,
+    settle: bool = True,
+) -> str:
+    """One `backup` operation that left a provider-owned copy behind."""
+    plan = installation.propose(
+        connection,
+        action="backup",
+        author="account_x",
+        target_id=PAIR,
+        expected_target_digest="sha256:" + "0" * 64,
+        provider_version="1.0.0",
+        effects=("copy the target",),
+        recovery_action="restore",
+        idempotency_key=f"backup-{ref}",
+        at=at,
+        expires_at="2099-01-01T00:00:00.000Z",
+        setup_stable_id="setup_01J0000000000000000000000B",
+        setup_version=version,
+    )
+    installation.approve(connection, plan.operation_id, plan_digest=plan.digest, at=at)
+    installation.begin(
+        connection,
+        plan.operation_id,
+        observed_target_digest="sha256:" + "0" * 64,
+        at=at,
+    )
+    installation.applied(connection, plan.operation_id, at=at, backup_ref=ref)
+    if settle:
+        installation.verify(
+            connection,
+            plan.operation_id,
+            postconditions_met=True,
+            at=at,
+            observed_target_digest="sha256:" + "1" * 64,
+        )
+    return plan.operation_id
+
+
+def test_a_target_with_no_copies_says_so_rather_than_failing(
+    registry: sqlite3.Connection,
+) -> None:
+    """Nothing to restore from is an answer, not a refusal.
+
+    An agent asking "what can I go back to" before taking a copy is asking a
+    reasonable question, and an error there would read as a broken command.
+    """
+    assert targets.backups(registry, project_id=PROJECT, harness_id=HARNESS) == ()
+
+
+def test_every_copy_of_this_pair_comes_back_oldest_first(registry: sqlite3.Connection) -> None:
+    """The order is the durable local one, as it is for verified versions.
+
+    Millisecond timestamps tie and `operation_id` orders creation rather than
+    completion, so neither is the order a reader wants.
+    """
+    _backed_up(registry, ref="provider:backup:one", version="1.0", at="2026-08-08T10:00:00.000Z")
+    _backed_up(registry, ref="provider:backup:two", version="1.1", at="2026-08-08T10:00:00.000Z")
+
+    found = targets.backups(registry, project_id=PROJECT, harness_id=HARNESS)
+
+    assert [item.backup_ref for item in found] == ["provider:backup:one", "provider:backup:two"]
+    assert [item.setup_version for item in found] == ["1.0", "1.1"]
+    assert all(item.operation_id for item in found)
+
+
+def test_a_copy_from_an_operation_that_never_settled_is_not_offered(
+    registry: sqlite3.Connection,
+) -> None:
+    """`install recover` owns that one, and it knows what may still be done.
+
+    Listing it here would read as "restorable" without anything having said so.
+    """
+    _backed_up(
+        registry,
+        ref="provider:backup:unsettled",
+        version="1.0",
+        at="2026-08-08T10:00:00.000Z",
+        settle=False,
+    )
+
+    assert targets.backups(registry, project_id=PROJECT, harness_id=HARNESS) == ()
+
+
+def test_a_copy_of_another_pair_is_not_offered_for_this_one(
+    registry: sqlite3.Connection,
+) -> None:
+    """A `BackupRef` belongs to the target it was taken from (`REQ-1209`)."""
+    _backed_up(registry, ref="provider:backup:ours", version="1.0", at="2026-08-08T10:00:00.000Z")
+
+    other = targets.backups(registry, project_id=PROJECT, harness_id="codex")
+
+    assert other == ()
+    assert len(targets.backups(registry, project_id=PROJECT, harness_id=HARNESS)) == 1
+
+
+def test_an_installation_without_a_copy_is_not_listed_as_one(
+    registry: sqlite3.Connection,
+) -> None:
+    """Only operations that actually left a reference behind.
+
+    An ordinary install verifies and records no `backup_ref`; reading the log
+    without that condition would offer every operation as a copy.
+    """
+    _verified(registry, "1.0", digest="sha256:" + "a" * 64, at="2026-08-08T10:00:00.000Z")
+
+    assert targets.backups(registry, project_id=PROJECT, harness_id=HARNESS) == ()

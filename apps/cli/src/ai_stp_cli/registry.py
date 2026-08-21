@@ -1751,6 +1751,23 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         next_actions=("install plan",),
     ),
     Declaration(
+        path=["target", "backups"],
+        summary="Provider-owned copies this pair can restore from. Restores nothing itself.",
+        result_schema="urn:ai-stp:schema:v1:cli-target-backups",
+        handler=install.target_backups,
+        parameters=(
+            option("project", "string", "The project passport's stable id.", required=True),
+            option(
+                "harness",
+                "string",
+                "The harness of the pair.",
+                required=True,
+                choices=tuple(sorted(HARNESS_IDS)),
+            ),
+        ),
+        next_actions=("install plan",),
+    ),
+    Declaration(
         path=["target", "rollback"],
         summary="Name the exact previous verified version. Rolls nothing back itself.",
         result_schema="urn:ai-stp:schema:v1:cli-rollback-target",
@@ -1765,7 +1782,11 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 choices=tuple(sorted(HARNESS_IDS)),
             ),
         ),
-        next_actions=("install plan",),
+        # Both, because they answer different questions and the difference is
+        # exactly what `REQ-814` protects: this names a previous *version*,
+        # `target backups` names copies. Reaching a restore from here goes
+        # through the copy list, not through this answer.
+        next_actions=("target backups", "install plan"),
     ),
     Declaration(
         path=["install", "status"],

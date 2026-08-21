@@ -24,6 +24,7 @@ import sqlite3
 import subprocess
 from collections.abc import Mapping, Sequence
 from contextlib import closing
+from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
 from typing import Final, cast
@@ -68,6 +69,8 @@ from ai_stp_contracts.machine_help import (
     ManagedPathChange,
     RecoveryView,
     RollbackTarget,
+    TargetBackup,
+    TargetBackups,
     TargetDiff,
     TargetSurvey,
 )
@@ -189,6 +192,18 @@ def _fact_text(value: JsonValue | None) -> str:
     return held if isinstance(held, str) else ""
 
 
+@dataclass(frozen=True)
+class _Pair:
+    """The project and harness an operation binds to.
+
+    Named separately from the proposal because `backup` and `rollback` have one
+    without having the other: they bind to a target, not to a setup graph.
+    """
+
+    project_id: str
+    harness_id: str
+
+
 def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
     """Compute an immutable plan. Has no effect of its own (`REQ-805`).
 
@@ -200,7 +215,26 @@ def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
     executable = _executable(parameters)
     proposal_id = str(parameters.get("proposal") or "")
     prepared_ref = str(parameters.get("setup") or "")
-    if bool(proposal_id) == bool(prepared_ref):
+    action = str(parameters.get("action") or "install")
+    # `backup` and `rollback` do not install a graph, so naming a source for
+    # them meant naming one the operation would not use. It forced the current
+    # or a past version into an operation that binds to a `BackupRef` and a
+    # target instead — and made a deliberate restore unreachable for anybody
+    # who had not kept the source around (`REQ-1207`-`REQ-1210`).
+    #
+    # `install` and `update` keep the rule: those two do install a graph, and
+    # exactly one source is what says which.
+    if action in _SOURCELESS_ACTIONS:
+        if proposal_id and prepared_ref:
+            raise CliFailure(
+                "AI_STP_VALIDATION_ERROR",
+                "name at most one confirmed proposal or prepared exact SetupVersion",
+                details={"action": action},
+            )
+        if not proposal_id and not prepared_ref:
+            _required(parameters, "project")
+            _required(parameters, "harness")
+    elif bool(proposal_id) == bool(prepared_ref):
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
             "name exactly one confirmed proposal or prepared exact SetupVersion",
@@ -211,20 +245,31 @@ def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
         )
 
     def work(connection: sqlite3.Connection) -> InstallationView:
+        named_source = bool(proposal_id or prepared_ref)
         held = (
-            _prepared_setup_source(connection, prepared_ref, str(parameters.get("project") or ""))
-            if prepared_ref
-            else selection.held(connection, proposal_id)
+            (
+                _prepared_setup_source(
+                    connection, prepared_ref, str(parameters.get("project") or "")
+                )
+                if prepared_ref
+                else selection.held(connection, proposal_id)
+            )
+            if named_source
+            else None
         )
-        if held is None or held.confirmed_version is None:
+        if named_source and (held is None or held.confirmed_version is None):
             raise CliFailure(
                 "AI_STP_PRECONDITION_FAILED",
                 "only a confirmed composition or immutable prepared SetupVersion can be installed",
                 details={"proposal_id": proposal_id, "setup": prepared_ref},
                 next_actions=[f"select confirm --proposal {proposal_id} --json"],
             )
-        target = f"{held.project_id}:{held.harness_id}"
-        action = str(parameters.get("action") or "install")
+        pair = (
+            _Pair(held.project_id, held.harness_id)
+            if held is not None
+            else _Pair(_required(parameters, "project"), _required(parameters, "harness"))
+        )
+        target = f"{pair.project_id}:{pair.harness_id}"
         release_recovery = bool(parameters.get("provider-release-recovery", False))
         trusted_release = _trusted_manifest(
             connection,
@@ -267,6 +312,7 @@ def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
                 connection,
                 parameters=parameters,
                 executable=executable,
+                pair=pair,
                 proposal=held,
                 action=action,
                 provider_target=provider_target,
@@ -276,6 +322,17 @@ def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
                 release_manifest=release_manifest,
                 release_recovery=release_recovery,
                 trusted_release=trusted_release,
+            )
+        if held is None:
+            # Reachable only by asking for `backup` or `rollback` without a
+            # source under protocol v1, where the plan is a compiled bundle and
+            # a bundle needs a graph. Refused by name rather than failing later
+            # on an attribute nobody chose to leave empty.
+            raise CliFailure(
+                "AI_STP_SCHEMA_UNSUPPORTED",
+                "this action without a named setup requires provider protocol v3",
+                details={"action": action, "protocol_version": str(protocol_version)},
+                next_actions=["install plan --protocol-version 3 ..."],
             )
         _supports_bundle(info, held.harness_id, bundle.BUNDLE_FORMAT)
         compiled = select_command.compile_harness_bundle(connection, proposal_id, held.harness_id)
@@ -347,7 +404,8 @@ def _plan_v3(
     *,
     parameters: Mapping[str, object],
     executable: str,
-    proposal: selection.Proposal,
+    pair: _Pair,
+    proposal: selection.Proposal | None,
     action: str,
     provider_target: str,
     info: dict[str, JsonValue],
@@ -358,7 +416,7 @@ def _plan_v3(
     trusted_release: release.ReleaseManifest | None,
 ) -> InstallationView:
     """Plan the existing installation state machine through protocol v3."""
-    capabilities = _v3_capabilities(info, proposal.harness_id, bundle.BUNDLE_FORMAT)
+    capabilities = _v3_capabilities(info, pair.harness_id, bundle.BUNDLE_FORMAT)
     operation = _v3_operation(action)
     try:
         capabilities.require(operation)
@@ -389,7 +447,11 @@ def _plan_v3(
     compiled: bundle.Bundle | None = None
     bound_bundle: bundle_protocol.Binding | None = None
     if operation in {protocol_v3.Operation.INSTALL, protocol_v3.Operation.REPLACE}:
-        if proposal.confirmed_stable_id is None or proposal.confirmed_version is None:
+        if (
+            proposal is None
+            or proposal.confirmed_stable_id is None
+            or proposal.confirmed_version is None
+        ):
             raise CliFailure(
                 "AI_STP_PRECONDITION_FAILED",
                 "the installation source has no immutable SetupVersion identity",
@@ -398,7 +460,7 @@ def _plan_v3(
             connection,
             proposal.confirmed_stable_id,
             proposal.confirmed_version,
-            expected_harness=proposal.harness_id,
+            expected_harness=pair.harness_id,
         )
         _v3_profile_accepts(capabilities, compiled)
         bundle_path = cache.store_raw_artifact_bytes(compiled.archive, compiled.artifact_digest)
@@ -424,8 +486,11 @@ def _plan_v3(
     expires_at = _plus(at, PLAN_TTL_SECONDS)
     idempotency_key = ":".join(
         (
-            proposal.proposal_id,
-            f"{proposal.project_id}:{proposal.harness_id}",
+            # A restore is made unique by the copy it binds to, not by a
+            # source it does not have; the key already carries `backup_ref`
+            # and the target digest below.
+            "" if proposal is None else proposal.proposal_id,
+            f"{pair.project_id}:{pair.harness_id}",
             action,
             str(protocol_v3.VERSION),
             provider_version,
@@ -479,7 +544,7 @@ def _plan_v3(
         connection,
         action=action,
         author=owner().account_id,
-        target_id=f"{proposal.project_id}:{proposal.harness_id}",
+        target_id=f"{pair.project_id}:{pair.harness_id}",
         expected_target_digest=expected_target_digest,
         provider_version=provider_version,
         provider_protocol_version=protocol_v3.VERSION,
@@ -496,8 +561,8 @@ def _plan_v3(
         idempotency_key=idempotency_key,
         at=at,
         expires_at=expires_at,
-        setup_stable_id=proposal.confirmed_stable_id or "",
-        setup_version=proposal.confirmed_version or "",
+        setup_stable_id="" if proposal is None else (proposal.confirmed_stable_id or ""),
+        setup_version="" if proposal is None else (proposal.confirmed_version or ""),
         operation_id=operation_id,
     )
     return _view(connection, recorded)
@@ -1200,6 +1265,11 @@ def _v3_profile_accepts(
         )
 
 
+#: Actions that bind to a target and a `BackupRef` rather than to a setup graph.
+#: Naming a source for these describes something the operation does not use.
+_SOURCELESS_ACTIONS: Final[frozenset[str]] = frozenset({"backup", "rollback"})
+
+
 def _v3_operation(action: str) -> protocol_v3.Operation:
     mapping = {
         "install": protocol_v3.Operation.INSTALL,
@@ -1811,6 +1881,50 @@ def target_rollback(parameters: Mapping[str, object]) -> Answer[RollbackTarget]:
                 setup_version=previous.setup_version,
                 verified_at=previous.at,
                 operation_id=previous.operation_id,
+            )
+        )
+
+
+def target_backups(parameters: Mapping[str, object]) -> Answer[TargetBackups]:
+    """Every provider-owned copy this pair can restore from. Restores nothing.
+
+    The read half `SPEC-012` assumed and nothing answered. A `BackupRef` used to
+    appear exactly once, in the answer to `install apply`, so an agent that did
+    not keep that stdout could not name the copy again — and the path from
+    "I took a backup" to "restore it" was reproducible only by remembering.
+
+    Deliberately not a column on `target rollback`. That command names the
+    previous verified *version*, and a reference to a copy is not the identity
+    of a setup (`REQ-814`); answering both from one place would blur exactly the
+    distinction the two requirements exist to keep.
+    """
+    project_id = _required(parameters, "project")
+    harness = _required(parameters, "harness")
+    registry = configured_path()
+    if not registry.exists():
+        return Answer(
+            TargetBackups(
+                project_id=project_id,
+                harness_id=harness,  # pyright: ignore[reportArgumentType]
+            )
+        )
+    with closing(open_readonly(registry)) as connection:
+        found = targets.backups(connection, project_id=project_id, harness_id=harness)
+        return Answer(
+            TargetBackups(
+                project_id=project_id,
+                harness_id=harness,  # pyright: ignore[reportArgumentType]
+                backups=[
+                    TargetBackup(
+                        backup_ref=item.backup_ref,
+                        operation_id=item.operation_id,
+                        setup_stable_id=item.setup_stable_id,
+                        setup_version=item.setup_version,
+                        provider_target=item.provider_target,
+                        created_at=item.created_at,
+                    )
+                    for item in found
+                ],
             )
         )
 

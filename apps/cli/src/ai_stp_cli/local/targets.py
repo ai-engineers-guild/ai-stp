@@ -82,6 +82,18 @@ class Verified:
 
 
 @dataclass(frozen=True)
+class Backup:
+    """One provider-owned copy of a target, named by the reference that restores it."""
+
+    backup_ref: str
+    operation_id: str
+    setup_stable_id: str
+    setup_version: str
+    provider_target: str
+    created_at: str
+
+
+@dataclass(frozen=True)
 class Survey:
     """What one pair looks like today, and every reason it is not simply fine."""
 
@@ -307,6 +319,54 @@ def verified(
         )
         for row in rows
         if row["setup_version"]
+    )
+
+
+def backups(
+    connection: sqlite3.Connection, *, project_id: str, harness_id: str
+) -> tuple[Backup, ...]:
+    """Every provider-owned copy taken of this pair, oldest first.
+
+    Read from the operation log for the same reason `verified` is: the log
+    already records which operation took a copy, of what, and when. A second
+    table of the same fact is a second thing that can disagree, and `REQ-814`
+    keeps the copy and the setup apart precisely so that deleting one cannot
+    take the other's identity with it.
+
+    Only settled operations. A `BackupRef` on an operation that stopped belongs
+    to `install recover`, which knows what may still be done with it; offering
+    it here would read as "restorable" without anything having said so.
+    """
+    rows = connection.execute(
+        """
+        SELECT p.operation_id, p.backup_ref, p.setup_stable_id, p.setup_version,
+               p.provider_target, o.finished_at
+        FROM operation_plan AS p
+        JOIN operation AS o ON o.operation_id = p.operation_id
+        JOIN operation_event AS e
+          ON e.operation_id = p.operation_id AND e.state_after = ?
+        WHERE p.target_id = ? AND p.backup_ref IS NOT NULL AND o.state = ?
+        -- The durable local order, as in `verified`: millisecond timestamps
+        -- tie, and operation_id orders creation rather than completion.
+        ORDER BY e.global_sequence
+        """,
+        (
+            installation.STATE_VERIFIED,
+            f"{project_id}:{harness_id}",
+            installation.STATE_VERIFIED,
+        ),
+    ).fetchall()
+    return tuple(
+        Backup(
+            backup_ref=str(row["backup_ref"]),
+            operation_id=str(row["operation_id"]),
+            setup_stable_id=str(row["setup_stable_id"] or ""),
+            setup_version=str(row["setup_version"] or ""),
+            provider_target=str(row["provider_target"] or ""),
+            created_at=str(row["finished_at"] or ""),
+        )
+        for row in rows
+        if row["backup_ref"]
     )
 
 

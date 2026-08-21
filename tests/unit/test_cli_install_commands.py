@@ -2396,3 +2396,71 @@ def test_managed_target_changes_use_exact_verified_operation_evidence(tmp_path: 
     assert [(item.code, item.path) for item in changes] == [("modified", "skills/review/SKILL.md")]
     assert changes[0].expected_digest == f"sha256:{expected}"
     assert changes[0].observed_digest.startswith("sha256:")
+
+
+def test_install_still_needs_exactly_one_source(tmp_path: Path) -> None:
+    """The rule that says *which* graph to install stays where it means something."""
+    for parameters in (
+        {},
+        {"proposal": "proposal_x", "setup": "setup_y@1.0"},
+    ):
+        with pytest.raises(CliFailure) as raised:
+            install.plan({**parameters, "provider": _provider(tmp_path, "p-install")})
+        assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+        assert "exactly one" in str(raised.value)
+
+
+@pytest.mark.parametrize("action", ["backup", "rollback"])
+def test_a_copy_or_a_restore_does_not_have_to_name_a_setup(tmp_path: Path, action: str) -> None:
+    """Neither installs a graph, so naming one described something unused.
+
+    Before this, `exactly_one` ran before anything looked at the action, which
+    forced the current or a past version into an operation that binds to a
+    target and a `BackupRef`. A deliberate restore was therefore unreachable to
+    anybody who had not kept the original source around.
+
+    What is asserted here is only that the *source* rule no longer refuses. The
+    plan still needs a provider and everything else it always needed, so the
+    refusal that arrives is about those and not about a missing setup.
+    """
+    with pytest.raises(CliFailure) as raised:
+        install.plan(
+            {
+                "action": action,
+                "project": "project_01J0000000000000000000000A",
+                "harness": "claude-code",
+                "provider": _provider(tmp_path, f"p-{action}"),
+            }
+        )
+
+    assert "exactly one" not in str(raised.value)
+    assert "confirmed proposal" not in str(raised.value)
+
+
+@pytest.mark.parametrize("action", ["backup", "rollback"])
+def test_a_copy_or_a_restore_without_a_setup_still_needs_the_pair(
+    tmp_path: Path, action: str
+) -> None:
+    """Something has to say which target, and without a source it is the pair."""
+    with pytest.raises(CliFailure) as raised:
+        install.plan({"action": action, "provider": _provider(tmp_path, f"q-{action}")})
+
+    assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+    assert "must be named" in str(raised.value)
+
+
+@pytest.mark.parametrize("action", ["backup", "rollback"])
+def test_naming_two_sources_is_refused_for_a_copy_as_well(tmp_path: Path, action: str) -> None:
+    """Optional is not "ignored". Two sources is still a contradiction."""
+    with pytest.raises(CliFailure) as raised:
+        install.plan(
+            {
+                "action": action,
+                "proposal": "proposal_x",
+                "setup": "setup_y@1.0",
+                "provider": _provider(tmp_path, f"r-{action}"),
+            }
+        )
+
+    assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+    assert "at most one" in str(raised.value)

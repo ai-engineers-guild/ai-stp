@@ -45,6 +45,49 @@ description: "Как ai_stp собирает полный сетап из точ
 Если применение не удалось, восстановление идёт через provider и журнал
 операций. Не удаляйте резервные копии вручную до завершения восстановления.
 
+### Осознанный откат из снятой копии
+
+Это другой путь, чем восстановление после неудачи. Здесь вы заранее снимаете
+копию цели, позже меняете сетап, а ещё позже возвращаетесь к снятой копии.
+
+Сначала копия:
+
+```console
+$ ai-stp install plan --action backup --project <id> --harness <id> \
+    --provider <exe> --provider-manifest <path> --protocol-version 3 \
+    --target <dir> --json
+$ ai-stp install approve --operation <id> --plan-digest <exact> --json
+$ ai-stp install apply --operation <id> --provider <exe> --json
+```
+
+Позже копию не нужно помнить — её перечисляет отдельная команда:
+
+```console
+ai-stp target backups --project <id> --harness <id> --json
+```
+
+Ответ содержит `backup_ref`, операцию, которая её сняла, и версию сетапа,
+установленную на тот момент. Дальше — обычные план, подтверждение и применение:
+
+```console
+$ ai-stp install plan --action rollback --backup-ref <exact> \
+    --provider <exe> --provider-manifest <path> --protocol-version 3 \
+    --target <dir> --json
+$ ai-stp install approve --operation <id> --plan-digest <exact> --json
+$ ai-stp install apply --operation <id> --provider <exe> --json
+$ ai-stp target status --project <id> --harness <id> --json
+```
+
+Три отличия, которые стоит держать в голове:
+
+- `target rollback` **называет** предыдущую подтверждённую версию и ничего не
+  восстанавливает. Это ответ на «куда откатываться», а не «откатись»;
+- повторная установка прошлой версии через `action=update` — не то же самое,
+  что восстановление: bundle не содержит файлов, которые вы не устанавливали, а
+  копия их сохраняет;
+- восстановление возвращает цель **целиком**. Восстановить один компонент
+  нельзя, и такой запрос отклоняется.
+
 ??? tip "Как думать о версии сетапа"
     Сетап — не папка с текущими файлами, а закреплённый состав. Если вы
     обновили один `skill`, отключили `hook` или поменяли `setting`, это уже
