@@ -178,7 +178,14 @@ CHECK_REGISTRY: tuple[CheckSpec, ...] = (
         check_id="skill_static_gate",
         family="skill_static",
         mandatory=True,
-        timeout_seconds=20,
+        # Sixty rather than twenty, measured rather than guessed: one
+        # `skillspector` pass over a real component tree takes about nine
+        # seconds on an idle worker, and publishing a corpus of a hundred
+        # objects put enough of them in flight at once to cross the old limit.
+        # The adapter now reports a timeout honestly instead of as a finding,
+        # which makes a too-small limit visible — but visible is not the same
+        # as fixed, and a static analyser needs room to finish.
+        timeout_seconds=60,
         stage=4,
         kinds=frozenset({"component"}),
         languages=frozenset(),

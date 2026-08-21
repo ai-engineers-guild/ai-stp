@@ -930,3 +930,75 @@ def test_doctor_tools_and_diagnostics(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "osv" in diag
     assert "sandbox" in diag
     assert "metrics" in diag
+
+
+def test_a_skill_scanner_timeout_is_degraded_and_not_a_security_finding(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A measurement that did not finish is not a negative measurement.
+
+    This was recorded as a `high` finding titled "reported skill risks", which
+    says the opposite of what happened: the scanner found nothing, because it
+    never got that far. Publishing a hundred-object corpus made it visible —
+    one pass takes about nine seconds on an idle worker, enough of them at once
+    crossed the limit, and every affected component was refused as dangerous
+    content with no reason an author could act on.
+
+    `degraded` still blocks a mandatory check. The difference is that it blocks
+    with the truth, and it is what the neighbouring adapters already return when
+    their tool cannot run.
+    """
+    from ai_stp_platform.safety.adapters import skill_gate
+    from ai_stp_platform.safety.policy import CHECK_REGISTRY
+    from ai_stp_platform.safety.types import ArtifactManifest
+
+    spec = next(item for item in CHECK_REGISTRY if item.check_id == "skill_static_gate")
+    monkeypatch.setattr(skill_gate, "which", lambda tool: f"/opt/safety-bin/{tool}")
+    monkeypatch.setattr(
+        skill_gate,
+        "run_cli",
+        lambda argv, cwd, timeout: (124, "", "", timeout * 1000),
+    )
+
+    outcome = skill_gate.run(tmp_path, ArtifactManifest(component_type="skill"), spec)
+
+    assert outcome.result == "degraded"
+    assert outcome.findings == []
+    assert outcome.severity_max == "info"
+    assert outcome.detail["timed_out"] == ["skillspector", "skill-scanner"]
+    assert outcome.detail["timeout_seconds"] == spec.timeout_seconds
+
+
+def test_a_scanner_that_actually_reports_something_still_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The other half of the distinction, so the fix cannot hide a real finding."""
+    from ai_stp_platform.safety.adapters import skill_gate
+    from ai_stp_platform.safety.policy import CHECK_REGISTRY
+    from ai_stp_platform.safety.types import ArtifactManifest
+
+    spec = next(item for item in CHECK_REGISTRY if item.check_id == "skill_static_gate")
+    monkeypatch.setattr(skill_gate, "which", lambda tool: f"/opt/safety-bin/{tool}")
+    monkeypatch.setattr(
+        skill_gate,
+        "run_cli",
+        lambda argv, cwd, timeout: (1, '{"risk":"critical"}', "", 10),
+    )
+
+    outcome = skill_gate.run(tmp_path, ArtifactManifest(component_type="skill"), spec)
+
+    assert outcome.result == "failed"
+    assert [f.severity for f in outcome.findings] == ["high", "high"]
+
+
+def test_the_skill_gate_has_room_to_finish(tmp_path: Path) -> None:
+    """A limit smaller than the work is a limit that refuses correct content.
+
+    Measured rather than chosen: one `skillspector` pass over a real component
+    tree takes about nine seconds on an idle worker.
+    """
+    from ai_stp_platform.safety.policy import CHECK_REGISTRY
+
+    spec = next(item for item in CHECK_REGISTRY if item.check_id == "skill_static_gate")
+
+    assert spec.timeout_seconds >= 60

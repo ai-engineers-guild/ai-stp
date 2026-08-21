@@ -4,11 +4,20 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import Final
 
 from ai_stp_platform.safety.adapters._cli import run_cli, which
 from ai_stp_platform.safety.normalize import redact_message
 from ai_stp_platform.safety.policy import CheckSpec
 from ai_stp_platform.safety.types import ArtifactManifest, CheckOutcome, Finding
+
+#: `timeout(1)` reports this when it kills the child. Distinguished from every
+#: other non-zero code because it means the tool was interrupted rather than
+#: that it decided anything.
+_TIMEOUT_EXIT: Final[int] = 124
+#: The shell's "command not found". `which` normally catches an absent tool
+#: first; this covers the race where it disappears between the two.
+_MISSING_EXIT: Final[int] = 127
 
 # Static in-proc patterns when CLIs absent (still real path on SKILL.md).
 SKILL_RISK = [
@@ -34,6 +43,7 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
 
     # NVIDIA SkillSpector (static only) + Cisco skill-scanner (static default;
     # do not pass --use-llm — publication validate must not call model APIs).
+    incomplete: list[str] = []
     for tool, argv in (
         ("skillspector", ["skillspector", "scan", str(tree), "--no-llm", "--format", "json"]),
         ("skill-scanner", ["skill-scanner", "scan", str(tree), "--format", "json"]),
@@ -41,9 +51,23 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
         if which(tool) is None:
             engines_missing += 1
             continue
-        code, out, err, _ms = run_cli(argv, cwd=tree, timeout=min(spec.timeout_seconds, 20))
+        code, out, err, _ms = run_cli(argv, cwd=tree, timeout=spec.timeout_seconds)
         tools_run.append(tool)
-        if code not in (0, 127) and (out or err or code == 1):
+        if code == _TIMEOUT_EXIT:
+            # A measurement that did not finish is not a negative measurement.
+            # This used to be recorded as a `high` finding titled "reported skill
+            # risks", which says the opposite of what happened: the scanner found
+            # nothing, because it never got that far. Publishing a whole corpus
+            # made it visible — one static analyser takes about nine seconds on
+            # an idle worker, and under a burst it crossed the limit and every
+            # affected object was refused as dangerous content.
+            #
+            # `degraded` is what the neighbouring adapters already return when
+            # their tool cannot run, and it still blocks a mandatory check. The
+            # difference is that it blocks with the truth.
+            incomplete.append(tool)
+            continue
+        if code not in (0, _MISSING_EXIT) and (out or err or code == 1):
             findings.append(
                 Finding(
                     check_id=spec.check_id,
@@ -82,11 +106,14 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
     if engines_missing == 2 and not tools_run:
         tools_run.append("skill_static_owned")
 
-    result = (
-        "failed"
-        if any(f.severity in {"high", "critical"} for f in findings)
-        else ("warning" if findings else "passed")
-    )
+    if any(f.severity in {"high", "critical"} for f in findings):
+        result = "failed"
+    elif incomplete:
+        # Ordered after a real finding on purpose: an engine that did report
+        # something has said more than one that ran out of time.
+        result = "degraded"
+    else:
+        result = "warning" if findings else "passed"
     return CheckOutcome(
         check_id=spec.check_id,
         family=spec.family,
@@ -95,7 +122,12 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
         tool_name="+".join(tools_run) or "skill_static_gate",
         severity_max=max((f.severity for f in findings), default="info", key=_rank),
         findings=findings,
-        detail={"engines_missing": engines_missing, "tools": tools_run},
+        detail={
+            "engines_missing": engines_missing,
+            "tools": tools_run,
+            "timed_out": incomplete,
+            "timeout_seconds": spec.timeout_seconds,
+        },
     )
 
 
