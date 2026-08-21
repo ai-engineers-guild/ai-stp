@@ -1004,6 +1004,52 @@ def test_the_skill_gate_has_room_to_finish(tmp_path: Path) -> None:
     assert spec.timeout_seconds >= 60
 
 
+def test_no_check_asks_for_longer_than_a_tool_is_ever_given() -> None:
+    """The policy's limit and the runner's ceiling have to be the same number.
+
+    They were not, and nothing said so. `run_cli` capped every tool at 25s while
+    three checks declared 30s and 60s, so raising `skill_static_gate` to 60 had
+    no effect at all and its scanner went on being killed at 25 — reported, at
+    the time, as the scanner having found something.
+
+    A ceiling is still wanted as a backstop against a bad argument. What is not
+    wanted is a second policy that silently overrules the first, so the two are
+    tied together here rather than left to agree by luck.
+    """
+    from ai_stp_platform.safety.adapters._cli import MAX_TIMEOUT_SECONDS
+    from ai_stp_platform.safety.policy import CHECK_REGISTRY
+
+    over = {
+        item.check_id: item.timeout_seconds
+        for item in CHECK_REGISTRY
+        if item.timeout_seconds > MAX_TIMEOUT_SECONDS
+    }
+
+    assert over == {}, "these declare a limit no tool will ever be given"
+
+
+def test_a_report_names_the_limit_the_tool_actually_got(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """What the gate says it waited for is what it waited for.
+
+    Naming the declared value after a shorter kill is the same failure one level
+    up: a true-looking number that sends the reader to the wrong file.
+    """
+    from ai_stp_platform.safety.adapters import _cli, skill_gate
+    from ai_stp_platform.safety.policy import CHECK_REGISTRY
+
+    spec = next(item for item in CHECK_REGISTRY if item.check_id == "skill_static_gate")
+    monkeypatch.setattr(_cli, "MAX_TIMEOUT_SECONDS", 5.0)
+    monkeypatch.setattr(skill_gate, "which", lambda _: None)
+
+    manifest = ArtifactManifest(component_type="skill", languages=set())
+    outcome = skill_gate.run(tmp_path, manifest, spec)
+
+    assert outcome.detail["timeout_seconds"] == 5.0
+    assert spec.timeout_seconds > 5.0
+
+
 def test_a_check_that_did_not_pass_says_why_on_the_wire() -> None:
     """A refusal without a reason is a dead end for whoever is refused.
 

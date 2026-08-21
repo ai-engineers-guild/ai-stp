@@ -94,13 +94,10 @@ def run(tree: Path, manifest: ArtifactManifest | None, spec: CheckSpec) -> Check
                         tool_name="setup_pin_aggregate",
                     )
                 )
-            failed_raw = summary_map.get("failed")
-            failed_n = int(failed_raw) if isinstance(failed_raw, int | float | str) else 0
-            if failed_n > 0 and summary_map.get("status") != "available":
-                # failed checks recorded
-                pass
-            # If any check in summary is failed with mandatory - catalog summary
-            # may not carry per-check; use failed count > 0 as soft signal
+                # One reason per pin. A scan still running has no per-check
+                # results to read below, and reporting the same pin twice under
+                # two rule ids describes one problem as two.
+                continue
             checks_any = summary_map.get("checks")
             if isinstance(checks_any, list):
                 for raw_c in cast(list[Any], checks_any):

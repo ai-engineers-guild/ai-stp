@@ -81,6 +81,22 @@ def isolated_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Ite
 
 
 @pytest.fixture(autouse=True)
+def no_telemetry_egress(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Nothing here reaches a collector, for the same reason as the store above.
+
+    `docs/contracts/cli-telemetry.md` says the ping is not sent in tests, and a
+    guard nothing sets is a promise nothing keeps. Set here rather than in the
+    tests that install, because the send happens deep inside settling an
+    operation: any test that installs anything is a test that could send, and
+    remembering which ones those are is the kind of rule that gets forgotten.
+
+    The telemetry tests delete it deliberately — that is how the send path is
+    exercised at all, and they replace the transport rather than the guard.
+    """
+    monkeypatch.setenv("AI_STP_TELEMETRY_SUPPRESS", "1")
+
+
+@pytest.fixture(autouse=True)
 def no_real_credential_store(monkeypatch: pytest.MonkeyPatch) -> None:
     """Never open the machine's actual credential store.
 

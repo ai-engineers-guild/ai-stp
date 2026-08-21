@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import time
 from pathlib import Path
+from typing import Final
 
 # External CLIs can hang or pull network on some hosts. Default is owned
 # in-proc engines only; worker image sets AI_STP_SAFETY_EXTERNAL_CLI=1.
@@ -23,6 +24,28 @@ def which(name: str) -> str | None:
     return shutil.which(name)
 
 
+#: Ceiling on one tool's run, whatever the caller asks for. It is a backstop
+#: against a bad argument, not a second policy: `safety.policy` decides how long
+#: each check may take, and `tests` refuses a declared value above this.
+#:
+#: It used to be 25s, silently, while three checks declared 30s and 60s. Nothing
+#: reported the difference, so raising `skill_static_gate` to 60s changed
+#: nothing at all and the scanner kept being killed at 25 — which is what
+#: refused most of a corpus as dangerous content. Well under the suite's own
+#: eight-minute budget in `safety.orchestrator`.
+MAX_TIMEOUT_SECONDS: Final[float] = 120.0
+
+
+def effective_timeout(timeout: float) -> float:
+    """The limit a tool will actually be given.
+
+    Exported so an adapter can report what it waited for rather than what it
+    asked for. A check that says "did not finish within 60s" after being killed
+    at 25 is a report that sends somebody looking in the wrong place.
+    """
+    return min(float(timeout), MAX_TIMEOUT_SECONDS)
+
+
 def run_cli(
     argv: list[str],
     *,
@@ -34,7 +57,7 @@ def run_cli(
     On Linux with a working ``bwrap``, the argv is re-wrapped with
     ``--unshare-net`` (see ``safety.sandbox``). If bwrap cannot create a
     namespace, the runner falls back to an unwrapped env-only launch.
-    Timeouts are hard-capped at 25s.
+    A caller's timeout is bounded by ``MAX_TIMEOUT_SECONDS``.
     """
     if not argv or which(argv[0]) is None:
         try:
@@ -45,8 +68,7 @@ def run_cli(
             pass
         return 127, "", f"missing:{argv[0] if argv else 'tool'}", 0
     started = time.perf_counter()
-    # Hard cap even if caller passes a large timeout.
-    timeout = min(float(timeout), 25.0)
+    timeout = effective_timeout(timeout)
     from ai_stp_platform.safety.sandbox import (
         force_sandbox_mode,
         is_bwrap_failure,

@@ -1121,7 +1121,7 @@ def _report_installation_unguarded(connection: sqlite3.Connection, plan: install
             harness=harness_id,
             harness_version=harness_version,
             ai_stp_version=cli_version(),
-            component_type=component.kind,
+            component_type=component.component_type,
             name=component.name,
             source=component.source,
             identifier=component.identifier,
@@ -1136,7 +1136,11 @@ def _report_installation_unguarded(connection: sqlite3.Connection, plan: install
 class _Installed:
     """One component of the installed setup, named only in public terms."""
 
-    kind: str
+    #: One of the eight declared component kinds. Read from `component_type`
+    #: rather than `kind`: `kind` is the passport's discriminator and reads
+    #: `component` for every one of them, which is a constant rather than an
+    #: answer to the question `docs/contracts/cli-telemetry.md` asks.
+    component_type: str
     name: str
     source: str
     identifier: str
@@ -1178,7 +1182,7 @@ def _installed_components(
             continue
         found.append(
             _Installed(
-                kind=str(document.get("kind") or ""),
+                component_type=str(document.get("component_type") or ""),
                 name=str(document.get("name") or ""),
                 source=source,
                 identifier=identifier,

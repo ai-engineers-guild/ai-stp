@@ -1,6 +1,6 @@
 ---
 description: "Runbook: platform safety-scan для publication validate."
-last_verified: "2026-08-12"
+last_verified: "2026-08-21"
 ---
 
 # Runbook: platform safety-scan
@@ -22,6 +22,20 @@ last_verified: "2026-08-12"
 
 Сервисы API и migrate/seed остаются на target `worker`/`api` без бинарников
 сканеров.
+
+## Лимит времени одной проверки
+
+Сколько отведено конкретной проверке, решает её `timeout_seconds` в
+`safety/policy.py`. `safety/adapters/_cli.py` держит потолок
+`MAX_TIMEOUT_SECONDS` — защиту от неверного аргумента, а не вторую политику;
+тест запрещает объявить больше потолка. Весь набор дополнительно ограничен
+собственным бюджетом в `safety/orchestrator.py`.
+
+Раньше потолок был 25 секунд молча, при объявленных 30 и 60. Разницу никто не
+сообщал, поэтому повышение лимита ничего не меняло, а убитый по времени сканер
+записывался как находка: объект отклонялся за опасное содержимое, которого
+никто не видел. Проверка, не успевшая закончиться, теперь `degraded` и называет
+причину.
 
 Ручная сборка:
 
@@ -159,7 +173,8 @@ Unit-сценарии в `tests/unit/platform/test_safety_scenario_matrix.py`:
 | Симптом | Действие |
 |---------|--------|
 | Все publish блокируются с `not_run` | Нет байтов artifact на validate; проверить fetch из object-store |
-| Зависание external CLI | `AI_STP_SAFETY_EXTERNAL_CLI` только в worker-safety; timeout ≤ 25s |
+| Зависание external CLI | `AI_STP_SAFETY_EXTERNAL_CLI` только в worker-safety; лимит объявляет проверка, потолок раннера — `MAX_TIMEOUT_SECONDS` |
+| Проверка `degraded`, а в `reason` — `did not finish within Ns` | Сканер не успел, а не нашёл. Смотреть нагрузку worker и объявленный `timeout_seconds` этой проверки, не содержимое объекта |
 | Host AV блокирует temp files | Не класть полный EICAR; маркер `AI_STP_MALWARE_TEST_MARKER_V1` |
 | OSV stale | Запустить `refresh_osv_db.sh`; сверить stamp с `AI_STP_OSV_MAX_AGE_HOURS` |
 | Sandbox всегда env_only | Установить `bubblewrap` в worker image (уже в Dockerfile.worker-safety) |

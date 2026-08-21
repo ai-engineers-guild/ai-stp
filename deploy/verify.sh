@@ -38,8 +38,52 @@ web="$(curl -sSk --resolve "${SNI}" --max-time 25 -o /dev/null -w '%{http_code}'
 printf '  %-20s %s\n' "/ (web)" "${web}"
 [[ "${web}" == "200" ]] || failed=1
 
+# The worker publishes nothing over HTTP, so the probes above cannot see it —
+# and it is the service that decides whether anything may be published at all.
+# A deployment that left it on the previous image reported success here while
+# every publication was still being judged by the code that was replaced. That
+# happened, and it cost an hour of looking in the right file at the wrong host.
+#
+# `${AI_STP_API_GIT_COMMIT}` cannot answer this: it is an environment variable
+# the API reports back, so it describes the deployment attempt rather than the
+# code any container is running.
+readonly COMPOSE_FILE="${AI_STP_COMPOSE_FILE:-docker-compose.prod.yml}"
+compose() {
+  local -a args=(-f "${ROOT}/${COMPOSE_FILE}")
+  [[ -f "${ROOT}/${AI_STP_ENV_FILE:-.env.prod}" ]] &&
+    args+=(--env-file "${ROOT}/${AI_STP_ENV_FILE:-.env.prod}")
+  docker compose "${args[@]}" "$@"
+}
+
+worker_id="$(compose ps -q worker 2>/dev/null | head -n 1 || true)"
+if [[ -z "${worker_id}" ]]; then
+  printf '  %-20s %s\n' "worker" "absent"
+  echo "verify: the worker has no container; nothing would validate a publication" >&2
+  failed=1
+else
+  worker_state="$(docker inspect -f '{{.State.Status}}' "${worker_id}" 2>/dev/null || echo unknown)"
+  printf '  %-20s %s\n' "worker" "${worker_state}"
+  [[ "${worker_state}" == "running" ]] || failed=1
+
+  # Running is not enough: a container left over from the previous deployment is
+  # running too. What separates them is the image, so compare the image the
+  # container was created from against the one its service resolves to now.
+  service_image="$(compose config --images worker 2>/dev/null | head -n 1 || true)"
+  if [[ -n "${service_image}" ]]; then
+    want="$(docker image inspect -f '{{.Id}}' "${service_image}" 2>/dev/null || true)"
+    have="$(docker inspect -f '{{.Image}}' "${worker_id}" 2>/dev/null || true)"
+    if [[ -n "${want}" && -n "${have}" && "${want}" != "${have}" ]]; then
+      printf '  %-20s %s\n' "worker image" "stale"
+      echo "verify: the worker is running an image this deployment replaced" >&2
+      failed=1
+    else
+      printf '  %-20s %s\n' "worker image" "current"
+    fi
+  fi
+fi
+
 if [[ "${failed}" -ne 0 ]]; then
   echo "verify: the deployed stack did not answer as expected" >&2
   exit 1
 fi
-echo "verify: api and web answer at ${BASE}"
+echo "verify: api, web and worker are current at ${BASE}"

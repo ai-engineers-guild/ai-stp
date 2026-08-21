@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 from typing import Final
 
-from ai_stp_platform.safety.adapters._cli import run_cli, which
+from ai_stp_platform.safety.adapters._cli import effective_timeout, run_cli, which
 from ai_stp_platform.safety.normalize import redact_message
 from ai_stp_platform.safety.policy import CheckSpec
 from ai_stp_platform.safety.types import ArtifactManifest, CheckOutcome, Finding
@@ -126,7 +126,10 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
             "engines_missing": engines_missing,
             "tools": tools_run,
             "timed_out": incomplete,
-            "timeout_seconds": spec.timeout_seconds,
+            # What the tool was actually given, not what the policy asked for.
+            # A report naming the declared value after a shorter kill sends
+            # somebody looking in the wrong file.
+            "timeout_seconds": effective_timeout(spec.timeout_seconds),
         },
     )
 

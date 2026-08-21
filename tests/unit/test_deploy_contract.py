@@ -152,6 +152,28 @@ def test_target_side_deployer_preserves_the_host_state_and_monotonicity() -> Non
         assert directive in service, directive
 
 
+def test_deployment_verification_observes_the_service_that_gates_publication() -> None:
+    """A green deploy has to mean the worker is current, not only reachable.
+
+    The worker serves no HTTP, so the health probes cannot see it — and it is
+    the service that runs every publication's safety scan. A deployment that
+    left it on the previous image reported success while nothing it decided had
+    changed, which is how a fixed scanner went on refusing a corpus.
+
+    `AI_STP_API_GIT_COMMIT` cannot stand in for this. It is an environment
+    variable the API echoes back, so it describes the deployment attempt rather
+    than the code any container is actually running.
+    """
+    script = Path("deploy/verify.sh").read_text(encoding="utf-8")
+
+    assert "compose ps -q worker" in script
+    # Running is not current: a container from the previous deployment is
+    # running too, and only its image tells the two apart.
+    assert "compose config --images worker" in script
+    assert "docker inspect -f '{{.Image}}'" in script
+    assert "failed=1" in script.split("worker_id=", maxsplit=1)[1]
+
+
 def test_no_workflow_carries_a_deployment_credential_or_reaches_the_target() -> None:
     """Untrusted pull-request code and the deployment share no job at all.
 
