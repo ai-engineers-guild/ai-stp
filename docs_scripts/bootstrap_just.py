@@ -15,6 +15,7 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+import zipfile
 from collections.abc import Callable
 from pathlib import Path
 
@@ -35,17 +36,31 @@ SHA256 = {
     "just-1.43.0-x86_64-apple-darwin.tar.gz": (
         "687f66a6bd4d7d946ef5ff1e3efebb3d39dadad151a8c6b1de884cc93adc06a5"
     ),
+    "just-1.43.0-x86_64-pc-windows-msvc.zip": (
+        "04be7b6d7f8419288ce75532f1962cee1756992e494e6c8063bb3ab8db21b52c"
+    ),
+    "just-1.43.0-aarch64-pc-windows-msvc.zip": (
+        "4abcc7ac09473f01b6837738e6bb4c3cdc167d6ebfa6c2cfd8b5656aa1b03d6c"
+    ),
 }
 
 
 #: Платформа к части имени asset. macOS здесь не потому, что там гоняется CI —
 #: платный раннер снят по решению владельца, — а потому что без этого `just` не
 #: поднимется у разработчика на Mac, и он упрётся ровно в ту же стену.
+#:
+#: Windows появился по той же причине и ещё по одной. Публичный кросс-платформенный
+#: job ставил `just` через `choco`, то есть через community-фид без закрепления
+#: контрольной суммы, и 2026-08-21 этот шаг упал, потратив сто пять секунд и не
+#: сказав ничего: вывод уходил в `/dev/null`. Здесь тот же закреплённый архив с
+#: тем же сравнением SHA256, что и на двух других системах.
 ASSET_FOR = {
     ("linux", "x86_64"): f"just-{VERSION}-x86_64-unknown-linux-musl.tar.gz",
     ("linux", "aarch64"): f"just-{VERSION}-aarch64-unknown-linux-musl.tar.gz",
     ("darwin", "arm64"): f"just-{VERSION}-aarch64-apple-darwin.tar.gz",
     ("darwin", "x86_64"): f"just-{VERSION}-x86_64-apple-darwin.tar.gz",
+    ("windows", "x86_64"): f"just-{VERSION}-x86_64-pc-windows-msvc.zip",
+    ("windows", "arm64"): f"just-{VERSION}-aarch64-pc-windows-msvc.zip",
 }
 
 #: Одно и то же железо называется по-разному в зависимости от того, кто
@@ -65,6 +80,8 @@ def target_asset() -> str:
     if system == "linux" and machine == "arm64":
         machine = "aarch64"
     if system == "darwin" and machine == "aarch64":
+        machine = "arm64"
+    if system == "windows" and machine == "aarch64":
         machine = "arm64"
     asset = ASSET_FOR.get((system, machine))
     if asset is None:
@@ -132,19 +149,31 @@ def main() -> int:
         archive = tmp / asset
         download_verified(url, archive, expected)
 
-        with tarfile.open(archive, "r:gz") as tar:
-            member = next((m for m in tar.getmembers() if Path(m.name).name == "just"), None)
-            if member is None:
-                raise RuntimeError("just binary not found in archive")
-            source = tar.extractfile(member)
-            if source is None:
-                raise RuntimeError("just binary cannot be read from archive")
-            extracted = tmp / "just"
-            extracted.write_bytes(source.read())
+        binary = "just.exe" if asset.endswith(".zip") else "just"
+        extracted = tmp / binary
+        if asset.endswith(".zip"):
+            with zipfile.ZipFile(archive) as bundle:
+                name = next((item for item in bundle.namelist() if Path(item).name == binary), None)
+                if name is None:
+                    raise RuntimeError("just binary not found in archive")
+                extracted.write_bytes(bundle.read(name))
+        else:
+            with tarfile.open(archive, "r:gz") as tar:
+                member = next((m for m in tar.getmembers() if Path(m.name).name == binary), None)
+                if member is None:
+                    raise RuntimeError("just binary not found in archive")
+                source = tar.extractfile(member)
+                if source is None:
+                    raise RuntimeError("just binary cannot be read from archive")
+                extracted.write_bytes(source.read())
 
-        target = install_dir / "just"
+        target = install_dir / binary
         shutil.copy2(extracted, target)
-        target.chmod(target.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+        # Windows decides executability by extension, and `chmod` there accepts
+        # only the read-only bit — asking for the POSIX bits is meaningless
+        # rather than harmful, so it is simply not asked.
+        if os.name != "nt":
+            target.chmod(target.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
     return 0
 

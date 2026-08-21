@@ -106,3 +106,46 @@ def test_download_never_accepts_bytes_that_miss_the_pin(tmp_path: Path) -> None:
         )
 
     assert attempts == 1
+
+
+@pytest.mark.parametrize(
+    ("system", "machine", "expected"),
+    [
+        ("Linux", "x86_64", "just-1.43.0-x86_64-unknown-linux-musl.tar.gz"),
+        ("Linux", "aarch64", "just-1.43.0-aarch64-unknown-linux-musl.tar.gz"),
+        ("Darwin", "arm64", "just-1.43.0-aarch64-apple-darwin.tar.gz"),
+        ("Darwin", "x86_64", "just-1.43.0-x86_64-apple-darwin.tar.gz"),
+        ("Windows", "AMD64", "just-1.43.0-x86_64-pc-windows-msvc.zip"),
+        ("Windows", "ARM64", "just-1.43.0-aarch64-pc-windows-msvc.zip"),
+    ],
+)
+def test_every_supported_platform_resolves_to_a_pinned_asset(
+    monkeypatch: pytest.MonkeyPatch, system: str, machine: str, expected: str
+) -> None:
+    """Windows is here because its absence was paid for once.
+
+    The public cross-platform job used to take `just` from Chocolatey, a
+    community feed with nothing pinned, and the step failed having printed
+    nothing because its output was redirected away. Resolving to a release
+    archive means the same checksum comparison on all three systems.
+    """
+    monkeypatch.setattr(bootstrap_just.platform, "system", lambda: system)
+    monkeypatch.setattr(bootstrap_just.platform, "machine", lambda: machine)
+
+    asset = bootstrap_just.target_asset()
+
+    assert asset == expected
+    # A mapping entry without a pin is worse than a missing entry: it resolves
+    # and then downloads something nothing compared.
+    assert bootstrap_just.SHA256[asset]
+    assert not bootstrap_just.SHA256[asset].startswith("REPLACE_")
+
+
+def test_an_unsupported_platform_refuses_rather_than_guessing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(bootstrap_just.platform, "system", lambda: "Plan9")
+    monkeypatch.setattr(bootstrap_just.platform, "machine", lambda: "sparc")
+
+    with pytest.raises(RuntimeError, match="unsupported CI platform"):
+        bootstrap_just.target_asset()

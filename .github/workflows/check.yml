@@ -265,8 +265,12 @@ jobs:
           echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/cli-${{ matrix.os }}" >> "${GITHUB_ENV}"
       # `just` is here because the provider-safe path refuses to build a PATH
       # without it, and that refusal is the point: a fixture that inherits only
-      # PATH and HOME must still find the tools. The bootstrap script ships
-      # Linux and macOS archives only, so Windows takes the packaged build.
+      # PATH and HOME must still find the tools. One bootstrap on all three
+      # systems now: Windows used to take `just` from Chocolatey, a community
+      # feed with no checksum pinned, and on 2026-08-21 that step failed after
+      # a hundred and five seconds having printed nothing, because its output
+      # was redirected away. The script downloads the release archive and
+      # compares SHA-256 the same way everywhere.
       # `uv sync` resolves and downloads the same locked dependencies on every
       # job of every run. Keyed by the lock, so a hit is exact and a change to
       # the lock misses on purpose.
@@ -279,12 +283,8 @@ jobs:
         run: |
           set -euo pipefail
           python -m pip install --disable-pip-version-check "uv==${UV_VERSION}"
-          if [ "${RUNNER_OS}" = "Windows" ]; then
-            choco install just --version=1.43.0 --no-progress -y >/dev/null
-          else
-            JUST_INSTALL_DIR="${RUNNER_TEMP}/bin" python docs_scripts/bootstrap_just.py
-            echo "${RUNNER_TEMP}/bin" >> "${GITHUB_PATH}"
-          fi
+          JUST_INSTALL_DIR="${RUNNER_TEMP}/bin" python docs_scripts/bootstrap_just.py
+          echo "${RUNNER_TEMP}/bin" >> "${GITHUB_PATH}"
       # The database-backed platform tests and the wheel regression are Linux
       # jobs above. What runs here is the part that has to behave identically on
       # three operating systems: discovery, passports, selection and the CLI
