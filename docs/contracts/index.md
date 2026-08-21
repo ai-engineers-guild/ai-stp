@@ -21,6 +21,7 @@ last_verified: "2026-08-03"
 | [cli-json.md](cli-json.md) | Конверт JSON, классы ошибок и правила машинного вывода CLI. | 2026-08-13 |
 | [cli-owner-objects.md](cli-owner-objects.md) | Авторизованное чтение объектов владельца через CLI. | 2026-08-13 |
 | [cli-publication.md](cli-publication.md) | Клиентская последовательность publication plan и граница передаваемых данных. | 2026-08-17 |
+| [cli-telemetry.md](cli-telemetry.md) | Закрытый перечень полей анонимного пинга телеметрии, условия отправки и то, что в него не попадает. | 2026-08-21 |
 | [component-authoring-templates.md](component-authoring-templates.md) | Версионируемые scaffold-планы и безопасная проекция authoring templates компонентов. | 2026-08-13 |
 | [component-presentation.md](component-presentation.md) | Изменяемое представление компонента в каталоге без изменения паспорта версии. | 2026-08-10 |
 | [component-setup-passports.md](component-setup-passports.md) | Паспорта версий компонентов и сетапов, виды компонентов и зависимости. | 2026-08-13 |
