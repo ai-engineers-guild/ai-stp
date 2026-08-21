@@ -1,0 +1,120 @@
+# Builds and attests an unpublished Python candidate. There is deliberately no
+# PyPI upload here: publication needs a separately protected environment and an
+# explicit release authorisation, and that decision belongs to a person.
+#
+# It runs in this repository because this is where the package's identity will
+# live. Trusted Publishing authenticates with an OIDC token that names the
+# repository, so the workflow that will one day upload has to be the one that
+# builds — and artifact attestation is unavailable to a private repository at
+# all, which made the `attest` job below permanently skipped where it used to
+# live. A skipped job is not called attested.
+name: release-candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact package version expected in every public workspace member
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-candidate
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: build-unpublished-candidate
+    # Executes repository build code and receives no OIDC or attestation
+    # authority. It must not share a host, user or filesystem with the job
+    # below, and a hosted runner gives that by construction rather than by
+    # discipline: it is created for this job and destroyed with it.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Проверить выбранный release tag до checkout
+        env:
+          EXPECTED_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          expected_ref="refs/tags/v${EXPECTED_VERSION}"
+          if [[ "${GITHUB_REF}" != "${expected_ref}" ]]; then
+            echo "release candidate requires ${expected_ref}, got ${GITHUB_REF}" >&2
+            exit 1
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Проверить live protections без мутаций
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 release_scripts/verify_protections.py
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.14"
+      - name: Изолировать exact Python-окружение job
+        run: |
+          set -euo pipefail
+          python_path="$(python -c 'import sys; print(sys.executable)')"
+          test -n "${python_path}"
+          echo "UV_PYTHON=${python_path}" >> "${GITHUB_ENV}"
+          echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-release-python-3.14" \
+            >> "${GITHUB_ENV}"
+      - name: Установить закреплённый uv
+        run: python -m pip install --disable-pip-version-check "uv==0.12.1"
+      - name: Собрать и дважды сравнить candidate
+        env:
+          EXPECTED_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          uv run --locked python release_scripts/build_candidate.py \
+            --output release \
+            --expected-version "${EXPECTED_VERSION}" \
+            --require-tag
+      - name: Установить exact candidate вне checkout
+        env:
+          EXPECTED_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          uv run --locked python -m release_scripts.verify_candidate_install \
+            release \
+            --expected-version "${EXPECTED_VERSION}" \
+            --expected-sha "${GITHUB_SHA}" \
+            --expected-python "3.14" \
+            --python "$(command -v python)"
+      - name: Сохранить неизменяемые candidate bytes
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ai-stp-python-${{ inputs.version }}-${{ github.sha }}
+          path: release/
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+  attest:
+    name: attest-public-candidate
+    needs: build
+    # Downloads immutable artifact bytes and never checks out repository code.
+    # There is no build-job persistence to keep away from OIDC authority: the
+    # runner that ran it no longer exists when this job starts. Sharing a runner
+    # image is not sharing a machine.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Получить ровно candidate из build job
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: ai-stp-python-${{ inputs.version }}-${{ github.sha }}
+          path: release
+      - name: Выпустить GitHub/Sigstore build provenance
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a
+        with:
+          subject-path: release/*

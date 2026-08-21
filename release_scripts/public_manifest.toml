@@ -98,7 +98,7 @@ roots = [
 # on GitHub-hosted runners, so an assertion that a job names a fleet class fails
 # there. The overlay carries the public equivalent instead.
 "tests/unit/test_deploy_hardening.py" = "asserts the private workflow contract"
-"tests/contract/test_release_candidate.py" = "asserts the private workflow contract"
+"tests/contract/test_release_candidate.py" = "asserts that this copy builds no candidate"
 "tests/unit/test_provider_kit.py" = "names the private harness repository"
 
 # These read artefacts only this working copy has: the audit status document

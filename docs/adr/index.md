@@ -109,6 +109,7 @@ last_verified: "2026-08-03"
 | [ADR-0108-the-public-tree-is-built-from-an-allowlist.md](ADR-0108-the-public-tree-is-built-from-an-allowlist.md) | Решение собирать публичный репозиторий из манифеста-allowlist с проверкой запрещённого содержимого, а не удалять лишнее из копии. | 2026-08-20 |
 | [ADR-0109-the-deployment-source-is-the-public-repository.md](ADR-0109-the-deployment-source-is-the-public-repository.md) | Решение развёртывать production из публичного репозитория анонимным fetch без credential. | 2026-08-21 |
 | [ADR-0110-work-lands-in-the-public-tree.md](ADR-0110-work-lands-in-the-public-tree.md) | Решение вести работу в публичном дереве и синхронизировать приватную копию из него, оставляя ей только неопубликованное. | 2026-08-21 |
+| [ADR-0111-the-release-candidate-is-built-where-it-will-be-published.md](ADR-0111-the-release-candidate-is-built-where-it-will-be-published.md) | Решение собирать и заверять release candidate в публичном репозитории, поскольку там же будет жить идентичность пакета. | 2026-08-21 |
 | [template.md](template.md) | Шаблон записи архитектурного решения. | 2026-08-03 |
 
 <!-- КОНЕЦ СОДЕРЖИМОГО -->
