@@ -2799,6 +2799,19 @@
             ],
             "default": null
           },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reason"
+          },
           "result": {
             "$ref": "#/components/schemas/ai_stp_contracts__publication__CheckResult"
           },
@@ -2815,6 +2828,7 @@
         "required": [
           "check_id",
           "expires_at",
+          "reason",
           "result",
           "schema_version",
           "source"

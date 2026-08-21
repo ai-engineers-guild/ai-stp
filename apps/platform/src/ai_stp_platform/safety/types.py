@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 
 @dataclass(slots=True)
@@ -48,7 +48,29 @@ class CheckOutcome:
             "tool_version": self.tool_version,
             "duration_ms": self.duration_ms,
             "severity_max": self.severity_max,
+            "reason": self.reason(),
         }
+
+    def reason(self) -> str | None:
+        """Why this did not pass, short enough for a wire and safe to send.
+
+        Rule identifiers and counts, never the scanned content: this reaches a
+        client, and a message quoting what was found would put the artefact's
+        bytes somewhere the artefact is not.
+        """
+        if self.result == "passed":
+            return None
+        timed_out = self.detail.get("timed_out")
+        if timed_out:
+            limit = self.detail.get("timeout_seconds")
+            names = ", ".join(str(item) for item in cast(list[object], timed_out))
+            return f"did not finish within {limit}s: {names}"[:200]
+        if self.findings:
+            rules = sorted({finding.rule_id for finding in self.findings})
+            shown = ", ".join(rules[:5])
+            more = f" and {len(rules) - 5} more" if len(rules) > 5 else ""
+            return f"{len(self.findings)} finding(s): {shown}{more}"[:200]
+        return f"result {self.result}"[:200]
 
 
 @dataclass(slots=True)

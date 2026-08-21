@@ -97,6 +97,19 @@ class EvidenceBindingView(BaseModel):
     source: EvidenceSource
     expires_at: Timestamp | None = None
 
+    #: Why this check did not pass, in terms the publisher can act on. Absent
+    #: when it passed, because there is nothing to explain.
+    #:
+    #: It exists because a refusal without one is a dead end. A whole corpus was
+    #: rejected on a single check whose only wire representation was the word
+    #: `failed`, and the cause — a scanner timing out — was recoverable only by
+    #: reading the platform's source. `SafetyCheckEntry` already carried a
+    #: `reason`; the response a publisher actually reads did not.
+    #:
+    #: Never findings themselves: a rule identifier and a count say what to look
+    #: at without putting scanned content on a wire that reaches a client.
+    reason: Annotated[str, Field(max_length=200)] | None = None
+
 
 class PublicationPlanResponse(BaseModel):
     """Plan create/status/confirm response."""

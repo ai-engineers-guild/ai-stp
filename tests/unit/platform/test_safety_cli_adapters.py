@@ -1002,3 +1002,71 @@ def test_the_skill_gate_has_room_to_finish(tmp_path: Path) -> None:
     spec = next(item for item in CHECK_REGISTRY if item.check_id == "skill_static_gate")
 
     assert spec.timeout_seconds >= 60
+
+
+def test_a_check_that_did_not_pass_says_why_on_the_wire() -> None:
+    """A refusal without a reason is a dead end for whoever is refused.
+
+    A whole corpus was rejected on one check whose only wire representation was
+    the word `failed`, and the cause — a scanner timing out — was recoverable
+    only by reading the platform's own source and re-running its regexes.
+    """
+    from ai_stp_platform.safety.types import CheckOutcome, Finding
+
+    timed_out = CheckOutcome(
+        check_id="skill_static_gate",
+        family="skill_static",
+        result="degraded",
+        detail={"timed_out": ["skillspector"], "timeout_seconds": 60},
+    )
+    assert timed_out.as_binding()["reason"] == "did not finish within 60s: skillspector"
+
+    found = CheckOutcome(
+        check_id="skill_static_gate",
+        family="skill_static",
+        result="failed",
+        findings=[
+            Finding(
+                check_id="skill_static_gate",
+                family="skill_static",
+                rule_id="skill_exfil",
+                severity="critical",
+                title="Skill static risk",
+                message="skill_exfil",
+            )
+        ],
+    )
+    assert found.as_binding()["reason"] == "1 finding(s): skill_exfil"
+
+    passed = CheckOutcome(check_id="digest", family="structure", result="passed")
+    assert passed.as_binding()["reason"] is None
+
+
+def test_a_reason_names_rules_and_never_quotes_what_was_scanned() -> None:
+    """This reaches a client. A message quoting a finding would put the
+    artefact's bytes somewhere the artefact is not."""
+    from ai_stp_platform.safety.types import CheckOutcome, Finding
+
+    secret = "AKIAIOSFODNN7EXAMPLE"
+    outcome = CheckOutcome(
+        check_id="secrets_heuristic",
+        family="secrets",
+        result="failed",
+        findings=[
+            Finding(
+                check_id="secrets_heuristic",
+                family="secrets",
+                rule_id="aws_key",
+                severity="critical",
+                title="key",
+                message=secret,
+                path=f"src/{secret}.env",
+            )
+        ],
+    )
+
+    reason = outcome.as_binding()["reason"]
+
+    assert "aws_key" in reason
+    assert secret not in reason
+    assert len(reason) <= 200
