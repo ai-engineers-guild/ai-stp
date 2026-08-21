@@ -107,3 +107,4 @@ roots = [
 "tests/contract/test_audit_remediation_status.py" = "reads a withheld document"
 "tests/contract/test_repository_protections.py" = "asserts this repository's protections"
 "tests/contract/test_public_export.py" = "asserts the export's private half"
+"tests/contract/test_public_import.py" = "asserts the overlay, which only this copy has"

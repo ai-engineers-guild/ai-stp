@@ -209,6 +209,23 @@ public-build:
 public-publish tree message:
     {{run}} python -m release_scripts.public_publish --tree "{{tree}}" --message-file "{{message}}"
 
+# Забирает публичное дерево обратно сюда (`ADR-0110`). Аргумент — checkout
+# `ai-stp`. Генераторы вызываются следом, потому что индексы публичного дерева
+# перечисляют только его документы, а здесь их больше.
+public-sync tree:
+    {{run}} python -m release_scripts.public_import --tree "{{tree}}"
+    just docs-gen
+    just back-gen
+
+# Показывает, что изменил бы синк, ничего не записывая.
+public-sync-report tree:
+    {{run}} python -m release_scripts.public_import --tree "{{tree}}" --report
+
+# Проверяет, что опубликованная половина этого дерева совпадает с публичным
+# репозиторием байт в байт. Это круговая проверка синка и экспорта сразу.
+public-sync-verify tree:
+    {{run}} python -m release_scripts.public_import --tree "{{tree}}" --verify
+
 back-static:
     {{run}} ruff format --check .
     {{run}} ruff check .
