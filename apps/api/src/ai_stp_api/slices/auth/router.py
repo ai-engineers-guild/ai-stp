@@ -290,7 +290,13 @@ async def oauth_callback(
     return response
 
 
-@router.api_route("/auth/link/{provider}", methods=["GET", "POST"], response_model=None)
+# Two decorators rather than `api_route(methods=["GET", "POST"])`. FastAPI
+# derives an operation identifier from the handler name, the path and the
+# *first* method of a set, so one registration for two methods emits the same
+# identifier twice — a document no client generator can turn into two callable
+# functions. Registering twice gives `..._get` and `..._post`.
+@router.get("/auth/link/{provider}", response_model=None)
+@router.post("/auth/link/{provider}", response_model=None)
 async def start_step_up_link(
     provider: str,
     request: Request,
