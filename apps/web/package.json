@@ -8,6 +8,7 @@
     "build": "next build && node scripts/standalone-assets.mjs",
     "start": "next start",
     "lint": "eslint . --max-warnings 0",
+    "i18n:check": "vitest run tests/unit/i18n-parity.test.ts",
     "type-check": "node ./node_modules/typescript7/lib/tsc.js --noEmit -p tsconfig.json",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

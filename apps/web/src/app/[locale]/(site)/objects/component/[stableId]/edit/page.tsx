@@ -60,6 +60,8 @@ export default async function EditComponentPresentationPage({
           requirements: t("mediaRequirements"),
           youtubeHint: t("mediaYoutubeHint"),
           githubHint: t("mediaGithubHint"),
+          youtubePlaceholder: t("mediaYoutubePlaceholder"),
+          githubPlaceholder: t("mediaGithubPlaceholder"),
           invalid: t("mediaInvalid"),
           uploadFailed: t("mediaUploadFailed"),
           unsupportedType: t("mediaUnsupportedType"),

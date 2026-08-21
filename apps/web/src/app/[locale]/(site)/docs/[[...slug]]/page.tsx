@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { setRequestLocale } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { DocsSearch } from "@/components/organisms/docs-search";
 import { docsSource } from "@/lib/docs-source";
@@ -10,6 +10,7 @@ type Props = { params: Promise<{ locale: string; slug?: string[] }> };
 export default async function DocsPage({ params }: Props) {
   const { locale, slug = [] } = await params;
   setRequestLocale(locale);
+  const t = await getTranslations("docs");
   const page = docsSource.getPage([locale, ...slug]);
   if (!page) notFound();
   const renderer = await page.data.load();
@@ -20,7 +21,7 @@ export default async function DocsPage({ params }: Props) {
     <div className="grid gap-10 lg:grid-cols-[15rem_minmax(0,1fr)]">
       <aside className="space-y-5 lg:sticky lg:top-24 lg:self-start">
         <DocsSearch locale={locale} />
-        <nav aria-label="Documentation" className="space-y-1">
+        <nav aria-label={t("navAria")} className="space-y-1">
           {pages.map((item) => {
             const relative = item.slugs.slice(1);
             return (

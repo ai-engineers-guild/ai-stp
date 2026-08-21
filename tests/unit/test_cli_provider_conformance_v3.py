@@ -512,3 +512,107 @@ def test_v3_remove_status_requires_managed_state_to_be_gone(tmp_path: Path) -> N
             bundle=None,
             operation=protocol_v3.Operation.REMOVE,
         )
+
+
+def _restore_plan(tmp_path: Path) -> operation_v3.ProviderPlan:
+    capabilities = _capabilities()
+    expiry = (
+        (datetime.now(UTC) + timedelta(minutes=10))
+        .isoformat(timespec="milliseconds")
+        .replace("+00:00", "Z")
+    )
+    restore_digest = _digest("e")
+    backup_ref = "backup:v3:" + "a" * 32
+    artifact: dict[str, JsonValue] = {
+        "format": "ai-stp-provider-plan/3",
+        "protocol_version": protocol_v3.VERSION,
+        "provider_id": capabilities.provider_id,
+        "provider_version": capabilities.provider_version,
+        "provider_build_digest": capabilities.provider_build_digest,
+        "provider_release_digest": _digest("d"),
+        "operation_id": "operation_test_v3_restore",
+        "operation": protocol_v3.Operation.RESTORE.value,
+        "canonical_target": str(tmp_path.resolve()),
+        "expected_target_digest": _digest("a"),
+        "projection_profile_digest": capabilities.projection.digest,
+        "bundle": None,
+        "backup_ref": backup_ref,
+        "restore_target_digest": restore_digest,
+        "permission_profile": None,
+        "platform": _platform(),
+        "expires_at": expiry,
+        "effects": cast(list[JsonValue], ["restore exact BackupRef identity"]),
+    }
+    digest = digest_canonical(protocol_v3.PLAN_DOMAIN, artifact)
+    answer: dict[str, JsonValue] = {
+        "state": "planned",
+        "plan": artifact,
+        "plan_digest": digest,
+        "expected_target_digest": _digest("a"),
+        "effects": artifact["effects"],
+    }
+    return operation_v3.require_plan(
+        answer,
+        capabilities=capabilities,
+        release_digest=_digest("d"),
+        operation_id="operation_test_v3_restore",
+        operation=protocol_v3.Operation.RESTORE,
+        target=tmp_path,
+        expected_target_digest=_digest("a"),
+        bundle=None,
+        backup_ref=backup_ref,
+        permission_profile=None,
+        expires_at=expiry,
+    )
+
+
+def test_v3_restore_status_accepts_exact_backup_identity_without_managed_drift(
+    tmp_path: Path,
+) -> None:
+    capabilities = _capabilities()
+    plan = _restore_plan(tmp_path)
+    restore_digest = str(plan.artifact["restore_target_digest"])
+    unmanaged: dict[str, JsonValue] = {"state": "unmanaged", "target_digest": restore_digest}
+    assert (
+        operation_v3.require_verified_status(
+            unmanaged,
+            capabilities=capabilities,
+            release_digest=_digest("d"),
+            plan=plan,
+            bundle=None,
+            operation=protocol_v3.Operation.RESTORE,
+        )
+        == restore_digest
+    )
+    with pytest.raises(CliFailure, match="exact BackupRef identity"):
+        operation_v3.require_verified_status(
+            {"state": "unmanaged", "target_digest": _digest("0")},
+            capabilities=capabilities,
+            release_digest=_digest("d"),
+            plan=plan,
+            bundle=None,
+            operation=protocol_v3.Operation.RESTORE,
+        )
+    install_answer, bound, expiry, _digest_value = _plan_answer(tmp_path)
+    install_plan = operation_v3.require_plan(
+        install_answer,
+        capabilities=capabilities,
+        release_digest=_digest("d"),
+        operation_id="operation_test_v3",
+        operation=protocol_v3.Operation.INSTALL,
+        target=tmp_path,
+        expected_target_digest=_digest("a"),
+        bundle=bound,
+        backup_ref=None,
+        permission_profile=None,
+        expires_at=expiry,
+    )
+    with pytest.raises(CliFailure, match="approved v3 installation"):
+        operation_v3.require_verified_status(
+            unmanaged,
+            capabilities=capabilities,
+            release_digest=_digest("d"),
+            plan=install_plan,
+            bundle=bound,
+            operation=protocol_v3.Operation.INSTALL,
+        )

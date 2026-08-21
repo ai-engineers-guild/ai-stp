@@ -80,7 +80,7 @@ export default async function ContentDetail({ params }: Props) {
         </p>
         <ul
           className="flex flex-wrap gap-2 lg:col-start-2 lg:row-start-4 lg:justify-end"
-          aria-label="Tags"
+          aria-label={t("tagsLabel")}
         >
           {entry.tags.map((tag) => (
             <li key={tag} className="bg-muted rounded-md px-2.5 py-1 font-mono text-xs">

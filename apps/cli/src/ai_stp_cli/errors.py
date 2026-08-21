@@ -11,6 +11,7 @@ from typing import Final
 
 from pydantic import ValidationError
 
+from ai_stp_cli.i18n import localize
 from ai_stp_foundation.errors import exit_class_for
 
 #: A message shown for an unexpected internal failure. The real exception text
@@ -37,9 +38,10 @@ class CliFailure(Exception):
         details: dict[str, str] | None = None,
         next_actions: list[str] | None = None,
     ) -> None:
-        super().__init__(message)
+        text = localize(message)
+        super().__init__(text)
         self.code = code
-        self.message = message
+        self.message = text
         self.retryable = retryable
         self.details = details or {}
         self.next_actions = next_actions or []

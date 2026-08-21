@@ -1,7 +1,7 @@
 {
   "meta": {
     "siteName": "ai_stp",
-    "defaultDescription": "Manage AI coding harness setups without a second source of truth."
+    "defaultDescription": "The AI setup registry for skills, MCP, hooks, and subagents — not another skills.sh. Search, verify, install, and maintain setups across your team."
   },
   "nav": {
     "primaryLabel": "Primary navigation",
@@ -21,12 +21,6 @@
     "objects": "Objects",
     "access": "Access",
     "reports": "Reports",
-    "catalogHint": "Browse published components and setups",
-    "objectsHint": "Manage your components and setups",
-    "accessHint": "Manage invitations and access grants",
-    "reportsHint": "Review your reports",
-    "docsHint": "Open user documentation",
-    "devicesHint": "Manage linked devices",
     "accountHint": "Open your profile and account",
     "loginHint": "Sign in to your account",
     "contact": "Contact",
@@ -35,10 +29,10 @@
     "profile": "Profile",
     "myObjects": "My objects",
     "myLikes": "My likes",
-    "accountMenu": "Account menu"
+    "accountMenu": "Account menu",
+    "contactKey": "C"
   },
   "theme": {
-    "label": "Color theme",
     "projectionLabel": "Site format",
     "human": "Human",
     "machine": "Machine",
@@ -49,25 +43,18 @@
     "switchDark": "Use dark theme"
   },
   "machine": {
-    "docsDescription": "human and agent documentation",
-    "endpoints": "Machine endpoints",
-    "llmsDescription": "concise machine-readable site index",
-    "llmsFullDescription": "expanded platform context",
-    "agentsDescription": "agent entrypoint and operating boundaries",
-    "sitemapDescription": "public URL inventory",
-    "workspace": "Workspace",
-    "currentProjection": "current page projection",
     "projection": "machine projection",
     "shortcuts": "C contact · P account · Ctrl/Cmd K catalog",
-    "shortcutsSelfHosted": "P account · Ctrl/Cmd K catalog"
+    "shortcutsSelfHosted": "P account · Ctrl/Cmd K catalog",
+    "lang": "lang:",
+    "llms": "llms.txt",
+    "copyright": "© {year} ai_stp · AGPL-3.0-or-later · {projection}"
   },
   "machineDoc": {
     "stableId": "stable_id",
     "digest": "digest",
     "trustLane": "trust_lane",
     "install": "install",
-    "switchToHuman": "Switch to human projection",
-    "switchToMachine": "Switch to machine projection",
     "objectKind": "object_kind",
     "lifecycle": "lifecycle",
     "updatedAt": "updated_at",
@@ -113,7 +100,6 @@
     "empty": "Nothing to show",
     "retry": "Try again",
     "notFound": "Not found",
-    "back": "Back",
     "save": "Save",
     "cancel": "Cancel",
     "confirm": "Confirm",
@@ -122,24 +108,24 @@
     "yes": "Yes",
     "no": "No",
     "referenceId": "Reference id",
-    "apiUnavailable": "The service is temporarily unavailable. No data was fabricated.",
+    "apiUnavailable": "The service is temporarily unavailable. Try again later.",
     "sessionExpired": "Your session expired. Please sign in again.",
     "login": "Sign in"
   },
   "landing": {
-    "title": "One setup for every coding harness",
-    "subtitle": "A catalog of hooks, MCP servers, subagents, skills, memory, and much more.",
+    "title": "The AI setup registry, not just a skill catalog",
+    "subtitle": "Find, verify, install, and earn on AI components.",
     "installHeading": "Install the CLI",
-    "installHint": "Run this command exactly. It comes from a single canonical module.",
+    "installHint": "Run this command as written. Do not assemble it yourself.",
     "prerequisites": "Prerequisites",
     "browseCatalog": "Browse catalog",
     "signIn": "Sign in",
     "previewLabel": "ai_stp workflow preview",
-    "previewCaption": "Discover · verify · assemble · apply"
+    "seoDescription": "The AI setup registry for skills, MCP, hooks, and subagents — not another skills.sh. Search, verify, install, and maintain setups across your team."
   },
   "catalog": {
     "title": "Catalog",
-    "subtitle": "Browse components and full setups. Experimental seed is included by default so the first-party corpus is visible without an extra click.",
+    "subtitle": "Setups and components: skills, MCP, hooks, subagents, plugins, and settings.",
     "searchPlaceholder": "Search components and setups",
     "searchHelp": "Use plain words or Catalog QL: NAME, TAGS, HARNESS, TYPE, AUTHOR and VERIFIED with :, AND, OR, NOT, IN, NOT IN and parentheses. Example: TYPE:skill AND HARNESS IN (codex, claude-code).",
     "search": "Search",
@@ -152,13 +138,11 @@
     "setupsResults": "Setups",
     "mixedResults": "Setups and components",
     "resourceLegend": "Catalog resource",
-    "authoritative": "Authoritative",
+    "authoritative": "Main",
     "experimental": "Experimental",
     "experimentalConsent": "Include experimental",
-    "experimentalNote": "Authoritative and experimental lanes are merged here. Author verification is not a content-safety proof.",
-    "experimentalHintTitle": "Experimental results are hidden",
-    "experimentalHintBody": "First-party seed objects are experimental until verification completes. Enable “Include experimental” and search again to browse them.",
-    "emptyAuthoritative": "No authoritative results for this query.",
+    "experimentalNote": "Main and experimental objects are shown together. Author verification is not proof that the contents are safe.",
+    "emptyAuthoritative": "No main results for this query.",
     "emptyExperimental": "No experimental results.",
     "emptyAll": "No catalog objects match this query.",
     "emptySetups": "No setups match this query.",
@@ -195,7 +179,7 @@
     "cardsView": "Cards",
     "listView": "List",
     "filterHelpTitle": "About filters",
-    "filterHelpBody": "Combine resource, searchable facets, author and verification filters. Web pagination shows totals for the public result set; experimental consent remains request-scoped.",
+    "filterHelpBody": "Combine type, tags, author, and verification. The experimental filter applies to this search only.",
     "dismissFilter": "Remove filter",
     "composition": "Pinned components",
     "compositionDescription": "The exact component versions that make this setup reproducible.",
@@ -212,7 +196,6 @@
     "type": "Type",
     "tags": "Tags",
     "lifecycle": "Lifecycle",
-    "trust": "Trust",
     "authorVerified": "Author verified",
     "authorVerifiedDescription": "Author identity verified; this does not indicate content safety",
     "componentVerified": "Component verified",
@@ -232,7 +215,7 @@
     "githubStars": "GitHub stars",
     "githubArchived": "Archived",
     "reportSection": "Report this version",
-    "reportSectionBody": "Use the CLI report command or the form below. This section is the canonical #report target.",
+    "reportSectionBody": "Report this version from the CLI or the form below.",
     "contextBudgetTitle": "Context budget",
     "contextBudgetLead": "Potential context this setup can add, not actual model usage.",
     "contextBudgetAlways": "Always loaded",
@@ -307,7 +290,6 @@
     "sourceRepository": "Repository",
     "sourceCommit": "Commit",
     "sourcePath": "Path",
-
     "supportedOs": "Supported OS",
     "supportedArch": "Supported architecture",
     "supportedHarnessVersions": "Supported harness versions",
@@ -324,8 +306,6 @@
     "moreActions": "More actions",
     "report": "Report component",
     "reportSetup": "Report setup",
-    "reportAuthor": "Report author",
-    "sourceCode": "Source on GitHub",
     "viewSource": "View source on GitHub",
     "viewSourceOnGithub": "View source on GitHub",
     "localization": "Localization",
@@ -335,9 +315,6 @@
     "passportHint": "Canonical public version document",
     "passportReadable": "Public passport JSON",
     "copyPassport": "Copy passport JSON",
-    "aboutComponent": "About this component",
-    "aboutSetup": "About this setup",
-    "openRepository": "Open repository",
     "gallery": "Media",
     "openMedia": "Open media",
     "mediaSource": "Source",
@@ -345,10 +322,10 @@
     "previousMedia": "Previous",
     "nextMedia": "Next",
     "author": "Author",
-    "viewProfile": "View public profile",
     "technicalDetails": "Technical details",
     "versionHistory": "Version history",
-    "currentVersion": "Current"
+    "currentVersion": "Current",
+    "seoDescription": "Catalog of AI setups and components: skills, MCP servers, hooks, subagents. Checks, agent install, and maintenance across an organization."
   },
   "publisher": {
     "title": "Publisher",
@@ -375,7 +352,6 @@
     "privacy": "Privacy",
     "accountId": "Account id",
     "createdAt": "Created",
-    "linkedIdentities": "Sign-in methods",
     "signInMethods": "Sign-in methods",
     "availableForSignIn": "Available for signing in to this account",
     "copyAccountId": "Copy account id",
@@ -390,21 +366,13 @@
     "unlinkLastHint": "At least one identity must stay linked so you can sign in again.",
     "linkAnother": "Link another provider",
     "linkAnotherHint": "Step-up OAuth attaches a second provider to this account without merging two accounts.",
-    "linkFailed": "Could not start provider linking",
     "editProfile": "Edit profile",
     "viewPublicProfile": "View public profile",
     "editPrivacy": "Privacy settings",
     "displayName": "Display name",
     "bio": "Bio",
-    "links": "Links",
     "linkLabel": "Label",
     "linkUrl": "URL (HTTPS)",
-    "addLink": "Add link",
-    "removeLink": "Remove link",
-    "saved": "Saved",
-    "profileWriteUnavailableTitle": "Editing is not available yet",
-    "profileWriteUnavailableBody": "The frozen /v1 contract has no write route for the authored public profile. This page does not save fields or invent an operation id.",
-    "profileWriteNext": "Account identities and device management use the real API. Public-profile editing will appear only after an additive contract change.",
     "profileSubtitle": "Display name, short bio, links, and avatar for your public publisher page.",
     "profileAccountHint": "Control what visitors see on your public publisher page.",
     "profilePreview": "Preview",
@@ -428,7 +396,6 @@
     "profileLinksEmpty": "No links yet. Add up to eight HTTPS links.",
     "profileAddLink": "Add",
     "profileRemoveLink": "Remove",
-    "profileSaveDraft": "Save draft",
     "profileSave": "Save",
     "profilePreviewHint": "Preview shows your current changes before they are saved.",
     "profilePublish": "Publish",
@@ -440,20 +407,13 @@
     "profileStatusHint": "Save keeps a private draft. Publish updates the public page.",
     "profileRestorePublished": "Restore currently published data",
     "profilePublishedRestored": "Published data restored in the editor",
-    "profileCancel": "Cancel",
-    "profileSaveChanges": "Save changes",
-    "profileSaving": "Saving…",
-    "profileSaveHint": "Changes go live only when you press Save changes. Preview is temporary and not saved.",
-    "profileSaved": "Changes saved",
     "profileSaveFailed": "Could not save changes",
     "profilePublishFailed": "Could not publish",
     "profilePublishNeedDraft": "Could not create a profile revision to publish",
     "profileAvatarReady": "Avatar ready",
     "profileAvatarFailed": "Avatar rejected",
-    "profileErrorName": "Display name is too long",
     "profileErrorBio": "Bio is too long",
     "profileErrorBioMd": "Bio must not contain HTML or unsafe URIs",
-    "profileNoDigest": "No draft digest yet",
     "privacySubtitle": "Controls for account visibility and data retention.",
     "showProfilePublicly": "Show profile publicly",
     "allowPublisherListing": "Allow publisher listing",
@@ -461,7 +421,7 @@
     "savingPreferences": "Saving…",
     "preferencesSaved": "Preferences saved",
     "preferencesSaveFailed": "Could not save preferences. Try again.",
-    "httpsOnly": "Only HTTPS links are accepted."
+    "urlPlaceholder": "https://"
   },
   "deviceLogin": {
     "title": "Approve device",
@@ -504,7 +464,8 @@
     "revoked": "Device revoked",
     "staleEtag": "The device changed since you loaded this page. Re-read and try again.",
     "conflict": "A concurrent change blocked revocation. Decide how to proceed after refreshing.",
-    "revokedCurrent": "You revoked the current device. You have been signed out."
+    "revokedCurrent": "You revoked the current device. You have been signed out.",
+    "codePlaceholder": "ABCD-EFGH"
   },
   "errors": {
     "notFoundTitle": "Page not found",
@@ -514,8 +475,7 @@
     "toCatalog": "Open catalog",
     "toHome": "Home",
     "toDocs": "Documentation",
-    "tryAgain": "Try again",
-    "requestId": "request id"
+    "rickrollTitle": "Never Gonna Give You Up"
   },
   "consent": {
     "title": "Cookie choices",
@@ -530,8 +490,7 @@
     "privacy": "Privacy policy"
   },
   "footer": {
-    "navLabel": "Site policies",
-    "summary": "Setup passports, trust lines and a safe lifecycle for AI coding harnesses.",
+    "summary": "The AI setup registry, not just a skill catalog.",
     "product": "Product",
     "company": "Company",
     "legal": "Legal",
@@ -544,7 +503,11 @@
     "privacy": "Privacy",
     "cookies": "Cookies",
     "serviceRules": "Service rules",
-    "licensing": "Licensing"
+    "licensing": "Licensing",
+    "shortcutContact": "C",
+    "shortcutProfile": "P",
+    "shortcutCatalog": "Ctrl K",
+    "licenseLine": "© {year} ai_stp · AGPL-3.0-or-later"
   },
   "regionalServices": {
     "title": "Regional services",
@@ -562,7 +525,8 @@
     "automations": "Components and setups",
     "empty": "No services match this combination. Clear one of the filters and try again.",
     "unspecified": "Not specified",
-    "openCatalog": "Open in catalog"
+    "openCatalog": "Open in catalog",
+    "externalService": "External service"
   },
   "contact": {
     "requestType": "Request type",
@@ -584,7 +548,7 @@
     "privacyHint": "Do not include secrets, tokens, private keys or private repository content.",
     "send": "Open email draft",
     "opened": "The message draft was opened in your email application.",
-    "placeholderWarning": "Contact delivery is disabled until NEXT_PUBLIC_CONTACT_EMAIL is configured. This placeholder cannot receive mail."
+    "placeholderWarning": "Mail is not configured. This form cannot send a message."
   },
   "cli": {
     "useTitle": "Use via CLI",
@@ -602,21 +566,10 @@
   "docs": {
     "title": "Documentation",
     "subtitle": "Technical docs for people and agents. Source revisions are imported from the repository.",
-    "navLabel": "Documentation sections",
-    "navOverview": "Product overview",
-    "navCli": "CLI and agent quickstart",
-    "navApi": "API and contracts",
-    "navTrust": "Trust and security",
-    "navOperations": "Operations",
-    "navAuthors": "Docs for authors",
-    "provenance": "source: repository docs · revision pending import",
     "toCatalog": "Open catalog",
-    "body_overview": "ai_stp publishes setup passports for coding harnesses with explicit trust lanes.",
-    "body_cli": "Install the CLI, authorize a device, then sync or show objects with registry commands.",
-    "body_api": "HTTP API and machine contracts live under docs/contracts and OpenAPI.",
-    "body_trust": "Author verification is independent of content safety. Experimental is request-scoped.",
-    "body_operations": "Health, backups, and recovery runbooks live under docs/operations.",
-    "body_authors": "Authors publish through CLI validation; the web does not edit passport composition."
+    "searchPlaceholder": "Search documentation",
+    "searchLabel": "Search documentation",
+    "navAria": "Documentation sections"
   },
   "legal": {
     "backHome": "Back to home",
@@ -644,10 +597,7 @@
     }
   },
   "a11y": {
-    "skipToContent": "Skip to content",
-    "loadingRegion": "Loading content",
-    "errorRegion": "Error",
-    "emptyRegion": "Empty result"
+    "skipToContent": "Skip to content"
   },
   "myLikes": {
     "title": "My likes",
@@ -728,11 +678,25 @@
     "savePresentation": "Save presentation",
     "savingPresentation": "Saving…",
     "presentationSaved": "Presentation saved",
-    "presentationSaveFailed": "Could not save presentation."
+    "presentationSaveFailed": "Could not save presentation.",
+    "mediaYoutubePlaceholder": "11-character video ID",
+    "mediaGithubPlaceholder": "https://raw.githubusercontent.com/…",
+    "externalTitle": "External services",
+    "externalHint": "Mutable catalog metadata; it does not change the version digest.",
+    "externalSave": "Save services",
+    "externalCreate": "Create service",
+    "externalName": "Service name",
+    "externalUrl": "Primary HTTPS URL",
+    "externalCountries": "Country codes",
+    "externalNamePlaceholder": "Kaspi",
+    "externalUrlPlaceholder": "https://kaspi.kz/shop",
+    "externalCountriesPlaceholder": "KZ, RU",
+    "externalSaved": "Services saved.",
+    "externalCreated": "Service created. Save to attach it."
   },
   "publications": {
     "title": "Publication plan",
-    "subtitle": "Review the exact plan from the API before confirming. The browser does not validate or compose passports.",
+    "subtitle": "Review the publication plan before you confirm. The browser does not build passports.",
     "notFound": "Publication plan not found or not available to you.",
     "state": "State",
     "object": "Object",
@@ -760,21 +724,26 @@
     "kind": "Object kind",
     "revoke": "Revoke",
     "revokeWarning": "Revoke is forward-only. Local copies may remain on devices. Continue?",
-    "reason": "Reason"
+    "reason": "Reason",
+    "recipientKind": "Recipient identifier",
+    "githubUsername": "GitHub username",
+    "userId": "User ID",
+    "kindComponent": "component",
+    "kindSetup": "setup"
   },
   "invitations": {
     "title": "Accept invitation",
-    "subtitle": "The raw token stays in the page fragment and memory only.",
+    "subtitle": "The token stays in this tab only. It is not in the visible URL.",
     "accept": "Accept invitation",
     "accepting": "Accepting…",
-    "missingToken": "No invitation token found in the page fragment. Open the link from the email again.",
+    "missingToken": "No invitation token in this tab. Open the link from the email again.",
     "success": "Invitation accepted.",
     "error": "Could not accept this invitation.",
     "needSignIn": "Sign in before accepting an invitation."
   },
   "reports": {
     "title": "Reports",
-    "subtitle": "Your report cases and a preview-first form for a new report.",
+    "subtitle": "Your reports and a form to submit a new one.",
     "ownCases": "Your cases",
     "empty": "You have no report cases yet.",
     "create": "Submit report",
@@ -804,11 +773,12 @@
     "article": "Article",
     "blog_post": "Field note",
     "changelog": "Changelog",
-    "release_notes": "Release notes"
+    "release_notes": "Release notes",
+    "tagsLabel": "Tags"
   },
   "staff": {
     "title": "Staff reports",
-    "subtitle": "Allowlist-only worklist. Absence of this page does not prove staff status.",
+    "subtitle": "Staff report queue. If this page is missing, you are not on the list.",
     "empty": "No open cases in the worklist.",
     "notFound": "Case not available.",
     "forbidden": "Staff allowlist required.",
@@ -824,6 +794,14 @@
     "subjectAccount": "Subject account id",
     "lifecycle": "Version lifecycle",
     "state": "State",
-    "vulnerability": "Vulnerability flag"
+    "vulnerability": "Vulnerability flag",
+    "object": "object",
+    "digest": "digest",
+    "errorCode": "error_code",
+    "harnessId": "harness_id",
+    "stateTriaged": "triaged",
+    "stateAwaitingAuthor": "awaiting author",
+    "stateResolved": "resolved",
+    "stateDismissed": "dismissed"
   }
 }

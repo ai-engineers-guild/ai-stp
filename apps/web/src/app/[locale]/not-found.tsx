@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/atoms/button";
+import { NotFoundRickroll } from "@/components/molecules/not-found-rickroll";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { getEnv } from "@/lib/env";
 import { Link } from "@/lib/i18n/navigation";
@@ -11,6 +12,7 @@ export default async function NotFound() {
   return (
     <div className="space-y-6">
       <StatePanel kind="empty" title={t("notFoundTitle")} description={t("notFoundBody")} />
+      <NotFoundRickroll label={t("rickrollTitle")} />
       <div className="flex flex-wrap gap-3">
         <Button asChild>
           <Link href="/catalog">{t("toCatalog")}</Link>

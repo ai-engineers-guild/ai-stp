@@ -2,9 +2,10 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "ai_stp — setup passports",
+    name: "ai_stp — AI setup registry",
     short_name: "ai_stp",
-    description: "Passports, trust lines and safe lifecycle for AI coding harness setups.",
+    description:
+      "The AI setup registry for skills, MCP, hooks, and subagents — not another skills.sh.",
     start_url: "/",
     display: "standalone",
     // Manifest colors cannot reference runtime CSS variables; mirrors tokens.json machine canvas.

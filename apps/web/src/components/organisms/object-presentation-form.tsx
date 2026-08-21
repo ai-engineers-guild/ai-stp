@@ -23,6 +23,8 @@ type Labels = {
   requirements: string;
   youtubeHint: string;
   githubHint: string;
+  youtubePlaceholder: string;
+  githubPlaceholder: string;
   invalid: string;
   uploadFailed: string;
   unsupportedType: string;

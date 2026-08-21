@@ -15,6 +15,7 @@ import { siteNavigation, type NavItem } from "@/lib/projection/navigation";
 import { useSessionUiSlice } from "@/lib/stores/session-ui-slice";
 import { useUiSlice } from "@/lib/stores/ui-slice";
 import { UI } from "@/lib/ui-selectors";
+import { SITE_NAME } from "@/lib/site";
 import { Icon } from "@/theme/icons";
 
 type SiteHeaderProps = {
@@ -104,7 +105,7 @@ export function SiteHeader({ signedIn, docsHref }: SiteHeaderProps) {
               className="h-7 w-7 shrink-0"
               aria-hidden
             />
-            <span className="hidden min-[400px]:inline">ai_stp</span>
+            <span className="hidden min-[400px]:inline">{SITE_NAME}</span>
           </Link>
           {primaryNavigation.slice(1).map((item) => {
             const className =
@@ -151,7 +152,9 @@ export function SiteHeader({ signedIn, docsHref }: SiteHeaderProps) {
                 prefetch={isShellPrefetchHref(contactItem.href)}
               >
                 <Icon name="mail" size="md" />
-                <span className="sr-only">{t("contact")}, C</span>
+                <span className="sr-only">
+                  {t("contact")}, {t("contactKey")}
+                </span>
               </Link>
             </Button>
           ) : null}

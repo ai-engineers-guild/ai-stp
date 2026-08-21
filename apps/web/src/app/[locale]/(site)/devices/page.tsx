@@ -103,7 +103,7 @@ export default async function DevicesPage({ params, searchParams }: PageProps) {
               defaultValue={(sp.user_code ?? "").trim().toUpperCase()}
               required
               autoComplete="one-time-code"
-              placeholder="ABCD-EFGH"
+              placeholder={t("codePlaceholder")}
               className="font-mono tracking-[0.12em]"
             />
           </div>

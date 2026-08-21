@@ -135,6 +135,36 @@ export default [
     },
   },
   {
+    files: ["src/app/**/*.{ts,tsx}", "src/components/**/*.{ts,tsx}"],
+    ignores: ["src/stories/**"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "Literal[value=/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/]",
+          message: "Hard-coded hex colors are forbidden. Use semantic theme tokens (REQ-2214).",
+        },
+        {
+          selector: "Literal[value=/^rgb(a)?\\(/i]",
+          message: "Hard-coded rgb colors are forbidden. Use semantic theme tokens (REQ-2214).",
+        },
+        {
+          selector: "Literal[value=/^hsl(a)?\\(/i]",
+          message: "Hard-coded hsl colors are forbidden. Use semantic theme tokens (REQ-2214).",
+        },
+        {
+          selector: "JSXText[value=/[A-Za-zА-Яа-я]/]",
+          message: "User-facing JSX text must use next-intl (REQ-2203).",
+        },
+        {
+          selector:
+            "JSXAttribute[name.name=/^(placeholder|alt|title|aria-label|aria-description)$/] > Literal[value=/[A-Za-zА-Яа-я]/]",
+          message: "User-facing attribute strings must use next-intl (REQ-2203).",
+        },
+      ],
+    },
+  },
+  {
     files: ["**/*.{test,spec}.{ts,tsx}", "tests/**/*.{ts,tsx}"],
     rules: {
       "max-lines-per-function": "off",

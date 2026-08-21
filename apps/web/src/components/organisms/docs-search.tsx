@@ -1,19 +1,22 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
+
 import { Input } from "@/components/atoms/input";
 import { Link } from "@/lib/i18n/navigation";
 
 type Result = { id: string; url: string; content: string };
 
 export function DocsSearch({ locale }: { locale: string }) {
+  const t = useTranslations("docs");
   const [results, setResults] = useState<Result[]>([]);
   return (
     <div className="space-y-2">
       <Input
         type="search"
-        placeholder={locale === "ru" ? "Поиск по документации" : "Search documentation"}
-        aria-label={locale === "ru" ? "Поиск по документации" : "Search documentation"}
+        placeholder={t("searchPlaceholder")}
+        aria-label={t("searchLabel")}
         onChange={(event) => {
           const query = event.target.value.trim();
           if (query.length < 2) {

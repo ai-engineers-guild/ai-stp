@@ -1,6 +1,9 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
+
+import en from "../../messages/en.json";
 
 const replace = vi.fn().mockResolvedValue({ ok: true });
 const create = vi.fn().mockResolvedValue({
@@ -23,22 +26,24 @@ describe("ExternalProductManager", () => {
   it("attaches existing services and creates a shallow HTTPS service", async () => {
     const user = userEvent.setup();
     render(
-      <ExternalProductManager
-        locale="en"
-        objectKind="component"
-        stableId="component_12345678"
-        csrfToken="csrf"
-        initialProducts={[
-          {
-            schema_version: 1,
-            name: "Notion",
-            canonical_domain: "notion.so",
-            primary_url: "https://notion.so",
-            country_codes: ["US"],
-          },
-        ]}
-        selectedDomains={[]}
-      />,
+      <NextIntlClientProvider locale="en" messages={en}>
+        <ExternalProductManager
+          locale="en"
+          objectKind="component"
+          stableId="component_12345678"
+          csrfToken="csrf"
+          initialProducts={[
+            {
+              schema_version: 1,
+              name: "Notion",
+              canonical_domain: "notion.so",
+              primary_url: "https://notion.so",
+              country_codes: ["US"],
+            },
+          ]}
+          selectedDomains={[]}
+        />
+      </NextIntlClientProvider>,
     );
     await user.click(screen.getByRole("checkbox", { name: /Notion/ }));
     await user.click(screen.getByRole("button", { name: "Save services" }));

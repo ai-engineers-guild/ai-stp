@@ -42,7 +42,7 @@ export function ObjectVersionHistory({
                   prefetch={false}
                   className="min-w-0 font-semibold break-all underline underline-offset-4"
                 >
-                  v{entry.version}
+                  {`v${entry.version}`}
                 </Link>
                 {entry.version === current ? <Badge>{currentLabel}</Badge> : null}
               </div>

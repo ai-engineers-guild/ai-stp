@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { StatePanel } from "@/components/molecules/state-panel";
@@ -12,6 +13,20 @@ type PageProps = {
   params: Promise<{ locale: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { locale } = await params;
+  setRequestLocale(locale);
+  const t = await getTranslations("catalog");
+  const description = t("seoDescription");
+  return {
+    title: t("title"),
+    description,
+    keywords: ["MCP", "skills", "hooks", "subagents", "AI setups", "plugins"],
+    openGraph: { title: t("title"), description },
+    twitter: { title: t("title"), description },
+  };
+}
 
 // The page intentionally owns validation, both resource projections, and localized presentation.
 // eslint-disable-next-line max-lines-per-function, complexity

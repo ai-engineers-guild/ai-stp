@@ -400,8 +400,13 @@ web-gen:
     # and `web-static` can validate its output without a repair step.
     cd apps/web && bun run format
 
+# Запрет литерального пользовательского текста и паритет ru/en каталогов.
+web-i18n:
+    {{bunreq}}
+    cd apps/web && bun run i18n:check
+
 # ESLint, Prettier и TypeScript 7 одним прогоном.
-web-static:
+web-static: web-i18n
     {{bunreq}}
     cd apps/web && bun run lint
     cd apps/web && bun run format:check

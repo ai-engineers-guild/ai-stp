@@ -7,7 +7,7 @@ test.describe("locale parity (REQ-2203, REQ-2311)", () => {
   test("Russian landing and catalog detail path mirrors English smoke", async ({ page }) => {
     await page.goto("/ru");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    await expect(page.locator('[data-ui="site-footer"]')).toContainText("Паспорта сетапов");
+    await expect(page.locator('[data-ui="site-footer"]')).toContainText("Реестр ИИ-сетапов");
 
     await page.getByRole("link", { name: /Browse catalog|Открыть каталог/i }).click();
     await expect(page).toHaveURL(/\/ru\/catalog/);

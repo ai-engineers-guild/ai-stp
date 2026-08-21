@@ -15,8 +15,8 @@ export function GET() {
   const docsHref = getEnv().AI_STP_USER_DOCS_URL;
   const platform = presentPlatformContext({ docsHref });
   const landing = presentLanding({
-    title: "One setup for every coding harness",
-    subtitle: "A catalog of hooks, MCP servers, subagents, skills, memory, and much more.",
+    title: "The AI setup registry, not just a skill catalog",
+    subtitle: "Find, verify, install, and earn on AI components.",
     browseCatalog: "Browse catalog",
     installCommand: INSTALL_CLI,
     installHeading: "Install the CLI",

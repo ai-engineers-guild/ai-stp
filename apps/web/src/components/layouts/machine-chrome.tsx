@@ -27,6 +27,7 @@ function MdLink({ href, children }: { href: string; children: string }) {
 
 export function MachineHeader({ signedIn, locale, docsHref }: MachineChromeProps) {
   const nav = useTranslations("nav");
+  const machine = useTranslations("machine");
   const pathname = usePathname();
   const router = useRouter();
   const accountPath = signedIn ? "/account" : "/login";
@@ -57,10 +58,10 @@ export function MachineHeader({ signedIn, locale, docsHref }: MachineChromeProps
           </span>
         ))}
         <span className="hidden lg:inline">
-          <MdLink href="/llms.txt">llms.txt</MdLink>
+          <MdLink href="/llms.txt">{machine("llms")}</MdLink>
         </span>
         <span className="ml-auto flex shrink-0 items-center gap-2">
-          <label htmlFor="machine-locale">lang:</label>
+          <label htmlFor="machine-locale">{machine("lang")}</label>
           <select
             id="machine-locale"
             data-ui={UI.machine.locale}
@@ -94,7 +95,7 @@ export function MachineFooter() {
       className="border-border bg-background border-t pb-16 font-mono text-xs"
     >
       <div className="mx-auto flex max-w-4xl flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <p>© 2026 ai_stp · AGPL-3.0-or-later · {machine("projection")}</p>
+        <p>{machine("copyright", { year: 2026, projection: machine("projection") })}</p>
         <div className="flex items-center gap-3">
           <span>
             {machine(COMPILED_FEATURES.saas_public_pages ? "shortcuts" : "shortcutsSelfHosted")}

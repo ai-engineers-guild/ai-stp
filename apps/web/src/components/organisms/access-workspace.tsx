@@ -26,6 +26,11 @@ type Labels = {
   major: string;
   stableId: string;
   kind: string;
+  recipientKind: string;
+  githubUsername: string;
+  userId: string;
+  kindComponent: string;
+  kindSetup: string;
   revoke: string;
   revokeWarning: string;
   reason: string;
@@ -99,7 +104,7 @@ function InviteForm({
     <section className="border-border mx-auto max-w-lg space-y-3 rounded-lg border p-4">
       <h2 className="text-lg font-medium tracking-tight">{labels.create}</h2>
       <div className="space-y-2">
-        <Label htmlFor="recipient-kind">Recipient identifier</Label>
+        <Label htmlFor="recipient-kind">{labels.recipientKind}</Label>
         <select
           id="recipient-kind"
           className="border-input bg-background h-9 w-full rounded-sm border px-2 text-sm"
@@ -112,8 +117,8 @@ function InviteForm({
           }}
         >
           <option value="verified_email">{labels.email}</option>
-          <option value="github_username">GitHub username</option>
-          <option value="user_id">User ID</option>
+          <option value="github_username">{labels.githubUsername}</option>
+          <option value="user_id">{labels.userId}</option>
         </select>
       </div>
       <Field
@@ -122,8 +127,8 @@ function InviteForm({
           recipientKind === "verified_email"
             ? labels.email
             : recipientKind === "github_username"
-              ? "GitHub username"
-              : "User ID"
+              ? labels.githubUsername
+              : labels.userId
         }
         value={recipient}
         onChange={setRecipient}
@@ -139,8 +144,8 @@ function InviteForm({
             setKind(event.target.value as "component" | "setup");
           }}
         >
-          <option value="component">component</option>
-          <option value="setup">setup</option>
+          <option value="component">{labels.kindComponent}</option>
+          <option value="setup">{labels.kindSetup}</option>
         </select>
       </div>
       <Field
@@ -239,7 +244,7 @@ export function AccessWorkspace({ invitations, grants, csrfToken, labels }: Acce
                 <div className="space-y-1">
                   <p className="font-mono text-xs">{item.stable_id}</p>
                   <p className="text-muted-foreground font-mono text-xs">
-                    major {item.major} · {item.object_kind}
+                    {labels.major} {item.major} · {item.object_kind}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -286,7 +291,7 @@ export function AccessWorkspace({ invitations, grants, csrfToken, labels }: Acce
                 <div className="space-y-1">
                   <p className="font-mono text-xs">{item.stable_id}</p>
                   <p className="text-muted-foreground font-mono text-xs">
-                    major {item.major} · {item.state}
+                    {labels.major} {item.major} · {item.state}
                   </p>
                   {"recipient_kind" in item && typeof item.recipient === "string" ? (
                     <p className="text-muted-foreground font-mono text-xs">

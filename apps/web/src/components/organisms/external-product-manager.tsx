@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 
 import {
   createExternalProductAction,
@@ -20,6 +21,7 @@ type Props = {
 };
 
 export function ExternalProductManager(props: Props) {
+  const t = useTranslations("objects");
   const [products, setProducts] = useState(props.initialProducts);
   const [selected, setSelected] = useState(new Set(props.selectedDomains));
   const [name, setName] = useState("");
@@ -39,7 +41,7 @@ export function ExternalProductManager(props: Props) {
         ...common,
         canonicalDomains: [...selected],
       });
-      setMessage(result.ok ? "Services saved." : result.message);
+      setMessage(result.ok ? t("externalSaved") : result.message);
     });
   }
   function create() {
@@ -50,7 +52,7 @@ export function ExternalProductManager(props: Props) {
         primaryUrl: url,
         countryCodes: countries
           .split(",")
-          .map((v) => v.trim().toUpperCase())
+          .map((value) => value.trim().toUpperCase())
           .filter(Boolean),
       });
       if (!result.ok) {
@@ -64,7 +66,7 @@ export function ExternalProductManager(props: Props) {
       setName("");
       setUrl("");
       setCountries("");
-      setMessage("Service created. Save to attach it.");
+      setMessage(t("externalCreated"));
     });
   }
   return (
@@ -74,11 +76,9 @@ export function ExternalProductManager(props: Props) {
     >
       <div>
         <h2 id="external-products-heading" className="text-lg font-medium">
-          External services
+          {t("externalTitle")}
         </h2>
-        <p className="text-muted-foreground text-sm">
-          Mutable catalog metadata; it does not change the version digest.
-        </p>
+        <p className="text-muted-foreground text-sm">{t("externalHint")}</p>
       </div>
       <div className="grid gap-2 sm:grid-cols-2">
         {products.map((product) => (
@@ -106,36 +106,36 @@ export function ExternalProductManager(props: Props) {
         ))}
       </div>
       <Button type="button" onClick={save} disabled={pending}>
-        Save services
+        {t("externalSave")}
       </Button>
       <div className="grid gap-2 border-t pt-4 sm:grid-cols-3">
         <Input
-          aria-label="Service name"
-          placeholder="Kaspi"
+          aria-label={t("externalName")}
+          placeholder={t("externalNamePlaceholder")}
           value={name}
-          onChange={(e) => {
-            setName(e.target.value);
+          onChange={(event) => {
+            setName(event.target.value);
           }}
         />
         <Input
-          aria-label="Primary HTTPS URL"
-          placeholder="https://kaspi.kz/shop"
+          aria-label={t("externalUrl")}
+          placeholder={t("externalUrlPlaceholder")}
           value={url}
-          onChange={(e) => {
-            setUrl(e.target.value);
+          onChange={(event) => {
+            setUrl(event.target.value);
           }}
         />
         <Input
-          aria-label="Country codes"
-          placeholder="KZ, RU"
+          aria-label={t("externalCountries")}
+          placeholder={t("externalCountriesPlaceholder")}
           value={countries}
-          onChange={(e) => {
-            setCountries(e.target.value);
+          onChange={(event) => {
+            setCountries(event.target.value);
           }}
         />
       </div>
       <Button type="button" variant="outline" onClick={create} disabled={pending || !name || !url}>
-        Create service
+        {t("externalCreate")}
       </Button>
       {message ? (
         <p role="status" className="text-sm">

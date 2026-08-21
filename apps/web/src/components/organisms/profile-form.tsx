@@ -183,7 +183,7 @@ function LinksEditor(props: {
               id={`profile-link-url-${index}`}
               className="font-mono"
               value={link.url}
-              placeholder="https://"
+              placeholder={t("urlPlaceholder")}
               onChange={(e) => {
                 onChange(
                   links.map((item, i) => (i === index ? { ...item, url: e.target.value } : item)),

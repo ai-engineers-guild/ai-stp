@@ -9,6 +9,7 @@ import { getEnv } from "@/lib/env";
 import { Link } from "@/lib/i18n/navigation";
 import { UI } from "@/lib/ui-selectors";
 import { isFeatureEnabled } from "@/lib/features/gate";
+import { SITE_NAME } from "@/lib/site";
 
 type AppShellProps = {
   children: React.ReactNode;
@@ -19,6 +20,7 @@ export async function AppShell({ children, locale }: AppShellProps) {
   const t = await getTranslations("a11y");
   const tf = await getTranslations("footer");
   const tc = await getTranslations("consent");
+  const tm = await getTranslations("machine");
   const session = await readSession();
   const docsHref = getEnv().AI_STP_USER_DOCS_URL;
   const saasPublicPages = isFeatureEnabled("saas_public_pages");
@@ -61,13 +63,13 @@ export async function AppShell({ children, locale }: AppShellProps) {
                 height={32}
                 className="h-8 w-8"
               />
-              <span>ai_stp</span>
+              <span>{SITE_NAME}</span>
             </Link>
             <p className="text-muted-foreground max-w-xs text-sm leading-relaxed">
               {tf("summary")}
             </p>
             <a href="/llms.txt" className="font-mono text-xs underline underline-offset-4">
-              llms.txt
+              {tm("llms")}
             </a>
           </div>
           <FooterColumn
@@ -104,7 +106,7 @@ export async function AppShell({ children, locale }: AppShellProps) {
         <div className="border-border border-t">
           <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 py-4 sm:px-6 md:flex-row">
             <p className="text-muted-foreground font-mono text-[11px] tracking-wide">
-              © 2026 ai_stp · AGPL-3.0-or-later
+              {tf("licenseLine", { year: 2026 })}
             </p>
             <div
               data-ui={UI.navigation.shortcuts}
@@ -112,10 +114,16 @@ export async function AppShell({ children, locale }: AppShellProps) {
             >
               <span>{tf("shortcuts")}</span>
               {saasPublicPages ? (
-                <kbd className="border-border rounded-sm border px-1.5 py-0.5">C</kbd>
+                <kbd className="border-border rounded-sm border px-1.5 py-0.5">
+                  {tf("shortcutContact")}
+                </kbd>
               ) : null}
-              <kbd className="border-border rounded-sm border px-1.5 py-0.5">P</kbd>
-              <kbd className="border-border rounded-sm border px-1.5 py-0.5">Ctrl K</kbd>
+              <kbd className="border-border rounded-sm border px-1.5 py-0.5">
+                {tf("shortcutProfile")}
+              </kbd>
+              <kbd className="border-border rounded-sm border px-1.5 py-0.5">
+                {tf("shortcutCatalog")}
+              </kbd>
             </div>
           </div>
         </div>

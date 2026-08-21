@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { setRequestLocale } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { readCountry } from "@/lib/api/catalog";
 
@@ -11,6 +11,7 @@ export default async function CountryPage({
 }) {
   const { locale, code } = await params;
   setRequestLocale(locale);
+  const t = await getTranslations("regionalServices");
   if (process.env.NEXT_PUBLIC_EXTERNAL_CATALOG_ENABLED === "false") notFound();
   const country = await readCountry(code).catch(() => null);
   if (!country) notFound();
@@ -23,7 +24,7 @@ export default async function CountryPage({
         <h1 className="text-3xl font-medium">{display}</h1>
       </header>
       <section>
-        <h2 className="mb-3 text-xl font-medium">Services</h2>
+        <h2 className="mb-3 text-xl font-medium">{t("services")}</h2>
         <ul className="space-y-2">
           {country.services.map((item) => (
             <li key={item.canonical_domain}>
@@ -35,7 +36,7 @@ export default async function CountryPage({
         </ul>
       </section>
       <section>
-        <h2 className="mb-3 text-xl font-medium">Automations</h2>
+        <h2 className="mb-3 text-xl font-medium">{t("automations")}</h2>
         <ul className="space-y-2">
           {country.objects.map((item) => (
             <li key={`${item.object_kind}:${item.stable_id}`}>{item.name}</li>

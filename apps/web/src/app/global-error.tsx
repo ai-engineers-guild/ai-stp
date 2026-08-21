@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable no-restricted-syntax -- root 500 has no locale catalog (REQ-3107) */
+
 /**
  * Root global-error (SPEC-031 REQ-3107).
  * Minimal 500 page outside the design-token tree: uses system colors only.

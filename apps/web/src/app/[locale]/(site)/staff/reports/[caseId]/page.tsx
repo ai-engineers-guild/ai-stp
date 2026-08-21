@@ -62,24 +62,24 @@ export default async function StaffReportDetailPage({ params }: PageProps) {
           <dd className="font-mono text-sm">{detail.vulnerability ? tc("yes") : tc("no")}</dd>
         </div>
         <div className="sm:col-span-2">
-          <dt className="text-muted-foreground font-mono text-xs">object</dt>
+          <dt className="text-muted-foreground font-mono text-xs">{t("object")}</dt>
           <dd className="font-mono text-xs">
             {detail.object_kind} / {detail.stable_id} / {detail.version}
           </dd>
         </div>
         <div className="sm:col-span-2">
-          <dt className="text-muted-foreground font-mono text-xs">digest</dt>
+          <dt className="text-muted-foreground font-mono text-xs">{t("digest")}</dt>
           <dd className="font-mono text-xs break-all">{detail.content_digest ?? "—"}</dd>
         </div>
         {detail.error_code ? (
           <div>
-            <dt className="text-muted-foreground font-mono text-xs">error_code</dt>
+            <dt className="text-muted-foreground font-mono text-xs">{t("errorCode")}</dt>
             <dd className="font-mono text-xs">{detail.error_code}</dd>
           </div>
         ) : null}
         {detail.harness_id ? (
           <div>
-            <dt className="text-muted-foreground font-mono text-xs">harness_id</dt>
+            <dt className="text-muted-foreground font-mono text-xs">{t("harnessId")}</dt>
             <dd className="font-mono text-xs">{detail.harness_id}</dd>
           </div>
         ) : null}
@@ -103,6 +103,10 @@ export default async function StaffReportDetailPage({ params }: PageProps) {
           subjectAccount: t("subjectAccount"),
           lifecycle: t("lifecycle"),
           referenceId: tc("referenceId"),
+          stateTriaged: t("stateTriaged"),
+          stateAwaitingAuthor: t("stateAwaitingAuthor"),
+          stateResolved: t("stateResolved"),
+          stateDismissed: t("stateDismissed"),
         }}
       />
     </div>

@@ -16,6 +16,8 @@ export type MediaItemLabels = {
   uploading: string;
   youtubeHint: string;
   githubHint: string;
+  youtubePlaceholder: string;
+  githubPlaceholder: string;
   preview: string;
   retryUpload: string;
   replaceUpload: string;
@@ -277,7 +279,7 @@ function MediaMetadataFields(props: {
             required
             maxLength={2048}
             value={item.url}
-            placeholder={isYoutube ? "dQw4w9WgXcQ" : "https://raw.githubusercontent.com/..."}
+            placeholder={isYoutube ? labels.youtubePlaceholder : labels.githubPlaceholder}
             disabled={controlsDisabled}
             onChange={(event) => {
               onPatch({

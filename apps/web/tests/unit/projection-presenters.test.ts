@@ -106,8 +106,8 @@ describe("machine presenters (REQ-3609, REQ-3610, REQ-3608)", () => {
     const platform = machineDocumentToText(presentPlatformContext(), "en");
     const landing = machineDocumentToText(
       presentLanding({
-        title: "One setup for every coding harness",
-        subtitle: "A catalog of hooks, MCP servers, subagents, skills, memory, and much more.",
+        title: "The AI setup registry, not just a skill catalog",
+        subtitle: "Find, verify, install, and earn on AI components.",
         browseCatalog: "Browse catalog",
         installCommand: "uv tool install ai-stp-cli",
         installHeading: "Install the CLI",

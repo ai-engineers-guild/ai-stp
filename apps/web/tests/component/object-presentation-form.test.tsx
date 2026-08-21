@@ -28,6 +28,8 @@ const labels = {
   requirements: "JPEG, PNG, WebP, GIF, MP4 or WebM up to 25 MB.",
   youtubeHint: "11-character YouTube video ID",
   githubHint: "Pinned GitHub raw URL",
+  youtubePlaceholder: "11-character video ID",
+  githubPlaceholder: "https://raw.githubusercontent.com/…",
   invalid: "Fill alt text and a valid source",
   uploadFailed: "Could not upload media.",
   unsupportedType: "Unsupported file type.",

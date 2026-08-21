@@ -8,7 +8,7 @@ export function GET() {
   const absolute = (path: string) => new URL(path, origin).toString();
   const body = `# ai_stp
 
-> A registry and deterministic setup compiler for AI coding harness configurations. The web surface exposes public catalog facts; setup assembly and installation remain in the CLI.
+> The AI setup registry for skills, MCP, hooks, and subagents — not another skills.sh. The web is the catalog; the agent installs through the CLI.
 
 ## Primary resources
 - [Catalog](${absolute("/en/catalog")}): public components and setups

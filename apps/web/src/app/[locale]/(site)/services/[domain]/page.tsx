@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { setRequestLocale } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { readExternalProduct } from "@/lib/api/catalog";
 
@@ -11,13 +11,14 @@ export default async function ServicePage({
 }) {
   const { locale, domain } = await params;
   setRequestLocale(locale);
+  const t = await getTranslations("regionalServices");
   if (process.env.NEXT_PUBLIC_EXTERNAL_CATALOG_ENABLED === "false") notFound();
   const service = await readExternalProduct(domain).catch(() => null);
   if (!service) notFound();
   return (
     <main className="space-y-8">
       <header className="space-y-2">
-        <p className="text-muted-foreground text-sm">External service</p>
+        <p className="text-muted-foreground text-sm">{t("externalService")}</p>
         <h1 className="text-3xl font-medium">{service.name}</h1>
         <a className="underline" href={service.primary_url} rel="noreferrer">
           {service.canonical_domain}
@@ -35,7 +36,7 @@ export default async function ServicePage({
         ))}
       </div>
       <section>
-        <h2 className="mb-3 text-xl font-medium">Automations</h2>
+        <h2 className="mb-3 text-xl font-medium">{t("automations")}</h2>
         <ul className="space-y-2">
           {service.objects?.map((item) => (
             <li key={`${item.object_kind}:${item.stable_id}`}>

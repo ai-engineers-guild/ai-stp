@@ -143,6 +143,7 @@ def require_verified_status(
         expected_restore = str(plan.artifact.get("restore_target_digest", ""))
         if target_digest != expected_restore:
             raise _refused("provider restore status differs from the exact BackupRef identity")
+        return target_digest
     expected: dict[str, JsonValue] = {"state": "managed", "drift_state": "verified"}
     if operation in {protocol_v3.Operation.INSTALL, protocol_v3.Operation.REPLACE}:
         expected.update(

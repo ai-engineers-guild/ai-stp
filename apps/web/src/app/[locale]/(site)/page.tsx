@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { Button } from "@/components/atoms/button";
@@ -9,6 +10,29 @@ import { UI } from "@/lib/ui-selectors";
 type PageProps = {
   params: Promise<{ locale: string }>;
 };
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { locale } = await params;
+  setRequestLocale(locale);
+  const t = await getTranslations("landing");
+  const description = t("seoDescription");
+  return {
+    title: t("title"),
+    description,
+    keywords: [
+      "AI setup",
+      "MCP",
+      "skills",
+      "hooks",
+      "subagents",
+      "Claude Code",
+      "Codex",
+      "skills.sh",
+    ],
+    openGraph: { title: t("title"), description },
+    twitter: { title: t("title"), description },
+  };
+}
 
 export default async function LandingPage({ params }: PageProps) {
   const { locale } = await params;
@@ -40,7 +64,6 @@ export default async function LandingPage({ params }: PageProps) {
         <div
           data-ui={UI.landing.preview}
           className="border-border bg-card relative aspect-video min-w-0 overflow-hidden rounded-xl border lg:aspect-auto lg:h-68"
-          aria-label={t("previewLabel")}
         >
           <video
             className="h-full w-full object-cover motion-reduce:hidden"
@@ -49,13 +72,10 @@ export default async function LandingPage({ params }: PageProps) {
             loop
             playsInline
             preload="metadata"
+            aria-label={t("previewLabel")}
           >
             <source src="/brand/hero-preview.webm" type="video/webm" />
           </video>
-          <div className="from-background/10 via-background/20 to-background/80 pointer-events-none absolute inset-0 bg-gradient-to-br" />
-          <div className="absolute right-4 bottom-4 left-4 font-mono text-xs break-words text-white">
-            {t("previewCaption")}
-          </div>
         </div>
       </section>
       <InstallBlock />

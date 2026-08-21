@@ -31,6 +31,10 @@ type StaffCaseActionsProps = {
     subjectAccount: string;
     lifecycle: string;
     referenceId: string;
+    stateTriaged: string;
+    stateAwaitingAuthor: string;
+    stateResolved: string;
+    stateDismissed: string;
   };
 };
 
@@ -141,10 +145,10 @@ export function StaffCaseActions({
             setState(event.target.value as TriageState);
           }}
         >
-          <option value="triaged">triaged</option>
-          <option value="awaiting_author">awaiting_author</option>
-          <option value="resolved">resolved</option>
-          <option value="dismissed">dismissed</option>
+          <option value="triaged">{labels.stateTriaged}</option>
+          <option value="awaiting_author">{labels.stateAwaitingAuthor}</option>
+          <option value="resolved">{labels.stateResolved}</option>
+          <option value="dismissed">{labels.stateDismissed}</option>
         </select>
         <Button
           type="button"

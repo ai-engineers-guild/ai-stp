@@ -1,7 +1,7 @@
 {
   "meta": {
     "siteName": "ai_stp",
-    "defaultDescription": "Управление сетапами AI-харнессов без второго источника истины."
+    "defaultDescription": "Реестр ИИ-сетапов для скиллов, MCP, хуков и субагентов — не skills.sh. Поиск, проверки, установка и сопровождение в команде."
   },
   "nav": {
     "primaryLabel": "Основная навигация",
@@ -21,12 +21,6 @@
     "objects": "Объекты",
     "access": "Доступ",
     "reports": "Жалобы",
-    "catalogHint": "Просмотр опубликованных компонентов и сетапов",
-    "objectsHint": "Управление вашими компонентами и сетапами",
-    "accessHint": "Управление приглашениями и правами доступа",
-    "reportsHint": "Просмотр ваших жалоб",
-    "docsHint": "Открыть пользовательскую документацию",
-    "devicesHint": "Управление привязанными устройствами",
     "accountHint": "Открыть профиль и аккаунт",
     "loginHint": "Войти в аккаунт",
     "contact": "Контакт",
@@ -35,10 +29,10 @@
     "profile": "Профиль",
     "myObjects": "Мои объекты",
     "myLikes": "Мои лайки",
-    "accountMenu": "Меню аккаунта"
+    "accountMenu": "Меню аккаунта",
+    "contactKey": "C"
   },
   "theme": {
-    "label": "Цветовая тема",
     "projectionLabel": "Формат сайта",
     "human": "Human",
     "machine": "Machine",
@@ -49,25 +43,18 @@
     "switchDark": "Включить тёмную тему"
   },
   "machine": {
-    "docsDescription": "документация для людей и агентов",
-    "endpoints": "Машинные точки входа",
-    "llmsDescription": "краткий машиночитаемый индекс сайта",
-    "llmsFullDescription": "расширенный контекст платформы",
-    "agentsDescription": "точка входа агента и рабочие границы",
-    "sitemapDescription": "перечень публичных URL",
-    "workspace": "Рабочая область",
-    "currentProjection": "проекция текущей страницы",
     "projection": "машинная проекция",
     "shortcuts": "C контакт · P аккаунт · Ctrl/Cmd K каталог",
-    "shortcutsSelfHosted": "P аккаунт · Ctrl/Cmd K каталог"
+    "shortcutsSelfHosted": "P аккаунт · Ctrl/Cmd K каталог",
+    "lang": "язык:",
+    "llms": "llms.txt",
+    "copyright": "© {year} ai_stp · AGPL-3.0-or-later · {projection}"
   },
   "machineDoc": {
     "stableId": "stable_id",
     "digest": "digest",
     "trustLane": "trust_lane",
     "install": "install",
-    "switchToHuman": "Переключить на человеческую проекцию",
-    "switchToMachine": "Переключить на машинную проекцию",
     "objectKind": "object_kind",
     "lifecycle": "lifecycle",
     "updatedAt": "updated_at",
@@ -113,7 +100,6 @@
     "empty": "Нет данных",
     "retry": "Повторить",
     "notFound": "Не найдено",
-    "back": "Назад",
     "save": "Сохранить",
     "cancel": "Отмена",
     "confirm": "Подтвердить",
@@ -122,24 +108,24 @@
     "yes": "Да",
     "no": "Нет",
     "referenceId": "Идентификатор операции",
-    "apiUnavailable": "Сервис временно недоступен. Данные не подставлялись.",
+    "apiUnavailable": "Сервис временно недоступен. Попробуйте позже.",
     "sessionExpired": "Сессия истекла. Войдите снова.",
     "login": "Войти"
   },
   "landing": {
-    "title": "Один сетап для каждого coding-харнесса",
-    "subtitle": "Каталог хуков, MCP-серверов, субагентов, скиллов, памяти и многого другого.",
+    "title": "Реестр ИИ-сетапов, а не просто каталог скиллов",
+    "subtitle": "Находить, проверять, ставить и зарабатывать на ИИ-компонентах.",
     "installHeading": "Установка CLI",
-    "installHint": "Выполните эту команду как есть. Она берётся из одного канонического модуля.",
+    "installHint": "Выполните команду как есть. Не собирайте её сами.",
     "prerequisites": "Предварительные требования",
     "browseCatalog": "Открыть каталог",
     "signIn": "Войти",
     "previewLabel": "Предпросмотр рабочего процесса ai_stp",
-    "previewCaption": "Найти · проверить · собрать · применить"
+    "seoDescription": "Реестр ИИ-сетапов для скиллов, MCP, хуков и субагентов — не skills.sh. Поиск, проверки, установка и сопровождение в команде."
   },
   "catalog": {
     "title": "Каталог",
-    "subtitle": "Компоненты и полные сетапы. Экспериментальный посев включён по умолчанию, чтобы first-party корпус был виден без лишнего клика.",
+    "subtitle": "Сетапы и компоненты: скиллы, MCP, хуки, субагенты, плагины и настройки.",
     "searchPlaceholder": "Поиск компонентов и сетапов",
     "searchHelp": "Ищите обычными словами или на Catalog QL: поля NAME, TAGS, HARNESS, TYPE, AUTHOR и VERIFIED; операторы :, AND, OR, NOT, IN, NOT IN и скобки. Пример: TYPE:skill AND HARNESS IN (codex, claude-code).",
     "search": "Искать",
@@ -152,19 +138,17 @@
     "setupsResults": "Сетапы",
     "mixedResults": "Сетапы и компоненты",
     "resourceLegend": "Тип ресурса каталога",
-    "authoritative": "Авторитетные",
+    "authoritative": "Основные",
     "experimental": "Экспериментальные",
     "experimentalConsent": "Показать экспериментальные",
-    "experimentalNote": "Авторитетные и экспериментальные линии объединены. Проверка автора не является доказательством безопасности содержимого.",
-    "experimentalHintTitle": "Экспериментальные результаты скрыты",
-    "experimentalHintBody": "Объекты first-party seed пока экспериментальные, пока не завершена проверка. Включите «Показать экспериментальные» и выполните поиск, чтобы их увидеть.",
-    "emptyAuthoritative": "Нет авторитетных результатов по этому запросу.",
+    "experimentalNote": "Основные и экспериментальные объекты показаны вместе. Подтверждение автора не доказывает безопасность содержимого.",
+    "emptyAuthoritative": "Нет основных результатов по этому запросу.",
     "emptyExperimental": "Нет экспериментальных результатов.",
     "emptyAll": "Нет объектов каталога по этому запросу.",
     "emptySetups": "Нет сетапов по этому запросу.",
     "emptyComponents": "Нет компонентов по этому запросу.",
     "tagFilter": "Тег",
-    "harnessFilter": "Харнесс",
+    "harnessFilter": "Упряжка",
     "typeFilter": "Тип компонента",
     "anyOption": "Любой",
     "applyFilters": "Применить фильтры",
@@ -195,7 +179,7 @@
     "cardsView": "Карточки",
     "listView": "Список",
     "filterHelpTitle": "О фильтрах",
-    "filterHelpBody": "Комбинируйте ресурс, фасеты с поиском, автора и проверенность. Web-пагинация показывает итог публичной выдачи; согласие на experimental действует только для запроса.",
+    "filterHelpBody": "Сочетайте тип, теги, автора и проверку. Фильтр экспериментальных действует только на этот поиск.",
     "dismissFilter": "Снять фильтр",
     "composition": "Закреплённые компоненты",
     "compositionDescription": "Точные версии компонентов, которые делают сетап воспроизводимым.",
@@ -208,11 +192,10 @@
     "supportTierFilter": "Уровень поддержки",
     "supportStateFilter": "Состояние поддержки",
     "version": "Версия",
-    "harness": "Харнесс",
+    "harness": "Упряжка",
     "type": "Тип",
     "tags": "Теги",
     "lifecycle": "Жизненный цикл",
-    "trust": "Доверие",
     "authorVerified": "Автор подтверждён",
     "authorVerifiedDescription": "Личность автора подтверждена; это не означает безопасность содержимого",
     "componentVerified": "Компонент подтверждён",
@@ -232,7 +215,7 @@
     "githubStars": "Звёзды GitHub",
     "githubArchived": "В архиве",
     "reportSection": "Сообщить об этой версии",
-    "reportSectionBody": "Используйте CLI-команду или форму ниже. Этот блок — каноническая цель #report.",
+    "reportSectionBody": "Пожаловаться через CLI или форму ниже.",
     "contextBudgetTitle": "Бюджет контекста",
     "contextBudgetLead": "Потенциальный контекст, который может добавить этот сетап, а не фактический расход модели.",
     "contextBudgetAlways": "Всегда загружается",
@@ -260,7 +243,7 @@
     "pagination": "Страницы",
     "setupsPagination": "Страницы сетапов",
     "componentsPagination": "Страницы компонентов",
-    "whyFailed": "Есть проваленные проверки - посмотрите до использования",
+    "whyFailed": "Есть проваленные проверки — посмотрите до использования",
     "whyWarning": "В последней проверке есть предупреждения",
     "purpose": "Назначение",
     "targetRole": "Целевая роль",
@@ -307,10 +290,9 @@
     "sourceRepository": "Репозиторий",
     "sourceCommit": "Коммит",
     "sourcePath": "Путь",
-
     "supportedOs": "Поддерживаемые ОС",
     "supportedArch": "Поддерживаемая архитектура",
-    "supportedHarnessVersions": "Поддерживаемые версии харнесса",
+    "supportedHarnessVersions": "Поддерживаемые версии упряжки",
     "noneListed": "Не указано",
     "backToCatalog": "Назад в каталог",
     "backToObject": "Назад к объекту",
@@ -324,8 +306,6 @@
     "moreActions": "Другие действия",
     "report": "Пожаловаться на компонент",
     "reportSetup": "Пожаловаться на сетап",
-    "reportAuthor": "Пожаловаться на автора",
-    "sourceCode": "Исходный код на GitHub",
     "viewSource": "Исходный код на GitHub",
     "viewSourceOnGithub": "Исходный код на GitHub",
     "localization": "Локализация",
@@ -335,9 +315,6 @@
     "passportHint": "Канонический публичный документ версии",
     "passportReadable": "Публичный JSON паспорта",
     "copyPassport": "Скопировать JSON паспорта",
-    "aboutComponent": "О компоненте",
-    "aboutSetup": "О сетапе",
-    "openRepository": "Открыть репозиторий",
     "gallery": "Медиа",
     "openMedia": "Открыть медиа",
     "mediaSource": "Источник",
@@ -345,10 +322,10 @@
     "previousMedia": "Назад",
     "nextMedia": "Далее",
     "author": "Автор",
-    "viewProfile": "Открыть профиль",
     "technicalDetails": "Технические детали",
     "versionHistory": "История версий",
-    "currentVersion": "Текущая"
+    "currentVersion": "Текущая",
+    "seoDescription": "Каталог ИИ-сетапов и компонентов: скиллы, MCP-серверы, хуки, субагенты. Проверки, установка через агента, сопровождение в организации."
   },
   "publisher": {
     "title": "Издатель",
@@ -375,7 +352,6 @@
     "privacy": "Приватность",
     "accountId": "Идентификатор аккаунта",
     "createdAt": "Создан",
-    "linkedIdentities": "Способы входа",
     "signInMethods": "Способы входа",
     "availableForSignIn": "Доступен для входа в этот аккаунт",
     "copyAccountId": "Скопировать идентификатор аккаунта",
@@ -390,21 +366,13 @@
     "unlinkLastHint": "Должна остаться хотя бы одна идентичность, чтобы можно было войти снова.",
     "linkAnother": "Привязать другого провайдера",
     "linkAnotherHint": "Step-up OAuth добавляет второго провайдера к этому аккаунту без слияния двух аккаунтов.",
-    "linkFailed": "Не удалось начать привязку провайдера",
     "editProfile": "Редактировать профиль",
     "viewPublicProfile": "Посмотреть публичный профиль",
     "editPrivacy": "Настройки приватности",
     "displayName": "Отображаемое имя",
     "bio": "О себе",
-    "links": "Ссылки",
     "linkLabel": "Метка",
     "linkUrl": "URL (HTTPS)",
-    "addLink": "Добавить ссылку",
-    "removeLink": "Удалить ссылку",
-    "saved": "Сохранено",
-    "profileWriteUnavailableTitle": "Редактирование пока недоступно",
-    "profileWriteUnavailableBody": "В замороженном контракте /v1 нет маршрута записи authored public profile. Эта страница не сохраняет поля и не выдумывает operation id.",
-    "profileWriteNext": "Идентичности аккаунта и устройства ходят в реальный API. Редактирование публичного профиля появится только после аддитивного изменения контракта.",
     "profileSubtitle": "Display name, короткое bio, ссылки и avatar для публичной страницы автора.",
     "profileAccountHint": "Управляйте тем, что посетители видят на вашей публичной странице автора.",
     "profilePreview": "Предпросмотр",
@@ -428,7 +396,6 @@
     "profileLinksEmpty": "Ссылок пока нет. Можно добавить до восьми HTTPS-ссылок.",
     "profileAddLink": "Добавить",
     "profileRemoveLink": "Удалить",
-    "profileSaveDraft": "Сохранить черновик",
     "profileSave": "Сохранить",
     "profilePreviewHint": "Предпросмотр показывает текущие изменения до сохранения.",
     "profilePublish": "Опубликовать",
@@ -440,20 +407,13 @@
     "profileStatusHint": "«Сохранить» оставляет приватный черновик. «Опубликовать» обновляет публичную страницу.",
     "profileRestorePublished": "Вернуть опубликованные данные",
     "profilePublishedRestored": "Опубликованные данные возвращены в редактор",
-    "profileCancel": "Отменить",
-    "profileSaveChanges": "Сохранить изменения",
-    "profileSaving": "Сохранение…",
-    "profileSaveHint": "Изменения публикуются только по кнопке «Сохранить изменения». Предпросмотр временный и не сохраняется.",
-    "profileSaved": "Изменения сохранены",
     "profileSaveFailed": "Не удалось сохранить изменения",
     "profilePublishFailed": "Не удалось опубликовать",
     "profilePublishNeedDraft": "Не удалось создать ревизию профиля для публикации",
     "profileAvatarReady": "Avatar готов",
     "profileAvatarFailed": "Avatar отклонён",
-    "profileErrorName": "Имя слишком длинное",
     "profileErrorBio": "Bio слишком длинное",
     "profileErrorBioMd": "Bio не должен содержать HTML или небезопасные URI",
-    "profileNoDigest": "Нет digest черновика",
     "privacySubtitle": "Настройки видимости аккаунта и хранения данных.",
     "showProfilePublicly": "Показывать профиль публично",
     "allowPublisherListing": "Показывать в списке авторов",
@@ -461,7 +421,7 @@
     "savingPreferences": "Сохранение…",
     "preferencesSaved": "Настройки сохранены",
     "preferencesSaveFailed": "Не удалось сохранить настройки. Повторите попытку.",
-    "httpsOnly": "Допускаются только HTTPS-ссылки."
+    "urlPlaceholder": "https://"
   },
   "deviceLogin": {
     "title": "Подтверждение устройства",
@@ -492,7 +452,7 @@
     "displayName": "Имя",
     "os": "Операционная система",
     "architecture": "Архитектура",
-    "harnesses": "Обнаруженные харнессы",
+    "harnesses": "Обнаруженные упряжки",
     "toolchain": "Профиль инструментов",
     "updatedAt": "Сводка обновлена",
     "state": "Состояние",
@@ -504,7 +464,8 @@
     "revoked": "Устройство отозвано",
     "staleEtag": "Устройство изменилось после загрузки страницы. Перечитайте и повторите.",
     "conflict": "Параллельное изменение заблокировало отзыв. Обновите данные и решите, как продолжить.",
-    "revokedCurrent": "Вы отозвали текущее устройство. Вы вышли из системы."
+    "revokedCurrent": "Вы отозвали текущее устройство. Вы вышли из системы.",
+    "codePlaceholder": "ABCD-EFGH"
   },
   "errors": {
     "notFoundTitle": "Страница не найдена",
@@ -514,8 +475,7 @@
     "toCatalog": "В каталог",
     "toHome": "На главную",
     "toDocs": "Документация",
-    "tryAgain": "Попробовать снова",
-    "requestId": "request id"
+    "rickrollTitle": "Never Gonna Give You Up"
   },
   "consent": {
     "title": "Настройки cookies",
@@ -530,8 +490,7 @@
     "privacy": "Политика конфиденциальности"
   },
   "footer": {
-    "navLabel": "Политики сайта",
-    "summary": "Паспорта сетапов, линии доверия и безопасный жизненный цикл AI-харнессов.",
+    "summary": "Реестр ИИ-сетапов, а не каталог скиллов.",
     "product": "Продукт",
     "company": "Компания",
     "legal": "Правовая информация",
@@ -544,7 +503,11 @@
     "privacy": "Конфиденциальность",
     "cookies": "Файлы cookie",
     "serviceRules": "Правила сервиса",
-    "licensing": "Лицензирование"
+    "licensing": "Лицензирование",
+    "shortcutContact": "C",
+    "shortcutProfile": "P",
+    "shortcutCatalog": "Ctrl K",
+    "licenseLine": "© {year} ai_stp · AGPL-3.0-or-later"
   },
   "regionalServices": {
     "title": "Региональные сервисы",
@@ -562,7 +525,8 @@
     "automations": "Компоненты и сетапы",
     "empty": "Для выбранной комбинации сервисов нет. Сбросьте один из фильтров и попробуйте снова.",
     "unspecified": "Не задано",
-    "openCatalog": "Открыть в каталоге"
+    "openCatalog": "Открыть в каталоге",
+    "externalService": "Внешний сервис"
   },
   "contact": {
     "requestType": "Тип обращения",
@@ -584,7 +548,7 @@
     "privacyHint": "Не добавляйте секреты, токены, приватные ключи и содержимое приватных репозиториев.",
     "send": "Открыть черновик письма",
     "opened": "Черновик сообщения открыт в почтовом приложении.",
-    "placeholderWarning": "Отправка отключена, пока не задан NEXT_PUBLIC_CONTACT_EMAIL. Адрес-заглушка не принимает письма."
+    "placeholderWarning": "Отправка писем не настроена. Эта форма не может ничего отправить."
   },
   "cli": {
     "useTitle": "Использовать через CLI",
@@ -596,27 +560,16 @@
     "ownerEmptyTitle": "Пока нет объектов",
     "ownerEmptyBody": "Компонент или сетап создаётся и синхронизируется через CLI.",
     "syncCommandHint": "Найти компоненты через CLI",
-    "setupNextStepHint": "Показать харнессы через CLI",
+    "setupNextStepHint": "Показать упряжки через CLI",
     "loginHint": "Войти с устройства через CLI"
   },
   "docs": {
     "title": "Документация",
     "subtitle": "Технические документы для людей и агентов. Ревизии импортируются из репозитория.",
-    "navLabel": "Разделы документации",
-    "navOverview": "Обзор продукта",
-    "navCli": "CLI и agent quickstart",
-    "navApi": "API и контракты",
-    "navTrust": "Доверие и безопасность",
-    "navOperations": "Эксплуатация",
-    "navAuthors": "Документы для авторов",
-    "provenance": "source: repository docs · revision pending import",
     "toCatalog": "Открыть каталог",
-    "body_overview": "ai_stp публикует паспорта сетапов для coding-харнессов с явными линиями доверия.",
-    "body_cli": "Установите CLI, авторизуйте устройство, затем синхронизируйте или покажите объекты командами registry.",
-    "body_api": "HTTP API и машинные контракты — в docs/contracts и OpenAPI.",
-    "body_trust": "author_verified не доказывает безопасность content. Experimental — на запрос.",
-    "body_operations": "Здоровье, резервные копии и восстановление — в docs/operations.",
-    "body_authors": "Авторы публикуют через CLI; веб не редактирует состав паспорта."
+    "searchPlaceholder": "Поиск по документации",
+    "searchLabel": "Поиск по документации",
+    "navAria": "Разделы документации"
   },
   "legal": {
     "backHome": "На главную",
@@ -644,10 +597,7 @@
     }
   },
   "a11y": {
-    "skipToContent": "К содержимому",
-    "loadingRegion": "Загрузка содержимого",
-    "errorRegion": "Ошибка",
-    "emptyRegion": "Пустой результат"
+    "skipToContent": "К содержимому"
   },
   "myLikes": {
     "title": "Мои лайки",
@@ -728,11 +678,25 @@
     "savePresentation": "Сохранить представление",
     "savingPresentation": "Сохранение…",
     "presentationSaved": "Представление сохранено",
-    "presentationSaveFailed": "Не удалось сохранить представление."
+    "presentationSaveFailed": "Не удалось сохранить представление.",
+    "mediaYoutubePlaceholder": "11 символов ID",
+    "mediaGithubPlaceholder": "https://raw.githubusercontent.com/…",
+    "externalTitle": "Внешние сервисы",
+    "externalHint": "Изменяемые метаданные каталога; дайджест версии не меняется.",
+    "externalSave": "Сохранить сервисы",
+    "externalCreate": "Создать сервис",
+    "externalName": "Название сервиса",
+    "externalUrl": "Основной HTTPS URL",
+    "externalCountries": "Коды стран",
+    "externalNamePlaceholder": "Kaspi",
+    "externalUrlPlaceholder": "https://kaspi.kz/shop",
+    "externalCountriesPlaceholder": "KZ, RU",
+    "externalSaved": "Сервисы сохранены.",
+    "externalCreated": "Сервис создан. Сохраните, чтобы привязать его."
   },
   "publications": {
     "title": "План публикации",
-    "subtitle": "Проверьте точный план API перед подтверждением. Браузер не валидирует и не собирает паспорта.",
+    "subtitle": "Проверьте план публикации перед подтверждением. Браузер паспорта не собирает.",
     "notFound": "План публикации не найден или недоступен.",
     "state": "Состояние",
     "object": "Объект",
@@ -760,21 +724,26 @@
     "kind": "Вид объекта",
     "revoke": "Отозвать",
     "revokeWarning": "Отзыв необратим вперёд. Локальные копии на устройствах могут остаться. Продолжить?",
-    "reason": "Причина"
+    "reason": "Причина",
+    "recipientKind": "Идентификатор получателя",
+    "githubUsername": "Имя пользователя GitHub",
+    "userId": "ID пользователя",
+    "kindComponent": "компонент",
+    "kindSetup": "сетап"
   },
   "invitations": {
     "title": "Принять приглашение",
-    "subtitle": "Сырой token остаётся только во fragment и памяти страницы.",
+    "subtitle": "Токен виден только в этой вкладке, в обычной ссылке его нет.",
     "accept": "Принять приглашение",
     "accepting": "Принятие…",
-    "missingToken": "Token приглашения не найден во fragment. Откройте ссылку из письма снова.",
+    "missingToken": "В этой вкладке нет токена приглашения. Откройте ссылку из письма ещё раз.",
     "success": "Приглашение принято.",
     "error": "Не удалось принять приглашение.",
     "needSignIn": "Войдите, прежде чем принимать приглашение."
   },
   "reports": {
     "title": "Жалобы",
-    "subtitle": "Ваши case и форма с обязательным предпросмотром diagnostics.",
+    "subtitle": "Ваши жалобы и форма новой жалобы.",
     "ownCases": "Ваши case",
     "empty": "У вас пока нет case.",
     "create": "Отправить жалобу",
@@ -804,11 +773,12 @@
     "article": "Статья",
     "blog_post": "Практика",
     "changelog": "История изменений",
-    "release_notes": "Заметки к релизу"
+    "release_notes": "Заметки к релизу",
+    "tagsLabel": "Теги"
   },
   "staff": {
     "title": "Staff: жалобы",
-    "subtitle": "Очередь только для allowlist. Отсутствие страницы не доказывает статус staff.",
+    "subtitle": "Очередь жалоб для сотрудников. Если страницы нет — вас нет в списке.",
     "empty": "В очереди нет открытых case.",
     "notFound": "Case недоступен.",
     "forbidden": "Нужен staff allowlist.",
@@ -824,6 +794,14 @@
     "subjectAccount": "Subject account id",
     "lifecycle": "Жизненный цикл версии",
     "state": "Состояние",
-    "vulnerability": "Флаг vulnerability"
+    "vulnerability": "Флаг vulnerability",
+    "object": "объект",
+    "digest": "digest",
+    "errorCode": "error_code",
+    "harnessId": "harness_id",
+    "stateTriaged": "разобрано",
+    "stateAwaitingAuthor": "ожидает автора",
+    "stateResolved": "закрыто",
+    "stateDismissed": "отклонено"
   }
 }
