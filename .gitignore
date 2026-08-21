@@ -68,4 +68,5 @@ research_sources/
 htmlcov/
 
 # ImageGen originals are preserved in the Codex asset store; web uses optimized WebP.
+apps/web/storybook-static/
 apps/web/public/catalog-art/*.png

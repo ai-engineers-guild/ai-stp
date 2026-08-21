@@ -402,6 +402,15 @@ web-build:
     {{bunreq}}
     cd apps/web && AI_STP_WEB_PROFILE=public_saas bun run build
 
+# Storybook собирается вместе с приложением, потому что у него другой сборочный
+# граф: он свой Vite поднимает сам, через `viteFinal`. Пока его здесь не было,
+# подъём `@vitejs/plugin-react` до 6 прошёл весь гейт зелёным и сломал только
+# его — плагин требует Vite 8, приложение закреплено на 6, и увидеть это было
+# негде. Одиннадцать секунд за то, чтобы такой разрыв назывался сразу.
+web-storybook:
+    {{bunreq}}
+    cd apps/web && bun run build-storybook
+
 # Сценарии в браузере поверх SaaS production-сборки, desktop и мобильный viewport.
 #
 # Сборка объявлена зависимостью, а не повторена телом. Раньше рецепт вызывал
@@ -432,4 +441,4 @@ web-feature-profiles:
 # не совпадает ни с чем) и давал ложный отказ локально, где каталог остался от
 # другой ветки. `just` выполняет каждый рецепт один раз, поэтому порядок ничего
 # не удорожает: сборка всё равно в этом же агрегате.
-web-check: web-build web-static web-test web-regress web-feature-profiles
+web-check: web-build web-storybook web-static web-test web-regress web-feature-profiles
