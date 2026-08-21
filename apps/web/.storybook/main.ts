@@ -9,14 +9,20 @@ const appDir = path.resolve(rootDir, "..");
 
 const config: StorybookConfig = {
   stories: ["../src/**/*.mdx", "../src/**/*.stories.@(ts|tsx)"],
-  addons: ["@storybook/addon-essentials", "@storybook/addon-a11y", "@storybook/addon-themes"],
+  // `addon-essentials` is gone from Storybook 9 onward: controls, actions,
+  // viewport, backgrounds and docs are core now, so listing it would fail to
+  // resolve rather than add anything.
+  // `addon-docs` is listed on its own now. It used to arrive inside
+  // `addon-essentials`, which Storybook 9 dissolved into the core — except
+  // for docs, which stayed an addon and therefore has to be asked for.
+  addons: ["@storybook/addon-docs", "@storybook/addon-a11y", "@storybook/addon-themes"],
   framework: {
     name: "@storybook/react-vite",
     options: {},
   },
-  docs: {
-    autodocs: "tag",
-  },
+  // `docs.autodocs` went with the same release. Tag-driven autodocs is the
+  // default now, which is what `"tag"` selected, so the behaviour is
+  // unchanged by dropping the option.
   async viteFinal(config) {
     // Dynamic imports: Storybook evaluates main.ts via CJS interop; package
     // exports for Vite plugins are ESM-only.
