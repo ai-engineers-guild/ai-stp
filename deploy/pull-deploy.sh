@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
 # Fetch and deploy the one monotonic ref published by the green CI workflow.
+#
+# The source is this repository, and it is public, so the fetch carries no
+# credential at all. That is the point rather than a convenience: a deployment
+# anyone can read is a deployment anyone can verify, and the identity this host
+# reports at `/v1/system/version` resolves to a commit in the open.
 set -euo pipefail
 
 umask 077
 
 root=${AI_STP_ROOT:-"${HOME}/ai_stp"}
 state_root=${AI_STP_PULL_STATE_ROOT:-"${HOME}/.local/state/ai-stp-deployer"}
-repository=${AI_STP_PULL_REPOSITORY:-git@github.com:ai-engineers-guild/ai_stp.git}
+repository=${AI_STP_PULL_REPOSITORY:-https://github.com/ai-engineers-guild/ai-stp.git}
 deploy_ref=${AI_STP_PULL_REF:-refs/heads/deploy/prod}
 mirror=${state_root}/repository.git
 release_root=${state_root}/releases
@@ -20,6 +25,11 @@ if [[ ! -d ${mirror} ]]; then
   git init --bare --quiet "${mirror}"
   git --git-dir="${mirror}" remote add origin "${repository}"
 fi
+# Reconcile the remote every run, not only at creation. Setting it once meant
+# `${repository}` described the mirror's first fetch and nothing after it, so
+# changing the source silently kept fetching the old one — which is exactly how
+# it behaved when the source moved to this repository.
+git --git-dir="${mirror}" remote set-url origin "${repository}"
 
 git --git-dir="${mirror}" fetch --quiet --no-tags origin \
   "+${deploy_ref}:refs/remotes/origin/deploy/prod"

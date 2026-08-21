@@ -7,7 +7,10 @@ Wants=network-online.target
 Type=oneshot
 User=ubuntu
 Group=ubuntu
-Environment="GIT_SSH_COMMAND=/usr/bin/ssh -F /home/ubuntu/.ssh/ai-stp-prod-pull.conf"
+# No credential is configured here on purpose. The deployment source is the
+# public repository, so the fetch is anonymous HTTPS: there is no deploy key
+# on this host to leak, expire or rotate, and no SSH configuration to keep
+# in step with GitHub's host keys.
 Environment=AI_STP_ROOT=/home/ubuntu/ai_stp
 Environment=AI_STP_PULL_STATE_ROOT=/var/lib/ai-stp-deployer
 ExecStart=/home/ubuntu/ai_stp/deploy/pull-deploy.sh

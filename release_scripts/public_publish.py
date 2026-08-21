@@ -76,21 +76,31 @@ def api(
     return json.loads(completed.stdout) if completed.stdout.strip() else None
 
 
-def published_blobs(repo: str, tree_sha: str) -> dict[str, str]:
-    """Path to blob SHA for everything the published tree holds."""
+def published_blobs(repo: str, tree_sha: str) -> dict[str, tuple[str, str]]:
+    """Path to (blob SHA, mode) for everything the published tree holds."""
     # Query in the URL rather than as a field: `gh api` switches to POST the
     # moment a field is given, and this endpoint answers GET only.
     listing = api(repo, f"git/trees/{tree_sha}?recursive=1")
     if listing.get("truncated"):
         raise PublishError("published tree listing was truncated; publish by push instead")
-    return {item["path"]: item["sha"] for item in listing["tree"] if item["type"] == "blob"}
+    return {
+        item["path"]: (item["sha"], item["mode"])
+        for item in listing["tree"]
+        if item["type"] == "blob"
+    }
 
 
-def local_blobs(tree: Path) -> dict[str, str]:
-    """Path to Git blob SHA for everything the built tree holds.
+def local_blobs(tree: Path) -> dict[str, tuple[str, str]]:
+    """Path to (Git blob SHA, mode) for everything the built tree holds.
 
     Hashed by Git itself rather than reimplemented, so a match here means the
     same object and not merely the same bytes by some other definition.
+
+    The mode travels with the object because the deployment depends on it: the
+    systemd unit invokes `deploy/pull-deploy.sh` directly, so a script arriving
+    as `100644` stops production without failing anything visible. An earlier
+    version of this file assumed `100644` for every entry, which was true of
+    nothing it published and would have been discovered on the host.
     """
     try:
         listed = subprocess.run(
@@ -98,20 +108,22 @@ def local_blobs(tree: Path) -> dict[str, str]:
         ).stdout
     except (OSError, subprocess.CalledProcessError) as error:
         raise PublishError(f"could not read the built tree: {error}") from error
-    blobs: dict[str, str] = {}
+    blobs: dict[str, tuple[str, str]] = {}
     for record in listed.split("\0"):
         if not record:
             continue
         meta, path = record.split("\t", 1)
-        _mode, sha, _stage = meta.split(" ", 2)
-        blobs[path] = sha
+        mode, sha, _stage = meta.split(" ", 2)
+        blobs[path] = (sha, mode)
     if not blobs:
         raise PublishError("the built tree has nothing staged; run `git add -A` in it first")
     return blobs
 
 
-def changes(published: dict[str, str], built: dict[str, str]) -> tuple[list[str], list[str]]:
-    changed = sorted(path for path, sha in built.items() if published.get(path) != sha)
+def changes(
+    published: dict[str, tuple[str, str]], built: dict[str, tuple[str, str]]
+) -> tuple[list[str], list[str]]:
+    changed = sorted(path for path, entry in built.items() if published.get(path) != entry)
     removed = sorted(path for path in published if path not in built)
     return changed, removed
 
@@ -133,18 +145,25 @@ def publish(repo: str, tree: Path, message: str, *, dry_run: bool = False) -> in
     if dry_run:
         return 0
 
+    built = local_blobs(tree)
     entries: list[dict[str, Any]] = []
     for path in changed:
+        # Through stdin rather than as a field. A field becomes an argv entry,
+        # and argv is bounded: `uv.lock` alone is over half a megabyte, so the
+        # publication failed with `Argument list too long` and named `gh`
+        # instead of the file, which is a poor way to learn about a size limit.
         blob = api(
             repo,
             "git/blobs",
-            "-f",
-            f"content={base64.b64encode((tree / path).read_bytes()).decode()}",
-            "-f",
-            "encoding=base64",
             method="POST",
+            body=json.dumps(
+                {
+                    "content": base64.b64encode((tree / path).read_bytes()).decode(),
+                    "encoding": "base64",
+                }
+            ),
         )
-        entries.append({"path": path, "mode": "100644", "type": "blob", "sha": blob["sha"]})
+        entries.append({"path": path, "mode": built[path][1], "type": "blob", "sha": blob["sha"]})
     for path in removed:
         entries.append({"path": path, "mode": "100644", "type": "blob", "sha": None})
 

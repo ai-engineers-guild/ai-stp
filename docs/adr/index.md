@@ -107,6 +107,7 @@ last_verified: "2026-08-03"
 | [ADR-0103-target-pulls-a-monotonic-deployment-ref.md](ADR-0103-target-pulls-a-monotonic-deployment-ref.md) | Решение убрать GitHub Actions runner с production-хоста и развёртывать только монотонно продвигаемый ref после зелёного CI. | 2026-08-20 |
 | [ADR-0106-a-declared-key-proves-mcp-inside-a-setting-file.md](ADR-0106-a-declared-key-proves-mcp-inside-a-setting-file.md) | Решение доказывать клиентские MCP внутри setting-файла объявленным ключом и читать только имена серверов. | 2026-08-20 |
 | [ADR-0108-the-public-tree-is-built-from-an-allowlist.md](ADR-0108-the-public-tree-is-built-from-an-allowlist.md) | Решение собирать публичный репозиторий из манифеста-allowlist с проверкой запрещённого содержимого, а не удалять лишнее из копии. | 2026-08-20 |
+| [ADR-0109-the-deployment-source-is-the-public-repository.md](ADR-0109-the-deployment-source-is-the-public-repository.md) | Решение развёртывать production из публичного репозитория анонимным fetch без credential. | 2026-08-21 |
 | [template.md](template.md) | Шаблон записи архитектурного решения. | 2026-08-03 |
 
 <!-- КОНЕЦ СОДЕРЖИМОГО -->
