@@ -20,6 +20,14 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 JUSTFILE = ROOT / "justfile"
 WORKFLOW = ROOT / ".github/workflows/check.yml"
+#: The public gate's source. This working copy carries it because the public
+#: tree is built from here (`ADR-0108`), and the coverage question is about
+#: where a check runs rather than which file names it: since `ADR-0110` the
+#: workflow here verifies what only this copy has, and the rest is proved in
+#: the open. In the built tree this path does not exist and `WORKFLOW` is the
+#: public one, so the same assertion reads as "the gate covers everything" —
+#: which is what it must mean there.
+OVERLAY_WORKFLOW = ROOT / "release_scripts/public_overlay/.github/workflows/check.yml"
 
 #: `name: dep dep` at the start of a line. No recipe in the `check` tree takes
 #: parameters, so everything to the right of the colon is a dependency list.
@@ -57,8 +65,8 @@ def _expand(recipes: list[str]) -> set[str]:
     return covered
 
 
-def _invoked_in_ci() -> set[str]:
-    workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+def _recipes_in(path: Path) -> list[str]:
+    workflow = yaml.safe_load(path.read_text(encoding="utf-8"))
     invoked: list[str] = []
     for job in workflow["jobs"].values():
         for step in job.get("steps", []):
@@ -70,15 +78,30 @@ def _invoked_in_ci() -> set[str]:
                 if not stripped.startswith("just "):
                     continue
                 invoked.extend(stripped.removeprefix("just ").split())
+    return invoked
+
+
+def _invoked_in_ci() -> set[str]:
+    invoked = _recipes_in(WORKFLOW)
+    if OVERLAY_WORKFLOW.is_file():
+        invoked += _recipes_in(OVERLAY_WORKFLOW)
     return _expand(invoked)
 
 
 def test_the_split_jobs_cover_every_recipe_the_gate_runs() -> None:
-    """No check disappears when the gate is split into jobs."""
+    """No check disappears when the gate is split, across jobs or across trees.
+
+    Splitting is worth having right up to the moment a recipe falls out of the
+    union, and nothing fails when it does: the run stays green and the check
+    simply stops running. Since `ADR-0110` the split is across two workflows as
+    well as across jobs, so the union is taken over both — the one that runs
+    here and the one this copy publishes. Dropping a recipe from either is
+    allowed; dropping it from both is what this refuses.
+    """
     required = _expand(["check"])
     assert required, "the `check` recipe resolved to nothing; the parser is wrong"
     missing = required - _invoked_in_ci()
-    assert not missing, f"CI does not run these parts of `just check`: {sorted(missing)}"
+    assert not missing, f"no gate runs these parts of `just check`: {sorted(missing)}"
 
 
 def test_the_parser_sees_the_shape_it_claims_to_see() -> None:
