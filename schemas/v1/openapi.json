@@ -5488,7 +5488,8 @@
             "items": {
               "enum": [
                 "linux",
-                "macos"
+                "macos",
+                "windows"
               ],
               "type": "string"
             },

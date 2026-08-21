@@ -190,8 +190,15 @@ class SetupVersionPassport(_VersionPassportBase):
     )
     execution_profile: Literal["full-auto"] = "full-auto"
     supported_harness_versions: list[str] = Field(default_factory=list)
-    supported_os: list[Literal["linux", "macos"]] = Field(
-        default_factory=list[Literal["linux", "macos"]]
+    #: Windows is here because refusing it in the type was the wrong place for
+    #: the refusal. Whether a target can actually be written is a fact about the
+    #: provider, and `install` already reads that: it compares this machine's
+    #: operating system against the provider's declared `supported_os` and
+    #: refuses there, by name, with the provider as the reason. A vocabulary
+    #: that pre-judged it made a setup unable to *say* what it supports, which
+    #: is a different and worse thing than being unable to install it.
+    supported_os: list[Literal["linux", "macos", "windows"]] = Field(
+        default_factory=list[Literal["linux", "macos", "windows"]]
     )
     supported_arch: list[Literal["x86_64", "arm64"]] = Field(
         default_factory=list[Literal["x86_64", "arm64"]]

@@ -10,8 +10,16 @@ import yaml
 ROOT = Path(__file__).parents[2]
 JUSTFILE = ROOT / "justfile"
 QUICKSTART = ROOT / "QUICKSTART.md"
-CHECK_WORKFLOW = ROOT / ".github" / "workflows" / "check.yml"
-MACOS_WORKFLOW = ROOT / ".github" / "workflows" / "macos-evidence.yml"
+#: Where the workflows this tree runs actually live. The working copy stopped
+#: running any of its own (`ADR-0110` made it a mirror, and the fleet is not
+#: spent on proving a mirror), so what it holds is the overlay it publishes. In
+#: the built tree the overlay is absent and the workflows are local, and the
+#: same assertions then describe the gate that really runs there.
+OVERLAY = ROOT / "release_scripts" / "public_overlay" / ".github" / "workflows"
+WORKFLOWS = OVERLAY if OVERLAY.is_dir() else ROOT / ".github" / "workflows"
+
+CHECK_WORKFLOW = WORKFLOWS / "check.yml"
+MACOS_WORKFLOW = WORKFLOWS / "macos-evidence.yml"
 PROVIDER_SAFE_PATH = ROOT / ".github" / "scripts" / "provider-safe-path.sh"
 
 

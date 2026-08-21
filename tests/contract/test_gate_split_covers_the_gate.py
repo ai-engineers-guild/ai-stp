@@ -19,15 +19,11 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 JUSTFILE = ROOT / "justfile"
-WORKFLOW = ROOT / ".github/workflows/check.yml"
-#: The public gate's source. This working copy carries it because the public
-#: tree is built from here (`ADR-0108`), and the coverage question is about
-#: where a check runs rather than which file names it: since `ADR-0110` the
-#: workflow here verifies what only this copy has, and the rest is proved in
-#: the open. In the built tree this path does not exist and `WORKFLOW` is the
-#: public one, so the same assertion reads as "the gate covers everything" —
-#: which is what it must mean there.
-OVERLAY_WORKFLOW = ROOT / "release_scripts/public_overlay/.github/workflows/check.yml"
+#: The gate this tree runs. The working copy runs none of its own any more, so
+#: the file it holds is the one it publishes; the built tree holds that same
+#: file as its actual gate.
+_OVERLAY = ROOT / "release_scripts/public_overlay/.github/workflows/check.yml"
+WORKFLOW = _OVERLAY if _OVERLAY.is_file() else ROOT / ".github/workflows/check.yml"
 
 #: `name: dep dep` at the start of a line. No recipe in the `check` tree takes
 #: parameters, so everything to the right of the colon is a dependency list.
@@ -82,10 +78,7 @@ def _recipes_in(path: Path) -> list[str]:
 
 
 def _invoked_in_ci() -> set[str]:
-    invoked = _recipes_in(WORKFLOW)
-    if OVERLAY_WORKFLOW.is_file():
-        invoked += _recipes_in(OVERLAY_WORKFLOW)
-    return _expand(invoked)
+    return _expand(_recipes_in(WORKFLOW))
 
 
 def test_the_split_jobs_cover_every_recipe_the_gate_runs() -> None:

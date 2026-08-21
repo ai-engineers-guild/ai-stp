@@ -48,6 +48,13 @@ PASSPORTS_DOC = Path("docs/contracts/component-setup-passports.md")
 
 # Канонические имена файлов-спутников: по ним CLI отличает описанный объект.
 SIDECAR_NAMES = ("ai-stp.component.yaml", "ai-stp.setup.yaml")
+#: The gate whose push branches must match the documented branch model. Which
+#: file that is depends on the tree: the working copy runs no workflows of its
+#: own any more (`ADR-0110`), so the gate it holds is the overlay it publishes,
+#: while the built tree holds that same file as its actual gate. Resolved rather
+#: than fixed, because the property is about the gate that runs and not about a
+#: path.
+_OVERLAY_WORKFLOW = Path("release_scripts/public_overlay/.github/workflows/check.yml")
 WORKFLOW = Path(".github/workflows/check.yml")
 GIT_WORKFLOW_DOC = Path("docs/engineering/git-workflow.md")
 REPO_STRUCTURE_DOC = Path("docs/engineering/repository-structure.md")
@@ -270,7 +277,8 @@ class ContractLinter:
 
     def check_branch_parity(self) -> None:
         """Ветки push в workflow обязаны совпадать с документированными."""
-        workflow = self.root / WORKFLOW
+        overlay = self.root / _OVERLAY_WORKFLOW
+        workflow = overlay if overlay.exists() else self.root / WORKFLOW
         doc = self.root / GIT_WORKFLOW_DOC
         if not workflow.exists() or not doc.exists():
             self.error(WORKFLOW, "CT010", "нет workflow или документа о ветках")

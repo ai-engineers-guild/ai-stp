@@ -63,7 +63,7 @@ roots = [
 ".claude" = "agent entry point for the private working copy"
 ".agents" = "agent entry point for the private working copy"
 "AGENTS.md" = "internal working rules: fleet classes, deployment host, private tracker"
-".github" = "workflows address a private runner fleet; the overlay supplies public ones"
+".github" = "actionlint config and the protection policy; the overlay supplies the workflows"
 "release_scripts/public_forbidden.toml" = "names the private infrastructure it exists to refuse"
 "release_scripts/public_overlay" = "its files are published at their target paths, not at this one"
 
