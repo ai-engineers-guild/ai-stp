@@ -15,12 +15,19 @@ import stat
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Final
 
 import pytest
 from jsonschema import Draft202012Validator
 
 from ai_stp_cli.commands import machine_help
+
+#: How long one invocation may take before the wait itself is the failure.
+#: Generous for a slow runner and finite on purpose: an unbounded wait turns
+#: a blocked child into a job that ends at its own ceiling with nothing to
+#: show, which is how a missing credential-store pin cost four macOS runs
+#: before anything named it.
+INVOCATION_SECONDS: Final[int] = 300
 
 GOLDEN = Path(__file__).parents[1] / "golden" / "cli" / "machine-help.json"
 SCHEMAS = Path(__file__).parents[2] / "schemas" / "v1"
@@ -59,6 +66,7 @@ def run(*argv: str, home: Path) -> subprocess.CompletedProcess[str]:
         text=True,
         env=environment,
         check=False,
+        timeout=INVOCATION_SECONDS,
     )
 
 
@@ -801,6 +809,12 @@ def test_no_passport_collects_environment_values_or_local_paths(ready: Path) -> 
         "XDG_DATA_HOME": str(ready / "data"),
         "HOME": str(home),
         "DBUS_SESSION_BUS_ADDRESS": "unix:path=/nonexistent",
+        # The same pin the helper above carries, and for the same reason it
+        # gives: a host with a trusted OS keyring opens the locker whatever DBUS
+        # says. Missing here, this test reached the macOS Keychain on a headless
+        # runner and never came back — forty-three minutes of silence until the
+        # job's own ceiling ended it, four runs in a row.
+        "AI_STP_FORCE_FILE_CREDENTIAL_STORE": "1",
         "AI_STP_TEST_SECRET": "leak-me-from-the-environment",
     }
 
@@ -811,6 +825,7 @@ def test_no_passport_collects_environment_values_or_local_paths(ready: Path) -> 
             text=True,
             env=environment,
             check=True,
+            timeout=INVOCATION_SECONDS,
         ).stdout
 
     emitted("passport", "developer", "init")
