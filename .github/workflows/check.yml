@@ -294,10 +294,17 @@ jobs:
           source .github/scripts/provider-safe-path.sh
           ai_stp_use_provider_safe_path
           uv sync --locked --group docs --group dev
-          # Verbose on purpose. A job that ends on its own timeout reports only
-          # that it ended: `-q` prints buffered progress, so the last dot says
-          # nothing about which test was running. Per-test lines carry the
-          # runner's timestamps, which is what turns "macOS is slow" into a
-          # name. The Linux leg does the same work in four minutes, so the
-          # output volume is not what costs anything here.
-          uv run pytest tests/unit tests/contract --no-cov -v -n auto
+          # Two flags, both earned by a job that ended on its own timeout
+          # three times while the log said only that it ended.
+          #
+          # `-vv`, not `-v`: pytest reads verbosity as the difference between
+          # the two flags, and this project's `addopts` already carries `-q`,
+          # so a single `-v` cancels it out and prints the same dots. That is
+          # what happened on the run before this one.
+          #
+          # `faulthandler_timeout` is the part that actually names the hang: it
+          # dumps every thread's traceback once a test outlives the timeout, so
+          # the log identifies the test instead of stopping mid-line. Built
+          # into pytest, so this costs no dependency.
+          uv run pytest tests/unit tests/contract --no-cov -vv \
+            -o faulthandler_timeout=300 -n auto
