@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import http.client
 import json
 import sys
 import time
@@ -111,7 +112,13 @@ def _default_fetch(url: str, limit: int) -> tuple[int, bytes]:
             if len(body) > limit:
                 raise VerificationError(f"response exceeded {limit} bytes: {url}")
             return int(response.status), body
-    except (urllib.error.URLError, TimeoutError) as error:
+    except (OSError, http.client.HTTPException) as error:
+        # Everything a restarting target does to an open socket, in one place.
+        # `URLError` alone was not enough: the deployment window drops
+        # connections mid-response, and `http.client.RemoteDisconnected` is a
+        # `ConnectionResetError` that urllib lets through unwrapped. It then
+        # escaped the retry loop below and failed the job outright — for the one
+        # condition that loop exists to wait out.
         raise VerificationError(f"request failed for {url}: {error}") from error
 
 
@@ -123,6 +130,25 @@ def _json(body: bytes, path: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise VerificationError(f"{path} did not return an object")
     return value
+
+
+def _fetched(
+    fetch: Callable[[str, int], tuple[int, bytes]], url: str, limit: int
+) -> tuple[int, bytes]:
+    """Call `fetch` and turn every transport failure into a retryable one.
+
+    Wrapped here rather than only inside `_default_fetch`, because the caller
+    supplies the fetch and should not have to know this convention — and because
+    the convention is the point: everything a restarting target does to a socket
+    is "not ready yet", which the loop in `main` waits out, not a reason to fail
+    the deployment.
+    """
+    try:
+        return fetch(url, limit)
+    except VerificationError:
+        raise
+    except (OSError, http.client.HTTPException) as error:
+        raise VerificationError(f"request failed for {url}: {error}") from error
 
 
 def verify(
@@ -140,14 +166,14 @@ def verify(
         "/v1/health/ready": ("status", "ready"),
     }
     for path, (field, value) in expected.items():
-        status, body = fetch(origin + path, MAX_JSON_BYTES)
+        status, body = _fetched(fetch, origin + path, MAX_JSON_BYTES)
         if status != 200:
             raise VerificationError(f"{path} returned HTTP {status}")
         payload = _json(body, path)
         if payload.get("schema_version") != 1 or payload.get(field) != value:
             raise VerificationError(f"{path} returned an unexpected payload")
 
-    status, body = fetch(origin + "/v1/system/version", MAX_JSON_BYTES)
+    status, body = _fetched(fetch, origin + "/v1/system/version", MAX_JSON_BYTES)
     if status != 200:
         raise VerificationError(f"/v1/system/version returned HTTP {status}")
     identity = _json(body, "/v1/system/version")
