@@ -54,14 +54,23 @@ jobs:
           set -euo pipefail
           python_path="$(python -c 'import sys; print(sys.executable)')"
           test -n "${python_path}"
-          echo "UV_PYTHON=${python_path}" >> "${GITHUB_ENV}"
-          echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-docs" >> "${GITHUB_ENV}"
+          {
+            echo "UV_PYTHON=${python_path}"
+            echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-docs"
+            echo "UV_CACHE_DIR=${RUNNER_TEMP}/uv-cache"
+          } >> "${GITHUB_ENV}"
       # `uv sync` resolves and downloads the same locked dependencies on every
       # job of every run. Keyed by the lock, so a hit is exact and a change to
       # the lock misses on purpose.
+      #
+      # The path is `UV_CACHE_DIR` and not `~/.cache/uv`, which is where uv
+      # puts its cache on Linux alone: Windows uses `%LOCALAPPDATA%\uv\cache`,
+      # so the cached path did not exist there and `actions/cache` skipped the
+      # save with a warning nobody read. Every Windows job had been resolving
+      # and downloading the whole dependency set from scratch.
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
-          path: ~/.cache/uv
+          path: ${{ runner.temp }}/uv-cache
           key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
           restore-keys: ${{ runner.os }}-uv-
       - name: Install pinned uv
@@ -101,14 +110,23 @@ jobs:
           set -euo pipefail
           python_path="$(python -c 'import sys; print(sys.executable)')"
           test -n "${python_path}"
-          echo "UV_PYTHON=${python_path}" >> "${GITHUB_ENV}"
-          echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-package" >> "${GITHUB_ENV}"
+          {
+            echo "UV_PYTHON=${python_path}"
+            echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-package"
+            echo "UV_CACHE_DIR=${RUNNER_TEMP}/uv-cache"
+          } >> "${GITHUB_ENV}"
       # `uv sync` resolves and downloads the same locked dependencies on every
       # job of every run. Keyed by the lock, so a hit is exact and a change to
       # the lock misses on purpose.
+      #
+      # The path is `UV_CACHE_DIR` and not `~/.cache/uv`, which is where uv
+      # puts its cache on Linux alone: Windows uses `%LOCALAPPDATA%\uv\cache`,
+      # so the cached path did not exist there and `actions/cache` skipped the
+      # save with a warning nobody read. Every Windows job had been resolving
+      # and downloading the whole dependency set from scratch.
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
-          path: ~/.cache/uv
+          path: ${{ runner.temp }}/uv-cache
           key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
           restore-keys: ${{ runner.os }}-uv-
       - name: Install pinned uv
@@ -200,15 +218,23 @@ jobs:
           set -euo pipefail
           python_path="$(python -c 'import sys; print(sys.executable)')"
           test -n "${python_path}"
-          echo "UV_PYTHON=${python_path}" >> "${GITHUB_ENV}"
-          echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-tests-${{ matrix.shard }}" \
-            >> "${GITHUB_ENV}"
+          {
+            echo "UV_PYTHON=${python_path}"
+            echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-tests-${{ matrix.shard }}"
+            echo "UV_CACHE_DIR=${RUNNER_TEMP}/uv-cache"
+          } >> "${GITHUB_ENV}"
       # `uv sync` resolves and downloads the same locked dependencies on every
       # job of every run. Keyed by the lock, so a hit is exact and a change to
       # the lock misses on purpose.
+      #
+      # The path is `UV_CACHE_DIR` and not `~/.cache/uv`, which is where uv
+      # puts its cache on Linux alone: Windows uses `%LOCALAPPDATA%\uv\cache`,
+      # so the cached path did not exist there and `actions/cache` skipped the
+      # save with a warning nobody read. Every Windows job had been resolving
+      # and downloading the whole dependency set from scratch.
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
-          path: ~/.cache/uv
+          path: ${{ runner.temp }}/uv-cache
           key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
           restore-keys: ${{ runner.os }}-uv-
       - name: Install pinned uv
@@ -266,11 +292,14 @@ jobs:
           set -euo pipefail
           python_path="$(python -c 'import sys; print(sys.executable)')"
           test -n "${python_path}"
-          echo "UV_PYTHON=${python_path}" >> "${GITHUB_ENV}"
-          echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-coverage" >> "${GITHUB_ENV}"
+          {
+            echo "UV_PYTHON=${python_path}"
+            echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-coverage"
+            echo "UV_CACHE_DIR=${RUNNER_TEMP}/uv-cache"
+          } >> "${GITHUB_ENV}"
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
-          path: ~/.cache/uv
+          path: ${{ runner.temp }}/uv-cache
           key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
           restore-keys: ${{ runner.os }}-uv-
       - name: Install pinned uv
@@ -312,12 +341,11 @@ jobs:
           set -euo pipefail
           bash .github/scripts/install-bun.sh "${BUN_VERSION}" "${RUNNER_TEMP}/bun"
           echo "${RUNNER_TEMP}/bun" >> "${GITHUB_PATH}"
-      # Not on Windows. Restoring this cache there costs 85s — the largest
-      # fixed step left on the longest job — because the store is tens of
-      # thousands of small files and that image charges for every one of them.
-      # Linux restores the same cache in 4s and macOS in 11s, so they keep it.
+      # Kept on Windows despite costing 85s to restore there — measured
+      # against the alternative rather than assumed. Without it `bun install`
+      # downloads the whole store inside the build step, and that step went
+      # from 121s to 222s: the restore is 85s and buys 101s.
       - name: Cache bun packages
-        if: runner.os != 'Windows'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ~/.bun/install/cache
@@ -373,12 +401,11 @@ jobs:
           set -euo pipefail
           bash .github/scripts/install-bun.sh "${BUN_VERSION}" "${RUNNER_TEMP}/bun"
           echo "${RUNNER_TEMP}/bun" >> "${GITHUB_PATH}"
-      # Not on Windows. Restoring this cache there costs 85s — the largest
-      # fixed step left on the longest job — because the store is tens of
-      # thousands of small files and that image charges for every one of them.
-      # Linux restores the same cache in 4s and macOS in 11s, so they keep it.
+      # Kept on Windows despite costing 85s to restore there — measured
+      # against the alternative rather than assumed. Without it `bun install`
+      # downloads the whole store inside the build step, and that step went
+      # from 121s to 222s: the restore is 85s and buys 101s.
       - name: Cache bun packages
-        if: runner.os != 'Windows'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ~/.bun/install/cache
@@ -417,12 +444,11 @@ jobs:
           set -euo pipefail
           bash .github/scripts/install-bun.sh "${BUN_VERSION}" "${RUNNER_TEMP}/bun"
           echo "${RUNNER_TEMP}/bun" >> "${GITHUB_PATH}"
-      # Not on Windows. Restoring this cache there costs 85s — the largest
-      # fixed step left on the longest job — because the store is tens of
-      # thousands of small files and that image charges for every one of them.
-      # Linux restores the same cache in 4s and macOS in 11s, so they keep it.
+      # Kept on Windows despite costing 85s to restore there — measured
+      # against the alternative rather than assumed. Without it `bun install`
+      # downloads the whole store inside the build step, and that step went
+      # from 121s to 222s: the restore is 85s and buys 101s.
       - name: Cache bun packages
-        if: runner.os != 'Windows'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ~/.bun/install/cache
@@ -488,12 +514,11 @@ jobs:
           set -euo pipefail
           bash .github/scripts/install-bun.sh "${BUN_VERSION}" "${RUNNER_TEMP}/bun"
           echo "${RUNNER_TEMP}/bun" >> "${GITHUB_PATH}"
-      # Not on Windows. Restoring this cache there costs 85s — the largest
-      # fixed step left on the longest job — because the store is tens of
-      # thousands of small files and that image charges for every one of them.
-      # Linux restores the same cache in 4s and macOS in 11s, so they keep it.
+      # Kept on Windows despite costing 85s to restore there — measured
+      # against the alternative rather than assumed. Without it `bun install`
+      # downloads the whole store inside the build step, and that step went
+      # from 121s to 222s: the restore is 85s and buys 101s.
       - name: Cache bun packages
-        if: runner.os != 'Windows'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ~/.bun/install/cache
@@ -556,15 +581,23 @@ jobs:
           set -euo pipefail
           python_path="$(python -c 'import sys; print(sys.executable)')"
           test -n "${python_path}"
-          echo "UV_PYTHON=${python_path}" >> "${GITHUB_ENV}"
-          echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/cli-${{ matrix.os }}-${{ matrix.suite }}" \
-            >> "${GITHUB_ENV}"
+          {
+            echo "UV_PYTHON=${python_path}"
+            echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/cli-${{ matrix.os }}-${{ matrix.suite }}"
+            echo "UV_CACHE_DIR=${RUNNER_TEMP}/uv-cache"
+          } >> "${GITHUB_ENV}"
       # `uv sync` resolves and downloads the same locked dependencies on every
       # job of every run. Keyed by the lock, so a hit is exact and a change to
       # the lock misses on purpose.
+      #
+      # The path is `UV_CACHE_DIR` and not `~/.cache/uv`, which is where uv
+      # puts its cache on Linux alone: Windows uses `%LOCALAPPDATA%\uv\cache`,
+      # so the cached path did not exist there and `actions/cache` skipped the
+      # save with a warning nobody read. Every Windows job had been resolving
+      # and downloading the whole dependency set from scratch.
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
-          path: ~/.cache/uv
+          path: ${{ runner.temp }}/uv-cache
           key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
           restore-keys: ${{ runner.os }}-uv-
       - name: Install pinned uv
