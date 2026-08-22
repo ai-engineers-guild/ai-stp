@@ -34,7 +34,7 @@ from ai_stp_contracts.catalog import (
     SetupSearchRequest,
     SetupVersionResponse,
 )
-from ai_stp_contracts.http import PAGE_SIZE_DEFAULT
+from ai_stp_contracts.http import API_BASE_PATH, PAGE_SIZE_DEFAULT
 from ai_stp_contracts.machine_help import (
     AnswerSource,
     CatalogKind,
@@ -291,7 +291,15 @@ def fetch_artifact(
     if held is not None:
         return held
 
-    path = f"/catalog/{'components' if kind == 'component' else 'setups'}/{stable_id}"
+    # The prefix is written here because this is the one call that does not go
+    # through `client.call`, which adds it. Streaming is why: an artifact has no
+    # modelled upper bound, so it is read in blocks rather than parsed whole —
+    # and going around the helper went around the prefix with it. Every artifact
+    # fetch asked `/catalog/...` and got a 404 from the web tier, which is why
+    # nothing could ever be installed from the published catalogue.
+    path = (
+        f"{API_BASE_PATH}/catalog/{'components' if kind == 'component' else 'setups'}/{stable_id}"
+    )
     path = f"{path}/versions/{version_number}/artifact"
     directory = cache.version_artifact_path(expected.digest).parent
     ensure_directory(directory)

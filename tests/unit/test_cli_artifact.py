@@ -19,7 +19,13 @@ BYTES = b"the exact bytes of one published version"
 DIGEST = digest_bytes(cache.ARTIFACT_DOMAIN, BYTES)
 REF = ArtifactRef(digest=DIGEST, size_bytes=len(BYTES))
 OBJECT = "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
-MOCK = Endpoint("https://ai-stp.example/v1")
+#: A bare origin, as production is. This fixture used to carry `/v1`, and that
+#: single character difference hid a real defect for the life of the file: the
+#: artifact fetch built its path without the version prefix, and against a base
+#: URL that already had one the result was correct. Against the deployed origin
+#: it asked `/catalog/...` and got a 404, so nothing could be installed from the
+#: published catalogue.
+MOCK = Endpoint("https://ai-stp.example")
 
 
 def _serving(payload: bytes, status: int = 200) -> httpx.MockTransport:
@@ -242,3 +248,27 @@ def test_the_fetch_command_reports_where_the_verified_bytes_are(
 
     with pytest.raises(CliFailure, match="identifier and a version are both required"):
         registry_commands.fetch({"kind": "component"})
+
+
+def test_the_artifact_is_asked_for_on_the_versioned_surface() -> None:
+    """Every other call goes through `client.call`, which adds `/v1`.
+
+    This one streams — an artifact has no modelled upper bound, so it is read in
+    blocks rather than parsed whole — and going around the helper went around
+    the prefix with it. Every artifact fetch asked `/catalog/...`, the web tier
+    answered 404, and nothing could be installed from the published catalogue at
+    all. It was invisible here because the mock transport answers any path.
+    """
+    asked: list[str] = []
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        asked.append(request.url.path)
+        return httpx.Response(200, content=BYTES)
+
+    catalog.fetch_artifact(
+        MOCK, "component", OBJECT, "1.0", REF, transport=httpx.MockTransport(answer)
+    )
+
+    assert asked, "the artifact was never requested"
+    assert asked[0].startswith("/v1/catalog/components/"), asked[0]
+    assert asked[0].endswith("/versions/1.0/artifact"), asked[0]
