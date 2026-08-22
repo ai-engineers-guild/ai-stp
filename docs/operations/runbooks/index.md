@@ -20,7 +20,6 @@ last_verified: "2026-08-03"
 | [publish-recovery.md](publish-recovery.md) | Runbook: publish recovery. | 2026-08-03 |
 | [pypi-release.md](pypi-release.md) | Заглушка: runbook выпуска в PyPI принадлежит приватной развёртке. | 2026-08-20 |
 | [report-triage.md](report-triage.md) | Runbook: триаж случая жалобы. | 2026-08-04 |
-| [repository-release-protections.md](repository-release-protections.md) | Активация и проверка GitHub-защит перед публичным выпуском. | 2026-08-08 |
 | [safety-scan.md](safety-scan.md) | Runbook: platform safety-scan для publication validate. | 2026-08-21 |
 | [security-incident.md](security-incident.md) | Runbook: security incident. | 2026-08-03 |
 | [sync-conflict.md](sync-conflict.md) | Runbook: sync conflict. | 2026-08-03 |

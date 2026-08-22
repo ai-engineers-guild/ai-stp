@@ -1,6 +1,6 @@
 [project]
 name = "ai-stp-contracts"
-version = "0.1.0"
+version = "0.0.1"
 description = "Frozen /v1 wire contract: request and response models shared by the CLI and the platform."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -18,9 +18,9 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "ai-stp-assurance==0.1.0",
-    "ai-stp-foundation==0.1.0",
-    "ai-stp-passports==0.1.0",
+    "ai-stp-assurance==0.0.1",
+    "ai-stp-foundation==0.0.1",
+    "ai-stp-passports==0.0.1",
     "pydantic>=2.9",
 ]
 

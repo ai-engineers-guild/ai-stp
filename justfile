@@ -108,11 +108,6 @@ release-candidate-install:
         dist/release-candidate \
         --expected-sha "$(git rev-parse HEAD)"
 
-# Read-only audit of the live GitHub release controls. It is expected to fail
-# closed until the repository is public and every control in #188 is active.
-release-protections:
-    uv run --locked python release_scripts/verify_protections.py
-
 # Ничего не меняет и ничем не аутентифицируется: анонимный срез обязан
 # доказываться без учётных данных, а скрипт, который не может их держать, не
 # может их и раскрыть. Не входит в `just check` — гейт репозитория не вправе

@@ -19,6 +19,8 @@ a log or a fixture.
 from __future__ import annotations
 
 import json
+import os
+import stat
 import tomllib
 from pathlib import Path
 from typing import Final, cast
@@ -27,6 +29,24 @@ from typing import Final, cast
 #: is refused rather than parsed, so an unbounded file cannot be pulled into
 #: memory by naming it after a setting.
 MAX_CLIENT_BYTES: Final[int] = 1024 * 1024
+
+#: How many servers one hand-written client file may declare. The bound exists
+#: for the same reason as the byte limit: a declared path is still a file
+#: somebody else can write, and `REQ-518` bounds this adapter by declared file
+#: *and* size rather than by trust in either.
+MAX_CLIENT_ENTRIES: Final[int] = 500
+
+#: How long one server name may be. Names are the only thing this module
+#: returns and they travel on into `evidence_refs`, so an unbounded one is a
+#: way to put arbitrary text there by writing it into a config file.
+#:
+#: A length and not a character class, deliberately. A name is written by the
+#: person whose machine this is, and `say "hi"` is a name somebody chose;
+#: refusing it would report "this file declares no MCP servers" about a file
+#: that declares one, which is the false negative this module exists to avoid.
+#: A pattern could only be enforced honestly by an adapter that can say what it
+#: dropped, and this one returns a bare tuple.
+MAX_ENTRY_NAME_CHARS: Final[int] = 200
 
 
 def _string_end(text: str, start: int) -> int:
@@ -99,6 +119,55 @@ def _without_trailing_commas(text: str) -> str:
     return "".join(kept)
 
 
+def _bounded_bytes(path: Path) -> bytes | None:
+    """The file's bytes, or `None` when this is not a plain file we may read.
+
+    `REQ-518` bounds this adapter to declared files and a size. A declared path
+    is still a path somebody else controls, and the bound is only real if what
+    is opened is what was measured:
+
+    * a symlink is refused rather than followed, so `.mcp.json` pointing at a
+      private key is not read at all — the names we return are harmless, but
+      the read itself is not something a discovery pass should perform;
+    * a file with more than one hard link is refused for the same reason,
+      because the second name is a second owner;
+    * the descriptor is checked against the `lstat` that authorised it, so the
+      path cannot be swapped between the two calls.
+
+    `O_NOFOLLOW` and `O_BINARY` are absent on some platforms; `getattr` keeps
+    the call portable, and the identity check below is what actually enforces
+    the rule where the flag does nothing.
+    """
+    try:
+        measured = path.lstat()
+    except (OSError, ValueError):
+        return None
+    if stat.S_ISLNK(measured.st_mode) or not stat.S_ISREG(measured.st_mode):
+        return None
+    if measured.st_nlink > 1:
+        return None
+    if measured.st_size > MAX_CLIENT_BYTES:
+        return None
+    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(path, flags)
+    except (OSError, ValueError):
+        return None
+    try:
+        opened = os.fstat(descriptor)
+        if (opened.st_dev, opened.st_ino) != (measured.st_dev, measured.st_ino):
+            return None
+        with os.fdopen(descriptor, "rb") as handle:
+            descriptor = -1
+            raw = handle.read(MAX_CLIENT_BYTES + 1)
+    except OSError:
+        return None
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+    return None if len(raw) > MAX_CLIENT_BYTES else raw
+
+
 def _document(path: Path) -> dict[str, object] | None:
     """The file parsed by the format its name declares, or `None`.
 
@@ -107,11 +176,8 @@ def _document(path: Path) -> dict[str, object] | None:
     not evidence of anything, and guessing at its intent is exactly the
     heuristic this adapter exists to avoid.
     """
-    try:
-        raw = path.read_bytes()
-    except OSError:
-        return None
-    if len(raw) > MAX_CLIENT_BYTES:
+    raw = _bounded_bytes(path)
+    if raw is None:
         return None
     try:
         text = raw.decode("utf-8")
@@ -144,4 +210,12 @@ def declared_servers(path: Path, key: str) -> tuple[str, ...]:
     if not isinstance(servers, dict):
         return ()
     named = cast("dict[object, object]", servers)
-    return tuple(sorted(name for name in named if isinstance(name, str) and name))
+    if len(named) > MAX_CLIENT_ENTRIES:
+        return ()
+    return tuple(
+        sorted(
+            name
+            for name in named
+            if isinstance(name, str) and 0 < len(name) <= MAX_ENTRY_NAME_CHARS
+        )
+    )

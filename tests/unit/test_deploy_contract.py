@@ -59,7 +59,20 @@ def test_the_deploy_workflow_keeps_the_guarantees_it_inherited() -> None:
     assert 'test "${BRANCH}" = "main"' in workflow
 
     assert executable.count("persist-credentials: false") == 1
-    assert "permissions:\n  contents: write" in workflow
+
+    # Write is granted to the job that moves the ref and to nothing else. A
+    # workflow-wide write would hand it to the proof job, which only reads.
+    assert "permissions:\n  contents: read" in workflow
+    assert "permissions:\n      contents: write" in workflow
+    assert "permissions:\n  contents: write" not in workflow
+
+    # The event and branch are conditions on the job, not only tests inside a
+    # `run`. A static analyser cannot see the shell, so an edit dropping the
+    # script checks would silently promote a pull-request run; as a job
+    # condition the same edit skips the job instead.
+    assert "github.event.workflow_run.event == 'push'" in workflow
+    assert "github.event.workflow_run.head_branch == 'main'" in workflow
+
     assert "refs/heads/deploy/prod" in workflow
     assert "-F force=false" in workflow
 

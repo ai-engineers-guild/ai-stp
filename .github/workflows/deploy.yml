@@ -16,13 +16,26 @@ on:
     types: [completed]
     branches: [main]
 
+# Read at the top and widened on the one job that writes. Nothing else here
+# needs to move a ref, and a workflow-wide write is a permission the proof job
+# would carry for no reason.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   promote:
     name: promote
-    if: github.event.workflow_run.conclusion == 'success'
+    # The event and branch are asserted here and again in the step below, and
+    # the duplication is the point. A static analyser cannot see `test` inside
+    # `run`, so a later edit that drops the script checks would silently start
+    # promoting a pull-request run; stated as a job condition, the same mistake
+    # simply skips the job.
+    if: >-
+      github.event.workflow_run.conclusion == 'success'
+      && github.event.workflow_run.event == 'push'
+      && github.event.workflow_run.head_branch == 'main'
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # Serialising promotion is the point: two runs advancing one ref would
@@ -63,6 +76,8 @@ jobs:
   verify-public:
     name: verify-public
     needs: promote
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     # The wait below plus checkout and setup. Larger than the wait, so a
     # timeout means the job was starved rather than the target being late.
