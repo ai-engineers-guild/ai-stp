@@ -50,13 +50,17 @@ def test_python_ci_jobs_do_not_reuse_a_persistent_checkout_venv() -> None:
         scripts = "\n".join(
             step["run"] for step in job.get("steps", []) if isinstance(step.get("run"), str)
         )
-        if "uv" not in scripts and "just setup-python" not in scripts:
+        if "uv" not in scripts:
             continue
         assert "UV_PYTHON=${python_path}" in scripts, f"{name} does not pin its interpreter"
         marker = "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/"
         assert marker in scripts, f"{name} would resolve the checkout .venv"
         environments.append(scripts.split(marker, 1)[1].split('"', 1)[0].strip())
-        assert "ai_stp_use_provider_safe_path" in scripts, f"{name} keeps the fixture path"
+        if "pytest" in scripts:
+            # Only the jobs that actually run the pytest provider fixtures
+            # depend on the de-prioritized interpreter path; a bun-only job
+            # gains nothing from sourcing a bash helper.
+            assert "ai_stp_use_provider_safe_path" in scripts, f"{name} keeps the fixture path"
 
     assert len(environments) >= 2, "the Python matrix lost a job"
     assert len(set(environments)) == len(environments), f"two jobs share one env: {environments}"
@@ -76,9 +80,8 @@ def test_provider_fixture_path_deprioritizes_interpreters_but_keeps_tools(
     for executable in (python_bin / "python", python_bin / "python3", python_bin / "uv"):
         executable.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
         executable.chmod(0o755)
-    for executable in (safe_bin / "just", fixture_bin / "python3"):
-        executable.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
-        executable.chmod(0o755)
+    (fixture_bin / "python3").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    (fixture_bin / "python3").chmod(0o755)
 
     original_path = ":".join(
         str(part)
@@ -127,11 +130,11 @@ def test_provider_fixture_path_deprioritizes_interpreters_but_keeps_tools(
 
 
 def test_clean_wheel_regression_ignores_the_outer_matrix_interpreter() -> None:
-    recipes = JUSTFILE.read_text(encoding="utf-8")
+    script = (ROOT / "release_scripts" / "clean_install_regress.sh").read_text(encoding="utf-8")
 
-    assert 'uv pip install --python "$work/venv"' in recipes
-    assert 'uv pip list --python "$work/venv"' in recipes
-    assert 'VIRTUAL_ENV="$work/venv" uv pip install' not in recipes
+    assert 'uv pip install --python "$work/venv"' in script
+    assert 'uv pip list --python "$work/venv"' in script
+    assert 'VIRTUAL_ENV="$work/venv" uv pip install' not in script
 
 
 def test_primary_quality_gates_do_not_require_bash_on_windows() -> None:
@@ -156,15 +159,21 @@ def test_primary_quality_gates_do_not_require_bash_on_windows() -> None:
             text=True,
         )
         output = regression.stdout + regression.stderr
-        assert "back-regress requires bash" in output
-        assert "uv build" not in output
+        # PATH bash on Windows is frequently WSL. The recipe locates Git bash
+        # through the helper and still builds the wheels; it does not refuse
+        # the OS and it does not invoke unqualified bash.
+        assert "back-regress requires bash" not in output
+        assert "run_bash.py" in output
+        assert "clean_install_regress.sh" in output
+        assert "just back-build" in output
+        assert "bash release_scripts/clean_install_regress.sh" not in output
 
 
 def test_macos_matrix_proves_its_selected_python_and_exact_candidate() -> None:
     workflow = MACOS_WORKFLOW.read_text(encoding="utf-8")
 
     assert "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-python-${{ matrix.python }}" in workflow
-    assert "just release-candidate" in workflow
+    assert "release_scripts/build_candidate.py --replace" in workflow
     assert "release_scripts.verify_candidate_install" in workflow
     assert '--expected-python "${{ matrix.python }}"' in workflow
     assert '> ".evidence/release-candidate-python-${{ matrix.python }}.json"' in workflow

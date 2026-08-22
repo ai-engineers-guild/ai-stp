@@ -133,15 +133,69 @@ def isolated_database_url() -> Iterator[str]:
         _run(_execute_admin(admin_url, f"DROP DATABASE IF EXISTS {quoted} WITH (FORCE)"))
 
 
+@pytest.fixture(scope="session")
+def pg_migrated_template() -> Iterator[str | None]:
+    """One fully migrated database per xdist worker; individual tests clone it.
+
+    Applying the whole Alembic chain inside `migrated_database_url` made every
+    database test pay the migration cost again, and under xdist that cost
+    multiplied by the worker count against one PostgreSQL instance. The chain
+    is applied once per worker process here instead; each test then creates its
+    own database with `CREATE DATABASE ... TEMPLATE`, which is a file-level
+    copy rather than a replay of every migration.
+
+    Session scope never calls `pytest.skip`: a skip there would abandon every
+    test in the worker, not just the ones that need the database. Without
+    `TEST_DB_ENV` this yields None and the function-scoped fixture below skips
+    on exactly the same condition.
+    """
+    template_url = os.environ.get(TEST_DB_ENV)
+    if not template_url:
+        yield None
+        return
+
+    admin_url = _url_with_database(template_url, "postgres")
+    database = _database_name()
+    quoted = _quote_identifier(database)
+    _run(_execute_admin(admin_url, f"CREATE DATABASE {quoted} TEMPLATE template0"))
+    saved = os.environ.get("AI_STP_DB_URL")
+    os.environ["AI_STP_DB_URL"] = _url_with_database(template_url, database)
+    try:
+        command.upgrade(Config("alembic.ini"), "head")
+        yield database
+    finally:
+        if saved is None:
+            os.environ.pop("AI_STP_DB_URL", None)
+        else:
+            os.environ["AI_STP_DB_URL"] = saved
+        _run(_execute_admin(admin_url, f"DROP DATABASE IF EXISTS {quoted} WITH (FORCE)"))
+
+
 @pytest.fixture()
 def migrated_database_url(
-    isolated_database_url: str,
+    pg_migrated_template: str | None,
     monkeypatch: pytest.MonkeyPatch,
 ) -> Iterator[str]:
-    """Apply all Alembic migrations to an isolated PostgreSQL database."""
-    monkeypatch.setenv("AI_STP_DB_URL", isolated_database_url)
-    command.upgrade(Config("alembic.ini"), "head")
-    yield isolated_database_url
+    """Clone the per-worker migrated template into a disposable database."""
+    if pg_migrated_template is None:
+        pytest.skip(f"{TEST_DB_ENV} is required for PostgreSQL API tests")
+
+    template_url = os.environ[TEST_DB_ENV]
+    database = _database_name()
+    quoted = _quote_identifier(database)
+    admin_url = _url_with_database(template_url, "postgres")
+    _run(
+        _execute_admin(
+            admin_url,
+            f"CREATE DATABASE {quoted} TEMPLATE {_quote_identifier(pg_migrated_template)}",
+        )
+    )
+    url = _url_with_database(template_url, database)
+    monkeypatch.setenv("AI_STP_DB_URL", url)
+    try:
+        yield url
+    finally:
+        _run(_execute_admin(admin_url, f"DROP DATABASE IF EXISTS {quoted} WITH (FORCE)"))
 
 
 @pytest.fixture

@@ -30,10 +30,14 @@ dev = [
     # Measured before it was added, on the whole suite with the coverage gate
     # on: 548s in one process against 325s across four, 3776 passed and 93.12%
     # both times. The suite was already safe to distribute — every test that
-    # needs PostgreSQL creates its own database and drops it — and the slowest
-    # tests are the ones that spawn a CLI process, which is exactly the shape
-    # that parallelises. Removing it is one flag in `justfile::back-test`.
+    # needs PostgreSQL gets its own database cloned from a per-worker migrated
+    # template (ADR-0108) — and the slowest tests are the ones that spawn a CLI
+    # process, which is exactly the shape that parallelises. Removing it is one
+    # flag in `justfile::back-test`.
     "pytest-xdist>=3.6",
+    # Duration data for cross-job sharding (`just back-durations` writes it,
+    # `--splits/--group` consumes it). Inert until sharding is switched on;
+    # removal is the dev-group entry plus the one recipe.
     "ruff>=0.12",
 ]
 # Documentation toolchain, moved verbatim from docs_scripts/requirements.lock.txt
@@ -149,13 +153,22 @@ markers = [
     "cli: CLI tests",
     "manual: manual exploration, excluded from CI and gates",
     "unprivileged: needs a process the filesystem actually restricts (see tests/conftest.py)",
+    # Assigned automatically by tests/conftest.py from fixture usage, not
+    # handwritten per file: a test that reaches one of the PostgreSQL fixtures
+    # needs AI_STP_TEST_DB_URL, and selection by marker must not drift from
+    # what the fixtures actually require.
+    "pg: requires PostgreSQL via AI_STP_TEST_DB_URL",
 ]
 
 [tool.coverage.run]
 source = ["packages", "apps"]
-# SQLAlchemy asyncio uses greenlet; without this, await-crossing lines in
-# platform/API handlers are falsely reported as missed (coveragepy docs).
-concurrency = ["thread", "greenlet"]
+# sysmon (ADR-0117) cannot run with concurrency=greenlet: coverage 7.15
+# prints `Can't use core=sysmon` and silently falls back to ctrace, which
+# is how the gate paid for the slow core plus a warning on every xdist
+# worker. thread stays; await-crossing SQLAlchemy greenlets are the cost
+# of the chosen core, not a second tracing plugin.
+concurrency = ["thread"]
+core = "sysmon"
 
 [tool.coverage.report]
 exclude_also = ["if __name__ == .__main__.:"]

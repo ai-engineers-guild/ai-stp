@@ -30,6 +30,21 @@ run := "uv run --locked"
 # 12-core machine that starts twelve workers against 8 GiB of memory.
 test_workers := env_var_or_default("AI_STP_TEST_WORKERS", "4")
 
+# xdist scheduling granularity. `load` (the plugin default) sends individual
+# tests to whichever worker is free; that is the right shape here because the
+# suite has no cross-test coupling — every PostgreSQL test owns its database
+# and the root conftest isolates everything else per test. Coarser modes
+# (`loadfile`, `loadgroup`) exist for local diagnosis of a skewed tail and are
+# selected explicitly, not by default.
+test_dist := env_var_or_default("AI_STP_TEST_DIST", "load")
+
+# Coverage tracing backend. `ctrace` is the historical default; `sysmon`
+# (Python 3.12+ sys.monitoring) traces with far less interpreter overhead.
+# Exported so a focused run sees the same backend as the gate. pyproject pins
+# `core = "sysmon"` and must not list greenlet under concurrency — that pair
+# made coverage fall back to ctrace with a warning per worker (ADR-0117).
+export COVERAGE_CORE := env_var_or_default("AI_STP_TEST_COVERAGE_CORE", "sysmon")
+
 # Отсутствие bun обязано валить рецепт, а не пропускать шаг.
 bunreq := "bun --version"
 
@@ -239,7 +254,7 @@ back-static:
 
 # Порог покрытия задан в pyproject и является частью этого рецепта.
 back-test:
-    {{run}} pytest {{ if test_workers == "0" { "" } else { "-n " + test_workers } }}
+    {{run}} pytest {{ if test_workers == "0" { "" } else { "-n " + test_workers } }} --dist={{test_dist}}
     # Порог проверяется второй раз, по записанным данным покрытия. Причина не
     # теоретическая: прогон CI на letya999@6a41c28 напечатал ровно строку
     # `FAIL Required test coverage of 95% not reached. Total coverage: 94.55%`,
@@ -251,6 +266,21 @@ back-test:
     # отказывает сам.
     {{run}} coverage report --precision=2 --fail-under=90
 
+# Итерационный прогон без покрытия. Сбор покрытия стоит около трети времени
+# гейта (ADR-0104: 325 с с ним против 252 с без), и в петле правка-запуск он не
+# отвечает ни на один вопрос, который не ответил бы падающий тест. Гейтом не
+# является: порог здесь не проверяется и проверяться не должен.
+back-test-fast *args:
+    {{run}} pytest --no-cov {{ if test_workers == "0" { "" } else { "-n " + test_workers } }} --dist={{test_dist}} {{args}}
+
+# Полный однопроцессный прогон с записью длительностей каждого теста в
+# .test_durations. Файл питает duration-based шардирование, когда оно будет
+# включено; без него шардирование падает на выравнивание по количеству тестов.
+# Обновлять после крупных сдвигов состава набора, а не каждый прогон.
+back-durations:
+    {{run}} pytest -n 0 --no-cov -q \
+        --store-durations --durations-path .test_durations
+
 # SQLite emits its direct ResourceWarning only on Python 3.13+ finalization.
 # Run the focused long-lived CLI lifecycle with both warning forms as errors;
 # the broad suite also owns platform logging handlers, whose lifecycle belongs
@@ -261,6 +291,17 @@ back-resource:
         -W error::pytest.PytestUnraisableExceptionWarning \
         tests/contract/test_cli_resource_lifecycle.py
 
+# The cross-platform CLI surface, split the way the CI matrix consumes it.
+# The flags are part of the contract and live here, not in the workflow YAML:
+# `-vv` because addopts already carries `-q` and a single `-v` cancels out;
+# `faulthandler_timeout` names the hanging test instead of ending mid-line,
+# which is how three CI runs died on their own timeout without saying why.
+# Local runs on one OS exercise the same invocation the three-OS matrix runs.
+back-cli-suite suite:
+    {{run}} pytest "tests/{{suite}}" --no-cov -vv \
+        -o faulthandler_timeout=300 {{ if test_workers == "0" { "" } else { "-n " + test_workers } }} --dist={{test_dist}} \
+        {{ if suite == "unit" { "--ignore=tests/unit/platform --ignore=tests/unit/api" } else { "" } }}
+
 # Каталог очищается перед сборкой: колесо снятой версии, оставшееся от прошлого
 # прогона, иначе доступно установщику через --find-links и подменит собой новое.
 
@@ -269,123 +310,19 @@ back-build:
     {{run}} python -c "import shutil; shutil.rmtree('dist', ignore_errors=True)"
     uv build --all-packages --out-dir dist -q
 
-# Рабочее окружение содержит зависимости групп docs и dev, поэтому необъявленная
-# зависимость пакета в нём не видна и проявляется только у того, кто поставил
-# колесо: так уже прошёл незамеченным импорт yaml в apps/cli. Второй способ —
-# ровно та команда, которую обещает лендинг: он проверяет точку входа на PATH,
-# работу вне исходного дерева и границу удаления.
-
-# Ставит собранные колёса и запускает CLI двумя способами.
+# Ставит собранные колёса и запускает CLI двумя способами. Тело живёт в
+# release_scripts/clean_install_regress.sh: его вызывает и этот рецепт, и CI
+# гейт напрямую, поэтому чистая установка не может разойтись между локальным
+# и CI-путём. Рабочее окружение содержит зависимости групп docs и dev,
+# поэтому необъявленная зависимость пакета в нём не видна и проявляется
+# только у того, кто поставил колесо: так уже прошёл незамеченным импорт yaml
+# в apps/cli.
+# Windows PATH `bash` is frequently WSL, which cannot run this checkout.
+# `run_bash.py` locates Git-for-Windows bash (or PATH bash on POSIX) so the
+# same recipe body is the local path; CI still calls the shell script itself.
 back-regress:
-    {{ if os() == "windows" { "Write-Error 'back-regress requires bash; run this gate on Linux or macOS'; exit 1" } else { "just _back-regress-posix" } }}
-
-_back-regress-posix: back-build
-    #!/usr/bin/env bash
-    set -euo pipefail
-    dist="$PWD/dist"
-    work="$(mktemp -d)"
-    tool="$(mktemp -d)"
-    trap 'rm -rf "$work" "$tool"' EXIT
-
-    # XDG не изолирует системное хранилище учётных данных: оно принадлежит
-    # пользователю, а не домашнему каталогу. Без этой строки полоса писала ключ
-    # в реальный keyring разработчика и однажды заменила там рабочую запись.
-    # Адрес шины уводится в никуда, поэтому Secret Service не отвечает и CLI
-    # уходит на файловый ярус. Явный продуктовый переключатель ниже нужен и на
-    # macOS, где DBus не управляет Keychain, и не даёт release regression
-    # открыть настоящий locker пользователя ни на одной поддерживаемой ОС.
-    export DBUS_SESSION_BUS_ADDRESS="unix:path=$work/no-such-bus"
-    # Windows Credential Manager is available even when DBus is absent. Keep
-    # this disposable regression environment on the explicit file tier there.
-    export AI_STP_FORCE_FILE_CREDENTIAL_STORE="1"
-
-    uv venv "$work/venv" -q
-    # `UV_PYTHON` belongs to the outer CI matrix and intentionally points at
-    # that job's interpreter.  It must not redirect this clean-install probe
-    # back into the job environment.  `--python` owns the destination
-    # explicitly and is portable because uv accepts a venv directory.
-    # Every workspace package currently shares the development version 0.1.0.
-    # A name-only install may therefore resolve an older public 0.1.0 wheel
-    # instead of the wheel built from this checkout. Pass every internal wheel
-    # as a direct requirement so this probe verifies one coherent candidate.
-    uv pip install --python "$work/venv" -q \
-        "$dist"/ai_stp_foundation-*.whl \
-        "$dist"/ai_stp_passports-*.whl \
-        "$dist"/ai_stp_assurance-*.whl \
-        "$dist"/ai_stp_contracts-*.whl \
-        "$dist"/ai_stp_cli-*.whl
-
-    # venv раскладывается по-разному: bin/ на POSIX, Scripts/ и .exe на Windows.
-    # Рецепт обязан выполняться на машине сопровождающего, а не только в CI,
-    # иначе локальный и CI-путь расходятся вопреки AGENTS.md.
-    if [ -d "$work/venv/Scripts" ]; then
-        venv_bin="$work/venv/Scripts"; exe=".exe"
-    else
-        venv_bin="$work/venv/bin"; exe=""
-    fi
-
-    "$venv_bin/python$exe" -c 'import ai_stp_cli'
-    # SPEC-011 REQ-1118 and the hard invariant in AGENTS.md: ai_stp calls no
-    # model interface and needs no model key. Checked against the resolved
-    # closure a user actually installs, not against the declared list — a model
-    # client arriving transitively would be just as much of a violation.
-    if uv pip list --python "$work/venv" 2>/dev/null \
-        | grep -iE '^(anthropic|openai|cohere|mistralai|litellm|ollama|google-generativeai|google-genai|langchain|llama-index|transformers|tiktoken)\b'; then
-        echo "back-regress: a model client is in the dependency closure (SPEC-011 REQ-1118)" >&2
-        exit 1
-    fi
-    # Ровно те вызовы, которые критерии приёмки #72 требуют от установленного
-    # колеса. Каждый обязан завершиться нулём, поэтому set -e здесь и работает.
-    for argv in "--help" "version" "doctor" "help --agent --json"; do
-        XDG_CONFIG_HOME="$work/config" XDG_DATA_HOME="$work/data" \
-            "$venv_bin/ai-stp$exe" $argv > /dev/null
-    done
-    echo "back-regress: колесо устанавливается и запускается в чистом окружении"
-
-    export UV_TOOL_DIR="$tool/tools" UV_TOOL_BIN_DIR="$tool/bin"
-    export XDG_CONFIG_HOME="$tool/home/config" XDG_DATA_HOME="$tool/home/data" HOME="$tool/home"
-    # platformdirs uses these native locations on Windows instead of XDG_*.
-    export APPDATA="$tool/home/AppData/Roaming" LOCALAPPDATA="$tool/home/AppData/Local"
-    export USERPROFILE="$tool/home"
-    uv tool install -q "$dist"/ai_stp_cli-*.whl \
-        --with "$dist"/ai_stp_foundation-*.whl \
-        --with "$dist"/ai_stp_passports-*.whl \
-        --with "$dist"/ai_stp_assurance-*.whl \
-        --with "$dist"/ai_stp_contracts-*.whl
-    cd "$tool"
-    "$tool/bin/ai-stp$exe" doctor --json > /dev/null
-    "$tool/bin/ai-stp$exe" help --agent --json > /dev/null
-    "$tool/bin/ai-stp$exe" passport developer init --json > /dev/null
-    # Изоляция проверяется, а не предполагается: если ярус вдруг окажется
-    # системным, полоса упадёт здесь, вместо того чтобы молча загрязнить
-    # хранилище разработчика.
-    tier="$(AI_STP_FORCE_FILE_CREDENTIAL_STORE=1 "$tool/bin/ai-stp$exe" device show --json | python3 -c 'import json,sys; print(json.load(sys.stdin)["data"]["credential_store"])')"
-    if [ "$tier" != "file" ]; then
-        echo "back-regress: ожидался файловый ярус, получен $tier — изоляция не работает" >&2
-        exit 1
-    fi
-    test -f "$tool/home/data/ai-stp/registry.sqlite"
-    # Находка ревью: колесо не несло канонический Agent Skill вовсе, поэтому
-    # установленный продукт отдавал агенту двоичный файл и никакой процедуры.
-    # Проверяется на установке вне дерева исходников — там, где репозиторную
-    # копию взять неоткуда.
-    mkdir -p "$tool/harness"
-    "$tool/bin/ai-stp$exe" skill install --target "$tool/harness" --harness claude-code --json > /dev/null
-    test -f "$tool/harness/SKILL.md"
-    grep -q "ai-stp doctor --json" "$tool/harness/SKILL.md"
-    owned="$("$tool/bin/ai-stp$exe" skill status --target "$tool/harness" --json | python3 -c 'import json,sys; print(json.load(sys.stdin)["data"]["state"])')"
-    if [ "$owned" != "owned" ]; then
-        echo "back-regress: установленный Skill не признан своим ($owned)" >&2
-        exit 1
-    fi
-    "$tool/bin/ai-stp$exe" skill remove --target "$tool/harness" --json > /dev/null
-    test ! -e "$tool/harness/SKILL.md"
-    uv tool uninstall -q ai-stp-cli
-    test ! -e "$tool/bin/ai-stp$exe"
-    # Удаление снимает только принадлежащие CLI файлы. Локальные данные — это
-    # отдельное явное действие пользователя.
-    test -f "$tool/home/data/ai-stp/registry.sqlite"
-    echo "back-regress: uv tool install и uninstall работают, данные пользователя сохраняются"
+    @just back-build
+    {{run}} python release_scripts/run_bash.py release_scripts/clean_install_regress.sh
 
 back-check: back-static back-test back-resource back-build back-regress
 

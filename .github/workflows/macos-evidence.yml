@@ -52,15 +52,17 @@ jobs:
           set -euo pipefail
           python -m pip install --disable-pip-version-check "uv==0.12.1"
           uv sync --locked --group docs --group dev
-      - name: Установить закреплённый just
-        env:
-          JUST_INSTALL_DIR: ${{ runner.temp }}/bin
+      - name: Проверить Python source и generated contracts
         run: |
           set -euo pipefail
-          uv run --locked python docs_scripts/bootstrap_just.py
-          echo "${RUNNER_TEMP}/bin" >> "${GITHUB_PATH}"
-      - name: Проверить Python source и generated contracts
-        run: just back-static
+          uv run --locked ruff format --check .
+          uv run --locked ruff check .
+          uv run --locked pyright
+          uv run --locked python -m release_scripts.public_export --report
+          uv run --locked python -m ai_stp_contracts.schemas --check schemas/v1
+          uv run --locked python -m ai_stp_contracts.web_projections --check
+          uv run --locked python release_scripts/provider_kit.py --check provider-kit/v3
+          uv run --locked --group docs python docs_scripts/skill_projections.py --check
       - name: Проверить CLI, SQLite, Skill и cross-platform bundle
         run: |
           set -euo pipefail
@@ -70,11 +72,15 @@ jobs:
           uv run --locked pytest --no-cov -m "not platform" \
             --junitxml ".evidence/python-${{ matrix.python }}.xml"
       - name: Собрать и проверить wheel вне checkout
-        run: just back-build back-regress
+        run: |
+          set -euo pipefail
+          rm -rf dist
+          uv build --all-packages --out-dir dist -q
+          bash release_scripts/clean_install_regress.sh
       - name: Проверить exact five-wheel release candidate
         run: |
           set -euo pipefail
-          just release-candidate
+          uv run --locked python release_scripts/build_candidate.py --replace
           uv run --locked python -m release_scripts.verify_candidate_install \
             dist/release-candidate \
             --expected-sha "${GITHUB_SHA}" \

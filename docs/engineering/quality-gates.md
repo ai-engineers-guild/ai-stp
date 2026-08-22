@@ -73,7 +73,10 @@ restricted-шрифт в репозитории — лицензионное р�
 
 `--cov-fail-under=90` задан в `pyproject.toml`, `precision = 2` — там же, и `back-test`
 дополнительно перечитывает записанные данные отдельным вызовом
-`coverage report --precision=2 --fail-under`.
+`coverage report --precision=2 --fail-under`. Ядро трассировки — `sysmon`
+(`docs/adr/ADR-0117-the-test-run-does-not-repeat-expensive-work.md`);
+`concurrency` не содержит `greenlet`, иначе coverage молча откатывается на
+`ctrace`.
 
 Порог 90% — решение владельца проекта. Числа `95` и `94.55` ниже сохранены: они
 воспроизводят инцидент, а не текущую настройку.
@@ -207,6 +210,8 @@ GitHub Actions запускает `just setup` и `just check` — те же ц�
 поэтому забор идёт анонимным HTTPS и на хосте не остаётся ключа развёртывания
 (`ADR-0109`). Разделение доменов доверия из `ADR-0046` сохраняется сильнее
 прежнего: untrusted код из pull request и развёртывание не делят ни один job.
+
+CodeQL — тоже не гейт. Кто его запускает и на каком runner — `docs/operations/ci-cd.md`.
 
 Jobs `check` и `back-python-3.12` запускаются на push в `main` и на
 каждый pull request. Ветки push в workflow обязаны совпадать с линией из

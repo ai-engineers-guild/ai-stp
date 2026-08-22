@@ -145,12 +145,33 @@ def _permission_denial_is_unconstructible() -> str | None:
     return None
 
 
+# Fixtures whose use means the test needs PostgreSQL. Both platform conftests
+# define them under the same names; the fixture closure of an item names every
+# fixture it transitively reaches, so marking from this set keeps the marker
+# exactly as wide as the real requirement — including tests that reach the
+# database only through `db_api_client`.
+_PG_FIXTURES = frozenset(
+    {
+        "isolated_database_url",
+        "migrated_database_url",
+        "db_session",
+        "db_sessionmaker",
+        "db_api_client",
+    }
+)
+
+
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     """Skip `unprivileged` tests when the process cannot be denied access."""
     reason = _permission_denial_is_unconstructible()
-    if reason is None:
-        return
-    skip = pytest.mark.skip(reason=reason)
+    skip = pytest.mark.skip(reason=reason) if reason else None
     for item in items:
-        if item.get_closest_marker("unprivileged") is not None:
+        if skip is not None and item.get_closest_marker("unprivileged") is not None:
             item.add_marker(skip)
+        # One pass over the collection serves both repository-wide rules; the
+        # marker exists so `-m "not pg"` can select the suite that needs no
+        # database without anyone maintaining a handwritten list. `fixturenames`
+        # is declared on Function, not on Item, but is present on every
+        # collected test item.
+        if _PG_FIXTURES.intersection(item.fixturenames):  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType, reportUnknownArgumentType]
+            item.add_marker(pytest.mark.pg)

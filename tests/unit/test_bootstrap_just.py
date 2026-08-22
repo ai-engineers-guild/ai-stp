@@ -147,5 +147,5 @@ def test_an_unsupported_platform_refuses_rather_than_guessing(
     monkeypatch.setattr(bootstrap_just.platform, "system", lambda: "Plan9")
     monkeypatch.setattr(bootstrap_just.platform, "machine", lambda: "sparc")
 
-    with pytest.raises(RuntimeError, match="unsupported CI platform"):
+    with pytest.raises(RuntimeError, match="unsupported platform for just bootstrap: Plan9 sparc"):
         bootstrap_just.target_asset()

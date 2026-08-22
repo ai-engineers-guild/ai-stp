@@ -64,3 +64,23 @@ def test_the_recipe_rereads_the_recorded_data_with_an_explicit_precision() -> No
     addopts = _pyproject()["tool"]["pytest"]["ini_options"]["addopts"]
     assert isinstance(addopts, str)
     assert "--cov-fail-under=90" in addopts
+
+
+def test_sysmon_is_not_disabled_by_greenlet_concurrency() -> None:
+    """ADR-0117 chooses sysmon. greenlet in concurrency makes coverage drop it.
+
+    coverage 7.15 core.py: sysmon + concurrency=greenlet warns
+    `Can't use core=sysmon` and runs ctrace. That was the full-suite cost:
+    the slow core plus a warning on every xdist worker, including CI on
+    3.14 where sysmon is already coverage's default.
+    """
+    run = _pyproject()["tool"]["coverage"]["run"]
+    concurrency = run["concurrency"]
+    assert isinstance(concurrency, list)
+    assert "greenlet" not in concurrency
+    assert "eventlet" not in concurrency
+    assert "gevent" not in concurrency
+    assert run["core"] == "sysmon"
+
+    justfile = (ROOT / "justfile").read_text(encoding="utf-8")
+    assert 'AI_STP_TEST_COVERAGE_CORE", "sysmon"' in justfile

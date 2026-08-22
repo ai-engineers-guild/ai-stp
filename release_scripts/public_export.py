@@ -162,11 +162,18 @@ def forbidden_hits(
 
 
 def overlay_files(overlay: Path = OVERLAY) -> tuple[str, ...]:
-    """Paths the overlay supplies, relative to the tree root."""
+    """Paths the overlay supplies, relative to the tree root.
+
+    Separators are normalized to `/`: overlay names are repository paths and
+    are matched against manifest entries and test expectations that always use
+    the forward slash, on every operating system.
+    """
     if not overlay.is_dir():
         return ()
     return tuple(
-        sorted(str(path.relative_to(overlay)) for path in overlay.rglob("*") if path.is_file())
+        sorted(
+            path.relative_to(overlay).as_posix() for path in overlay.rglob("*") if path.is_file()
+        )
     )
 
 

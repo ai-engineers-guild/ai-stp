@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Скачать pinned just binary для CI без curl|bash installer."""
+"""Скачать pinned just binary для локальной машины без curl|bash installer.
+
+CI `just` не вызывает: workflow исполняют команды напрямую. Скрипт нужен
+разработчику, у которого пакетного менеджера с just под рукой нет.
+"""
 
 from __future__ import annotations
 
@@ -22,7 +26,7 @@ from pathlib import Path
 VERSION = "1.43.0"
 
 # SHA256 официальных архивов case-sensitive по имени asset из GitHub Releases.
-# Если версии меняются, сначала обновляется эта таблица, потом CI.
+# Если версии меняются, сначала обновляется эта таблица, потом потребители.
 SHA256 = {
     "just-1.43.0-x86_64-unknown-linux-musl.tar.gz": (
         "a1bc93654f31669fd964ea3011a5e5e9676b9b6f8adcd762606e5140632ea72d"
@@ -85,7 +89,9 @@ def target_asset() -> str:
         machine = "arm64"
     asset = ASSET_FOR.get((system, machine))
     if asset is None:
-        raise RuntimeError(f"unsupported CI platform: {platform.system()} {platform.machine()}")
+        raise RuntimeError(
+            f"unsupported platform for just bootstrap: {platform.system()} {platform.machine()}"
+        )
     return asset
 
 
