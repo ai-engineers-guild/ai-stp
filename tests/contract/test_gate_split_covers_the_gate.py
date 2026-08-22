@@ -61,7 +61,12 @@ _LEAF_TOKENS: dict[str, tuple[str, ...]] = {
         "release_scripts/provider_kit.py --check provider-kit/v3",
         "docs_scripts/skill_projections.py --check",
     ),
-    "back-test": ("pytest -n 4 --dist=load", "--fail-under=90", "COVERAGE_CORE: sysmon"),
+    # Not the worker count. `-n` is a tuning decision the gate is allowed to
+    # make per leg — `ADR-0116` already sets eight on the server shards — and
+    # pinning it here made raising it on the CLI legs look like the gate had
+    # stopped running the suite at all. What identifies the leaf is that pytest
+    # is distributed and that the threshold and tracing core are the same.
+    "back-test": ("pytest -n", "--dist=load", "--fail-under=90", "COVERAGE_CORE: sysmon"),
     "back-resource": ("tests/contract/test_cli_resource_lifecycle.py",),
     "back-build": ("uv build --all-packages",),
     "back-regress": ("clean_install_regress.sh",),

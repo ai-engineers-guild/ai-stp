@@ -387,8 +387,6 @@ jobs:
       # fails to parse — GitHub then reports a run with no jobs at all, named
       # after the file. `RUNNER_TEMP` is an ordinary variable inside `run`, so
       # the same value is available without the context.
-      - name: Point Playwright at the cached browser directory
-        run: echo "PLAYWRIGHT_BROWSERS_PATH=${RUNNER_TEMP}/ms-playwright" >> "$GITHUB_ENV"
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -403,12 +401,6 @@ jobs:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-bun-${{ hashFiles('apps/web/bun.lock') }}
           restore-keys: ${{ runner.os }}-bun-
-      - name: Cache the Playwright browser
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        with:
-          path: ${{ runner.temp }}/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('apps/web/bun.lock') }}
-          restore-keys: ${{ runner.os }}-playwright-
       - name: Ensure a Google Chrome is present
         run: |
           set -euo pipefail
@@ -483,8 +475,6 @@ jobs:
       # fails to parse — GitHub then reports a run with no jobs at all, named
       # after the file. `RUNNER_TEMP` is an ordinary variable inside `run`, so
       # the same value is available without the context.
-      - name: Point Playwright at the cached browser directory
-        run: echo "PLAYWRIGHT_BROWSERS_PATH=${RUNNER_TEMP}/ms-playwright" >> "$GITHUB_ENV"
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -499,12 +489,6 @@ jobs:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-bun-${{ hashFiles('apps/web/bun.lock') }}
           restore-keys: ${{ runner.os }}-bun-
-      - name: Cache the Playwright browser
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        with:
-          path: ${{ runner.temp }}/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('apps/web/bun.lock') }}
-          restore-keys: ${{ runner.os }}-playwright-
       - name: Ensure a Google Chrome is present
         run: |
           set -euo pipefail
@@ -618,6 +602,6 @@ jobs:
             *) echo "unknown suite ${{ matrix.suite }}" >&2; exit 1 ;;
           esac
           # shellcheck disable=SC2086
-          uv run --locked pytest -n 4 --dist=load --no-cov -vv \
+          uv run --locked pytest -n 8 --dist=load --no-cov -vv \
             -o faulthandler_timeout=300 \
             ${extra}
