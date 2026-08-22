@@ -109,11 +109,23 @@ def start(
 
 
 def open_browser(started: Started, *, opener: Callable[[str], bool] = webbrowser.open) -> bool:
-    """Try to put the approval page in front of the user.
+    """Put the approval page in front of the user, when asked to.
 
-    Failure is not an error. A machine with no browser is the normal case for
-    this flow, which is why `verification_uri` and `user_code` stay required in
-    the contract and are reported whether or not this succeeds.
+    Never called as a side effect of `auth login`, and that is the point.
+    `webbrowser.open` launches whatever the desktop declares as default and
+    **waits for it**: on a machine whose default is a browser that takes minutes
+    to start, a machine command that promised to print a code and return instead
+    hangs, and the agent driving it is stuck with no output and no signal. Seen
+    here: six minutes and forty seconds, and the browser that opened was not the
+    one anybody wanted.
+
+    The contract already made this optional in everything but name.
+    `verification_uri` and `user_code` are required fields precisely so the
+    caller can decide what to do with them — a machine with no browser is the
+    normal case for a device flow. Deciding for the caller bought nothing and
+    cost the one thing an agent surface must not spend.
+
+    Failure is still not an error, for the same reason it never was.
     """
     try:
         return bool(opener(started.verification_uri_complete))

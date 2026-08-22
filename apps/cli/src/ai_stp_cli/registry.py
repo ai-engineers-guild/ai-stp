@@ -504,6 +504,11 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 required=True,
                 choices=auth.PROVIDERS,
             ),
+            option(
+                "open-browser",
+                "boolean",
+                "Also open the approval page in the desktop default browser.",
+            ),
         ),
         next_actions=("auth complete", "auth status"),
     ),

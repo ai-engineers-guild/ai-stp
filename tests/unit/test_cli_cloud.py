@@ -499,7 +499,16 @@ def test_the_whole_sign_in_runs_against_the_mock(monkeypatch: pytest.MonkeyPatch
     passport.developer_init({})
     before = passport.developer_show({}).payload
 
-    started = auth.begin({"provider": "google"}).payload
+    # Not asked for, so not opened. `webbrowser.open` launches the desktop's
+    # declared default and waits for it: a machine command that promised to
+    # print a code and return instead hung for six minutes and forty seconds on
+    # a machine whose default is slow to start, and the browser that opened was
+    # not the one anybody wanted. The contract already required `user_code` and
+    # `verification_uri` so the caller can decide.
+    quiet = auth.begin({"provider": "google"}).payload
+    assert quiet.browser_opened is False
+
+    started = auth.begin({"provider": "google", "open-browser": True}).payload
     assert started.user_code
     assert started.browser_opened is True
     assert started.device_id == FIXTURE_DEVICE

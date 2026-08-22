@@ -185,6 +185,15 @@
             "google",
             "github"
           ]
+        },
+        {
+          "name": "open-browser",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Also open the approval page in the desktop default browser.",
+          "choices": []
         }
       ],
       "parameter_rules": [],

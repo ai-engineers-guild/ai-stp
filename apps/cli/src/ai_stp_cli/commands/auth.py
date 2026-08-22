@@ -55,7 +55,8 @@ def begin(parameters: Mapping[str, object]) -> Answer[DeviceApproval]:
             expires_in=started.expires_in,
         ),
     )
-    opened = login.open_browser(started)
+    # Only when asked. See `login.open_browser` for why this is not automatic.
+    opened = login.open_browser(started) if bool(parameters.get("open-browser")) else False
     return with_warning(
         DeviceApproval(
             provider=provider,
