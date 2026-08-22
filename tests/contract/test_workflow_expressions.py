@@ -22,6 +22,7 @@ import re
 import shutil
 import subprocess
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 import yaml
@@ -44,10 +45,11 @@ def _files() -> list[Path]:
 
 @pytest.mark.parametrize("workflow", _files(), ids=lambda p: p.name)
 def test_no_job_level_field_names_a_step_only_context(workflow: Path) -> None:
-    document = yaml.safe_load(workflow.read_text(encoding="utf-8"))
-    for name, job in (document.get("jobs") or {}).items():
+    document = cast("dict[str, Any]", yaml.safe_load(workflow.read_text(encoding="utf-8")))
+    jobs = cast("dict[str, dict[str, Any]]", document.get("jobs") or {})
+    for name, job in jobs.items():
         for field in ("env", "if", "name", "runs-on", "timeout-minutes"):
-            value = job.get(field)
+            value: object = job.get(field)
             if value is None:
                 continue
             for context in re.findall(r"\$\{\{\s*([a-z]+)\s*\.", str(value)):
@@ -61,7 +63,7 @@ def test_actionlint_accepts_every_workflow() -> None:
     binary = shutil.which("actionlint")
     if binary is None:
         pytest.skip("actionlint is not installed; the structural rule above still ran")
-    result = subprocess.run(  # noqa: S603
+    result = subprocess.run(
         [binary, *[str(path) for path in _files()]],
         capture_output=True,
         text=True,
