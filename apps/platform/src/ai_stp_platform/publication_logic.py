@@ -451,20 +451,14 @@ async def execute_validate(
                         }
                     )
 
-            if resolved_bytes is not None:
-                # Digested bytes path: suite re-hashes again inside orchestrator.
-                safety = await run_safety_suite(
-                    passport=passport_dict,
-                    content_digest=plan.content_digest,
-                    policy_version=policy_ver,
-                    object_kind=plan.object_kind,
-                    profile=safety_profile,
-                    artifact_bytes=resolved_bytes,
-                    use_cache=True,
-                )
-                await _persist_safety_run(session, safety)
-                bindings.extend(safety.bindings())
-            elif plan.object_kind == "setup":
+            # Setup first, and deliberately ahead of the bytes case. A setup is
+            # judged on what its pins already proved, and the only path that
+            # loads those pins is this one — so testing for bytes first made it
+            # unreachable for every setup that has an artifact. `setup_pin_
+            # aggregate` is mandatory and answers `not_run` without a pin
+            # context, so such a setup could never be published at all, however
+            # sound its components were.
+            if plan.object_kind == "setup":
                 from ai_stp_platform.safety.adapters import setup_aggregate as setup_agg
 
                 pin_ctx = await _load_setup_pin_context(session, passport_dict)
@@ -476,10 +470,26 @@ async def execute_validate(
                         policy_version=policy_ver,
                         object_kind="setup",
                         profile=safety_profile,
+                        # Whatever the setup carries; `None` when nothing
+                        # resolved, which is the case this branch used to serve.
+                        artifact_bytes=resolved_bytes,
                         use_cache=False,  # pin context is request-scoped
                     )
                 finally:
                     setup_agg.clear_pin_context()
+                await _persist_safety_run(session, safety)
+                bindings.extend(safety.bindings())
+            elif resolved_bytes is not None:
+                # Digested bytes path: suite re-hashes again inside orchestrator.
+                safety = await run_safety_suite(
+                    passport=passport_dict,
+                    content_digest=plan.content_digest,
+                    policy_version=policy_ver,
+                    object_kind=plan.object_kind,
+                    profile=safety_profile,
+                    artifact_bytes=resolved_bytes,
+                    use_cache=True,
+                )
                 await _persist_safety_run(session, safety)
                 bindings.extend(safety.bindings())
             elif not fetch_failed:

@@ -1,6 +1,6 @@
 ---
 description: "Визуальная дизайн-система web MVP: токены, типографика, компоненты, режимы."
-last_verified: "2026-08-17"
+last_verified: "2026-08-22"
 ---
 
 # ai_stp — дизайн-система
@@ -34,10 +34,14 @@ Human режим: белый холст `#ffffff`, чернильный `#181818
 
 | Role | Family | Weights | Use |
 | --- | --- | --- | --- |
-| Display / UI | gerstnerProgramm | 400, 500 | Headings, body, controls |
-| Mono | ftSystemMono | 400, 500 | Stable ids, versions, install code, technical meta |
+| Display / UI | plexSans | 400, 500 | Headings, body, controls |
+| Mono | plexMono | 400, 500 | Stable ids, versions, install code, technical meta |
 
 Шкала размеров: 12 · 14 · 16 · 18 · 20 · 24 · 30 (токены в CSS).
+
+Обе гарнитуры — IBM Plex под SIL OFL 1.1, разбиты по `unicode-range`, поэтому латинская
+страница не тянет кириллические начертания. Причина замены и её проверка — в
+[BRAND.md](BRAND.md) и в комментарии `apps/web/src/app/globals.css`.
 
 ## Компоновка
 

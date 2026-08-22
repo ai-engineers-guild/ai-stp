@@ -88,3 +88,53 @@ def test_the_summary_can_hold_no_path_and_no_environment_value() -> None:
     forbidden = ("path", "env", "environment", "secret", "token", "home")
     for name in DeviceSummary.model_fields:
         assert not any(word in name.lower() for word in forbidden), name
+
+
+# `DESIGN.md` names `apps/web/src/theme/tokens.json` as its own source of truth,
+# so the two disagreeing is not a stale sentence — it is the document pointing
+# at a file that says something else.
+#
+# It happened. Both design documents named Gerstner Programm and FT System Mono
+# long after `globals.css` had replaced them with IBM Plex, and `DESIGN.md`
+# carried a `last_verified` stamp from after the swap. The licence forced the
+# change — the original faces forbid redistribution, which is what this
+# repository does by being public — and the swap also fixed Cyrillic, which the
+# replaced faces did not carry. None of that reached the documents.
+#
+# The family names are read from the tokens rather than restated here, for the
+# reason the module docstring gives.
+WEB_TOKENS = Path(__file__).parents[2] / "apps/web/src/theme/tokens.json"
+PRODUCT = Path(__file__).parents[2] / "docs" / "product"
+
+
+def _token_font_families() -> set[str]:
+    import json
+
+    families = json.loads(WEB_TOKENS.read_text(encoding="utf-8"))["font"]["family"]
+    # The first entry is the face itself; the rest of each stack is fallback.
+    return {stack["$value"][0] for stack in families.values()}
+
+
+def test_the_design_documents_name_the_faces_the_tokens_load() -> None:
+    expected = _token_font_families()
+    for document in ("DESIGN.md", "BRAND.md"):
+        text = (PRODUCT / document).read_text(encoding="utf-8")
+        missing = sorted(face for face in expected if face not in text)
+        assert not missing, (
+            f"{document} does not name {missing}, which is what "
+            "apps/web/src/theme/tokens.json actually loads; a reader trusting "
+            "the design system would specify a face the product does not ship"
+        )
+
+
+def test_the_replaced_faces_are_only_mentioned_as_history() -> None:
+    # Naming them is allowed and useful — the licence reason is worth keeping.
+    # Naming them *as the current face* is the drift, so the check is that
+    # neither document still presents one as a family to use.
+    for document in ("DESIGN.md", "BRAND.md"):
+        text = (PRODUCT / document).read_text(encoding="utf-8")
+        for retired in ("gerstnerProgramm", "ftSystemMono"):
+            assert retired not in text, (
+                f"{document} still names {retired} as a font-family token; it "
+                "was replaced in globals.css and no longer exists in the tree"
+            )

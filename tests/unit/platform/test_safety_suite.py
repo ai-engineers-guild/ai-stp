@@ -689,3 +689,94 @@ def test_doctor_tools_returns_map() -> None:
     assert "gitleaks" in tools
     assert "opengrep" in tools
     assert isinstance(tools["gitleaks"], str)
+
+
+@pytest.mark.asyncio
+async def test_a_setup_that_carries_bytes_still_gets_its_pin_context(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A setup is judged on its pins, and having an artifact must not hide them.
+
+    `setup_pin_aggregate` is the *only* check planned for a setup, it is
+    mandatory, and without a pin context it answers `not_run` — so whether the
+    context reaches it decides whether any setup can be published at all.
+
+    The dispatch used to test for resolvable bytes first, and only reached the
+    pin-loading branch when there were none. Every setup in the launch corpus
+    carries an artifact, so that branch was unreachable for all of them: twelve
+    setups failed on `setup_pin_aggregate: not_run` while all their components
+    sat published in the catalogue.
+    """
+    from ai_stp_platform.publication_logic import execute_validate
+
+    clear_safety_cache()
+    payload = _zip_tree({"setup.json": '{"components": []}\n'})
+    digest = _digest(payload)
+
+    plan = SimpleNamespace(
+        id="plan_setup_pins",
+        object_kind="setup",
+        stable_id="setup_demo",
+        version="1.0",
+        content_digest=digest,
+        policy_version=POLICY_VERSION,
+        state="validating",
+        component_verified=False,
+        actor_account_id="account_1",
+        device_id="device_1",
+        passport={
+            "name": "demo-setup",
+            "version": "1.0",
+            "tags": ["t"],
+            "license": {"spdx_id": "MIT"},
+            "source": {
+                "repository": "https://github.com/e/r",
+                "commit": "a" * 40,
+                "path": ".",
+            },
+            "artifact": {"digest": digest, "size_bytes": len(payload)},
+            "components": [{"stable_id": "component_demo", "version": "1.0"}],
+        },
+        attestations=[],
+        effects=[],
+    )
+
+    added: list[object] = []
+    session = AsyncMock()
+    session.get = AsyncMock(return_value=plan)
+    session.scalar = AsyncMock(return_value=None)
+    session.add = lambda obj: added.append(obj)
+    session.flush = AsyncMock()
+
+    seen: list[list[dict[str, object]]] = []
+    from ai_stp_platform.safety.adapters import setup_aggregate as setup_agg
+
+    real_set = setup_agg.set_pin_context
+
+    def _record(pins: list[dict[str, object]]) -> None:
+        seen.append(list(pins))
+        real_set(pins)
+
+    monkeypatch.setattr(setup_agg, "set_pin_context", _record)
+    monkeypatch.setattr(
+        "ai_stp_platform.publication_logic._persist_safety_run", AsyncMock(return_value=None)
+    )
+    monkeypatch.setattr("ai_stp_platform.publication_logic.enqueue", AsyncMock())
+    monkeypatch.setattr("ai_stp_platform.publication_logic.new_id", lambda prefix: f"{prefix}_test")
+    monkeypatch.setattr(
+        "ai_stp_platform.publication_logic.open_env_object_store", AsyncMock(return_value=None)
+    )
+
+    await execute_validate(session, plan_id=plan.id, artifact_bytes=payload)
+
+    assert seen, "the pin context was never installed for a setup that has bytes"
+    assert [pin["stable_id"] for pin in seen[0]] == ["component_demo"], (
+        "the pin loader ran but did not carry the component the passport pins"
+    )
+
+    aggregate = [o for o in added if getattr(o, "check_id", None) == "setup_pin_aggregate"]
+    assert aggregate, "a setup must still be judged by its pin aggregate"
+    assert getattr(aggregate[0], "result", None) != "not_run", (
+        "setup_pin_aggregate answered not_run, which is what it returns when no "
+        "pin context reached it — the exact failure this test exists for"
+    )

@@ -397,3 +397,110 @@ def test_review_refuses_a_non_owner_account(tmp_path: Path) -> None:
 
 def test_main_requires_an_authenticated_session() -> None:
     assert tool.main(["review", "--state", "batch.json"]) == 3
+
+
+def _plan_response(evidence: list[dict[str, Any]], state: str = "failed") -> Any:
+    from ai_stp_contracts.publication import PublicationPlanResponse
+
+    return PublicationPlanResponse(
+        plan_id="plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        plan_hash="plan_" + "0" * 64,
+        state=cast(Any, state),
+        object_kind="component",
+        stable_id="component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        version="1.0",
+        content_digest="sha256:" + "0" * 64,
+        policy_version="2026-01-01",
+        actor_id=OWNER_ID,
+        device_id=DEVICE,
+        expires_at="2099-01-01T00:00:00.000Z",
+        evidence=cast(Any, evidence),
+        effects=[],
+    )
+
+
+def test_a_refusal_names_the_check_and_repeats_what_the_platform_said() -> None:
+    # The whole point. `state` says a plan failed; it never says why, and the
+    # tool used to record only that. A corpus refusal then read "the platform
+    # reported a failure" while the cause sat on the wire, unread.
+    plan = _plan_response(
+        [
+            {"check_id": "gitleaks", "result": "passed", "source": "platform_safety_scan"},
+            {
+                "check_id": "skill_static_gate",
+                "result": "failed",
+                "source": "platform_safety_scan",
+                "reason": "2 finding(s): reported skill risks",
+            },
+        ]
+    )
+
+    assert tool._refusals(plan) == [
+        "skill_static_gate: failed — 2 finding(s): reported skill risks"
+    ]
+
+
+def test_a_check_that_could_not_run_is_kept_apart_from_one_that_passed() -> None:
+    # `degraded` is what a scanner returns when it never reached a verdict. It
+    # is not a pass, and dropping it would hide exactly the failure mode that
+    # `reason` was added for. A `warning` is the opposite case: the policy
+    # accepted it, so it refused nothing and does not belong in the list.
+    plan = _plan_response(
+        [
+            {
+                "check_id": "opengrep",
+                "result": "degraded",
+                "source": "platform_safety_scan",
+                "reason": "did not finish within 25s: skillspector",
+            },
+            {"check_id": "licence", "result": "warning", "source": "platform_safety_scan"},
+        ]
+    )
+
+    assert tool._refusals(plan) == ["opengrep: degraded — did not finish within 25s: skillspector"]
+
+
+def test_a_plan_that_passed_everything_records_no_refusal() -> None:
+    plan = _plan_response(
+        [{"check_id": "gitleaks", "result": "passed", "source": "platform_safety_scan"}],
+        state="published",
+    )
+
+    assert tool._refusals(plan) == []
+
+
+def test_the_reason_travels_onto_the_record_and_into_the_report() -> None:
+    record = tool.ObjectRecord(
+        kind="component",
+        stable_id="component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        version="1.0",
+        content_digest="sha256:" + "0" * 64,
+        passport_digest="sha256:" + "1" * 64,
+        component_pins=[],
+        create_idempotency_key="a",
+        confirm_idempotency_key="b",
+    )
+    plan = _plan_response(
+        [
+            {
+                "check_id": "skill_static_gate",
+                "result": "failed",
+                "source": "platform_safety_scan",
+                "reason": "ran without producing a report: skill-scanner",
+            }
+        ]
+    )
+    tool._apply_plan(record, plan)
+    record.blocker = "publication plan is failed"
+
+    state = tool.BatchState(
+        corpus_digest="sha256:" + "2" * 64,
+        account_id=OWNER_ID,
+        device_id=DEVICE,
+        objects=[record],
+    )
+    reported = cast(list[dict[str, Any]], tool.report(state)["blockers"])
+
+    assert reported[0]["refused_by"] == [
+        "skill_static_gate: failed — ran without producing a report: skill-scanner"
+    ]

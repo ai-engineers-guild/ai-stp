@@ -9,7 +9,7 @@ last_verified: "2026-08-03"
 
 | Документ | О чём | Сверено |
 | -------- | ----- | ------- |
-| [author-verification.md](author-verification.md) | Runbook: выдача и отзыв author_verified. | 2026-08-04 |
+| [author-verification.md](author-verification.md) | Runbook: выдача и отзыв author_verified. | 2026-08-22 |
 | [bootstrap.md](bootstrap.md) | Runbook: bootstrap. | 2026-08-03 |
 | [database-migration.md](database-migration.md) | Runbook: database migration. | 2026-08-05 |
 | [first-party-launch-publication.md](first-party-launch-publication.md) | Runbook: публикация первопартийного корпуса запуска обычным конвейером. | 2026-08-17 |

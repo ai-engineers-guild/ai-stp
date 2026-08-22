@@ -82,3 +82,42 @@ def test_the_example_names_the_web_variables_the_requirement_lists() -> None:
     declared = _declared_names()
 
     assert set(WEB_REQUIRED) <= declared
+
+
+# A setting with a default is never "missing" to the test above, and that is
+# right for most of them: an unset value falls back to something that works.
+# `admin_account_ids` is the exception in kind, not in degree. Its default is
+# the empty string, and empty does not mean "the usual staff" — it means nobody,
+# so the whole staff surface refuses every account, the operator's included.
+# The lane that needs it then stays closed silently: `authoritative` requires
+# `author_verified`, only this surface grants it, and an operator watching a
+# published catalogue sit entirely in `experimental` has no reason to suspect an
+# environment variable.
+#
+# Both places an operator would look must therefore name it, and the runbook is
+# the one that matters: it is where somebody goes to *do* the grant, and until
+# now it described the policy of granting without mentioning that the mechanism
+# is inert by default.
+STAFF_GATE = "AI_STP_AUTH_ADMIN_ACCOUNT_IDS"
+AUTHOR_VERIFICATION_RUNBOOK = (
+    Path(__file__).parents[2] / "docs/operations/runbooks/author-verification.md"
+)
+
+
+def test_the_example_names_the_variable_that_opens_the_staff_surface() -> None:
+    assert STAFF_GATE in _declared_names(), (
+        f"{STAFF_GATE} is absent from .env.prod.example, so a deployment "
+        "reconciled from it has an inert staff surface and a permanently "
+        "experimental catalogue"
+    )
+
+
+def test_the_grant_runbook_names_what_makes_the_grant_possible() -> None:
+    runbook = AUTHOR_VERIFICATION_RUNBOOK.read_text(encoding="utf-8")
+
+    assert STAFF_GATE in runbook, (
+        "the author-verification runbook tells an owner to grant "
+        f"author_verified without naming {STAFF_GATE}, which every path to the "
+        "grant goes through; an owner following it on a fresh deployment is "
+        "refused with nothing pointing at the cause"
+    )

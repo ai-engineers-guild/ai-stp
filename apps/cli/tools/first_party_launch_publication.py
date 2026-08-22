@@ -16,9 +16,9 @@ import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, cast
+from typing import Final, Literal, cast
 
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from ai_stp_cli.cloud import login, publication
 from ai_stp_cli.cloud.client import Endpoint
@@ -85,6 +85,11 @@ class ObjectRecord(BaseModel):
     plan_hash: str | None = None
     state: str = PENDING
     blocker: str | None = None
+    #: Which mandatory checks the platform did not pass, and what it said about
+    #: each. `blocker` names the plan's state; this names the cause, and the two
+    #: are not the same sentence. Without it a refusal reads "the platform
+    #: reported a failure" and the next step is guesswork against a worker log.
+    refused_by: list[str] = Field(default_factory=list)
 
 
 class BatchState(BaseModel):
@@ -241,10 +246,40 @@ def _record_for(state: BatchState, item: LaunchObject) -> ObjectRecord:
     )
 
 
+#: Results that did not stand in the way. The field is called `refused_by`, so
+#: it holds what refused: `passed` never does, and neither does `warning` — a
+#: warning is a finding the policy accepted. What is left — `failed`,
+#: `degraded`, `not_run`, `expired` — is every way a mandatory check can block
+#: a publication, including the two that mean the check never reached a verdict.
+_UNREMARKABLE: Final[frozenset[str]] = frozenset({"passed", "warning"})
+
+
+def _refusals(plan: PublicationPlanResponse) -> list[str]:
+    """Name the mandatory checks that stood in the way, with their reasons.
+
+    The platform already explains itself: every binding carries `result` and,
+    since `0026_evidence_reason`, a short `reason` that names rules rather than
+    quoting what was scanned. Reading `state` alone throws that away, which is
+    how a corpus refusal spent a week looking like a mystery — the answer was on
+    the wire the whole time and nothing wrote it down.
+
+    Only the bindings that did not pass are kept: a list of thirteen "passed" is
+    noise in a state file somebody opens because something went wrong.
+    """
+    refused: list[str] = []
+    for binding in plan.evidence:
+        if binding.result in _UNREMARKABLE:
+            continue
+        reason = getattr(binding, "reason", None)
+        refused.append(f"{binding.check_id}: {binding.result}" + (f" — {reason}" if reason else ""))
+    return refused
+
+
 def _apply_plan(record: ObjectRecord, plan: PublicationPlanResponse) -> None:
     record.plan_id = plan.plan_id
     record.plan_hash = plan.plan_hash
     record.state = plan.state
+    record.refused_by = _refusals(plan)
     if plan.state == PUBLISHED:
         record.blocker = None
 
@@ -518,6 +553,10 @@ def report(state: BatchState) -> dict[str, object]:
                 "version": item.version,
                 "state": item.state,
                 "blocker": item.blocker,
+                # What the platform said, beside what the tool concluded. A
+                # report that names only the latter sends the reader to a
+                # worker log for something already on the wire.
+                "refused_by": item.refused_by,
             }
             for item in blocked
         ],

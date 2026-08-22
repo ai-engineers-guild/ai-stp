@@ -1,6 +1,6 @@
 ---
 description: "Голос, тон, маркеры и правила идентичности продукта ai_stp."
-last_verified: "2026-08-07"
+last_verified: "2026-08-22"
 ---
 
 # ai_stp — бренд
@@ -11,7 +11,7 @@ last_verified: "2026-08-07"
 
 ## Система одной строкой
 
-Почти чёрный машинный холст, чернильные поверхности, белый основной и серый вторичный текст, серые линии `1px` и один сигнальный оранжевый (`#fb631b`) с гарнитурами Gerstner Programm и FT System Mono — светлый human и тёмный machine режимы.
+Почти чёрный машинный холст, чернильные поверхности, белый основной и серый вторичный текст, серые линии `1px` и один сигнальный оранжевый (`#fb631b`) с гарнитурами IBM Plex Sans и IBM Plex Mono — светлый human и тёмный machine режимы.
 
 ## Знак продукта
 
@@ -46,9 +46,14 @@ last_verified: "2026-08-07"
 
 ## Типографика
 
-- **Display / body:** gerstnerProgramm (400, 500) — self-host `apps/web/public/fonts/Gerstner_Programm*.woff2`
-- **Mono:** ftSystemMono (400, 500) — ids, versions, install commands, technical meta — `FTSystemMono_*.woff2`
+- **Display / body:** plexSans (400, 500) — self-host `apps/web/public/fonts/plex-sans-*.woff2`
+- **Mono:** plexMono (400, 500) — ids, versions, install commands, technical meta — `plex-mono-*.woff2`
 - Fallbacks: Arial / system-ui (sans); ui-monospace stack (mono)
+- Обе гарнитуры — IBM Plex под SIL Open Font License 1.1, одна суперсемья, обе несут кириллицу.
+  Они заменили Gerstner Programm и FT System Mono, чьи собственные метаданные запрещают
+  хранение на публичных серверах и распространение — то есть ровно то, что делает этот
+  репозиторий, став публичным. Замена нашлась через `just fonts-licence`; заодно она
+  починила русский интерфейс, который на прежней паре молча падал в Arial.
 
 ## Голос
 
@@ -87,7 +92,7 @@ last_verified: "2026-08-07"
 ## Заметки по реализации Agent
 
 1. Bind color roles from `apps/web/src/theme/tokens.json` into CSS variables (`globals.css`).
-2. Self-host Gerstner + FT System Mono; map `--font-sans` and `--font-mono`.
+2. Self-host IBM Plex Sans + IBM Plex Mono; map `--font-sans` and `--font-mono`.
 3. Предпочитать тёмный machine режим для плотного product UI; human light — для marketing/landing.
 4. Использовать orange экономно; вторичный текст — muted; не допускать light-on-light или dark-on-dark.
 5. Components используют только semantic utilities (`bg-primary`, `text-muted-foreground`) без raw hex в React.
