@@ -6,7 +6,7 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime
 from typing import Any, Literal, cast
 
-from sqlalchemy import Select, and_, or_, select
+from sqlalchemy import Select, and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_platform.catalog_cursor import CursorKey
@@ -138,6 +138,27 @@ async def _current_author_verification(
     ]
 
 
+#: The cursor carries a canonical wire timestamp, and that format is
+#: milliseconds — `format_timestamp` writes `microsecond // 1000`. PostgreSQL
+#: keeps microseconds, so a row published at `.746829` is handed back as a
+#: cursor saying `.746`, and `published_at > .746000` is true of that very row.
+#: It was returned again as the first entry of the next page: one duplicate per
+#: page boundary, for every row whose timestamp had sub-millisecond digits.
+#:
+#: So the order is defined at the resolution the cursor can express. Both the
+#: sort and the keyset comparison use this bucket, because using it in only one
+#: of them trades duplicates for something worse — two rows inside one
+#: millisecond would sort by microsecond and be filtered by `stable_id`, and the
+#: one that sorts first with the larger id would be skipped entirely.
+def _cursor_bucket(column: Any) -> Any:
+    return func.date_trunc("milliseconds", column)
+
+
+def bucketed(moment: datetime) -> datetime:
+    """The same truncation, for comparing rows already in memory."""
+    return moment.replace(microsecond=(moment.microsecond // 1000) * 1000)
+
+
 async def list_public_versions(
     session: AsyncSession,
     *,
@@ -151,21 +172,22 @@ async def list_public_versions(
     same stable_id carries multiple published versions so keyset pagination does
     not skip or duplicate version rows that share a published_at.
     """
+    published = _cursor_bucket(CatalogMetadata.published_at)
     stmt = _public_base(object_kind).order_by(
-        CatalogMetadata.published_at.asc(),
+        published.asc(),
         CatalogMetadata.stable_id.asc(),
         CatalogMetadata.version.asc(),
     )
     if after is not None:
         stmt = stmt.where(
             or_(
-                CatalogMetadata.published_at > after.published_at,
+                published > after.published_at,
                 and_(
-                    CatalogMetadata.published_at == after.published_at,
+                    published == after.published_at,
                     CatalogMetadata.stable_id > after.stable_id,
                 ),
                 and_(
-                    CatalogMetadata.published_at == after.published_at,
+                    published == after.published_at,
                     CatalogMetadata.stable_id == after.stable_id,
                     # Advance past all versions already emitted for this key.
                     # The wire cursor only carries (published_at, stable_id);
@@ -210,13 +232,13 @@ async def list_latest_public_objects(
             latest_by_id[row.stable_id] = row
     ordered = sorted(
         latest_by_id.values(),
-        key=lambda r: (r.published_at, r.stable_id),
+        key=lambda r: (bucketed(r.published_at), r.stable_id),
     )
     if after is not None:
         ordered = [
             r
             for r in ordered
-            if (r.published_at, r.stable_id) > (after.published_at, after.stable_id)
+            if (bucketed(r.published_at), r.stable_id) > (after.published_at, after.stable_id)
         ]
     return ordered[:limit]
 

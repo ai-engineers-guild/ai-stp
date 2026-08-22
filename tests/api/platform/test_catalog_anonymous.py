@@ -448,3 +448,49 @@ async def test_walking_the_cursor_visits_every_object_exactly_once(
             f"page_size={page_size} enumerated {len(set(walked))} objects while one "
             f"page holds {len(set(whole))}; a cut into pages must not change the set"
         )
+
+
+@pytest.mark.asyncio
+async def test_a_sub_millisecond_timestamp_does_not_repeat_a_row(
+    migrated_database_url: str,
+    seeded_client: AsyncClient,
+) -> None:
+    """The cursor carries milliseconds; PostgreSQL keeps microseconds.
+
+    A row published at `.746829` produces a cursor saying `.746`, and
+    `published_at > .746000` is true of that very row — so it came back as the
+    first entry of the next page. One duplicate per page boundary, and only for
+    rows whose timestamp had digits below a millisecond, which is why the
+    fixture corpus never showed it and the deployed catalogue did.
+    """
+    engine = create_async_engine(migrated_database_url)
+    sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessionmaker() as session:
+        rows = (await session.execute(select(CatalogMetadata))).scalars().all()
+        for index, row in enumerate(rows):
+            if row.published_at is None:
+                continue
+            # Distinct sub-millisecond tails, so every boundary can trip.
+            row.published_at = row.published_at.replace(microsecond=746_000 + index * 37 + 1)
+        await session.commit()
+    await engine.dispose()
+
+    seen: list[str] = []
+    cursor: str | None = None
+    for _ in range(64):
+        params: dict[str, str | int] = {"include_experimental": "true", "page_size": 2}
+        if cursor is not None:
+            params["cursor"] = cursor
+        response = await seeded_client.get("/v1/catalog/components", params=params)
+        assert response.status_code == HTTPStatus.OK
+        body = response.json()
+        seen.extend(row["stable_id"] for row in body["items"] + body["experimental"])
+        cursor = body["page"]["next_cursor"]
+        if cursor is None:
+            break
+    else:
+        raise AssertionError("the cursor never reported the end of the sequence")
+
+    assert len(seen) == len(set(seen)), (
+        "a row whose timestamp is finer than the cursor came back on the next page"
+    )
