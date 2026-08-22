@@ -290,38 +290,30 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      # Through npm rather than a setup action, and asserted: an unpinned bun
-      # changes the lockfile resolution the web checks depend on.
-      - name: Isolate this job's Python environment
-        run: |
-          set -euo pipefail
-          python_path="$(python -c 'import sys; print(sys.executable)')"
-          test -n "${python_path}"
-          echo "UV_PYTHON=${python_path}" >> "${GITHUB_ENV}"
-          echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-web-static" >> "${GITHUB_ENV}"
-      # `uv sync` resolves and downloads the same locked dependencies on every
-      # job of every run. Keyed by the lock, so a hit is exact and a change to
-      # the lock misses on purpose.
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        with:
-          path: ~/.cache/uv
-          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
-          restore-keys: ${{ runner.os }}-uv-
-      - name: Install pinned bun and uv
+      - name: Install pinned bun
         run: |
           set -euo pipefail
           npm install --global --no-fund --no-audit "bun@${BUN_VERSION}"
           test "$(bun --version)" = "${BUN_VERSION}"
-          python -m pip install --disable-pip-version-check "uv==${UV_VERSION}"
       - name: Cache bun packages
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-bun-${{ hashFiles('apps/web/bun.lock') }}
           restore-keys: ${{ runner.os }}-bun-
+      - name: Cache the Next.js build
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: apps/web/.next/cache
+          # Source in the key so a changed page rebuilds, lockfile so a changed
+          # dependency does; the restore-key keeps the previous cache useful
+          # when only one file moved, which is the common case.
+          key: >-
+            ${{ runner.os }}-next-${{ hashFiles('apps/web/bun.lock') }}-${{
+            hashFiles('apps/web/src/**') }}
+          restore-keys: |
+            ${{ runner.os }}-next-${{ hashFiles('apps/web/bun.lock') }}-
+            ${{ runner.os }}-next-
       - name: Build, static-check, audit and Storybook
         run: |
           set -euo pipefail
@@ -354,28 +346,11 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - name: Isolate this job's Python environment
-        run: |
-          set -euo pipefail
-          python_path="$(python -c 'import sys; print(sys.executable)')"
-          test -n "${python_path}"
-          echo "UV_PYTHON=${python_path}" >> "${GITHUB_ENV}"
-          echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-web-unit-${{ matrix.os }}" \
-            >> "${GITHUB_ENV}"
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        with:
-          path: ~/.cache/uv
-          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
-          restore-keys: ${{ runner.os }}-uv-
-      - name: Install pinned bun and uv
+      - name: Install pinned bun
         run: |
           set -euo pipefail
           npm install --global --no-fund --no-audit "bun@${BUN_VERSION}"
           test "$(bun --version)" = "${BUN_VERSION}"
-          python -m pip install --disable-pip-version-check "uv==${UV_VERSION}"
       - name: Cache bun packages
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
@@ -391,7 +366,7 @@ jobs:
           bun run test:coverage:catalog
 
   web-e2e:
-    name: web-e2e (${{ matrix.os }})
+    name: web-e2e (${{ matrix.os }}, ${{ matrix.shard }}/2)
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     defaults:
@@ -401,6 +376,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -416,28 +392,11 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - name: Isolate this job's Python environment
-        run: |
-          set -euo pipefail
-          python_path="$(python -c 'import sys; print(sys.executable)')"
-          test -n "${python_path}"
-          echo "UV_PYTHON=${python_path}" >> "${GITHUB_ENV}"
-          echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-web-e2e-${{ matrix.os }}" \
-            >> "${GITHUB_ENV}"
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        with:
-          path: ~/.cache/uv
-          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
-          restore-keys: ${{ runner.os }}-uv-
-      - name: Install pinned bun and uv
+      - name: Install pinned bun
         run: |
           set -euo pipefail
           npm install --global --no-fund --no-audit "bun@${BUN_VERSION}"
           test "$(bun --version)" = "${BUN_VERSION}"
-          python -m pip install --disable-pip-version-check "uv==${UV_VERSION}"
       - name: Cache bun packages
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
@@ -450,21 +409,58 @@ jobs:
           path: ${{ runner.temp }}/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('apps/web/bun.lock') }}
           restore-keys: ${{ runner.os }}-playwright-
+      - name: Ensure a Google Chrome is present
+        run: |
+          set -euo pipefail
+          # Every runner image ships Chrome — measured on ubuntu-24.04,
+          # windows-2022 and macos-15 — and `playwright install chrome`
+          # downloaded it again anyway: fifty-nine seconds on the longest job in
+          # the gate, every run. `channel: "chrome"` uses the installed stable
+          # browser, so the download only has to happen if the image ever stops
+          # shipping one.
+          for candidate in \
+            "$(command -v google-chrome || true)" \
+            "$(command -v google-chrome-stable || true)" \
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+            "/c/Program Files/Google/Chrome/Application/chrome.exe" \
+            "/c/Program Files (x86)/Google/Chrome/Application/chrome.exe"; do
+            if [ -n "${candidate}" ] && [ -x "${candidate}" ]; then
+              echo "using the runner's Chrome: ${candidate}"
+              exit 0
+            fi
+          done
+          echo "no Chrome on this image; installing one" >&2
+          cd apps/web && bunx playwright install chrome
+      - name: Cache the Next.js build
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: apps/web/.next/cache
+          # Source in the key so a changed page rebuilds, lockfile so a changed
+          # dependency does; the restore-key keeps the previous cache useful
+          # when only one file moved, which is the common case.
+          key: >-
+            ${{ runner.os }}-next-${{ hashFiles('apps/web/bun.lock') }}-${{
+            hashFiles('apps/web/src/**') }}
+          restore-keys: |
+            ${{ runner.os }}-next-${{ hashFiles('apps/web/bun.lock') }}-
+            ${{ runner.os }}-next-
       - name: Build and run the browser scenarios
         run: |
           set -euo pipefail
           cd apps/web
           bun install --frozen-lockfile
           AI_STP_WEB_PROFILE=public_saas bun run build
-          # Why this slice is not sharded, measured rather than assumed:
-          # `--shard` distributes only tests designed to run in parallel,
-          # and this suite is serial by design (process-local mock state).
-          # Empirically both halves of `--shard=x/2` executed the whole suite
-          # (90 and 90 of 90), matching playwright#30253; forcing
-          # `fullyParallel: true` would break the state invariant instead.
-          # Widening happens by splitting spec files between jobs explicitly.
-          bunx playwright install chrome
-          bun run test:e2e
+          # Sharded, and the earlier note saying it could not be was a
+          # misreading. `--shard=1/2` and `--shard=2/2` list 90 tests each and
+          # the whole suite lists 180: two projects of ninety, split cleanly
+          # along the project boundary with no overlap and nothing dropped.
+          # The "90 and 90 of 90" that argued against it was one project's
+          # count read as the whole.
+          #
+          # Serial execution is untouched — `fullyParallel: false` and one
+          # worker still hold inside each shard, so the process-local mock
+          # state the suite depends on is exactly as isolated as before.
+          bunx playwright test --shard=${{ matrix.shard }}/2
 
   web-profiles:
     name: web-profiles (${{ matrix.os }})
@@ -492,28 +488,11 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - name: Isolate this job's Python environment
-        run: |
-          set -euo pipefail
-          python_path="$(python -c 'import sys; print(sys.executable)')"
-          test -n "${python_path}"
-          echo "UV_PYTHON=${python_path}" >> "${GITHUB_ENV}"
-          echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-web-profiles-${{ matrix.os }}" \
-            >> "${GITHUB_ENV}"
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        with:
-          path: ~/.cache/uv
-          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
-          restore-keys: ${{ runner.os }}-uv-
-      - name: Install pinned bun and uv
+      - name: Install pinned bun
         run: |
           set -euo pipefail
           npm install --global --no-fund --no-audit "bun@${BUN_VERSION}"
           test "$(bun --version)" = "${BUN_VERSION}"
-          python -m pip install --disable-pip-version-check "uv==${UV_VERSION}"
       - name: Cache bun packages
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
@@ -526,12 +505,46 @@ jobs:
           path: ${{ runner.temp }}/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('apps/web/bun.lock') }}
           restore-keys: ${{ runner.os }}-playwright-
+      - name: Ensure a Google Chrome is present
+        run: |
+          set -euo pipefail
+          # Every runner image ships Chrome — measured on ubuntu-24.04,
+          # windows-2022 and macos-15 — and `playwright install chrome`
+          # downloaded it again anyway: fifty-nine seconds on the longest job in
+          # the gate, every run. `channel: "chrome"` uses the installed stable
+          # browser, so the download only has to happen if the image ever stops
+          # shipping one.
+          for candidate in \
+            "$(command -v google-chrome || true)" \
+            "$(command -v google-chrome-stable || true)" \
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+            "/c/Program Files/Google/Chrome/Application/chrome.exe" \
+            "/c/Program Files (x86)/Google/Chrome/Application/chrome.exe"; do
+            if [ -n "${candidate}" ] && [ -x "${candidate}" ]; then
+              echo "using the runner's Chrome: ${candidate}"
+              exit 0
+            fi
+          done
+          echo "no Chrome on this image; installing one" >&2
+          cd apps/web && bunx playwright install chrome
+      - name: Cache the Next.js build
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: apps/web/.next/cache
+          # Source in the key so a changed page rebuilds, lockfile so a changed
+          # dependency does; the restore-key keeps the previous cache useful
+          # when only one file moved, which is the common case.
+          key: >-
+            ${{ runner.os }}-next-${{ hashFiles('apps/web/bun.lock') }}-${{
+            hashFiles('apps/web/src/**') }}
+          restore-keys: |
+            ${{ runner.os }}-next-${{ hashFiles('apps/web/bun.lock') }}-
+            ${{ runner.os }}-next-
       - name: Feature profile builds
         run: |
           set -euo pipefail
           cd apps/web
           bun install --frozen-lockfile
-          bunx playwright install chrome
           bun run test:feature-profiles
 
   cli:
