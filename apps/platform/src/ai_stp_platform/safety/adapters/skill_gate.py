@@ -68,7 +68,7 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
             # about one. Not run rather than run-and-refused: the second would
             # report the artefact as dangerous for not being a skill.
             continue
-        code, out = _scan_packages(tool, argv, tree, packages, spec.timeout_seconds)
+        code, out = _scan_packages(argv, tree, packages, spec.timeout_seconds)
         tools_run.append(tool)
         if code == _TIMEOUT_EXIT:
             # A measurement that did not finish is not a negative measurement.
@@ -187,7 +187,6 @@ def _packages(tree: Path) -> tuple[Path, ...]:
 
 
 def _scan_packages(
-    tool: str,
     argv: list[str],
     tree: Path,
     packages: tuple[Path, ...],
@@ -201,10 +200,9 @@ def _scan_packages(
     act on; if none did, the last exit code is returned so the caller can see
     the engine never reported at all.
     """
-    del tool
     last = 0
     for package in packages:
-        code, out, _err, _ms = run_cli(
+        code, out, _, _ = run_cli(
             [str(package) if item == "{}" else item for item in argv],
             cwd=tree,
             timeout=timeout,
