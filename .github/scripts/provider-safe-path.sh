@@ -41,7 +41,7 @@ ai_stp_use_provider_safe_path() {
         echo "provider-safe PATH still selects the setup-python interpreter" >&2
         return 1
     }
-    for entry in uv just; do
+    for entry in uv; do
         command -v "${entry}" >/dev/null || {
             echo "provider-safe PATH has no ${entry}" >&2
             return 1
