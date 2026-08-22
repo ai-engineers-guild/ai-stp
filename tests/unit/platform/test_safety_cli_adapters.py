@@ -953,6 +953,9 @@ def test_a_skill_scanner_timeout_is_degraded_and_not_a_security_finding(
     from ai_stp_platform.safety.types import ArtifactManifest
 
     spec = next(item for item in CHECK_REGISTRY if item.check_id == "skill_static_gate")
+    package = tmp_path / "skills" / "demo"
+    package.mkdir(parents=True)
+    (package / "SKILL.md").write_text("# Demo\n", encoding="utf-8")
     monkeypatch.setattr(skill_gate, "which", lambda tool: f"/opt/safety-bin/{tool}")
     monkeypatch.setattr(
         skill_gate,
@@ -984,6 +987,9 @@ def test_a_scanner_that_actually_reports_something_still_fails(
         "run_cli",
         lambda argv, cwd, timeout: (1, '{"risk":"critical"}', "", 10),
     )
+    package = tmp_path / "skills" / "demo"
+    package.mkdir(parents=True)
+    (package / "SKILL.md").write_text("# Demo\n", encoding="utf-8")
 
     outcome = skill_gate.run(tmp_path, ArtifactManifest(component_type="skill"), spec)
 
@@ -1010,11 +1016,106 @@ def _skill_spec():
     return next(item for item in CHECK_REGISTRY if item.check_id == "skill_static_gate")
 
 
+def _package(tree: Path) -> Path:
+    """One skill package inside the artefact, which is what the engines load."""
+    package = tree / "skills" / "demo"
+    package.mkdir(parents=True, exist_ok=True)
+    (package / "SKILL.md").write_text("# Demo\n", encoding="utf-8")
+    return package
+
+
 def _ran(code: int, out: str):
     def _run_cli(_argv, **_kwargs):
         return code, out, "", 12
 
     return _run_cli
+
+
+def test_the_engines_are_pointed_at_the_skill_package_not_the_artefact_root(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Both engines load a skill package; a tree root is not one.
+
+    Handed the root of a tree whose `SKILL.md` sits one level down,
+    `skill-scanner` answers `Error loading skill: SKILL.md not found`, exits 1
+    and writes nothing. That refused ninety-six components of a hundred and
+    three, and blocked every setup pinning one, for content nothing had read.
+    """
+    from ai_stp_platform.safety.adapters import skill_gate
+
+    package = tmp_path / "skills" / "demo"
+    package.mkdir(parents=True)
+    (package / "SKILL.md").write_text("# Demo\n", encoding="utf-8")
+
+    scanned: list[str] = []
+
+    def _run_cli(argv, **_kwargs):
+        scanned.append(argv[2])
+        return 0, '{"findings": []}', "", 5
+
+    monkeypatch.setattr(skill_gate, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(skill_gate, "run_cli", _run_cli)
+
+    outcome = skill_gate.run(tmp_path, ArtifactManifest(component_type="skill"), _skill_spec())
+
+    assert scanned == [str(package), str(package)]
+    assert str(tmp_path) not in scanned
+    assert outcome.result == "passed"
+    assert outcome.detail["skill_packages"] == 1
+
+
+def test_every_skill_package_in_one_artefact_is_scanned(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Scanning only the first would leave the rest unread and call it passed."""
+    from ai_stp_platform.safety.adapters import skill_gate
+
+    for name in ("beta", "alpha"):
+        package = tmp_path / "skills" / name
+        package.mkdir(parents=True)
+        (package / "SKILL.md").write_text("# One\n", encoding="utf-8")
+
+    scanned: list[str] = []
+
+    def _run_cli(argv, **_kwargs):
+        scanned.append(Path(argv[2]).name)
+        # No report from any package: the engine reached no verdict anywhere,
+        # so every package has to be tried before that is concluded.
+        return 1, "", "Error loading skill", 5
+
+    monkeypatch.setattr(skill_gate, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(skill_gate, "run_cli", _run_cli)
+
+    skill_gate.run(tmp_path, ArtifactManifest(component_type="skill"), _skill_spec())
+
+    # Sorted, so the same bytes reach the same verdict on any filesystem.
+    assert scanned == ["alpha", "beta", "alpha", "beta"]
+
+
+def test_an_artefact_with_no_skill_package_does_not_run_the_engines(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """An `agent` component need not carry a `SKILL.md` at all.
+
+    Running an engine that can only load a skill package against one would
+    report the artefact as dangerous for not being a skill — which is what the
+    root-directory invocation did.
+    """
+    from ai_stp_platform.safety.adapters import skill_gate
+
+    (tmp_path / "agent.md").write_text("# Agent\n", encoding="utf-8")
+
+    def _forbidden(*_args, **_kwargs):
+        raise AssertionError("no package to load, so no engine to run")
+
+    monkeypatch.setattr(skill_gate, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(skill_gate, "run_cli", _forbidden)
+
+    outcome = skill_gate.run(tmp_path, ArtifactManifest(component_type="agent"), _skill_spec())
+
+    assert outcome.result == "passed"
+    assert outcome.detail["skill_packages"] == 0
+    assert outcome.detail["no_report"] == []
 
 
 def test_a_scanner_that_could_not_start_is_not_a_finding_about_the_object(
@@ -1030,6 +1131,7 @@ def test_a_scanner_that_could_not_start_is_not_a_finding_about_the_object(
     """
     from ai_stp_platform.safety.adapters import skill_gate
 
+    _package(tmp_path)
     monkeypatch.setattr(skill_gate, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setattr(skill_gate, "run_cli", _ran(2, "usage: skillspector scan [-h]"))
 
@@ -1047,6 +1149,7 @@ def test_a_scanner_that_did_report_something_still_fails_the_gate(
     """The discriminator is the report, so a real one must still be believed."""
     from ai_stp_platform.safety.adapters import skill_gate
 
+    _package(tmp_path)
     monkeypatch.setattr(skill_gate, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setattr(skill_gate, "run_cli", _ran(1, '{"findings": [{"rule": "pi"}]}'))
 
@@ -1065,6 +1168,7 @@ def test_a_scanner_that_found_nothing_and_said_so_passes(
     """An empty report is a report: the tool ran and reached a verdict."""
     from ai_stp_platform.safety.adapters import skill_gate
 
+    _package(tmp_path)
     monkeypatch.setattr(skill_gate, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setattr(skill_gate, "run_cli", _ran(0, '{"findings": []}'))
 
@@ -1084,6 +1188,7 @@ def test_a_timeout_and_a_refusal_to_start_are_told_apart(
     """
     from ai_stp_platform.safety.adapters import skill_gate
 
+    _package(tmp_path)
     monkeypatch.setattr(skill_gate, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setattr(skill_gate, "run_cli", _ran(124, ""))
 

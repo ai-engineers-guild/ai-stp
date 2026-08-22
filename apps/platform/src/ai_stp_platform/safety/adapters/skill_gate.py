@@ -42,18 +42,33 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
     tools_run: list[str] = []
     engines_missing = 0
 
-    # NVIDIA SkillSpector (static only) + Cisco skill-scanner (static default;
-    # do not pass --use-llm — publication validate must not call model APIs).
+    # Both engines load a *skill package*, so they are pointed at the directory
+    # holding a `SKILL.md` rather than at the artefact root. Handed the root of
+    # a tree whose skill sits one level down, `skill-scanner` answers
+    # `Error loading skill: SKILL.md not found`, exit 1, nothing on stdout —
+    # which the gate used to record as "skill-scanner reported skill risks".
+    # That refused ninety-six components of a hundred and three for content the
+    # scanner never read, and blocked every setup pinning one.
+    #
+    # The owned static pass below already knew where the packages are. This is
+    # the same walk, applied to the engines.
+    packages = _packages(tree)
     timed_out: list[str] = []
     no_report: list[str] = []
     for tool, argv in (
-        ("skillspector", ["skillspector", "scan", str(tree), "--no-llm", "--format", "json"]),
-        ("skill-scanner", ["skill-scanner", "scan", str(tree), "--format", "json"]),
+        ("skillspector", ["skillspector", "scan", "{}", "--no-llm", "--format", "json"]),
+        ("skill-scanner", ["skill-scanner", "scan", "{}", "--format", "json"]),
     ):
         if which(tool) is None:
             engines_missing += 1
             continue
-        code, out, _err, _ms = run_cli(argv, cwd=tree, timeout=spec.timeout_seconds)
+        if not packages:
+            # An `agent` component need not carry a `SKILL.md` at all, and an
+            # engine that can only load a skill package has nothing to say
+            # about one. Not run rather than run-and-refused: the second would
+            # report the artefact as dangerous for not being a skill.
+            continue
+        code, out = _scan_packages(tool, argv, tree, packages, spec.timeout_seconds)
         tools_run.append(tool)
         if code == _TIMEOUT_EXIT:
             # A measurement that did not finish is not a negative measurement.
@@ -143,6 +158,11 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
         detail={
             "engines_missing": engines_missing,
             "tools": tools_run,
+            # How many skill packages the engines were pointed at. Zero means
+            # the artefact carries no `SKILL.md`, so the engines had nothing to
+            # load and were not run — which is a different fact from an engine
+            # that ran and refused, and used to be indistinguishable.
+            "skill_packages": len(packages),
             "timed_out": timed_out,
             # Ran, exited non-zero, produced no report. Kept apart from a
             # timeout because the repairs differ: one is a busy worker, the
@@ -154,6 +174,47 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
             "timeout_seconds": effective_timeout(spec.timeout_seconds),
         },
     )
+
+
+def _packages(tree: Path) -> tuple[Path, ...]:
+    """Every skill package in this artefact: the directories holding a `SKILL.md`.
+
+    Sorted so two runs over the same bytes scan in the same order and produce
+    the same report, which is what lets an identical artefact reach an
+    identical verdict.
+    """
+    return tuple(sorted({path.parent for path in tree.rglob("SKILL.md")}))
+
+
+def _scan_packages(
+    tool: str,
+    argv: list[str],
+    tree: Path,
+    packages: tuple[Path, ...],
+    timeout: float,
+) -> tuple[int, str]:
+    """Run one engine over each package; return the first result worth acting on.
+
+    A timeout anywhere is a timeout for the engine — the measurement is
+    incomplete whatever the other packages said. Otherwise the first package
+    that produced a report wins, because a report is the thing the caller can
+    act on; if none did, the last exit code is returned so the caller can see
+    the engine never reported at all.
+    """
+    del tool
+    last = 0
+    for package in packages:
+        code, out, _err, _ms = run_cli(
+            [str(package) if item == "{}" else item for item in argv],
+            cwd=tree,
+            timeout=timeout,
+        )
+        if code == _TIMEOUT_EXIT:
+            return code, ""
+        if _report(out) is not None:
+            return code, out
+        last = code
+    return last, ""
 
 
 def _report(stdout: str) -> str | None:
