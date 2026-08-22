@@ -21,7 +21,18 @@ for (const scenario of scenarios) {
 }
 
 function run(command, args, env) {
-  const executable = process.platform === "win32" ? `${command}.exe` : command;
-  const result = spawnSync(executable, args, { env, stdio: "inherit" });
-  if (result.status !== 0) process.exit(result.status ?? 1);
+  // Windows resolves `bun`/`bunx` through PATHEXT, and what is on PATH may be a
+  // `.cmd` shim rather than a `.exe`. Appending `.exe` guessed at one shape and
+  // spawn failed to find anything, so this exited 1 in a fraction of a second
+  // with nothing on stdout — the job said only that the script failed.
+  const windows = process.platform === "win32";
+  const result = spawnSync(command, args, { env, stdio: "inherit", shell: windows });
+  if (result.error) {
+    console.error(`${command} ${args.join(" ")} could not start: ${result.error.message}`);
+    process.exit(1);
+  }
+  if (result.status !== 0) {
+    console.error(`${command} ${args.join(" ")} exited with ${result.status ?? "a signal"}`);
+    process.exit(result.status ?? 1);
+  }
 }
