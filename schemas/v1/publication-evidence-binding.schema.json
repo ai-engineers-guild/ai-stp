@@ -1,16 +1,5 @@
 {
   "$defs": {
-    "CheckResult": {
-      "enum": [
-        "passed",
-        "warning",
-        "failed",
-        "degraded",
-        "not_run",
-        "expired"
-      ],
-      "type": "string"
-    },
     "EvidenceSource": {
       "enum": [
         "author_attested",
@@ -24,6 +13,30 @@
     },
     "Timestamp": {
       "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    },
+    "ai_stp_contracts__publication__CheckResult": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ai_stp_contracts__safety_checks__CheckResult"
+        },
+        {
+          "const": "expired",
+          "type": "string"
+        }
+      ]
+    },
+    "ai_stp_contracts__safety_checks__CheckResult": {
+      "enum": [
+        "passed",
+        "warning",
+        "failed",
+        "degraded",
+        "not_run",
+        "not_applicable",
+        "skipped",
+        "running"
+      ],
       "type": "string"
     }
   },
@@ -61,7 +74,7 @@
       "title": "Reason"
     },
     "result": {
-      "$ref": "#/$defs/CheckResult"
+      "$ref": "#/$defs/ai_stp_contracts__publication__CheckResult"
     },
     "schema_version": {
       "const": 1,

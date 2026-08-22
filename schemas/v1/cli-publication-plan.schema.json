@@ -4,17 +4,6 @@
       "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
       "type": "string"
     },
-    "CheckResult": {
-      "enum": [
-        "passed",
-        "warning",
-        "failed",
-        "degraded",
-        "not_run",
-        "expired"
-      ],
-      "type": "string"
-    },
     "ContentDigest": {
       "pattern": "^sha256:[0-9a-f]{64}$",
       "type": "string"
@@ -56,7 +45,7 @@
           "title": "Reason"
         },
         "result": {
-          "$ref": "#/$defs/CheckResult"
+          "$ref": "#/$defs/ai_stp_contracts__publication__CheckResult"
         },
         "schema_version": {
           "const": 1,
@@ -126,6 +115,30 @@
     },
     "Version": {
       "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "type": "string"
+    },
+    "ai_stp_contracts__publication__CheckResult": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ai_stp_contracts__safety_checks__CheckResult"
+        },
+        {
+          "const": "expired",
+          "type": "string"
+        }
+      ]
+    },
+    "ai_stp_contracts__safety_checks__CheckResult": {
+      "enum": [
+        "passed",
+        "warning",
+        "failed",
+        "degraded",
+        "not_run",
+        "not_applicable",
+        "skipped",
+        "running"
+      ],
       "type": "string"
     }
   },

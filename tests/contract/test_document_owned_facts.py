@@ -138,3 +138,31 @@ def test_the_replaced_faces_are_only_mentioned_as_history() -> None:
                 f"{document} still names {retired} as a font-family token; it "
                 "was replaced in globals.css and no longer exists in the tree"
             )
+
+
+# The safety pipeline decides what a check result can be; the publication wire
+# only carries it. Writing both lists out separately made them drift, and the
+# drift did not surface as a mismatch — it surfaced as `500 internal error` on
+# `GET /v1/publications/plans/{id}`, because building the response over a
+# binding the narrower list could not hold raised inside the handler. The plan
+# could then be neither published nor diagnosed.
+#
+# One corpus component reached it, and only because it was the only one carrying
+# a `package.json`: that makes `sca_npm_audit` applicable, and with no manifest
+# at the tree root the adapter answers `not_applicable`.
+def test_the_wire_can_carry_every_result_a_scan_can_produce() -> None:
+    from ai_stp_contracts.publication import EvidenceBindingView
+    from ai_stp_contracts.safety_checks import SafetyCheckEntry
+
+    produced = set(SafetyCheckEntry.model_fields["result"].annotation.__value__.__args__)  # type: ignore[union-attr]
+
+    for result in sorted(produced):
+        EvidenceBindingView(check_id="sca_npm_audit", result=result, source="platform_safety_scan")
+
+
+def test_the_wire_also_carries_the_one_state_no_scan_produces() -> None:
+    # `expired` is a property of the evidence, not of a scan, so the wire list
+    # is the scan vocabulary plus exactly this.
+    from ai_stp_contracts.publication import EvidenceBindingView
+
+    EvidenceBindingView(check_id="x", result="expired", source="platform_safety_scan")

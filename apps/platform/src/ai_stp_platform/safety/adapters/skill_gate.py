@@ -19,6 +19,10 @@ _TIMEOUT_EXIT: Final[int] = 124
 #: The shell's "command not found". `which` normally catches an absent tool
 #: first; this covers the race where it disappears between the two.
 _MISSING_EXIT: Final[int] = 127
+#: What an owned keyword match is worth once a real engine has read the same
+#: file. `medium` is already the gate's word for "a human should look at this",
+#: and it does not by itself refuse.
+_ADVISORY: Final[str] = "medium"
 
 # Static in-proc patterns when CLIs absent (still real path on SKILL.md).
 SKILL_RISK = [
@@ -40,6 +44,10 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
     del manifest
     findings: list[Finding] = []
     tools_run: list[str] = []
+    #: Engines that reached a verdict on this artefact, clean or otherwise.
+    #: Distinct from `tools_run`, which also holds engines that timed out or
+    #: refused to start — neither of those read anything.
+    reported: list[str] = []
     engines_missing = 0
 
     # Both engines load a *skill package*, so they are pointed at the directory
@@ -85,6 +93,11 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
             timed_out.append(tool)
             continue
         if code in (0, _MISSING_EXIT):
+            # Exit zero *is* a verdict: the engine loaded the package and found
+            # nothing. Counting it is the whole point — a clean read is what
+            # makes the keyword pass advisory.
+            if code == 0:
+                reported.append(tool)
             continue
         report = _report(out)
         if report is None:
@@ -101,6 +114,7 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
             # start", and every code but zero was being read as the first.
             no_report.append(tool)
             continue
+        reported.append(tool)
         findings.append(
             Finding(
                 check_id=spec.check_id,
@@ -113,7 +127,23 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
             )
         )
 
-    # Always run owned static pass on SKILL.md files (merge into same gate)
+    # The owned static pass always runs, and always contributes — but it does
+    # not always decide. It is a keyword scan, and a keyword scan cannot tell a
+    # skill that exfiltrates data from a skill whose job is to review code for
+    # exfiltration. Both contain the word.
+    #
+    # That is not hypothetical: two security-review skills in the first-party
+    # corpus were refused as `critical` for naming the risk they exist to find,
+    # while both real engines read the same file and returned `is_safe: true`.
+    # A regex overruling two purpose-built analysers that examined the same
+    # bytes is the fallback outranking the thing it stands in for.
+    #
+    # So when an engine actually reported, the owned findings are advisory: they
+    # stay in the record, visible on the object, at a severity that does not by
+    # itself refuse. When no engine could look — the case this pass was written
+    # for — they keep their full weight, because then they are the only reading
+    # anyone has.
+    decisive = not reported
     for path in tree.rglob("SKILL.md"):
         rel = path.relative_to(tree).as_posix()
         try:
@@ -127,7 +157,7 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
                         check_id=spec.check_id,
                         family=spec.family,
                         rule_id=rule,
-                        severity=sev,
+                        severity=sev if decisive else _ADVISORY,
                         title=f"Skill static risk: {rule}",
                         path=rel,
                         message=redact_message(rule),

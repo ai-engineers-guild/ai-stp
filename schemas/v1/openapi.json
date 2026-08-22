@@ -6763,15 +6763,15 @@
         "type": "object"
       },
       "ai_stp_contracts__publication__CheckResult": {
-        "enum": [
-          "passed",
-          "warning",
-          "failed",
-          "degraded",
-          "not_run",
-          "expired"
-        ],
-        "type": "string"
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/ai_stp_contracts__safety_checks__CheckResult"
+          },
+          {
+            "const": "expired",
+            "type": "string"
+          }
+        ]
       },
       "ai_stp_contracts__safety_checks__CheckResult": {
         "enum": [

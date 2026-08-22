@@ -14,6 +14,7 @@ from ai_stp_contracts.http import (
     open_wire_object,
     strict_request_object,
 )
+from ai_stp_contracts.safety_checks import CheckResult as SafetyCheckResult
 from ai_stp_foundation.digests import DIGEST_PATTERN
 from ai_stp_foundation.harnesses import HarnessId
 from ai_stp_foundation.ids import stable_id_pattern
@@ -39,7 +40,19 @@ type EvidenceSource = Literal[
     "provider_installation_tested",
     "runtime_tested",
 ]
-type CheckResult = Literal["passed", "warning", "failed", "degraded", "not_run", "expired"]
+#: What a binding may say on the wire. Derived from the scan vocabulary rather
+#: than restated beside it, plus `expired`, which is a property of the evidence
+#: and not of any scan.
+#:
+#: The two used to be written out separately and drifted: the safety pipeline
+#: could record `not_applicable` — an SCA check on an artefact carrying no
+#: manifest for its language does exactly that — and this list could not hold
+#: it. Building a plan response over such a binding raised a validation error
+#: inside the handler, so reading that plan answered `500 internal error` with
+#: no detail, and the object could not be published or diagnosed. One corpus
+#: component hit it, and only because it was the only one carrying a
+#: `package.json`.
+type CheckResult = SafetyCheckResult | Literal["expired"]
 type ContentDigest = Annotated[str, Field(pattern=DIGEST_PATTERN)]
 type Version = Annotated[str, Field(pattern=VERSION_PATTERN)]
 type PlanId = Annotated[str, Field(min_length=8, max_length=64)]

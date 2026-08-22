@@ -247,11 +247,12 @@ def _record_for(state: BatchState, item: LaunchObject) -> ObjectRecord:
 
 
 #: Results that did not stand in the way. The field is called `refused_by`, so
-#: it holds what refused: `passed` never does, and neither does `warning` — a
-#: warning is a finding the policy accepted. What is left — `failed`,
-#: `degraded`, `not_run`, `expired` — is every way a mandatory check can block
-#: a publication, including the two that mean the check never reached a verdict.
-_UNREMARKABLE: Final[frozenset[str]] = frozenset({"passed", "warning"})
+#: it holds what refused. `passed` never does; neither does `warning`, which is
+#: a finding the policy accepted, nor `not_applicable` and `skipped`, which say
+#: the check had nothing to look at. What is left — `failed`, `degraded`,
+#: `not_run`, `running`, `expired` — is every way a mandatory check blocks a
+#: publication, including the three that mean it never reached a verdict.
+_UNREMARKABLE: Final[frozenset[str]] = frozenset({"passed", "warning", "not_applicable", "skipped"})
 
 
 def _refusals(plan: PublicationPlanResponse) -> list[str]:

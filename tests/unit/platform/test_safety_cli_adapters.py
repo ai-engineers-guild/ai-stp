@@ -1363,3 +1363,85 @@ def test_a_reason_names_rules_and_never_quotes_what_was_scanned() -> None:
     assert "aws_key" in reason
     assert secret not in reason
     assert len(reason) <= 200
+
+
+_SECURITY_REVIEW_SKILL = """---
+name: ry-sec-review
+description: Defensive security review of a diff or PR.
+---
+
+# Ry Sec Review
+
+Look for code that would exfiltrate credentials to an external host, and
+report each occurrence with its exact file and line.
+"""
+
+
+def test_a_keyword_does_not_overrule_an_engine_that_read_the_same_file(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A skill about exfiltration is not a skill that exfiltrates.
+
+    The owned pass is a keyword scan and cannot tell the two apart — both texts
+    contain the word. Two first-party security-review skills were refused
+    `critical` on `skill_exfil` while both engines loaded the same package and
+    returned clean, so a regex was overruling the analysers it stands in for.
+
+    The finding is kept, because a human should still see it. What changes is
+    that it no longer refuses on its own.
+    """
+    from ai_stp_platform.safety.adapters import skill_gate
+
+    package = tmp_path / "skills" / "ry-sec-review"
+    package.mkdir(parents=True)
+    (package / "SKILL.md").write_text(_SECURITY_REVIEW_SKILL, encoding="utf-8")
+
+    monkeypatch.setattr(skill_gate, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(skill_gate, "run_cli", lambda argv, **_k: (0, '{"findings": []}', "", 5))
+
+    outcome = skill_gate.run(tmp_path, ArtifactManifest(component_type="skill"), _skill_spec())
+
+    assert outcome.result == "warning", "a clean engine read plus a keyword is not a refusal"
+    assert [f.rule_id for f in outcome.findings] == ["skill_exfil"], "the finding is still recorded"
+    assert outcome.findings[0].severity == "medium"
+
+
+def test_the_same_keyword_still_refuses_when_no_engine_could_look(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """With both engines absent the owned pass is the only reading there is.
+
+    This is the case it was written for, and nothing about it is relaxed:
+    an unread artefact must not become easier to publish than a read one.
+    """
+    from ai_stp_platform.safety.adapters import skill_gate
+
+    package = tmp_path / "skills" / "ry-sec-review"
+    package.mkdir(parents=True)
+    (package / "SKILL.md").write_text(_SECURITY_REVIEW_SKILL, encoding="utf-8")
+
+    monkeypatch.setattr(skill_gate, "which", lambda _name: None)
+
+    outcome = skill_gate.run(tmp_path, ArtifactManifest(component_type="skill"), _skill_spec())
+
+    assert outcome.result == "failed"
+    assert outcome.findings[0].severity == "critical"
+
+
+def test_an_engine_that_timed_out_has_not_read_anything_either(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Running is not reading. A killed scan leaves the keyword pass decisive."""
+    from ai_stp_platform.safety.adapters import skill_gate
+
+    package = tmp_path / "skills" / "ry-sec-review"
+    package.mkdir(parents=True)
+    (package / "SKILL.md").write_text(_SECURITY_REVIEW_SKILL, encoding="utf-8")
+
+    monkeypatch.setattr(skill_gate, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(skill_gate, "run_cli", lambda argv, **_k: (124, "", "", 25_000))
+
+    outcome = skill_gate.run(tmp_path, ArtifactManifest(component_type="skill"), _skill_spec())
+
+    assert outcome.result == "failed", "a critical keyword outranks a degraded engine"
+    assert outcome.findings[0].severity == "critical"
