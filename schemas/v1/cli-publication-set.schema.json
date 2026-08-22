@@ -1,0 +1,148 @@
+{
+  "$defs": {
+    "ObjectKind": {
+      "enum": [
+        "component",
+        "setup"
+      ],
+      "type": "string"
+    },
+    "PublicationSetMemberView": {
+      "additionalProperties": true,
+      "description": "One object inside a setup's publication, and why it is there.\n\n`role` is what separates the setup from the components it pins, and it is\nstated rather than inferred from `object_kind`: a set holds exactly one\nsetup, and a reader deciding what becomes public should not have to work\nthat out by counting.",
+      "properties": {
+        "already_published": {
+          "default": false,
+          "title": "Already Published",
+          "type": "boolean"
+        },
+        "object_kind": {
+          "$ref": "#/$defs/ObjectKind"
+        },
+        "plan_hash": {
+          "default": "",
+          "title": "Plan Hash",
+          "type": "string"
+        },
+        "plan_id": {
+          "default": "",
+          "title": "Plan Id",
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "setup",
+            "pinned_component"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "stable_id": {
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "state": {
+          "default": "",
+          "title": "State",
+          "type": "string"
+        },
+        "version": {
+          "maxLength": 32,
+          "minLength": 3,
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "already_published",
+        "object_kind",
+        "plan_hash",
+        "plan_id",
+        "role",
+        "schema_version",
+        "stable_id",
+        "state",
+        "version"
+      ],
+      "title": "PublicationSetMemberView",
+      "type": "object"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-publication-set",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Every plan one setup's publication needs, as a single decision.\n\nA setup cannot be published before the components it pins are, so a person\npublishing one had to publish each component first and confirm each hash\nseparately. Locally the two are already one act — `setup import register`\ncommits the component passports and the setup graph together or not at all —\nand this carries that same rule across the publication boundary\n(`ADR-0114`).\n\nThe guarantee that survives is the one that matters: publication still takes\nan explicit confirmation of an exact hash. `set_digest` covers every plan in\norder, so confirming it is confirming all of them and nothing else.",
+  "properties": {
+    "expires_at": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "members": {
+      "items": {
+        "$ref": "#/$defs/PublicationSetMemberView"
+      },
+      "minItems": 1,
+      "title": "Members",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "set_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Set Digest",
+      "type": "string"
+    },
+    "setup_stable_id": {
+      "title": "Setup Stable Id",
+      "type": "string"
+    },
+    "setup_version": {
+      "maxLength": 32,
+      "minLength": 3,
+      "title": "Setup Version",
+      "type": "string"
+    },
+    "state": {
+      "default": "planned",
+      "enum": [
+        "planned",
+        "published",
+        "partial"
+      ],
+      "title": "State",
+      "type": "string"
+    }
+  },
+  "required": [
+    "expires_at",
+    "members",
+    "schema_version",
+    "set_digest",
+    "setup_stable_id",
+    "setup_version",
+    "state"
+  ],
+  "title": "PublicationSetView",
+  "type": "object"
+}

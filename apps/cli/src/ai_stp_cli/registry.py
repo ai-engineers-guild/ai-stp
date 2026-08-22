@@ -41,6 +41,7 @@ from ai_stp_cli.commands import (
     publication,
     reports,
     select,
+    setup_publication,
     skill,
     sync,
     telemetry,
@@ -1865,6 +1866,45 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
         ),
         next_actions=("setup import register",),
+    ),
+    Declaration(
+        path=["setup", "publish", "plan"],
+        summary=(
+            "Plan the publication of one released setup together with every component it pins."
+        ),
+        result_schema="urn:ai-stp:schema:v1:cli-publication-set",
+        handler=setup_publication.plan,
+        # Creates server plans and writes the reviewed set locally. It publishes
+        # nothing: the whole point of the set is that one confirmation follows.
+        mutability="plan",
+        parameters=(
+            option("id", "string", "Stable identifier of the released setup.", required=True),
+            option("version", "string", "Exact local X.Y version to publish.", required=True),
+        ),
+        next_actions=("setup publish confirm", "publication status"),
+    ),
+    Declaration(
+        path=["setup", "publish", "confirm"],
+        summary="Confirm one exact reviewed publication set: pinned components, then the setup.",
+        result_schema="urn:ai-stp:schema:v1:cli-publication-set",
+        handler=setup_publication.confirm,
+        mutability="apply",
+        confirmation="explicit_flag",
+        parameters=(
+            option(
+                "set-digest",
+                "string",
+                "The exact digest returned by setup publish plan.",
+                required=True,
+            ),
+            option(
+                "confirm",
+                "boolean",
+                "Confirm making this exact graph public.",
+                required=True,
+            ),
+        ),
+        next_actions=("publication status", "owner objects"),
     ),
     Declaration(
         path=["setup", "import", "register"],

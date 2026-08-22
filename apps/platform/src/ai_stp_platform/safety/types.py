@@ -65,6 +65,12 @@ class CheckOutcome:
             limit = self.detail.get("timeout_seconds")
             names = ", ".join(str(item) for item in cast(list[object], timed_out))
             return f"did not finish within {limit}s: {names}"[:200]
+        no_report = self.detail.get("no_report")
+        if no_report:
+            # Named apart from a timeout because the repairs differ: a timeout
+            # is a busy worker, this is a tool that could not start at all.
+            names = ", ".join(str(item) for item in cast(list[object], no_report))
+            return f"ran without producing a report: {names}"[:200]
         if self.findings:
             rules = sorted({finding.rule_id for finding in self.findings})
             shown = ", ".join(rules[:5])

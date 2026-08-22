@@ -112,6 +112,7 @@ last_verified: "2026-08-03"
 | [ADR-0111-the-release-candidate-is-built-where-it-will-be-published.md](ADR-0111-the-release-candidate-is-built-where-it-will-be-published.md) | Решение собирать и заверять release candidate в публичном репозитории, поскольку там же будет жить идентичность пакета. | 2026-08-21 |
 | [ADR-0112-client-egress-is-one-consented-ping.md](ADR-0112-client-egress-is-one-consented-ping.md) | Решение ограничить весь исходящий трафик CLI одним анонимным GET после явного согласия и назвать всё, чем он не является. | 2026-08-21 |
 | [ADR-0113-the-cli-surface-is-proven-on-three-operating-systems.md](ADR-0113-the-cli-surface-is-proven-on-three-operating-systems.md) | Решение считать поверхность CLI доказанной на трёх ОС публичной матрицей и снять запрет windows из словаря паспорта, оставив provider evidence там, где оно есть. | 2026-08-21 |
+| [ADR-0114-a-setup-publishes-with-the-components-it-pins.md](ADR-0114-a-setup-publishes-with-the-components-it-pins.md) | Решение публиковать сетап и закреплённые им компоненты как один набор планов с одним подтверждаемым digest. | 2026-08-21 |
 | [template.md](template.md) | Шаблон записи архитектурного решения. | 2026-08-03 |
 
 <!-- КОНЕЦ СОДЕРЖИМОГО -->

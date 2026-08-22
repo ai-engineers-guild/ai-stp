@@ -1004,6 +1004,96 @@ def test_the_skill_gate_has_room_to_finish(tmp_path: Path) -> None:
     assert spec.timeout_seconds >= 60
 
 
+def _skill_spec():
+    from ai_stp_platform.safety.policy import CHECK_REGISTRY
+
+    return next(item for item in CHECK_REGISTRY if item.check_id == "skill_static_gate")
+
+
+def _ran(code: int, out: str):
+    def _run_cli(_argv, **_kwargs):
+        return code, out, "", 12
+
+    return _run_cli
+
+
+def test_a_scanner_that_could_not_start_is_not_a_finding_about_the_object(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Exiting non-zero with no report is the tool refusing, not a verdict.
+
+    A bad argument, a missing interpreter, a sandbox it could not enter — each
+    exits non-zero and prints to stderr, and each was being recorded as a
+    `high` finding titled "reported skill risks". That is the opposite of what
+    happened, said about somebody's component, and it refused most of a corpus
+    for dangerous content nobody ever saw.
+    """
+    from ai_stp_platform.safety.adapters import skill_gate
+
+    monkeypatch.setattr(skill_gate, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(skill_gate, "run_cli", _ran(2, "usage: skillspector scan [-h]"))
+
+    outcome = skill_gate.run(tmp_path, ArtifactManifest(component_type="skill"), _skill_spec())
+
+    assert outcome.result == "degraded"
+    assert outcome.findings == []
+    assert outcome.detail["no_report"] == ["skillspector", "skill-scanner"]
+    assert outcome.reason() == "ran without producing a report: skillspector, skill-scanner"
+
+
+def test_a_scanner_that_did_report_something_still_fails_the_gate(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The discriminator is the report, so a real one must still be believed."""
+    from ai_stp_platform.safety.adapters import skill_gate
+
+    monkeypatch.setattr(skill_gate, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(skill_gate, "run_cli", _ran(1, '{"findings": [{"rule": "pi"}]}'))
+
+    outcome = skill_gate.run(tmp_path, ArtifactManifest(component_type="skill"), _skill_spec())
+
+    assert outcome.result == "failed"
+    assert [finding.rule_id for finding in outcome.findings] == [
+        "skillspector_finding",
+        "skill-scanner_finding",
+    ]
+
+
+def test_a_scanner_that_found_nothing_and_said_so_passes(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """An empty report is a report: the tool ran and reached a verdict."""
+    from ai_stp_platform.safety.adapters import skill_gate
+
+    monkeypatch.setattr(skill_gate, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(skill_gate, "run_cli", _ran(0, '{"findings": []}'))
+
+    outcome = skill_gate.run(tmp_path, ArtifactManifest(component_type="skill"), _skill_spec())
+
+    assert outcome.result == "passed"
+    assert outcome.findings == []
+
+
+def test_a_timeout_and_a_refusal_to_start_are_told_apart(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Both block the gate; the repairs differ, so the reason has to differ.
+
+    One is a busy worker and is fixed by time or by load. The other is an
+    argument or an image and no amount of waiting helps.
+    """
+    from ai_stp_platform.safety.adapters import skill_gate
+
+    monkeypatch.setattr(skill_gate, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(skill_gate, "run_cli", _ran(124, ""))
+
+    outcome = skill_gate.run(tmp_path, ArtifactManifest(component_type="skill"), _skill_spec())
+
+    assert outcome.result == "degraded"
+    assert outcome.detail["no_report"] == []
+    assert "did not finish within" in str(outcome.reason())
+
+
 def test_no_check_asks_for_longer_than_a_tool_is_ever_given() -> None:
     """The policy's limit and the runner's ceiling have to be the same number.
 

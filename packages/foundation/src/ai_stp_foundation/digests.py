@@ -19,6 +19,7 @@ DIGEST_DOMAINS: Final[frozenset[str]] = frozenset(
         "ai-stp:native-discovery:v1",
         "ai-stp:passport:v1",
         "ai-stp:plan:v1",
+        "ai-stp:publication-set:v1",
         "ai-stp:provider-plan:v3",
         "ai-stp:provider-projection:v3",
         "ai-stp:project-configuration:v1",

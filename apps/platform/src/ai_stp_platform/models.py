@@ -562,6 +562,10 @@ class EvidenceBinding(Base):
     tool_version: Mapped[str | None] = mapped_column(String(64), nullable=True)
     duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     severity_max: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    #: Why this check did not pass, in rule identifiers and counts. Never the
+    #: scanned content: this reaches a client, and a message quoting what was
+    #: found would put the artefact's bytes somewhere the artefact is not.
+    reason: Mapped[str | None] = mapped_column(String(200), nullable=True)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

@@ -163,6 +163,10 @@ async def _evidence_for_plan(db: AsyncSession, *, plan_id: str) -> list[dict[str
                 "check_id": row.check_id,
                 "result": row.result,
                 "source": row.source,
+                # Why it did not pass, in rule identifiers and counts. Without
+                # it a refusal answers with a result and nothing else, and the
+                # owner is left comparing their object against a word.
+                "reason": row.reason,
                 "expires_at": expires,
             }
         )

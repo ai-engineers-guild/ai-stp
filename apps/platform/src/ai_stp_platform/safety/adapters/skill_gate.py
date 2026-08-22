@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 from typing import Final
@@ -43,7 +44,8 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
 
     # NVIDIA SkillSpector (static only) + Cisco skill-scanner (static default;
     # do not pass --use-llm — publication validate must not call model APIs).
-    incomplete: list[str] = []
+    timed_out: list[str] = []
+    no_report: list[str] = []
     for tool, argv in (
         ("skillspector", ["skillspector", "scan", str(tree), "--no-llm", "--format", "json"]),
         ("skill-scanner", ["skill-scanner", "scan", str(tree), "--format", "json"]),
@@ -51,7 +53,7 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
         if which(tool) is None:
             engines_missing += 1
             continue
-        code, out, err, _ms = run_cli(argv, cwd=tree, timeout=spec.timeout_seconds)
+        code, out, _err, _ms = run_cli(argv, cwd=tree, timeout=spec.timeout_seconds)
         tools_run.append(tool)
         if code == _TIMEOUT_EXIT:
             # A measurement that did not finish is not a negative measurement.
@@ -65,20 +67,36 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
             # `degraded` is what the neighbouring adapters already return when
             # their tool cannot run, and it still blocks a mandatory check. The
             # difference is that it blocks with the truth.
-            incomplete.append(tool)
+            timed_out.append(tool)
             continue
-        if code not in (0, _MISSING_EXIT) and (out or err or code == 1):
-            findings.append(
-                Finding(
-                    check_id=spec.check_id,
-                    family=spec.family,
-                    rule_id=f"{tool}_finding",
-                    severity="high",
-                    title=f"{tool} reported skill risks",
-                    message=redact_message((out or err or "findings")[:300]),
-                    tool_name=tool,
-                )
+        if code in (0, _MISSING_EXIT):
+            continue
+        report = _report(out)
+        if report is None:
+            # The tool exited non-zero without a report. That is the tool
+            # refusing to run — a bad argument, a missing interpreter, a
+            # sandbox it could not enter — and it is not a statement about the
+            # object. Recording it as a `high` finding titled "reported skill
+            # risks" says the opposite of what happened, and it says it about
+            # somebody's component.
+            #
+            # The discriminator is the report, not the exit code: these tools
+            # are asked for `--format json` and a scanner that scanned writes
+            # one. A code alone cannot tell "found something" from "could not
+            # start", and every code but zero was being read as the first.
+            no_report.append(tool)
+            continue
+        findings.append(
+            Finding(
+                check_id=spec.check_id,
+                family=spec.family,
+                rule_id=f"{tool}_finding",
+                severity="high",
+                title=f"{tool} reported skill risks",
+                message=redact_message(report[:300]),
+                tool_name=tool,
             )
+        )
 
     # Always run owned static pass on SKILL.md files (merge into same gate)
     for path in tree.rglob("SKILL.md"):
@@ -108,9 +126,9 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
 
     if any(f.severity in {"high", "critical"} for f in findings):
         result = "failed"
-    elif incomplete:
+    elif timed_out or no_report:
         # Ordered after a real finding on purpose: an engine that did report
-        # something has said more than one that ran out of time.
+        # something has said more than one that could not.
         result = "degraded"
     else:
         result = "warning" if findings else "passed"
@@ -125,13 +143,38 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
         detail={
             "engines_missing": engines_missing,
             "tools": tools_run,
-            "timed_out": incomplete,
+            "timed_out": timed_out,
+            # Ran, exited non-zero, produced no report. Kept apart from a
+            # timeout because the repairs differ: one is a busy worker, the
+            # other is an argument or an image.
+            "no_report": no_report,
             # What the tool was actually given, not what the policy asked for.
             # A report naming the declared value after a shorter kill sends
             # somebody looking in the wrong file.
             "timeout_seconds": effective_timeout(spec.timeout_seconds),
         },
     )
+
+
+def _report(stdout: str) -> str | None:
+    """The tool's own report, or nothing to read.
+
+    Both engines are invoked with `--format json`, so a run that reached a
+    verdict leaves JSON on stdout. Anything else — empty, a usage message, a
+    traceback — is the tool not having produced a verdict, whatever it exited
+    with.
+
+    An empty JSON report counts as a report: a scanner that ran and found
+    nothing still ran, and its exit code is its own business.
+    """
+    text = stdout.strip()
+    if not text:
+        return None
+    try:
+        json.loads(text)
+    except ValueError:
+        return None
+    return text
 
 
 def _rank(s: str) -> int:

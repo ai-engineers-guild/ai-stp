@@ -549,6 +549,7 @@ async def execute_validate(
                 if isinstance(binding.get("duration_ms"), int)
                 else None,
                 severity_max=str(binding["severity_max"]) if binding.get("severity_max") else None,
+                reason=str(binding["reason"])[:200] if binding.get("reason") else None,
                 expires_at=expires,
             )
         )

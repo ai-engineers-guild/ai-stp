@@ -4090,6 +4090,78 @@
     },
     {
       "path": [
+        "setup",
+        "publish",
+        "confirm"
+      ],
+      "summary": "Confirm one exact reviewed publication set: pinned components, then the setup.",
+      "mutability": "apply",
+      "confirmation": "explicit_flag",
+      "parameters": [
+        {
+          "name": "set-digest",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The exact digest returned by setup publish plan.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": true,
+          "repeatable": false,
+          "summary": "Confirm making this exact graph public.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-publication-set",
+      "next_actions": [
+        "publication status",
+        "owner objects"
+      ]
+    },
+    {
+      "path": [
+        "setup",
+        "publish",
+        "plan"
+      ],
+      "summary": "Plan the publication of one released setup together with every component it pins.",
+      "mutability": "plan",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable identifier of the released setup.",
+          "choices": []
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact local X.Y version to publish.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-publication-set",
+      "next_actions": [
+        "setup publish confirm",
+        "publication status"
+      ]
+    },
+    {
+      "path": [
         "skill",
         "install"
       ],

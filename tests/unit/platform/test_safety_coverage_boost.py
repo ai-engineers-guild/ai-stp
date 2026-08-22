@@ -185,9 +185,12 @@ def test_pi_content_and_skill_gate_engine_path(
         "ai_stp_platform.safety.adapters.skill_gate.which",
         lambda name: f"/bin/{name}",
     )
+    # A real report: the engines are asked for `--format json`, and since the
+    # gate learned to tell "found something" from "could not start", a bare word
+    # on stdout is the second of those.
     monkeypatch.setattr(
         "ai_stp_platform.safety.adapters.skill_gate.run_cli",
-        lambda argv, **k: (1, "risk", "", 3),
+        lambda argv, **k: (1, '{"findings": [{"rule": "risk"}]}', "", 3),
     )
     out = skill_gate.run(tmp_path, ArtifactManifest(component_type="skill"), _spec())
     assert out.result in {"failed", "warning"}

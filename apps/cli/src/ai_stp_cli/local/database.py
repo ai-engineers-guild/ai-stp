@@ -667,6 +667,33 @@ MIGRATIONS: Final[tuple[Migration, ...]] = (
             "DROP TABLE github_repository_observation",
         ),
     ),
+    Migration(
+        version=21,
+        summary="a setup's publication and the components it pins are one decision",
+        up=(
+            """
+            CREATE TABLE setup_publication_set (
+                set_digest       TEXT PRIMARY KEY,
+                setup_stable_id  TEXT NOT NULL,
+                setup_version    TEXT NOT NULL,
+                account_id       TEXT NOT NULL,
+                device_id        TEXT NOT NULL,
+                members_json     TEXT NOT NULL,
+                state            TEXT NOT NULL,
+                created_at       TEXT NOT NULL
+            ) STRICT
+            """,
+            # One open set per exact setup version. A second plan for the same
+            # version is the same decision made twice, and confirming the older
+            # one after the newer would publish a graph nobody reviewed.
+            "CREATE UNIQUE INDEX setup_publication_set_open_uq ON setup_publication_set"
+            "(account_id, setup_stable_id, setup_version) WHERE state != 'published'",
+        ),
+        down=(
+            "DROP INDEX setup_publication_set_open_uq",
+            "DROP TABLE setup_publication_set",
+        ),
+    ),
 )
 
 #: Names for nested savepoints. A counter rather than a fixed name: two nested
