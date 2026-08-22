@@ -1523,6 +1523,12 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "Local project root that binds a catalogue setup to the current context.",
             ),
             option(
+                "harness",
+                "string",
+                "The harness of the pair, when no proposal or setup names it.",
+                choices=tuple(sorted(HARNESS_IDS)),
+            ),
+            option(
                 "provider", "string", "The provider executable that owns the target.", required=True
             ),
             option(

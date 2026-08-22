@@ -232,3 +232,29 @@ def test_the_backups_read_changes_nothing(registry: sqlite3.Connection) -> None:
     after = targets.backups(registry, project_id=PROJECT, harness_id=HARNESS)
 
     assert before == after
+
+
+def test_a_sourceless_action_can_name_the_pair_it_acts_on() -> None:
+    """`backup` and `rollback` read a harness the command could not accept.
+
+    Neither names a setup, so nothing else supplies the pair: `install plan`
+    reads `parameters["harness"]` for them and the declaration had no such
+    option. Both actions were unreachable from the CLI — `install plan --action
+    rollback --backup-ref …` answered "the harness must be named" and offered no
+    way to name it.
+
+    It survived because the agent surface is generated from this declaration and
+    the handler reads parameters by name; the two agreed about everything except
+    whether the option existed.
+    """
+    from ai_stp_cli.commands.install import _SOURCELESS_ACTIONS
+    from ai_stp_cli.registry import DECLARATIONS
+
+    plan = next(d for d in DECLARATIONS if list(d.path) == ["install", "plan"])
+    options = {option.name for option in plan.parameters}
+
+    assert _SOURCELESS_ACTIONS, "the sourceless set is what makes this option necessary"
+    for name in ("project", "harness"):
+        assert name in options, (
+            f"install plan reads {name!r} for {sorted(_SOURCELESS_ACTIONS)} and cannot accept it"
+        )

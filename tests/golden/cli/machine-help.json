@@ -2085,6 +2085,21 @@
           "choices": []
         },
         {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "The harness of the pair, when no proposal or setup names it.",
+          "choices": [
+            "claude-code",
+            "codex",
+            "grok-build",
+            "opencode",
+            "pi"
+          ]
+        },
+        {
           "name": "provider",
           "kind": "option",
           "value_type": "string",
