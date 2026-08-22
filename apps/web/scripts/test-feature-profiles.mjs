@@ -13,15 +13,17 @@ for (const scenario of scenarios) {
     AI_STP_EXPECT_SAAS_PUBLIC_PAGES: scenario.saas,
   };
   run("bun", ["run", "build"], env);
+  // `bun x`, not `bunx`: CI installs bun from its release archive, which ships
+  // the one binary and no `bunx` alongside it.
   run(
-    "bunx",
-    ["playwright", "test", "tests/e2e/feature-profile.spec.ts", "--project=chromium"],
+    "bun",
+    ["x", "playwright", "test", "tests/e2e/feature-profile.spec.ts", "--project=chromium"],
     env,
   );
 }
 
 function run(command, args, env) {
-  // Windows resolves `bun`/`bunx` through PATHEXT, and what is on PATH may be a
+  // Windows resolves `bun` through PATHEXT, and what is on PATH may be a
   // `.cmd` shim rather than a `.exe`. Appending `.exe` guessed at one shape and
   // spawn failed to find anything, so this exited 1 in a fraction of a second
   // with nothing on stdout — the job said only that the script failed.

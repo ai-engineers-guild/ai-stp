@@ -67,7 +67,8 @@ try {
   await waitUntilReady();
   if (process.env.VERIFY_SKIP_LIGHTHOUSE !== "1")
     try {
-      await run("bunx", [
+      await run("bun", [
+        "x",
         "lighthouse@13.4.1",
         `${url}/en`,
         "--quiet",

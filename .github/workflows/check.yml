@@ -312,7 +312,12 @@ jobs:
           set -euo pipefail
           bash .github/scripts/install-bun.sh "${BUN_VERSION}" "${RUNNER_TEMP}/bun"
           echo "${RUNNER_TEMP}/bun" >> "${GITHUB_PATH}"
+      # Not on Windows. Restoring this cache there costs 85s — the largest
+      # fixed step left on the longest job — because the store is tens of
+      # thousands of small files and that image charges for every one of them.
+      # Linux restores the same cache in 4s and macOS in 11s, so they keep it.
       - name: Cache bun packages
+        if: runner.os != 'Windows'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ~/.bun/install/cache
@@ -368,7 +373,12 @@ jobs:
           set -euo pipefail
           bash .github/scripts/install-bun.sh "${BUN_VERSION}" "${RUNNER_TEMP}/bun"
           echo "${RUNNER_TEMP}/bun" >> "${GITHUB_PATH}"
+      # Not on Windows. Restoring this cache there costs 85s — the largest
+      # fixed step left on the longest job — because the store is tens of
+      # thousands of small files and that image charges for every one of them.
+      # Linux restores the same cache in 4s and macOS in 11s, so they keep it.
       - name: Cache bun packages
+        if: runner.os != 'Windows'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ~/.bun/install/cache
@@ -407,7 +417,12 @@ jobs:
           set -euo pipefail
           bash .github/scripts/install-bun.sh "${BUN_VERSION}" "${RUNNER_TEMP}/bun"
           echo "${RUNNER_TEMP}/bun" >> "${GITHUB_PATH}"
+      # Not on Windows. Restoring this cache there costs 85s — the largest
+      # fixed step left on the longest job — because the store is tens of
+      # thousands of small files and that image charges for every one of them.
+      # Linux restores the same cache in 4s and macOS in 11s, so they keep it.
       - name: Cache bun packages
+        if: runner.os != 'Windows'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ~/.bun/install/cache
@@ -473,7 +488,12 @@ jobs:
           set -euo pipefail
           bash .github/scripts/install-bun.sh "${BUN_VERSION}" "${RUNNER_TEMP}/bun"
           echo "${RUNNER_TEMP}/bun" >> "${GITHUB_PATH}"
+      # Not on Windows. Restoring this cache there costs 85s — the largest
+      # fixed step left on the longest job — because the store is tens of
+      # thousands of small files and that image charges for every one of them.
+      # Linux restores the same cache in 4s and macOS in 11s, so they keep it.
       - name: Cache bun packages
+        if: runner.os != 'Windows'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ~/.bun/install/cache
@@ -572,6 +592,11 @@ jobs:
             *) echo "unknown suite ${{ matrix.suite }}" >&2; exit 1 ;;
           esac
           # shellcheck disable=SC2086
+          # `--durations` because this leg is 245s on Windows against 47s on
+          # macOS for the same selection, and nothing in the log says where it
+          # goes. A list of the slowest tests separates "a few tests are slow
+          # on this filesystem" from "eight xdist workers cost more to start
+          # than the suite costs to run", which need opposite fixes.
           uv run --locked pytest -n 8 --dist=load --no-cov -vv \
-            -o faulthandler_timeout=300 \
+            -o faulthandler_timeout=300 --durations=15 \
             ${extra}
