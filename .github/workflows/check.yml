@@ -227,7 +227,7 @@ jobs:
           set -euo pipefail
           source .github/scripts/provider-safe-path.sh
           ai_stp_use_provider_safe_path
-          uv sync --locked --group docs --group dev
+          uv sync --locked --group dev
           uv run --locked pytest -n 8 --dist=load --cov-fail-under=0 \
             ${{ matrix.extra }}
           if [ "${{ matrix.shard }}" = "contract" ]; then
@@ -282,7 +282,7 @@ jobs:
       - name: Combine shard coverage and enforce the threshold
         run: |
           set -euo pipefail
-          uv sync --locked --group docs --group dev
+          uv sync --locked --group dev
           uv run --locked coverage combine \
             .coverage.api .coverage.integration \
             .coverage.unit-platform .coverage.unit-api .coverage.unit \
@@ -383,7 +383,7 @@ jobs:
           bun run test:coverage:catalog
 
   web-e2e:
-    name: web-e2e (${{ matrix.os }}, ${{ matrix.shard }}/4)
+    name: web-e2e (${{ matrix.os }}, ${{ matrix.shard }}/2)
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     defaults:
@@ -393,7 +393,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        shard: [1, 2, 3, 4]
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -459,16 +459,20 @@ jobs:
           cd apps/web
           bun install --frozen-lockfile
           AI_STP_WEB_PROFILE=public_saas bun run build
-          # Sharded four ways, and the earlier note saying it could not be
-          # sharded at all was a misreading: two shards list 90 tests each
-          # against a suite of 180, and four list 46/44/46/44 whose union is
-          # exactly 180. The "90 and 90 of 90" that argued against sharding was
-          # one project's count read as the whole.
+          # Two shards, not four, and the difference was measured rather than
+          # reasoned about. Four shards do split the suite correctly —
+          # 46/44/46/44 whose union is exactly 180 — and bought nothing: the
+          # slowest Windows shard ran 269s against 262s at two. The tests were
+          # never the cost. Before one of them runs, the Windows leg spends
+          # ~140s installing bun and restoring its cache and another ~120s
+          # building Next.js, and splitting the list pays that fixed cost on
+          # four runners instead of two. It also put six more jobs in a queue
+          # that was already the binding constraint, and the run got slower.
           #
           # Serial execution is untouched — `fullyParallel: false` and one
           # worker still hold inside each shard, so the process-local mock
           # state the suite depends on is exactly as isolated as before.
-          bunx playwright test --shard=${{ matrix.shard }}/4
+          bunx playwright test --shard=${{ matrix.shard }}/2
 
   web-profiles:
     name: web-profiles (${{ matrix.os }})
@@ -610,7 +614,7 @@ jobs:
           set -euo pipefail
           source .github/scripts/provider-safe-path.sh
           ai_stp_use_provider_safe_path
-          uv sync --locked --group docs --group dev
+          uv sync --locked --group dev
           case "${{ matrix.suite }}" in
             unit) extra="tests/unit --ignore=tests/unit/platform --ignore=tests/unit/api" ;;
             contract) extra="tests/contract --ignore=tests/contract/test_cli_process.py" ;;
