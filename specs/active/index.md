@@ -29,7 +29,7 @@ last_verified: "2026-08-03"
 | [SPEC-018-worker-job-queue.md](SPEC-018-worker-job-queue.md) | SPEC-018: Фоновый worker и очередь заданий на PostgreSQL. | 2026-08-08 |
 | [SPEC-019-runtime-deployment-operability.md](SPEC-019-runtime-deployment-operability.md) | SPEC-019: Развёртывание среды выполнения и эксплуатация. | 2026-08-10 |
 | [SPEC-020-persistence-migrations-object-store.md](SPEC-020-persistence-migrations-object-store.md) | SPEC-020: Серверное хранилище, миграции PostgreSQL и неизменяемое объектное хранилище. | 2026-08-08 |
-| [SPEC-021-anonymous-catalog-read-and-seed.md](SPEC-021-anonymous-catalog-read-and-seed.md) | SPEC-021: Анонимное чтение публичного каталога и первичный посев объектов. | 2026-08-06 |
+| [SPEC-021-anonymous-catalog-read-and-seed.md](SPEC-021-anonymous-catalog-read-and-seed.md) | SPEC-021: Анонимное чтение публичного каталога и первичный посев объектов. | 2026-08-22 |
 | [SPEC-022-web-shell-landing-catalog.md](SPEC-022-web-shell-landing-catalog.md) | SPEC-022: Веб-оболочка, двуязычный лендинг и анонимный публичный каталог. | 2026-08-17 |
 | [SPEC-023-web-login-account-devices.md](SPEC-023-web-login-account-devices.md) | SPEC-023: Веб-вход, профиль аккаунта и управление устройствами. | 2026-08-17 |
 | [SPEC-024-reproducible-deployment.md](SPEC-024-reproducible-deployment.md) | SPEC-024: Воспроизводимое развёртывание с web-ярусом, здоровьем, логами, резервными копиями и откатом. | 2026-08-10 |

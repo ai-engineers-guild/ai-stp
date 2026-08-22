@@ -68,6 +68,13 @@ services:
     networks: [internal]
     restart: "no"
 
+  # Two steps, and only one runs here. The integrity reconcile reads what is
+  # published and checks it against the projection's own rules. The development
+  # fixture seed does not run on a serving environment: it writes invented
+  # objects — `fixture-component`, `river-*`, `northwind-*` — and this compose
+  # file put twenty-two of them on the public site, once per deploy, beside the
+  # real first-party corpus. The refusal is in `seed_cli.fixtures_wanted`, keyed
+  # on `AI_STP_API_ENVIRONMENT`, so it holds however this service is invoked.
   seed:
     build:
       context: .
