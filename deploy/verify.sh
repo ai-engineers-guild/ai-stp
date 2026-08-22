@@ -66,19 +66,29 @@ else
   [[ "${worker_state}" == "running" ]] || failed=1
 
   # Running is not enough: a container left over from the previous deployment is
-  # running too. What separates them is the image, so compare the image the
-  # container was created from against the one its service resolves to now.
-  service_image="$(compose config --images worker 2>/dev/null | head -n 1 || true)"
-  if [[ -n "${service_image}" ]]; then
-    want="$(docker image inspect -f '{{.Id}}' "${service_image}" 2>/dev/null || true)"
-    have="$(docker inspect -f '{{.Image}}' "${worker_id}" 2>/dev/null || true)"
-    if [[ -n "${want}" && -n "${have}" && "${want}" != "${have}" ]]; then
-      printf '  %-20s %s\n' "worker image" "stale"
-      echo "verify: the worker is running an image this deployment replaced" >&2
-      failed=1
-    else
-      printf '  %-20s %s\n' "worker image" "current"
-    fi
+  # running too. What separates them is the image — so ask the container which
+  # tag it was built from, then ask that tag what it points at now. A rebuild
+  # moves the tag; a container that was not recreated still holds the old id.
+  #
+  # Asked of the container rather than of `compose config --images`, which
+  # ignores the service argument and prints every service's image. Reading the
+  # first line of that gave `postgres:16` and compared it against the worker,
+  # so the check could only ever fail — and it failed a real deployment before
+  # this comment existed.
+  tag="$(docker inspect -f '{{.Config.Image}}' "${worker_id}" 2>/dev/null || true)"
+  have="$(docker inspect -f '{{.Image}}' "${worker_id}" 2>/dev/null || true)"
+  want=""
+  [[ -n "${tag}" ]] && want="$(docker image inspect -f '{{.Id}}' "${tag}" 2>/dev/null || true)"
+  if [[ -z "${want}" || -z "${have}" ]]; then
+    # Undetermined is not stale. A check that cannot answer must not be the
+    # thing that stops a deployment; that is how this check first behaved.
+    printf '  %-20s %s\n' "worker image" "undetermined"
+  elif [[ "${want}" != "${have}" ]]; then
+    printf '  %-20s %s\n' "worker image" "stale"
+    echo "verify: the worker is running an image this deployment replaced" >&2
+    failed=1
+  else
+    printf '  %-20s %s\n' "worker image" "current"
   fi
 fi
 

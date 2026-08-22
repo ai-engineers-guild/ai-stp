@@ -168,10 +168,33 @@ def test_deployment_verification_observes_the_service_that_gates_publication() -
 
     assert "compose ps -q worker" in script
     # Running is not current: a container from the previous deployment is
-    # running too, and only its image tells the two apart.
-    assert "compose config --images worker" in script
+    # running too, and only its image tells the two apart. Asked of the
+    # container — `compose config --images worker` ignores the service argument
+    # and prints every service's image, so reading its first line compared the
+    # worker against `postgres:16` and failed a real deployment.
+    # Executable lines only: the comment above the fix names the command it
+    # replaced, and that explanation is the reason to keep, not to forbid.
+    runnable = "\n".join(line for line in script.splitlines() if not line.lstrip().startswith("#"))
+    assert "compose config --images" not in runnable
+    assert "docker inspect -f '{{.Config.Image}}'" in script
     assert "docker inspect -f '{{.Image}}'" in script
     assert "failed=1" in script.split("worker_id=", maxsplit=1)[1]
+
+
+def test_a_deployment_check_that_cannot_answer_does_not_stop_the_deployment() -> None:
+    """Undetermined is not stale, and this is not a hypothetical.
+
+    The image comparison was written against a command that ignores its service
+    argument, so it always compared the wrong two things and always failed. It
+    took production down until the deployment was fixed, which is a worse
+    outcome than the stale worker it was added to catch.
+    """
+    script = (Path("deploy/verify.sh")).read_text(encoding="utf-8")
+    block = script.split("tag=", maxsplit=1)[1].split('if [[ "${failed}"', maxsplit=1)[0]
+
+    assert 'if [[ -z "${want}" || -z "${have}" ]]; then' in block
+    undetermined = block.split('if [[ -z "${want}"', maxsplit=1)[1].split("elif", maxsplit=1)[0]
+    assert "failed=1" not in undetermined
 
 
 def test_no_workflow_carries_a_deployment_credential_or_reaches_the_target() -> None:

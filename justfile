@@ -127,6 +127,12 @@ evidence-live origin="https://nddev.asia" commit="":
 # Доказывает срез синхронизации двух устройств против развёрнутой среды (#180).
 # Оба home должны быть уже авторизованы: device-code flow требует человека, и
 # скрипт, умеющий выпустить сессию, доказывал бы не тот путь.
+#
+# Разный `HOME` НЕ делает два устройства. Хранилище учётных данных операционной
+# системы принадлежит пользователю ОС, а не домашнему каталогу: `HOME=… ai-stp
+# auth status` отвечает `authenticated` из общего keyring, и оба «устройства»
+# оказываются одним. Каждый вход должен выполняться с
+# `AI_STP_FORCE_FILE_CREDENTIAL_STORE=1`, иначе срез доказывает не то.
 evidence-sync home_a home_b origin="https://nddev.asia":
     uv run --locked python -m release_scripts.verify_sync_slice \
         --origin "{{origin}}" \
