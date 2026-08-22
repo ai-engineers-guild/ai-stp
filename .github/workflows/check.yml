@@ -224,6 +224,12 @@ jobs:
         with:
           name: coverage-${{ matrix.shard }}
           path: .coverage.${{ matrix.shard }}
+          # The file starts with a dot, and this action has excluded hidden
+          # files by default since v4. Without this it uploads nothing and
+          # `if-no-files-found: error` reports a missing file that the shard
+          # did in fact write — the shard passes, the upload fails, and the
+          # message points at the wrong half.
+          include-hidden-files: true
           if-no-files-found: error
 
   coverage:

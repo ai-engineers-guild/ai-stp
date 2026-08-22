@@ -1,6 +1,7 @@
 """Repository-native gates must obey the same privilege boundary as the product."""
 
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -138,6 +139,21 @@ def test_clean_wheel_regression_ignores_the_outer_matrix_interpreter() -> None:
 
 
 def test_primary_quality_gates_do_not_require_bash_on_windows() -> None:
+    """What `just` expands the primary recipes to, when `just` is here to ask.
+
+    Skipped rather than failed when it is not. CI stopped installing `just` on
+    purpose — the workflow writes the recipe bodies out, so `just` is a local
+    convenience — and this test kept invoking it, which turned every contract
+    shard red with `No such file or directory: 'just'` about a tree that was
+    fine.
+
+    A skip is honest here because the property is about what the *recipes* say,
+    and the recipes are read by `test_gate_split_covers_the_gate.py` against the
+    workflow without any tool at all. This one adds the expansion, which needs
+    the expander.
+    """
+    if shutil.which("just") is None:
+        pytest.skip("just is not installed; the gate does not depend on it (ADR-0116)")
     result = subprocess.run(
         ["just", "--dry-run", "setup", "docs-check", "back-gen", "back-static"],
         cwd=ROOT,
