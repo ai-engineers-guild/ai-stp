@@ -386,13 +386,13 @@ web-regress: web-build
     # Browser bytes belong to the user's Playwright cache. OS packages belong
     # to the runner image and are provisioned out of band: a repository check
     # may not invoke sudo or block waiting for an administrator password.
-    cd apps/web && bunx playwright install chromium
+    bash .github/scripts/ensure-chrome.sh
     cd apps/web && bun run test:e2e
 
 # Две независимые production-сборки доказывают build-time исключение feature.
 web-feature-profiles:
     {{bunreq}}
-    cd apps/web && bunx playwright install chromium
+    bash .github/scripts/ensure-chrome.sh
     cd apps/web && bun run test:feature-profiles
 
 # Сборка идёт первой намеренно. `tsconfig` включает `.next/types/**/*.ts` —

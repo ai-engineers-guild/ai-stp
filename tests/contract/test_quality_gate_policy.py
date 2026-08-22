@@ -1,6 +1,7 @@
 """Repository-native gates must obey the same privilege boundary as the product."""
 
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -22,14 +23,32 @@ WORKFLOWS = OVERLAY if OVERLAY.is_dir() else ROOT / ".github" / "workflows"
 CHECK_WORKFLOW = WORKFLOWS / "check.yml"
 MACOS_WORKFLOW = WORKFLOWS / "macos-evidence.yml"
 PROVIDER_SAFE_PATH = ROOT / ".github" / "scripts" / "provider-safe-path.sh"
+ENSURE_CHROME = ROOT / ".github" / "scripts" / "ensure-chrome.sh"
 
 
 def test_web_regression_never_installs_system_packages_with_sudo() -> None:
-    recipes = JUSTFILE.read_text(encoding="utf-8")
-    quickstart = QUICKSTART.read_text(encoding="utf-8")
+    """Browser bytes go to the user's cache; OS packages are not this gate's to
+    install.
 
-    assert "playwright install --with-deps" not in recipes
-    assert "bunx playwright install chromium" in recipes
+    The browser install moved out of the recipes and into a script both the
+    recipes and the gate call, so the property is asserted over the script as
+    well — checking only the justfile would have gone quiet the moment the
+    command moved one file over.
+    """
+    quickstart = QUICKSTART.read_text(encoding="utf-8")
+    sources = {
+        "justfile": JUSTFILE.read_text(encoding="utf-8"),
+        "ensure-chrome.sh": ENSURE_CHROME.read_text(encoding="utf-8"),
+    }
+    for name, text in sources.items():
+        assert "--with-deps" not in text, f"{name} installs OS packages"
+        # Comments stripped first: both files explain in prose that they must
+        # not call `sudo`, and matching the word anywhere would fail on the
+        # sentence that states the rule.
+        commands = "\n".join(line for line in text.split("\n") if not line.strip().startswith("#"))
+        assert not re.search(r"(^|[\s;&|(])sudo\s", commands), f"{name} invokes sudo"
+    assert "playwright install chrome" in sources["ensure-chrome.sh"]
+    assert "ensure-chrome.sh" in sources["justfile"]
     assert "никогда не вызывает `sudo`" in quickstart
 
 

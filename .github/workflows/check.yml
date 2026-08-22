@@ -310,8 +310,8 @@ jobs:
       - name: Install pinned bun
         run: |
           set -euo pipefail
-          npm install --global --no-fund --no-audit "bun@${BUN_VERSION}"
-          test "$(bun --version)" = "${BUN_VERSION}"
+          bash .github/scripts/install-bun.sh "${BUN_VERSION}" "${RUNNER_TEMP}/bun"
+          echo "${RUNNER_TEMP}/bun" >> "${GITHUB_PATH}"
       - name: Cache bun packages
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
@@ -366,8 +366,8 @@ jobs:
       - name: Install pinned bun
         run: |
           set -euo pipefail
-          npm install --global --no-fund --no-audit "bun@${BUN_VERSION}"
-          test "$(bun --version)" = "${BUN_VERSION}"
+          bash .github/scripts/install-bun.sh "${BUN_VERSION}" "${RUNNER_TEMP}/bun"
+          echo "${RUNNER_TEMP}/bun" >> "${GITHUB_PATH}"
       - name: Cache bun packages
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
@@ -399,19 +399,14 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      # Written into the environment rather than declared at job level: the
-      # `runner` context does not exist there, and a workflow that names it
-      # fails to parse — GitHub then reports a run with no jobs at all, named
-      # after the file. `RUNNER_TEMP` is an ordinary variable inside `run`, so
-      # the same value is available without the context.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Install pinned bun
         run: |
           set -euo pipefail
-          npm install --global --no-fund --no-audit "bun@${BUN_VERSION}"
-          test "$(bun --version)" = "${BUN_VERSION}"
+          bash .github/scripts/install-bun.sh "${BUN_VERSION}" "${RUNNER_TEMP}/bun"
+          echo "${RUNNER_TEMP}/bun" >> "${GITHUB_PATH}"
       - name: Cache bun packages
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
@@ -419,27 +414,7 @@ jobs:
           key: ${{ runner.os }}-bun-${{ hashFiles('apps/web/bun.lock') }}
           restore-keys: ${{ runner.os }}-bun-
       - name: Ensure a Google Chrome is present
-        run: |
-          set -euo pipefail
-          # Every runner image ships Chrome — measured on ubuntu-24.04,
-          # windows-2022 and macos-15 — and `playwright install chrome`
-          # downloaded it again anyway: fifty-nine seconds on the longest job in
-          # the gate, every run. `channel: "chrome"` uses the installed stable
-          # browser, so the download only has to happen if the image ever stops
-          # shipping one.
-          for candidate in \
-            "$(command -v google-chrome || true)" \
-            "$(command -v google-chrome-stable || true)" \
-            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
-            "/c/Program Files/Google/Chrome/Application/chrome.exe" \
-            "/c/Program Files (x86)/Google/Chrome/Application/chrome.exe"; do
-            if [ -n "${candidate}" ] && [ -x "${candidate}" ]; then
-              echo "using the runner's Chrome: ${candidate}"
-              exit 0
-            fi
-          done
-          echo "no Chrome on this image; installing one" >&2
-          cd apps/web && bunx playwright install chrome
+        run: bash .github/scripts/ensure-chrome.sh
       - name: Cache the Next.js build
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
@@ -472,7 +447,7 @@ jobs:
           # Serial execution is untouched — `fullyParallel: false` and one
           # worker still hold inside each shard, so the process-local mock
           # state the suite depends on is exactly as isolated as before.
-          bunx playwright test --shard=${{ matrix.shard }}/2
+          bun run test:e2e -- --shard=${{ matrix.shard }}/2
 
   web-profiles:
     name: web-profiles (${{ matrix.os }})
@@ -490,19 +465,14 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      # Written into the environment rather than declared at job level: the
-      # `runner` context does not exist there, and a workflow that names it
-      # fails to parse — GitHub then reports a run with no jobs at all, named
-      # after the file. `RUNNER_TEMP` is an ordinary variable inside `run`, so
-      # the same value is available without the context.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Install pinned bun
         run: |
           set -euo pipefail
-          npm install --global --no-fund --no-audit "bun@${BUN_VERSION}"
-          test "$(bun --version)" = "${BUN_VERSION}"
+          bash .github/scripts/install-bun.sh "${BUN_VERSION}" "${RUNNER_TEMP}/bun"
+          echo "${RUNNER_TEMP}/bun" >> "${GITHUB_PATH}"
       - name: Cache bun packages
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
@@ -510,27 +480,7 @@ jobs:
           key: ${{ runner.os }}-bun-${{ hashFiles('apps/web/bun.lock') }}
           restore-keys: ${{ runner.os }}-bun-
       - name: Ensure a Google Chrome is present
-        run: |
-          set -euo pipefail
-          # Every runner image ships Chrome — measured on ubuntu-24.04,
-          # windows-2022 and macos-15 — and `playwright install chrome`
-          # downloaded it again anyway: fifty-nine seconds on the longest job in
-          # the gate, every run. `channel: "chrome"` uses the installed stable
-          # browser, so the download only has to happen if the image ever stops
-          # shipping one.
-          for candidate in \
-            "$(command -v google-chrome || true)" \
-            "$(command -v google-chrome-stable || true)" \
-            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
-            "/c/Program Files/Google/Chrome/Application/chrome.exe" \
-            "/c/Program Files (x86)/Google/Chrome/Application/chrome.exe"; do
-            if [ -n "${candidate}" ] && [ -x "${candidate}" ]; then
-              echo "using the runner's Chrome: ${candidate}"
-              exit 0
-            fi
-          done
-          echo "no Chrome on this image; installing one" >&2
-          cd apps/web && bunx playwright install chrome
+        run: bash .github/scripts/ensure-chrome.sh
       - name: Cache the Next.js build
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:

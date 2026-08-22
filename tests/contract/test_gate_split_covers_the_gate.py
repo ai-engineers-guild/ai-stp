@@ -80,8 +80,8 @@ _LEAF_TOKENS: dict[str, tuple[str, ...]] = {
         "bun run type-check",
     ),
     "web-test": ("bun run test:coverage", "bun run test:coverage:catalog"),
-    "web-regress": ("bunx playwright install chromium", "bun run test:e2e"),
-    "web-feature-profiles": ("bun run test:feature-profiles",),
+    "web-regress": ("ensure-chrome.sh", "bun run test:e2e"),
+    "web-feature-profiles": ("ensure-chrome.sh", "bun run test:feature-profiles"),
 }
 
 
@@ -95,15 +95,47 @@ def _dependencies() -> dict[str, tuple[str, ...]]:
     return found
 
 
+def _bodies() -> dict[str, str]:
+    """Map each recipe to its own commands, excluding its dependencies'."""
+    text = JUSTFILE.read_text(encoding="utf-8")
+    found: dict[str, str] = {}
+    name: str | None = None
+    lines: list[str] = []
+    for line in text.split("\n"):
+        match = _RECIPE.match(line)
+        if match:
+            if name is not None:
+                found[name] = "\n".join(lines).strip()
+            name = match.group(1)
+            lines = []
+        elif name is not None:
+            if line and not line[0].isspace():
+                found[name] = "\n".join(lines).strip()
+                name = None
+                lines = []
+            elif line.strip() and not line.strip().startswith("#"):
+                lines.append(line)
+    if name is not None:
+        found[name] = "\n".join(lines).strip()
+    return found
+
+
 def _leaves(recipe: str, graph: dict[str, tuple[str, ...]], seen: set[str]) -> set[str]:
+    """Every recipe under `recipe` that runs commands of its own.
+
+    Having dependencies does not make a recipe pure delegation. `web-regress`
+    depends on `web-build` and then runs the browser suite itself, and treating
+    it as a delegator dropped its own commands out of the checked set — the
+    mapping for it sat there unread, and a token that had stopped matching the
+    workflow entirely still passed.
+    """
     if recipe in seen:
         return set()
     seen.add(recipe)
-    deps = graph.get(recipe, ())
-    if not deps:
-        return {recipe}
     covered: set[str] = set()
-    for dep in deps:
+    if _bodies().get(recipe):
+        covered.add(recipe)
+    for dep in graph.get(recipe, ()):
         covered |= _leaves(dep, graph, seen)
     return covered
 
