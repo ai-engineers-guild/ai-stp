@@ -8,6 +8,8 @@ the package's identity is the one whose build has to be provable.
 
 from __future__ import annotations
 
+import re
+
 import pytest
 from release_scripts import build_candidate
 
@@ -38,7 +40,22 @@ def test_candidate_workflow_has_attestation_but_no_publish_authority() -> None:
     # a wrong ref never reaches repository code.
     assert 'expected_ref="refs/tags/v${EXPECTED_VERSION}"' in workflow
     assert "--require-tag" in workflow
-    assert "python3 release_scripts/verify_protections.py" in workflow
+    # The workflow calls only release scripts that exist. It invoked
+    # `verify_protections.py` for a while after `ADR-0115` deleted it, and
+    # nothing noticed until the first ever dispatch: this file asserts what the
+    # workflow must contain, never that what it contains can run.
+    #
+    # Both invocation forms, because the workflow uses both: a path for
+    # `build_candidate.py` and `-m` for `verify_candidate_install`.
+    called = {f"{name}.py" for name in re.findall(r"python -m release_scripts\.(\w+)", workflow)}
+    called |= set(re.findall(r"python3? release_scripts/(\S+\.py)", workflow))
+    called |= set(re.findall(r"python release_scripts/(\S+\.py)", workflow))
+    assert called, "no release script is invoked; this assertion would guard nothing"
+    missing = sorted(
+        name for name in called if not (build_candidate.ROOT / "release_scripts" / name).is_file()
+    )
+    assert not missing, f"the workflow runs {missing}, which are not in the tree"
+
     assert "python -m release_scripts.verify_candidate_install" in workflow
     assert '--expected-sha "${GITHUB_SHA}"' in workflow
 
