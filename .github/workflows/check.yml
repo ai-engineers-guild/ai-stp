@@ -154,8 +154,24 @@ jobs:
             extra: tests/unit/api
           - shard: unit
             extra: tests/unit --ignore=tests/unit/platform --ignore=tests/unit/api
+          # `tests/contract` is three jobs because one file holds most of it.
+          # Measured with eight processes: `test_cli_process.py` alone is 107s,
+          # `test_offline_closure.py` with `test_installation_restart.py` is
+          # 65s, and everything else together is 23s. Left whole the shard runs
+          # for as long as the sum, and it was the second-longest job in the
+          # gate.
+          - shard: contract-process
+            extra: tests/contract/test_cli_process.py
+          - shard: contract-lifecycle
+            extra: >-
+              tests/contract/test_offline_closure.py
+              tests/contract/test_installation_restart.py
           - shard: contract
-            extra: tests/contract
+            extra: >-
+              tests/contract
+              --ignore=tests/contract/test_cli_process.py
+              --ignore=tests/contract/test_offline_closure.py
+              --ignore=tests/contract/test_installation_restart.py
           - shard: property
             extra: tests/property
     services:
@@ -270,6 +286,7 @@ jobs:
           uv run --locked coverage combine \
             .coverage.api .coverage.integration \
             .coverage.unit-platform .coverage.unit-api .coverage.unit \
+            .coverage.contract-process .coverage.contract-lifecycle \
             .coverage.contract .coverage.property
           uv run --locked coverage report --precision=2 --fail-under=90
 
@@ -366,7 +383,7 @@ jobs:
           bun run test:coverage:catalog
 
   web-e2e:
-    name: web-e2e (${{ matrix.os }}, ${{ matrix.shard }}/2)
+    name: web-e2e (${{ matrix.os }}, ${{ matrix.shard }}/4)
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     defaults:
@@ -376,7 +393,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        shard: [1, 2]
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -442,17 +459,16 @@ jobs:
           cd apps/web
           bun install --frozen-lockfile
           AI_STP_WEB_PROFILE=public_saas bun run build
-          # Sharded, and the earlier note saying it could not be was a
-          # misreading. `--shard=1/2` and `--shard=2/2` list 90 tests each and
-          # the whole suite lists 180: two projects of ninety, split cleanly
-          # along the project boundary with no overlap and nothing dropped.
-          # The "90 and 90 of 90" that argued against it was one project's
-          # count read as the whole.
+          # Sharded four ways, and the earlier note saying it could not be
+          # sharded at all was a misreading: two shards list 90 tests each
+          # against a suite of 180, and four list 46/44/46/44 whose union is
+          # exactly 180. The "90 and 90 of 90" that argued against sharding was
+          # one project's count read as the whole.
           #
           # Serial execution is untouched — `fullyParallel: false` and one
           # worker still hold inside each shard, so the process-local mock
           # state the suite depends on is exactly as isolated as before.
-          bunx playwright test --shard=${{ matrix.shard }}/2
+          bunx playwright test --shard=${{ matrix.shard }}/4
 
   web-profiles:
     name: web-profiles (${{ matrix.os }})

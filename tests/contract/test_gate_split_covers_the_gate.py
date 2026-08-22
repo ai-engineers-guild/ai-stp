@@ -191,17 +191,78 @@ def test_cli_and_web_tests_run_on_three_os_and_backend_stays_on_linux() -> None:
     for name in ("cli", "web-unit", "web-e2e", "web-profiles"):
         assert set(jobs[name]["strategy"]["matrix"]["os"]) == three, name
     assert jobs["tests"]["runs-on"] == "ubuntu-latest"
-    shards = [row["shard"] for row in jobs["tests"]["strategy"]["matrix"]["include"]]
-    assert shards == [
-        "api",
-        "integration",
-        "unit-platform",
-        "unit-api",
-        "unit",
-        "contract",
-        "property",
-    ]
     assert jobs["cli"]["strategy"]["matrix"]["suite"] == ["unit", "contract", "process"]
     assert "-n 8" in "\n".join(
         step["run"] for step in jobs["tests"]["steps"] if isinstance(step.get("run"), str)
     )
+
+
+def _shard_selection(extra: str) -> tuple[set[Path], set[Path]]:
+    """Split one shard's pytest arguments into selected and ignored trees."""
+    selected: set[Path] = set()
+    ignored: set[Path] = set()
+    for token in extra.split():
+        if token.startswith("--ignore="):
+            ignored.add(ROOT / token.removeprefix("--ignore="))
+        elif token.startswith("-"):
+            raise AssertionError(f"unrecognised pytest argument in a shard: {token}")
+        else:
+            selected.add(ROOT / token)
+    return selected, ignored
+
+
+def _files_under(paths: set[Path]) -> set[Path]:
+    found: set[Path] = set()
+    for path in paths:
+        if path.is_file():
+            found.add(path)
+            continue
+        assert path.is_dir(), f"a shard names a path that does not exist: {path}"
+        found |= set(path.rglob("test_*.py"))
+    return found
+
+
+def test_the_test_shards_cover_the_whole_tree_exactly_once() -> None:
+    """Every test file runs on exactly one shard — none twice, none dropped.
+
+    Asserted as a property rather than as a literal list of shard names,
+    because the list is a tuning decision and the property is the requirement.
+    A shard split for wall-clock is a good change; a split that silently drops
+    a file is the failure the literal list was there to catch, and it catches
+    it whatever the shards end up being called.
+    """
+    workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+    rows = workflow["jobs"]["tests"]["strategy"]["matrix"]["include"]
+    covered: dict[Path, list[str]] = {}
+    for row in rows:
+        selected, ignored = _shard_selection(row["extra"])
+        for path in _files_under(selected) - _files_under(ignored):
+            covered.setdefault(path, []).append(row["shard"])
+
+    twice = {path: shards for path, shards in covered.items() if len(shards) > 1}
+    assert not twice, f"these files run on more than one shard: {twice}"
+
+    everything = _files_under({ROOT / "tests"})
+    missing = sorted(str(path.relative_to(ROOT)) for path in everything - set(covered))
+    assert not missing, f"no shard of the gate runs these test files: {missing}"
+
+
+def test_the_combined_coverage_names_every_shard_and_only_those() -> None:
+    """Splitting a shard must reach the combine step, or coverage silently drops.
+
+    The combine names its inputs one by one rather than globbing, so a shard
+    that passed without writing coverage fails loudly instead of quietly
+    lowering the total. That is worth keeping — and it is also why the list has
+    to be checked against the matrix: adding a shard and forgetting this line
+    loses that shard's coverage while the gate stays green.
+    """
+    workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+    shards = {row["shard"] for row in workflow["jobs"]["tests"]["strategy"]["matrix"]["include"]}
+    combine = "\n".join(
+        step["run"]
+        for step in workflow["jobs"]["coverage"]["steps"]
+        if isinstance(step.get("run"), str) and "coverage combine" in step["run"]
+    )
+    assert combine, "the coverage job no longer combines anything"
+    named = set(re.findall(r"\.coverage\.([a-z0-9-]+)", combine))
+    assert named == shards, f"combined {sorted(named)} but the matrix runs {sorted(shards)}"
