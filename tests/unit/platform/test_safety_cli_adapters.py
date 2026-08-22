@@ -1016,6 +1016,12 @@ def _skill_spec():
     return next(item for item in CHECK_REGISTRY if item.check_id == "skill_static_gate")
 
 
+def _npm_spec():
+    from ai_stp_platform.safety.policy import CHECK_REGISTRY
+
+    return next(item for item in CHECK_REGISTRY if item.check_id == "sca_npm_audit")
+
+
 def _package(tree: Path) -> Path:
     """One skill package inside the artefact, which is what the engines load."""
     package = tree / "skills" / "demo"
@@ -1445,3 +1451,57 @@ def test_an_engine_that_timed_out_has_not_read_anything_either(
 
     assert outcome.result == "failed", "a critical keyword outranks a degraded engine"
     assert outcome.findings[0].severity == "critical"
+
+
+def test_a_dependency_manifest_below_the_root_is_still_found(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A component tree keeps its manifests under `files/`, and every SCA check
+    used to look only at the artefact root.
+
+    The failure was silent by construction: the check answered `not_applicable`,
+    the same word it uses for an artefact that genuinely has no manifest. But
+    the planner schedules these checks off `ArtifactManifest.languages`, which
+    `detect.py` builds with `rglob` — so the language was detected from the very
+    file the adapter then declared absent, and the dependency scan was planned,
+    reported and never run.
+    """
+    from ai_stp_platform.safety.adapters import npm_audit
+
+    files = tmp_path / "files"
+    files.mkdir()
+    (files / "package.json").write_text('{"name": "demo"}\n', encoding="utf-8")
+
+    ran: list[Path] = []
+
+    def _run_cli(argv, **kwargs):
+        ran.append(Path(kwargs["cwd"]))
+        return 0, "{}", "", 5
+
+    monkeypatch.setattr(npm_audit, "run_cli", _run_cli)
+    outcome = npm_audit.run(
+        tmp_path, ArtifactManifest(component_type="plugin", languages={"js"}), _npm_spec()
+    )
+
+    assert ran == [files], "npm audit must run where the manifest is"
+    assert outcome.result == "passed"
+
+
+def test_an_artefact_with_no_manifest_anywhere_is_still_not_applicable(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The widened search must not turn "nothing to scan" into "scan failed"."""
+    from ai_stp_platform.safety.adapters import npm_audit
+
+    (tmp_path / "files").mkdir()
+    (tmp_path / "files" / "SKILL.md").write_text("# demo\n", encoding="utf-8")
+
+    def _refuse(argv, **_kwargs):  # pragma: no cover - must not be reached
+        raise AssertionError("no manifest means no run")
+
+    monkeypatch.setattr(npm_audit, "run_cli", _refuse)
+    outcome = npm_audit.run(
+        tmp_path, ArtifactManifest(component_type="skill", languages=set()), _npm_spec()
+    )
+
+    assert outcome.result == "not_applicable"

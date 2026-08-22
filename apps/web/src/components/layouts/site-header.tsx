@@ -12,35 +12,38 @@ import { Link, usePathname, useRouter } from "@/lib/i18n/navigation";
 import type { AppLocale } from "@/lib/i18n/routing";
 import { isShellPrefetchHref } from "@/lib/prefetch-policy";
 import { siteNavigation, type NavItem } from "@/lib/projection/navigation";
-import { useSessionUiSlice } from "@/lib/stores/session-ui-slice";
+import { useSessionPresence } from "@/lib/auth/use-session-presence";
 import { useUiSlice } from "@/lib/stores/ui-slice";
 import { UI } from "@/lib/ui-selectors";
 import { SITE_NAME } from "@/lib/site";
 import { Icon } from "@/theme/icons";
 
 type SiteHeaderProps = {
-  /** Server-truth: session present. Never show Sign out without this. */
-  signedIn: boolean;
   docsHref: string;
 };
 
-export function SiteHeader({ signedIn, docsHref }: SiteHeaderProps) {
+/**
+ * The header no longer takes a server-rendered `signedIn`. It used to, and the
+ * shell read the cookie to supply it — inside a tree Next builds as SSG, where
+ * a cookie cannot honestly be read. Presence is asked at request time now, from
+ * `/api/session`, after hydration.
+ */
+export function SiteHeader({ docsHref }: SiteHeaderProps) {
   const t = useTranslations("nav");
   const locale = useLocale() as AppLocale;
   const pathname = usePathname();
   const router = useRouter();
-  const signedInHint = useSessionUiSlice((s) => s.signedInHint);
-  const setSignedInHint = useSessionUiSlice((s) => s.setSignedInHint);
+  const signedInHint = useSessionPresence();
   const [hydrated, setHydrated] = useState(false);
 
-  // Prefer server session; keep slice in sync for client-only chrome updates.
   useEffect(() => {
     setHydrated(true);
-    setSignedInHint(signedIn);
-  }, [signedIn, setSignedInHint, pathname]);
+  }, []);
 
-  // The first client render must be byte-for-byte compatible with SSR.
-  const isSignedIn = signedIn || (hydrated && signedInHint);
+  // The first client render must be byte-for-byte compatible with the static
+  // HTML, which is always the signed-out shell. Only after hydration may the
+  // answer from `/api/session` change what is shown.
+  const isSignedIn = hydrated && signedInHint;
   const navigation = siteNavigation({ signedIn: isSignedIn, docsHref });
   const accountMenuItems = new Set<string>([
     UI.navigation.objects,

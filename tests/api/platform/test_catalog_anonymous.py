@@ -396,3 +396,55 @@ async def test_setup_updated_range_uses_the_same_contract(
     )
     assert reversed_range.status_code == HTTPStatus.BAD_REQUEST
     assert reversed_range.json()["error"]["code"] == CATEGORY_CODE[ErrorCategory.VALIDATION]
+
+
+@pytest.mark.asyncio
+async def test_walking_the_cursor_visits_every_object_exactly_once(
+    seeded_client: AsyncClient,
+) -> None:
+    """`REQ-2105` in the half that was never tested: no duplicates, no gaps.
+
+    The existing tests cover the token — round trip, tampering, a cursor from
+    another filter. They do not walk a sequence, and the walk is where it broke:
+    the page was re-sorted before the cursor was taken from its last row, so the
+    token described a position in the display order while the next request
+    resumed the scan order. With the default `relevance` sort those are
+    unrelated.
+
+    On the deployed catalogue that lost more than half of it. Walking with
+    `page_size=25` reached 45 of 103 objects and then reported no cursor, and a
+    different page size gave a different total — which is the tell: a correct
+    enumeration cannot depend on how it is cut into pages.
+    """
+
+    async def walk(page_size: int) -> list[str]:
+        seen: list[str] = []
+        cursor: str | None = None
+        for _ in range(64):
+            params: dict[str, str | int] = {
+                "include_experimental": "true",
+                "page_size": page_size,
+            }
+            if cursor is not None:
+                params["cursor"] = cursor
+            response = await seeded_client.get("/v1/catalog/components", params=params)
+            assert response.status_code == HTTPStatus.OK
+            body = response.json()
+            seen.extend(row["stable_id"] for row in body["items"] + body["experimental"])
+            cursor = body["page"]["next_cursor"]
+            if cursor is None:
+                return seen
+        raise AssertionError("the cursor never reported the end of the sequence")
+
+    whole = await walk(100)
+    assert len(whole) == len(set(whole)), "a single page repeated an object"
+
+    for page_size in (1, 2, 3, 7):
+        walked = await walk(page_size)
+        assert len(walked) == len(set(walked)), (
+            f"page_size={page_size} returned the same object on two pages"
+        )
+        assert set(walked) == set(whole), (
+            f"page_size={page_size} enumerated {len(set(walked))} objects while one "
+            f"page holds {len(set(whole))}; a cut into pages must not change the set"
+        )

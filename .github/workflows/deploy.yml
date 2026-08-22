@@ -78,9 +78,29 @@ jobs:
       # Promotion and deployment are separate events, so an immediate check
       # would measure whether the target had already deployed a commit promoted
       # seconds earlier — it never has. Waiting a bounded time is what makes a
-      # green deployment a claim rather than a formality. Twelve minutes is
-      # measured: the target's timer ticks every sixty seconds and an observed
-      # deploy took about six from first tick to readiness.
+      # green deployment a claim rather than a formality.
+      #
+      # The bound is measured, and the first measurement was too tight. Twelve
+      # minutes came from an observed six between the target's tick and
+      # readiness; two deployments on 2026-08-22 took 13m17s and about the same
+      # from `promote` to the new commit answering, so the job reported failure
+      # for deployments that had in fact succeeded a minute later. That is worse
+      # than no check: a red run for a healthy deployment teaches people to
+      # ignore the colour.
+      #
+      # Twenty-five minutes is the current bound. It is roughly twice the
+      # observed time rather than a round number, because what dominates is the
+      # target rebuilding images, and that grows with the tree. If this starts
+      # failing again, measure before raising it — a deploy that genuinely takes
+      # half an hour is a fact about the host worth knowing, not a number to
+      # bump.
+      #
+      # Deliberately not held by a test. The only relationship available in the
+      # tree is to the timer's sixty-second tick, and a bound stated against
+      # that would have passed at twelve minutes — the value that actually
+      # failed. What this number has to clear is how long the host takes to
+      # rebuild, which no file here knows. A test that would have missed the
+      # defect it was written for is worse than the comment explaining it.
       - name: Prove the target deployed the promoted commit
         env:
           ORIGIN: ${{ vars.AI_STP_PUBLIC_ORIGIN }}
@@ -93,4 +113,4 @@ jobs:
             --expected-commit "${HEAD_SHA}" \
             --migrations-dir migrations/versions \
             --expected-environment prod \
-            --wait-seconds 720
+            --wait-seconds 1500

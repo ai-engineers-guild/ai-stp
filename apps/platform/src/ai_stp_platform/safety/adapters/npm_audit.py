@@ -4,14 +4,17 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ai_stp_platform.safety.adapters._cli import run_cli
+from ai_stp_platform.safety.adapters._cli import manifest_roots, run_cli
 from ai_stp_platform.safety.normalize import redact_message
 from ai_stp_platform.safety.policy import CheckSpec
 from ai_stp_platform.safety.types import ArtifactManifest, CheckOutcome, Finding
 
 
 def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome:
-    if "js" not in manifest.languages and not (tree / "package.json").is_file():
+    # Wherever the manifest actually is. In a component tree it is under
+    # `files/`, never at the root the old test looked at.
+    roots = manifest_roots(tree, "package.json")
+    if "js" not in manifest.languages and not roots:
         return CheckOutcome(
             check_id=spec.check_id,
             family=spec.family,
@@ -19,7 +22,7 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
             mandatory=spec.mandatory,
             tool_name="npm",
         )
-    if not (tree / "package.json").is_file():
+    if not roots:
         return CheckOutcome(
             check_id=spec.check_id,
             family=spec.family,
@@ -29,7 +32,7 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
         )
     code, out, err, ms = run_cli(
         ["npm", "audit", "--audit-level=moderate", "--json"],
-        cwd=tree,
+        cwd=roots[0],
         timeout=min(spec.timeout_seconds, 30),
     )
     if code == 127:

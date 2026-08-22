@@ -3,7 +3,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { Button } from "@/components/atoms/button";
 import { InstallBlock } from "@/components/organisms/install-block";
-import { readSession } from "@/lib/auth/session";
+import { SignedOutOnly } from "@/components/molecules/signed-out-only";
 import { Link } from "@/lib/i18n/navigation";
 import { UI } from "@/lib/ui-selectors";
 
@@ -38,7 +38,6 @@ export default async function LandingPage({ params }: PageProps) {
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("landing");
-  const signedIn = (await readSession()) !== null;
 
   return (
     <div data-ui={UI.landing.page} className="flex min-w-0 flex-col gap-5">
@@ -54,11 +53,11 @@ export default async function LandingPage({ params }: PageProps) {
             <Button asChild className="min-h-11 w-full sm:w-auto">
               <Link href="/catalog">{t("browseCatalog")}</Link>
             </Button>
-            {!signedIn ? (
+            <SignedOutOnly>
               <Button asChild variant="outline" className="min-h-11 w-full sm:w-auto">
                 <Link href="/login">{t("signIn")}</Link>
               </Button>
-            ) : null}
+            </SignedOutOnly>
           </div>
         </div>
         <div

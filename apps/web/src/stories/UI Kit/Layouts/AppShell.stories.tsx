@@ -1,10 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
 import { SiteHeader } from "@/components/layouts/site-header";
+import { useSessionUiSlice } from "@/lib/stores/session-ui-slice";
 
 /**
- * AppShell is an async Server Component (session read). Storybook shows the same
- * chrome composition: skip link + header + main + footer.
+ * AppShell is an async Server Component and reads no session: the shell renders
+ * statically and the header asks `/api/session` after hydration. Storybook shows
+ * the same chrome composition and primes the store the fetch would write to.
  */
 function AppShellPreview({
   signedIn,
@@ -13,6 +15,7 @@ function AppShellPreview({
   signedIn: boolean;
   children?: React.ReactNode;
 }) {
+  useSessionUiSlice.setState({ signedInHint: signedIn });
   return (
     <div className="flex min-h-screen flex-col">
       <a
@@ -21,7 +24,7 @@ function AppShellPreview({
       >
         Skip to content
       </a>
-      <SiteHeader signedIn={signedIn} docsHref="http://localhost:8011" />
+      <SiteHeader docsHref="http://localhost:8011" />
       <main
         id="main-content"
         className="mx-auto w-full max-w-6xl min-w-0 flex-1 overflow-x-clip px-4 py-10 sm:px-6"

@@ -1009,25 +1009,44 @@ async def _search(
         if len(batch) < batch_limit:
             break
 
-    if sort == "relevance" and page_number is not None:
-        collected = sort_relevant_catalog_rows(collected, q=q, direction=sort_direction)
-    else:
-        collected = sort_catalog_rows(collected, sort=sort, direction=sort_direction)
-    total_items = len(collected) if page_number is not None else None
+    total_items: int | None = None
+    next_cursor: str | None = None
     if page_number is None:
+        # Cursor mode emits the keyset order the scan itself advances in, and
+        # that is not a preference — it is what makes the sequence complete.
+        #
+        # The page used to be re-sorted before the cursor was taken from its
+        # last row, so the token described a position in the *display* order
+        # while the next request resumed the *scan* order. With the default
+        # `relevance` sort those are unrelated: rows were skipped and repeated,
+        # and enumeration stopped early. Walking the deployed catalogue with
+        # `page_size=25` reached 45 of 103 objects and then reported no cursor;
+        # a different page size gave a different total, which is the signature
+        # of the bug.
+        #
+        # `sort` still means something, and it means it in page mode, which
+        # scans the whole set before ordering it. A sort applied to one page
+        # of a cursor sequence would order twenty rows against each other and
+        # call it a catalogue order.
         page_rows = collected[:page_size]
+        has_more = len(collected) > page_size
+        if has_more and page_rows:
+            # The furthest row this page carries, in scan order — never the
+            # last row after sorting, which is the defect above.
+            resume = page_rows[-1]
+            next_cursor = encode_cursor(
+                secret=cursor_secret,
+                filter_sig=fsig,
+                key=CursorKey(published_at=resume.published_at, stable_id=resume.stable_id),
+            )
     else:
+        if sort == "relevance":
+            collected = sort_relevant_catalog_rows(collected, q=q, direction=sort_direction)
+        else:
+            collected = sort_catalog_rows(collected, sort=sort, direction=sort_direction)
+        total_items = len(collected)
         offset = (page_number - 1) * page_size
         page_rows = collected[offset : offset + page_size]
-    has_more = page_number is None and len(collected) > page_size
-    next_cursor: str | None = None
-    if has_more and page_rows:
-        last = page_rows[-1]
-        next_cursor = encode_cursor(
-            secret=cursor_secret,
-            filter_sig=fsig,
-            key=CursorKey(published_at=last.published_at, stable_id=last.stable_id),
-        )
 
     authoritative: list[PublicVersionRow] = []
     experimental: list[PublicVersionRow] = []

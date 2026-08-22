@@ -4,7 +4,6 @@ import { getTranslations } from "next-intl/server";
 import { SiteHeader } from "@/components/layouts/site-header";
 import { ProjectionDock } from "@/components/molecules/projection-dock";
 import { CookieConsent } from "@/components/organisms/cookie-consent";
-import { readSession } from "@/lib/auth/session";
 import { getEnv } from "@/lib/env";
 import { Link } from "@/lib/i18n/navigation";
 import { UI } from "@/lib/ui-selectors";
@@ -21,7 +20,6 @@ export async function AppShell({ children, locale }: AppShellProps) {
   const tf = await getTranslations("footer");
   const tc = await getTranslations("consent");
   const tm = await getTranslations("machine");
-  const session = await readSession();
   const docsHref = getEnv().AI_STP_USER_DOCS_URL;
   const saasPublicPages = isFeatureEnabled("saas_public_pages");
 
@@ -36,7 +34,7 @@ export async function AppShell({ children, locale }: AppShellProps) {
       >
         {t("skipToContent")}
       </a>
-      <SiteHeader signedIn={session !== null} docsHref={docsHref} />
+      <SiteHeader docsHref={docsHref} />
       <main
         id={UI.shell.main}
         data-ui={UI.shell.main}

@@ -131,3 +131,31 @@ def _record(code: int, duration_ms: int, sandbox_mode: str) -> None:
         record_cli_result(code=code, duration_ms=duration_ms, sandbox_mode=sandbox_mode)
     except Exception:
         pass
+
+
+def manifest_roots(tree: Path, *names: str) -> tuple[Path, ...]:
+    """Every directory in this artefact holding one of `names`, sorted.
+
+    Adapters used to test `tree / "package.json"` and friends, which assumes the
+    artefact is a flat checkout. It is not: an `ai-stp-component-tree/1` unpacks
+    to `component.json` and a `files/` directory, so every dependency manifest
+    sits one level down and the root test found nothing.
+
+    That did not read as a bug, because the check answered `not_applicable` —
+    the same word it uses for an artefact that genuinely has no manifest. The
+    planner meanwhile schedules these checks off `ArtifactManifest.languages`,
+    which `detect.py` builds with `rglob`, so the language was detected from the
+    very file the adapter then failed to find. The result was a dependency scan
+    that was planned, reported and never run, for every component tree.
+
+    Sorted so two runs over the same bytes visit the same directories in the
+    same order, which is what lets identical bytes reach an identical verdict.
+    """
+    found: set[Path] = set()
+    for name in names:
+        if (tree / name).is_file():
+            found.add(tree)
+        for path in tree.rglob(name):
+            if path.is_file():
+                found.add(path.parent)
+    return tuple(sorted(found))
