@@ -294,7 +294,7 @@ function RefineSurface({
   const onCloseRef = useRef(onClose);
   useEffect(() => {
     onCloseRef.current = onClose;
-  });
+  }, [onClose]);
 
   useEffect(() => {
     const surface = surfaceRef.current;

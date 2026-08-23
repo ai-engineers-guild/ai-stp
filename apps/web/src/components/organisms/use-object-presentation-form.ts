@@ -255,7 +255,7 @@ export function useObjectPresentationForm(input: {
   const mediaRef = useRef(media);
   useEffect(() => {
     mediaRef.current = media;
-  });
+  }, [media]);
   const uploadGeneration = useRef(new Map<string, number>());
 
   useEffect(() => {
