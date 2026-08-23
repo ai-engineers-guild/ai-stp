@@ -180,10 +180,17 @@ def verify_sync_slice(
     scenarios["version_collision"] = {
         "state": "not_verified",
         "reason": (
-            "reachable only through a component both devices hold before either releases "
-            "its version: A registers the component and pushes, B pulls it, then both "
-            "release the same X.Y from different content and A pushes first. That needs "
-            "the component scaffold and adopt surface, which this slice does not drive yet"
+            "no adopted component can be pushed at all, so the scenario has no reachable "
+            "setup. The scenario needs a component both devices hold before either "
+            "releases its version, and `component adopt` records the discovered "
+            "`source_path` as a passport fact. That path is absolute, "
+            "`check_sync_payload` refuses absolute paths by design, and the passport "
+            "patch has no `source_path` field to clear it. Driven by hand against the "
+            "deployed environment: scaffold, discover, adopt and release all succeed, "
+            "and `sync push` then answers "
+            "`sync payload contains an absolute path` at `facts.source_path.value`. "
+            "The earlier reason here — that this slice does not drive the component "
+            "surface — was wrong: driving it is not the missing piece"
         ),
         "covered_by_mock": "tests/unit/test_cli_sync_transport.py::"
         "test_version_collision_rolls_back_the_remote_revision_and_cursor",
