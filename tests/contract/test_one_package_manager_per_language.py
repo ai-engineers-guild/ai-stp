@@ -194,3 +194,37 @@ def test_the_local_and_gate_bun_pins_are_the_same_version() -> None:
     )
     recipes = (ROOT / "justfile").read_text(encoding="utf-8")
     assert ".bun-version" in recipes, "no recipe checks the developer's bun against the pin"
+
+
+def test_every_bun_base_image_is_the_pinned_bun() -> None:
+    """The image that builds the site must read the lockfile the gate writes.
+
+    The test above binds `.bun-version`, `BUN_VERSION` and the lockfiles, and
+    its docstring names the exact failure — `Unknown lockfile version`. It then
+    happened anyway, in the one place it did not look: `apps/web/Dockerfile.*`
+    pinned `oven/bun:1.2.19-alpine`, which cannot read `lockfileVersion: 2`. The
+    gate stayed green because the gate never builds that image; production
+    retried the build every minute for twelve hours and kept serving the
+    previous release.
+
+    A pinned base image is right — this asserts it is pinned to the version the
+    lockfiles were written by, not that it is unpinned.
+    """
+    declared = (ROOT / ".bun-version").read_text(encoding="utf-8").strip()
+    #: `public/build` is a generated copy of this tree and carries its own
+    #: `.bun-version`; checking it from here would read one tree's pin against
+    #: another tree's image. It runs this same test on itself.
+    ignored = {".venv", "node_modules", "public", "dist", ".site", ".site-user-docs"}
+    seen = False
+    for path in sorted(ROOT.glob("**/Dockerfile*")):
+        if ignored.intersection(path.relative_to(ROOT).parts):
+            continue
+        text = path.read_text(encoding="utf-8")
+        for match in re.finditer(r"^FROM\s+oven/bun:(\S+)", text, re.MULTILINE):
+            seen = True
+            version = match.group(1).split("-", 1)[0]
+            assert version == declared, (
+                f"{path.relative_to(ROOT)} builds on bun {version}, "
+                f"the lockfiles are written by {declared}"
+            )
+    assert seen, "no image builds on bun; drop this check or restore the pin"

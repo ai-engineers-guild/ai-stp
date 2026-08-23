@@ -3,7 +3,7 @@
 # and makes next dev multi-second even for warm routes).
 # Base tags are pinned; bump only via a separate reviewed change.
 
-FROM oven/bun:1.2.19-alpine
+FROM oven/bun:1.4.0-alpine
 
 # Real Node for the Next.js server process (not Bun's node fallback symlink).
 RUN apk add --no-cache nodejs
