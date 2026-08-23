@@ -11,6 +11,7 @@ import pytest
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import components, content, lifecycle, mcp_clients
 from ai_stp_cli.local.database import configured_path, open_registry
+from ai_stp_contracts.sync_payload import check_sync_payload
 
 SECRET = "AKIAIOSFODNN7EXAMPLE"
 
@@ -992,3 +993,70 @@ def test_jsonc_comments_and_trailing_commas_do_not_hide_servers(tmp_path: Path) 
     found = [item for item in components.discover(project=project) if item.component_type == "mcp"]
 
     assert [item.evidence_refs for item in found] == [("mcp.context7",)]
+
+
+def test_an_adopted_passport_carries_no_home_path_and_can_therefore_sync(
+    registry: sqlite3.Connection, harness_home: Path
+) -> None:
+    """A passport that records where it was found must still be able to leave.
+
+    `redact_home` exists because "a passport, a log or an agent transcript"
+    must not carry home-path material, and adoption already applies it. Nothing
+    pinned the consequence, though, and the two halves live far apart: the
+    redaction is in `local/components.py`, the refusal is
+    `check_sync_payload` in the contracts package, and neither mentions the
+    other. Reading only the refusal, it is easy to conclude that adopted
+    components cannot sync at all — which is what I concluded, from a component
+    I had put in a scratch directory outside the home.
+
+    An absolute path outside the home directory does stay refused, and should:
+    shortening it would hide rather than redact, and it means nothing on
+    another machine either. That is the boundary this test draws, so the next
+    reader does not mistake it for a defect.
+    """
+    found = next(
+        item
+        for item in components.discover()
+        if item.component_type == "instruction" and item.harness_id == "claude-code"
+    )
+    stored = components.adopt(registry, found, device_id="device_test")
+    document = stored.envelope.model_dump(mode="json")
+
+    recorded = document["facts"]["source_path"]["value"]
+    assert not recorded.startswith(str(harness_home)), recorded
+    assert recorded.startswith("~/"), recorded
+    # The point of the redaction, not a restatement of it.
+    check_sync_payload(document)
+
+
+def test_a_provider_rule_lands_inside_the_harness_home_it_is_relative_to() -> None:
+    """Provider projection is relative to the target, and the target is the home.
+
+    The comment above `PROVIDER_RULES` says a provider writes the isolated
+    harness home, and for four of the five harnesses the rule is the catalog's
+    own global layout, spelled identically. Pi carried an extra `agent/`, which
+    is not a directory inside its home — it is the last segment *of* the home,
+    `~/.pi/agent`. So the rule resolved to `~/.pi/agent/agent/AGENTS.md`.
+
+    Reported by the provider implementation, whose `declared_native_route_is_
+    compilable` case failed against it, and which correctly refused to add the
+    doubled segment on its side to make our check pass.
+
+    This is the third place the same off-by-one-directory surfaced for Pi. The
+    other two were the first-party corpus `managed_paths` and the
+    `builder_surfaces` notation both were read from.
+    """
+    from ai_stp_cli.local import composition, harness_catalog
+
+    roots = {name: item.config_root for name, item in harness_catalog.BY_ID.items()}
+    assert roots["pi"] == ".pi/agent", roots["pi"]
+
+    doubled = [
+        rule
+        for rule in composition.PROVIDER_RULES
+        if rule.harness_id == "pi" and rule.relative.split("/")[0] == "agent"
+    ]
+    assert not doubled, (
+        f"{[rule.relative for rule in doubled]} are relative to the target, and the target "
+        f"already is {roots['pi']!r}, so each resolves one directory too deep"
+    )

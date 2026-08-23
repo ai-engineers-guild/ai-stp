@@ -327,7 +327,10 @@ def test_the_native_surface_matches_provider_targets() -> None:
     assert composition.native_surface("skill", "claude-code") == "skills"
     assert composition.native_surface("instruction", "codex") == "AGENTS.md"
     assert composition.native_surface("skill", "codex") == ".agents/skills"
-    assert composition.native_surface("instruction", "pi") == "agent/AGENTS.md"
+    # Pi's target is `~/.pi/agent`, so `agent` is the last segment of the home
+    # and not a directory inside it. This line asserted the prefix while the
+    # docstring above stated the rule the prefix breaks.
+    assert composition.native_surface("instruction", "pi") == "AGENTS.md"
     assert composition.native_surface("plugin", "grok-build") == "plugins"
     assert (
         composition.convert(

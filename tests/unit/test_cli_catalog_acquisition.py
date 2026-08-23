@@ -156,12 +156,12 @@ def test_all_role_family_graphs_are_acquired_and_compiled_for_their_harness(
         (
             "pi",
             {
-                "agent/AGENTS.md",
-                "agent/packages/nddev-builder/AGENTS.md",
-                "agent/packages/nddev-builder/package.json",
-                "agent/packages/nddev-builder/skills/nddev-builder/SKILL.md",
-                "agent/settings.json",
-                "agent/skills/nddev-builder/SKILL.md",
+                "AGENTS.md",
+                "packages/nddev-builder/AGENTS.md",
+                "packages/nddev-builder/package.json",
+                "packages/nddev-builder/skills/nddev-builder/SKILL.md",
+                "settings.json",
+                "skills/nddev-builder/SKILL.md",
             },
         ),
     ],

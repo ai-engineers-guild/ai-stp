@@ -78,10 +78,13 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     Rule("instruction", "AGENTS.md", "file", "codex"),
     Rule("skill", ".agents/skills", "directory", "codex"),
     Rule("setting", "config.toml", "file", "codex"),
-    Rule("instruction", "agent/AGENTS.md", "file", "pi"),
-    Rule("skill", "agent/skills", "directory", "pi"),
-    Rule("plugin", "agent/packages", "directory", "pi", projection_kind="package"),
-    Rule("setting", "agent/settings.json", "file", "pi"),
+    # No `agent/` prefix: these are relative to the target, and Pi's target
+    # already is `~/.pi/agent`. The segment belongs to the home, not inside it,
+    # and prefixing it landed every Pi projection in `~/.pi/agent/agent/`.
+    Rule("instruction", "AGENTS.md", "file", "pi"),
+    Rule("skill", "skills", "directory", "pi"),
+    Rule("plugin", "packages", "directory", "pi", projection_kind="package"),
+    Rule("setting", "settings.json", "file", "pi"),
     Rule("instruction", "AGENTS.md", "file", "opencode"),
     Rule("skill", "skills", "directory", "opencode"),
     Rule("command", "commands", "directory", "opencode"),
