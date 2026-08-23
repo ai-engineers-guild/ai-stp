@@ -799,3 +799,39 @@ def test_a_released_revision_remains_exact_after_the_draft_advances(
 
     assert versions.held(registry, original.stable_id, "1.0") == recorded
     assert revisions.get(registry, original.revision_id) == original
+
+
+def test_a_publication_refusal_names_the_fields_it_counted(
+    registry: sqlite3.Connection,
+) -> None:
+    """Counting the blockers and hiding them costs the operator a round trip.
+
+    The refusal reported `fields: "5"` and nothing else. Following its next
+    action does answer — `validate --for-publication` names every missing
+    field — but the field paths are already in hand at the point of refusal,
+    inside the very `ValidationError` whose length was reported. Observed while
+    driving the publication chain against the deployed catalogue.
+    """
+    original = _draft(registry)
+    versions.record(
+        registry,
+        stable_id=original.stable_id,
+        version="1.0",
+        passport_digest=digest_canonical(
+            "ai-stp:passport:v1",
+            cast(dict[str, JsonValue], original.envelope.model_dump(mode="json")),
+        ),
+        revision_id=original.revision_id,
+        at=CREATED,
+    )
+
+    with pytest.raises(CliFailure) as refused:
+        component_passports.version_passport(registry, original.stable_id, "1.0")
+
+    details = refused.value.details
+    assert refused.value.message == "the released component is not ready for publication"
+    named = str(details.get("fields", ""))
+    assert named, details
+    # Not a bare count: the paths themselves, so the next step is obvious.
+    assert not named.isdigit(), f"the refusal still reports only a count: {named!r}"
+    assert "name" in named, named

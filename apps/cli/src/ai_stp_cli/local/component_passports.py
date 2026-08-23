@@ -654,7 +654,17 @@ def version_passport(
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
             "the released component is not ready for publication",
-            details={"id": stable_id, "version": version, "fields": str(len(error.errors()))},
+            # The paths, not their count. `validate --for-publication` answers
+            # the same question, and the next action still points at it for the
+            # fuller report — but the operator should not have to spend a
+            # command to learn what this refusal already had in hand.
+            details={
+                "id": stable_id,
+                "version": version,
+                "fields": ", ".join(
+                    sorted({".".join(str(part) for part in item["loc"]) for item in error.errors()})
+                ),
+            },
             next_actions=[f"component passport validate --id {stable_id} --for-publication --json"],
         ) from error
     # Derived a second time, and this time over the validated dump. Validation
