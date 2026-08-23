@@ -147,11 +147,15 @@ evidence-live origin="https://nddev.asia" commit="":
 # auth status` отвечает `authenticated` из общего keyring, и оба «устройства»
 # оказываются одним. Каждый вход должен выполняться с
 # `AI_STP_FORCE_FILE_CREDENTIAL_STORE=1`, иначе срез доказывает не то.
-evidence-sync home_a home_b origin="https://nddev.asia":
+# `skip` — пробел-разделённые точные id событий, которые в истории этого
+# аккаунта не применимы ни одним клиентом. Именует оператор: срез, угадывающий,
+# что пропустить, зеленел бы за счёт непрочитанного.
+evidence-sync home_a home_b origin="https://nddev.asia" skip="":
     uv run --locked python -m release_scripts.verify_sync_slice \
         --origin "{{origin}}" \
         --home-a "{{home_a}}" \
-        --home-b "{{home_b}}"
+        --home-b "{{home_b}}" \
+        {{ if skip == "" { "" } else { prepend("--skip-event ", skip) } }}
 
 # Доказывает публикацию, гранты, отчёты и чтения владельца против развёрнутой
 # среды (#182). По умолчанию только читающая половина: публикация неизменяемой

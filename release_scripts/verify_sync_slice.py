@@ -29,7 +29,7 @@ import json
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Final, cast
 
 from release_scripts._evidence import EvidenceError, cli, data, error_code, without_credentials
 from release_scripts._evidence import origin as bare_origin
@@ -91,11 +91,62 @@ def _push(home: Path, stable_id: str, *, python: str) -> dict[str, Any]:
     return {"ok": False, "error_code": error_code(envelope)}
 
 
-def _pull(home: Path, *, python: str) -> dict[str, Any]:
-    envelope = cli(["sync", "pull", "--confirm"], home=home, python=python, allow_failure=True)
-    if envelope.get("ok") is True:
-        return {"ok": True, **data(envelope, "sync pull")}
-    return {"ok": False, "error_code": error_code(envelope)}
+#: A walk this long means the stream is not converging, which is a finding of
+#: its own rather than something to keep paging through.
+MAX_PULL_PAGES: Final[int] = 50
+
+
+def _pull(home: Path, *, python: str, skip: Sequence[str] = ()) -> dict[str, Any]:
+    """One page, optionally walking past events the operator has named.
+
+    An account whose history contains an event no client can apply cannot be
+    walked at all, and this slice is one of the things that produces such
+    history: two events sealed before `seal_envelope` was corrected block every
+    fresh device on the account they were pushed from. Real accounts will carry
+    the same, for the same reason.
+
+    So the ids are a parameter rather than something the slice discovers.
+    Naming them is the operator saying which revisions are abandoned; guessing
+    would make the slice green by skipping whatever it could not read, which is
+    the opposite of evidence.
+    """
+    command = ["sync", "pull", "--confirm"]
+    for event_id in skip:
+        command += ["--skip-event", event_id]
+
+    # Walked to the end, not pulled once. `sync pull` takes one page per
+    # invocation by contract, and this device's cursor starts at the beginning
+    # of the account's whole history — so a single page reaches the *oldest*
+    # events, not the push this scenario just made. On a fresh account those
+    # are the same page and the difference never showed; on an account with
+    # history the slice reported "fast forward verified" while the second
+    # device had received nothing, and then failed two scenarios later with
+    # "there is no developer passport yet".
+    applied = replayed = 0
+    skipped: list[str] = []
+    for _ in range(MAX_PULL_PAGES):
+        envelope = cli(command, home=home, python=python, allow_failure=True)
+        if envelope.get("ok") is not True:
+            return {"ok": False, "error_code": error_code(envelope)}
+        page = data(envelope, "sync pull")
+        applied += int(page.get("applied") or 0)
+        replayed += int(page.get("replayed") or 0)
+        skipped += list(page.get("skipped") or [])
+        # An empty page ends the walk, not a null cursor. `apply_page` documents
+        # the server as emitting `next_cursor: null` for the last page; measured
+        # against production it does not — a stream of nine events answers nine
+        # items and a cursor, then zero items and the *same* cursor, so a loop
+        # waiting for null never terminates. Zero items is the honest end
+        # condition, and it stays correct if the server later emits null too.
+        if int(page.get("received") or 0) == 0 or page.get("next_cursor") is None:
+            return {
+                "ok": True,
+                "applied": applied,
+                "replayed": replayed,
+                "skipped": skipped,
+                "next_cursor": page.get("next_cursor"),
+            }
+    return {"ok": False, "error_code": f"the walk did not end within {MAX_PULL_PAGES} pages"}
 
 
 def _unauthenticated(home: Path, label: str, state: str) -> dict[str, Any]:
@@ -109,7 +160,9 @@ def _unauthenticated(home: Path, label: str, state: str) -> dict[str, Any]:
     }
 
 
-def verify_sync_slice(origin: str, home_a: Path, home_b: Path, *, python: str) -> dict[str, Any]:
+def verify_sync_slice(
+    origin: str, home_a: Path, home_b: Path, *, python: str, skip: Sequence[str] = ()
+) -> dict[str, Any]:
     for home in (home_a, home_b):
         home.mkdir(parents=True, exist_ok=True)
         _point_at(home, origin, python=python)
@@ -122,7 +175,7 @@ def verify_sync_slice(origin: str, home_a: Path, home_b: Path, *, python: str) -
             home = home_a if missing == "a" else home_b
             scenarios[name] = _unauthenticated(home, missing, states[missing])
     else:
-        scenarios.update(_run_scenarios(home_a, home_b, python=python))
+        scenarios.update(_run_scenarios(home_a, home_b, python=python, skip=skip))
 
     scenarios["version_collision"] = {
         "state": "not_verified",
@@ -146,19 +199,21 @@ def verify_sync_slice(origin: str, home_a: Path, home_b: Path, *, python: str) -
     )
 
 
-def _run_scenarios(home_a: Path, home_b: Path, *, python: str) -> dict[str, Any]:
+def _run_scenarios(
+    home_a: Path, home_b: Path, *, python: str, skip: Sequence[str] = ()
+) -> dict[str, Any]:
     """The four scenarios two authenticated homes can prove between them."""
     scenarios: dict[str, Any] = {}
     stable_id = _developer_id(home_a, python=python)
 
     pushed = _push(home_a, stable_id, python=python)
-    pulled = _pull(home_b, python=python)
+    pulled = _pull(home_b, python=python, skip=skip)
     head_a = _head(home_a, python=python)
     scenarios["fast_forward"] = {
         "state": "verified" if pushed.get("ok") and pulled.get("ok") else "failed",
         "stable_id": stable_id,
         "push_state": pushed.get("state"),
-        "pull_applied": pulled.get("applied_events", pulled.get("processed_events")),
+        "pull_applied": pulled.get("applied"),
         "head_after_push": head_a,
     }
 
@@ -196,7 +251,7 @@ def _run_scenarios(home_a: Path, home_b: Path, *, python: str) -> dict[str, Any]
     # honestly answered `up_to_date`, because a device that could not pull has
     # nothing to merge. The evidence said "merge not offered", naming the
     # symptom furthest from the cause, and the actual refusal never appeared.
-    pulled = _pull(home_b, python=python)
+    pulled = _pull(home_b, python=python, skip=skip)
     preview = _preview(home_b, stable_id, python=python)
     merged: dict[str, Any] = {}
     if not pulled.get("ok"):
@@ -231,6 +286,13 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--home-a", required=True, help="First device home, already signed in.")
     parser.add_argument("--home-b", required=True, help="Second device home, already signed in.")
     parser.add_argument("--python", default=sys.executable, help="Interpreter running the CLI.")
+    parser.add_argument(
+        "--skip-event",
+        action="append",
+        default=[],
+        metavar="EVENT_ID",
+        help="Exact id of a known-unapplicable event in this account's history. Repeatable.",
+    )
     return parser
 
 
@@ -242,6 +304,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             Path(arguments.home_a).expanduser(),
             Path(arguments.home_b).expanduser(),
             python=arguments.python,
+            skip=tuple(arguments.skip_event),
         )
     except EvidenceError as error:
         print(f"sync-slice: {error}", file=sys.stderr)
