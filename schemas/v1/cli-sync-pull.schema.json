@@ -35,6 +35,14 @@
       "default": 1,
       "title": "Schema Version",
       "type": "integer"
+    },
+    "skipped": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 64,
+      "title": "Skipped",
+      "type": "array"
     }
   },
   "required": [

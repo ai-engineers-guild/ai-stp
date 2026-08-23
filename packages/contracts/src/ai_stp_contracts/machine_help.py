@@ -243,6 +243,10 @@ class SyncPullView(BaseModel):
     received: Annotated[int, Field(ge=0)]
     applied: Annotated[int, Field(ge=0)]
     replayed: Annotated[int, Field(ge=0)]
+    #: Events the caller named and this pull walked past without applying. An
+    #: abandoned revision is not a quiet outcome, so it is counted separately
+    #: from `applied` and the ids are answered back.
+    skipped: Annotated[list[str], Field(max_length=64)] = Field(default_factory=list)
     next_cursor: str | None
 
 

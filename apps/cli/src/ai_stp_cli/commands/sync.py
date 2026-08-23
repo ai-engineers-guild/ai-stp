@@ -1,7 +1,7 @@
 """Local reconciliation and replay-safe private registry transport."""
 
 import sqlite3
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from contextlib import closing
 from typing import cast
 
@@ -349,17 +349,52 @@ def pull(parameters: Mapping[str, object]) -> Answer[SyncPullView]:
             held.access_token,
             SyncPullQuery(cursor=current, page_size=page_size),
         )
-        applied, replayed = sync_state.apply_page(
+        applied, replayed, skipped = sync_state.apply_page(
             connection,
             account_id=held.account_id,
             response=response,
             at=passports.moment(),
+            skip_event_ids=_skipped_event_ids(parameters),
         )
     return Answer(
         SyncPullView(
             received=len(response.items),
             applied=applied,
             replayed=replayed,
+            skipped=skipped,
             next_cursor=response.page.next_cursor,
         )
     )
+
+
+def _skipped_event_ids(parameters: Mapping[str, object]) -> frozenset[str]:
+    """Exact event ids the caller is abandoning, and nothing looser.
+
+    A refused event stops this account's pulls on every device, and no page
+    size gets past it. Recovering means walking past one — which is abandoning
+    a revision, so the caller names it. The refusal answers the id; this takes
+    that id back and nothing else.
+    """
+    given = parameters.get("skip-event")
+    # A repeatable option arrives from the parser as a tuple, empty when it was
+    # not given at all — `None` is only what a caller passing this in code
+    # leaves out. Reading an empty tuple as one value produced the id `"()"`.
+    if isinstance(given, list | tuple):
+        values: tuple[object, ...] = tuple(cast("Sequence[object]", given))
+    elif given is None:
+        values = ()
+    else:
+        values = (given,)
+    if not values:
+        return frozenset()
+    ids = frozenset(str(item) for item in values)
+    if len(ids) > 64:
+        raise CliFailure("AI_STP_VALIDATION_ERROR", "--skip-event is bounded at 64 ids")
+    for value in sorted(ids):
+        if not value.startswith("event_"):
+            raise CliFailure(
+                "AI_STP_VALIDATION_ERROR",
+                "--skip-event takes the exact event id a refused pull named",
+                details={"given": value},
+            )
+    return ids

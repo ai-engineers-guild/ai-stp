@@ -1748,6 +1748,13 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         confirmation="explicit_flag",
         parameters=(
             option("page-size", "integer", "Maximum events in this page."),
+            option(
+                "skip-event",
+                "string",
+                "Exact id of a refused event to walk past, abandoning its revision. "
+                "Repeat to name several.",
+                repeatable=True,
+            ),
             option("confirm", "boolean", "Confirm the local registry update.", required=True),
         ),
         next_actions=("sync pull", "sync preview"),

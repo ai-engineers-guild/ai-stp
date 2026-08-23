@@ -207,10 +207,18 @@ def test_pull_applies_page_and_cursor_atomically_then_replays(tmp_path: Path) ->
         response = SyncPullResponse(
             items=[stream], page=PageInfo(next_cursor="opaque-cursor", page_size=20)
         )
-        assert sync_state.apply_page(target, account_id=ACCOUNT, response=response, at=AT) == (1, 0)
+        assert sync_state.apply_page(target, account_id=ACCOUNT, response=response, at=AT) == (
+            1,
+            0,
+            [],
+        )
         assert revisions.head(target, stable_id) is not None
         assert sync_state.cursor(target, ACCOUNT) == "opaque-cursor"
-        assert sync_state.apply_page(target, account_id=ACCOUNT, response=response, at=AT) == (0, 1)
+        assert sync_state.apply_page(target, account_id=ACCOUNT, response=response, at=AT) == (
+            0,
+            1,
+            [],
+        )
     finally:
         source.close()
         target.close()
@@ -243,11 +251,19 @@ def test_last_page_keeps_the_position_the_walk_reached(tmp_path: Path) -> None:
         walked = SyncPullResponse(
             items=[first], page=PageInfo(next_cursor="cursor-after-first", page_size=1)
         )
-        assert sync_state.apply_page(target, account_id=ACCOUNT, response=walked, at=AT) == (1, 0)
+        assert sync_state.apply_page(target, account_id=ACCOUNT, response=walked, at=AT) == (
+            1,
+            0,
+            [],
+        )
         assert sync_state.cursor(target, ACCOUNT) == "cursor-after-first"
 
         terminal = SyncPullResponse(items=[last], page=PageInfo(next_cursor=None, page_size=1))
-        assert sync_state.apply_page(target, account_id=ACCOUNT, response=terminal, at=AT) == (1, 0)
+        assert sync_state.apply_page(target, account_id=ACCOUNT, response=terminal, at=AT) == (
+            1,
+            0,
+            [],
+        )
 
         # The next `pull` resumes from the page it already reached instead of
         # sending nothing and making the server start from sequence zero.
@@ -263,11 +279,19 @@ def test_pull_that_reached_the_end_of_an_empty_stream_invents_no_position(
     target = open_registry(tmp_path / "target.sqlite")
     try:
         empty = SyncPullResponse(items=[], page=PageInfo(next_cursor=None, page_size=20))
-        assert sync_state.apply_page(target, account_id=ACCOUNT, response=empty, at=AT) == (0, 0)
+        assert sync_state.apply_page(target, account_id=ACCOUNT, response=empty, at=AT) == (
+            0,
+            0,
+            [],
+        )
         # Nothing was walked, so there is no position to keep — and none is
         # fabricated: the cursor is signed and account-bound server-side.
         assert sync_state.cursor(target, ACCOUNT) is None
-        assert sync_state.apply_page(target, account_id=ACCOUNT, response=empty, at=AT) == (0, 0)
+        assert sync_state.apply_page(target, account_id=ACCOUNT, response=empty, at=AT) == (
+            0,
+            0,
+            [],
+        )
         assert sync_state.cursor(target, ACCOUNT) is None
     finally:
         target.close()
@@ -616,6 +640,83 @@ def test_a_refused_pull_names_the_event_and_the_condition(tmp_path: Path) -> Non
         assert details["reason"] == "revision_id is not derived from the payload"
         # The cursor must not move past an event that was never applied.
         assert sync_state.cursor(target, ACCOUNT) is None
+    finally:
+        source.close()
+        target.close()
+
+
+def test_a_named_event_can_be_walked_past_and_is_reported(tmp_path: Path) -> None:
+    """The only way out of a poisoned outbox, and it cannot be used blind.
+
+    An event that fails validation stops the account's pulls on every device,
+    and no page size gets past it: observed on production, where the walk
+    stopped on the same event id eight times running while `--page-size 1`
+    made no difference. Nothing client-side could move the cursor beyond it.
+
+    Walking past one abandons a revision, so the caller names the exact id the
+    refusal answered. There is deliberately no "skip whatever is broken": that
+    would silently drop a real revision the first time a different defect made
+    one unreadable. The skipped ids come back in the answer for the same
+    reason — an abandoned revision is not a quiet outcome.
+    """
+    source = open_registry(tmp_path / "source.sqlite")
+    target = open_registry(tmp_path / "target.sqlite")
+    stable_id = new_id("developer")
+    try:
+        local = revisions.commit(source, _content(stable_id), device_id=DEVICE_A)
+        prepared = sync_state.prepare(
+            source, account_id=ACCOUNT, device_id=DEVICE_A, stored=local
+        ).request
+        event = prepared.model_dump(
+            exclude={"idempotency_key", "expected_head_revision_id"}, mode="python"
+        )
+        payload = dict(cast(dict[str, object], event["payload"]))
+        payload["revision_id"] = f"revision_{'0' * 64}"
+        event["payload"] = payload
+        sealed: dict[str, JsonValue] = {
+            "schema_version": 1,
+            "entity_id": event["entity_id"],
+            "entity_kind": event["entity_kind"],
+            "parent_revision_ids": event["parent_revision_ids"],
+            "operation": event["operation"],
+            "payload": cast(JsonValue, payload),
+            "device_id": event["device_id"],
+            "actor_id": event["actor_id"],
+            "created_at": event["created_at"],
+        }
+        event["revision_id"] = revision_id(sealed)
+        event["content_digest"] = digest_canonical("ai-stp:revision:v1", cast(JsonValue, payload))
+        response = SyncPullResponse(
+            items=[SyncStreamEvent(**event, sequence=1)],
+            page=PageInfo(next_cursor="opaque-cursor", page_size=20),
+        )
+
+        # Without the id, the page is refused and the cursor never moves.
+        with pytest.raises(CliFailure):
+            sync_state.apply_page(target, account_id=ACCOUNT, response=response, at=AT)
+        assert sync_state.cursor(target, ACCOUNT) is None
+
+        # A different id is not "close enough": it must be the exact one.
+        with pytest.raises(CliFailure):
+            sync_state.apply_page(
+                target,
+                account_id=ACCOUNT,
+                response=response,
+                at=AT,
+                skip_event_ids=frozenset({f"event_{'f' * 32}"}),
+            )
+
+        applied, replayed, skipped = sync_state.apply_page(
+            target,
+            account_id=ACCOUNT,
+            response=response,
+            at=AT,
+            skip_event_ids=frozenset({prepared.event_id}),
+        )
+        assert (applied, replayed, skipped) == (0, 0, [prepared.event_id])
+        assert sync_state.cursor(target, ACCOUNT) == "opaque-cursor"
+        # The revision was abandoned, not quietly written.
+        assert revisions.head(target, stable_id) is None
     finally:
         source.close()
         target.close()

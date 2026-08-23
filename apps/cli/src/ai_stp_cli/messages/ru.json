@@ -3,6 +3,8 @@
   "--major must be an integer": "--major должен быть целым числом",
   "--page-size is outside the contract limit": "--page-size вне предела контракта",
   "--page-size must be an integer": "--page-size должен быть целым числом",
+  "--skip-event is bounded at 64 ids": "--skip-event ограничен 64 идентификаторами",
+  "--skip-event takes the exact event id a refused pull named": "--skip-event принимает точный идентификатор события, названный отклонённым pull",
   "a cache entry is unreadable": "запись кэша не читается",
   "a catalogue kind is required": "нужно указать вид каталога",
   "a component directory contains a credential-named path": "каталог компонента содержит путь с именем учётных данных",

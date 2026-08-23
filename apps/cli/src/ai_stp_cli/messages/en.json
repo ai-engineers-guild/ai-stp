@@ -3,6 +3,8 @@
   "--major must be an integer": "--major must be an integer",
   "--page-size is outside the contract limit": "--page-size is outside the contract limit",
   "--page-size must be an integer": "--page-size must be an integer",
+  "--skip-event is bounded at 64 ids": "--skip-event is bounded at 64 ids",
+  "--skip-event takes the exact event id a refused pull named": "--skip-event takes the exact event id a refused pull named",
   "a cache entry is unreadable": "a cache entry is unreadable",
   "a catalogue kind is required": "a catalogue kind is required",
   "a component directory contains a credential-named path": "a component directory contains a credential-named path",

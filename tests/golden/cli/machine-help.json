@@ -4347,6 +4347,15 @@
           "choices": []
         },
         {
+          "name": "skip-event",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "Exact id of a refused event to walk past, abandoning its revision. Repeat to name several.",
+          "choices": []
+        },
+        {
           "name": "confirm",
           "kind": "option",
           "value_type": "boolean",

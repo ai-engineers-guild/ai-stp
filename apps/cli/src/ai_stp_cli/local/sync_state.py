@@ -450,7 +450,8 @@ def apply_page(
     account_id: str,
     response: SyncPullResponse,
     at: str,
-) -> tuple[int, int]:
+    skip_event_ids: frozenset[str] = frozenset(),
+) -> tuple[int, int, list[str]]:
     """Apply one ordered page and advance its opaque cursor in one transaction.
 
     A null `next_cursor` is pagination state, not a position. `PageInfo` defines
@@ -470,8 +471,23 @@ def apply_page(
     account-bound, so this side cannot mint one and must not try.
     """
     applied = replayed = 0
+    skipped: list[str] = []
     with transaction(connection):
         for event in response.items:
+            # Named, one exact id at a time, and never inferred. An event that
+            # fails validation stops this account's pulls on every device and
+            # no page size gets past it — observed on production, where two
+            # events sealed before `seal_envelope` was corrected blocked the
+            # walk permanently and nothing could move the cursor beyond them.
+            #
+            # Walking past one is abandoning a revision, so the caller has to
+            # know which. `--skip-event` takes the exact id the refusal named
+            # and nothing else: there is deliberately no "skip whatever is
+            # broken", because that would silently drop a real revision the
+            # moment a different defect made one unreadable.
+            if event.event_id in skip_event_ids:
+                skipped.append(event.event_id)
+                continue
             outcome = _apply_event(connection, account_id=account_id, event=event)
             applied += outcome == "applied"
             replayed += outcome == "replayed"
@@ -491,4 +507,4 @@ def apply_page(
                 "updated_at = excluded.updated_at",
                 (account_id, response.page.next_cursor, at),
             )
-    return applied, replayed
+    return applied, replayed, skipped
