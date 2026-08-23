@@ -1,0 +1,105 @@
+# Publishes to PyPI the exact bytes a `release-candidate` run already built and
+# attested. It never builds and never checks out repository code: the artifact
+# comes from the named run, so what is uploaded is what was attested rather than
+# something equivalent produced a second time.
+#
+# Two independent authorisations, and neither implies the other. `run_id` names
+# one immutable set of bytes; the `pypi` environment holds the upload until a
+# person approves it. Trusted Publishing then authenticates with an OIDC token
+# naming this repository, this workflow file and that environment, so a token
+# minted anywhere else buys nothing.
+#
+# There is no API token in this file, and that is the point: a long-lived upload
+# credential is a secret somebody has to keep safe forever, and Trusted
+# Publishing replaces it with an identity PyPI verifies for each run.
+#
+# The candidate carries five distributions plus an SBOM, a release manifest and
+# `SHA256SUMS`. Only the distributions are uploaded, and only after their
+# digests are checked against those sums — uploading whatever the directory
+# happened to contain would make the download the only real check.
+name: publish-pypi
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact package version to publish, without a leading v
+        required: true
+        type: string
+      run_id:
+        description: release-candidate run whose attested artifact is published
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-pypi
+  cancel-in-progress: false
+
+env:
+  PACKAGES: ai_stp_foundation ai_stp_passports ai_stp_assurance ai_stp_contracts ai_stp_cli
+
+jobs:
+  publish:
+    name: publish-attested-candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: pypi
+      url: https://pypi.org/project/ai-stp-cli/
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Получить ровно те байты, которые заверил release-candidate
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          pattern: ai-stp-python-${{ inputs.version }}-*
+          merge-multiple: true
+          path: candidate
+
+      - name: Сверить дистрибутивы с SHA256SUMS кандидата
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          test -f SHA256SUMS || { echo "candidate carries no SHA256SUMS" >&2; exit 1; }
+          # Every file the candidate recorded, including the SBOM and manifest.
+          # Checking only what we upload would leave a swapped SBOM unnoticed.
+          sha256sum --check --strict SHA256SUMS
+
+      - name: Отобрать только дистрибутивы и отказать при неполном наборе
+        env:
+          EXPECTED_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          for package in ${PACKAGES}; do
+            wheel="candidate/${package}-${EXPECTED_VERSION}-py3-none-any.whl"
+            sdist="candidate/${package}-${EXPECTED_VERSION}.tar.gz"
+            for path in "${wheel}" "${sdist}"; do
+              if [[ ! -f "${path}" ]]; then
+                echo "run ${{ inputs.run_id }} has no $(basename "${path}")" >&2
+                exit 1
+              fi
+              cp "${path}" dist/
+            done
+          done
+          # Exactly ten: five packages, two formats each. A surplus file means
+          # the candidate is not the one this workflow was written against.
+          count="$(find dist -type f | wc -l)"
+          if [[ "${count}" -ne 10 ]]; then
+            echo "expected 10 distributions, selected ${count}" >&2
+            exit 1
+          fi
+          printf 'publishing:\n'
+          find dist -type f -printf '  %f\n' | sort
+
+      - name: Загрузить через Trusted Publishing
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33
+        with:
+          packages-dir: dist
+          print-hash: true
