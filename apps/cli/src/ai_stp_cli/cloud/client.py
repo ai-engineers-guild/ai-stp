@@ -33,7 +33,7 @@ from ai_stp_contracts.http import (
     SCHEMA_VERSION,
     SCHEMA_VERSION_HEADER,
 )
-from ai_stp_foundation.errors import is_registered_code
+from ai_stp_foundation.errors import ERROR_CODES, is_registered_code
 
 #: Bounded on purpose. An agent waiting on a hung connection cannot tell the
 #: difference between slow and broken, and neither can the person waiting on it.
@@ -364,6 +364,28 @@ def _malformed(response: httpx.Response, error: BaseException) -> CliFailure:
     )
 
 
+#: How to get out of a refusal the server reported, keyed by the closed
+#: registry's own handling class. A code raised locally already names its way
+#: back; the same code arriving over the wire named nothing, because the
+#: response body carries no next actions. Only the classes with one unambiguous
+#: CLI answer are listed — `correct_request` and `reconcile_state` depend on the
+#: command that failed, and inventing a step for them would be worse than
+#: silence.
+_WAY_BACK: Final[Mapping[str, tuple[str, ...]]] = {
+    "authenticate": ("auth login --provider github --json",),
+    "await_authorization": ("auth complete --json",),
+    "restart_authorization": (
+        "device reset --confirm --json",
+        "auth login --provider github --json",
+    ),
+}
+
+
+def _way_back(code: str) -> list[str]:
+    entry = ERROR_CODES.get(code)
+    return [] if entry is None else list(_WAY_BACK.get(entry.handling, ()))
+
+
 def failure_from(response: httpx.Response) -> CliFailure:
     """Turn an error response into a registered code.
 
@@ -392,4 +414,5 @@ def failure_from(response: httpx.Response) -> CliFailure:
             "status": str(response.status_code),
             "request_id": response.headers.get(REQUEST_ID_HEADER, ""),
         },
+        next_actions=_way_back(code),
     )

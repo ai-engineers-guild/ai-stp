@@ -243,13 +243,19 @@ def _run_scenarios(
         "note": "a push with nothing new must be accepted and must not create a second event",
     }
 
+    # Disjoint fields, deliberately. The push conflict below comes from B's
+    # stale expected head, not from field overlap, so it is proven either way —
+    # while the merge scenario that follows needs a divergence that is
+    # mechanically clean. Both devices editing `role` made `merge` unprovable:
+    # a same-field divergence is a conflict by definition, and the scenario
+    # asked for `merge_ready` from it.
     cli(
         ["passport", "developer", "update", "--set", "role=product"],
         home=home_a,
         python=python,
     )
     cli(
-        ["passport", "developer", "update", "--set", "role=infrastructure"],
+        ["passport", "developer", "update", "--set", "autonomy=full-auto"],
         home=home_b,
         python=python,
     )
@@ -291,6 +297,7 @@ def _run_scenarios(
         if pulled.get("ok") and preview.get("state") == "merge_ready" and after.get("ok")
         else "failed",
         "pull_state": "accepted" if pulled.get("ok") else pulled.get("error_code"),
+        "pull_applied": pulled.get("applied"),
         "preview_state": preview.get("state"),
         "merged_state": merged.get("state"),
         "push_after_merge": after.get("state", after.get("error_code")),

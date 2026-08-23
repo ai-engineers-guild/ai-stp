@@ -872,3 +872,67 @@ def test_preview_does_not_answer_up_to_date_against_a_server_head_it_lacks(
         assert report.candidate_revision_id is None
     finally:
         connection.close()
+
+
+def test_a_server_reported_revocation_offers_the_same_recovery_as_a_local_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One code must not mean two different things depending on who noticed.
+
+    `cloud_auth.required` refuses a locally-known revoked device and names the
+    way back. The same code arriving from the server was mapped straight from
+    the response body, which carries no `next_actions`, so the operator got
+    `AI_STP_DEVICE_REVOKED` and an empty list. Observed on production right
+    after revoking a device in the web: correct code, correct `retryable:
+    false`, and nothing saying that re-login is the answer.
+
+    The closed registry already records how each code is handled, so the
+    recovery is derived from that rather than invented per call site.
+    """
+    registry_path = tmp_path / "registry.sqlite"
+    with open_registry(registry_path) as registry:
+        revisions.commit(registry, _content(new_id("developer")), device_id=DEVICE_A)
+    held = session.Session(
+        account_id=ACCOUNT,
+        device_id=DEVICE_A,
+        access_token="token",
+        refresh_token="refresh",
+        expires_at="2099-01-01T00:00:00.000Z",
+    )
+
+    def route(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            401,
+            json={
+                "schema_version": 1,
+                "ok": False,
+                "error": {
+                    "code": "AI_STP_DEVICE_REVOKED",
+                    "message": "device is revoked",
+                    "retryable": False,
+                    "details": {},
+                },
+            },
+        )
+
+    monkeypatch.setattr(sync_commands, "_enabled", lambda: None)  # pyright: ignore[reportPrivateUsage]
+    monkeypatch.setattr(sync_commands, "configured_path", lambda: registry_path)
+
+    def required_session(_purpose: str) -> session.Session:
+        return held
+
+    monkeypatch.setattr(cloud_auth, "required", required_session)
+    monkeypatch.setattr(
+        sync_commands,
+        "endpoint",
+        lambda: Endpoint(
+            "https://platform.example", max_attempts=1, transport=httpx.MockTransport(route)
+        ),
+    )
+
+    with pytest.raises(CliFailure) as refused:
+        sync_commands.pull({"confirm": True})
+    assert refused.value.code == "AI_STP_DEVICE_REVOKED"
+    assert refused.value.retryable is False
+    assert refused.value.next_actions, "a revoked device was given no way back"
+    assert any("auth login" in action for action in refused.value.next_actions)
