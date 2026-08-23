@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -177,24 +178,14 @@ def verify_sync_slice(
     else:
         scenarios.update(_run_scenarios(home_a, home_b, python=python, skip=skip))
 
-    scenarios["version_collision"] = {
-        "state": "not_verified",
-        "reason": (
-            "reachable, and this slice does not drive it: it needs a component "
-            "both devices hold before either releases its version. A: register "
-            "and push, B: pull, both release the same X.Y from different "
-            "content, A pushes first. The component surface is driveable end to "
-            "end -- scaffold, discover, adopt, release and push all succeed "
-            "against the deployed environment -- so what is missing is the "
-            "driver, not the ability. Note that adoption records `source_path` "
-            "through `redact_home`, so a component under the home directory "
-            "carries `~/...` and syncs; one outside it keeps an absolute path "
-            "and is refused, which is correct and is what a scratch directory "
-            "hits"
-        ),
-        "covered_by_mock": "tests/unit/test_cli_sync_transport.py::"
-        "test_version_collision_rolls_back_the_remote_revision_and_cursor",
-    }
+    scenarios["version_collision"] = (
+        _version_collision(home_a, home_b, python=python, skip=skip)
+        if states["a"] == "authenticated" and states["b"] == "authenticated"
+        else {
+            "state": "not_verified",
+            "reason": "both devices must be authenticated to drive two-device scenarios",
+        }
+    )
 
     return without_credentials(
         {
@@ -204,6 +195,182 @@ def verify_sync_slice(
             "scenarios": scenarios,
         }
     )
+
+
+#: A component the collision scenario can diverge. Placed inside the device home
+#: on purpose: adoption records `source_path` through `redact_home`, so a
+#: component under the home carries `~/...` and crosses the sync boundary, while
+#: one in a scratch directory keeps an absolute path and is refused.
+_PROBE = "sync-collision-probe"
+
+
+def _seed_component(home: Path, *, python: str) -> str:
+    """Scaffold, discover and adopt one component in this home, and return its id."""
+    project = home / "work"
+    scaffold = home / "scaffold" / _PROBE
+    target = project / ".claude" / "skills" / _PROBE
+    scaffold.parent.mkdir(parents=True, exist_ok=True)
+    if scaffold.exists():
+        shutil.rmtree(scaffold)
+    planned = data(
+        cli(
+            [
+                "component",
+                "scaffold",
+                "plan",
+                "--type",
+                "skill",
+                "--language",
+                "none",
+                "--harness",
+                "portable",
+                "--name",
+                _PROBE,
+                "--output",
+                str(scaffold),
+            ],
+            home=home,
+            python=python,
+        ),
+        "component scaffold plan",
+    )
+    cli(
+        [
+            "component",
+            "scaffold",
+            "apply",
+            "--type",
+            "skill",
+            "--language",
+            "none",
+            "--harness",
+            "portable",
+            "--name",
+            _PROBE,
+            "--output",
+            str(scaffold),
+            "--expected-plan-digest",
+            str(planned["plan_digest"]),
+            "--confirm",
+        ],
+        home=home,
+        python=python,
+    )
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if target.exists():
+        shutil.rmtree(target)
+    shutil.copytree(scaffold, target)
+    adopted = data(
+        cli(
+            ["component", "adopt", "--path", str(target), "--root", str(project)],
+            home=home,
+            python=python,
+        ),
+        "component adopt",
+    )
+    return str(adopted["stable_id"])
+
+
+def _release(home: Path, stable_id: str, *, python: str) -> str:
+    """Give the current head its next immutable number and return that number."""
+    released = data(
+        cli(
+            ["component", "version", "release", "--id", stable_id, "--confirm"],
+            home=home,
+            python=python,
+        ),
+        "component version release",
+    )
+    numbers = [str(item["version"]) for item in released.get("versions", [])]
+    if not numbers:
+        raise EvidenceError("component version release answered without a version")
+    return numbers[-1]
+
+
+def _declare(home: Path, stable_id: str, value: str, *, python: str) -> None:
+    """Move this device's draft so the two sides release different content."""
+    shown = data(
+        cli(["component", "passport", "show", "--id", stable_id], home=home, python=python),
+        "component passport show",
+    )
+    patch = home / f"patch-{value}.json"
+    patch.write_text(json.dumps({"description": f"collision probe {value}"}), encoding="utf-8")
+    cli(
+        [
+            "component",
+            "passport",
+            "update",
+            "--id",
+            stable_id,
+            "--expected-revision",
+            str(shown["revision_id"]),
+            "--from",
+            str(patch),
+            "--confirm",
+        ],
+        home=home,
+        python=python,
+    )
+
+
+def _released_digest(home: Path, stable_id: str, version: str, *, python: str) -> str:
+    """The passport digest this device holds for one immutable number."""
+    listed = data(
+        cli(["component", "version", "list", "--id", stable_id], home=home, python=python),
+        "component version list",
+    )
+    for item in listed.get("versions", []):
+        if str(item.get("version")) == version:
+            return str(item.get("passport_digest", ""))
+    return ""
+
+
+def _version_collision(
+    home_a: Path, home_b: Path, *, python: str, skip: Sequence[str] = ()
+) -> dict[str, Any]:
+    """Two devices holding the same X.Y from different content, A pushing first.
+
+    The refusal is the proof. B already holds `1.0` for this component, the page
+    carries a different `1.0`, and an immutable number cannot mean two documents
+    — so the whole page rolls back and the cursor stays where it was.
+    """
+    stable_id = _seed_component(home_a, python=python)
+    seeded = _push(home_a, stable_id, python=python)
+    if seeded.get("state") != "accepted":
+        return {
+            "state": "failed",
+            "reason": "the draft component did not reach the account",
+            "push_state": seeded.get("state"),
+            "error_code": seeded.get("error_code"),
+        }
+    pulled = _pull(home_b, python=python, skip=skip)
+
+    _declare(home_a, stable_id, "a", python=python)
+    _declare(home_b, stable_id, "b", python=python)
+    number_a = _release(home_a, stable_id, python=python)
+    number_b = _release(home_b, stable_id, python=python)
+    first = _push(home_a, stable_id, python=python)
+    held_before = _released_digest(home_b, stable_id, number_b, python=python)
+    collided = _pull(home_b, python=python, skip=skip)
+    held_after = _released_digest(home_b, stable_id, number_b, python=python)
+
+    same_number = number_a == number_b
+    refused = not collided.get("ok") and collided.get("error_code") == "AI_STP_CONFLICT"
+    # Refusing is half the claim. The other half is that B still holds its own
+    # `1.0` afterwards: a page that refused and overwrote would look identical
+    # from the receipt alone.
+    kept = bool(held_before) and held_before == held_after
+    return {
+        "state": "verified"
+        if same_number and first.get("state") == "accepted" and refused and kept
+        else "failed",
+        "stable_id": stable_id,
+        "seed_pull_applied": pulled.get("applied"),
+        "released_version": number_a if same_number else f"{number_a} vs {number_b}",
+        "first_push_state": first.get("state"),
+        "second_pull_error": collided.get("error_code") or "accepted",
+        "local_release_kept": kept,
+    }
 
 
 def _run_scenarios(
