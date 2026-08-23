@@ -59,7 +59,7 @@ class ServiceSettings(BaseSettings):
     # version of a running build is a fact of the build; configuration that can
     # disagree with it is a second source of truth for something that has one.
     version: str = Field(
-        default_factory=lambda: _distribution_version(),
+        default_factory=_distribution_version,
         validation_alias=AliasChoices("ai_stp_api_build_version"),
     )
     # Optional deploy identity for safe diagnostics (REQ-2411). Never a secret.

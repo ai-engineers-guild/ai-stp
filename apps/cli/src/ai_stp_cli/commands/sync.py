@@ -381,7 +381,7 @@ def _skipped_event_ids(parameters: Mapping[str, object]) -> frozenset[str]:
     # not given at all — `None` is only what a caller passing this in code
     # leaves out. Reading an empty tuple as one value produced the id `"()"`.
     if isinstance(given, list | tuple):
-        values: tuple[object, ...] = tuple(cast("Sequence[object]", given))
+        values: tuple[object, ...] = tuple(cast(Sequence[object], given))
     elif given is None:
         values = ()
     else:

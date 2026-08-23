@@ -71,6 +71,14 @@ class _Demands(ast.NodeVisitor):
         self._read_from: dict[str, str] = {}
         self._depth = 0
 
+    # These five stop the walk on purpose: a nested definition, a lambda, a
+    # `try`, a loop — none of them is part of the handler's unconditional body.
+    # The argument goes unused because stopping *is* the behaviour. It cannot be
+    # renamed to `_node`, which is what a reader expects: `NodeVisitor` names it
+    # `node` and an override that renames it is an incompatible signature. It
+    # was `del node` for a while, which CodeQL correctly reported as a delete
+    # that does nothing.
+
     # A nested definition is not part of this handler's unconditional body.
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         if self._depth:
@@ -81,23 +89,23 @@ class _Demands(ast.NodeVisitor):
         self._depth -= 1
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
-        del node
+        return
 
     def visit_Lambda(self, node: ast.Lambda) -> None:
-        del node
+        return
 
     # Anything conditional is a `parameter_rules` matter, not a `required` one.
     def visit_If(self, node: ast.If) -> None:
         self._conditional_refusal(node)
 
     def visit_Try(self, node: ast.Try) -> None:
-        del node
+        return
 
     def visit_For(self, node: ast.For) -> None:
-        del node
+        return
 
     def visit_While(self, node: ast.While) -> None:
-        del node
+        return
 
     def visit_Assign(self, node: ast.Assign) -> None:
         option = _read_option(node.value)

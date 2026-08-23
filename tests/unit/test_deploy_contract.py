@@ -328,3 +328,24 @@ def test_deploy_verification_outlasts_its_own_wait() -> None:
         f"{wait_minutes:.0f} — it will be cancelled before it can conclude, and "
         "report a healthy deployment as a failure"
     )
+
+
+def test_both_deploy_jobs_state_the_condition_they_depend_on() -> None:
+    """`needs` is not visible to a static analyser, and one job checks out code.
+
+    `promote` already duplicates its event and branch condition in a job `if`,
+    with a comment saying why: a later edit that dropped the `test` inside `run`
+    would silently start promoting a pull-request run, while the same mistake
+    stated as a job condition merely skips.
+
+    `verify-public` checks out `workflow_run.head_sha`. It could never run on a
+    fork's pull request — `promote` refuses anything but a push to `main`, and a
+    skipped dependency skips its dependents — but CodeQL reported it as an
+    untrusted checkout because nothing said so where a scanner could read it.
+    Both jobs now state it.
+    """
+    workflow = _deploy_workflow()
+    guard = "github.event.workflow_run.event == 'push'"
+    branch = "github.event.workflow_run.head_branch == 'main'"
+    assert workflow.count(guard) >= 2, "a job that runs on workflow_run does not state its event"
+    assert workflow.count(branch) >= 2, "a job that runs on workflow_run does not state its branch"

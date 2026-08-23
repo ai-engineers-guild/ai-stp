@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import shutil
 import subprocess
 import time
 from pathlib import Path
 from typing import Final
+
+_LOG: Final[logging.Logger] = logging.getLogger(__name__)
 
 # External CLIs can hang or pull network on some hosts. Default is owned
 # in-proc engines only; worker image sets AI_STP_SAFETY_EXTERNAL_CLI=1.
@@ -125,12 +128,24 @@ def _run(
 
 
 def _record(code: int, duration_ms: int, sandbox_mode: str) -> None:
+    """Record one adapter run, and never let recording change the outcome.
+
+    A scan's verdict is a property of the artefact, not of whether a metric
+    reached a collector — so this swallows everything, deliberately. What it
+    did not do was say so: an empty `except Exception: pass` is
+    indistinguishable from one somebody forgot to finish, and CodeQL reports
+    it for exactly that reason.
+
+    Logged at debug rather than dropped: a metrics backend that is failing
+    every call is worth being able to find, and this is the only place that
+    knows it happened.
+    """
     try:
         from ai_stp_platform.safety.metrics import record_cli_result
 
         record_cli_result(code=code, duration_ms=duration_ms, sandbox_mode=sandbox_mode)
     except Exception:
-        pass
+        _LOG.debug("safety adapter metrics were not recorded", exc_info=True)
 
 
 def manifest_roots(tree: Path, *names: str) -> tuple[Path, ...]:
