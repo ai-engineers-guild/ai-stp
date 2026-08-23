@@ -81,7 +81,17 @@ jobs:
     runs-on: ubuntu-latest
     # The wait below plus checkout and setup. Larger than the wait, so a
     # timeout means the job was starved rather than the target being late.
-    timeout-minutes: 18
+    #
+    # It was 18 while the wait beneath it was already 25, so the job was killed
+    # seven minutes before its own wait could conclude. Run 32629727961 spent
+    # 18m28s and was cancelled while production had in fact deployed — exactly
+    # the red-run-for-a-healthy-deployment this bound exists to prevent, caused
+    # by the fix for it moving only one of the two numbers.
+    #
+    # `test_deploy_verification_outlasts_its_own_wait` now holds the pair, which
+    # is a relationship the tree can state: the comment above says the ceiling
+    # must exceed the wait, and nothing checked that it did.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:

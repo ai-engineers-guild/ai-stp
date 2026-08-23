@@ -9,9 +9,16 @@ import { readCsrfToken } from "@/lib/auth/session";
 import { getOptionalSession } from "@/lib/auth/require-session";
 import { Link } from "@/lib/i18n/navigation";
 
+/** The refusals the action can report, mapped to what the reader should do. */
+const REASON_KEYS = ["unknown", "expired", "resolved", "csrf", "failed"] as const;
+
+function reasonKey(reason: string | undefined): (typeof REASON_KEYS)[number] {
+  return REASON_KEYS.find((key) => key === reason) ?? "failed";
+}
+
 type PageProps = {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ user_code?: string; status?: string }>;
+  searchParams: Promise<{ user_code?: string; status?: string; reason?: string }>;
 };
 
 export default async function DeviceLoginPage({ params, searchParams }: PageProps) {
@@ -52,7 +59,13 @@ export default async function DeviceLoginPage({ params, searchParams }: PageProp
       <h1 className="text-3xl font-medium tracking-tight">{t("title")}</h1>
       <p className="text-muted-foreground">{t("subtitle")}</p>
       {sp.status === "error" ? (
-        <StatePanel kind="error" title={t("error")} description={sp.status} />
+        // `description` used to be `sp.status`, so the panel read "error"
+        // under the title "Could not approve this code" — the same two words
+        // for a mistyped code, a code that had timed out, one already used,
+        // and a rejected request. The reader could not tell which of the four
+        // they were looking at, and the two most common ones need opposite
+        // responses: retype it, or run `ai-stp auth login` again.
+        <StatePanel kind="error" title={t("error")} description={t(reasonKey(sp.reason))} />
       ) : null}
       <form
         action={async (formData) => {

@@ -291,3 +291,40 @@ def test_macos_evidence_stays_manual_and_can_neither_publish_nor_deploy() -> Non
     assert "on:\n  push:" not in workflow
     for forbidden in ("id-token: write", "attestations: write", "contents: write"):
         assert forbidden not in executable, forbidden
+
+
+def test_deploy_verification_outlasts_its_own_wait() -> None:
+    """A job killed before its wait concludes reports the target as late.
+
+    The `verify-public` comment states the rule itself — the ceiling is "the
+    wait below plus checkout and setup", larger than the wait, "so a timeout
+    means the job was starved rather than the target being late". Nothing
+    checked that the two numbers obeyed it.
+
+    They stopped obeying it the moment the wait was raised. A deployment
+    measured at 13m17s pushed `--wait-seconds` to 1500 while
+    `timeout-minutes` stayed at 18, so the job was cancelled seven minutes
+    before its own wait could finish. Run 32629727961 did exactly that, at
+    18m28s, while production had in fact deployed — the red run for a healthy
+    deployment that raising the wait was meant to stop.
+
+    Stated as a relationship rather than a number, because the number is a fact
+    about how long the host takes to rebuild and will move again. What must
+    hold is the order between them.
+    """
+    workflow = _deploy_workflow()
+    # Scoped to the job that waits. Reading the file as a whole finds
+    # `promote`'s ceiling first, which bounds a different thing entirely.
+    job = workflow.split("\n  verify-public:", 1)
+    assert len(job) == 2, "the verification job is no longer named verify-public"
+    body = job[1]
+    wait = re.search(r"--wait-seconds\s+(\d+)", body)
+    assert wait, "verification no longer bounds its wait"
+    ceiling = re.search(r"timeout-minutes:\s*(\d+)", body)
+    assert ceiling, "the verification job declares no timeout"
+    wait_minutes = int(wait.group(1)) / 60
+    assert int(ceiling.group(1)) > wait_minutes, (
+        f"verify-public is capped at {ceiling.group(1)} minutes but waits "
+        f"{wait_minutes:.0f} — it will be cancelled before it can conclude, and "
+        "report a healthy deployment as a failure"
+    )

@@ -431,7 +431,12 @@
     "needSignIn": "Sign in first, then approve the device code.",
     "approved": "Device approved",
     "approvedHint": "Return to the CLI — polling should complete shortly.",
-    "error": "Could not approve this code"
+    "error": "Could not approve this code",
+    "unknown": "No pending sign-in uses this code. Check the code the CLI printed and retype it.",
+    "expired": "This code has expired. Run `ai-stp auth login` again for a new one.",
+    "resolved": "This code was already used. Run `ai-stp auth login` again for a new one.",
+    "csrf": "This page went stale while it was open. Reload it and approve the code again.",
+    "failed": "The request did not reach the service. Try again in a moment."
   },
   "devices": {
     "title": "Devices",
