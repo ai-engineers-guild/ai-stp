@@ -25,7 +25,9 @@ from ai_stp_contracts.sync import (
     SyncStreamEvent,
 )
 from ai_stp_foundation.canonical import JsonValue
+from ai_stp_foundation.digests import digest_canonical
 from ai_stp_foundation.ids import new_id
+from ai_stp_foundation.revisions import revision_id
 
 ACCOUNT = "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
 DEVICE_A = "device_01JQZK7B8N4M6P2R9T5V0X3Y7A"
@@ -553,3 +555,67 @@ def test_sync_transport_commands_are_explicit_and_machine_described() -> None:
     for name in ("sync push", "sync pull", "sync merge"):
         assert commands[name].descriptor.confirmation == "explicit_flag"
         assert commands[name].descriptor.result_schema is not None
+
+
+def test_a_refused_pull_names_the_event_and_the_condition(tmp_path: Path) -> None:
+    """A page is applied atomically, so one bad event stops the account forever.
+
+    The refusal used to carry neither the event nor the reason — an empty
+    `details` and a sentence naming three conditions without saying which. Two
+    events with a `revision_id` that does not derive from their payload reached
+    production before `seal_envelope` was corrected, and from the client there
+    was no way to learn which of the three checks refused them, or which event
+    to repair. Finding out meant reimplementing the check outside the CLI.
+
+    Everything the answer needs is already in hand at the point of refusal.
+    """
+    source = open_registry(tmp_path / "source.sqlite")
+    target = open_registry(tmp_path / "target.sqlite")
+    stable_id = new_id("developer")
+    try:
+        local = revisions.commit(source, _content(stable_id), device_id=DEVICE_A)
+        prepared = sync_state.prepare(
+            source, account_id=ACCOUNT, device_id=DEVICE_A, stored=local
+        ).request
+        event = prepared.model_dump(
+            exclude={"idempotency_key", "expected_head_revision_id"}, mode="python"
+        )
+        # Exactly the shape production carried: a payload whose stated revision
+        # id is not the one its own content derives, inside an event whose own
+        # account binding is intact. Both have to hold — the binding is checked
+        # first, and a payload edited without resealing the event never reaches
+        # the coordinates check at all.
+        payload = dict(cast(dict[str, object], event["payload"]))
+        payload["revision_id"] = f"revision_{'0' * 64}"
+        event["payload"] = payload
+        sealed: dict[str, JsonValue] = {
+            "schema_version": 1,
+            "entity_id": event["entity_id"],
+            "entity_kind": event["entity_kind"],
+            "parent_revision_ids": event["parent_revision_ids"],
+            "operation": event["operation"],
+            "payload": cast(JsonValue, payload),
+            "device_id": event["device_id"],
+            "actor_id": event["actor_id"],
+            "created_at": event["created_at"],
+        }
+        event["revision_id"] = revision_id(sealed)
+        event["content_digest"] = digest_canonical("ai-stp:revision:v1", cast(JsonValue, payload))
+        response = SyncPullResponse(
+            items=[SyncStreamEvent(**event, sequence=1)],
+            page=PageInfo(next_cursor="opaque-cursor", page_size=20),
+        )
+        with pytest.raises(CliFailure) as refused:
+            sync_state.apply_page(target, account_id=ACCOUNT, response=response, at=AT)
+        details = refused.value.details
+        assert refused.value.message == (
+            "a pulled sync payload does not match its exact event coordinates"
+        ), refused.value.message
+        assert details["entity_id"] == stable_id
+        assert details["event_id"] == prepared.event_id
+        assert details["reason"] == "revision_id is not derived from the payload"
+        # The cursor must not move past an event that was never applied.
+        assert sync_state.cursor(target, ACCOUNT) is None
+    finally:
+        source.close()
+        target.close()

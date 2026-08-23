@@ -360,14 +360,29 @@ def _apply_event(connection: sqlite3.Connection, *, account_id: str, event: Sync
             raise CliFailure(
                 "AI_STP_VALIDATION_ERROR", "a pulled sync payload is not a passport envelope"
             ) from error
-        if (
-            not verify_revision_id(envelope)
-            or envelope.stable_id != event.entity_id
-            or _KIND.get(envelope.kind) != event.entity_kind
-        ):
+        # Which of the three, and for which event. The refusal used to carry
+        # neither, and a page is applied atomically: one unacceptable event
+        # stops every future pull for that account, with nothing in the answer
+        # to say which one or why. Two such events reached production before
+        # `seal_envelope` was corrected, and finding them meant reimplementing
+        # this check outside the CLI to ask it one condition at a time.
+        mismatch = {
+            "revision_id is not derived from the payload": not verify_revision_id(envelope),
+            "stable_id does not match entity_id": envelope.stable_id != event.entity_id,
+            "kind does not match entity_kind": _KIND.get(envelope.kind) != event.entity_kind,
+        }
+        failed = [reason for reason, broken in mismatch.items() if broken]
+        if failed:
             raise CliFailure(
                 "AI_STP_VALIDATION_ERROR",
                 "a pulled sync payload does not match its exact event coordinates",
+                details={
+                    "event_id": event.event_id,
+                    "entity_id": event.entity_id,
+                    "entity_kind": event.entity_kind,
+                    "revision_id": envelope.revision_id,
+                    "reason": "; ".join(failed),
+                },
             )
         document = cast(dict[str, JsonValue], envelope.model_dump(mode="json"))
         document.pop("revision_id", None)

@@ -80,8 +80,29 @@ def derive_revision_id(data: dict[str, JsonValue]) -> str:
 
 
 def seal_envelope(data: dict[str, JsonValue]) -> PassportEnvelope:
-    """Fill ``revision_id`` from content and validate the sealed envelope."""
-    sealed = dict(data)
+    """Fill ``revision_id`` from content and validate the sealed envelope.
+
+    Derived twice, and the authoritative one is over the **validated** dump.
+    That is not belt and braces: `verify_revision_id` compares against
+    `model_dump(mode="json")`, so an id derived over the caller's input agrees
+    with it only when the caller spelled out every field that has a default.
+
+    `visibility` has one. `passport developer update` omits it, so the input
+    hashed one document and the validated envelope was another — every
+    developer passport written by an update carried an id that fails its own
+    verification. Nothing local noticed, because nothing verifies a revision it
+    has just written. `sync pull` does, and refused the payload as not matching
+    its event coordinates: two devices could push and conflict, and neither
+    could ever pull.
+
+    `component_passports.version_passport` already derived twice for the
+    server-side half of the same mismatch (`#381`). This is the same fix, one
+    level down, where every caller inherits it.
+    """
+    candidate = dict(data)
+    candidate["revision_id"] = derive_revision_id(candidate)
+    validated = PassportEnvelope.model_validate(candidate)
+    sealed = cast(dict[str, JsonValue], validated.model_dump(mode="json"))
     sealed["revision_id"] = derive_revision_id(sealed)
     return PassportEnvelope.model_validate(sealed)
 

@@ -93,3 +93,33 @@ def test_tampered_revision_id_fails_verification() -> None:
         {**sealed.model_dump(mode="json"), "revision_id": derive_revision_id(_base("device"))}
     )
     assert not verify_revision_id(tampered)
+
+
+def test_sealing_a_document_that_omits_a_defaulted_field_still_verifies() -> None:
+    """`seal_envelope` hashed its input; `verify_revision_id` hashes the model.
+
+    Those are the same document only when the caller spells out every field
+    that has a default. `_base` above does, which is why every test here
+    passed while the defect was live: `visibility` defaults to `private`, and
+    a caller that leaves it out gets an id derived over a document without it,
+    then a validated envelope that has it. The two never agree again.
+
+    Found on production. `passport developer update` omits `visibility`, so
+    every developer passport written by an update carried an id that fails its
+    own verification — invisible locally, because nothing verifies a revision
+    it just wrote, and fatal on `sync pull`, which does exactly that and
+    refused the payload as not matching its event coordinates. Two devices
+    could push and conflict, and neither could ever pull.
+    """
+    data = _base("developer")
+    del data["visibility"]
+    sealed = seal_envelope(data)
+    assert sealed.visibility == "private", "the default is still applied"
+    assert verify_revision_id(sealed), "a sealed envelope must verify against itself"
+
+
+def test_an_omitted_default_seals_to_the_same_id_as_the_spelled_one() -> None:
+    """Otherwise the same passport has two ids depending on how it was written."""
+    spelled = _base("developer")
+    omitted = {key: value for key, value in spelled.items() if key != "visibility"}
+    assert seal_envelope(omitted).revision_id == seal_envelope(spelled).revision_id
