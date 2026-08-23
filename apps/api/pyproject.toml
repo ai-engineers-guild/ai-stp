@@ -1,6 +1,6 @@
 [project]
 name = "ai-stp-api"
-version = "0.0.1"
+version = "0.0.2"
 description = "FastAPI /v1 application shell: envelope, error mapping, health and observability."
 requires-python = ">=3.12"
 dependencies = [
