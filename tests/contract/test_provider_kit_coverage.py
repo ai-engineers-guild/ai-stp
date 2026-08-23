@@ -25,12 +25,6 @@ from ai_stp_cli.provider import bundle_corpus, conformance_v3
 #: with the reason. Emptying this map is the goal; growing it silently is the
 #: failure it exists to prevent.
 UNEXERCISED_REFUSALS: dict[str, str] = {
-    "unsupported_component_kind": (
-        "the kind lives in the setup passport, a separate archive member, so a "
-        "hostile case has to rewrite that document and its digest in `documents` "
-        "rather than a manifest field -- and the passport builder refuses to "
-        "produce an invalid kind, so the case has to be patched after compilation"
-    ),
     # These three describe a disagreement between what the caller expects and
     # what the provider is, and v3 argv carries no platform, architecture or
     # projection profile from the caller: `plan-operation` takes the operation,
