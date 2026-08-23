@@ -30,7 +30,7 @@ MAX_TEMPLATE_BYTES: Final[int] = 64 * 1024
 TYPES: Final[frozenset[str]] = frozenset(
     {"instruction", "skill", "mcp", "hook", "command", "agent", "plugin", "setting"}
 )
-HARNESSES: Final[frozenset[str]] = frozenset(set(HARNESS_ID_ORDER))
+HARNESSES: Final[frozenset[str]] = frozenset(HARNESS_ID_ORDER)
 _NAME = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$")
 _OPEN = re.compile(r"^\{\{#harness:([a-z0-9,-]+)\}\}$")
 _CLOSE = "{{/harness}}"
