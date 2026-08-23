@@ -1,7 +1,7 @@
 "use client";
 
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useSyncExternalStore, useTransition } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/atoms/button";
@@ -91,11 +91,14 @@ export function ObjectOverflowMenu({
   canonicalUrl,
 }: Omit<ObjectActionProps, "likesCount">) {
   const [reportOpen, setReportOpen] = useState(false);
-  const [supportsNativeShare, setSupportsNativeShare] = useState(false);
-
-  useEffect(() => {
-    setSupportsNativeShare(browserShare() !== null);
-  }, []);
+  // Whether the browser has a share sheet is a fact about the browser, not a
+  // state this component transitions through. The server cannot know it, so
+  // the server snapshot is `false` and the answer arrives with hydration.
+  const supportsNativeShare = useSyncExternalStore(
+    () => () => {},
+    () => browserShare() !== null,
+    () => false,
+  );
 
   async function copy(value: string) {
     await navigator.clipboard.writeText(value);

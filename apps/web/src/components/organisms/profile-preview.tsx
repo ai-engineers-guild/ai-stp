@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 
 import { Button } from "@/components/atoms/button";
-import { readLocalProfilePreview, type LocalProfilePreview } from "@/lib/profile-preview-storage";
+import {
+  PROFILE_PREVIEW_STORAGE_KEY,
+  readLocalProfilePreview,
+} from "@/lib/profile-preview-storage";
 import { Icon } from "@/theme/icons";
 import type { PublicProfileProjection } from "@/lib/api/public-profile";
 import { renderMarkdownOnServer } from "@/lib/markdown/render";
@@ -16,16 +19,27 @@ type ProfilePreviewProps = {
 
 /** Renders the current browser-only form state without creating a backend draft. */
 export function ProfilePreview({ projection, copyLabel, copiedLabel }: ProfilePreviewProps) {
-  const [local, setLocal] = useState<LocalProfilePreview | null>(null);
   const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    try {
-      setLocal(readLocalProfilePreview(projection.account_id));
-    } catch {
-      // Server projection remains the safe fallback when browser storage is unavailable.
-    }
-  }, [projection.account_id]);
+  // Session storage is an external store, so it is read during render rather
+  // than copied into state by an effect. The snapshot is the raw string:
+  // `useSyncExternalStore` compares by identity, and returning a freshly
+  // parsed object every call would never settle.
+  const stored = useSyncExternalStore(
+    () => () => {},
+    () => {
+      try {
+        return window.sessionStorage.getItem(PROFILE_PREVIEW_STORAGE_KEY);
+      } catch {
+        // Server projection remains the safe fallback when storage is refused.
+        return null;
+      }
+    },
+    () => null,
+  );
+  const local = useMemo(
+    () => (stored === null ? null : readLocalProfilePreview(projection.account_id)),
+    [stored, projection.account_id],
+  );
 
   const displayName = local?.displayName.trim() || projection.display_name || projection.account_id;
   const bio = local?.bio ?? projection.bio;

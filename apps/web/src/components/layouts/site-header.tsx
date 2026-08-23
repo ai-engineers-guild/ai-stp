@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { Button } from "@/components/atoms/button";
@@ -15,6 +14,7 @@ import { siteNavigation, type NavItem } from "@/lib/projection/navigation";
 import { useSessionPresence } from "@/lib/auth/use-session-presence";
 import { useUiSlice } from "@/lib/stores/ui-slice";
 import { UI } from "@/lib/ui-selectors";
+import { useHydrated } from "@/lib/use-hydrated";
 import { SITE_NAME } from "@/lib/site";
 import { Icon } from "@/theme/icons";
 
@@ -34,11 +34,7 @@ export function SiteHeader({ docsHref }: SiteHeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
   const signedInHint = useSessionPresence();
-  const [hydrated, setHydrated] = useState(false);
-
-  useEffect(() => {
-    setHydrated(true);
-  }, []);
+  const hydrated = useHydrated();
 
   // The first client render must be byte-for-byte compatible with the static
   // HTML, which is always the signed-out shell. Only after hydration may the

@@ -249,8 +249,13 @@ export function useObjectPresentationForm(input: {
   const [message, setMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, startSaveTransition] = useTransition();
+  // Assigned after commit, not during render: the unmount cleanup below reads
+  // it to revoke object URLs, and a discarded render must not decide which
+  // ones those are.
   const mediaRef = useRef(media);
-  mediaRef.current = media;
+  useEffect(() => {
+    mediaRef.current = media;
+  });
   const uploadGeneration = useRef(new Map<string, number>());
 
   useEffect(() => {

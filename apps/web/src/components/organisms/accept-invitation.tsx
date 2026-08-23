@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
 
 import { Button } from "@/components/atoms/button";
 import { MutationReference } from "@/components/molecules/mutation-reference";
+import { useHydrated } from "@/lib/use-hydrated";
 import { CSRF_COOKIE } from "@/lib/auth/cookies";
 
 type AcceptInvitationProps = {
@@ -57,22 +58,31 @@ function scrubFragment(): void {
  * Token lives in memory; never Server Action / RSC / storage / logs.
  */
 export function AcceptInvitation({ invitationId, labels }: AcceptInvitationProps) {
-  const [token, setToken] = useState<string | null>(null);
-  const [ready, setReady] = useState(false);
+  // The token lives in the URL fragment, which the server never sees. Reading
+  // it during render and scrubbing it in an effect separates the question from
+  // the side effect; setting both from one effect cost a render pass and made
+  // `ready` a second name for "hydrated".
+  const fragmentToken = useSyncExternalStore(
+    () => () => {},
+    readFragmentToken,
+    () => null,
+  );
+  const ready = useHydrated();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [operationId, setOperationId] = useState<string | null>(null);
   const [consumed, setConsumed] = useState(false);
+  // Once consumed, the token is gone for this mount whatever the fragment
+  // still says. Scrubbing removes it from the URL as well, but the flag is
+  // what makes a remount unable to re-use it.
+  const token = consumed ? null : fragmentToken;
 
   useEffect(() => {
-    const found = readFragmentToken();
-    setToken(found);
-    setReady(true);
-    if (found) {
+    if (fragmentToken) {
       scrubFragment();
     }
-  }, []);
+  }, [fragmentToken]);
 
   if (!ready) {
     return null;
@@ -107,8 +117,7 @@ export function AcceptInvitation({ invitationId, labels }: AcceptInvitationProps
             setError(null);
             startTransition(async () => {
               const held = token;
-              // Drop from React state immediately so remounts cannot re-use it.
-              setToken(null);
+              // Marked consumed immediately so remounts cannot re-use it.
               setConsumed(true);
               try {
                 const csrf = readCsrfFromDocument();

@@ -1,23 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import { useTranslations } from "next-intl";
 
 import { UI } from "@/lib/ui-selectors";
+import { useHydrated } from "@/lib/use-hydrated";
 import { Icon } from "@/theme";
 
 export function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
   const t = useTranslations("theme");
   // next-themes resolves the theme on the client's first render, but the server
-  // rendered the default. Gate theme-dependent output on `mounted` so server and
+  // rendered the default. Gate theme-dependent output on hydration so server and
   // first client render are identical and hydration does not mismatch.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-  const isDark = mounted && resolvedTheme === "dark";
+  const isDark = useHydrated() && resolvedTheme === "dark";
 
   return (
     <button

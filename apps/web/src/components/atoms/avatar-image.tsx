@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 type AvatarImageProps = {
   src: string | null | undefined;
@@ -12,13 +12,13 @@ type AvatarImageProps = {
 
 /** Keeps broken or stale avatar URLs from leaking the browser's broken-image UI. */
 export function AvatarImage({ src, className, fallback, width, height }: AvatarImageProps) {
-  const [failed, setFailed] = useState(false);
+  // Which URL failed, not whether one did. A boolean needed an effect to clear
+  // it when `src` changed, and that effect ran on every avatar that never
+  // failed at all; comparing the recorded URL answers the same question during
+  // render and resets itself.
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
 
-  useEffect(() => {
-    setFailed(false);
-  }, [src]);
-
-  if (!src || failed) return fallback;
+  if (!src || failedSrc === src) return fallback;
   return (
     <img
       src={src}
@@ -27,7 +27,7 @@ export function AvatarImage({ src, className, fallback, width, height }: AvatarI
       height={height}
       className={className}
       onError={() => {
-        setFailed(true);
+        setFailedSrc(src);
       }}
     />
   );

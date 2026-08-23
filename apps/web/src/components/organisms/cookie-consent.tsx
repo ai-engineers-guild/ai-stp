@@ -1,9 +1,10 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/atoms/button";
 import { OPEN_COOKIE_PREFERENCES_EVENT } from "@/components/molecules/cookie-preferences-trigger";
 import { CONSENT_COOKIE, parseConsentCookie, serializeConsent, type Consent } from "@/lib/consent";
+import { useHydrated } from "@/lib/use-hydrated";
 
 type Labels = {
   title: string;
@@ -17,32 +18,54 @@ type Labels = {
   manage: string;
   privacy: string;
 };
+/** The consent cookie, read where it exists and absent where it does not. */
+function subscribeToConsent(notify: () => void) {
+  window.addEventListener(OPEN_COOKIE_PREFERENCES_EVENT, notify);
+  window.addEventListener("ai-stp-consent", notify);
+  return () => {
+    window.removeEventListener(OPEN_COOKIE_PREFERENCES_EVENT, notify);
+    window.removeEventListener("ai-stp-consent", notify);
+  };
+}
+
+//: `useSyncExternalStore` compares snapshots by identity, so reading the cookie
+//: afresh on every call would loop. The raw string is the snapshot; parsing
+//: happens once per distinct value.
+const readConsentCookie = () => document.cookie;
+const noConsentOnTheServer = () => "";
+
 export function CookieConsent({ labels, privacyHref }: { labels: Labels; privacyHref: string }) {
-  const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const [draft, setDraft] = useState<Consent>({ analytics: false, marketing: false });
+  // Read during render rather than written from an effect. The saved value
+  // decides both what the form shows and whether the banner opens at all, and
+  // an effect that set both produced a second render pass on every visit.
+  const cookie = useSyncExternalStore(subscribeToConsent, readConsentCookie, noConsentOnTheServer);
+  const saved = useMemo(() => parseConsentCookie(cookie), [cookie]);
+  const mounted = useHydrated();
+  // `null` means "not decided here yet": the banner opens when nothing is
+  // saved, and closes only when this component closes it.
+  const [dismissed, setDismissed] = useState<Consent | null>(null);
+  const [edited, setEdited] = useState<Consent | null>(null);
+  const draft = edited ?? saved ?? { analytics: false, marketing: false };
+  const open = mounted && dismissed === null && (saved === null || edited !== null);
+
   useEffect(() => {
-    setMounted(true);
-    const saved = parseConsentCookie(document.cookie);
-    if (saved) setDraft(saved);
-    else setOpen(true);
     const reopen = () => {
-      const current = parseConsentCookie(document.cookie);
-      if (current) setDraft(current);
-      setOpen(true);
+      setDismissed(null);
+      setEdited(parseConsentCookie(document.cookie) ?? { analytics: false, marketing: false });
     };
     window.addEventListener(OPEN_COOKIE_PREFERENCES_EVENT, reopen);
     return () => {
       window.removeEventListener(OPEN_COOKIE_PREFERENCES_EVENT, reopen);
     };
   }, []);
+
   function persist(value: Consent) {
     document.cookie = `${CONSENT_COOKIE}=${serializeConsent(value)}; Path=/; Max-Age=15552000; SameSite=Lax${location.protocol === "https:" ? "; Secure" : ""}`;
-    setDraft(value);
-    setOpen(false);
+    setEdited(null);
+    setDismissed(value);
     window.dispatchEvent(new CustomEvent("ai-stp-consent", { detail: value }));
   }
-  if (!mounted || !open) return null;
+  if (!open) return null;
   return createPortal(
     <section
       role="dialog"
@@ -66,7 +89,7 @@ export function CookieConsent({ labels, privacyHref }: { labels: Labels; privacy
             type="checkbox"
             checked={draft.analytics}
             onChange={(event) => {
-              setDraft({ ...draft, analytics: event.target.checked });
+              setEdited({ ...draft, analytics: event.target.checked });
             }}
           />{" "}
           {labels.analytics}
@@ -76,7 +99,7 @@ export function CookieConsent({ labels, privacyHref }: { labels: Labels; privacy
             type="checkbox"
             checked={draft.marketing}
             onChange={(event) => {
-              setDraft({ ...draft, marketing: event.target.checked });
+              setEdited({ ...draft, marketing: event.target.checked });
             }}
           />{" "}
           {labels.marketing}

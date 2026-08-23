@@ -289,8 +289,12 @@ function RefineSurface({
 }) {
   const title = labels.refineButton ?? labels.filtersButton;
   const surfaceRef = useRef<HTMLElement>(null);
+  // Assigned after commit, not during render. A render React throws away
+  // would otherwise leave this pointing at a handler that never took effect.
   const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
 
   useEffect(() => {
     const surface = surfaceRef.current;

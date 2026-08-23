@@ -73,12 +73,25 @@ export function useProfileForm(initial: OwnerPublicProfile, sessionToken: string
     };
   }, [localPreview]);
 
+  // The one effect here that stays an effect, and the reason is the difference
+  // between deriving state and seeding it. Everywhere else in this change the
+  // value was read-only — a resolved theme, a browser capability, a saved
+  // consent — so it could be read during render and never stored. This draft
+  // is the *initial value of fields the user then types over*: it has to be
+  // written into state, and it cannot be written before the browser exists.
+  //
+  // `useState` cannot take it either, because a lazy initialiser runs on the
+  // server too, where `sessionStorage` does not exist and where producing
+  // different markup would break hydration.
+  //
   useEffect(() => {
     const restored = readLocalProfilePreview(
       initial.account_id,
       initial.editable.base_revision_id,
       initial.editable.base_content_digest,
     );
+    /* eslint-disable react-hooks/set-state-in-effect -- seeds editable state
+       from browser storage after hydration; the reasoning is above. */
     if (restored) {
       setDisplayName(restored.displayName);
       setBio(restored.bio);
@@ -87,6 +100,7 @@ export function useProfileForm(initial: OwnerPublicProfile, sessionToken: string
       setAvatarUrl(restored.avatarUrl);
     }
     setStorageReady(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [initial.account_id, initial.editable.base_revision_id, initial.editable.base_content_digest]);
 
   const persistPreview = useCallback(() => {
