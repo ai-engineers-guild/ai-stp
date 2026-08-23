@@ -71,6 +71,17 @@
             }
           ]
         },
+        "conflicting_entity_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Conflicting Entity Id"
+        },
         "cursor": {
           "anyOf": [
             {
@@ -127,6 +138,7 @@
       },
       "required": [
         "conflict",
+        "conflicting_entity_id",
         "cursor",
         "error_code",
         "event_id",

@@ -43,7 +43,8 @@
             "server_head_revision_id": "revision_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
             "cursor": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
             "conflict": null,
-            "error_code": null
+            "error_code": null,
+            "conflicting_entity_id": null
           }
         ]
       }
@@ -100,7 +101,8 @@
                 "preference"
               ]
             },
-            "error_code": null
+            "error_code": null,
+            "conflicting_entity_id": null
           }
         ]
       }

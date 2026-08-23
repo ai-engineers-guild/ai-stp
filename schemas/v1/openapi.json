@@ -6208,6 +6208,17 @@
               }
             ]
           },
+          "conflicting_entity_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conflicting Entity Id"
+          },
           "cursor": {
             "anyOf": [
               {
@@ -6264,6 +6275,7 @@
         },
         "required": [
           "conflict",
+          "conflicting_entity_id",
           "cursor",
           "error_code",
           "event_id",
@@ -18044,6 +18056,7 @@
                             "schema_version": 1,
                             "server_head_revision_id": "revision_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
                           },
+                          "conflicting_entity_id": null,
                           "cursor": null,
                           "error_code": null,
                           "event_id": "event-conflict-0001",
@@ -18062,6 +18075,7 @@
                       "receipts": [
                         {
                           "conflict": null,
+                          "conflicting_entity_id": null,
                           "cursor": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
                           "error_code": null,
                           "event_id": "event-init-0001",

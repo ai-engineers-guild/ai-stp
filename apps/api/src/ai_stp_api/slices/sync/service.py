@@ -25,6 +25,7 @@ from ai_stp_api.slices.sync.validation import (
 )
 from ai_stp_contracts.http import PAGE_SIZE_MAX, PageInfo
 from ai_stp_contracts.sync import (
+    SINGLETON_ENTITY_KINDS,
     SyncConflictInfo,
     SyncEvent,
     SyncEventReceipt,
@@ -205,6 +206,32 @@ def _receipt_from_row(row: SyncEventReceiptRow) -> SyncEventReceipt:
     return SyncEventReceipt.model_validate(row.response_body)
 
 
+async def _singleton_identity(db: AsyncSession, *, account_id: str, kind: str) -> str | None:
+    """The account's live entity of a kind that admits exactly one, if any.
+
+    Only `developer_passport` is such a kind today. A tombstoned identity is
+    not live: replacing the account's developer passport is tombstoning the old
+    one and pushing the new, and that path has to stay open.
+    """
+    if kind not in SINGLETON_ENTITY_KINDS:
+        return None
+    result = await db.execute(
+        select(SyncRevision.entity_id, SyncRevision.operation)
+        .where(
+            SyncRevision.account_id == account_id,
+            SyncRevision.entity_kind == kind,
+        )
+        .order_by(SyncRevision.entity_id)
+    )
+    live: set[str] = set()
+    for entity_id, operation in result.all():
+        if operation == "tombstone":
+            live.discard(str(entity_id))
+        else:
+            live.add(str(entity_id))
+    return sorted(live)[0] if live else None
+
+
 async def _apply_one(
     db: AsyncSession,
     *,
@@ -252,6 +279,7 @@ async def _apply_one(
             server_head_revision_id=None,
             cursor=None,
             conflict=None,
+            conflicting_entity_id=None,
             error_code="AI_STP_VALIDATION_ERROR",
         )
         stored = await _store_receipt(
@@ -305,6 +333,7 @@ async def _apply_one(
             server_head_revision_id=head_id,
             cursor=cursor,
             conflict=None,
+            conflicting_entity_id=None,
             error_code=None,
         )
         stored = await _store_receipt(
@@ -332,6 +361,57 @@ async def _apply_one(
     current_head = head.revision_id if head is not None else None
     parents = list(event.parent_revision_ids)
 
+    held = await _singleton_identity(db, account_id=ctx.account_id, kind=event.entity_kind)
+    if held is not None and held != event.entity_id:
+        # An account holds one developer passport. A device that made its own —
+        # which is what `passport developer init` does on a fresh install, and
+        # therefore what every reinstall and every second machine does — must
+        # not be able to add a second identity by pushing it.
+        #
+        # Before this, both were accepted, and the account's stream then carried
+        # a sequence no device could apply: one passport per installation is a
+        # client rule too, so a fresh device refused the second, the page rolled
+        # back atomically, and that device could never sync again. Refusing here
+        # is what keeps the stream applicable by construction.
+        #
+        # Rejected rather than conflict: `SyncConflictInfo` describes two
+        # revisions of one entity with a common ancestor to merge. These are two
+        # entities, and there is no ancestor — the choice is which identity the
+        # account keeps, which the client makes explicitly.
+        receipt = SyncEventReceipt(
+            event_id=event.event_id,
+            state="rejected",
+            revision_id=None,
+            server_head_revision_id=current_head,
+            cursor=None,
+            conflict=None,
+            error_code="AI_STP_CONFLICT",
+            conflicting_entity_id=held,
+        )
+        stored = await _store_receipt(
+            db,
+            account_id=ctx.account_id,
+            event=event,
+            fingerprint=fingerprint,
+            receipt=receipt,
+        )
+        await emit_audit(
+            db,
+            actor_account_id=ctx.account_id,
+            action="sync.event_rejected",
+            target_table="sync_event_receipt",
+            target_id=event.event_id,
+            payload={
+                "state": "rejected",
+                "entity_id": event.entity_id,
+                "entity_kind": event.entity_kind,
+                "reason": "second_singleton_identity",
+                "held_entity_id": held,
+            },
+        )
+        await db.commit()
+        return stored
+
     # A conflict candidate is retained for a later explicit client merge, so all
     # of its ancestors must already be known before it can enter the ledger.
     for parent in parents:
@@ -346,6 +426,7 @@ async def _apply_one(
                 server_head_revision_id=current_head,
                 cursor=None,
                 conflict=None,
+                conflicting_entity_id=None,
                 error_code="AI_STP_VALIDATION_ERROR",
             )
             stored = await _store_receipt(
@@ -415,6 +496,7 @@ async def _apply_one(
             server_head_revision_id=current_head,
             cursor=None,
             conflict=conflict,
+            conflicting_entity_id=None,
             error_code=None,
         )
         stored = await _store_receipt(
@@ -487,6 +569,7 @@ async def _apply_one(
         server_head_revision_id=event.revision_id,
         cursor=cursor,
         conflict=None,
+        conflicting_entity_id=None,
         error_code=None,
     )
     stored = await _store_receipt(

@@ -256,6 +256,14 @@ async def test_fast_forward_conflict_and_two_parent_merge(
 async def test_parallel_pushes_serialize_account_sequence_and_initial_head(
     harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str],
 ) -> None:
+    """Components rather than developer passports, and the kind matters here.
+
+    This is about serialising two concurrent pushes and about two devices
+    racing to create the same entity's first revision. It used developer
+    passports because they were a convenient independent entity; an account now
+    holds exactly one, so two distinct ones are refused before either race can
+    happen. A component is the right vehicle for a test about ordering.
+    """
     client, sessionmaker, _ = harness
     account_id, device_id, token = await _seed_device_session(sessionmaker)
     headers = {"Authorization": f"Bearer {token}"}
@@ -263,14 +271,16 @@ async def test_parallel_pushes_serialize_account_sequence_and_initial_head(
     first = _build_event(
         account_id=account_id,
         device_id=device_id,
-        entity_id=new_id("developer"),
+        entity_id=new_id("component"),
+        entity_kind="component_private",
         event_id="event-parallel-0001",
         idempotency_key="idem-parallel-000001",
     )
     second = _build_event(
         account_id=account_id,
         device_id=device_id,
-        entity_id=new_id("developer"),
+        entity_id=new_id("component"),
+        entity_kind="component_private",
         event_id="event-parallel-0002",
         idempotency_key="idem-parallel-000002",
         payload={"preference": "light"},
@@ -286,11 +296,12 @@ async def test_parallel_pushes_serialize_account_sequence_and_initial_head(
     assert first_response.status_code == 200, first_response.text
     assert second_response.status_code == 200, second_response.text
 
-    entity_id = new_id("developer")
+    entity_id = new_id("component")
     left = _build_event(
         account_id=account_id,
         device_id=device_id,
         entity_id=entity_id,
+        entity_kind="component_private",
         event_id="event-initial-race-1",
         idempotency_key="idem-initial-race001",
     )
@@ -298,6 +309,7 @@ async def test_parallel_pushes_serialize_account_sequence_and_initial_head(
         account_id=account_id,
         device_id=device_id,
         entity_id=entity_id,
+        entity_kind="component_private",
         event_id="event-initial-race-2",
         idempotency_key="idem-initial-race002",
         payload={"preference": "light"},
@@ -604,3 +616,135 @@ async def test_audit_redaction_and_no_broker_job(
             assert "preference" not in text
             assert "signature" not in text
         assert await db.scalar(select(func.count()).select_from(Job)) == 0
+
+
+async def test_a_second_developer_identity_is_refused_and_names_the_held_one(
+    harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str],
+) -> None:
+    """An account holds one developer passport, and the server is where that holds.
+
+    `passport developer init` mints a new identity in a fresh installation, so
+    a reinstall or a second machine produces a second one. Both used to be
+    accepted, and the account's stream then carried a sequence no device could
+    apply: one-per-installation is a client rule too, so a fresh device refused
+    the second, the atomic page rolled back, and that device could never sync
+    again. Observed on production with three identities in one stream.
+
+    Refusing here keeps the stream applicable by construction, and the receipt
+    names the identity the account holds — without it the device cannot tell
+    which passport to adopt, and adopting is one of the two ways out.
+    """
+    client, sessionmaker, _ = harness
+    account_id, device_id, token = await _seed_device_session(sessionmaker)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    first_id = new_id("developer")
+    accepted = await client.post(
+        "/v1/sync/push",
+        headers=headers,
+        json={
+            "schema_version": 1,
+            "events": [
+                _build_event(account_id=account_id, device_id=device_id, entity_id=first_id)
+            ],
+        },
+    )
+    assert accepted.json()["receipts"][0]["state"] == "accepted"
+
+    second_id = new_id("developer")
+    refused = await client.post(
+        "/v1/sync/push",
+        headers=headers,
+        json={
+            "schema_version": 1,
+            "events": [
+                _build_event(
+                    account_id=account_id,
+                    device_id=device_id,
+                    entity_id=second_id,
+                    event_id="event-00000002",
+                    idempotency_key="fedcba9876543210",
+                )
+            ],
+        },
+    )
+    receipt = refused.json()["receipts"][0]
+    assert receipt["state"] == "rejected"
+    assert receipt["error_code"] == "AI_STP_CONFLICT"
+    assert receipt["conflicting_entity_id"] == first_id
+
+    async with sessionmaker() as db:
+        kept = await db.scalar(
+            select(func.count())
+            .select_from(SyncRevision)
+            .where(SyncRevision.entity_kind == "developer_passport")
+        )
+        assert kept == 1, "the refused identity must not enter the ledger"
+
+
+async def test_a_tombstoned_developer_identity_can_be_replaced(
+    harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str],
+) -> None:
+    """Replacing is tombstoning the old identity and pushing the new one.
+
+    The refusal above must not become a trap: an account that wants the other
+    device's passport has to be able to say so. A tombstoned identity is not
+    live, so the path stays open — and it is explicit, which is the point.
+    """
+    client, sessionmaker, _ = harness
+    account_id, device_id, token = await _seed_device_session(sessionmaker)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    first_id = new_id("developer")
+    created = await client.post(
+        "/v1/sync/push",
+        headers=headers,
+        json={
+            "schema_version": 1,
+            "events": [
+                _build_event(account_id=account_id, device_id=device_id, entity_id=first_id)
+            ],
+        },
+    )
+    head = created.json()["receipts"][0]["server_head_revision_id"]
+
+    buried = await client.post(
+        "/v1/sync/push",
+        headers=headers,
+        json={
+            "schema_version": 1,
+            "events": [
+                _build_event(
+                    account_id=account_id,
+                    device_id=device_id,
+                    entity_id=first_id,
+                    operation="tombstone",
+                    payload={},
+                    parents=[head],
+                    expected_head=head,
+                    event_id="event-00000002",
+                    idempotency_key="fedcba9876543210",
+                )
+            ],
+        },
+    )
+    assert buried.json()["receipts"][0]["state"] == "accepted", buried.text
+
+    second_id = new_id("developer")
+    replaced = await client.post(
+        "/v1/sync/push",
+        headers=headers,
+        json={
+            "schema_version": 1,
+            "events": [
+                _build_event(
+                    account_id=account_id,
+                    device_id=device_id,
+                    entity_id=second_id,
+                    event_id="event-00000003",
+                    idempotency_key="00112233445566aa",
+                )
+            ],
+        },
+    )
+    assert replaced.json()["receipts"][0]["state"] == "accepted", replaced.text

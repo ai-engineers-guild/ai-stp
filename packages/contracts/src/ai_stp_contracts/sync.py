@@ -35,6 +35,12 @@ type SyncEntityKind = Literal[
     "unverified_consent",
 ]
 
+#: Kinds an account holds exactly one of. `passport developer init` makes a new
+#: identity in a fresh installation, so a reinstall or a second machine produces
+#: a second one; accepting both puts a sequence in the account's stream that no
+#: device can apply, because one-per-installation is a client rule too.
+SINGLETON_ENTITY_KINDS: frozenset[str] = frozenset({"developer_passport"})
+
 type SyncOperation = Literal["upsert", "tombstone"]
 type SyncReceiptState = Literal["accepted", "rejected", "conflict", "superseded"]
 
@@ -114,6 +120,12 @@ class SyncEventReceipt(BaseModel):
     conflict: SyncConflictInfo | None
     #: Stable code when state is rejected; null otherwise.
     error_code: str | None
+    #: The account's existing entity when this event was refused for carrying a
+    #: second identity of a kind that admits one. An account holds exactly one
+    #: developer passport; a device that made its own — which is what a fresh
+    #: install does — has to be told which one is the account's before it can
+    #: choose between adopting it and replacing it.
+    conflicting_entity_id: str | None
 
 
 class SyncPushResponse(BaseModel):

@@ -260,6 +260,7 @@ def push(parameters: Mapping[str, object]) -> Answer[SyncPushView]:
                     server_head_revision_id=mapping.remote_revision_id,
                     cursor=None,
                     conflict=None,
+                    conflicting_entity_id=None,
                     error_code=None,
                 )
                 continue

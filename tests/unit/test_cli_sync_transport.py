@@ -68,6 +68,7 @@ def _accepted(event_id: str, revision_id: str, cursor: str) -> SyncEventReceipt:
         server_head_revision_id=revision_id,
         cursor=cursor,
         conflict=None,
+        conflicting_entity_id=None,
         error_code=None,
     )
 
@@ -436,6 +437,7 @@ def test_two_devices_fast_forward_diverge_and_commit_clean_merge(tmp_path: Path)
                 common_ancestor_revision_id=root_event.revision_id,
                 affected_fields=[],
             ),
+            conflicting_entity_id=None,
             error_code=None,
         )
         sync_state.record_receipt(left_db, account_id=ACCOUNT, receipt=conflict)
