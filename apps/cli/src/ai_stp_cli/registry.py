@@ -681,7 +681,10 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         handler=component.source_parse,
         parameters=(
             option(
-                "source", "string", "Published slug, GitHub identity, local path or collection."
+                "source",
+                "string",
+                "Published slug, GitHub identity, local path or collection.",
+                required=True,
             ),
             option(
                 "root", "string", "Base directory used only to normalize a relative local path."
@@ -695,7 +698,12 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-external-source-identity",
         handler=component.source_resolve,
         parameters=(
-            option("source", "string", "GitHub shorthand or credential-free HTTPS URL."),
+            option(
+                "source",
+                "string",
+                "GitHub shorthand or credential-free HTTPS URL.",
+                required=True,
+            ),
             option("commit", "string", "Exact lowercase 40-character Git commit SHA."),
             option(
                 "root", "string", "Base directory used only to normalize a relative local path."
@@ -825,7 +833,12 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         handler=component.forget,
         mutability="apply",
         parameters=(
-            option("id", "string", "Stable identifier of a registered component."),
+            option(
+                "id",
+                "string",
+                "Stable identifier of a registered component.",
+                required=True,
+            ),
             option("reason", "string", "Why it is being removed."),
         ),
         next_actions=("component discover",),
@@ -866,7 +879,9 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         summary="Every recorded version of one object, and the next minor number.",
         result_schema="urn:ai-stp:schema:v1:cli-version-line",
         handler=component.version_list,
-        parameters=(option("id", "string", "Stable identifier of a registered object."),),
+        parameters=(
+            option("id", "string", "Stable identifier of a registered object.", required=True),
+        ),
         next_actions=("component version release",),
     ),
     Declaration(
@@ -878,7 +893,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         # A major line is a separate access boundary, so asking for one needs a
         # decision rather than a flag that defaults to yes.
         parameters=(
-            option("id", "string", "Stable identifier of a registered object."),
+            option("id", "string", "Stable identifier of a registered object.", required=True),
             option("major", "boolean", "Open the next major line instead of the next minor."),
             option("confirm", "boolean", "The explicit decision a major line requires."),
         ),
@@ -891,8 +906,8 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         handler=component.fork,
         mutability="apply",
         parameters=(
-            option("id", "string", "Stable identifier of the object being forked."),
-            option("version", "string", "The exact X.Y being forked."),
+            option("id", "string", "Stable identifier of the object being forked.", required=True),
+            option("version", "string", "The exact X.Y being forked.", required=True),
         ),
         next_actions=("component version list",),
     ),
@@ -904,7 +919,12 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         parameters=(
             option("prefix", "string", "Match the start of a name."),
             option("phrase", "string", "Match inside a name or description."),
-            option("tag", "string", "Require this tag. Repeat to require several."),
+            option(
+                "tag",
+                "string",
+                "Require this tag. Repeat to require several.",
+                repeatable=True,
+            ),
             option("field", "string", "One declared field to match exactly."),
             option("value", "string", "The value that field must equal."),
             option(
@@ -1118,7 +1138,12 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-project-candidates",
         handler=project.discover,
         parameters=(
-            option("root", "string", "Directory to look inside. The home directory is refused."),
+            option(
+                "root",
+                "string",
+                "Directory to look inside. The home directory is refused.",
+                required=True,
+            ),
         ),
         next_actions=("doctor",),
     ),
@@ -1127,7 +1152,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         summary="Index one project root, bounded, skipping secrets and binary content.",
         result_schema="urn:ai-stp:schema:v1:cli-project-index",
         handler=project.index,
-        parameters=(option("root", "string", "Exact project root to index."),),
+        parameters=(option("root", "string", "Exact project root to index.", required=True),),
         next_actions=("project discover",),
     ),
     Declaration(
@@ -1135,7 +1160,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         summary="Read a project's public symbols, entry points and tests. No call graph.",
         result_schema="urn:ai-stp:schema:v1:cli-project-symbols",
         handler=project.symbol_index,
-        parameters=(option("root", "string", "Exact project root to read."),),
+        parameters=(option("root", "string", "Exact project root to read.", required=True),),
         next_actions=("project index",),
     ),
     Declaration(
@@ -1145,7 +1170,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         handler=toolchain.install_tool,
         mutability="apply",
         parameters=(
-            option("tool", "string", "Identifier of a tool the profile pins."),
+            option("tool", "string", "Identifier of a tool the profile pins.", required=True),
             option("offline", "boolean", "Use only the verified cache; never the network."),
         ),
         next_actions=("toolchain profile",),
@@ -1158,7 +1183,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         mutability="destructive",
         confirmation="explicit_flag",
         parameters=(
-            option("tool", "string", "Identifier of an installed tool."),
+            option("tool", "string", "Identifier of an installed tool.", required=True),
             option(
                 "confirm",
                 "boolean",
@@ -1176,7 +1201,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         # It stores a revision in the local registry. Idempotent — an unchanged
         # project adds nothing — but idempotent is not read-only.
         mutability="apply",
-        parameters=(option("root", "string", "Exact project root to record."),),
+        parameters=(option("root", "string", "Exact project root to record.", required=True),),
         next_actions=("project symbols",),
     ),
     Declaration(

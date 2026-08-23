@@ -29,7 +29,7 @@ from pathlib import Path
 from typing import Any, Final, cast
 
 ROOT: Final[Path] = Path(__file__).resolve().parents[1]
-REPOSITORY: Final[str] = "https://github.com/ai-engineers-guild/ai_stp"
+REPOSITORY: Final[str] = "https://github.com/ai-engineers-guild/ai-stp"
 PUBLISHABLE: Final[dict[str, Path]] = {
     "ai-stp-foundation": ROOT / "packages" / "foundation" / "pyproject.toml",
     "ai-stp-passports": ROOT / "packages" / "passports" / "pyproject.toml",

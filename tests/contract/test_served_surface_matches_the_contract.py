@@ -73,7 +73,7 @@ BEYOND_THE_CONTRACT: Final[dict[str, str]] = {
 
 def _served_document(tmp_path: Path) -> dict[str, Any]:
     settings = Settings(
-        service=ServiceSettings(environment="test", version="9.9.9", log_dir=tmp_path),
+        service=ServiceSettings(environment="test", log_dir=tmp_path),
         database=DatabaseSettings(url=f"postgresql+asyncpg://u:p@{_UNREACHABLE}/db"),
         storage=StorageSettings(
             endpoint=f"http://{_UNREACHABLE}",

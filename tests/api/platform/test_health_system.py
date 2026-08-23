@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from importlib.metadata import version as installed_version
 from pathlib import Path
 
 import pytest
@@ -26,7 +27,6 @@ def _settings(log_dir: Path, *, rate_limit_requests: int = 0) -> Settings:
     return Settings(
         service=ServiceSettings(
             environment="test",
-            version="9.9.9",
             log_dir=log_dir,
             rate_limit_requests=rate_limit_requests,
         ),
@@ -65,7 +65,11 @@ async def test_version_reports_service_metadata(client: AsyncClient) -> None:
     assert response.status_code == 200
     data = response.json()
     assert data["schema_version"] == 1
-    assert data["version"] == "9.9.9"
+    # The installed distribution, not a value this test chose. Injecting one
+    # only proved the injection worked: production served `0.1.0` from
+    # `AI_STP_API_VERSION` while the container underneath was `0.0.2`, and this
+    # assertion was green throughout. The build is the only honest source.
+    assert data["version"] == installed_version("ai-stp-api")
     assert data["environment"] == "test"
     # Safe diagnostics fields are always present; values may be null when unset
     # or when the database is unreachable (REQ-2411).

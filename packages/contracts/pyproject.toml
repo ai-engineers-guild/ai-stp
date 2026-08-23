@@ -30,9 +30,9 @@ dependencies = [
 mock = ["httpx>=0.28"]
 
 [project.urls]
-Homepage = "https://github.com/ai-engineers-guild/ai_stp"
-Repository = "https://github.com/ai-engineers-guild/ai_stp"
-Issues = "https://github.com/ai-engineers-guild/ai_stp/issues"
+Homepage = "https://github.com/ai-engineers-guild/ai-stp"
+Repository = "https://github.com/ai-engineers-guild/ai-stp"
+Issues = "https://github.com/ai-engineers-guild/ai-stp/issues"
 
 [tool.uv.sources]
 ai-stp-assurance = { workspace = true }

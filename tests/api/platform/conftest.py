@@ -72,7 +72,7 @@ def make_settings(
     """Compose Settings for ASGI tests."""
     url = database_url or f"postgresql+asyncpg://u:p@{_UNREACHABLE}/db"
     return Settings(
-        service=ServiceSettings(environment="test", version="0.0.0-test", log_dir=log_dir),
+        service=ServiceSettings(environment="test", log_dir=log_dir),
         database=DatabaseSettings(url=url),
         storage=StorageSettings(
             endpoint=f"http://{_UNREACHABLE}",

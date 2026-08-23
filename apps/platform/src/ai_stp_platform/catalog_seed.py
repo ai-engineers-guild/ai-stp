@@ -687,7 +687,7 @@ def seed_corpus() -> list[tuple[ObjectKind, dict[str, Any], str, str]]:
             "version": "1.1",
             "created_at": SEED_PUBLISHED_AT_V2,
             "source": {
-                "repository": "https://github.com/ai-engineers-guild/ai_stp",
+                "repository": "https://github.com/ai-engineers-guild/ai-stp",
                 "commit": "3d58d4f470461456f10b236d7017dcba7a74332a",
                 "path": "apps/platform/src/ai_stp_platform/catalog_seed.py",
             },

@@ -11,7 +11,7 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as installed_version
 from pathlib import Path
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from ai_stp_contracts.catalog import (
@@ -48,7 +48,20 @@ class ServiceSettings(BaseSettings):
     # that used to sit in this line said `0.1.0` while every package in the
     # workspace said `0.0.1`, so `/v1/system/version` advertised a release that
     # does not exist — nothing kept the two in step, and nothing noticed.
-    version: str = Field(default_factory=lambda: _distribution_version())
+    #
+    # Removing the literal was not enough. `env_prefix` made `AI_STP_API_VERSION`
+    # outrank the distribution, `.env.prod.example` told the operator to set it,
+    # and the value it named was the same dead `0.1.0`. Production served that
+    # number for another day while the container underneath reported `0.0.2`.
+    #
+    # The alias takes this field out of the prefix, so a leftover
+    # `AI_STP_API_VERSION` in anyone's environment is simply not consulted. The
+    # version of a running build is a fact of the build; configuration that can
+    # disagree with it is a second source of truth for something that has one.
+    version: str = Field(
+        default_factory=lambda: _distribution_version(),
+        validation_alias=AliasChoices("ai_stp_api_build_version"),
+    )
     # Optional deploy identity for safe diagnostics (REQ-2411). Never a secret.
     git_commit: str | None = Field(default=None)
     log_dir: Path = Field(default=Path("logs"))

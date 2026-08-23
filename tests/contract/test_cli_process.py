@@ -21,6 +21,7 @@ import pytest
 from jsonschema import Draft202012Validator
 
 from ai_stp_cli.commands import machine_help
+from ai_stp_cli.registry import COMMANDS
 
 #: How long one invocation may take before the wait itself is the failure.
 #: Generous for a slow runner and finite on purpose: an unbounded wait turns
@@ -188,6 +189,53 @@ def test_auth_usage_failures_are_actionable_in_machine_mode(
         "auth login --provider google --json",
         "auth login --provider github --json",
     ]
+
+
+@pytest.mark.parametrize(
+    ("argv", "names"),
+    [
+        (("auth", "login", "--provider", "google", "--bogus"), "--bogus"),
+        (("auth", "login", "--provider", "github", "--bogus"), "--bogus"),
+        (("auth", "login", "--provider", "google", "--provider"), "--provider"),
+    ],
+)
+def test_a_correct_provider_is_never_blamed_for_someone_else_s_mistake(
+    argv: tuple[str, ...], names: str, home: Path
+) -> None:
+    """The repair instruction must point at the argument that is wrong.
+
+    Every parse failure under `auth login` used to end at the same sentence,
+    "auth login requires --provider with google or github" — including the
+    calls above, which supply a valid provider and fail for an unrelated
+    reason. An agent told to fix `--provider` edits the one argument that was
+    already right, and the envelope is valid JSON while it says so.
+
+    The cases the adapter still owns are covered above: an absent provider, an
+    unsupported one, and the reversed word order.
+    """
+    result = run(*argv, "--json", home=home)
+    assert result.returncode == 2
+    assert result.stderr == ""
+    envelope = json.loads(result.stdout)
+    assert envelope["error"]["code"] == "AI_STP_VALIDATION_ERROR"
+    message = envelope["error"]["message"]
+    assert names in message, message
+    assert "requires --provider" not in message, message
+    assert envelope["error"]["details"].get("parameter") != "provider"
+
+
+def test_the_auth_repair_offers_exactly_the_declared_providers(home: Path) -> None:
+    """The suggestion is read from the registry, not restated beside it."""
+    declared = next(
+        parameter.choices
+        for command in COMMANDS
+        if command.descriptor.path == ["auth", "login"]
+        for parameter in command.descriptor.parameters
+        if parameter.name == "provider"
+    )
+    envelope = json.loads(run("auth", "login", "--json", home=home).stdout)
+    assert envelope["next_actions"] == [f"auth login --provider {name} --json" for name in declared]
+    assert envelope["error"]["details"]["allowed"] == ", ".join(declared)
 
 
 def test_a_portable_root_skill_is_discovered_and_adopted_by_exact_path(home: Path) -> None:

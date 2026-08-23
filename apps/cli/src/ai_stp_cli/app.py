@@ -197,17 +197,82 @@ def _group(name: str, help_text: str, *, epilog: str | None = None) -> click.Gro
     )
 
 
+#: What each group of commands is for, in one line.
+#:
+#: `--help` used to answer "Commands for component." — the group name, spelled
+#: back. Every leaf is described precisely in `help --agent`, but a caller
+#: reaches the group first, and a reader who does not already know what
+#: `select` or `target` means learned nothing from the place built to tell
+#: them. Repeating the name is not a description; it only looks like one.
+_GROUP_SUMMARIES: Final[dict[tuple[str, ...], str]] = {
+    ("attestation",): "Sign exact test evidence with this device's key.",
+    ("auth",): "Sign in, inspect or remove the optional cloud session.",
+    ("component",): "Discover, adopt, describe and version single components.",
+    ("component", "passport"): "Read, enrich and validate a component's passport.",
+    ("component", "scaffold"): "Start a new component from a declared layout.",
+    ("component", "source"): "Resolve an external source to an exact, checkable identity.",
+    ("component", "source", "evidence"): "Recorded proof about an external source, over time.",
+    ("component", "template"): "Render a component's declared template.",
+    ("component", "version"): "List recorded versions and release the next one.",
+    ("config",): "Read and change this installation's settings.",
+    ("consent",): "Grant and withdraw consent for unverified candidates.",
+    ("device",): "This machine's identity in the local registry.",
+    ("eval",): "Score a setup against a profile before installing it.",
+    ("grant",): "Share a private object with another account.",
+    ("grant", "invitation"): "Invitations offered but not yet accepted.",
+    ("install",): "Plan, apply, resume and recover a setup on a target.",
+    ("link",): "Open the matching page on the web.",
+    ("owner",): "What this account has published, as its owner sees it.",
+    ("owner", "object"): "One owned object across all of its versions.",
+    ("owner", "version"): "One exact owned version.",
+    ("passport",): "Passports describing the developer and this device.",
+    ("passport", "developer"): "The developer passport this account publishes under.",
+    ("passport", "device"): "The passport describing this machine.",
+    ("project",): "Look inside a directory: projects, components and their index.",
+    ("provider",): "Inspect the setup manager that writes the harness.",
+    ("publication",): "Publish a component version through plan and confirmation.",
+    ("registry",): "Search the local registry and bring objects into it.",
+    ("registry", "port"): "Import a setup captured elsewhere into this registry.",
+    ("report",): "Report an object to the catalogue's moderators.",
+    ("select",): "Choose components and compile them into one setup.",
+    ("setup",): "Whole setups: import one, or publish one with its pins.",
+    ("setup", "import"): "Bring an existing configuration in as a setup.",
+    ("setup", "publish"): "Publish a setup together with the components it pins.",
+    ("skill",): "Install this CLI's own agent skill into a harness.",
+    ("sync",): "Move local revisions to and from the cloud registry.",
+    ("target",): "The installed state on a harness: status, drift, backups, rollback.",
+    ("telemetry",): "The anonymous install ping, and whether it is on.",
+    ("toolchain",): "Harnesses this machine can reach, and the tools they need.",
+}
+
+#: Groups worth showing by example rather than by sentence alone.
+_GROUP_EXAMPLES: Final[dict[tuple[str, ...], tuple[str, ...]]] = {
+    ("auth",): (
+        "ai-stp auth login --provider google",
+        "ai-stp auth login --provider github",
+        "ai-stp auth complete",
+        "ai-stp auth status",
+    ),
+    ("install",): (
+        "ai-stp install plan --harness claude-code --setup <id> --json",
+        "ai-stp install apply --expected-plan-digest <digest> --json",
+        "ai-stp install recover --json",
+    ),
+    ("project",): (
+        "ai-stp project discover --root . --json",
+        "ai-stp project index --root . --json",
+    ),
+}
+
+
 def _group_content(path: tuple[str, ...]) -> tuple[str, str | None]:
-    if path == ("auth",):
-        return (
-            "Sign in, inspect or remove the optional cloud session.",
-            "\b\nExamples:\n"
-            "  ai-stp auth login --provider google\n"
-            "  ai-stp auth login --provider github\n"
-            "  ai-stp auth complete\n"
-            "  ai-stp auth status",
-        )
-    return f"Commands for {' '.join(path)}.", None
+    summary = _GROUP_SUMMARIES.get(path)
+    if summary is None:  # pragma: no cover — a new group without a line fails a test
+        summary = f"Commands for {' '.join(path)}."
+    examples = _GROUP_EXAMPLES.get(path)
+    if examples is None:
+        return summary, None
+    return summary, "\b\nExamples:\n" + "\n".join(f"  {line}" for line in examples)
 
 
 def build_group() -> click.Group:
@@ -349,42 +414,76 @@ def run() -> None:
     raise SystemExit(main())
 
 
+def _auth_providers() -> tuple[str, ...]:
+    """The providers `auth login` declares, read from the one place they live.
+
+    Restating `google, github` here would be a second copy of a closed
+    vocabulary that `registry.py` already owns — the same duplication the
+    registry exists to prevent.
+    """
+    for command in COMMANDS:
+        if command.descriptor.path == ["auth", "login"]:
+            for parameter in command.descriptor.parameters:
+                if parameter.name == "provider":
+                    return tuple(parameter.choices)
+    return ()  # pragma: no cover — `auth login` is a declared command
+
+
 def _click_failure(arguments: list[str], failure: click.ClickException) -> CliFailure:
-    """Turn common auth spelling mistakes into a safe, executable correction."""
+    """Turn auth spelling mistakes into a safe, executable correction.
+
+    Only the mistakes that are actually about the provider. This used to end
+    with an unconditional "auth login requires --provider", reached by every
+    parse failure under `auth login` — so
+
+        ai-stp auth login --provider google --bogus --json
+
+    told the caller to supply a provider it had already supplied correctly,
+    and never mentioned `--bogus`. An agent following that instruction edits
+    the one argument that was right and loops. The envelope stays valid JSON
+    the whole time, which is what makes the wrong answer easy to trust.
+
+    A repair instruction has to name the argument that is wrong; when this
+    adapter cannot show that the provider is wrong, Click's own message about
+    the real failure is the better answer.
+    """
     command_words = [item for item in arguments if item != JSON_FLAG]
     if command_words[:1] != ["auth"]:
         return unknown_command(failure.format_message())
 
-    choices = "google or github"
-    next_actions = [
-        "auth login --provider google --json",
-        "auth login --provider github --json",
-    ]
+    providers = _auth_providers()
+    choices = " or ".join(providers)
+    allowed = ", ".join(providers)
+    next_actions = [f"auth login --provider {name} --json" for name in providers]
+
     if command_words[:2] == ["auth", "login"]:
         provider_index = (
             command_words.index("--provider") if "--provider" in command_words else None
         )
         if provider_index is not None and provider_index + 1 < len(command_words):
             supplied = command_words[provider_index + 1]
-            if supplied not in {"google", "github"}:
-                return CliFailure(
-                    "AI_STP_VALIDATION_ERROR",
-                    f"invalid auth provider; expected {choices}",
-                    details={"parameter": "provider", "allowed": "google, github"},
-                    next_actions=next_actions,
-                )
+            if supplied in providers:
+                # The provider is right, so this failure is about something
+                # else. Say what Click said rather than inventing a subject.
+                return unknown_command(failure.format_message())
+            return CliFailure(
+                "AI_STP_VALIDATION_ERROR",
+                f"invalid auth provider; expected {choices}",
+                details={"parameter": "provider", "allowed": allowed},
+                next_actions=next_actions,
+            )
         return CliFailure(
             "AI_STP_VALIDATION_ERROR",
             f"auth login requires --provider with {choices}",
-            details={"parameter": "provider", "allowed": "google, github"},
+            details={"parameter": "provider", "allowed": allowed},
             next_actions=next_actions,
         )
 
-    if len(command_words) >= 2 and command_words[1] in {"google", "github"}:
+    if len(command_words) >= 2 and command_words[1] in providers:
         return CliFailure(
             "AI_STP_VALIDATION_ERROR",
             f"auth commands start with 'auth login'; choose {choices}",
-            details={"command": "auth login", "allowed": "google, github"},
+            details={"command": "auth login", "allowed": allowed},
             next_actions=next_actions,
         )
     return unknown_command(failure.format_message())

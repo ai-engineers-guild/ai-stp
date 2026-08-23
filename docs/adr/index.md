@@ -116,6 +116,7 @@ last_verified: "2026-08-03"
 | [ADR-0115-the-repository-does-not-guard-the-people-working-in-it.md](ADR-0115-the-repository-does-not-guard-the-people-working-in-it.md) | Решение не ставить защит на участников репозитория: гейт доказывает дерево, а не разрешает человека. | 2026-08-22 |
 | [ADR-0116-the-gate-spends-runners-on-os-and-shards.md](ADR-0116-the-gate-spends-runners-on-os-and-shards.md) | Решение гонять CLI и веб-тесты на трёх ОС параллельно, а серверный набор — только на Linux, разрезанным на шарды и без экономии runner'ов. | 2026-08-22 |
 | [ADR-0117-the-test-run-does-not-repeat-expensive-work.md](ADR-0117-the-test-run-does-not-repeat-expensive-work.md) | Решение не повторять дорогую работу в прогоне: миграции применяются один раз на процесс, трассировка покрытия идёт через sys.monitoring. | 2026-08-22 |
+| [ADR-0118-the-agent-decides-inside-the-vision.md](ADR-0118-the-agent-decides-inside-the-vision.md) | Решение считать выбор варианта, публикацию и продвижение кода частью полномочий агента, оставив отдельным решением только необратимое и внешнее. | 2026-08-23 |
 | [template.md](template.md) | Шаблон записи архитектурного решения. | 2026-08-03 |
 
 <!-- КОНЕЦ СОДЕРЖИМОГО -->

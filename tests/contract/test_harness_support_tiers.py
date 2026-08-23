@@ -7,7 +7,12 @@ from pathlib import Path
 from typing import Final
 
 from ai_stp_cli.local import harness_catalog
-from ai_stp_foundation.harnesses import HARNESS_IDS, SUPPORT_TIERS, UNDEFINED_HARNESS
+from ai_stp_foundation.harnesses import (
+    HARNESS_IDS,
+    SUPPORT_TIERS,
+    UNDEFINED_HARNESS,
+    HarnessId,
+)
 from ai_stp_platform.catalog_support import support_tier_for_harness
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -71,3 +76,68 @@ def test_no_second_tier_table_exists_in_the_tree() -> None:
         and pattern.search(path.read_text(encoding="utf-8"))
     ]
     assert offenders == [], f"a second support-tier table exists: {offenders}"
+
+
+def test_no_prose_names_the_members_of_a_tier() -> None:
+    """The duplicate came back in Markdown, where the guard above never looked.
+
+    `test_no_second_tier_table_exists_in_the_tree` scans `**/*.py` — it was
+    written when the second table was a Python dict, and it did its job. Four
+    documents kept their own copy in prose, and all four had drifted: README,
+    `PRODUCT.md`, `docs/product/scope.md` and `SPEC-001` still placed Grok
+    Build under beta after `SUPPORT_TIERS` promoted it to `primary`. A reader
+    who starts at README — which is most readers — got the wrong answer.
+
+    Written to fail in both directions. The first version of this check only
+    read the clause claiming primary support, so restoring the exact defect —
+    Grok Build back in the *beta* row — left it green. A guard that cannot
+    catch the bug it was written for is worse than none, because it is also
+    an argument against looking.
+    """
+    #: Spellings as the documents write them, not identifiers: prose says
+    #: "Grok Build", never "grok-build".
+    spelled: dict[str, HarnessId] = {
+        "Claude Code": "claude-code",
+        "Codex": "codex",
+        "Grok Build": "grok-build",
+        "OpenCode": "opencode",
+        "Pi": "pi",
+    }
+    labels = ((re.compile(r"Основн\w+ поддержк\w+"), "primary"), (re.compile(r"Бета"), "beta"))
+    wrong: list[str] = []
+    for path in sorted(ROOT.glob("**/*.md")):
+        if set(path.parts) & GENERATED_OR_VENDORED or not path.is_file():
+            continue
+        # Decision records are excluded because they argue about the *other*
+        # axis. `ADR-0034` says the launch setups for Pi, OpenCode and Grok
+        # Build "остаются бета-линиями" — that is corpus parity, not the
+        # harness product tier, and the two are deliberately separate
+        # (`SPEC-033`). Prose cannot be told apart by pattern, and a check that
+        # forced ADR-0034 to say `primary` would merge the axes it is the
+        # point of `SPEC-033` to keep apart. What is guarded here is the
+        # surface a reader consults for the current split.
+        if "adr" in path.parts:
+            continue
+        for line in path.read_text(encoding="utf-8").splitlines():
+            # A table row separates label from members with `|`; a sentence
+            # uses `:` and `;`. Splitting on all three lets one pass read both,
+            # and keeps a line that names two tiers from being read as one.
+            clauses = [part for part in re.split(r"[|;:]", line) if part.strip()]
+            carried: str | None = None
+            for clause in clauses:
+                here = next((tier for pattern, tier in labels if pattern.search(clause)), None)
+                tier = here or carried
+                # A clause that is only a label hands its tier to the next one,
+                # which is how a table row spells the same thing.
+                named = [name for name in spelled if name in clause]
+                if tier and named:
+                    for name in named:
+                        if SUPPORT_TIERS[spelled[name]] != tier:
+                            wrong.append(
+                                f"{path.relative_to(ROOT)}: {name} under {tier} — "
+                                f"the map says {SUPPORT_TIERS[spelled[name]]}\n    {line.strip()}"
+                            )
+                    carried = None
+                else:
+                    carried = here
+    assert not wrong, "prose disagrees with SUPPORT_TIERS:\n" + "\n".join(sorted(set(wrong)))

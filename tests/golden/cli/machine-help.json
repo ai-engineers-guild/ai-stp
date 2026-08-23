@@ -340,7 +340,7 @@
           "kind": "option",
           "value_type": "string",
           "required": false,
-          "repeatable": false,
+          "repeatable": true,
           "summary": "Require this tag. Repeat to require several.",
           "choices": []
         },
@@ -391,7 +391,7 @@
           "name": "id",
           "kind": "option",
           "value_type": "string",
-          "required": false,
+          "required": true,
           "repeatable": false,
           "summary": "Stable identifier of a registered component.",
           "choices": []
@@ -425,7 +425,7 @@
           "name": "id",
           "kind": "option",
           "value_type": "string",
-          "required": false,
+          "required": true,
           "repeatable": false,
           "summary": "Stable identifier of the object being forked.",
           "choices": []
@@ -434,7 +434,7 @@
           "name": "version",
           "kind": "option",
           "value_type": "string",
-          "required": false,
+          "required": true,
           "repeatable": false,
           "summary": "The exact X.Y being forked.",
           "choices": []
@@ -941,7 +941,7 @@
           "name": "source",
           "kind": "option",
           "value_type": "string",
-          "required": false,
+          "required": true,
           "repeatable": false,
           "summary": "Published slug, GitHub identity, local path or collection.",
           "choices": []
@@ -977,7 +977,7 @@
           "name": "source",
           "kind": "option",
           "value_type": "string",
-          "required": false,
+          "required": true,
           "repeatable": false,
           "summary": "GitHub shorthand or credential-free HTTPS URL.",
           "choices": []
@@ -1082,7 +1082,7 @@
           "name": "id",
           "kind": "option",
           "value_type": "string",
-          "required": false,
+          "required": true,
           "repeatable": false,
           "summary": "Stable identifier of a registered object.",
           "choices": []
@@ -1108,7 +1108,7 @@
           "name": "id",
           "kind": "option",
           "value_type": "string",
-          "required": false,
+          "required": true,
           "repeatable": false,
           "summary": "Stable identifier of a registered object.",
           "choices": []
@@ -2601,7 +2601,7 @@
           "name": "root",
           "kind": "option",
           "value_type": "string",
-          "required": false,
+          "required": true,
           "repeatable": false,
           "summary": "Directory to look inside. The home directory is refused.",
           "choices": []
@@ -2626,7 +2626,7 @@
           "name": "root",
           "kind": "option",
           "value_type": "string",
-          "required": false,
+          "required": true,
           "repeatable": false,
           "summary": "Exact project root to index.",
           "choices": []
@@ -2651,7 +2651,7 @@
           "name": "root",
           "kind": "option",
           "value_type": "string",
-          "required": false,
+          "required": true,
           "repeatable": false,
           "summary": "Exact project root to record.",
           "choices": []
@@ -2676,7 +2676,7 @@
           "name": "root",
           "kind": "option",
           "value_type": "string",
-          "required": false,
+          "required": true,
           "repeatable": false,
           "summary": "Exact project root to read.",
           "choices": []
@@ -4752,7 +4752,7 @@
           "name": "tool",
           "kind": "option",
           "value_type": "string",
-          "required": false,
+          "required": true,
           "repeatable": false,
           "summary": "Identifier of a tool the profile pins.",
           "choices": []
@@ -4801,7 +4801,7 @@
           "name": "tool",
           "kind": "option",
           "value_type": "string",
-          "required": false,
+          "required": true,
           "repeatable": false,
           "summary": "Identifier of an installed tool.",
           "choices": []

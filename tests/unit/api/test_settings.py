@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 from importlib.metadata import version as installed_version
+from pathlib import Path
+
+import pytest
 
 from ai_stp_api.settings import ServiceSettings
 
@@ -16,3 +19,29 @@ def test_the_advertised_version_is_the_installed_one() -> None:
     Nothing kept the two in step and no test compared them.
     """
     assert ServiceSettings().version == installed_version("ai-stp-api")
+
+
+def test_no_environment_variable_can_contradict_the_installed_version(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The test above passed while production served the wrong number anyway.
+
+    Removing the literal left the field on `env_prefix`, so
+    `AI_STP_API_VERSION` still outranked the distribution — and
+    `.env.prod.example` instructed the operator to set it, to the same dead
+    `0.1.0` the fix had just deleted. Production answered `0.1.0` for another
+    day while `importlib.metadata` inside that very container said `0.0.2`.
+
+    The version of a running build is a fact of the build. Configuration that
+    can disagree with it is a second source of truth for something that has
+    one, so this asserts the environment is not consulted at all rather than
+    that some particular value wins.
+    """
+    monkeypatch.setenv("AI_STP_API_VERSION", "0.1.0")
+    assert ServiceSettings().version == installed_version("ai-stp-api")
+
+
+def test_the_deployment_environment_file_does_not_name_a_version() -> None:
+    """The instruction that caused it, removed where operators read it."""
+    example = Path(__file__).resolve().parents[3] / ".env.prod.example"
+    assert "AI_STP_API_VERSION" not in example.read_text(encoding="utf-8")
