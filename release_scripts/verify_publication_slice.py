@@ -27,7 +27,7 @@ import shutil
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Final, cast
 
 from release_scripts._evidence import EvidenceError, cli, data, error_code, without_credentials
 from release_scripts._evidence import origin as bare_origin
@@ -355,6 +355,70 @@ def _local_writes(
     }
 
 
+#: The three mutating commands, probed with an identifier that cannot exist.
+#: A typed `AI_STP_NOT_FOUND` proves the command is wired end to end — argv
+#: parsed, session used, server reached, request validated — while changing
+#: nothing. It is not the same as running the mutation, and the report says so;
+#: it is the difference between knowing nothing about a command and knowing
+#: everything except its effect.
+ABSENT: Final[str] = "0" * 26
+UNREACHABLE_DIGEST: Final[str] = "sha256:" + "0" * 64
+
+REACHABILITY: tuple[tuple[str, tuple[str, ...]], ...] = (
+    (
+        "publication_reachable",
+        (
+            "publication",
+            "confirm",
+            "--plan-id",
+            f"publication_plan_{ABSENT}",
+            "--plan-hash",
+            UNREACHABLE_DIGEST,
+            "--confirm",
+        ),
+    ),
+    (
+        "grants_reachable",
+        (
+            "grant",
+            "revoke",
+            "--grant-id",
+            f"grant_{ABSENT}",
+            "--idempotency-key",
+            "publication-slice-revoke-0001",
+            "--confirm",
+        ),
+    ),
+    (
+        "report_confirm_reachable",
+        (
+            "report",
+            "confirm",
+            "--plan-id",
+            f"report_plan_{ABSENT}",
+            "--plan-digest",
+            UNREACHABLE_DIGEST,
+            "--confirm",
+        ),
+    ),
+)
+
+
+def _reachability(home: Path, *, python: str) -> dict[str, dict[str, Any]]:
+    """Each mutating command answered for an object that does not exist."""
+    answers: dict[str, dict[str, Any]] = {}
+    for name, arguments in REACHABILITY:
+        envelope = cli(list(arguments), home=home, python=python, allow_failure=True)
+        code = error_code(envelope)
+        answers[name] = {
+            "state": "verified" if code == "AI_STP_NOT_FOUND" else "failed",
+            "command": " ".join(arguments[:2]),
+            "error_code": code or "accepted",
+            "note": "reached and refused an absent object; the mutation itself stays gated",
+        }
+    return answers
+
+
 def verify_publication_slice(
     origin: str,
     home: Path,
@@ -395,6 +459,7 @@ def verify_publication_slice(
 
     if state == "authenticated":
         scenarios.update(_local_writes(home, owned, python=python))
+        scenarios.update(_reachability(home, python=python))
 
     for name, reason in WRITES:
         scenarios[name] = {
