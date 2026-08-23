@@ -240,11 +240,22 @@ def test_the_images_resolve_the_lockfile_with_the_uv_every_gate_installs() -> No
     Both halves are asserted because fixing one without the other leaves a
     reproducible image resolving with something nothing tested.
     """
-    installed = {
-        match.group(1)
-        for path in sorted(WORKFLOWS.glob("*.yml"))
-        for match in re.finditer(r'"uv==([0-9][^"]*)"', path.read_text(encoding="utf-8"))
-    }
+    # The bootstrap used to be `pip install "uv==X"`, and the version was read
+    # out of that string. It is now the first argument to `install-uv.sh`,
+    # either a literal or the workflow's own `UV_VERSION`, so both shapes are
+    # resolved here — reading only the old one would have found no version at
+    # all and passed the emptiness check by accident.
+    installed: set[str] = set()
+    for path in sorted(WORKFLOWS.glob("*.yml")):
+        text = path.read_text(encoding="utf-8")
+        declared = re.findall(r'UV_VERSION:\s*"([0-9][^"]*)"', text)
+        for argument in re.findall(r'install-uv\.sh"?\s+"([^"]+)"', text):
+            if argument == "${UV_VERSION}":
+                assert declared, f"{path.name} uses UV_VERSION without declaring it"
+                installed.update(declared)
+            else:
+                installed.add(argument)
+    assert installed, "no workflow installs uv"
     assert len(installed) == 1, f"workflows install more than one uv: {sorted(installed)}"
     expected = installed.pop()
 

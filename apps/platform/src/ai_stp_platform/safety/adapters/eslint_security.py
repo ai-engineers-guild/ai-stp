@@ -19,7 +19,8 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
             mandatory=spec.mandatory,
             tool_name="eslint",
         )
-    # Prefer npx eslint if local config exists; otherwise owned opengrep covers JS.
+    # Prefer the tree's own eslint if a local config exists; otherwise owned
+    # opengrep covers JS. Resolved from PATH, not through a package runner.
     code, out, err, ms = run_cli(
         ["eslint", ".", "--max-warnings", "0"],
         cwd=tree,

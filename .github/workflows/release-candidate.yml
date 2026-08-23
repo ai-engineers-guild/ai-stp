@@ -61,7 +61,10 @@ jobs:
           echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-release-python-3.14" \
             >> "${GITHUB_ENV}"
       - name: Установить закреплённый uv
-        run: python -m pip install --disable-pip-version-check "uv==0.12.1"
+        run: |
+          set -euo pipefail
+          bash .github/scripts/install-uv.sh "0.12.1" "${RUNNER_TEMP}/uv"
+          echo "${RUNNER_TEMP}/uv" >> "${GITHUB_PATH}"
       - name: Собрать и дважды сравнить candidate
         env:
           EXPECTED_VERSION: ${{ inputs.version }}

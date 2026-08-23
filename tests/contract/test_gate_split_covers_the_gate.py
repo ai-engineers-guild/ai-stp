@@ -211,7 +211,9 @@ def test_setup_is_split_and_each_job_prepares_only_its_own_part() -> None:
             step["run"] for step in job.get("steps", []) if isinstance(step.get("run"), str)
         )
         if name in python_only:
-            assert "npm_ci.py" not in scripts, f"{name} installs documentation Node tools"
+            assert "docs_scripts && bun install" not in scripts, (
+                f"{name} installs documentation Node tools"
+            )
             assert "bun install" not in scripts, f"{name} installs web dependencies"
 
 

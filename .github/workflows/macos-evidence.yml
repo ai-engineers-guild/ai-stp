@@ -50,7 +50,8 @@ jobs:
       - name: Установить закреплённый uv и Python dependencies
         run: |
           set -euo pipefail
-          python -m pip install --disable-pip-version-check "uv==0.12.1"
+          bash .github/scripts/install-uv.sh "0.12.1" "${RUNNER_TEMP}/uv"
+          export PATH="${RUNNER_TEMP}/uv:${PATH}"
           uv sync --locked --group docs --group dev
       - name: Проверить Python source и generated contracts
         run: |
