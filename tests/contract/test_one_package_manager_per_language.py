@@ -20,8 +20,16 @@ import re
 from pathlib import Path
 from typing import cast
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[2]
 POLICY = ROOT / ".gds" / "compiled-policy.json"
+
+#: The package managers this repository must not invoke. Declared here so
+#: the check runs in every tree, and pinned against the policy above by
+#: `test_the_policy_still_says_what_this_test_enforces` where it exists.
+#: `mise` and `asdf` are version managers rather than package managers.
+WATCHED = ("npm", "npx", "pip", "pipx", "pnpm", "poetry", "yarn")
 
 
 #: Files that make up the toolchain: what CI runs and what a developer runs.
@@ -73,10 +81,20 @@ def _policy_names() -> tuple[frozenset[str], frozenset[str]]:
 
 
 def test_the_policy_still_says_what_this_test_enforces() -> None:
-    """A test that reads a policy is worth only as much as the policy it read."""
+    """A test that reads a policy is worth only as much as the policy it read.
+
+    Skipped where the policy is not present. `.gds` is withheld from the
+    published tree by `release_scripts/public_manifest.toml` — it belongs to
+    another system — and the gate runs there. Which is why the check below
+    names the tools itself instead of reading them from a file that may be
+    absent: an enforcement that disappears in the tree where the gate runs is
+    not an enforcement.
+    """
+    if not POLICY.is_file():
+        pytest.skip("this tree does not carry the compiled policy")
     forbidden, allowed = _policy_names()
     assert allowed == {"uv", "bun"}
-    assert {"pip", "npm", "npx", "pnpm", "yarn"} <= forbidden
+    assert set(WATCHED) <= forbidden
 
 
 def test_the_toolchain_invokes_only_uv_and_bun() -> None:
@@ -89,12 +107,8 @@ def test_the_toolchain_invokes_only_uv_and_bun() -> None:
     position — which is how the first version of this test reported
     `clean_install_regress.sh` for calling `uv pip install`.
     """
-    forbidden, _allowed = _policy_names()
-    # `mise`, `asdf` and friends are version managers rather than package
-    # managers; the ones this repository could plausibly reach for are these.
-    watched = sorted(forbidden & {"pip", "pipx", "poetry", "npm", "npx", "pnpm", "yarn"})
     pattern = re.compile(
-        r"(?:^|[\s;&|(`\"']|\$\()(" + "|".join(watched) + r")(?:\.exe)?\s",
+        r"(?:^|[\s;&|(`\"']|\$\()(" + "|".join(WATCHED) + r")(?:\.exe)?\s",
         re.MULTILINE,
     )
     offences: list[str] = []
@@ -118,3 +132,38 @@ def test_both_managers_are_installed_from_a_pinned_verified_archive() -> None:
         assert "sha256" in commands.lower(), f"{name} does not verify a checksum"
         assert not re.search(r"curl[^\n|]*\|\s*(?:ba)?sh", commands), f"{name} pipes to a shell"
         assert '"${1:?' in script or "version=" in commands, f"{name} takes no pinned version"
+
+
+def test_every_bun_lockfile_is_readable_by_the_pinned_bun() -> None:
+    """A lockfile written by a newer bun is unreadable by the pinned one.
+
+    Found the hard way: this machine had bun 1.4.0 while the gate pins 1.3.14,
+    so a plain `bun install` rewrote `docs_scripts/bun.lock` at
+    `lockfileVersion: 2` and the docs job died with `Unknown lockfile version`
+    before running a single check.
+
+    Asserted on the artefact rather than on the developer's installed bun,
+    which would break a working machine over a file that is fine.
+    """
+    workflow = ROOT / "release_scripts" / "public_overlay" / ".github" / "workflows" / "check.yml"
+    if not workflow.is_file():
+        workflow = ROOT / ".github" / "workflows" / "check.yml"
+    pinned = re.search(r'BUN_VERSION:\s*"([0-9][^"]*)"', workflow.read_text(encoding="utf-8"))
+    assert pinned, "the gate no longer pins a bun version"
+
+    #: bun 1.3.x reads version 1. Raise this together with `BUN_VERSION`, after
+    #: regenerating both lockfiles with the bun that is being pinned.
+    readable = 1
+    lockfiles = sorted(ROOT.glob("*/bun.lock")) + sorted(ROOT.glob("*/*/bun.lock"))
+    lockfiles = [path for path in lockfiles if "node_modules" not in path.parts]
+    assert lockfiles, "no bun lockfile found"
+    for path in lockfiles:
+        # Read with a pattern, not a JSON parser: `bun.lock` is JSONC and
+        # carries trailing commas that `json.loads` refuses.
+        match = re.search(r'"lockfileVersion"\s*:\s*([0-9]+)', path.read_text(encoding="utf-8"))
+        assert match, f"{path.relative_to(ROOT)} declares no lockfileVersion"
+        declared = int(match.group(1))
+        assert declared == readable, (
+            f"{path.relative_to(ROOT)} is lockfileVersion {declared}; "
+            f"bun {pinned.group(1)} reads {readable}"
+        )

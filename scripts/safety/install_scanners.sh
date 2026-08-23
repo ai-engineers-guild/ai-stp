@@ -10,6 +10,7 @@ source "${SCRIPT_DIR}/versions.env"
 
 PREFIX="${SAFETY_BIN_PREFIX:-/opt/safety-bin}"
 # Isolated venv for Python scanners (bandit, pip-audit); never the app venv.
+# Built with `uv venv` and populated with `uv pip`; the name is historical.
 PIP_VENV="${SAFETY_PIP_VENV:-/opt/safety-venv}"
 ARCH="$(uname -m)"
 OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
@@ -105,13 +106,15 @@ install_opengrep() {
 }
 
 install_python_tools() {
-  require_cmd python3
+  # `uv`, not `pip`: one package manager per language, which is what
+  # `.gds/compiled-policy.json` says and what the rest of the repository does.
+  # `pip-audit` and `bandit` stay — they are scanners this image runs against
+  # other people's artefacts. How *this* image installs them is our business.
+  require_cmd uv
   require_cmd git
   log "creating safety venv at ${PIP_VENV}"
-  python3 -m venv "${PIP_VENV}"
-  # shellcheck disable=SC1091
-  "${PIP_VENV}/bin/pip" install --no-cache-dir --upgrade pip
-  "${PIP_VENV}/bin/pip" install --no-cache-dir \
+  uv venv "${PIP_VENV}"
+  uv pip install --python "${PIP_VENV}" --no-cache \
     "bandit==${BANDIT_VERSION}" \
     "pip-audit==${PIP_AUDIT_VERSION}"
 
@@ -119,14 +122,14 @@ install_python_tools() {
   local ss_url="${SKILLSPECTOR_GIT_URL:?SKILLSPECTOR_GIT_URL required}"
   local ss_ref="${SKILLSPECTOR_GIT_REF:?SKILLSPECTOR_GIT_REF required}"
   log "installing skillspector from ${ss_url}@${ss_ref}"
-  "${PIP_VENV}/bin/pip" install --no-cache-dir \
+  uv pip install --python "${PIP_VENV}" --no-cache \
     "git+${ss_url}@${ss_ref}"
 
   # Cisco second engine: PyPI package cisco-ai-skill-scanner → CLI skill-scanner.
   local cisco_pkg="${SKILL_SCANNER_PACKAGE:-cisco-ai-skill-scanner}"
   local cisco_ver="${SKILL_SCANNER_VERSION:?SKILL_SCANNER_VERSION required}"
   log "installing ${cisco_pkg}==${cisco_ver}"
-  "${PIP_VENV}/bin/pip" install --no-cache-dir \
+  uv pip install --python "${PIP_VENV}" --no-cache \
     "${cisco_pkg}==${cisco_ver}"
 
   # Symlink into PREFIX so PATH=/opt/safety-bin is enough.

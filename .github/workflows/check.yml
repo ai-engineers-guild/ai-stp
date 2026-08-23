@@ -92,7 +92,11 @@ jobs:
           source .github/scripts/provider-safe-path.sh
           ai_stp_use_provider_safe_path
           uv sync --locked --group docs --group dev
-          cd docs_scripts && bun install --frozen-lockfile && cd ..
+          # A subshell, not `cd … && … && cd ..`: when the install failed, the
+          # trailing `cd ..` was skipped and every command after it ran from
+          # `docs_scripts`, so the job's first real error was a confusing
+          # `docs_scripts/docs_scripts/docs_lint.py`.
+          (cd docs_scripts && bun install --frozen-lockfile)
           uv run --locked --group docs python docs_scripts/docs_lint.py
           uv run --locked --group docs python docs_scripts/spec_lint.py
           uv run --locked --group docs python docs_scripts/contract_lint.py

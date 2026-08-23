@@ -70,8 +70,9 @@ setup-python:
     uv sync --locked --group docs --group dev
 
 # Node-инструменты документации: markdownlint и движок Mermaid.
-setup-docs: setup-python
-    {{py}} {{scripts}}/npm_ci.py
+setup-docs:
+    {{bunreq}}
+    cd docs_scripts && bun install --frozen-lockfile
 
 # Зависимости веба.
 setup-web:

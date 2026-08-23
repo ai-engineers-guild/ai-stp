@@ -36,8 +36,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       clamav \
       clamav-daemon \
       yara \
-      python3-pip \
     && rm -rf /var/lib/apt/lists/*
+
+# The scanner venv is built with `uv`, not `pip`, so `python3-pip` left the apt
+# list above. Same pinned digest as the app stage below: two builds of the same
+# commit must resolve with the same uv.
+COPY --from=ghcr.io/astral-sh/uv:0.12.1@sha256:cf4eedcaa81655197f625739489effcbe71b61ceb1506f332c3facae5deceded /uv /bin/uv
 
 # Prebuilt scanner binaries + Python skill engines. govulncheck comes from go-tools
 # (no golang-go apt package in this stage — keeps the image lean and avoids OOM).
