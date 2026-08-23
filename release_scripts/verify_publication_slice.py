@@ -280,7 +280,14 @@ def _local_writes(
         }
 
     local_id, local_version = _seed_local_release(home, python=python)
+    # `attestation sign` refuses to replace an existing output — "the attestation
+    # output already exists and will not be replaced" — and it is right to: an
+    # attestation is evidence, and silently overwriting one is how evidence
+    # stops meaning anything. So the run removes its own previous artefact
+    # rather than asking the command to be less careful. A slice that passes
+    # once and fails on the next run is not evidence either.
     signed = home / "attestation-evidence.json"
+    signed.unlink(missing_ok=True)
     attestation = cli(
         [
             "attestation",
