@@ -367,6 +367,11 @@ def verify_publication_slice(
     state = _auth_state(home, python=python)
 
     scenarios: dict[str, Any] = {}
+    # Bound before the branch, not inside it. It used to be assigned only in the
+    # `else`, and read later under a separately written `state == "authenticated"`
+    # guard — safe only for as long as two conditions nobody has to keep together
+    # stay complementary.
+    owned: list[str] = []
     if state != "authenticated":
         reason = f"the home reports auth state {state!r}"
         commands = [
@@ -381,7 +386,6 @@ def verify_publication_slice(
             "commands": commands,
         }
     else:
-        owned: list[str] = []
         for name, arguments in READS:
             result = _read(name, arguments, home, python=python)
             if name == "owner_objects":
