@@ -45,8 +45,11 @@ test_dist := env_var_or_default("AI_STP_TEST_DIST", "load")
 # made coverage fall back to ctrace with a warning per worker (ADR-0117).
 export COVERAGE_CORE := env_var_or_default("AI_STP_TEST_COVERAGE_CORE", "sysmon")
 
-# Отсутствие bun обязано валить рецепт, а не пропускать шаг.
-bunreq := "bun --version"
+# Отсутствие bun обязано валить рецепт, а не пропускать шаг. Версия проверяется
+# точно: bun пишет lockfile в формате своей линии, и `bun install` из другой
+# версии молча переписывает `bun.lock` в то, что гейт прочитать не может.
+# Ошибка тогда всплывает в CI, а не здесь.
+bunreq := 'test "$(bun --version)" = "$(cat .bun-version)" || { echo "bun $(cat .bun-version) required, found $(bun --version 2>/dev/null || echo none)" >&2; exit 1; }'
 
 export PYTHONUTF8 := "1"
 

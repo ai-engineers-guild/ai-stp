@@ -25,6 +25,7 @@ roots = [
   ".repo-safety",
   ".serena",
   "alembic.ini",
+  ".bun-version",
   "justfile",
   "pyproject.toml",
   "uv.lock",

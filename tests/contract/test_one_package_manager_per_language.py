@@ -171,3 +171,26 @@ def test_every_bun_lockfile_is_readable_by_the_pinned_bun() -> None:
             f"{path.relative_to(ROOT)} is lockfileVersion {declared}; "
             f"bun {pinned.group(1)} reads {readable}"
         )
+
+
+def test_the_local_and_gate_bun_pins_are_the_same_version() -> None:
+    """`.bun-version` and `BUN_VERSION` name one version, or neither is a pin.
+
+    The recipes check the developer's bun against `.bun-version` before running
+    it, because a `bun install` from another line rewrites `bun.lock` into a
+    format the gate cannot read — and the error then surfaces in CI rather than
+    on the machine that caused it. That check is only worth anything while the
+    file it reads agrees with what CI installs.
+    """
+    declared = (ROOT / ".bun-version").read_text(encoding="utf-8").strip()
+    assert declared, ".bun-version is empty"
+    workflow = ROOT / "release_scripts" / "public_overlay" / ".github" / "workflows" / "check.yml"
+    if not workflow.is_file():
+        workflow = ROOT / ".github" / "workflows" / "check.yml"
+    pinned = re.search(r'BUN_VERSION:\s*"([0-9][^"]*)"', workflow.read_text(encoding="utf-8"))
+    assert pinned, "the gate no longer pins a bun version"
+    assert declared == pinned.group(1), (
+        f".bun-version says {declared}, the gate installs {pinned.group(1)}"
+    )
+    recipes = (ROOT / "justfile").read_text(encoding="utf-8")
+    assert ".bun-version" in recipes, "no recipe checks the developer's bun against the pin"
