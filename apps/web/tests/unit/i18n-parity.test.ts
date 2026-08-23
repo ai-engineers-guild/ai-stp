@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -21,14 +21,19 @@ function flatten(value: unknown, prefix = ""): Array<{ key: string; text: string
   );
 }
 
+// `withFileTypes` answers the kind from the same directory read, so there is
+// no second lookup of the path between deciding what it is and opening it. The
+// previous `statSync` then `readFileSync` was two lookups of one name — a
+// window CodeQL reports as a file-system race, and a test that walks a source
+// tree has no reason to leave one open.
 function walkSource(dir: string): string[] {
-  return readdirSync(dir).flatMap((name) => {
-    const full = path.join(dir, name);
-    if (statSync(full).isDirectory()) {
-      if (name === "stories" || name === "generated") return [];
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name === "stories" || entry.name === "generated") return [];
       return walkSource(full);
     }
-    if (!/\.(ts|tsx)$/.test(name)) return [];
+    if (!/\.(ts|tsx)$/.test(entry.name)) return [];
     return [readFileSync(full, "utf8")];
   });
 }

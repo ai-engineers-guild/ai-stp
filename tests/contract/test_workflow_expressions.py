@@ -45,8 +45,8 @@ def _files() -> list[Path]:
 
 @pytest.mark.parametrize("workflow", _files(), ids=lambda p: p.name)
 def test_no_job_level_field_names_a_step_only_context(workflow: Path) -> None:
-    document = cast("dict[str, Any]", yaml.safe_load(workflow.read_text(encoding="utf-8")))
-    jobs = cast("dict[str, dict[str, Any]]", document.get("jobs") or {})
+    document = cast(dict[str, Any], yaml.safe_load(workflow.read_text(encoding="utf-8")))
+    jobs = cast(dict[str, dict[str, Any]], document.get("jobs") or {})
     for name, job in jobs.items():
         for field in ("env", "if", "name", "runs-on", "timeout-minutes"):
             value: object = job.get(field)
