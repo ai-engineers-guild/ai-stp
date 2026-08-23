@@ -1,6 +1,7 @@
 /**
  * Filter seed summaries like the platform projection (REQ-2102).
  */
+import { namedHarnesses } from "@/lib/catalog-harnesses";
 import { ALL_COMPONENT_SUMMARIES, ALL_SETUP_SUMMARIES } from "./fixtures";
 
 type ComponentSummaryFixture = (typeof ALL_COMPONENT_SUMMARIES)[number];
@@ -26,7 +27,7 @@ export function filterComponentSummaries(options: {
   const tags = options.tags ?? [];
   const q = options.q?.toLowerCase() ?? "";
   const matched = ALL_COMPONENT_SUMMARIES.filter((item) => {
-    if (options.harnessId && item.latest_harness_id !== options.harnessId) {
+    if (options.harnessId && !namedHarnesses(item).includes(options.harnessId)) {
       return false;
     }
     if (options.componentType && item.latest_component_type !== options.componentType) {
@@ -81,7 +82,7 @@ export function filterSetupSummaries(options: {
   const tags = options.tags ?? [];
   const q = options.q?.toLowerCase() ?? "";
   const matched = ALL_SETUP_SUMMARIES.filter((item) => {
-    if (options.harnessId && item.latest_harness_id !== options.harnessId) {
+    if (options.harnessId && !namedHarnesses(item).includes(options.harnessId)) {
       return false;
     }
     if (options.supportTier && item.latest_support.tier !== options.supportTier) {

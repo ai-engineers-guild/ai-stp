@@ -272,6 +272,8 @@ def _component(
             "conflicts": conflicts,
             "managed_paths": [native_path],
             "native_ids": [component_source.native_id or component_source.slug],
+            "harness_ids": [],
+            "supported_os": [],
             "artifact_format": component_source.artifact_format,
             "source_tree": component_source.source_tree,
         }

@@ -1,5 +1,6 @@
 /* eslint-disable max-lines -- public catalog facts stay in one owner module */
 import type { ExternalProduct, Country } from "@/lib/api/catalog";
+import { namedHarnesses } from "@/lib/catalog-harnesses";
 import { registryCommand } from "@/lib/cli-copy";
 import { isComponentType, type ComponentTypeId } from "@/lib/projection/inventory";
 
@@ -16,6 +17,7 @@ export type ComponentSummaryFacts = {
   latest_description: string;
   latest_version: string;
   latest_harness_id: string;
+  latest_harness_ids?: string[];
   latest_component_type: string;
   latest_lifecycle: string;
   latest_tags: string[];
@@ -215,7 +217,7 @@ export function componentPublicFacts(
     version: summary.latest_version,
     description: summary.latest_description,
     digest,
-    harness: summary.latest_harness_id,
+    harness: namedHarnesses(summary).join(", "),
     trustLane: summary.latest_trust.trust_lane,
     authorVerified: summary.latest_trust.author_verified,
     componentVerified: summary.latest_trust.component_verified,

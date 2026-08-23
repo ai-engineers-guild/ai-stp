@@ -40,7 +40,7 @@ last_verified: "2026-08-03"
 | [SPEC-029-versioned-markdown-descriptions.md](SPEC-029-versioned-markdown-descriptions.md) | SPEC-029: Неизменяемые безопасные Markdown-описания версий. | 2026-08-09 |
 | [SPEC-030-cli-web-deep-links.md](SPEC-030-cli-web-deep-links.md) | SPEC-030: Канонические двунаправленные ссылки между CLI и web. | 2026-08-09 |
 | [SPEC-031-public-documents-policies-and-errors.md](SPEC-031-public-documents-policies-and-errors.md) | SPEC-031: Публичные документы, версионированные политики и error pages. | 2026-08-08 |
-| [SPEC-032-production-readiness-governance.md](SPEC-032-production-readiness-governance.md) | SPEC-032: Доказательная готовность production, governance данных, защита от злоупотреблений и восстановление. | 2026-08-08 |
+| [SPEC-032-production-readiness-governance.md](SPEC-032-production-readiness-governance.md) | SPEC-032: Доказательная готовность production, governance данных, защита от злоупотреблений и восстановление. | 2026-08-22 |
 | [SPEC-033-beta-support-evidence-and-labels.md](SPEC-033-beta-support-evidence-and-labels.md) | SPEC-033: Публичные метки beta-поддержки, доказательства и их свежесть. | 2026-08-09 |
 | [SPEC-034-catalog-search-and-web-experience.md](SPEC-034-catalog-search-and-web-experience.md) | SPEC-034: Сильный поиск каталога, компактный web UX и медиа профиля. | 2026-08-17 |
 | [SPEC-035-component-detail-media-and-reactions.md](SPEC-035-component-detail-media-and-reactions.md) | Сгруппированная страница компонента, media-галерея автора и reactions. | 2026-08-17 |
@@ -60,5 +60,6 @@ last_verified: "2026-08-03"
 | [SPEC-049-on-demand-github-and-web-context-budget.md](SPEC-049-on-demand-github-and-web-context-budget.md) | SPEC-049: On-demand GitHub metadata, CLI-only blast radius и честный context budget в Web. | 2026-08-16 |
 | [SPEC-050-external-catalog-enrichment.md](SPEC-050-external-catalog-enrichment.md) | SPEC-050: Безопасное обогащение каталога наблюдаемыми метаданными внешних каталогов. | 2026-08-16 |
 | [SPEC-051-public-catalog-usage-counters.md](SPEC-051-public-catalog-usage-counters.md) | SPEC-051: Приватные события и публичные счётчики просмотров и загрузок каталога. | 2026-08-16 |
+| [SPEC-052-complaint-intake.md](SPEC-052-complaint-intake.md) | SPEC-052: Публичный приём обращений о авторе, объекте каталога или произвольной цели. | 2026-08-22 |
 
 <!-- КОНЕЦ СОДЕРЖИМОГО -->

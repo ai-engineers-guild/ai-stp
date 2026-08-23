@@ -4,6 +4,7 @@ import { CatalogUsageStats } from "@/components/molecules/catalog-usage-stats";
 import { VerifiedAvatar } from "@/components/molecules/verified-avatar";
 import { CatalogItemMenu } from "@/components/organisms/catalog-item-menu";
 import type { ComponentSummary, SetupSummary } from "@/lib/api/generated/types.gen";
+import { namedHarnesses } from "@/lib/catalog-harnesses";
 import { cn } from "@/lib/cn";
 import { Link } from "@/lib/i18n/navigation";
 import { UI } from "@/lib/ui-selectors";
@@ -58,6 +59,11 @@ type Labels = {
   credentialsRequired?: string | undefined;
   whyFailed?: string | undefined;
   whyWarning?: string | undefined;
+  safetyCheckExplanation?: string | undefined;
+  like?: string | undefined;
+  unlike?: string | undefined;
+  likeMenu?: string | undefined;
+  unlikeMenu?: string | undefined;
 };
 export type CatalogAuthor = { displayName: string | null; avatarUrl: string | null };
 const AUTHOR_VERIFIED_FALLBACK = "Author verified";
@@ -69,6 +75,7 @@ type Props = {
   view?: "cards" | "list";
   author?: CatalogAuthor;
   locale?: string;
+  initiallyLiked?: boolean;
 };
 function AuthorRail({
   item,
@@ -200,6 +207,8 @@ function menuLabels(kind: "component" | "setup", labels: Labels) {
     copyCli: labels.copyCli ?? "Copy CLI command",
     copyId: labels.copyId ?? "Copy ID",
     copied: labels.copied ?? "Copied",
+    like: labels.likeMenu ?? labels.like ?? "Like",
+    unlike: labels.unlikeMenu ?? "Unlike",
     report:
       kind === "setup"
         ? (labels.reportSetup ?? labels.report ?? "Report setup")
@@ -216,12 +225,13 @@ export function ObjectCard({
   view = "list",
   author,
   locale = "en",
+  initiallyLiked = false,
 }: Props) {
   const type =
     kind === "component"
       ? (item as ComponentSummary).latest_component_type
       : (labels.setupKind ?? "Setup");
-  const harnesses = [item.latest_harness_id];
+  const harnesses = namedHarnesses(item);
   const actions = menuLabels(kind, labels);
   const authorBlock = <AuthorRail item={item} author={author} labels={labels} />;
   const metrics = <CatalogMetrics item={item} labels={labels} locale={locale} />;
@@ -276,6 +286,7 @@ export function ObjectCard({
               stableId={item.stable_id}
               version={item.latest_version}
               href={href}
+              initiallyLiked={initiallyLiked}
               labels={actions}
             />
           </div>
@@ -320,6 +331,7 @@ export function ObjectCard({
                 stableId={item.stable_id}
                 version={item.latest_version}
                 href={href}
+                initiallyLiked={initiallyLiked}
                 labels={actions}
               />
             </div>
@@ -387,12 +399,14 @@ function SafetyScore({
   compact?: boolean;
 }) {
   const summary = item.latest_checks;
-  const title = labels.safetyChecks ?? "Safety checks";
+  const explanation =
+    labels.safetyCheckExplanation ??
+    "Safety check: a set of automated checks that this component does not threaten the user's agent or device.";
   if (!summary || summary.status === "empty" || summary.total_countable === 0) {
     return (
       <p
         className="text-muted-foreground text-center text-xs"
-        title={labels.safetyNoScan ?? title}
+        title={labels.safetyNoScan ?? explanation}
         data-safety="empty"
       >
         {labels.safetyNoScan ?? "No checks yet"}
@@ -404,44 +418,40 @@ function SafetyScore({
     ? Math.round((100 * summary.passed) / summary.checks.length)
     : 0;
   const score = Math.max(0, Math.min(100, typeof percent === "number" ? percent : derivedPercent));
+  const accessibleName = `${explanation} ${score}%`;
   return (
     <div
-      className={cn(
-        "flex w-full min-w-0 items-center gap-2",
-        compact ? "max-w-full md:max-w-40" : "max-w-full md:max-w-52",
-      )}
-      title={`${title}: ${score}% (${summary.passed}/${summary.checks.length})`}
+      className="flex min-w-0 items-center gap-1.5"
+      title={explanation}
       data-safety={summary.status}
       role="meter"
-      aria-label={`${title}: ${score}%`}
+      aria-label={accessibleName}
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={score}
     >
-      <span className="bg-muted relative block h-2 flex-1 rounded-full" aria-hidden="true">
+      <span
+        className={cn(
+          "bg-muted relative block h-1 overflow-hidden rounded-full",
+          compact ? "w-8" : "w-10",
+        )}
+        aria-hidden="true"
+      >
         <span
-          className="absolute inset-0 rounded-full"
-          style={{
-            background:
-              "linear-gradient(90deg, var(--destructive), var(--warning), var(--success))",
-          }}
-        />
-        <span
-          className="bg-muted absolute inset-y-0 right-0 rounded-r-full"
-          style={{ width: `${100 - score}%` }}
-        />
-        <span
-          className="absolute top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
-          style={{
-            left: `${score}%`,
-            background: `color-mix(in srgb, var(--destructive) ${100 - score}%, var(--success) ${score}%)`,
-            boxShadow: `0 0 10px color-mix(in srgb, color-mix(in srgb, var(--destructive) ${100 - score}%, var(--success) ${score}%) 65%, transparent)`,
-          }}
-        />
+          data-safety-fill=""
+          className="absolute inset-y-0 left-0 overflow-hidden"
+          style={{ width: `${score}%` }}
+        >
+          <span
+            className={cn("block h-full", compact ? "w-8" : "w-10")}
+            style={{
+              background:
+                "linear-gradient(90deg, hsl(var(--destructive)), hsl(var(--warning)), hsl(var(--success)))",
+            }}
+          />
+        </span>
       </span>
-      <span className="min-w-10 text-right font-mono text-sm font-medium tabular-nums">
-        {score}%
-      </span>
+      <span className="font-mono text-sm font-medium tabular-nums">{score}%</span>
     </div>
   );
 }

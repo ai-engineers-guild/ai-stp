@@ -23,7 +23,7 @@ from ai_stp_foundation.digests import digest_bytes
 from ai_stp_foundation.timestamps import format_timestamp
 from ai_stp_passports.envelope import verify_revision_id
 from ai_stp_passports.versions import ComponentVersionPassport, SetupVersionPassport
-from ai_stp_platform.catalog_query_language import Expression, parse_query
+from ai_stp_platform.catalog_query_language import Expression, named_harness_ids, parse_query
 from ai_stp_platform.catalog_query_language import matches as query_matches
 from ai_stp_platform.catalog_read import CatalogIntegrityError, PublicVersionRow
 from ai_stp_platform.catalog_support import project_support
@@ -70,6 +70,7 @@ def project_checks_summary(row: PublicVersionRow) -> SafetyChecksSummary | None:
                         source=str(item.get("source") or "platform_safety_scan"),
                         family=str(item.get("family") or ""),
                         reason=str(item["reason"]) if item.get("reason") else None,
+                        finding_summary=item.get("finding_summary"),  # type: ignore[arg-type]
                     )
                 )
         percent = summary.get("checks_passed_percent")
@@ -147,6 +148,7 @@ def component_summary(row: PublicVersionRow, *, now: datetime | None = None) -> 
         latest_name=passport.name,
         latest_description=row.metadata.presentation_bio or passport.description,
         latest_harness_id=passport.harness_id,
+        latest_harness_ids=named_harness_ids(passport.model_dump(mode="json")),  # type: ignore[arg-type]
         latest_component_type=passport.component_type,
         latest_projection_kind=passport.projection_kind,
         latest_tags=list(passport.tags),  # type: ignore[arg-type]
@@ -309,7 +311,7 @@ def passport_matches_filters(
     path via tag/name fallback is insufficient, so we additionally match when
     the needle appears in the stable_id. Full-text ranking is out of Sprint-1.
     """
-    if harness_id is not None and passport.get("harness_id") != harness_id:
+    if harness_id is not None and harness_id not in named_harness_ids(passport):
         return False
     if component_type is not None and passport.get("component_type") != component_type:
         return False

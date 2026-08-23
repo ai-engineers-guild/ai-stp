@@ -8,6 +8,10 @@ from pathlib import Path
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from ai_stp_platform.queue.engine import (
+    DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
+    DEFAULT_LEASE_TIMEOUT_SECONDS,
+)
 from ai_stp_platform.settings import DatabaseSettings
 
 
@@ -20,6 +24,11 @@ class WorkerSettings(BaseSettings):
     batch_size: int = Field(default=10, ge=1)
     poll_interval_seconds: float = Field(default=1.0, gt=0)
     drain_timeout_seconds: float = Field(default=30.0, gt=0)
+    lease_timeout_seconds: float = Field(default=DEFAULT_LEASE_TIMEOUT_SECONDS, gt=0)
+    heartbeat_interval_seconds: float = Field(
+        default=DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
+        gt=0,
+    )
     log_dir: Path = Field(default=Path("logs"))
 
 

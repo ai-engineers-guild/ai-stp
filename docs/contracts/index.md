@@ -22,9 +22,10 @@ last_verified: "2026-08-03"
 | [cli-owner-objects.md](cli-owner-objects.md) | Авторизованное чтение объектов владельца через CLI. | 2026-08-13 |
 | [cli-publication.md](cli-publication.md) | Клиентская последовательность publication plan и граница передаваемых данных. | 2026-08-21 |
 | [cli-telemetry.md](cli-telemetry.md) | Закрытый перечень полей анонимного пинга телеметрии, условия отправки и то, что в него не попадает. | 2026-08-21 |
+| [complaint-intake.md](complaint-intake.md) | Публичный приём обращений: поля, отличие от закрытого report case и конфигурируемые лимиты. | 2026-08-22 |
 | [component-authoring-templates.md](component-authoring-templates.md) | Версионируемые scaffold-планы и безопасная проекция authoring templates компонентов. | 2026-08-13 |
 | [component-presentation.md](component-presentation.md) | Изменяемое представление компонента в каталоге без изменения паспорта версии. | 2026-08-10 |
-| [component-setup-passports.md](component-setup-passports.md) | Паспорта версий компонентов и сетапов, виды компонентов и зависимости. | 2026-08-13 |
+| [component-setup-passports.md](component-setup-passports.md) | Паспорта версий компонентов и сетапов, виды компонентов и зависимости. | 2026-08-22 |
 | [composition-reports.md](composition-reports.md) | Отчёты состава и преобразования: закрытый перечень классов конфликтов, разрешённые операции сборщика и состояния потерь. | 2026-08-08 |
 | [deep-links.md](deep-links.md) | Грамматика канонических URL и CLI references для component, setup, publisher и report intent. | 2026-08-15 |
 | [device-passport.md](device-passport.md) | Поля паспорта устройства, его приватность и разрешённая сводка для сервера и веба. | 2026-08-04 |
@@ -52,8 +53,8 @@ last_verified: "2026-08-03"
 | [sync-event.md](sync-event.md) | Поля, ответы, повтор и конфликты события синхронизации. | 2026-08-15 |
 | [tag-vocabulary.md](tag-vocabulary.md) | Формат словаря тегов, нормализация, предел и поведение поиска. | 2026-08-04 |
 | [unverified-consent.md](unverified-consent.md) | Сеансовый признак согласия на непроверенное и долговечные записи исключений по издателю и основной линии. | 2026-08-04 |
-| [validation-policy.md](validation-policy.md) | Обязательные проверки по видам компонентов, классам MCP и сетапу. | 2026-08-22 |
-| [web-cookie-consent.md](web-cookie-consent.md) | Категории cookies и правило запуска необязательных интеграций Web. | 2026-08-16 |
+| [validation-policy.md](validation-policy.md) | Обязательные проверки по видам компонентов, классам MCP и сетапу. | 2026-08-23 |
+| [web-cookie-consent.md](web-cookie-consent.md) | Категории cookies и правило запуска необязательных интеграций Web. | 2026-08-22 |
 | [web-machine-projection.md](web-machine-projection.md) | Поля машинного документа web, парные URL и запрет утечек. | 2026-08-16 |
 
 <!-- КОНЕЦ СОДЕРЖИМОГО -->

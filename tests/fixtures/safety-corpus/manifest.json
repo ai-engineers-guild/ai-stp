@@ -1,0 +1,1539 @@
+{
+  "schema_version": "safety-adversarial-corpus-v2",
+  "cases": [
+    {
+      "id": "agent-agent-snooping",
+      "kind": "agent",
+      "class": "malicious",
+      "path": "agent/agent-agent-snooping",
+      "expected": {
+        "check_id": "agentic_behavior",
+        "rule_id": "agent_snooping"
+      }
+    },
+    {
+      "id": "agent-argument-hijacking",
+      "kind": "agent",
+      "class": "malicious",
+      "path": "agent/agent-argument-hijacking",
+      "expected": {
+        "check_id": "agentic_behavior",
+        "rule_id": "tool_argument_hijacking"
+      }
+    },
+    {
+      "id": "agent-bounded-delegation",
+      "kind": "agent",
+      "class": "benign",
+      "path": "agent/agent-bounded-delegation",
+      "expected": {
+        "findings": []
+      }
+    },
+    {
+      "id": "agent-capability-laundering",
+      "kind": "agent",
+      "class": "malicious",
+      "path": "agent/agent-capability-laundering",
+      "expected": {
+        "check_id": "agentic_behavior",
+        "rule_id": "capability_laundering"
+      }
+    },
+    {
+      "id": "agent-clean-https",
+      "kind": "agent",
+      "class": "benign",
+      "path": "agent/agent-clean-https",
+      "expected": {
+        "findings": []
+      }
+    },
+    {
+      "id": "agent-clean-minimal",
+      "kind": "agent",
+      "class": "benign",
+      "path": "agent/agent-clean-minimal",
+      "expected": {
+        "findings": []
+      }
+    },
+    {
+      "id": "agent-context-stuffing",
+      "kind": "agent",
+      "class": "malicious",
+      "path": "agent/agent-context-stuffing",
+      "expected": {
+        "check_id": "agentic_behavior",
+        "rule_id": "context_window_stuffing"
+      }
+    },
+    {
+      "id": "agent-delegation-loop",
+      "kind": "agent",
+      "class": "malicious",
+      "path": "agent/agent-delegation-loop",
+      "expected": {
+        "check_id": "agentic_behavior",
+        "rule_id": "subagent_delegation_loop"
+      }
+    },
+    {
+      "id": "agent-download-pipe-shell",
+      "kind": "agent",
+      "class": "malicious",
+      "path": "agent/agent-download-pipe-shell",
+      "expected": {
+        "check_id": "network_intent",
+        "rule_id": "url_pipe_shell"
+      }
+    },
+    {
+      "id": "agent-encoded-shell",
+      "kind": "agent",
+      "class": "malicious",
+      "path": "agent/agent-encoded-shell",
+      "expected": {
+        "check_id": "shell_obfuscation",
+        "rule_id": "b64_decoded_shell"
+      }
+    },
+    {
+      "id": "agent-hidden-comment",
+      "kind": "agent",
+      "class": "malicious",
+      "path": "agent/agent-hidden-comment",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "html_comment_hidden"
+      }
+    },
+    {
+      "id": "agent-image-exfil",
+      "kind": "agent",
+      "class": "malicious",
+      "path": "agent/agent-image-exfil",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "md_image_exfil"
+      }
+    },
+    {
+      "id": "agent-javascript-link",
+      "kind": "agent",
+      "class": "malicious",
+      "path": "agent/agent-javascript-link",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "dangerous_md_scheme"
+      }
+    },
+    {
+      "id": "agent-metadata-endpoint",
+      "kind": "agent",
+      "class": "malicious",
+      "path": "agent/agent-metadata-endpoint",
+      "expected": {
+        "check_id": "network_intent",
+        "rule_id": "metadata_endpoint"
+      }
+    },
+    {
+      "id": "agent-private-endpoint",
+      "kind": "agent",
+      "class": "malicious",
+      "path": "agent/agent-private-endpoint",
+      "expected": {
+        "check_id": "network_intent",
+        "rule_id": "non_public_endpoint"
+      }
+    },
+    {
+      "id": "agent-prompt-ignore",
+      "kind": "agent",
+      "class": "malicious",
+      "path": "agent/agent-prompt-ignore",
+      "expected": {
+        "check_id": "pi_content_pack",
+        "rule_id": "pi_ignore_previous"
+      }
+    },
+    {
+      "id": "agent-secret-token",
+      "kind": "agent",
+      "class": "malicious",
+      "path": "agent/agent-secret-token",
+      "expected": {
+        "check_id": "secrets_heuristic",
+        "rule_id": "github_personal_access_token"
+      }
+    },
+    {
+      "id": "agent-self-modification",
+      "kind": "agent",
+      "class": "malicious",
+      "path": "agent/agent-self-modification",
+      "expected": {
+        "check_id": "agentic_behavior",
+        "rule_id": "self_modification"
+      }
+    },
+    {
+      "id": "agent-subagent-confused-deputy",
+      "kind": "agent",
+      "class": "malicious",
+      "path": "agent/agent-subagent-confused-deputy",
+      "expected": {
+        "check_id": "agentic_behavior",
+        "rule_id": "subagent_confused_deputy"
+      }
+    },
+    {
+      "id": "agent-subagent-output-injection",
+      "kind": "agent",
+      "class": "malicious",
+      "path": "agent/agent-subagent-output-injection",
+      "expected": {
+        "check_id": "agentic_behavior",
+        "rule_id": "subagent_output_injection"
+      }
+    },
+    {
+      "id": "agent-trigger-persistence",
+      "kind": "agent",
+      "class": "malicious",
+      "path": "agent/agent-trigger-persistence",
+      "expected": {
+        "check_id": "agentic_behavior",
+        "rule_id": "trigger_persistence"
+      }
+    },
+    {
+      "id": "agent-unsafe-output-shell",
+      "kind": "agent",
+      "class": "malicious",
+      "path": "agent/agent-unsafe-output-shell",
+      "expected": {
+        "check_id": "agentic_behavior",
+        "rule_id": "unsafe_output_to_shell"
+      }
+    },
+    {
+      "id": "agent-zero-width",
+      "kind": "agent",
+      "class": "malicious",
+      "path": "agent/agent-zero-width",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "zero_width_chars"
+      }
+    },
+    {
+      "id": "command-argument-hijacking",
+      "kind": "command",
+      "class": "malicious",
+      "path": "command/command-argument-hijacking",
+      "expected": {
+        "check_id": "agentic_behavior",
+        "rule_id": "tool_argument_hijacking"
+      }
+    },
+    {
+      "id": "command-clean-https",
+      "kind": "command",
+      "class": "benign",
+      "path": "command/command-clean-https",
+      "expected": {
+        "findings": []
+      }
+    },
+    {
+      "id": "command-clean-minimal",
+      "kind": "command",
+      "class": "benign",
+      "path": "command/command-clean-minimal",
+      "expected": {
+        "findings": []
+      }
+    },
+    {
+      "id": "command-download-pipe-shell",
+      "kind": "command",
+      "class": "malicious",
+      "path": "command/command-download-pipe-shell",
+      "expected": {
+        "check_id": "network_intent",
+        "rule_id": "url_pipe_shell"
+      }
+    },
+    {
+      "id": "command-encoded-shell",
+      "kind": "command",
+      "class": "malicious",
+      "path": "command/command-encoded-shell",
+      "expected": {
+        "check_id": "shell_obfuscation",
+        "rule_id": "b64_decoded_shell"
+      }
+    },
+    {
+      "id": "command-hidden-comment",
+      "kind": "command",
+      "class": "malicious",
+      "path": "command/command-hidden-comment",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "html_comment_hidden"
+      }
+    },
+    {
+      "id": "command-image-exfil",
+      "kind": "command",
+      "class": "malicious",
+      "path": "command/command-image-exfil",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "md_image_exfil"
+      }
+    },
+    {
+      "id": "command-javascript-link",
+      "kind": "command",
+      "class": "malicious",
+      "path": "command/command-javascript-link",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "dangerous_md_scheme"
+      }
+    },
+    {
+      "id": "command-metadata-endpoint",
+      "kind": "command",
+      "class": "malicious",
+      "path": "command/command-metadata-endpoint",
+      "expected": {
+        "check_id": "network_intent",
+        "rule_id": "metadata_endpoint"
+      }
+    },
+    {
+      "id": "command-nested-encoding",
+      "kind": "command",
+      "class": "malicious",
+      "path": "command/command-nested-encoding",
+      "expected": {
+        "check_id": "shell_obfuscation",
+        "rule_id": "b64_decoded_shell"
+      }
+    },
+    {
+      "id": "command-private-endpoint",
+      "kind": "command",
+      "class": "malicious",
+      "path": "command/command-private-endpoint",
+      "expected": {
+        "check_id": "network_intent",
+        "rule_id": "non_public_endpoint"
+      }
+    },
+    {
+      "id": "command-prompt-ignore",
+      "kind": "command",
+      "class": "malicious",
+      "path": "command/command-prompt-ignore",
+      "expected": {
+        "check_id": "pi_content_pack",
+        "rule_id": "pi_ignore_previous"
+      }
+    },
+    {
+      "id": "command-secret-token",
+      "kind": "command",
+      "class": "malicious",
+      "path": "command/command-secret-token",
+      "expected": {
+        "check_id": "secrets_heuristic",
+        "rule_id": "github_personal_access_token"
+      }
+    },
+    {
+      "id": "command-unsafe-output-shell",
+      "kind": "command",
+      "class": "malicious",
+      "path": "command/command-unsafe-output-shell",
+      "expected": {
+        "check_id": "agentic_behavior",
+        "rule_id": "unsafe_output_to_shell"
+      }
+    },
+    {
+      "id": "command-zero-width",
+      "kind": "command",
+      "class": "malicious",
+      "path": "command/command-zero-width",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "zero_width_chars"
+      }
+    },
+    {
+      "id": "hook-clean-https",
+      "kind": "hook",
+      "class": "benign",
+      "path": "hook/hook-clean-https",
+      "expected": {
+        "findings": []
+      }
+    },
+    {
+      "id": "hook-clean-minimal",
+      "kind": "hook",
+      "class": "benign",
+      "path": "hook/hook-clean-minimal",
+      "expected": {
+        "findings": []
+      }
+    },
+    {
+      "id": "hook-download-pipe-shell",
+      "kind": "hook",
+      "class": "malicious",
+      "path": "hook/hook-download-pipe-shell",
+      "expected": {
+        "check_id": "network_intent",
+        "rule_id": "url_pipe_shell"
+      }
+    },
+    {
+      "id": "hook-encoded-shell",
+      "kind": "hook",
+      "class": "malicious",
+      "path": "hook/hook-encoded-shell",
+      "expected": {
+        "check_id": "shell_obfuscation",
+        "rule_id": "b64_decoded_shell"
+      }
+    },
+    {
+      "id": "hook-hidden-comment",
+      "kind": "hook",
+      "class": "malicious",
+      "path": "hook/hook-hidden-comment",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "html_comment_hidden"
+      }
+    },
+    {
+      "id": "hook-image-exfil",
+      "kind": "hook",
+      "class": "malicious",
+      "path": "hook/hook-image-exfil",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "md_image_exfil"
+      }
+    },
+    {
+      "id": "hook-javascript-link",
+      "kind": "hook",
+      "class": "malicious",
+      "path": "hook/hook-javascript-link",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "dangerous_md_scheme"
+      }
+    },
+    {
+      "id": "hook-metadata-endpoint",
+      "kind": "hook",
+      "class": "malicious",
+      "path": "hook/hook-metadata-endpoint",
+      "expected": {
+        "check_id": "network_intent",
+        "rule_id": "metadata_endpoint"
+      }
+    },
+    {
+      "id": "hook-private-endpoint",
+      "kind": "hook",
+      "class": "malicious",
+      "path": "hook/hook-private-endpoint",
+      "expected": {
+        "check_id": "network_intent",
+        "rule_id": "non_public_endpoint"
+      }
+    },
+    {
+      "id": "hook-prompt-ignore",
+      "kind": "hook",
+      "class": "malicious",
+      "path": "hook/hook-prompt-ignore",
+      "expected": {
+        "check_id": "pi_content_pack",
+        "rule_id": "pi_ignore_previous"
+      }
+    },
+    {
+      "id": "hook-scope-creep",
+      "kind": "hook",
+      "class": "malicious",
+      "path": "hook/hook-scope-creep",
+      "expected": {
+        "check_id": "agentic_behavior",
+        "rule_id": "scope_creep"
+      }
+    },
+    {
+      "id": "hook-secret-token",
+      "kind": "hook",
+      "class": "malicious",
+      "path": "hook/hook-secret-token",
+      "expected": {
+        "check_id": "secrets_heuristic",
+        "rule_id": "github_personal_access_token"
+      }
+    },
+    {
+      "id": "hook-trigger-persistence",
+      "kind": "hook",
+      "class": "malicious",
+      "path": "hook/hook-trigger-persistence",
+      "expected": {
+        "check_id": "agentic_behavior",
+        "rule_id": "trigger_persistence"
+      }
+    },
+    {
+      "id": "hook-unsafe-output-shell",
+      "kind": "hook",
+      "class": "malicious",
+      "path": "hook/hook-unsafe-output-shell",
+      "expected": {
+        "check_id": "agentic_behavior",
+        "rule_id": "unsafe_output_to_shell"
+      }
+    },
+    {
+      "id": "hook-zero-width",
+      "kind": "hook",
+      "class": "malicious",
+      "path": "hook/hook-zero-width",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "zero_width_chars"
+      }
+    },
+    {
+      "id": "instruction-clean-https",
+      "kind": "instruction",
+      "class": "benign",
+      "path": "instruction/instruction-clean-https",
+      "expected": {
+        "findings": []
+      }
+    },
+    {
+      "id": "instruction-clean-minimal",
+      "kind": "instruction",
+      "class": "benign",
+      "path": "instruction/instruction-clean-minimal",
+      "expected": {
+        "findings": []
+      }
+    },
+    {
+      "id": "instruction-download-pipe-shell",
+      "kind": "instruction",
+      "class": "malicious",
+      "path": "instruction/instruction-download-pipe-shell",
+      "expected": {
+        "check_id": "network_intent",
+        "rule_id": "url_pipe_shell"
+      }
+    },
+    {
+      "id": "instruction-encoded-shell",
+      "kind": "instruction",
+      "class": "malicious",
+      "path": "instruction/instruction-encoded-shell",
+      "expected": {
+        "check_id": "shell_obfuscation",
+        "rule_id": "b64_decoded_shell"
+      }
+    },
+    {
+      "id": "instruction-hidden-comment",
+      "kind": "instruction",
+      "class": "malicious",
+      "path": "instruction/instruction-hidden-comment",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "html_comment_hidden"
+      }
+    },
+    {
+      "id": "instruction-homoglyph-command",
+      "kind": "instruction",
+      "class": "malicious",
+      "path": "instruction/instruction-homoglyph-command",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "homoglyph_command"
+      }
+    },
+    {
+      "id": "instruction-image-exfil",
+      "kind": "instruction",
+      "class": "malicious",
+      "path": "instruction/instruction-image-exfil",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "md_image_exfil"
+      }
+    },
+    {
+      "id": "instruction-javascript-link",
+      "kind": "instruction",
+      "class": "malicious",
+      "path": "instruction/instruction-javascript-link",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "dangerous_md_scheme"
+      }
+    },
+    {
+      "id": "instruction-metadata-endpoint",
+      "kind": "instruction",
+      "class": "malicious",
+      "path": "instruction/instruction-metadata-endpoint",
+      "expected": {
+        "check_id": "network_intent",
+        "rule_id": "metadata_endpoint"
+      }
+    },
+    {
+      "id": "instruction-private-endpoint",
+      "kind": "instruction",
+      "class": "malicious",
+      "path": "instruction/instruction-private-endpoint",
+      "expected": {
+        "check_id": "network_intent",
+        "rule_id": "non_public_endpoint"
+      }
+    },
+    {
+      "id": "instruction-prompt-ignore",
+      "kind": "instruction",
+      "class": "malicious",
+      "path": "instruction/instruction-prompt-ignore",
+      "expected": {
+        "check_id": "pi_content_pack",
+        "rule_id": "pi_ignore_previous"
+      }
+    },
+    {
+      "id": "instruction-secret-token",
+      "kind": "instruction",
+      "class": "malicious",
+      "path": "instruction/instruction-secret-token",
+      "expected": {
+        "check_id": "secrets_heuristic",
+        "rule_id": "github_personal_access_token"
+      }
+    },
+    {
+      "id": "instruction-structural-hiding",
+      "kind": "instruction",
+      "class": "malicious",
+      "path": "instruction/instruction-structural-hiding",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "structural_prompt_hiding"
+      }
+    },
+    {
+      "id": "instruction-unicode-tag-smuggling",
+      "kind": "instruction",
+      "class": "malicious",
+      "path": "instruction/instruction-unicode-tag-smuggling",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "unicode_tag_block"
+      }
+    },
+    {
+      "id": "instruction-zero-width",
+      "kind": "instruction",
+      "class": "malicious",
+      "path": "instruction/instruction-zero-width",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "zero_width_chars"
+      }
+    },
+    {
+      "id": "mcp-argument-hijacking",
+      "kind": "mcp",
+      "class": "malicious",
+      "path": "mcp/mcp-argument-hijacking",
+      "expected": {
+        "check_id": "mcp_config_static",
+        "rule_id": "mcp_argument_hijacking"
+      }
+    },
+    {
+      "id": "mcp-clean-https",
+      "kind": "mcp",
+      "class": "benign",
+      "path": "mcp/mcp-clean-https",
+      "expected": {
+        "findings": []
+      }
+    },
+    {
+      "id": "mcp-clean-minimal",
+      "kind": "mcp",
+      "class": "benign",
+      "path": "mcp/mcp-clean-minimal",
+      "expected": {
+        "findings": []
+      }
+    },
+    {
+      "id": "mcp-download-pipe-shell",
+      "kind": "mcp",
+      "class": "malicious",
+      "path": "mcp/mcp-download-pipe-shell",
+      "expected": {
+        "check_id": "network_intent",
+        "rule_id": "url_pipe_shell"
+      }
+    },
+    {
+      "id": "mcp-encoded-shell",
+      "kind": "mcp",
+      "class": "malicious",
+      "path": "mcp/mcp-encoded-shell",
+      "expected": {
+        "check_id": "shell_obfuscation",
+        "rule_id": "b64_decoded_shell"
+      }
+    },
+    {
+      "id": "mcp-hidden-comment",
+      "kind": "mcp",
+      "class": "malicious",
+      "path": "mcp/mcp-hidden-comment",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "html_comment_hidden"
+      }
+    },
+    {
+      "id": "mcp-image-exfil",
+      "kind": "mcp",
+      "class": "malicious",
+      "path": "mcp/mcp-image-exfil",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "md_image_exfil"
+      }
+    },
+    {
+      "id": "mcp-javascript-link",
+      "kind": "mcp",
+      "class": "malicious",
+      "path": "mcp/mcp-javascript-link",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "dangerous_md_scheme"
+      }
+    },
+    {
+      "id": "mcp-metadata-endpoint",
+      "kind": "mcp",
+      "class": "malicious",
+      "path": "mcp/mcp-metadata-endpoint",
+      "expected": {
+        "check_id": "network_intent",
+        "rule_id": "metadata_endpoint"
+      }
+    },
+    {
+      "id": "mcp-private-endpoint",
+      "kind": "mcp",
+      "class": "malicious",
+      "path": "mcp/mcp-private-endpoint",
+      "expected": {
+        "check_id": "network_intent",
+        "rule_id": "non_public_endpoint"
+      }
+    },
+    {
+      "id": "mcp-prompt-ignore",
+      "kind": "mcp",
+      "class": "malicious",
+      "path": "mcp/mcp-prompt-ignore",
+      "expected": {
+        "check_id": "pi_content_pack",
+        "rule_id": "pi_ignore_previous"
+      }
+    },
+    {
+      "id": "mcp-prompt-poisoning",
+      "kind": "mcp",
+      "class": "malicious",
+      "path": "mcp/mcp-prompt-poisoning",
+      "expected": {
+        "check_id": "mcp_config_static",
+        "rule_id": "mcp_prompt_poisoning"
+      }
+    },
+    {
+      "id": "mcp-resource-poisoning",
+      "kind": "mcp",
+      "class": "malicious",
+      "path": "mcp/mcp-resource-poisoning",
+      "expected": {
+        "check_id": "mcp_config_static",
+        "rule_id": "mcp_resource_poisoning"
+      }
+    },
+    {
+      "id": "mcp-rug-pull",
+      "kind": "mcp",
+      "class": "malicious",
+      "path": "mcp/mcp-rug-pull",
+      "expected": {
+        "check_id": "mcp_config_static",
+        "rule_id": "mcp_tool_rug_pull"
+      }
+    },
+    {
+      "id": "mcp-schema-poisoning",
+      "kind": "mcp",
+      "class": "malicious",
+      "path": "mcp/mcp-schema-poisoning",
+      "expected": {
+        "check_id": "mcp_config_static",
+        "rule_id": "mcp_schema_poisoning"
+      }
+    },
+    {
+      "id": "mcp-secret-token",
+      "kind": "mcp",
+      "class": "malicious",
+      "path": "mcp/mcp-secret-token",
+      "expected": {
+        "check_id": "secrets_heuristic",
+        "rule_id": "github_personal_access_token"
+      }
+    },
+    {
+      "id": "mcp-stable-tool-baseline",
+      "kind": "mcp",
+      "class": "benign",
+      "path": "mcp/mcp-stable-tool-baseline",
+      "expected": {
+        "findings": []
+      }
+    },
+    {
+      "id": "mcp-tool-description-poisoning",
+      "kind": "mcp",
+      "class": "malicious",
+      "path": "mcp/mcp-tool-description-poisoning",
+      "expected": {
+        "check_id": "mcp_config_static",
+        "rule_id": "mcp_tool_description_poisoning"
+      }
+    },
+    {
+      "id": "mcp-tool-name-collision",
+      "kind": "mcp",
+      "class": "malicious",
+      "path": "mcp/mcp-tool-name-collision",
+      "expected": {
+        "check_id": "mcp_config_static",
+        "rule_id": "mcp_tool_name_collision"
+      }
+    },
+    {
+      "id": "mcp-tool-output-poisoning",
+      "kind": "mcp",
+      "class": "malicious",
+      "path": "mcp/mcp-tool-output-poisoning",
+      "expected": {
+        "check_id": "mcp_config_static",
+        "rule_id": "mcp_tool_output_poisoning"
+      }
+    },
+    {
+      "id": "mcp-tool-shadowing",
+      "kind": "mcp",
+      "class": "malicious",
+      "path": "mcp/mcp-tool-shadowing",
+      "expected": {
+        "check_id": "mcp_config_static",
+        "rule_id": "mcp_tool_shadowing"
+      }
+    },
+    {
+      "id": "mcp-toxic-flow",
+      "kind": "mcp",
+      "class": "malicious",
+      "path": "mcp/mcp-toxic-flow",
+      "expected": {
+        "check_id": "mcp_config_static",
+        "rule_id": "mcp_toxic_flow"
+      }
+    },
+    {
+      "id": "mcp-zero-width",
+      "kind": "mcp",
+      "class": "malicious",
+      "path": "mcp/mcp-zero-width",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "zero_width_chars"
+      }
+    },
+    {
+      "id": "plugin-clean-https",
+      "kind": "plugin",
+      "class": "benign",
+      "path": "plugin/plugin-clean-https",
+      "expected": {
+        "findings": []
+      }
+    },
+    {
+      "id": "plugin-clean-minimal",
+      "kind": "plugin",
+      "class": "benign",
+      "path": "plugin/plugin-clean-minimal",
+      "expected": {
+        "findings": []
+      }
+    },
+    {
+      "id": "plugin-download-pipe-shell",
+      "kind": "plugin",
+      "class": "malicious",
+      "path": "plugin/plugin-download-pipe-shell",
+      "expected": {
+        "check_id": "network_intent",
+        "rule_id": "url_pipe_shell"
+      }
+    },
+    {
+      "id": "plugin-encoded-shell",
+      "kind": "plugin",
+      "class": "malicious",
+      "path": "plugin/plugin-encoded-shell",
+      "expected": {
+        "check_id": "shell_obfuscation",
+        "rule_id": "b64_decoded_shell"
+      }
+    },
+    {
+      "id": "plugin-hidden-comment",
+      "kind": "plugin",
+      "class": "malicious",
+      "path": "plugin/plugin-hidden-comment",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "html_comment_hidden"
+      }
+    },
+    {
+      "id": "plugin-image-exfil",
+      "kind": "plugin",
+      "class": "malicious",
+      "path": "plugin/plugin-image-exfil",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "md_image_exfil"
+      }
+    },
+    {
+      "id": "plugin-javascript-link",
+      "kind": "plugin",
+      "class": "malicious",
+      "path": "plugin/plugin-javascript-link",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "dangerous_md_scheme"
+      }
+    },
+    {
+      "id": "plugin-metadata-endpoint",
+      "kind": "plugin",
+      "class": "malicious",
+      "path": "plugin/plugin-metadata-endpoint",
+      "expected": {
+        "check_id": "network_intent",
+        "rule_id": "metadata_endpoint"
+      }
+    },
+    {
+      "id": "plugin-package-lifecycle",
+      "kind": "plugin",
+      "class": "malicious",
+      "path": "plugin/plugin-package-lifecycle",
+      "expected": {
+        "check_id": "agentic_behavior",
+        "rule_id": "package_lifecycle_execution"
+      }
+    },
+    {
+      "id": "plugin-path-escape",
+      "kind": "plugin",
+      "class": "malicious",
+      "path": "plugin/plugin-path-escape",
+      "expected": {
+        "check_id": "agentic_behavior",
+        "rule_id": "path_scope_escape"
+      }
+    },
+    {
+      "id": "plugin-private-endpoint",
+      "kind": "plugin",
+      "class": "malicious",
+      "path": "plugin/plugin-private-endpoint",
+      "expected": {
+        "check_id": "network_intent",
+        "rule_id": "non_public_endpoint"
+      }
+    },
+    {
+      "id": "plugin-prompt-ignore",
+      "kind": "plugin",
+      "class": "malicious",
+      "path": "plugin/plugin-prompt-ignore",
+      "expected": {
+        "check_id": "pi_content_pack",
+        "rule_id": "pi_ignore_previous"
+      }
+    },
+    {
+      "id": "plugin-remote-instructions",
+      "kind": "plugin",
+      "class": "malicious",
+      "path": "plugin/plugin-remote-instructions",
+      "expected": {
+        "check_id": "agentic_behavior",
+        "rule_id": "remote_instruction_loading"
+      }
+    },
+    {
+      "id": "plugin-secret-token",
+      "kind": "plugin",
+      "class": "malicious",
+      "path": "plugin/plugin-secret-token",
+      "expected": {
+        "check_id": "secrets_heuristic",
+        "rule_id": "github_personal_access_token"
+      }
+    },
+    {
+      "id": "plugin-self-modification",
+      "kind": "plugin",
+      "class": "malicious",
+      "path": "plugin/plugin-self-modification",
+      "expected": {
+        "check_id": "agentic_behavior",
+        "rule_id": "self_modification"
+      }
+    },
+    {
+      "id": "plugin-zero-width",
+      "kind": "plugin",
+      "class": "malicious",
+      "path": "plugin/plugin-zero-width",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "zero_width_chars"
+      }
+    },
+    {
+      "id": "setting-clean-https",
+      "kind": "setting",
+      "class": "benign",
+      "path": "setting/setting-clean-https",
+      "expected": {
+        "findings": []
+      }
+    },
+    {
+      "id": "setting-clean-minimal",
+      "kind": "setting",
+      "class": "benign",
+      "path": "setting/setting-clean-minimal",
+      "expected": {
+        "findings": []
+      }
+    },
+    {
+      "id": "setting-context-stuffing",
+      "kind": "setting",
+      "class": "malicious",
+      "path": "setting/setting-context-stuffing",
+      "expected": {
+        "check_id": "agentic_behavior",
+        "rule_id": "context_window_stuffing"
+      }
+    },
+    {
+      "id": "setting-download-pipe-shell",
+      "kind": "setting",
+      "class": "malicious",
+      "path": "setting/setting-download-pipe-shell",
+      "expected": {
+        "check_id": "network_intent",
+        "rule_id": "url_pipe_shell"
+      }
+    },
+    {
+      "id": "setting-encoded-shell",
+      "kind": "setting",
+      "class": "malicious",
+      "path": "setting/setting-encoded-shell",
+      "expected": {
+        "check_id": "shell_obfuscation",
+        "rule_id": "b64_decoded_shell"
+      }
+    },
+    {
+      "id": "setting-floating-dependency",
+      "kind": "setting",
+      "class": "malicious",
+      "path": "setting/setting-floating-dependency",
+      "expected": {
+        "check_id": "agentic_behavior",
+        "rule_id": "dependency_floating"
+      }
+    },
+    {
+      "id": "setting-hidden-comment",
+      "kind": "setting",
+      "class": "malicious",
+      "path": "setting/setting-hidden-comment",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "html_comment_hidden"
+      }
+    },
+    {
+      "id": "setting-image-exfil",
+      "kind": "setting",
+      "class": "malicious",
+      "path": "setting/setting-image-exfil",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "md_image_exfil"
+      }
+    },
+    {
+      "id": "setting-javascript-link",
+      "kind": "setting",
+      "class": "malicious",
+      "path": "setting/setting-javascript-link",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "dangerous_md_scheme"
+      }
+    },
+    {
+      "id": "setting-metadata-endpoint",
+      "kind": "setting",
+      "class": "malicious",
+      "path": "setting/setting-metadata-endpoint",
+      "expected": {
+        "check_id": "network_intent",
+        "rule_id": "metadata_endpoint"
+      }
+    },
+    {
+      "id": "setting-private-endpoint",
+      "kind": "setting",
+      "class": "malicious",
+      "path": "setting/setting-private-endpoint",
+      "expected": {
+        "check_id": "network_intent",
+        "rule_id": "non_public_endpoint"
+      }
+    },
+    {
+      "id": "setting-prompt-ignore",
+      "kind": "setting",
+      "class": "malicious",
+      "path": "setting/setting-prompt-ignore",
+      "expected": {
+        "check_id": "pi_content_pack",
+        "rule_id": "pi_ignore_previous"
+      }
+    },
+    {
+      "id": "setting-secret-token",
+      "kind": "setting",
+      "class": "malicious",
+      "path": "setting/setting-secret-token",
+      "expected": {
+        "check_id": "secrets_heuristic",
+        "rule_id": "github_personal_access_token"
+      }
+    },
+    {
+      "id": "setting-self-modification",
+      "kind": "setting",
+      "class": "malicious",
+      "path": "setting/setting-self-modification",
+      "expected": {
+        "check_id": "agentic_behavior",
+        "rule_id": "self_modification"
+      }
+    },
+    {
+      "id": "setting-zero-width",
+      "kind": "setting",
+      "class": "malicious",
+      "path": "setting/setting-zero-width",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "zero_width_chars"
+      }
+    },
+    {
+      "id": "setup-check-degraded",
+      "kind": "setup",
+      "class": "malicious",
+      "path": "setup/setup-check-degraded",
+      "expected": {
+        "check_id": "setup_pin_aggregate",
+        "rule_id": "pin_scan_pending"
+      }
+    },
+    {
+      "id": "setup-check-failed",
+      "kind": "setup",
+      "class": "malicious",
+      "path": "setup/setup-check-failed",
+      "expected": {
+        "check_id": "setup_pin_aggregate",
+        "rule_id": "pin_mandatory_not_passed"
+      }
+    },
+    {
+      "id": "setup-check-not-run",
+      "kind": "setup",
+      "class": "malicious",
+      "path": "setup/setup-check-not-run",
+      "expected": {
+        "check_id": "setup_pin_aggregate",
+        "rule_id": "pin_mandatory_not_passed"
+      }
+    },
+    {
+      "id": "setup-clean-multiple",
+      "kind": "setup",
+      "class": "benign",
+      "path": "setup/setup-clean-multiple",
+      "expected": {}
+    },
+    {
+      "id": "setup-clean-single",
+      "kind": "setup",
+      "class": "benign",
+      "path": "setup/setup-clean-single",
+      "expected": {}
+    },
+    {
+      "id": "setup-failed-after-clean-check",
+      "kind": "setup",
+      "class": "malicious",
+      "path": "setup/setup-failed-after-clean-check",
+      "expected": {
+        "check_id": "setup_pin_aggregate",
+        "rule_id": "pin_mandatory_not_passed"
+      }
+    },
+    {
+      "id": "setup-failed-flag",
+      "kind": "setup",
+      "class": "malicious",
+      "path": "setup/setup-failed-flag",
+      "expected": {
+        "check_id": "setup_pin_aggregate",
+        "rule_id": "pin_failed_mandatory"
+      }
+    },
+    {
+      "id": "setup-missing-scan",
+      "kind": "setup",
+      "class": "malicious",
+      "path": "setup/setup-missing-scan",
+      "expected": {
+        "check_id": "setup_pin_aggregate",
+        "rule_id": "pin_missing_scan"
+      }
+    },
+    {
+      "id": "setup-multiple-failures",
+      "kind": "setup",
+      "class": "malicious",
+      "path": "setup/setup-multiple-failures",
+      "expected": {
+        "check_id": "setup_pin_aggregate",
+        "rule_id": "pin_failed_mandatory"
+      }
+    },
+    {
+      "id": "setup-pending-scan",
+      "kind": "setup",
+      "class": "malicious",
+      "path": "setup/setup-pending-scan",
+      "expected": {
+        "check_id": "setup_pin_aggregate",
+        "rule_id": "pin_scan_pending"
+      }
+    },
+    {
+      "id": "setup-second-pin-failed",
+      "kind": "setup",
+      "class": "malicious",
+      "path": "setup/setup-second-pin-failed",
+      "expected": {
+        "check_id": "setup_pin_aggregate",
+        "rule_id": "pin_failed_mandatory"
+      }
+    },
+    {
+      "id": "setup-second-pin-missing",
+      "kind": "setup",
+      "class": "malicious",
+      "path": "setup/setup-second-pin-missing",
+      "expected": {
+        "check_id": "setup_pin_aggregate",
+        "rule_id": "pin_missing_scan"
+      }
+    },
+    {
+      "id": "skill-clean-https",
+      "kind": "skill",
+      "class": "benign",
+      "path": "skill/skill-clean-https",
+      "expected": {
+        "findings": []
+      }
+    },
+    {
+      "id": "skill-clean-minimal",
+      "kind": "skill",
+      "class": "benign",
+      "path": "skill/skill-clean-minimal",
+      "expected": {
+        "findings": []
+      }
+    },
+    {
+      "id": "skill-defensive-prompt-guidance",
+      "kind": "skill",
+      "class": "benign",
+      "path": "skill/skill-defensive-prompt-guidance",
+      "expected": {
+        "findings": []
+      }
+    },
+    {
+      "id": "skill-defensive-shell-guidance",
+      "kind": "skill",
+      "class": "benign",
+      "path": "skill/skill-defensive-shell-guidance",
+      "expected": {
+        "findings": []
+      }
+    },
+    {
+      "id": "skill-download-pipe-shell",
+      "kind": "skill",
+      "class": "malicious",
+      "path": "skill/skill-download-pipe-shell",
+      "expected": {
+        "check_id": "network_intent",
+        "rule_id": "url_pipe_shell"
+      }
+    },
+    {
+      "id": "skill-encoded-shell",
+      "kind": "skill",
+      "class": "malicious",
+      "path": "skill/skill-encoded-shell",
+      "expected": {
+        "check_id": "shell_obfuscation",
+        "rule_id": "b64_decoded_shell"
+      }
+    },
+    {
+      "id": "skill-example-context-bypass",
+      "kind": "skill",
+      "class": "malicious",
+      "path": "skill/skill-example-context-bypass",
+      "expected": {
+        "check_id": "pi_content_pack",
+        "rule_id": "pi_ignore_previous"
+      }
+    },
+    {
+      "id": "skill-floating-dependency",
+      "kind": "skill",
+      "class": "malicious",
+      "path": "skill/skill-floating-dependency",
+      "expected": {
+        "check_id": "agentic_behavior",
+        "rule_id": "dependency_floating"
+      }
+    },
+    {
+      "id": "skill-hidden-comment",
+      "kind": "skill",
+      "class": "malicious",
+      "path": "skill/skill-hidden-comment",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "html_comment_hidden"
+      }
+    },
+    {
+      "id": "skill-image-exfil",
+      "kind": "skill",
+      "class": "malicious",
+      "path": "skill/skill-image-exfil",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "md_image_exfil"
+      }
+    },
+    {
+      "id": "skill-javascript-link",
+      "kind": "skill",
+      "class": "malicious",
+      "path": "skill/skill-javascript-link",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "dangerous_md_scheme"
+      }
+    },
+    {
+      "id": "skill-memory-poisoning",
+      "kind": "skill",
+      "class": "malicious",
+      "path": "skill/skill-memory-poisoning",
+      "expected": {
+        "check_id": "agentic_behavior",
+        "rule_id": "memory_poisoning"
+      }
+    },
+    {
+      "id": "skill-metadata-endpoint",
+      "kind": "skill",
+      "class": "malicious",
+      "path": "skill/skill-metadata-endpoint",
+      "expected": {
+        "check_id": "network_intent",
+        "rule_id": "metadata_endpoint"
+      }
+    },
+    {
+      "id": "skill-package-lifecycle",
+      "kind": "skill",
+      "class": "malicious",
+      "path": "skill/skill-package-lifecycle",
+      "expected": {
+        "check_id": "agentic_behavior",
+        "rule_id": "package_lifecycle_execution"
+      }
+    },
+    {
+      "id": "skill-path-escape",
+      "kind": "skill",
+      "class": "malicious",
+      "path": "skill/skill-path-escape",
+      "expected": {
+        "check_id": "agentic_behavior",
+        "rule_id": "path_scope_escape"
+      }
+    },
+    {
+      "id": "skill-private-endpoint",
+      "kind": "skill",
+      "class": "malicious",
+      "path": "skill/skill-private-endpoint",
+      "expected": {
+        "check_id": "network_intent",
+        "rule_id": "non_public_endpoint"
+      }
+    },
+    {
+      "id": "skill-prompt-ignore",
+      "kind": "skill",
+      "class": "malicious",
+      "path": "skill/skill-prompt-ignore",
+      "expected": {
+        "check_id": "pi_content_pack",
+        "rule_id": "pi_ignore_previous"
+      }
+    },
+    {
+      "id": "skill-remote-instructions",
+      "kind": "skill",
+      "class": "malicious",
+      "path": "skill/skill-remote-instructions",
+      "expected": {
+        "check_id": "agentic_behavior",
+        "rule_id": "remote_instruction_loading"
+      }
+    },
+    {
+      "id": "skill-scope-creep",
+      "kind": "skill",
+      "class": "malicious",
+      "path": "skill/skill-scope-creep",
+      "expected": {
+        "check_id": "agentic_behavior",
+        "rule_id": "scope_creep"
+      }
+    },
+    {
+      "id": "skill-secret-token",
+      "kind": "skill",
+      "class": "malicious",
+      "path": "skill/skill-secret-token",
+      "expected": {
+        "check_id": "secrets_heuristic",
+        "rule_id": "github_personal_access_token"
+      }
+    },
+    {
+      "id": "skill-unsafe-deserialization",
+      "kind": "skill",
+      "class": "malicious",
+      "path": "skill/skill-unsafe-deserialization",
+      "expected": {
+        "check_id": "agentic_behavior",
+        "rule_id": "unsafe_deserialization"
+      }
+    },
+    {
+      "id": "skill-zero-width",
+      "kind": "skill",
+      "class": "malicious",
+      "path": "skill/skill-zero-width",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "zero_width_chars"
+      }
+    }
+  ]
+}

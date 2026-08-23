@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Catalog filter interactions share one expensive UI harness. */
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
@@ -40,6 +41,14 @@ const labels = {
   dismissFilter: "Remove filter",
   closeFilters: "Close",
   filterHelpLabel: "Help for filter",
+  tagFilterHelp: "Help for tags",
+  harnessFilterHelp: "Help for harnesses",
+  typeFilterHelp: "Help for component types",
+  authorFilterHelp: "Help for authors",
+  verifiedOnlyHelp: "Help for verified only",
+  countryFilterHelp: "Help for countries",
+  serviceFilterHelp: "Help for services",
+  updatedRangeHelp: "Help for update dates",
   searchOptions: "Search options",
   authorFilter: "Author",
   verifiedOnly: "Only verified",
@@ -127,7 +136,13 @@ describe("CatalogFilters", () => {
     const user = userEvent.setup();
     render(
       <CatalogFilters
-        query={query({ q: "python", resource: "setups", tags: ["python"], view: "cards" })}
+        query={query({
+          q: "python",
+          resource: "setups",
+          tags: ["python"],
+          serviceDomains: ["example.com"],
+          view: "cards",
+        })}
         labels={labels}
       />,
     );
@@ -268,7 +283,7 @@ describe("CatalogFilters", () => {
     const user = userEvent.setup();
     render(
       <CatalogFilters
-        query={query({ countryCode: "KZ", serviceDomains: ["kaspi.kz"] })}
+        query={query({ countryCode: "KZ", serviceDomain: "kaspi.kz" })}
         labels={{
           ...labels,
           unspecifiedOption: "Not specified",
@@ -445,5 +460,46 @@ describe("CatalogFilters", () => {
     await user.click(unspecified);
     expect(screen.getByRole("checkbox", { name: "Global Pay" })).toBeInTheDocument();
     expect(screen.queryByRole("checkbox", { name: "Kaspi" })).toBeNull();
+  });
+
+  it("gives each filter a distinct localized help string", async () => {
+    const user = userEvent.setup();
+    render(<CatalogFilters query={query({ resource: "components" })} labels={labels} />);
+    await user.click(screen.getByRole("button", { name: "Filters" }));
+    const texts = [...document.querySelectorAll('[role="tooltip"]')].map((node) =>
+      node.textContent.trim(),
+    );
+    expect(texts.length).toBeGreaterThanOrEqual(8);
+    expect(new Set(texts).size).toBe(texts.length);
+    expect(texts).toEqual(
+      expect.arrayContaining([
+        "Help for tags",
+        "Help for harnesses",
+        "Help for component types",
+        "Help for authors",
+        "Help for verified only",
+        "Help for countries",
+        "Help for services",
+        "Help for update dates",
+      ]),
+    );
+    expect(texts.every((text) => text !== labels.filterHelpBody)).toBe(true);
+  });
+
+  it("falls back to the shared help copy when optional facet help is absent", async () => {
+    const user = userEvent.setup();
+    const fallbackLabels = { ...labels };
+    delete (fallbackLabels as Partial<typeof labels>).tagFilterHelp;
+    delete (fallbackLabels as Partial<typeof labels>).harnessFilterHelp;
+    delete (fallbackLabels as Partial<typeof labels>).typeFilterHelp;
+    delete (fallbackLabels as Partial<typeof labels>).authorFilterHelp;
+    delete (fallbackLabels as Partial<typeof labels>).verifiedOnlyHelp;
+    delete (fallbackLabels as Partial<typeof labels>).countryFilterHelp;
+    delete (fallbackLabels as Partial<typeof labels>).serviceFilterHelp;
+    delete (fallbackLabels as Partial<typeof labels>).updatedRangeHelp;
+
+    render(<CatalogFilters query={query({ resource: "components" })} labels={fallbackLabels} />);
+    await user.click(screen.getByRole("button", { name: "Filters" }));
+    expect(screen.getAllByText("Filter help").length).toBeGreaterThanOrEqual(7);
   });
 });

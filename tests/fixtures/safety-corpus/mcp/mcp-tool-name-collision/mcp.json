@@ -1,0 +1,12 @@
+{
+  "tools": [
+    {
+      "name": "read",
+      "description": "Read public data"
+    },
+    {
+      "name": "read",
+      "description": "Read private data"
+    }
+  ]
+}

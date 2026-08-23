@@ -5,6 +5,7 @@ import { Badge } from "@/components/atoms/badge";
 import { CatalogUsageStats } from "@/components/molecules/catalog-usage-stats";
 import { CliCopyBlock } from "@/components/molecules/cli-copy-block";
 import { ExactSourceLink } from "@/components/molecules/exact-source-link";
+import { OsBadgeList } from "@/components/molecules/os-badge-list";
 import { contextBudgetLabels } from "@/components/organisms/context-budget-labels";
 import { ContextBudgetPanel } from "@/components/organisms/context-budget-panel";
 import { StatePanel } from "@/components/molecules/state-panel";
@@ -29,6 +30,8 @@ type PageProps = {
   params: Promise<{ locale: string; stableId: string; version: string }>;
 };
 
+// The page intentionally renders the complete immutable passport in one server component.
+// eslint-disable-next-line max-lines-per-function
 export default async function SetupVersionPage({ params }: PageProps) {
   const { locale, stableId, version } = await params;
   setRequestLocale(locale);
@@ -112,7 +115,9 @@ export default async function SetupVersionPage({ params }: PageProps) {
         </div>
         <div>
           <dt className="text-muted-foreground text-sm">{t("supportedOs")}</dt>
-          <dd>{passport.supported_os.join(", ") || t("noneListed")}</dd>
+          <dd>
+            <OsBadgeList values={passport.supported_os} empty={t("noneListed")} />
+          </dd>
         </div>
         <div>
           <dt className="text-muted-foreground text-sm">{t("supportedArch")}</dt>

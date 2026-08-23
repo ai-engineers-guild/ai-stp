@@ -12,6 +12,21 @@ MAX_DEPTH = 8
 MAX_IN_VALUES = 32
 
 
+def named_harness_ids(passport: dict[str, Any]) -> list[str]:
+    """Primary harness plus any extra names, de-duplicated in declaration order."""
+    primary = str(passport.get("harness_id") or "")
+    raw = passport.get("harness_ids")
+    extra: list[str] = []
+    if isinstance(raw, list):
+        for item in cast(list[object], raw):
+            extra.append(str(item))
+    ordered: list[str] = []
+    for value in [primary, *extra]:
+        if value and value not in ordered:
+            ordered.append(value)
+    return ordered
+
+
 class QuerySyntaxError(ValueError):
     """A stable, user-correctable query error with a source offset."""
 
@@ -293,7 +308,7 @@ def matches(
     elif expression.field == "TAGS":
         raw = passport.get("tags") or []
     elif expression.field == "HARNESS":
-        raw = passport.get("harness_id") or ""
+        raw = named_harness_ids(passport)
     elif expression.field == "TYPE":
         raw = passport.get("component_type") or ""
     elif expression.field == "AUTHOR":

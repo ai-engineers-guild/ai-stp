@@ -9,7 +9,16 @@ from pathlib import Path
 
 import pytest
 
-from ai_stp_platform.safety.metrics import record_cli_result, record_scan, reset_metrics, snapshot
+from ai_stp_platform.safety.metrics import (
+    DURATION_BUCKETS_MS,
+    record_cli_result,
+    record_queue_claim,
+    record_queue_job,
+    record_queue_requeue,
+    record_scan,
+    reset_metrics,
+    snapshot,
+)
 from ai_stp_platform.safety.osv_health import osv_db_ready, osv_db_status
 from ai_stp_platform.safety.sandbox import (
     detect_sandbox_mode,
@@ -116,6 +125,7 @@ def test_metrics_record_scan_and_cli() -> None:
         check_id="secrets_heuristic",
         family="secrets",
         result="failed",
+        duration_ms=DURATION_BUCKETS_MS[1],
         findings=[
             Finding(
                 check_id="secrets_heuristic",
@@ -126,19 +136,42 @@ def test_metrics_record_scan_and_cli() -> None:
             )
         ],
     )
-    record_scan(profile="standard", wall_ms=12, cache_hit=False, outcomes=[outcome])
+    record_scan(
+        profile="standard", wall_ms=DURATION_BUCKETS_MS[2], cache_hit=False, outcomes=[outcome]
+    )
     record_scan(profile="standard", wall_ms=0, cache_hit=True, outcomes=[outcome])
-    record_cli_result(code=124, duration_ms=25000, sandbox_mode="env_only")
+    record_queue_claim(
+        batch_size=1,
+        claimed_count=1,
+        queue_wait_ms_sum=DURATION_BUCKETS_MS[3],
+        queue_wait_ms_max=DURATION_BUCKETS_MS[3],
+    )
+    record_queue_claim(batch_size=1, claimed_count=0)
+    record_queue_job(job_type="validate", duration_ms=DURATION_BUCKETS_MS[4], result="succeeded")
+    record_queue_requeue(count=1)
+    record_cli_result(code=124, duration_ms=DURATION_BUCKETS_MS[10], sandbox_mode="env_only")
     record_cli_result(code=127, duration_ms=0, sandbox_mode="n/a")
     snap = snapshot()
     assert snap["safety_scan_total"] == 2
     assert snap["safety_scan_cache_hit_total"] == 1
-    assert snap["safety_scan_duration_ms_max"] == 12
+    assert snap["safety_scan_duration_ms_max"] == DURATION_BUCKETS_MS[2]
+    assert snap["safety_scan_duration_ms_p50"] == DURATION_BUCKETS_MS[0]
+    assert snap["safety_scan_duration_ms_p95"] == DURATION_BUCKETS_MS[2]
     assert snap["safety_check_result_total"]["failed"] == 2
+    assert snap["safety_check_total"][outcome.check_id] == 2
+    assert snap["safety_check_duration_ms_avg"][outcome.check_id] == DURATION_BUCKETS_MS[1]
+    assert snap["safety_check_result_by_id_total"][f"{outcome.check_id}:failed"] == 2
     assert snap["safety_finding_total"]["secrets:critical"] == 2
     assert snap["safety_cli_timeout_total"] == 1
     assert snap["safety_cli_missing_total"] == 1
     assert snap["safety_sandbox_mode_total"]["env_only"] == 1
+    assert snap["safety_queue_claim_total"] == 2
+    assert snap["safety_queue_claimed_total"] == 1
+    assert snap["safety_queue_empty_poll_total"] == 1
+    assert snap["safety_queue_wait_ms_max"] == DURATION_BUCKETS_MS[3]
+    assert snap["safety_queue_job_total"] == 1
+    assert snap["safety_queue_job_result_total"]["succeeded"] == 1
+    assert snap["safety_queue_requeued_total"] == 1
 
 
 def test_osv_missing_dir_optional(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

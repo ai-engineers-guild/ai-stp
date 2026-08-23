@@ -295,4 +295,23 @@ export const handlers = [
       completed_at: FIXTURE_TIMESTAMP,
     });
   }),
+
+  http.post(api("/complaints"), async ({ request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    const required = ["target_kind", "target", "sender_name", "reply_email", "subject", "message"];
+    if (required.some((key) => typeof body[key] !== "string" || !body[key].trim())) {
+      return HttpResponse.json(errorBody("AI_STP_VALIDATION_ERROR", "createComplaint.body"), {
+        status: 422,
+      });
+    }
+    return HttpResponse.json(
+      {
+        schema_version: 1,
+        complaint_id: "complaint_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        accepted: true,
+        created_at: FIXTURE_TIMESTAMP,
+      },
+      { status: 201 },
+    );
+  }),
 ];

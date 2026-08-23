@@ -96,7 +96,7 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
             # Plaintext secret-in-JSON pattern is MCP-oriented; skip for pure skills.
             if rule == "mcp_plaintext" and not _mcp_context(manifest):
                 continue
-            if pattern.search(text):
+            if _non_defensive_match(pattern, text):
                 findings.append(
                     Finding(
                         check_id=spec.check_id,
@@ -142,23 +142,23 @@ def _scan_vendored_regex(
     regexes: list[tuple[str, re.Pattern[str]]] = []
     for yml in rule_files:
         try:
-            text = yml.read_text(encoding="utf-8")
+            lines = yml.read_text(encoding="utf-8").splitlines()
         except OSError:
             continue
         rule_id = yml.stem
-        for m in re.finditer(
-            r"id:\s*([^\s]+).*?pattern-regex:\s*['\"](.+?)['\"]",
-            text,
-            re.S,
-        ):
-            rid, pat = m.group(1), m.group(2)
-            try:
-                regexes.append((rid, re.compile(pat)))
-            except re.error:
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith("- id:"):
+                rule_id = stripped.partition(":")[2].strip()
                 continue
-        for m in re.finditer(r"pattern-regex:\s*['\"](.+?)['\"]", text):
+            if not stripped.startswith("pattern-regex:"):
+                continue
+            pattern = stripped.partition(":")[2].strip()
+            if len(pattern) >= 2 and pattern[0] == pattern[-1] and pattern[0] in "'\"":
+                quote = pattern[0]
+                pattern = pattern[1:-1].replace(quote * 2, quote)
             try:
-                regexes.append((f"{rule_id}:{m.start()}", re.compile(m.group(1))))
+                regexes.append((rule_id, re.compile(pattern)))
             except re.error:
                 continue
     if not regexes:
@@ -172,7 +172,7 @@ def _scan_vendored_regex(
         except OSError:
             continue
         for rid, pattern in regexes:
-            if pattern.search(body):
+            if _non_defensive_match(pattern, body):
                 findings.append(
                     Finding(
                         check_id=spec.check_id,
@@ -187,3 +187,10 @@ def _scan_vendored_regex(
                 )
                 break
     return findings
+
+
+def _non_defensive_match(pattern: re.Pattern[str], text: str) -> bool:
+    defensive = re.compile(
+        r"(?i)\b(?:do not|don't|never|avoid|must not|detect|block|forbid(?:den)?)\b"
+    )
+    return any(pattern.search(line) and not defensive.search(line) for line in text.splitlines())

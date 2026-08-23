@@ -99,7 +99,13 @@ export default async function MyLikesPage({ params }: PageProps) {
             credentialsRequired: tCatalog("credentialsRequired"),
             safetyChecks: tCatalog("safetyChecks"),
             safetyNoScan: tCatalog("safetyNoScan"),
+            safetyCheckExplanation: tCatalog("safetyCheckExplanation"),
+            like: tCatalog("like"),
+            unlike: tCatalog("unlike"),
+            likeMenu: tCatalog("likeMenu"),
+            unlikeMenu: tCatalog("unlikeMenu"),
           }}
+          likedIds={items.map((item) => item.stable_id)}
         />
       )}
     </div>

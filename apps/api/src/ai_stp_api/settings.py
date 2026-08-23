@@ -6,7 +6,7 @@ construction, which the app factory surfaces as a typed startup failure.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as installed_version
 from pathlib import Path
@@ -188,6 +188,17 @@ class CatalogSettings(BaseSettings):
         )
 
 
+class ComplaintSettings(BaseSettings):
+    """Limits for public complaint intake (SPEC-052)."""
+
+    model_config = SettingsConfigDict(env_prefix="AI_STP_COMPLAINT_", extra="ignore")
+
+    submitter_limit: int = Field(default=1, ge=1)
+    submitter_window_seconds: int = Field(default=300, ge=1)
+    target_limit: int = Field(default=50, ge=1)
+    target_window_seconds: int = Field(default=60, ge=1)
+
+
 @dataclass(frozen=True)
 class Settings:
     """Bundle of the independently sourced settings groups."""
@@ -197,6 +208,7 @@ class Settings:
     storage: StorageSettings
     auth: AuthSettings
     catalog: CatalogSettings
+    complaint: ComplaintSettings = field(default_factory=ComplaintSettings)
 
 
 def load_settings() -> Settings:
@@ -207,4 +219,5 @@ def load_settings() -> Settings:
         storage=StorageSettings(),  # pyright: ignore[reportCallIssue]
         auth=AuthSettings(),  # pyright: ignore[reportCallIssue]
         catalog=CatalogSettings(),  # pyright: ignore[reportCallIssue]
+        complaint=ComplaintSettings(),
     )

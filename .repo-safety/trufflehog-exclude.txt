@@ -1,1 +1,3 @@
 (^|[\\/])(\.venv|venv|node_modules|\.opencode[\\/]node_modules|\.agents[\\/]node_modules)([\\/]|$)
+^tests[\\/]fixtures[\\/]safety-corpus[\\/]
+^tests[\\/]unit[\\/]platform[\\/]test_safety_cli_adapters\.py$

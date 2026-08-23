@@ -21,6 +21,7 @@ OVERLAY = ROOT / "release_scripts" / "public_overlay" / ".github" / "workflows"
 WORKFLOWS = OVERLAY if OVERLAY.is_dir() else ROOT / ".github" / "workflows"
 
 CHECK_WORKFLOW = WORKFLOWS / "check.yml"
+CODEQL_WORKFLOW = WORKFLOWS / "codeql.yml"
 MACOS_WORKFLOW = WORKFLOWS / "macos-evidence.yml"
 PROVIDER_SAFE_PATH = ROOT / ".github" / "scripts" / "provider-safe-path.sh"
 ENSURE_CHROME = ROOT / ".github" / "scripts" / "ensure-chrome.sh"
@@ -213,3 +214,23 @@ def test_macos_matrix_proves_its_selected_python_and_exact_candidate() -> None:
     assert '--expected-python "${{ matrix.python }}"' in workflow
     assert '> ".evidence/release-candidate-python-${{ matrix.python }}.json"' in workflow
     assert workflow.count("ai_stp_use_provider_safe_path") == 1
+
+
+def test_codeql_is_public_github_hosted_security_and_not_the_gate() -> None:
+    """Findings must not look like a broken check, and must not take the fleet."""
+    text = CODEQL_WORKFLOW.read_text(encoding="utf-8")
+    workflow = yaml.safe_load(text)
+    executable = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
+    job = workflow["jobs"]["analyse"]
+
+    assert workflow["name"] == "codeql"
+    assert workflow["permissions"]["contents"] == "read"
+    assert job["if"] == "github.event.repository.private == false"
+    assert job["runs-on"] == "ubuntu-latest"
+    assert job["permissions"]["contents"] == "read"
+    assert job["permissions"]["security-events"] == "write"
+    assert "queries: security-extended" in executable
+    assert "security-and-quality" not in executable
+    assert "persist-credentials: false" in executable
+    assert "nddev-linux" not in executable
+    assert "secrets." not in executable

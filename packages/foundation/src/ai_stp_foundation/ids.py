@@ -21,6 +21,7 @@ ID_PREFIXES: Final[Mapping[str, str]] = MappingProxyType(
         # never reused like the rest, and deliberately not part of any
         # setup's identity: deleting a backup must not delete a setup.
         "backup": "provider backup reference",
+        "complaint": "public complaint intake",
         "component": "component logical entity",
         "developer": "developer passport",
         "device": "device passport",

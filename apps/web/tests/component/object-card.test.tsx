@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Object-card variants share one fixture and mock harness. */
 import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -196,7 +197,7 @@ describe("ObjectCard compact catalog presentation (REQ-3411)", () => {
     expect(screen.queryByLabelText(/GitHub stars:/)).not.toBeInTheDocument();
     expect(container.querySelector('[role="meter"]')).toHaveAttribute(
       "title",
-      expect.stringContaining("Safety checks"),
+      expect.stringContaining("Safety check"),
     );
   });
 
@@ -224,7 +225,9 @@ describe("ObjectCard compact catalog presentation (REQ-3411)", () => {
   });
 
   it("shows a single percentage safety score with an accessible meter", () => {
-    render(
+    const explanation =
+      "Safety check: a set of automated checks that this component does not threaten the user's agent or device.";
+    const { container } = render(
       <ObjectCard
         kind="component"
         item={{
@@ -245,6 +248,7 @@ describe("ObjectCard compact catalog presentation (REQ-3411)", () => {
         href="/catalog/x"
         labels={{
           ...labels,
+          safetyCheckExplanation: explanation,
           safetyChecks: "Safety checks",
           safetyPassed: "passed",
           safetyFailed: "failed",
@@ -255,10 +259,15 @@ describe("ObjectCard compact catalog presentation (REQ-3411)", () => {
       />,
     );
     expect(screen.getByText("50%")).toBeVisible();
-    expect(screen.getByRole("meter", { name: "Safety checks: 50%" })).toHaveAttribute(
-      "aria-valuenow",
-      "50",
-    );
+    const meter = screen.getByRole("meter", { name: `${explanation} 50%` });
+    expect(meter).toHaveAttribute("aria-valuenow", "50");
+    expect(meter).toHaveAttribute("title", explanation);
+    const fill = container.querySelector("[data-safety-fill]");
+    expect(fill).toHaveStyle({ width: "50%" });
+    expect(fill?.firstElementChild).toHaveStyle({
+      background:
+        "linear-gradient(90deg, hsl(var(--destructive)), hsl(var(--warning)), hsl(var(--success)))",
+    });
     expect(screen.queryByText("1 warning")).not.toBeInTheDocument();
   });
 
@@ -419,6 +428,7 @@ describe("ObjectCard compact catalog presentation (REQ-3411)", () => {
                 source: "platform_safety_scan",
                 family: "x",
                 reason: null,
+                finding_summary: null,
               },
               {
                 schema_version: 1,
@@ -428,6 +438,7 @@ describe("ObjectCard compact catalog presentation (REQ-3411)", () => {
                 source: "platform_safety_scan",
                 family: "x",
                 reason: null,
+                finding_summary: null,
               },
             ],
           },
@@ -437,7 +448,30 @@ describe("ObjectCard compact catalog presentation (REQ-3411)", () => {
         view="cards"
       />,
     );
-    expect(screen.getByRole("meter", { name: /Safety checks: 50%/ })).toBeInTheDocument();
+    expect(
+      screen.getByRole("meter", {
+        name: /Safety check: a set of automated checks that this component does not threaten the user's agent or device\. 50%/,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows every named harness on the card", () => {
+    render(
+      <ObjectCard
+        kind="component"
+        item={{
+          ...componentSummaryFixture,
+          latest_harness_id: "claude-code",
+          latest_harness_ids: ["claude-code", "codex", "grok-build"],
+        }}
+        href="/catalog/x"
+        labels={labels}
+        view="list"
+      />,
+    );
+    expect(screen.getByText("claude-code")).toBeVisible();
+    expect(screen.getByText("codex")).toBeVisible();
+    expect(screen.getByText("grok-build")).toBeVisible();
   });
 
   it("shows card usage metrics only when the API sent an aggregate", () => {

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextvars import ContextVar
 from pathlib import Path
 from typing import Any, cast
 
@@ -9,8 +10,10 @@ from ai_stp_platform.safety.normalize import redact_message
 from ai_stp_platform.safety.policy import CheckSpec
 from ai_stp_platform.safety.types import ArtifactManifest, CheckOutcome, Finding
 
-# Threaded from execute_validate / orchestrator for setup plans.
-_pin_context: list[dict[str, Any]] = []
+# Request-local even when multiple validation coroutines share one worker.
+_pin_context: ContextVar[tuple[dict[str, Any], ...]] = ContextVar(
+    "safety_setup_pin_context", default=()
+)
 
 
 def set_pin_context(pins: list[dict[str, Any]]) -> None:
@@ -19,18 +22,16 @@ def set_pin_context(pins: list[dict[str, Any]]) -> None:
     Each pin dict: stable_id, version, digest?, checks_summary? | scan_state?,
     failed_mandatory?: bool
     """
-    global _pin_context
-    _pin_context = list(pins)
+    _pin_context.set(tuple(pins))
 
 
 def clear_pin_context() -> None:
-    global _pin_context
-    _pin_context = []
+    _pin_context.set(())
 
 
 def run(tree: Path, manifest: ArtifactManifest | None, spec: CheckSpec) -> CheckOutcome:
     del tree, manifest
-    pins = list(_pin_context)
+    pins = list(_pin_context.get())
     if not pins:
         # No pins provided — still not a free pass for empty setup graphs.
         return CheckOutcome(

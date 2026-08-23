@@ -1,0 +1,19 @@
+{
+  "pins": [
+    {
+      "stable_id": "component_ok",
+      "version": "1.0",
+      "checks_summary": {
+        "status": "available",
+        "failed": 0,
+        "checks": [
+          {
+            "check_id": "path_denylist",
+            "result": "passed",
+            "mandatory": true
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -22,6 +22,9 @@ describe("CatalogQueryField", () => {
     expect(screen.getByRole("option", { name: "TAGS" })).toBeInTheDocument();
     await user.click(screen.getByRole("option", { name: "TAGS" }));
     expect(input).toHaveValue("TAGS");
+    expect(screen.getByRole("option", { name: ":" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "IN" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "AND" })).toBeInTheDocument();
 
     await user.clear(input);
     await user.type(input, "harnes:codex");

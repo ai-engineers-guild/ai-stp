@@ -1,0 +1,23 @@
+{
+  "pins": [
+    {
+      "stable_id": "component_a",
+      "version": "1.0",
+      "checks_summary": {
+        "status": "available",
+        "checks": [
+          {
+            "check_id": "path_denylist",
+            "result": "passed",
+            "mandatory": true
+          },
+          {
+            "check_id": "secrets_heuristic",
+            "result": "failed",
+            "mandatory": true
+          }
+        ]
+      }
+    }
+  ]
+}

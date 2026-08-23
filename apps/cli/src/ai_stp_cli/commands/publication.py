@@ -14,7 +14,7 @@ from ai_stp_cli.commands import attestations as local_attestations
 from ai_stp_cli.commands import cloud_auth
 from ai_stp_cli.commands.auth import endpoint
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import component_passports, versions
+from ai_stp_cli.local import component_passports, content, versions
 from ai_stp_cli.local.database import configured_path, open_readonly
 from ai_stp_contracts.machine_help import PublicationPlanView
 from ai_stp_contracts.publication import (
@@ -145,13 +145,19 @@ def confirm(parameters: Mapping[str, object]) -> Answer[PublicationPlanView]:
             ],
         )
     held = _session()
+    where = endpoint()
+    current = publication.status(where, held.access_token, plan_id)
+    if current.state in {"ready", "draft"}:
+        with closing(open_readonly(configured_path())) as connection:
+            artifact = content.get(connection, current.content_digest)
+        publication.bind(where, held.access_token, plan_id, artifact)
     request = PublicationConfirmRequest(
         plan_hash=plan_hash,
         confirmed=True,
         idempotency_key=login.new_idempotency_key(),
     )
     try:
-        result = publication.confirm(endpoint(), held.access_token, plan_id, request)
+        result = publication.confirm(where, held.access_token, plan_id, request)
     except CliFailure as failure:
         if failure.retryable:
             raise CliFailure(

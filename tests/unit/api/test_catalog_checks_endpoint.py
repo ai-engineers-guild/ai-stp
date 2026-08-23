@@ -33,6 +33,14 @@ async def test_read_version_checks_returns_summary() -> None:
                     "source": "platform_safety_scan",
                     "family": "path",
                     "reason": "unsafe_path",
+                    "finding_summary": {
+                        "schema_version": 1,
+                        "count": 1,
+                        "severity_max": "critical",
+                        "rule_ids": ["credential_path"],
+                        "paths": ["config/credentials.json"],
+                        "truncated": False,
+                    },
                 }
             ],
         },
@@ -90,6 +98,8 @@ async def test_read_version_checks_returns_summary() -> None:
     assert out.status == "available"
     assert out.checks[0].check_id == "path_denylist"
     assert out.checks[0].reason == "unsafe_path"
+    assert out.checks[0].finding_summary is not None
+    assert out.checks[0].finding_summary.paths == ["config/credentials.json"]
 
 
 @pytest.mark.asyncio

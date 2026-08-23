@@ -124,6 +124,63 @@ services:
       start_period: 15s
     restart: always
 
+  osv-refresh:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker-safety
+      target: worker-safety
+    command:
+      - sh
+      - -c
+      - "while /opt/ai_stp/scripts/safety/refresh_osv_db.sh; do sleep 21600; done; exit 1"
+    environment:
+      AI_STP_OSV_OFFLINE_DIR: /var/lib/ai_stp/osv
+      OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY: /var/lib/ai_stp/osv
+      AI_STP_OSV_MAX_AGE_HOURS: ${AI_STP_OSV_MAX_AGE_HOURS:-36}
+      AI_STP_OSV_ECOSYSTEMS: ${AI_STP_OSV_ECOSYSTEMS:-PyPI,npm,Go,crates.io}
+    volumes:
+      - osv_offline:/var/lib/ai_stp/osv
+    networks: [edge]
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          from ai_stp_platform.safety.osv_health import osv_db_ready;
+          raise SystemExit(0 if osv_db_ready(require_fresh=True) else 1)
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    restart: always
+
+  clamav-refresh:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker-safety
+      target: worker-safety
+    user: root
+    command:
+      - sh
+      - -c
+      - "while freshclam --datadir=/var/lib/clamav; do sleep 21600; done; exit 1"
+    volumes:
+      - clamav_db:/var/lib/clamav
+    networks: [edge]
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          find /var/lib/clamav -maxdepth 1 -type f
+          \( -name '*.cvd' -o -name '*.cld' \)
+          -size +0c | grep -q .
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    restart: always
+
   worker:
     # Safety validate path: pinned scanners + EXTERNAL_CLI (see Dockerfile.worker-safety).
     build:
@@ -133,15 +190,23 @@ services:
     environment:
       AI_STP_SAFETY_EXTERNAL_CLI: "1"
       AI_STP_SAFETY_SANDBOX: auto
+      AI_STP_SAFETY_REQUIRE_BWRAP: "1"
       AI_STP_OSV_OFFLINE_DIR: /var/lib/ai_stp/osv
       OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY: /var/lib/ai_stp/osv
       AI_STP_OSV_MAX_AGE_HOURS: ${AI_STP_OSV_MAX_AGE_HOURS:-36}
+      AI_STP_OSV_REQUIRE_FRESH: "1"
+    # Docker's default seccomp profile blocks the user namespace that
+    # Bubblewrap needs. Keep the container itself unprivileged; this exception
+    # only lets each scanner create its isolated, networkless namespace.
+    security_opt:
+      - seccomp=unconfined
     env_file:
       - path: .env.prod
         required: false
     volumes:
       - logs:/var/log/ai_stp
       - osv_offline:/var/lib/ai_stp/osv
+      - clamav_db:/var/lib/clamav:ro
     networks: [internal]
     depends_on:
       postgres:
@@ -150,6 +215,22 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+      osv-refresh:
+        condition: service_healthy
+      clamav-refresh:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          from ai_stp_platform.safety import safety_readiness;
+          raise SystemExit(0 if safety_readiness() else 1)
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     restart: always
 
   web:
@@ -159,6 +240,10 @@ services:
       args:
         NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://app.example.invalid}
         AI_STP_WEB_PROFILE: ${AI_STP_WEB_PROFILE:-public_saas}
+        NEXT_PUBLIC_ANALYTICS_ENABLED: ${NEXT_PUBLIC_ANALYTICS_ENABLED:-true}
+        NEXT_PUBLIC_GA_MEASUREMENT_ID: ${NEXT_PUBLIC_GA_MEASUREMENT_ID:-}
+        NEXT_PUBLIC_YANDEX_METRIKA_COUNTER_ID: ${NEXT_PUBLIC_YANDEX_METRIKA_COUNTER_ID:-}
+        NEXT_PUBLIC_COOKIE_CONSENT_ENABLED: ${NEXT_PUBLIC_COOKIE_CONSENT_ENABLED:-true}
         AI_STP_FEATURE_CONTENT_HUB: ${AI_STP_FEATURE_CONTENT_HUB:-}
         AI_STP_FEATURE_SAAS_PUBLIC_PAGES: ${AI_STP_FEATURE_SAAS_PUBLIC_PAGES:-}
     environment:
@@ -223,6 +308,7 @@ services:
 
 networks:
   internal:
+    internal: true
   edge:
 
 volumes:
@@ -230,5 +316,6 @@ volumes:
   rustfs:
   logs:
   osv_offline:
+  clamav_db:
   caddy_data:
   caddy_config:

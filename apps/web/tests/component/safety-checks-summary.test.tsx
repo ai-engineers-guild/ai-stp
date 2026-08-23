@@ -35,6 +35,10 @@ const labels = {
   documentation: "How checks work",
   why: "Why",
   help: "About safety checks",
+  findings: "Findings",
+  rules: "Types",
+  paths: "Files",
+  payloadHidden: "Finding content is hidden.",
 };
 
 function summary(overrides: Partial<SafetyChecksSummary> = {}): SafetyChecksSummary {
@@ -57,6 +61,7 @@ function summary(overrides: Partial<SafetyChecksSummary> = {}): SafetyChecksSumm
         source: "platform_safety_scan",
         family: "path",
         reason: null,
+        finding_summary: null,
       },
     ],
     ...overrides,
@@ -115,6 +120,7 @@ describe("SafetyChecksSummaryView", () => {
               source: "platform_safety_scan",
               family: "path",
               reason: "unsafe path detected",
+              finding_summary: null,
             },
           ],
         })}
@@ -142,6 +148,7 @@ describe("SafetyChecksSummaryView", () => {
               source: "platform_safety_scan",
               family: "secrets",
               reason: "possible token-like string",
+              finding_summary: null,
             },
           ],
         })}
@@ -150,6 +157,43 @@ describe("SafetyChecksSummaryView", () => {
     );
     await user.click(screen.getByRole("button", { name: /Safety checks/ }));
     expect(screen.getAllByText(/possible token-like string/).length).toBeGreaterThan(0);
+  });
+
+  it("shows bounded finding identifiers without rendering payload", async () => {
+    const user = userEvent.setup();
+    render(
+      <SafetyChecksSummaryView
+        summary={summary({
+          passed: 0,
+          warning: 1,
+          checks_passed_percent: 0,
+          checks: [
+            {
+              schema_version: 1,
+              check_id: "skill_static_gate",
+              result: "warning",
+              mandatory: true,
+              source: "platform_safety_scan",
+              family: "agentic",
+              reason: "findings_detected",
+              finding_summary: {
+                schema_version: 1,
+                count: 2,
+                severity_max: "high",
+                rule_ids: ["capability_laundering", "remote_instruction_loading"],
+                paths: ["SKILL.md"],
+                truncated: false,
+              },
+            },
+          ],
+        })}
+        labels={labels}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: /Safety checks/ }));
+    expect(screen.getByText(/capability_laundering, remote_instruction_loading/)).toBeVisible();
+    expect(screen.getByText(/SKILL.md/)).toBeVisible();
+    expect(screen.getByText("Finding content is hidden.")).toBeVisible();
   });
 
   it("withholds percent and explains incomplete coverage", async () => {

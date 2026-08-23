@@ -32,6 +32,9 @@ async def _run(settings: Settings) -> None:
         worker_id=settings.worker.worker_id,
         batch_size=settings.worker.batch_size,
         poll_interval_seconds=settings.worker.poll_interval_seconds,
+        drain_timeout_seconds=settings.worker.drain_timeout_seconds,
+        lease_timeout_seconds=settings.worker.lease_timeout_seconds,
+        heartbeat_interval_seconds=settings.worker.heartbeat_interval_seconds,
     )
     _install_signals(worker)
     try:

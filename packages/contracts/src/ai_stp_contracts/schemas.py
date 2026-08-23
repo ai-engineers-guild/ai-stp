@@ -47,6 +47,7 @@ from ai_stp_contracts.catalog import (
     SetupSearchRequest,
     SetupVersionResponse,
 )
+from ai_stp_contracts.complaints import ComplaintCreateRequest, ComplaintCreateResponse
 from ai_stp_contracts.component_passport import ComponentPassportPatch
 from ai_stp_contracts.deep_links import DeepLinkView
 from ai_stp_contracts.evaluation import SetupEvalPlan, SetupEvalProfile, SetupEvalResult
@@ -263,6 +264,8 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
     "grant-revoke-response": GrantRevokeResponse,
     "report-case-create-request": ReportCaseCreateRequest,
     "report-case-response": ReportCaseResponse,
+    "complaint-create-request": ComplaintCreateRequest,
+    "complaint-create-response": ComplaintCreateResponse,
     "report-case-list-response": ReportCaseListResponse,
     "staff-triage-request": StaffTriageRequest,
     "staff-lifecycle-request": StaffLifecycleRequest,

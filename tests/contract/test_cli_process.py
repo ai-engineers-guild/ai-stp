@@ -588,6 +588,48 @@ def test_two_homes_keep_separate_device_passports_and_separate_owners(tmp_path: 
     )
 
 
+def test_device_passport_and_toolchain_harnesses_share_one_detection_result(
+    home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Isolate discovery from the host. `run()` copies `os.environ`, so PATH and
+    # user roots would otherwise find installed harnesses and launch them.
+    empty_path = home / "empty-path"
+    empty_path.mkdir()
+    monkeypatch.setenv("PATH", str(empty_path))
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    monkeypatch.setenv("APPDATA", str(home / "appdata"))
+    monkeypatch.setenv("LOCALAPPDATA", str(home / "localappdata"))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(home / "config"))
+    monkeypatch.setenv("CODEX_HOME", str(home / "codex-home"))
+    monkeypatch.setenv("PI_CODING_AGENT_DIR", str(home / "pi-home"))
+    monkeypatch.setenv("OPENCODE_CONFIG_DIR", str(home / "opencode-home"))
+    monkeypatch.setenv("GROK_HOME", str(home / "grok-home"))
+    survey = json.loads(run("toolchain", "harnesses", "--json", home=home).stdout)["data"][
+        "harnesses"
+    ]
+    refresh = json.loads(run("passport", "device", "refresh", "--json", home=home).stdout)["data"]
+    installed = [item["harness_id"] for item in survey if item["state"] != "available"]
+    available = [item["harness_id"] for item in survey if item["state"] == "available"]
+    facts = refresh["facts"]
+    assert facts["installed_harnesses"]["value"] == installed
+    for harness_id in available:
+        assert harness_id not in facts["installed_harnesses"]["value"]
+    if "pi" in available:
+        assert "pi" not in facts["installed_harnesses"]["value"]
+    versions = facts["harness_versions"]["value"]
+    for item in survey:
+        if item["state"] == "available":
+            assert item["installations"] == []
+            continue
+        assert item["installations"]
+        installation = item["installations"][0]
+        assert installation["surface"] in {"cli", "desktop"}
+        assert installation["version_source"]
+        assert installation["diagnostic"]
+        assert f"{item['harness_id']}={installation['version']}" in versions
+
+
 def test_starting_over_by_deleting_the_data_directory_works(home: Path) -> None:
     # On the file tier both halves live under the data directory, so deleting it
     # leaves nothing behind and the next run mints a fresh identity cleanly.

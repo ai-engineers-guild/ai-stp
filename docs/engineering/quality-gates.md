@@ -224,6 +224,8 @@ GitHub Actions исполняет те же команды, что и локал
 
 CodeQL — тоже не гейт. Кто его запускает и на каком runner — `docs/operations/ci-cd.md`.
 
+CodeQL — тоже не гейт. Кто его запускает и на каком runner — `docs/operations/ci-cd.md`.
+
 Jobs `check` и `back-python-3.12` запускаются на push в `main` и на
 каждый pull request. Ветки push в workflow обязаны совпадать с линией из
 `git-workflow.md`. Устаревший run вытесняется на любом событии: прерывать больше

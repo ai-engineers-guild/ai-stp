@@ -32,6 +32,7 @@ export type ComponentSummaryFixture = {
   latest_name: string;
   latest_description: string;
   latest_harness_id: "claude-code" | "codex" | "pi" | "opencode" | "grok-build";
+  latest_harness_ids: Array<"claude-code" | "codex" | "pi" | "opencode" | "grok-build">;
   latest_component_type:
     "instruction" | "skill" | "mcp" | "hook" | "command" | "agent" | "plugin" | "setting";
   latest_projection_kind: "marketplace" | "plugin" | "native_files" | "package";
@@ -105,11 +106,13 @@ export function makeComponentSummary(
     | "latest_requirements_count"
     | "latest_requires_credentials"
     | "updated_at"
+    | "latest_harness_ids"
   > & {
     latest_lifecycle?: ComponentSummaryFixture["latest_lifecycle"];
     latest_trust?: typeof experimentalTrust;
     latest_support?: SupportFixture;
     latest_checks?: SafetyChecksSummary | null;
+    latest_harness_ids?: ComponentSummaryFixture["latest_harness_ids"];
   },
 ): ComponentSummaryFixture {
   return {
@@ -125,6 +128,7 @@ export function makeComponentSummary(
     latest_requirements_count: 0,
     latest_requires_credentials: false,
     updated_at: partial.latest_published_at,
+    latest_harness_ids: [partial.latest_harness_id],
     ...partial,
   };
 }

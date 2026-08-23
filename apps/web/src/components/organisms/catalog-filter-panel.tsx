@@ -29,6 +29,14 @@ export type CatalogFilterPanelLabels = {
   components: string;
   setups: string;
   filterHelpLabel: string;
+  tagFilterHelp?: string;
+  harnessFilterHelp?: string;
+  typeFilterHelp?: string;
+  authorFilterHelp?: string;
+  verifiedOnlyHelp?: string;
+  countryFilterHelp?: string;
+  serviceFilterHelp?: string;
+  updatedRangeHelp?: string;
   searchOptions: string;
   authorFilter: string;
   verifiedOnly: string;
@@ -78,7 +86,7 @@ export function CatalogFilterPanel({
       <div className="grid min-w-0 items-start gap-5 md:grid-cols-2">
         <Facet
           label={labels.tagFilter}
-          help={labels.filterHelpBody}
+          help={labels.tagFilterHelp ?? labels.filterHelpBody}
           helpLabel={labels.filterHelpLabel}
         >
           <SearchableMultiSelect
@@ -91,7 +99,7 @@ export function CatalogFilterPanel({
         </Facet>
         <Facet
           label={labels.harnessFilter}
-          help={labels.filterHelpBody}
+          help={labels.harnessFilterHelp ?? labels.filterHelpBody}
           helpLabel={labels.filterHelpLabel}
         >
           <SearchableMultiSelect
@@ -107,7 +115,7 @@ export function CatalogFilterPanel({
         {query.resource !== "setups" ? (
           <Facet
             label={labels.typeFilter}
-            help={labels.filterHelpBody}
+            help={labels.typeFilterHelp ?? labels.filterHelpBody}
             helpLabel={labels.filterHelpLabel}
           >
             <SearchableMultiSelect
@@ -144,7 +152,10 @@ export function CatalogFilterPanel({
         <label className="min-w-0 space-y-2 text-sm">
           <span className="flex min-w-0 items-center gap-1 font-medium">
             {labels.authorFilter}
-            <Help label={labels.filterHelpLabel} text={labels.filterHelpBody} />
+            <Help
+              label={labels.filterHelpLabel}
+              text={labels.authorFilterHelp ?? labels.filterHelpBody}
+            />
           </span>
           <input
             name="authors"
@@ -164,7 +175,7 @@ export function CatalogFilterPanel({
       </div>
       <Facet
         label={labels.verifiedOnly}
-        help={labels.filterHelpBody}
+        help={labels.verifiedOnlyHelp ?? labels.filterHelpBody}
         helpLabel={labels.filterHelpLabel}
       >
         <SearchableMultiSelect
@@ -204,7 +215,7 @@ function LinkedRelationFacets({
       <div className="grid min-w-0 gap-3 sm:grid-cols-2">
         <Facet
           label={labels.countryFilter}
-          help={labels.filterHelpBody}
+          help={labels.countryFilterHelp ?? labels.filterHelpBody}
           helpLabel={labels.filterHelpLabel}
         >
           <SearchableMultiSelect
@@ -224,7 +235,7 @@ function LinkedRelationFacets({
         </Facet>
         <Facet
           label={labels.serviceFilter}
-          help={labels.filterHelpBody}
+          help={labels.serviceFilterHelp ?? labels.filterHelpBody}
           helpLabel={labels.filterHelpLabel}
         >
           <SearchableMultiSelect
@@ -266,8 +277,11 @@ function UpdatedRangeFields({
 }) {
   return (
     <fieldset className="min-w-0 space-y-2">
-      <legend className="text-sm font-medium">
+      <legend className="flex items-center gap-1 text-sm font-medium">
         {labels.updatedFrom ?? "Updated from"} / {labels.updatedTo ?? "Updated to"}
+        {labels.updatedRangeHelp ? (
+          <Help label={labels.filterHelpLabel} text={labels.updatedRangeHelp} />
+        ) : null}
       </legend>
       <details className="border-input bg-background min-w-0 rounded-sm border">
         <summary className="flex min-h-11 cursor-pointer list-none items-center px-3 text-sm break-all marker:content-none">
@@ -344,7 +358,7 @@ function Help({ label, text }: { label: string; text: string }) {
   return (
     <button
       type="button"
-      className="group/help text-muted-foreground hover:bg-muted focus-visible:ring-ring relative inline-grid size-11 shrink-0 place-items-center rounded-sm focus-visible:ring-2"
+      className="group/help text-muted-foreground hover:bg-muted focus-visible:ring-ring relative inline-grid size-6 shrink-0 place-items-center rounded-sm focus-visible:ring-2"
       aria-label={label}
     >
       <span aria-hidden="true" className="text-xs font-semibold">

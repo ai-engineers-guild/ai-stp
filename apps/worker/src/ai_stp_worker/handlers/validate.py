@@ -22,4 +22,4 @@ async def handle_validate(session: AsyncSession, payload: Mapping[str, object]) 
         raise ValueError(msg)
     # Production path: execute_validate opens env object store and downloads
     # the content-addressed artifact before the staged safety suite.
-    await execute_validate(session, plan_id=plan_id)
+    await execute_validate(session, plan_id=plan_id, release_read_transaction=True)

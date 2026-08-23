@@ -131,6 +131,9 @@ export default async function PublisherPage({ params }: PageProps) {
     copyId: tCatalog("copyId"),
     copied: tCatalog("copied"),
     report: tCatalog("report"),
+    safetyCheckExplanation: tCatalog("safetyCheckExplanation"),
+    likeMenu: tCatalog("likeMenu"),
+    unlikeMenu: tCatalog("unlikeMenu"),
   };
 
   return (

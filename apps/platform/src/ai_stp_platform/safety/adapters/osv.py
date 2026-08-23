@@ -12,7 +12,7 @@ import os
 import re
 from pathlib import Path
 
-from ai_stp_platform.safety.adapters._cli import run_cli, which
+from ai_stp_platform.safety.adapters._cli import classify_cli_exit, run_cli, which
 from ai_stp_platform.safety.normalize import redact_message
 from ai_stp_platform.safety.policy import CheckSpec
 from ai_stp_platform.safety.types import ArtifactManifest, CheckOutcome, Finding
@@ -135,8 +135,19 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
             },
         )
 
+    state, detail = classify_cli_exit(code, out, err)
+    if state == "degraded":
+        return CheckOutcome(
+            check_id=spec.check_id,
+            family=spec.family,
+            result=state,
+            mandatory=spec.mandatory,
+            tool_name="osv-scanner",
+            duration_ms=ms,
+            detail={**detail, "argv0": " ".join(used[:4])},
+        )
     findings: list[Finding] = []
-    if code != 0:
+    if state == "finding":
         findings.append(
             Finding(
                 check_id=spec.check_id,

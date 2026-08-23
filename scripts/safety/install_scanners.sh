@@ -33,6 +33,21 @@ download() {
   curl -fsSL --retry 3 --retry-delay 2 -o "${dest}" "${url}"
 }
 
+verify_sha256() {
+  local file="$1" expected="$2"
+  printf '%s  %s\n' "${expected}" "${file}" | sha256sum -c - >/dev/null
+}
+
+verify_upstream_checksums() {
+  local file="$1" asset="$2" checksums_url="$3" checksums
+  checksums="$(mktemp)"
+  download "${checksums_url}" "${checksums}"
+  expected="$(awk -v asset="${asset}" '$2 == asset || $2 == "*" asset {print $1; exit}' "${checksums}")"
+  rm -f "${checksums}"
+  [[ -n "${expected}" ]] || { log "checksum missing for ${asset}"; exit 1; }
+  verify_sha256 "${file}" "${expected}"
+}
+
 install_gitleaks() {
   local ver="${GITLEAKS_VERSION}"
   local asset archive
@@ -43,6 +58,8 @@ install_gitleaks() {
   esac
   archive="$(mktemp)"
   download "https://github.com/gitleaks/gitleaks/releases/download/v${ver}/${asset}" "${archive}"
+  verify_upstream_checksums "${archive}" "${asset}" \
+    "https://github.com/gitleaks/gitleaks/releases/download/v${ver}/gitleaks_${ver}_checksums.txt"
   tar -xzf "${archive}" -C "${PREFIX}" gitleaks
   rm -f "${archive}"
   chmod +x "${PREFIX}/gitleaks"
@@ -61,6 +78,8 @@ install_osv_scanner() {
   download \
     "https://github.com/google/osv-scanner/releases/download/v${ver}/${asset}" \
     "${PREFIX}/osv-scanner"
+  verify_upstream_checksums "${PREFIX}/osv-scanner" "${asset}" \
+    "https://github.com/google/osv-scanner/releases/download/v${ver}/osv-scanner_SHA256SUMS"
   chmod +x "${PREFIX}/osv-scanner"
   log "osv-scanner ${ver} -> ${PREFIX}/osv-scanner"
 }
@@ -68,13 +87,15 @@ install_osv_scanner() {
 install_shellcheck() {
   local ver="${SHELLCHECK_VERSION}"
   local asset archive
+  local expected
   case "${OS}-${ARCH}" in
-    linux-x86_64|linux-amd64) asset="shellcheck-v${ver}.linux.x86_64.tar.xz" ;;
-    linux-aarch64|linux-arm64) asset="shellcheck-v${ver}.linux.aarch64.tar.xz" ;;
+    linux-x86_64|linux-amd64) asset="shellcheck-v${ver}.linux.x86_64.tar.xz"; expected="${SHELLCHECK_SHA256_LINUX_X86_64}" ;;
+    linux-aarch64|linux-arm64) asset="shellcheck-v${ver}.linux.aarch64.tar.xz"; expected="${SHELLCHECK_SHA256_LINUX_AARCH64}" ;;
     *) log "skip shellcheck: unsupported ${OS}-${ARCH}"; return 0 ;;
   esac
   archive="$(mktemp)"
   download "https://github.com/koalaman/shellcheck/releases/download/v${ver}/${asset}" "${archive}"
+  verify_sha256 "${archive}" "${expected}"
   tar -xJf "${archive}" -C /tmp
   mv "/tmp/shellcheck-v${ver}/shellcheck" "${PREFIX}/shellcheck"
   rm -rf "/tmp/shellcheck-v${ver}" "${archive}"
@@ -85,10 +106,10 @@ install_shellcheck() {
 install_opengrep() {
   # Opengrep ships standalone manylinux binaries (not versioned tarballs).
   local ver="${OPENGREP_VERSION}"
-  local asset
+  local asset expected
   case "${OS}-${ARCH}" in
-    linux-x86_64|linux-amd64) asset="opengrep_manylinux_x86" ;;
-    linux-aarch64|linux-arm64) asset="opengrep_manylinux_aarch64" ;;
+    linux-x86_64|linux-amd64) asset="opengrep_manylinux_x86"; expected="${OPENGREP_SHA256_LINUX_X86}" ;;
+    linux-aarch64|linux-arm64) asset="opengrep_manylinux_aarch64"; expected="${OPENGREP_SHA256_LINUX_AARCH64}" ;;
     *)
       log "skip opengrep binary: unsupported ${OS}-${ARCH} (in-proc fallback remains)"
       return 0
@@ -101,22 +122,18 @@ install_opengrep() {
     rm -f "${PREFIX}/opengrep"
     return 0
   fi
+  verify_sha256 "${PREFIX}/opengrep" "${expected}"
   chmod +x "${PREFIX}/opengrep"
   log "opengrep ${ver} -> ${PREFIX}/opengrep"
 }
 
 install_python_tools() {
-  # `uv`, not `pip`: one package manager per language, which is what
-  # `.gds/compiled-policy.json` says and what the rest of the repository does.
-  # `pip-audit` and `bandit` stay — they are scanners this image runs against
-  # other people's artefacts. How *this* image installs them is our business.
   require_cmd uv
   require_cmd git
   log "creating safety venv at ${PIP_VENV}"
   uv venv "${PIP_VENV}"
-  uv pip install --python "${PIP_VENV}" --no-cache \
-    "bandit==${BANDIT_VERSION}" \
-    "pip-audit==${PIP_AUDIT_VERSION}"
+  uv pip install --python "${PIP_VENV}" --no-cache --require-hashes \
+    -r "${SCRIPT_DIR}/requirements.lock"
 
   # NVIDIA SkillSpector: not on PyPI; pin a git tag (CLI entrypoint: skillspector).
   local ss_url="${SKILLSPECTOR_GIT_URL:?SKILLSPECTOR_GIT_URL required}"
@@ -128,9 +145,14 @@ install_python_tools() {
   # Cisco second engine: PyPI package cisco-ai-skill-scanner → CLI skill-scanner.
   local cisco_pkg="${SKILL_SCANNER_PACKAGE:-cisco-ai-skill-scanner}"
   local cisco_ver="${SKILL_SCANNER_VERSION:?SKILL_SCANNER_VERSION required}"
-  log "installing ${cisco_pkg}==${cisco_ver}"
-  uv pip install --python "${PIP_VENV}" --no-cache \
-    "${cisco_pkg}==${cisco_ver}"
+  local cisco_tmp cisco_wheel
+  cisco_tmp="$(mktemp -d)"
+  cisco_wheel="${cisco_tmp}/cisco_ai_skill_scanner-${cisco_ver}-py3-none-any.whl"
+  log "installing minimal static runtime for ${cisco_pkg}==${cisco_ver}"
+  download "${SKILL_SCANNER_WHEEL_URL:?SKILL_SCANNER_WHEEL_URL required}" "${cisco_wheel}"
+  verify_sha256 "${cisco_wheel}" "${SKILL_SCANNER_WHEEL_SHA256}"
+  uv pip install --python "${PIP_VENV}" --no-cache --no-deps "${cisco_wheel}"
+  rm -rf "${cisco_tmp}"
 
   # Symlink into PREFIX so PATH=/opt/safety-bin is enough.
   for tool in bandit pip-audit skillspector skill-scanner; do
@@ -154,6 +176,8 @@ install_gosec() {
   esac
   archive="$(mktemp)"
   download "https://github.com/securego/gosec/releases/download/v${ver}/${asset}" "${archive}"
+  verify_upstream_checksums "${archive}" "${asset}" \
+    "https://github.com/securego/gosec/releases/download/v${ver}/gosec_${ver}_checksums.txt"
   tar -xzf "${archive}" -C "${PREFIX}" gosec
   rm -f "${archive}"
   chmod +x "${PREFIX}/gosec"
@@ -195,13 +219,15 @@ bandit=${BANDIT_VERSION}
 pip-audit=${PIP_AUDIT_VERSION}
 gosec=${GOSEC_VERSION}
 govulncheck=${GOVULNCHECK_VERSION}
-skillspector=${SKILLSPECTOR_GIT_REF}
 skill-scanner=${SKILL_SCANNER_PACKAGE}==${SKILL_SCANNER_VERSION}
+clamscan=$(clamscan --version | head -n 1)
+yara=$(yara --version | head -n 1)
+bwrap=$(bwrap --version | head -n 1)
 installed_at_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 host=${OS}-${ARCH}
 EOF
   log "wrote ${PREFIX}/MANIFEST.txt"
-  for required in gitleaks osv-scanner shellcheck gosec govulncheck bandit pip-audit skillspector skill-scanner; do
+  for required in gitleaks osv-scanner shellcheck gosec govulncheck bandit pip-audit skill-scanner; do
     if [[ ! -x "${PREFIX}/${required}" ]]; then
       log "required tool missing after install: ${required}"
       exit 1
@@ -214,6 +240,7 @@ EOF
 main() {
   require_cmd curl
   require_cmd tar
+  require_cmd sha256sum
   install_gitleaks
   install_osv_scanner
   install_shellcheck

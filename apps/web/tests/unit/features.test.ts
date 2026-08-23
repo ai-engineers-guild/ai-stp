@@ -22,7 +22,7 @@ async function fixture(yaml: string): Promise<string> {
   return root;
 }
 
-const valid = `schema_version: 1\ndefault_profile: public_saas\nprofiles:\n  public_saas:\n    content_hub: true\n    saas_public_pages: true\n    catalog_usage_metrics: false\n  self_hosted:\n    content_hub: false\n    saas_public_pages: false\n    catalog_usage_metrics: false\n`;
+const valid = `schema_version: 1\ndefault_profile: public_saas\nprofiles:\n  public_saas:\n    content_hub: true\n    saas_public_pages: true\n    catalog_usage_metrics: true\n  self_hosted:\n    content_hub: false\n    saas_public_pages: false\n    catalog_usage_metrics: false\n`;
 
 describe("web feature profiles", () => {
   it("keeps the registry intentionally bounded to real consumers", () => {
@@ -65,7 +65,7 @@ describe("web feature profiles", () => {
         AI_STP_FEATURE_CONTENT_HUB: "",
         AI_STP_FEATURE_SAAS_PUBLIC_PAGES: "",
       }).features,
-    ).toEqual({ content_hub: true, saas_public_pages: true, catalog_usage_metrics: false });
+    ).toEqual({ content_hub: true, saas_public_pages: true, catalog_usage_metrics: true });
   });
 
   it.each([

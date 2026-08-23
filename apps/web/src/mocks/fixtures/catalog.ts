@@ -78,6 +78,7 @@ export const componentSummaryFixture = makeComponentSummary({
         mandatory: true,
         result: "passed",
         reason: null,
+        finding_summary: null,
         source: "platform_structure_verified",
       },
       {
@@ -87,6 +88,7 @@ export const componentSummaryFixture = makeComponentSummary({
         mandatory: true,
         result: "passed",
         reason: null,
+        finding_summary: null,
         source: "platform_digest_verified",
       },
       {
@@ -96,6 +98,7 @@ export const componentSummaryFixture = makeComponentSummary({
         mandatory: true,
         result: "passed",
         reason: null,
+        finding_summary: null,
         source: "platform_safety_scan",
       },
       {
@@ -106,6 +109,7 @@ export const componentSummaryFixture = makeComponentSummary({
         result: "failed",
         source: "platform_safety_scan",
         reason: "unsafe_path_detected",
+        finding_summary: null,
       },
       {
         schema_version: 1,
@@ -114,6 +118,7 @@ export const componentSummaryFixture = makeComponentSummary({
         mandatory: true,
         result: "passed",
         reason: null,
+        finding_summary: null,
         source: "platform_safety_scan",
       },
       {
@@ -123,6 +128,7 @@ export const componentSummaryFixture = makeComponentSummary({
         mandatory: false,
         result: "passed",
         reason: null,
+        finding_summary: null,
         source: "platform_safety_scan",
       },
       {
@@ -132,6 +138,7 @@ export const componentSummaryFixture = makeComponentSummary({
         mandatory: true,
         result: "passed",
         reason: null,
+        finding_summary: null,
         source: "platform_safety_scan",
       },
     ],

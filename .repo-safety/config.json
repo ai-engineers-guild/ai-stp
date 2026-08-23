@@ -7,7 +7,8 @@
   "github_read_guard": {
     "mode": "strict",
     "allowed_repositories": [
-      "ai-engineers-guild/ai_stp"
+      "ai-engineers-guild/ai_stp",
+      "ai-engineers-guild/ai-stp"
     ],
     "allowed_resources": [
       "issues",

@@ -6,8 +6,10 @@ from ai_stp_platform.queue.engine import (
     claim,
     enqueue,
     fail,
+    heartbeat,
     mark_succeeded,
     requeue_locked,
+    requeue_stale,
 )
 from ai_stp_platform.queue.models import Job
 from ai_stp_platform.queue.states import (
@@ -30,6 +32,8 @@ __all__ = [
     "claim",
     "enqueue",
     "fail",
+    "heartbeat",
     "mark_succeeded",
     "requeue_locked",
+    "requeue_stale",
 ]

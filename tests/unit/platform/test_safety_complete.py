@@ -1,8 +1,9 @@
-# pyright: reportUnknownLambdaType=false, reportUnknownArgumentType=false, reportUnknownVariableType=false, reportUnknownMemberType=false, reportUnusedFunction=false, reportUnusedImport=false, reportUnusedVariable=false
+# pyright: reportUnknownLambdaType=false, reportUnknownArgumentType=false, reportUnknownVariableType=false, reportUnknownMemberType=false, reportUnusedFunction=false, reportUnusedImport=false, reportUnusedVariable=false, reportPrivateUsage=false
 """Residual backlog: vendored rules, lang SCA adapters, setup pins, OSV offline."""
 
 from __future__ import annotations
 
+import asyncio
 import io
 import zipfile
 from pathlib import Path
@@ -214,6 +215,34 @@ def test_setup_pin_aggregate_passes_clean_pins() -> None:
         setup_aggregate.clear_pin_context()
 
 
+@pytest.mark.asyncio
+async def test_setup_pin_context_is_isolated_between_tasks() -> None:
+    from ai_stp_platform.safety.policy import registry_by_id
+
+    ready = asyncio.Event()
+    seen = 0
+
+    async def inspect(stable_id: str) -> str:
+        nonlocal seen
+        setup_aggregate.set_pin_context(
+            [
+                {
+                    "stable_id": stable_id,
+                    "version": "1.0",
+                    "checks_summary": {"status": "available", "checks": []},
+                }
+            ]
+        )
+        seen += 1
+        if seen == 2:
+            ready.set()
+        await ready.wait()
+        outcome = setup_aggregate.run(Path(), None, registry_by_id()["setup_pin_aggregate"])
+        return str(outcome.detail["pin_count"]) + stable_id
+
+    assert set(await asyncio.gather(inspect("a"), inspect("b"))) == {"1a", "1b"}
+
+
 @pytest.mark.parametrize(
     ("pin", "expected_rule"),
     [
@@ -338,11 +367,14 @@ async def test_execute_validate_setup_loads_catalog_pins(
         effects=[],
     )
     pin_row = SimpleNamespace(
+        stable_id="component_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+        version="1.0",
+        passport_digest="sha256:" + "b" * 64,
         checks_summary={
             "status": "available",
             "failed": 0,
             "checks": [{"check_id": "path_denylist", "result": "passed", "mandatory": True}],
-        }
+        },
     )
     session = AsyncMock()
     session.get = AsyncMock(return_value=plan)
@@ -356,6 +388,7 @@ async def test_execute_validate_setup_loads_catalog_pins(
         return None
 
     session.scalar = AsyncMock(side_effect=_scalar)
+    session.scalars = AsyncMock(return_value=SimpleNamespace(all=lambda: [pin_row]))
     added: list[object] = []
     session.add = lambda o: added.append(o)
     session.flush = AsyncMock()
@@ -376,6 +409,40 @@ async def test_execute_validate_setup_loads_catalog_pins(
         and getattr(o, "result", None) == "passed"
         for o in added
     )
+
+
+@pytest.mark.asyncio
+async def test_setup_pin_context_rejects_summary_for_different_passport_digest() -> None:
+    from ai_stp_platform.publication_logic import (  # pyright: ignore[reportPrivateUsage]
+        _load_setup_pin_context,
+    )
+
+    row = SimpleNamespace(
+        stable_id="component_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+        version="1.0",
+        passport_digest="sha256:" + "a" * 64,
+        checks_summary={"status": "available", "checks": []},
+    )
+    session = AsyncMock()
+    session.scalars = AsyncMock(return_value=SimpleNamespace(all=lambda: [row]))
+
+    pins = await _load_setup_pin_context(
+        session,
+        {
+            "components": [
+                {
+                    "stable_id": row.stable_id,
+                    "version": row.version,
+                    "passport_digest": "sha256:" + "b" * 64,
+                }
+            ]
+        },
+    )
+
+    assert len(pins) == 1
+    assert pins[0]["digest_matches"] is False
+    assert pins[0]["checks_summary"] is None
+    session.scalars.assert_awaited_once()
 
 
 @pytest.mark.asyncio

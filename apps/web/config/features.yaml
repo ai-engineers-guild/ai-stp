@@ -5,7 +5,7 @@ profiles:
   public_saas:
     content_hub: true
     saas_public_pages: true
-    catalog_usage_metrics: false
+    catalog_usage_metrics: true
   self_hosted:
     content_hub: false
     saas_public_pages: false

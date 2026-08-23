@@ -6,6 +6,8 @@ import { CatalogFilters } from "@/components/organisms/catalog-filters";
 import { CatalogResults } from "@/components/organisms/catalog-results";
 import type { CatalogAuthor } from "@/components/organisms/object-card";
 import { ApiError } from "@/lib/api/errors";
+import { listCatalogReactions } from "@/lib/api/reactions";
+import { sessionCookieValue } from "@/lib/auth/require-session";
 import { loadPublisherProfiles, startCatalogResourceReads } from "@/lib/catalog-load";
 import { catalogQueryToRecord, parseCatalogSearchParams } from "@/lib/catalog-query";
 
@@ -193,7 +195,23 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
     safetyAvailable: t("safetyAvailable"),
     safetyPending: t("safetyPending"),
     safetyMandatory: t("safetyMandatory"),
+    safetyCheckExplanation: t("safetyCheckExplanation"),
+    like: t("like"),
+    unlike: t("unlike"),
+    likeMenu: t("likeMenu"),
+    unlikeMenu: t("unlikeMenu"),
   };
+
+  let likedIds: string[] = [];
+  const sessionToken = await sessionCookieValue();
+  if (sessionToken) {
+    try {
+      const reactions = await listCatalogReactions(sessionToken);
+      likedIds = reactions.items.map((item) => item.summary.stable_id);
+    } catch {
+      likedIds = [];
+    }
+  }
 
   return (
     <div className="min-w-0 space-y-8 overflow-x-hidden">
@@ -229,6 +247,14 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
             dismissFilter: t("dismissFilter"),
             closeFilters: t("closeFilters"),
             filterHelpLabel: t("filterHelpLabel"),
+            tagFilterHelp: t("tagFilterHelp"),
+            harnessFilterHelp: t("harnessFilterHelp"),
+            typeFilterHelp: t("typeFilterHelp"),
+            authorFilterHelp: t("authorFilterHelp"),
+            verifiedOnlyHelp: t("verifiedOnlyHelp"),
+            countryFilterHelp: t("countryFilterHelp"),
+            serviceFilterHelp: t("serviceFilterHelp"),
+            updatedRangeHelp: t("updatedRangeHelp"),
             searchOptions: t("searchOptions"),
             authorFilter: t("authorFilter"),
             verifiedOnly: t("verifiedOnly"),
@@ -295,6 +321,7 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
           labels={labels}
           locale={locale}
           authors={authorProfiles}
+          likedIds={likedIds}
         />
       )}
     </div>
