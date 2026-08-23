@@ -191,10 +191,17 @@ def _run_scenarios(home_a: Path, home_b: Path, *, python: str) -> dict[str, Any]
         "second_push_error": refused.get("error_code"),
     }
 
-    _pull(home_b, python=python)
+    # The pull's result is reported, not discarded. It used to be thrown away,
+    # and when it failed the scenario still reached the preview — which then
+    # honestly answered `up_to_date`, because a device that could not pull has
+    # nothing to merge. The evidence said "merge not offered", naming the
+    # symptom furthest from the cause, and the actual refusal never appeared.
+    pulled = _pull(home_b, python=python)
     preview = _preview(home_b, stable_id, python=python)
     merged: dict[str, Any] = {}
-    if preview.get("state") == "merge_ready":
+    if not pulled.get("ok"):
+        after = {"ok": False, "error_code": "pull refused before a merge was possible"}
+    elif preview.get("state") == "merge_ready":
         merged = data(
             cli(
                 ["sync", "merge", "--id", stable_id, "--confirm"],
@@ -208,8 +215,9 @@ def _run_scenarios(home_a: Path, home_b: Path, *, python: str) -> dict[str, Any]
         after = {"ok": False, "error_code": "merge not offered"}
     scenarios["merge"] = {
         "state": "verified"
-        if preview.get("state") == "merge_ready" and after.get("ok")
+        if pulled.get("ok") and preview.get("state") == "merge_ready" and after.get("ok")
         else "failed",
+        "pull_state": "accepted" if pulled.get("ok") else pulled.get("error_code"),
         "preview_state": preview.get("state"),
         "merged_state": merged.get("state"),
         "push_after_merge": after.get("state", after.get("error_code")),
