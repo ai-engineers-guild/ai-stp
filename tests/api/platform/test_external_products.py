@@ -10,8 +10,10 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from ai_stp_api.errors import CATEGORY_CODE, ErrorCategory
 from ai_stp_api.session import issue_session
 from ai_stp_api.settings import Settings
+from ai_stp_contracts.catalog import CATALOG_UNSPECIFIED_FILTER
 from ai_stp_foundation.ids import new_id
 from ai_stp_platform.catalog_seed import FIXTURE_COMPONENT_ID, load_first_party_seed
 from ai_stp_platform.models import Account, CatalogMetadata
@@ -203,7 +205,7 @@ async def test_catalog_search_accepts_multi_and_unspecified_relation_filters(
     unspecified_country = await client.get(
         "/v1/catalog/components",
         params={
-            "country_codes": "unspecified",
+            "country_codes": CATALOG_UNSPECIFIED_FILTER,
             "include_experimental": "true",
             "page": 1,
         },
@@ -214,7 +216,7 @@ async def test_catalog_search_accepts_multi_and_unspecified_relation_filters(
     unspecified_service = await client.get(
         "/v1/catalog/components",
         params={
-            "service_domains": "unspecified",
+            "service_domains": CATALOG_UNSPECIFIED_FILTER,
             "include_experimental": "true",
             "page": 1,
         },
@@ -225,7 +227,7 @@ async def test_catalog_search_accepts_multi_and_unspecified_relation_filters(
     and_mismatch = await client.get(
         "/v1/catalog/components",
         params={
-            "service_domains": "unspecified",
+            "service_domains": CATALOG_UNSPECIFIED_FILTER,
             "country_codes": "US",
             "include_experimental": "true",
             "page": 1,
@@ -233,6 +235,37 @@ async def test_catalog_search_accepts_multi_and_unspecified_relation_filters(
     )
     assert and_mismatch.status_code == 200
     assert stable_id not in _experimental_ids(and_mismatch.json())
+
+    paged = await client.get(
+        "/v1/catalog/components",
+        params={
+            "include_experimental": "true",
+            "page_size": 1,
+        },
+    )
+    assert paged.status_code == 200
+    cursor = paged.json()["page"]["next_cursor"]
+    assert cursor is not None
+    same_signature = await client.get(
+        "/v1/catalog/components",
+        params={
+            "include_experimental": "true",
+            "cursor": cursor,
+            "page_size": 1,
+        },
+    )
+    assert same_signature.status_code == 200
+    mismatched_signature = await client.get(
+        "/v1/catalog/components",
+        params={
+            "country_codes": "US",
+            "include_experimental": "true",
+            "cursor": cursor,
+            "page_size": 1,
+        },
+    )
+    assert mismatched_signature.status_code == 400
+    assert mismatched_signature.json()["error"]["code"] == CATEGORY_CODE[ErrorCategory.VALIDATION]
 
 
 @pytest.mark.asyncio

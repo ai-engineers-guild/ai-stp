@@ -28,7 +28,12 @@ const FIELD_FIXES: Record<string, string> = {
   typ: "TYPE",
 };
 
+const FIELD_OPERATORS = [":", "IN", "AND"] as const;
+
 export function suggestCatalogQlWords(value: string): string[] {
+  if (/(?:^|[\s(])(?:NAME|TAGS|HARNESS|TYPE|AUTHOR|VERIFIED)\s*$/i.test(value)) {
+    return [...FIELD_OPERATORS];
+  }
   const activeToken = value.match(/[A-Za-z_]+$/)?.[0]?.toUpperCase() ?? "";
   if (!activeToken) return [];
   return CATALOG_QL_WORDS.filter(
@@ -48,6 +53,10 @@ export function correctCatalogQuery(value: string): string {
 }
 
 export function completeCatalogQlToken(value: string, word: string): string {
+  if (word === ":") return value.replace(/\s*$/, "") + ":";
+  if (word === "IN" || word === "AND" || word === "OR" || word === "NOT") {
+    return value.replace(/\s*$/, "") + ` ${word} `;
+  }
   return value.replace(/[A-Za-z_]+$/, word);
 }
 

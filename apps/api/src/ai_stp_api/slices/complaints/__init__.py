@@ -1,0 +1,1 @@
+"""Public complaint intake slice."""

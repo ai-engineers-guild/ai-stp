@@ -42,6 +42,16 @@ test.describe("landing → search → detail smoke (REQ-2213)", () => {
     });
   });
 
+  test("three-dots catalog menu does not lock page scroll", async ({ page }) => {
+    await page.goto("/en/catalog");
+    const firstCard = page.locator("article[data-kind='component']").first();
+    await expect(firstCard).toBeVisible({ timeout: 15_000 });
+    await firstCard.getByRole("button", { name: "More actions" }).click();
+    await expect(page.getByRole("menuitem", { name: "Like" })).toBeVisible();
+    const overflow = await page.evaluate(() => getComputedStyle(document.body).overflow);
+    expect(overflow).not.toBe("hidden");
+  });
+
   test("collapsed search expands without occupying the initial catalog viewport", async ({
     page,
   }) => {

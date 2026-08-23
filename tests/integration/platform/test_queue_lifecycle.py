@@ -8,12 +8,15 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ai_stp_platform.queue.engine import (
+    DEFAULT_LEASE_TIMEOUT_SECONDS,
     cancel,
     claim,
     enqueue,
     fail,
+    heartbeat,
     mark_succeeded,
     requeue_locked,
+    requeue_stale,
 )
 from ai_stp_platform.queue.states import JobState, JobType
 
@@ -104,3 +107,79 @@ async def test_cancel_and_requeue_locked(
         assert len(reclaimed) == 1
         assert reclaimed[0].idempotency_key == "queue-requeue-me"
         assert reclaimed[0].locked_by == "worker-new"
+
+
+@pytest.mark.asyncio
+async def test_stale_lease_is_reclaimed_and_counts_as_a_delivery(
+    db_sessionmaker: async_sessionmaker[AsyncSession],
+) -> None:
+    """A crashed worker cannot leave a running job permanently invisible."""
+    now = datetime(2026, 8, 7, 12, 0, tzinfo=UTC)
+    async with db_sessionmaker() as session, session.begin():
+        await enqueue(
+            session,
+            job_type=JobType.UPLOAD,
+            payload={"path": "stale"},
+            idempotency_key="queue-stale-lease",
+            max_attempts=2,
+            run_after=now,
+        )
+
+    async with db_sessionmaker() as session, session.begin():
+        claimed = await claim(session, worker_id="worker-crashed", batch=1, now=now)
+        assert len(claimed) == 1
+
+    expired = now + timedelta(seconds=DEFAULT_LEASE_TIMEOUT_SECONDS + 1)
+    async with db_sessionmaker() as session, session.begin():
+        assert (
+            await requeue_stale(
+                session,
+                lease_timeout_seconds=DEFAULT_LEASE_TIMEOUT_SECONDS,
+                now=expired,
+            )
+            == 1
+        )
+
+    async with db_sessionmaker() as session, session.begin():
+        reclaimed = await claim(session, worker_id="worker-recovered", batch=1, now=expired)
+        assert len(reclaimed) == 1
+        assert reclaimed[0].attempts == 1
+        assert reclaimed[0].locked_by == "worker-recovered"
+
+
+@pytest.mark.asyncio
+async def test_heartbeat_keeps_a_live_lease_claimed(
+    db_sessionmaker: async_sessionmaker[AsyncSession],
+) -> None:
+    """A live worker heartbeat prevents another worker from reclaiming work."""
+    now = datetime(2026, 8, 7, 12, 0, tzinfo=UTC)
+    async with db_sessionmaker() as session, session.begin():
+        await enqueue(
+            session,
+            job_type=JobType.UPLOAD,
+            payload={"path": "live"},
+            idempotency_key="queue-live-lease",
+            run_after=now,
+        )
+        claimed = await claim(session, worker_id="worker-live", batch=1, now=now)
+        assert len(claimed) == 1
+
+    extended = now + timedelta(seconds=DEFAULT_LEASE_TIMEOUT_SECONDS - 1)
+    async with db_sessionmaker() as session, session.begin():
+        assert (
+            await heartbeat(
+                session,
+                worker_id="worker-live",
+                job_id=claimed[0].id,
+                now=extended,
+            )
+            is True
+        )
+        assert (
+            await requeue_stale(
+                session,
+                lease_timeout_seconds=DEFAULT_LEASE_TIMEOUT_SECONDS,
+                now=extended,
+            )
+            == 0
+        )

@@ -12,6 +12,9 @@ import type {
   ConfirmPublicationPlanData,
   ConfirmPublicationPlanErrors,
   ConfirmPublicationPlanResponses,
+  CreateComplaintData,
+  CreateComplaintErrors,
+  CreateComplaintResponses,
   CreateDeviceChallengeData,
   CreateDeviceChallengeErrors,
   CreateDeviceChallengeResponses,
@@ -478,6 +481,21 @@ export const readSetupGithubMetadata = <ThrowOnError extends boolean = false>(
     ReadSetupGithubMetadataErrors,
     ThrowOnError
   >({ url: "/v1/catalog/setups/{stable_id}/versions/{version}/github-metadata", ...options });
+
+/**
+ * Accept a complaint about an author, catalog object, or other target.
+ */
+export const createComplaint = <ThrowOnError extends boolean = false>(
+  options: Options<CreateComplaintData, ThrowOnError>,
+): RequestResult<CreateComplaintResponses, CreateComplaintErrors, ThrowOnError> =>
+  (options.client ?? client).post<CreateComplaintResponses, CreateComplaintErrors, ThrowOnError>({
+    url: "/v1/complaints",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
 
 /**
  * List the devices of the current account.

@@ -1,8 +1,13 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn() } }));
+vi.mock("@/lib/actions/catalog-reactions", () => ({
+  updateCatalogReaction: vi.fn((_kind: string, _id: string, liked: boolean) =>
+    Promise.resolve({ schema_version: 1, liked, likes_count: liked ? 1 : 0 }),
+  ),
+}));
 vi.mock("@/components/organisms/contact-report-dialog", () => ({
   ContactReportDialog: ({
     label,
@@ -22,6 +27,8 @@ vi.mock("@/components/organisms/contact-report-dialog", () => ({
 
 const { CatalogItemMenu } = await import("@/components/organisms/catalog-item-menu");
 
+const { updateCatalogReaction } = await import("@/lib/actions/catalog-reactions");
+
 const labels = {
   more: "More actions",
   copyUrl: "Copy URL",
@@ -29,6 +36,8 @@ const labels = {
   copyId: "Copy ID",
   copied: "Copied",
   report: "Report setup",
+  like: "Like",
+  unlike: "Unlike",
 };
 
 describe("CatalogItemMenu", () => {
@@ -54,8 +63,11 @@ describe("CatalogItemMenu", () => {
       "Copy URL",
       "Copy ID",
       "Copy CLI command",
+      "Like",
       "Report setup",
     ]);
+    expect(document.body.style.overflow).not.toBe("hidden");
+    expect(getComputedStyle(document.body).overflow).not.toBe("hidden");
     await user.click(screen.getByRole("menuitem", { name: "Copy ID" }));
     expect(writeText).toHaveBeenCalledWith("setup_example");
     await user.click(screen.getByRole("button", { name: "More actions" }));
@@ -99,5 +111,29 @@ describe("CatalogItemMenu", () => {
     expect(screen.getByRole("menuitem", { name: "Copy ID" })).toHaveFocus();
     await user.keyboard("{End}");
     expect(screen.getByRole("menuitem", { name: "Report component" })).toHaveFocus();
+  });
+
+  it("toggles like through the catalog reaction action without locking page scroll", async () => {
+    const user = userEvent.setup();
+    render(
+      <CatalogItemMenu
+        kind="component"
+        stableId="cmp_example"
+        version="1.0"
+        href="/catalog/components/cmp_example"
+        labels={{ ...labels, report: "Report component" }}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    expect(getComputedStyle(document.body).overflow).not.toBe("hidden");
+    await user.click(screen.getByRole("menuitem", { name: "Like" }));
+    await waitFor(() => {
+      expect(updateCatalogReaction).toHaveBeenCalledWith("component", "cmp_example", true);
+    });
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Unlike" }));
+    await waitFor(() => {
+      expect(updateCatalogReaction).toHaveBeenCalledWith("component", "cmp_example", false);
+    });
   });
 });

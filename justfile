@@ -114,6 +114,14 @@ security:
     {{bunreq}}
     cd apps/web && bun run audit
 
+# Deterministic safety evidence; the script disables external CLI and network.
+safety-benchmark *args:
+    {{run}} python scripts/safety/benchmark_offline.py {{args}}
+
+# 108 real filesystem fixtures, sequential platform backend scan, JSON evidence.
+safety-corpus *args:
+    {{run}} python scripts/safety/run_adversarial_corpus.py {{args}}
+
 # Собирает, но не публикует, пять публичных Python-пакетов. Рабочее дерево
 # обязано быть чистым; локальная характеризация dirty tree запускается напрямую
 # с явным `--allow-dirty` и никогда не является release evidence.

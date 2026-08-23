@@ -1,0 +1,13 @@
+{
+  "pins": [
+    {
+      "stable_id": "component_a",
+      "version": "1.0",
+      "failed_mandatory": true,
+      "checks_summary": {
+        "status": "available",
+        "failed": 1
+      }
+    }
+  ]
+}

@@ -397,3 +397,13 @@ def detect_all(
     return tuple(
         detect(detector, environment=environment, system_name=system_name) for detector in DETECTORS
     )
+
+
+def present_installations(found: tuple[Found, ...]) -> tuple[Found, ...]:
+    """Harnesses that are on this machine.
+
+    `available` means supported by this build and not installed. Passport
+    `installed_harnesses` and the toolchain survey must use this same cut:
+    a supported-but-absent harness, including Pi with no binary, stays out.
+    """
+    return tuple(item for item in found if item.state != "available")

@@ -16,6 +16,8 @@ def plan_checks(
 
     Setup never re-scans pin trees: only ``setup_pin_aggregate``.
     """
+    if object_kind not in {"component", "setup"}:
+        raise ValueError(f"unsupported safety object kind: {object_kind}")
     registry = registry_by_id()
     if object_kind == "setup":
         return [

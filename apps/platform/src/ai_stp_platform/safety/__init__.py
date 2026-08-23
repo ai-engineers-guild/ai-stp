@@ -6,7 +6,12 @@ can drive the real path without host binaries.
 
 from __future__ import annotations
 
-from ai_stp_platform.safety.orchestrator import doctor_tools, run_safety_suite, safety_diagnostics
+from ai_stp_platform.safety.orchestrator import (
+    doctor_tools,
+    run_safety_suite,
+    safety_diagnostics,
+    safety_readiness,
+)
 from ai_stp_platform.safety.percent import checks_passed_percent, checks_status
 from ai_stp_platform.safety.policy import POLICY_VERSION, SafetyProfile
 
@@ -18,4 +23,5 @@ __all__ = [
     "doctor_tools",
     "run_safety_suite",
     "safety_diagnostics",
+    "safety_readiness",
 ]

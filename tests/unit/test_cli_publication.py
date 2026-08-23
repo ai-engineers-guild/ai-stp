@@ -1,6 +1,7 @@
 """CLI publication transport preserves exact plans, auth and recovery."""
 
 import json
+import sqlite3
 
 import httpx
 import pytest
@@ -11,6 +12,7 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_contracts.publication import (
     PublicationConfirmRequest,
     PublicationPlanCreateRequest,
+    PublicationPlanResponse,
 )
 
 BASE = "https://platform.example"
@@ -246,3 +248,46 @@ def test_confirm_requires_the_exact_explicit_decision(monkeypatch: pytest.Monkey
         command.confirm({"plan-id": PLAN, "plan-hash": PLAN_HASH})
     assert raised.value.code == "AI_STP_USER_DECISION_REQUIRED"
     assert "--confirm" in raised.value.next_actions[0]
+
+
+def test_confirm_binds_the_locally_stored_exact_artifact(monkeypatch: pytest.MonkeyPatch) -> None:
+    from ai_stp_cli.commands import publication as command
+
+    held = session.Session(
+        account_id=ACCOUNT,
+        device_id=DEVICE,
+        access_token="secret-token",
+        refresh_token="refresh-token",
+        expires_at="2099-01-01T00:00:00.000Z",
+    )
+    plan = PublicationPlanResponse.model_validate(_response())
+    seen: list[bytes] = []
+
+    def _open(_path: object) -> sqlite3.Connection:
+        return sqlite3.connect(":memory:")
+
+    def _status(*_args: object) -> PublicationPlanResponse:
+        return plan
+
+    def _get(*_args: object) -> bytes:
+        return b"exact-bytes"
+
+    def _bind(*args: object, **_kwargs: object) -> PublicationPlanResponse:
+        seen.append(args[-1] if isinstance(args[-1], bytes) else b"")
+        return plan
+
+    def _confirm(*_args: object, **_kwargs: object) -> PublicationPlanResponse:
+        return plan.model_copy(update={"state": "validating"})
+
+    monkeypatch.setattr(command, "_session", lambda: held)
+    monkeypatch.setattr(command, "endpoint", lambda: Endpoint(BASE))
+    monkeypatch.setattr(command, "open_readonly", _open)
+    monkeypatch.setattr("ai_stp_cli.commands.publication.publication.status", _status)
+    monkeypatch.setattr("ai_stp_cli.commands.publication.content.get", _get)
+    monkeypatch.setattr("ai_stp_cli.commands.publication.publication.bind", _bind)
+    monkeypatch.setattr("ai_stp_cli.commands.publication.publication.confirm", _confirm)
+
+    result = command.confirm({"plan-id": PLAN, "plan-hash": PLAN_HASH, "confirm": True}).payload
+
+    assert result.state == "validating"
+    assert seen == [b"exact-bytes"]

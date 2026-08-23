@@ -54,6 +54,7 @@ from ai_stp_contracts.catalog import (
     SetupSearchRequest,
     SetupVersionResponse,
 )
+from ai_stp_contracts.complaints import ComplaintCreateRequest, ComplaintCreateResponse
 from ai_stp_contracts.fixtures import load_cases
 from ai_stp_contracts.grants import (
     AccessGrantResponse,
@@ -658,6 +659,16 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         authenticated=True,
         idempotent_mutation=True,
         errors=("AI_STP_NOT_FOUND", "AI_STP_PERMISSION_DENIED"),
+    ),
+    Operation(
+        method="post",
+        path="/complaints",
+        operation_id="createComplaint",
+        summary="Accept a complaint about an author, catalog object, or other target.",
+        response=ComplaintCreateResponse,
+        body=ComplaintCreateRequest,
+        status=201,
+        errors=("AI_STP_VALIDATION_ERROR", "AI_STP_RATE_LIMITED"),
     ),
     Operation(
         method="post",

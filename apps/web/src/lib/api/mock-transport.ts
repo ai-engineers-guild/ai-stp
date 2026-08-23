@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- One exhaustive in-process mirror of the HTTP mock surface. */
 /**
  * In-process mock transport for server reads when AI_STP_USE_MOCKS=true.
  * Serves the same seed/fixture shapes as MSW handlers so RSC and tests share one corpus.
@@ -415,6 +416,29 @@ function deviceApprovalHandler(
   return { status: 200, body: { status: "approved" } };
 }
 
+function complaintHandler(method: string, path: string, body: unknown): MockResult | null {
+  if (method !== "POST" || path !== "/v1/complaints") {
+    return null;
+  }
+  if (body === null || typeof body !== "object") {
+    return { status: 422, body: errorBody("AI_STP_VALIDATION_ERROR", "createComplaint.body") };
+  }
+  const values = body as Record<string, unknown>;
+  const required = ["target_kind", "target", "sender_name", "reply_email", "subject", "message"];
+  if (required.some((key) => typeof values[key] !== "string" || !values[key].trim())) {
+    return { status: 422, body: errorBody("AI_STP_VALIDATION_ERROR", "createComplaint.body") };
+  }
+  return {
+    status: 201,
+    body: {
+      schema_version: 1,
+      complaint_id: "complaint_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+      accepted: true,
+      created_at: FIXTURE_TIMESTAMP,
+    },
+  };
+}
+
 function parseMockBody(raw: string | undefined): unknown {
   if (!raw) {
     return undefined;
@@ -437,6 +461,8 @@ export function mockFetch(
 ): MockResult {
   const auth = readAuth(init?.headers);
   const body = parseMockBody(init?.body);
+  const complaint = complaintHandler(method, path, body);
+  if (complaint) return complaint;
   const reaction = reactionHandler(method, path);
   if (reaction) return reaction;
   const catalog = catalogHandlers(method, path, init?.query);

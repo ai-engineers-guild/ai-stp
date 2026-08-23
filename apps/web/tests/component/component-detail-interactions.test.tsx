@@ -76,6 +76,9 @@ describe("component detail interactions", () => {
 
     await user.click(screen.getByRole("button", { name: "More actions" }));
     const menu = await screen.findByRole("menu");
+    expect(getComputedStyle(document.body).overflow).not.toBe("hidden");
+    const items = within(menu).getAllByRole("menuitem");
+    expect(items[0]).toHaveAccessibleName("Like");
     expect(within(menu).getByRole("menuitem", { name: /Copy ID/ })).toBeVisible();
     expect(within(menu).getByRole("menuitem", { name: /Copy URL/ })).toBeVisible();
     expect(within(menu).getByRole("menuitem", { name: /Copy CLI command/ })).toBeVisible();

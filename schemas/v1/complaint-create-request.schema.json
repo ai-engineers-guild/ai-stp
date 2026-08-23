@@ -1,0 +1,69 @@
+{
+  "$defs": {
+    "ComplaintTargetKind": {
+      "enum": [
+        "author",
+        "component",
+        "setup",
+        "other"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:complaint-create-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "POST /v1/complaints body. Anonymous callers omit a session.",
+  "properties": {
+    "message": {
+      "maxLength": 4000,
+      "minLength": 10,
+      "title": "Message",
+      "type": "string"
+    },
+    "reply_email": {
+      "maxLength": 254,
+      "minLength": 3,
+      "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+      "title": "Reply Email",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "sender_name": {
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Sender Name",
+      "type": "string"
+    },
+    "subject": {
+      "maxLength": 160,
+      "minLength": 1,
+      "title": "Subject",
+      "type": "string"
+    },
+    "target": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Target",
+      "type": "string"
+    },
+    "target_kind": {
+      "$ref": "#/$defs/ComplaintTargetKind"
+    }
+  },
+  "required": [
+    "target_kind",
+    "target",
+    "sender_name",
+    "reply_email",
+    "subject",
+    "message"
+  ],
+  "title": "ComplaintCreateRequest",
+  "type": "object"
+}

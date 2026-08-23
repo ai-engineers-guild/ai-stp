@@ -50,6 +50,8 @@
     ".venv/**",
     ".venv-check/**",
     "research_sources/**",
+    // Вредоносные Markdown-фикстуры намеренно нарушают правила обычной документации.
+    "tests/fixtures/safety-corpus/**",
     ".work/**",
     "plans/**",
     "apps/web/test-results/**",

@@ -11,6 +11,7 @@ import { MarkdownDescription } from "@/components/molecules/markdown-description
 import { ObjectRelationships } from "@/components/molecules/object-relationships";
 import { ObjectTechnicalDetails } from "@/components/molecules/object-technical-details";
 import { ObjectVersionHistory } from "@/components/molecules/object-version-history";
+import { OsBadgeList } from "@/components/molecules/os-badge-list";
 import { PassportJsonViewer } from "@/components/molecules/passport-json-viewer";
 import {
   mergeRequirements,
@@ -174,6 +175,8 @@ export default async function SetupDetailPage({ params }: PageProps) {
             copied: t("copied"),
             like: t("like"),
             unlike: t("unlike"),
+            likeMenu: t("likeMenu"),
+            unlikeMenu: t("unlikeMenu"),
             more: t("moreActions"),
             report: reportLabel,
           },
@@ -353,10 +356,12 @@ function Compatibility({
   return (
     <DetailAccordion title={t("compatibility")}>
       <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <Fact
-          label={t("supportedOs")}
-          value={passport.supported_os.join(", ") || t("noneListed")}
-        />
+        <div className="bg-muted/30 min-w-0 rounded-sm p-3">
+          <dt className="text-muted-foreground text-sm">{t("supportedOs")}</dt>
+          <dd className="mt-1 font-medium break-words">
+            <OsBadgeList values={passport.supported_os} empty={t("noneListed")} />
+          </dd>
+        </div>
         <Fact
           label={t("supportedArch")}
           value={passport.supported_arch.join(", ") || t("noneListed")}

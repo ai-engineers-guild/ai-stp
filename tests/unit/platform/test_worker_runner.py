@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from types import SimpleNamespace
 from typing import cast
 
@@ -28,6 +29,12 @@ class _Session:
         del model
         return self.jobs.get(job_id)
 
+    async def commit(self) -> None:
+        pass
+
+    async def rollback(self) -> None:
+        pass
+
 
 class _SessionMaker:
     def __init__(self, jobs: dict[int, object]) -> None:
@@ -44,6 +51,7 @@ def _worker(jobs: dict[int, object]) -> runner.Worker:
         worker_id="worker-test",
         batch_size=2,
         poll_interval_seconds=0.001,
+        drain_timeout_seconds=1.0,
     )
 
 
@@ -56,12 +64,12 @@ async def test_worker_processes_success_missing_unknown_and_failed_jobs(
         2: SimpleNamespace(id=2, job_type="unknown", payload={}),
         3: SimpleNamespace(id=3, job_type="failure", payload={}),
     }
-    claimed: list[object] = [jobs[1], jobs[2], jobs[3]]
+    claimed: list[object] = [jobs[1]]
     events: list[tuple[str, object]] = []
 
     async def claim(session: object, *, worker_id: str, batch: int) -> list[object]:
         del session
-        assert worker_id == "worker-test" and batch == 2
+        assert worker_id == "worker-test" and batch == 1
         return claimed
 
     async def success(session: object, payload: object) -> None:
@@ -82,6 +90,13 @@ async def test_worker_processes_success_missing_unknown_and_failed_jobs(
 
     monkeypatch.setattr(runner, "claim", claim)
 
+    async def reclaim(session: object, *, lease_timeout_seconds: float) -> int:
+        del session
+        assert lease_timeout_seconds > 0
+        return 0
+
+    monkeypatch.setattr(runner, "requeue_stale", reclaim)
+
     def resolve(kind: str) -> object:
         return success if kind == "success" else failure if kind == "failure" else None
 
@@ -90,7 +105,9 @@ async def test_worker_processes_success_missing_unknown_and_failed_jobs(
     monkeypatch.setattr(runner, "mark_succeeded", succeeded)
 
     worker = _worker(jobs)
-    assert await worker.run_once() == 3
+    assert await worker.run_once() == 1
+    await worker._process(2)  # pyright: ignore[reportPrivateUsage]
+    await worker._process(3)  # pyright: ignore[reportPrivateUsage]
     await worker._process(999)  # pyright: ignore[reportPrivateUsage]
 
     assert ("handled", {"id": 1}) in events
@@ -136,3 +153,49 @@ async def test_worker_run_polls_once_then_stops(monkeypatch: pytest.MonkeyPatch)
     await worker.run()
 
     assert calls == 1
+
+
+@pytest.mark.asyncio
+async def test_worker_stop_cancels_handler_before_requeue(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Drain requeues only after the handler transaction has rolled back."""
+    jobs: dict[int, object] = {1: SimpleNamespace(id=1, job_type="blocking", payload={})}
+    worker = _worker(jobs)
+    started = asyncio.Event()
+    release = asyncio.Event()
+    events: list[str] = []
+
+    async def reclaim(session: object, *, lease_timeout_seconds: float) -> int:
+        del session, lease_timeout_seconds
+        return 0
+
+    async def claim_one(session: object, *, worker_id: str, batch: int) -> list[object]:
+        del session, worker_id
+        assert batch == 1
+        return [jobs[1]]
+
+    async def blocking_handler(session: object, payload: object) -> None:
+        del session, payload
+        started.set()
+        await release.wait()
+
+    async def requeue(session: object, *, worker_id: str) -> int:
+        del session
+        assert worker_id == "worker-test"
+        events.append("requeued")
+        return 1
+
+    monkeypatch.setattr(runner, "requeue_stale", reclaim)
+    monkeypatch.setattr(runner, "claim", claim_one)
+    monkeypatch.setattr(runner, "requeue_locked", requeue)
+
+    def resolve(kind: str) -> object | None:
+        return blocking_handler if kind == "blocking" else None
+
+    monkeypatch.setattr(runner, "resolve", resolve)
+
+    run_task = asyncio.create_task(worker.run())
+    await started.wait()
+    worker.request_stop()
+    await run_task
+
+    assert events == ["requeued"]

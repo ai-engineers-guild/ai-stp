@@ -67,6 +67,11 @@ type CatalogLabels = {
   safetyAvailable?: string;
   safetyPending?: string;
   safetyMandatory?: string;
+  safetyCheckExplanation?: string;
+  like?: string;
+  unlike?: string;
+  likeMenu?: string;
+  unlikeMenu?: string;
 };
 
 type CatalogResultsProps = {
@@ -90,6 +95,7 @@ type CatalogResultsProps = {
   labels: CatalogLabels;
   locale?: string;
   authors?: Record<string, CatalogAuthor>;
+  likedIds?: ReadonlyArray<string>;
 };
 
 function hrefFor(kind: "components" | "setups", stableId: string): string {
@@ -143,6 +149,11 @@ function objectCardLabels(labels: CatalogLabels): Parameters<typeof ObjectCard>[
     whyWarning: labels.whyWarning,
     requirements: labels.requirements,
     credentialsRequired: labels.credentialsRequired,
+    safetyCheckExplanation: labels.safetyCheckExplanation,
+    like: labels.like,
+    unlike: labels.unlike,
+    likeMenu: labels.likeMenu,
+    unlikeMenu: labels.unlikeMenu,
   };
 }
 
@@ -188,6 +199,7 @@ export function CatalogResults({
   labels,
   locale,
   authors = {},
+  likedIds = [],
 }: CatalogResultsProps) {
   const cardLabels = objectCardLabels(labels);
   const visible = showExperimental ? [...items, ...experimental] : [...items];
@@ -218,6 +230,7 @@ export function CatalogResults({
                 href={hrefFor(resource, item.stable_id)}
                 labels={cardLabels}
                 view={view}
+                initiallyLiked={likedIds.includes(item.stable_id)}
                 {...(authors[item.publisher_id] ? { author: authors[item.publisher_id] } : {})}
                 {...(locale ? { locale } : {})}
               />

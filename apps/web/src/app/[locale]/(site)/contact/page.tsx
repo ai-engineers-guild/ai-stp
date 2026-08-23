@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { ContactForm } from "@/components/organisms/contact-form";
-import { CONTACT_EMAIL_PLACEHOLDER } from "@/lib/site";
 import { UI } from "@/lib/ui-selectors";
 
 type PageProps = { params: Promise<{ locale: string }> };
@@ -24,7 +23,6 @@ export default async function ContactPage({ params }: PageProps) {
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("contact");
-  const recipient = process.env["NEXT_PUBLIC_CONTACT_EMAIL"] ?? CONTACT_EMAIL_PLACEHOLDER;
 
   return (
     <section
@@ -40,15 +38,6 @@ export default async function ContactPage({ params }: PageProps) {
             {t("subtitle")}
           </p>
         </div>
-        <div className="border-y py-5">
-          <p className="text-muted-foreground mb-2 font-mono text-xs uppercase">{t("direct")}</p>
-          <a
-            href={`mailto:${recipient}`}
-            className="focus-visible:ring-ring decoration-primary text-lg break-all underline underline-offset-4 focus-visible:ring-2 focus-visible:outline-none"
-          >
-            {recipient}
-          </a>
-        </div>
         <div className="space-y-2">
           <h2 className="font-mono text-xs font-medium uppercase">{t("responseTitle")}</h2>
           <p className="text-muted-foreground max-w-md text-sm leading-relaxed">
@@ -61,10 +50,7 @@ export default async function ContactPage({ params }: PageProps) {
           <h2 className="text-2xl font-medium tracking-tight">{t("formTitle")}</h2>
           <p className="text-muted-foreground max-w-xl text-sm leading-relaxed">{t("formHint")}</p>
         </div>
-        <ContactForm
-          recipient={recipient}
-          placeholderRecipient={recipient === CONTACT_EMAIL_PLACEHOLDER}
-        />
+        <ContactForm targetKind="other" target="contact" />
       </div>
     </section>
   );

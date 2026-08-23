@@ -42,6 +42,9 @@
               "latest_name": "fixture-component",
               "latest_description": "fixture-component-description",
               "latest_harness_id": "claude-code",
+              "latest_harness_ids": [
+                "claude-code"
+              ],
               "latest_component_type": "skill",
               "latest_projection_kind": "native_files",
               "latest_tags": [
@@ -140,6 +143,9 @@
             "latest_name": "fixture-component",
             "latest_description": "fixture-component-description",
             "latest_harness_id": "claude-code",
+            "latest_harness_ids": [
+              "claude-code"
+            ],
             "latest_component_type": "skill",
             "latest_projection_kind": "native_files",
             "latest_tags": [
@@ -232,6 +238,9 @@
           "latest_name": "fixture-component",
           "latest_description": "fixture-component-description",
           "latest_harness_id": "claude-code",
+          "latest_harness_ids": [
+            "claude-code"
+          ],
           "latest_component_type": "skill",
           "latest_projection_kind": "native_files",
           "latest_tags": [
@@ -259,7 +268,7 @@
         "versions": [
           {
             "version": "1.0",
-            "passport_digest": "sha256:21d097f41e14dd7423f6074f4376c912d9a907ad07cba2e5d2e702ab46df0362",
+            "passport_digest": "sha256:5e4b23e230936350a53ab8bdcdcc83b5abe5b6b4cad55ab5063cfe18970b8712",
             "lifecycle": "active",
             "trust": {
               "trust_lane": "experimental",
@@ -277,7 +286,7 @@
           },
           {
             "version": "1.2",
-            "passport_digest": "sha256:402217ff8818c58f5ac093923f49a25c10d8955bac59f4d4e837012641a2f51a",
+            "passport_digest": "sha256:4df65c32960d9722726bb70b5154837e5d145966575bbdaa56fc6616fb61b2f4",
             "lifecycle": "active",
             "trust": {
               "trust_lane": "experimental",
@@ -334,6 +343,9 @@
             "latest_name": "fixture-component",
             "latest_description": "fixture-component-description",
             "latest_harness_id": "claude-code",
+            "latest_harness_ids": [
+              "claude-code"
+            ],
             "latest_component_type": "skill",
             "latest_projection_kind": "native_files",
             "latest_tags": [
@@ -387,6 +399,9 @@
             "latest_name": "fixture-component",
             "latest_description": "fixture-component-description",
             "latest_harness_id": "claude-code",
+            "latest_harness_ids": [
+              "claude-code"
+            ],
             "latest_component_type": "skill",
             "latest_projection_kind": "native_files",
             "latest_tags": [
@@ -436,7 +451,7 @@
           "schema_version": 1,
           "kind": "component",
           "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-          "revision_id": "revision_9f90ce539ce28826fef5fbb669a1566ae8d6b4a57018611f9ef85eded3ab36cc",
+          "revision_id": "revision_96370e726c35370359c21a99c5aff141f4fc69a9a536699ff91370fb1403263a",
           "parent_revision_ids": [],
           "owner_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
           "created_at": "2026-08-05T00:00:00.000Z",
@@ -484,9 +499,11 @@
             "plugins": []
           },
           "managed_paths": [],
-          "native_ids": []
+          "native_ids": [],
+          "harness_ids": [],
+          "supported_os": []
         },
-        "passport_digest": "sha256:402217ff8818c58f5ac093923f49a25c10d8955bac59f4d4e837012641a2f51a",
+        "passport_digest": "sha256:4df65c32960d9722726bb70b5154837e5d145966575bbdaa56fc6616fb61b2f4",
         "lifecycle": "active",
         "trust": {
           "trust_lane": "experimental",

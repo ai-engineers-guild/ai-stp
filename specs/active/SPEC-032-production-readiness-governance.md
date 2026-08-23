@@ -1,6 +1,6 @@
 ---
 description: "SPEC-032: Доказательная готовность production, governance данных, защита от злоупотреблений и восстановление."
-last_verified: "2026-08-08"
+last_verified: "2026-08-22"
 ---
 
 # SPEC-032: Готовность production, governance и восстановление
@@ -83,6 +83,15 @@ vocabulary.
   обязательную проверку готовности с командой, ожидаемым результатом, инструкцией
   восстановления и владельцем; неисполненная проверка и остаточный риск записываются
   явно, а не выдаются за успех.
+- `REQ-3213`: Safety validation имеет bounded telemetry для queue wait/run/requeue,
+  scan count/cache/latency buckets и каждого check result/duration; offline
+  benchmark фиксирует commit, policy, corpus, profile и отсутствие network/CLI,
+  а измеренные latency не выдаются за универсальный cross-machine SLO.
+- `REQ-3214`: Каждый вид компонента и сетап имеют от 10 до 20 релевантных
+  вредоносных filesystem-примеров и не менее двух чистых контрольных примеров.
+  Один последовательный платформенный
+  сценарий прогоняет их через серверные проверки безопасности без сети, выдаёт
+  машиночитаемый отчёт и отказывает при пропущенной атаке или ложной находке.
 
 ## Состояния и ошибки
 
@@ -128,3 +137,5 @@ approval, если меняет применимую проверку. Новы�
 | `REQ-3210` | Репетиция проверяет deploy lock, exact artifact rollback, readiness и отсутствие destructive downgrade. |
 | `REQ-3211` | Негативная проверка доказывает, что CI/agent/automation без explicit approval не вызывает production mutation. |
 | `REQ-3212` | Release-evidence inventory связывает обязательные checks с command, outcome, owner и recovery instruction. |
+| `REQ-3213` | Unit-тесты проверяют bounded metrics snapshot, а `just safety-benchmark --iterations 3 --concurrency 1` выдаёт deterministic offline evidence с `network=disabled`, case order и scan/check/queue metrics. |
+| `REQ-3214` | `just safety-corpus` читает versioned manifest, последовательно проверяет каждый файловый fixture и setup pin scenario, фиксирует per-kind counts, recall, false-positive rate и список несовпадений; scenario test требует полного обнаружения manifest expectations без clean findings. |

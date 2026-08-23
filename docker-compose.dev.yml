@@ -43,6 +43,12 @@ x-web-env: &web-env
   AI_STP_USE_MOCKS: "false"
   AI_STP_MOCK_AUTH: "false"
   AI_STP_SESSION_SECRET: dev-only-change-me-to-a-long-random-string
+  # Official GA / Yandex Metrika. Empty id = that vendor off. Set
+  # NEXT_PUBLIC_ANALYTICS_ENABLED=false to disable both even when ids are set.
+  NEXT_PUBLIC_ANALYTICS_ENABLED: ${NEXT_PUBLIC_ANALYTICS_ENABLED:-true}
+  NEXT_PUBLIC_GA_MEASUREMENT_ID: ${NEXT_PUBLIC_GA_MEASUREMENT_ID:-}
+  NEXT_PUBLIC_YANDEX_METRIKA_COUNTER_ID: ${NEXT_PUBLIC_YANDEX_METRIKA_COUNTER_ID:-}
+  NEXT_PUBLIC_COOKIE_CONSENT_ENABLED: ${NEXT_PUBLIC_COOKIE_CONSENT_ENABLED:-true}
 
 services:
   postgres:

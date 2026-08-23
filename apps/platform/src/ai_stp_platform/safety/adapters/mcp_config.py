@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """MCP config static scan (ported from ai-repo-safety scan_mcp_config)."""
 
 from __future__ import annotations
@@ -24,6 +25,12 @@ SECRET_LIKE = re.compile(
 DOCKER_LATEST = re.compile(r"(?i)\bdocker://[^\s\"']+:latest\b")
 WRITE_SCOPE = re.compile(r"(?i)\b(write|delete|admin|full|all|\*)\b")
 EXPIRY_KEYS = {"expires", "expires_at", "expiresAt", "expiry", "rotation", "rotates_at", "ttl"}
+POISON = re.compile(
+    r"(?i)(ignore (?:all )?(?:previous|prior) instructions|read .{0,60}(?:\.ssh|credentials?|secret|token)|send .{0,80}(?:to|recipient)|instead of using|before (?:calling|using)|must first)"
+)
+ARGUMENT_HIJACK = re.compile(
+    r"(?i)(?:replace|change|override|set).{0,40}(?:recipient|repository|branch|filename|destination|argument).{0,80}(?:before|when|always)"
+)
 
 
 def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome:
@@ -72,6 +79,7 @@ def _scan_file(path: Path, rel: str, spec: CheckSpec) -> list[Finding]:
         payload = json.loads(text)
     except json.JSONDecodeError:
         return out
+    out.extend(_scan_mcp_surfaces(payload, rel, spec))
     for raw_obj in _walk(payload):
         if not isinstance(raw_obj, dict):
             continue
@@ -114,6 +122,118 @@ def _scan_file(path: Path, rel: str, spec: CheckSpec) -> list[Finding]:
                 )
             )
     return out
+
+
+def _scan_mcp_surfaces(payload: Any, rel: str, spec: CheckSpec) -> list[Finding]:
+    if not isinstance(payload, dict):
+        return []
+    root = cast(dict[str, Any], payload)
+    out: list[Finding] = []
+    for surface, rule in (
+        ("tools", "mcp_tool_description_poisoning"),
+        ("resources", "mcp_resource_poisoning"),
+        ("prompts", "mcp_prompt_poisoning"),
+        ("tool_outputs", "mcp_tool_output_poisoning"),
+    ):
+        value = root.get(surface)
+        if value is None:
+            continue
+        for key, text in _text_fields(value):
+            if POISON.search(text):
+                specific = "mcp_schema_poisoning" if key.startswith("schema.") else rule
+                out.append(_f(spec, specific, f"Poisoned MCP {surface} metadata", rel, "critical"))
+            if ARGUMENT_HIJACK.search(text):
+                out.append(
+                    _f(
+                        spec,
+                        "mcp_argument_hijacking",
+                        "MCP argument hijacking instruction",
+                        rel,
+                        "critical",
+                    )
+                )
+
+    tools = root.get("tools")
+    if isinstance(tools, list):
+        tool_items = cast(list[Any], tools)
+        tool_maps = [cast(dict[str, Any], item) for item in tool_items if isinstance(item, dict)]
+        names = [cast(str, item["name"]) for item in tool_maps if isinstance(item.get("name"), str)]
+        if len(names) != len(set(names)):
+            out.append(_f(spec, "mcp_tool_name_collision", "Duplicate MCP tool name", rel, "high"))
+        descriptions = "\n".join(text for _, text in _text_fields(tools))
+        if any(
+            POISON.search(text)
+            for tool in tool_maps
+            for _, text in _text_fields(tool.get("inputSchema"))
+        ):
+            out.append(
+                _f(spec, "mcp_schema_poisoning", "Poisoned MCP input schema", rel, "critical")
+            )
+        if re.search(
+            r"(?i)(?:other|another|trusted).{0,30}(?:server|tool).{0,80}(?:instead|redirect|override|must)",
+            descriptions,
+        ):
+            out.append(
+                _f(
+                    spec,
+                    "mcp_tool_shadowing",
+                    "MCP tool attempts cross-server shadowing",
+                    rel,
+                    "critical",
+                )
+            )
+
+    baseline = root.get("tools_baseline")
+    current = root.get("tools_current")
+    if baseline is not None and current is not None and _canonical(baseline) != _canonical(current):
+        out.append(
+            _f(
+                spec,
+                "mcp_tool_rug_pull",
+                "MCP tool definition changed after approval",
+                rel,
+                "critical",
+            )
+        )
+
+    capabilities = root.get("capabilities")
+    if isinstance(capabilities, list):
+        caps = {str(item) for item in cast(list[Any], capabilities)}
+        if {"credential-read", "data-exfil"} <= caps:
+            out.append(
+                _f(
+                    spec,
+                    "mcp_toxic_flow",
+                    "Credential read and exfiltration capabilities form a toxic flow",
+                    rel,
+                    "critical",
+                )
+            )
+    return out
+
+
+def _text_fields(node: Any, key: str = "") -> Iterator[tuple[str, str]]:
+    if isinstance(node, dict):
+        for raw_key, value in cast(dict[str, Any], node).items():
+            child_key = str(raw_key)
+            if isinstance(value, str) and child_key in {
+                "name",
+                "title",
+                "description",
+                "text",
+                "content",
+                "result",
+            }:
+                yield (f"schema.{child_key}" if key == "inputSchema" else child_key, value)
+            else:
+                yield from _text_fields(value, child_key)
+    elif isinstance(node, list):
+        for value in cast(list[Any], node):
+            yield from _text_fields(value, key)
+
+
+def _canonical(node: Any) -> str:
+    return json.dumps(node, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
 def _f(spec: CheckSpec, rule: str, title: str, path: str, sev: str) -> Finding:

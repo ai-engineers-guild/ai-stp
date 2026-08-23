@@ -1,6 +1,6 @@
 ---
 description: "Минимальные сигналы для диагностики CLI, sync, публикации и providers."
-last_verified: "2026-08-12"
+last_verified: "2026-08-22"
 ---
 
 # Наблюдаемость
@@ -47,13 +47,36 @@ python -c "from ai_stp_platform.safety.metrics import snapshot; print(snapshot()
 | Metric | Решение |
 |--------|---------|
 | `safety_scan_total` | объём validate/scan |
-| `safety_scan_duration_ms_avg/max` | деградация suite / hard cap |
-| `safety_check_result_total` | failed/not_run/degraded balance |
+| `safety_scan_duration_ms_avg/max/p50/p95/p99` | деградация suite / hard cap |
+| `safety_scan_duration_ms_buckets` | bounded latency distribution; `+Inf` — выше hard-cap bucket |
+| `safety_check_total` | число исполнений каждого `check_id` |
+| `safety_check_result_total`, `safety_check_result_by_id_total` | failed/not_run/degraded balance globally and per check |
+| `safety_check_duration_ms_avg/max`, `safety_check_duration_ms_buckets` | per-check cost and tail |
 | `safety_finding_total` | family:severity pressure |
 | `safety_cli_timeout_total` | зависания внешних CLI |
 | `safety_sandbox_mode_total` | bwrap vs env_only coverage |
+| `safety_queue_claim_total`, `safety_queue_empty_poll_total` | polling pressure |
+| `safety_queue_claimed_total`, `safety_queue_wait_ms_*` | queue throughput and wait |
+| `safety_queue_job_*` | handler duration/result |
+| `safety_queue_requeued_total` | drain/stale-lease pressure |
 
 Secrets и raw finding bodies в метрики не входят.
+
+### Safety performance evidence
+
+Нормативный offline smoke/load corpus запускается без сети и без внешних CLI:
+
+```text
+just safety-benchmark --iterations 3 --concurrency 1
+```
+
+Результат — JSON с `schema_version`, exact local `commit`, фиксированным
+`case_order`, profile, artifact digests, mandatory failures и metrics snapshot.
+Corpus/order/profile deterministic; `wall_ms` зависит от CPU, filesystem и
+текущей нагрузки и используется для сравнения одинакового окружения, а не как
+межмашинный критерий успеха. Для production-оповещений используются ожидание очереди, хвост scan,
+tail, `degraded/not_run`, `+Inf` buckets и рост requeue; отсутствие exporter не
+удаляет локальный structured event и не превращает отсутствие evidence в success.
 
 ## Провайдер и логи
 

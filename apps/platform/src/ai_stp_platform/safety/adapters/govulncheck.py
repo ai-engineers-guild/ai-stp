@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ai_stp_platform.safety.adapters._cli import run_cli
+from ai_stp_platform.safety.adapters._cli import classify_cli_exit, run_cli
 from ai_stp_platform.safety.normalize import redact_message
 from ai_stp_platform.safety.policy import CheckSpec
 from ai_stp_platform.safety.types import ArtifactManifest, CheckOutcome, Finding
@@ -24,18 +24,19 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
         cwd=tree,
         timeout=min(spec.timeout_seconds, 25),
     )
-    if code == 127:
+    state, detail = classify_cli_exit(code, out, err)
+    if state != "finding" and state != "passed":
         return CheckOutcome(
             check_id=spec.check_id,
             family=spec.family,
-            result="not_run",
+            result=state,
             mandatory=spec.mandatory,
             tool_name="govulncheck",
             duration_ms=ms,
-            detail={"reason": "tool_missing"},
+            detail=detail,
         )
     findings: list[Finding] = []
-    if code != 0 and (out or err):
+    if state == "finding":
         findings.append(
             Finding(
                 check_id=spec.check_id,

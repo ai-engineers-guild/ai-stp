@@ -27,6 +27,7 @@ describe("mapHttpError", () => {
     expect(mapHttpError(404, { error: { code: "NOT_A_REAL_CODE" } }).code).toBe("AI_STP_NOT_FOUND");
     expect(mapHttpError(409, null).code).toBe("AI_STP_CONFLICT");
     expect(mapHttpError(412, null).code).toBe("AI_STP_PRECONDITION_FAILED");
+    expect(mapHttpError(429, null).code).toBe("AI_STP_RATE_LIMITED");
     expect(mapHttpError(503, null).code).toBe("AI_STP_UNAVAILABLE");
     expect(mapHttpError(0, null).code).toBe("AI_STP_UNAVAILABLE");
     expect(mapHttpError(418, null).code).toBe("AI_STP_UNKNOWN");

@@ -77,6 +77,8 @@ export function buildComponentPassport(input: ComponentPassportInput) {
     conflicts: EMPTY_CONFLICTS,
     managed_paths: [] as string[],
     native_ids: [] as string[],
+    harness_ids: [input.harnessId] as string[],
+    supported_os: ["linux", "macos"] as Array<"linux" | "macos" | "windows">,
   };
 }
 
@@ -133,7 +135,7 @@ export function buildSetupPassport(input: SetupPassportInput) {
     related_setup_ids: [] as string[],
     execution_profile: "full-auto" as const,
     supported_harness_versions: ["2.1.0"],
-    supported_os: ["linux"] as ("linux" | "macos")[],
+    supported_os: ["linux"] as Array<"linux" | "macos" | "windows">,
     supported_arch: ["x86_64"] as ("x86_64" | "arm64")[],
     composition_report_ref: null,
     conversion_report_ref: null,

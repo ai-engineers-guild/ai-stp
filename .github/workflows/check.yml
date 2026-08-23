@@ -184,6 +184,8 @@ jobs:
             extra: tests/api
           - shard: integration
             extra: tests/integration
+          - shard: scenario
+            extra: tests/scenario
           - shard: unit-platform
             extra: tests/unit/platform
           - shard: unit-api
@@ -337,7 +339,7 @@ jobs:
           set -euo pipefail
           uv sync --locked --group dev
           uv run --locked coverage combine \
-            .coverage.api .coverage.integration \
+            .coverage.api .coverage.integration .coverage.scenario \
             .coverage.unit-platform .coverage.unit-api .coverage.unit \
             .coverage.contract-process .coverage.contract-lifecycle \
             .coverage.contract .coverage.property

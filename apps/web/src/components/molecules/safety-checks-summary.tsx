@@ -28,6 +28,10 @@ type Labels = {
   documentation?: string;
   why?: string;
   help?: string;
+  findings: string;
+  rules: string;
+  paths: string;
+  payloadHidden: string;
 };
 
 export function safetyChecksLabels(t: (key: string) => string): Labels {
@@ -55,6 +59,10 @@ export function safetyChecksLabels(t: (key: string) => string): Labels {
     documentation: t("safetyDocumentation"),
     why: t("safetyWhy"),
     help: t("safetyHelp"),
+    findings: t("safetyFindings"),
+    rules: t("safetyRules"),
+    paths: t("safetyPaths"),
+    payloadHidden: t("safetyPayloadHidden"),
   };
 }
 
@@ -311,12 +319,7 @@ export function SafetyChecksSummaryView({
                         {check.check_id}
                       </code>
                       {needsReason ? (
-                        <p className="text-destructive mt-2 flex gap-2 text-sm">
-                          <Icon name="alert" size="sm" />
-                          <span>
-                            <b>{whyLabel}:</b> {checkReason(check, labels)}
-                          </span>
-                        </p>
+                        <CheckFindingDetails check={check} labels={labels} whyLabel={whyLabel} />
                       ) : null}
                     </div>
                   </div>
@@ -327,6 +330,45 @@ export function SafetyChecksSummaryView({
         ) : null}
       </div>
     </DetailAccordion>
+  );
+}
+
+function CheckFindingDetails({
+  check,
+  labels,
+  whyLabel,
+}: {
+  check: Summary["checks"][number];
+  labels: Labels;
+  whyLabel: string;
+}) {
+  const finding = check.finding_summary;
+  if (!finding)
+    return (
+      <p className="text-destructive mt-2 flex gap-2 text-sm">
+        <Icon name="alert" size="sm" />
+        <span>
+          <b>{whyLabel}:</b> {checkReason(check, labels)}
+        </span>
+      </p>
+    );
+  return (
+    <div className="border-warning/40 bg-warning/5 mt-3 space-y-2 rounded-sm border p-3 text-sm">
+      <p>
+        <b>{labels.findings}:</b> {finding.count}
+      </p>
+      {finding.rule_ids.length ? (
+        <p>
+          <b>{labels.rules}:</b> <code>{finding.rule_ids.join(", ")}</code>
+        </p>
+      ) : null}
+      {finding.paths.length ? (
+        <p>
+          <b>{labels.paths}:</b> <code>{finding.paths.join(", ")}</code>
+        </p>
+      ) : null}
+      <p className="text-muted-foreground">{labels.payloadHidden}</p>
+    </div>
   );
 }
 

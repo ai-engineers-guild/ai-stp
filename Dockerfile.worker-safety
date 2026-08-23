@@ -11,7 +11,7 @@
 # -----------------------------------------------------------------------------
 # go-tools: build govulncheck only (no Go toolchain in the final image)
 # -----------------------------------------------------------------------------
-FROM golang:1.24-bookworm AS go-tools
+FROM golang:1.24-bookworm@sha256:1a6d4452c65dea36aac2e2d606b01b4a029ec90cc1ae53890540ce6173ea77ac AS go-tools
 ARG GOVULNCHECK_VERSION=v1.1.4
 RUN GOBIN=/out CGO_ENABLED=0 go install \
       "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}" \
@@ -20,22 +20,27 @@ RUN GOBIN=/out CGO_ENABLED=0 go install \
 # -----------------------------------------------------------------------------
 # tools: install OS packages + pinned scanner binaries
 # -----------------------------------------------------------------------------
-FROM python:3.12-slim AS tools
+FROM python:3.12-slim@sha256:2c941e860699f878900b0edc2403613c234d4b32eda3cc9fa7036991a2a63c4a AS tools
 USER root
 ENV DEBIAN_FRONTEND=noninteractive \
     SAFETY_BIN_PREFIX=/opt/safety-bin \
     SAFETY_PIP_VENV=/opt/safety-venv \
     PATH="/opt/safety-bin:${PATH}"
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates \
-      curl \
-      git \
-      xz-utils \
-      bubblewrap \
-      clamav \
-      clamav-daemon \
-      yara \
+RUN sed -i \
+      -e 's|http://deb.debian.org/debian-security|https://snapshot.debian.org/archive/debian-security/20260822T000000Z|g' \
+      -e 's|http://deb.debian.org/debian|https://snapshot.debian.org/archive/debian/20260822T000000Z|g' \
+      /etc/apt/sources.list.d/debian.sources \
+    && apt-get -o Acquire::Check-Valid-Until=false update \
+    && apt-get install -y --no-install-recommends \
+      ca-certificates=20250419 \
+      curl=8.14.1-2+deb13u4 \
+      git=1:2.47.3-0+deb13u1 \
+      xz-utils=5.8.1-1+deb13u1 \
+      bubblewrap=0.11.0-2+deb13u1 \
+      clamav=1.4.3+dfsg-1 \
+      clamav-daemon=1.4.3+dfsg-1 \
+      yara=4.5.2-1 \
     && rm -rf /var/lib/apt/lists/*
 
 # The scanner venv is built with `uv`, not `pip`, so `python3-pip` left the apt
@@ -47,6 +52,7 @@ COPY --from=ghcr.io/astral-sh/uv:0.12.1@sha256:cf4eedcaa81655197f625739489effcbe
 # (no golang-go apt package in this stage — keeps the image lean and avoids OOM).
 COPY --from=go-tools /out/govulncheck /opt/safety-bin/govulncheck
 COPY scripts/safety/versions.env /tmp/safety/versions.env
+COPY scripts/safety/requirements.lock /tmp/safety/requirements.lock
 COPY scripts/safety/install_scanners.sh /tmp/safety/install_scanners.sh
 RUN chmod +x /tmp/safety/install_scanners.sh /opt/safety-bin/govulncheck \
     && /tmp/safety/install_scanners.sh \
@@ -58,7 +64,7 @@ RUN chmod +x /tmp/safety/install_scanners.sh /opt/safety-bin/govulncheck \
 # app: reuse monorepo worker runtime when building as multi-stage from root Dockerfile.
 # When building this file alone, rebuild platform deps the same way as Dockerfile.
 # -----------------------------------------------------------------------------
-FROM python:3.12-slim AS app-base
+FROM python:3.12-slim@sha256:2c941e860699f878900b0edc2403613c234d4b32eda3cc9fa7036991a2a63c4a AS app-base
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     UV_COMPILE_BYTECODE=1 \
@@ -91,13 +97,17 @@ RUN useradd --create-home --uid 10001 appuser \
 # -----------------------------------------------------------------------------
 FROM app-base AS worker-safety
 USER root
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates \
-      curl \
-      bubblewrap \
-      clamav \
-      clamav-daemon \
-      yara \
+RUN sed -i \
+      -e 's|http://deb.debian.org/debian-security|https://snapshot.debian.org/archive/debian-security/20260822T000000Z|g' \
+      -e 's|http://deb.debian.org/debian|https://snapshot.debian.org/archive/debian/20260822T000000Z|g' \
+      /etc/apt/sources.list.d/debian.sources \
+    && apt-get -o Acquire::Check-Valid-Until=false update \
+    && apt-get install -y --no-install-recommends \
+      ca-certificates=20250419 \
+      curl=8.14.1-2+deb13u4 \
+      bubblewrap=0.11.0-2+deb13u1 \
+      clamav=1.4.3+dfsg-1 \
+      yara=4.5.2-1 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=tools /opt/safety-bin /opt/safety-bin

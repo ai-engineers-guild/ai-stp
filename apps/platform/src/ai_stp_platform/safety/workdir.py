@@ -92,11 +92,22 @@ def _safe_extract(zf: object, dest: Path) -> None:
 
 
 def env_no_network() -> dict[str, str]:
-    """Environment for child processes (hint; OS isolation is preferred)."""
-    env = os.environ.copy()
-    # Clear proxy vars that might encourage egress.
-    for key in list(env):
-        if key.lower().endswith("_proxy") or key in {"ALL_PROXY", "all_proxy"}:
-            env.pop(key, None)
+    """Minimal scanner environment without worker credentials or proxy state."""
+    allowed = {
+        "PATH",
+        "PATHEXT",
+        "SYSTEMROOT",
+        "WINDIR",
+        "COMSPEC",
+        "TMP",
+        "TEMP",
+        "TMPDIR",
+        "LANG",
+        "LC_ALL",
+        "SSL_CERT_FILE",
+        "SSL_CERT_DIR",
+        "OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY",
+    }
+    env = {key: value for key, value in os.environ.items() if key.upper() in allowed}
     env["AI_STP_SAFETY_NETWORK"] = "deny"
     return env

@@ -83,6 +83,8 @@ def _passport(**overrides: object) -> dict[str, object]:
         "source": {"repository": "https://example.test/repo", "commit": "a" * 40, "path": "."},
         "artifact": {"digest": DIGEST, "size_bytes": 1},
         "harness_id": "claude-code",
+        "harness_ids": [],
+        "supported_os": [],
         "required_env": [],
         "requires_credentials": False,
         "requires_authorization": "none",
@@ -414,7 +416,7 @@ async def test_worker_handlers_validate_payloads_and_delegate(
         session,
         {"object_kind": "component", "stable_id": "component_1", "version": "1.0"},
     )
-    validate_call.assert_awaited_once_with(session, plan_id="plan_1")
+    validate_call.assert_awaited_once_with(session, plan_id="plan_1", release_read_transaction=True)
     publish_call.assert_awaited_once_with(session, plan_id="plan_1", store=None)
     reevaluate_call.assert_awaited_once_with(
         session, object_kind="component", stable_id="component_1", version="1.0"

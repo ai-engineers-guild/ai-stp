@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Catalog query parsing and serialization share one boundary suite. */
 import { describe, expect, it } from "vitest";
 
 import {
@@ -7,6 +8,7 @@ import {
   catalogQueryToRecord,
   countAppliedFilters,
   parseCatalogSearchParams,
+  validateCatalogQuery,
 } from "@/lib/catalog-query";
 import { defaultCatalogQuery } from "@/lib/catalog-query-defaults";
 
@@ -481,5 +483,19 @@ describe("parseCatalogSearchParams", () => {
     expect(record["updated_to"]).toBe("2026-03-01");
     expect(record["updated_from"]).toBeUndefined();
     expect(appliedFilterChips(parsed.value).map((chip) => chip.key)).toEqual(["updated_to"]);
+  });
+
+  it("rejects malformed query-language structure at the client boundary", () => {
+    expect(validateCatalogQuery("x".repeat(501))).toContain("too long");
+    expect(validateCatalogQuery("UNKNOWN:value")).toContain("unknown search field");
+    expect(validateCatalogQuery("VERIFIED:maybe")).toContain("accepts true or false");
+    expect(validateCatalogQuery("NAME:value AND")).toContain("missing an operand");
+    expect(validateCatalogQuery("OR NAME:value")).toContain("missing an operand");
+    expect(validateCatalogQuery("NAME:(value")).toContain("missing closing parenthesis");
+    expect(validateCatalogQuery("NAME:value)")).toContain("unexpected closing parenthesis");
+    expect(validateCatalogQuery('NAME:"unterminated')).toContain("unterminated quoted value");
+    expect(validateCatalogQuery("NAME:(((((((((value)))))))))")).toContain("nesting is too deep");
+    // eslint-disable-next-line no-useless-escape -- Keep the escaped quote visible as query syntax.
+    expect(validateCatalogQuery('NAME:"escaped\\\"quote"')).toBeNull();
   });
 });

@@ -578,6 +578,69 @@ export type CliError = {
 };
 
 /**
+ * ComplaintCreateRequest
+ *
+ * POST /v1/complaints body. Anonymous callers omit a session.
+ */
+export type ComplaintCreateRequest = {
+  /**
+   * Message
+   */
+  message: string;
+  /**
+   * Reply Email
+   */
+  reply_email: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Sender Name
+   */
+  sender_name: string;
+  /**
+   * Subject
+   */
+  subject: string;
+  /**
+   * Target
+   */
+  target: string;
+  target_kind: ComplaintTargetKind;
+};
+
+/**
+ * ComplaintCreateResponse
+ *
+ * Acceptance of a stored complaint. The message is not echoed.
+ */
+export type ComplaintCreateResponse = {
+  /**
+   * Accepted
+   */
+  accepted: true;
+  complaint_id: ComplaintId;
+  created_at: Timestamp;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+export type ComplaintId = string;
+
+export const ComplaintTargetKind = {
+  AUTHOR: "author",
+  COMPONENT: "component",
+  SETUP: "setup",
+  OTHER: "other",
+} as const;
+
+export type ComplaintTargetKind = (typeof ComplaintTargetKind)[keyof typeof ComplaintTargetKind];
+
+/**
  * ComponentDetail
  *
  * Exact read of one public component and the versions it offers.
@@ -790,6 +853,10 @@ export type ComponentSummary = {
   latest_component_type: ComponentType;
   latest_description: DescriptionExcerpt;
   latest_harness_id: HarnessId;
+  /**
+   * Latest Harness Ids
+   */
+  latest_harness_ids: Array<HarnessId>;
   latest_lifecycle: PublicLifecycle;
   /**
    * Latest Name
@@ -901,6 +968,10 @@ export type ComponentVersionPassport = {
   };
   harness_id: HarnessId;
   /**
+   * Harness Ids
+   */
+  harness_ids: Array<HarnessId>;
+  /**
    * Kind
    */
   kind: "component";
@@ -961,6 +1032,10 @@ export type ComponentVersionPassport = {
    * Stable Id
    */
   stable_id: string;
+  /**
+   * Supported Os
+   */
+  supported_os: Array<SupportedOs>;
   /**
    * Tags
    */
@@ -1495,6 +1570,11 @@ export type EvidenceBindingView = {
    */
   check_id: string;
   expires_at: Timestamp | null;
+  finding_summary: SafetyFindingSummary | null;
+  /**
+   * Reason
+   */
+  reason: string | null;
   result: AiStpContractsPublicationCheckResult;
   /**
    * Schema Version
@@ -1596,6 +1676,16 @@ export const FactOrigin = {
 } as const;
 
 export type FactOrigin = (typeof FactOrigin)[keyof typeof FactOrigin];
+
+export const FindingSeverity = {
+  INFO: "info",
+  LOW: "low",
+  MEDIUM: "medium",
+  HIGH: "high",
+  CRITICAL: "critical",
+} as const;
+
+export type FindingSeverity = (typeof FindingSeverity)[keyof typeof FindingSeverity];
 
 /**
  * GitHubMetadata
@@ -2517,6 +2607,7 @@ export type SafetyCheckEntry = {
    * Family
    */
   family: string;
+  finding_summary: SafetyFindingSummary | null;
   /**
    * Mandatory
    */
@@ -2580,6 +2671,36 @@ export type SafetyChecksSummary = {
    * Warning
    */
   warning: number;
+  [key: string]: unknown;
+};
+
+/**
+ * SafetyFindingSummary
+ *
+ * Bounded public identifiers for findings; never scanned content.
+ */
+export type SafetyFindingSummary = {
+  /**
+   * Count
+   */
+  count: number;
+  /**
+   * Paths
+   */
+  paths: Array<string>;
+  /**
+   * Rule Ids
+   */
+  rule_ids: Array<string>;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  severity_max: FindingSeverity;
+  /**
+   * Truncated
+   */
+  truncated: boolean;
   [key: string]: unknown;
 };
 
@@ -2940,7 +3061,7 @@ export type SetupVersionPassport = {
   /**
    * Supported Os
    */
-  supported_os: Array<"linux" | "macos">;
+  supported_os: Array<SupportedOs>;
   /**
    * Supported Tasks
    */
@@ -3215,6 +3336,14 @@ export const SupportTier = { PRIMARY: "primary", BETA: "beta" } as const;
 
 export type SupportTier = (typeof SupportTier)[keyof typeof SupportTier];
 
+export const SupportedOs = {
+  LINUX: "linux",
+  MACOS: "macos",
+  WINDOWS: "windows",
+} as const;
+
+export type SupportedOs = (typeof SupportedOs)[keyof typeof SupportedOs];
+
 /**
  * SyncConflictInfo
  *
@@ -3289,6 +3418,10 @@ export type SyncEvent = {
  */
 export type SyncEventReceipt = {
   conflict: SyncConflictInfo | null;
+  /**
+   * Conflicting Entity Id
+   */
+  conflicting_entity_id: string | null;
   cursor: Cursor | null;
   /**
    * Error Code
@@ -3542,17 +3675,8 @@ export type VersionListEntry = {
   [key: string]: unknown;
 };
 
-export const AiStpContractsPublicationCheckResult = {
-  PASSED: "passed",
-  WARNING: "warning",
-  FAILED: "failed",
-  DEGRADED: "degraded",
-  NOT_RUN: "not_run",
-  EXPIRED: "expired",
-} as const;
-
 export type AiStpContractsPublicationCheckResult =
-  (typeof AiStpContractsPublicationCheckResult)[keyof typeof AiStpContractsPublicationCheckResult];
+  AiStpContractsSafetyChecksCheckResult | "expired";
 
 export const AiStpContractsSafetyChecksCheckResult = {
   PASSED: "passed",
@@ -4864,6 +4988,49 @@ export type ReadSetupGithubMetadataResponses = {
 
 export type ReadSetupGithubMetadataResponse =
   ReadSetupGithubMetadataResponses[keyof ReadSetupGithubMetadataResponses];
+
+export type CreateComplaintData = {
+  body: ComplaintCreateRequest;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/complaints";
+};
+
+export type CreateComplaintErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type CreateComplaintError = CreateComplaintErrors[keyof CreateComplaintErrors];
+
+export type CreateComplaintResponses = {
+  /**
+   * Accept a complaint about an author, catalog object, or other target.
+   */
+  201: ComplaintCreateResponse;
+};
+
+export type CreateComplaintResponse = CreateComplaintResponses[keyof CreateComplaintResponses];
 
 export type ListDevicesData = {
   body?: never;

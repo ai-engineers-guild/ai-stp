@@ -13,7 +13,6 @@ import {
   DialogTrigger,
 } from "@/components/atoms/dialog";
 import { ContactForm } from "@/components/organisms/contact-form";
-import { CONTACT_EMAIL_PLACEHOLDER } from "@/lib/site";
 import { Icon } from "@/theme";
 
 export function ContactReportDialog({
@@ -39,7 +38,6 @@ export function ContactReportDialog({
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const open = openProp ?? uncontrolledOpen;
   const setOpen = onOpenChange ?? setUncontrolledOpen;
-  const recipient = process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? CONTACT_EMAIL_PLACEHOLDER;
   const type = t(
     kind === "author"
       ? "reportAuthorType"
@@ -74,8 +72,8 @@ export function ContactReportDialog({
           <DialogDescription>{t("reportDialogHint")}</DialogDescription>
         </DialogHeader>
         <ContactForm
-          recipient={recipient}
-          placeholderRecipient={recipient === CONTACT_EMAIL_PLACEHOLDER}
+          targetKind={kind === "author" ? "author" : kind}
+          target={target}
           defaultSubject={`${type}: ${target}`}
           reportType={type}
         />

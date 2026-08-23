@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Hidden content in markdown/HTML (comments, zero-width, dangerous schemes)."""
 
 from __future__ import annotations
@@ -11,9 +12,22 @@ from ai_stp_platform.safety.types import ArtifactManifest, CheckOutcome, Finding
 
 HTML_COMMENT = re.compile(r"<!--([\s\S]*?)-->")
 ZW_CHARS = re.compile("[\u200b\u200c\u200d\u2060\ufeff\u202a-\u202e]")
+TAG_BLOCK = re.compile("[\U000e0000-\U000e007f]")
 DANGEROUS_SCHEME = re.compile(r"(?i)\]\(\s*(javascript:|data:text/html)")
 MD_IMG_EXFIL = re.compile(
     r"(?i)!\[[^\]]*\]\(\s*https?://[^)]+\?(?:[^)]*(?:token|secret|key|data)=)"
+)
+REFERENCE_DANGEROUS = re.compile(r"(?im)^\s*\[[^]]+\]:\s*(?:javascript:|data:text/html)")
+RAW_REMOTE_RESOURCE = re.compile(
+    r"(?is)<(?:img|source|iframe|object|image|use)\b[^>]*(?:src|srcset|data|href)\s*=\s*['\"]https?://[^'\"]+(?:token|secret|key|data)="
+)
+CSS_REMOTE_RESOURCE = re.compile(r"(?is)url\(\s*['\"]?https?://[^)]*(?:token|secret|key|data)=")
+STRUCTURAL_INJECTION = re.compile(
+    r"(?is)(?:<details\b[^>]*>|^---\s*$[\s\S]{0,800}?^(?:description|instructions?):).{0,800}(?:ignore (?:all )?(?:previous|prior) instructions|send (?:secrets|credentials))"
+)
+WHITESPACE_PADDING = re.compile(r"(?is)(?:\n[ \t]*\n){40,}|[ \t]{300,}")
+MIXED_SCRIPT_COMMAND = re.compile(
+    r"(?i)(?:c[\u0443\u04af]rl|pow[\u0435]rshell|[\u0441]url|w[\u0435]get)"
 )
 
 
@@ -59,6 +73,12 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
                     tool_name="content_hidden",
                 )
             )
+        if TAG_BLOCK.search(text):
+            findings.append(
+                _finding(spec, "unicode_tag_block", rel, "Unicode Tag Block content hides ASCII")
+            )
+        if MIXED_SCRIPT_COMMAND.search(text):
+            findings.append(_finding(spec, "homoglyph_command", rel, "Mixed-script command token"))
         if DANGEROUS_SCHEME.search(text):
             findings.append(
                 Finding(
@@ -85,6 +105,42 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
                     tool_name="content_hidden",
                 )
             )
+        if REFERENCE_DANGEROUS.search(text):
+            findings.append(
+                _finding(
+                    spec, "dangerous_reference_link", rel, "Dangerous reference-style Markdown link"
+                )
+            )
+        if RAW_REMOTE_RESOURCE.search(text) or CSS_REMOTE_RESOURCE.search(text):
+            findings.append(
+                _finding(
+                    spec,
+                    "embedded_resource_exfil",
+                    rel,
+                    "Embedded resource URL may exfiltrate data",
+                )
+            )
+        if STRUCTURAL_INJECTION.search(text):
+            findings.append(
+                _finding(
+                    spec,
+                    "structural_prompt_hiding",
+                    rel,
+                    "Prompt injection hidden in document structure",
+                )
+            )
+        if WHITESPACE_PADDING.search(text) and re.search(
+            r"(?i)ignore (?:all )?(?:previous|prior) instructions|send (?:secrets|credentials)",
+            text,
+        ):
+            findings.append(
+                _finding(
+                    spec,
+                    "whitespace_padded_instruction",
+                    rel,
+                    "Instruction hidden by whitespace padding",
+                )
+            )
     has_crit = any(f.severity in {"critical", "high"} for f in findings)
     if findings and has_crit:
         result = "warning" if not spec.mandatory else "failed"
@@ -104,4 +160,17 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
             key=lambda s: {"info": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}.get(s, 0),
         ),
         findings=findings,
+    )
+
+
+def _finding(spec: CheckSpec, rule_id: str, path: str, title: str) -> Finding:
+    return Finding(
+        check_id=spec.check_id,
+        family=spec.family,
+        rule_id=rule_id,
+        severity="high",
+        title=title,
+        path=path,
+        message=redact_message(title),
+        tool_name="content_hidden",
     )

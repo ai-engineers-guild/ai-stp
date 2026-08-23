@@ -26,7 +26,7 @@ export PATH="/opt/safety-bin:/opt/safety-venv/bin:/app/.venv/bin:${PATH}"
 log() { printf 'refresh_osv_db: %s\n' "$*" >&2; }
 
 count_packs() {
-  find "${DEST}" -type f -name 'all.zip' 2>/dev/null | wc -l | tr -d ' '
+  find "${1:-${DEST}}" -type f -name 'all.zip' 2>/dev/null | wc -l | tr -d ' '
 }
 
 mkdir -p "${DEST}/osv-scanner"
@@ -35,6 +35,8 @@ log "cache=${OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY} packs_before=$(count_packs)"
 tmp="$(mktemp -d)"
 cleanup() { rm -rf "${tmp}"; }
 trap cleanup EXIT
+STAGE="${tmp}/snapshot"
+mkdir -p "${STAGE}/osv-scanner"
 
 download() {
   # download URL DEST
@@ -128,7 +130,7 @@ fi
 downloaded=0
 failed=0
 for eco in "${SELECTED[@]}"; do
-  target_dir="${DEST}/osv-scanner/${eco}"
+  target_dir="${STAGE}/osv-scanner/${eco}"
   mkdir -p "${target_dir}"
   target="${target_dir}/all.zip"
   partial="${target}.partial"
@@ -158,24 +160,26 @@ for eco in "${SELECTED[@]}"; do
   fi
 done
 
-# Optional: also ask osv-scanner to refresh into the same cache (best-effort).
-if command -v osv-scanner >/dev/null 2>&1; then
-  scan_tmp="$(mktemp -d)"
-  printf '%s\n' 'requests==2.0.0' > "${scan_tmp}/requirements.txt"
-  osv-scanner scan source --offline-vulnerabilities --download-offline-databases -r "${scan_tmp}" \
-    >/dev/null 2>&1 || true
-  osv-scanner --offline-vulnerabilities --download-offline-databases "${scan_tmp}" \
-    >/dev/null 2>&1 || true
-  rm -rf "${scan_tmp}"
-fi
-
-after="$(count_packs)"
+after="$(count_packs "${STAGE}")"
 log "downloaded=${downloaded} failed=${failed} packs_after=${after}"
 
-if [[ "${after}" -eq 0 ]]; then
-  log "no all.zip packs under ${DEST}; refusing to stamp fresh"
+if [[ "${after}" -eq 0 || "${failed}" -ne 0 || "${after}" -ne "${#SELECTED[@]}" ]]; then
+  log "incomplete snapshot; keeping the previous database unchanged"
   exit 1
 fi
+
+# Publish one complete snapshot. A failed refresh never mixes old and new
+# ecosystems and never advances the freshness marker.
+old="${DEST}/osv-scanner.previous"
+rm -rf "${old}"
+if [[ -d "${DEST}/osv-scanner" ]]; then
+  mv "${DEST}/osv-scanner" "${old}"
+fi
+if ! mv "${STAGE}/osv-scanner" "${DEST}/osv-scanner"; then
+  [[ -d "${old}" ]] && mv "${old}" "${DEST}/osv-scanner"
+  exit 1
+fi
+rm -rf "${old}"
 
 date -u +%Y-%m-%dT%H:%M:%SZ > "${MARKER}"
 {

@@ -55,7 +55,7 @@ from ai_stp_platform.catalog_projection import (
     setup_summary,
     setup_version_response,
 )
-from ai_stp_platform.catalog_query_language import QuerySyntaxError, parse_query
+from ai_stp_platform.catalog_query_language import QuerySyntaxError, named_harness_ids, parse_query
 from ai_stp_platform.catalog_read import (
     CatalogIntegrityError,
     PublicVersionRow,
@@ -988,7 +988,7 @@ async def _search(
                 verified=row.author_verified and row.component_verified,
             ):
                 continue
-            if harness_ids and row.passport.get("harness_id") not in harness_ids:
+            if harness_ids and not set(named_harness_ids(row.passport)).intersection(harness_ids):
                 continue
             if component_types and row.passport.get("component_type") not in component_types:
                 continue

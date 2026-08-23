@@ -67,6 +67,26 @@ def test_the_primary_harnesses_are_the_ones_the_specification_names() -> None:
     assert primary == {"claude-code", "codex", "grok-build"}
 
 
+def test_present_installations_exclude_supported_but_absent_harnesses(tmp_path: Path) -> None:
+    environment = {"PATH": str(tmp_path / "empty"), "HOME": str(tmp_path / "home")}
+    found = harnesses.detect_all(environment)
+    assert all(item.state == "available" for item in found)
+    assert harnesses.present_installations(found) == ()
+    pi = next(item for item in found if item.harness_id == "pi")
+    assert pi.state == "available"
+    assert pi.installations == ()
+
+
+def test_windows_exe_is_a_cli_surface(tmp_path: Path) -> None:
+    detector = next(item for item in harnesses.DETECTORS if item.harness_id == "claude-code")
+    executable = tmp_path / "bin" / "claude.exe"
+    executable.parent.mkdir(parents=True)
+    executable.write_bytes(b"not a real binary")
+    found = harnesses.detect(detector, explicit=executable, system_name="Windows")
+    assert found.state in {"installed", "unknown_version"}
+    assert found.installations[0].surface == "cli"
+
+
 def test_a_harness_that_is_not_installed_is_available_rather_than_absent(
     tmp_path: Path,
 ) -> None:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ai_stp_platform.safety.adapters._cli import run_cli
+from ai_stp_platform.safety.adapters._cli import classify_cli_exit, run_cli
 from ai_stp_platform.safety.normalize import redact_message
 from ai_stp_platform.safety.policy import CheckSpec
 from ai_stp_platform.safety.types import ArtifactManifest, CheckOutcome, Finding
@@ -40,10 +40,11 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
     code, out, err, ms = run_cli(
         ["clamscan", "-r", "--no-summary", str(tree)],
         cwd=tree,
-        timeout=min(spec.timeout_seconds, 20),
+        timeout=min(spec.timeout_seconds, 30),
     )
     tool = "clamscan"
-    if code == 127:
+    state, detail = classify_cli_exit(code, out, err)
+    if state == "not_run":
         if findings:
             return CheckOutcome(
                 check_id=spec.check_id,
@@ -70,9 +71,19 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
             result="not_run",
             mandatory=spec.mandatory,
             tool_name="clamscan",
-            detail={"reason": "tool_missing"},
+            detail=detail,
         )
-    if code == 1:
+    if state == "degraded":
+        return CheckOutcome(
+            check_id=spec.check_id,
+            family=spec.family,
+            result=state,
+            mandatory=spec.mandatory,
+            tool_name=tool,
+            duration_ms=ms,
+            detail=detail,
+        )
+    if state == "finding":
         findings.append(
             Finding(
                 check_id=spec.check_id,

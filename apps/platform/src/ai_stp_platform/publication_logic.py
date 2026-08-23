@@ -13,7 +13,8 @@ from typing import Any, cast
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from pydantic import ValidationError
-from sqlalchemy import select
+from sqlalchemy import or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_assurance import AuthorAttestation, attestation_digest
@@ -351,6 +352,7 @@ async def execute_validate(
     artifact_source: ArtifactBytesSource | None = None,
     safety_profile: str | SafetyProfile = SafetyProfile.STANDARD,
     skip_safety: bool = False,
+    release_read_transaction: bool = False,
 ) -> ValidationSnapshot:
     """Run validation for a plan and write snapshot + bindings (idempotent).
 
@@ -413,6 +415,12 @@ async def execute_validate(
                     "mandatory": True,
                 }
             )
+
+    # The inputs above are immutable coordinates. Release the read transaction
+    # before object-store I/O and external scanners; persistence below starts a
+    # fresh short transaction which the worker commits after this function.
+    if release_read_transaction:
+        await session.commit()
 
     owned_store: ImmutableObjectStore | None = None
     try:
@@ -560,6 +568,9 @@ async def execute_validate(
                 else None,
                 severity_max=str(binding["severity_max"]) if binding.get("severity_max") else None,
                 reason=str(binding["reason"])[:200] if binding.get("reason") else None,
+                finding_summary=cast(dict[str, object], binding["finding_summary"])
+                if isinstance(binding.get("finding_summary"), dict)
+                else None,
                 expires_at=expires,
             )
         )
@@ -589,7 +600,7 @@ async def _load_setup_pin_context(
     raw = passport.get("components")
     if not isinstance(raw, list):
         return []
-    pins: list[dict[str, Any]] = []
+    requested: list[tuple[str, str, str | None]] = []
     for raw_item in cast(list[Any], raw):
         if not isinstance(raw_item, dict):
             continue
@@ -598,16 +609,35 @@ async def _load_setup_pin_context(
         ver = item.get("version")
         if not isinstance(sid, str) or not isinstance(ver, str):
             continue
-        row = await session.scalar(
-            select(CatalogMetadata).where(
-                CatalogMetadata.object_kind == "component",
-                CatalogMetadata.stable_id == sid,
-                CatalogMetadata.version == ver,
-            )
+        digest = item.get("passport_digest")
+        requested.append((sid, ver, digest if isinstance(digest, str) else None))
+
+    if not requested:
+        return []
+    result = await session.scalars(
+        select(CatalogMetadata).where(
+            CatalogMetadata.object_kind == "component",
+            or_(
+                *(
+                    (CatalogMetadata.stable_id == sid) & (CatalogMetadata.version == ver)
+                    for sid, ver, _digest in requested
+                )
+            ),
         )
+    )
+    rows = {(row.stable_id, row.version): row for row in result.all()}
+
+    pins: list[dict[str, Any]] = []
+    for sid, ver, expected_digest in requested:
+        row = rows.get((sid, ver))
         summary: dict[str, Any] | None = None
         failed_mandatory = False
-        if row is not None and isinstance(row.checks_summary, dict):
+        digest_matches = (
+            row is not None
+            and expected_digest is not None
+            and row.passport_digest == expected_digest
+        )
+        if digest_matches and row is not None and isinstance(row.checks_summary, dict):
             summary = cast(dict[str, Any], dict(row.checks_summary))
             checks_any = summary.get("checks")
             if isinstance(checks_any, list):
@@ -626,7 +656,8 @@ async def _load_setup_pin_context(
             {
                 "stable_id": sid,
                 "version": ver,
-                "digest": item.get("passport_digest"),
+                "digest": expected_digest,
+                "digest_matches": digest_matches,
                 "checks_summary": summary,
                 "failed_mandatory": failed_mandatory,
             }
@@ -640,15 +671,18 @@ async def _persist_safety_run(session: AsyncSession, safety: Any) -> SafetyScanR
         select(SafetyScanRun).where(
             SafetyScanRun.content_digest == safety.content_digest,
             SafetyScanRun.policy_version == safety.policy_version,
+            SafetyScanRun.profile == safety.profile,
+            SafetyScanRun.object_kind == safety.object_kind,
         )
     )
-    if existing is not None and existing.state == "complete":
+    if existing is not None:
         return existing
-    run = existing or SafetyScanRun(
+    run = SafetyScanRun(
         id=new_id("scan"),
         content_digest=safety.content_digest,
         policy_version=safety.policy_version,
         profile=safety.profile,
+        object_kind=safety.object_kind,
         state="complete",
         cache_hit=bool(safety.cache_hit),
         wall_ms=int(safety.wall_ms),
@@ -657,9 +691,25 @@ async def _persist_safety_run(session: AsyncSession, safety: Any) -> SafetyScanR
             "profile": safety.profile,
         },
     )
-    if existing is None:
-        session.add(run)
-        await session.flush()
+    try:
+        # Another worker may finish the same immutable identity after our
+        # SELECT. The unique constraint is the cross-process lock; isolate its
+        # conflict in a savepoint so the validation transaction stays usable.
+        async with session.begin_nested():
+            session.add(run)
+            await session.flush()
+    except IntegrityError:
+        winner = await session.scalar(
+            select(SafetyScanRun).where(
+                SafetyScanRun.content_digest == safety.content_digest,
+                SafetyScanRun.policy_version == safety.policy_version,
+                SafetyScanRun.profile == safety.profile,
+                SafetyScanRun.object_kind == safety.object_kind,
+            )
+        )
+        if winner is None:
+            raise
+        return winner
     for finding in safety.all_findings():
         session.add(
             SafetyFinding(
@@ -668,9 +718,11 @@ async def _persist_safety_run(session: AsyncSession, safety: Any) -> SafetyScanR
                 family=finding.family,
                 rule_id=finding.rule_id,
                 severity=finding.severity,
-                title=finding.title[:240],
-                path=(finding.path or "")[:512] or None,
-                message=(finding.message or "")[:500],
+                # Persist identifiers, not untrusted scanner output or artifact
+                # names. EvidenceBinding carries the client-safe summary.
+                title=finding.rule_id[:240],
+                path=None,
+                message="",
                 tool_name=(finding.tool_name or "")[:64],
                 fingerprint=(finding.fingerprint or "")[:32],
             )
@@ -754,6 +806,8 @@ async def execute_publish(
                 "mandatory": b.mandatory,
                 "source": b.source,
                 "family": b.family or "",
+                "reason": b.reason,
+                "finding_summary": b.finding_summary,
             }
             for b in bindings
         ]

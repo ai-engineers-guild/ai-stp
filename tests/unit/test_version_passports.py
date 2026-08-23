@@ -110,6 +110,20 @@ def test_changing_only_the_description_changes_the_immutable_passport_digest() -
     assert first_digest != changed_digest
 
 
+def test_component_harness_ids_must_include_primary_and_may_name_os() -> None:
+    with pytest.raises(ValidationError, match="harness_ids must include harness_id"):
+        ComponentVersionPassport.model_validate(
+            seal_envelope(_component(harness_ids=["codex"])).model_dump(mode="json")
+        )
+    accepted = ComponentVersionPassport.model_validate(
+        seal_envelope(
+            _component(harness_ids=["claude-code", "codex"], supported_os=["linux", "windows"])
+        ).model_dump(mode="json")
+    )
+    assert list(accepted.harness_ids) == ["claude-code", "codex"]
+    assert list(accepted.supported_os) == ["linux", "windows"]
+
+
 def test_marketplace_is_not_a_component_type() -> None:
     with pytest.raises(ValidationError):
         ComponentVersionPassport.model_validate(

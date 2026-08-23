@@ -6,6 +6,7 @@ from __future__ import annotations
 import io
 import zipfile
 from collections.abc import AsyncIterator, Callable
+from pathlib import Path
 
 import pytest
 import pytest_asyncio
@@ -92,6 +93,13 @@ def _publication_artifact_store(monkeypatch: pytest.MonkeyPatch) -> None:
     async def _close(_store: ImmutableObjectStore | None) -> None:
         return None
 
+    def _scanner_path(_tool: str) -> str:
+        return "skill-scanner"
+
+    def _clean_scan(_argv: list[str], *, cwd: Path, timeout: float) -> tuple[int, str, str, int]:
+        del cwd, timeout
+        return 0, "{}", "", 0
+
     monkeypatch.setattr(
         "ai_stp_platform.publication_logic.open_env_object_store",
         _open,
@@ -102,6 +110,11 @@ def _publication_artifact_store(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     monkeypatch.setattr("ai_stp_worker.handlers.publish.open_env_object_store", _open)
     monkeypatch.setattr("ai_stp_worker.handlers.publish.close_env_object_store", _close)
+    monkeypatch.setattr("ai_stp_platform.safety.adapters.skill_gate.which", _scanner_path)
+    monkeypatch.setattr(
+        "ai_stp_platform.safety.adapters.skill_gate.run_cli",
+        _clean_scan,
+    )
 
 
 def _passport(
@@ -139,6 +152,8 @@ def _passport(
         "external_endpoints": [],
         "compatibility_evidence_refs": [],
         "harness_id": "claude-code",
+        "harness_ids": [],
+        "supported_os": [],
         "required_env": [],
         "component_type": "skill",
         "projection_kind": "native_files",
@@ -243,7 +258,8 @@ async def _drain_jobs(
         if not job_ids:
             break
         for job_id in job_ids:
-            async with sessionmaker() as session, session.begin():
+            error: str | None = None
+            async with sessionmaker() as session:
                 job = await session.get(Job, job_id)
                 assert job is not None
                 handler = resolve(job.job_type)
@@ -251,9 +267,16 @@ async def _drain_jobs(
                 try:
                     await handler(session, job.payload)
                 except Exception as exc:
-                    await fail(session, job, error=type(exc).__name__)
-                else:
+                    await session.rollback()
+                    error = type(exc).__name__
+                await session.commit()
+            async with sessionmaker() as session, session.begin():
+                job = await session.get(Job, job_id)
+                assert job is not None
+                if error is None:
                     await mark_succeeded(session, job)
+                else:
+                    await fail(session, job, error=error)
                 processed += 1
     return processed
 

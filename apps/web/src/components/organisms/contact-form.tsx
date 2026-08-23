@@ -7,53 +7,64 @@ import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
 import { Textarea } from "@/components/atoms/textarea";
+import { submitComplaint, type ComplaintTargetKind } from "@/lib/actions/complaints";
+import { ApiError } from "@/lib/api/errors";
 import { UI } from "@/lib/ui-selectors";
 
 type ContactFormProps = {
-  recipient: string;
-  placeholderRecipient: boolean;
+  targetKind?: ComplaintTargetKind;
+  target?: string;
   defaultSubject?: string;
   reportType?: string;
 };
 
 export function ContactForm({
-  recipient,
-  placeholderRecipient,
+  targetKind = "other",
+  target = "contact",
   defaultSubject = "",
   reportType,
 }: ContactFormProps) {
   const t = useTranslations("contact");
-  const [opened, setOpened] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const field = (name: string) => {
       const value = data.get(name);
       return typeof value === "string" ? value.trim() : "";
     };
-    const subject = field("subject");
-    const body = [
-      ...(reportType ? [`${t("requestType")}: ${reportType}`, ""] : []),
-      `${t("name")}: ${field("name")}`,
-      `${t("email")}: ${field("email")}`,
-      "",
-      field("message"),
-    ].join("\n");
-    window.location.href = `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    setOpened(true);
+    setPending(true);
+    setError(null);
+    try {
+      const subject = field("subject");
+      const message = reportType
+        ? `${t("requestType")}: ${reportType}\n\n${field("message")}`
+        : field("message");
+      await submitComplaint({
+        targetKind,
+        target,
+        senderName: field("name"),
+        replyEmail: field("email"),
+        subject,
+        message,
+      });
+      setSubmitted(true);
+    } catch (cause) {
+      if (cause instanceof ApiError && cause.code === "AI_STP_RATE_LIMITED") {
+        setError(t("rateLimited"));
+      } else {
+        setError(t("submitError"));
+      }
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
-    <form data-ui={UI.contact.form} className="space-y-5" onSubmit={submit}>
-      {placeholderRecipient ? (
-        <p
-          role="status"
-          className="border-warning text-foreground rounded-sm border px-3 py-2 text-sm"
-        >
-          {t("placeholderWarning")}
-        </p>
-      ) : null}
+    <form data-ui={UI.contact.form} className="space-y-5" onSubmit={(event) => void submit(event)}>
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor={UI.contact.name}>{t("name")}</Label>
@@ -103,12 +114,17 @@ export function ContactForm({
         />
         <p className="text-muted-foreground text-xs">{t("privacyHint")}</p>
       </div>
-      <Button data-ui={UI.contact.submit} type="submit" disabled={placeholderRecipient}>
+      <Button data-ui={UI.contact.submit} type="submit" disabled={pending || submitted}>
         {t("send")}
       </Button>
-      {opened ? (
+      {error ? (
+        <p role="alert" className="text-destructive text-sm">
+          {error}
+        </p>
+      ) : null}
+      {submitted ? (
         <p role="status" className="text-sm">
-          {t("opened")}
+          {t("submitted")}
         </p>
       ) : null}
     </form>

@@ -1,4 +1,4 @@
-"""Dual skill engine gate: SkillSpector + Cisco skill-scanner merge."""
+"""Skill gate: Cisco scanner verdict plus independent owned static rules."""
 
 from __future__ import annotations
 
@@ -7,7 +7,12 @@ import re
 from pathlib import Path
 from typing import Final
 
-from ai_stp_platform.safety.adapters._cli import effective_timeout, run_cli, which
+from ai_stp_platform.safety.adapters._cli import (
+    deadline_expired,
+    effective_timeout,
+    run_cli,
+    which,
+)
 from ai_stp_platform.safety.normalize import redact_message
 from ai_stp_platform.safety.policy import CheckSpec
 from ai_stp_platform.safety.types import ArtifactManifest, CheckOutcome, Finding
@@ -41,7 +46,6 @@ SKILL_RISK = [
 
 
 def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome:
-    del manifest
     findings: list[Finding] = []
     tools_run: list[str] = []
     #: Engines that reached a verdict on this artefact, clean or otherwise.
@@ -64,8 +68,10 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
     timed_out: list[str] = []
     no_report: list[str] = []
     for tool, argv in (
-        ("skillspector", ["skillspector", "scan", "{}", "--no-llm", "--format", "json"]),
-        ("skill-scanner", ["skill-scanner", "scan", "{}", "--format", "json"]),
+        (
+            "skill-scanner",
+            ["skill-scanner", "scan", "{}", "--format", "json", "--use-behavioral"],
+        ),
     ):
         if which(tool) is None:
             engines_missing += 1
@@ -76,7 +82,7 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
             # about one. Not run rather than run-and-refused: the second would
             # report the artefact as dangerous for not being a skill.
             continue
-        code, out = _scan_packages(argv, tree, packages, spec.timeout_seconds)
+        code, reports, incomplete = _scan_packages(argv, tree, packages, spec.timeout_seconds)
         tools_run.append(tool)
         if code == _TIMEOUT_EXIT:
             # A measurement that did not finish is not a negative measurement.
@@ -92,15 +98,23 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
             # difference is that it blocks with the truth.
             timed_out.append(tool)
             continue
-        if code in (0, _MISSING_EXIT):
-            # Exit zero *is* a verdict: the engine loaded the package and found
-            # nothing. Counting it is the whole point — a clean read is what
-            # makes the keyword pass advisory.
-            if code == 0:
-                reported.append(tool)
-            continue
-        report = _report(out)
-        if report is None:
+        if reports:
+            reported.append(tool)
+            for report_code, report in reports:
+                if report_code == 0:
+                    continue
+                findings.append(
+                    Finding(
+                        check_id=spec.check_id,
+                        family=spec.family,
+                        rule_id=f"{tool}_finding",
+                        severity="high",
+                        title=f"{tool} reported skill risks",
+                        message=redact_message(report[:300]),
+                        tool_name=tool,
+                    )
+                )
+        if incomplete:
             # The tool exited non-zero without a report. That is the tool
             # refusing to run — a bad argument, a missing interpreter, a
             # sandbox it could not enter — and it is not a statement about the
@@ -113,19 +127,6 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
             # one. A code alone cannot tell "found something" from "could not
             # start", and every code but zero was being read as the first.
             no_report.append(tool)
-            continue
-        reported.append(tool)
-        findings.append(
-            Finding(
-                check_id=spec.check_id,
-                family=spec.family,
-                rule_id=f"{tool}_finding",
-                severity="high",
-                title=f"{tool} reported skill risks",
-                message=redact_message(report[:300]),
-                tool_name=tool,
-            )
-        )
 
     # The owned static pass always runs, and always contributes — but it does
     # not always decide. It is a keyword scan, and a keyword scan cannot tell a
@@ -149,9 +150,10 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
         try:
             text = path.read_text(encoding="utf-8", errors="replace")
         except OSError:
+            manifest.record_read_error(rel)
             continue
         for pattern, rule, sev in SKILL_RISK:
-            if pattern.search(text):
+            if _non_defensive_match(pattern, text):
                 findings.append(
                     Finding(
                         check_id=spec.check_id,
@@ -165,9 +167,11 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
                     )
                 )
 
-    # If both CLIs missing but owned static ran — still a complete gate
-    if engines_missing == 2 and not tools_run:
+    # The owned pass is useful context, but it is not a replacement for the
+    # mandatory external engine. Missing it must remain incomplete.
+    if engines_missing == 1 and packages:
         tools_run.append("skill_static_owned")
+        no_report.append("skill-scanner")
 
     if any(f.severity in {"high", "critical"} for f in findings):
         result = "failed"
@@ -221,28 +225,32 @@ def _scan_packages(
     tree: Path,
     packages: tuple[Path, ...],
     timeout: float,
-) -> tuple[int, str]:
-    """Run one engine over each package; return the first result worth acting on.
+) -> tuple[int, list[tuple[int, str]], int]:
+    """Run one engine over every package and retain every report.
 
-    A timeout anywhere is a timeout for the engine — the measurement is
-    incomplete whatever the other packages said. Otherwise the first package
-    that produced a report wins, because a report is the thing the caller can
-    act on; if none did, the last exit code is returned so the caller can see
-    the engine never reported at all.
+    A timeout or missing report for any package keeps the engine incomplete;
+    one clean package must not hide an unread package later in the tree.
     """
     last = 0
-    for package in packages:
+    reports: list[tuple[int, str]] = []
+    incomplete = 0
+    for index, package in enumerate(packages):
+        if deadline_expired():
+            return _TIMEOUT_EXIT, reports, len(packages) - index
         code, out, _, _ = run_cli(
             [str(package) if item == "{}" else item for item in argv],
             cwd=tree,
             timeout=timeout,
         )
         if code == _TIMEOUT_EXIT:
-            return code, ""
-        if _report(out) is not None:
-            return code, out
+            return code, reports, len(packages) - index
+        report = _report(out)
+        if report is not None:
+            reports.append((code, report))
+        else:
+            incomplete += 1
         last = code
-    return last, ""
+    return last, reports, incomplete
 
 
 def _report(stdout: str) -> str | None:
@@ -268,3 +276,12 @@ def _report(stdout: str) -> str | None:
 
 def _rank(s: str) -> int:
     return {"info": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}.get(s, 0)
+
+
+def _non_defensive_match(pattern: re.Pattern[str], text: str) -> bool:
+    for line in text.splitlines():
+        if pattern.search(line) and not re.search(
+            r"(?i)\b(?:do not|don't|never|avoid|must not|detect|block|forbid(?:den)?)\b", line
+        ):
+            return True
+    return False

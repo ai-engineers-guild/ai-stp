@@ -1,6 +1,6 @@
 ---
 description: "Сборка, проверка и откат deploy-профилей web."
-last_verified: "2026-08-16"
+last_verified: "2026-08-22"
 ---
 
 # Deploy-профили web
@@ -41,8 +41,9 @@ AI_STP_FEATURE_SAAS_PUBLIC_PAGES=false bun run build
 AI_STP_FEATURE_CATALOG_USAGE_METRICS=true bun run build
 ```
 
-Оба профиля оставляют `catalog_usage_metrics` выключенным. Override не открывает
-серверную запись counters и не заменяет attribution/terms gate `SPEC-050`.
+Профиль `public_saas` включает `catalog_usage_metrics`. `self_hosted` оставляет
+его выключенным. Override не открывает серверную запись counters и не заменяет
+attribution/terms gate `SPEC-050`. Null от API не показывают как ноль.
 
 После смены profile dev server перезапускается полностью. Значение, изменённое только
 в runtime environment уже собранного image, не меняет artifact.

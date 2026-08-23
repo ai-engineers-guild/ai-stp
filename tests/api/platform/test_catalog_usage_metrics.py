@@ -13,6 +13,7 @@ from tests.api.platform.conftest import TEST_CURSOR_SECRET, make_settings
 
 from ai_stp_api.app import create_app
 from ai_stp_api.settings import CatalogSettings
+from ai_stp_contracts.catalog import CatalogUsageMetrics
 from ai_stp_foundation.canonical import canonize
 from ai_stp_foundation.digests import digest_bytes
 from ai_stp_passports.envelope import derive_revision_id
@@ -170,7 +171,8 @@ async def test_successful_artifact_get_counts_download_not_install(
     assert head.is_client_error
     assert missing.status_code == 404
     metrics = detail.json()["summary"]["usage_metrics"]
-    assert metrics["artifact_downloads_count"] == 1
-    assert metrics["detail_views_count"] == 1
+    projected = CatalogUsageMetrics.model_validate(metrics)
+    assert projected.artifact_downloads_count == 1
+    assert projected.detail_views_count == 1
     assert detail.json()["summary"]["latest_trust"]["trust_lane"] == "experimental"
     assert "install" not in metrics

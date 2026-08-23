@@ -566,19 +566,22 @@ class EvidenceBinding(Base):
     #: scanned content: this reaches a client, and a message quoting what was
     #: found would put the artefact's bytes somewhere the artefact is not.
     reason: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    finding_summary: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class SafetyScanRun(Base):
-    """Idempotent safety suite result for (content_digest, policy_version)."""
+    """Idempotent safety result for exact bytes, policy, profile and object kind."""
 
     __tablename__ = "safety_scan_run"
     __table_args__ = (
         UniqueConstraint(
             "content_digest",
             "policy_version",
-            name="uq_safety_scan_run_digest_policy",
+            "profile",
+            "object_kind",
+            name="uq_safety_scan_run_identity",
         ),
         CheckConstraint(
             "state in ('running', 'complete', 'failed')",
@@ -590,6 +593,7 @@ class SafetyScanRun(Base):
     content_digest: Mapped[str] = mapped_column(String(71), index=True)
     policy_version: Mapped[str] = mapped_column(String(32))
     profile: Mapped[str] = mapped_column(String(32))
+    object_kind: Mapped[str] = mapped_column(String(32), default="component")
     state: Mapped[str] = mapped_column(String(32), default="complete")
     cache_hit: Mapped[bool] = mapped_column(Boolean, default=False)
     wall_ms: Mapped[int] = mapped_column(Integer, default=0)
@@ -743,6 +747,33 @@ class AccountAuthorVerification(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class ComplaintIntake(Base):
+    """Public complaint about an author, catalog object, or other target."""
+
+    __tablename__ = "complaint_intake"
+    __table_args__ = (
+        CheckConstraint(
+            "target_kind in ('author', 'component', 'setup', 'other')",
+            name="ck_complaint_intake_target_kind",
+        ),
+        Index("ix_complaint_intake_submitter_created", "submitter_key", "created_at"),
+        Index("ix_complaint_intake_target_created", "target_kind", "target", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    submitter_account_id: Mapped[str | None] = mapped_column(
+        String(64), ForeignKey("account.id", ondelete="SET NULL"), nullable=True
+    )
+    submitter_key: Mapped[str] = mapped_column(String(330), index=True)
+    target_kind: Mapped[str] = mapped_column(String(32))
+    target: Mapped[str] = mapped_column(String(256))
+    sender_name: Mapped[str] = mapped_column(String(120))
+    reply_email: Mapped[str] = mapped_column(String(254))
+    subject: Mapped[str] = mapped_column(String(160))
+    message: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class PublicProfile(Base):
