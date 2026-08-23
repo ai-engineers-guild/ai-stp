@@ -294,6 +294,36 @@ def record_receipt(
             )
 
 
+def unreachable_server_head(connection: sqlite3.Connection, stable_id: str) -> str | None:
+    """A server head this device recorded but never received, if there is one.
+
+    A receipt is durable local knowledge: when the server refused a push it
+    named the head it holds. If that revision is absent from this registry, the
+    device is behind in a way no local read can resolve — and answering
+    `up_to_date` from local heads alone would contradict the refusal this
+    device already stored.
+    """
+    row = connection.execute(
+        "SELECT receipt_json FROM sync_event "
+        "WHERE entity_id = ? AND receipt_json IS NOT NULL "
+        "ORDER BY created_at DESC, rowid DESC LIMIT 1",
+        (stable_id,),
+    ).fetchone()
+    if row is None or row[0] is None:
+        return None
+    held = SyncEventReceipt.model_validate_json(row[0]).server_head_revision_id
+    if held is None:
+        return None
+    # Remote and local revision ids are not the same value: an applied event is
+    # resealed against local parents, and `sync_event` is what maps one to the
+    # other. Asking the revision table directly would call every received head
+    # unreachable.
+    known = connection.execute(
+        "SELECT 1 FROM sync_event WHERE remote_revision_id = ?", (held,)
+    ).fetchone()
+    return None if known is not None else held
+
+
 def saved_receipt(
     connection: sqlite3.Connection, *, account_id: str, event_id: str
 ) -> SyncEventReceipt | None:
@@ -488,7 +518,26 @@ def apply_page(
             if event.event_id in skip_event_ids:
                 skipped.append(event.event_id)
                 continue
-            outcome = _apply_event(connection, account_id=account_id, event=event)
+            try:
+                outcome = _apply_event(connection, account_id=account_id, event=event)
+            except CliFailure as failure:
+                # A refusal raised deeper than this loop knows nothing about
+                # sync and cannot name the event, so the id `--skip-event`
+                # needs is added here, where it is in hand. The code, message
+                # and existing details are the deeper check's answer and stay
+                # exactly as it gave them.
+                raise CliFailure(
+                    failure.code,
+                    failure.message,
+                    details={
+                        **failure.details,
+                        "event_id": event.event_id,
+                        "entity_id": event.entity_id,
+                        "entity_kind": event.entity_kind,
+                        "revision_id": event.revision_id,
+                    },
+                    next_actions=failure.next_actions,
+                ) from failure
             applied += outcome == "applied"
             replayed += outcome == "replayed"
         if response.page.next_cursor is None:

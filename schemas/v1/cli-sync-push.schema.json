@@ -11,6 +11,17 @@
       "title": "Conflict Fields",
       "type": "array"
     },
+    "conflicting_entity_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Conflicting Entity Id"
+    },
     "event_id": {
       "minLength": 8,
       "title": "Event Id",
@@ -71,7 +82,8 @@
     "event_id",
     "remote_revision_id",
     "state",
-    "server_head_revision_id"
+    "server_head_revision_id",
+    "conflicting_entity_id"
   ],
   "title": "SyncPushView",
   "type": "object"

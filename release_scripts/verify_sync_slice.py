@@ -204,13 +204,31 @@ def _run_scenarios(
 ) -> dict[str, Any]:
     """The four scenarios two authenticated homes can prove between them."""
     scenarios: dict[str, Any] = {}
+    # A real account already holds a developer passport, so a fresh install
+    # adopts it instead of minting a second one — that is what the server's
+    # one-per-account rule refuses, and what a reinstall actually does. Only an
+    # account whose stream carries nothing reaches `init` here.
+    _pull(home_a, python=python, skip=skip)
     stable_id = _developer_id(home_a, python=python)
+    # Fast-forward needs a revision B does not have yet. Pushing the adopted
+    # head would be a replay and would prove the next scenario, not this one.
+    cli(
+        ["passport", "developer", "update", "--set", "role=platform"],
+        home=home_a,
+        python=python,
+    )
 
     pushed = _push(home_a, stable_id, python=python)
     pulled = _pull(home_b, python=python, skip=skip)
     head_a = _head(home_a, python=python)
+    # `ok` is the envelope, not the outcome. A refused push answers ok with a
+    # receipt state of `conflict`, and asserting on the envelope reported this
+    # scenario verified while nothing had been fast-forwarded. The receipt
+    # state is the claim, so the receipt state is what is checked.
     scenarios["fast_forward"] = {
-        "state": "verified" if pushed.get("ok") and pulled.get("ok") else "failed",
+        "state": "verified"
+        if pushed.get("state") == "accepted" and (pulled.get("applied") or 0) >= 1
+        else "failed",
         "stable_id": stable_id,
         "push_state": pushed.get("state"),
         "pull_applied": pulled.get("applied"),
@@ -219,14 +237,14 @@ def _run_scenarios(
 
     replayed = _push(home_a, stable_id, python=python)
     scenarios["replay"] = {
-        "state": "verified" if replayed.get("ok") else "failed",
+        "state": "verified" if replayed.get("state") == "accepted" else "failed",
         "push_state": replayed.get("state"),
         "processed_events": replayed.get("processed_events"),
         "note": "a push with nothing new must be accepted and must not create a second event",
     }
 
     cli(
-        ["passport", "developer", "update", "--set", "role=platform"],
+        ["passport", "developer", "update", "--set", "role=product"],
         home=home_a,
         python=python,
     )
@@ -239,7 +257,7 @@ def _run_scenarios(
     refused = _push(home_b, stable_id, python=python)
     scenarios["conflict"] = {
         "state": "verified"
-        if accepted.get("ok") and refused.get("state") in {"conflict", None}
+        if accepted.get("state") == "accepted" and refused.get("state") == "conflict"
         else "failed",
         "first_push_state": accepted.get("state"),
         "second_push_state": refused.get("state"),

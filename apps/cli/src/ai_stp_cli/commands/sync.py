@@ -37,12 +37,27 @@ def _report(connection: sqlite3.Connection, stable_id: str) -> SyncPreview:
         )
     head_ids = sorted(item.revision_id for item in found)
     if len(found) == 1:
+        behind = sync_state.unreachable_server_head(connection, stable_id)
+        if behind is not None:
+            # One local head and a refused push naming a head this device does
+            # not hold. There is nothing to merge locally, so the honest answer
+            # is the disagreement itself rather than `up_to_date`.
+            return SyncPreview(
+                stable_id=stable_id,
+                state="conflict",
+                head_revision_ids=head_ids,
+                common_ancestor_revision_id=None,
+                candidate_revision_id=None,
+                server_head_revision_id=behind,
+                affected_fields=[],
+            )
         return SyncPreview(
             stable_id=stable_id,
             state="up_to_date",
             head_revision_ids=head_ids,
             common_ancestor_revision_id=found[0].revision_id,
             candidate_revision_id=found[0].revision_id,
+            server_head_revision_id=None,
             affected_fields=[],
         )
     if len(found) != 2:
@@ -52,6 +67,7 @@ def _report(connection: sqlite3.Connection, stable_id: str) -> SyncPreview:
             head_revision_ids=head_ids,
             common_ancestor_revision_id=None,
             candidate_revision_id=None,
+            server_head_revision_id=None,
             affected_fields=["/"],
         )
 
@@ -69,6 +85,7 @@ def _report(connection: sqlite3.Connection, stable_id: str) -> SyncPreview:
             head_revision_ids=head_ids,
             common_ancestor_revision_id=ancestor.revision_id,
             candidate_revision_id=descendant.revision_id,
+            server_head_revision_id=None,
             affected_fields=[],
         )
 
@@ -80,6 +97,7 @@ def _report(connection: sqlite3.Connection, stable_id: str) -> SyncPreview:
             head_revision_ids=head_ids,
             common_ancestor_revision_id=None,
             candidate_revision_id=None,
+            server_head_revision_id=None,
             affected_fields=["/"],
         )
     if left.envelope.kind != "developer":
@@ -89,6 +107,7 @@ def _report(connection: sqlite3.Connection, stable_id: str) -> SyncPreview:
             head_revision_ids=head_ids,
             common_ancestor_revision_id=base.revision_id,
             candidate_revision_id=None,
+            server_head_revision_id=None,
             affected_fields=["/"],
         )
 
@@ -100,6 +119,7 @@ def _report(connection: sqlite3.Connection, stable_id: str) -> SyncPreview:
             head_revision_ids=head_ids,
             common_ancestor_revision_id=base.revision_id,
             candidate_revision_id=None,
+            server_head_revision_id=None,
             affected_fields=[item.path for item in outcome.conflicts],
         )
 
@@ -112,6 +132,7 @@ def _report(connection: sqlite3.Connection, stable_id: str) -> SyncPreview:
         head_revision_ids=head_ids,
         common_ancestor_revision_id=base.revision_id,
         candidate_revision_id=sealed.revision_id,
+        server_head_revision_id=None,
         affected_fields=[],
     )
 
@@ -328,6 +349,7 @@ def push(parameters: Mapping[str, object]) -> Answer[SyncPushView]:
             state=receipt.state,
             server_head_revision_id=receipt.server_head_revision_id,
             conflict_fields=[] if receipt.conflict is None else receipt.conflict.affected_fields,
+            conflicting_entity_id=receipt.conflicting_entity_id,
         )
     )
 

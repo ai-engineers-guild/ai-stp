@@ -212,6 +212,9 @@ class SyncPreview(BaseModel):
     head_revision_ids: Annotated[list[str], Field(min_length=1)]
     common_ancestor_revision_id: str | None
     candidate_revision_id: str | None
+    #: The head the server last named in a refusal this device stored, when the
+    #: device does not hold it. Null whenever local heads are the whole story.
+    server_head_revision_id: str | None
 
     #: JSON Pointer paths only. Values remain in the owner-only registry and
     #: never enter a generic command envelope or log by accident.
@@ -232,6 +235,10 @@ class SyncPushView(BaseModel):
     state: Literal["accepted", "rejected", "conflict", "superseded"]
     server_head_revision_id: str | None
     conflict_fields: list[str] = Field(default_factory=list)
+    #: The identity the account already holds, when this push was refused for
+    #: carrying a second one of a kind that admits exactly one. Without it the
+    #: refusal is correct and the next move is unnameable.
+    conflicting_entity_id: str | None
 
 
 class SyncPullView(BaseModel):

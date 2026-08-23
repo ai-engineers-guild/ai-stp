@@ -47,6 +47,17 @@
       "title": "Schema Version",
       "type": "integer"
     },
+    "server_head_revision_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Server Head Revision Id"
+    },
     "stable_id": {
       "minLength": 1,
       "title": "Stable Id",
@@ -70,6 +81,7 @@
     "common_ancestor_revision_id",
     "head_revision_ids",
     "schema_version",
+    "server_head_revision_id",
     "stable_id",
     "state"
   ],

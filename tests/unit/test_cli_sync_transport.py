@@ -722,3 +722,153 @@ def test_a_named_event_can_be_walked_past_and_is_reported(tmp_path: Path) -> Non
     finally:
         source.close()
         target.close()
+
+
+def test_a_refused_second_identity_names_the_one_the_account_already_holds(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A fresh install makes its own developer passport, and the account has one.
+
+    The server refuses the second and names the first, because a device that
+    cannot see the account's identity cannot choose between adopting it and
+    replacing it. Reporting only `rejected` hands the operator a dead end: the
+    refusal is correct and the next move is unnameable.
+    """
+    registry_path = tmp_path / "registry.sqlite"
+    with open_registry(registry_path) as registry:
+        stable_id = new_id("developer")
+        revisions.commit(registry, _content(stable_id), device_id=DEVICE_A)
+    held_by_account = new_id("developer")
+    held = session.Session(
+        account_id=ACCOUNT,
+        device_id=DEVICE_A,
+        access_token="token",
+        refresh_token="refresh",
+        expires_at="2099-01-01T00:00:00.000Z",
+    )
+
+    def route(request: httpx.Request) -> httpx.Response:
+        event = SyncPushRequest.model_validate_json(request.read()).events[0]
+        receipt = SyncEventReceipt(
+            event_id=event.event_id,
+            state="rejected",
+            revision_id=None,
+            server_head_revision_id=None,
+            cursor=None,
+            conflict=None,
+            conflicting_entity_id=held_by_account,
+            error_code="AI_STP_CONFLICT",
+        )
+        return httpx.Response(
+            200, json={"schema_version": 1, "receipts": [receipt.model_dump(mode="json")]}
+        )
+
+    monkeypatch.setattr(sync_commands, "_enabled", lambda: None)  # pyright: ignore[reportPrivateUsage]
+    monkeypatch.setattr(sync_commands, "configured_path", lambda: registry_path)
+
+    def required_session(_purpose: str) -> session.Session:
+        return held
+
+    monkeypatch.setattr(cloud_auth, "required", required_session)
+    monkeypatch.setattr(
+        sync_commands,
+        "endpoint",
+        lambda: Endpoint(
+            "https://platform.example", max_attempts=1, transport=httpx.MockTransport(route)
+        ),
+    )
+
+    result = sync_commands.push({"id": stable_id, "confirm": True}).payload
+    assert result.state == "rejected"
+    assert result.conflicting_entity_id == held_by_account
+
+
+def test_a_refusal_raised_while_applying_still_names_the_event(tmp_path: Path) -> None:
+    """`--skip-event` takes an exact id, so every refusal has to supply one.
+
+    The coordinates check names its event because it runs inside the applier.
+    A refusal raised deeper does not: `revisions.commit` enforces one developer
+    passport per installation and knows nothing about sync, so its `details`
+    carried the entity and no event. Observed on production, where an account
+    stream holding a second developer identity stopped every pull with a
+    refusal naming a passport the operator could not translate into an id to
+    walk past. Correct refusal, unusable answer.
+    """
+    source = open_registry(tmp_path / "source.sqlite")
+    target = open_registry(tmp_path / "target.sqlite")
+    try:
+        # The target already holds one developer passport, which is the state
+        # any installed device is in.
+        revisions.commit(target, _content(new_id("developer")), device_id=DEVICE_B)
+        second = new_id("developer")
+        local = revisions.commit(source, _content(second), device_id=DEVICE_A)
+        prepared = sync_state.prepare(
+            source, account_id=ACCOUNT, device_id=DEVICE_A, stored=local
+        ).request
+        response = SyncPullResponse(
+            items=[_stream(prepared, 1)],
+            page=PageInfo(next_cursor="opaque-cursor", page_size=20),
+        )
+        with pytest.raises(CliFailure) as refused:
+            sync_state.apply_page(target, account_id=ACCOUNT, response=response, at=AT)
+        details = refused.value.details
+        assert details["stable_id"] == second, details
+        assert details["event_id"] == prepared.event_id, details
+        assert sync_state.cursor(target, ACCOUNT) is None
+        # And the named id is the one that actually walks the stream past it.
+        applied, replayed, skipped = sync_state.apply_page(
+            target,
+            account_id=ACCOUNT,
+            response=response,
+            at=AT,
+            skip_event_ids=frozenset({str(details["event_id"])}),
+        )
+        assert (applied, replayed, skipped) == (0, 0, [prepared.event_id])
+    finally:
+        source.close()
+        target.close()
+
+
+def test_preview_does_not_answer_up_to_date_against_a_server_head_it_lacks(
+    tmp_path: Path,
+) -> None:
+    """Two surfaces must not tell the operator opposite things about one entity.
+
+    Observed on production: `sync push` answered `conflict` and named the
+    server head, `sync pull` answered `received: 0`, and `sync preview`
+    answered `up_to_date`. All three were internally consistent — preview reads
+    local heads, and the head the server named had never reached this device —
+    and together they were unusable: the device was told it was current while
+    every push was refused, with nothing naming the disagreement.
+
+    A receipt this device already stored is enough to know better.
+    """
+    connection = open_registry(tmp_path / "registry.sqlite")
+    stable_id = new_id("developer")
+    try:
+        local = revisions.commit(connection, _content(stable_id), device_id=DEVICE_A)
+        prepared = sync_state.prepare(
+            connection, account_id=ACCOUNT, device_id=DEVICE_A, stored=local
+        )
+        assert sync_commands._report(connection, stable_id).state == "up_to_date"  # pyright: ignore[reportPrivateUsage]
+        unreachable = f"revision_{'c' * 64}"
+        sync_state.record_receipt(
+            connection,
+            account_id=ACCOUNT,
+            receipt=SyncEventReceipt(
+                event_id=prepared.request.event_id,
+                state="conflict",
+                revision_id=None,
+                server_head_revision_id=unreachable,
+                cursor=None,
+                conflict=None,
+                conflicting_entity_id=None,
+                error_code=None,
+            ),
+        )
+        report = sync_commands._report(connection, stable_id)  # pyright: ignore[reportPrivateUsage]
+        assert report.state == "conflict", report
+        assert report.head_revision_ids == [local.revision_id]
+        assert report.candidate_revision_id is None
+    finally:
+        connection.close()
