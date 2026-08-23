@@ -244,6 +244,13 @@ _MIGRATION_GLOBAL_ORACLE: Final[tuple[Rule, ...]] = (
 _MIGRATION_PROJECT_ORACLE: Final[tuple[Rule, ...]] = (
     Rule("instruction", "AGENTS.md", "file", "", "agents.md"),
     Rule("instruction", "CLAUDE.md", "file", "claude-code", "code.claude.com/docs/en/memory"),
+    Rule(
+        "instruction",
+        ".claude/CLAUDE.md",
+        "file",
+        "claude-code",
+        "code.claude.com/docs/en/memory",
+    ),
     Rule("skill", ".claude/skills", "directory", "claude-code", "code.claude.com/docs/en/skills"),
     Rule(
         "agent", ".claude/agents", "directory", "claude-code", "code.claude.com/docs/en/sub-agents"

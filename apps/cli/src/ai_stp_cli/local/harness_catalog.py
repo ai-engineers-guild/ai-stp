@@ -128,6 +128,13 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
             _layout("setting", "settings.json", "file", f"{CLAUDE}/settings", G),
             _layout("mcp", ".mcp.json", "file", f"{CLAUDE}/mcp", G),
             _layout("instruction", "CLAUDE.md", "file", f"{CLAUDE}/memory", P),
+            # Both project placements are read by the harness, and only the
+            # root one was declared. Observed directly: a Claude Code session
+            # opened in a repository whose instructions live at
+            # `.claude/CLAUDE.md` reports them as "project instructions,
+            # checked into the codebase" — this repository is such a case, so
+            # `ai-stp` was blind to its own.
+            _layout("instruction", ".claude/CLAUDE.md", "file", f"{CLAUDE}/memory", P),
             _layout("skill", ".claude/skills", "directory", f"{CLAUDE}/skills", P),
             _layout("agent", ".claude/agents", "directory", f"{CLAUDE}/sub-agents", P),
             _layout("command", ".claude/commands", "directory", f"{CLAUDE}/slash-commands", P),

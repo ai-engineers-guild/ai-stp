@@ -147,3 +147,51 @@ review-mcp = "review_mcp.server:main"
     assert mcp["evidence_refs"] == ["pyproject.toml", "src/review_mcp/server.py"]
     assert data["diagnostics"] == []
     assert _snapshot(tmp_path) == before
+
+
+def test_project_instructions_are_found_at_both_claude_placements(tmp_path: Path) -> None:
+    """Claude Code reads project instructions from the root and from `.claude/`.
+
+    Only the root placement was declared, so a repository that keeps its
+    instructions at `.claude/CLAUDE.md` had them invisible to discovery — this
+    repository is one, which is how the gap was found. Observed directly: a
+    Claude Code session opened here reports `.claude/CLAUDE.md` as "project
+    instructions, checked into the codebase".
+    """
+    home = tmp_path / "home"
+    home.mkdir()
+    project = tmp_path / "project"
+    (project / ".claude").mkdir(parents=True)
+    (project / "CLAUDE.md").write_text("# root\n", encoding="utf-8")
+    (project / ".claude" / "CLAUDE.md").write_text("# nested\n", encoding="utf-8")
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "ai_stp_cli",
+            "component",
+            "discover",
+            "--root",
+            str(project),
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+        env={
+            **os.environ,
+            "HOME": str(home),
+            "XDG_CONFIG_HOME": str(home / ".config"),
+            "XDG_DATA_HOME": str(home / ".local" / "share"),
+        },
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    payload = cast(dict[str, object], json.loads(result.stdout))
+    data = cast(dict[str, object], payload["data"])
+    found = {
+        Path(cast(str, row["source_path"])).relative_to(project).as_posix()
+        for row in cast(list[dict[str, object]], data["components"])
+        if row["component_type"] == "instruction" and row["scope"] != "global"
+    }
+    assert found == {"CLAUDE.md", ".claude/CLAUDE.md"}, found
