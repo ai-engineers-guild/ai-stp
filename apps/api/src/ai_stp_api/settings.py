@@ -7,6 +7,8 @@ construction, which the app factory surfaces as a typed startup failure.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as installed_version
 from pathlib import Path
 
 from pydantic import Field, field_validator, model_validator
@@ -22,13 +24,31 @@ from ai_stp_platform.catalog_usage import CatalogUsagePolicy
 from ai_stp_platform.settings import DatabaseSettings, StorageSettings
 
 
+def _distribution_version() -> str:
+    """The version of the installed API distribution.
+
+    Falls back to `0.0.0` only when the package is not installed at all, which
+    happens when the module is imported straight from a source checkout. A
+    deployment always installs it, so the fallback marks "not a real build"
+    rather than guessing a number.
+    """
+    try:
+        return installed_version("ai-stp-api")
+    except PackageNotFoundError:
+        return "0.0.0"
+
+
 class ServiceSettings(BaseSettings):
     """Service-level settings for the API process."""
 
     model_config = SettingsConfigDict(env_prefix="AI_STP_API_", extra="ignore")
 
     environment: str = Field(default="dev")
-    version: str = Field(default="0.1.0")
+    # Read from the installed distribution rather than written here. The literal
+    # that used to sit in this line said `0.1.0` while every package in the
+    # workspace said `0.0.1`, so `/v1/system/version` advertised a release that
+    # does not exist — nothing kept the two in step, and nothing noticed.
+    version: str = Field(default_factory=lambda: _distribution_version())
     # Optional deploy identity for safe diagnostics (REQ-2411). Never a secret.
     git_commit: str | None = Field(default=None)
     log_dir: Path = Field(default=Path("logs"))
