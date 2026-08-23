@@ -1,11 +1,12 @@
-# Публичная пользовательская документация собирается отдельно от внутреннего
-# нормативного docs/. Пути заданы относительно этого файла.
+# Английская линия пользовательской документации. Собирается отдельным
+# прогоном в `/en/`; русская линия и её конфигурация — владелец структуры,
+# английская следует за ней. Расхождение состава страниц ловит тест.
 
 site_name: ai_stp user docs
-site_description: Пользовательская документация ai_stp для разработчиков и агентов.
-site_url: !ENV [AI_STP_USER_DOCS_SITE_URL, "http://localhost:8011/"]
+site_description: ai_stp user documentation for developers and agents.
+site_url: !ENV [AI_STP_USER_DOCS_EN_SITE_URL, "http://localhost:8011/en/"]
 repo_url: https://github.com/ai-engineers-guild/ai-stp
-edit_uri: edit/main/user-docs/
+edit_uri: edit/main/user-docs-en/
 
 # Обе линии собираются отдельными прогонами: русская в корень, английская в
 # `/en/`. Плагин `mkdocs-static-i18n` дал бы одну сборку с переключателем, но
@@ -21,12 +22,12 @@ extra:
       link: /en/
       lang: en
 
-docs_dir: ../user-docs
-site_dir: ../.site-user-docs
+docs_dir: ../user-docs-en
+site_dir: ../.site-user-docs/en
 
 theme:
   name: material
-  language: ru
+  language: en
   features:
     - navigation.instant
     - navigation.tracking
@@ -45,14 +46,14 @@ theme:
       accent: deep orange
       toggle:
         icon: material/weather-night
-        name: Тёмная тема
+        name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
       primary: black
       accent: deep orange
       toggle:
         icon: material/weather-sunny
-        name: Светлая тема
+        name: Switch to light mode
 
 markdown_extensions:
   - admonition
@@ -77,11 +78,11 @@ markdown_extensions:
 
 plugins:
   - search:
-      lang: ru
+      lang: en
   - awesome-pages
   - git-revision-date-localized:
       type: date
-      locale: ru
+      locale: en
       enable_creation_date: false
       fallback_to_build_date: true
       strict: false

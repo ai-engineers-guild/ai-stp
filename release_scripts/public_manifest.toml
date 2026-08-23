@@ -17,6 +17,7 @@ roots = [
   "docs",
   "docs_scripts",
   "user-docs",
+  "user-docs-en",
   "deploy",
   "skills",
   "scripts",

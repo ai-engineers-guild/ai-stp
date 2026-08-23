@@ -24,7 +24,9 @@ COPY apps ./apps
 RUN uv sync --locked --only-group docs --no-install-project --no-install-workspace
 
 COPY docs_scripts/user-mkdocs.yml ./docs_scripts/user-mkdocs.yml
+COPY docs_scripts/user-mkdocs.en.yml ./docs_scripts/user-mkdocs.en.yml
 COPY user-docs ./user-docs
+COPY user-docs-en ./user-docs-en
 
 FROM base AS dev
 ENV AI_STP_USER_DOCS_SITE_URL=http://localhost:8011/
@@ -34,7 +36,11 @@ CMD ["python", "-m", "mkdocs", "serve", "-f", "docs_scripts/user-mkdocs.yml", "-
 FROM base AS build
 ARG AI_STP_USER_DOCS_SITE_URL=https://docs.example.invalid/
 ENV AI_STP_USER_DOCS_SITE_URL=${AI_STP_USER_DOCS_SITE_URL}
-RUN python -m mkdocs build --strict -f docs_scripts/user-mkdocs.yml
+ENV AI_STP_USER_DOCS_EN_SITE_URL=${AI_STP_USER_DOCS_SITE_URL}en/
+# Russian first: it cleans the site directory, and the English build writes
+# `en/` inside it. Reversing these two silently ships one language.
+RUN python -m mkdocs build --strict -f docs_scripts/user-mkdocs.yml \
+    && python -m mkdocs build --strict -f docs_scripts/user-mkdocs.en.yml
 
 FROM caddy:2 AS prod
 COPY deploy/caddy/Caddyfile.user-docs /etc/caddy/Caddyfile

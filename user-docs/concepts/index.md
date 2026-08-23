@@ -7,7 +7,7 @@ description: "Ключевые понятия ai_stp для пользовате
 ## Харнесс
 
 Харнесс — CLI-среда, в которой работает coding agent. В MVP основная поддержка
-есть у Claude Code и Codex; Pi, OpenCode и Grok Build идут как beta.
+есть у Claude Code, Codex и Grok Build; Pi и OpenCode идут как beta.
 
 Подробнее: [поддерживаемые харнессы](../harnesses.md).
 

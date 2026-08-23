@@ -284,3 +284,59 @@ def test_every_command_group_says_what_it_is_for() -> None:
         " ".join(path) for path, line in described.items() if line.startswith("Commands for ")
     )
     assert not unnamed, "these groups have no description of their own: " + ", ".join(unnamed)
+
+
+def test_no_conditional_refusal_is_described_by_nothing() -> None:
+    """The other half of requiredness, and the reason `parameter_rules` exists.
+
+    The sweep above deliberately ignores demands inside an `if`: those are
+    conditional, and marking them `required` would make the descriptor wrong
+    in the other direction. That leaves a question it cannot answer — whether
+    the conditional ones are described *at all*.
+
+    Only `install plan` declares `parameter_rules`, one command out of 123,
+    which reads like a mechanism nobody uses. Measured rather than assumed:
+    every other conditional refusal is a consent flag, and `confirmation`
+    already describes those. The vocabulary is rare because there is little
+    for it to say, not because it is neglected.
+
+    This holds that. A new cross-parameter requirement enforced only in a
+    handler body — "``--value`` is required when ``--field`` is given", the
+    shape `install plan` already has three of — fails here rather than
+    reaching an agent as an unexplained refusal.
+    """
+    undescribed: list[str] = []
+    for command in COMMANDS:
+        conditional = _conditional_demands(command) - _demanded(command)
+        if not conditional:
+            continue
+        governed = {
+            name
+            for rule in command.descriptor.parameter_rules
+            for name in [*rule.parameters, rule.when_parameter]
+        }
+        if command.descriptor.confirmation != "none":
+            governed |= _CONSENT
+        for name in sorted(conditional - governed):
+            undescribed.append(f"{command.name}: --{name} is refused conditionally, undeclared")
+    assert not undescribed, (
+        "these commands refuse an option on a condition machine help does not state:\n"
+        + "\n".join(undescribed)
+    )
+
+
+def _conditional_demands(command: object) -> set[str]:
+    """Options refused inside an `if`, wherever it sits in the handler."""
+    handler = getattr(command, "handler")  # noqa: B009 — attribute, not a key
+    try:
+        source = inspect.getsource(handler)
+    except (OSError, TypeError):  # pragma: no cover — every handler has a file
+        return set()
+    names: set[str] = set()
+    for node in ast.walk(ast.parse(textwrap.dedent(source))):
+        if isinstance(node, ast.If) and _raises_refusal(node.body):
+            for inner in ast.walk(node.test):
+                option = _read_option(inner) if isinstance(inner, ast.expr) else None
+                if option:
+                    names.add(option)
+    return names

@@ -36,8 +36,8 @@ FORM: MVP documentation site, category-standard static docs chosen deliberately 
 
 ## Что умеет MVP
 
-MVP поддерживает Claude Code и Codex как основные харнессы. Pi, OpenCode и
-Grok Build доступны как beta-линии, а неизвестный харнесс попадает в
+MVP поддерживает Claude Code, Codex и Grok Build как основные харнессы. Pi и
+OpenCode доступны как beta-линии, а неизвестный харнесс попадает в
 ограниченный режим `undefined`.
 
 Основной путь выглядит так:

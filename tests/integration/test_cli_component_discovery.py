@@ -195,3 +195,83 @@ def test_project_instructions_are_found_at_both_claude_placements(tmp_path: Path
         if row["component_type"] == "instruction" and row["scope"] != "global"
     }
     assert found == {"CLAUDE.md", ".claude/CLAUDE.md"}, found
+
+
+def test_every_declared_component_kind_is_discovered_in_one_project(tmp_path: Path) -> None:
+    """All eight kinds, in one tree, through the real CLI.
+
+    `COMPONENT_TYPES` is a closed vocabulary of eight, and each kind is
+    declared by its own rules. What nothing asserted is that the eight
+    *together* come back from a project that holds all of them — the existing
+    coverage checks one adapter, or one placement, at a time.
+
+    The gap that motivated this was found by hand: `.claude/CLAUDE.md` was
+    absent from the catalogue of placements, so this repository was invisible
+    to its own discovery. Finding that took a sandbox and a person. Nothing
+    stops the next omitted placement, and a kind that no rule reaches produces
+    no error — it produces silence, which is why the assertion is on the set.
+
+    Written against the live catalogue at a moment when the published corpus
+    held six of the eight: `mcp` and `hook` had never been published, so the
+    path for them had never run end to end. It runs here.
+    """
+    home = tmp_path / "home"
+    home.mkdir()
+    project = tmp_path / "project"
+
+    (project / ".claude" / "skills" / "demo").mkdir(parents=True)
+    (project / ".claude" / "skills" / "demo" / "SKILL.md").write_text(
+        "---\nname: demo\ndescription: A demo skill.\n---\n# Demo\n", encoding="utf-8"
+    )
+    (project / ".claude" / "agents").mkdir(parents=True)
+    (project / ".claude" / "agents" / "reviewer.md").write_text(
+        "---\nname: reviewer\ndescription: A demo agent.\n---\nReview.\n", encoding="utf-8"
+    )
+    (project / ".claude" / "commands").mkdir(parents=True)
+    (project / ".claude" / "commands" / "ship.md").write_text(
+        "---\ndescription: A demo command.\n---\nShip.\n", encoding="utf-8"
+    )
+    (project / ".claude" / "CLAUDE.md").write_text("# instructions\n", encoding="utf-8")
+    _write(project / ".claude" / "settings.json", {"permissions": {"allow": ["Bash(ls:*)"]}})
+    _write(project / ".mcp.json", {"mcpServers": {"demo": {"command": "demo", "args": []}}})
+    _write(
+        project / ".codex" / "hooks.json",
+        {"hooks": {"PreToolUse": [{"matcher": "Bash", "hooks": cast(list[object], [])}]}},
+    )
+    # A plugin is a manifest under `plugins/<name>/`, not at the project root.
+    # Getting that wrong is what an unwritten fixture costs: the first attempt
+    # put the manifest in the root and read the empty result as a defect.
+    _write(project / "plugins" / "demo-pack" / ".claude-plugin" / "plugin.json", {"name": "demo"})
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "ai_stp_cli",
+            "component",
+            "discover",
+            "--root",
+            str(project),
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+        env={
+            **os.environ,
+            "HOME": str(home),
+            "XDG_CONFIG_HOME": str(home / ".config"),
+            "XDG_DATA_HOME": str(home / ".local" / "share"),
+        },
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    payload = cast(dict[str, object], json.loads(result.stdout))
+    data = cast(dict[str, object], payload["data"])
+    rows = cast(list[dict[str, object]], data["components"])
+    kinds = {
+        cast(str, row["component_type"])
+        for row in rows
+        if cast(str, row["source_path"]).startswith(str(project))
+    }
+    declared = {"instruction", "skill", "mcp", "hook", "command", "agent", "plugin", "setting"}
+    assert kinds == declared, f"discovery missed {sorted(declared - kinds)}"

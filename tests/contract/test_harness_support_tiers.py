@@ -78,24 +78,28 @@ def test_no_second_tier_table_exists_in_the_tree() -> None:
     assert offenders == [], f"a second support-tier table exists: {offenders}"
 
 
-def test_no_prose_names_the_members_of_a_tier() -> None:
-    """The duplicate came back in Markdown, where the guard above never looked.
+def test_no_table_states_a_tier_that_disagrees_with_the_map() -> None:
+    """The duplicate came back as a table, twice, where the guard never looked.
 
     `test_no_second_tier_table_exists_in_the_tree` scans `**/*.py` — it was
-    written when the second table was a Python dict, and it did its job. Four
-    documents kept their own copy in prose, and all four had drifted: README,
-    `PRODUCT.md`, `docs/product/scope.md` and `SPEC-001` still placed Grok
-    Build under beta after `SUPPORT_TIERS` promoted it to `primary`. A reader
-    who starts at README — which is most readers — got the wrong answer.
+    written when the second table was a Python dict and it did its job. Four
+    documents had already moved their copy to Markdown, and all four had
+    drifted: README, `PRODUCT.md`, `docs/product/scope.md` and `SPEC-001` still
+    placed Grok Build in beta eight days after `SUPPORT_TIERS` promoted it.
 
-    Written to fail in both directions. The first version of this check only
-    read the clause claiming primary support, so restoring the exact defect —
-    Grok Build back in the *beta* row — left it green. A guard that cannot
-    catch the bug it was written for is worse than none, because it is also
-    an argument against looking.
+    Scoped to table rows deliberately, after a wider version failed twice in
+    opposite directions. Reading only the clause claiming primary support let
+    the exact defect back in — Grok Build in the *beta* row — and stayed green.
+    Reading every sentence that says "beta" then flagged four correct documents,
+    because prose mixes this axis with the evidence one: `release-evidence.md`
+    talks about beta *lines of proof*, and `SPEC-001` REQ-109 about which
+    evidence blocks a release. Those are different questions with the same
+    words, and `SPEC-033` keeps them apart on purpose.
+
+    A table row does not have that problem. The label is one cell and the
+    members are another, which is why it is the one shape worth asserting on —
+    and it is the shape that broke, both times.
     """
-    #: Spellings as the documents write them, not identifiers: prose says
-    #: "Grok Build", never "grok-build".
     spelled: dict[str, HarnessId] = {
         "Claude Code": "claude-code",
         "Codex": "codex",
@@ -103,41 +107,38 @@ def test_no_prose_names_the_members_of_a_tier() -> None:
         "OpenCode": "opencode",
         "Pi": "pi",
     }
-    labels = ((re.compile(r"Основн\w+ поддержк\w+"), "primary"), (re.compile(r"Бета"), "beta"))
+    #: Anchored, so a tier is read only where a cell *is* the label — not
+    #: wherever the word appears in a sentence inside one.
+    tiers = (
+        (re.compile(r"^Основн\w+ поддержк\w+$", re.IGNORECASE), "primary"),
+        (re.compile(r"^(?:Бета|beta)(?:-поддержка)?$", re.IGNORECASE), "beta"),
+    )
     wrong: list[str] = []
     for path in sorted(ROOT.glob("**/*.md")):
         if set(path.parts) & GENERATED_OR_VENDORED or not path.is_file():
             continue
-        # Decision records are excluded because they argue about the *other*
-        # axis. `ADR-0034` says the launch setups for Pi, OpenCode and Grok
-        # Build "остаются бета-линиями" — that is corpus parity, not the
-        # harness product tier, and the two are deliberately separate
-        # (`SPEC-033`). Prose cannot be told apart by pattern, and a check that
-        # forced ADR-0034 to say `primary` would merge the axes it is the
-        # point of `SPEC-033` to keep apart. What is guarded here is the
-        # surface a reader consults for the current split.
-        if "adr" in path.parts:
-            continue
         for line in path.read_text(encoding="utf-8").splitlines():
-            # A table row separates label from members with `|`; a sentence
-            # uses `:` and `;`. Splitting on all three lets one pass read both,
-            # and keeps a line that names two tiers from being read as one.
-            clauses = [part for part in re.split(r"[|;:]", line) if part.strip()]
-            carried: str | None = None
-            for clause in clauses:
-                here = next((tier for pattern, tier in labels if pattern.search(clause)), None)
-                tier = here or carried
-                # A clause that is only a label hands its tier to the next one,
-                # which is how a table row spells the same thing.
-                named = [name for name in spelled if name in clause]
-                if tier and named:
-                    for name in named:
-                        if SUPPORT_TIERS[spelled[name]] != tier:
-                            wrong.append(
-                                f"{path.relative_to(ROOT)}: {name} under {tier} — "
-                                f"the map says {SUPPORT_TIERS[spelled[name]]}\n    {line.strip()}"
-                            )
-                    carried = None
-                else:
-                    carried = here
-    assert not wrong, "prose disagrees with SUPPORT_TIERS:\n" + "\n".join(sorted(set(wrong)))
+            if not line.lstrip().startswith("|"):
+                continue
+            cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+            if len(cells) < 2:
+                continue
+            # Both orientations occur and both have drifted. README and
+            # `scope.md` put the tier first and list members after it;
+            # `harnesses.md` gives each harness a row and the tier a column.
+            # Reading only the first shape left the page whose whole job is
+            # stating the tiers uncovered.
+            for index, cell in enumerate(cells):
+                tier = next((name for pattern, name in tiers if pattern.search(cell)), None)
+                if tier is None:
+                    continue
+                elsewhere = " ".join(cells[:index] + cells[index + 1 :])
+                wrong.extend(
+                    f"{path.relative_to(ROOT)}: {key} under {tier} — "
+                    f"the map says {SUPPORT_TIERS[spelled[key]]}\n    {line.strip()}"
+                    for key in spelled
+                    if key in elsewhere and SUPPORT_TIERS[spelled[key]] != tier
+                )
+    assert not wrong, "a support-tier table disagrees with SUPPORT_TIERS:\n" + "\n".join(
+        sorted(set(wrong))
+    )

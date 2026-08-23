@@ -186,6 +186,7 @@ docs-test:
 docs-build:
     {{py}} -m mkdocs build --strict -f {{scripts}}/mkdocs.yml
     {{py}} -m mkdocs build --strict -f {{scripts}}/user-mkdocs.yml
+    {{py}} -m mkdocs build --strict -f {{scripts}}/user-mkdocs.en.yml
 
 # Реальный render диаграмм в движке Mermaid, а не разбор их текста.
 docs-regress:
@@ -194,11 +195,17 @@ docs-regress:
 docs-serve:
     {{py}} -m mkdocs serve -f {{scripts}}/mkdocs.yml
 
+# Обе языковые линии. Английская собирается в `/en/` внутри того же site_dir,
+# поэтому порядок важен: русская чистит каталог, английская кладётся внутрь.
 user-docs-build:
     {{py}} -m mkdocs build --strict -f {{scripts}}/user-mkdocs.yml
+    {{py}} -m mkdocs build --strict -f {{scripts}}/user-mkdocs.en.yml
 
 user-docs-serve:
     {{py}} -m mkdocs serve -f {{scripts}}/user-mkdocs.yml
+
+user-docs-serve-en:
+    {{py}} -m mkdocs serve -f {{scripts}}/user-mkdocs.en.yml
 
 docs-check: docs-static docs-test docs-build docs-regress
 
