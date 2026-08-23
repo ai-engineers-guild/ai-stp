@@ -64,6 +64,7 @@ CASE_REASONS: Final[tuple[tuple[str, str], ...]] = (
 CASE_REASONS_V3: Final[tuple[tuple[str, str], ...]] = (
     *CASE_REASONS,
     ("unsupported_bundle_format", "unsupported_bundle_format"),
+    ("unsupported_component_kind", "unsupported_component_kind"),
 )
 _COMPOSITION: Final[dict[str, JsonValue]] = {"complete": True}
 _CONVERSION: Final[dict[str, JsonValue]] = {"complete": True}
@@ -274,6 +275,35 @@ def _malicious(
         members.append((f"files/{record['path']}", content, _regular()))
     elif name == "unsupported_protocol_version":
         manifest["protocol_version"] = protocol_version + 1
+        members.append((f"files/{record['path']}", content, _regular()))
+    elif name == "unsupported_component_kind":
+        # The kind is declared by the conversion report, not by the manifest or
+        # the setup passport — the passport carries component references and no
+        # kinds at all. So the hostile document is that report, and its record
+        # under `documents` has to be recomputed with it: leaving the old digest
+        # would make the provider refuse a digest mismatch, which is a different
+        # refusal and would pass this case for the wrong reason.
+        conversion: dict[str, JsonValue] = {
+            "complete": True,
+            "entries": [
+                {
+                    "stable_id": "component_00000000000000000000000000",
+                    "component_type": "quantum-manifest",
+                    "native_surface": str(record["path"]),
+                    "state": "complete",
+                    "losses": [],
+                }
+            ],
+        }
+        manifest["conversion_report"] = conversion
+        rendered = canonize(cast(JsonValue, conversion))
+        documents = dict(cast(dict[str, JsonValue], manifest["documents"]))
+        documents["conversion_report"] = {
+            "path": "conversion-report.json",
+            "digest": "sha256:" + hashlib.sha256(rendered).hexdigest(),
+            "byte_length": len(rendered),
+        }
+        manifest["documents"] = cast(JsonValue, documents)
         members.append((f"files/{record['path']}", content, _regular()))
     elif name == "unsupported_bundle_format":
         # A container this provider was never told how to read. The bytes stay

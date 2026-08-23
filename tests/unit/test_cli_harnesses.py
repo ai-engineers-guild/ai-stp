@@ -8,9 +8,12 @@ from pathlib import Path
 import pytest
 
 from ai_stp_cli.local import harnesses
-from ai_stp_foundation.harnesses import SUPPORT_TIERS
+from ai_stp_foundation.harnesses import HARNESS_ID_ORDER, SUPPORT_TIERS
 
-SUPPORTED = {"claude-code", "codex", "pi", "opencode", "grok-build"}
+#: Derived, not restated. This was a literal copy of the closed set, and a copy
+#: agrees with the enum exactly until the enum changes — which is the moment the
+#: test stops testing the thing it names.
+SUPPORTED = set(HARNESS_ID_ORDER)
 
 
 def _fake(directory: Path, name: str, *, answer: str = "9.9.9", code: int = 0) -> Path:

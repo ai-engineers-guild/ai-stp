@@ -59,7 +59,7 @@ from ai_stp_contracts.machine_help import (
     ConfirmationKind,
     MutabilityClass,
 )
-from ai_stp_foundation.harnesses import HARNESS_IDS
+from ai_stp_foundation.harnesses import HARNESS_ID_ORDER, HARNESS_IDS
 
 type Handler = Callable[[Mapping[str, object]], Answer[BaseModel]]
 
@@ -585,7 +585,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "string",
                 "Portable base or one concrete harness variant.",
                 required=True,
-                choices=("portable", "claude-code", "codex", "pi", "opencode", "grok-build"),
+                choices=("portable", *HARNESS_ID_ORDER),
             ),
             option("name", "string", "Lowercase component slug.", required=True),
             option("output", "string", "New scaffold directory to preview.", required=True),
@@ -636,7 +636,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "string",
                 "Portable base or one concrete harness variant.",
                 required=True,
-                choices=("portable", "claude-code", "codex", "pi", "opencode", "grok-build"),
+                choices=("portable", *HARNESS_ID_ORDER),
             ),
             option("name", "string", "Lowercase component slug.", required=True),
             option("output", "string", "New scaffold directory to create.", required=True),
@@ -662,7 +662,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "string",
                 "Concrete target from the closed harness registry.",
                 required=True,
-                choices=("claude-code", "codex", "pi", "opencode", "grok-build"),
+                choices=HARNESS_ID_ORDER,
             ),
             option("name", "string", "Lowercase component slug.", required=True),
             option(

@@ -32,11 +32,11 @@ last_verified: "2026-08-13"
 | 4 | локальные components, adoption, подтверждённое passport enrichment/validation, immutable `X.Y`, forks, consent, search и полный локальный first-party corpus | server seed и одинаковая публичная проекция CLI/web для `#162`; cloud drafts/publication относятся к фазе 8 |
 | 5 | eligibility, selection sessions, полный `SetupVersionPassport`, `SetupGraph`, impact/composition reports, evaluation profiles, deterministic `HarnessBundle` и literal golden oracle | повтор полного oracle на точном кандидате выпуска вместе с фазой 7 |
 | 6 | provider protocols v1/v2/v3, conformance kits, release trust, Linux/Bubblewrap boundary, пять immutable signed releases, exact policy pins, key rotation и вредоносный corpus | повтор trust/effect evidence на финальном CLI release candidate |
-| 7 | install/import/status/diff/update/rollback/recovery framework, prepared/composed convergence, offline closure и Linux lifecycle пяти exact releases | финальный real-catalog прогон Claude Code, Codex и Grok Build `#175`, `#176`, `#294` |
-| 8 | Sprint-1 API и CLI-клиенты sync/publication/attestation/grants/reports/owner reads против общего контракта и фикстур; server-owned предусловия `#300`, `#302`, `#303` и `#312` закрыты | доказательство против развёрнутой среды `#180`, `#182` на коммите, который эта среда действительно несёт |
+| 7 | install/import/status/diff/update/rollback/recovery framework, prepared/composed convergence, offline closure и Linux lifecycle exact releases; real-catalog прогоны `#175`, `#176`, `#294` закрыты | повтор на семи системах сетапов, когда у них появятся релизы `#408` |
+| 8 | то же плюс доказательство против развёрнутой среды: `evidence-sync` даёт все пять сценариев, `evidence-publication` — читающую половину и две локальные записи, оба повторяемы | три драйвера, которые мутируют развёрнутую среду `#405` |
 | 9 | landing, catalog, login/account/device surface, own objects, publication, grants, reports и admin projection | — |
-| 10 | foundation для развёртывания и восстановления; кодовые барьеры разделения доверия; вредоносный corpus; воспроизводимый неопубликованный Python candidate; локальный launch corpus | protected PyPI Linux install, cross-review, operations, protections и final RC `#185`–`#189` |
-| 11 | пять provider implementations, lifecycle evidence и публичная beta read-model завершены | состав уровней поддержки принадлежит `SPEC-033` `REQ-3315`; `#294` закрывает support state Grok Build, а не его уровень |
+| 10 | то же плюс публикующий workflow с Trusted Publishing, ожидающий настройки на стороне PyPI | настройка PyPI и защищённого окружения `#403`, финальный RC `#408` |
+| 11 | provider implementations, lifecycle evidence и публичная beta read-model завершены; набор расширен до семи по `ADR-0120` | состав уровней принадлежит `SPEC-033` `REQ-3315`; `#294` закрывает support state Grok Build, а не его уровень |
 
 ## Фаза 2. Локальное состояние и CLI — реализована
 

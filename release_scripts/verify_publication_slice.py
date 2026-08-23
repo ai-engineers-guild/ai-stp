@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -41,14 +42,17 @@ READS: tuple[tuple[str, tuple[str, ...]], ...] = (
 
 # Everything that mutates. Named rather than omitted, so the artefact shows what
 # a full run would still need.
+# Everything that mutates the deployed environment. `attestation sign` and
+# `report preview` used to sit here and no longer do: both are local, so gating
+# them treated a signature written to this machine as if it were an immutable
+# published version, and left half the surface unproven for nothing.
 WRITES: tuple[tuple[str, str], ...] = (
     (
         "publication",
         "publication plan/confirm writes an immutable X.Y into the deployed catalogue",
     ),
-    ("attestation", "attestation sign needs an exact check, policy and harness identity to sign"),
     ("grants", "grant invite/direct/revoke changes another person's access to an object"),
-    ("report", "report preview/confirm files a moderation record against a published version"),
+    ("report_confirm", "report confirm files a durable moderation case against a version"),
 )
 
 
@@ -126,6 +130,231 @@ def _owned_detail(home: Path, identities: Sequence[str], *, python: str) -> dict
     }
 
 
+def _first_release(home: Path, identities: Sequence[str], *, python: str) -> tuple[str, str, str]:
+    """One owned released component: its id, exact version and content digest."""
+    for stable_id in identities:
+        envelope = cli(
+            ["owner", "object", "show", "--kind", "component", "--id", stable_id],
+            home=home,
+            python=python,
+            allow_failure=True,
+        )
+        if envelope.get("ok") is not True:
+            continue
+        versions = cast(list[Any], data(envelope, "owner object show").get("versions") or [])
+        for item in versions:
+            if not isinstance(item, dict):
+                continue
+            row = cast(dict[str, Any], item)
+            number, digest = row.get("version"), row.get("content_digest") or row.get("digest")
+            if isinstance(number, str) and isinstance(digest, str):
+                return stable_id, number, digest
+    return "", "", ""
+
+
+#: A component this device released itself. `attestation sign` records evidence
+#: about a local release and refuses a published stable id with "that component
+#: has no such released local version", so the driver seeds its own rather than
+#: signing somebody else's number. Placed inside the home because adoption
+#: records `source_path` through `redact_home`.
+_PROBE = "publication-slice-probe"
+
+
+def _seed_local_release(home: Path, *, python: str) -> tuple[str, str]:
+    """Scaffold, adopt and release one component here, and return id and version."""
+    project = home / "work"
+    scaffold = home / "scaffold" / _PROBE
+    target = project / ".claude" / "skills" / _PROBE
+    scaffold.parent.mkdir(parents=True, exist_ok=True)
+    if scaffold.exists():
+        shutil.rmtree(scaffold)
+    shape = [
+        "--type",
+        "skill",
+        "--language",
+        "none",
+        "--harness",
+        "portable",
+        "--name",
+        _PROBE,
+        "--output",
+        str(scaffold),
+    ]
+    planned = data(
+        cli(["component", "scaffold", "plan", *shape], home=home, python=python),
+        "component scaffold plan",
+    )
+    cli(
+        [
+            "component",
+            "scaffold",
+            "apply",
+            *shape,
+            "--expected-plan-digest",
+            str(planned["plan_digest"]),
+            "--confirm",
+        ],
+        home=home,
+        python=python,
+    )
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if target.exists():
+        shutil.rmtree(target)
+    shutil.copytree(scaffold, target)
+    adopted = data(
+        cli(
+            ["component", "adopt", "--path", str(target), "--root", str(project)],
+            home=home,
+            python=python,
+        ),
+        "component adopt",
+    )
+    stable_id = str(adopted["stable_id"])
+    # `attestation sign` requires a publication-ready passport and names what is
+    # missing: description, license, name, projection_kind and tags. A bare
+    # scaffold has none of them, so the probe declares them before releasing.
+    shown = data(
+        cli(["component", "passport", "show", "--id", stable_id], home=home, python=python),
+        "component passport show",
+    )
+    patch = home / "publication-slice-patch.json"
+    patch.write_text(
+        json.dumps(
+            {
+                "name": "Publication slice probe",
+                "description": "Local probe used to prove attestation signing.",
+                "license": {"spdx_id": "AGPL-3.0-or-later", "redistribution_allowed": True},
+                "projection_kind": "native_files",
+                "tags": ["conformance"],
+            }
+        ),
+        encoding="utf-8",
+    )
+    cli(
+        [
+            "component",
+            "passport",
+            "update",
+            "--id",
+            stable_id,
+            "--expected-revision",
+            str(shown["revision_id"]),
+            "--from",
+            str(patch),
+            "--confirm",
+        ],
+        home=home,
+        python=python,
+    )
+    released = data(
+        cli(
+            ["component", "version", "release", "--id", stable_id, "--confirm"],
+            home=home,
+            python=python,
+        ),
+        "component version release",
+    )
+    numbers = [str(item["version"]) for item in released.get("versions", [])]
+    if not numbers:
+        raise EvidenceError("component version release answered without a version")
+    return stable_id, numbers[-1]
+
+
+def _local_writes(
+    home: Path, identities: Sequence[str], *, python: str
+) -> dict[str, dict[str, Any]]:
+    """The two write commands that change nothing outside this machine.
+
+    `attestation sign` writes an owner-only file with the active device key and
+    `report preview` builds the bounded payload without sending it — neither
+    reaches the deployed catalogue. Leaving them behind `--allow-writes` with
+    the irreversible three treated a local signature as if it were an immutable
+    published version, and left the whole half unproven for no gain.
+    """
+    stable_id, version, digest = _first_release(home, identities, python=python)
+    if not stable_id:
+        reason = "the account owns no released component version to sign or report against"
+        return {
+            "attestation": {"state": "not_verified", "reason": reason},
+            "report_preview": {"state": "not_verified", "reason": reason},
+        }
+
+    local_id, local_version = _seed_local_release(home, python=python)
+    # `attestation sign` refuses to replace an existing output — "the attestation
+    # output already exists and will not be replaced" — and it is right to: an
+    # attestation is evidence, and silently overwriting one is how evidence
+    # stops meaning anything. So the run removes its own previous artefact
+    # rather than asking the command to be less careful. A slice that passes
+    # once and fails on the next run is not evidence either.
+    signed = home / "attestation-evidence.json"
+    signed.unlink(missing_ok=True)
+    attestation = cli(
+        [
+            "attestation",
+            "sign",
+            "--id",
+            local_id,
+            "--version",
+            local_version,
+            "--check-id",
+            "publication-slice",
+            "--policy-version",
+            "1.0",
+            "--harness-id",
+            "claude-code",
+            "--harness-version",
+            "0.0.0",
+            "--provider-version",
+            "0.0.0",
+            "--test-case-id",
+            "publication-slice-read",
+            "--result",
+            "passed",
+            "--output",
+            str(signed),
+            "--confirm",
+        ],
+        home=home,
+        python=python,
+        allow_failure=True,
+    )
+    previewed = cli(
+        [
+            "report",
+            "preview",
+            "--kind",
+            "component",
+            "--id",
+            stable_id,
+            "--version",
+            version,
+            "--content-digest",
+            digest,
+            "--idempotency-key",
+            "publication-slice-preview-0001",
+        ],
+        home=home,
+        python=python,
+        allow_failure=True,
+    )
+    return {
+        "attestation": {
+            "state": "verified" if attestation.get("ok") is True else "failed",
+            "stable_id": local_id,
+            "version": local_version,
+            "error_code": error_code(attestation),
+            "note": "signs locally with the active device key and sends nothing",
+        },
+        "report_preview": {
+            "state": "verified" if previewed.get("ok") is True else "failed",
+            "stable_id": stable_id,
+            "version": version,
+            "error_code": error_code(previewed),
+            "note": "builds the exact bounded payload without filing a case",
+        },
+    }
+
+
 def verify_publication_slice(
     origin: str,
     home: Path,
@@ -138,6 +367,11 @@ def verify_publication_slice(
     state = _auth_state(home, python=python)
 
     scenarios: dict[str, Any] = {}
+    # Bound before the branch, not inside it. It used to be assigned only in the
+    # `else`, and read later under a separately written `state == "authenticated"`
+    # guard — safe only for as long as two conditions nobody has to keep together
+    # stay complementary.
+    owned: list[str] = []
     if state != "authenticated":
         reason = f"the home reports auth state {state!r}"
         commands = [
@@ -152,13 +386,15 @@ def verify_publication_slice(
             "commands": commands,
         }
     else:
-        owned: list[str] = []
         for name, arguments in READS:
             result = _read(name, arguments, home, python=python)
             if name == "owner_objects":
                 owned = cast(list[str], result.get("identities") or [])
             scenarios[name] = result
         scenarios["owner_object_show"] = _owned_detail(home, owned, python=python)
+
+    if state == "authenticated":
+        scenarios.update(_local_writes(home, owned, python=python))
 
     for name, reason in WRITES:
         scenarios[name] = {

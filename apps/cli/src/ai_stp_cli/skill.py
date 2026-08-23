@@ -26,10 +26,11 @@ from typing import Final, cast
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.paths import redact_home, write_private
+from ai_stp_foundation.harnesses import HARNESS_ID_ORDER
 
 #: Harnesses with a generated native projection, in the order they are declared.
 #: Anything else is not a supported target rather than a target that might work.
-HARNESSES: Final[tuple[str, ...]] = ("claude-code", "codex", "pi", "opencode", "grok-build")
+HARNESSES: Final[tuple[str, ...]] = HARNESS_ID_ORDER
 
 #: The record naming what this CLI put here. Kept beside the file rather than in
 #: the local registry: a target directory can be removed, copied or restored

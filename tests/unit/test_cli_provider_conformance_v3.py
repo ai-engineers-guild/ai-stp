@@ -113,6 +113,16 @@ def _conforming(target: Path) -> tuple[conformance.Invoker, list[str]]:
                 else {**bound, "valid": True}
             )
         if command == "plan-operation":
+            # A conforming provider refuses an operation it never declared, and
+            # says which class of refusal it is. Planning it anyway would be the
+            # defect the case exists to find.
+            asked = supplied["--operation"]
+            if asked not in {item.value for item in protocol_v3.CORE_OPERATIONS}:
+                return {
+                    **bound,
+                    "rejected": True,
+                    "reason": protocol_v3.UnsupportedReason.OPERATION.value,
+                }
             artifact: dict[str, JsonValue] = {
                 "format": "ai-stp-provider-plan/3",
                 "protocol_version": protocol_v3.VERSION,
@@ -613,3 +623,43 @@ def test_v3_restore_status_accepts_exact_backup_identity_without_managed_drift(
             bundle=bound,
             operation=protocol_v3.Operation.INSTALL,
         )
+
+
+def test_an_empty_target_says_what_it_did_not_exercise(tmp_path: Path) -> None:
+    """A conforming report from an empty directory is a narrower claim.
+
+    Two defect classes only appear against material already in the home: a
+    provider that mishandles what is there, and one that refuses a symbolic
+    link outside every namespace it declared. Both were found on live homes by
+    an implementation that passed every other case here, so a run that cannot
+    reach them has to say so rather than report the same `conforms` as a run
+    that could.
+    """
+    empty = tmp_path / "empty-target"
+    empty.mkdir()
+    invoke, _calls = _conforming(empty)
+
+    report = conformance_v3.run(invoke, harness_id="claude-code", target=empty)
+
+    case = next(item for item in report.cases if item.name == "target_was_populated")
+    assert case.passed, case.detail
+    assert "target was empty" in case.detail
+    # It narrows the claim; it does not fail the provider for the operator's
+    # choice of directory.
+    assert report.conforms
+
+
+def test_a_populated_target_requires_status_to_notice(tmp_path: Path) -> None:
+    """Existing material must move status off `missing`, or the read is wrong."""
+    populated = tmp_path / "populated-target"
+    populated.mkdir()
+    (populated / "CLAUDE.md").write_text("# already here\n", encoding="utf-8")
+    invoke, _calls = _conforming(populated)
+
+    report = conformance_v3.run(invoke, harness_id="claude-code", target=populated)
+
+    case = next(item for item in report.cases if item.name == "target_was_populated")
+    # The stub reports `missing` unconditionally, which is exactly the answer a
+    # provider must not give for a target that holds something.
+    assert not case.passed, case.detail
+    assert "still reported" in case.detail

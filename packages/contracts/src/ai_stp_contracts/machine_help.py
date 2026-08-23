@@ -981,7 +981,7 @@ class ComponentTemplateView(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
     schema_version: Literal[1] = 1
-    harness_id: Literal["claude-code", "codex", "pi", "opencode", "grok-build"]
+    harness_id: HarnessId
     component_name: Annotated[str, Field(min_length=1)]
     component_root: Annotated[str, Field(min_length=1)]
     source_digest: Annotated[str, Field(pattern=r"^sha256:[0-9a-f]{64}$")]
@@ -2249,7 +2249,7 @@ class HarnessCapabilityRow(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
     schema_version: Literal[1] = 1
-    harness_id: Literal["claude-code", "codex", "pi", "opencode", "grok-build", "undefined"]
+    harness_id: HarnessId | Literal["undefined"]
     title: Annotated[str, Field(min_length=1)]
     support: Literal["primary", "beta", "portable"]
     component_types: list[

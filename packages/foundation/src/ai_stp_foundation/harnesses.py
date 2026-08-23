@@ -7,12 +7,26 @@ REQ-1109). Expanding the enum requires a new ADR and a schema version.
 
 from typing import Final, Literal, get_args
 
-type HarnessId = Literal["claude-code", "codex", "pi", "opencode", "grok-build"]
+type HarnessId = Literal[
+    "claude-code",
+    "codex",
+    "pi",
+    "opencode",
+    "grok-build",
+    "cursor",
+    "antigravity",
+]
 
 #: Derived from ``HarnessId`` rather than restated. A second literal list would
 #: agree today and drift the first time the enum changes, and this set is what
 #: ``capabilities`` publishes to every agent.
 HARNESS_IDS: Final[frozenset[HarnessId]] = frozenset(get_args(HarnessId.__value__))
+
+#: The same set in declaration order, for the places that need a stable sequence
+#: — option choices, generated tables and documentation. Restating either of
+#: these as a literal is how a second copy of the set gets written, and a copy
+#: agrees with the enum exactly until somebody changes the enum.
+HARNESS_ID_ORDER: Final[tuple[HarnessId, ...]] = tuple(get_args(HarnessId.__value__))
 
 UNDEFINED_HARNESS: Final[str] = "undefined"
 
@@ -37,6 +51,8 @@ SUPPORT_TIERS: Final[dict[HarnessId, SupportTier]] = {
     "grok-build": "primary",
     "pi": "beta",
     "opencode": "beta",
+    "cursor": "beta",
+    "antigravity": "beta",
 }
 
 

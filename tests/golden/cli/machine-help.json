@@ -675,7 +675,9 @@
             "codex",
             "pi",
             "opencode",
-            "grok-build"
+            "grok-build",
+            "cursor",
+            "antigravity"
           ]
         },
         {
@@ -780,7 +782,9 @@
             "codex",
             "pi",
             "opencode",
-            "grok-build"
+            "grok-build",
+            "cursor",
+            "antigravity"
           ]
         },
         {
@@ -1039,7 +1043,9 @@
             "codex",
             "pi",
             "opencode",
-            "grok-build"
+            "grok-build",
+            "cursor",
+            "antigravity"
           ]
         },
         {
@@ -2101,8 +2107,10 @@
           "repeatable": false,
           "summary": "The harness of the pair, when no proposal or setup names it.",
           "choices": [
+            "antigravity",
             "claude-code",
             "codex",
+            "cursor",
             "grok-build",
             "opencode",
             "pi"
@@ -4433,8 +4441,10 @@
           "repeatable": false,
           "summary": "The harness of the pair.",
           "choices": [
+            "antigravity",
             "claude-code",
             "codex",
+            "cursor",
             "grok-build",
             "opencode",
             "pi"
@@ -4473,8 +4483,10 @@
           "repeatable": false,
           "summary": "The harness of the pair.",
           "choices": [
+            "antigravity",
             "claude-code",
             "codex",
+            "cursor",
             "grok-build",
             "opencode",
             "pi"
@@ -4558,8 +4570,10 @@
           "repeatable": false,
           "summary": "The harness of the pair.",
           "choices": [
+            "antigravity",
             "claude-code",
             "codex",
+            "cursor",
             "grok-build",
             "opencode",
             "pi"
@@ -4599,8 +4613,10 @@
           "repeatable": false,
           "summary": "The harness of the pair.",
           "choices": [
+            "antigravity",
             "claude-code",
             "codex",
+            "cursor",
             "grok-build",
             "opencode",
             "pi"

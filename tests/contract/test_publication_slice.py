@@ -23,10 +23,11 @@ def test_a_write_scenario_never_decides_the_exit_code() -> None:
             "grant_list": {"state": "verified"},
             "report_list": {"state": "verified"},
             "owner_object_show": {"state": "verified"},
+            "attestation": {"state": "verified"},
+            "report_preview": {"state": "verified"},
             "publication": {"state": "not_verified", "reason": "immutable"},
-            "attestation": {"state": "not_verified", "reason": "needs an identity"},
             "grants": {"state": "not_verified", "reason": "another person's access"},
-            "report": {"state": "not_verified", "reason": "moderation record"},
+            "report_confirm": {"state": "not_verified", "reason": "moderation record"},
         }
     }
     assert verify_publication_slice.refused(read_only) is False
@@ -97,3 +98,28 @@ def test_a_read_reports_identities_and_counts_rather_than_content(
         "identities": ["component_01", "component_02"],
     }
     assert "source" not in json.dumps(result)
+
+
+def test_a_local_write_that_failed_does_decide_the_exit_code() -> None:
+    """`attestation sign` and `report preview` change nothing outside the machine.
+
+    They are driven rather than gated, so unlike the three that mutate the
+    deployed catalogue they are not `not_verified` by design — and a failure in
+    one is a failure of the run. Treating them as write scenarios would hide a
+    broken local signature behind a green exit code, which is the whole reason
+    they moved out of the gated set.
+    """
+    signed_badly = {
+        "scenarios": {
+            "owner_objects": {"state": "verified"},
+            "grant_list": {"state": "verified"},
+            "report_list": {"state": "verified"},
+            "owner_object_show": {"state": "verified"},
+            "attestation": {"state": "failed", "error_code": "AI_STP_VALIDATION_ERROR"},
+            "report_preview": {"state": "verified"},
+            "publication": {"state": "not_verified", "reason": "immutable"},
+            "grants": {"state": "not_verified", "reason": "another person's access"},
+            "report_confirm": {"state": "not_verified", "reason": "moderation record"},
+        }
+    }
+    assert verify_publication_slice.refused(signed_badly) is True
