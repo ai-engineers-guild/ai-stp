@@ -36,7 +36,7 @@ export default async function DeviceLoginPage({ params, searchParams }: PageProp
     return (
       <div className="mx-auto max-w-md space-y-4">
         <h1 className="text-3xl font-medium tracking-tight">{t("title")}</h1>
-        <StatePanel kind="empty" title={t("approved")} description={t("approvedHint")} />
+        <StatePanel kind="success" title={t("approved")} description={t("approvedHint")} />
       </div>
     );
   }

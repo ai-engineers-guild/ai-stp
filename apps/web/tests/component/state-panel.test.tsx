@@ -51,4 +51,18 @@ describe("StatePanel", () => {
 
     expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
   });
+
+  // The device-approval page labelled its success card `empty`, so a person who
+  // had just approved a device read "EMPTY" above "Device approved". The kind
+  // is rendered verbatim as the card's eyebrow, so a state the product wants to
+  // show needs its own kind rather than the nearest spare one.
+  it("labels a success as success, announced as status", () => {
+    render(<StatePanel kind="success" title="Device approved" description="Return to the CLI" />);
+
+    const panel = screen.getByRole("status");
+    expect(panel).toHaveAttribute("data-kind", "success");
+    expect(screen.getByText("success")).toBeInTheDocument();
+    expect(screen.queryByText("empty")).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
 });
