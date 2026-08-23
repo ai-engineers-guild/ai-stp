@@ -8,12 +8,13 @@ from typing import Annotated, Final, Literal, Self
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ai_stp_foundation.digests import DIGEST_PATTERN
+from ai_stp_foundation.harnesses import HarnessId
 from ai_stp_passports.versions import ComponentType
 
 AuthoringLanguage = Literal[
     "none", "python", "typescript", "javascript", "rust", "go", "dart-flutter"
 ]
-AuthoringVariant = Literal["portable", "claude-code", "codex", "pi", "opencode", "grok-build"]
+AuthoringVariant = Literal["portable"] | HarnessId
 AUTHORING_LANGUAGES: Final[tuple[AuthoringLanguage, ...]] = (
     "none",
     "python",

@@ -11,6 +11,8 @@ def test_catalog_is_closed_complete_and_has_no_duplicate_layouts() -> None:
         "pi",
         "opencode",
         "grok-build",
+        "cursor",
+        "antigravity",
         "undefined",
     )
     for definition in harness_catalog.DEFINITIONS:
@@ -28,8 +30,23 @@ def test_detection_and_discovery_are_derived_from_the_catalog() -> None:
     assert [item.harness_id for item in harnesses.DETECTORS] == [
         item.harness_id for item in harness_catalog.DEFINITIONS if item.executable
     ]
-    assert set(components.GLOBAL_RULES) == set(components._MIGRATION_GLOBAL_ORACLE)  # pyright: ignore[reportPrivateUsage]
-    assert set(components.PROJECT_RULES) == set(components._MIGRATION_PROJECT_ORACLE)  # pyright: ignore[reportPrivateUsage]
+    # The oracles are migration artefacts: they hold the hand-written rules the
+    # generated ones replaced, and they prove generation reproduced them. They
+    # say nothing about a harness added after the migration, so the comparison
+    # is scoped to the harnesses each oracle actually covers — widening the
+    # oracle instead would turn a record of what was into a second place to
+    # declare what is.
+    global_oracle = components._MIGRATION_GLOBAL_ORACLE  # pyright: ignore[reportPrivateUsage]
+    project_oracle = components._MIGRATION_PROJECT_ORACLE  # pyright: ignore[reportPrivateUsage]
+    migrated = {rule.harness_id for rule in global_oracle} | {
+        rule.harness_id for rule in project_oracle
+    }
+    assert {rule for rule in components.GLOBAL_RULES if rule.harness_id in migrated} == set(
+        global_oracle
+    )
+    assert {rule for rule in components.PROJECT_RULES if rule.harness_id in migrated} == set(
+        project_oracle
+    )
 
 
 def test_machine_table_exposes_support_layouts_capabilities_and_gaps() -> None:
@@ -47,11 +64,21 @@ def test_machine_table_exposes_support_layouts_capabilities_and_gaps() -> None:
 def test_every_harness_either_declares_client_mcp_or_states_a_verified_gap() -> None:
     """A missing layout is reported, not left as silence.
 
-    Four harnesses declare where their client servers live. Pi does not: the
-    `mcp.json` files under its root are written by a community extension rather
-    than by Pi, they disagree on the key, and its documentation index carries no
-    MCP page to declare one from. Inventing a layout would be the guess the
-    discovery contract forbids, so the table says so instead (`#377`).
+    Five harnesses declare where their client servers live. Two do not, for
+    different reasons, and the difference is why the gap is named rather than
+    counted.
+
+    Pi has no documented location at all: the `mcp.json` files under its root
+    are written by a community extension rather than by Pi, they disagree on
+    the key, and its documentation index carries no MCP page to declare one
+    from (`#377`).
+
+    Cursor has MCP, but not as a global file: `mcpServers` is a key inside a
+    plugin manifest, so what a provider installs is the plugin. Declaring a
+    global layout for it would state a location the product does not have.
+
+    Inventing a layout in either case would be the guess the discovery contract
+    forbids, so the table says so instead.
     """
     rows = {row.harness_id: row for row in toolchain.harness_capabilities({}).payload.harnesses}
     declaring = {
@@ -61,6 +88,7 @@ def test_every_harness_either_declares_client_mcp_or_states_a_verified_gap() -> 
         if layout.component_type == "mcp"
     }
 
-    assert declaring == {"claude-code", "codex", "opencode", "grok-build"}
+    assert declaring == {"claude-code", "codex", "opencode", "grok-build", "antigravity"}
     assert "no_documented_mcp_client_config" in rows["pi"].gaps
+    assert "components_are_plugin_declared" in rows["cursor"].gaps
     assert all("no_documented_mcp_client_config" not in rows[harness].gaps for harness in declaring)

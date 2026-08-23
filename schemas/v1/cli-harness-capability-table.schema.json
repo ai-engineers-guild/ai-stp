@@ -36,16 +36,16 @@
           "type": "array"
         },
         "harness_id": {
-          "enum": [
-            "claude-code",
-            "codex",
-            "pi",
-            "opencode",
-            "grok-build",
-            "undefined"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HarnessId"
+            },
+            {
+              "const": "undefined",
+              "type": "string"
+            }
           ],
-          "title": "Harness Id",
-          "type": "string"
+          "title": "Harness Id"
         },
         "layout_sources": {
           "items": {
@@ -102,6 +102,18 @@
       ],
       "title": "HarnessCapabilityRow",
       "type": "object"
+    },
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build",
+        "cursor",
+        "antigravity"
+      ],
+      "type": "string"
     }
   },
   "$id": "urn:ai-stp:schema:v1:cli-harness-capability-table",

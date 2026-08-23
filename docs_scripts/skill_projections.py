@@ -1,4 +1,4 @@
-"""Generate the five native projections of the canonical Agent Skill.
+"""Generate one native projection of the canonical Agent Skill per harness.
 
 `docs/agent/harness-projections.md`: one canonical procedure is not copied by
 hand. So each projection is a thin native wrapper that points at the canonical
@@ -47,6 +47,13 @@ TARGETS: Final[tuple[Projection, ...]] = (
     Projection("pi", "pi", "SKILL.md", "Package, resources, Skill и локальные settings target"),
     Projection("opencode", "opencode", "SKILL.md", "Native Skill, plugin, agent и command"),
     Projection("grok-build", "grok-build", "SKILL.md", "Native marketplace, plugin и Skill"),
+    Projection("cursor", "cursor", "SKILL.md", "Plugin с манифестом `.cursor-plugin/plugin.json`"),
+    Projection(
+        "antigravity",
+        "antigravity",
+        "SKILL.md",
+        "Skill и agent в общем доме Gemini, плагин в `antigravity-cli`",
+    ),
 )
 
 

@@ -1,4 +1,18 @@
 {
+  "$defs": {
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build",
+        "cursor",
+        "antigravity"
+      ],
+      "type": "string"
+    }
+  },
   "$id": "urn:ai-stp:schema:v1:cli-component-template",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
@@ -20,15 +34,7 @@
       "type": "string"
     },
     "harness_id": {
-      "enum": [
-        "claude-code",
-        "codex",
-        "pi",
-        "opencode",
-        "grok-build"
-      ],
-      "title": "Harness Id",
-      "type": "string"
+      "$ref": "#/$defs/HarnessId"
     },
     "placeholders": {
       "items": {

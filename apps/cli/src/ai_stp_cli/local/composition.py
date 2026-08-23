@@ -91,6 +91,21 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     Rule("agent", "agents", "directory", "opencode"),
     Rule("plugin", "plugins", "directory", "opencode", projection_kind="plugin"),
     Rule("setting", "opencode.json", "file", "opencode"),
+    # Cursor installs a plugin rather than sibling directories: its manifest
+    # declares commands, hooks, MCP entries, agents, skills and rules as paths
+    # inside the plugin, so the plugin is what a provider writes.
+    Rule("instruction", "AGENTS.md", "file", "cursor"),
+    Rule("setting", "cli-config.json", "file", "cursor"),
+    Rule("plugin", "plugins", "directory", "cursor", projection_kind="plugin"),
+    # Antigravity's home belongs to Gemini: `antigravity-cli/` is its own and
+    # `config/` is shared, so both prefixes are part of the relative path rather
+    # than something a target adds.
+    Rule("setting", "antigravity-cli/settings.json", "file", "antigravity"),
+    Rule("plugin", "antigravity-cli/plugins", "directory", "antigravity", projection_kind="plugin"),
+    Rule("skill", "config/skills", "directory", "antigravity"),
+    Rule("agent", "config/agents", "directory", "antigravity"),
+    Rule("hook", "config/hooks.json", "file", "antigravity"),
+    Rule("mcp", "config/mcp_config.json", "file", "antigravity"),
     Rule("instruction", "AGENTS.md", "file", "grok-build"),
     Rule("skill", "skills", "directory", "grok-build"),
     Rule("mcp", ".mcp.json", "file", "grok-build"),

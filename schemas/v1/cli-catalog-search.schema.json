@@ -382,7 +382,9 @@
         "codex",
         "pi",
         "opencode",
-        "grok-build"
+        "grok-build",
+        "cursor",
+        "antigravity"
       ],
       "type": "string"
     },

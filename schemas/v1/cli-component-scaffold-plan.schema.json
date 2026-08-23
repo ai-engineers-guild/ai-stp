@@ -53,16 +53,16 @@
           "type": "string"
         },
         "harness_variant": {
-          "enum": [
-            "portable",
-            "claude-code",
-            "codex",
-            "pi",
-            "opencode",
-            "grok-build"
+          "anyOf": [
+            {
+              "const": "portable",
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/HarnessId"
+            }
           ],
-          "title": "Harness Variant",
-          "type": "string"
+          "title": "Harness Variant"
         },
         "language": {
           "enum": [
@@ -109,6 +109,18 @@
         "agent",
         "plugin",
         "setting"
+      ],
+      "type": "string"
+    },
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build",
+        "cursor",
+        "antigravity"
       ],
       "type": "string"
     }

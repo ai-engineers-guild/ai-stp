@@ -111,6 +111,8 @@ CODEX = "learn.chatgpt.com/docs"
 PI = "pi.dev/docs/latest"
 OPENCODE = "opencode.ai/docs"
 GROK = "docs.x.ai/build"
+CURSOR = "cursor.com/docs"
+ANTIGRAVITY = "antigravity.google/docs"
 
 DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
     HarnessDefinition(
@@ -338,6 +340,68 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
         frozenset({"native_files"}),
         gaps=("marketplace_provenance_not_public",),
         root_override="GROK_HOME",
+    ),
+    HarnessDefinition(
+        "cursor",
+        "Cursor CLI",
+        "cursor-agent",
+        ("--version",),
+        ".cursor",
+        f"{CURSOR}/cli/reference/configuration",
+        (
+            _layout("instruction", "AGENTS.md", "file", f"{CURSOR}/rules", G),
+            _layout(
+                "setting", "cli-config.json", "file", f"{CURSOR}/cli/reference/configuration", G
+            ),
+            # Cursor carries components inside a plugin rather than in sibling
+            # directories: `.cursor-plugin/plugin.json` declares `commands`,
+            # `hooks`, `mcpServers`, `agents`, `skills` and `rules` as relative
+            # paths, so the plugin is the unit this harness installs.
+            _layout("plugin", "plugins", "directory", f"{CURSOR}/reference/plugins", G),
+            _layout("instruction", ".cursor/rules", "directory", f"{CURSOR}/rules", P),
+            _layout("plugin", ".cursor/plugins", "directory", f"{CURSOR}/reference/plugins", P),
+        ),
+        frozenset({"native_files", "plugin_manifest"}),
+        # Skills, agents, commands, hooks and MCP entries are declared by a
+        # plugin manifest rather than discovered as free-standing global
+        # directories, so there is no global layout to state for them.
+        gaps=("components_are_plugin_declared",),
+        root_override="CURSOR_CONFIG_DIR",
+    ),
+    HarnessDefinition(
+        "antigravity",
+        "Antigravity CLI",
+        "agy",
+        ("--version",),
+        # The home is not the product's own: Antigravity keeps its configuration
+        # inside Gemini's, split between `antigravity-cli/` for what is its own
+        # and `config/` for surfaces shared with Gemini CLI.
+        ".gemini",
+        f"{ANTIGRAVITY}/configuration",
+        (
+            _layout(
+                "setting", "antigravity-cli/settings.json", "file", f"{ANTIGRAVITY}/settings", G
+            ),
+            _layout(
+                "setting", "antigravity-cli/keybindings.json", "file", f"{ANTIGRAVITY}/settings", G
+            ),
+            _layout("plugin", "antigravity-cli/plugins", "directory", f"{ANTIGRAVITY}/plugins", G),
+            _layout("plugin", "config/plugins", "directory", f"{ANTIGRAVITY}/plugins", G),
+            _layout("skill", "config/skills", "directory", f"{ANTIGRAVITY}/skills", G),
+            _layout("agent", "config/agents", "directory", f"{ANTIGRAVITY}/agents", G),
+            _layout("hook", "config/hooks.json", "file", f"{ANTIGRAVITY}/hooks", G),
+            _layout("mcp", "config/mcp_config.json", "file", f"{ANTIGRAVITY}/mcp", G),
+            _layout("plugin", ".agents/plugins", "directory", f"{ANTIGRAVITY}/plugins", P),
+            _layout("skill", ".agents/skills", "directory", f"{ANTIGRAVITY}/skills", P),
+            _layout("agent", ".agents/agents", "directory", f"{ANTIGRAVITY}/agents", P),
+            _layout("hook", ".agents/hooks.json", "file", f"{ANTIGRAVITY}/hooks", P),
+            _layout("mcp", ".agents/mcp_config.json", "file", f"{ANTIGRAVITY}/mcp", P),
+        ),
+        frozenset({"native_files", "plugin_manifest"}),
+        # The product documents instructions and commands only per project, in
+        # `.agents/`, so there is nothing global to declare for either. There is
+        # also no documented variable that moves the home.
+        gaps=("no_global_instruction", "no_global_command", "no_documented_root_override"),
     ),
     HarnessDefinition(
         "undefined",

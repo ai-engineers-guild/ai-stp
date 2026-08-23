@@ -23,6 +23,8 @@ EXPECTED: dict[str, str] = {
     "grok-build": "primary",
     "pi": "beta",
     "opencode": "beta",
+    "cursor": "beta",
+    "antigravity": "beta",
 }
 
 
