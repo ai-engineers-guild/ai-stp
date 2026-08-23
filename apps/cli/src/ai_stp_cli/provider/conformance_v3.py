@@ -82,6 +82,7 @@ def run(
             else "status is not a stable exact v3 target observation",
         )
     )
+    cases.append(_populated_target(target, state))
     if route is None or not status_valid:
         return conformance.Report(
             harness_id=capabilities.harness_id,
@@ -183,6 +184,43 @@ def run(
 DRIVEN_CAPABILITY_REJECTIONS: Final[frozenset[str]] = frozenset(
     {protocol_v3.UnsupportedReason.OPERATION.value}
 )
+
+
+def _populated_target(target: Path, state: str) -> conformance.Case:
+    """What an empty target cannot tell you about a provider.
+
+    The run is given a disposable target and never writes to it, so whatever the
+    operator points at is what gets exercised. Pointed at an empty directory —
+    which is the convenient thing to do — two classes of defect are invisible by
+    construction: a provider that mishandles material already in the home, and
+    a provider that refuses a symbolic link sitting outside every namespace it
+    declared. Both were found on live homes by a provider implementation that
+    passed every case here.
+
+    So the run says which it got. A provider reported as conforming against an
+    empty directory has not been shown to survive a real installation, and that
+    sentence is worth more than a silently narrower run.
+    """
+    try:
+        entries = sorted(item.name for item in target.iterdir())
+    except OSError as error:  # pragma: no cover - the caller already checked it
+        return conformance.Case("target_was_populated", False, str(error))
+    if not entries:
+        return conformance.Case(
+            "target_was_populated",
+            True,
+            "target was empty, so nothing here exercises a provider against "
+            "existing material; point at a disposable copy of a real home to cover that",
+        )
+    unmanaged = state in {"unmanaged", "managed"}
+    return conformance.Case(
+        "target_was_populated",
+        unmanaged,
+        f"target held {len(entries)} entr{'y' if len(entries) == 1 else 'ies'} "
+        f"and status reported {state!r}"
+        if unmanaged
+        else f"target was not empty and status still reported {state!r}",
+    )
 
 
 def _undeclared_operation(
