@@ -29,7 +29,7 @@ env:
   PYTHON_VERSION: "3.14"
   NODE_VERSION: "24"
   UV_VERSION: "0.12.1"
-  BUN_VERSION: "1.3.14"
+  BUN_VERSION: "1.4.0"
 
 jobs:
   docs:

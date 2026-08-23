@@ -137,13 +137,16 @@ def test_both_managers_are_installed_from_a_pinned_verified_archive() -> None:
 def test_every_bun_lockfile_is_readable_by_the_pinned_bun() -> None:
     """A lockfile written by a newer bun is unreadable by the pinned one.
 
-    Found the hard way: this machine had bun 1.4.0 while the gate pins 1.3.14,
-    so a plain `bun install` rewrote `docs_scripts/bun.lock` at
+    Found the hard way: this machine had bun 1.4.0 while the gate pinned
+    1.3.14, so a plain `bun install` rewrote `docs_scripts/bun.lock` at
     `lockfileVersion: 2` and the docs job died with `Unknown lockfile version`
     before running a single check.
 
     Asserted on the artefact rather than on the developer's installed bun,
-    which would break a working machine over a file that is fine.
+    which would break a working machine over a file that is fine. The pair
+    moves together: raising `BUN_VERSION` means regenerating both lockfiles
+    with the bun being pinned, and this is what refuses to let one happen
+    without the other.
     """
     workflow = ROOT / "release_scripts" / "public_overlay" / ".github" / "workflows" / "check.yml"
     if not workflow.is_file():
@@ -151,9 +154,10 @@ def test_every_bun_lockfile_is_readable_by_the_pinned_bun() -> None:
     pinned = re.search(r'BUN_VERSION:\s*"([0-9][^"]*)"', workflow.read_text(encoding="utf-8"))
     assert pinned, "the gate no longer pins a bun version"
 
-    #: bun 1.3.x reads version 1. Raise this together with `BUN_VERSION`, after
-    #: regenerating both lockfiles with the bun that is being pinned.
-    readable = 1
+    #: What the pinned bun writes and reads: 1.3.x wrote 1, 1.4 writes 2 and
+    #: refuses to read nothing. Raise this together with `BUN_VERSION`, after
+    #: regenerating every lockfile with the bun being pinned.
+    readable = 2
     lockfiles = sorted(ROOT.glob("*/bun.lock")) + sorted(ROOT.glob("*/*/bun.lock"))
     lockfiles = [path for path in lockfiles if "node_modules" not in path.parts]
     assert lockfiles, "no bun lockfile found"
