@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator, Callable
-from typing import Any
+from typing import Any, cast
 
 import pytest
 import pytest_asyncio
@@ -748,3 +748,108 @@ async def test_a_tombstoned_developer_identity_can_be_replaced(
         },
     )
     assert replaced.json()["receipts"][0]["state"] == "accepted", replaced.text
+
+
+@pytest.mark.asyncio
+async def test_an_accepted_merge_delivers_the_parent_a_conflict_kept_out_of_the_stream(
+    harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], Settings],
+) -> None:
+    """The outbox has to be self-contained, or a fresh device can never catch up.
+
+    A refused push still stores its revision — the server needs it to describe
+    the conflict — but does not enqueue it. When the device then merges locally
+    and pushes the merge, the merge is accepted and enqueued with a parent that
+    is in `sync_revision` and in no outbox row. Every device that did not
+    already hold that parent then refuses the whole page, correctly, with `a
+    parent revision is not in the local registry`, and the account is wedged
+    for good: the stream can never be applied and the cursor can never move.
+
+    Observed on the deployed environment, where it left an account whose only
+    entity could not be pulled by a clean install.
+    """
+    client, sessionmaker, _ = harness
+    account_id, device_id, token = await _seed_device_session(sessionmaker)
+    headers = {"Authorization": f"Bearer {token}"}
+    entity_id = new_id("component")
+
+    root = _build_event(
+        account_id=account_id,
+        device_id=device_id,
+        entity_id=entity_id,
+        entity_kind="component_private",
+        event_id="event-merge-parent-01",
+        idempotency_key="idem-mergeparent0001",
+    )
+    accepted = await client.post(
+        "/v1/sync/push", headers=headers, json={"schema_version": 1, "events": [root]}
+    )
+    assert accepted.json()["receipts"][0]["state"] == "accepted", accepted.text
+
+    kept = _build_event(
+        account_id=account_id,
+        device_id=device_id,
+        entity_id=entity_id,
+        entity_kind="component_private",
+        parents=[root["revision_id"]],
+        expected_head=root["revision_id"],
+        payload={"preference": "kept"},
+        event_id="event-merge-side-a-01",
+        idempotency_key="idem-mergesidea00001",
+    )
+    side = await client.post(
+        "/v1/sync/push", headers=headers, json={"schema_version": 1, "events": [kept]}
+    )
+    assert side.json()["receipts"][0]["state"] == "accepted", side.text
+
+    # Same parent, stale expectation: stored for the conflict report, never sent.
+    refused = _build_event(
+        account_id=account_id,
+        device_id=device_id,
+        entity_id=entity_id,
+        entity_kind="component_private",
+        parents=[root["revision_id"]],
+        expected_head=root["revision_id"],
+        payload={"preference": "refused"},
+        event_id="event-merge-side-b-01",
+        idempotency_key="idem-mergesideb00001",
+    )
+    conflicted = await client.post(
+        "/v1/sync/push", headers=headers, json={"schema_version": 1, "events": [refused]}
+    )
+    assert conflicted.json()["receipts"][0]["state"] == "conflict", conflicted.text
+
+    merge = _build_event(
+        account_id=account_id,
+        device_id=device_id,
+        entity_id=entity_id,
+        entity_kind="component_private",
+        parents=[kept["revision_id"], refused["revision_id"]],
+        expected_head=kept["revision_id"],
+        payload={"preference": "merged"},
+        event_id="event-merge-commit-01",
+        idempotency_key="idem-mergecommit00001",
+    )
+    merged = await client.post(
+        "/v1/sync/push", headers=headers, json={"schema_version": 1, "events": [merge]}
+    )
+    assert merged.json()["receipts"][0]["state"] == "accepted", merged.text
+
+    async with sessionmaker() as db:
+        rows = (
+            await db.execute(
+                select(SyncOutbox.revision_id, SyncOutbox.parent_revision_ids)
+                .where(SyncOutbox.account_id == account_id)
+                .order_by(SyncOutbox.sequence)
+            )
+        ).all()
+    delivered = [str(revision_id) for revision_id, _parents in rows]
+    named: set[str] = set()
+    for _revision_id, parents in rows:
+        for parent in cast(list[str], parents or []):
+            named.add(str(parent))
+    missing = sorted(name for name in named if name not in delivered)
+    assert not missing, (
+        f"the stream references {missing}, which it never delivers; a device that "
+        f"does not already hold them can never apply this account's page. Delivered: "
+        f"{delivered}"
+    )

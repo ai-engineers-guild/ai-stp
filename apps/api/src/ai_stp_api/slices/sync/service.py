@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Final
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -140,6 +141,62 @@ async def _find_common_ancestor(
                     next_right.append(parent)
         right_frontier = next_right
     return None
+
+
+#: A conflict stores its revision without delivering it, and an accepted merge
+#: can name that revision as a parent. Walking more than this many links up
+#: means something other than an ordinary merge, and paging the whole history
+#: into one push is not the repair.
+MAX_UNDELIVERED_ANCESTORS: Final[int] = 64
+
+
+async def _undelivered_ancestors(
+    db: AsyncSession, *, account_id: str, parents: Sequence[str]
+) -> list[SyncRevision]:
+    """Revisions this account holds but has never put in its stream, parents first.
+
+    The outbox has to be self-contained. A refused push still stores its
+    revision, because the server needs it to describe the conflict, and nothing
+    enqueues it — so an accepted merge that names it as a parent produces a page
+    no fresh device can apply, and the account wedges permanently.
+    """
+    delivered = set(
+        (
+            await db.execute(
+                select(SyncOutbox.revision_id).where(SyncOutbox.account_id == account_id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    ordered: list[SyncRevision] = []
+    seen: set[str] = set()
+    frontier = [parent for parent in parents if parent not in delivered]
+    while frontier and len(ordered) < MAX_UNDELIVERED_ANCESTORS:
+        revision_id = frontier.pop()
+        if revision_id in seen:
+            continue
+        seen.add(revision_id)
+        held = (
+            await db.execute(
+                select(SyncRevision).where(
+                    SyncRevision.account_id == account_id,
+                    SyncRevision.revision_id == revision_id,
+                )
+            )
+        ).scalar_one_or_none()
+        if held is None:
+            # Not this account's revision at all. Validation owns that refusal;
+            # silently inventing a delivery for it would be worse.
+            continue
+        ordered.append(held)
+        frontier.extend(
+            str(parent)
+            for parent in (held.parent_revision_ids or [])
+            if str(parent) not in delivered and str(parent) not in seen
+        )
+    ordered.reverse()
+    return ordered
 
 
 async def _next_sequence(db: AsyncSession, *, account_id: str) -> int:
@@ -523,6 +580,29 @@ async def _apply_one(
         return stored
 
     created_at = parse_timestamp(event.created_at)
+    # Anything this account holds but never delivered has to go out ahead of the
+    # revision that names it, or the page it lands in is unapplicable forever.
+    for ancestor in await _undelivered_ancestors(
+        db, account_id=ctx.account_id, parents=list(event.parent_revision_ids)
+    ):
+        db.add(
+            SyncOutbox(
+                account_id=ctx.account_id,
+                sequence=await _next_sequence(db, account_id=ctx.account_id),
+                event_id=ancestor.event_id,
+                entity_id=ancestor.entity_id,
+                entity_kind=ancestor.entity_kind,
+                revision_id=ancestor.revision_id,
+                parent_revision_ids=list(ancestor.parent_revision_ids or []),
+                device_id=ancestor.device_id,
+                actor_id=ancestor.actor_id,
+                operation=ancestor.operation,
+                content_digest=ancestor.content_digest,
+                payload=dict(ancestor.payload or {}),
+                created_at=ancestor.created_at,
+            )
+        )
+        await db.flush()
     sequence = await _next_sequence(db, account_id=ctx.account_id)
 
     revision = _revision_from_event(
