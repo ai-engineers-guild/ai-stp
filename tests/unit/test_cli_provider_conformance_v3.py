@@ -113,6 +113,16 @@ def _conforming(target: Path) -> tuple[conformance.Invoker, list[str]]:
                 else {**bound, "valid": True}
             )
         if command == "plan-operation":
+            # A conforming provider refuses an operation it never declared, and
+            # says which class of refusal it is. Planning it anyway would be the
+            # defect the case exists to find.
+            asked = supplied["--operation"]
+            if asked not in {item.value for item in protocol_v3.CORE_OPERATIONS}:
+                return {
+                    **bound,
+                    "rejected": True,
+                    "reason": protocol_v3.UnsupportedReason.OPERATION.value,
+                }
             artifact: dict[str, JsonValue] = {
                 "format": "ai-stp-provider-plan/3",
                 "protocol_version": protocol_v3.VERSION,

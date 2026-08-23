@@ -19,7 +19,7 @@ import json
 
 from release_scripts import provider_kit
 
-from ai_stp_cli.provider import bundle_corpus
+from ai_stp_cli.provider import bundle_corpus, conformance_v3
 
 #: Refusals the kit declares that the conformance run cannot drive today, each
 #: with the reason. Emptying this map is the goal; growing it silently is the
@@ -31,14 +31,17 @@ UNEXERCISED_REFUSALS: dict[str, str] = {
         "rather than a manifest field -- and the passport builder refuses to "
         "produce an invalid kind, so the case has to be patched after compilation"
     ),
-    "unsupported_operation": (
-        "a capability refusal, not a bundle one: it needs a surface that offers "
-        "the provider an operation it never declared. `_rejections` only drives "
-        "`validate-bundle`, so there is nowhere to put it yet"
-    ),
-    "projection_profile_mismatch": "capability refusal; no negotiation surface in the run",
-    "unsupported_platform": "capability refusal; no negotiation surface in the run",
-    "unsupported_architecture": "capability refusal; no negotiation surface in the run",
+    # These three describe a disagreement between what the caller expects and
+    # what the provider is, and v3 argv carries no platform, architecture or
+    # projection profile from the caller: `plan-operation` takes the operation,
+    # the release digest, an operation id, an expiry and the bundle binding, and
+    # nothing else. There is nothing for the provider to disagree with, so the
+    # pure surface cannot provoke them at all — a stronger statement than "no
+    # surface yet", and one that makes driving them a protocol question rather
+    # than a missing driver.
+    "projection_profile_mismatch": "the caller states no expected profile in v3 argv",
+    "unsupported_platform": "the caller states no expected platform in v3 argv",
+    "unsupported_architecture": "the caller states no expected architecture in v3 argv",
 }
 
 
@@ -52,10 +55,14 @@ def _declared() -> set[str]:
 def _exercised() -> set[str]:
     # `unknown_native_surface` is the v2 case name; the corpus maps it to the v3
     # reason, which is what a provider actually answers.
-    return {
+    corpus = {
         "unsupported_native_surface" if refusal == "unknown_native_surface" else refusal
         for _name, refusal in bundle_corpus.CASE_REASONS_V3
     }
+    # Two sources, because there are two surfaces: the corpus drives bundle
+    # refusals through `validate-bundle`, and the run drives capability refusals
+    # through `plan-operation`.
+    return corpus | set(conformance_v3.DRIVEN_CAPABILITY_REJECTIONS)
 
 
 def test_every_refusal_the_kit_declares_is_exercised_or_named() -> None:

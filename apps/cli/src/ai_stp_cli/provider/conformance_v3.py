@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import cast
+from typing import Final, cast
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import composition
@@ -159,6 +159,7 @@ def run(
                     else "the same pure plan request returned different bytes",
                 )
             )
+        cases.append(_undeclared_operation(invoke, capabilities, arguments))
         repeated_valid = _object(invoke("validate-bundle", corpus.valid.common_arguments()))
         cases.append(
             conformance.Case(
@@ -173,6 +174,54 @@ def run(
         harness_id=capabilities.harness_id,
         protocol_version=protocol_v3.VERSION,
         cases=tuple(cases),
+    )
+
+
+#: Capability refusals this run drives, as opposed to the bundle refusals the
+#: corpus drives. Named here so the coverage guard reads one source instead of
+#: keeping a second list that agrees until somebody adds a case.
+DRIVEN_CAPABILITY_REJECTIONS: Final[frozenset[str]] = frozenset(
+    {protocol_v3.UnsupportedReason.OPERATION.value}
+)
+
+
+def _undeclared_operation(
+    invoke: conformance.Invoker,
+    capabilities: protocol_v3.ProviderCapabilities,
+    arguments: tuple[str, ...],
+) -> conformance.Case:
+    """Ask for an operation the provider never declared and require the refusal.
+
+    This is the only capability rejection the pure surface can drive. The others
+    -- `projection_profile_mismatch`, `unsupported_platform` and
+    `unsupported_architecture` -- describe a disagreement between what the
+    caller expects and what the provider is, and v3 argv carries no platform,
+    architecture or projection profile from the caller. There is nothing to
+    disagree with, so nothing here can provoke them.
+    """
+    undeclared = sorted(
+        operation.value
+        for operation in protocol_v3.Operation
+        if operation not in capabilities.operations
+    )
+    if not undeclared:
+        return conformance.Case(
+            "refuses_undeclared_operation",
+            True,
+            "provider declares every operation, so none can be asked for undeclared",
+        )
+    asked = undeclared[0]
+    replaced = list(arguments)
+    replaced[replaced.index("--operation") + 1] = asked
+    answer = _object(invoke("plan-operation", tuple(replaced)))
+    reason = answer.get("reason")
+    refused = answer.get("rejected") is True and reason == protocol_v3.UnsupportedReason.OPERATION
+    return conformance.Case(
+        "refuses_undeclared_operation",
+        refused,
+        f"refuses {asked!r} with {reason!r}"
+        if refused
+        else f"asked for undeclared {asked!r} and received {answer.get('reason', answer)!r}",
     )
 
 
