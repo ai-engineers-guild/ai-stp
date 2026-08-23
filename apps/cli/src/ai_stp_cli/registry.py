@@ -1570,8 +1570,11 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "unverified-provider",
                 "boolean",
-                "Install from a provider executable no signed release covers. "
-                "Local development only: the pinned trust policy checks nothing here.",
+                "Install from a provider executable no signed release covers, "
+                "such as one you built yourself or an open-source provider "
+                "published without a privileged publisher. The pinned trust "
+                "policy checks nothing here, and the plan records "
+                "provider_release_trusted false.",
             ),
             option(
                 "provider-release-recovery",
