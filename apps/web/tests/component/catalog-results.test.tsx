@@ -259,6 +259,32 @@ describe("CatalogResults", () => {
     expect(screen.getByRole("navigation", { name: "Components pagination" })).toBeInTheDocument();
   });
 
+  it("defaults omitted mixed pagination positions to the first page", () => {
+    renderResults({
+      kind: "mixed",
+      items: [componentSummaryFixture, setupSummaryFixture],
+      experimental: [],
+      setupsTotalPages: 2,
+      componentsTotalPages: 2,
+    });
+    expect(screen.getByRole("navigation", { name: "Setups pagination" })).toBeInTheDocument();
+    expect(screen.getByText("1 / 2")).toBeInTheDocument();
+  });
+
+  it("defaults omitted component and setup positions after setup pagination", () => {
+    renderResults({
+      kind: "mixed",
+      items: [componentSummaryFixture],
+      experimental: [],
+      componentsTotalPages: 2,
+    });
+    expect(screen.getByRole("navigation", { name: "Components pagination" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "2" })).toHaveAttribute(
+      "href",
+      "/catalog?resource=components&page=1&components_page=2&setups_page=1",
+    );
+  });
+
   it("shows setup pagination before the component sequence starts", () => {
     renderResults({
       kind: "mixed",

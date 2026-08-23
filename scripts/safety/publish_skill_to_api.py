@@ -311,7 +311,7 @@ def main() -> int:
         "stable_id": stable_id,
         "version": args.version,
         "content_digest": digest,
-        "policy_version": "safety-1",
+        "policy_version": "safety-2",
         "passport": passport,
         "attestations": [],
         "idempotency_key": "pub-" + digest[-24:],

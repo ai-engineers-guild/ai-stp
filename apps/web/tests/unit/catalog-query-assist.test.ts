@@ -35,5 +35,15 @@ describe("catalog query language assist", () => {
 
   it("replaces only the trailing token when completing", () => {
     expect(completeCatalogQlToken("NAME:tool AND TA", "TAGS")).toBe("NAME:tool AND TAGS");
+    expect(completeCatalogQlToken("TAGS", ":")).toBe("TAGS:");
+    expect(completeCatalogQlToken("TAGS", "IN")).toBe("TAGS IN ");
+    expect(completeCatalogQlToken("TAGS", "AND")).toBe("TAGS AND ");
+  });
+
+  it("suggests operators after a complete reserved field token", () => {
+    expect(suggestCatalogQlWords("TAGS")).toEqual([":", "IN", "AND"]);
+    expect(suggestCatalogQlWords("NAME")).toEqual([":", "IN", "AND"]);
+    expect(suggestCatalogQlWords("HARNESS")).toEqual([":", "IN", "AND"]);
+    expect(suggestCatalogQlWords("NAME:tool AND TAGS")).toEqual([":", "IN", "AND"]);
   });
 });

@@ -77,6 +77,18 @@ def test_query_language_evaluates_every_field_and_operator(query: str, expected:
     assert matches(parse_query(query), _PASSPORT, author="nddev", verified=False) is expected
 
 
+def test_query_language_matches_any_named_harness() -> None:
+    passport = {**_PASSPORT, "harness_ids": ["codex", "claude-code"]}
+    assert matches(parse_query("HARNESS:claude-code"), passport, author="nddev", verified=True)
+    assert matches(
+        parse_query("HARNESS IN (claude-code, grok-build)"),
+        passport,
+        author="nddev",
+        verified=True,
+    )
+    assert not matches(parse_query("HARNESS:pi"), passport, author="nddev", verified=True)
+
+
 def test_query_language_or_short_circuits_after_a_true_left_operand() -> None:
     assert matches(parse_query("python OR missing"), _PASSPORT, author="nddev", verified=True)
 

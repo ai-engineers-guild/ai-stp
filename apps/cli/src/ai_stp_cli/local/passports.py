@@ -314,12 +314,17 @@ def observed_environment(at: str) -> dict[str, JsonValue]:
         platform.machine(), "unknown"
     )
     found = harnesses.detect_all()
+    # The survey command and this refresh share `detect_all`. Installed vs
+    # merely supported is the same cut: `available` stays out of the passport.
+    present_found = harnesses.present_installations(found)
     # Built as list comprehensions with the element type declared: `sorted`
     # answers `list[str]`, and a list is invariant, so the narrower list is not
     # a value of the wider one however obviously its elements fit.
-    present: list[JsonValue] = [item.harness_id for item in found if item.state != "available"]
+    present: list[JsonValue] = [item.harness_id for item in present_found]
     versions: list[JsonValue] = [
-        f"{item.harness_id}={item.installations[0].version}" for item in found if item.installations
+        f"{item.harness_id}={item.installations[0].version}"
+        for item in present_found
+        if item.installations
     ]
     return {
         "operating_system": _fact(system, "observed", at),

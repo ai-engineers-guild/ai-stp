@@ -35,6 +35,7 @@ COMMIT_PATTERN: Final[str] = r"^[0-9a-f]{40}$"
 
 type TagId = Annotated[str, Field(pattern=TAG_PATTERN)]
 type CapabilityId = Annotated[str, Field(pattern=CAPABILITY_PATTERN)]
+type SupportedOs = Literal["linux", "macos", "windows"]
 
 #: The closed component taxonomy (AGENTS.md, "Канонические термины"). Named so
 #: the catalog wire contract reuses this one owner instead of restating the
@@ -167,11 +168,18 @@ class ComponentVersionPassport(_VersionPassportBase):
     conflicts: Conflicts = Field(default_factory=Conflicts)
     managed_paths: list[str] = Field(default_factory=list)
     native_ids: list[str] = Field(default_factory=list)
+    #: Additional harnesses this version names. Empty means only `harness_id`.
+    harness_ids: Annotated[list[HarnessId], Field(max_length=6)] = Field(
+        default_factory=list[HarnessId]
+    )
+    supported_os: list[SupportedOs] = Field(default_factory=list[SupportedOs])
 
     @model_validator(mode="after")
     def _safe_managed_paths(self) -> "ComponentVersionPassport":
         for path in self.managed_paths:
             _relative_path(path)
+        if self.harness_ids and self.harness_id not in self.harness_ids:
+            raise ValueError("harness_ids must include harness_id")
         return self
 
 
@@ -197,9 +205,7 @@ class SetupVersionPassport(_VersionPassportBase):
     #: refuses there, by name, with the provider as the reason. A vocabulary
     #: that pre-judged it made a setup unable to *say* what it supports, which
     #: is a different and worse thing than being unable to install it.
-    supported_os: list[Literal["linux", "macos", "windows"]] = Field(
-        default_factory=list[Literal["linux", "macos", "windows"]]
-    )
+    supported_os: list[SupportedOs] = Field(default_factory=list[SupportedOs])
     supported_arch: list[Literal["x86_64", "arm64"]] = Field(
         default_factory=list[Literal["x86_64", "arm64"]]
     )

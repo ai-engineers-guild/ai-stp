@@ -326,6 +326,14 @@
         "harness_id": {
           "$ref": "#/$defs/HarnessId"
         },
+        "harness_ids": {
+          "items": {
+            "$ref": "#/$defs/HarnessId"
+          },
+          "maxItems": 6,
+          "title": "Harness Ids",
+          "type": "array"
+        },
         "kind": {
           "const": "component",
           "default": "component",
@@ -438,6 +446,13 @@
           "title": "Stable Id",
           "type": "string"
         },
+        "supported_os": {
+          "items": {
+            "$ref": "#/$defs/SupportedOs"
+          },
+          "title": "Supported Os",
+          "type": "array"
+        },
         "tags": {
           "items": {
             "$ref": "#/$defs/TagId"
@@ -483,6 +498,7 @@
         "external_endpoints",
         "facts",
         "harness_id",
+        "harness_ids",
         "kind",
         "license",
         "managed_paths",
@@ -502,6 +518,7 @@
         "schema_version",
         "source",
         "stable_id",
+        "supported_os",
         "tags",
         "variant_id",
         "version",
@@ -663,6 +680,16 @@
       ],
       "type": "string"
     },
+    "FindingSeverity": {
+      "enum": [
+        "info",
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "type": "string"
+    },
     "GitSource": {
       "additionalProperties": false,
       "description": "Exact public origin: repository, commit and component root subpath.",
@@ -793,6 +820,17 @@
           "title": "Family",
           "type": "string"
         },
+        "finding_summary": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SafetyFindingSummary"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "mandatory": {
           "default": true,
           "title": "Mandatory",
@@ -831,6 +869,7 @@
       "required": [
         "check_id",
         "family",
+        "finding_summary",
         "mandatory",
         "reason",
         "result",
@@ -926,6 +965,61 @@
       "title": "SafetyChecksSummary",
       "type": "object"
     },
+    "SafetyFindingSummary": {
+      "additionalProperties": true,
+      "description": "Bounded public identifiers for findings; never scanned content.",
+      "properties": {
+        "count": {
+          "minimum": 1,
+          "title": "Count",
+          "type": "integer"
+        },
+        "paths": {
+          "items": {
+            "maxLength": 240,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 16,
+          "title": "Paths",
+          "type": "array"
+        },
+        "rule_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 16,
+          "title": "Rule Ids",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "severity_max": {
+          "$ref": "#/$defs/FindingSeverity"
+        },
+        "truncated": {
+          "default": false,
+          "title": "Truncated",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "count",
+        "paths",
+        "rule_ids",
+        "schema_version",
+        "severity_max",
+        "truncated"
+      ],
+      "title": "SafetyFindingSummary",
+      "type": "object"
+    },
     "SupportArchitecture": {
       "enum": [
         "x86_64",
@@ -968,6 +1062,14 @@
       "enum": [
         "primary",
         "beta"
+      ],
+      "type": "string"
+    },
+    "SupportedOs": {
+      "enum": [
+        "linux",
+        "macos",
+        "windows"
       ],
       "type": "string"
     },

@@ -1,11 +1,12 @@
 "use client";
 
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/atoms/button";
 import { ContactReportDialog } from "@/components/organisms/contact-report-dialog";
+import { updateCatalogReaction } from "@/lib/actions/catalog-reactions";
 import { registryCommand } from "@/lib/cli-copy";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { Icon } from "@/theme";
@@ -15,6 +16,7 @@ type CatalogItemMenuProps = {
   stableId: string;
   version: string;
   href: string;
+  initiallyLiked?: boolean;
   labels: {
     more: string;
     copyUrl: string;
@@ -22,14 +24,25 @@ type CatalogItemMenuProps = {
     copyId: string;
     copied: string;
     report: string;
+    like: string;
+    unlike: string;
   };
 };
 
 const itemClassName =
   "hover:bg-muted focus:bg-muted flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left text-sm outline-none";
 
-export function CatalogItemMenu({ kind, stableId, version, href, labels }: CatalogItemMenuProps) {
+export function CatalogItemMenu({
+  kind,
+  stableId,
+  version,
+  href,
+  initiallyLiked = false,
+  labels,
+}: CatalogItemMenuProps) {
   const [reportOpen, setReportOpen] = useState(false);
+  const [liked, setLiked] = useState(initiallyLiked);
+  const [pending, startTransition] = useTransition();
   const cliCommand = registryCommand(stableId);
 
   async function copy(value: string) {
@@ -53,7 +66,7 @@ export function CatalogItemMenu({ kind, stableId, version, href, labels }: Catal
 
   return (
     <>
-      <DropdownMenu.Root>
+      <DropdownMenu.Root modal={false}>
         <DropdownMenu.Trigger asChild>
           <Button
             type="button"
@@ -101,6 +114,24 @@ export function CatalogItemMenu({ kind, stableId, version, href, labels }: Catal
               {labels.copyCli}
             </DropdownMenu.Item>
             <DropdownMenu.Separator className="border-border my-1 border-t" />
+            <DropdownMenu.Item
+              className={itemClassName}
+              disabled={pending}
+              onSelect={() => {
+                const next = !liked;
+                startTransition(async () => {
+                  try {
+                    const state = await updateCatalogReaction(kind, stableId, next);
+                    setLiked(state.liked);
+                  } catch {
+                    toast.error(labels.like);
+                  }
+                });
+              }}
+            >
+              <Icon name="heart" size="sm" fill={liked ? "currentColor" : "none"} />
+              {liked ? labels.unlike : labels.like}
+            </DropdownMenu.Item>
             <DropdownMenu.Item
               className={itemClassName}
               onSelect={() => {

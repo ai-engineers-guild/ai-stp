@@ -79,7 +79,8 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
 def _scan_text(text: str, rel: str, spec: CheckSpec, *, encoded: bool = False) -> list[Finding]:
     out: list[Finding] = []
     for pattern, rule, sev in PI_PATTERNS:
-        if pattern.search(text):
+        match = pattern.search(text)
+        if match and not _defensive_context(text, match.start()):
             out.append(
                 Finding(
                     check_id=spec.check_id,
@@ -93,6 +94,16 @@ def _scan_text(text: str, rel: str, spec: CheckSpec, *, encoded: bool = False) -
                 )
             )
     return out
+
+
+def _defensive_context(text: str, position: int) -> bool:
+    line_start = text.rfind("\n", 0, position) + 1
+    line_end = text.find("\n", position)
+    line = text[line_start : line_end if line_end >= 0 else len(text)]
+    defensive = re.compile(
+        r"(?i)\b(?:do not|don't|never|avoid|must not|detect|block|example of an attack)\b"
+    )
+    return bool(defensive.search(line))
 
 
 def _try_b64(blob: str) -> str | None:

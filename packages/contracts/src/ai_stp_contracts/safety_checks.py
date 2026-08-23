@@ -13,6 +13,24 @@ type CheckResult = Literal[
 ]
 # incomplete: optional/external engines planned but not_run (honest coverage).
 type ChecksStatus = Literal["pending", "available", "empty", "incomplete"]
+type FindingSeverity = Literal["info", "low", "medium", "high", "critical"]
+
+
+class SafetyFindingSummary(BaseModel):
+    """Bounded public identifiers for findings; never scanned content."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    count: Annotated[int, Field(ge=1)]
+    severity_max: FindingSeverity
+    rule_ids: Annotated[
+        list[Annotated[str, Field(min_length=1, max_length=128)]], Field(max_length=16)
+    ] = Field(default_factory=list)
+    paths: Annotated[
+        list[Annotated[str, Field(min_length=1, max_length=240)]], Field(max_length=16)
+    ] = Field(default_factory=list)
+    truncated: bool = False
 
 
 class SafetyCheckEntry(BaseModel):
@@ -27,6 +45,7 @@ class SafetyCheckEntry(BaseModel):
     source: Annotated[str, Field(min_length=1, max_length=64)] = "platform_safety_scan"
     family: Annotated[str, Field(max_length=64)] = ""
     reason: Annotated[str, Field(max_length=200)] | None = None
+    finding_summary: SafetyFindingSummary | None = None
 
 
 class SafetyChecksSummary(BaseModel):

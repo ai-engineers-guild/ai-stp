@@ -1,0 +1,16 @@
+{
+  "pins": [
+    {
+      "stable_id": "component_ok",
+      "version": "1.0",
+      "checks_summary": {
+        "status": "available",
+        "checks": []
+      }
+    },
+    {
+      "stable_id": "component_unknown",
+      "version": "1.0"
+    }
+  ]
+}

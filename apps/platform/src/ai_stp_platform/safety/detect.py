@@ -14,8 +14,6 @@ _IGNORE_DIRS = {
     "__pycache__",
     ".pytest_cache",
     ".ruff_cache",
-    "dist",
-    "build",
 }
 
 _SHELL_SUFFIX = {".sh", ".bash", ".zsh", ".ksh"}
@@ -42,8 +40,10 @@ _TEXT_SUFFIX = {
     ".bash",
     ".go",
     ".rs",
-    ".env.example",
+    ".html",
+    ".htm",
 }
+_TEXT_NAMES = {".env.example", "skill.md", "agents.md", "claude.md"}
 
 
 def _component_type(passport: dict[str, object]) -> str:
@@ -63,6 +63,7 @@ def detect_manifest(root: Path, *, passport: dict[str, object]) -> ArtifactManif
     python_files: list[str] = []
     file_count = 0
     total_bytes = 0
+    read_errors: list[str] = []
     ctype = _component_type(passport)
 
     if ctype in {"skill", "agent"}:
@@ -83,7 +84,8 @@ def detect_manifest(root: Path, *, passport: dict[str, object]) -> ArtifactManif
         try:
             size = path.stat().st_size
         except OSError:
-            size = 0
+            read_errors.append(path.relative_to(root).as_posix())
+            continue
         total_bytes += size
         rel = path.relative_to(root).as_posix()
         name = path.name.lower()
@@ -135,9 +137,7 @@ def detect_manifest(root: Path, *, passport: dict[str, object]) -> ArtifactManif
             flags.add("pdf")
         if suffix in _HTML_SUFFIX:
             flags.add("html")
-        if size <= 1_000_000 and (
-            suffix in _TEXT_SUFFIX or name in {"skill.md", "agents.md", "claude.md"}
-        ):
+        if size <= 1_000_000 and (suffix in _TEXT_SUFFIX or name in _TEXT_NAMES):
             text_files.append(rel)
 
     # Passport-declared type forces skill/agent scanners
@@ -160,6 +160,7 @@ def detect_manifest(root: Path, *, passport: dict[str, object]) -> ArtifactManif
         text_files=text_files,
         shell_files=shell_files,
         python_files=python_files,
+        read_errors=read_errors,
     )
 
 

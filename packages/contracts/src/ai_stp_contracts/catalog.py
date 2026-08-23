@@ -355,6 +355,10 @@ class ComponentSummary(BaseModel):
     #: Deterministic plain-text `safe_markdown_v1` excerpt, never raw Markdown or HTML.
     latest_description: DescriptionExcerpt
     latest_harness_id: HarnessId
+    #: Every harness the latest version names; includes `latest_harness_id`.
+    latest_harness_ids: Annotated[list[HarnessId], Field(max_length=6)] = Field(
+        default_factory=list[HarnessId]
+    )
     latest_component_type: ComponentType
     latest_projection_kind: ProjectionKind
     latest_tags: Tags

@@ -1,6 +1,6 @@
 ---
 description: "Обязательные проверки по видам компонентов, классам MCP и сетапу."
-last_verified: "2026-08-22"
+last_verified: "2026-08-23"
 ---
 
 # Политика проверок
@@ -10,6 +10,33 @@ last_verified: "2026-08-22"
 Каждая проверка возвращает состояние из `SPEC-007` и хранит источник доказательства, версию инструмента, версию политики и время. Недоступность инструмента даёт `not_run` или `degraded` и никогда не превращается в `passed`.
 
 Публичная проекция результата содержит ограниченный очищенный `reason` для неуспешной или незавершённой проверки. Сырые сообщения сканера, секреты и локальные пути в каталог не передаются.
+
+## Операционная evidence safety-scan
+
+Для `platform_safety_scan` worker сохраняет только bounded in-process telemetry;
+она не является заменой `SafetyScanRun` и не содержит payload, idempotency key,
+полных путей или raw output инструмента. Обязательные группы сигналов:
+
+- queue: claim/empty-poll/claimed/requeue counters, queue wait buckets и handler
+  duration/result;
+- suite: total/cache-hit, sum/avg/max и fixed p50/p95/p99 duration buckets;
+- check: total/result by `check_id`, sum/avg/max duration и fixed duration buckets;
+- external execution: timeout/missing counters и sandbox mode counts.
+
+Фиксированные buckets ограничивают cardinality; `+Inf` означает превышение
+верхней границы bucket, а `null` quantile означает, что соответствующий rank
+попал в `+Inf`. Снимок process-local допустим для диагностики, но production
+readiness обязан иметь воспроизводимое offline evidence через
+`just safety-benchmark`: benchmark принудительно выключает external CLI и сеть,
+использует фиксированный corpus/order и отдельно помечает machine-dependent
+wall-clock measurements.
+
+Доказательство на атакующем корпусе принадлежит версионируемому манифесту в
+`tests/fixtures/safety-corpus/`: каждый вид компонента и сетап имеют от 10 до 20
+релевантных вредоносных примеров и не менее двух чистых контрольных примеров.
+Последовательный серверный прогон
+отказывает при пропущенном ожидаемом `check_id`/`rule_id` или любой находке на
+чистом контрольном примере; внешние CLI и сеть для этого доказательства отключены.
 
 ## Классы результата
 
@@ -43,7 +70,7 @@ last_verified: "2026-08-22"
 ## Серверный safety-scan (platform_safety_scan)
 
 При `validate` после паспортных проверок worker/platform исполняет staged safety suite
-(`policy_version` вида `safety-1`, реестр в `ai_stp_platform.safety.policy`).
+(`policy_version` вида `safety-2`, реестр в `ai_stp_platform.safety.policy`).
 
 | Семейство | check_id (primary) | Источник | Mandatory (public component) |
 |---|---|---|---|
@@ -51,10 +78,13 @@ last_verified: "2026-08-22"
 | path | `path_denylist` | in-proc | yes |
 | secrets | `secrets_heuristic` (+ optional `secrets_gitleaks`) | in-proc / CLI | heuristic yes; gitleaks findings force-block |
 | prompt_injection / stego | `pi_content_pack`, `content_hidden` | in-proc | warning-class by default |
+| network intent | `network_intent` | offline in-proc, без DNS/reputation lookup | warning-class by default |
+| agentic behavior | `agentic_behavior` | bounded offline in-proc patterns | yes |
 | sast | `sast_opengrep` (+ shellcheck/bandit by language) | owned rules / CLI | policy |
 | mcp | `mcp_config_static` | in-proc | yes when MCP present |
 | hook | `hook_schema_static`, `hook_command_argv` | in-proc | yes when hooks present |
-| skill | `skill_static_gate` (SkillSpector/Cisco merge + owned) | dual + owned | yes for skill/agent |
+| skill | `skill_static_gate` (Cisco static + behavioral data-flow + независимые правила платформы) | CLI + owned | yes for skill/agent |
+| obfuscation | `shell_obfuscation` | bounded in-proc decoding, не более двух слоёв | warning-class by default |
 | sca | `sca_osv` | CLI offline preferred | warning-class |
 | malware | `malware_clamav`, `malware_yara` | local marker + clam/yara | strict profile |
 | sca lang | `sca_pip_audit`, `sca_govulncheck`, `sca_cargo_audit`, `sca_cargo_deny`, `sca_npm_audit` | CLI when manifests/lang | policy |
@@ -62,19 +92,36 @@ last_verified: "2026-08-22"
 | document | `document_pdf` | PDF JS/OpenAction/PI strings | policy when pdf |
 | setup | `setup_pin_aggregate` | catalog pin `checks_summary` join, no tree re-scan | yes for setup |
 
+`agentic_behavior` закрывает только механически доказуемые декларации: рекурсивную
+делегацию, доверие к результату сабагента, подмену полномочий, чтение соседних
+агентов, самоизменение, закрепление, маскировку полномочий, подмену аргументов,
+расширение области, передачу результата в shell, небезопасную десериализацию,
+плавающие зависимости, отравление памяти, удалённые инструкции и выход за корень.
+Он не пытается семантически оценить добросовестность компонента.
+`mcp_config_static` отдельно разбирает метаданные tool/schema/resource/prompt/output,
+коллизии и затенение имён, опасную цепочку возможностей и изменение канонического
+определения tool между одобренным и текущим снимками.
+
 Публичный audit: `GET /v1/catalog/{components|setups}/{id}/versions/{version}/checks`.
+
+Каждая непройденная строка audit может нести `finding_summary`: bounded-количество,
+максимальную серьёзность, отсортированные канонические `rule_ids`, безопасные
+относительные `paths` и `truncated`. Это проекция идентификаторов, а не находок:
+payload, исходные строки, stdout/stderr, абсолютные пути, secret values и
+произвольные сообщения scanner в неё не входят. Небезопасный rule ID заменяется
+идентификатором инструмента, небезопасный путь не публикуется.
 
 Правила результата: `not_run` / `degraded` для обязательных проверок **не** становятся
 `passed`. Внешние CLI включаются только при `AI_STP_SAFETY_EXTERNAL_CLI=1`.
 
 У `skill_static_gate` собственный ключевой набор regex является запасным путём, а не
-вторым мнением. Когда хотя бы один движок загрузил пакет скилла и дошёл до вердикта,
+вторым мнением. Когда `skill-scanner` загрузил пакет скилла и дошёл до вердикта,
 находки этого набора записываются как `medium` и сами по себе не отказывают; когда
-движков нет или ни один не дочитал — таймаут и отказ запуска сюда входят, — набор
+движка нет или он не дочитал — таймаут и отказ запуска сюда входят, — набор
 сохраняет исходную серьёзность и отказывает. Причина в границе метода: keyword-скан не
 отличает скилл, который выгружает учётные данные, от скилла, который ищет такую
-выгрузку в чужом коде, и объявлять второй `critical` поверх чистого чтения двух
-анализаторов — это фолбэк, перебивающий то, что он замещает.
+выгрузку в чужом коде, и объявлять второй `critical` поверх чистого чтения движка —
+это фолбэк, перебивающий то, что он замещает.
 Процент для карточки: `passed / (passed+failed+warning)`; статусы
 `not_applicable` и `skipped` не входят в знаменатель. Статус `pending`, если среди
 applicable обязательных проверок есть `not_run`, `degraded` или `running`.

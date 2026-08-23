@@ -283,6 +283,14 @@
       "title": "SetupRef",
       "type": "object"
     },
+    "SupportedOs": {
+      "enum": [
+        "linux",
+        "macos",
+        "windows"
+      ],
+      "type": "string"
+    },
     "TagId": {
       "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
       "type": "string"
@@ -515,12 +523,7 @@
     },
     "supported_os": {
       "items": {
-        "enum": [
-          "linux",
-          "macos",
-          "windows"
-        ],
-        "type": "string"
+        "$ref": "#/$defs/SupportedOs"
       },
       "title": "Supported Os",
       "type": "array"

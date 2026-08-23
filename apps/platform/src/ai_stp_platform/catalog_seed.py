@@ -230,6 +230,8 @@ def _component_body(
         "conflicts": _empty_conflicts(),
         "managed_paths": [],
         "native_ids": [],
+        "harness_ids": [],
+        "supported_os": [],
     }
 
 
@@ -300,7 +302,7 @@ _COMPONENT_V12: dict[str, Any] = _component_body(
     component_type="skill",
 )
 _COMPONENT_V12["revision_id"] = (
-    "revision_9f90ce539ce28826fef5fbb669a1566ae8d6b4a57018611f9ef85eded3ab36cc"
+    "revision_96370e726c35370359c21a99c5aff141f4fc69a9a536699ff91370fb1403263a"
 )
 
 _COMPONENT_V10: dict[str, Any] = {**_COMPONENT_V12, "version": "1.0"}

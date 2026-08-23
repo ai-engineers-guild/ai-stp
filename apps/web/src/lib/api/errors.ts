@@ -9,6 +9,7 @@ export type ApiErrorCode =
   | "AI_STP_VALIDATION_ERROR"
   | "AI_STP_PRECONDITION_FAILED"
   | "AI_STP_CONFLICT"
+  | "AI_STP_RATE_LIMITED"
   | "AI_STP_DEVICE_REVOKED"
   | "AI_STP_UNAVAILABLE"
   | "AI_STP_UNKNOWN";
@@ -48,6 +49,7 @@ const KNOWN_CODES: readonly ApiErrorCode[] = [
   "AI_STP_VALIDATION_ERROR",
   "AI_STP_PRECONDITION_FAILED",
   "AI_STP_CONFLICT",
+  "AI_STP_RATE_LIMITED",
   "AI_STP_DEVICE_REVOKED",
   "AI_STP_UNAVAILABLE",
   "AI_STP_UNKNOWN",
@@ -80,6 +82,9 @@ function codeFromStatus(status: number): ApiErrorCode {
   }
   if (status === 412) {
     return "AI_STP_PRECONDITION_FAILED";
+  }
+  if (status === 429) {
+    return "AI_STP_RATE_LIMITED";
   }
   return "AI_STP_UNKNOWN";
 }

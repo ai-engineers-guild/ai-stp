@@ -279,8 +279,8 @@ def test_first_party_passports_are_complete_public_immutable_snapshots() -> None
         item for item in versions() if item.passport.harness_id == "grok-build"
     ]
     assert grok_component.passport_digest == (
-        "sha256:61185ce0086faf750329b77747b5e9f141efd602824292992a9a2f7c9ef2ebd9"
+        "sha256:2f3d380c28826c6a347aa1413197d80fca44b8d978f6040fa564fa7949c1b6fe"
     )
     assert grok_setup.passport_digest == (
-        "sha256:ee2d41d9e563313cc5bf84da4deb0cd62b2571a47b1b71db2329aa80baa80871"
+        "sha256:edbcfd69392c9c3824f615cdce8dc105291a047ae00152644f93b8d7a4820729"
     )

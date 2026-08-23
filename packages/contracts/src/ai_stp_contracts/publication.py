@@ -14,7 +14,12 @@ from ai_stp_contracts.http import (
     open_wire_object,
     strict_request_object,
 )
-from ai_stp_contracts.safety_checks import CheckResult as SafetyCheckResult
+from ai_stp_contracts.safety_checks import (
+    CheckResult as SafetyCheckResult,
+)
+from ai_stp_contracts.safety_checks import (
+    SafetyFindingSummary,
+)
 from ai_stp_foundation.digests import DIGEST_PATTERN
 from ai_stp_foundation.harnesses import HarnessId
 from ai_stp_foundation.ids import stable_id_pattern
@@ -122,6 +127,7 @@ class EvidenceBindingView(BaseModel):
     #: Never findings themselves: a rule identifier and a count say what to look
     #: at without putting scanned content on a wire that reaches a client.
     reason: Annotated[str, Field(max_length=200)] | None = None
+    finding_summary: SafetyFindingSummary | None = None
 
 
 class PublicationPlanResponse(BaseModel):

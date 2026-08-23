@@ -15,13 +15,13 @@ const contentPaths = allContentEntries()
 const isDevelopment = process.env.NODE_ENV === "development";
 const contentSecurityPolicy = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ""}`,
+  `script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://mc.yandex.ru https://mc.yandex.com${isDevelopment ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://avatars.githubusercontent.com https://lh3.googleusercontent.com https://i.ytimg.com https://raw.githubusercontent.com",
+  "img-src 'self' data: blob: https://avatars.githubusercontent.com https://lh3.googleusercontent.com https://i.ytimg.com https://raw.githubusercontent.com https://www.google-analytics.com https://www.googletagmanager.com https://mc.yandex.ru https://mc.yandex.com",
   "media-src 'self' blob: https://raw.githubusercontent.com",
   "frame-src https://www.youtube-nocookie.com",
   "font-src 'self'",
-  "connect-src 'self'",
+  "connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com https://mc.yandex.ru https://mc.yandex.com",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self' mailto:",

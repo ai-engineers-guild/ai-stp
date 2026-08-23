@@ -98,6 +98,7 @@ def build_checks_summary(bindings: Iterable[dict[str, Any]]) -> dict[str, Any]:
                 "source": str(r.get("source", "")),
                 "family": str(r.get("family", "")),
                 "reason": _public_reason(r),
+                "finding_summary": r.get("finding_summary"),
             }
             for r in rows
         ],
@@ -105,7 +106,10 @@ def build_checks_summary(bindings: Iterable[dict[str, Any]]) -> dict[str, Any]:
 
 
 def _public_reason(row: dict[str, Any]) -> str | None:
-    """Expose only a bounded machine reason, never raw scanner output or paths."""
+    """Expose only a bounded machine reason, never raw scanner output."""
+    direct = row.get("reason")
+    if isinstance(direct, str) and direct:
+        return direct[:200]
     detail_raw = row.get("detail")
     if not isinstance(detail_raw, dict):
         return None

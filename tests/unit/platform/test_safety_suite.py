@@ -45,6 +45,15 @@ def _digest(payload: bytes) -> str:
     return digest_bytes(ARTIFACT_DIGEST_DOMAIN, payload)
 
 
+def _clean_skill_engines(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Model both mandatory external engines producing a clean JSON verdict."""
+    monkeypatch.setattr("ai_stp_platform.safety.adapters.skill_gate.which", lambda _tool: "scanner")
+    monkeypatch.setattr(
+        "ai_stp_platform.safety.adapters.skill_gate.run_cli",
+        lambda *_args, **_kwargs: (0, "{}", "", {}),
+    )
+
+
 def test_planner_setup_does_not_union_rescan() -> None:
     planned = plan_checks(object_kind="setup", manifest=None, profile=SafetyProfile.STANDARD)
     ids = {p.check_id for p in planned}
@@ -143,7 +152,8 @@ def test_checks_summary_omits_non_string_reason() -> None:
 
 
 @pytest.mark.asyncio
-async def test_clean_artifact_passes_in_proc_gates() -> None:
+async def test_clean_artifact_passes_in_proc_gates(monkeypatch: pytest.MonkeyPatch) -> None:
+    _clean_skill_engines(monkeypatch)
     clear_safety_cache()
     payload = _zip_tree(
         {
@@ -438,6 +448,7 @@ async def test_execute_validate_fetches_from_object_store_and_passes_clean(
     from ai_stp_platform.storage import ImmutableObjectStore, MemoryObjectClient
 
     clear_safety_cache()
+    _clean_skill_engines(monkeypatch)
     payload = _zip_tree({"SKILL.md": "# clean skill\n\nSafe content.\n"})
     digest = _digest(payload)
     settings = StorageSettings(
@@ -523,6 +534,7 @@ async def test_execute_validate_warning_allows_publish_without_component_verifie
     from ai_stp_platform.publication_logic import execute_validate
 
     clear_safety_cache()
+    _clean_skill_engines(monkeypatch)
     payload = _zip_tree(
         {
             "SKILL.md": (
@@ -659,6 +671,14 @@ def test_project_checks_summary_on_catalog_card() -> None:
                     "source": "platform_safety_scan",
                     "family": "path",
                     "reason": "unsafe_path",
+                    "finding_summary": {
+                        "schema_version": 1,
+                        "count": 1,
+                        "severity_max": "critical",
+                        "rule_ids": ["credential_path"],
+                        "paths": ["config/credentials.json"],
+                        "truncated": False,
+                    },
                 }
             ],
         },
@@ -682,6 +702,8 @@ def test_project_checks_summary_on_catalog_card() -> None:
     assert summary.status == "available"
     assert summary.checks[0].check_id == "path_denylist"
     assert summary.checks[0].reason == "unsafe_path"
+    assert summary.checks[0].finding_summary is not None
+    assert summary.checks[0].finding_summary.rule_ids == ["credential_path"]
 
 
 def test_doctor_tools_returns_map() -> None:
@@ -735,7 +757,13 @@ async def test_a_setup_that_carries_bytes_still_gets_its_pin_context(
                 "path": ".",
             },
             "artifact": {"digest": digest, "size_bytes": len(payload)},
-            "components": [{"stable_id": "component_demo", "version": "1.0"}],
+            "components": [
+                {
+                    "stable_id": "component_demo",
+                    "version": "1.0",
+                    "passport_digest": "sha256:" + "b" * 64,
+                }
+            ],
         },
         attestations=[],
         effects=[],
@@ -745,6 +773,7 @@ async def test_a_setup_that_carries_bytes_still_gets_its_pin_context(
     session = AsyncMock()
     session.get = AsyncMock(return_value=plan)
     session.scalar = AsyncMock(return_value=None)
+    session.scalars = AsyncMock(return_value=SimpleNamespace(all=lambda: []))
     session.add = lambda obj: added.append(obj)
     session.flush = AsyncMock()
 

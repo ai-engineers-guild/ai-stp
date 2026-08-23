@@ -11,6 +11,7 @@ import { MarkdownDescription } from "@/components/molecules/markdown-description
 import { ObjectRelationships } from "@/components/molecules/object-relationships";
 import { ObjectTechnicalDetails } from "@/components/molecules/object-technical-details";
 import { ObjectVersionHistory } from "@/components/molecules/object-version-history";
+import { OsBadgeList } from "@/components/molecules/os-badge-list";
 import { PassportJsonViewer } from "@/components/molecules/passport-json-viewer";
 import {
   requirementLabels,
@@ -36,6 +37,7 @@ import { listCatalogReactions } from "@/lib/api/reactions";
 import { readPublisherProfile } from "@/lib/api/public-profile";
 import { sessionCookieValue } from "@/lib/auth/require-session";
 import { asAccountId, asVersionId, tryAsComponentId } from "@/lib/brands";
+import { namedHarnesses, namedOperatingSystems } from "@/lib/catalog-harnesses";
 import { registryVersion } from "@/lib/cli-copy";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { publicOrigin } from "@/lib/site";
@@ -112,7 +114,11 @@ export default async function ComponentDetailPage({ params }: PageProps) {
         badges={
           <>
             <Badge variant="secondary">{summary.latest_component_type}</Badge>
-            <Badge variant="outline">{summary.latest_harness_id}</Badge>
+            {namedHarnesses(summary).map((harness) => (
+              <Badge key={harness} variant="outline">
+                {harness}
+              </Badge>
+            ))}
           </>
         }
         versionLabel={`v${summary.latest_version}`}
@@ -140,6 +146,8 @@ export default async function ComponentDetailPage({ params }: PageProps) {
             copied: t("copied"),
             like: t("like"),
             unlike: t("unlike"),
+            likeMenu: t("likeMenu"),
+            unlikeMenu: t("unlikeMenu"),
             more: t("moreActions"),
             report: t("report"),
             editPresentation: to("editPresentation"),
@@ -195,7 +203,7 @@ export default async function ComponentDetailPage({ params }: PageProps) {
                   },
                   { label: t("requiresAuthorization"), value: passport.requires_authorization },
                   { label: t("publishedAt"), value: summary.latest_published_at },
-                  { label: t("harness"), value: summary.latest_harness_id },
+                  { label: t("harness"), value: namedHarnesses(summary).join(", ") },
                 ]}
                 licenseId={passport.license.spdx_id}
                 licenseLabel={t("license")}
@@ -208,6 +216,7 @@ export default async function ComponentDetailPage({ params }: PageProps) {
               summary={summary.latest_checks}
               labels={safetyChecksLabels(t)}
             />
+            {passport ? <ComponentCompatibility passport={passport} t={t} /> : null}
           </>
         }
         rail={
@@ -304,4 +313,31 @@ async function isLiked(token: string, objectKind: "component" | "setup", stableI
   } catch {
     return false;
   }
+}
+
+function ComponentCompatibility({
+  passport,
+  t,
+}: {
+  passport: NonNullable<Awaited<ReturnType<typeof readComponentVersion>>["passport"]>;
+  t: (key: string) => string;
+}) {
+  const osValues = namedOperatingSystems(passport);
+  const evidence = passport.compatibility_evidence_refs.join(", ") || t("noEvidence");
+  return (
+    <DetailAccordion title={t("compatibility")}>
+      <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="bg-muted/30 min-w-0 rounded-sm p-3">
+          <dt className="text-muted-foreground text-sm">{t("supportedOs")}</dt>
+          <dd className="mt-1 font-medium break-words">
+            <OsBadgeList values={osValues} empty={t("noneListed")} />
+          </dd>
+        </div>
+        <div className="bg-muted/30 min-w-0 rounded-sm p-3">
+          <dt className="text-muted-foreground text-sm">{t("evidenceSummary")}</dt>
+          <dd className="mt-1 font-medium break-words">{evidence}</dd>
+        </div>
+      </dl>
+    </DetailAccordion>
+  );
 }

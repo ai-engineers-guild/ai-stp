@@ -367,6 +367,16 @@
       ],
       "type": "string"
     },
+    "FindingSeverity": {
+      "enum": [
+        "info",
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "type": "string"
+    },
     "GitSource": {
       "additionalProperties": false,
       "description": "Exact public origin: repository, commit and component root subpath.",
@@ -488,6 +498,17 @@
           "title": "Family",
           "type": "string"
         },
+        "finding_summary": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SafetyFindingSummary"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "mandatory": {
           "default": true,
           "title": "Mandatory",
@@ -526,6 +547,7 @@
       "required": [
         "check_id",
         "family",
+        "finding_summary",
         "mandatory",
         "reason",
         "result",
@@ -619,6 +641,61 @@
         "warning"
       ],
       "title": "SafetyChecksSummary",
+      "type": "object"
+    },
+    "SafetyFindingSummary": {
+      "additionalProperties": true,
+      "description": "Bounded public identifiers for findings; never scanned content.",
+      "properties": {
+        "count": {
+          "minimum": 1,
+          "title": "Count",
+          "type": "integer"
+        },
+        "paths": {
+          "items": {
+            "maxLength": 240,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 16,
+          "title": "Paths",
+          "type": "array"
+        },
+        "rule_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 16,
+          "title": "Rule Ids",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "severity_max": {
+          "$ref": "#/$defs/FindingSeverity"
+        },
+        "truncated": {
+          "default": false,
+          "title": "Truncated",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "count",
+        "paths",
+        "rule_ids",
+        "schema_version",
+        "severity_max",
+        "truncated"
+      ],
+      "title": "SafetyFindingSummary",
       "type": "object"
     },
     "SetupRef": {
@@ -863,12 +940,7 @@
         },
         "supported_os": {
           "items": {
-            "enum": [
-              "linux",
-              "macos",
-              "windows"
-            ],
-            "type": "string"
+            "$ref": "#/$defs/SupportedOs"
           },
           "title": "Supported Os",
           "type": "array"
@@ -990,6 +1062,14 @@
       "enum": [
         "primary",
         "beta"
+      ],
+      "type": "string"
+    },
+    "SupportedOs": {
+      "enum": [
+        "linux",
+        "macos",
+        "windows"
       ],
       "type": "string"
     },

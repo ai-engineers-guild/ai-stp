@@ -51,6 +51,12 @@ def test_prod_compose_worker_safety_and_rustfs_health() -> None:
     assert "target: worker-safety" in text
     assert "AI_STP_SAFETY_EXTERNAL_CLI" in text
     assert "OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY" in text
+    assert "PyPI,npm,Go,crates.io" in text
+    assert "clamav-refresh:" in text
+    assert "clamav_db:/var/lib/clamav:ro" in text
+    assert "freshclam --datadir=/var/lib/clamav" in text
+    assert 'AI_STP_SAFETY_REQUIRE_BWRAP: "1"' in text
+    assert "seccomp=unconfined" in text
     assert "osv_offline:" in text
     assert "9000/health" in text
     assert "minio/health/live" not in _executable("docker-compose.prod.yml")
@@ -64,6 +70,9 @@ def test_worker_safety_dockerfile_enables_external_cli() -> None:
     assert "AI_STP_OSV_OFFLINE_DIR" in text
     assert "OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY" in text
     assert "install_scanners.sh" in text
+    assert "snapshot.debian.org/archive/debian/20260822T000000Z" in text
+    assert "requirements.lock" in text
+    assert text.count("FROM python:3.12-slim@sha256:") == 2
     # Required skill engines + govulncheck (not optional extras).
     assert "golang.org/x/vuln/cmd/govulncheck" in text
     assert "go-tools" in text
@@ -72,17 +81,12 @@ def test_worker_safety_dockerfile_enables_external_cli() -> None:
 def test_install_scanners_requires_govulncheck_and_skill_engines() -> None:
     script = _read("scripts/safety/install_scanners.sh")
     pins = _read("scripts/safety/versions.env")
-    assert "SKILLSPECTOR_GIT_REF" in pins
     assert "SKILL_SCANNER_VERSION" in pins
     assert "cisco-ai-skill-scanner" in pins
-    assert (
-        "NVIDIA/skillspector" in pins
-        or "NVIDIA/SkillSpector" in pins.lower()
-        or "skillspector.git" in pins
-    )
     assert "govulncheck missing and go not available" in script
-    assert "skillspector" in script
     assert "skill-scanner" in script
+    assert "--require-hashes" in script
+    assert "SKILL_SCANNER_WHEEL_SHA256" in pins
     # Final gate: required tools must exist or install fails.
     assert "required tool missing after install" in script
 

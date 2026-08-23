@@ -5,6 +5,7 @@ import { Badge } from "@/components/atoms/badge";
 import { CatalogUsageStats } from "@/components/molecules/catalog-usage-stats";
 import { CliCopyBlock } from "@/components/molecules/cli-copy-block";
 import { ExactSourceLink } from "@/components/molecules/exact-source-link";
+import { OsBadgeList } from "@/components/molecules/os-badge-list";
 import { StatePanel } from "@/components/molecules/state-panel";
 import {
   SafetyChecksSummaryView,
@@ -14,6 +15,7 @@ import { SupportSummary, supportLabels } from "@/components/molecules/support-su
 import { readComponentGithubMetadata, readComponentVersion } from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
 import { asVersionId, tryAsComponentId } from "@/lib/brands";
+import { namedOperatingSystems } from "@/lib/catalog-harnesses";
 import { registryVersion } from "@/lib/cli-copy";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { publicOrigin } from "@/lib/site";
@@ -23,6 +25,8 @@ type PageProps = {
   params: Promise<{ locale: string; stableId: string; version: string }>;
 };
 
+// The page intentionally renders the complete immutable passport in one server component.
+// eslint-disable-next-line max-lines-per-function
 export default async function ComponentVersionPage({ params }: PageProps) {
   const { locale, stableId, version } = await params;
   setRequestLocale(locale);
@@ -89,7 +93,17 @@ export default async function ComponentVersionPage({ params }: PageProps) {
         </div>
         <div>
           <dt className="text-muted-foreground text-sm">{t("harness")}</dt>
-          <dd>{passport.harness_id}</dd>
+          <dd>
+            {(passport.harness_ids.length ? passport.harness_ids : [passport.harness_id]).join(
+              ", ",
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground text-sm">{t("supportedOs")}</dt>
+          <dd>
+            <OsBadgeList values={namedOperatingSystems(passport)} empty={t("noneListed")} />
+          </dd>
         </div>
         <div>
           <dt className="text-muted-foreground text-sm">{t("type")}</dt>

@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case_id": "createComplaint.accepted",
+      "operation_id": "createComplaint",
+      "kind": "positive",
+      "why": "Anonymous complaint about a catalog component is accepted.",
+      "request": {
+        "body": {
+          "schema_version": 1,
+          "target_kind": "component",
+          "target": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z@1.2",
+          "sender_name": "Ada",
+          "reply_email": "reporter@example.com",
+          "subject": "broken-skill",
+          "message": "The published skill fails its documented install path."
+        }
+      },
+      "status": 201,
+      "body": {
+        "schema_version": 1,
+        "complaint_id": "complaint_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "accepted": true,
+        "created_at": "2026-08-23T00:00:00.000Z"
+      }
+    }
+  ]
+}

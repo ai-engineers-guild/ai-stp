@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Literal
 
-POLICY_VERSION = "safety-1"
+POLICY_VERSION = "safety-2"
 
 CheckResultName = Literal[
     "passed", "warning", "failed", "degraded", "not_run", "not_applicable", "skipped"
@@ -127,6 +127,30 @@ CHECK_REGISTRY: tuple[CheckSpec, ...] = (
         weight=0.5,
     ),
     CheckSpec(
+        check_id="network_intent",
+        family="network_intent",
+        mandatory=False,
+        timeout_seconds=15,
+        stage=2,
+        kinds=frozenset({"component"}),
+        languages=frozenset(),
+        requires_any_flag=frozenset(),
+        profiles=frozenset({SafetyProfile.STANDARD, SafetyProfile.STRICT}),
+        weight=0.5,
+    ),
+    CheckSpec(
+        check_id="agentic_behavior",
+        family="agentic_behavior",
+        mandatory=True,
+        timeout_seconds=15,
+        stage=2,
+        kinds=frozenset({"component"}),
+        languages=frozenset(),
+        requires_any_flag=frozenset(),
+        profiles=frozenset({SafetyProfile.MINIMAL, SafetyProfile.STANDARD, SafetyProfile.STRICT}),
+        weight=1.5,
+    ),
+    CheckSpec(
         check_id="sast_opengrep",
         family="sast_generic",
         mandatory=False,
@@ -178,13 +202,8 @@ CHECK_REGISTRY: tuple[CheckSpec, ...] = (
         check_id="skill_static_gate",
         family="skill_static",
         mandatory=True,
-        # Sixty rather than twenty, measured rather than guessed: one
-        # `skillspector` pass over a real component tree takes about nine
-        # seconds on an idle worker, and publishing a corpus of a hundred
-        # objects put enough of them in flight at once to cross the old limit.
-        # The adapter now reports a timeout honestly instead of as a finding,
-        # which makes a too-small limit visible — but visible is not the same
-        # as fixed, and a static analyser needs room to finish.
+        # Leaves room for every SKILL.md package in one bounded artifact; the
+        # adapter reports an unfinished scan as degraded, never as a finding.
         timeout_seconds=60,
         stage=4,
         kinds=frozenset({"component"}),
@@ -200,7 +219,7 @@ CHECK_REGISTRY: tuple[CheckSpec, ...] = (
         timeout_seconds=10,
         stage=5,
         kinds=frozenset({"component"}),
-        languages=frozenset({"shell"}),
+        languages=frozenset(),
         requires_any_flag=frozenset(),
         profiles=frozenset({SafetyProfile.STANDARD, SafetyProfile.STRICT}),
         weight=1.0,
@@ -340,25 +359,25 @@ CHECK_REGISTRY: tuple[CheckSpec, ...] = (
     CheckSpec(
         check_id="malware_clamav",
         family="malware",
-        mandatory=False,
-        timeout_seconds=15,
+        mandatory=True,
+        timeout_seconds=30,
         stage=7,
         kinds=frozenset({"component"}),
         languages=frozenset(),
         requires_any_flag=frozenset({"binary"}),
-        profiles=frozenset({SafetyProfile.STRICT}),
+        profiles=frozenset({SafetyProfile.STANDARD, SafetyProfile.STRICT}),
         weight=2.0,
     ),
     CheckSpec(
         check_id="malware_yara",
         family="malware_yara",
-        mandatory=False,
+        mandatory=True,
         timeout_seconds=15,
         stage=7,
         kinds=frozenset({"component"}),
         languages=frozenset(),
         requires_any_flag=frozenset({"binary"}),
-        profiles=frozenset({SafetyProfile.STRICT}),
+        profiles=frozenset({SafetyProfile.STANDARD, SafetyProfile.STRICT}),
         weight=1.5,
     ),
     CheckSpec(

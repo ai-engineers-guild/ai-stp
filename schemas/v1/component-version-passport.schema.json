@@ -335,6 +335,14 @@
       "pattern": "^revision_[0-9a-f]{64}$",
       "type": "string"
     },
+    "SupportedOs": {
+      "enum": [
+        "linux",
+        "macos",
+        "windows"
+      ],
+      "type": "string"
+    },
     "TagId": {
       "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
       "type": "string"
@@ -393,6 +401,14 @@
     },
     "harness_id": {
       "$ref": "#/$defs/HarnessId"
+    },
+    "harness_ids": {
+      "items": {
+        "$ref": "#/$defs/HarnessId"
+      },
+      "maxItems": 6,
+      "title": "Harness Ids",
+      "type": "array"
     },
     "kind": {
       "const": "component",
@@ -506,6 +522,13 @@
       "title": "Stable Id",
       "type": "string"
     },
+    "supported_os": {
+      "items": {
+        "$ref": "#/$defs/SupportedOs"
+      },
+      "title": "Supported Os",
+      "type": "array"
+    },
     "tags": {
       "items": {
         "$ref": "#/$defs/TagId"
@@ -551,6 +574,7 @@
     "external_endpoints",
     "facts",
     "harness_id",
+    "harness_ids",
     "kind",
     "license",
     "managed_paths",
@@ -570,6 +594,7 @@
     "schema_version",
     "source",
     "stable_id",
+    "supported_os",
     "tags",
     "variant_id",
     "version",

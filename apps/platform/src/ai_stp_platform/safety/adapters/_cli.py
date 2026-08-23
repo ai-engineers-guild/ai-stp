@@ -6,7 +6,10 @@ import logging
 import os
 import shutil
 import subprocess
+import tempfile
 import time
+from contextlib import contextmanager
+from contextvars import ContextVar
 from pathlib import Path
 from typing import Final
 
@@ -37,6 +40,52 @@ def which(name: str) -> str | None:
 #: refused most of a corpus as dangerous content. Well under the suite's own
 #: eight-minute budget in `safety.orchestrator`.
 MAX_TIMEOUT_SECONDS: Final[float] = 120.0
+_SCAN_DEADLINE: ContextVar[float | None] = ContextVar("safety_scan_deadline", default=None)
+
+
+@contextmanager
+def scan_deadline(deadline: float):
+    """Limit every nested CLI invocation to the suite's remaining wall time."""
+    token = _SCAN_DEADLINE.set(deadline)
+    try:
+        yield
+    finally:
+        _SCAN_DEADLINE.reset(token)
+
+
+def remaining_timeout(requested: float) -> float:
+    """Return the smaller of a check timeout and the active suite deadline."""
+    remaining = _SCAN_DEADLINE.get()
+    if remaining is not None:
+        requested = min(float(requested), max(0.0, remaining - time.perf_counter()))
+    return effective_timeout(requested)
+
+
+def deadline_expired() -> bool:
+    deadline = _SCAN_DEADLINE.get()
+    return deadline is not None and time.perf_counter() >= deadline
+
+
+def classify_cli_exit(code: int, stdout: str, stderr: str) -> tuple[str, dict[str, object]]:
+    """Classify a CLI result without turning tool failures into a clean pass.
+
+    The scanners used here reserve exit 1 for findings. Other non-zero exits
+    are execution/configuration failures unless the adapter has a narrower
+    documented contract of its own.
+    """
+    if code == 127:
+        return "not_run", {"reason": "tool_missing"}
+    if code == 124:
+        return "degraded", {"reason": "timeout", "timed_out": ["scanner"]}
+    if code == 0:
+        return "passed", {}
+    if code == 1 and (stdout or stderr):
+        return "finding", {}
+    return "degraded", {
+        "reason": "tool_error",
+        "exit_code": code,
+        "stderr": stderr[:200],
+    }
 
 
 def effective_timeout(timeout: float) -> float:
@@ -71,7 +120,10 @@ def run_cli(
             pass
         return 127, "", f"missing:{argv[0] if argv else 'tool'}", 0
     started = time.perf_counter()
-    timeout = effective_timeout(timeout)
+    timeout = remaining_timeout(timeout)
+    if timeout <= 0:
+        _record(124, 0, "deadline")
+        return 124, "", "timeout", 0
     from ai_stp_platform.safety.sandbox import (
         force_sandbox_mode,
         is_bwrap_failure,
@@ -81,10 +133,34 @@ def run_cli(
 
     env = env_no_network()
     plan = plan_cli_argv(argv, cwd=cwd)
+    # Never expose the worker user's home to an untrusted scanner. Bubblewrap
+    # gives each launch a fresh writable /tmp; native hosts use their temp dir.
+    scanner_home = "/tmp" if plan.mode == "bwrap" else tempfile.gettempdir()
+    env.update(
+        {
+            "HOME": scanner_home,
+            "USERPROFILE": scanner_home,
+            "TMPDIR": scanner_home,
+            "XDG_CACHE_HOME": f"{scanner_home}/.cache",
+        }
+    )
+    require_bwrap = os.environ.get("AI_STP_SAFETY_REQUIRE_BWRAP", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    if require_bwrap and plan.mode != "bwrap":
+        _record(126, 0, plan.mode)
+        return 126, "", "required bwrap sandbox unavailable", 0
     code, out, err, ms = _run(plan.argv, cwd=cwd, timeout=timeout, env=env, started=started)
 
     # Live fallback: probe may pass in some environments while real launch fails.
-    if plan.mode == "bwrap" and is_bwrap_failure(err, argv0=plan.argv[0] if plan.argv else None):
+    if (
+        not require_bwrap
+        and plan.mode == "bwrap"
+        and is_bwrap_failure(err, argv0=plan.argv[0] if plan.argv else None)
+    ):
         force_sandbox_mode("env_only", bwrap_path=plan.bwrap_path)
         plain = list(argv)
         tool_path = shutil.which(plain[0]) if plain and not Path(plain[0]).is_absolute() else None

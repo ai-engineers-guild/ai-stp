@@ -1,0 +1,44 @@
+{
+  "$defs": {
+    "ComplaintId": {
+      "pattern": "^complaint_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "type": "string"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:complaint-create-response",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Acceptance of a stored complaint. The message is not echoed.",
+  "properties": {
+    "accepted": {
+      "const": true,
+      "default": true,
+      "title": "Accepted",
+      "type": "boolean"
+    },
+    "complaint_id": {
+      "$ref": "#/$defs/ComplaintId"
+    },
+    "created_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "accepted",
+    "complaint_id",
+    "created_at",
+    "schema_version"
+  ],
+  "title": "ComplaintCreateResponse",
+  "type": "object"
+}

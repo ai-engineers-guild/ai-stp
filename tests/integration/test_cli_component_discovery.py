@@ -34,6 +34,15 @@ def test_real_cli_combines_project_layout_and_global_github_provenance(tmp_path:
     (project / "src" / "hooks" / "useFoo.ts").write_text(
         "export const useFoo = () => 1\n", encoding="utf-8"
     )
+    (project / ".mcp.json").write_text(
+        '{"mcpServers":{"docs":{"command":"npx","args":["docs-mcp"]}}}',
+        encoding="utf-8",
+    )
+    (project / ".codex").mkdir(parents=True)
+    (project / ".codex" / "config.toml").write_text(
+        '[mcp_servers.docs]\ncommand = "npx"\n',
+        encoding="utf-8",
+    )
     mcp_package = project / "services" / "review-mcp"
     mcp_source = mcp_package / "src" / "review_mcp" / "server.py"
     mcp_source.parent.mkdir(parents=True)
@@ -145,6 +154,13 @@ review-mcp = "review_mcp.server:main"
     assert mcp["entry_points"] == ["review_mcp.server:main"]
     assert mcp["transport_capabilities"] == ["stdio"]
     assert mcp["evidence_refs"] == ["pyproject.toml", "src/review_mcp/server.py"]
+    clients = [item for item in found if item.get("native_role") == "mcp_client_config"]
+    assert any(item["harness_id"] == "claude-code" for item in clients)
+    assert any(
+        item["harness_id"] == "codex" and item.get("evidence_refs") == ["mcp_servers.docs"]
+        for item in clients
+    )
+    assert "npx" not in result.stdout
     assert data["diagnostics"] == []
     assert _snapshot(tmp_path) == before
 
@@ -268,10 +284,6 @@ def test_every_declared_component_kind_is_discovered_in_one_project(tmp_path: Pa
     payload = cast(dict[str, object], json.loads(result.stdout))
     data = cast(dict[str, object], payload["data"])
     rows = cast(list[dict[str, object]], data["components"])
-    kinds = {
-        cast(str, row["component_type"])
-        for row in rows
-        if cast(str, row["source_path"]).startswith(str(project))
-    }
+    kinds = {cast(str, row["component_type"]) for row in rows if row["scope"] == "project"}
     declared = {"instruction", "skill", "mcp", "hook", "command", "agent", "plugin", "setting"}
-    assert kinds == declared, f"discovery missed {sorted(declared - kinds)}"
+    assert kinds == declared, f"discovery missed {sorted(declared - kinds)}; rows={rows!r}"

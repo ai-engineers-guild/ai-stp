@@ -1,0 +1,21 @@
+{
+  "pins": [
+    {
+      "stable_id": "component_ok",
+      "version": "1.0",
+      "checks_summary": {
+        "status": "available",
+        "checks": []
+      }
+    },
+    {
+      "stable_id": "component_bad",
+      "version": "1.0",
+      "failed_mandatory": true,
+      "checks_summary": {
+        "status": "available",
+        "failed": 1
+      }
+    }
+  ]
+}

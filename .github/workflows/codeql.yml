@@ -1,9 +1,13 @@
-# Static security analysis, which a public repository gets at no cost.
+# Static analysis for the public mirror. It is not the gate: findings must not
+# look like a broken `check`, and a vulnerability class can appear after the
+# code that contains it stopped changing, so this also runs on a schedule.
 #
-# Deliberately separate from `check`: it answers a different question, takes
-# longer than the gate, and a security finding should not be reported as a
-# broken build. It also runs on a schedule, because a vulnerability class can
-# be published after the code that contains it stopped changing.
+# GitHub-hosted on purpose. CodeQL needs `security-events: write` and does not
+# need Docker; the fleet class that runs the gate must not carry this job
+# (`ADR-0105`). Public repositories get this runner at no cost. Private ones
+# do not get Code scanning on the free plan, so the job is skipped there —
+# the file still lives in this tree so the public mirror stays a copy instead
+# of growing its own workflow.
 name: codeql
 
 on:
@@ -25,6 +29,7 @@ concurrency:
 jobs:
   analyse:
     name: analyse (${{ matrix.language }})
+    if: github.event.repository.private == false
     runs-on: ubuntu-latest
     timeout-minutes: 40
     permissions:
@@ -45,7 +50,7 @@ jobs:
         uses: github/codeql-action/init@c16c0f3f2812ec4bb3750a5ed64873fe2ce0fbef
         with:
           languages: ${{ matrix.language }}
-          queries: security-and-quality
+          queries: security-extended
       - name: Analyse
         uses: github/codeql-action/analyze@c16c0f3f2812ec4bb3750a5ed64873fe2ce0fbef
         with:

@@ -1,0 +1,6 @@
+{
+  "capabilities": [
+    "credential-read",
+    "data-exfil"
+  ]
+}

@@ -13,6 +13,7 @@ AdapterFn = Callable[[Path, ArtifactManifest, CheckSpec], CheckOutcome]
 
 def get_adapter(check_id: str) -> AdapterFn | None:
     from ai_stp_platform.safety.adapters import (
+        agentic_behavior,
         bandit,
         cargo_audit,
         cargo_deny,
@@ -24,6 +25,7 @@ def get_adapter(check_id: str) -> AdapterFn | None:
         govulncheck,
         hook_static,
         mcp_config,
+        network_intent,
         npm_audit,
         opengrep,
         osv,
@@ -41,6 +43,7 @@ def get_adapter(check_id: str) -> AdapterFn | None:
     )
 
     table: dict[str, AdapterFn] = {
+        "agentic_behavior": agentic_behavior.run,
         "artifact_unpack": unpack.run,
         "path_denylist": path_denylist.run,
         "secrets_heuristic": secrets_heuristic.run,
@@ -49,6 +52,7 @@ def get_adapter(check_id: str) -> AdapterFn | None:
         "content_hidden": content_hidden.run,
         "sast_opengrep": opengrep.run,
         "mcp_config_static": mcp_config.run,
+        "network_intent": network_intent.run,
         "hook_schema_static": hook_static.run_schema,
         "hook_command_argv": hook_static.run_command,
         "skill_static_gate": skill_gate.run,

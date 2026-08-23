@@ -11,6 +11,7 @@ import {
 } from "@/lib/projection/machine-document";
 import { registryCommand } from "@/lib/cli-copy";
 import type { PublicObjectFacts } from "@/lib/projection/page-facts";
+import { namedHarnesses } from "@/lib/catalog-harnesses";
 import { usageFromCounts, usageMachineFields } from "@/lib/projection/usage-fields";
 
 type TrustLike = {
@@ -26,6 +27,7 @@ type ComponentSummaryLike = {
   latest_description: string;
   latest_version: string;
   latest_harness_id: string;
+  latest_harness_ids?: string[];
   latest_component_type: string;
   latest_lifecycle: string;
   latest_tags: string[];
@@ -171,7 +173,7 @@ export function presentCatalog(input: {
       doc.push(
         field(input.labels.stableId, item.stable_id),
         field(input.labels.type ?? "type", item.latest_component_type),
-        field(input.labels.harness, item.latest_harness_id),
+        field(input.labels.harness, namedHarnesses(item).join(", ")),
         field(input.labels.trustLane, item.latest_trust.trust_lane),
         field(input.labels.authorVerified, yesNo(item.latest_trust.author_verified, input.labels)),
         field(

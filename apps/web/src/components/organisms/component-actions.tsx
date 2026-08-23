@@ -1,7 +1,14 @@
 "use client";
 
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { useState, useSyncExternalStore, useTransition } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+  type ReactNode,
+} from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/atoms/button";
@@ -19,6 +26,8 @@ export type ObjectActionLabels = {
   copied: string;
   like: string;
   unlike: string;
+  likeMenu?: string;
+  unlikeMenu?: string;
   more: string;
   report: string;
   editPresentation?: string;
@@ -37,8 +46,67 @@ export type ObjectActionProps = {
   canonicalUrl?: string;
 };
 
+type LikeState = {
+  liked: boolean;
+  count: number;
+  pending: boolean;
+  toggle: () => void;
+};
+
+const LikeContext = createContext<LikeState | null>(null);
+
 const itemClassName =
   "hover:bg-muted focus-visible:bg-muted flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left text-sm focus-visible:outline-none";
+
+function useCatalogLike(props: {
+  stableId: string;
+  objectKind?: "component" | "setup";
+  likesCount: number;
+  initiallyLiked?: boolean;
+  labels: Pick<ObjectActionLabels, "like">;
+}): LikeState {
+  const [liked, setLiked] = useState(props.initiallyLiked ?? false);
+  const [count, setCount] = useState(props.likesCount);
+  const [pending, startTransition] = useTransition();
+  const objectKind = props.objectKind ?? "component";
+  const likeLabel = props.labels.like;
+  const stableId = props.stableId;
+
+  function toggle() {
+    const next = !liked;
+    startTransition(async () => {
+      try {
+        const state = await updateCatalogReaction(objectKind, stableId, next);
+        setLiked(state.liked);
+        setCount(state.likes_count);
+      } catch {
+        toast.error(likeLabel);
+      }
+    });
+  }
+
+  return { liked, count, pending, toggle };
+}
+
+function useLikeState(props: {
+  stableId: string;
+  objectKind?: "component" | "setup";
+  likesCount: number;
+  initiallyLiked?: boolean;
+  labels: Pick<ObjectActionLabels, "like">;
+}): LikeState {
+  const ctx = useContext(LikeContext);
+  const local = useCatalogLike(props);
+  return ctx ?? local;
+}
+
+export function ObjectLikeProvider({
+  children,
+  ...props
+}: ObjectActionProps & { children: ReactNode }) {
+  const like = useCatalogLike(props);
+  return <LikeContext.Provider value={like}>{children}</LikeContext.Provider>;
+}
 
 export function ObjectLikeControl({
   stableId,
@@ -50,47 +118,55 @@ export function ObjectLikeControl({
   ObjectActionProps,
   "stableId" | "objectKind" | "likesCount" | "initiallyLiked" | "labels"
 >) {
-  const [liked, setLiked] = useState(initiallyLiked);
-  const [count, setCount] = useState(likesCount);
-  const [pending, startTransition] = useTransition();
+  const like = useLikeState({
+    stableId,
+    objectKind,
+    likesCount,
+    initiallyLiked,
+    labels,
+  });
 
   return (
     <Button
       type="button"
-      variant={liked ? "default" : "outline"}
+      variant={like.liked ? "default" : "outline"}
       size="sm"
       className="min-h-11"
-      aria-pressed={liked}
-      disabled={pending}
+      aria-pressed={like.liked}
+      disabled={like.pending}
       onClick={() => {
-        const next = !liked;
-        startTransition(async () => {
-          try {
-            const state = await updateCatalogReaction(objectKind, stableId, next);
-            setLiked(state.liked);
-            setCount(state.likes_count);
-          } catch {
-            toast.error(labels.like);
-          }
-        });
+        like.toggle();
       }}
     >
-      <Icon name="heart" size="sm" fill={liked ? "currentColor" : "none"} />
-      {liked ? labels.unlike : labels.like} · {count}
+      <Icon name="heart" size="sm" fill={like.liked ? "currentColor" : "none"} />
+      {like.liked ? labels.unlike : labels.like} · {like.count}
     </Button>
   );
 }
 
 export function ObjectOverflowMenu({
   stableId,
+  objectKind = "component",
   sharePath,
+  likesCount,
+  initiallyLiked = false,
   labels,
   reportHref,
   editHref,
   cliCommand,
   canonicalUrl,
-}: Omit<ObjectActionProps, "likesCount">) {
+}: ObjectActionProps) {
   const [reportOpen, setReportOpen] = useState(false);
+  const like = useLikeState({
+    stableId,
+    objectKind,
+    likesCount,
+    initiallyLiked,
+    labels,
+  });
+  const likeMenu = labels.likeMenu ?? labels.like;
+  const unlikeMenu = labels.unlikeMenu ?? "Unlike";
+
   // Whether the browser has a share sheet is a fact about the browser, not a
   // state this component transitions through. The server cannot know it, so
   // the server snapshot is `false` and the answer arrives with hydration.
@@ -121,7 +197,7 @@ export function ObjectOverflowMenu({
 
   return (
     <>
-      <DropdownMenu.Root>
+      <DropdownMenu.Root modal={false}>
         <DropdownMenu.Trigger asChild>
           <Button
             type="button"
@@ -139,6 +215,16 @@ export function ObjectOverflowMenu({
             sideOffset={4}
             className="border-border bg-popover z-30 max-w-[min(20rem,calc(100vw-1.5rem))] min-w-52 rounded-lg border p-1 shadow-md"
           >
+            <DropdownMenu.Item
+              className={itemClassName}
+              disabled={like.pending}
+              onSelect={() => {
+                like.toggle();
+              }}
+            >
+              <Icon name="heart" size="sm" fill={like.liked ? "currentColor" : "none"} />
+              {like.liked ? unlikeMenu : likeMenu}
+            </DropdownMenu.Item>
             <DropdownMenu.Item
               className={itemClassName}
               onSelect={() => {
@@ -209,18 +295,20 @@ export function ObjectOverflowMenu({
 
 export function ComponentActions(props: ObjectActionProps) {
   return (
-    <div data-ui={UI.component.actions} className="contents">
-      <ObjectLikeControl
-        stableId={props.stableId}
-        objectKind={props.objectKind ?? "component"}
-        likesCount={props.likesCount}
-        initiallyLiked={props.initiallyLiked ?? false}
-        labels={props.labels}
-      />
-      <div data-ui={UI.component.overflow} className="absolute top-0 right-0">
-        <ObjectOverflowMenu {...props} />
+    <ObjectLikeProvider {...props}>
+      <div data-ui={UI.component.actions} className="contents">
+        <ObjectLikeControl
+          stableId={props.stableId}
+          objectKind={props.objectKind ?? "component"}
+          likesCount={props.likesCount}
+          initiallyLiked={props.initiallyLiked ?? false}
+          labels={props.labels}
+        />
+        <div data-ui={UI.component.overflow} className="absolute top-0 right-0">
+          <ObjectOverflowMenu {...props} />
+        </div>
       </div>
-    </div>
+    </ObjectLikeProvider>
   );
 }
 

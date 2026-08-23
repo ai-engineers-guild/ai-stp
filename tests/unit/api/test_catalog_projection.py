@@ -60,6 +60,23 @@ def _row_from_seed() -> PublicVersionRow:
     )
 
 
+def test_component_summary_projects_every_named_harness() -> None:
+    row = _row_from_seed()
+    primary = str(row.passport["harness_id"])
+    extra = "codex" if primary != "codex" else "claude-code"
+    variant = _row_with_passport_variant(
+        harness_ids=[primary, extra],
+        supported_os=["linux", "macos", "windows"],
+    )
+    summary = component_summary(variant)
+    assert summary.latest_harness_id == primary
+    assert list(summary.latest_harness_ids) == [primary, extra]
+    from ai_stp_passports.versions import ComponentVersionPassport
+
+    passport = ComponentVersionPassport.model_validate(variant.passport)
+    assert list(passport.supported_os) == ["linux", "macos", "windows"]
+
+
 def test_latest_fields_map_from_passport() -> None:
     row = _row_from_seed()
     summary = component_summary(row)

@@ -1,0 +1,14 @@
+{
+  "tools_baseline": [
+    {
+      "name": "fact",
+      "description": "Return a fact"
+    }
+  ],
+  "tools_current": [
+    {
+      "description": "Return a fact",
+      "name": "fact"
+    }
+  ]
+}

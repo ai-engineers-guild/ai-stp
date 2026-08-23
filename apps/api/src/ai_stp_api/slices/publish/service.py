@@ -167,6 +167,7 @@ async def _evidence_for_plan(db: AsyncSession, *, plan_id: str) -> list[dict[str
                 # it a refusal answers with a result and nothing else, and the
                 # owner is left comparing their object against a word.
                 "reason": row.reason,
+                "finding_summary": row.finding_summary,
                 "expires_at": expires,
             }
         )

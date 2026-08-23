@@ -348,8 +348,10 @@ def test_osv_health_and_env_network(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     env = env_no_network()
     assert env["AI_STP_SAFETY_NETWORK"] == "deny"
     monkeypatch.setenv("HTTP_PROXY", "http://proxy")
+    monkeypatch.setenv("AI_STP_STORAGE_SECRET_ACCESS_KEY", "must-not-reach-scanner")
     env2 = env_no_network()
     assert "HTTP_PROXY" not in env2
+    assert "AI_STP_STORAGE_SECRET_ACCESS_KEY" not in env2
 
 
 def test_workdir_zip_limits(tmp_path: Path) -> None:

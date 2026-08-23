@@ -1053,6 +1053,107 @@
         "title": "CliError",
         "type": "object"
       },
+      "ComplaintCreateRequest": {
+        "additionalProperties": false,
+        "description": "POST /v1/complaints body. Anonymous callers omit a session.",
+        "properties": {
+          "message": {
+            "maxLength": 4000,
+            "minLength": 10,
+            "title": "Message",
+            "type": "string"
+          },
+          "reply_email": {
+            "maxLength": 254,
+            "minLength": 3,
+            "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+            "title": "Reply Email",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "sender_name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Sender Name",
+            "type": "string"
+          },
+          "subject": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Subject",
+            "type": "string"
+          },
+          "target": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Target",
+            "type": "string"
+          },
+          "target_kind": {
+            "$ref": "#/components/schemas/ComplaintTargetKind"
+          }
+        },
+        "required": [
+          "target_kind",
+          "target",
+          "sender_name",
+          "reply_email",
+          "subject",
+          "message"
+        ],
+        "title": "ComplaintCreateRequest",
+        "type": "object"
+      },
+      "ComplaintCreateResponse": {
+        "additionalProperties": true,
+        "description": "Acceptance of a stored complaint. The message is not echoed.",
+        "properties": {
+          "accepted": {
+            "const": true,
+            "default": true,
+            "title": "Accepted",
+            "type": "boolean"
+          },
+          "complaint_id": {
+            "$ref": "#/components/schemas/ComplaintId"
+          },
+          "created_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "accepted",
+          "complaint_id",
+          "created_at",
+          "schema_version"
+        ],
+        "title": "ComplaintCreateResponse",
+        "type": "object"
+      },
+      "ComplaintId": {
+        "pattern": "^complaint_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+        "type": "string"
+      },
+      "ComplaintTargetKind": {
+        "enum": [
+          "author",
+          "component",
+          "setup",
+          "other"
+        ],
+        "type": "string"
+      },
       "ComponentDetail": {
         "additionalProperties": true,
         "description": "Exact read of one public component and the versions it offers.",
@@ -1534,6 +1635,14 @@
           "latest_harness_id": {
             "$ref": "#/components/schemas/HarnessId"
           },
+          "latest_harness_ids": {
+            "items": {
+              "$ref": "#/components/schemas/HarnessId"
+            },
+            "maxItems": 6,
+            "title": "Latest Harness Ids",
+            "type": "array"
+          },
           "latest_lifecycle": {
             "$ref": "#/components/schemas/PublicLifecycle"
           },
@@ -1612,6 +1721,7 @@
           "latest_component_type",
           "latest_description",
           "latest_harness_id",
+          "latest_harness_ids",
           "latest_lifecycle",
           "latest_name",
           "latest_projection_kind",
@@ -1764,6 +1874,14 @@
           "harness_id": {
             "$ref": "#/components/schemas/HarnessId"
           },
+          "harness_ids": {
+            "items": {
+              "$ref": "#/components/schemas/HarnessId"
+            },
+            "maxItems": 6,
+            "title": "Harness Ids",
+            "type": "array"
+          },
           "kind": {
             "const": "component",
             "default": "component",
@@ -1876,6 +1994,13 @@
             "title": "Stable Id",
             "type": "string"
           },
+          "supported_os": {
+            "items": {
+              "$ref": "#/components/schemas/SupportedOs"
+            },
+            "title": "Supported Os",
+            "type": "array"
+          },
           "tags": {
             "items": {
               "$ref": "#/components/schemas/TagId"
@@ -1921,6 +2046,7 @@
           "external_endpoints",
           "facts",
           "harness_id",
+          "harness_ids",
           "kind",
           "license",
           "managed_paths",
@@ -1940,6 +2066,7 @@
           "schema_version",
           "source",
           "stable_id",
+          "supported_os",
           "tags",
           "variant_id",
           "version",
@@ -2799,6 +2926,17 @@
             ],
             "default": null
           },
+          "finding_summary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SafetyFindingSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "reason": {
             "anyOf": [
               {
@@ -2828,6 +2966,7 @@
         "required": [
           "check_id",
           "expires_at",
+          "finding_summary",
           "reason",
           "result",
           "schema_version",
@@ -3000,6 +3139,16 @@
           "observed",
           "derived",
           "imported"
+        ],
+        "type": "string"
+      },
+      "FindingSeverity": {
+        "enum": [
+          "info",
+          "low",
+          "medium",
+          "high",
+          "critical"
         ],
         "type": "string"
       },
@@ -4607,6 +4756,17 @@
             "title": "Family",
             "type": "string"
           },
+          "finding_summary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SafetyFindingSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "mandatory": {
             "default": true,
             "title": "Mandatory",
@@ -4645,6 +4805,7 @@
         "required": [
           "check_id",
           "family",
+          "finding_summary",
           "mandatory",
           "reason",
           "result",
@@ -4738,6 +4899,61 @@
           "warning"
         ],
         "title": "SafetyChecksSummary",
+        "type": "object"
+      },
+      "SafetyFindingSummary": {
+        "additionalProperties": true,
+        "description": "Bounded public identifiers for findings; never scanned content.",
+        "properties": {
+          "count": {
+            "minimum": 1,
+            "title": "Count",
+            "type": "integer"
+          },
+          "paths": {
+            "items": {
+              "maxLength": 240,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 16,
+            "title": "Paths",
+            "type": "array"
+          },
+          "rule_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 16,
+            "title": "Rule Ids",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "severity_max": {
+            "$ref": "#/components/schemas/FindingSeverity"
+          },
+          "truncated": {
+            "default": false,
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "count",
+          "paths",
+          "rule_ids",
+          "schema_version",
+          "severity_max",
+          "truncated"
+        ],
+        "title": "SafetyFindingSummary",
         "type": "object"
       },
       "SetupContextBudget": {
@@ -5502,12 +5718,7 @@
           },
           "supported_os": {
             "items": {
-              "enum": [
-                "linux",
-                "macos",
-                "windows"
-              ],
-              "type": "string"
+              "$ref": "#/components/schemas/SupportedOs"
             },
             "title": "Supported Os",
             "type": "array"
@@ -6056,6 +6267,14 @@
         "enum": [
           "primary",
           "beta"
+        ],
+        "type": "string"
+      },
+      "SupportedOs": {
+        "enum": [
+          "linux",
+          "macos",
+          "windows"
         ],
         "type": "string"
       },
@@ -7026,6 +7245,9 @@
                             "latest_component_type": "skill",
                             "latest_description": "fixture-component-description",
                             "latest_harness_id": "claude-code",
+                            "latest_harness_ids": [
+                              "claude-code"
+                            ],
                             "latest_lifecycle": "active",
                             "latest_name": "fixture-component",
                             "latest_projection_kind": "native_files",
@@ -9154,6 +9376,9 @@
                           "latest_component_type": "skill",
                           "latest_description": "fixture-component-description",
                           "latest_harness_id": "claude-code",
+                          "latest_harness_ids": [
+                            "claude-code"
+                          ],
                           "latest_lifecycle": "active",
                           "latest_name": "fixture-component",
                           "latest_projection_kind": "native_files",
@@ -9334,6 +9559,9 @@
                         "latest_component_type": "skill",
                         "latest_description": "fixture-component-description",
                         "latest_harness_id": "claude-code",
+                        "latest_harness_ids": [
+                          "claude-code"
+                        ],
                         "latest_lifecycle": "active",
                         "latest_name": "fixture-component",
                         "latest_projection_kind": "native_files",
@@ -9367,7 +9595,7 @@
                         {
                           "checks": null,
                           "lifecycle": "active",
-                          "passport_digest": "sha256:21d097f41e14dd7423f6074f4376c912d9a907ad07cba2e5d2e702ab46df0362",
+                          "passport_digest": "sha256:5e4b23e230936350a53ab8bdcdcc83b5abe5b6b4cad55ab5063cfe18970b8712",
                           "published_at": "2026-08-05T00:00:00.000Z",
                           "support": {
                             "evidence": [],
@@ -9385,7 +9613,7 @@
                         {
                           "checks": null,
                           "lifecycle": "active",
-                          "passport_digest": "sha256:402217ff8818c58f5ac093923f49a25c10d8955bac59f4d4e837012641a2f51a",
+                          "passport_digest": "sha256:4df65c32960d9722726bb70b5154837e5d145966575bbdaa56fc6616fb61b2f4",
                           "published_at": "2026-08-05T00:00:00.000Z",
                           "support": {
                             "evidence": [],
@@ -9585,6 +9813,7 @@
                         "external_endpoints": [],
                         "facts": {},
                         "harness_id": "claude-code",
+                        "harness_ids": [],
                         "kind": "component",
                         "license": {
                           "redistribution_allowed": true,
@@ -9607,10 +9836,11 @@
                         "requires_capabilities": [],
                         "requires_components": [],
                         "requires_credentials": false,
-                        "revision_id": "revision_9f90ce539ce28826fef5fbb669a1566ae8d6b4a57018611f9ef85eded3ab36cc",
+                        "revision_id": "revision_96370e726c35370359c21a99c5aff141f4fc69a9a536699ff91370fb1403263a",
                         "schema_version": 1,
                         "source": null,
                         "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "supported_os": [],
                         "tags": [
                           "python",
                           "tests"
@@ -9619,7 +9849,7 @@
                         "version": "1.2",
                         "visibility": "public"
                       },
-                      "passport_digest": "sha256:402217ff8818c58f5ac093923f49a25c10d8955bac59f4d4e837012641a2f51a",
+                      "passport_digest": "sha256:4df65c32960d9722726bb70b5154837e5d145966575bbdaa56fc6616fb61b2f4",
                       "published_at": "2026-08-05T00:00:00.000Z",
                       "schema_version": 1,
                       "support": {
@@ -11454,6 +11684,157 @@
         },
         "security": [],
         "summary": "Read on-demand GitHub stars and archive state for one exact setup."
+      }
+    },
+    "/v1/complaints": {
+      "post": {
+        "operationId": "createComplaint",
+        "parameters": [
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "createComplaint.accepted": {
+                  "summary": "Anonymous complaint about a catalog component is accepted.",
+                  "value": {
+                    "message": "The published skill fails its documented install path.",
+                    "reply_email": "reporter@example.com",
+                    "schema_version": 1,
+                    "sender_name": "Ada",
+                    "subject": "broken-skill",
+                    "target": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z@1.2",
+                    "target_kind": "component"
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/ComplaintCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "createComplaint.accepted": {
+                    "summary": "Anonymous complaint about a catalog component is accepted.",
+                    "value": {
+                      "accepted": true,
+                      "complaint_id": "complaint_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "created_at": "2026-08-23T00:00:00.000Z",
+                      "schema_version": 1
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ComplaintCreateResponse"
+                }
+              }
+            },
+            "description": "Accept a complaint about an author, catalog object, or other target.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "summary": "Accept a complaint about an author, catalog object, or other target."
       }
     },
     "/v1/devices": {
