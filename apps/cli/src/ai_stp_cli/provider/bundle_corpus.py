@@ -57,6 +57,14 @@ CASE_REASONS: Final[tuple[tuple[str, str], ...]] = (
     ("digest_mismatch", "digest_mismatch"),
     ("unsupported_protocol_version", "unsupported_protocol_version"),
 )
+
+#: v3 refuses two classes v2 has no vocabulary for, so the corpus that drives a
+#: v3 provider is larger. Keeping one shared list made the v2 run demand a
+#: refusal its own protocol cannot name.
+CASE_REASONS_V3: Final[tuple[tuple[str, str], ...]] = (
+    *CASE_REASONS,
+    ("unsupported_bundle_format", "unsupported_bundle_format"),
+)
 _COMPOSITION: Final[dict[str, JsonValue]] = {"complete": True}
 _CONVERSION: Final[dict[str, JsonValue]] = {"complete": True}
 
@@ -139,7 +147,7 @@ def materialized_v3(
                     native_consistent=True,
                 ),
             )
-            for name, refusal in CASE_REASONS
+            for name, refusal in CASE_REASONS_V3
         )
         yield Corpus(valid=valid, malicious=cases)
 
@@ -266,6 +274,12 @@ def _malicious(
         members.append((f"files/{record['path']}", content, _regular()))
     elif name == "unsupported_protocol_version":
         manifest["protocol_version"] = protocol_version + 1
+        members.append((f"files/{record['path']}", content, _regular()))
+    elif name == "unsupported_bundle_format":
+        # A container this provider was never told how to read. The bytes stay
+        # a well-formed archive on purpose: refusing it has to come from the
+        # declared format, not from the parser failing to open the file.
+        manifest["bundle_format"] = "ai-stp-bundle/999"
         members.append((f"files/{record['path']}", content, _regular()))
     else:  # pragma: no cover - closed constant above
         raise KeyError(name)

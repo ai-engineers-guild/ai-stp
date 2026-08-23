@@ -14,6 +14,7 @@ import pytest
 from ai_stp_cli.commands import select
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.provider import (
+    bundle_corpus,
     bundle_protocol,
     conformance,
     conformance_v3,
@@ -81,17 +82,13 @@ def _conforming(target: Path) -> tuple[conformance.Invoker, list[str]]:
     info = _info()
     calls: list[str] = []
     target_digest = _digest("a")
+    # Derived, not restated. This map was a hand-kept copy of `CASE_REASONS`,
+    # and a copy of a closed vocabulary agrees with it exactly until somebody
+    # adds a case — at which point the conforming stub silently stops
+    # conforming and the failure points at the run rather than at the copy.
     refusals = {
-        "path_escapes_target": "path_escapes_target",
-        "path_not_relative": "path_not_relative",
-        "path_duplicate": "path_duplicate",
-        "symbolic_link_not_allowed": "link_not_allowed",
-        "hard_link_not_allowed": "link_not_allowed",
-        "special_file_not_allowed": "special_file_not_allowed",
-        "limit_exceeded": "limit_exceeded",
-        "unknown_native_surface": "unsupported_native_surface",
-        "digest_mismatch": "digest_mismatch",
-        "unsupported_protocol_version": "unsupported_protocol_version",
+        name: ("unsupported_native_surface" if name == "unknown_native_surface" else refusal)
+        for name, refusal in bundle_corpus.CASE_REASONS_V3
     }
 
     def invoke(command: str, arguments: Sequence[str]) -> JsonValue:
