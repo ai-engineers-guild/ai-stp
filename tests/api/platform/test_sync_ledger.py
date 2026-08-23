@@ -853,3 +853,70 @@ async def test_an_accepted_merge_delivers_the_parent_a_conflict_kept_out_of_the_
         f"does not already hold them can never apply this account's page. Delivered: "
         f"{delivered}"
     )
+
+
+@pytest.mark.asyncio
+async def test_a_revision_naming_a_parent_the_account_never_had_is_refused(
+    harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], Settings],
+) -> None:
+    """A parent the ledger cannot deliver must not enter the stream at all.
+
+    Delivering undelivered ancestors repairs the case where the account holds
+    the parent. It cannot repair a parent the account has never held: there is
+    nothing to enqueue, and accepting the child anyway produces the same
+    permanently unapplicable page with no way back. `validate_parents` checks
+    shape and uniqueness, and the head transition only requires the current
+    head to be among the parents — so a merge that also names a revision from
+    nowhere passed both.
+    """
+    client, sessionmaker, _ = harness
+    account_id, device_id, token = await _seed_device_session(sessionmaker)
+    headers = {"Authorization": f"Bearer {token}"}
+    entity_id = new_id("component")
+
+    root = _build_event(
+        account_id=account_id,
+        device_id=device_id,
+        entity_id=entity_id,
+        entity_kind="component_private",
+        event_id="event-stranger-root01",
+        idempotency_key="idem-strangerroot001",
+    )
+    accepted = await client.post(
+        "/v1/sync/push", headers=headers, json={"schema_version": 1, "events": [root]}
+    )
+    assert accepted.json()["receipts"][0]["state"] == "accepted", accepted.text
+
+    stranger = f"revision_{'a' * 64}"
+    child = _build_event(
+        account_id=account_id,
+        device_id=device_id,
+        entity_id=entity_id,
+        entity_kind="component_private",
+        parents=[root["revision_id"], stranger],
+        expected_head=root["revision_id"],
+        payload={"preference": "merged-with-a-stranger"},
+        event_id="event-stranger-merge1",
+        idempotency_key="idem-strangermerge01",
+    )
+    answered = await client.post(
+        "/v1/sync/push", headers=headers, json={"schema_version": 1, "events": [child]}
+    )
+    receipt = answered.json()["receipts"][0]
+    assert receipt["state"] == "rejected", answered.text
+    # Green for the right reason: the sibling test above pushes a two-parent
+    # merge whose parents the account holds and gets `accepted`, so the only
+    # difference here is the parent from nowhere.
+    assert receipt["error_code"] == "AI_STP_VALIDATION_ERROR", receipt
+
+    async with sessionmaker() as db:
+        delivered = (
+            (
+                await db.execute(
+                    select(SyncOutbox.revision_id).where(SyncOutbox.account_id == account_id)
+                )
+            )
+            .scalars()
+            .all()
+        )
+    assert child["revision_id"] not in [str(item) for item in delivered]
