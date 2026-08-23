@@ -13,7 +13,7 @@ export function GET() {
 ## Primary resources
 - [Catalog](${absolute("/en/catalog")}): public components and setups
 - [Human documentation](${docsHref}): product, CLI, catalog, trust and troubleshooting guides
-- [OpenAPI](${absolute("/schemas/v1/openapi.json")}): HTTP contract when deployed with platform schemas
+- [OpenAPI](${absolute("/openapi.json")}): HTTP contract served by the deployed API
 - [Agent instructions](${absolute("/agents.md")}): safe machine onboarding
 - [Extended context](${absolute("/llms-full.txt")}): terminology, trust model and supported harnesses
 ${isFeatureEnabled("content_hub") ? `- [Content](${absolute("/en/content")}): articles, product news, changelog and release notes\n` : ""}
