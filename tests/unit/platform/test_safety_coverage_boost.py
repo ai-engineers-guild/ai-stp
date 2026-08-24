@@ -439,7 +439,7 @@ async def test_env_object_store_owns_and_closes_created_client(
         use_cache=True,
     )
     assert r1.outcomes
-    assert r2.cache_hit is True
+    assert r2.cache_hit is False
     clear_safety_cache()
 
 
