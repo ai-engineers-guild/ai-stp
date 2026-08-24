@@ -150,11 +150,12 @@
       "type": "boolean"
     },
     "provider_release_trust": {
-      "default": "none",
+      "default": "unverified",
       "enum": [
-        "none",
-        "signed_manifest",
-        "github_attestation"
+        "verified_publisher",
+        "signed",
+        "build_attested",
+        "unverified"
       ],
       "title": "Provider Release Trust",
       "type": "string"

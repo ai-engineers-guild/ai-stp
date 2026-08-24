@@ -696,9 +696,15 @@ MIGRATIONS: Final[tuple[Migration, ...]] = (
     ),
     Migration(
         version=22,
-        summary="installation plans bind a GitHub artifact attestation as a trust source",
-        up=("ALTER TABLE operation_plan ADD COLUMN provider_release_attestation TEXT",),
-        down=("ALTER TABLE operation_plan DROP COLUMN provider_release_attestation",),
+        summary="installation plans bind provider release trust evidence",
+        up=(
+            "ALTER TABLE operation_plan ADD COLUMN provider_release_trust TEXT",
+            "ALTER TABLE operation_plan ADD COLUMN provider_release_evidence TEXT",
+        ),
+        down=(
+            "ALTER TABLE operation_plan DROP COLUMN provider_release_evidence",
+            "ALTER TABLE operation_plan DROP COLUMN provider_release_trust",
+        ),
     ),
 )
 

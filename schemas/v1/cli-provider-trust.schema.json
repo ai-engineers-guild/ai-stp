@@ -115,14 +115,6 @@
       "title": "Allowed Repositories",
       "type": "array"
     },
-    "attested_releases": {
-      "default": [],
-      "items": {
-        "$ref": "#/$defs/PinnedRelease"
-      },
-      "title": "Attested Releases",
-      "type": "array"
-    },
     "known_sequence": {
       "anyOf": [
         {
@@ -192,7 +184,6 @@
     "allowed_keys",
     "allowed_publishers",
     "allowed_repositories",
-    "attested_releases",
     "known_sequence",
     "minimum_sequence",
     "pinned_releases",

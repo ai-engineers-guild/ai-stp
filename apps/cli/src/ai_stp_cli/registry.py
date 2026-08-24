@@ -1565,22 +1565,27 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "provider-manifest",
                 "string",
                 "Signed manifest whose exact artifact is the provider executable. "
-                "Required by protocol v3 unless the artifact digest is an attested "
-                "pin or unverified-provider is given.",
+                "Required by protocol v3 unless unverified-provider is given.",
+            ),
+            option(
+                "provider-build-attestation",
+                "boolean",
+                "Verify exact provider bytes through the repository, source commit and "
+                "signer workflow pinned by the local policy.",
+            ),
+            option(
+                "provider-attestation-bundle",
+                "string",
+                "Optional local GitHub attestation bundle for offline verification.",
             ),
             option(
                 "unverified-provider",
                 "boolean",
-                "Install from a provider executable no signed or attested release "
-                "covers, such as one you built yourself. Named SHA256SUMS still "
-                "check identity. The plan records provider_release_trusted false.",
-            ),
-            option(
-                "provider-checksums",
-                "string",
-                "GNU SHA256SUMS file whose listed digest must match the provider "
-                "executable. Identity, not a signed release: a match does not make "
-                "provider_release_trusted true.",
+                "Install from a provider executable no signed release covers, "
+                "such as one you built yourself or an open-source provider "
+                "published without a privileged publisher. The pinned trust "
+                "policy checks nothing here, and the plan records "
+                "provider_release_trusted false.",
             ),
             option(
                 "provider-release-recovery",

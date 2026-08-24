@@ -99,7 +99,8 @@ class Plan:
     provider_target: str = ""
     provider_release_manifest: str = ""
     provider_release_recovery: bool = False
-    provider_release_attestation: str = ""
+    provider_release_trust: str = "unverified"
+    provider_release_evidence: str = ""
     bundle_format: str = ""
     bundle_digest: str = ""
     bundle_artifact_digest: str = ""
@@ -152,7 +153,8 @@ class Plan:
             value["bundle_size"] = self.bundle_size
             value["provider_plan_digest"] = self.provider_plan_digest
         if self.schema_version >= 6:
-            value["provider_release_attestation"] = self.provider_release_attestation
+            value["provider_release_trust"] = self.provider_release_trust
+            value["provider_release_evidence"] = self.provider_release_evidence
         return digest_canonical(PLAN_DOMAIN, value)
 
 
@@ -202,7 +204,8 @@ def propose(
     provider_target: str = "",
     provider_release_manifest: str = "",
     provider_release_recovery: bool = False,
-    provider_release_attestation: str = "",
+    provider_release_trust: str = "unverified",
+    provider_release_evidence: str = "",
     bundle_format: str = "",
     bundle_digest: str = "",
     bundle_artifact_digest: str = "",
@@ -267,7 +270,8 @@ def propose(
             provider_target=provider_target,
             provider_release_manifest=provider_release_manifest,
             provider_release_recovery=provider_release_recovery,
-            provider_release_attestation=provider_release_attestation,
+            provider_release_trust=provider_release_trust,
+            provider_release_evidence=provider_release_evidence,
             bundle_format=bundle_format,
             bundle_digest=bundle_digest,
             bundle_artifact_digest=bundle_artifact_digest,
@@ -293,10 +297,12 @@ def propose(
                 recovery_action, plan_digest, expires_at, created_at,
                 setup_stable_id, setup_version, provider_protocol_version,
                 provider_target, plan_schema_version, provider_release_manifest,
-                provider_release_recovery, provider_release_attestation,
-                bundle_format, bundle_digest, bundle_artifact_digest,
-                bundle_size, provider_plan_digest
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                provider_release_recovery, provider_release_trust,
+                provider_release_evidence, bundle_format, bundle_digest,
+                bundle_artifact_digest, bundle_size, provider_plan_digest
+            ) VALUES (
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            )
             """,
             (
                 operation_id,
@@ -319,7 +325,8 @@ def propose(
                 plan.schema_version,
                 provider_release_manifest,
                 int(provider_release_recovery),
-                provider_release_attestation,
+                provider_release_trust,
+                provider_release_evidence,
                 bundle_format,
                 bundle_digest,
                 bundle_artifact_digest,
@@ -791,10 +798,15 @@ def _decode(row: sqlite3.Row) -> Plan:
             else str(row["provider_release_manifest"])
         ),
         provider_release_recovery=bool(row["provider_release_recovery"]),
-        provider_release_attestation=(
+        provider_release_trust=(
+            "unverified"
+            if row["provider_release_trust"] is None
+            else str(row["provider_release_trust"])
+        ),
+        provider_release_evidence=(
             ""
-            if row["provider_release_attestation"] is None
-            else str(row["provider_release_attestation"])
+            if row["provider_release_evidence"] is None
+            else str(row["provider_release_evidence"])
         ),
         bundle_format="" if row["bundle_format"] is None else str(row["bundle_format"]),
         bundle_digest="" if row["bundle_digest"] is None else str(row["bundle_digest"]),

@@ -348,7 +348,7 @@ def test_the_native_surface_matches_provider_targets() -> None:
         )
         .entries[0]
         .projection_kind
-        == "package"
+        == "extension"
     )
 
 

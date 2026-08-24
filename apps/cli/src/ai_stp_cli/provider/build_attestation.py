@@ -1,0 +1,129 @@
+"""Verify exact provider bytes against a pinned GitHub build identity."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import subprocess
+import tempfile
+from dataclasses import dataclass
+from pathlib import Path
+from typing import cast
+
+from ai_stp_cli.errors import CliFailure
+from ai_stp_foundation.canonical import JsonValue, canonize
+
+
+@dataclass(frozen=True)
+class Policy:
+    repository: str
+    source_commit: str
+    signer_workflow: str
+    verified_publisher: bool = False
+
+
+@dataclass(frozen=True)
+class Evidence:
+    trust_level: str
+    digest: str
+    document: str
+
+
+def verify(artifact: Path, policy: Policy, *, bundle: Path | None = None) -> Evidence:
+    """Run GitHub's verifier with every identity-bearing policy flag pinned."""
+    command = [
+        "gh",
+        "attestation",
+        "verify",
+        str(artifact),
+        "--repo",
+        policy.repository,
+        "--source-digest",
+        policy.source_commit,
+        "--signer-workflow",
+        policy.signer_workflow,
+        "--deny-self-hosted-runners",
+        "--format=json",
+    ]
+    if bundle is not None:
+        command.extend(("--bundle", str(bundle)))
+    try:
+        completed = subprocess.run(
+            command,
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=60,
+            shell=False,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired) as error:
+        raise CliFailure(
+            "AI_STP_DEPENDENCY_UNAVAILABLE",
+            "GitHub attestation verification is unavailable",
+            details={"dependency": "gh", "exception": type(error).__name__},
+        ) from error
+    if completed.returncode != 0:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the provider artifact has no acceptable GitHub build attestation",
+            details={"repository": policy.repository},
+        )
+    try:
+        parsed: object = json.loads(completed.stdout)
+    except ValueError as error:
+        raise CliFailure(
+            "AI_STP_DEPENDENCY_UNAVAILABLE",
+            "GitHub attestation verification returned invalid JSON",
+            details={"dependency": "gh"},
+        ) from error
+    if not isinstance(parsed, list) or not parsed:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "GitHub verified no attestation for the provider artifact",
+            details={"repository": policy.repository},
+        )
+    rows = cast(list[object], parsed)
+    if not any(_has_verified_timestamp(item) for item in rows):
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the provider attestation has no verified transparency timestamp",
+            details={"repository": policy.repository},
+        )
+    document = canonize(cast(JsonValue, parsed)).decode("utf-8")
+    digest = f"sha256:{hashlib.sha256(document.encode('utf-8')).hexdigest()}"
+    return Evidence(
+        trust_level="verified_publisher" if policy.verified_publisher else "build_attested",
+        digest=digest,
+        document=document,
+    )
+
+
+def verify_stored(artifact: Path, policy: Policy, document: str) -> Evidence:
+    """Re-verify plan-bound bundles without fetching mutable remote state."""
+    try:
+        rows = json.loads(document)
+        bundles = [item["attestation"] for item in rows]
+    except (ValueError, TypeError, KeyError) as error:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the plan-bound provider attestation evidence is invalid",
+        ) from error
+    with tempfile.TemporaryDirectory(prefix="ai-stp-provider-attestation-") as raw:
+        bundle = Path(raw) / "bundle.jsonl"
+        bundle.write_text(
+            "".join(json.dumps(item, separators=(",", ":")) + "\n" for item in bundles),
+            encoding="utf-8",
+        )
+        return verify(artifact, policy, bundle=bundle)
+
+
+def _has_verified_timestamp(item: object) -> bool:
+    if not isinstance(item, dict):
+        return False
+    result = cast(dict[object, object], item).get("verificationResult")
+    if not isinstance(result, dict):
+        return False
+    timestamps = cast(dict[object, object], result).get("verifiedTimestamps")
+    return isinstance(timestamps, list) and len(cast(list[object], timestamps)) > 0

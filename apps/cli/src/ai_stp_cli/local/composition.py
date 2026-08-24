@@ -83,7 +83,7 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     # and prefixing it landed every Pi projection in `~/.pi/agent/agent/`.
     Rule("instruction", "AGENTS.md", "file", "pi"),
     Rule("skill", "skills", "directory", "pi"),
-    Rule("plugin", "packages", "directory", "pi", projection_kind="package"),
+    Rule("plugin", "extensions", "directory", "pi", projection_kind="extension"),
     Rule("setting", "settings.json", "file", "pi"),
     Rule("instruction", "AGENTS.md", "file", "opencode"),
     Rule("skill", "skills", "directory", "opencode"),

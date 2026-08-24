@@ -26,15 +26,13 @@ import base64
 import binascii
 import hashlib
 import json
-import re
-import subprocess
 import tomllib
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from importlib import resources
 from pathlib import Path
 from types import MappingProxyType
-from typing import Final, NoReturn, cast
+from typing import Final, Literal, NoReturn, cast
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
@@ -47,30 +45,12 @@ from ai_stp_foundation.digests import is_digest
 #: refused rather than read partially: a trust rule half-applied is worse than
 #: none, because it looks like a decision somebody made.
 #:
-#: Schema 2 binds each Ed25519-signed release to the provider and repository
-#: that may present it. Schema 3 keeps that table and adds `attested_releases`
-#: for GitHub artifact attestations, which are not signatures and are not read
-#: as v2. Schema 1 pinned bare digests, and a build that enforces the binding
-#: cannot read one: it would have to invent which provider each digest belongs
-#: to, and inventing a trust anchor is the failure this module exists to
+#: Schema 2 binds each pinned release to the provider and repository that may
+#: present it. Schema 1 pinned bare digests, and a build that enforces the
+#: binding cannot read one: it would have to invent which provider each digest
+#: belongs to, and inventing a trust anchor is the failure this module exists to
 #: prevent. So a v1 policy is refused rather than upgraded in place.
 POLICY_SCHEMA_VERSION: Final[int] = 2
-READABLE_POLICY_SCHEMAS: Final[frozenset[int]] = frozenset({2, 3})
-ATTESTED_POLICY_SCHEMA_VERSION: Final[int] = 3
-ATTESTATION_KIND: Final[str] = "github_attestation"
-ATTESTED_RELEASE_FIELD: Final[str] = "attested_releases"
-
-#: GNU `sha256sum` output this check will read. A file larger than this is
-#: refused without being opened: a limit applied after the read limits nothing.
-MAX_CHECKSUMS_BYTES: Final[int] = 1_048_576
-_GNU_SHA256SUM: Final[re.Pattern[str]] = re.compile(r"^([0-9a-fA-F]{64}) ([ *])(.+)$")
-_GITHUB_REPOSITORY: Final[re.Pattern[str]] = re.compile(
-    r"^github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
-)
-
-#: How long `gh attestation verify` may take. It talks to GitHub; an unbounded
-#: wait turns a hung CLI into a job that ends at its own ceiling.
-ATTESTATION_VERIFY_SECONDS: Final[int] = 60
 
 #: The pinned policy shipped beside this module.
 POLICY_FILE: Final[str] = "provider-policy.toml"
@@ -89,6 +69,9 @@ POLICY_FIELDS: Final[frozenset[str]] = frozenset(
         "supported_protocols",
         "releases",
     }
+)
+OPTIONAL_POLICY_FIELDS: Final[frozenset[str]] = frozenset(
+    {"verified_publishers", "build_attestations"}
 )
 #: What one pinned release names. The digest alone would allow a signed manifest
 #: to present one provider's approved bytes as another provider's release, and
@@ -148,6 +131,13 @@ class PinnedRelease:
 
 
 @dataclass(frozen=True)
+class BuildAttestationRule:
+    repository: str
+    signer_workflow: str
+    verified_publisher: bool = False
+
+
+@dataclass(frozen=True)
 class TrustPolicy:
     """What this machine will accept, pinned locally and never widened.
 
@@ -175,16 +165,15 @@ class TrustPolicy:
     #: signature of the wrong thing, which is exactly how a valid signature ends
     #: up meaning nothing.
     signature_subject: str
+    verified_publishers: frozenset[str] = frozenset()
+    build_attestations: Mapping[str, BuildAttestationRule] = field(
+        default_factory=lambda: MappingProxyType({})
+    )
     public_keys: Mapping[str, str] = field(default_factory=lambda: MappingProxyType({}))
 
     revoked_keys: frozenset[str] = frozenset()
     minimum_sequence: int = 0
     supported_protocols: frozenset[int] = frozenset({1})
-
-    #: Schema 3 only. Exact provider bytes this machine will install after
-    #: `gh attestation verify --repo`, bound the same way as signed pins. Empty
-    #: means no attested install, not that any attested artifact will do.
-    attested_releases: frozenset[PinnedRelease] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -231,6 +220,14 @@ class Verdict:
     #: release is refused: a rejected release must not move the counter, or
     #: refusing one would make the next rollback easier.
     next_minimum_sequence: int
+    trust_level: Literal["verified_publisher", "signed", "unverified"] = "unverified"
+
+
+def signed_trust_level(
+    manifest: ReleaseManifest, policy: TrustPolicy
+) -> Literal["verified_publisher", "signed"]:
+    """Name the accepted signed path without treating a remote badge as byte evidence."""
+    return "verified_publisher" if manifest.publisher in policy.verified_publishers else "signed"
 
 
 def verify(
@@ -257,20 +254,20 @@ def verify(
     """
     refusals: list[Refusal] = []
 
-    if policy.schema_version not in READABLE_POLICY_SCHEMAS:
+    if policy.schema_version != POLICY_SCHEMA_VERSION:
         # Nothing else is checked: a policy this build cannot read fully is a
         # policy whose other fields may not mean what they appear to.
-        readable = ", ".join(str(item) for item in sorted(READABLE_POLICY_SCHEMAS))
         return Verdict(
             accepted=False,
             refusals=(
                 Refusal(
                     "policy_schema_unsupported",
                     "this build does not read that trust policy schema",
-                    {"found": str(policy.schema_version), "reads": readable},
+                    {"found": str(policy.schema_version), "reads": str(POLICY_SCHEMA_VERSION)},
                 ),
             ),
             next_minimum_sequence=known_sequence,
+            trust_level="unverified",
         )
 
     refusals.extend(_publisher(manifest, policy))
@@ -293,11 +290,56 @@ def verify(
     return Verdict(
         accepted=accepted,
         refusals=tuple(refusals),
-        # A refused release never moves the counter. Moving it would make the
-        # next rollback easier every time one is rejected.
-        next_minimum_sequence=max(known_sequence, manifest.sequence)
-        if accepted
-        else known_sequence,
+        next_minimum_sequence=(
+            max(known_sequence, manifest.sequence) if accepted else known_sequence
+        ),
+        trust_level=signed_trust_level(manifest, policy) if accepted else "unverified",
+    )
+
+
+def verify_attested(
+    manifest: ReleaseManifest,
+    policy: TrustPolicy,
+    *,
+    known_sequence: int,
+    observed_digest: str,
+    observed_size: int,
+    platform: str,
+) -> Verdict:
+    """Verify the manifest facts that remain independent of build attestation."""
+    refusals: list[Refusal] = []
+    if policy.schema_version != POLICY_SCHEMA_VERSION:
+        refusals.append(
+            Refusal(
+                "policy_schema_unsupported",
+                "this build does not read that trust policy schema",
+            )
+        )
+    if manifest.policy_id != policy.policy_id:
+        refusals.append(Refusal("policy_id_mismatch", "the manifest names another policy"))
+    if manifest.repository not in policy.build_attestations:
+        refusals.append(
+            Refusal("repository_not_allowed", "the repository has no pinned build identity")
+        )
+    refusals.extend(_artifact(manifest, observed_digest, observed_size))
+    refusals.extend(_platform(manifest, policy, platform))
+    refusals.extend(
+        _sequence(
+            manifest,
+            policy,
+            known_sequence,
+            recovery_requested=False,
+            recovery_verified=False,
+        )
+    )
+    refusals.sort(key=lambda item: item.code)
+    return Verdict(
+        accepted=not refusals,
+        refusals=tuple(refusals),
+        next_minimum_sequence=(
+            max(known_sequence, manifest.sequence) if not refusals else known_sequence
+        ),
+        trust_level="unverified",
     )
 
 
@@ -608,221 +650,6 @@ def artifact_identity(path: Path) -> tuple[str, int]:
     return f"sha256:{digest.hexdigest()}", size
 
 
-def verify_artifact_checksums(artifact: Path, sums_path: Path) -> str:
-    """Require the artifact digest to appear in a GNU SHA256SUMS file.
-
-    Matching bytes is identity, not a signed release: OpenNetwork publishes
-    checksums without an Ed25519 manifest. A match does not make a plan trusted.
-    Match is by digest, not basename — a renamed download is still those bytes.
-    """
-    if sums_path.is_symlink() or not sums_path.is_file():
-        raise CliFailure(
-            "AI_STP_VALIDATION_ERROR",
-            "the named SHA256SUMS file is not a regular file",
-            details={"checksums": str(sums_path)},
-        )
-    size = sums_path.stat().st_size
-    if size > MAX_CHECKSUMS_BYTES:
-        raise CliFailure(
-            "AI_STP_VALIDATION_ERROR",
-            "the named SHA256SUMS file exceeds the size this check will read",
-            details={"bytes": str(size), "maximum": str(MAX_CHECKSUMS_BYTES)},
-        )
-    listed = parse_gnu_sha256sums(sums_path.read_text(encoding="utf-8"))
-    digest, _ = artifact_identity(artifact)
-    hex_digest = digest.removeprefix("sha256:")
-    if hex_digest not in listed:
-        raise CliFailure(
-            "AI_STP_VALIDATION_ERROR",
-            "the provider artifact is not listed in the named SHA256SUMS file",
-            details={"digest": digest},
-        )
-    return digest
-
-
-def parse_gnu_sha256sums(text: str) -> frozenset[str]:
-    """Return lowercase hex digests from GNU `sha256sum` output.
-
-    Comments and BSD `SHA256 (name) =` lines are refused, not skipped: a format
-    this check only half-reads would look like a check it had not actually made.
-    Duplicate names with disagreeing digests are refused for the same reason.
-    """
-    names: dict[str, str] = {}
-    digests: set[str] = set()
-    for raw_line in text.splitlines():
-        line = raw_line.rstrip("\n")
-        if not line.strip():
-            continue
-        if line.startswith("\\"):
-            raise CliFailure(
-                "AI_STP_VALIDATION_ERROR",
-                "the named SHA256SUMS file is not valid GNU checksums",
-                details={"detail": "backslash-escaped names are not read"},
-            )
-        matched = _GNU_SHA256SUM.fullmatch(line)
-        if matched is None:
-            raise CliFailure(
-                "AI_STP_VALIDATION_ERROR",
-                "the named SHA256SUMS file is not valid GNU checksums",
-                details={"detail": "a line is not GNU sha256sum output"},
-            )
-        hex_digest = matched.group(1).lower()
-        name = matched.group(3)
-        if not name or name.startswith("\\"):
-            raise CliFailure(
-                "AI_STP_VALIDATION_ERROR",
-                "the named SHA256SUMS file is not valid GNU checksums",
-                details={"detail": "a checksum line names no file"},
-            )
-        held = names.get(name)
-        if held is not None and held != hex_digest:
-            raise CliFailure(
-                "AI_STP_VALIDATION_ERROR",
-                "the named SHA256SUMS file is not valid GNU checksums",
-                details={"detail": "one name has two digests"},
-            )
-        names[name] = hex_digest
-        digests.add(hex_digest)
-    if not digests:
-        raise CliFailure(
-            "AI_STP_VALIDATION_ERROR",
-            "the named SHA256SUMS file is not valid GNU checksums",
-            details={"detail": "the file lists no artifacts"},
-        )
-    return frozenset(digests)
-
-
-def lookup_attested_release(artifact: Path, policy: TrustPolicy) -> PinnedRelease | None:
-    """Return the schema-3 pin for these bytes, if this machine approved them.
-
-    Does not talk to GitHub. A digest that is not pinned is not an attested
-    install, and `--unverified-provider` remains available for those bytes.
-    """
-    if policy.schema_version != ATTESTED_POLICY_SCHEMA_VERSION:
-        return None
-    digest, _ = artifact_identity(artifact)
-    found = [pin for pin in policy.attested_releases if pin.artifact_digest == digest]
-    return found[0] if found else None
-
-
-def verify_attested_artifact(
-    artifact: Path,
-    pin: PinnedRelease,
-    *,
-    verifier: Callable[[Path, str], None] | None = None,
-) -> None:
-    """Prove a pinned attested artifact with GitHub provenance, not a key."""
-    (verifier or verify_github_attestation)(artifact, pin.repository)
-
-
-def github_repository_slug(repository: str) -> str:
-    """`gh --repo` takes `owner/name`, not a `github.com/` locator."""
-    if _GITHUB_REPOSITORY.fullmatch(repository) is None:
-        raise CliFailure(
-            "AI_STP_VALIDATION_ERROR",
-            "the attested repository is not a github.com owner/name pair",
-            details={"repository": repository},
-        )
-    return repository.removeprefix("github.com/")
-
-
-def verify_github_attestation(artifact: Path, repository: str) -> None:
-    """Run `gh attestation verify` against the pinned repository.
-
-    The artifact path is an argument, never a shell word. Failure text from
-    `gh` stays out of the CLI envelope: it may contain a local path.
-    """
-    slug = github_repository_slug(repository)
-    try:
-        completed = subprocess.run(
-            ["gh", "attestation", "verify", str(artifact), "--repo", slug],
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=ATTESTATION_VERIFY_SECONDS,
-        )
-    except FileNotFoundError as error:
-        raise CliFailure(
-            "AI_STP_DEPENDENCY_UNAVAILABLE",
-            "gh is required to verify a GitHub artifact attestation",
-            details={"repository": repository},
-        ) from error
-    except subprocess.TimeoutExpired as error:
-        raise CliFailure(
-            "AI_STP_DEPENDENCY_UNAVAILABLE",
-            "gh is required to verify a GitHub artifact attestation",
-            details={"repository": repository},
-            retryable=True,
-        ) from error
-    if completed.returncode != 0:
-        raise CliFailure(
-            "AI_STP_PRECONDITION_FAILED",
-            "the provider artifact attestation does not verify",
-            details={"repository": repository},
-        )
-
-
-def serialize_attestation(pin: PinnedRelease) -> str:
-    """Canonical JSON bound into an installation plan for an attested install."""
-    return canonize(
-        {
-            "kind": ATTESTATION_KIND,
-            "provider_id": pin.provider_id,
-            "repository": pin.repository,
-            "artifact_digest": pin.artifact_digest,
-        }
-    ).decode("utf-8")
-
-
-def parse_attestation(text: str) -> PinnedRelease:
-    """Read a closed attestation record from a plan, without security defaults."""
-    try:
-        parsed = json.loads(text, object_pairs_hook=_unique_json_object)
-    except ValueError as error:
-        raise CliFailure(
-            "AI_STP_VALIDATION_ERROR",
-            "the provider artifact no longer matches the attestation approved in the plan",
-            details={"detail": str(error)},
-        ) from error
-    if not isinstance(parsed, dict):
-        raise CliFailure(
-            "AI_STP_VALIDATION_ERROR",
-            "the provider artifact no longer matches the attestation approved in the plan",
-            details={"field": "<root>"},
-        )
-    document = cast(dict[str, object], parsed)
-    wanted = ("kind", "provider_id", "repository", "artifact_digest")
-    if set(document) != set(wanted):
-        raise CliFailure(
-            "AI_STP_VALIDATION_ERROR",
-            "the provider artifact no longer matches the attestation approved in the plan",
-            details={"field": "kind"},
-        )
-    kind = document["kind"]
-    provider_id = document["provider_id"]
-    repository = document["repository"]
-    digest = document["artifact_digest"]
-    if (
-        kind != ATTESTATION_KIND
-        or not isinstance(provider_id, str)
-        or not provider_id
-        or not isinstance(repository, str)
-        or not repository
-        or not isinstance(digest, str)
-        or not is_digest(digest)
-    ):
-        raise CliFailure(
-            "AI_STP_VALIDATION_ERROR",
-            "the provider artifact no longer matches the attestation approved in the plan",
-            details={"kind": ATTESTATION_KIND},
-        )
-    return PinnedRelease(
-        provider_id=provider_id,
-        repository=repository,
-        artifact_digest=digest,
-    )
-
-
 def _artifact(manifest: ReleaseManifest, digest: str, size: int) -> list[Refusal]:
     found: list[Refusal] = []
     lowered = manifest.artifact_url.casefold()
@@ -992,20 +819,10 @@ def _policy_document(text: str) -> dict[str, object]:
 
 
 def _policy(document: dict[str, object]) -> TrustPolicy:
-    schema_version = (
-        _policy_integer(document, "schema_version", minimum=1)
-        if "schema_version" in document
-        else 0
-    )
-    expected = (
-        POLICY_FIELDS | {ATTESTED_RELEASE_FIELD}
-        if schema_version == ATTESTED_POLICY_SCHEMA_VERSION
-        else POLICY_FIELDS
-    )
-    unknown = sorted(set(document) - expected)
+    unknown = sorted(set(document) - POLICY_FIELDS - OPTIONAL_POLICY_FIELDS)
     if unknown:
         _policy_failure("unknown_fields", f"unknown fields: {', '.join(unknown)}")
-    missing = sorted(expected - set(document))
+    missing = sorted(POLICY_FIELDS - set(document))
     if missing:
         _policy_failure(missing[0], "the field is required")
 
@@ -1018,24 +835,27 @@ def _policy(document: dict[str, object]) -> TrustPolicy:
             f"allowed keys have no pinned public material: {', '.join(missing_material)}",
         )
     allowed_repositories = _names(document, "allowed_repositories")
-    pins = _pinned_table(document, "releases", allowed_repositories=allowed_repositories)
-    attested = (
-        _pinned_table(document, ATTESTED_RELEASE_FIELD, allowed_repositories=None)
-        if schema_version == ATTESTED_POLICY_SCHEMA_VERSION
-        else ()
-    )
-    shared = sorted(
-        {pin.artifact_digest for pin in pins} & {pin.artifact_digest for pin in attested}
-    )
-    if shared:
+    pins = _pinned_releases(document)
+    stray = sorted({pin.repository for pin in pins} - allowed_repositories)
+    if stray:
+        # A pin naming a repository the policy does not allow cannot ever be
+        # accepted, so it is an editing mistake rather than a stricter policy —
+        # and a rule that silently never fires is the shape this whole change
+        # exists to remove.
         _policy_failure(
-            ATTESTED_RELEASE_FIELD,
-            "an artifact cannot be both a signed pin and an attested pin",
+            "releases",
+            f"pinned releases name repositories the policy does not allow: {', '.join(stray)}",
         )
     return TrustPolicy(
-        schema_version=schema_version,
+        schema_version=_policy_integer(document, "schema_version", minimum=1),
         policy_id=_policy_string(document, "policy_id"),
         allowed_publishers=_names(document, "allowed_publishers"),
+        verified_publishers=(
+            _names(document, "verified_publishers")
+            if "verified_publishers" in document
+            else frozenset()
+        ),
+        build_attestations=MappingProxyType(_build_attestations(document)),
         allowed_keys=allowed_keys,
         allowed_repositories=allowed_repositories,
         pinned_releases=frozenset(pins),
@@ -1044,7 +864,6 @@ def _policy(document: dict[str, object]) -> TrustPolicy:
         revoked_keys=_names(document, "revoked_keys"),
         minimum_sequence=_policy_integer(document, "minimum_sequence", minimum=0),
         supported_protocols=_protocols(document),
-        attested_releases=frozenset(attested),
     )
 
 
@@ -1111,47 +930,64 @@ def _protocols(document: dict[str, object]) -> frozenset[int]:
     return frozenset(values)
 
 
-def _pinned_table(
-    document: dict[str, object],
-    field_name: str,
-    *,
-    allowed_repositories: frozenset[str] | None,
-) -> tuple[PinnedRelease, ...]:
-    """Read exact approved releases, refusing anything under-specified.
+def _build_attestations(document: dict[str, object]) -> dict[str, BuildAttestationRule]:
+    held = document.get("build_attestations", [])
+    if not isinstance(held, list):
+        _policy_failure("build_attestations", "expected a list of repository rules")
+    rules: dict[str, BuildAttestationRule] = {}
+    for index, raw in enumerate(cast(list[object], held)):
+        if not isinstance(raw, dict):
+            _policy_failure("build_attestations", f"rule {index} must be a table")
+        item = cast(dict[str, object], raw)
+        if set(item) != {"repository", "signer_workflow", "verified_publisher"}:
+            _policy_failure(
+                "build_attestations",
+                f"rule {index} must name repository, signer_workflow and verified_publisher",
+            )
+        repository = item.get("repository")
+        workflow = item.get("signer_workflow")
+        verified = item.get("verified_publisher")
+        if (
+            not isinstance(repository, str)
+            or not repository
+            or not isinstance(workflow, str)
+            or not workflow
+            or not isinstance(verified, bool)
+        ):
+            _policy_failure("build_attestations", f"rule {index} has the wrong shape")
+        if repository in rules:
+            _policy_failure("build_attestations", f"duplicate repository {repository}")
+        rules[repository] = BuildAttestationRule(repository, workflow, verified)
+    return rules
 
-    Signed pins must name a repository the policy already allows. Attested pins
-    are their own allowlist: they are not added to `allowed_repositories`, so a
-    signed manifest cannot ride in on an OpenNetwork locator.
+
+def _pinned_releases(document: dict[str, object]) -> tuple[PinnedRelease, ...]:
+    """Read the exact approved releases, refusing anything under-specified.
 
     Order is preserved so the reported policy reads the way the file does; the
     decision itself uses a set, because a pin is not more approved for being
     listed first.
     """
     expected = ", ".join(sorted(PINNED_RELEASE_FIELDS))
-    held = document.get(field_name)
+    held = document.get("releases")
     if not isinstance(held, list):
-        _policy_failure(field_name, "expected a list of pinned release tables")
+        _policy_failure("releases", "expected a list of pinned release tables")
     pins: list[PinnedRelease] = []
     for index, raw_item in enumerate(cast(list[object], held)):
         if not isinstance(raw_item, dict):
-            _policy_failure(field_name, f"release {index} must contain exactly {expected}")
+            _policy_failure("releases", f"release {index} must contain exactly {expected}")
         item = cast(dict[str, object], raw_item)
         if set(item) != set(PINNED_RELEASE_FIELDS):
-            _policy_failure(field_name, f"release {index} must contain exactly {expected}")
+            _policy_failure("releases", f"release {index} must contain exactly {expected}")
         provider_id = item.get("provider_id")
         if not isinstance(provider_id, str) or not provider_id:
-            _policy_failure(field_name, f"release {index} names no provider")
+            _policy_failure("releases", f"release {index} names no provider")
         repository = item.get("repository")
         if not isinstance(repository, str) or not repository:
-            _policy_failure(field_name, f"release {index} names no repository")
-        if allowed_repositories is None and _GITHUB_REPOSITORY.fullmatch(repository) is None:
-            _policy_failure(
-                field_name,
-                f"release {index} is not a github.com owner/name pair",
-            )
+            _policy_failure("releases", f"release {index} names no repository")
         digest = item.get("artifact_digest")
         if not isinstance(digest, str) or not is_digest(digest):
-            _policy_failure(field_name, f"release {index} has no exact SHA-256 digest")
+            _policy_failure("releases", f"release {index} has no exact SHA-256 digest")
         pins.append(
             PinnedRelease(
                 provider_id=provider_id,
@@ -1163,16 +999,5 @@ def _pinned_table(
         # Not merely a duplicate entry: one artifact approved under two
         # identities is the substitution the binding exists to refuse, written
         # into the policy itself.
-        _policy_failure(field_name, "duplicate artifact digests are not allowed")
-    if allowed_repositories is not None:
-        stray = sorted({pin.repository for pin in pins} - allowed_repositories)
-        if stray:
-            # A pin naming a repository the policy does not allow cannot ever be
-            # accepted, so it is an editing mistake rather than a stricter policy —
-            # and a rule that silently never fires is the shape this whole change
-            # exists to remove.
-            _policy_failure(
-                field_name,
-                f"pinned releases name repositories the policy does not allow: {', '.join(stray)}",
-            )
+        _policy_failure("releases", "duplicate artifact digests are not allowed")
     return tuple(pins)

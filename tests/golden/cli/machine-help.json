@@ -2131,7 +2131,25 @@
           "value_type": "string",
           "required": false,
           "repeatable": false,
-          "summary": "Signed manifest whose exact artifact is the provider executable. Required by protocol v3 unless the artifact digest is an attested pin or unverified-provider is given.",
+          "summary": "Signed manifest whose exact artifact is the provider executable. Required by protocol v3 unless unverified-provider is given.",
+          "choices": []
+        },
+        {
+          "name": "provider-build-attestation",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Verify exact provider bytes through the repository, source commit and signer workflow pinned by the local policy.",
+          "choices": []
+        },
+        {
+          "name": "provider-attestation-bundle",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Optional local GitHub attestation bundle for offline verification.",
           "choices": []
         },
         {
@@ -2140,16 +2158,7 @@
           "value_type": "boolean",
           "required": false,
           "repeatable": false,
-          "summary": "Install from a provider executable no signed or attested release covers, such as one you built yourself. Named SHA256SUMS still check identity. The plan records provider_release_trusted false.",
-          "choices": []
-        },
-        {
-          "name": "provider-checksums",
-          "kind": "option",
-          "value_type": "string",
-          "required": false,
-          "repeatable": false,
-          "summary": "GNU SHA256SUMS file whose listed digest must match the provider executable. Identity, not a signed release: a match does not make provider_release_trusted true.",
+          "summary": "Install from a provider executable no signed release covers, such as one you built yourself or an open-source provider published without a privileged publisher. The pinned trust policy checks nothing here, and the plan records provider_release_trusted false.",
           "choices": []
         },
         {

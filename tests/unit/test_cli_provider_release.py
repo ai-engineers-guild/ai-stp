@@ -316,20 +316,19 @@ def test_a_platform_the_release_does_not_support_is_refused() -> None:
 
 
 # The pinned policy this build ships.
-def test_the_shipped_policy_accepts_only_the_offline_release_key() -> None:
+def test_the_shipped_policy_has_no_displaced_offline_release_key() -> None:
     policy = release.pinned_policy()
-    assert policy.allowed_keys == frozenset({"ed25519:b1d0fb8743bd1c0bacbb3c61"})
-    assert policy.public_keys == {
-        "ed25519:b1d0fb8743bd1c0bacbb3c61": "lVYflQZMC2amM4zVuPyH3H/ZRhsInCmp+YBTxDNzE/g="
-    }
+    assert policy.allowed_keys == frozenset()
+    assert policy.public_keys == {}
     verdict = release.verify(_manifest(), policy, known_sequence=0)
     assert "key_unknown" in _codes(verdict)
 
 
 def test_the_shipped_policy_names_the_publisher_and_repositories() -> None:
     policy = release.pinned_policy()
-    assert "NDDev-it-com" in policy.allowed_publishers
-    assert any("nddev-claude-app" in item for item in policy.allowed_repositories)
+    assert policy.allowed_publishers == frozenset()
+    assert policy.allowed_repositories == frozenset()
+    assert "github.com/NDDev-OpenNetwork/claude-setup-system" in policy.build_attestations
 
 
 def test_the_shipped_policy_pins_one_exact_release_for_every_allowed_repository() -> None:
@@ -530,7 +529,7 @@ def test_the_trust_command_reports_the_policy_without_a_verdict(tmp_path: Path) 
     assert view.policy_id == release.pinned_policy().policy_id
     assert view.accepted is None
     assert view.refusals == []
-    assert view.allowed_keys == ["ed25519:b1d0fb8743bd1c0bacbb3c61"]
+    assert view.allowed_keys == []
 
 
 def test_the_trust_command_checks_a_named_manifest(tmp_path: Path) -> None:
@@ -658,84 +657,3 @@ def test_a_manifest_that_is_not_there_is_not_found(tmp_path: Path) -> None:
     with pytest.raises(CliFailure) as raised:
         select.provider_trust({"manifest": str(tmp_path / "absent.json")})
     assert raised.value.code == "AI_STP_NOT_FOUND"
-
-
-def test_gnu_sha256sums_match_by_digest_not_basename(tmp_path: Path) -> None:
-    artifact = tmp_path / "renamed-provider"
-    artifact.write_bytes(b"provider-bytes")
-    digest, _ = release.artifact_identity(artifact)
-    hex_digest = digest.removeprefix("sha256:")
-    sums = tmp_path / "SHA256SUMS"
-    sums.write_text(f"{hex_digest}  original-name\n", encoding="ascii")
-    assert release.verify_artifact_checksums(artifact, sums) == digest
-
-
-def test_gnu_sha256sums_refuse_a_mismatch_and_a_malformed_file(tmp_path: Path) -> None:
-    artifact = tmp_path / "provider"
-    artifact.write_bytes(b"provider-bytes")
-    wrong = tmp_path / "SHA256SUMS"
-    wrong.write_text("0" * 64 + "  provider\n", encoding="ascii")
-    with pytest.raises(CliFailure) as mismatch:
-        release.verify_artifact_checksums(artifact, wrong)
-    assert mismatch.value.code == "AI_STP_VALIDATION_ERROR"
-
-    malformed = tmp_path / "SHA256SUMS.bad"
-    malformed.write_text("not-gnu-checksums\n", encoding="ascii")
-    with pytest.raises(CliFailure) as shape:
-        release.parse_gnu_sha256sums(malformed.read_text(encoding="ascii"))
-    assert shape.value.code == "AI_STP_VALIDATION_ERROR"
-
-
-def test_schema_3_reads_attested_releases_and_schema_2_refuses_them() -> None:
-    attested = (
-        'attested_releases = [{ provider_id = "cursor-setup-system", '
-        'repository = "github.com/NDDev-OpenNetwork/cursor-setup-system", '
-        f'artifact_digest = "{_DIGEST_A}" }}]\n'
-    )
-    with pytest.raises(CliFailure) as unknown:
-        release.load_policy(VALID_POLICY_TEXT + attested)
-    assert unknown.value.details["field"] == "unknown_fields"
-
-    policy = release.load_policy(
-        VALID_POLICY_TEXT.replace("schema_version = 2", "schema_version = 3") + attested
-    )
-    assert policy.schema_version == 3
-    assert policy.attested_releases == frozenset(
-        {
-            release.PinnedRelease(
-                provider_id="cursor-setup-system",
-                repository="github.com/NDDev-OpenNetwork/cursor-setup-system",
-                artifact_digest=_DIGEST_A,
-            )
-        }
-    )
-
-
-def test_the_shipped_policy_pins_attested_opennetwork_setup_systems() -> None:
-    policy = release.pinned_policy()
-    assert policy.schema_version == 3
-    names = {pin.provider_id for pin in policy.attested_releases}
-    assert names == {
-        "antigravity-setup-system",
-        "claude-setup-system",
-        "codex-setup-system",
-        "cursor-setup-system",
-        "grok-setup-system",
-        "opencode-setup-system",
-        "pi-setup-system",
-    }
-    assert {pin.repository for pin in policy.attested_releases}.isdisjoint(
-        policy.allowed_repositories
-    )
-    assert {pin.artifact_digest for pin in policy.attested_releases}.isdisjoint(
-        {pin.artifact_digest for pin in policy.pinned_releases}
-    )
-
-
-def test_an_attestation_record_round_trips() -> None:
-    pin = release.PinnedRelease(
-        provider_id="cursor-setup-system",
-        repository="github.com/NDDev-OpenNetwork/cursor-setup-system",
-        artifact_digest=_DIGEST_A,
-    )
-    assert release.parse_attestation(release.serialize_attestation(pin)) == pin
