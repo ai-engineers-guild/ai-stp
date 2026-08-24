@@ -48,7 +48,7 @@ def _git_tree(entries: dict[str, tuple[int, bytes]]) -> str:
 
 def test_first_party_corpus_has_exact_real_component_and_setup_bytes() -> None:
     corpus = versions()
-    assert len(corpus) == 120
+    assert len(corpus) == 124
     expected = {
         "claude-code": (
             "https://github.com/NDDev-it-com/nddev-claude-app",
@@ -61,6 +61,12 @@ def test_first_party_corpus_has_exact_real_component_and_setup_bytes() -> None:
             "138e876616ee16bea155d00a1589f4639c45addf",
             "865839268cf62f34404659dc39ff082b25647e52",
             29,
+        ),
+        "cursor": (
+            "https://github.com/NDDev-OpenNetwork/cursor-setup-system",
+            "27b07f2edaea248ceb7348d1d10a7f2d2b8d64d8",
+            "02ef1e0cec37b0f4be65aecfdecc510d782ca14f",
+            3,
         ),
         "grok-build": (
             "https://github.com/NDDev-it-com/nddev-grok-build-app",
@@ -150,6 +156,7 @@ def test_first_party_source_manifest_is_canonical_closed_and_unique() -> None:
     assert kinds == {
         "claude-code": {"skill"},
         "codex": {"skill"},
+        "cursor": {"instruction", "plugin", "setting"},
         "grok-build": {"plugin"},
         "opencode": {"agent", "command", "instruction", "plugin", "skill"},
         "pi": {"instruction", "plugin", "setting", "skill"},

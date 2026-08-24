@@ -35,7 +35,7 @@ last_verified: "2026-08-03"
 | [github-archive-evidence.md](github-archive-evidence.md) | Машинный контракт локального GitHub archive evidence и истории наблюдений. | 2026-08-15 |
 | [harness-bundle.md](harness-bundle.md) | Ограниченный и детерминированный пакет для публичного провайдера харнесса. | 2026-08-09 |
 | [http-api.md](http-api.md) | Версионирование HTTP API, полномочия, идемпотентность и конкуренция. | 2026-08-22 |
-| [native-component-discovery.md](native-component-discovery.md) | Машинный контракт read-only обнаружения нативных компонентов поддерживаемых харнессов. | 2026-08-22 |
+| [native-component-discovery.md](native-component-discovery.md) | Машинный контракт read-only обнаружения нативных компонентов поддерживаемых харнессов. | 2026-08-24 |
 | [offline-capability.md](offline-capability.md) | Что работает без сети после первичной настройки и что требует подключения. | 2026-08-13 |
 | [operation.md](operation.md) | Состояния, план, журнал и восстановление изменяющей операции. | 2026-08-09 |
 | [passport-envelope.md](passport-envelope.md) | Канонический конверт паспорта и происхождение фактов. | 2026-08-04 |

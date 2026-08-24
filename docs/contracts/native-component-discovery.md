@@ -1,6 +1,6 @@
 ---
 description: "Машинный контракт read-only обнаружения нативных компонентов поддерживаемых харнессов."
-last_verified: "2026-08-22"
+last_verified: "2026-08-24"
 ---
 
 # Обнаружение нативных компонентов
@@ -31,7 +31,8 @@ declared entry source по `ADR-0065`; он не запускает package, lau
 области. Они уточняют уже найденный путь или добавляют объявленный Nori component,
 но не делают внешний manifest источником подтверждённых паспортных фактов.
 
-Поддерживаемый набор — Claude Code, Codex, Pi, OpenCode и Grok Build. Общие
+Поддерживаемый набор — Claude Code, Codex, Pi, OpenCode, Grok Build, Cursor и
+Antigravity. Общие
 `.agents/skills` не принадлежат одному из них и возвращаются с `harness_id=null`.
 Один физический путь не дублируется под несколькими harness только из-за
 совместимости форматов.
@@ -51,6 +52,8 @@ layout, проекционные возможности, источники и �
 | Pi | instruction, skill, plugin, command, setting | skill, plugin, command, setting | не объявлен отдельный project-plugin manifest |
 | OpenCode | skill, agent, command, plugin, setting | skill, agent, command, plugin, setting | bounded native plugin directory |
 | Grok Build | skill, plugin, hook, setting, shared command | skill, plugin, hook, setting | bounded native plugin directory |
+| Cursor | instruction, setting, plugin | instruction, plugin | plugin root, skill, agent, command и rules-as-instruction; hook/MCP только если дерево их несёт |
+| Antigravity | setting, plugin, skill, agent, hook, MCP | plugin, skill, agent, hook, MCP | bounded native plugin directory |
 
 MCP server package не принадлежит одному harness и показывается отдельно с
 `harness_id=null`. Python требует согласованную цепочку `pyproject.toml` → MCP SDK
@@ -66,6 +69,13 @@ Claude Code project plugin pack распознаётся так же, как Cod
 именем манифеста. Каталог под `plugins/` становится plugin только по точному
 `.claude-plugin/plugin.json`; внутри доказанного plugin читаются `skills`
 (каталог с `SKILL.md`), `agents`, `commands`, `hooks/hooks.json` и `.mcp.json`.
+
+Cursor project plugin pack отличается только именем манифеста:
+`plugins/<name>/.cursor-plugin/plugin.json`. Внутри доказанного plugin читаются
+`skills`, `agents`, `commands` и `rules` (каждый файл — instruction). Официальная
+схема также называет `hooks` и `mcpServers`; их нет в измеренном OpenNetwork
+образце, и walker не выдумывает эти виды из соседнего каталога. JSON values
+манифеста не читаются — существование файла доказывает, что каталог есть plugin.
 
 `.mcp.json` внутри plugin — это client config, а не сервер: находка получает
 `component_type=mcp` и `native_role=mcp_client_config`. Такой файл доказывает

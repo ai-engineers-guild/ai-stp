@@ -77,6 +77,7 @@ CODEX_HOOKS_SOURCE: Final[str] = "learn.chatgpt.com/docs/hooks"
 CODEX_PLUGIN_SOURCE: Final[str] = "learn.chatgpt.com/docs/build-plugins"
 CLAUDE_PLUGIN_SOURCE: Final[str] = "code.claude.com/docs/en/plugins"
 CLAUDE_MCP_SOURCE: Final[str] = "code.claude.com/docs/en/mcp"
+CURSOR_PLUGIN_SOURCE: Final[str] = "cursor.com/docs/reference/plugins"
 COMPONENT_FILE_FORMAT: Final[str] = "ai-stp-component-file/1"
 COMPONENT_TREE_FORMAT: Final[str] = "ai-stp-component-tree/1"
 COMPONENT_TREE_TIMESTAMP: Final[tuple[int, int, int, int, int, int]] = (
@@ -572,12 +573,15 @@ def discover_report(
         claude, claude_diagnostics, claude_seen = _claude_project_plugins(project)
         found.extend(claude)
         diagnostics.extend(claude_diagnostics)
+        cursor, cursor_diagnostics, cursor_seen = _cursor_project_plugins(project)
+        found.extend(cursor)
+        diagnostics.extend(cursor_diagnostics)
         # Said once, and only when no harness recognised the collection. A pack
         # is a pack even when it carries no manifest for the other harness, and
         # complaining about that on every project with one would be noise. An
         # empty inventory with no reason given is still worse than a refusal, so
         # the case where nobody recognised anything keeps its diagnostic.
-        if max(codex_seen, claude_seen) and not codex and not claude:
+        if max(codex_seen, claude_seen, cursor_seen) and not codex and not claude and not cursor:
             diagnostics.append(
                 component_sources.Diagnostic(
                     code="unsupported_manifest",
@@ -999,6 +1003,16 @@ _CLAUDE_PLUGIN_SUBTREES: Final[tuple[_PluginSubtree, ...]] = (
     # visibly running them (`#377`).
     _PluginSubtree("mcp", ".mcp.json", "file", "", CLAUDE_MCP_SOURCE),
 )
+# Cursor spells the manifest `.cursor-plugin/plugin.json` and keeps rules,
+# skills, agents and commands inside the plugin. Official docs also name
+# `hooks` and `mcpServers`; those keys are absent from the measured OpenNetwork
+# sample, and this walker does not invent files the tree does not carry.
+_CURSOR_PLUGIN_SUBTREES: Final[tuple[_PluginSubtree, ...]] = (
+    _PluginSubtree("skill", "skills", "members", "SKILL.md", CURSOR_PLUGIN_SOURCE),
+    _PluginSubtree("agent", "agents", "members", "", CURSOR_PLUGIN_SOURCE),
+    _PluginSubtree("command", "commands", "members", "", CURSOR_PLUGIN_SOURCE),
+    _PluginSubtree("instruction", "rules", "members", "", CURSOR_PLUGIN_SOURCE),
+)
 
 
 def _claude_project_plugins(
@@ -1050,6 +1064,26 @@ def _codex_project_plugins(
         collection="codex-plugins",
     )
     return found + plugins, diagnostics + plugin_diagnostics, directories
+
+
+def _cursor_project_plugins(
+    project: Path,
+) -> tuple[list[Found], list[component_sources.Diagnostic], int]:
+    """Find a Cursor plugin pack by its exact manifest, the way a setup ships it.
+
+    Cursor does not scatter skills next to `.cursor/`. The unit is
+    `plugins/<name>/.cursor-plugin/plugin.json`, with rules, skills, agents
+    and commands inside that plugin. The JSON is proof the directory is a
+    plugin; its values are not read.
+    """
+    return _manifest_backed_plugins(
+        project,
+        harness_id="cursor",
+        manifest=(".cursor-plugin", "plugin.json"),
+        source=CURSOR_PLUGIN_SOURCE,
+        subtrees=_CURSOR_PLUGIN_SUBTREES,
+        collection="cursor-plugins",
+    )
 
 
 def _manifest_backed_plugins(
@@ -1357,6 +1391,7 @@ def _tree_artifact(root: Path) -> bytes:
         "plugin.json",
         ".claude-plugin/plugin.json",
         ".codex-plugin/plugin.json",
+        ".cursor-plugin/plugin.json",
         "hooks.json",
         "package.json",
         "pyproject.toml",
