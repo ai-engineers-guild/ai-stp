@@ -30,6 +30,16 @@ on:
         description: release-candidate run whose attested artifact is published
         required: true
         type: string
+      package:
+        description: Exact PyPI project to publish in this run
+        required: true
+        type: choice
+        options:
+          - foundation
+          - passports
+          - assurance
+          - contracts
+          - cli
 
 permissions:
   contents: read
@@ -38,17 +48,14 @@ concurrency:
   group: publish-pypi
   cancel-in-progress: false
 
-env:
-  PACKAGES: ai_stp_foundation ai_stp_passports ai_stp_assurance ai_stp_contracts ai_stp_cli
-
 jobs:
   publish:
-    name: publish-attested-candidate
+    name: publish-ai-stp-${{ inputs.package }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment:
-      name: pypi
-      url: https://pypi.org/project/ai-stp-cli/
+      name: ${{ inputs.package == 'foundation' && 'pypi' || format('pypi-{0}', inputs.package) }}
+      url: https://pypi.org/project/ai-stp-${{ inputs.package }}/
     permissions:
       contents: read
       id-token: write
@@ -71,28 +78,27 @@ jobs:
           # Checking only what we upload would leave a swapped SBOM unnoticed.
           sha256sum --check --strict SHA256SUMS
 
-      - name: Отобрать только дистрибутивы и отказать при неполном наборе
+      - name: Отобрать дистрибутивы пакета и отказать при неполном наборе
         env:
           EXPECTED_VERSION: ${{ inputs.version }}
+          DISTRIBUTION: ai_stp_${{ inputs.package }}
         run: |
           set -euo pipefail
           mkdir -p dist
-          for package in ${PACKAGES}; do
-            wheel="candidate/${package}-${EXPECTED_VERSION}-py3-none-any.whl"
-            sdist="candidate/${package}-${EXPECTED_VERSION}.tar.gz"
-            for path in "${wheel}" "${sdist}"; do
-              if [[ ! -f "${path}" ]]; then
-                echo "run ${{ inputs.run_id }} has no $(basename "${path}")" >&2
-                exit 1
-              fi
-              cp "${path}" dist/
-            done
+          wheel="candidate/${DISTRIBUTION}-${EXPECTED_VERSION}-py3-none-any.whl"
+          sdist="candidate/${DISTRIBUTION}-${EXPECTED_VERSION}.tar.gz"
+          for path in "${wheel}" "${sdist}"; do
+            if [[ ! -f "${path}" ]]; then
+              echo "run ${{ inputs.run_id }} has no $(basename "${path}")" >&2
+              exit 1
+            fi
+            cp "${path}" dist/
           done
-          # Exactly ten: five packages, two formats each. A surplus file means
+          # Exactly two: one package in both formats. A surplus file means
           # the candidate is not the one this workflow was written against.
           count="$(find dist -type f | wc -l)"
-          if [[ "${count}" -ne 10 ]]; then
-            echo "expected 10 distributions, selected ${count}" >&2
+          if [[ "${count}" -ne 2 ]]; then
+            echo "expected 2 distributions, selected ${count}" >&2
             exit 1
           fi
           printf 'publishing:\n'
