@@ -50,6 +50,16 @@ def test_select_rules_includes_mcp_pack_for_mcp() -> None:
     assert "mcp-config-security.yml" in names
 
 
+def test_markdown_only_skill_has_no_applicable_opengrep_files() -> None:
+    manifest = ArtifactManifest(
+        component_type="skill",
+        flags={"skill_md"},
+        text_files=["SKILL.md"],
+    )
+
+    assert opengrep_adapter.has_applicable_files(manifest) is False
+
+
 @pytest.mark.asyncio
 async def test_clean_skill_suite_has_no_mcp_overprivileged_findings() -> None:
     clear_safety_cache()

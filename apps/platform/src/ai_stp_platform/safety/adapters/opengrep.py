@@ -33,6 +33,18 @@ FALLBACK_RULES: list[tuple[re.Pattern[str], str, str]] = [
 
 def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome:
     rule_files = select_opengrep_rule_files(manifest)
+    if not has_applicable_files(manifest):
+        return CheckOutcome(
+            check_id=spec.check_id,
+            family=spec.family,
+            result="passed",
+            mandatory=spec.mandatory,
+            tool_name="opengrep",
+            detail={
+                "mode": "no_applicable_files",
+                "rule_files": [path.name for path in rule_files],
+            },
+        )
     argv = ["opengrep", "--error", "--quiet"]
     if rule_files:
         for path in rule_files:
@@ -122,6 +134,14 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
             "mode": "fallback_owned_rules",
             "rule_files": [p.name for p in rule_files],
         },
+    )
+
+
+def has_applicable_files(manifest: ArtifactManifest) -> bool:
+    return bool(
+        manifest.python_files
+        or manifest.component_type == "mcp"
+        or manifest.flags & {"github_actions", "gitlab_ci", "ci"}
     )
 
 
