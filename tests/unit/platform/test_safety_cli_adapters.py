@@ -897,7 +897,7 @@ def test_inproc_adapters_hooks_mcp_shell_skill_hidden_yara_opengrep(
     )
     og2 = opengrep.run(
         tmp_path,
-        ArtifactManifest(component_type="skill"),
+        ArtifactManifest(component_type="skill", python_files=["bad.py"]),
         _spec("sast_opengrep"),
     )
     assert og2.result == "failed"
@@ -907,7 +907,7 @@ def test_inproc_adapters_hooks_mcp_shell_skill_hidden_yara_opengrep(
     )
     og3 = opengrep.run(
         tmp_path,
-        ArtifactManifest(component_type="skill"),
+        ArtifactManifest(component_type="skill", python_files=["bad.py"]),
         _spec("sast_opengrep"),
     )
     assert og3.result == "degraded"
