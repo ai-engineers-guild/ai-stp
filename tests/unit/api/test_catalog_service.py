@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from types import SimpleNamespace
 from typing import cast
 from unittest.mock import AsyncMock, Mock
 
@@ -102,54 +101,6 @@ async def test_integrity_failure_records_an_operator_event(
 
     with pytest.raises(service.CatalogCorrupt):
         await service.read_component_version(session, "component_example", "1.0")
-
-    log.error.assert_called_once_with(
-        "catalog_integrity_failed",
-        reason="invalid public projection",
-        object_kind="component",
-        stable_id="component_example",
-        version="1.0",
-    )
-
-
-@pytest.mark.asyncio
-async def test_search_components_reports_integrity_failure_instead_of_internal(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Search is the same reachable-but-corrupt condition as detail (REQ-2108)."""
-    from datetime import UTC, datetime
-
-    from ai_stp_contracts.catalog import ComponentSearchRequest
-    from ai_stp_platform.catalog_read import PublicVersionRow
-
-    row = SimpleNamespace(stable_id="component_example", version="1.0")
-
-    async def fake_search(*args: object, **kwargs: object) -> service.SearchPage:
-        del args, kwargs
-        return service.SearchPage(
-            authoritative=[cast(PublicVersionRow, row)],
-            experimental=[],
-            next_cursor=None,
-            page_size=20,
-            now=datetime(2026, 8, 24, tzinfo=UTC),
-        )
-
-    monkeypatch.setattr(service, "_search", fake_search)
-
-    def fail_projection(*args: object, **kwargs: object) -> None:
-        del args, kwargs
-        raise CatalogIntegrityError("invalid public projection")
-
-    monkeypatch.setattr(service, "component_summary", fail_projection)
-    log = Mock()
-    monkeypatch.setattr(service, "_log", log)
-
-    with pytest.raises(service.CatalogCorrupt):
-        await service.search_components(
-            cast(AsyncSession, object()),
-            ComponentSearchRequest(),
-            cursor_secret="secret",
-        )
 
     log.error.assert_called_once_with(
         "catalog_integrity_failed",

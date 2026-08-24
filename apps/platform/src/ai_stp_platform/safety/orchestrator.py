@@ -111,6 +111,8 @@ def _cache_get(key: tuple[str, str, str, str, str]) -> SafetyScanResult | None:
 
 
 def _cache_put(key: tuple[str, str, str, str, str], result: SafetyScanResult) -> None:
+    if any(outcome.result == "degraded" for outcome in result.outcomes):
+        return
     _RESULT_CACHE[key] = result
     _RESULT_CACHE.move_to_end(key)
     while len(_RESULT_CACHE) > MAX_CACHE_ENTRIES:

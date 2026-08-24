@@ -7,8 +7,6 @@ import sys
 from pathlib import Path
 from typing import cast
 
-import pytest
-
 
 def _write(path: Path, value: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -289,66 +287,3 @@ def test_every_declared_component_kind_is_discovered_in_one_project(tmp_path: Pa
     kinds = {cast(str, row["component_type"]) for row in rows if row["scope"] == "project"}
     declared = {"instruction", "skill", "mcp", "hook", "command", "agent", "plugin", "setting"}
     assert kinds == declared, f"discovery missed {sorted(declared - kinds)}; rows={rows!r}"
-
-
-_OPENNETWORK_CURSOR_HOME = Path(
-    "/home/rldyourmnd/Developer/opennetwork/cursor-setup-system/setups/nddev-builder/home"
-)
-
-
-@pytest.mark.skipif(
-    not (_OPENNETWORK_CURSOR_HOME / "plugins/nddev-builder/.cursor-plugin/plugin.json").is_file(),
-    reason="OpenNetwork cursor nddev-builder setup is not on this machine",
-)
-def test_real_cli_discovers_the_opennetwork_cursor_plugin_tree(tmp_path: Path) -> None:
-    """The gate for cursor discovery is their tree, not a renamed Claude pack."""
-    home = tmp_path / "isolated-home"
-    home.mkdir()
-    plugin = _OPENNETWORK_CURSOR_HOME / "plugins" / "nddev-builder"
-    result = subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "ai_stp_cli",
-            "component",
-            "discover",
-            "--root",
-            str(_OPENNETWORK_CURSOR_HOME),
-            "--json",
-        ],
-        capture_output=True,
-        text=True,
-        env={
-            **os.environ,
-            "HOME": str(home),
-            "USERPROFILE": str(home),
-            "XDG_CONFIG_HOME": str(home / ".config"),
-            "XDG_DATA_HOME": str(home / ".local" / "share"),
-        },
-        check=False,
-    )
-    assert result.returncode == 0, result.stderr
-    envelope = cast(dict[str, object], json.loads(result.stdout))
-    data = cast(dict[str, object], envelope["data"])
-    rows = cast(list[dict[str, object]], data["components"])
-    cursor = [row for row in rows if row["harness_id"] == "cursor" and row["scope"] == "project"]
-    kinds = {cast(str, row["component_type"]) for row in cursor}
-    assert kinds == {"plugin", "skill", "agent", "command", "instruction"}
-    assert any(str(row["source_path"]).endswith("plugins/nddev-builder") for row in cursor)
-    assert any(
-        str(row["source_path"]).endswith("plugins/nddev-builder/skills/nddev-builder")
-        for row in cursor
-    )
-    assert any(
-        str(row["source_path"]).endswith("plugins/nddev-builder/agents/nddev-builder.md")
-        for row in cursor
-    )
-    assert any(
-        str(row["source_path"]).endswith("plugins/nddev-builder/rules/nddev-builder.mdc")
-        for row in cursor
-    )
-    commands = [row for row in cursor if row["component_type"] == "command"]
-    on_disk = {path.name for path in (plugin / "commands").iterdir() if path.is_file()}
-    assert {Path(str(row["source_path"])).name for row in commands} == on_disk
-    assert not any(row["component_type"] in {"hook", "mcp"} for row in cursor)
-    assert (plugin / ".cursor-plugin" / "plugin.json").is_file()

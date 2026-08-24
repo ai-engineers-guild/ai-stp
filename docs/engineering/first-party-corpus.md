@@ -1,6 +1,6 @@
 ---
 description: "Проверяемая инвентаризация реальных байтов и паспортов первопартийного корпуса запуска."
-last_verified: "2026-08-24"
+last_verified: "2026-08-13"
 ---
 
 # Первопартийный корпус запуска
@@ -36,22 +36,6 @@ Git tree; искусственная директория вокруг файл�
 | OpenCode NDDev Builder setup | `setup_01KZXVZ82E0ZN6Z81PBKQWMCWQ` | `1.0` | `sha256:b749648c7c8e87a560f71654db533922aaea4b96fa4b85589efcdd247f08e7cb` |
 | Pi NDDev Builder setup | `setup_01KZXVZ82E0ZN6Z81PBKQWMCWR` | `1.0` | `sha256:2d0152fe5fb86b692a3fe33fca35a792408a5efa4360b701bd218008421b2cd3` |
 
-## Cursor — дополнительная инвентаризация, не барьер запуска
-
-`ADR-0034` по-прежнему требует пять базовых сетапов. Cursor не заменяет их и не
-расширяет выпускной барьер: в корпус добавлены ровно те байты, которые несёт
-публичный AGPL-3.0-or-later выпуск `NDDev-OpenNetwork/cursor-setup-system`
-`0.0.1` (commit `27b07f2edaea248ceb7348d1d10a7f2d2b8d64d8`). Это plugin-as-unit
-плюс существующие `AGENTS.md` и `cli-config.json`. mcp и hook в этом дереве нет.
-Публикацию в прод выполняет коллега.
-
-| Объект | ID | Версия | Artifact digest |
-|---|---|---|---|
-| Cursor NDDev Builder instruction | `component_01M0SSJPYR4VH8R2YSHYESHK9K` | `1.0` | `sha256:fa6327804dfa4e074dfbd6ee3e48eb05ef9c5e83a470ff49cf5565a996419c62` |
-| Cursor NDDev Builder setting | `component_01M0SSJPYR4VH8R2YSHYESHK9M` | `1.0` | `sha256:e04cab1805029cc1a543db6a2770846efc5ca513086fabb742b59af5d62f02d9` |
-| Cursor NDDev Builder plugin | `component_01M0SSJPYR4VH8R2YSHYESHK9N` | `1.0` | `sha256:adc3ab811ecf36ea14fff467991d2ef328967b8412a8c76dd4001aaedf3e9a1c` |
-| Cursor NDDev Builder setup | `setup_01M0SSJPYR4VH8R2YSHYESHK9P` | `1.0` | `sha256:0912212d9e3d44c7bbf4b361440b49a1169744f33afc5e725693955cf142f27c` |
-
 Точное происхождение закреплено без плавающих ссылок:
 
 | Харнесс | Source commit | Setup blob |
@@ -61,7 +45,6 @@ Git tree; искусственная директория вокруг файл�
 | Grok Build | `307e5124a1919a2224692cc8d64c50f98364ef2b` | `2acec9e28f0aaac9a6f12e92d4d14785c9aed891` |
 | OpenCode | `ecb1380f56124867520700f0ccf9b05801293863` | `5fa135bc7e9423e24411dc7c2187597c1e30d4e1` |
 | Pi | `2fbb9d0dff2f28076868e4f0457d7ed48aa5263f` | `5a9e00442a82589ca8b8a98a46e9f4804a3d2174` |
-| Cursor | `27b07f2edaea248ceb7348d1d10a7f2d2b8d64d8` | `02ef1e0cec37b0f4be65aecfdecc510d782ca14f` |
 
 Точные подпути, Git object SHA и стабильные ID всех компонентов принадлежат
 `first_party/v1/corpus-sources.json`. Контрактный тест восстанавливает каждый

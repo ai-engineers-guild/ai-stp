@@ -181,46 +181,6 @@ def test_a_claude_plugin_pack_is_a_project_inventory(tmp_path: Path) -> None:
     assert [item.native_role for item in mcp] == ["mcp_client_config"]
 
 
-def test_a_cursor_plugin_pack_is_a_project_inventory(tmp_path: Path) -> None:
-    """Cursor ships components inside `.cursor-plugin/plugin.json`, not beside it.
-
-    The measured OpenNetwork nddev-builder pack declares rules, skills, agents
-    and commands. It does not declare hooks or MCP, and discovery must not
-    invent those kinds from a neighbouring directory name.
-    """
-    pack = tmp_path / "cursor-home"
-    plugin = pack / "plugins" / "nddev-builder"
-    (plugin / ".cursor-plugin").mkdir(parents=True)
-    (plugin / ".cursor-plugin" / "plugin.json").write_text(
-        '{"name": "nddev-builder", "rules": "./rules", "skills": "./skills",'
-        ' "agents": "./agents", "commands": "./commands"}\n',
-        encoding="utf-8",
-    )
-    (plugin / "rules").mkdir()
-    (plugin / "rules" / "nddev-builder.mdc").write_text("# rule\n", encoding="utf-8")
-    (plugin / "skills" / "nddev-builder").mkdir(parents=True)
-    (plugin / "skills" / "nddev-builder" / "SKILL.md").write_text("# skill\n", encoding="utf-8")
-    (plugin / "agents").mkdir()
-    (plugin / "agents" / "nddev-builder.md").write_text("# agent\n", encoding="utf-8")
-    (plugin / "commands").mkdir()
-    (plugin / "commands" / "nddev-validate.md").write_text("# command\n", encoding="utf-8")
-    (plugin / "hooks").mkdir()
-    (plugin / "hooks" / "unrelated.sh").write_text("#!/bin/sh\n", encoding="utf-8")
-
-    found = [item for item in components.discover(project=pack) if item.scope == "project"]
-    cursor = [item for item in found if item.harness_id == "cursor"]
-    kinds = {item.component_type for item in cursor}
-
-    assert kinds == {"plugin", "skill", "agent", "command", "instruction"}
-    assert any(item.absolute == plugin for item in cursor)
-    assert any(item.absolute == plugin / "skills" / "nddev-builder" for item in cursor)
-    assert any(item.absolute == plugin / "agents" / "nddev-builder.md" for item in cursor)
-    assert any(item.absolute == plugin / "commands" / "nddev-validate.md" for item in cursor)
-    assert any(item.absolute == plugin / "rules" / "nddev-builder.mdc" for item in cursor)
-    assert not any(item.component_type in {"hook", "mcp"} for item in cursor)
-    assert not any(item.absolute == plugin / "hooks" for item in cursor)
-
-
 def test_a_plugins_directory_without_a_manifest_is_not_a_pack(tmp_path: Path) -> None:
     """Resembling a plugin is not being one, and the refusal is not silent."""
     pack = tmp_path / "looks-like-one"

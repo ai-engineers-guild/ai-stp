@@ -247,7 +247,7 @@ def test_process_full_first_party_corpus_plan_bind_confirm_publish_components_be
     components = [item for item in corpus if item.kind == "component"]
     setups = [item for item in corpus if item.kind == "setup"]
 
-    assert len(applied.objects) == len(corpus) == 124
+    assert len(applied.objects) == len(corpus) == 120
     assert [item.kind for item in applied.objects[: len(components)]] == ["component"] * len(
         components
     )

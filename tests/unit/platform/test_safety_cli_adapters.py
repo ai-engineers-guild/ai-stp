@@ -730,6 +730,40 @@ async def test_orchestrator_bad_zip_and_adapter_exception(
     clear_safety_cache()
 
 
+@pytest.mark.asyncio
+async def test_orchestrator_does_not_cache_degraded_scans(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clear_safety_cache()
+    payload = b"plain text"
+    digest = digest_bytes(ARTIFACT_DIGEST_DOMAIN, payload)
+
+    def _boom(*_a, **_k):
+        raise RuntimeError("temporary scanner failure")
+
+    monkeypatch.setattr(
+        "ai_stp_platform.safety.orchestrator.get_adapter",
+        lambda check_id: _boom if check_id == "path_denylist" else None,
+    )
+    first = await run_safety_suite(
+        passport={"component_type": "skill"},
+        content_digest=digest,
+        artifact_bytes=payload,
+        use_cache=True,
+    )
+    second = await run_safety_suite(
+        passport={"component_type": "skill"},
+        content_digest=digest,
+        artifact_bytes=payload,
+        use_cache=True,
+    )
+
+    assert any(o.result == "degraded" for o in first.outcomes)
+    assert first.cache_hit is False
+    assert second.cache_hit is False
+    clear_safety_cache()
+
+
 def test_inproc_adapters_hooks_mcp_shell_skill_hidden_yara_opengrep(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

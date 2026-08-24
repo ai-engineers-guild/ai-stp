@@ -87,7 +87,7 @@ last_verified: "2026-08-03"
 | [ADR-0076-machine-projection-as-addressable-route.md](ADR-0076-machine-projection-as-addressable-route.md) | Решение: machine-проекция web является адресуемым серверным маршрутом и отдельным документом. | 2026-08-10 |
 | [ADR-0077-public-user-documentation-site.md](ADR-0077-public-user-documentation-site.md) | Решение вести публичную пользовательскую документацию отдельно от внутреннего docs/ и собирать её MkDocs Material. | 2026-08-10 |
 | [ADR-0078-user-docs-container-and-subdomain.md](ADR-0078-user-docs-container-and-subdomain.md) | Решение отдавать публичную пользовательскую документацию отдельным контейнером и subdomain-route. | 2026-08-10 |
-| [ADR-0079-catalog-integrity-is-not-a-miss.md](ADR-0079-catalog-integrity-is-not-a-miss.md) | Достижимая опубликованная запись, не прошедшая проверку целостности, отвечает отдельным кодом, а не отсутствием. | 2026-08-24 |
+| [ADR-0079-catalog-integrity-is-not-a-miss.md](ADR-0079-catalog-integrity-is-not-a-miss.md) | Достижимая опубликованная запись, не прошедшая проверку целостности, отвечает отдельным кодом, а не отсутствием. | 2026-08-12 |
 | [ADR-0081-schema-downgrade-is-an-operation-not-a-taboo.md](ADR-0081-schema-downgrade-is-an-operation-not-a-taboo.md) | Решение разрешить явный откат схемы отдельной операцией с проверенной резервной копией, сохранив запрет неявного отката внутри отката приложения. | 2026-08-12 |
 | [ADR-0082-github-archive-as-external-evidence.md](ADR-0082-github-archive-as-external-evidence.md) | Решение хранить GitHub archived state как внешнее evidence, а не автоматический lifecycle. | 2026-08-13 |
 | [ADR-0083-federated-sources-remain-observations.md](ADR-0083-federated-sources-remain-observations.md) | Решение разделить local ports и metadata adapters общим descriptor без передачи им доверия или target. | 2026-08-13 |
@@ -118,7 +118,7 @@ last_verified: "2026-08-03"
 | [ADR-0117-the-test-run-does-not-repeat-expensive-work.md](ADR-0117-the-test-run-does-not-repeat-expensive-work.md) | Решение не повторять дорогую работу в прогоне: миграции применяются один раз на процесс, трассировка покрытия идёт через sys.monitoring. | 2026-08-22 |
 | [ADR-0118-the-agent-decides-inside-the-vision.md](ADR-0118-the-agent-decides-inside-the-vision.md) | Решение считать выбор варианта, публикацию и продвижение кода частью полномочий агента, оставив отдельным решением только необратимое и внешнее. | 2026-08-23 |
 | [ADR-0119-the-fifth-harness-is-cursor.md](ADR-0119-the-fifth-harness-is-cursor.md) | Решение заменить opencode на cursor в закрытом наборе поддерживаемых харнессов вслед за переездом эстейта провайдеров. | 2026-08-23 |
-| [ADR-0120-the-supported-set-is-seven.md](ADR-0120-the-supported-set-is-seven.md) | Решение расширить закрытый набор поддерживаемых харнессов с пяти до семи: opencode остаётся, cursor и antigravity добавляются. | 2026-08-24 |
+| [ADR-0120-the-supported-set-is-seven.md](ADR-0120-the-supported-set-is-seven.md) | Решение расширить закрытый набор поддерживаемых харнессов с пяти до семи: opencode остаётся, cursor и antigravity добавляются. | 2026-08-23 |
 | [ADR-0121-provider-release-trust-levels.md](ADR-0121-provider-release-trust-levels.md) | Решение различать verified publisher, подписанный, build-attested и непроверенный выпуск провайдера. | 2026-08-24 |
 | [template.md](template.md) | Шаблон записи архитектурного решения. | 2026-08-03 |
 

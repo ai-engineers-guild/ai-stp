@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from typing import Literal
@@ -567,30 +566,6 @@ def _corrupt(
     return CatalogCorrupt(str(exc))
 
 
-def _project_search_rows[T](
-    rows: list[PublicVersionRow],
-    projector: Callable[..., T],
-    *,
-    now: datetime,
-    object_kind: str,
-) -> list[T]:
-    """Project search rows, mapping a reachable corrupt row to CatalogCorrupt.
-
-    Search used to let CatalogIntegrityError escape as an unhandled 500
-    INTERNAL. Detail already maps the same condition to CATALOG_INTEGRITY;
-    skipping the row would change page completeness (REQ-2105).
-    """
-    items: list[T] = []
-    for row in rows:
-        try:
-            items.append(projector(row, now=now))
-        except CatalogIntegrityError as exc:
-            raise _corrupt(
-                exc, object_kind=object_kind, stable_id=row.stable_id, version=row.version
-            ) from exc
-    return items
-
-
 @dataclass(frozen=True)
 class SearchPage:
     authoritative: list[PublicVersionRow]
@@ -697,12 +672,8 @@ async def search_components(
         cursor_secret=cursor_secret,
     )
     return ComponentListResponse(
-        items=_project_search_rows(
-            page.authoritative, component_summary, now=page.now, object_kind="component"
-        ),
-        experimental=_project_search_rows(
-            page.experimental, component_summary, now=page.now, object_kind="component"
-        ),
+        items=[component_summary(r, now=page.now) for r in page.authoritative],
+        experimental=[component_summary(r, now=page.now) for r in page.experimental],
         page=_page_info(page),
     )
 
@@ -741,12 +712,8 @@ async def search_setups(
         cursor_secret=cursor_secret,
     )
     return SetupListResponse(
-        items=_project_search_rows(
-            page.authoritative, setup_summary, now=page.now, object_kind="setup"
-        ),
-        experimental=_project_search_rows(
-            page.experimental, setup_summary, now=page.now, object_kind="setup"
-        ),
+        items=[setup_summary(r, now=page.now) for r in page.authoritative],
+        experimental=[setup_summary(r, now=page.now) for r in page.experimental],
         page=_page_info(page),
     )
 
