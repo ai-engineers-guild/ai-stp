@@ -658,3 +658,84 @@ def test_a_manifest_that_is_not_there_is_not_found(tmp_path: Path) -> None:
     with pytest.raises(CliFailure) as raised:
         select.provider_trust({"manifest": str(tmp_path / "absent.json")})
     assert raised.value.code == "AI_STP_NOT_FOUND"
+
+
+def test_gnu_sha256sums_match_by_digest_not_basename(tmp_path: Path) -> None:
+    artifact = tmp_path / "renamed-provider"
+    artifact.write_bytes(b"provider-bytes")
+    digest, _ = release.artifact_identity(artifact)
+    hex_digest = digest.removeprefix("sha256:")
+    sums = tmp_path / "SHA256SUMS"
+    sums.write_text(f"{hex_digest}  original-name\n", encoding="ascii")
+    assert release.verify_artifact_checksums(artifact, sums) == digest
+
+
+def test_gnu_sha256sums_refuse_a_mismatch_and_a_malformed_file(tmp_path: Path) -> None:
+    artifact = tmp_path / "provider"
+    artifact.write_bytes(b"provider-bytes")
+    wrong = tmp_path / "SHA256SUMS"
+    wrong.write_text("0" * 64 + "  provider\n", encoding="ascii")
+    with pytest.raises(CliFailure) as mismatch:
+        release.verify_artifact_checksums(artifact, wrong)
+    assert mismatch.value.code == "AI_STP_VALIDATION_ERROR"
+
+    malformed = tmp_path / "SHA256SUMS.bad"
+    malformed.write_text("not-gnu-checksums\n", encoding="ascii")
+    with pytest.raises(CliFailure) as shape:
+        release.parse_gnu_sha256sums(malformed.read_text(encoding="ascii"))
+    assert shape.value.code == "AI_STP_VALIDATION_ERROR"
+
+
+def test_schema_3_reads_attested_releases_and_schema_2_refuses_them() -> None:
+    attested = (
+        'attested_releases = [{ provider_id = "cursor-setup-system", '
+        'repository = "github.com/NDDev-OpenNetwork/cursor-setup-system", '
+        f'artifact_digest = "{_DIGEST_A}" }}]\n'
+    )
+    with pytest.raises(CliFailure) as unknown:
+        release.load_policy(VALID_POLICY_TEXT + attested)
+    assert unknown.value.details["field"] == "unknown_fields"
+
+    policy = release.load_policy(
+        VALID_POLICY_TEXT.replace("schema_version = 2", "schema_version = 3") + attested
+    )
+    assert policy.schema_version == 3
+    assert policy.attested_releases == frozenset(
+        {
+            release.PinnedRelease(
+                provider_id="cursor-setup-system",
+                repository="github.com/NDDev-OpenNetwork/cursor-setup-system",
+                artifact_digest=_DIGEST_A,
+            )
+        }
+    )
+
+
+def test_the_shipped_policy_pins_attested_opennetwork_setup_systems() -> None:
+    policy = release.pinned_policy()
+    assert policy.schema_version == 3
+    names = {pin.provider_id for pin in policy.attested_releases}
+    assert names == {
+        "antigravity-setup-system",
+        "claude-setup-system",
+        "codex-setup-system",
+        "cursor-setup-system",
+        "grok-setup-system",
+        "opencode-setup-system",
+        "pi-setup-system",
+    }
+    assert {pin.repository for pin in policy.attested_releases}.isdisjoint(
+        policy.allowed_repositories
+    )
+    assert {pin.artifact_digest for pin in policy.attested_releases}.isdisjoint(
+        {pin.artifact_digest for pin in policy.pinned_releases}
+    )
+
+
+def test_an_attestation_record_round_trips() -> None:
+    pin = release.PinnedRelease(
+        provider_id="cursor-setup-system",
+        repository="github.com/NDDev-OpenNetwork/cursor-setup-system",
+        artifact_digest=_DIGEST_A,
+    )
+    assert release.parse_attestation(release.serialize_attestation(pin)) == pin

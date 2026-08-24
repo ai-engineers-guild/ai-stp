@@ -9,17 +9,17 @@ last_verified: "2026-08-03"
 
 | Документ | О чём | Сверено |
 | -------- | ----- | ------- |
-| [SPEC-001-product-contract.md](SPEC-001-product-contract.md) | SPEC-001: Продуктовый контракт MVP. | 2026-08-08 |
+| [SPEC-001-product-contract.md](SPEC-001-product-contract.md) | SPEC-001: Продуктовый контракт MVP. | 2026-08-24 |
 | [SPEC-002-identity-devices-access.md](SPEC-002-identity-devices-access.md) | SPEC-002: Аккаунты, OAuth, устройства и доступ. | 2026-08-13 |
 | [SPEC-003-developer-passport.md](SPEC-003-developer-passport.md) | SPEC-003: Паспорт разработчика и публичная проекция. | 2026-08-04 |
 | [SPEC-004-project-index-passport.md](SPEC-004-project-index-passport.md) | SPEC-004: Индекс и паспорт проекта. | 2026-08-03 |
-| [SPEC-005-registry-versioning.md](SPEC-005-registry-versioning.md) | SPEC-005: Реестр, варианты и версии объектов. | 2026-08-09 |
+| [SPEC-005-registry-versioning.md](SPEC-005-registry-versioning.md) | SPEC-005: Реестр, варианты и версии объектов. | 2026-08-24 |
 | [SPEC-006-search-and-setup-compiler.md](SPEC-006-search-and-setup-compiler.md) | SPEC-006: Поиск, отбор кандидатов и сборщик сетапа. | 2026-08-09 |
 | [SPEC-007-validation-publishing.md](SPEC-007-validation-publishing.md) | SPEC-007: Проверки, доказательства и публикация. | 2026-08-13 |
-| [SPEC-008-provider-installation.md](SPEC-008-provider-installation.md) | SPEC-008: Провайдеры, установка и восстановление. | 2026-08-13 |
+| [SPEC-008-provider-installation.md](SPEC-008-provider-installation.md) | SPEC-008: Провайдеры, установка и восстановление. | 2026-08-24 |
 | [SPEC-009-local-registry-sync.md](SPEC-009-local-registry-sync.md) | SPEC-009: Локальный реестр и синхронизация. | 2026-08-04 |
 | [SPEC-010-platform-api.md](SPEC-010-platform-api.md) | SPEC-010: Серверная платформа и API. | 2026-08-15 |
-| [SPEC-011-cli-agent-skill.md](SPEC-011-cli-agent-skill.md) | SPEC-011: CLI, машинная справка и навык агента. | 2026-08-13 |
+| [SPEC-011-cli-agent-skill.md](SPEC-011-cli-agent-skill.md) | SPEC-011: CLI, машинная справка и навык агента. | 2026-08-24 |
 | [SPEC-012-uninstall-recovery.md](SPEC-012-uninstall-recovery.md) | SPEC-012: Удаление, полная очистка и восстановление. | 2026-08-03 |
 | [SPEC-013-data-governance.md](SPEC-013-data-governance.md) | SPEC-013: Управление пользовательскими данными. | 2026-08-16 |
 | [SPEC-014-toolchain-bootstrap.md](SPEC-014-toolchain-bootstrap.md) | SPEC-014: Управляемый набор инструментов и первичная настройка. | 2026-08-04 |

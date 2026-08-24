@@ -39,7 +39,7 @@ type DeviceState = Literal["active", "revoked"]
 class DetectedHarness(BaseModel):
     """One harness observed on the device, with the version that was observed.
 
-    Only the five supported harnesses are itemised. An unknown harness stays a
+    Only the supported harnesses are itemised. An unknown harness stays a
     local observation and never leaves the machine (SPEC-011 REQ-1109): it
     creates no managed object, so listing it here would put an environment fact
     on the wire for something the platform cannot act on.

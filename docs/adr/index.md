@@ -11,7 +11,7 @@ last_verified: "2026-08-03"
 | -------- | ----- | ------- |
 | [ADR-0001-record-architecture-decisions.md](ADR-0001-record-architecture-decisions.md) | Решение фиксировать значимые и труднообратимые архитектурные изменения в ADR. | 2026-08-03 |
 | [ADR-0002-own-core-and-public-providers.md](ADR-0002-own-core-and-public-providers.md) | Решение владеть доменной моделью ai_stp и делегировать запись target публичным NDDev providers. | 2026-08-03 |
-| [ADR-0003-five-harness-scope-and-undefined.md](ADR-0003-five-harness-scope-and-undefined.md) | Решение: ограничить MVP пятью харнессами. | 2026-08-04 |
+| [ADR-0003-five-harness-scope-and-undefined.md](ADR-0003-five-harness-scope-and-undefined.md) | Решение: ограничить MVP пятью харнессами. | 2026-08-24 |
 | [ADR-0004-setup-component-versioning.md](ADR-0004-setup-component-versioning.md) | Решение: использовать версии x.y и major-line access. | 2026-08-03 |
 | [ADR-0005-local-cloud-revision-sync.md](ADR-0005-local-cloud-revision-sync.md) | Решение: синхронизировать через revision graph. | 2026-08-03 |
 | [ADR-0006-full-auto-and-confirmation-boundary.md](ADR-0006-full-auto-and-confirmation-boundary.md) | Решение: разделить full-auto и чувствительные действия. | 2026-08-03 |
@@ -41,7 +41,7 @@ last_verified: "2026-08-03"
 | [ADR-0030-major-line-grants-forks-derived-publication.md](ADR-0030-major-line-grants-forks-derived-publication.md) | Решение определить право на основную линию, форк получателя, производную публикацию и последствия отзыва. | 2026-08-04 |
 | [ADR-0031-report-cases-and-moderation.md](ADR-0031-report-cases-and-moderation.md) | Решение добавить закрытые случаи жалоб из веба и CLI с аудируемой модерацией без автоматических публичных issue. | 2026-08-04 |
 | [ADR-0032-install-eligibility-from-current-evidence.md](ADR-0032-install-eligibility-from-current-evidence.md) | Решение выводить пригодность версии к установке из актуальности обязательных доказательств без удалённого отключения целей. | 2026-08-04 |
-| [ADR-0033-harness-promotion-from-undefined.md](ADR-0033-harness-promotion-from-undefined.md) | Решение считать пять харнессов набором MVP и определить платформенный процесс продвижения нового харнесса из undefined. | 2026-08-04 |
+| [ADR-0033-harness-promotion-from-undefined.md](ADR-0033-harness-promotion-from-undefined.md) | Решение считать закрытый набор харнессов набором MVP и определить платформенный процесс продвижения нового харнесса из undefined. | 2026-08-24 |
 | [ADR-0034-first-party-launch-corpus.md](ADR-0034-first-party-launch-corpus.md) | Решение сделать первопартийный каталог запуска измеримым выпускным барьером с подтверждённым пространством имён гильдии. | 2026-08-17 |
 | [ADR-0035-product-and-catalog-languages.md](ADR-0035-product-and-catalog-languages.md) | Решение о языках продукта: веб и навык двуязычные, содержимое каталога запуска — английское. | 2026-08-04 |
 | [ADR-0036-content-addressed-revision-ids.md](ADR-0036-content-addressed-revision-ids.md) | Решение сделать идентификатор ревизии контентным: revision_ и 64 hex хэша канонических данных в домене ревизии. | 2026-08-05 |
@@ -118,7 +118,7 @@ last_verified: "2026-08-03"
 | [ADR-0117-the-test-run-does-not-repeat-expensive-work.md](ADR-0117-the-test-run-does-not-repeat-expensive-work.md) | Решение не повторять дорогую работу в прогоне: миграции применяются один раз на процесс, трассировка покрытия идёт через sys.monitoring. | 2026-08-22 |
 | [ADR-0118-the-agent-decides-inside-the-vision.md](ADR-0118-the-agent-decides-inside-the-vision.md) | Решение считать выбор варианта, публикацию и продвижение кода частью полномочий агента, оставив отдельным решением только необратимое и внешнее. | 2026-08-23 |
 | [ADR-0119-the-fifth-harness-is-cursor.md](ADR-0119-the-fifth-harness-is-cursor.md) | Решение заменить opencode на cursor в закрытом наборе поддерживаемых харнессов вслед за переездом эстейта провайдеров. | 2026-08-23 |
-| [ADR-0120-the-supported-set-is-seven.md](ADR-0120-the-supported-set-is-seven.md) | Решение расширить закрытый набор поддерживаемых харнессов с пяти до семи: opencode остаётся, cursor и antigravity добавляются. | 2026-08-23 |
+| [ADR-0120-the-supported-set-is-seven.md](ADR-0120-the-supported-set-is-seven.md) | Решение расширить закрытый набор поддерживаемых харнессов с пяти до семи: opencode остаётся, cursor и antigravity добавляются. | 2026-08-24 |
 | [template.md](template.md) | Шаблон записи архитектурного решения. | 2026-08-03 |
 
 <!-- КОНЕЦ СОДЕРЖИМОГО -->

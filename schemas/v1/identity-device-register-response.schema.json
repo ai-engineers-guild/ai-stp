@@ -2,7 +2,7 @@
   "$defs": {
     "DetectedHarness": {
       "additionalProperties": true,
-      "description": "One harness observed on the device, with the version that was observed.\n\nOnly the five supported harnesses are itemised. An unknown harness stays a\nlocal observation and never leaves the machine (SPEC-011 REQ-1109): it\ncreates no managed object, so listing it here would put an environment fact\non the wire for something the platform cannot act on.",
+      "description": "One harness observed on the device, with the version that was observed.\n\nOnly the supported harnesses are itemised. An unknown harness stays a\nlocal observation and never leaves the machine (SPEC-011 REQ-1109): it\ncreates no managed object, so listing it here would put an environment fact\non the wire for something the platform cannot act on.",
       "properties": {
         "harness_id": {
           "$ref": "#/$defs/HarnessId"

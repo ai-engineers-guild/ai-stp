@@ -1706,6 +1706,10 @@ class ProviderTrust(BaseModel):
     #: a list anybody could rely on. `latest` is forbidden by the contract.
     pinned_releases: list[PinnedRelease] = []
 
+    #: Schema 3 GitHub attestation pins. Separate from `pinned_releases`: those
+    #: are Ed25519, these are provenance. Empty means no attested install.
+    attested_releases: list[PinnedRelease] = []
+
     #: Present only when a manifest was given to check. `null` means the policy
     #: was reported and nothing was verified, which is not the same as accepted.
     accepted: bool | None = None
@@ -1758,6 +1762,8 @@ class InstallationView(BaseModel):
     provider_protocol_version: Annotated[int, Field(ge=1)] = 1
     provider_target: str = ""
     provider_release_trusted: bool = False
+    #: How the plan became trusted. Checksums never produce `github_attestation`.
+    provider_release_trust: Literal["none", "signed_manifest", "github_attestation"] = "none"
     provider_release_recovery: bool = False
     bundle_format: str = ""
     bundle_digest: str = ""

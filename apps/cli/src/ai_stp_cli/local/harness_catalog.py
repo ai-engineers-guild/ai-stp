@@ -54,7 +54,7 @@ class HarnessDefinition:
     def support(self) -> HarnessSupport:
         """The declared support level, read from its owner rather than restated.
 
-        For the five real harnesses this is the product tier owned by
+        For the supported harnesses this is the product tier owned by
         `ai_stp_foundation.harnesses`. It used to be the third positional field
         of every definition here, and the same table also existed in the
         platform catalog projection; deriving it removes the second copy
@@ -63,7 +63,7 @@ class HarnessDefinition:
         `undefined` is not a harness and has no product tier. It is the shared
         conventions entry, and `portable` says exactly that. Answering it here
         rather than storing it keeps the special case visible instead of hiding
-        it as a third literal among five tiers.
+        it as a third literal among the product tiers.
         """
         if self.harness_id == UNDEFINED_HARNESS:
             return "portable"

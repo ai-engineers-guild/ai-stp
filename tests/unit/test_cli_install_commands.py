@@ -664,6 +664,125 @@ def test_v3_installs_an_unverified_provider_only_when_asked_to(
     assert planned.provider_release_trusted is False
 
 
+def test_unverified_v3_still_checks_sha256sums_when_they_are_named(
+    registry: sqlite3.Connection,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Checksums are identity, not a signed release.
+
+    OpenNetwork publishes SHA256SUMS without an Ed25519 manifest. Matching
+    bytes against that file does not make `provider_release_trusted` true.
+    Mismatch still refuses: the flag does not mean "skip every check".
+    """
+    proposal_id = _confirmed(registry, tmp_path, "8")
+    executable = _provider(tmp_path, "cursor-setup-system-x86_64-unknown-linux-gnu")
+    _v3_test_invoker(monkeypatch, target=tmp_path)
+    digest, _ = release.artifact_identity(Path(executable))
+    hex_digest = digest.removeprefix("sha256:")
+    sums = tmp_path / "SHA256SUMS"
+    sums.write_text(
+        f"{hex_digest}  cursor-setup-system-x86_64-unknown-linux-gnu\n",
+        encoding="ascii",
+    )
+    wrong = tmp_path / "SHA256SUMS.wrong"
+    wrong.write_text(
+        "0" * 64 + "  cursor-setup-system-x86_64-unknown-linux-gnu\n", encoding="ascii"
+    )
+
+    with pytest.raises(CliFailure) as raised:
+        install.plan(
+            {
+                "proposal": proposal_id,
+                "provider": executable,
+                "protocol-version": 3,
+                "target": str(tmp_path),
+                "unverified-provider": True,
+                "provider-checksums": str(wrong),
+            }
+        )
+    assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+
+    planned = install.plan(
+        {
+            "proposal": proposal_id,
+            "provider": executable,
+            "protocol-version": 3,
+            "target": str(tmp_path),
+            "unverified-provider": True,
+            "provider-checksums": str(sums),
+        }
+    ).payload
+    assert planned.provider_release_trusted is False
+    assert planned.provider_release_trust == "none"
+
+
+def test_v3_installs_an_attested_provider_when_the_digest_is_pinned(
+    registry: sqlite3.Connection,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """GitHub provenance is a trust source. Checksums are not."""
+    proposal_id = _confirmed(registry, tmp_path, "9")
+    executable = _provider(tmp_path, "cursor-setup-system-x86_64-unknown-linux-gnu")
+    _v3_test_invoker(monkeypatch, target=tmp_path)
+    digest, _ = release.artifact_identity(Path(executable))
+    pin = release.PinnedRelease(
+        provider_id="cursor-setup-system",
+        repository="github.com/NDDev-OpenNetwork/cursor-setup-system",
+        artifact_digest=digest,
+    )
+    policy = replace(release.pinned_policy(), attested_releases=frozenset({pin}))
+
+    def _accept_attestation(artifact: Path, repository: str) -> None:
+        del artifact, repository
+
+    monkeypatch.setattr(release, "pinned_policy", lambda: policy)
+    monkeypatch.setattr(release, "verify_github_attestation", _accept_attestation)
+
+    planned = install.plan(
+        {
+            "proposal": proposal_id,
+            "provider": executable,
+            "protocol-version": 3,
+            "target": str(tmp_path),
+        }
+    ).payload
+    assert planned.provider_release_trusted is True
+    assert planned.provider_release_trust == "github_attestation"
+
+
+def test_attested_bytes_contradict_the_unverified_flag(
+    registry: sqlite3.Connection,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Pinned attested bytes are not an unverified install of the same file."""
+    proposal_id = _confirmed(registry, tmp_path, "0")
+    executable = _provider(tmp_path, "claude-setup-system-x86_64-unknown-linux-gnu")
+    _v3_test_invoker(monkeypatch, target=tmp_path)
+    digest, _ = release.artifact_identity(Path(executable))
+    pin = release.PinnedRelease(
+        provider_id="claude-setup-system",
+        repository="github.com/NDDev-OpenNetwork/claude-setup-system",
+        artifact_digest=digest,
+    )
+    policy = replace(release.pinned_policy(), attested_releases=frozenset({pin}))
+    monkeypatch.setattr(release, "pinned_policy", lambda: policy)
+
+    with pytest.raises(CliFailure) as raised:
+        install.plan(
+            {
+                "proposal": proposal_id,
+                "provider": executable,
+                "protocol-version": 3,
+                "target": str(tmp_path),
+                "unverified-provider": True,
+            }
+        )
+    assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+
+
 def test_a_signed_release_and_the_unverified_flag_contradict_each_other(
     registry: sqlite3.Connection,
     tmp_path: Path,

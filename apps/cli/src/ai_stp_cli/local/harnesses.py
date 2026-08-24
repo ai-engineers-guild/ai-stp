@@ -8,10 +8,11 @@ That is a stronger guarantee than a limit, because it makes the whole surface
 readable in one place.
 
 Every root here was read from the harness's own documentation rather than
-recalled, and the five disagree with each other in ways that would have been
+recalled, and the seven disagree with each other in ways that would have been
 easy to get wrong: `~/.claude`, `~/.codex` overridable by `CODEX_HOME`,
-`~/.pi/agent`, XDG-based `~/.config/opencode`, and `~/.grok`. Assuming one
-convention would have produced four confident wrong answers.
+`~/.pi/agent`, XDG-based `~/.config/opencode`, `~/.grok`, `~/.cursor`
+overridable by `CURSOR_CONFIG_DIR`, and `~/.gemini` for Antigravity. Assuming
+one convention would have produced six confident wrong answers.
 
 Nothing here writes. `REQ-1416` asks for a filesystem that is byte-identical
 afterwards, and the way to get that is to never open a file for writing rather

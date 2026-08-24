@@ -7,8 +7,12 @@
 # The release key below is the offline Ed25519 trust anchor selected for the
 # first immutable NDDev provider line. A downloaded manifest cannot add or
 # replace this material.
+#
+# Schema 3 keeps the Ed25519 table and adds `attested_releases` for GitHub
+# artifact attestations. Attested locators are not added to
+# `allowed_repositories`: a signed manifest cannot ride in on them.
 
-schema_version = 2
+schema_version = 3
 policy_id = "nddev/provider/1"
 
 # What a signature must be over. A signature over anything else is a valid
@@ -50,4 +54,16 @@ releases = [
   { provider_id = "nddev-grok-build-app", repository = "github.com/NDDev-it-com/nddev-grok-build-app", artifact_digest = "sha256:3da44c75c42efa1dbc6de1900fb6820af3d6ada903847df7e0dfa8f5c6e9a3aa" },
   { provider_id = "nddev-opencode-app", repository = "github.com/NDDev-it-com/nddev-opencode-app", artifact_digest = "sha256:97bcd9c18fe580d7c2fb5d0ca3b9a960bb5a7834ad1c12d1a7d4b2b2c361d498" },
   { provider_id = "nddev-pi-app", repository = "github.com/NDDev-it-com/nddev-pi-app", artifact_digest = "sha256:beb1ede511b3568591382a732d5668cd3f451b1fbad6005353dc9cc32694b2d3" },
+]
+
+# GitHub artifact attestations for NDDev-OpenNetwork setup-system 0.0.1
+# linux x86_64. Provenance is `gh attestation verify --repo`, not the key above.
+attested_releases = [
+  { provider_id = "antigravity-setup-system", repository = "github.com/NDDev-OpenNetwork/antigravity-setup-system", artifact_digest = "sha256:ad24406933ceb307edefd3a36a1d3d24b904c8665e43313399f608006467ef38" },
+  { provider_id = "claude-setup-system", repository = "github.com/NDDev-OpenNetwork/claude-setup-system", artifact_digest = "sha256:dc01cebaa843b3fc577518371e80ca4d0ad40b5fc68e50eb4664ae4e2b567915" },
+  { provider_id = "codex-setup-system", repository = "github.com/NDDev-OpenNetwork/codex-setup-system", artifact_digest = "sha256:489f707db5448dd015de0a0796464a5af9553e3443dc33574b3014838fd83e52" },
+  { provider_id = "cursor-setup-system", repository = "github.com/NDDev-OpenNetwork/cursor-setup-system", artifact_digest = "sha256:318e2d064aed972f328f19b0d8548898977cd693e9449dcb8e268bd4a3238974" },
+  { provider_id = "grok-setup-system", repository = "github.com/NDDev-OpenNetwork/grok-setup-system", artifact_digest = "sha256:312166c01d99dddd90dbfc85c22efa3ff65625162ff2f3d415147e7ef0f4c941" },
+  { provider_id = "opencode-setup-system", repository = "github.com/NDDev-OpenNetwork/opencode-setup-system", artifact_digest = "sha256:9234a2349cea6ad324c624c77d4072673391ca51dd4a3613b4ebf07bdb0022bd" },
+  { provider_id = "pi-setup-system", repository = "github.com/NDDev-OpenNetwork/pi-setup-system", artifact_digest = "sha256:b7579f4cdf85959de5e66e5aa0e7263d98672560e4bddaa78521c15e994ff120" },
 ]

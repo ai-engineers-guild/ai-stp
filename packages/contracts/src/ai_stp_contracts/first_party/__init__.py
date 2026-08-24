@@ -206,6 +206,12 @@ def _native_path(harness_id: str, component: _ComponentSource) -> str:
             "command": f"commands/{component.slug}",
             "plugin": f"plugins/{component.slug}",
         }[component.component_type]
+    if harness_id == "cursor":
+        return {
+            "instruction": "AGENTS.md",
+            "setting": "cli-config.json",
+            "plugin": f"plugins/{component.slug}",
+        }[component.component_type]
     if component.component_type == "plugin":
         return f"plugins/{component.slug}"
     if harness_id == "codex":

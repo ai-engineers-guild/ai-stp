@@ -120,9 +120,9 @@ def test_every_projection_is_generated_and_current(
     assert target.read_text(encoding="utf-8") == skill_projections.render(projection)
 
 
-def test_the_five_documented_harnesses_each_have_one_projection() -> None:
+def test_every_supported_harness_has_one_projection() -> None:
     # `SPEC-011` REQ-1105: one canonical Skill produces verifiable native
-    # projections for the five harnesses.
+    # projections for every supported harness.
     from ai_stp_foundation.harnesses import HARNESS_IDS
 
     assert {projection.harness_id for projection in skill_projections.TARGETS} == set(HARNESS_IDS)

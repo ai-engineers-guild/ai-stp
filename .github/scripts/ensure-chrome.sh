@@ -16,8 +16,6 @@ for candidate in \
   "$(command -v google-chrome || true)" \
   "$(command -v google-chrome-stable || true)" \
   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
-  "/mnt/c/Program Files/Google/Chrome/Application/chrome.exe" \
-  "/mnt/c/Program Files (x86)/Google/Chrome/Application/chrome.exe" \
   "/c/Program Files/Google/Chrome/Application/chrome.exe" \
   "/c/Program Files (x86)/Google/Chrome/Application/chrome.exe"; do
   if [ -n "${candidate}" ] && [ -x "${candidate}" ]; then

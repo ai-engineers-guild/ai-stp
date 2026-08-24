@@ -80,6 +80,7 @@ def test_the_digest_covers_every_field_a_decision_turns_on(
         {"provider_target": "/var/lib/ai-stp/provider-target"},
         {"provider_release_manifest": '{"provider_id":"codex"}'},
         {"provider_release_recovery": True},
+        {"provider_release_attestation": '{"kind":"github_attestation"}'},
         {"bundle_format": "ai-stp-bundle/1"},
         {"bundle_digest": HELD},
         {"bundle_artifact_digest": MOVED},

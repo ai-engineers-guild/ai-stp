@@ -1,6 +1,6 @@
-"""Closed harness identifiers (ADR-0003, ADR-0033, SPEC-001 REQ-105).
+"""Closed harness identifiers (ADR-0003, ADR-0033, ADR-0120, SPEC-001 REQ-105).
 
-Five supported harnesses form the complete MVP set; ``undefined`` marks an
+Seven supported harnesses form the complete MVP set; ``undefined`` marks an
 observed unknown harness and never appears in managed objects (SPEC-011
 REQ-1109). Expanding the enum requires a new ADR and a schema version.
 """
@@ -57,7 +57,7 @@ SUPPORT_TIERS: Final[dict[HarnessId, SupportTier]] = {
 
 
 def is_supported_harness(value: str) -> bool:
-    """Report whether ``value`` is one of the five supported harness IDs."""
+    """Report whether ``value`` is one of the supported harness IDs."""
     return value in HARNESS_IDS
 
 

@@ -694,6 +694,12 @@ MIGRATIONS: Final[tuple[Migration, ...]] = (
             "DROP TABLE setup_publication_set",
         ),
     ),
+    Migration(
+        version=22,
+        summary="installation plans bind a GitHub artifact attestation as a trust source",
+        up=("ALTER TABLE operation_plan ADD COLUMN provider_release_attestation TEXT",),
+        down=("ALTER TABLE operation_plan DROP COLUMN provider_release_attestation",),
+    ),
 )
 
 #: Names for nested savepoints. A counter rather than a fixed name: two nested

@@ -1584,6 +1584,17 @@ def provider_trust(parameters: Mapping[str, object]) -> Answer[ProviderTrust]:
                 key=lambda pin: (pin.provider_id, pin.artifact_digest),
             )
         ],
+        attested_releases=[
+            PinnedRelease(
+                provider_id=pin.provider_id,
+                repository=pin.repository,
+                artifact_digest=pin.artifact_digest,
+            )
+            for pin in sorted(
+                policy.attested_releases,
+                key=lambda pin: (pin.provider_id, pin.artifact_digest),
+            )
+        ],
     )
 
     given = parameters.get("manifest")

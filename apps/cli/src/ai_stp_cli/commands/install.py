@@ -281,7 +281,14 @@ def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
             recovery_requested=release_recovery,
         )
         protocol_version = _protocol_version(parameters, trusted_release)
-        _release_required(parameters, protocol_version, trusted_release)
+        attested_release = _attested_pin(
+            executable,
+            parameters,
+            protocol_version=protocol_version,
+            trusted_release=trusted_release,
+        )
+        _release_required(parameters, protocol_version, trusted_release, attested_release)
+        _named_checksums(parameters, executable)
         if prepared_ref and protocol_version != protocol_v3.VERSION:
             raise CliFailure(
                 "AI_STP_SCHEMA_UNSUPPORTED",
@@ -325,6 +332,7 @@ def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
                 release_manifest=release_manifest,
                 release_recovery=release_recovery,
                 trusted_release=trusted_release,
+                attested_release=attested_release,
             )
         if held is None:
             # Reachable only by asking for `backup` or `rollback` without a
@@ -417,6 +425,7 @@ def _plan_v3(
     release_manifest: str,
     release_recovery: bool,
     trusted_release: release.ReleaseManifest | None,
+    attested_release: release.PinnedRelease | None,
 ) -> InstallationView:
     """Plan the existing installation state machine through protocol v3."""
     capabilities = _v3_capabilities(info, pair.harness_id, bundle.BUNDLE_FORMAT)
@@ -500,6 +509,7 @@ def _plan_v3(
             provider_target,
             release_digest,
             str(release_recovery),
+            "" if attested_release is None else release.serialize_attestation(attested_release),
             capabilities.projection.digest,
             expected_target_digest,
             "" if bound_bundle is None else bound_bundle.bundle_digest,
@@ -554,6 +564,9 @@ def _plan_v3(
         provider_target=provider_target,
         provider_release_manifest=release_manifest,
         provider_release_recovery=release_recovery,
+        provider_release_attestation=(
+            "" if attested_release is None else release.serialize_attestation(attested_release)
+        ),
         bundle_format="" if bound_bundle is None else bound_bundle.bundle_format,
         bundle_digest="" if bound_bundle is None else bound_bundle.bundle_digest,
         bundle_artifact_digest="" if bound_bundle is None else bound_bundle.artifact_digest,
@@ -610,6 +623,7 @@ def apply(parameters: Mapping[str, object]) -> Answer[InstallationView]:
     def work(connection: sqlite3.Connection) -> InstallationView:
         held = installation._require(connection, operation_id)  # pyright: ignore[reportPrivateUsage]
         trusted_release = _verify_bound_release(connection, held, executable)
+        _verify_bound_attestation(held, executable)
         invoke = _provider_invoker(
             executable,
             held.provider_target or held.target_id,
@@ -942,6 +956,7 @@ def resume(parameters: Mapping[str, object]) -> Answer[InstallationView]:
             )
 
         trusted_release = _verify_bound_release(connection, held, executable)
+        _verify_bound_attestation(held, executable)
         invoke = _provider_invoker(
             executable,
             held.provider_target or held.target_id,
@@ -1548,8 +1563,9 @@ def _release_required(
     parameters: Mapping[str, object],
     protocol_version: int,
     trusted_release: release.ReleaseManifest | None,
+    attested_release: release.PinnedRelease | None,
 ) -> None:
-    """Protocol v3 installs a signed release, or says out loud that it does not.
+    """Protocol v3 installs a signed or attested release, or says it does not.
 
     v1 and v2 predate the signed-release line and keep their behaviour. v3 is
     where prepared SetupVersions and provider-owned operations live, so it is
@@ -1563,6 +1579,9 @@ def _release_required(
     default, and the plan it produces reports `provider_release_trusted` false
     for anybody reading it afterwards.
 
+    An attested pin is a third path, not an unverified one. Matching bytes
+    against SHA256SUMS is identity and does not enter this rule.
+
     The rule governs the mutating path. `install target-status` and `diff`
     spawn an executable the caller named in order to observe, and install
     nothing; `provider-release.md` records that scope rather than leaving it to
@@ -1575,17 +1594,60 @@ def _release_required(
             "a signed release manifest and unverified-provider contradict each other",
             next_actions=["install plan --provider-manifest <path> --json"],
         )
-    if protocol_version != protocol_v3.VERSION or trusted_release is not None or unverified:
+    if unverified and attested_release is not None:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "an attested provider release and unverified-provider contradict each other",
+            next_actions=["install plan --json"],
+        )
+    if (
+        protocol_version != protocol_v3.VERSION
+        or trusted_release is not None
+        or attested_release is not None
+        or unverified
+    ):
         return
     raise CliFailure(
         "AI_STP_VALIDATION_ERROR",
-        "protocol v3 installs a signed provider release",
+        "protocol v3 installs a signed or attested provider release",
         details={"protocol_version": str(protocol_version)},
         next_actions=[
             "install plan --provider-manifest <path> --json",
             "install plan --unverified-provider --json",
         ],
     )
+
+
+def _named_checksums(parameters: Mapping[str, object], executable: str) -> None:
+    """Identity check against GNU SHA256SUMS. Does not make a plan trusted."""
+    given = str(parameters.get("provider-checksums") or "")
+    if not given:
+        return
+    place = Path(given).expanduser()
+    release.verify_artifact_checksums(Path(executable), place)
+
+
+def _attested_pin(
+    executable: str,
+    parameters: Mapping[str, object],
+    *,
+    protocol_version: int,
+    trusted_release: release.ReleaseManifest | None,
+) -> release.PinnedRelease | None:
+    """Schema-3 attested pin for these bytes, verified with GitHub provenance.
+
+    Lookup is separate from `gh` so `--unverified-provider` on pinned bytes is
+    a contradiction rather than a way to skip provenance by omitting the tool.
+    """
+    if protocol_version != protocol_v3.VERSION or trusted_release is not None:
+        return None
+    pin = release.lookup_attested_release(Path(executable), release.pinned_policy())
+    if pin is None:
+        return None
+    if bool(parameters.get("unverified-provider", False)):
+        return pin
+    release.verify_attested_artifact(Path(executable), pin)
+    return pin
 
 
 def _trusted_manifest(
@@ -1718,6 +1780,37 @@ def _verify_bound_artifact(
     return manifest
 
 
+def _verify_bound_attestation(
+    plan: installation.Plan, executable: str
+) -> release.PinnedRelease | None:
+    """Re-check attested bytes and current policy before an approved effect."""
+    if not plan.provider_release_attestation:
+        return None
+    if plan.provider_release_manifest:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the provider artifact no longer matches the attestation approved in the plan",
+            details={"provider_id": ""},
+        )
+    pin = release.parse_attestation(plan.provider_release_attestation)
+    digest, _ = release.artifact_identity(Path(executable))
+    if digest != pin.artifact_digest:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the provider artifact no longer matches the attestation approved in the plan",
+            details={"provider_id": pin.provider_id},
+        )
+    policy = release.pinned_policy()
+    if pin not in policy.attested_releases:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the provider artifact no longer matches the attestation approved in the plan",
+            details={"provider_id": pin.provider_id},
+        )
+    release.verify_attested_artifact(Path(executable), pin)
+    return pin
+
+
 def _release_platform() -> str:
     system = platform.system().casefold()
     os_name = "macos" if system == "darwin" else system
@@ -1847,7 +1940,16 @@ def _view(connection: sqlite3.Connection, held: installation.Plan) -> Installati
         provider_version=held.provider_version,
         provider_protocol_version=held.provider_protocol_version,
         provider_target=(redact_home(Path(held.provider_target)) if held.provider_target else ""),
-        provider_release_trusted=bool(held.provider_release_manifest),
+        provider_release_trusted=bool(
+            held.provider_release_manifest or held.provider_release_attestation
+        ),
+        provider_release_trust=(
+            "signed_manifest"
+            if held.provider_release_manifest
+            else "github_attestation"
+            if held.provider_release_attestation
+            else "none"
+        ),
         provider_release_recovery=held.provider_release_recovery,
         bundle_format=held.bundle_format,
         bundle_digest=held.bundle_digest,

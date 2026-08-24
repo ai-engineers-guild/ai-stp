@@ -12,7 +12,7 @@ last_verified: "2026-08-03"
 | [coding-rules.md](coding-rules.md) | Правила ошибок, I/O, безопасности и предсказуемого поведения. | 2026-08-03 |
 | [dependency-policy.md](dependency-policy.md) | Правила Python, Node, external tools и provider dependencies. | 2026-08-15 |
 | [federated-source-threat-model.md](federated-source-threat-model.md) | Модель угроз федеративных local ports и metadata adapters. | 2026-08-16 |
-| [first-party-corpus.md](first-party-corpus.md) | Проверяемая инвентаризация реальных байтов и паспортов первопартийного корпуса запуска. | 2026-08-13 |
+| [first-party-corpus.md](first-party-corpus.md) | Проверяемая инвентаризация реальных байтов и паспортов первопартийного корпуса запуска. | 2026-08-24 |
 | [git-workflow.md](git-workflow.md) | Правила веток, коммитов, PR и межрепозиторных изменений. | 2026-08-12 |
 | [implementation-roadmap.md](implementation-roadmap.md) | Зависимый порядок реализации MVP и межрепозиторных изменений. | 2026-08-13 |
 | [platform-artifact-bind-312.md](platform-artifact-bind-312.md) | План реализации plan-scoped upload байт публикации. | 2026-08-16 |

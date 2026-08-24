@@ -149,6 +149,16 @@
       "title": "Provider Release Recovery",
       "type": "boolean"
     },
+    "provider_release_trust": {
+      "default": "none",
+      "enum": [
+        "none",
+        "signed_manifest",
+        "github_attestation"
+      ],
+      "title": "Provider Release Trust",
+      "type": "string"
+    },
     "provider_release_trusted": {
       "default": false,
       "title": "Provider Release Trusted",
@@ -231,6 +241,7 @@
     "provider_plan_digest",
     "provider_protocol_version",
     "provider_release_recovery",
+    "provider_release_trust",
     "provider_release_trusted",
     "provider_target",
     "provider_version",
