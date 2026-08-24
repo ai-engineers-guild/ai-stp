@@ -1,6 +1,6 @@
 ---
 description: "Runbook: platform safety-scan для publication validate."
-last_verified: "2026-08-22"
+last_verified: "2026-08-24"
 ---
 
 # Runbook: platform safety-scan
@@ -235,4 +235,25 @@ Unit-сценарии в `tests/unit/platform/test_safety_scenario_matrix.py`:
 | Проверка `degraded`, а в `reason` — `did not finish within Ns` | Сканер не успел, а не нашёл. Смотреть нагрузку worker и объявленный `timeout_seconds` этой проверки, не содержимое объекта |
 | Host AV блокирует temp files | Не класть полный EICAR; маркер `AI_STP_MALWARE_TEST_MARKER_V1` |
 | OSV stale | Запустить `refresh_osv_db.sh`; сверить stamp с `AI_STP_OSV_MAX_AGE_HOURS` |
-| Sandbox всегда env_only | Установить `bubblewrap` в worker image (уже в Dockerfile.worker-safety) |
+| Sandbox всегда `env_only`, worker `unhealthy` | См. раздел ниже. `bwrap` уже в образе; не ставить повторно. |
+
+### Worker `unhealthy`: probe `bwrap` даёт `env_only`
+
+`safety_readiness()` требует `detect_sandbox_mode() == "bwrap"`. На проде
+2026-08-24 инструмент на месте, OSV свежий, `AI_STP_SAFETY_EXTERNAL_CLI=1`,
+а probe отвечает `bwrap: Failed to make / slave: Permission denied` и режим
+становится `env_only`. Healthcheck красный; каждый внешний CLI при
+`AI_STP_SAFETY_REQUIRE_BWRAP=1` выходит с кодом 126.
+
+На Ubuntu 24.04 это не отсутствие бинарника. Хост держит
+`kernel.apparmor_restrict_unprivileged_userns=1`. `seccomp=unconfined` в
+compose недостаточно: профиль `docker-default` всё ещё запрещает mount.
+Снятие AppArmor с контейнера меняет ошибку на `loopback: Failed RTM_NEWADDR`.
+Как uid `10001` даже `cap-add ALL` loopback не настраивает: без user namespace
+нет `CAP_NET_ADMIN` внутри netns.
+
+На этом хосте probe проходит только как root с `SYS_ADMIN` и `NET_ADMIN`
+(плюс `apparmor=unconfined`) либо после снятия sysctl. Репозиторий ни то ни
+другое не включает: sysctl — решение оператора, root+capabilities — расширение
+границы изоляции worker. Пока одно из двух не сделано, публикационный validate
+не исполняет внешние сканеры.

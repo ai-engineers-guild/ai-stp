@@ -64,7 +64,8 @@ release=${release_root}/${candidate}
 if [[ ! -d ${release} ]]; then
   temporary=$(mktemp -d "${release_root}/.${candidate}.XXXXXX")
   trap 'rm -rf -- "${temporary}"' EXIT
-  git --git-dir="${mirror}" archive "${candidate}" | tar -x -C "${temporary}"
+  git --git-dir="${mirror}" archive "${candidate}" \
+    | tar --extract --preserve-permissions -C "${temporary}"
   mv "${temporary}" "${release}"
   trap - EXIT
 fi
@@ -76,6 +77,16 @@ rsync -a --delete --delete-delay --delay-updates \
   --exclude '.venv' --exclude 'node_modules' --exclude '.next' \
   --exclude 'dist' --exclude '.site' --exclude '__pycache__' \
   "${release}/" "${root}/"
+# `umask 077` plus tar without --preserve-permissions once dropped owner
+# execute on every deploy script (systemd 203/EXEC). Preserve archive modes
+# above; restore execute on the scripts this unit invokes by name.
+chmod u+x \
+  "${root}/deploy/pull-deploy.sh" \
+  "${root}/deploy/run.sh" \
+  "${root}/deploy/verify.sh" \
+  "${root}/deploy/deploy.sh" \
+  "${root}/deploy/lib.sh" \
+  "${root}/deploy/mark-transfer.sh"
 
 (
   cd "${root}"

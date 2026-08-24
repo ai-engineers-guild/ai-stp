@@ -18,10 +18,10 @@ from ai_stp_contracts.catalog import (
     VersionListEntry,
 )
 from ai_stp_contracts.safety_checks import SafetyCheckEntry, SafetyChecksSummary
-from ai_stp_foundation.canonical import canonize
+from ai_stp_foundation.canonical import JsonValue, canonize
 from ai_stp_foundation.digests import digest_bytes
 from ai_stp_foundation.timestamps import format_timestamp
-from ai_stp_passports.envelope import verify_revision_id
+from ai_stp_passports.envelope import derive_revision_id
 from ai_stp_passports.versions import ComponentVersionPassport, SetupVersionPassport
 from ai_stp_platform.catalog_query_language import Expression, named_harness_ids, parse_query
 from ai_stp_platform.catalog_query_language import matches as query_matches
@@ -120,7 +120,12 @@ def verify_passport_integrity(row: PublicVersionRow) -> bytes:
         passport = model.model_validate(row.passport)
     except ValidationError as exc:
         raise CatalogIntegrityError("passport does not validate against its schema") from exc
-    if not verify_revision_id(passport):
+    # Seal is over the stored document. Round-tripping through the model injects
+    # fields added later with defaults (`harness_ids`, `supported_os`) and would
+    # reject every historically published component that omitted them, even when
+    # the stored digest and stored revision id still match those bytes.
+    stored = cast(dict[str, JsonValue], row.passport)
+    if stored.get("revision_id") != derive_revision_id(stored):
         raise CatalogIntegrityError("passport revision seal mismatch")
     if passport.visibility != "public":
         raise CatalogIntegrityError("passport is not public")

@@ -126,6 +126,8 @@ def test_target_side_deployer_preserves_the_host_state_and_monotonicity() -> Non
     assert "+${deploy_ref}:refs/remotes/origin/deploy/prod" in script
     assert "merge-base --is-ancestor" in script
     assert 'git --git-dir="${mirror}" archive' in script
+    assert "--preserve-permissions" in script
+    assert "chmod u+x" in script
     assert 'AI_STP_REMOTE_ROOT="${root}"' in script
     assert "--exclude '.deploy-state' --exclude '.backups'" in script
     assert "--exclude '.env.prod'" in script

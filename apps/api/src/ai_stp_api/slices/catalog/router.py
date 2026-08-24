@@ -389,6 +389,10 @@ async def search_components(
         result = await _publish_usage(request, db, result)
     except service.CatalogBadRequest as exc:
         raise ApiError(ErrorCategory.VALIDATION, str(exc)) from exc
+    except service.CatalogCorrupt as exc:
+        raise ApiError(
+            ErrorCategory.CATALOG_INTEGRITY, "catalog object failed integrity verification"
+        ) from exc
     return _resource(request, result)
 
 
@@ -548,6 +552,10 @@ async def search_setups(
         result = await _publish_usage(request, db, result)
     except service.CatalogBadRequest as exc:
         raise ApiError(ErrorCategory.VALIDATION, str(exc)) from exc
+    except service.CatalogCorrupt as exc:
+        raise ApiError(
+            ErrorCategory.CATALOG_INTEGRITY, "catalog object failed integrity verification"
+        ) from exc
     return _resource(request, result)
 
 

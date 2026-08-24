@@ -345,6 +345,37 @@ def test_verify_passport_integrity_rejects_identity_mismatch() -> None:
         verify_passport_integrity(row)
 
 
+def test_verify_passport_integrity_accepts_stored_bytes_without_later_defaults() -> None:
+    """A published component may omit fields the model later grew with defaults.
+
+    Prod 2026-08-24: every public component failed the revision seal because
+    `model_dump` injected empty `harness_ids` and `supported_os` that were not
+    in the stored document. The digest over the stored bytes still matched.
+    """
+    row = _row_from_seed()
+    passport = dict(row.passport)
+    passport.pop("harness_ids", None)
+    passport.pop("supported_os", None)
+    passport["revision_id"] = derive_revision_id(passport)
+    stored = PublicVersionRow(
+        metadata=row.metadata,
+        passport=passport,
+        passport_digest=_PLACEHOLDER_DIGEST,
+        published_at=row.published_at,
+        trust_lane=row.trust_lane,
+        author_verified=row.author_verified,
+        component_verified=row.component_verified,
+        lifecycle=row.lifecycle,
+        stable_id=row.stable_id,
+        version=row.version,
+        object_kind=row.object_kind,
+    )
+    verify_passport_integrity(stored)
+    summary = component_summary(stored)
+    assert summary.stable_id == row.stable_id
+    assert list(summary.latest_harness_ids) == [row.passport["harness_id"]]
+
+
 def test_verify_passport_integrity_rejects_unparsable_passport() -> None:
     """A structurally broken passport is an integrity failure, not a crash.
 
