@@ -1106,4 +1106,4 @@ def test_a_provider_rule_lands_inside_the_harness_home_it_is_relative_to() -> No
         for rule in composition.PROVIDER_RULES
         if rule.harness_id == "pi" and rule.component_type == "plugin"
     )
-    assert (pi_plugin.relative, pi_plugin.projection_kind) == ("extensions", "extension")
+    assert (pi_plugin.relative, pi_plugin.projection_kind) == ("extensions", "package")

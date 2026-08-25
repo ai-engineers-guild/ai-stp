@@ -83,7 +83,11 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     # and prefixing it landed every Pi projection in `~/.pi/agent/agent/`.
     Rule("instruction", "AGENTS.md", "file", "pi"),
     Rule("skill", "skills", "directory", "pi"),
-    Rule("plugin", "extensions", "directory", "pi", projection_kind="extension"),
+    # Native path is `extensions/`; the package family is `package`
+    # (`docs/contracts/component-setup-passports.md`, first-party Pi plugin
+    # passports, OpenNetwork Pi `projection_kinds`). `extension` is not a
+    # protocol value and install plan refused it as an invalid ProjectionKind.
+    Rule("plugin", "extensions", "directory", "pi", projection_kind="package"),
     Rule("setting", "settings.json", "file", "pi"),
     Rule("instruction", "AGENTS.md", "file", "opencode"),
     Rule("skill", "skills", "directory", "opencode"),

@@ -349,8 +349,21 @@ def test_the_native_surface_matches_provider_targets() -> None:
         )
         .entries[0]
         .projection_kind
-        == "extension"
+        == "package"
     )
+
+
+def test_provider_rule_projection_kinds_are_the_protocol_closed_set() -> None:
+    """A typo here becomes `the exact native package family exceeds provider capabilities`."""
+    from ai_stp_cli.provider.protocol_v3 import ProjectionKind
+
+    allowed = {kind.value for kind in ProjectionKind}
+    illegal = [
+        (rule.harness_id, rule.component_type, rule.projection_kind)
+        for rule in composition.PROVIDER_RULES
+        if rule.projection_kind not in allowed
+    ]
+    assert not illegal, illegal
 
 
 # Documentation and code are two statements of one closed set.
