@@ -10,6 +10,7 @@ must therefore be provable from the tree that actually deploys.
 from __future__ import annotations
 
 import re
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -382,4 +383,8 @@ def test_the_worker_apparmor_profile_allows_userns_and_is_loaded_before_compose(
 
     assert "load-apparmor.sh" in deploy
     assert deploy.find("load-apparmor.sh") < deploy.find("compose up -d api worker")
-    assert Path("deploy/load-apparmor.sh").stat().st_mode & 0o111
+    listed = subprocess.check_output(
+        ["git", "ls-files", "-s", "--", "deploy/load-apparmor.sh"],
+        text=True,
+    )
+    assert listed.startswith("100755 "), listed
