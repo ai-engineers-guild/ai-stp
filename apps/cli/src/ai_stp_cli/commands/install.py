@@ -40,6 +40,7 @@ from ai_stp_cli.local import (
     installation,
     journal,
     managed_diff,
+    project_passport,
     provider_releases,
     revisions,
     selection,
@@ -1989,6 +1990,33 @@ def _plus(at: str, seconds: int) -> str:
     return format_timestamp(parse_timestamp(at) + timedelta(seconds=seconds))
 
 
+def _project_id(connection: sqlite3.Connection, given: str) -> str:
+    """Accept either the project passport's id or the root it was taken from.
+
+    `install plan --project` and every `select --project` take a local project
+    root; the four `target` commands documented the passport's stable id. One
+    flag name, two vocabularies — and an agent learns the path form first,
+    because those are the commands it runs first.
+
+    Nothing refused the wrong one. `survey` looks up `f"{project}:{harness}"`,
+    a path matches no row, and the answer came back `not_selected` with an empty
+    `installed_stable_id`: a confident, wrong statement about whether a target
+    is installed, which is the most consequential thing this command reports.
+
+    Resolved through `project_passport.stable_id_for`, the same owner
+    `context_for_project` uses, so the two forms cannot drift apart. A value
+    that names no known root is passed through unchanged: it is either an id or
+    something that will not match, and both were already true before.
+    """
+    if not given or given.startswith("project_"):
+        return given
+    candidate = Path(given).expanduser()
+    if not candidate.is_dir():
+        return given
+    found = project_passport.stable_id_for(connection, candidate.resolve())
+    return given if found is None else found
+
+
 def target_status(parameters: Mapping[str, object]) -> Answer[TargetSurvey]:
     """The daily state of one pair. Reads, and changes nothing (`#177`).
 
@@ -2017,7 +2045,7 @@ def target_status(parameters: Mapping[str, object]) -> Answer[TargetSurvey]:
     with closing(open_readonly(registry)) as connection:
         found = targets.survey(
             connection,
-            project_id=project_id,
+            project_id=_project_id(connection, project_id),
             harness_id=harness,
             observed_target_digest=observed,
             present_env=frozenset(os.environ),
@@ -2060,7 +2088,7 @@ def target_diff(parameters: Mapping[str, object]) -> Answer[TargetDiff]:
     with closing(open_readonly(registry)) as connection:
         found = targets.survey(
             connection,
-            project_id=project_id,
+            project_id=_project_id(connection, project_id),
             harness_id=harness,
             observed_target_digest=observed,
             present_env=frozenset(os.environ),
@@ -2127,7 +2155,9 @@ def target_rollback(parameters: Mapping[str, object]) -> Answer[RollbackTarget]:
             next_actions=["select propose --harness <id> --json"],
         )
     with closing(open_readonly(registry)) as connection:
-        previous = targets.rollback_target(connection, project_id=project_id, harness_id=harness)
+        previous = targets.rollback_target(
+            connection, project_id=_project_id(connection, project_id), harness_id=harness
+        )
         return Answer(
             RollbackTarget(
                 project_id=project_id,
@@ -2164,7 +2194,9 @@ def target_backups(parameters: Mapping[str, object]) -> Answer[TargetBackups]:
             )
         )
     with closing(open_readonly(registry)) as connection:
-        found = targets.backups(connection, project_id=project_id, harness_id=harness)
+        found = targets.backups(
+            connection, project_id=_project_id(connection, project_id), harness_id=harness
+        )
         return Answer(
             TargetBackups(
                 project_id=project_id,

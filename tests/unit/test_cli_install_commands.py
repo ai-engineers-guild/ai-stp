@@ -380,6 +380,44 @@ def test_plan_exposes_exact_setup_authorization_before_apply(
     assert view.required_authorization == "external_service"
 
 
+def test_target_status_accepts_the_project_root_install_plan_accepts(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """One flag name, two vocabularies, and the wrong one answers instead of refusing.
+
+    `install plan --project` and every `select --project` take a **local project
+    root** and resolve it through `project_passport.stable_id_for`. The four
+    `target` commands take the **project passport's stable id** verbatim. An
+    agent learns `--project <path>` from the commands it runs first and then
+    passes a path here.
+
+    Nothing refuses. `survey` looks up `target_id = f"{project}:{harness}"`,
+    a path matches no row, and the answer comes back `not_selected` with empty
+    `installed_stable_id` — a confident, wrong statement about whether a target
+    is installed, which is the most consequential thing this command reports.
+
+    Measured on a live install before the fix: the pair was `installed` with a
+    verified digest, and `target status` given the same path the plan was made
+    with reported nothing installed.
+
+    Accepting both rather than refusing the path: the value is unambiguous —
+    a project identifier and a filesystem path cannot be confused for each other
+    — and refusing would add a stop where the caller already said what it meant.
+    """
+    root = tmp_path / "workspace"
+    root.mkdir()
+    (root / "README.md").write_text("# probe\n", encoding="utf-8")
+    scan = project_passport.scan(registry, root)
+    registry.commit()
+
+    by_id = install.target_status({"project": scan.stable_id, "harness": "opencode"}).payload
+    by_path = install.target_status({"project": str(root), "harness": "opencode"}).payload
+
+    assert by_path.project_id == by_id.project_id, (
+        "a path names the same pair the plan bound, so it must read the same pair"
+    )
+
+
 @pytest.mark.parametrize(
     ("provider_state", "pending"),
     [("pending", "external_service"), ("ready", "")],
