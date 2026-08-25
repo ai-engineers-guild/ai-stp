@@ -40,7 +40,39 @@ current=
 if [[ -f ${root}/.deploy-state/current ]]; then
   current=$(sed -n 's/^git_commit=//p' "${root}/.deploy-state/current" | head -n 1)
 fi
+prune_release_archives() {
+  # Each successful deploy leaves a full git-archive tree under
+  # `${release_root}/${sha}`. Without a bound this grew to dozens of copies of
+  # the repository. Keep the commit that is live and the one rollback would
+  # return to; everything else is extract cache.
+  local keep_current=$1
+  local keep_previous=$2
+  local dir name
+  [[ -d ${release_root} ]] || return 0
+  for dir in "${release_root}"/*; do
+    [[ -e ${dir} ]] || continue
+    name=${dir##*/}
+    if [[ ${name} == "${keep_current}" ]]; then
+      continue
+    fi
+    if [[ -n ${keep_previous} && ${name} == "${keep_previous}" ]]; then
+      continue
+    fi
+    rm -rf -- "${dir}"
+  done
+  for dir in "${release_root}"/.[!.]*; do
+    [[ -d ${dir} ]] || continue
+    rm -rf -- "${dir}"
+  done
+}
+
+previous_commit=
+if [[ -f ${root}/.deploy-state/previous ]]; then
+  previous_commit=$(sed -n 's/^git_commit=//p' "${root}/.deploy-state/previous" | head -n 1)
+fi
+
 if [[ ${current} == "${candidate}" ]]; then
+  prune_release_archives "${candidate}" "${previous_commit}"
   printf 'pull_deploy_already_current commit=%s\n' "${candidate}"
   exit 0
 fi
@@ -98,4 +130,5 @@ chmod u+x \
   bash -lc './deploy/run.sh'
   bash -lc './deploy/verify.sh'
 )
+prune_release_archives "${candidate}" "${current}"
 printf 'pull_deploy_complete commit=%s\n' "${candidate}"

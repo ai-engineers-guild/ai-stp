@@ -136,6 +136,18 @@ def test_target_side_deployer_preserves_the_host_state_and_monotonicity() -> Non
     assert "--exclude '.deploy-env'" in script
     assert "./deploy/run.sh" in script
     assert "./deploy/verify.sh" in script
+    # Ninety-four extracted commits used four gigabytes. The live tree and the
+    # rollback commit are the only extracts that answer a question. An already-
+    # current tick still has to prune, because that is the path that never
+    # rsyncs a newer script onto the host.
+    assert 'prune_release_archives "${candidate}" "${previous_commit}"' in script
+    assert 'prune_release_archives "${candidate}" "${current}"' in script
+    assert script.find('prune_release_archives "${candidate}" "${previous_commit}"') < (
+        script.find("pull_deploy_already_current")
+    )
+    assert script.find('prune_release_archives "${candidate}" "${current}"') > script.find(
+        "./deploy/verify.sh"
+    )
 
     # The source is this repository, fetched anonymously (`ADR-0109`). A private
     # default here would be invisible until a host rebuilt its mirror and then
