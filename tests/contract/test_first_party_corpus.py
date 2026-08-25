@@ -54,8 +54,14 @@ def _git_tree(entries: dict[str, tuple[int, bytes]]) -> str:
 
 def test_first_party_corpus_has_exact_real_component_and_setup_bytes() -> None:
     corpus = versions()
-    assert len(corpus) == 124
+    assert len(corpus) == 127
     expected = {
+        "antigravity": (
+            "https://github.com/NDDev-OpenNetwork/antigravity-setup-system",
+            "96e013e068f6fe2a87c4ae708ee700520ca06f12",
+            "bb5e6e8cdbcd28cf91320365068250b8f4e4ebe7",
+            2,
+        ),
         "claude-code": (
             "https://github.com/NDDev-it-com/nddev-claude-app",
             "4082a42f4d92653ed379721b4cd08906e5059dd5",
@@ -160,6 +166,7 @@ def test_first_party_source_manifest_is_canonical_closed_and_unique() -> None:
         for harness in document["harnesses"]
     }
     assert kinds == {
+        "antigravity": {"plugin", "setting"},
         "claude-code": {"skill"},
         "codex": {"skill"},
         "cursor": {"instruction", "plugin", "setting"},

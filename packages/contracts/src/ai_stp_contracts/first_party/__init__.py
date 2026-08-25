@@ -216,6 +216,18 @@ def _native_path(harness_id: str, component: _ComponentSource) -> str:
             "command": f"commands/{component.slug}",
             "plugin": f"plugins/{component.slug}",
         }[component.component_type]
+    if harness_id == "antigravity":
+        # Antigravity is a guest in `~/.gemini`: Gemini CLI still owns files at
+        # the root of it, and `config/` is the shared surface while
+        # `antigravity-cli/` is its own. The plugin belongs under
+        # `config/plugins`; `antigravity-cli/plugins` is where the CLI puts what
+        # it installs itself, and the two are not interchangeable.
+        return {
+            "setting": "antigravity-cli/settings.json",
+            "plugin": f"config/plugins/{component.slug}",
+            "skill": f"config/skills/{component.slug}",
+            "agent": f"config/agents/{component.slug}",
+        }[component.component_type]
     if harness_id == "cursor":
         return {
             "instruction": "AGENTS.md",
