@@ -395,6 +395,10 @@ def test_the_worker_apparmor_profile_allows_userns_and_is_loaded_before_compose(
 
     assert "load-apparmor.sh" in deploy
     assert deploy.find("load-apparmor.sh") < deploy.find("compose up -d api worker")
+    assert "--force-recreate --no-deps caddy" in deploy
+    assert deploy.find("compose up -d api worker web caddy") < deploy.find(
+        "--force-recreate --no-deps caddy"
+    )
     listed = subprocess.check_output(
         ["git", "ls-files", "-s", "--", "deploy/load-apparmor.sh"],
         text=True,

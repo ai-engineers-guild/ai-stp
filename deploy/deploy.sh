@@ -104,6 +104,10 @@ compose run --rm seed
 log info "seed_ok"
 record_deploy_stage "${COMMIT}" "seeded"
 compose up -d api worker web caddy
+# rsync deploys replace bind-mounted files by new inodes. The official
+# caddy:2 image does not follow that; a long-lived container keeps serving
+# the Caddyfile it opened at start, and `caddy reload` reloads that inode.
+compose up -d --force-recreate --no-deps caddy
 log info "services_started"
 record_deploy_stage "${COMMIT}" "services_started"
 
