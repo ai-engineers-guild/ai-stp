@@ -65,6 +65,17 @@ else
   printf '  %-20s %s\n' "worker" "${worker_state}"
   [[ "${worker_state}" == "running" ]] || failed=1
 
+  # Running and current is not ready. The worker healthcheck is
+  # safety_readiness(), which is false while bwrap cannot create a user
+  # namespace. A deployment that left it unhealthy reported success here
+  # while every publication scan fell back to env_only.
+  worker_health="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "${worker_id}" 2>/dev/null || echo unknown)"
+  printf '  %-20s %s\n' "worker health" "${worker_health}"
+  if [[ "${worker_health}" == "unhealthy" ]]; then
+    echo "verify: the worker is running but its healthcheck failed" >&2
+    failed=1
+  fi
+
   # Running is not enough: a container left over from the previous deployment is
   # running too. What separates them is the image — so ask the container which
   # tag it was built from, then ask that tag what it points at now. A rebuild

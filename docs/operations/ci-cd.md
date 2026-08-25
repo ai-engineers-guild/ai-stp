@@ -1,6 +1,6 @@
 ---
 description: "Проверки и развёртывание публичного репозитория: гейт, продвижение ref и забор его целевым хостом."
-last_verified: "2026-08-22"
+last_verified: "2026-08-25"
 ---
 
 # CI и развёртывание
@@ -58,6 +58,12 @@ headless-машине, которое не возвращалось.
 Развёртывание асинхронно относительно `promote`. Авторитетный ответ на вопрос
 «что развёрнуто» — `GET /v1/system/version`; `git_commit` в нём разрешается в
 коммит этого репозитория.
+
+## Публикация Python-пакетов
+
+`publish-pypi.yml` — отдельный ручной workflow: один пакет за прогон, без
+checkout, Trusted Publisher на environment `pypi` или `pypi-{package}`.
+Контракт принадлежит `docs/operations/runbooks/pypi-release.md`.
 
 ## Секреты
 

@@ -1,6 +1,6 @@
 ---
 description: "Runbook: platform safety-scan для publication validate."
-last_verified: "2026-08-24"
+last_verified: "2026-08-25"
 ---
 
 # Runbook: platform safety-scan
@@ -239,21 +239,20 @@ Unit-сценарии в `tests/unit/platform/test_safety_scenario_matrix.py`:
 
 ### Worker `unhealthy`: probe `bwrap` даёт `env_only`
 
-`safety_readiness()` требует `detect_sandbox_mode() == "bwrap"`. На проде
-2026-08-24 инструмент на месте, OSV свежий, `AI_STP_SAFETY_EXTERNAL_CLI=1`,
-а probe отвечает `bwrap: Failed to make / slave: Permission denied` и режим
-становится `env_only`. Healthcheck красный; каждый внешний CLI при
-`AI_STP_SAFETY_REQUIRE_BWRAP=1` выходит с кодом 126.
+`safety_readiness()` требует `detect_sandbox_mode() == "bwrap"`. На Ubuntu 24.04
+хост держит `kernel.apparmor_restrict_unprivileged_userns=1`. `seccomp=unconfined`
+в compose недостаточно: профиль `docker-default` запрещает и mount, и user
+namespace. Снятие AppArmor с контейнера (`apparmor=unconfined`) меняет ошибку на
+`loopback: Failed RTM_NEWADDR` — у unconfined нет правила `userns`, и создать
+namespace всё равно нельзя.
 
-На Ubuntu 24.04 это не отсутствие бинарника. Хост держит
-`kernel.apparmor_restrict_unprivileged_userns=1`. `seccomp=unconfined` в
-compose недостаточно: профиль `docker-default` всё ещё запрещает mount.
-Снятие AppArmor с контейнера меняет ошибку на `loopback: Failed RTM_NEWADDR`.
-Как uid `10001` даже `cap-add ALL` loopback не настраивает: без user namespace
-нет `CAP_NET_ADMIN` внутри netns.
+Репозиторий не снимает sysctl и не запускает worker как root. Вместо этого
+prod compose ставит `apparmor=ai-stp-worker`, а `deploy/load-apparmor.sh`
+загружает профиль с правилом `userns` в ядро до `compose up` worker. Юнит
+`pull-deploy` держит `NoNewPrivileges=true`, поэтому загрузка идёт через docker
+daemon (он уже root) и `nsenter` в mount namespace pid 1, затем копия профиля
+в `/etc/apparmor.d/` переживает reboot. Контейнер остаётся uid `10001`.
 
-На этом хосте probe проходит только как root с `SYS_ADMIN` и `NET_ADMIN`
-(плюс `apparmor=unconfined`) либо после снятия sysctl. Репозиторий ни то ни
-другое не включает: sysctl — решение оператора, root+capabilities — расширение
-границы изоляции worker. Пока одно из двух не сделано, публикационный validate
-не исполняет внешние сканеры.
+Пока профиль не загружен, healthcheck worker красный и каждый внешний CLI при
+`AI_STP_SAFETY_REQUIRE_BWRAP=1` выходит с кодом 126. `deploy/verify.sh`
+отказывает, если healthcheck в состоянии `unhealthy`.

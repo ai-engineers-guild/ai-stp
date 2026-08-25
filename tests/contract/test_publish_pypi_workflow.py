@@ -18,3 +18,15 @@ def test_each_distribution_has_a_distinct_trusted_publisher_identity() -> None:
     assert "expected 2 distributions" in workflow
     assert "id-token: write" in workflow
     assert "actions/checkout@" not in workflow
+
+
+def test_the_pypi_runbook_describes_the_live_per_package_upload() -> None:
+    """The overlay uploads. A runbook that still calls that an activation
+    contract is a second source of truth that disagrees with production.
+    """
+    runbook = Path("docs/operations/runbooks/pypi-release.md").read_text(encoding="utf-8")
+    assert "activation contract" not in runbook
+    assert "не содержит PyPI upload" not in runbook
+    assert "publish-pypi" in runbook
+    assert "pypi-{package}" in runbook or "pypi-passports" in runbook
+    assert "id-token: write" in runbook

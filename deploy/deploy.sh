@@ -86,6 +86,13 @@ if [[ "${SKIP_BUILD}" -eq 0 ]]; then
 fi
 record_deploy_stage "${COMMIT}" "images_ready"
 
+# Worker compose names apparmor=ai-stp-worker. Load it before that container
+# starts: Docker looks the profile up in the kernel, not in the image.
+if grep -q 'apparmor=ai-stp-worker' "${AI_STP_ROOT}/${AI_STP_COMPOSE_FILE}"; then
+  "${SCRIPT_DIR}/load-apparmor.sh"
+  log info "worker_apparmor_loaded"
+fi
+
 # Ordered bring-up: dependencies, migrate, seed, then serving processes.
 compose up -d postgres rustfs
 record_deploy_stage "${COMMIT}" "dependencies_started"

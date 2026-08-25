@@ -1,0 +1,24 @@
+abi <abi/4.0>,
+include <tunables/global>
+
+# Production worker profile. Ubuntu 24.04 sets
+# kernel.apparmor_restrict_unprivileged_userns=1: only a profile that allows
+# `userns` may create a user namespace. docker-default does not. apparmor=unconfined
+# also does not — unconfined has no userns allow rule, so it is worse than this
+# named profile. Bubblewrap needs the namespace; the scanners then run inside it
+# with --unshare-net. The container stays uid 10001. Do not replace this with
+# privileged: true or user: root.
+profile ai-stp-worker flags=(attach_disconnected,mediate_deleted) {
+  include <abstractions/base>
+  network,
+  capability,
+  file,
+  umount,
+  signal,
+  ptrace,
+  unix,
+  dbus,
+  userns,
+  mount,
+  pivot_root,
+}

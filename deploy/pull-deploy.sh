@@ -86,6 +86,7 @@ chmod u+x \
   "${root}/deploy/verify.sh" \
   "${root}/deploy/deploy.sh" \
   "${root}/deploy/lib.sh" \
+  "${root}/deploy/load-apparmor.sh" \
   "${root}/deploy/mark-transfer.sh"
 
 (

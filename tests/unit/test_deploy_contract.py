@@ -128,6 +128,7 @@ def test_target_side_deployer_preserves_the_host_state_and_monotonicity() -> Non
     assert 'git --git-dir="${mirror}" archive' in script
     assert "--preserve-permissions" in script
     assert "chmod u+x" in script
+    assert "deploy/load-apparmor.sh" in script
     assert 'AI_STP_REMOTE_ROOT="${root}"' in script
     assert "--exclude '.deploy-state' --exclude '.backups'" in script
     assert "--exclude '.env.prod'" in script
@@ -193,6 +194,7 @@ def test_deployment_verification_observes_the_service_that_gates_publication() -
     assert "compose config --images" not in runnable
     assert "docker inspect -f '{{.Config.Image}}'" in script
     assert "docker inspect -f '{{.Image}}'" in script
+    assert ".State.Health.Status" in script
     assert "failed=1" in script.split("worker_id=", maxsplit=1)[1]
 
 
@@ -351,3 +353,33 @@ def test_both_deploy_jobs_state_the_condition_they_depend_on() -> None:
     branch = "github.event.workflow_run.head_branch == 'main'"
     assert workflow.count(guard) >= 2, "a job that runs on workflow_run does not state its event"
     assert workflow.count(branch) >= 2, "a job that runs on workflow_run does not state its branch"
+
+
+def test_the_worker_apparmor_profile_allows_userns_and_is_loaded_before_compose() -> None:
+    """Bubblewrap needs a named profile that allows userns. Unconfined does not.
+
+    Ubuntu 24.04 sets kernel.apparmor_restrict_unprivileged_userns=1. A worker
+    started under docker-default (or apparmor=unconfined) cannot create the
+    user namespace, safety_readiness stays false, and REQUIRE_BWRAP turns every
+    external scanner into exit 126. The profile and the loader are the in-repo
+    fix; privileged root and flipping the sysctl are not.
+    """
+    profile = Path("deploy/apparmor/ai-stp-worker").read_text(encoding="utf-8")
+    loader = Path("deploy/load-apparmor.sh").read_text(encoding="utf-8")
+    deploy = Path("deploy/deploy.sh").read_text(encoding="utf-8")
+    rules = "\n".join(line for line in profile.splitlines() if not line.lstrip().startswith("#"))
+
+    assert "profile ai-stp-worker" in rules
+    assert "userns," in rules
+    assert "unconfined" not in rules
+    assert "privileged: true" not in Path("docker-compose.prod.yml").read_text(encoding="utf-8")
+
+    assert "apparmor_parser" in loader
+    assert "NoNewPrivileges" in loader
+    assert "--privileged" in loader
+    assert "nsenter" in loader
+    assert "/etc/apparmor.d/ai-stp-worker" in loader
+
+    assert "load-apparmor.sh" in deploy
+    assert deploy.find("load-apparmor.sh") < deploy.find("compose up -d api worker")
+    assert Path("deploy/load-apparmor.sh").stat().st_mode & 0o111

@@ -57,6 +57,14 @@ def test_prod_compose_worker_safety_and_rustfs_health() -> None:
     assert "freshclam --datadir=/var/lib/clamav" in text
     assert 'AI_STP_SAFETY_REQUIRE_BWRAP: "1"' in text
     assert "seccomp=unconfined" in text
+    assert "apparmor=ai-stp-worker" in text
+    worker_block = text.split("\n  worker:\n", 1)[1].split("\n  web:\n", 1)[0]
+    worker_runnable = "\n".join(
+        line for line in worker_block.splitlines() if not line.lstrip().startswith("#")
+    )
+    assert "privileged:" not in worker_runnable
+    assert "user: root" not in worker_runnable
+    assert "apparmor=unconfined" not in worker_runnable
     assert "osv_offline:" in text
     assert "9000/health" in text
     assert "minio/health/live" not in _executable("docker-compose.prod.yml")

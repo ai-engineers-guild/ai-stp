@@ -196,10 +196,13 @@ services:
       AI_STP_OSV_MAX_AGE_HOURS: ${AI_STP_OSV_MAX_AGE_HOURS:-36}
       AI_STP_OSV_REQUIRE_FRESH: "1"
     # Docker's default seccomp profile blocks the user namespace that
-    # Bubblewrap needs. Keep the container itself unprivileged; this exception
-    # only lets each scanner create its isolated, networkless namespace.
+    # Bubblewrap needs. Ubuntu 24.04 also requires a named AppArmor profile
+    # that allows `userns` — docker-default and an unconfined AppArmor
+    # attachment both refuse it. Keep the container uid 10001;
+    # load-apparmor.sh installs the named profile.
     security_opt:
       - seccomp=unconfined
+      - apparmor=ai-stp-worker
     env_file:
       - path: .env.prod
         required: false
