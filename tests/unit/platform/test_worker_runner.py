@@ -113,7 +113,7 @@ async def test_worker_processes_success_missing_unknown_and_failed_jobs(
     assert ("handled", {"id": 1}) in events
     assert any(event[0] == "succeeded" for event in events)
     assert any(event[0] == "unregistered job type" for event in events)
-    assert any(event[0] == "ValueError" for event in events)
+    assert any(event[0] == "ValueError: expected" for event in events)
 
 
 @pytest.mark.asyncio

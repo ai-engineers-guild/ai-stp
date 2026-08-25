@@ -85,6 +85,8 @@ class PublicationPipeline:
     def route(self, request: httpx.Request) -> httpx.Response:
         path = request.url.path
         self.calls.append((request.method, path))
+        if path.startswith("/v1/catalog/"):
+            return _error(404, "AI_STP_NOT_FOUND", "catalog object not found")
         if request.headers.get("Authorization") != "Bearer secret-token":
             return _error(401, "AI_STP_AUTH_REQUIRED", "authentication required")
         if request.method == "POST" and path == "/v1/publications/plans":
@@ -217,6 +219,10 @@ class PublicationPipeline:
         return httpx.Response(200, json=self._plan_payload(plan))
 
 
+def _unpublished(*_args: object) -> None:
+    return None
+
+
 def _review_apply(
     pipeline: PublicationPipeline,
     tmp_path: Path,
@@ -234,6 +240,7 @@ def _review_apply(
         confirm=True,
         objects=objects,
         pause=_nop,
+        published_digest=_unpublished,
     )
     return applied
 
@@ -275,6 +282,7 @@ def test_process_full_first_party_corpus_plan_bind_confirm_publish_components_be
         corpus_digest_value=applied.corpus_digest,
         confirm=True,
         pause=_nop,
+        published_digest=_unpublished,
     )
     creates_after = sum(
         1
@@ -299,6 +307,7 @@ def test_apply_requires_exact_reviewed_digest_and_explicit_confirm(tmp_path: Pat
             corpus_digest_value=reviewed.corpus_digest,
             confirm=False,
             pause=_nop,
+            published_digest=_unpublished,
         )
     assert missing_confirm.value.code == "AI_STP_USER_DECISION_REQUIRED"
     with pytest.raises(CliFailure) as wrong_digest:
@@ -309,6 +318,7 @@ def test_apply_requires_exact_reviewed_digest_and_explicit_confirm(tmp_path: Pat
             corpus_digest_value="sha256:" + "0" * 64,
             confirm=True,
             pause=_nop,
+            published_digest=_unpublished,
         )
     assert wrong_digest.value.code == "AI_STP_PRECONDITION_FAILED"
 
@@ -335,6 +345,7 @@ def test_resume_reuses_saved_keys_after_an_interrupted_confirm(tmp_path: Path) -
         confirm=True,
         objects=objects,
         pause=_nop,
+        published_digest=_unpublished,
     )
     assert first.objects[0].blocker is not None
     assert first.objects[1].state == "blocked"
@@ -349,6 +360,7 @@ def test_resume_reuses_saved_keys_after_an_interrupted_confirm(tmp_path: Path) -
         confirm=True,
         objects=objects,
         pause=_nop,
+        published_digest=_unpublished,
     )
     assert [item.create_idempotency_key for item in resumed.objects] == create_keys
     assert [item.confirm_idempotency_key for item in resumed.objects] == confirm_keys
@@ -383,6 +395,128 @@ def test_missing_required_evidence_blocks_dependent_setup_without_exemption(
     assert applied.objects[1].state == "blocked"
     assert applied.objects[1].blocker == "exact component pins are not published"
     assert applied.objects[1].plan_id is not None
+
+
+def test_apply_skips_an_already_published_matching_digest(tmp_path: Path) -> None:
+    objects = tool.launch_objects(
+        [item for item in first_party_versions() if item.passport.harness_id == "grok-build"]
+    )
+    component = next(item for item in objects if item.kind == "component")
+    pipeline = PublicationPipeline()
+    state_path = tmp_path / "batch.json"
+    reviewed = tool.review(
+        state_path=state_path,
+        endpoint=pipeline.endpoint(),
+        held=_session(),
+        objects=objects,
+    )
+
+    def live(_kind: str, stable_id: str, _version: str) -> str | None:
+        if stable_id == component.stable_id:
+            return component.passport_digest
+        return None
+
+    applied = tool.apply(
+        state_path=state_path,
+        endpoint=pipeline.endpoint(),
+        held=_session(),
+        corpus_digest_value=reviewed.corpus_digest,
+        confirm=True,
+        objects=objects,
+        pause=_nop,
+        published_digest=live,
+    )
+    published_component = next(
+        item for item in applied.objects if item.stable_id == component.stable_id
+    )
+    published_setup = next(item for item in applied.objects if item.kind == "setup")
+    assert published_component.state == "published"
+    assert published_component.blocker is None
+    assert published_setup.state == "published"
+    assert pipeline.confirm_order == ["setup"]
+
+
+def test_published_digest_treats_catalog_not_found_as_unpublished() -> None:
+    pipeline = PublicationPipeline()
+    assert (
+        tool._published_passport_digest(
+            pipeline.endpoint(),
+            "component",
+            "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "1.0",
+        )
+        is None
+    )
+
+
+def test_apply_blocks_lookup_failures_without_confirming(tmp_path: Path) -> None:
+    objects = tool.launch_objects(
+        [item for item in first_party_versions() if item.passport.harness_id == "grok-build"]
+    )
+    pipeline = PublicationPipeline()
+    state_path = tmp_path / "batch.json"
+    reviewed = tool.review(
+        state_path=state_path,
+        endpoint=pipeline.endpoint(),
+        held=_session(),
+        objects=objects,
+    )
+
+    def boom(_kind: str, _stable_id: str, _version: str) -> str | None:
+        raise CliFailure("AI_STP_DEPENDENCY_UNAVAILABLE", "the catalogue could not be reached")
+
+    applied = tool.apply(
+        state_path=state_path,
+        endpoint=pipeline.endpoint(),
+        held=_session(),
+        corpus_digest_value=reviewed.corpus_digest,
+        confirm=True,
+        objects=objects,
+        pause=_nop,
+        published_digest=boom,
+    )
+    assert all(item.state == "blocked" for item in applied.objects)
+    assert pipeline.confirm_order == []
+
+
+def test_apply_blocks_an_already_published_different_digest(tmp_path: Path) -> None:
+    objects = tool.launch_objects(
+        [item for item in first_party_versions() if item.passport.harness_id == "grok-build"]
+    )
+    component = next(item for item in objects if item.kind == "component")
+    pipeline = PublicationPipeline()
+    state_path = tmp_path / "batch.json"
+    reviewed = tool.review(
+        state_path=state_path,
+        endpoint=pipeline.endpoint(),
+        held=_session(),
+        objects=objects,
+    )
+
+    def live(_kind: str, stable_id: str, _version: str) -> str | None:
+        if stable_id == component.stable_id:
+            return "sha256:" + "0" * 64
+        return None
+
+    applied = tool.apply(
+        state_path=state_path,
+        endpoint=pipeline.endpoint(),
+        held=_session(),
+        corpus_digest_value=reviewed.corpus_digest,
+        confirm=True,
+        objects=objects,
+        pause=_nop,
+        published_digest=live,
+    )
+    blocked_component = next(
+        item for item in applied.objects if item.stable_id == component.stable_id
+    )
+    blocked_setup = next(item for item in applied.objects if item.kind == "setup")
+    assert blocked_component.state == "blocked"
+    assert blocked_component.blocker == "version already published with different digest"
+    assert blocked_setup.state == "blocked"
+    assert blocked_setup.blocker == "exact component pins are not published"
+    assert pipeline.confirm_order == []
 
 
 def test_review_refuses_a_non_owner_account(tmp_path: Path) -> None:

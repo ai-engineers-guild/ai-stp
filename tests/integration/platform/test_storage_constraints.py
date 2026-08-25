@@ -153,6 +153,49 @@ async def test_required_columns_and_object_location_constraints_reject_invalid_r
 
 
 @pytest.mark.asyncio
+async def test_two_catalog_versions_may_share_one_content_addressed_object_key(
+    db_session: AsyncSession,
+) -> None:
+    """A unique object_key would refuse a new X.Y that keeps the same artifact bytes."""
+    await _seed_account(db_session)
+    first_id = await _seed_catalog(db_session)
+    second = CatalogMetadata(
+        owner_account_id="account_constraints",
+        object_kind="component",
+        stable_id="component_constraints",
+        version="1.1",
+        current_revision_id="revision_" + "b" * 64,
+        visibility="private",
+        lifecycle_state="draft",
+    )
+    db_session.add(second)
+    await db_session.flush()
+    key = "objects/sha256/" + "a" * 64
+    digest = "sha256:" + "a" * 64
+    db_session.add(
+        ObjectLocation(
+            catalog_metadata_id=first_id,
+            purpose="artifact",
+            object_key=key,
+            digest=digest,
+            content_id=digest,
+            size_bytes=1,
+        )
+    )
+    db_session.add(
+        ObjectLocation(
+            catalog_metadata_id=second.id,
+            purpose="artifact",
+            object_key=key,
+            digest=digest,
+            content_id=digest,
+            size_bytes=1,
+        )
+    )
+    await db_session.flush()
+
+
+@pytest.mark.asyncio
 async def test_audit_event_trigger_rejects_update_and_delete(db_session: AsyncSession) -> None:
     """Removing the append-only trigger would let audit rows be changed or deleted."""
     await _seed_account(db_session)

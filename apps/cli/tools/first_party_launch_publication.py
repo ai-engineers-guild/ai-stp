@@ -20,7 +20,7 @@ from typing import Final, Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from ai_stp_cli.cloud import login, publication
+from ai_stp_cli.cloud import catalog, login, publication
 from ai_stp_cli.cloud.client import Endpoint
 from ai_stp_cli.cloud.session import Session
 from ai_stp_cli.commands import auth, cloud_auth
@@ -40,7 +40,7 @@ PUBLISHED = "published"
 BLOCKED = "blocked"
 PENDING = "pending"
 TERMINAL_FAILURES = frozenset({"failed", "cancelled", "stale"})
-DEFAULT_POLLS = 60
+DEFAULT_POLLS = 180
 
 
 @dataclass(frozen=True)
@@ -231,6 +231,21 @@ def _pins_published(state: BatchState, pins: Sequence[PinRecord]) -> bool:
     return all((pin.stable_id, pin.version, pin.passport_digest) in published for pin in pins)
 
 
+def _published_passport_digest(
+    endpoint: Endpoint, kind: str, stable_id: str, version: str
+) -> str | None:
+    """Return the live catalog digest for this X.Y, or None if it is unpublished."""
+    try:
+        view = catalog.version(
+            endpoint, cast(Literal["component", "setup"], kind), stable_id, version
+        )
+    except CliFailure as error:
+        if error.code == "AI_STP_NOT_FOUND":
+            return None
+        raise
+    return view.passport_digest
+
+
 def _record_for(state: BatchState, item: LaunchObject) -> ObjectRecord:
     for record in state.objects:
         if (
@@ -412,6 +427,7 @@ def apply(
     objects: Sequence[LaunchObject] | None = None,
     pause: Callable[[float], None] = time.sleep,
     max_polls: int = DEFAULT_POLLS,
+    published_digest: Callable[[str, str, str], str | None] | None = None,
 ) -> BatchState:
     """Bind exact bytes and confirm each reviewed plan, components before setups."""
     if not confirm:
@@ -450,9 +466,32 @@ def apply(
             "AI_STP_PRECONDITION_FAILED",
             "the stored batch snapshot belongs to another owner or device",
         )
+
+    def lookup(kind: str, stable_id: str, version: str) -> str | None:
+        if published_digest is not None:
+            return published_digest(kind, stable_id, version)
+        return _published_passport_digest(endpoint, kind, stable_id, version)
+
     for item in ordered:
         record = _record_for(state, item)
         if record.state == PUBLISHED:
+            continue
+        try:
+            live_digest = lookup(item.kind, item.stable_id, item.version)
+        except CliFailure as error:
+            record.blocker = error.message
+            if record.state not in TERMINAL_FAILURES:
+                record.state = BLOCKED
+            _save_state(state_path, state)
+            continue
+        if live_digest is not None:
+            if live_digest == item.passport_digest:
+                record.state = PUBLISHED
+                record.blocker = None
+            else:
+                record.blocker = "version already published with different digest"
+                record.state = BLOCKED
+            _save_state(state_path, state)
             continue
         if record.kind == "setup" and not _pins_published(state, record.component_pins):
             record.blocker = "exact component pins are not published"
@@ -586,6 +625,7 @@ def _parser() -> argparse.ArgumentParser:
     apply_cmd.add_argument("--state", required=True, type=Path)
     apply_cmd.add_argument("--corpus-digest", required=True)
     apply_cmd.add_argument("--confirm", action="store_true")
+    apply_cmd.add_argument("--max-polls", type=int, default=DEFAULT_POLLS)
     status_cmd = sub.add_parser("status")
     status_cmd.add_argument("--state", required=True, type=Path)
     return parser
@@ -605,6 +645,7 @@ def main(argv: list[str] | None = None) -> int:
                 held=held,
                 corpus_digest_value=args.corpus_digest,
                 confirm=bool(args.confirm),
+                max_polls=max(1, int(args.max_polls)),
             )
         else:
             state = refresh_status(state_path=args.state, endpoint=endpoint, held=held)

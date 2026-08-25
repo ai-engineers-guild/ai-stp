@@ -307,7 +307,12 @@ class CatalogReaction(Base):
 
 
 class ObjectLocation(Base):
-    """Opaque content-addressed storage location for immutable object bytes."""
+    """Pointer from one catalog version to immutable content-addressed bytes.
+
+    The object store still refuses different bytes under the same key. This
+    row is not that lock: several versions may share one key when their
+    artifact digest is identical.
+    """
 
     __tablename__ = "object_location"
     __table_args__ = (
@@ -316,7 +321,6 @@ class ObjectLocation(Base):
             "purpose",
             name="uq_object_location_metadata_purpose",
         ),
-        UniqueConstraint("object_key", name="uq_object_location_object_key"),
         CheckConstraint("size_bytes >= 0", name="ck_object_location_size_non_negative"),
     )
 

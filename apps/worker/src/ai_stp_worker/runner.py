@@ -147,7 +147,14 @@ class Worker:
                     await handler_session.commit()
                 except Exception as exc:
                     await handler_session.rollback()
-                    error = type(exc).__name__
+                    detail = str(exc).strip()
+                    error = type(exc).__name__ + (f": {detail}" if detail else "")
+                    _log.error(
+                        "job_handler_failed",
+                        job_id=job_id,
+                        job_type=job_type,
+                        error=error,
+                    )
 
             async with self._sessionmaker() as status_session, status_session.begin():
                 current = await status_session.get(Job, job_id)

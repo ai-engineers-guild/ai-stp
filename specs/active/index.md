@@ -28,13 +28,13 @@ last_verified: "2026-08-03"
 | [SPEC-017-runtime-shell-observability.md](SPEC-017-runtime-shell-observability.md) | SPEC-017: Каркас серверного приложения и наблюдаемость. | 2026-08-05 |
 | [SPEC-018-worker-job-queue.md](SPEC-018-worker-job-queue.md) | SPEC-018: Фоновый worker и очередь заданий на PostgreSQL. | 2026-08-08 |
 | [SPEC-019-runtime-deployment-operability.md](SPEC-019-runtime-deployment-operability.md) | SPEC-019: Развёртывание среды выполнения и эксплуатация. | 2026-08-10 |
-| [SPEC-020-persistence-migrations-object-store.md](SPEC-020-persistence-migrations-object-store.md) | SPEC-020: Серверное хранилище, миграции PostgreSQL и неизменяемое объектное хранилище. | 2026-08-08 |
+| [SPEC-020-persistence-migrations-object-store.md](SPEC-020-persistence-migrations-object-store.md) | SPEC-020: Серверное хранилище, миграции PostgreSQL и неизменяемое объектное хранилище. | 2026-08-25 |
 | [SPEC-021-anonymous-catalog-read-and-seed.md](SPEC-021-anonymous-catalog-read-and-seed.md) | SPEC-021: Анонимное чтение публичного каталога и первичный посев объектов. | 2026-08-22 |
 | [SPEC-022-web-shell-landing-catalog.md](SPEC-022-web-shell-landing-catalog.md) | SPEC-022: Веб-оболочка, двуязычный лендинг и анонимный публичный каталог. | 2026-08-17 |
 | [SPEC-023-web-login-account-devices.md](SPEC-023-web-login-account-devices.md) | SPEC-023: Веб-вход, профиль аккаунта и управление устройствами. | 2026-08-17 |
 | [SPEC-024-reproducible-deployment.md](SPEC-024-reproducible-deployment.md) | SPEC-024: Воспроизводимое развёртывание с web-ярусом, здоровьем, логами, резервными копиями и откатом. | 2026-08-10 |
 | [SPEC-025-private-registry-revision-sync.md](SPEC-025-private-registry-revision-sync.md) | SPEC-025: Приватный реестр и серверная синхронизация ревизий. | 2026-08-15 |
-| [SPEC-026-publication-validation-grants-reports.md](SPEC-026-publication-validation-grants-reports.md) | SPEC-026: Серверная публикация, validation jobs, grants, жалобы и staff-аудит. | 2026-08-17 |
+| [SPEC-026-publication-validation-grants-reports.md](SPEC-026-publication-validation-grants-reports.md) | SPEC-026: Серверная публикация, validation jobs, grants, жалобы и staff-аудит. | 2026-08-25 |
 | [SPEC-027-web-publication-access-moderation.md](SPEC-027-web-publication-access-moderation.md) | SPEC-027: Веб собственных объектов, публикации, прав, жалоб и минимальной модерации. | 2026-08-08 |
 | [SPEC-028-public-profile-media-and-preview.md](SPEC-028-public-profile-media-and-preview.md) | SPEC-028: Авторский публичный профиль, безопасные аватары и предпросмотр. | 2026-08-08 |
 | [SPEC-029-versioned-markdown-descriptions.md](SPEC-029-versioned-markdown-descriptions.md) | SPEC-029: Неизменяемые безопасные Markdown-описания версий. | 2026-08-09 |

@@ -12,7 +12,7 @@ last_verified: "2026-08-03"
 | [author-verification.md](author-verification.md) | Runbook: выдача и отзыв author_verified. | 2026-08-22 |
 | [bootstrap.md](bootstrap.md) | Runbook: bootstrap. | 2026-08-03 |
 | [database-migration.md](database-migration.md) | Runbook: database migration. | 2026-08-05 |
-| [first-party-launch-publication.md](first-party-launch-publication.md) | Runbook: публикация первопартийного корпуса запуска обычным конвейером. | 2026-08-17 |
+| [first-party-launch-publication.md](first-party-launch-publication.md) | Runbook: публикация первопартийного корпуса запуска обычным конвейером. | 2026-08-25 |
 | [github-repository-metrics.md](github-repository-metrics.md) | Runbook: best-effort кэш GitHub stars для публичного каталога. | 2026-08-12 |
 | [installation-recovery.md](installation-recovery.md) | Runbook: installation recovery. | 2026-08-03 |
 | [macos-evidence.md](macos-evidence.md) | Получение CLI/package evidence на стандартном GitHub-hosted macOS runner. | 2026-08-18 |

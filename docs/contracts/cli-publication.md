@@ -1,6 +1,6 @@
 ---
 description: "Клиентская последовательность publication plan и граница передаваемых данных."
-last_verified: "2026-08-21"
+last_verified: "2026-08-25"
 ---
 
 # CLI-публикация
@@ -59,7 +59,8 @@ read-only путём проверки и восстановления, если 
 Первопартийный корпус запуска публикуется тем же аутентифицированным
 конвейером, а не отдельной командой каталога и не seed-путём. Операторский
 batch `apps/cli/tools/first_party_launch_publication.py` только создаёт точные
-планы, привязывает байты и подтверждает сохранённые hash; порядок, resume и
-fail-closed принадлежат
+планы, привязывает байты и подтверждает сохранённые hash. Уже опубликованная
+`X.Y` с тем же digest пропускается чтением каталога, без seed и без прямой
+записи. Порядок, resume и fail-closed принадлежат
 [first-party-launch-publication.md](../operations/runbooks/first-party-launch-publication.md)
 и `SPEC-026` `REQ-2628`.

@@ -49,3 +49,14 @@ def test_audit_migration_defines_append_only_trigger() -> None:
     source = Path("migrations/versions/0002_sprint1_core.py").read_text(encoding="utf-8")
     assert "CREATE TRIGGER audit_event_append_only" in source
     assert "BEFORE UPDATE OR DELETE ON audit_event" in source
+
+
+def test_object_location_key_is_not_a_unique_owner_of_the_blob() -> None:
+    """A unique object_key would refuse a later catalog version of the same bytes."""
+    model = Path("apps/platform/src/ai_stp_platform/models.py").read_text(encoding="utf-8")
+    assert 'UniqueConstraint("object_key"' not in model
+    assert "uq_object_location_metadata_purpose" in model
+    drop = Path("migrations/versions/0030_shared_object_location_key.py").read_text(
+        encoding="utf-8"
+    )
+    assert 'op.drop_constraint("uq_object_location_object_key"' in drop

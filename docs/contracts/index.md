@@ -20,7 +20,7 @@ last_verified: "2026-08-03"
 | [cli-grants.md](cli-grants.md) | Клиентская последовательность выдачи, принятия и отзыва прав доступа. | 2026-08-13 |
 | [cli-json.md](cli-json.md) | Конверт JSON, классы ошибок и правила машинного вывода CLI. | 2026-08-13 |
 | [cli-owner-objects.md](cli-owner-objects.md) | Авторизованное чтение объектов владельца через CLI. | 2026-08-13 |
-| [cli-publication.md](cli-publication.md) | Клиентская последовательность publication plan и граница передаваемых данных. | 2026-08-21 |
+| [cli-publication.md](cli-publication.md) | Клиентская последовательность publication plan и граница передаваемых данных. | 2026-08-25 |
 | [cli-telemetry.md](cli-telemetry.md) | Закрытый перечень полей анонимного пинга телеметрии, условия отправки и то, что в него не попадает. | 2026-08-21 |
 | [complaint-intake.md](complaint-intake.md) | Публичный приём обращений: поля, отличие от закрытого report case и конфигурируемые лимиты. | 2026-08-22 |
 | [component-authoring-templates.md](component-authoring-templates.md) | Версионируемые scaffold-планы и безопасная проекция authoring templates компонентов. | 2026-08-13 |
