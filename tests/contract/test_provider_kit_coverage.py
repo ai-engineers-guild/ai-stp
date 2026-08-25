@@ -19,7 +19,7 @@ import json
 
 from release_scripts import provider_kit
 
-from ai_stp_cli.provider import bundle_corpus, conformance_v3
+from ai_stp_cli.provider import bundle_corpus, conformance_v3, protocol_v3
 
 #: Refusals the kit declares that the conformance run cannot drive today, each
 #: with the reason. Emptying this map is the goal; growing it silently is the
@@ -67,3 +67,36 @@ def test_every_named_exemption_is_still_a_refusal_the_kit_declares() -> None:
     """An exemption for a refusal that no longer exists hides a stale decision."""
     stale = sorted(UNEXERCISED_REFUSALS.keys() - _declared())
     assert not stale, f"exemptions name refusals the kit no longer declares: {stale}"
+
+
+def test_every_command_the_run_will_not_invoke_is_declared_forbidden() -> None:
+    """The kit named two forbidden commands while three are not pure.
+
+    `pure_commands` is derived from `READ_COMMANDS`, but
+    `forbidden_in_safe_conformance` was a hand-written
+    `["apply-operation", "launch"]`. That leaves `recover-operation` in neither
+    list, and it is a mutating command — `APPLY_COMMANDS` holds it next to
+    `apply-operation`.
+
+    A provider author reads this file and nothing else. Two lists that do not
+    partition the command set tell them a mutating command *might* be invoked
+    during safe conformance, so they must either make it safe to call or be
+    surprised. The run never invokes it: `conformance_v3.py` does not mention
+    `recover-operation` anywhere. The behaviour was right and the promise was
+    narrower than the behaviour.
+
+    Asserted as a partition rather than as a literal, because the literal is
+    exactly what drifted. A command added to the protocol now lands on one side
+    or fails here.
+    """
+    kit = json.loads(provider_kit.render()["conformance-cases.json"])
+    pure = set(kit["pure_commands"])
+    forbidden = set(kit["forbidden_in_safe_conformance"])
+
+    assert pure | forbidden == set(protocol_v3.COMMANDS), (
+        "every v3 command is either pure or forbidden in safe conformance"
+    )
+    assert not pure & forbidden, "a command cannot be both pure and forbidden"
+    assert forbidden >= protocol_v3.APPLY_COMMANDS, (
+        "a mutating command the run will not invoke must say so"
+    )

@@ -23,7 +23,7 @@ KIT_IDENTITY_SCHEMA: Final[str] = "ai-stp-provider-kit-identity/1"
 #: for a caller naming a profile outside `permission_profiles`: the operation
 #: itself is supported, and `projection_profile_mismatch` is a different kind
 #: of profile.
-KIT_VERSION: Final[str] = "0.2.1"
+KIT_VERSION: Final[str] = "0.2.2"
 
 #: Files the aggregate identity covers, in the order `SHA256SUMS` lists them.
 MACHINE_FILES: Final[tuple[str, ...]] = (
@@ -112,7 +112,17 @@ def _cases() -> dict[str, object]:
         "bundle_rejections": bundle_cases,
         "capability_rejections": capability_cases,
         "pure_commands": sorted(protocol_v3.READ_COMMANDS),
-        "forbidden_in_safe_conformance": ["apply-operation", "launch"],
+        # Derived, not listed. The literal said `["apply-operation", "launch"]`
+        # and left `recover-operation` in neither list, though `APPLY_COMMANDS`
+        # holds it beside `apply-operation`. A provider author reads this file
+        # and nothing else: two lists that do not partition the command set say
+        # a mutating command might be invoked during safe conformance, and they
+        # then either make it safe to call or are surprised. The run never
+        # invoked it, so the behaviour was right and only the promise was
+        # narrow. Deriving keeps them one fact.
+        "forbidden_in_safe_conformance": sorted(
+            set(protocol_v3.COMMANDS) - protocol_v3.READ_COMMANDS
+        ),
     }
 
 

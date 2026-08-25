@@ -85,7 +85,8 @@
   ],
   "forbidden_in_safe_conformance": [
     "apply-operation",
-    "launch"
+    "launch",
+    "recover-operation"
   ],
   "protocol_version": 3,
   "pure_commands": [
