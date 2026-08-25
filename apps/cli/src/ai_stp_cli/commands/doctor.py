@@ -10,6 +10,7 @@ A non-zero exit is reserved for `doctor` itself failing — the difference betwe
 "I looked and you are not ready" and "I could not look".
 """
 
+import shutil
 import sqlite3
 import sys
 from collections.abc import Mapping, Sequence
@@ -310,6 +311,41 @@ def _component_layout_check() -> DoctorCheck:
     return DoctorCheck(name="component_layouts", state="failed", detail="; ".join(problems))
 
 
+def _provider_binding_check() -> DoctorCheck:
+    """Name the tool `provider fetch` shells out to, before it is needed.
+
+    Installing a published setup goes through `provider fetch`, which binds an
+    attested OpenNetwork release by running `gh attestation verify`. The shipped
+    policy pins no bytes and allows no publisher, so that binding is the only
+    path an install takes — and `gh` is not a dependency of this package. On a
+    machine installed from PyPI there is no reason for it to be present.
+
+    The refusal when it is absent is honest (`AI_STP_DEPENDENCY_UNAVAILABLE`
+    with `dependency: gh`), but it arrives after an agent has already chosen to
+    install. This is the same shape as `composition_passports`, and it takes the
+    same answer: an installation without `gh` is still sound, and somebody who
+    only searches the catalogue never needs it, so the state stays `ready` and
+    the detail carries the fact (`SPEC-011` `REQ-1124`).
+
+    Presence only. Running `gh` to ask its version would make a command declared
+    `read` execute a third-party binary, and diagnostics do not do that.
+    """
+    found = shutil.which("gh")
+    if found is None:
+        return DoctorCheck(
+            name="provider_binding",
+            state="ready",
+            detail="`gh` is not on PATH; `provider fetch` needs it to verify an "
+            "attested provider release before binding it",
+        )
+    return DoctorCheck(
+        name="provider_binding",
+        state="ready",
+        detail=f"`gh` at {paths.redact_home(Path(found))}; `provider fetch` uses it to verify "
+        "an attested provider release",
+    )
+
+
 def run(_parameters: Mapping[str, object]) -> Answer[DoctorReport]:
     """Look at everything this build can look at, and say what was found."""
     checks = [
@@ -323,5 +359,6 @@ def run(_parameters: Mapping[str, object]) -> Answer[DoctorReport]:
         _interrupted_operations_check(),
         _component_layout_check(),
         _composition_passports_check(),
+        _provider_binding_check(),
     ]
     return Answer(DoctorReport(state=worst([check.state for check in checks]), checks=checks))
