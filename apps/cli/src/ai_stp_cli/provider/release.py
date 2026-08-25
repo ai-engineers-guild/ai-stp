@@ -26,6 +26,7 @@ import base64
 import binascii
 import hashlib
 import json
+import platform
 import tomllib
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -631,6 +632,15 @@ def _manifest_shape(name: str, expected: str) -> NoReturn:
         "the release manifest field has the wrong shape",
         details={"field": name, "expected": expected},
     )
+
+
+def current_platform() -> str:
+    """OS and architecture this process is running on, as the release contract names them."""
+    system = platform.system().casefold()
+    os_name = "macos" if system == "darwin" else system
+    machine = platform.machine().casefold()
+    architecture = {"amd64": "x86_64", "aarch64": "arm64"}.get(machine, machine)
+    return f"{os_name}/{architecture}"
 
 
 def artifact_identity(path: Path) -> tuple[str, int]:

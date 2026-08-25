@@ -2769,6 +2769,76 @@
     {
       "path": [
         "provider",
+        "fetch"
+      ],
+      "summary": "Download an attested OpenNetwork provider and bind a closed release manifest.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Harness whose pinned OpenNetwork setup-system to fetch.",
+          "choices": [
+            "antigravity",
+            "claude-code",
+            "codex",
+            "cursor",
+            "grok-build",
+            "opencode",
+            "pi"
+          ]
+        },
+        {
+          "name": "tag",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Exact release tag. Omit to bind the current GitHub release after resolving its tag.",
+          "choices": []
+        },
+        {
+          "name": "directory",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Directory that receives the artifact and bound manifest.",
+          "choices": []
+        },
+        {
+          "name": "artifact",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Existing provider artifact to bind instead of downloading.",
+          "choices": []
+        },
+        {
+          "name": "attestation-bundle",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Optional local GitHub attestation bundle for offline verification.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-provider-bound-release",
+      "next_actions": [
+        "install plan",
+        "provider trust"
+      ]
+    },
+    {
+      "path": [
+        "provider",
         "network"
       ],
       "summary": "Report observed protocol-v2 network isolation on this machine.",

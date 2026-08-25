@@ -2015,6 +2015,46 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         next_actions=("toolchain harnesses",),
     ),
     Declaration(
+        path=["provider", "fetch"],
+        summary=("Download an attested OpenNetwork provider and bind a closed release manifest."),
+        result_schema="urn:ai-stp:schema:v1:cli-provider-bound-release",
+        handler=select.provider_fetch,
+        mutability="apply",
+        parameters=(
+            option(
+                "harness",
+                "string",
+                "Harness whose pinned OpenNetwork setup-system to fetch.",
+                required=True,
+                choices=tuple(sorted(HARNESS_IDS)),
+            ),
+            option(
+                "tag",
+                "string",
+                (
+                    "Exact release tag. Omit to bind the current GitHub release "
+                    "after resolving its tag."
+                ),
+            ),
+            option(
+                "directory",
+                "string",
+                "Directory that receives the artifact and bound manifest.",
+            ),
+            option(
+                "artifact",
+                "string",
+                "Existing provider artifact to bind instead of downloading.",
+            ),
+            option(
+                "attestation-bundle",
+                "string",
+                "Optional local GitHub attestation bundle for offline verification.",
+            ),
+        ),
+        next_actions=("install plan", "provider trust"),
+    ),
+    Declaration(
         path=["provider", "network"],
         summary="Report observed protocol-v2 network isolation on this machine.",
         result_schema="urn:ai-stp:schema:v1:cli-provider-network-capability",

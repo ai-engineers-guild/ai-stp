@@ -612,9 +612,9 @@ def test_v3_refuses_to_install_a_provider_no_signed_release_covers(
 ) -> None:
     """Omission stops being a way to install an unverified provider.
 
-    The refusal offers both ways forward, because exactly one of them is right
-    and the caller is the only one who knows which: supply the signed release,
-    or say that this provider has none.
+    The refusal names the attested bind, a supplied manifest, and the explicit
+    unverified flag, because exactly one of them is right and the caller is the
+    only one who knows which.
     """
     proposal_id = _confirmed(registry, tmp_path, "J")
     executable = _provider(tmp_path, "v3-provider")
@@ -632,6 +632,7 @@ def test_v3_refuses_to_install_a_provider_no_signed_release_covers(
 
     assert raised.value.code == "AI_STP_VALIDATION_ERROR"
     assert raised.value.next_actions == [
+        "provider fetch --harness <id> --json",
         "install plan --provider-manifest <path> --json",
         "install plan --unverified-provider --json",
     ]

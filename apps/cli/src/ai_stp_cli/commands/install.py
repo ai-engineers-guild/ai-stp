@@ -1600,6 +1600,7 @@ def _release_required(
         "protocol v3 installs a signed provider release",
         details={"protocol_version": str(protocol_version)},
         next_actions=[
+            "provider fetch --harness <id> --json",
             "install plan --provider-manifest <path> --json",
             "install plan --unverified-provider --json",
         ],
@@ -1810,11 +1811,7 @@ def _verify_bound_artifact(
 
 
 def _release_platform() -> str:
-    system = platform.system().casefold()
-    os_name = "macos" if system == "darwin" else system
-    machine = platform.machine().casefold()
-    architecture = {"amd64": "x86_64", "aarch64": "arm64"}.get(machine, machine)
-    return f"{os_name}/{architecture}"
+    return release.current_platform()
 
 
 def _provider_target(parameters: Mapping[str, object], logical: str, version: int) -> str:

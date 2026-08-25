@@ -1,0 +1,100 @@
+{
+  "$id": "urn:ai-stp:schema:v1:cli-provider-bound-release",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Closed release manifest bound from attested OpenNetwork bytes (`SPEC-008` REQ-847).\n\nThe JSON is a local binding record, not a second trust anchor. Trust remains\nthe pinned `build_attestations` rule plus GitHub attestation of exact bytes.",
+  "properties": {
+    "artifact": {
+      "minLength": 1,
+      "title": "Artifact",
+      "type": "string"
+    },
+    "artifact_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Artifact Digest",
+      "type": "string"
+    },
+    "artifact_url": {
+      "minLength": 1,
+      "title": "Artifact Url",
+      "type": "string"
+    },
+    "commit": {
+      "pattern": "^[0-9a-f]{40}$",
+      "title": "Commit",
+      "type": "string"
+    },
+    "harness_id": {
+      "minLength": 1,
+      "title": "Harness Id",
+      "type": "string"
+    },
+    "manifest": {
+      "minLength": 1,
+      "title": "Manifest",
+      "type": "string"
+    },
+    "protocol_version": {
+      "minimum": 1,
+      "title": "Protocol Version",
+      "type": "integer"
+    },
+    "provider_id": {
+      "minLength": 1,
+      "title": "Provider Id",
+      "type": "string"
+    },
+    "provider_version": {
+      "minLength": 1,
+      "title": "Provider Version",
+      "type": "string"
+    },
+    "repository": {
+      "minLength": 1,
+      "title": "Repository",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "sequence": {
+      "minimum": 0,
+      "title": "Sequence",
+      "type": "integer"
+    },
+    "tag": {
+      "minLength": 1,
+      "title": "Tag",
+      "type": "string"
+    },
+    "trust_level": {
+      "enum": [
+        "verified_publisher",
+        "build_attested"
+      ],
+      "title": "Trust Level",
+      "type": "string"
+    }
+  },
+  "required": [
+    "artifact",
+    "artifact_digest",
+    "artifact_url",
+    "commit",
+    "harness_id",
+    "manifest",
+    "protocol_version",
+    "provider_id",
+    "provider_version",
+    "repository",
+    "schema_version",
+    "sequence",
+    "tag",
+    "trust_level"
+  ],
+  "title": "ProviderBoundRelease",
+  "type": "object"
+}

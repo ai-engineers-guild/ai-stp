@@ -1713,6 +1713,31 @@ class ProviderTrust(BaseModel):
     refusals: list[ReleaseRefusal] = []
 
 
+class ProviderBoundRelease(BaseModel):
+    """Closed release manifest bound from attested OpenNetwork bytes (`SPEC-008` REQ-847).
+
+    The JSON is a local binding record, not a second trust anchor. Trust remains
+    the pinned `build_attestations` rule plus GitHub attestation of exact bytes.
+    """
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    harness_id: Annotated[str, Field(min_length=1)]
+    repository: Annotated[str, Field(min_length=1)]
+    tag: Annotated[str, Field(min_length=1)]
+    commit: Annotated[str, Field(pattern=r"^[0-9a-f]{40}$")]
+    provider_id: Annotated[str, Field(min_length=1)]
+    provider_version: Annotated[str, Field(min_length=1)]
+    protocol_version: Annotated[int, Field(ge=1)]
+    sequence: Annotated[int, Field(ge=0)]
+    artifact: Annotated[str, Field(min_length=1)]
+    manifest: Annotated[str, Field(min_length=1)]
+    artifact_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    artifact_url: Annotated[str, Field(min_length=1)]
+    trust_level: Literal["verified_publisher", "build_attested"]
+
+
 class InstallationStep(BaseModel):
     """One recorded step of an installation. Append-only and safe to show."""
 

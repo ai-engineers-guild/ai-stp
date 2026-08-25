@@ -53,6 +53,7 @@ from ai_stp_cli.local.database import configured_path, open_readonly, open_regis
 from ai_stp_cli.local.passports import moment, owner
 from ai_stp_cli.paths import redact_home
 from ai_stp_cli.provider import (
+    attested_bind,
     conformance,
     conformance_v2,
     conformance_v3,
@@ -90,6 +91,7 @@ from ai_stp_contracts.machine_help import (
     ProposalMember,
     ProposalSession,
     ProposalView,
+    ProviderBoundRelease,
     ProviderNetworkCapability,
     ProviderTrust,
     ReleaseRefusal,
@@ -1605,7 +1607,17 @@ def provider_trust(parameters: Mapping[str, object]) -> Answer[ProviderTrust]:
             known_sequence = provider_releases.observed_minimum_sequence(
                 connection, manifest.provider_id
             )
-    verdict = release.verify(manifest, policy, known_sequence=known_sequence)
+    if manifest.repository in policy.build_attestations:
+        verdict = release.verify_attested(
+            manifest,
+            policy,
+            known_sequence=known_sequence,
+            observed_digest="",
+            observed_size=0,
+            platform=release.current_platform(),
+        )
+    else:
+        verdict = release.verify(manifest, policy, known_sequence=known_sequence)
     return Answer(
         view.model_copy(
             update={
@@ -1616,5 +1628,42 @@ def provider_trust(parameters: Mapping[str, object]) -> Answer[ProviderTrust]:
                     for item in verdict.refusals
                 ],
             }
+        )
+    )
+
+
+def provider_fetch(parameters: Mapping[str, object]) -> Answer[ProviderBoundRelease]:
+    """Materialise a closed release manifest from attested OpenNetwork bytes.
+
+    Writes the artifact and the bound JSON. Install still plans against that
+    file; this command does not change a harness target.
+    """
+    harness = _harness_of(parameters)
+    tag = str(parameters.get("tag") or "") or None
+    directory_raw = str(parameters.get("directory") or "")
+    artifact_raw = str(parameters.get("artifact") or "")
+    bundle_raw = str(parameters.get("attestation-bundle") or "")
+    bound = attested_bind.fetch(
+        harness=harness,
+        tag=tag,
+        directory=Path(directory_raw).expanduser() if directory_raw else None,
+        artifact=Path(artifact_raw).expanduser() if artifact_raw else None,
+        attestation_bundle=Path(bundle_raw).expanduser() if bundle_raw else None,
+    )
+    return Answer(
+        ProviderBoundRelease(
+            harness_id=bound.harness_id,
+            repository=bound.repository,
+            tag=bound.tag,
+            commit=bound.commit,
+            provider_id=bound.provider_id,
+            provider_version=bound.provider_version,
+            protocol_version=bound.protocol_version,
+            sequence=bound.sequence,
+            artifact=redact_home(bound.artifact),
+            manifest=redact_home(bound.manifest_path),
+            artifact_digest=bound.artifact_digest,
+            artifact_url=bound.artifact_url,
+            trust_level=bound.trust_level,
         )
     )

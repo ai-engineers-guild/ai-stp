@@ -202,7 +202,7 @@ def _demanded(command: object) -> set[str]:
 
 
 def test_every_option_a_handler_demands_is_declared_required() -> None:
-    """The defect this exists for, stated as a property over all 123 commands.
+    """The defect this exists for, stated as a property over all 124 commands.
 
     Found by review as six examples — `component version list --id`,
     `component version release --id`, `component fork --id --version`, and
@@ -302,7 +302,7 @@ def test_no_conditional_refusal_is_described_by_nothing() -> None:
     in the other direction. That leaves a question it cannot answer — whether
     the conditional ones are described *at all*.
 
-    Only `install plan` declares `parameter_rules`, one command out of 123,
+    Only `install plan` declares `parameter_rules`, one command out of 124,
     which reads like a mechanism nobody uses. Measured rather than assumed:
     every other conditional refusal is a consent flag, and `confirmation`
     already describes those. The vocabulary is rare because there is little

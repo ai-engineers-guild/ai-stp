@@ -16,7 +16,7 @@ last_verified: "2026-08-03"
 | [SPEC-005-registry-versioning.md](SPEC-005-registry-versioning.md) | SPEC-005: Реестр, варианты и версии объектов. | 2026-08-24 |
 | [SPEC-006-search-and-setup-compiler.md](SPEC-006-search-and-setup-compiler.md) | SPEC-006: Поиск, отбор кандидатов и сборщик сетапа. | 2026-08-09 |
 | [SPEC-007-validation-publishing.md](SPEC-007-validation-publishing.md) | SPEC-007: Проверки, доказательства и публикация. | 2026-08-13 |
-| [SPEC-008-provider-installation.md](SPEC-008-provider-installation.md) | SPEC-008: Провайдеры, установка и восстановление. | 2026-08-13 |
+| [SPEC-008-provider-installation.md](SPEC-008-provider-installation.md) | SPEC-008: Провайдеры, установка и восстановление. | 2026-08-25 |
 | [SPEC-009-local-registry-sync.md](SPEC-009-local-registry-sync.md) | SPEC-009: Локальный реестр и синхронизация. | 2026-08-04 |
 | [SPEC-010-platform-api.md](SPEC-010-platform-api.md) | SPEC-010: Серверная платформа и API. | 2026-08-15 |
 | [SPEC-011-cli-agent-skill.md](SPEC-011-cli-agent-skill.md) | SPEC-011: CLI, машинная справка и навык агента. | 2026-08-24 |
