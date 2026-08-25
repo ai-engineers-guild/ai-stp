@@ -103,8 +103,11 @@ def verify(artifact: Path, policy: Policy, *, bundle: Path | None = None) -> Evi
 def verify_stored(artifact: Path, policy: Policy, document: str) -> Evidence:
     """Re-verify plan-bound bundles without fetching mutable remote state."""
     try:
-        rows = json.loads(document)
-        bundles = [item["attestation"] for item in rows]
+        parsed: object = json.loads(document)
+        if not isinstance(parsed, list) or not parsed:
+            raise TypeError("attestation evidence must be a non-empty list")
+        rows = cast(list[object], parsed)
+        bundles = [_sigstore_bundle(item) for item in rows]
     except (ValueError, TypeError, KeyError) as error:
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED",
@@ -117,6 +120,29 @@ def verify_stored(artifact: Path, policy: Policy, document: str) -> Evidence:
             encoding="utf-8",
         )
         return verify(artifact, policy, bundle=bundle)
+
+
+def _sigstore_bundle(item: object) -> dict[str, object]:
+    """Return the Sigstore bundle `gh attestation verify --bundle` accepts.
+
+    GitHub CLI `--format=json` wraps that object as `attestation.bundle` next
+    to `bundle_url` and `initiator`. Feeding the wrapper back as `--bundle`
+    fails with `unknown field "bundle"`.
+    """
+    attestation = _json_field(item, "attestation", item)
+    bundle = _json_field(attestation, "bundle", attestation)
+    if not isinstance(bundle, dict) or "dsseEnvelope" not in bundle:
+        raise TypeError("attestation row is not a Sigstore bundle")
+    return cast(dict[str, object], bundle)
+
+
+def _json_field(container: object, key: str, fallback: object) -> object:
+    if not isinstance(container, dict):
+        raise TypeError("attestation row must be an object")
+    held = cast(dict[object, object], container)
+    if key not in held:
+        return fallback
+    return held[key]
 
 
 def _has_verified_timestamp(item: object) -> bool:

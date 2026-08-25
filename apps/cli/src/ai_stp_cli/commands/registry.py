@@ -43,7 +43,7 @@ from ai_stp_contracts.store_ports import (
 )
 from ai_stp_foundation.canonical import JsonValue, canonize
 from ai_stp_foundation.digests import digest_bytes
-from ai_stp_passports.envelope import verify_revision_id
+from ai_stp_passports.envelope import derive_revision_id
 from ai_stp_passports.versions import ArtifactRef, ComponentVersionPassport, SetupVersionPassport
 
 KINDS: tuple[CatalogKind, ...] = ("component", "setup")
@@ -373,11 +373,15 @@ def acquire_version(
             "the published passport is not a complete version passport",
             details={"kind": kind, "stable_id": stable_id, "version": number},
         ) from error
-    if (
-        passport.stable_id != stable_id
-        or passport.version != number
-        or not verify_revision_id(passport)
-    ):
+    if passport.stable_id != stable_id or passport.version != number:
+        raise CliFailure(
+            "AI_STP_CATALOG_INTEGRITY",
+            "the published passport identity does not match the requested version",
+            details={"kind": kind, "stable_id": stable_id, "version": number},
+        )
+    # Seal is over the published document. A model dump injects later default
+    # fields and is not what `revision_id` hashed.
+    if view.passport.get("revision_id") != derive_revision_id(view.passport):
         raise CliFailure(
             "AI_STP_CATALOG_INTEGRITY",
             "the published passport identity does not match the requested version",
@@ -417,7 +421,7 @@ def _validate_setup_definition(acquired: AcquiredCatalogVersion) -> None:
         raise CliFailure(
             "AI_STP_CATALOG_INTEGRITY", "the setup definition artifact is not canonical JSON"
         ) from error
-    expected_refs = [item.model_dump(mode="json") for item in acquired.passport.components]
+    expected_refs = acquired.view.passport.get("components")
     if (
         canonize(cast(JsonValue, document)) != acquired.artifact
         or document.get("stable_id") != acquired.passport.stable_id

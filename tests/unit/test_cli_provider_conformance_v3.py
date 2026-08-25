@@ -355,6 +355,21 @@ def test_v3_plan_load_apply_and_status_require_the_same_exact_identity(tmp_path:
         "bundle_size": bound.bundle_size,
     }
     assert operation_v3.require_applied(applied, plan=plan, bundle=bound) == "verified"
+    without_echoes: dict[str, JsonValue] = {
+        "state": "verified",
+        "plan_digest": digest,
+        "expected_target_digest": _digest("a"),
+        "target_identity_digest": _digest("e"),
+        "backup_ref": "slot-000000000001",
+    }
+    assert operation_v3.require_applied(without_echoes, plan=plan, bundle=bound) == "verified"
+    stale: dict[str, JsonValue] = {
+        "state": "refused",
+        "rejected": True,
+        "reason": "stale",
+        "detail": "moved",
+    }
+    assert operation_v3.require_applied(stale, plan=plan, bundle=bound) == "stale"
     status: dict[str, JsonValue] = {
         "state": "managed",
         "target_digest": _digest("e"),
@@ -371,6 +386,28 @@ def test_v3_plan_load_apply_and_status_require_the_same_exact_identity(tmp_path:
     }
     assert operation_v3.require_verified_status(
         status,
+        capabilities=capabilities,
+        release_digest=_digest("d"),
+        plan=plan,
+        bundle=bound,
+        operation=protocol_v3.Operation.INSTALL,
+    ) == _digest("e")
+    nested_status: dict[str, JsonValue] = {
+        "state": "managed",
+        "target_digest": _digest("e"),
+        "protocol_version": protocol_v3.VERSION,
+        "provider_id": capabilities.provider_id,
+        "harness_id": "claude-code",
+        "provider_state": {
+            "present": True,
+            "readable": True,
+            "operation_id": "operation_test_v3",
+            "drift_state": "clean",
+            "backup_ref": "slot-000000000001",
+        },
+    }
+    assert operation_v3.require_verified_status(
+        nested_status,
         capabilities=capabilities,
         release_digest=_digest("d"),
         plan=plan,
@@ -627,7 +664,7 @@ def test_v3_restore_status_accepts_exact_backup_identity_without_managed_drift(
         permission_profile=None,
         expires_at=expiry,
     )
-    with pytest.raises(CliFailure, match="approved v3 installation"):
+    with pytest.raises(CliFailure, match="managed installation"):
         operation_v3.require_verified_status(
             unmanaged,
             capabilities=capabilities,

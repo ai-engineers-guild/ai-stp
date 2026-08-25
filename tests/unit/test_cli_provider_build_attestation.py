@@ -75,3 +75,63 @@ def test_missing_transparency_timestamp_is_not_trusted(
     with pytest.raises(CliFailure) as raised:
         build_attestation.verify(artifact, POLICY)
     assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
+
+
+_GH_WRAPPER = {
+    "attestation": {
+        "bundle": {
+            "mediaType": "application/vnd.dev.sigstore.bundle.v0.3+json",
+            "dsseEnvelope": {"payload": "e30=", "payloadType": "application/vnd.in-toto+json"},
+            "verificationMaterial": {},
+        },
+        "bundle_url": "",
+        "initiator": "",
+    },
+    "verificationResult": {"verifiedTimestamps": [{"type": "Tlog"}]},
+}
+
+
+def test_verify_stored_feeds_sigstore_bundle_not_github_cli_wrapper(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Plan-bound evidence is gh JSON; apply must unwrap the Sigstore object.
+
+    Writing `attestation` itself as `--bundle` makes gh refuse
+    `unknown field "bundle"`, which used to fail attested apply after a
+    successful plan.
+    """
+    artifact = tmp_path / "provider"
+    artifact.write_bytes(b"exact")
+    seen: list[str] = []
+    payload: list[object] = [{"verificationResult": {"verifiedTimestamps": [{}]}}]
+
+    def run(command: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        seen.extend(command)
+        bundle_path = Path(command[command.index("--bundle") + 1])
+        document = json.loads(bundle_path.read_text(encoding="utf-8").splitlines()[0])
+        assert "dsseEnvelope" in document
+        assert "bundle_url" not in document
+        assert "initiator" not in document
+        return subprocess.CompletedProcess(command, 0, json.dumps(payload), "")
+
+    monkeypatch.setattr(subprocess, "run", run)
+    evidence = build_attestation.verify_stored(
+        artifact, POLICY, json.dumps([_GH_WRAPPER], separators=(",", ":"))
+    )
+    assert evidence.trust_level == "build_attested"
+    assert "--bundle" in seen
+
+
+def test_verify_stored_rejects_github_cli_wrapper_as_the_bundle(
+    tmp_path: Path,
+) -> None:
+    artifact = tmp_path / "provider"
+    artifact.write_bytes(b"exact")
+    with pytest.raises(CliFailure) as raised:
+        build_attestation.verify_stored(
+            artifact,
+            POLICY,
+            json.dumps([{"attestation": {"bundle_url": "", "initiator": ""}}]),
+        )
+    assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
+    assert raised.value.message == "the plan-bound provider attestation evidence is invalid"

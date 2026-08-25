@@ -225,9 +225,14 @@ Permission profile является отдельным plan input и не вхо
 сборку provider, проверенный consumer хэш выпуска и protocol, точные идентичности optional bundle и optional `BackupRef`,
 permission profile, platform/runtime identity, expiry и effects. `apply-operation`
 получает канонический plan artifact и точный digest, берёт блокировку цели, а после
-lock повторно проверяет preconditions. Несовпадающий или истёкший plan не имеет
-эффекта. Timeout/malformed response после возможного эффекта даёт `partial` без
-автоматического повтора.
+lock повторно проверяет preconditions. Ответ успеха несёт `state`, тот же
+`plan_digest` и `expected_target_digest`; четыре bundle-echo остаются на
+`validate-bundle` и `plan-operation`. Типизированный отказ после lock — это
+`state=refused` с `reason=stale` (нет эффекта) либо `state=stale`. Несовпадающий
+или истёкший plan не имеет эффекта. Timeout/malformed response после возможного
+эффекта даёт `partial` без автоматического повтора. `status` после install
+доказывает `state=managed`, `target_digest`, protocol/provider identity и drift
+`clean` или `verified`; вложенный `provider_state` допустим.
 
 Provider перед первой записью публикует target-local durable journal в фазе
 `prepared`, связанный с exact plan digest, operation ID и target-bound `BackupRef`.

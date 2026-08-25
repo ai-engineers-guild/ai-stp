@@ -109,15 +109,24 @@ def require_applied(
     plan: ProviderPlan,
     bundle: bundle_protocol.Binding | None,
 ) -> str:
-    """Require an apply result bound to one exact v3 plan and optional bundle."""
-    state = str(answer.get("state", ""))
+    """Require an apply result bound to one exact v3 plan.
+
+    Bundle identity is sealed into the plan artifact at `plan-operation`.
+    `apply-operation` echoes that plan, not the four validate-bundle fields.
+    A typed refusal uses `state=refused` with `reason=stale` to mean no effect
+    after the lock.
+    """
+    state = _reported_operation_state(answer)
     if state not in protocol.STATE_MAP:
         raise _refused("the provider returned an unknown operation state", state=state)
+    if state == "stale":
+        return state
     if answer.get("plan_digest") != plan.digest:
         raise _refused("the provider apply result names a different v3 plan")
     if answer.get("expected_target_digest") != plan.artifact["expected_target_digest"]:
         raise _refused("the provider apply result names a different target snapshot")
-    if state == protocol.SUCCESS_STATE and bundle is not None:
+    echoed = ("bundle_format", "bundle_digest", "artifact_digest", "bundle_size")
+    if bundle is not None and any(name in answer for name in echoed):
         bundle_protocol.require_validated({**answer, "valid": True}, bundle)
     return state
 
@@ -144,34 +153,61 @@ def require_verified_status(
         if target_digest != expected_restore:
             raise _refused("provider restore status differs from the exact BackupRef identity")
         return target_digest
-    expected: dict[str, JsonValue] = {"state": "managed", "drift_state": "verified"}
-    if operation in {protocol_v3.Operation.INSTALL, protocol_v3.Operation.REPLACE}:
-        expected.update(
-            {
-                "protocol_version": protocol_v3.VERSION,
-                "provider_id": capabilities.provider_id,
-                "provider_version": capabilities.provider_version,
-                "provider_build_digest": capabilities.provider_build_digest,
-                "provider_release_digest": release_digest,
-                "provider_plan_digest": plan.digest,
-                "projection_profile_digest": capabilities.projection.digest,
-            }
-        )
+    if answer.get("state") != "managed":
+        raise _refused("provider status does not prove managed installation")
+    if answer.get("protocol_version") != protocol_v3.VERSION:
+        raise _refused("provider status names a different protocol version")
+    if answer.get("provider_id") != capabilities.provider_id:
+        raise _refused("provider status names a different provider")
+    nested = _provider_state(answer)
+    drift = answer.get("drift_state", nested.get("drift_state"))
+    if str(drift) not in {"verified", "clean"}:
+        raise _refused("provider status does not prove a clean managed target")
+    optional: dict[str, JsonValue] = {
+        "provider_version": capabilities.provider_version,
+        "provider_build_digest": capabilities.provider_build_digest,
+        "provider_release_digest": release_digest,
+        "provider_plan_digest": plan.digest,
+        "projection_profile_digest": capabilities.projection.digest,
+        "operation_id": plan.artifact.get("operation_id", ""),
+    }
     if bundle is not None:
-        expected.update(
-            {
-                "bundle_digest": bundle.bundle_digest,
-                "artifact_digest": bundle.artifact_digest,
-                "drift_state": "verified",
-            }
-        )
-    mismatches = [name for name, value in expected.items() if answer.get(name) != value]
+        optional["bundle_digest"] = bundle.bundle_digest
+        optional["artifact_digest"] = bundle.artifact_digest
+    mismatches = _present_mismatches(answer, nested, optional)
     if mismatches:
         raise _refused(
             "provider status does not prove the approved v3 installation",
             fields=", ".join(mismatches),
         )
     return target_digest
+
+
+def _reported_operation_state(answer: dict[str, JsonValue]) -> str:
+    state = str(answer.get("state", ""))
+    if state == "refused" and str(answer.get("reason", "")) == "stale":
+        return "stale"
+    return state
+
+
+def _provider_state(answer: dict[str, JsonValue]) -> dict[str, JsonValue]:
+    held = answer.get("provider_state")
+    return cast(dict[str, JsonValue], held) if isinstance(held, dict) else {}
+
+
+def _present_mismatches(
+    answer: dict[str, JsonValue],
+    nested: dict[str, JsonValue],
+    expected: dict[str, JsonValue],
+) -> list[str]:
+    mismatches: list[str] = []
+    for name, value in expected.items():
+        if name in answer:
+            if answer.get(name) != value:
+                mismatches.append(name)
+        elif name in nested and nested.get(name) != value:
+            mismatches.append(name)
+    return mismatches
 
 
 def _bundle_echo(bound: bundle_protocol.Binding) -> dict[str, JsonValue]:

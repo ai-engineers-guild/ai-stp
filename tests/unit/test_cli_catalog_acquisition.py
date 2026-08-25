@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from ai_stp_cli.cloud import catalog as cloud_catalog
+from ai_stp_cli.cloud.client import Endpoint
 from ai_stp_cli.commands import registry as registry_commands
 from ai_stp_cli.commands.select import compile_setup_version_bundle
 from ai_stp_cli.errors import CliFailure
@@ -16,7 +17,8 @@ from ai_stp_contracts.catalog import CatalogTrust
 from ai_stp_contracts.first_party import FirstPartyVersion
 from ai_stp_contracts.first_party import versions as corpus_versions
 from ai_stp_contracts.machine_help import AnswerSource, CatalogVersionView
-from ai_stp_passports.versions import SetupVersionPassport
+from ai_stp_passports.envelope import derive_revision_id, verify_revision_id
+from ai_stp_passports.versions import ComponentVersionPassport, SetupVersionPassport
 
 
 def _grok() -> tuple[FirstPartyVersion, FirstPartyVersion]:
@@ -271,6 +273,59 @@ def test_offline_acquisition_reads_verified_bytes_without_resolving_an_endpoint(
     found = registry_commands.acquire_version(
         "component", component.passport.stable_id, "1.0", offline=True
     )
+    assert found.artifact == component.artifact
+
+
+def test_acquire_version_seals_published_bytes_not_a_model_dump(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A historical passport omitting later defaults must still acquire.
+
+    `verify_revision_id` dumps the validated model, which injects empty
+    `harness_ids` / `supported_os` and is not the published seal.
+    """
+    component, _setup = _grok()
+    published = component.passport.model_dump(mode="json")
+    published.pop("harness_ids", None)
+    published.pop("supported_os", None)
+    published["revision_id"] = derive_revision_id(published)
+    assert not verify_revision_id(ComponentVersionPassport.model_validate(published))
+
+    view = CatalogVersionView(
+        kind="component",
+        source="online",
+        checked_at="2026-08-25T00:00:00.000Z",
+        passport_digest=local_cache.digest_of(published),
+        lifecycle="active",
+        trust=CatalogTrust(
+            author_verified=True,
+            component_verified=True,
+            trust_lane="authoritative",
+        ),
+        published_at="2026-08-25T00:00:00.000Z",
+        passport=published,
+    )
+    artifact = tmp_path / "component.zip"
+    artifact.write_bytes(component.artifact)
+
+    def version(*_args: object, **_kwargs: object) -> CatalogVersionView:
+        return view
+
+    def fetch_artifact(*_args: object, **_kwargs: object) -> Path:
+        return artifact
+
+    def stored_none(_digest: str) -> Path | None:
+        return None
+
+    monkeypatch.setattr(registry_commands, "endpoint", lambda: Endpoint("https://nddev.asia"))
+    monkeypatch.setattr(cloud_catalog, "version", version)
+    monkeypatch.setattr(cloud_catalog, "fetch_artifact", fetch_artifact)
+    monkeypatch.setattr(local_cache, "stored_version_artifact", stored_none)
+
+    found = registry_commands.acquire_version(
+        "component", component.passport.stable_id, component.passport.version, offline=False
+    )
+    assert found.view.passport == published
     assert found.artifact == component.artifact
 
 
