@@ -1,6 +1,6 @@
 [project]
 name = "ai-stp-platform"
-version = "0.0.3"
+version = "0.0.4"
 description = "Shared server runtime: async database access, the custom job queue and readiness probes."
 requires-python = ">=3.12"
 dependencies = [
