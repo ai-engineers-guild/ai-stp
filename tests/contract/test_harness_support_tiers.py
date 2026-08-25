@@ -51,6 +51,42 @@ def test_shared_conventions_are_portable_rather_than_a_tier() -> None:
     assert harness_catalog.BY_ID[UNDEFINED_HARNESS].support == "portable"
 
 
+#: How each harness is spelled in prose, so a document naming one can be found.
+#: It is a map rather than `harness_catalog.BY_ID[...].title` on purpose: the
+#: catalog titles are product names for a machine table (`Cursor CLI`,
+#: `Antigravity CLI`), and the documents write the harness, not its executable.
+#: Derived from `SUPPORT_TIERS` by an assertion below rather than by hand, so a
+#: harness added to the enum without a spelling fails here instead of silently
+#: leaving every document guard blind to it — which is exactly how `cursor` and
+#: `antigravity` stayed unseen while four documents kept naming five.
+SPELLED: Final[dict[str, HarnessId]] = {
+    "Claude Code": "claude-code",
+    "Codex": "codex",
+    "Grok Build": "grok-build",
+    "OpenCode": "opencode",
+    "Pi": "pi",
+    "Cursor": "cursor",
+    "Antigravity": "antigravity",
+}
+
+
+#: Anchored, so a tier is read only where a cell *is* the label — not wherever
+#: the word appears in a sentence inside one. Both languages are here because
+#: the user documentation ships in both, and a pattern that knew only Russian
+#: read the English page as if it declared one tier instead of two.
+TIER_LABELS: Final[tuple[tuple[re.Pattern[str], str], ...]] = (
+    (re.compile(r"^(?:Основн\w+ поддержк\w+|primary(?: support)?)$", re.IGNORECASE), "primary"),
+    (re.compile(r"^(?:Бета|beta)(?:-поддержк\w+| support)?$", re.IGNORECASE), "beta"),
+)
+
+
+def test_every_harness_has_a_prose_spelling() -> None:
+    """The document guards are only as wide as this map, so it must be complete."""
+    assert set(SPELLED.values()) == set(SUPPORT_TIERS), (
+        "a harness without a prose spelling cannot be found in any document"
+    )
+
+
 #: Directory names a tree walk must step over: dependencies it did not write
 #: and output it produced. `public` holds the built public tree, which is a
 #: complete copy of the sources — every table in it is the same table, so a
@@ -102,19 +138,8 @@ def test_no_table_states_a_tier_that_disagrees_with_the_map() -> None:
     members are another, which is why it is the one shape worth asserting on —
     and it is the shape that broke, both times.
     """
-    spelled: dict[str, HarnessId] = {
-        "Claude Code": "claude-code",
-        "Codex": "codex",
-        "Grok Build": "grok-build",
-        "OpenCode": "opencode",
-        "Pi": "pi",
-    }
-    #: Anchored, so a tier is read only where a cell *is* the label — not
-    #: wherever the word appears in a sentence inside one.
-    tiers = (
-        (re.compile(r"^Основн\w+ поддержк\w+$", re.IGNORECASE), "primary"),
-        (re.compile(r"^(?:Бета|beta)(?:-поддержка)?$", re.IGNORECASE), "beta"),
-    )
+    spelled: dict[str, HarnessId] = dict(SPELLED)
+    tiers = TIER_LABELS
     wrong: list[str] = []
     for path in sorted(ROOT.glob("**/*.md")):
         if set(path.parts) & GENERATED_OR_VENDORED or not path.is_file():
@@ -143,4 +168,51 @@ def test_no_table_states_a_tier_that_disagrees_with_the_map() -> None:
                 )
     assert not wrong, "a support-tier table disagrees with SUPPORT_TIERS:\n" + "\n".join(
         sorted(set(wrong))
+    )
+
+
+def test_a_tier_table_names_every_harness() -> None:
+    """The previous guard reads rows it finds; omission leaves no row to read.
+
+    `test_no_table_states_a_tier_that_disagrees_with_the_map` catches a harness
+    filed under the wrong label. It cannot catch a harness that is simply
+    absent, because absence produces no cell — and absence is what actually
+    happened: `SUPPORT_TIERS` grew to seven under `ADR-0120` while README,
+    `PRODUCT.md` and `docs/product/scope.md` kept tables of five. All three
+    stayed green, and `scope.md` is the document that owns the answer.
+
+    Scoped to files that already state a tier, so this asks for completeness
+    only where a claim is being made. A page that never mentions the axis is
+    not required to start.
+
+    ADRs are exempt: a decision records the set as it was when it was taken,
+    and rewriting `ADR-0033` to name seven would falsify the history that
+    `ADR-0120` exists to supersede.
+    """
+    tiers = tuple(pattern for pattern, _ in TIER_LABELS)
+    incomplete: list[str] = []
+    for path in sorted(ROOT.glob("**/*.md")):
+        if set(path.parts) & GENERATED_OR_VENDORED or not path.is_file():
+            continue
+        if path.parent.name == "adr":
+            continue
+        named: set[HarnessId] = set()
+        stated = False
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if not line.lstrip().startswith("|"):
+                continue
+            cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+            if len(cells) < 2:
+                continue
+            for index, cell in enumerate(cells):
+                if not any(pattern.search(cell) for pattern in tiers):
+                    continue
+                stated = True
+                elsewhere = " ".join(cells[:index] + cells[index + 1 :])
+                named.update(harness for key, harness in SPELLED.items() if key in elsewhere)
+        if stated and named != set(SUPPORT_TIERS):
+            missing = ", ".join(sorted(set(SUPPORT_TIERS) - named))
+            incomplete.append(f"{path.relative_to(ROOT)}: table omits {missing}")
+    assert not incomplete, "a support-tier table names fewer harnesses than exist:\n" + "\n".join(
+        incomplete
     )

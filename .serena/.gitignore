@@ -9,3 +9,7 @@
 /.flow_post_task_state.json
 /.flow_sync_marker
 /.serena_sync_state.json
+
+# Serena ships this maintenance note itself; it is the tool documenting its own
+# memory conventions, identical in every project, and it reappears on upgrade.
+memories/memory_maintenance.md

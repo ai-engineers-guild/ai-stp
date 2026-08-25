@@ -8,7 +8,7 @@ from typing import Annotated, Final, Literal, Self
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ai_stp_foundation.digests import DIGEST_PATTERN
-from ai_stp_foundation.harnesses import HarnessId
+from ai_stp_foundation.harnesses import HARNESS_ID_ORDER, HarnessId
 from ai_stp_passports.versions import ComponentType
 
 AuthoringLanguage = Literal[
@@ -24,14 +24,12 @@ AUTHORING_LANGUAGES: Final[tuple[AuthoringLanguage, ...]] = (
     "go",
     "dart-flutter",
 )
-AUTHORING_VARIANTS: Final[tuple[AuthoringVariant, ...]] = (
-    "portable",
-    "claude-code",
-    "codex",
-    "pi",
-    "opencode",
-    "grok-build",
-)
+#: Derived from `HARNESS_ID_ORDER`, not listed. The listed version named five
+#: harnesses while `AuthoringVariant` already resolved to seven through
+#: `HarnessId`: the type accepted `cursor` and `antigravity` and this tuple
+#: refused them, so `component scaffold` answered "the scaffold language or
+#: harness variant is unsupported" for two supported harnesses.
+AUTHORING_VARIANTS: Final[tuple[AuthoringVariant, ...]] = ("portable", *HARNESS_ID_ORDER)
 DECLARATIVE_COMPONENT_TYPES: Final[frozenset[ComponentType]] = frozenset(
     {"instruction", "skill", "agent", "setting"}
 )

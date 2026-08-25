@@ -1,6 +1,6 @@
 ---
-description: "Различия native Agent Skill projections пяти харнессов."
-last_verified: "2026-08-03"
+description: "Различия native Agent Skill projections семи харнессов."
+last_verified: "2026-08-25"
 ---
 
 # Проекции по харнессам
@@ -12,6 +12,8 @@ last_verified: "2026-08-03"
 | Pi | Package, resources, Skill и локальные settings target |
 | OpenCode | Native Skill, plugin, agent и command |
 | Grok Build | Native marketplace, plugin и Skill |
+| Cursor | Plugin с манифестом `.cursor-plugin/plugin.json` |
+| Antigravity | Skill и agent в общем доме Gemini, плагин в `antigravity-cli` |
 
 Нативная витрина в этой таблице является формой поставки, а не видом компонента: в таксономии каталога она выражается значением `projection_kind` по `ADR-0015`.
 

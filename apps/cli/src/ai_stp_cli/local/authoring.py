@@ -31,6 +31,14 @@ TYPES: Final[frozenset[str]] = frozenset(
     {"instruction", "skill", "mcp", "hook", "command", "agent", "plugin", "setting"}
 )
 HARNESSES: Final[frozenset[str]] = frozenset(HARNESS_ID_ORDER)
+
+#: Every harness that has no line of its own in the scaffold. Derived from the
+#: enum rather than listed, because the listed version was written when the set
+#: was five and silently stopped covering it: `cursor` and `antigravity` joined
+#: `HarnessId` and rendered with no guidance line at all.
+_PORTABLE_GUIDANCE: Final[str] = ",".join(
+    harness for harness in HARNESS_ID_ORDER if harness not in {"claude-code", "codex"}
+)
 _NAME = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$")
 _OPEN = re.compile(r"^\{\{#harness:([a-z0-9,-]+)\}\}$")
 _CLOSE = "{{/harness}}"
@@ -65,7 +73,7 @@ def scaffold(component_type: str, name: str) -> str:
         "Harness configuration root: `{{config_root}}`.\n\n"
         "{{#harness:claude-code}}\nClaude Code-specific guidance.\n{{/harness}}\n"
         "{{#harness:codex}}\nCodex-specific guidance.\n{{/harness}}\n"
-        "{{#harness:pi,opencode,grok-build}}\nPortable harness guidance.\n{{/harness}}\n\n"
+        f"{{{{#harness:{_PORTABLE_GUIDANCE}}}}}\nPortable harness guidance.\n{{{{/harness}}}}\n\n"
         "## Validation\n\nState the deterministic checks for this component.\n"
     )
 

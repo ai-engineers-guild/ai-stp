@@ -1,6 +1,6 @@
 ---
 description: "Зависимый порядок реализации MVP и межрепозиторных изменений."
-last_verified: "2026-08-13"
+last_verified: "2026-08-25"
 ---
 
 # Порядок реализации
@@ -31,8 +31,8 @@ last_verified: "2026-08-13"
 | 3 | `mvp-full`, discovery, project index/passport, safe-text и symbol adapters | подтверждать реальные tool manifests при выпусках |
 | 4 | локальные components, adoption, подтверждённое passport enrichment/validation, immutable `X.Y`, forks, consent, search и полный локальный first-party corpus | server seed и одинаковая публичная проекция CLI/web для `#162`; cloud drafts/publication относятся к фазе 8 |
 | 5 | eligibility, selection sessions, полный `SetupVersionPassport`, `SetupGraph`, impact/composition reports, evaluation profiles, deterministic `HarnessBundle` и literal golden oracle | повтор полного oracle на точном кандидате выпуска вместе с фазой 7 |
-| 6 | provider protocols v1/v2/v3, conformance kits, release trust, Linux/Bubblewrap boundary, пять immutable signed releases, exact policy pins, key rotation и вредоносный corpus | повтор trust/effect evidence на финальном CLI release candidate |
-| 7 | install/import/status/diff/update/rollback/recovery framework, prepared/composed convergence, offline closure и Linux lifecycle exact releases; real-catalog прогоны `#175`, `#176`, `#294` закрыты | повтор на семи системах сетапов, когда у них появятся релизы `#408` |
+| 6 | provider protocols v1/v2/v3, conformance kits, release trust, Linux/Bubblewrap boundary, семь аттестованных выпусков OpenNetwork и потребительский bind без подписанного манифеста, exact policy pins, key rotation и вредоносный corpus | повтор trust/effect evidence на финальном CLI release candidate |
+| 7 | install/import/status/diff/update/rollback/recovery framework, prepared/composed convergence, offline closure и Linux lifecycle exact releases; real-catalog прогоны `#175`, `#176`, `#294` закрыты | повтор на семи системах сетапов: релизы `0.0.1` и `0.0.2` есть у всех семи, остаток — `#408` |
 | 8 | то же плюс доказательство против развёрнутой среды: `evidence-sync` даёт все пять сценариев, `evidence-publication` — читающую половину и две локальные записи, оба повторяемы | три драйвера, которые мутируют развёрнутую среду `#405` |
 | 9 | landing, catalog, login/account/device surface, own objects, publication, grants, reports и admin projection | — |
 | 10 | то же плюс публикующий workflow с Trusted Publishing, ожидающий настройки на стороне PyPI | настройка PyPI и защищённого окружения `#403`, финальный RC `#408` |
@@ -75,9 +75,12 @@ artifact digest имеют исполняемые проверки. Для те�
 Протокол v1, проверка соответствия, доверие к выпускам Ed25519, доверенный план
 установки с повторной проверкой точного артефакта, долговечная история защиты от
 отката, exact-digest recovery без снижения минимальной последовательности и автомат состояний операции
-реализованы в `ai_stp`. Все пять репозиториев провайдеров выпустили неизменяемые
-артефакты протокола v3 и подписанные манифесты; точные дайджесты Linux и открытый
-ключ автономной подписи закреплены в политике потребителя. ADR-0047 фиксирует network
+реализованы в `ai_stp`. Линия `NDDev-it-com` с Ed25519-манифестами снята: семь
+репозиториев `NDDev-OpenNetwork/*-setup-system` выпускают неизменяемые артефакты
+протокола v3 с build attestation, и потребитель связывает их командой
+`provider fetch` (`signing_key=attested`, пустая подпись). Подписанный путь
+остаётся в контракте, но `releases` в поставляемой политике пуст, а пустой
+`releases` не ставит ничего. ADR-0047 фиксирует network
 boundary и versioned compatibility plan. Отдельные v2 models, закрытая action/phase
 схема, CLI capability report, явный v2 conformance и Linux/Bubblewrap launcher
 реализованы без изменения v1. Точные refs, blocker политики и gap matrix адаптера зафиксированы в

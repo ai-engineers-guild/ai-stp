@@ -31,6 +31,12 @@ REFERENCE_CASES = {
     "hook-go-opencode": ("hook", "go", "opencode"),
     "command-rust-portable": ("command", "rust", "portable"),
     "plugin-dart-flutter-grok-build": ("plugin", "dart-flutter", "grok-build"),
+    #: `ADR-0120` widened the set to seven and this table stayed at five, so the
+    #: two newest harnesses had no reviewed projection at all. `antigravity`
+    #: takes the `hook` kind on purpose: it declares a hook layout, and no other
+    #: reviewed case pairs that kind with a harness whose home is not its own.
+    "skill-none-cursor": ("skill", "none", "cursor"),
+    "hook-python-antigravity": ("hook", "python", "antigravity"),
 }
 
 
@@ -63,11 +69,21 @@ def test_scaffold_renders_one_deterministic_harness_projection(harness_id: str) 
     assert "skills/review-kit" in first.content
     assert harness_id in first.content
     assert "{{" not in first.content
-    assert ("Claude Code-specific guidance." in first.content) is (harness_id == "claude-code")
-    assert ("Codex-specific guidance." in first.content) is (harness_id == "codex")
-    assert ("Portable harness guidance." in first.content) is (
-        harness_id in {"pi", "opencode", "grok-build"}
-    )
+    #: The third set is derived, not listed. It used to be the literal
+    #: `{"pi", "opencode", "grok-build"}`, which was the whole beta-and-other
+    #: set when there were five harnesses. `cursor` and `antigravity` joined
+    #: the enum and fell out of every branch: the template rendered for them
+    #: with no guidance line at all, and this assertion stayed green because it
+    #: only ever asked about three names it already knew.
+    guidance = {
+        "Claude Code-specific guidance.": {"claude-code"},
+        "Codex-specific guidance.": {"codex"},
+        "Portable harness guidance.": set(authoring.HARNESSES) - {"claude-code", "codex"},
+    }
+    for line, harnesses in guidance.items():
+        assert (line in first.content) is (harness_id in harnesses), (
+            f"{harness_id} renders the wrong guidance for {line!r}"
+        )
 
 
 def test_fenced_tags_are_literal_and_do_not_open_conditionals() -> None:
@@ -333,3 +349,32 @@ def test_render_command_returns_content_and_stable_digests(tmp_path: Path) -> No
     assert first.content == "review-kit at skills/review-kit for codex\n"
     assert first.placeholders == ["component_name", "component_root", "harness_id"]
     assert first.source_digest != first.rendered_digest
+
+
+@pytest.mark.parametrize("variant", ("portable", *sorted(authoring.HARNESSES)))
+def test_every_offered_harness_variant_can_actually_be_scaffolded(
+    variant: str, tmp_path: Path
+) -> None:
+    """The registry offered seven variants and the contract accepted five.
+
+    `registry.py` declares `choices=("portable", *HARNESS_ID_ORDER)`, so machine
+    help told an agent that `cursor` and `antigravity` were valid. The runtime
+    tuple `AUTHORING_VARIANTS` was a hand-written list of five, so the call came
+    back `the scaffold language or harness variant is unsupported`. Both halves
+    were internally consistent; the seam between them was not, which is where
+    this kind of defect lives.
+
+    Behavioural on purpose: asserting that the tuple equals the enum would pass
+    the moment someone rebuilds the tuple by hand from the same enum, and say
+    nothing about whether the command works.
+    """
+    plan, files = authoring.scaffold_plan(
+        component_type="skill",
+        name="reference-component",
+        language="none",
+        harness_variant=variant,
+        output=tmp_path / "reference-component",
+    )
+
+    assert files, f"{variant} produced no scaffold bytes"
+    assert any(item.path.endswith("authoring-template.md") for item in plan.files)

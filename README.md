@@ -26,7 +26,7 @@
 | Статус | Харнессы |
 |---|---|
 | Основная поддержка | Claude Code, Codex, Grok Build |
-| Бета-поддержка | Pi, OpenCode |
+| Бета-поддержка | Pi, OpenCode, Cursor, Antigravity |
 | Ограниченный режим | `undefined` для неизвестного харнесса |
 
 Основной путь:

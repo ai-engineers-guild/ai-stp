@@ -14,7 +14,7 @@ last_verified: "2026-08-03"
 | [federated-source-threat-model.md](federated-source-threat-model.md) | Модель угроз федеративных local ports и metadata adapters. | 2026-08-16 |
 | [first-party-corpus.md](first-party-corpus.md) | Проверяемая инвентаризация реальных байтов и паспортов первопартийного корпуса запуска. | 2026-08-25 |
 | [git-workflow.md](git-workflow.md) | Правила веток, коммитов, PR и межрепозиторных изменений. | 2026-08-12 |
-| [implementation-roadmap.md](implementation-roadmap.md) | Зависимый порядок реализации MVP и межрепозиторных изменений. | 2026-08-13 |
+| [implementation-roadmap.md](implementation-roadmap.md) | Зависимый порядок реализации MVP и межрепозиторных изменений. | 2026-08-25 |
 | [platform-artifact-bind-312.md](platform-artifact-bind-312.md) | План реализации plan-scoped upload байт публикации. | 2026-08-16 |
 | [platform-attestation-verify-300.md](platform-attestation-verify-300.md) | План реализации проверки Ed25519 авторского подтверждения. | 2026-08-16 |
 | [platform-rate-limiter-345.md](platform-rate-limiter-345.md) | План реализации вытеснения ключей HTTP rate limiter. | 2026-08-16 |

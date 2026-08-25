@@ -17,6 +17,8 @@ setup for one target, and only that harness's provider writes the final state.
 | Grok Build | primary support | passports, compatibility, setup assembly, provider plan | the third primary MVP target |
 | Pi | beta | catalog and compatibility, limited provider path | behaviour may still be refined as integration proceeds |
 | OpenCode | beta | catalog and compatibility, adapter/projection checks | the format is open, but not all of the UX is settled |
+| Cursor | beta | catalog and compatibility, native plugin pack and cli-config | a plugin pack is recognised by its `.cursor-plugin` manifest |
+| Antigravity | beta | catalog and compatibility, provider plan | its configuration lives inside `~/.gemini` rather than a home of its own |
 | `undefined` | limited mode | reading, import, local checks | automatic installation is not considered safe |
 
 ## What "supported" means
