@@ -1,6 +1,6 @@
 ---
 description: "Команды, граница исполнения и соответствие состояний публичного провайдера."
-last_verified: "2026-08-13"
+last_verified: "2026-08-25"
 ---
 
 # Протокол провайдера
@@ -168,11 +168,10 @@ capabilities и имеет закрытый набор команд и operation
 
 `provider-kit/v3/provider-info.schema.json` объявляет
 `$id: https://nddev.asia/schemas/provider-protocol/v3/provider-info.json`. По
-JSON Schema 2020-12 это **идентификатор**, задающий базовый URI, а не адрес
-загрузки: реализация не обязана его запрашивать, и `ai_stp` его не запрашивает.
-Комплект распространяется файлами, и точную ревизию называет
-`KIT-IDENTITY.json`, а не сетевой ответ. Публикация этого URL — отдельное
-решение; пока оно не принято, отсутствие ответа по нему контракт не нарушает.
+JSON Schema 2020-12 это **идентификатор**, задающий базовый URI. Те же байты,
+что в комплекте, отдаются по этому адресу: внешний валидатор, который за ним
+пойдёт, получает схему, а не 404. Реализации по-прежнему сверяют комплект
+локально по `SHA256SUMS`; сетевой ответ не заменяет `KIT-IDENTITY.json`.
 
 Ниже — только то, чего машинный файл не выражает: смысл делений.
 
@@ -188,13 +187,39 @@ Claude Code корректно соответствует core без software/l
 могут объявить software install/update и launch без software remove. Consumer не
 вызывает необъявленную operation. Unknown operation/component/native surface,
 формат, protocol, projection profile, OS или architecture отклоняются со стабильным
-reason code до plan и изменения цели.
+reason code до plan и изменения цели. Профиль разрешений, которого нет в закрытом
+`permission_profiles`, это не `unsupported_operation` и не
+`projection_profile_mismatch`.
 
 `provider-info` возвращает digest build manifest и content-addressed
 projection profile: component/projection kinds, native identifier namespaces,
 bundle formats, limits, permission profiles, OS и architectures. Compiler строит
 projection только для exact профиля, а provider независимо проверяет bundle.
 Permission profile является отдельным plan input и не входит в setup/component digest.
+
+Необязательный жизненный цикл программы (`software_install`, `software_update`,
+`software_remove`) не добавляет команд: те же `plan-operation` и
+`apply-operation`, те же журнал, backup и plan-digest. Провайдер не открывает
+сокет. `plan` отвечает точной идентичностью артефакта офлайн; кто держит сеть,
+забирает эти байты; `apply` сверяет digest и длину с планом и распаковывает
+офлайн. Провайдер, который не объявил эти operations, их не планирует.
+
+`--target` — каталог конфигурации. `--prefix` — каталог программы. Это разные
+пути с разным временем жизни, оба абсолютные. `--software-version` опущен —
+закреплённая версия; передан — ровно эта версия, иначе отказ. Незакреплённая
+платформа отказывается кодом `unsupported_platform`.
+
+План несёт массив `software_artifacts`. Один элемент — один файл; несколько —
+несколько, в том же порядке, в каком `apply` получит повторённый флаг
+`--software-artifact`. Поля элемента: `platform`, `url`, `sha256`,
+`byte_length`, `entry_point`. Каталог на apply не скрывает, какой файл какой
+записи плана соответствует. `software_remove` — plan и apply без download и
+без `--software-artifact`.
+
+`apply-operation` остаётся в `forbidden_in_safe_conformance`. Чистота `plan`
+для объявленного жизненного цикла программы проверяется: провайдер, который объявил
+операцию и не умеет назвать артефакт офлайн, как раз тот отказ, который этот
+контракт должен ловить.
 
 `plan-operation` всегда чистый. Он связывает стабильный operation ID, operation, canonical target и snapshot,
 сборку provider, проверенный consumer хэш выпуска и protocol, точные идентичности optional bundle и optional `BackupRef`,

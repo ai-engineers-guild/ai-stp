@@ -1649,7 +1649,9 @@ def _trusted_manifest(
         artifact_digest=manifest.artifact_digest,
     )
     policy = release.pinned_policy()
-    attested = bool(parameters.get("provider-build-attestation", False))
+    attested = bool(parameters.get("provider-build-attestation", False)) or (
+        manifest.repository in policy.build_attestations
+    )
     if attested and recovery_requested:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",

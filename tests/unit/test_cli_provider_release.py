@@ -331,6 +331,33 @@ def test_the_shipped_policy_names_the_publisher_and_repositories() -> None:
     assert "github.com/NDDev-OpenNetwork/claude-setup-system" in policy.build_attestations
 
 
+def test_the_shipped_policy_marks_opennetwork_attested_builds_verified() -> None:
+    """The overlay is the decision; Ed25519 `releases` stay empty."""
+    policy = release.pinned_policy()
+    opennetwork = {
+        repository: rule
+        for repository, rule in policy.build_attestations.items()
+        if repository.startswith("github.com/NDDev-OpenNetwork/")
+    }
+    assert opennetwork
+    assert all(rule.verified_publisher for rule in opennetwork.values())
+    digest = "sha256:" + "e" * 64
+    repository = next(iter(opennetwork))
+    verdict = release.verify_attested(
+        _manifest(
+            repository=repository,
+            artifact_digest=digest,
+            signature="",
+        ),
+        policy,
+        known_sequence=0,
+        observed_digest=digest,
+        observed_size=100,
+        platform="linux/x86_64",
+    )
+    assert verdict.accepted
+
+
 def test_the_shipped_policy_pins_one_exact_release_for_every_allowed_repository() -> None:
     """Shape, not a second copy of the digests.
 

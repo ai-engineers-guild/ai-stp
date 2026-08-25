@@ -35,6 +35,7 @@ from ai_stp_cli.local import (
 )
 from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_cli.provider import (
+    build_attestation,
     conformance,
     invocation_v2,
     network_launcher,
@@ -1521,6 +1522,75 @@ def test_signed_exact_provider_release_advances_floor_only_after_verified_apply(
         sequence=7,
         artifact_digest=release.parse_manifest(manifest.read_text("utf-8")).artifact_digest,
     )
+
+
+def test_opennetwork_manifest_is_verified_publisher_without_an_attestation_flag(
+    registry: sqlite3.Connection,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A pinned OpenNetwork repository takes the attested path by itself."""
+    proposal_id = _confirmed(registry, tmp_path, "8")
+    executable = _provider(tmp_path, "opennetwork-provider")
+    policy = release.pinned_policy()
+    repository = next(
+        name
+        for name in policy.build_attestations
+        if name.startswith("github.com/NDDev-OpenNetwork/")
+    )
+    digest, size = release.artifact_identity(Path(executable))
+    os_name, architecture = install._release_platform().split("/", 1)  # pyright: ignore[reportPrivateUsage]
+    unsigned = release.ReleaseManifest(
+        provider_id="claude-code",
+        provider_version="1.0.0",
+        protocol_version=1,
+        repository=repository,
+        commit="b" * 40,
+        license="AGPL-3.0-or-later",
+        artifact_url="https://github.com/NDDev-OpenNetwork/claude-setup-system/releases/download/0.0.1/provider",
+        artifact_size=size,
+        artifact_digest=digest,
+        entry_point=Path(executable).name,
+        supported_os=frozenset({"linux", "macos", "windows", os_name}),
+        supported_arch=frozenset({"x86_64", "arm64", architecture}),
+        sequence=1,
+        policy_id=policy.policy_id,
+        publisher="NDDev-OpenNetwork",
+        signing_key="attested",
+        signature_subject="ai-stp:provider-release-manifest:v1",
+        signature="",
+    )
+    manifest = tmp_path / "opennetwork-release.json"
+    manifest.write_text(release.serialize_manifest(unsigned), encoding="utf-8")
+
+    def fake_verify(
+        artifact: Path,
+        held: build_attestation.Policy,
+        *,
+        bundle: Path | None = None,
+    ) -> build_attestation.Evidence:
+        assert artifact == Path(executable)
+        assert held.verified_publisher is True
+        assert held.repository == repository.removeprefix("github.com/")
+        assert held.source_commit == unsigned.commit
+        assert bundle is None
+        return build_attestation.Evidence(
+            trust_level="verified_publisher",
+            digest="sha256:" + "c" * 64,
+            document="[]",
+        )
+
+    monkeypatch.setattr(build_attestation, "verify", fake_verify)
+
+    planned = install.plan(
+        {
+            "proposal": proposal_id,
+            "provider": executable,
+            "provider-manifest": str(manifest),
+        }
+    ).payload
+    assert planned.provider_release_trusted is True
+    assert planned.provider_release_trust == "verified_publisher"
 
 
 def test_changed_provider_bytes_are_refused_before_approved_apply(

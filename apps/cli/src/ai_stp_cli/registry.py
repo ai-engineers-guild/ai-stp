@@ -1564,14 +1564,16 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "provider-manifest",
                 "string",
-                "Signed manifest whose exact artifact is the provider executable. "
-                "Required by protocol v3 unless unverified-provider is given.",
+                "Release manifest whose exact artifact is the provider executable. "
+                "Required by protocol v3 unless unverified-provider is given. "
+                "A repository pinned for build attestation is verified that way.",
             ),
             option(
                 "provider-build-attestation",
                 "boolean",
                 "Verify exact provider bytes through the repository, source commit and "
-                "signer workflow pinned by the local policy.",
+                "signer workflow pinned by the local policy. Implied when the "
+                "manifest repository already has a pinned build-attestation rule.",
             ),
             option(
                 "provider-attestation-bundle",
@@ -1581,10 +1583,9 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "unverified-provider",
                 "boolean",
-                "Install from a provider executable no signed release covers, "
-                "such as one you built yourself or an open-source provider "
-                "published without a privileged publisher. The pinned trust "
-                "policy checks nothing here, and the plan records "
+                "Install from a provider executable no signed or attested "
+                "release covers, such as one you built yourself. The pinned "
+                "trust policy checks nothing here, and the plan records "
                 "provider_release_trusted false.",
             ),
             option(

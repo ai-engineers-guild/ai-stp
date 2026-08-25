@@ -71,6 +71,10 @@
       "expected_reason": "projection_profile_mismatch"
     },
     {
+      "case": "unsupported_permission_profile",
+      "expected_reason": "unsupported_permission_profile"
+    },
+    {
       "case": "unsupported_platform",
       "expected_reason": "unsupported_platform"
     },

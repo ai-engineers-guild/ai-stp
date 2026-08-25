@@ -331,6 +331,7 @@ def test_the_native_surface_matches_provider_targets() -> None:
     # and not a directory inside it. This line asserted the prefix while the
     # docstring above stated the rule the prefix breaks.
     assert composition.native_surface("instruction", "pi") == "AGENTS.md"
+    assert composition.native_surface("plugin", "pi") == "extensions"
     assert composition.native_surface("plugin", "grok-build") == "plugins"
     assert (
         composition.convert(

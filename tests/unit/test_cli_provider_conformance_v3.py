@@ -123,6 +123,19 @@ def _conforming(target: Path) -> tuple[conformance.Invoker, list[str]]:
                     "rejected": True,
                     "reason": protocol_v3.UnsupportedReason.OPERATION.value,
                 }
+            profile = supplied.get("--permission-profile")
+            raw_profiles = info["permission_profiles"]
+            declared_profiles = (
+                {item for item in raw_profiles if isinstance(item, str)}
+                if isinstance(raw_profiles, list)
+                else set[str]()
+            )
+            if profile is not None and profile not in declared_profiles:
+                return {
+                    **bound,
+                    "rejected": True,
+                    "reason": protocol_v3.UnsupportedReason.PERMISSION_PROFILE.value,
+                }
             artifact: dict[str, JsonValue] = {
                 "format": "ai-stp-provider-plan/3",
                 "protocol_version": protocol_v3.VERSION,

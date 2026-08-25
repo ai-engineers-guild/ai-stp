@@ -22,6 +22,9 @@
 	handle /openapi.json {
 		reverse_proxy api:8000
 	}
+	handle /schemas/provider-protocol/* {
+		reverse_proxy api:8000
+	}
 	handle {
 		reverse_proxy web:3000
 	}

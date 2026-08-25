@@ -40,8 +40,8 @@ last_verified: "2026-08-03"
 | [operation.md](operation.md) | Состояния, план, журнал и восстановление изменяющей операции. | 2026-08-09 |
 | [passport-envelope.md](passport-envelope.md) | Канонический конверт паспорта и происхождение фактов. | 2026-08-04 |
 | [project-discovery.md](project-discovery.md) | Машинная форма полного discovery проектов в явно названной области. | 2026-08-09 |
-| [provider-protocol.md](provider-protocol.md) | Команды, граница исполнения и соответствие состояний публичного провайдера. | 2026-08-13 |
-| [provider-release.md](provider-release.md) | Манифест, доверие, проверка и защита от отката выпуска провайдера. | 2026-08-15 |
+| [provider-protocol.md](provider-protocol.md) | Команды, граница исполнения и соответствие состояний публичного провайдера. | 2026-08-25 |
+| [provider-release.md](provider-release.md) | Манифест, доверие, проверка и защита от отката выпуска провайдера. | 2026-08-25 |
 | [public-profile.md](public-profile.md) | Поля публичного профиля, ревизии, avatar и отделение от паспорта разработчика. | 2026-08-08 |
 | [report-case.md](report-case.md) | Закрытый случай жалобы: разрешённый состав, предпросмотр, состояния и аудируемые действия модератора. | 2026-08-13 |
 | [selection-impact.md](selection-impact.md) | Машинный контракт локального бюджета контекста, capability delta и blast radius. | 2026-08-15 |

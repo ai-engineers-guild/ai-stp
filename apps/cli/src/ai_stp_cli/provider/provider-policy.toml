@@ -6,6 +6,10 @@
 #
 # Signature verification remains supported by the contract, but the displaced
 # NDDev-it-com provider line is no longer trusted by the shipped policy.
+#
+# NDDev-OpenNetwork setup-systems are verified publishers of their attested
+# builds. That overlay does not pin bytes into `releases` and does not restore
+# an Ed25519 key. Empty `releases` still installs nothing on the signed path.
 
 schema_version = 2
 policy_id = "nddev/provider/1"
@@ -31,34 +35,34 @@ releases = []
 [[build_attestations]]
 repository = "github.com/NDDev-OpenNetwork/claude-setup-system"
 signer_workflow = "NDDev-OpenNetwork/claude-setup-system/.github/workflows/release.yml"
-verified_publisher = false
+verified_publisher = true
 
 [[build_attestations]]
 repository = "github.com/NDDev-OpenNetwork/codex-setup-system"
 signer_workflow = "NDDev-OpenNetwork/codex-setup-system/.github/workflows/release.yml"
-verified_publisher = false
+verified_publisher = true
 
 [[build_attestations]]
 repository = "github.com/NDDev-OpenNetwork/cursor-setup-system"
 signer_workflow = "NDDev-OpenNetwork/cursor-setup-system/.github/workflows/release.yml"
-verified_publisher = false
+verified_publisher = true
 
 [[build_attestations]]
 repository = "github.com/NDDev-OpenNetwork/grok-setup-system"
 signer_workflow = "NDDev-OpenNetwork/grok-setup-system/.github/workflows/release.yml"
-verified_publisher = false
+verified_publisher = true
 
 [[build_attestations]]
 repository = "github.com/NDDev-OpenNetwork/pi-setup-system"
 signer_workflow = "NDDev-OpenNetwork/pi-setup-system/.github/workflows/release.yml"
-verified_publisher = false
+verified_publisher = true
 
 [[build_attestations]]
 repository = "github.com/NDDev-OpenNetwork/opencode-setup-system"
 signer_workflow = "NDDev-OpenNetwork/opencode-setup-system/.github/workflows/release.yml"
-verified_publisher = false
+verified_publisher = true
 
 [[build_attestations]]
 repository = "github.com/NDDev-OpenNetwork/antigravity-setup-system"
 signer_workflow = "NDDev-OpenNetwork/antigravity-setup-system/.github/workflows/release.yml"
-verified_publisher = false
+verified_publisher = true

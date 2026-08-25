@@ -105,3 +105,4 @@ def test_the_index_surface_still_publishes_links() -> None:
     assert len(advertised["llms.txt/route.ts"]) >= 5
     assert any(pattern.match("/en/catalog") for pattern in _next_routes())
     assert "/openapi.json" in _edge_prefixes()
+    assert any("/schemas/provider-protocol" in prefix for prefix in _edge_prefixes())

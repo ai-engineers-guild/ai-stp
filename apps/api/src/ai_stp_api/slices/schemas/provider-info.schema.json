@@ -1,0 +1,185 @@
+{
+  "$id": "https://nddev.asia/schemas/provider-protocol/v3/provider-info.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "harness_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "permission_profiles": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
+    "projection_profile": {
+      "additionalProperties": false,
+      "properties": {
+        "bundle_formats": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "component_kinds": {
+          "items": {
+            "enum": [
+              "instruction",
+              "skill",
+              "mcp",
+              "hook",
+              "command",
+              "agent",
+              "plugin",
+              "setting"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "max_bytes": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "max_files": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "native_namespaces": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "profile_id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "projection_kinds": {
+          "items": {
+            "enum": [
+              "marketplace",
+              "plugin",
+              "native_files",
+              "package"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "profile_id",
+        "digest",
+        "component_kinds",
+        "projection_kinds",
+        "native_namespaces",
+        "bundle_formats",
+        "max_files",
+        "max_bytes"
+      ],
+      "type": "object"
+    },
+    "protocol_version": {
+      "const": 3
+    },
+    "provider_build_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "provider_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "provider_version": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "supported_arch": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "supported_commands": {
+      "items": {
+        "enum": [
+          "provider-info",
+          "validate-bundle",
+          "plan-operation",
+          "apply-operation",
+          "recover-operation",
+          "status",
+          "launch"
+        ],
+        "type": "string"
+      },
+      "maxItems": 7,
+      "minItems": 6,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "supported_operations": {
+      "items": {
+        "enum": [
+          "install",
+          "replace",
+          "backup",
+          "restore",
+          "remove",
+          "software_install",
+          "software_update",
+          "software_remove",
+          "launch"
+        ],
+        "type": "string"
+      },
+      "minItems": 5,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "supported_os": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    }
+  },
+  "required": [
+    "protocol_version",
+    "provider_id",
+    "harness_id",
+    "provider_version",
+    "provider_build_digest",
+    "supported_commands",
+    "supported_operations",
+    "supported_os",
+    "supported_arch",
+    "permission_profiles",
+    "projection_profile"
+  ],
+  "type": "object"
+}

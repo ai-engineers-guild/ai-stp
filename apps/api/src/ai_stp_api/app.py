@@ -32,6 +32,7 @@ from ai_stp_api.slices.owner.router import router as owner_router
 from ai_stp_api.slices.profile.router import router as profile_router
 from ai_stp_api.slices.publish.router import router as publish_router
 from ai_stp_api.slices.reports.router import router as reports_router
+from ai_stp_api.slices.schemas.router import router as schemas_router
 from ai_stp_api.slices.selection.router import router as selection_router
 from ai_stp_api.slices.sync.router import router as sync_router
 from ai_stp_api.slices.system.router import router as system_router
@@ -121,6 +122,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(owner_router, prefix=_API_PREFIX)
     app.include_router(profile_router, prefix=_API_PREFIX)
     app.include_router(documents_router, prefix=_API_PREFIX)
+    app.include_router(schemas_router)
     configure_observability(
         app,
         service_name=_SERVICE_NAME,

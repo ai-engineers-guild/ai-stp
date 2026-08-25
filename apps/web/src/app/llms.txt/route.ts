@@ -14,6 +14,7 @@ export function GET() {
 - [Catalog](${absolute("/en/catalog")}): public components and setups
 - [Human documentation](${docsHref}): product, CLI, catalog, trust and troubleshooting guides
 - [OpenAPI](${absolute("/openapi.json")}): HTTP contract served by the deployed API
+- [Provider-info schema](${absolute("/schemas/provider-protocol/v3/provider-info.json")}): JSON Schema for protocol v3 provider-info
 - [Agent instructions](${absolute("/agents.md")}): safe machine onboarding
 - [Extended context](${absolute("/llms-full.txt")}): terminology, trust model and supported harnesses
 ${isFeatureEnabled("content_hub") ? `- [Content](${absolute("/en/content")}): articles, product news, changelog and release notes\n` : ""}

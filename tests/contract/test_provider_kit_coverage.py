@@ -26,13 +26,9 @@ from ai_stp_cli.provider import bundle_corpus, conformance_v3
 #: failure it exists to prevent.
 UNEXERCISED_REFUSALS: dict[str, str] = {
     # These three describe a disagreement between what the caller expects and
-    # what the provider is, and v3 argv carries no platform, architecture or
-    # projection profile from the caller: `plan-operation` takes the operation,
-    # the release digest, an operation id, an expiry and the bundle binding, and
-    # nothing else. There is nothing for the provider to disagree with, so the
-    # pure surface cannot provoke them at all — a stronger statement than "no
-    # surface yet", and one that makes driving them a protocol question rather
-    # than a missing driver.
+    # what the provider is. v3 argv still carries no platform, architecture or
+    # projection profile from the caller. Permission profile is on the wire and
+    # is driven; these three are not.
     "projection_profile_mismatch": "the caller states no expected profile in v3 argv",
     "unsupported_platform": "the caller states no expected platform in v3 argv",
     "unsupported_architecture": "the caller states no expected architecture in v3 argv",

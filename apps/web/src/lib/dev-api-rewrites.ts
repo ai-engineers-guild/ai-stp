@@ -28,6 +28,10 @@ export function buildDevApiRewrites(apiBaseUrl: string): RewriteRule[] {
     { source: "/redoc", destination: `${base}/redoc` },
     { source: "/redoc/:path*", destination: `${base}/redoc/:path*` },
     { source: "/openapi.json", destination: `${base}/openapi.json` },
+    {
+      source: "/schemas/provider-protocol/:path*",
+      destination: `${base}/schemas/provider-protocol/:path*`,
+    },
   ];
 }
 

@@ -70,6 +70,14 @@ BEYOND_THE_CONTRACT: Final[dict[str, str]] = {
     "/v1/publishers/{account_id}": "public publisher profile read",
 }
 
+#: JSON Schema `$id` URLs. They are identifiers, not `/v1` resources. Serving
+#: them under `/v1` would be a different URL than the published `$id`.
+PUBLISHED_SCHEMA_IDS: Final[dict[str, str]] = {
+    "/schemas/provider-protocol/v3/provider-info.json": (
+        "provider-kit v3 provider-info JSON Schema $id"
+    ),
+}
+
 
 def _served_document(tmp_path: Path) -> dict[str, Any]:
     settings = Settings(
@@ -105,7 +113,7 @@ def test_every_path_served_beyond_the_contract_is_named_with_a_reason(tmp_path: 
     declared = set(cast(dict[str, Any], build_document()["paths"]))
 
     undeclared = served - declared
-    unnamed = sorted(undeclared - set(BEYOND_THE_CONTRACT))
+    unnamed = sorted(undeclared - set(BEYOND_THE_CONTRACT) - set(PUBLISHED_SCHEMA_IDS))
     assert unnamed == [], (
         "these paths are served but neither in the contract nor named here; "
         "add them to the contract, or record why they stay outside it"
@@ -114,7 +122,11 @@ def test_every_path_served_beyond_the_contract_is_named_with_a_reason(tmp_path: 
     stale = sorted(set(BEYOND_THE_CONTRACT) - undeclared)
     assert stale == [], "named as outside the contract, but no longer served that way"
 
+    stale_schemas = sorted(set(PUBLISHED_SCHEMA_IDS) - served)
+    assert stale_schemas == [], "named as a published schema $id, but no longer served"
+
     assert all(reason.strip() for reason in BEYOND_THE_CONTRACT.values())
+    assert all(reason.strip() for reason in PUBLISHED_SCHEMA_IDS.values())
 
 
 def test_no_two_operations_share_an_identifier(tmp_path: Path) -> None:
@@ -147,4 +159,12 @@ def test_a_path_outside_the_contract_still_lives_under_the_versioned_prefix(path
     that skipped the prefix would be unversioned without anybody deciding it.
     """
     assert path.startswith("/v1/")
+    assert re.fullmatch(r"[a-z0-9/{}_.-]+", path), path
+
+
+@pytest.mark.parametrize("path", sorted(PUBLISHED_SCHEMA_IDS))
+def test_a_published_schema_id_is_not_a_versioned_api_resource(path: str) -> None:
+    """The `$id` is the URL. Relocating it under `/v1` would be a different identifier."""
+    assert path.startswith("/schemas/")
+    assert not path.startswith("/v1/")
     assert re.fullmatch(r"[a-z0-9/{}_.-]+", path), path

@@ -39,7 +39,7 @@
   ],
   "decision": "docs/adr/ADR-0061-capability-negotiated-provider-protocol-v3.md",
   "generated_from": "apps/cli/src/ai_stp_cli/provider/protocol_v3.py",
-  "kit_version": "0.2.0",
+  "kit_version": "0.2.1",
   "operation_network": {
     "backup": [
       {
@@ -194,6 +194,7 @@
     "unsupported_bundle_format",
     "unsupported_protocol_version",
     "projection_profile_mismatch",
+    "unsupported_permission_profile",
     "unsupported_platform",
     "unsupported_architecture"
   ]

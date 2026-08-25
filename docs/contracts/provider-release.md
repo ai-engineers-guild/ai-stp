@@ -1,6 +1,6 @@
 ---
 description: "Манифест, доверие, проверка и защита от отката выпуска провайдера."
-last_verified: "2026-08-15"
+last_verified: "2026-08-25"
 ---
 
 # Выпуск провайдера
@@ -28,6 +28,14 @@ Machine output сообщает `provider_release_trust` одним из чет�
 - `unverified` — ни один доверенный путь не завершён.
 
 Удалённый badge, имя издателя и управляемые workflow поля не повышают уровень без криптографической проверки exact bytes. Совместимое `provider_release_trusted` равно `provider_release_trust != unverified`.
+
+Поставляемая политика помечает правила `build_attestations` для
+`NDDev-OpenNetwork/*-setup-system` как `verified_publisher`. После успешной
+проверки GitHub attestation уровень становится `verified_publisher`, а не
+`build_attested`. Манифест, чей `repository` входит в эти правила, проверяется
+attestation-путём; `provider-build-attestation` остаётся явной формой того же
+выбора. Пустой перечень `releases` по-прежнему ничего не устанавливает по
+Ed25519-пути: байты OpenNetwork туда не заносятся.
 
 ## Политика доверия
 
@@ -76,7 +84,8 @@ JSON манифеста является закрытым: корень обяз
 
 ## Провайдер без подписанного выпуска
 
-Протокол v3 устанавливается из подписанного выпуска. `install plan` с
+Протокол v3 устанавливается из выпуска с манифестом: подписанного Ed25519 либо
+attested для репозитория из `build_attestations`. `install plan` с
 `protocol-version = 3` без `provider-manifest` отклоняется, если вызывающий не
 указал `unverified-provider` явно.
 

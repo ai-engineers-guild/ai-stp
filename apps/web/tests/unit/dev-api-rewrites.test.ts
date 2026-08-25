@@ -23,6 +23,10 @@ describe("dev API rewrites (same-origin hop without Caddy)", () => {
       { source: "/redoc", destination: "http://api:8000/redoc" },
       { source: "/redoc/:path*", destination: "http://api:8000/redoc/:path*" },
       { source: "/openapi.json", destination: "http://api:8000/openapi.json" },
+      {
+        source: "/schemas/provider-protocol/:path*",
+        destination: "http://api:8000/schemas/provider-protocol/:path*",
+      },
     ]);
   });
 

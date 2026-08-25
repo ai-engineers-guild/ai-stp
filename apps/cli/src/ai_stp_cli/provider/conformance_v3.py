@@ -161,6 +161,7 @@ def run(
                 )
             )
         cases.append(_undeclared_operation(invoke, capabilities, arguments))
+        cases.append(_undeclared_permission_profile(invoke, capabilities, arguments))
         repeated_valid = _object(invoke("validate-bundle", corpus.valid.common_arguments()))
         cases.append(
             conformance.Case(
@@ -182,7 +183,10 @@ def run(
 #: corpus drives. Named here so the coverage guard reads one source instead of
 #: keeping a second list that agrees until somebody adds a case.
 DRIVEN_CAPABILITY_REJECTIONS: Final[frozenset[str]] = frozenset(
-    {protocol_v3.UnsupportedReason.OPERATION.value}
+    {
+        protocol_v3.UnsupportedReason.OPERATION.value,
+        protocol_v3.UnsupportedReason.PERMISSION_PROFILE.value,
+    }
 )
 
 
@@ -230,12 +234,8 @@ def _undeclared_operation(
 ) -> conformance.Case:
     """Ask for an operation the provider never declared and require the refusal.
 
-    This is the only capability rejection the pure surface can drive. The others
-    -- `projection_profile_mismatch`, `unsupported_platform` and
-    `unsupported_architecture` -- describe a disagreement between what the
-    caller expects and what the provider is, and v3 argv carries no platform,
-    architecture or projection profile from the caller. There is nothing to
-    disagree with, so nothing here can provoke them.
+    Platform, architecture and projection-profile disagreements still cannot be
+    driven here: v3 argv does not carry those expectations from the caller.
     """
     undeclared = sorted(
         operation.value
@@ -260,6 +260,42 @@ def _undeclared_operation(
         f"refuses {asked!r} with {reason!r}"
         if refused
         else f"asked for undeclared {asked!r} and received {answer.get('reason', answer)!r}",
+    )
+
+
+def _undeclared_permission_profile(
+    invoke: conformance.Invoker,
+    capabilities: protocol_v3.ProviderCapabilities,
+    arguments: tuple[str, ...],
+) -> conformance.Case:
+    """Ask for a permission profile the provider never declared.
+
+    `--permission-profile` is already on the wire. Naming a profile outside the
+    closed `permission_profiles` list is not `unsupported_operation` — the
+    operation is supported — and it is not a projection-profile mismatch.
+    """
+    asked = "ai-stp-conformance-unknown-profile"
+    if asked in capabilities.permission_profiles:
+        return conformance.Case(
+            "refuses_undeclared_permission_profile",
+            True,
+            "provider already declares the conformance sentinel profile",
+        )
+    answer = _object(
+        invoke("plan-operation", (*arguments, "--permission-profile", asked)),
+    )
+    reason = answer.get("reason")
+    refused = (
+        answer.get("rejected") is True
+        and reason == protocol_v3.UnsupportedReason.PERMISSION_PROFILE.value
+    )
+    return conformance.Case(
+        "refuses_undeclared_permission_profile",
+        refused,
+        f"refuses {asked!r} with {reason!r}"
+        if refused
+        else f"asked for undeclared profile {asked!r} and received "
+        f"{answer.get('reason', answer)!r}",
     )
 
 

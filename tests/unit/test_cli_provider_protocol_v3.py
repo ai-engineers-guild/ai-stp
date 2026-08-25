@@ -208,6 +208,24 @@ def test_software_download_does_not_widen_apply() -> None:
     )
 
 
+def test_software_lifecycle_argv_is_in_the_provider_contract() -> None:
+    """The flag names belong to the contract, not to a provider inventing them.
+
+    A second copy in protocol_v3.py would be a second owner. The kit already
+    names the operations; this is the argv the kit cannot express.
+    """
+    text = CONTRACT.read_text(encoding="utf-8")
+    for token in (
+        "--prefix",
+        "--software-version",
+        "--software-artifact",
+        "software_artifacts",
+        "byte_length",
+        "entry_point",
+    ):
+        assert token in text, token
+
+
 def test_provider_state_provenance_is_complete_and_non_secret() -> None:
     required = set(protocol_v3.PROVENANCE_FIELDS)
     assert {

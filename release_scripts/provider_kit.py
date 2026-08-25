@@ -18,7 +18,12 @@ KIT_IDENTITY_SCHEMA: Final[str] = "ai-stp-provider-kit-identity/1"
 #: `0.1.0`, and the second added `recover-operation` to the command sets, two
 #: provenance fields, and new bounds in the wire schema. A provider claiming
 #: "kit 0.1.0" therefore cannot say which of the two it implemented.
-KIT_VERSION: Final[str] = "0.2.0"
+#:
+#: 0.2.1 adds `unsupported_permission_profile`. The closed list had no reason
+#: for a caller naming a profile outside `permission_profiles`: the operation
+#: itself is supported, and `projection_profile_mismatch` is a different kind
+#: of profile.
+KIT_VERSION: Final[str] = "0.2.1"
 
 #: Files the aggregate identity covers, in the order `SHA256SUMS` lists them.
 MACHINE_FILES: Final[tuple[str, ...]] = (
@@ -32,6 +37,21 @@ OUTPUT_FILES: Final[tuple[str, ...]] = (
     "conformance-cases.json",
     "SHA256SUMS",
     "KIT-IDENTITY.json",
+)
+
+#: Exact kit schema bytes, served at the `$id` URL. Kept in lockstep with the
+#: kit file so a validator that follows the identifier gets those bytes, not a
+#: second hand copy.
+_REPO: Final[Path] = Path(__file__).resolve().parents[1]
+API_SCHEMA: Final[Path] = (
+    _REPO
+    / "apps"
+    / "api"
+    / "src"
+    / "ai_stp_api"
+    / "slices"
+    / "schemas"
+    / "provider-info.schema.json"
 )
 
 
@@ -155,6 +175,13 @@ def synchronize(output: Path, *, check: bool) -> tuple[str, ...]:
         if not check:
             output.mkdir(parents=True, exist_ok=True)
             path.write_bytes(content)
+    schema = expected["provider-info.schema.json"]
+    if API_SCHEMA.is_file() and API_SCHEMA.read_bytes() == schema:
+        return tuple(mismatches)
+    mismatches.append(str(API_SCHEMA))
+    if not check:
+        API_SCHEMA.parent.mkdir(parents=True, exist_ok=True)
+        API_SCHEMA.write_bytes(schema)
     return tuple(mismatches)
 
 

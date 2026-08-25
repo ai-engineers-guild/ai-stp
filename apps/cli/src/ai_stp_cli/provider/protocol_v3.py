@@ -104,6 +104,7 @@ class UnsupportedReason(StrEnum):
     BUNDLE_FORMAT = "unsupported_bundle_format"
     PROTOCOL_VERSION = "unsupported_protocol_version"
     PROJECTION_PROFILE = "projection_profile_mismatch"
+    PERMISSION_PROFILE = "unsupported_permission_profile"
     PLATFORM = "unsupported_platform"
     ARCHITECTURE = "unsupported_architecture"
 

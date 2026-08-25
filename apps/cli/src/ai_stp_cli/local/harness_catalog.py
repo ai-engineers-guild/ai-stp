@@ -236,7 +236,12 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
         # declare here -- only a gap to state.
         gaps=("no_project_plugin_manifest", "no_documented_mcp_client_config"),
         root_override="PI_CODING_AGENT_DIR",
-        npm_packages=("@mariozechner/pi-coding-agent",),
+        # Current vendor first. The previous name still publishes and still
+        # answers Windows version fallback for an unmoved `node_modules` tree.
+        npm_packages=(
+            "@earendil-works/pi-coding-agent",
+            "@mariozechner/pi-coding-agent",
+        ),
     ),
     HarnessDefinition(
         "opencode",

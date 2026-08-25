@@ -59,6 +59,14 @@ def test_machine_table_exposes_support_layouts_capabilities_and_gaps() -> None:
     assert "plugin_manifest" in by_id["codex"].projection_capabilities
     assert ".grok/skills" in by_id["grok-build"].project_layouts
     assert by_id["undefined"].gaps == ["no_single_harness_owner"]
+    pi = next(item for item in harness_catalog.DEFINITIONS if item.harness_id == "pi")
+    assert pi.npm_packages[0] == "@earendil-works/pi-coding-agent"
+    plugin_roots = {
+        layout.relative
+        for layout in pi.layouts
+        if layout.component_type == "plugin" and layout.scope == "global"
+    }
+    assert plugin_roots == {"extensions"}
 
 
 def test_every_harness_either_declares_client_mcp_or_states_a_verified_gap() -> None:
