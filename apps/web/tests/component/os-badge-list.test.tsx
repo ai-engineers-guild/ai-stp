@@ -2,7 +2,11 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { OsBadgeList } from "@/components/molecules/os-badge-list";
-import { namedHarnesses, namedOperatingSystems } from "@/lib/catalog-harnesses";
+import {
+  namedHarnesses,
+  namedOperatingSystems,
+  namedPassportHarnesses,
+} from "@/lib/catalog-harnesses";
 
 describe("compatibility lists", () => {
   it("renders every named operating system and falls back when the list is empty", () => {
@@ -24,10 +28,22 @@ describe("compatibility lists", () => {
       }),
     ).toEqual(["claude-code", "codex"]);
     expect(namedHarnesses({ latest_harness_id: "pi", latest_harness_ids: [] })).toEqual(["pi"]);
+    expect(namedPassportHarnesses({ harness_id: "claude-code" })).toEqual(["claude-code"]);
+    expect(
+      namedPassportHarnesses({
+        harness_id: "claude-code",
+        harness_ids: ["claude-code", "codex"],
+      }),
+    ).toEqual(["claude-code", "codex"]);
     expect(namedOperatingSystems({ supported_os: ["linux", "windows"] })).toEqual([
       "linux",
       "windows",
     ]);
     expect(namedOperatingSystems({})).toEqual([]);
+  });
+
+  it("treats a missing operating-system list as empty rather than crashing", () => {
+    render(<OsBadgeList empty="None listed" />);
+    expect(screen.getByText("None listed")).toBeVisible();
   });
 });

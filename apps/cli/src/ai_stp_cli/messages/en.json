@@ -233,6 +233,7 @@
   "the caller-supplied operation id is not canonical": "the caller-supplied operation id is not canonical",
   "the catalogue address must use HTTPS": "the catalogue address must use HTTPS",
   "the catalogue address must use HTTPS unless it is loopback": "the catalogue address must use HTTPS unless it is loopback",
+  "the catalogue version answer is missing its published passport": "the catalogue version answer is missing its published passport",
   "the cloud session and local signing identity name different devices": "the cloud session and local signing identity name different devices",
   "the compiled bundle has no conversion entries": "the compiled bundle has no conversion entries",
   "the compiled bundle has no conversion report": "the compiled bundle has no conversion report",

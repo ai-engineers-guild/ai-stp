@@ -40,6 +40,7 @@ import { listCatalogReactions } from "@/lib/api/reactions";
 import { readPublisherProfile, type PublicProfileProjection } from "@/lib/api/public-profile";
 import { sessionCookieValue } from "@/lib/auth/require-session";
 import { asAccountId, asComponentId, asVersionId, tryAsSetupId } from "@/lib/brands";
+import { namedOperatingSystems } from "@/lib/catalog-harnesses";
 import { registryVersion, selectImpact } from "@/lib/cli-copy";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { publicOrigin } from "@/lib/site";
@@ -359,7 +360,7 @@ function Compatibility({
         <div className="bg-muted/30 min-w-0 rounded-sm p-3">
           <dt className="text-muted-foreground text-sm">{t("supportedOs")}</dt>
           <dd className="mt-1 font-medium break-words">
-            <OsBadgeList values={passport.supported_os} empty={t("noneListed")} />
+            <OsBadgeList values={namedOperatingSystems(passport)} empty={t("noneListed")} />
           </dd>
         </div>
         <Fact

@@ -2,7 +2,9 @@
 
 One place decides timeouts, headers, which failures are worth retrying and how a
 server answer becomes a registered `AI_STP_*` code. Callers get models, never
-raw responses, so no route can invent its own error vocabulary.
+raw responses, so no route can invent its own error vocabulary. The one
+exception is ``call_document``: a passport digest is over the published JSON
+object, and a model dump is not those bytes.
 
 The mock from `#71` and a real server are the same to this module: both are an
 `httpx` transport, and the serializers are the models themselves. That is what
@@ -33,6 +35,7 @@ from ai_stp_contracts.http import (
     SCHEMA_VERSION,
     SCHEMA_VERSION_HEADER,
 )
+from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.errors import ERROR_CODES, is_registered_code
 
 #: Bounded on purpose. An agent waiting on a hung connection cannot tell the
@@ -244,6 +247,59 @@ def call[T: BaseModel](
     a transport error, a 5xx, or a rate limit the server asked us to wait out.
     A refusal is never retried — see `NEVER_RETRIED`.
     """
+    response = _exchange(
+        client,
+        method,
+        path,
+        body=body,
+        query=query,
+        headers=headers,
+        attempts=attempts,
+        pause=pause,
+    )
+    return _decode(response, model)
+
+
+def call_document(
+    client: httpx.Client,
+    method: str,
+    path: str,
+    *,
+    body: BaseModel | None = None,
+    query: Mapping[str, str] | None = None,
+    headers: Mapping[str, str] | None = None,
+    attempts: int = MAX_ATTEMPTS,
+    pause: Callable[[float], None] = time.sleep,
+) -> dict[str, JsonValue]:
+    """Make one call and return the JSON object as received.
+
+    Used where a digest is over published bytes: a model dump injects later
+    default fields and is not what the catalogue hashed.
+    """
+    response = _exchange(
+        client,
+        method,
+        path,
+        body=body,
+        query=query,
+        headers=headers,
+        attempts=attempts,
+        pause=pause,
+    )
+    return _decode_document(response)
+
+
+def _exchange(
+    client: httpx.Client,
+    method: str,
+    path: str,
+    *,
+    body: BaseModel | None,
+    query: Mapping[str, str] | None,
+    headers: Mapping[str, str] | None,
+    attempts: int,
+    pause: Callable[[float], None],
+) -> httpx.Response:
     total = max(1, attempts)
     delay = BACKOFF_SECONDS
     last: CliFailure | None = None
@@ -273,7 +329,7 @@ def call[T: BaseModel](
             )
         else:
             if response.status_code < 400:
-                return _decode(response, model)
+                return response
             last = failure_from(response)
             if not _worth_retrying(response.status_code, last.code):
                 raise last
@@ -310,14 +366,20 @@ def _retry_after(response: httpx.Response | None) -> float | None:
 
 def _decode[T: BaseModel](response: httpx.Response, model: type[T]) -> T:
     try:
+        return model.model_validate(_decode_document(response))
+    except ValidationError as error:
+        raise _malformed(response, error) from error
+
+
+def _decode_document(response: httpx.Response) -> dict[str, JsonValue]:
+    try:
         document = json.loads(response.text)
     except ValueError as error:
         raise _malformed(response, error) from error
     _check_schema_version(response, document)
-    try:
-        return model.model_validate(document)
-    except ValidationError as error:
-        raise _malformed(response, error) from error
+    if not isinstance(document, dict):
+        raise _malformed(response, TypeError("response body is not an object"))
+    return cast(dict[str, JsonValue], document)
 
 
 def _check_schema_version(response: httpx.Response, document: object) -> None:

@@ -384,7 +384,7 @@ def _candidates(
             eligibility.CandidateFacts(
                 stable_id=stored.stable_id,
                 revision_id=stored.revision_id,
-                harness_id=str(_value(facts.get("harness_id")) or ""),
+                harness_id=str(document.get("harness_id") or _value(facts.get("harness_id")) or ""),
                 owner_id=str(document.get("owner_id") or ""),
                 owned_or_pinned=True,
                 registrable=lifecycle.registrable(connection, stored),

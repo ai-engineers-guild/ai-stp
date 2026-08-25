@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import cast
 
 import httpx
+from pydantic import ValidationError
 
 from ai_stp_cli.cloud import client
 from ai_stp_cli.cloud.client import Endpoint
@@ -170,15 +171,13 @@ def version(
         f"/catalog/{'components' if kind == 'component' else 'setups'}"
         f"/{stable_id}/versions/{number}"
     )
-    model = ComponentVersionResponse if kind == "component" else SetupVersionResponse
     key = cache.key_for(f"{kind}-version", f"{stable_id}@{number}")
     try:
         with client.open_client(endpoint) as http:
-            answer = client.call(
+            document = client.call_document(
                 http,
                 "GET",
                 path,
-                model,  # pyright: ignore[reportArgumentType]
                 attempts=endpoint.max_attempts,
             )
     except CliFailure as failure:
@@ -186,15 +185,14 @@ def version(
             raise
         return _version_from_cache(kind, key, failure)
 
-    # Serialized, not the model: the digest is computed over the published
-    # bytes, and a model instance is not what the catalogue hashed.
-    passport = cast(dict[str, JsonValue], answer.passport.model_dump(mode="json"))
-    cache.verify(passport, answer.passport_digest)
+    passport, digest = _published_bytes(document)
+    # Wire object, not a model dump: later default fields are not what the
+    # catalogue hashed (REQ-2108).
+    cache.verify(passport, digest)
+    answer = _version_model(kind, document)
     checked_at = _moment()
-    cache.store(
-        key, cast(dict[str, JsonValue], answer.model_dump(mode="json")), checked_at=checked_at
-    )
-    return _version_view(kind, answer, "online", checked_at)
+    cache.store(key, document, checked_at=checked_at)
+    return _version_view(kind, answer, "online", checked_at, passport)
 
 
 def _version_view(
@@ -202,6 +200,7 @@ def _version_view(
     answer: ComponentVersionResponse | SetupVersionResponse,
     source: AnswerSource,
     checked_at: str,
+    passport: dict[str, JsonValue],
 ) -> CatalogVersionView:
     return CatalogVersionView(
         kind=kind,
@@ -211,23 +210,45 @@ def _version_view(
         lifecycle=answer.lifecycle,
         trust=answer.trust,
         published_at=answer.published_at,
-        passport=cast(dict[str, JsonValue], answer.passport.model_dump(mode="json")),
+        passport=passport,
     )
+
+
+def _published_bytes(document: dict[str, JsonValue]) -> tuple[dict[str, JsonValue], str]:
+    passport = document.get("passport")
+    digest = document.get("passport_digest")
+    if not isinstance(passport, dict) or not isinstance(digest, str):
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "the catalogue version answer is missing its published passport",
+        )
+    return cast(dict[str, JsonValue], passport), digest
+
+
+def _version_model(
+    kind: CatalogKind, document: dict[str, JsonValue]
+) -> ComponentVersionResponse | SetupVersionResponse:
+    model = ComponentVersionResponse if kind == "component" else SetupVersionResponse
+    try:
+        return model.model_validate(document)
+    except ValidationError as error:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "the platform answered with a body that does not match the published contract",
+            details={"exception": type(error).__name__},
+        ) from error
 
 
 def _version_from_cache(kind: CatalogKind, key: str, failure: CliFailure) -> CatalogVersionView:
     entry = cache.load(key)
     if entry is None:
         raise failure
-    model = ComponentVersionResponse if kind == "component" else SetupVersionResponse
-    answer = model.model_validate(entry.document)
+    passport, digest = _published_bytes(entry.document)
     # Verified again on the way out: a cache entry can be edited on disk, and a
     # check performed only on arrival protects only the arrival.
-    cache.verify(
-        cast(dict[str, JsonValue], answer.passport.model_dump(mode="json")),
-        answer.passport_digest,
-    )
-    return _version_view(kind, answer, "cache", entry.checked_at)
+    cache.verify(passport, digest)
+    answer = _version_model(kind, entry.document)
+    return _version_view(kind, answer, "cache", entry.checked_at, passport)
 
 
 def cached_version(kind: CatalogKind, stable_id: str, number: str) -> CatalogVersionView:

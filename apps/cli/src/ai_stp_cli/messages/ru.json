@@ -233,6 +233,7 @@
   "the caller-supplied operation id is not canonical": "переданный вызывающим идентификатор операции не канонический",
   "the catalogue address must use HTTPS": "адрес каталога должен использовать HTTPS",
   "the catalogue address must use HTTPS unless it is loopback": "адрес каталога должен использовать HTTPS, если это не loopback",
+  "the catalogue version answer is missing its published passport": "ответ точной версии каталога не содержит опубликованный паспорт",
   "the cloud session and local signing identity name different devices": "облачный сеанс и локальная подписывающая идентичность называют разные устройства",
   "the compiled bundle has no conversion entries": "у собранного пакета нет записей преобразования",
   "the compiled bundle has no conversion report": "у собранного пакета нет отчёта преобразования",

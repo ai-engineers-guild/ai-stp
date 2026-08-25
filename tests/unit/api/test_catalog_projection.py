@@ -8,8 +8,12 @@ import pytest
 from pydantic import ValidationError
 
 from ai_stp_contracts.catalog import CatalogTrust
+from ai_stp_foundation.canonical import canonize
+from ai_stp_foundation.digests import digest_bytes
 from ai_stp_passports.envelope import derive_revision_id
+from ai_stp_passports.versions import ComponentVersionPassport
 from ai_stp_platform.catalog_projection import (
+    PASSPORT_DIGEST_DOMAIN,
     component_detail,
     component_summary,
     component_version_response,
@@ -71,8 +75,6 @@ def test_component_summary_projects_every_named_harness() -> None:
     summary = component_summary(variant)
     assert summary.latest_harness_id == primary
     assert list(summary.latest_harness_ids) == [primary, extra]
-    from ai_stp_passports.versions import ComponentVersionPassport
-
     passport = ComponentVersionPassport.model_validate(variant.passport)
     assert list(passport.supported_os) == ["linux", "macos", "windows"]
 
@@ -374,6 +376,40 @@ def test_verify_passport_integrity_accepts_stored_bytes_without_later_defaults()
     summary = component_summary(stored)
     assert summary.stable_id == row.stable_id
     assert list(summary.latest_harness_ids) == [row.passport["harness_id"]]
+
+
+def test_version_response_wires_stored_passport_not_model_defaults() -> None:
+    """GET must emit the published document, or historical digests never match.
+
+    Prod 2026-08-25: Claude 1.0 `passport_digest` hashed stored bytes that
+    omitted later default fields, while the response dumped the validated model.
+    """
+    row = _row_from_seed()
+    passport = dict(row.passport)
+    passport.pop("harness_ids", None)
+    passport.pop("supported_os", None)
+    passport["revision_id"] = derive_revision_id(passport)
+    digest = digest_bytes(PASSPORT_DIGEST_DOMAIN, canonize(passport))
+    stored = PublicVersionRow(
+        metadata=row.metadata,
+        passport=passport,
+        passport_digest=digest,
+        published_at=row.published_at,
+        trust_lane=row.trust_lane,
+        author_verified=row.author_verified,
+        component_verified=row.component_verified,
+        lifecycle=row.lifecycle,
+        stable_id=row.stable_id,
+        version=row.version,
+        object_kind=row.object_kind,
+    )
+    payload = component_version_response(stored).model_dump(mode="json")
+    assert payload["passport"] == passport
+    assert "harness_ids" not in payload["passport"]
+    assert payload["passport_digest"] == digest
+    dumped = ComponentVersionPassport.model_validate(passport).model_dump(mode="json")
+    assert "harness_ids" in dumped
+    assert dumped != payload["passport"]
 
 
 def test_verify_passport_integrity_rejects_unparsable_passport() -> None:

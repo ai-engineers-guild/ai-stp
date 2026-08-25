@@ -21,6 +21,7 @@ import {
 } from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
 import { asVersionId, tryAsSetupId } from "@/lib/brands";
+import { namedOperatingSystems } from "@/lib/catalog-harnesses";
 import { registryVersion, selectImpact } from "@/lib/cli-copy";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { publicOrigin } from "@/lib/site";
@@ -116,7 +117,7 @@ export default async function SetupVersionPage({ params }: PageProps) {
         <div>
           <dt className="text-muted-foreground text-sm">{t("supportedOs")}</dt>
           <dd>
-            <OsBadgeList values={passport.supported_os} empty={t("noneListed")} />
+            <OsBadgeList values={namedOperatingSystems(passport)} empty={t("noneListed")} />
           </dd>
         </div>
         <div>

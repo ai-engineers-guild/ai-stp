@@ -15,6 +15,16 @@ export function namedHarnesses(item: {
   return [item.latest_harness_id];
 }
 
+export function namedPassportHarnesses(passport: {
+  harness_id: string;
+  harness_ids?: ReadonlyArray<string> | null;
+}): string[] {
+  return namedHarnesses({
+    latest_harness_id: passport.harness_id,
+    ...(passport.harness_ids === undefined ? {} : { latest_harness_ids: passport.harness_ids }),
+  });
+}
+
 export function namedOperatingSystems(passport: {
   supported_os?: ReadonlyArray<string> | null;
 }): string[] {

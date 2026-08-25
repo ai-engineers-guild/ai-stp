@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any, cast
 
-from pydantic import ValidationError
+from pydantic import Field, SerializerFunctionWrapHandler, ValidationError, model_serializer
 
 from ai_stp_contracts.catalog import (
     CatalogTrust,
@@ -29,6 +29,34 @@ from ai_stp_platform.catalog_read import CatalogIntegrityError, PublicVersionRow
 from ai_stp_platform.catalog_support import project_support
 
 PASSPORT_DIGEST_DOMAIN = "ai-stp:passport:v1"
+
+
+def _overlay_stored_passport(dumped: object, stored: dict[str, JsonValue]) -> dict[str, Any]:
+    if not isinstance(dumped, dict):
+        raise TypeError("catalog version serializer must return an object")
+    payload = cast(dict[str, Any], dumped)
+    payload["passport"] = stored
+    return payload
+
+
+class _WiredComponentVersionResponse(ComponentVersionResponse):
+    """Wire the stored passport document, not a model dump with later defaults."""
+
+    published_passport: dict[str, JsonValue] = Field(exclude=True)
+
+    @model_serializer(mode="wrap")
+    def _published_bytes(self, serializer: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        return _overlay_stored_passport(serializer(self), self.published_passport)
+
+
+class _WiredSetupVersionResponse(SetupVersionResponse):
+    """Wire the stored passport document, not a model dump with later defaults."""
+
+    published_passport: dict[str, JsonValue] = Field(exclude=True)
+
+    @model_serializer(mode="wrap")
+    def _published_bytes(self, serializer: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        return _overlay_stored_passport(serializer(self), self.published_passport)
 
 
 def project_trust(row: PublicVersionRow) -> CatalogTrust:
@@ -267,7 +295,7 @@ def component_version_response(
     support = project_support(
         passport.model_dump(mode="json"), row.support_evidence, now=now or datetime.now(UTC)
     )
-    return ComponentVersionResponse(
+    return _WiredComponentVersionResponse(
         passport=passport,
         passport_digest=row.passport_digest,  # type: ignore[arg-type]
         lifecycle=row.lifecycle,  # type: ignore[arg-type]
@@ -275,6 +303,7 @@ def component_version_response(
         support=support,
         published_at=format_timestamp(row.published_at),  # type: ignore[arg-type]
         checks=project_checks_summary(row),
+        published_passport=cast(dict[str, JsonValue], row.passport),
     )
 
 
@@ -286,7 +315,7 @@ def setup_version_response(
     support = project_support(
         passport.model_dump(mode="json"), row.support_evidence, now=now or datetime.now(UTC)
     )
-    return SetupVersionResponse(
+    return _WiredSetupVersionResponse(
         passport=passport,
         passport_digest=row.passport_digest,  # type: ignore[arg-type]
         lifecycle=row.lifecycle,  # type: ignore[arg-type]
@@ -294,6 +323,7 @@ def setup_version_response(
         support=support,
         published_at=format_timestamp(row.published_at),  # type: ignore[arg-type]
         checks=project_checks_summary(row),
+        published_passport=cast(dict[str, JsonValue], row.passport),
     )
 
 

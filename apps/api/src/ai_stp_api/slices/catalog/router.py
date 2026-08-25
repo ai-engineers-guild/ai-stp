@@ -179,6 +179,11 @@ def _resource(request: Request, model: object) -> JSONResponse:
     """Return the resource body itself — no ok/data wrapper (http.py)."""
     del request
     payload = model.model_dump(mode="json")  # type: ignore[attr-defined]
+    stored = getattr(model, "published_passport", None)
+    if isinstance(stored, dict) and "passport" in payload:
+        # Exact published document: a model dump injects later default fields
+        # and would no longer match `passport_digest` (REQ-2108).
+        payload["passport"] = stored
     return JSONResponse(content=payload, status_code=200)
 
 

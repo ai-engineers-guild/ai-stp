@@ -29,12 +29,12 @@ last_verified: "2026-08-03"
 | [composition-reports.md](composition-reports.md) | Отчёты состава и преобразования: закрытый перечень классов конфликтов, разрешённые операции сборщика и состояния потерь. | 2026-08-08 |
 | [deep-links.md](deep-links.md) | Грамматика канонических URL и CLI references для component, setup, publisher и report intent. | 2026-08-15 |
 | [device-passport.md](device-passport.md) | Поля паспорта устройства, его приватность и разрешённая сводка для сервера и веба. | 2026-08-04 |
-| [eligibility-constraints.md](eligibility-constraints.md) | Механические ограничения до выбора агентом: закрытый перечень причин отказа, порядок проверок и две независимые оси допустимости. | 2026-08-08 |
+| [eligibility-constraints.md](eligibility-constraints.md) | Механические ограничения до выбора агентом: закрытый перечень причин отказа, порядок проверок и две независимые оси допустимости. | 2026-08-25 |
 | [federated-sources.md](federated-sources.md) | Машинный контракт общих descriptors для local ports и metadata adapters. | 2026-08-16 |
 | [fixture-corpus.md](fixture-corpus.md) | Общий корпус фикстур /v1: виды случаев, инварианты и порядок использования обеими сторонами. | 2026-08-05 |
 | [github-archive-evidence.md](github-archive-evidence.md) | Машинный контракт локального GitHub archive evidence и истории наблюдений. | 2026-08-15 |
 | [harness-bundle.md](harness-bundle.md) | Ограниченный и детерминированный пакет для публичного провайдера харнесса. | 2026-08-09 |
-| [http-api.md](http-api.md) | Версионирование HTTP API, полномочия, идемпотентность и конкуренция. | 2026-08-22 |
+| [http-api.md](http-api.md) | Версионирование HTTP API, полномочия, идемпотентность и конкуренция. | 2026-08-25 |
 | [native-component-discovery.md](native-component-discovery.md) | Машинный контракт read-only обнаружения нативных компонентов поддерживаемых харнессов. | 2026-08-24 |
 | [offline-capability.md](offline-capability.md) | Что работает без сети после первичной настройки и что требует подключения. | 2026-08-13 |
 | [operation.md](operation.md) | Состояния, план, журнал и восстановление изменяющей операции. | 2026-08-09 |

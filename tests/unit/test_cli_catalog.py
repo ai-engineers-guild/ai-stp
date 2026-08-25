@@ -13,6 +13,7 @@ from ai_stp_cli.local import cache
 from ai_stp_contracts.fixtures import load_cases
 from ai_stp_contracts.mock import MOCK_BASE_URL, build_transport
 from ai_stp_foundation.canonical import JsonValue
+from ai_stp_passports.versions import ComponentVersionPassport
 
 
 def mock() -> Endpoint:
@@ -276,6 +277,45 @@ def test_an_exact_version_is_verified_against_its_published_digest() -> None:
     assert view.passport
     # The check is the point of fetching a version at all.
     assert cache.digest_of(view.passport) == view.passport_digest
+
+
+def test_a_version_digest_is_over_the_wire_passport_not_a_model_dump() -> None:
+    """A historical passport omitting later defaults must still verify.
+
+    Dumping the validated model injects empty `harness_ids` and `supported_os`,
+    which is a different document from the one the catalogue hashed.
+    """
+    served = next(
+        case
+        for case in load_cases()
+        if case.operation_id == "readComponentVersion" and case.kind == "positive"
+    )
+    body = json.loads(json.dumps(served.body))
+    body["passport"].pop("harness_ids", None)
+    body["passport"].pop("supported_os", None)
+    body["passport_digest"] = cache.digest_of(body["passport"])
+    dumped = ComponentVersionPassport.model_validate(body["passport"]).model_dump(mode="json")
+    assert cache.digest_of(dumped) != body["passport_digest"]
+
+    def historical(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=body)
+
+    view = catalog.version(
+        Endpoint(MOCK_BASE_URL, max_attempts=1, transport=httpx.MockTransport(historical)),
+        "component",
+        str(served.request.path_params["stable_id"]),
+        str(served.request.path_params["version"]),
+    )
+    assert "harness_ids" not in view.passport
+    assert cache.digest_of(view.passport) == view.passport_digest
+    cached = cache.load(
+        cache.key_for(
+            "component-version",
+            f"{served.request.path_params['stable_id']}@{served.request.path_params['version']}",
+        )
+    )
+    assert cached is not None
+    assert cached.document["passport"] == view.passport
 
 
 def test_a_substituted_passport_is_refused_and_not_cached() -> None:

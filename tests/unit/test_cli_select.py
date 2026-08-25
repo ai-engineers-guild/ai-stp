@@ -68,6 +68,41 @@ def _register(connection: sqlite3.Connection, suffix: str, *, harness_id: str) -
     return stable_id
 
 
+def _register_catalog_passport(
+    connection: sqlite3.Connection, suffix: str, *, harness_id: str
+) -> str:
+    """A version passport as `registry acquire` stores it: harness_id on the document."""
+    stable_id = f"component_01J0000000000000000000000{suffix}"
+    connection.execute(
+        "INSERT INTO entity (stable_id, kind, created_at) VALUES (?, 'component', ?)",
+        (stable_id, MOMENT),
+    )
+    revisions.commit(
+        connection,
+        {  # pyright: ignore[reportArgumentType]
+            "schema_version": 1,
+            "kind": "component",
+            "stable_id": stable_id,
+            "owner_id": owner().account_id,
+            "created_at": MOMENT,
+            "visibility": "public",
+            "parent_revision_ids": [],
+            "harness_id": harness_id,
+            "facts": {
+                "component_type": {
+                    "value": "skill",
+                    "origin": "observed",
+                    "confirmation": "none",
+                    "observed_at": MOMENT,
+                },
+            },
+        },
+        device_id=DEVICE,
+    )
+    connection.commit()
+    return stable_id
+
+
 def _report(root: Path, **parameters: object) -> EligibilityReport:
     return select.eligible({"harness": "claude-code", "project": str(root), **parameters}).payload
 
@@ -113,6 +148,18 @@ def test_a_local_object_for_this_harness_is_admissible(
     assert only.admissible
     assert only.auto_selectable
     assert report.admissible_count == 1
+
+
+def test_a_catalog_passport_uses_top_level_harness_id(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """Acquired version passports declare harness_id on the document, not as a fact."""
+    stable_id = _register_catalog_passport(registry, "P", harness_id="claude-code")
+    report = _report(tmp_path)
+    assert [item.stable_id for item in report.candidates] == [stable_id]
+    only = report.candidates[0]
+    assert only.admissible
+    assert [item.code for item in only.refusals] == []
 
 
 def test_eligibility_reads_a_legacy_owner_without_recreating_the_owner_file(

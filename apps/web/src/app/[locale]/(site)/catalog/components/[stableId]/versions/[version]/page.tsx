@@ -15,7 +15,7 @@ import { SupportSummary, supportLabels } from "@/components/molecules/support-su
 import { readComponentGithubMetadata, readComponentVersion } from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
 import { asVersionId, tryAsComponentId } from "@/lib/brands";
-import { namedOperatingSystems } from "@/lib/catalog-harnesses";
+import { namedOperatingSystems, namedPassportHarnesses } from "@/lib/catalog-harnesses";
 import { registryVersion } from "@/lib/cli-copy";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { publicOrigin } from "@/lib/site";
@@ -93,11 +93,7 @@ export default async function ComponentVersionPage({ params }: PageProps) {
         </div>
         <div>
           <dt className="text-muted-foreground text-sm">{t("harness")}</dt>
-          <dd>
-            {(passport.harness_ids.length ? passport.harness_ids : [passport.harness_id]).join(
-              ", ",
-            )}
-          </dd>
+          <dd>{namedPassportHarnesses(passport).join(", ")}</dd>
         </div>
         <div>
           <dt className="text-muted-foreground text-sm">{t("supportedOs")}</dt>
