@@ -7,7 +7,13 @@ import zipfile
 from importlib.resources import files
 from typing import cast
 
-from ai_stp_contracts.first_party import COMPONENT_FORMAT, SETUP_FORMAT, versions
+from ai_stp_contracts.first_party import (
+    COMPONENT_FORMAT,
+    PI_LAYOUT_VERSION,
+    SETUP_FORMAT,
+    VERSION,
+    versions,
+)
 from ai_stp_foundation.canonical import JsonValue, canonize
 from ai_stp_foundation.digests import digest_bytes
 from ai_stp_passports.envelope import verify_revision_id
@@ -291,3 +297,27 @@ def test_first_party_passports_are_complete_public_immutable_snapshots() -> None
     assert grok_setup.passport_digest == (
         "sha256:edbcfd69392c9c3824f615cdce8dc105291a047ae00152644f93b8d7a4820729"
     )
+
+
+def test_pi_layout_version_is_relative_to_the_harness_home() -> None:
+    """Pi 1.0 treated `agent/` as a directory inside `~/.pi/agent`.
+
+    The target already ends in `agent`, so those passports resolved to
+    `~/.pi/agent/agent/AGENTS.md`. Provider rules were fixed in place; the
+    corpus cannot rewrite `1.0`. This is the `1.1` that names the same objects
+    with paths relative to the home.
+    """
+    pi = [item for item in versions() if item.passport.harness_id == "pi"]
+    others = [item for item in versions() if item.passport.harness_id != "pi"]
+    assert {item.passport.version for item in pi} == {PI_LAYOUT_VERSION}
+    assert {item.passport.version for item in others} == {VERSION}
+    for item in pi:
+        if item.kind != "component":
+            continue
+        passport = item.passport
+        assert isinstance(passport, ComponentVersionPassport)
+        assert passport.managed_paths
+        assert all(not path.startswith("agent/") for path in passport.managed_paths), (
+            passport.managed_paths
+        )
+        assert list(passport.managed_paths) == list(passport.conflicts.paths)

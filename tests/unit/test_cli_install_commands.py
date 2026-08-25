@@ -939,8 +939,10 @@ def test_catalogue_setup_binds_to_an_explicit_current_project_context(
         )
 
     monkeypatch.setattr(registry_commands, "acquire_version", acquire_one)
-    registry_commands.acquire({"id": setup.passport.stable_id, "version": "1.0", "offline": True})
-    reference = f"{setup.passport.stable_id}@1.0"
+    registry_commands.acquire(
+        {"id": setup.passport.stable_id, "version": setup.passport.version, "offline": True}
+    )
+    reference = f"{setup.passport.stable_id}@{setup.passport.version}"
 
     with pytest.raises(CliFailure, match="explicit local project context"):
         install._prepared_setup_source(registry, reference, "")  # pyright: ignore[reportPrivateUsage]
@@ -1005,7 +1007,9 @@ def _acquire_first_party_setup(
         )
 
     monkeypatch.setattr(registry_commands, "acquire_version", acquire_one)
-    registry_commands.acquire({"id": setup.passport.stable_id, "version": "1.0", "offline": True})
+    registry_commands.acquire(
+        {"id": setup.passport.stable_id, "version": setup.passport.version, "offline": True}
+    )
     return setup
 
 
@@ -1060,7 +1064,7 @@ def test_real_first_party_base_setup_profiles_use_one_exact_bundle_lifecycle(
     project_id = _project_context(registry, tmp_path)
     setup = _acquire_first_party_setup(harness_id, "ai-harness-engineer", monkeypatch)
     assert isinstance(setup.passport, SetupVersionPassport)
-    reference = f"{setup.passport.stable_id}@1.0"
+    reference = f"{setup.passport.stable_id}@{setup.passport.version}"
     cache_root = Path.home() / ".cache"
     cache_root.mkdir(mode=0o700, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=f"ai-stp-base-{harness_id}-", dir=cache_root) as held:
@@ -1137,7 +1141,7 @@ def test_real_role_setup_install_status_remove_and_rollback(
     project_id = _project_context(registry, tmp_path)
     setup = _acquire_first_party_setup(harness_id, role, monkeypatch)
     assert isinstance(setup.passport, SetupVersionPassport)
-    reference = f"{setup.passport.stable_id}@1.0"
+    reference = f"{setup.passport.stable_id}@{setup.passport.version}"
     cache_root = Path.home() / ".cache"
     cache_root.mkdir(mode=0o700, exist_ok=True)
     target_holder = tempfile.TemporaryDirectory(prefix=f"ai-stp-role-{harness_id}-", dir=cache_root)

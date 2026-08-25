@@ -14,6 +14,10 @@ from ai_stp_passports.versions import ComponentVersionPassport, SetupVersionPass
 
 OWNER_ID: Final[str] = "account_01KZET6ZKJN7S72T5H4WDV62T0"
 VERSION: Final[str] = "1.0"
+# Pi 1.0 recorded `agent/` as if it were inside the home. The home is already
+# `~/.pi/agent`, so those passports resolve one directory too deep. Same X.Y
+# with different bytes is refused (`REQ-2606`); the correction is a new version.
+PI_LAYOUT_VERSION: Final[str] = "1.1"
 PUBLISHED_AT: Final[str] = "2026-08-13T00:00:00.000Z"
 COMPONENT_FORMAT: Final[str] = "ai-stp-component-tree/1"
 COMPONENT_FILE_FORMAT: Final[str] = "ai-stp-component-file/1"
@@ -164,7 +168,7 @@ def _common(
         "visibility": "public",
         "parent_revision_ids": [],
         "facts": {},
-        "version": VERSION,
+        "version": _version_for(source.harness_id),
         "source": {
             "repository": source.repository,
             "commit": source.commit,
@@ -189,13 +193,19 @@ def _title(slug: str) -> str:
     return " ".join(part.upper() if part in {"mcp"} else part.title() for part in slug.split("-"))
 
 
+def _version_for(harness_id: str) -> str:
+    if harness_id == "pi":
+        return PI_LAYOUT_VERSION
+    return VERSION
+
+
 def _native_path(harness_id: str, component: _ComponentSource) -> str:
     if harness_id == "pi":
         return {
-            "instruction": "agent/AGENTS.md",
-            "setting": "agent/settings.json",
-            "skill": f"agent/skills/{component.slug}",
-            "plugin": f"agent/packages/{component.slug}",
+            "instruction": "AGENTS.md",
+            "setting": "settings.json",
+            "skill": f"skills/{component.slug}",
+            "plugin": f"extensions/{component.slug}",
         }[component.component_type]
     if harness_id == "opencode":
         return {
@@ -302,7 +312,7 @@ def _setup(source: _HarnessSource, components: tuple[FirstPartyVersion, ...]) ->
             {
                 "stable_id": component.passport.stable_id,
                 "variant_id": None,
-                "version": VERSION,
+                "version": component.passport.version,
                 "passport_digest": component.passport_digest,
             },
         )
@@ -319,7 +329,7 @@ def _setup(source: _HarnessSource, components: tuple[FirstPartyVersion, ...]) ->
                 "schema_version": 1,
                 "format": SETUP_FORMAT,
                 "stable_id": source.setup_id,
-                "version": VERSION,
+                "version": _version_for(source.harness_id),
                 "harness_id": source.harness_id,
                 "input_digest": selection_digest,
                 "components": refs,
@@ -401,7 +411,7 @@ def _role_setup(
             {
                 "stable_id": component.passport.stable_id,
                 "variant_id": None,
-                "version": VERSION,
+                "version": component.passport.version,
                 "passport_digest": component.passport_digest,
             },
         )
@@ -418,7 +428,7 @@ def _role_setup(
                 "schema_version": 1,
                 "format": SETUP_FORMAT,
                 "stable_id": setup_source.stable_id,
-                "version": VERSION,
+                "version": _version_for(source.harness_id),
                 "harness_id": source.harness_id,
                 "input_digest": selection_digest,
                 "components": refs,

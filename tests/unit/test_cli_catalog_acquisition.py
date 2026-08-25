@@ -194,14 +194,18 @@ def test_beta_base_setup_graphs_acquire_and_compile_to_exact_native_surfaces(
 
     monkeypatch.setattr(registry_commands, "acquire_version", acquire_one)
     acquired = registry_commands.acquire(
-        {"id": setup.passport.stable_id, "version": "1.0", "offline": True}
+        {
+            "id": setup.passport.stable_id,
+            "version": setup.passport.version,
+            "offline": True,
+        }
     ).payload
     assert len(acquired.components) == len(setup.passport.components)
     with closing(open_readonly(configured_path())) as connection:
         compiled = compile_setup_version_bundle(
             connection,
             setup.passport.stable_id,
-            "1.0",
+            setup.passport.version,
             expected_harness=harness_id,
         )
     assert {item.path for item in compiled.files} == expected_paths

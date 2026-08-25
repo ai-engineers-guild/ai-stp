@@ -1,6 +1,6 @@
 ---
 description: "Проверяемая инвентаризация реальных байтов и паспортов первопартийного корпуса запуска."
-last_verified: "2026-08-24"
+last_verified: "2026-08-25"
 ---
 
 # Первопартийный корпус запуска
@@ -34,7 +34,12 @@ Git tree; искусственная директория вокруг файл�
 | Grok Build NDDev Builder plugin | `component_01KZWSHE3V0T8KVJYFEKWJV63Y` | `1.0` | `sha256:3968ae9083f13ff0bc5f45043448e08f111f8203a20eaab7542f52676f4cb195` |
 | Grok Build NDDev Builder setup | `setup_01KZWSHE3V0T8KVJYFEKWJV63Z` | `1.0` | `sha256:ae4f4d74edc0d36c83a8f5479233469914ac9fa4b58c5a83d27d1918689de491` |
 | OpenCode NDDev Builder setup | `setup_01KZXVZ82E0ZN6Z81PBKQWMCWQ` | `1.0` | `sha256:b749648c7c8e87a560f71654db533922aaea4b96fa4b85589efcdd247f08e7cb` |
-| Pi NDDev Builder setup | `setup_01KZXVZ82E0ZN6Z81PBKQWMCWR` | `1.0` | `sha256:2d0152fe5fb86b692a3fe33fca35a792408a5efa4360b701bd218008421b2cd3` |
+| Pi NDDev Builder setup | `setup_01KZXVZ82E0ZN6Z81PBKQWMCWR` | `1.1` | `sha256:f5e1e905ba871078c87768e6b2d73c928e82daed90baa257dba064807e60c6de` |
+
+Pi `1.1` несёт `managed_paths` относительно дома `~/.pi/agent` (`AGENTS.md`,
+`settings.json`, `skills/…`, `extensions/…`). Опубликованная `1.0` с префиксом
+`agent/` неизменяема (`REQ-2606`); новая версия — единственный допустимый
+способ это исправить.
 
 ## Cursor — дополнительная инвентаризация, не барьер запуска
 
