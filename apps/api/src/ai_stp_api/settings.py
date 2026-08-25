@@ -69,10 +69,19 @@ class ServiceSettings(BaseSettings):
     # Runtime-only OTLP headers, formatted as comma-separated ``name=value`` pairs.
     # The values may be credentials and must never be logged or copied into evidence.
     otel_exporter_headers: str = Field(default="")
-    # Disabled unless an approved operational policy supplies a positive value.
-    rate_limit_requests: int = Field(default=0, ge=0)
+    # The single-node MVP policy `SPEC-010` names, and the value the shipped
+    # `.env.prod.example` has always carried. It is the default rather than an
+    # opt-in because `SlidingWindowLimiter.allow` returns `True` for everything
+    # when `maximum` is `0`: an environment that simply never mentioned this
+    # variable ran a public API with no limit, and absence looked exactly like a
+    # deliberate decision to switch the limiter off. Measured on the deployed
+    # environment: 150 requests in one burst returned 150 x 200.
+    #
+    # `0` still turns the limiter off, and still means that — it just has to be
+    # asked for now.
+    rate_limit_requests: int = Field(default=120, ge=0)
     rate_limit_window_seconds: int = Field(default=60, gt=0)
-    rate_limit_max_keys: int = Field(default=1024, gt=0)
+    rate_limit_max_keys: int = Field(default=2048, gt=0)
 
     def otel_headers(self) -> dict[str, str]:
         """Return validated OTLP headers without exposing their values in errors."""
