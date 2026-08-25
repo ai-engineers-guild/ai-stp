@@ -1679,6 +1679,22 @@ class PinnedRelease(BaseModel):
     artifact_digest: Annotated[str, Field(min_length=1)]
 
 
+class TrustedBuildAttestation(BaseModel):
+    """One repository whose attested builds this machine will bind (`ADR-0121`).
+
+    Reported with the signer workflow, not just the repository: the rule is
+    satisfied by an attestation naming that exact workflow, so a report giving
+    only the repository would describe a looser rule than the one enforced.
+    """
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    repository: Annotated[str, Field(min_length=1)]
+    signer_workflow: Annotated[str, Field(min_length=1)]
+    verified_publisher: bool = False
+
+
 class ProviderTrust(BaseModel):
     """What this machine will accept from a provider, and why (`SPEC-008` REQ-811).
 
@@ -1700,11 +1716,20 @@ class ProviderTrust(BaseModel):
     revoked_keys: list[str] = []
     minimum_sequence: Annotated[int, Field(ge=0)]
 
-    #: Exact releases this machine approved, bound to the provider and
-    #: repository that may present them. Empty means nothing is installable:
-    #: an approved-bytes list that approves everything when empty would not be
-    #: a list anybody could rely on. `latest` is forbidden by the contract.
+    #: Exact releases this machine approved on the Ed25519 path, bound to the
+    #: provider and repository that may present them. An approved-bytes list
+    #: that approved everything when empty would not be a list anybody could
+    #: rely on, so empty accepts nothing *on that path*. `latest` is forbidden
+    #: by the contract.
     pinned_releases: list[PinnedRelease] = []
+
+    #: Repositories whose attested builds may be bound by `provider fetch`
+    #: without a signed manifest. This is the other half of the answer, and on
+    #: the shipped policy it is the only populated one: `pinned_releases` and
+    #: `allowed_publishers` are both empty there while seven attested
+    #: repositories are trusted. Reporting the empty halves alone told an agent
+    #: that nothing was installable, which was the opposite of the truth.
+    build_attestations: list[TrustedBuildAttestation] = []
 
     #: Present only when a manifest was given to check. `null` means the policy
     #: was reported and nothing was verified, which is not the same as accepted.

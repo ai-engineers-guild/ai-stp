@@ -96,6 +96,7 @@ from ai_stp_contracts.machine_help import (
     ProviderTrust,
     ReleaseRefusal,
     SetupGraph,
+    TrustedBuildAttestation,
 )
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.harnesses import HARNESS_IDS
@@ -1585,6 +1586,18 @@ def provider_trust(parameters: Mapping[str, object]) -> Answer[ProviderTrust]:
                 policy.pinned_releases,
                 key=lambda pin: (pin.provider_id, pin.artifact_digest),
             )
+        ],
+        # The shipped policy pins no bytes and allows no publisher: every
+        # install goes through an attested build bound by `provider fetch`.
+        # Leaving these out reported an empty policy for a machine that trusts
+        # seven repositories, and this function already reads them below.
+        build_attestations=[
+            TrustedBuildAttestation(
+                repository=rule.repository,
+                signer_workflow=rule.signer_workflow,
+                verified_publisher=rule.verified_publisher,
+            )
+            for _, rule in sorted(policy.build_attestations.items())
         ],
     )
 

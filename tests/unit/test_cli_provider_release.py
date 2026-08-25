@@ -559,6 +559,34 @@ def test_the_trust_command_reports_the_policy_without_a_verdict(tmp_path: Path) 
     assert view.allowed_keys == []
 
 
+def test_the_trust_command_reports_what_actually_makes_an_install_possible() -> None:
+    """The report described an empty policy while the policy trusted seven.
+
+    `build_attestations` is the whole of the shipped trust anchor: `releases` is
+    empty, `allowed_publishers` is empty, and every install goes through
+    `provider fetch` binding attested OpenNetwork bytes. The report projected
+    the empty halves and omitted the populated one, so an agent asking this
+    command what the machine can install read zeroes across the board and would
+    correctly conclude "nothing" from an answer that was wrong.
+
+    The policy object already carried them — the same function reads
+    `policy.build_attestations` a few lines further down to check a manifest.
+    Only the projection was missing, which is the seam this repository keeps
+    losing things in.
+    """
+    from ai_stp_cli.commands import select
+
+    view = select.provider_trust({}).payload
+    policy = release.pinned_policy()
+
+    assert view.build_attestations, "the report hides the only trust anchor there is"
+    assert [rule.repository for rule in view.build_attestations] == sorted(
+        policy.build_attestations
+    )
+    assert all(rule.verified_publisher for rule in view.build_attestations)
+    assert all(rule.signer_workflow for rule in view.build_attestations)
+
+
 def test_the_trust_command_checks_a_named_manifest(tmp_path: Path) -> None:
     import json
 

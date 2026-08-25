@@ -72,6 +72,41 @@
       ],
       "title": "ReleaseRefusal",
       "type": "object"
+    },
+    "TrustedBuildAttestation": {
+      "additionalProperties": true,
+      "description": "One repository whose attested builds this machine will bind (`ADR-0121`).\n\nReported with the signer workflow, not just the repository: the rule is\nsatisfied by an attestation naming that exact workflow, so a report giving\nonly the repository would describe a looser rule than the one enforced.",
+      "properties": {
+        "repository": {
+          "minLength": 1,
+          "title": "Repository",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "signer_workflow": {
+          "minLength": 1,
+          "title": "Signer Workflow",
+          "type": "string"
+        },
+        "verified_publisher": {
+          "default": false,
+          "title": "Verified Publisher",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "repository",
+        "schema_version",
+        "signer_workflow",
+        "verified_publisher"
+      ],
+      "title": "TrustedBuildAttestation",
+      "type": "object"
     }
   },
   "$id": "urn:ai-stp:schema:v1:cli-provider-trust",
@@ -113,6 +148,14 @@
         "type": "string"
       },
       "title": "Allowed Repositories",
+      "type": "array"
+    },
+    "build_attestations": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/TrustedBuildAttestation"
+      },
+      "title": "Build Attestations",
       "type": "array"
     },
     "known_sequence": {
@@ -184,6 +227,7 @@
     "allowed_keys",
     "allowed_publishers",
     "allowed_repositories",
+    "build_attestations",
     "known_sequence",
     "minimum_sequence",
     "pinned_releases",
