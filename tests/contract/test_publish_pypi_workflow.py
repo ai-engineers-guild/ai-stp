@@ -30,3 +30,16 @@ def test_the_pypi_runbook_describes_the_live_per_package_upload() -> None:
     assert "publish-pypi" in runbook
     assert "pypi-{package}" in runbook or "pypi-passports" in runbook
     assert "id-token: write" in runbook
+
+
+def test_the_public_overlay_pypi_runbook_is_not_a_stub() -> None:
+    """The public tree reads the overlay at this path. A stub there fails CI."""
+    overlay = Path("release_scripts/public_overlay/docs/operations/runbooks/pypi-release.md")
+    if not overlay.is_file():
+        return
+    text = overlay.read_text(encoding="utf-8")
+    assert "Заглушка" not in text
+    assert "activation contract" not in text
+    assert "publish-pypi" in text
+    assert "pypi-{package}" in text or "pypi-passports" in text
+    assert "id-token: write" in text

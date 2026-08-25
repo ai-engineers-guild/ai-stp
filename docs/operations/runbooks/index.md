@@ -18,7 +18,7 @@ last_verified: "2026-08-03"
 | [macos-evidence.md](macos-evidence.md) | Получение CLI/package evidence на стандартном GitHub-hosted macOS runner. | 2026-08-18 |
 | [provider-update.md](provider-update.md) | Runbook: provider update. | 2026-08-03 |
 | [publish-recovery.md](publish-recovery.md) | Runbook: publish recovery. | 2026-08-03 |
-| [pypi-release.md](pypi-release.md) | Заглушка: runbook выпуска в PyPI принадлежит приватной развёртке. | 2026-08-20 |
+| [pypi-release.md](pypi-release.md) | Сборка, проверка, публикация, отзыв и восстановление Python-релиза. | 2026-08-25 |
 | [report-triage.md](report-triage.md) | Runbook: триаж случая жалобы. | 2026-08-04 |
 | [safety-scan.md](safety-scan.md) | Runbook: platform safety-scan для publication validate. | 2026-08-25 |
 | [security-incident.md](security-incident.md) | Runbook: security incident. | 2026-08-03 |
