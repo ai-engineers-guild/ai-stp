@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import tempfile
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Final, cast
@@ -285,35 +286,59 @@ def _declared_software_artifact(
     capabilities: protocol_v3.ProviderCapabilities,
     arguments: tuple[str, ...],
 ) -> conformance.Case:
-    """A declared program lifecycle must name exact bytes without the network.
+    """The program lifecycle must match what the provider said about it.
 
-    The consumer downloads; the provider never does. `download` is not one of
-    the kit's commands, and both commands that could have carried it are
+    Declared, the plan must name exact bytes without the network. The consumer
+    downloads and the provider never does: `download` is not one of the kit's
+    commands, and both commands that could have carried it are
     `network_requirement: none`. So the only thing standing between a plan and
-    a verified install is whether the plan already said which bytes it meant.
-    A provider that declares `software_install` and then answers without
-    `software_artifacts` has moved that decision to download time, where no
-    plan digest covers it.
+    a verified install is whether the plan already said which bytes it meant. A
+    provider that declares `software_install` and answers without
+    `software_artifacts` has moved that decision to download time, where no plan
+    digest covers it.
 
-    Not declaring the lifecycle is a narrower claim, not a failure. Pi declares
-    none and says why: npm resolves the dependency closure at install time, so
-    no single artifact has a digest a plan could pin ahead of time.
+    Undeclared, it must refuse with `unsupported_operation`. That branch is an
+    assertion and not a skip on purpose. Scoring "did not declare it" as passed
+    is how a case becomes permanent green that reads as coverage: it would stay
+    green through any future argv mistake, and green is exactly what it reported
+    for the one provider whose lifecycle does not exist while every provider
+    that has one went red.
+
+    Both branches send a *well formed* request, which is what makes either
+    refusal mean anything. A program lives under `--prefix`, not under
+    `--target`; sending the core operation's argv unchanged asks a provider to
+    install a program without saying where, and its refusal then says the
+    request was malformed rather than anything about the capability.
     """
-    name = "declared_software_names_its_artifact"
-    if protocol_v3.Operation.SOFTWARE_INSTALL not in capabilities.operations:
-        return conformance.Case(
-            name,
-            True,
-            "provider does not declare software_install, so no artifact identity is owed",
-        )
+    name = "software_lifecycle_matches_its_declaration"
+    declared = protocol_v3.Operation.SOFTWARE_INSTALL in capabilities.operations
     replaced = list(arguments)
     replaced[replaced.index("--operation") + 1] = protocol_v3.Operation.SOFTWARE_INSTALL.value
+    # Never created and never written: `plan-operation` is pure, and the
+    # provider accepts a `--prefix` that does not exist yet. A directory made
+    # here would be one this run has to remove again.
+    prefix = Path(tempfile.gettempdir()).resolve() / "ai-stp-conformance-prefix"
+    replaced += ["--prefix", str(prefix)]
     answer = _object(invoke("plan-operation", tuple(replaced)))
+    reason = answer.get("reason")
+    if not declared:
+        refused = (
+            answer.get("rejected") is True
+            and reason == protocol_v3.UnsupportedReason.OPERATION.value
+        )
+        return conformance.Case(
+            name,
+            refused,
+            f"does not declare software_install and refuses it with {reason!r}"
+            if refused
+            else "does not declare software_install and answered a well-formed request with "
+            f"{reason or answer.get('state')!r} instead of unsupported_operation",
+        )
     if answer.get("rejected") is True:
         return conformance.Case(
             name,
             False,
-            f"declares software_install and then refused it with {answer.get('reason')!r}",
+            f"declares software_install and refused a well-formed plan with {reason!r}",
         )
     plan = answer.get("plan")
     artifacts = plan.get("software_artifacts") if isinstance(plan, dict) else None

@@ -789,7 +789,7 @@ def test_a_declared_program_lifecycle_names_its_artifact_offline(tmp_path: Path)
     )
 
     case = next(
-        item for item in report.cases if item.name == "declared_software_names_its_artifact"
+        item for item in report.cases if item.name == "software_lifecycle_matches_its_declaration"
     )
     assert case.passed, case.detail
 
@@ -806,7 +806,7 @@ def test_a_declared_program_lifecycle_without_artifacts_fails(tmp_path: Path) ->
     )
 
     case = next(
-        item for item in report.cases if item.name == "declared_software_names_its_artifact"
+        item for item in report.cases if item.name == "software_lifecycle_matches_its_declaration"
     )
     assert not case.passed, case.detail
     assert not report.conforms
@@ -826,19 +826,23 @@ def test_an_incomplete_software_artifact_is_not_an_identity(tmp_path: Path) -> N
     )
 
     case = next(
-        item for item in report.cases if item.name == "declared_software_names_its_artifact"
+        item for item in report.cases if item.name == "software_lifecycle_matches_its_declaration"
     )
     assert not case.passed, case.detail
     assert "sha256" in case.detail
 
 
-def test_a_provider_without_the_lifecycle_narrows_rather_than_fails(tmp_path: Path) -> None:
-    """Pi declares no software operation and is conforming anyway.
+def test_a_provider_without_the_lifecycle_must_refuse_rather_than_be_skipped(
+    tmp_path: Path,
+) -> None:
+    """Not declaring it is an assertion here, not a pass by default.
 
     Measured against the shipped `pi-setup-system` 0.0.4: npm resolves the
     dependency closure at install time, so no single artifact has a digest a
-    plan could pin ahead of time. That is a reason, not a defect, and the report
-    has to say the case was not exercised rather than claim it passed.
+    plan could pin ahead of time. Pi therefore declares none of the three and
+    refuses with `unsupported_operation`, and that refusal is what this case
+    requires. Scoring "did not declare it" as passed is how a case becomes a
+    permanent green that reads as coverage.
     """
     target = tmp_path / "core-only"
     target.mkdir()
@@ -847,7 +851,41 @@ def test_a_provider_without_the_lifecycle_narrows_rather_than_fails(tmp_path: Pa
     report = conformance_v3.run(invoke, harness_id="claude-code", target=target)
 
     case = next(
-        item for item in report.cases if item.name == "declared_software_names_its_artifact"
+        item for item in report.cases if item.name == "software_lifecycle_matches_its_declaration"
     )
     assert case.passed, case.detail
-    assert "does not declare" in case.detail
+    assert "unsupported_operation" in case.detail
+
+
+def test_the_software_plan_request_names_a_prefix(tmp_path: Path) -> None:
+    """The request must carry `--prefix`, or every refusal means the wrong thing.
+
+    A program lives under `--prefix`, not under `--target`. Sending the core
+    operation's argv unchanged asks a provider to install a program without
+    saying where, and every provider that implements the lifecycle correctly
+    refuses that as malformed. Shipped once without this: all six providers that
+    declare the lifecycle went red and Pi, the only one without it, went green —
+    the case inverted. This pins the argument so the inversion cannot come back
+    silently.
+    """
+    target = tmp_path / "argv"
+    target.mkdir()
+    seen: list[Sequence[str]] = []
+    inner = _declares_software(target, artifacts=[_artifact()])
+
+    def invoke(command: str, arguments: Sequence[str]) -> JsonValue:
+        if command == "plan-operation":
+            seen.append(tuple(arguments))
+        return inner(command, arguments)
+
+    conformance_v3.run(invoke, harness_id="claude-code", target=target)
+
+    software = [call for call in seen if protocol_v3.Operation.SOFTWARE_INSTALL.value in call]
+    assert software, "the software plan was never requested"
+    for call in software:
+        assert "--prefix" in call, f"software plan request without --prefix: {call}"
+        prefix = Path(call[call.index("--prefix") + 1])
+        assert prefix.is_absolute(), f"--prefix must be absolute, got {prefix}"
+        # Named, never created: `plan-operation` is pure, and a directory made
+        # here would be one the run has to remove again.
+        assert not prefix.exists(), f"conformance created {prefix}"
