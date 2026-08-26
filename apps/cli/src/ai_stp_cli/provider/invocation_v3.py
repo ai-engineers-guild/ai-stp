@@ -2,10 +2,17 @@
 
 from __future__ import annotations
 
+import platform
 from collections.abc import Sequence
 from pathlib import Path
 
-from ai_stp_cli.provider import conformance, invocation_v2, protocol_v2, protocol_v3
+from ai_stp_cli.provider import (
+    conformance,
+    invocation_v2,
+    network_launcher,
+    protocol_v2,
+    protocol_v3,
+)
 from ai_stp_foundation.canonical import JsonValue
 
 
@@ -24,18 +31,29 @@ def invoke(
     *,
     launcher: invocation_v2.NetworkLauncher | None,
     capability: protocol_v2.NetworkCapability | None,
+    unisolated: network_launcher.UnisolatedLocalPhase | None = None,
 ) -> JsonValue:
     """Run one exact core command under consumer-proved network denial."""
     if command not in protocol_v3.CORE_COMMANDS:
         raise KeyError(f"unknown provider v3 core command: {command}")
     resolved_target = _target(target)
     resolved_executable = conformance.resolve_executable(executable)
-    if (
-        launcher is None
-        or capability is None
-        or launcher.capability != capability
-        or capability.enforcement is not protocol_v2.NetworkEnforcement.ENFORCED
-    ):
+    isolated = (
+        launcher is not None
+        and capability is not None
+        and launcher.capability == capability
+        and capability.enforcement is protocol_v2.NetworkEnforcement.ENFORCED
+    )
+    # Re-checked here rather than trusted from construction. The permission is a
+    # value, and a value can travel; the platform that needs the exception is
+    # the only one allowed to act on it. On Linux an unisolated phase would be a
+    # proved capability being skipped, which is a different thing entirely.
+    excepted = (
+        unisolated is not None
+        and platform.system().lower() == "windows"
+        and unisolated.reason in network_launcher.WINDOWS_UNISOLATED_REASONS
+    )
+    if not isolated and not excepted:
         raise protocol_v2.NetworkCapabilityUnavailable(
             protocol_v2.NetworkDecision(
                 command=command,
@@ -50,5 +68,8 @@ def invoke(
         () if command == "provider-info" else ("--target", str(resolved_target), "--json")
     )
     argv = (resolved_executable, command, *provider_arguments, *arguments)
-    wrapped = launcher.wrap(argv, target=resolved_target)
+    # Everything else is unchanged by the exception: literal argv, the resolved
+    # target, the timeouts and output limits. Only the wrapper is absent, and
+    # its absence is what `provider network` keeps reporting.
+    wrapped = argv if launcher is None else launcher.wrap(argv, target=resolved_target)
     return conformance.invoke_argv(wrapped, command=command)

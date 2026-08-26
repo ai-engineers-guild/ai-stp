@@ -635,7 +635,12 @@ def _v3_test_invoker(
             }
         raise AssertionError(command)
 
-    def invoker(_executable: str, provider_target: str, version: int) -> conformance.Invoker:
+    def invoker(
+        _executable: str,
+        provider_target: str,
+        version: int,
+        **_options: object,
+    ) -> conformance.Invoker:
         assert provider_target == str(target.resolve())
         assert version == protocol_v3.VERSION
         return invoke
@@ -2060,7 +2065,9 @@ def test_resume_only_observes_and_never_reapplies_the_bundle(
     )
     calls: list[str] = []
 
-    def invoker(_executable: str, _target: str, _version: int) -> conformance.Invoker:
+    def invoker(
+        _executable: str, _target: str, _version: int, **_options: object
+    ) -> conformance.Invoker:
         def invoke(command: str, arguments: Sequence[str]) -> JsonValue:
             del arguments
             calls.append(command)

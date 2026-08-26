@@ -298,7 +298,12 @@ def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
                 details={"protocol_version": str(protocol_version)},
             )
         provider_target = _provider_target(parameters, target, protocol_version)
-        invoke = invocation.provider_invoker(executable, provider_target, protocol_version)
+        invoke = invocation.provider_invoker(
+            executable,
+            provider_target,
+            protocol_version,
+            unisolated_reason=_unisolated_reason(trusted_release, parameters),
+        )
         info = _object(invoke("provider-info", ()))
         _speaks(info, protocol_version)
         provider_version = str(info.get("provider_version", ""))
@@ -624,6 +629,7 @@ def apply(parameters: Mapping[str, object]) -> Answer[InstallationView]:
             executable,
             held.provider_target or held.target_id,
             held.provider_protocol_version,
+            unisolated_reason=_unisolated_reason(trusted_release, parameters),
         )
         bound_bundle = (
             _bound_bundle_v3(held)
@@ -956,6 +962,7 @@ def resume(parameters: Mapping[str, object]) -> Answer[InstallationView]:
             executable,
             held.provider_target or held.target_id,
             held.provider_protocol_version,
+            unisolated_reason=_unisolated_reason(trusted_release, parameters),
         )
         info = _object(invoke("provider-info", ()))
         _speaks(info, held.provider_protocol_version)
@@ -1552,6 +1559,24 @@ def _protocol_version(
             },
         )
     return version
+
+
+def _unisolated_reason(
+    trusted_release: _ReleaseEvidence | release.ReleaseManifest | None,
+    parameters: Mapping[str, object],
+) -> str | None:
+    """Why this install may proceed on Windows with nothing denying the network.
+
+    Both answers are things the caller already had to establish: a release
+    verified against manifest, policy and exact bytes, or an operator who named
+    an unverified provider on purpose. Neither is new authority — this only
+    reads which of the two happened. Off Windows it is ignored.
+    """
+    if trusted_release is not None:
+        return "trusted_release"
+    if bool(parameters.get("unverified-provider", False)):
+        return "explicit_unverified_provider"
+    return None
 
 
 def _release_required(

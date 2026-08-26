@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, cast
 
+from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.provider.protocol_v2 import NetworkCapability, NetworkEnforcement
 
 _PROBE_TIMEOUT: Final[float] = 3.0
@@ -128,6 +129,67 @@ class BubblewrapLauncher:
             "--",
             *argv,
         )
+
+
+#: Why a Windows install may run a local phase with nothing denying the network.
+#: Closed, because the whole point of the exception is that it is not general.
+#:
+#: `trusted_release` — the release was verified against the manifest, the policy
+#: and its exact bytes before this was reached.
+#: `explicit_unverified_provider` — the operator named an unverified provider on
+#: purpose, which is already a separate, deliberate act.
+WINDOWS_UNISOLATED_REASONS: Final[frozenset[str]] = frozenset(
+    {"trusted_release", "explicit_unverified_provider"}
+)
+
+
+@dataclass(frozen=True)
+class UnisolatedLocalPhase:
+    """Permission to run one local phase with no network-denying launcher.
+
+    A value rather than a boolean, because a boolean is something a caller
+    passes without deciding. This has to be built, on the platform that needs
+    it, naming which of the two reasons applies.
+    """
+
+    reason: str
+
+
+def windows_unisolated(reason: str) -> UnisolatedLocalPhase:
+    """Build the Windows exception, or refuse to.
+
+    Windows 11 has no network-denying launcher a plain CLI may use. Classic
+    AppContainer denies the network but reaching an arbitrary target needs DACL
+    traversal, and preparing a parent or a drive root is not an installer's to
+    do; `CreateProcessInSandbox` is absent on this OS version and Windows
+    Sandbox is a separate optional feature. So the provider refused before its
+    first spawn and nothing worked on Windows at all.
+
+    This is deliberate security debt, scoped by `#416`: a provider the operator
+    chose can technically use the network during a local phase. It is not a
+    claim to isolation — `provider network` keeps reporting `unavailable`,
+    because reporting `enforced` would hide the debt in the one output someone
+    would check for it.
+
+    It cannot be built anywhere else. On Linux an unisolated phase is not a
+    concession to a missing capability, it is a proved capability being skipped,
+    and those are different things that must not share a code path.
+    """
+    os_name = platform.system().lower()
+    if os_name != "windows":
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "a local phase may only run without network isolation on windows",
+            details={"os": os_name, "reason": reason},
+            next_actions=["provider network --json"],
+        )
+    if reason not in WINDOWS_UNISOLATED_REASONS:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "that is not a reason a local phase may run without network isolation",
+            details={"reason": reason, "allowed": ", ".join(sorted(WINDOWS_UNISOLATED_REASONS))},
+        )
+    return UnisolatedLocalPhase(reason=reason)
 
 
 def _unavailable(os_name: str, reason: str) -> NetworkCapability:

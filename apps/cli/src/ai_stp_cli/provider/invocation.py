@@ -9,6 +9,7 @@ tree, with one of them missing the argument that defines a program operation.
 
 from __future__ import annotations
 
+import platform
 from collections.abc import Sequence
 
 from ai_stp_cli.errors import CliFailure
@@ -24,7 +25,13 @@ from ai_stp_cli.provider import (
 from ai_stp_foundation.canonical import JsonValue
 
 
-def provider_invoker(executable: str, target: str, version: int) -> conformance.Invoker:
+def provider_invoker(
+    executable: str,
+    target: str,
+    version: int,
+    *,
+    unisolated_reason: str | None = None,
+) -> conformance.Invoker:
     """Select frozen v1 or an enforced local-only v2/v3 boundary.
 
     `--target` is injected here and never by an argv builder. A caller that adds
@@ -35,6 +42,15 @@ def provider_invoker(executable: str, target: str, version: int) -> conformance.
         return conformance.subprocess_invoker(executable, target)
 
     launcher, capability = network_launcher.discover_bubblewrap()
+    # Only the install lifecycle names a reason, and only Windows can act on
+    # one. Everything that merely observes a target passes nothing and keeps
+    # refusing there, which is the scope `#416` decided rather than a scope
+    # inferred from which function happens to call this.
+    unisolated = (
+        network_launcher.windows_unisolated(unisolated_reason)
+        if unisolated_reason is not None and platform.system().lower() == "windows"
+        else None
+    )
 
     def invoke(command: str, arguments: Sequence[str]) -> JsonValue:
         try:
@@ -46,6 +62,7 @@ def provider_invoker(executable: str, target: str, version: int) -> conformance.
                     arguments,
                     launcher=launcher,
                     capability=capability,
+                    unisolated=unisolated,
                 )
             return invocation_v2.invoke(
                 executable,
