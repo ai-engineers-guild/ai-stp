@@ -355,3 +355,44 @@ def test_every_command_returns_the_model_its_declared_schema_names() -> None:
             )
 
     assert not mismatched, sorted(mismatched)
+
+
+def test_only_the_shared_invoker_calls_the_v3_transport() -> None:
+    """One place decides how a v3 provider is spawned, because one already didn't.
+
+    `provider_invoker` holds the launcher discovery, the isolation boundary, the
+    Windows exception `#416` scoped, and the writable places an operation needs.
+    A second hand-built call to `invocation_v3.invoke` inherits none of that and
+    stays plausible: it works on Linux, which is where it is written and read.
+
+    Both known instances failed exactly that way. One built a plan argv without
+    `--prefix`, and six providers were asked to install a program without being
+    told where. The other — `select provider-conformance` — discovered the
+    launcher itself and so could never run on a host that has no launcher to
+    discover, which is every Windows host (`#423`).
+
+    `invocation_v2.invoke` is deliberately not covered here: `conformance_v2`
+    needs a phase-carrying signature the shared invoker does not offer, so that
+    caller is a different shape rather than a second copy of this one.
+    """
+    home = CLI_SOURCE / "provider" / "invocation.py"
+    strays: list[str] = []
+    for path in sorted(CLI_SOURCE.rglob("*.py")):
+        if path == home:
+            continue
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if not isinstance(node, ast.Call):
+                continue
+            called = node.func
+            if (
+                isinstance(called, ast.Attribute)
+                and called.attr == "invoke"
+                and isinstance(called.value, ast.Name)
+                and called.value.id == "invocation_v3"
+            ):
+                strays.append(f"{path.relative_to(ROOT)}:{node.lineno}")
+
+    assert not strays, (
+        "these spawn a v3 provider without the shared boundary; "
+        "call provider.invocation.provider_invoker instead: " + ", ".join(strays)
+    )

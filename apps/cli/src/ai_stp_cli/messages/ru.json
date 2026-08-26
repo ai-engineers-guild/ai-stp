@@ -184,7 +184,6 @@
   "provider protocol v2/v3 cannot run this local phase without network isolation": "протокол провайдера v2/v3 не может выполнить эту локальную фазу без изоляции сети",
   "provider protocol v2/v3 requires an existing absolute target directory": "протоколу провайдера v2/v3 нужен существующий абсолютный каталог цели",
   "provider protocol v2/v3 requires an existing real target directory": "протоколу провайдера v2/v3 нужен существующий настоящий каталог цели",
-  "provider protocol v3 network isolation is unavailable before invocation": "изоляция сети протокола провайдера v3 недоступна до вызова",
   "provider release recovery must name an older release than the local floor": "восстановление выпуска провайдера должно назвать выпуск старше локального пола",
   "provider release recovery requires the exact signed release manifest": "восстановлению выпуска провайдера нужен точный подписанный манифест выпуска",
   "publication attestations require the active session's local signing identity": "attestation публикации требует локальную подписывающую идентичность активного сеанса",

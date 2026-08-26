@@ -57,8 +57,8 @@ from ai_stp_cli.provider import (
     conformance,
     conformance_v2,
     conformance_v3,
+    invocation,
     invocation_v2,
-    invocation_v3,
     network_launcher,
     protocol,
     protocol_v2,
@@ -1431,38 +1431,16 @@ def provider_conformance(parameters: Mapping[str, object]) -> Answer[Conformance
                 "provider protocol v2/v3 requires an existing real target directory",
                 details={"target": redact_home(target)},
             )
-        launcher, capability = network_launcher.discover_bubblewrap()
-
         if version == protocol_v3.VERSION:
-
-            def invoke_v3(command: str, arguments: Sequence[str]) -> JsonValue:
-                return invocation_v3.invoke(
-                    resolved_executable,
-                    str(target),
-                    command,
-                    arguments,
-                    launcher=launcher,
-                    capability=capability,
-                )
-
-            try:
-                report = conformance_v3.run(
-                    invoke_v3,
-                    harness_id=harness,
-                    target=target,
-                )
-            except protocol_v2.NetworkCapabilityUnavailable as error:
-                decision = error.decision
-                raise CliFailure(
-                    error.error_code,
-                    "provider protocol v3 network isolation is unavailable before invocation",
-                    details={
-                        "command": decision.command,
-                        "phase": decision.phase.value,
-                        "network_enforcement": decision.enforcement.value,
-                    },
-                    next_actions=["provider network --json"],
-                ) from None
+            # The shared invoker, not a copy of it. Conformance names no reason
+            # to run unisolated, so it keeps refusing where isolation is absent
+            # — that is `#416`'s scope, and it stays one line in one file rather
+            # than a second decision that drifts from the first.
+            report = conformance_v3.run(
+                invocation.provider_invoker(resolved_executable, str(target), version),
+                harness_id=harness,
+                target=target,
+            )
             return Answer(
                 ConformanceReport(
                     harness_id=harness,  # pyright: ignore[reportArgumentType]
@@ -1479,6 +1457,8 @@ def provider_conformance(parameters: Mapping[str, object]) -> Answer[Conformance
                     ],
                 )
             )
+
+        launcher, capability = network_launcher.discover_bubblewrap()
 
         def invoke_v2(
             command: str,
