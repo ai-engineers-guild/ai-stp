@@ -440,10 +440,18 @@ def propose(parameters: Mapping[str, object]) -> Answer[ProposalSession]:
     show one proposal or five is the agent's decision, so several may be open
     for the same pair at once and none of them is more real than the others
     until the user confirms exactly one.
+
+    `--empty` composes a setup that projects no files (`REQ-630`). It exists
+    because the alternative was worse in both directions: without it a zero
+    member setup could only be made by writing the registry by hand, and with a
+    bare zero-member call it would be indistinguishable from a search that
+    matched nothing. Naming it separates the two, and `select confirm` still
+    supplies the decision that freezes it.
     """
     harness = _harness_of(parameters)
     root = Path(str(parameters.get("project") or Path.cwd()))
     wanted = _members_named(parameters)
+    empty = parameters.get("empty") is True
 
     def work(connection: sqlite3.Connection) -> ProposalSession:
         context = context_for_project(connection, harness, root)
@@ -455,6 +463,7 @@ def propose(parameters: Mapping[str, object]) -> Answer[ProposalSession]:
             members=members,
             at=at,
             expires_at=_plus(at, PROPOSAL_TTL_SECONDS),
+            empty=empty,
         )
         return _session(connection, context, at)
 

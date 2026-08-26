@@ -210,6 +210,7 @@ def propose(
     members: tuple[Member, ...],
     at: str,
     expires_at: str,
+    empty: bool = False,
 ) -> Proposal:
     """Record one proposal. Writes nothing else — no version, no target.
 
@@ -217,11 +218,25 @@ def propose(
     `entity`, no revision and no head, so nothing here brings an object into
     existence. That is `REQ-622` and it is the whole reason this table is
     separate from the ones that do.
+
+    `empty` is how a caller says it means zero members (`REQ-630`). Without it
+    zero members stays the refusal it has always been, because that is what a
+    search matching nothing produces, and an immutable version is too expensive
+    a thing to get by omission. With it, and with members, the flag asserts
+    something false about the call and is refused rather than ignored.
     """
-    if not members:
+    if empty and members:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "an empty proposal cannot name members",
+            details={"members": str(len(members))},
+            next_actions=["select propose --harness <id> --empty --json"],
+        )
+    if not members and not empty:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
             "a proposal with no members composes nothing",
+            details={"empty_is_deliberate": "select propose --harness <id> --empty"},
             next_actions=["select eligibility --harness <id> --json"],
         )
     _distinct(members)

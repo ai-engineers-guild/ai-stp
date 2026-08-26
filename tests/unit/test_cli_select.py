@@ -803,3 +803,78 @@ def test_confirming_without_the_flag_is_a_user_decision_not_a_validation_error()
         select_command.confirm({"proposal": "proposal_01ARZ3NDEKTSV4RRFFQ69G5FAV"})
     assert raised.value.code == "AI_STP_USER_DECISION_REQUIRED"
     assert any("--confirm" in action for action in raised.value.next_actions)
+
+
+def test_a_proposal_with_no_members_is_refused_unless_the_emptiness_is_named(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """Zero members by omission is a search that found nothing (`REQ-630`).
+
+    An empty setup is a real thing to want — a harness configured to project no
+    files at all — and until now the only way to make one was to write the
+    registry by hand, which is not a workflow. But the call that means it looked
+    exactly like the call that meant nothing, and the object it freezes is
+    immutable. So the emptiness is named, and the bare call keeps refusing.
+    """
+    _ready(registry, tmp_path)
+
+    with pytest.raises(CliFailure) as raised:
+        select.propose({"harness": "claude-code", "project": str(tmp_path)})
+    assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+    assert "composes nothing" in raised.value.message
+    assert "--empty" in raised.value.details["empty_is_deliberate"]
+
+
+def test_an_empty_proposal_cannot_also_name_members(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """The flag asserts something about the call, so a false assertion refuses.
+
+    Ignoring it instead would let one of the two statements win silently, and
+    the caller would learn which only from the version it got.
+    """
+    _ready(registry, tmp_path)
+    stable_id = _released(registry, "H")
+
+    with pytest.raises(CliFailure) as raised:
+        select.propose(
+            {
+                "harness": "claude-code",
+                "project": str(tmp_path),
+                "member": [f"{stable_id}@1.0"],
+                "empty": True,
+            }
+        )
+    assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+    assert raised.value.details["members"] == "1"
+
+
+def test_a_named_empty_setup_is_proposed_confirmed_and_immutable(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """`REQ-630` end to end: the emptiness is named, the freeze is still decided.
+
+    Two gates rather than one, and they say different things. `--empty` says
+    zero members is the composition; `--confirm` says freeze this exact one.
+    Neither implies the other, which is why the second is not weakened here.
+    """
+    _ready(registry, tmp_path)
+
+    session = select.propose(
+        {"harness": "claude-code", "project": str(tmp_path), "empty": True}
+    ).payload
+    assert len(session.proposals) == 1
+    assert session.proposals[0].members == []
+
+    proposal_id = session.proposals[0].proposal_id
+    with pytest.raises(CliFailure) as raised:
+        select.confirm({"proposal": proposal_id})
+    assert raised.value.code == "AI_STP_USER_DECISION_REQUIRED"
+
+    confirmed = select.confirm({"proposal": proposal_id, "confirm": True}).payload
+    assert confirmed.created
+    assert confirmed.state == "pending_install"
+
+    again = select.confirm({"proposal": proposal_id, "confirm": True}).payload
+    assert (again.stable_id, again.version) == (confirmed.stable_id, confirmed.version)
+    assert not again.created, "an empty version is as immutable as any other"

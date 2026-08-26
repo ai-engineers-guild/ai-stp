@@ -191,7 +191,16 @@ class SetupVersionPassport(_VersionPassportBase):
     purpose: str
     target_role: str
     supported_tasks: list[str] = Field(default_factory=list)
-    components: Annotated[list[ComponentRef], Field(min_length=1)]
+    #: May be empty, and that is a composition rather than an absence. A setup
+    #: declaring no components is a harness managed with declared-empty content:
+    #: installing it projects nothing and leaves the target *managed*, so a file
+    #: appearing later is drift. Removal leaves the target unmanaged and watches
+    #: nothing, which is a different state and keeps its own verb.
+    #:
+    #: The bound used to be one, stated in this field and in no normative
+    #: document — the kind of rule that is only discovered by being hit. See
+    #: `ADR-0124` and `REQ-630`.
+    components: list[ComponentRef]
     ported_from: SetupRef | None = None
     related_setup_ids: list[Annotated[str, Field(pattern=stable_id_pattern("setup"))]] = Field(
         default_factory=list

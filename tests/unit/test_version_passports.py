@@ -139,15 +139,25 @@ def test_setup_rejects_variant_even_as_preserved_extra() -> None:
         SetupVersionPassport.model_validate(sealed_data)
 
 
-def test_setup_requires_components_and_one_harness() -> None:
-    with pytest.raises(ValidationError):
-        SetupVersionPassport.model_validate(
-            seal_envelope(_setup()).model_dump(mode="json") | {"components": []}
-        )
+def test_a_setup_names_exactly_one_harness() -> None:
     with pytest.raises(ValidationError):
         SetupVersionPassport.model_validate(
             seal_envelope(_setup()).model_dump(mode="json") | {"harness_id": "undefined"}
         )
+
+
+def test_a_setup_may_declare_no_components() -> None:
+    """`ADR-0124`: an empty composition is a composition, not an absence.
+
+    This assertion used to run the other way, bundled with the harness rule
+    above and stated in no document. Installing such a setup leaves the target
+    *managed* with declared-empty content, so a file appearing in it is drift —
+    which is what separates it from removal, where nothing is watched at all.
+    """
+    empty = SetupVersionPassport.model_validate(
+        seal_envelope(_setup()).model_dump(mode="json") | {"components": []}
+    )
+    assert empty.components == []
 
 
 def test_tags_are_bounded_one_to_eight() -> None:

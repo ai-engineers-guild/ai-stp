@@ -1537,6 +1537,11 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "One exact member as <stable_id>@<X.Y>. Repeat for each.",
                 repeatable=True,
             ),
+            option(
+                "empty",
+                "boolean",
+                "Compose a setup that projects no files. Refuses alongside --member.",
+            ),
         ),
         next_actions=("select confirm",),
     ),

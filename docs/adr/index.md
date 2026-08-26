@@ -122,6 +122,7 @@ last_verified: "2026-08-03"
 | [ADR-0121-provider-release-trust-levels.md](ADR-0121-provider-release-trust-levels.md) | Решение различать verified publisher, подписанный, build-attested и непроверенный выпуск провайдера. | 2026-08-24 |
 | [ADR-0122-harness-is-the-program-lifecycle-noun.md](ADR-0122-harness-is-the-program-lifecycle-noun.md) | Решение сделать harness существительным жизненного цикла программы, оставив toolchain harnesses чтением детекции. | 2026-08-26 |
 | [ADR-0123-the-catalog-does-not-borrow-the-kit-vocabulary.md](ADR-0123-the-catalog-does-not-borrow-the-kit-vocabulary.md) | Решение переименовать projection_capabilities в native_authoring, чтобы каталог харнессов не выглядел закрытым набором provider-kit. | 2026-08-26 |
+| [ADR-0124-a-setup-may-declare-no-components.md](ADR-0124-a-setup-may-declare-no-components.md) | Решение разрешить сетапу объявлять ноль компонентов, отделив управляемую пустоту от снятия с управления. | 2026-08-26 |
 | [template.md](template.md) | Шаблон записи архитектурного решения. | 2026-08-03 |
 
 <!-- КОНЕЦ СОДЕРЖИМОГО -->

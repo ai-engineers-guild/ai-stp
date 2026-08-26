@@ -323,7 +323,6 @@
       "items": {
         "$ref": "#/$defs/ComponentRef"
       },
-      "minItems": 1,
       "title": "Components",
       "type": "array"
     },

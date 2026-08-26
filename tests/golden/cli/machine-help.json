@@ -4174,6 +4174,15 @@
           "repeatable": true,
           "summary": "One exact member as <stable_id>@<X.Y>. Repeat for each.",
           "choices": []
+        },
+        {
+          "name": "empty",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Compose a setup that projects no files. Refuses alongside --member.",
+          "choices": []
         }
       ],
       "parameter_rules": [],

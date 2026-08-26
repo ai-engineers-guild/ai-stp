@@ -5518,7 +5518,6 @@
             "items": {
               "$ref": "#/components/schemas/ComponentRef"
             },
-            "minItems": 1,
             "title": "Components",
             "type": "array"
           },

@@ -41,6 +41,7 @@
   "GitHub release metadata is not valid JSON": "метаданные GitHub-выпуска не являются допустимым JSON",
   "GitHub release metadata is unavailable": "метаданные GitHub-выпуска недоступны",
   "GitHub verified no attestation for the provider artifact": "GitHub не подтвердил ни одной attestation для артефакта провайдера",
+  "an empty proposal cannot name members": "пустое предложение не может называть участников",
   "no regular provider attestation bundle sits at that path": "по этому пути нет обычного файла provider attestation bundle",
   "provider release recovery currently requires signed local history": "для восстановления релиза провайдера сейчас требуется подписанная локальная история",
   "removing a harness program requires explicit confirmation": "удаление программы харнесса требует явного подтверждения",
