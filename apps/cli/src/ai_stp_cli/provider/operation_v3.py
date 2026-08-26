@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import platform
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import cast
 
 from ai_stp_cli.errors import CliFailure
@@ -33,7 +33,118 @@ SOFTWARE_OPERATIONS: frozenset[protocol_v3.Operation] = frozenset(
 )
 
 
-def plan_arguments(
+@dataclass(frozen=True)
+class SoftwareArtifact:
+    """One program archive, named completely enough to fetch without asking again.
+
+    `entry_point` is relative to `--prefix` and is the path the provider will
+    expose there — not a path inside the archive. The archive's own shape never
+    crosses the wire, which is what lets a harness whose archive has no wrapper
+    directory work without a special case.
+    """
+
+    platform: str
+    url: str
+    sha256: str
+    byte_length: int
+    entry_point: str
+
+
+#: Program operations that fetch bytes. `software_remove` is deliberately absent:
+#: it deletes what is already there and needs no artifact.
+_FETCHING_OPERATIONS: frozenset[protocol_v3.Operation] = frozenset(
+    {protocol_v3.Operation.SOFTWARE_INSTALL, protocol_v3.Operation.SOFTWARE_UPDATE}
+)
+
+_ARTIFACT_FIELDS: tuple[str, ...] = (
+    "platform",
+    "url",
+    "sha256",
+    "byte_length",
+    "entry_point",
+)
+
+
+def require_software_artifacts(
+    plan: dict[str, JsonValue],
+    *,
+    operation: protocol_v3.Operation,
+) -> tuple[SoftwareArtifact, ...]:
+    """Read the artifact identities a program plan must state before any fetch.
+
+    The consumer downloads and the provider never does — `download` is not one of
+    the kit's commands, and both commands that could have carried it are
+    `network_requirement: none`. So this plan is the only place the identity of
+    those bytes is ever stated, and it is stated offline, before the network is
+    touched. Every refusal here is a refusal to fetch something whose identity
+    was left open.
+
+    The digest is the anchor and the URL is only a hint: bytes that do not match
+    are refused whatever host served them.
+    """
+    raw = plan.get("software_artifacts")
+    if operation not in _FETCHING_OPERATIONS:
+        if raw:
+            raise _refused(
+                "a plan that fetches nothing offered software artifacts",
+                fields=operation.value,
+            )
+        return ()
+    if not isinstance(raw, list) or not raw:
+        raise _refused(
+            "the program plan names no software artifact to fetch",
+            fields=operation.value,
+        )
+    artifacts: list[SoftwareArtifact] = []
+    for index, entry in enumerate(cast(list[JsonValue], raw)):
+        if not isinstance(entry, dict):
+            raise _refused("a software artifact is not an object", fields=str(index))
+        item = cast(dict[str, JsonValue], entry)
+        missing = [name for name in _ARTIFACT_FIELDS if item.get(name) is None]
+        if missing:
+            raise _refused(
+                "a software artifact does not state its identity",
+                fields=", ".join(missing),
+            )
+        digest = item["sha256"]
+        if not isinstance(digest, str) or not is_digest(digest):
+            raise _refused("a software artifact has no exact sha256", fields="sha256")
+        length = item["byte_length"]
+        # `bool` is an `int` in Python and `True` would pass a naive check.
+        if not isinstance(length, int) or isinstance(length, bool) or length <= 0:
+            raise _refused("a software artifact has no checkable byte_length", fields="byte_length")
+        url = item["url"]
+        if not isinstance(url, str) or not url.startswith("https://"):
+            raise _refused("a software artifact is not fetched over https", fields="url")
+        entry_point = item["entry_point"]
+        if not isinstance(entry_point, str) or not _within_prefix(entry_point):
+            raise _refused(
+                "a software artifact entry point leaves the prefix", fields="entry_point"
+            )
+        platform_name = item["platform"]
+        if not isinstance(platform_name, str) or "/" not in platform_name:
+            raise _refused("a software artifact names no platform", fields="platform")
+        artifacts.append(
+            SoftwareArtifact(
+                platform=platform_name,
+                url=url,
+                sha256=digest,
+                byte_length=length,
+                entry_point=entry_point,
+            )
+        )
+    return tuple(artifacts)
+
+
+def _within_prefix(candidate: str) -> bool:
+    """Whether a relative path stays under the directory it is joined to."""
+    path = PurePosixPath(candidate)
+    if path.is_absolute() or not candidate:
+        return False
+    return ".." not in path.parts
+
+
+def plan_operation_arguments(
     *,
     operation: protocol_v3.Operation,
     release_digest: str,

@@ -530,7 +530,7 @@ def _plan_v3(
         return _view(connection, existing)
 
     operation_id = new_id("operation")
-    arguments = operation_v3.plan_arguments(
+    arguments = operation_v3.plan_operation_arguments(
         operation=operation,
         release_digest=release_digest,
         operation_id=operation_id,

@@ -122,7 +122,7 @@ def run(
         )
         release_digest = "sha256:" + "d" * 64
         operation_id = "operation_provider_conformance_v3"
-        arguments = operation_v3.plan_arguments(
+        arguments = operation_v3.plan_operation_arguments(
             operation=operation,
             release_digest=release_digest,
             operation_id=operation_id,
@@ -261,22 +261,6 @@ def _undeclared_operation(
     )
 
 
-#: Every field an offline plan must carry before a consumer may fetch bytes.
-#: `sha256` and `byte_length` are what the applier checks before it writes;
-#: `platform` is what makes the choice reproducible on another machine;
-#: `entry_point` is the path the provider will expose under `--prefix`, and it
-#: is not a path inside the archive — the archive's own shape never reaches the
-#: wire, which is what lets a harness whose archive has no wrapper directory
-#: work without a special case.
-SOFTWARE_ARTIFACT_FIELDS: Final[tuple[str, ...]] = (
-    "platform",
-    "url",
-    "sha256",
-    "byte_length",
-    "entry_point",
-)
-
-
 def _declared_software_artifact(
     invoke: conformance.Invoker,
     capabilities: protocol_v3.ProviderCapabilities,
@@ -312,7 +296,7 @@ def _declared_software_artifact(
     # provider accepts a `--prefix` that does not exist yet. A directory made
     # here would be one this run has to remove again.
     prefix = Path(tempfile.gettempdir()).resolve() / "ai-stp-conformance-prefix"
-    request = operation_v3.plan_arguments(
+    request = operation_v3.plan_operation_arguments(
         operation=protocol_v3.Operation.SOFTWARE_INSTALL,
         release_digest=_argument(arguments, "--provider-release-digest"),
         operation_id=_argument(arguments, "--operation-id"),
@@ -341,23 +325,23 @@ def _declared_software_artifact(
             f"declares software_install and refused a well-formed plan with {reason!r}",
         )
     plan = answer.get("plan")
-    artifacts = plan.get("software_artifacts") if isinstance(plan, dict) else None
-    if not isinstance(artifacts, list) or not artifacts:
-        return conformance.Case(
-            name,
-            False,
-            "planned software_install without naming any software_artifacts",
+    if not isinstance(plan, dict):
+        return conformance.Case(name, False, "planned software_install without a plan artifact")
+    # The consumer's own reader, not a second copy of it. A case that checked
+    # these fields its own way would pass plans the applier then refuses, and
+    # the difference would only appear at install time.
+    try:
+        artifacts = operation_v3.require_software_artifacts(
+            cast(dict[str, JsonValue], plan),
+            operation=protocol_v3.Operation.SOFTWARE_INSTALL,
         )
-    for index, entry in enumerate(artifacts):
-        if not isinstance(entry, dict):
-            return conformance.Case(name, False, f"software_artifacts[{index}] is not an object")
-        missing = [field for field in SOFTWARE_ARTIFACT_FIELDS if entry.get(field) is None]
-        if missing:
-            return conformance.Case(
-                name,
-                False,
-                f"software_artifacts[{index}] omits {', '.join(missing)}",
-            )
+    except CliFailure as error:
+        # Name the field. A report that says an artifact is incomplete without
+        # saying which part is missing sends the reader back to the wire.
+        fields = str(error.details.get("fields") or "")
+        return conformance.Case(
+            name, False, f"{error.message}: {fields}" if fields else error.message
+        )
     return conformance.Case(
         name,
         True,
