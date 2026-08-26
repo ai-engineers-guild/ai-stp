@@ -43,7 +43,7 @@ class HarnessDefinition:
     config_root: str | None
     source: str
     layouts: tuple[Layout, ...]
-    projection_capabilities: frozenset[str]
+    native_authoring: frozenset[str]
     gaps: tuple[str, ...] = ()
     xdg_config: bool = False
     root_override: str | None = None

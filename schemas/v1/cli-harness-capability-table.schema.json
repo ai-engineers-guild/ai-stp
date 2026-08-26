@@ -54,18 +54,18 @@
           "title": "Layout Sources",
           "type": "array"
         },
+        "native_authoring": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Native Authoring",
+          "type": "array"
+        },
         "project_layouts": {
           "items": {
             "type": "string"
           },
           "title": "Project Layouts",
-          "type": "array"
-        },
-        "projection_capabilities": {
-          "items": {
-            "type": "string"
-          },
-          "title": "Projection Capabilities",
           "type": "array"
         },
         "schema_version": {
@@ -94,7 +94,7 @@
         "title",
         "support",
         "component_types",
-        "projection_capabilities",
+        "native_authoring",
         "global_layouts",
         "project_layouts",
         "layout_sources",

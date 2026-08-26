@@ -17,7 +17,7 @@ def test_catalog_is_closed_complete_and_has_no_duplicate_layouts() -> None:
     )
     for definition in harness_catalog.DEFINITIONS:
         assert definition.layouts
-        assert definition.projection_capabilities
+        assert definition.native_authoring
         keys = [
             (layout.scope, layout.root, layout.relative, layout.component_type)
             for layout in definition.layouts
@@ -56,7 +56,7 @@ def test_machine_table_exposes_support_layouts_capabilities_and_gaps() -> None:
     ]
     by_id = {row.harness_id: row for row in rows}
     assert by_id["claude-code"].support == "primary"
-    assert "plugin_manifest" in by_id["codex"].projection_capabilities
+    assert "plugin_manifest" in by_id["codex"].native_authoring
     assert ".grok/skills" in by_id["grok-build"].project_layouts
     assert by_id["undefined"].gaps == ["no_single_harness_owner"]
     pi = next(item for item in harness_catalog.DEFINITIONS if item.harness_id == "pi")

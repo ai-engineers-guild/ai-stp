@@ -2308,7 +2308,7 @@ class HarnessCapabilityRow(BaseModel):
     component_types: list[
         Literal["instruction", "skill", "mcp", "hook", "command", "agent", "plugin", "setting"]
     ]
-    projection_capabilities: list[str]
+    native_authoring: list[str]
     global_layouts: list[str]
     project_layouts: list[str]
     layout_sources: list[str]

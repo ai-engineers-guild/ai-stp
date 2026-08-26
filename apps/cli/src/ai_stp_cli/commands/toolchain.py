@@ -34,7 +34,7 @@ def harness_capabilities(_parameters: Mapping[str, object]) -> Answer[HarnessCap
                     component_types=sorted(  # pyright: ignore[reportArgumentType]
                         {layout.component_type for layout in item.layouts}
                     ),
-                    projection_capabilities=sorted(item.projection_capabilities),
+                    native_authoring=sorted(item.native_authoring),
                     global_layouts=sorted(
                         layout.relative
                         for layout in item.layouts
