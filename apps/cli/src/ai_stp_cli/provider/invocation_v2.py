@@ -24,7 +24,13 @@ class NetworkLauncher(Protocol):
     @property
     def capability(self) -> protocol_v2.NetworkCapability: ...
 
-    def wrap(self, argv: tuple[str, ...], *, target: Path) -> tuple[str, ...]: ...
+    def wrap(
+        self,
+        argv: tuple[str, ...],
+        *,
+        target: Path,
+        writable: tuple[Path, ...] = (),
+    ) -> tuple[str, ...]: ...
 
 
 @dataclass(frozen=True)

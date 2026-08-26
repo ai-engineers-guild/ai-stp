@@ -196,3 +196,45 @@ def test_windows_with_the_exception_reaches_the_spawn_unwrapped(
     assert argv[0] == str(executable.resolve())
     assert "bwrap" not in " ".join(argv)
     assert "--target" in argv and "--json" in argv
+
+
+def test_a_program_operation_binds_its_prefix_writable(tmp_path: Path) -> None:
+    """The sandbox is built for a setup, which has exactly one writable path.
+
+    A program operation has two: the target it is told about, and the prefix it
+    actually writes into. Binding only the target made the provider write its
+    program into the sandbox's own `/tmp` tmpfs, where everything it then
+    checked was true — so it reported `verified` for files that ceased to exist
+    when the namespace did.
+
+    That is the worst shape a defect can take: a truthful provider, a passing
+    check, and nothing on disk.
+    """
+    from ai_stp_cli.provider import network_launcher as launcher_module
+
+    target = tmp_path / "target"
+    target.mkdir()
+    prefix = tmp_path / "prefix"
+    prefix.mkdir()
+    executable = tmp_path / "provider"
+    executable.write_text("stub", encoding="utf-8")
+
+    capability = protocol_v2.NetworkCapability(
+        enforcement=protocol_v2.NetworkEnforcement.ENFORCED,
+        os_name="linux",
+        launcher_id="bubblewrap:/usr/bin/bwrap",
+        evidence=("probed",),
+    )
+    launcher = launcher_module.BubblewrapLauncher(
+        executable=Path("/usr/bin/bwrap"), capability=capability
+    )
+
+    wrapped = launcher.wrap((str(executable), "apply-operation"), target=target, writable=(prefix,))
+
+    binds = [
+        wrapped[index + 1]
+        for index, item in enumerate(wrapped)
+        if item == "--bind" and index + 1 < len(wrapped)
+    ]
+    assert str(target.resolve()) in binds
+    assert str(prefix.resolve()) in binds, "the prefix is where the program goes"

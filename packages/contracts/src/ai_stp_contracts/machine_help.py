@@ -833,6 +833,63 @@ class ProjectIndex(BaseModel):
     excluded: list[ExcludedPath]
 
 
+class HarnessProgramArtifact(BaseModel):
+    """One archive a program plan named, as the plan named it.
+
+    Repeated here rather than summarised because the consumer fetched exactly
+    this and an agent reading the result may want to check the same bytes
+    itself. `entry_point` is relative to the prefix and is the path the provider
+    exposes there — not a path inside the archive.
+    """
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    platform: Annotated[str, Field(min_length=1)]
+    url: Annotated[str, Field(min_length=1)]
+    sha256: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    byte_length: Annotated[int, Field(gt=0)]
+    entry_point: Annotated[str, Field(min_length=1)]
+
+
+class HarnessProgram(BaseModel):
+    """The outcome of one program lifecycle operation (`ADR-0122`).
+
+    The subject is the harness program under `--prefix`, not the configuration
+    in `--target`. `state` is what the provider reported after the effect, and
+    `verified` is the only state that says the program is installed and its
+    identity confirmed.
+
+    `operation_id` names the journal entry, which is the same journal a setup
+    installation uses: the state machine, the backup and the plan digest do not
+    change with the subject.
+    """
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    harness_id: Annotated[str, Field(min_length=1)]
+    operation: Literal["software_install", "software_update", "software_remove"]
+    state: Annotated[str, Field(min_length=1)]
+    operation_id: Annotated[str, Field(min_length=1)]
+    prefix: Annotated[str, Field(min_length=1)]
+    plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+
+    #: What the plan said it would do, verbatim. A plan with no effects changes
+    #: nothing and is refused before it reaches here.
+    effects: list[str]
+
+    #: Empty for `software_remove`, which deletes what is already there and
+    #: fetches nothing.
+    artifacts: list[HarnessProgramArtifact] = []
+
+    #: Present once the provider has exposed a command, as an absolute path.
+    #: Read from the provider's own answer rather than joined here, so the two
+    #: cannot disagree.
+    executable: str = ""
+    version: str = ""
+
+
 class ToolInstallation(BaseModel):
     """The outcome of one managed install (`SPEC-014` REQ-1405, REQ-1410, REQ-1411).
 

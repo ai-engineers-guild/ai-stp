@@ -55,6 +55,14 @@ PLAN_DOMAIN: Final[str] = "ai-stp:plan:v1"
 #: (`ADR-0122`, amended). The split between setups and the program lifecycle
 #: lives on the command surface: `install` refuses a `software_*` action and
 #: names `harness`, which is where it is carried out.
+#: Journal actions whose subject is the harness program under a prefix rather
+#: than the configuration in a target. `begin` reads this to decide whether a
+#: moved target invalidates the plan — for these it does not.
+PROGRAM_ACTIONS: Final[frozenset[str]] = frozenset(
+    {"software_install", "software_update", "software_remove"}
+)
+
+
 ACTIONS: Final[frozenset[str]] = frozenset(
     {
         "install",
@@ -451,6 +459,24 @@ def begin(
                 "AI_STP_PLAN_STALE",
                 "this plan expired before it was applied",
                 details={"operation_id": operation_id, "expired_at": plan.expires_at},
+            )
+        elif plan.action in PROGRAM_ACTIONS:
+            # The subject is the program under the prefix, not the target's
+            # contents, so the target moving says nothing about this plan. The
+            # provider does not enforce `expected_target_digest` for these
+            # operations either — measured, not assumed: a file written into the
+            # target between plan and apply still reaches `verified`. Checking
+            # it here would be stricter than the contract and would discard a
+            # finished download because someone edited their own configuration.
+            #
+            # Read from the plan rather than taken as an argument: a caller that
+            # could pass this could pass it for a setup too.
+            _move(
+                connection,
+                operation_id,
+                STATE_APPLYING,
+                "preconditions re-checked under the lock; the target is not this plan's subject",
+                at,
             )
         elif observed_target_digest != plan.expected_target_digest:
             _move(connection, operation_id, STATE_STALE, "the target moved under the plan", at)

@@ -32,6 +32,7 @@ def invoke(
     launcher: invocation_v2.NetworkLauncher | None,
     capability: protocol_v2.NetworkCapability | None,
     unisolated: network_launcher.UnisolatedLocalPhase | None = None,
+    writable: tuple[Path, ...] = (),
 ) -> JsonValue:
     """Run one exact core command under consumer-proved network denial."""
     if command not in protocol_v3.CORE_COMMANDS:
@@ -71,5 +72,7 @@ def invoke(
     # Everything else is unchanged by the exception: literal argv, the resolved
     # target, the timeouts and output limits. Only the wrapper is absent, and
     # its absence is what `provider network` keeps reporting.
-    wrapped = argv if launcher is None else launcher.wrap(argv, target=resolved_target)
+    wrapped = (
+        argv if launcher is None else launcher.wrap(argv, target=resolved_target, writable=writable)
+    )
     return conformance.invoke_argv(wrapped, command=command)

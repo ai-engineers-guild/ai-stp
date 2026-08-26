@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import platform
 from collections.abc import Sequence
+from pathlib import Path
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.provider import (
@@ -31,6 +32,7 @@ def provider_invoker(
     version: int,
     *,
     unisolated_reason: str | None = None,
+    writable: tuple[Path, ...] = (),
 ) -> conformance.Invoker:
     """Select frozen v1 or an enforced local-only v2/v3 boundary.
 
@@ -63,6 +65,7 @@ def provider_invoker(
                     launcher=launcher,
                     capability=capability,
                     unisolated=unisolated,
+                    writable=writable,
                 )
             return invocation_v2.invoke(
                 executable,

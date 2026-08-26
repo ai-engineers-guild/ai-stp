@@ -92,8 +92,23 @@ class BubblewrapLauncher:
         if self.capability.launcher_id != f"bubblewrap:{_path_token(self.executable)}":
             raise ValueError("launcher identity does not match its executable")
 
-    def wrap(self, argv: tuple[str, ...], *, target: Path) -> tuple[str, ...]:
-        """Wrap one exact local-only provider argv in the verified namespace."""
+    def wrap(
+        self,
+        argv: tuple[str, ...],
+        *,
+        target: Path,
+        writable: tuple[Path, ...] = (),
+    ) -> tuple[str, ...]:
+        """Wrap one exact local-only provider argv in the verified namespace.
+
+        `writable` is for the paths an operation legitimately writes that are
+        not the target. A setup has exactly one — the target — and binding only
+        that was correct until the program lifecycle arrived with a second: the
+        prefix. Left unbound, a provider writes its program into the sandbox's
+        own `/tmp` tmpfs, verifies it there truthfully, and leaves nothing
+        behind. Every entry is named by the caller and appears in the plan; this
+        is not a general escape hatch.
+        """
         if not argv or not Path(argv[0]).is_absolute():
             raise ValueError("provider executable must be absolute")
         if target.is_symlink() or not target.is_absolute() or not target.is_dir():
@@ -121,6 +136,11 @@ class BubblewrapLauncher:
             "AI_STP_PROVIDER_RUNTIME_CACHE",
             _PROVIDER_RUNTIME_CACHE,
             *readonly_mounts,
+            *(
+                item
+                for place in writable
+                for item in ("--bind", _path_token(place.resolve()), _path_token(place.resolve()))
+            ),
             "--bind",
             _path_token(resolved_target),
             _path_token(resolved_target),

@@ -218,6 +218,7 @@ _GROUP_SUMMARIES: Final[dict[tuple[str, ...], str]] = {
     ("consent",): "Grant and withdraw consent for unverified candidates.",
     ("device",): "This machine's identity in the local registry.",
     ("eval",): "Score a setup against a profile before installing it.",
+    ("harness",): "Install, update and remove the harness program itself.",
     ("grant",): "Share a private object with another account.",
     ("grant", "invitation"): "Invitations offered but not yet accepted.",
     ("install",): "Plan, apply, resume and recover a setup on a target.",

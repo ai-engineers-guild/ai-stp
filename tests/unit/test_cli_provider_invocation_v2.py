@@ -22,7 +22,13 @@ class RecordingLauncher:
         self.capability = capability
         self.calls: list[tuple[str, ...]] = []
 
-    def wrap(self, argv: tuple[str, ...], *, target: Path) -> tuple[str, ...]:
+    def wrap(
+        self,
+        argv: tuple[str, ...],
+        *,
+        target: Path,
+        writable: tuple[Path, ...] = (),
+    ) -> tuple[str, ...]:
         assert target.is_absolute()
         self.calls.append(argv)
         return argv

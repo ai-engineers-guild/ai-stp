@@ -107,7 +107,7 @@ class Plan:
 def plan(tool: Tool, artifact: Artifact, *, offline: bool = False) -> Plan:
     """Decide what installing this tool would take, without doing any of it."""
     target = installed_path(tool.tool_id, tool.version)
-    cached = cache_dir() / _digest_name(artifact.digest)
+    cached = cache_dir() / digest_name(artifact.digest)
 
     if _is_installed(tool, target):
         return Plan(
@@ -173,7 +173,7 @@ def remember(content: bytes, digest: str) -> Path:
     """
     verify(content, digest)
     ensure_directory(cache_dir())
-    target = cache_dir() / _digest_name(digest)
+    target = cache_dir() / digest_name(digest)
     # Written beside and renamed, so an interrupted write cannot leave a short
     # file under a name that asserts its contents.
     handle, staged = tempfile.mkstemp(dir=cache_dir(), prefix=".staging-")
@@ -190,7 +190,7 @@ def cached_bytes(digest: str) -> bytes:
     file has been at rest on a disk the CLI does not control since then, and the
     check costs one read of something already being read.
     """
-    target = cache_dir() / _digest_name(digest)
+    target = cache_dir() / digest_name(digest)
     if not target.exists():
         raise CliFailure(
             "AI_STP_DEPENDENCY_UNAVAILABLE",
@@ -390,7 +390,7 @@ def _is_installed(tool: Tool, target: Path) -> bool:
     return active is not None and active.resolve() == target.resolve()
 
 
-def _digest_name(digest: str) -> str:
+def digest_name(digest: str) -> str:
     """A cache file name from a digest, with no separator left in it."""
     return digest.replace(":", "-")
 
@@ -472,6 +472,26 @@ def perform(tool: Tool, artifact: Artifact, content: bytes) -> tuple[Path, list[
 DOWNLOAD_TIMEOUT_SECONDS: Final[float] = 120.0
 MAX_ARTIFACT_BYTES: Final[int] = 512 * 1024 * 1024
 
+#: The slowest link a download is still expected to finish over. A fixed 120 s
+#: is a size limit wearing a clock: it passes a 60 MB artifact and fails a
+#: 167 MB one on the same connection, and the failure looks like the larger
+#: vendor's fault. Deriving the deadline from the length the plan already states
+#: makes the limit the same for every artifact — this rate — instead of
+#: different for each size.
+MINIMUM_DOWNLOAD_BYTES_PER_SECOND: Final[int] = 512 * 1024
+
+
+def download_deadline(byte_length: int) -> float:
+    """How long an artifact of a stated length may take to arrive.
+
+    Never shorter than the flat timeout, so nothing that used to fit stops
+    fitting.
+    """
+    return max(
+        DOWNLOAD_TIMEOUT_SECONDS,
+        DOWNLOAD_TIMEOUT_SECONDS + byte_length / MINIMUM_DOWNLOAD_BYTES_PER_SECOND,
+    )
+
 
 #: Where a GitHub release asset is allowed to hand its bytes over, and nowhere
 #: else. Closed and observed rather than assumed: on 2026-08-20 a `GET` of a
@@ -537,7 +557,12 @@ def _release_asset_target(source: str, location: str) -> str:
     return location
 
 
-def download(url: str, *, transport: object | None = None) -> bytes:
+def download(
+    url: str,
+    *,
+    transport: object | None = None,
+    timeout: float = DOWNLOAD_TIMEOUT_SECONDS,
+) -> bytes:
     """Fetch an artifact from its pinned source, deliberately without much.
 
     Not the cloud client, and not by accident. That one carries a schema header,
@@ -553,7 +578,7 @@ def download(url: str, *, transport: object | None = None) -> bytes:
 
     try:
         with httpx.Client(
-            timeout=httpx.Timeout(DOWNLOAD_TIMEOUT_SECONDS, connect=10.0),
+            timeout=httpx.Timeout(timeout, connect=10.0),
             follow_redirects=False,
             transport=transport,  # pyright: ignore[reportArgumentType]
             headers={"Accept": "application/octet-stream"},

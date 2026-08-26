@@ -482,3 +482,45 @@ def test_a_plan_always_asks_for_the_digest_form_of_confirmation() -> None:
     a decision about one is a decision about its digest.
     """
     assert installation.CONFIRMATION_PLAN_DIGEST == "plan_digest"
+
+
+# A program operation and a setup operation disagree about what a moved target
+# means, and the journal has to hold both readings rather than one.
+def test_a_moved_target_does_not_stale_a_program_plan(registry: sqlite3.Connection) -> None:
+    """The program under `--prefix` has nothing to do with the target's contents.
+
+    Measured against a shipped provider: a file written into the target between
+    `plan-operation` and `apply-operation` still reaches `state: verified`,
+    deliberately. Re-checking the target here would be stricter than the
+    contract and would throw away a 167 MB download because someone edited
+    their own instructions.
+    """
+    plan = _plan(registry, "k-program", action="software_install")
+    installation.approve(registry, plan.operation_id, plan_digest=plan.digest, at=AT)
+
+    began = installation.begin(registry, plan.operation_id, observed_target_digest=MOVED, at=AT)
+
+    assert began.operation_id == plan.operation_id
+    assert _state(registry, plan.operation_id) == installation.STATE_APPLYING
+
+
+def test_a_program_plan_still_expires(registry: sqlite3.Connection) -> None:
+    """Only the target check is skipped. A plan is still a statement about a moment."""
+    plan = _plan(registry, "k-program-late", action="software_install")
+    installation.approve(registry, plan.operation_id, plan_digest=plan.digest, at=AT)
+
+    with pytest.raises(CliFailure) as raised:
+        installation.begin(registry, plan.operation_id, observed_target_digest=HELD, at=LATE)
+
+    assert raised.value.code == "AI_STP_PLAN_STALE"
+    assert _state(registry, plan.operation_id) == installation.STATE_STALE
+
+
+def test_a_program_plan_still_needs_approval(registry: sqlite3.Connection) -> None:
+    plan = _plan(registry, "k-program-unapproved", action="software_install")
+
+    with pytest.raises(CliFailure) as raised:
+        installation.begin(registry, plan.operation_id, observed_target_digest=HELD, at=AT)
+
+    assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
+    assert _state(registry, plan.operation_id) == installation.STATE_PLANNED

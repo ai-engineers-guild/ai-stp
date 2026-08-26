@@ -1939,6 +1939,198 @@
     },
     {
       "path": [
+        "harness",
+        "install"
+      ],
+      "summary": "Install the harness program itself under an exact prefix.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Harness whose program this is.",
+          "choices": []
+        },
+        {
+          "name": "provider",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact provider executable to invoke.",
+          "choices": []
+        },
+        {
+          "name": "provider-release-digest",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact release digest the provider binds itself to.",
+          "choices": []
+        },
+        {
+          "name": "prefix",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Absolute directory the program lives under. Not the target.",
+          "choices": []
+        },
+        {
+          "name": "target",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Absolute harness configuration target.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-harness-program",
+      "next_actions": [
+        "toolchain harnesses"
+      ]
+    },
+    {
+      "path": [
+        "harness",
+        "remove"
+      ],
+      "summary": "Remove the harness program this CLI installed, and nothing else.",
+      "mutability": "destructive",
+      "confirmation": "explicit_flag",
+      "parameters": [
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Harness whose program this is.",
+          "choices": []
+        },
+        {
+          "name": "provider",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact provider executable to invoke.",
+          "choices": []
+        },
+        {
+          "name": "provider-release-digest",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact release digest the provider binds itself to.",
+          "choices": []
+        },
+        {
+          "name": "prefix",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Absolute directory the program lives under. Not the target.",
+          "choices": []
+        },
+        {
+          "name": "target",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Absolute harness configuration target.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": true,
+          "repeatable": false,
+          "summary": "Confirm removing the program this CLI installed under the prefix.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-harness-program",
+      "next_actions": [
+        "toolchain harnesses"
+      ]
+    },
+    {
+      "path": [
+        "harness",
+        "update"
+      ],
+      "summary": "Move the exposed harness program to the version its provider pins.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Harness whose program this is.",
+          "choices": []
+        },
+        {
+          "name": "provider",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact provider executable to invoke.",
+          "choices": []
+        },
+        {
+          "name": "provider-release-digest",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact release digest the provider binds itself to.",
+          "choices": []
+        },
+        {
+          "name": "prefix",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Absolute directory the program lives under. Not the target.",
+          "choices": []
+        },
+        {
+          "name": "target",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Absolute harness configuration target.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-harness-program",
+      "next_actions": [
+        "toolchain harnesses"
+      ]
+    },
+    {
+      "path": [
         "help"
       ],
       "summary": "Emit the full command registry for an agent.",
