@@ -426,6 +426,65 @@ def test_v3_plan_load_apply_and_status_require_the_same_exact_identity(tmp_path:
     ) == _digest("e")
 
 
+def test_a_drifted_target_is_refused_for_drift_and_not_for_a_missing_binding(
+    tmp_path: Path,
+) -> None:
+    """Order matters here, so it is a property rather than a line number.
+
+    A provider withholds provenance about bytes that are no longer there: on a
+    drifted managed target the seven publish `operation_id` but not
+    `provider_plan_digest`, deliberately, because on a drifted target those
+    fields would read as claims about what is in front of you rather than about
+    a record.
+
+    That shape reaches the binding requirement missing a half. If the binding
+    ran first, a drifted target would be refused for a missing field when the
+    truthful answer is that it drifted — a familiar refusal, accurate about the
+    wrong thing, which is the same failure `unsupported_platform` would have had
+    if it were reused for a second meaning.
+
+    Drift is checked first, so the refusal says what is wrong. Nothing but the
+    order of two blocks makes that true, which is why it is asserted.
+    """
+    answer, bound, expiry, _digest_value = _plan_answer(tmp_path)
+    capabilities = _capabilities()
+    plan = operation_v3.require_plan(
+        answer,
+        capabilities=capabilities,
+        release_digest=_digest("d"),
+        operation_id="operation_test_v3",
+        operation=protocol_v3.Operation.INSTALL,
+        target=tmp_path,
+        expected_target_digest=_digest("a"),
+        bundle=bound,
+        backup_ref=None,
+        permission_profile=None,
+        expires_at=expiry,
+    )
+    drifted: dict[str, JsonValue] = {
+        "state": "managed",
+        "target_digest": _digest("e"),
+        "protocol_version": protocol_v3.VERSION,
+        "provider_id": capabilities.provider_id,
+        "provider_state": {
+            "present": True,
+            "readable": True,
+            "operation_id": "operation_test_v3",
+            "backup_ref": "slot-000000000001",
+            "drift_state": "local_drift",
+        },
+    }
+    with pytest.raises(CliFailure, match="does not prove a clean managed target"):
+        operation_v3.require_verified_status(
+            drifted,
+            capabilities=capabilities,
+            release_digest=_digest("d"),
+            plan=plan,
+            bundle=None,
+            operation=protocol_v3.Operation.INSTALL,
+        )
+
+
 def test_a_status_that_binds_itself_to_no_operation_is_refused(tmp_path: Path) -> None:
     """The refusal names "the approved" installation; it has to be able to fire.
 
