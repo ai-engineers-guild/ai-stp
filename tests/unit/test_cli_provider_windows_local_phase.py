@@ -13,12 +13,14 @@ exactly as narrow as it was decided to be.
 
 from __future__ import annotations
 
+import stat
 from pathlib import Path
 
 import pytest
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.provider import network_launcher, protocol_v2
+from ai_stp_foundation.canonical import JsonValue
 
 
 def _on(monkeypatch: pytest.MonkeyPatch, system: str) -> None:
@@ -69,13 +71,20 @@ def test_windows_capability_still_reports_unavailable(monkeypatch: pytest.Monkey
     assert capability.launcher_id is None
 
 
-def _echo(tmp_path: Path) -> Path:
-    """A provider stub that answers one command, so a spawn can be observed."""
-    import stat as stat_module
+def _stub(tmp_path: Path) -> Path:
+    """A file that exists and is never run.
 
+    The refusal under test happens before any spawn, so this only has to be
+    resolvable. It is deliberately not a shell script: a `#!/bin/sh` stub is
+    executable on two of the three systems this suite runs on, and writing one
+    here is how the Windows leg failed once already.
+    """
     script = tmp_path / "provider-stub"
-    script.write_text('#!/bin/sh\necho \'{"state":"missing","target_digest":"x"}\'\n')
-    script.chmod(script.stat().st_mode | stat_module.S_IXUSR)
+    script.write_text("stub", encoding="utf-8")
+    # Executable because `resolve_executable` requires it on POSIX; the bit is a
+    # no-op on Windows, where resolution is by existence. Content is not a
+    # script, so nothing can accidentally run it on either.
+    script.chmod(script.stat().st_mode | stat.S_IXUSR)
     return script
 
 
@@ -88,7 +97,7 @@ def test_without_isolation_and_without_the_exception_nothing_spawns(tmp_path: Pa
 
     with pytest.raises(protocol_v2.NetworkCapabilityUnavailable):
         invocation_v3.invoke(
-            str(_echo(tmp_path)),
+            str(_stub(tmp_path)),
             str(target),
             "status",
             (),
@@ -118,7 +127,7 @@ def test_linux_may_not_use_the_exception_even_if_one_is_handed_to_it(
 
     with pytest.raises(protocol_v2.NetworkCapabilityUnavailable):
         invocation_v3.invoke(
-            str(_echo(tmp_path)),
+            str(_stub(tmp_path)),
             str(target),
             "status",
             (),
@@ -128,16 +137,23 @@ def test_linux_may_not_use_the_exception_even_if_one_is_handed_to_it(
         )
 
 
-def test_windows_with_the_exception_actually_spawns(
+def test_windows_with_the_exception_reaches_the_spawn_unwrapped(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The point of the whole change: on Windows something runs.
+    """The point of the whole change: on Windows the call is no longer refused.
 
     Before this, `discover_bubblewrap` returned nothing on Windows and every v3
-    provider spawn refused, so no backup of a live harness target could be taken
-    and the Windows end-to-end could not start at all.
+    provider spawn failed before it started, so no backup of a live harness
+    target could be taken and the Windows end-to-end could not begin.
+
+    What is asserted is the decision and the argv, not the operating system's
+    ability to run a script. The first version of this test wrote a `#!/bin/sh`
+    stub, which is executable on two of the three systems this must work on —
+    so the test proving Windows works was the one that failed on Windows, with
+    `WinError 193`. Patching the spawn keeps the assertion about the thing that
+    changed: no wrapper, and no refusal.
     """
-    from ai_stp_cli.provider import invocation_v3
+    from ai_stp_cli.provider import conformance, invocation_v3
 
     _on(monkeypatch, "Windows")
     permission = network_launcher.windows_unisolated("trusted_release")
@@ -145,9 +161,20 @@ def test_windows_with_the_exception_actually_spawns(
 
     target = tmp_path / "target"
     target.mkdir()
+    executable = tmp_path / "provider-stub"
+    executable.write_text("stub", encoding="utf-8")
+
+    seen: list[tuple[str, ...]] = []
+
+    def spawn(argv: tuple[str, ...], *, command: str) -> JsonValue:
+        seen.append(tuple(argv))
+        return {"state": "missing", "target_digest": "x", "command": command}
+
+    monkeypatch.setattr(conformance, "invoke_argv", spawn)
+    monkeypatch.setattr(conformance, "resolve_executable", lambda given: str(Path(given).resolve()))
 
     answer = invocation_v3.invoke(
-        str(_echo(tmp_path)),
+        str(executable),
         str(target),
         "status",
         (),
@@ -158,3 +185,10 @@ def test_windows_with_the_exception_actually_spawns(
 
     assert isinstance(answer, dict)
     assert answer["state"] == "missing"
+    assert len(seen) == 1
+    argv = seen[0]
+    # The provider itself, not a launcher in front of it. That absence is the
+    # whole exception, and it is what `provider network` keeps reporting.
+    assert argv[0] == str(executable.resolve())
+    assert "bwrap" not in " ".join(argv)
+    assert "--target" in argv and "--json" in argv
