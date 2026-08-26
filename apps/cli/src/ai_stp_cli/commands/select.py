@@ -386,6 +386,9 @@ def _candidates(
                 stable_id=stored.stable_id,
                 revision_id=stored.revision_id,
                 harness_id=str(document.get("harness_id") or _value(facts.get("harness_id")) or ""),
+                component_type=str(
+                    document.get("component_type") or _value(facts.get("component_type")) or ""
+                ),
                 owner_id=str(document.get("owner_id") or ""),
                 owned_or_pinned=True,
                 registrable=lifecycle.registrable(connection, stored),

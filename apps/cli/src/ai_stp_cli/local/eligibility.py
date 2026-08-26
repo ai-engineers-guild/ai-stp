@@ -34,6 +34,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Final
 
+from ai_stp_cli.local.composition import native_surface
 from ai_stp_cli.local.search import LANE_EXPERIMENTAL, lane_of
 
 #: The six families of `REQ-601`, in the order that requirement names them.
@@ -76,6 +77,7 @@ REFUSALS: Final[dict[str, str]] = {
     "entitlement_not_granted": FAMILY_ENTITLEMENT,
     "provider_unavailable": FAMILY_PROVIDER,
     "provider_platform_unsupported": FAMILY_PROVIDER,
+    "provider_surface_unavailable": FAMILY_PROVIDER,
 }
 
 #: Advisories. Named in their own registry so that turning one into a refusal is
@@ -204,6 +206,12 @@ class CandidateFacts:
     version: str = ""
 
     harness_id: str = ""
+
+    #: The component kind, read because one constraint needs it: a kind the
+    #: provider has no route for can never be installed on this harness. Empty
+    #: for a setup, which is a composition rather than a kind.
+    component_type: str = ""
+
     owner_id: str = ""
     visibility: str = "private"
 
@@ -590,6 +598,32 @@ def _provider(candidate: CandidateFacts, target: Target) -> list[Refusal]:
         # Without a provider there is no platform list to be outside of, and a
         # second refusal here would read as a second thing to fix.
         return found
+
+    # A kind the provider cannot project is not installable, and saying so here
+    # is the whole point of putting the mechanical stage before selection
+    # (`REQ-601`). Without it the impossibility surfaced only at `select bundle`
+    # — after the component was adopted, versioned, proposed and frozen into an
+    # immutable SetupVersion, which is a late and expensive place to learn it.
+    #
+    # Not `harness_mismatch`: the object does name this harness, and a familiar
+    # refusal that is accurate about the wrong thing costs more than a new one.
+    #
+    # Skipped entirely when the harness already mismatches, for the reason the
+    # provider check above states: whether some other harness could project this
+    # kind is not a second thing to fix, and reading as one is worse than saying
+    # less.
+    if (
+        candidate.component_type
+        and candidate.harness_id == target.harness_id
+        and not native_surface(candidate.component_type, target.harness_id)
+    ):
+        found.append(
+            _refuse(
+                "provider_surface_unavailable",
+                "this harness has no native surface for that component kind",
+                {"harness_id": target.harness_id, "component_type": candidate.component_type},
+            )
+        )
 
     platform = f"{target.os}/{target.arch}"
     if target.provider_platforms and platform not in target.provider_platforms:

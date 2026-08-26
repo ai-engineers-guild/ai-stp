@@ -450,3 +450,57 @@ def test_the_capability_vocabulary_matches_the_contract() -> None:
 
 def test_every_declared_family_is_reachable() -> None:
     assert set(eligibility.REFUSALS.values()) == set(eligibility.FAMILIES)
+
+
+def test_a_kind_the_provider_cannot_project_is_refused_before_selection() -> None:
+    """Found by running the whole pipeline, not by reading it.
+
+    A `setting` component for `claude-code` discovers, adopts, versions and was
+    reported admissible — and only `select bundle` said `claude-code has no
+    native surface for setting`, by which point an immutable SetupVersion had
+    already been frozen. `REQ-601` puts the mechanical stage before selection
+    precisely so an impossibility is not learned that late.
+
+    Not `harness_mismatch`: the object does name this harness. A familiar
+    refusal accurate about the wrong thing costs more than a new code, which is
+    the same argument that kept `unsupported_platform` from carrying a second
+    meaning.
+
+    The kinds are read from the projection table rather than spelled here, so
+    the test states the rule instead of today's contents of the table.
+    """
+    from ai_stp_cli.local.composition import native_surface
+
+    projectable = [
+        kind
+        for kind in ("instruction", "skill", "mcp", "command", "agent")
+        if native_surface(kind, "claude-code")
+    ]
+    absent = [
+        kind for kind in ("setting", "hook", "plugin") if not native_surface(kind, "claude-code")
+    ]
+    assert projectable and absent, "the fixture harness must have both, or this proves nothing"
+
+    for kind in projectable:
+        verdict = eligibility.assess(
+            _candidate(harness_id="claude-code", component_type=kind, owned_or_pinned=True),
+            TARGET,
+        )
+        assert "provider_surface_unavailable" not in {r.code for r in verdict.refusals}, kind
+
+    for kind in absent:
+        verdict = eligibility.assess(
+            _candidate(harness_id="claude-code", component_type=kind, owned_or_pinned=True),
+            TARGET,
+        )
+        codes = {r.code for r in verdict.refusals}
+        assert "provider_surface_unavailable" in codes, kind
+        assert "harness_mismatch" not in codes, kind
+        assert not verdict.admissible, kind
+
+    # A setup names no kind, and must not be caught by a constraint about kinds.
+    setup = eligibility.assess(
+        _candidate(harness_id="claude-code", owned_or_pinned=True),
+        TARGET,
+    )
+    assert "provider_surface_unavailable" not in {r.code for r in setup.refusals}
