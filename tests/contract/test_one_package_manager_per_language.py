@@ -196,6 +196,34 @@ def test_the_local_and_gate_bun_pins_are_the_same_version() -> None:
     assert ".bun-version" in recipes, "no recipe checks the developer's bun against the pin"
 
 
+def test_the_local_and_gate_uv_pins_are_the_same_version() -> None:
+    """`.uv-version` and `UV_VERSION` name one version, or the candidate drifts.
+
+    uv stamps its own version into `dist-info/WHEEL`, so a candidate built by a
+    different uv differs from the one that ships — while every shipped module is
+    byte-identical. That is a worse failure than an outright difference: ten
+    mismatched digests read as substituted bytes, and it cost an investigation
+    on 2026-08-26 before the cause turned out to be one `Generator:` line.
+
+    With the pin held, a clean worktree at the tag reproduces exactly what PyPI
+    serves — measured for all ten distributions of `0.0.5`. So this is not a
+    style rule about pinning things; it is the only reason the local candidate
+    means what the runbook says it means.
+    """
+    declared = (ROOT / ".uv-version").read_text(encoding="utf-8").strip()
+    assert declared, ".uv-version is empty"
+    workflow = ROOT / "release_scripts" / "public_overlay" / ".github" / "workflows" / "check.yml"
+    if not workflow.is_file():
+        workflow = ROOT / ".github" / "workflows" / "check.yml"
+    pinned = re.search(r'UV_VERSION:\s*"([0-9][^"]*)"', workflow.read_text(encoding="utf-8"))
+    assert pinned, "the gate no longer pins a uv version"
+    assert declared == pinned.group(1), (
+        f".uv-version says {declared}, the gate installs {pinned.group(1)}"
+    )
+    recipes = (ROOT / "justfile").read_text(encoding="utf-8")
+    assert ".uv-version" in recipes, "no recipe checks the developer's uv against the pin"
+
+
 def test_every_bun_base_image_is_the_pinned_bun() -> None:
     """The image that builds the site must read the lockfile the gate writes.
 

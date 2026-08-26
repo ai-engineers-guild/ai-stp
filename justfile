@@ -51,6 +51,13 @@ export COVERAGE_CORE := env_var_or_default("AI_STP_TEST_COVERAGE_CORE", "sysmon"
 # Ошибка тогда всплывает в CI, а не здесь.
 bunreq := 'test "$(bun --version)" = "$(cat .bun-version)" || { echo "bun $(cat .bun-version) required, found $(bun --version 2>/dev/null || echo none)" >&2; exit 1; }'
 
+# То же для uv, но по другой причине и только на сборщике. uv штампует свою
+# версию в `dist-info/WHEEL`, поэтому кандидат, собранный другой версией,
+# отличается от выпускаемого — при полностью совпадающих модулях. Один раз это
+# уже стоило разбирательства: десять несовпавших digest'ов оказались одной
+# строкой `Generator:`, и версия читалась как подмена байтов.
+uvreq := 'have=$(uv --version 2>/dev/null | cut -d" " -f2); want=$(cat .uv-version); test "$have" = "$want" || { echo "uv $want required, found ${have:-none}; get it with: bash .github/scripts/install-uv.sh $want <dir> && export PATH=<dir>:\$PATH" >&2; exit 1; }'
+
 export PYTHONUTF8 := "1"
 
 default:
@@ -126,6 +133,7 @@ safety-corpus *args:
 # обязано быть чистым; локальная характеризация dirty tree запускается напрямую
 # с явным `--allow-dirty` и никогда не является release evidence.
 release-candidate:
+    {{uvreq}}
     uv run --locked python release_scripts/build_candidate.py --replace
 
 # Устанавливает именно пять wheel текущего candidate, запускает CLI вне checkout
