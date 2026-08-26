@@ -151,8 +151,16 @@ test.describe("component presentation media editor", () => {
 
   test("keeps keyboard focus order through source controls and save", async ({ page }) => {
     await page.goto(`/en/objects/component/${FIXTURE_COMPONENT_ID}/edit`);
-    await page.locator("#presentation-bio").focus();
-    await expect(page.locator("#presentation-bio")).toBeFocused();
+    // Clicked rather than `.focus()`d, because `goto` resolves on `load` and
+    // hydration runs after it. `.focus()` waits only for the node to be
+    // attached, so it can land on a pre-hydration node that React then
+    // replaces, and the focus goes with it. `.click()` waits for the element to
+    // be stable and able to receive events, which is the hydration gate this
+    // needs. Linux and Windows happened to be fast enough; macOS was not, and
+    // reported `inactive` fourteen times before timing out.
+    const bio = page.locator("#presentation-bio");
+    await bio.click();
+    await expect(bio).toBeFocused();
     await page.keyboard.press("Tab");
     await expect(page.locator(":focus")).toBeVisible();
     await page.setViewportSize({ width: 390, height: 844 });
