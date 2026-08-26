@@ -353,6 +353,37 @@ def test_the_native_surface_matches_provider_targets() -> None:
     )
 
 
+def test_a_harness_whose_mcp_lives_inside_a_settings_file_has_no_surface() -> None:
+    """Absent is the honest answer, and the only one that fails closed.
+
+    `codex` and `grok-build` both spell their MCP servers as an `mcp_servers`
+    table inside `config.toml`, which the harness catalog records with a cited
+    source. There is no separate file for a provider to write, so a rule naming
+    one would send the projection somewhere the harness never reads: install
+    verified, MCP absent. With no rule, `native_surface_lost` blocks the bundle.
+
+    `grok-build` used to name `.mcp.json` — claude-code's spelling, which reads
+    as correct sitting one line below claude-code's own row. It is checked here
+    against the catalog rather than against a remembered filename, because the
+    catalog is where the researched fact lives.
+    """
+    from ai_stp_cli.local import harness_catalog
+
+    for harness in ("codex", "grok-build", "opencode", "pi", "cursor"):
+        assert composition.native_surface("mcp", harness) == "", harness
+
+    # And where a surface *is* claimed, the catalog has to agree it exists.
+    for harness in ("claude-code", "antigravity"):
+        relative = composition.native_surface("mcp", harness)
+        assert relative, harness
+        declared = {
+            item.relative
+            for item in harness_catalog.BY_ID[harness].layouts
+            if item.component_type == "mcp" and item.scope == "global"
+        }
+        assert relative in declared, (harness, relative, declared)
+
+
 def test_provider_rule_projection_kinds_are_the_protocol_closed_set() -> None:
     """A typo here becomes `the exact native package family exceeds provider capabilities`."""
     from ai_stp_cli.provider.protocol_v3 import ProjectionKind

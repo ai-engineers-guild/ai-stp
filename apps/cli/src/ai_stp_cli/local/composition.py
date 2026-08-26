@@ -112,7 +112,17 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     Rule("mcp", "config/mcp_config.json", "file", "antigravity"),
     Rule("instruction", "AGENTS.md", "file", "grok-build"),
     Rule("skill", "skills", "directory", "grok-build"),
-    Rule("mcp", ".mcp.json", "file", "grok-build"),
+    # No `mcp` rule, exactly as `codex` has none, and for the same reason: both
+    # spell their MCP servers as an `mcp_servers` table *inside* `config.toml`
+    # (`local/harness_catalog.py`, cited to `docs.x.ai/build/settings`). There
+    # is no separate file for a provider to write, so the honest answer is that
+    # the surface does not exist and `native_surface_lost` blocks the bundle.
+    #
+    # It used to say `.mcp.json`, which is claude-code's spelling and reads as
+    # correct on the line above it. A grok-build MCP component would have been
+    # written to a file grok-build never reads: install verified, MCP absent.
+    # Nothing in the live catalog is an `mcp` component yet, so this was a
+    # defect with no victim rather than one already paid for.
     Rule("hook", "hooks", "directory", "grok-build"),
     Rule("command", "commands", "directory", "grok-build"),
     Rule("agent", "agents", "directory", "grok-build"),
