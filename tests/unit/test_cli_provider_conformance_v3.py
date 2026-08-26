@@ -713,3 +713,141 @@ def test_a_populated_target_requires_status_to_notice(tmp_path: Path) -> None:
     # provider must not give for a target that holds something.
     assert not case.passed, case.detail
     assert "still reported" in case.detail
+
+
+def _declares_software(
+    target: Path,
+    *,
+    artifacts: list[JsonValue] | None,
+) -> conformance.Invoker:
+    """A provider that declares the program lifecycle, wrapping the conforming stub.
+
+    `artifacts` is what its `software_install` plan puts on the wire. `None`
+    stands for the defect this case exists to find: a provider that declares the
+    operation and then does not say what bytes it means, leaving the consumer to
+    ask the network what the plan should already have named.
+    """
+    inner, _calls = _conforming(target)
+    declared = sorted(
+        {item.value for item in protocol_v3.CORE_OPERATIONS}
+        | {protocol_v3.Operation.SOFTWARE_INSTALL.value}
+    )
+
+    def invoke(command: str, arguments: Sequence[str]) -> JsonValue:
+        if command == "provider-info":
+            info = cast(dict[str, JsonValue], inner(command, arguments))
+            return {**info, "supported_operations": cast(list[JsonValue], declared)}
+        if command == "plan-operation":
+            supplied = _arguments(arguments)
+            if supplied["--operation"] == protocol_v3.Operation.SOFTWARE_INSTALL.value:
+                # Route through `install` so the stub builds a well-formed plan,
+                # then say it is the software operation it was asked for.
+                rerouted = list(arguments)
+                rerouted[rerouted.index("--operation") + 1] = protocol_v3.Operation.INSTALL.value
+                answer = cast(dict[str, JsonValue], inner(command, rerouted))
+                plan = dict(cast(dict[str, JsonValue], answer["plan"]))
+                plan["operation"] = protocol_v3.Operation.SOFTWARE_INSTALL.value
+                if artifacts is not None:
+                    plan["software_artifacts"] = artifacts
+                return {
+                    **answer,
+                    "plan": plan,
+                    "plan_digest": digest_canonical(protocol_v3.PLAN_DOMAIN, plan),
+                }
+        return inner(command, arguments)
+
+    return invoke
+
+
+def _artifact(**overrides: JsonValue) -> JsonValue:
+    complete: dict[str, JsonValue] = {
+        "platform": "linux/x86_64",
+        "url": "https://registry.example.invalid/opencode-1.18.23.tgz",
+        "sha256": _digest("b"),
+        "byte_length": 60167326,
+        "entry_point": "bin/opencode",
+    }
+    return {**complete, **overrides}
+
+
+def test_a_declared_program_lifecycle_names_its_artifact_offline(tmp_path: Path) -> None:
+    """Declaring `software_install` obliges the plan to name exact bytes.
+
+    The whole reason the consumer may download without asking anyone is that
+    the offline plan already carries `platform`, `url`, `sha256`, `byte_length`
+    and `entry_point`. A provider that declares the operation and returns a plan
+    without them has moved the identity decision to download time, where no
+    plan digest covers it.
+    """
+    target = tmp_path / "declares"
+    target.mkdir()
+
+    report = conformance_v3.run(
+        _declares_software(target, artifacts=[_artifact()]),
+        harness_id="claude-code",
+        target=target,
+    )
+
+    case = next(
+        item for item in report.cases if item.name == "declared_software_names_its_artifact"
+    )
+    assert case.passed, case.detail
+
+
+def test_a_declared_program_lifecycle_without_artifacts_fails(tmp_path: Path) -> None:
+    """The defect: declared, planned, and silent about which bytes it meant."""
+    target = tmp_path / "silent"
+    target.mkdir()
+
+    report = conformance_v3.run(
+        _declares_software(target, artifacts=None),
+        harness_id="claude-code",
+        target=target,
+    )
+
+    case = next(
+        item for item in report.cases if item.name == "declared_software_names_its_artifact"
+    )
+    assert not case.passed, case.detail
+    assert not report.conforms
+
+
+def test_an_incomplete_software_artifact_is_not_an_identity(tmp_path: Path) -> None:
+    """Four of five fields is not an identity: without `sha256` nothing is bound."""
+    target = tmp_path / "partial"
+    target.mkdir()
+    partial = dict(cast(dict[str, JsonValue], _artifact()))
+    del partial["sha256"]
+
+    report = conformance_v3.run(
+        _declares_software(target, artifacts=[cast(JsonValue, partial)]),
+        harness_id="claude-code",
+        target=target,
+    )
+
+    case = next(
+        item for item in report.cases if item.name == "declared_software_names_its_artifact"
+    )
+    assert not case.passed, case.detail
+    assert "sha256" in case.detail
+
+
+def test_a_provider_without_the_lifecycle_narrows_rather_than_fails(tmp_path: Path) -> None:
+    """Pi declares no software operation and is conforming anyway.
+
+    Measured against the shipped `pi-setup-system` 0.0.4: npm resolves the
+    dependency closure at install time, so no single artifact has a digest a
+    plan could pin ahead of time. That is a reason, not a defect, and the report
+    has to say the case was not exercised rather than claim it passed.
+    """
+    target = tmp_path / "core-only"
+    target.mkdir()
+    invoke, _calls = _conforming(target)
+
+    report = conformance_v3.run(invoke, harness_id="claude-code", target=target)
+
+    case = next(
+        item for item in report.cases if item.name == "declared_software_names_its_artifact"
+    )
+    assert case.passed, case.detail
+    assert "does not declare" in case.detail

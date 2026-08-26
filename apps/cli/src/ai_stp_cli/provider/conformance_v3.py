@@ -162,6 +162,7 @@ def run(
             )
         cases.append(_undeclared_operation(invoke, capabilities, arguments))
         cases.append(_undeclared_permission_profile(invoke, capabilities, arguments))
+        cases.append(_declared_software_artifact(invoke, capabilities, arguments))
         repeated_valid = _object(invoke("validate-bundle", corpus.valid.common_arguments()))
         cases.append(
             conformance.Case(
@@ -260,6 +261,82 @@ def _undeclared_operation(
         f"refuses {asked!r} with {reason!r}"
         if refused
         else f"asked for undeclared {asked!r} and received {answer.get('reason', answer)!r}",
+    )
+
+
+#: Every field an offline plan must carry before a consumer may fetch bytes.
+#: `sha256` and `byte_length` are what the applier checks before it writes;
+#: `platform` is what makes the choice reproducible on another machine;
+#: `entry_point` is the path the provider will expose under `--prefix`, and it
+#: is not a path inside the archive — the archive's own shape never reaches the
+#: wire, which is what lets a harness whose archive has no wrapper directory
+#: work without a special case.
+SOFTWARE_ARTIFACT_FIELDS: Final[tuple[str, ...]] = (
+    "platform",
+    "url",
+    "sha256",
+    "byte_length",
+    "entry_point",
+)
+
+
+def _declared_software_artifact(
+    invoke: conformance.Invoker,
+    capabilities: protocol_v3.ProviderCapabilities,
+    arguments: tuple[str, ...],
+) -> conformance.Case:
+    """A declared program lifecycle must name exact bytes without the network.
+
+    The consumer downloads; the provider never does. `download` is not one of
+    the kit's commands, and both commands that could have carried it are
+    `network_requirement: none`. So the only thing standing between a plan and
+    a verified install is whether the plan already said which bytes it meant.
+    A provider that declares `software_install` and then answers without
+    `software_artifacts` has moved that decision to download time, where no
+    plan digest covers it.
+
+    Not declaring the lifecycle is a narrower claim, not a failure. Pi declares
+    none and says why: npm resolves the dependency closure at install time, so
+    no single artifact has a digest a plan could pin ahead of time.
+    """
+    name = "declared_software_names_its_artifact"
+    if protocol_v3.Operation.SOFTWARE_INSTALL not in capabilities.operations:
+        return conformance.Case(
+            name,
+            True,
+            "provider does not declare software_install, so no artifact identity is owed",
+        )
+    replaced = list(arguments)
+    replaced[replaced.index("--operation") + 1] = protocol_v3.Operation.SOFTWARE_INSTALL.value
+    answer = _object(invoke("plan-operation", tuple(replaced)))
+    if answer.get("rejected") is True:
+        return conformance.Case(
+            name,
+            False,
+            f"declares software_install and then refused it with {answer.get('reason')!r}",
+        )
+    plan = answer.get("plan")
+    artifacts = plan.get("software_artifacts") if isinstance(plan, dict) else None
+    if not isinstance(artifacts, list) or not artifacts:
+        return conformance.Case(
+            name,
+            False,
+            "planned software_install without naming any software_artifacts",
+        )
+    for index, entry in enumerate(artifacts):
+        if not isinstance(entry, dict):
+            return conformance.Case(name, False, f"software_artifacts[{index}] is not an object")
+        missing = [field for field in SOFTWARE_ARTIFACT_FIELDS if entry.get(field) is None]
+        if missing:
+            return conformance.Case(
+                name,
+                False,
+                f"software_artifacts[{index}] omits {', '.join(missing)}",
+            )
+    return conformance.Case(
+        name,
+        True,
+        f"names {len(artifacts)} artifact(s) with complete identity before any fetch",
     )
 
 
