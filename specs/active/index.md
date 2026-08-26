@@ -14,7 +14,7 @@ last_verified: "2026-08-03"
 | [SPEC-003-developer-passport.md](SPEC-003-developer-passport.md) | SPEC-003: Паспорт разработчика и публичная проекция. | 2026-08-04 |
 | [SPEC-004-project-index-passport.md](SPEC-004-project-index-passport.md) | SPEC-004: Индекс и паспорт проекта. | 2026-08-03 |
 | [SPEC-005-registry-versioning.md](SPEC-005-registry-versioning.md) | SPEC-005: Реестр, варианты и версии объектов. | 2026-08-24 |
-| [SPEC-006-search-and-setup-compiler.md](SPEC-006-search-and-setup-compiler.md) | SPEC-006: Поиск, отбор кандидатов и сборщик сетапа. | 2026-08-09 |
+| [SPEC-006-search-and-setup-compiler.md](SPEC-006-search-and-setup-compiler.md) | SPEC-006: Поиск, отбор кандидатов и сборщик сетапа. | 2026-08-26 |
 | [SPEC-007-validation-publishing.md](SPEC-007-validation-publishing.md) | SPEC-007: Проверки, доказательства и публикация. | 2026-08-13 |
 | [SPEC-008-provider-installation.md](SPEC-008-provider-installation.md) | SPEC-008: Провайдеры, установка и восстановление. | 2026-08-25 |
 | [SPEC-009-local-registry-sync.md](SPEC-009-local-registry-sync.md) | SPEC-009: Локальный реестр и синхронизация. | 2026-08-04 |

@@ -29,7 +29,7 @@ last_verified: "2026-08-03"
 | [composition-reports.md](composition-reports.md) | Отчёты состава и преобразования: закрытый перечень классов конфликтов, разрешённые операции сборщика и состояния потерь. | 2026-08-08 |
 | [deep-links.md](deep-links.md) | Грамматика канонических URL и CLI references для component, setup, publisher и report intent. | 2026-08-15 |
 | [device-passport.md](device-passport.md) | Поля паспорта устройства, его приватность и разрешённая сводка для сервера и веба. | 2026-08-04 |
-| [eligibility-constraints.md](eligibility-constraints.md) | Механические ограничения до выбора агентом: закрытый перечень причин отказа, порядок проверок и две независимые оси допустимости. | 2026-08-25 |
+| [eligibility-constraints.md](eligibility-constraints.md) | Механические ограничения до выбора агентом: закрытый перечень причин отказа, порядок проверок и две независимые оси допустимости. | 2026-08-26 |
 | [federated-sources.md](federated-sources.md) | Машинный контракт общих descriptors для local ports и metadata adapters. | 2026-08-16 |
 | [fixture-corpus.md](fixture-corpus.md) | Общий корпус фикстур /v1: виды случаев, инварианты и порядок использования обеими сторонами. | 2026-08-05 |
 | [github-archive-evidence.md](github-archive-evidence.md) | Машинный контракт локального GitHub archive evidence и истории наблюдений. | 2026-08-15 |
@@ -40,7 +40,7 @@ last_verified: "2026-08-03"
 | [operation.md](operation.md) | Состояния, план, журнал и восстановление изменяющей операции. | 2026-08-09 |
 | [passport-envelope.md](passport-envelope.md) | Канонический конверт паспорта и происхождение фактов. | 2026-08-04 |
 | [project-discovery.md](project-discovery.md) | Машинная форма полного discovery проектов в явно названной области. | 2026-08-09 |
-| [provider-protocol.md](provider-protocol.md) | Команды, граница исполнения и соответствие состояний публичного провайдера. | 2026-08-25 |
+| [provider-protocol.md](provider-protocol.md) | Команды, граница исполнения и соответствие состояний публичного провайдера. | 2026-08-26 |
 | [provider-release.md](provider-release.md) | Манифест, доверие, проверка и защита от отката выпуска провайдера. | 2026-08-25 |
 | [public-profile.md](public-profile.md) | Поля публичного профиля, ревизии, avatar и отделение от паспорта разработчика. | 2026-08-08 |
 | [report-case.md](report-case.md) | Закрытый случай жалобы: разрешённый состав, предпросмотр, состояния и аудируемые действия модератора. | 2026-08-13 |
