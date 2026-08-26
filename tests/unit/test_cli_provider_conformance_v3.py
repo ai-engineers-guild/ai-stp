@@ -424,6 +424,71 @@ def test_v3_plan_load_apply_and_status_require_the_same_exact_identity(tmp_path:
     ) == _digest("e")
 
 
+def test_every_drift_statement_a_status_carries_has_to_hold(tmp_path: Path) -> None:
+    """One fact recorded twice, checked once, is a fail-open (`#431`).
+
+    A v3 status may state drift at the top level and again inside
+    `provider_state`. Reading whichever came first meant a release reporting a
+    clean top level beside a nested `drifted` verified on the strength of the
+    half that happened to be read — and nothing would ever have said so.
+
+    Both spellings of no-drift stay admissible on both, so a release that mixes
+    the legacy `verified` with the current `clean` is not caught in a vocabulary
+    difference that means nothing. `#431` reported the opposite failure against
+    a build predating `c7844cd`, where only `verified` was accepted at all.
+    """
+    answer, bound, expiry, digest = _plan_answer(tmp_path)
+    capabilities = _capabilities()
+    plan = operation_v3.require_plan(
+        answer,
+        capabilities=capabilities,
+        release_digest=_digest("d"),
+        operation_id="operation_test_v3",
+        operation=protocol_v3.Operation.INSTALL,
+        target=tmp_path,
+        expected_target_digest=_digest("a"),
+        bundle=bound,
+        backup_ref=None,
+        permission_profile=None,
+        expires_at=expiry,
+    )
+
+    def status(top: str | None, nested: str | None) -> dict[str, JsonValue]:
+        held: dict[str, JsonValue] = {
+            "state": "managed",
+            "target_digest": _digest("e"),
+            "protocol_version": protocol_v3.VERSION,
+            "provider_id": capabilities.provider_id,
+            "provider_plan_digest": digest,
+        }
+        if top is not None:
+            held["drift_state"] = top
+        if nested is not None:
+            held["provider_state"] = {"drift_state": nested}
+        return held
+
+    def verify(held: dict[str, JsonValue]) -> str:
+        return operation_v3.require_verified_status(
+            held,
+            capabilities=capabilities,
+            release_digest=_digest("d"),
+            plan=plan,
+            bundle=bound,
+            operation=protocol_v3.Operation.INSTALL,
+        )
+
+    for top, nested in (("clean", "clean"), ("verified", "clean"), ("clean", None)):
+        assert verify(status(top, nested)) == _digest("e"), (top, nested)
+
+    # The one this exists for: the read half says clean, the other does not.
+    for top, nested in (("clean", "drifted"), ("verified", "unknown")):
+        with pytest.raises(CliFailure, match="clean managed target"):
+            verify(status(top, nested))
+
+    with pytest.raises(CliFailure, match="clean managed target"):
+        verify(status(None, None))
+
+
 def test_v3_plan_and_apply_reject_tamper_and_unknown_state(tmp_path: Path) -> None:
     answer, bound, expiry, _digest_value = _plan_answer(tmp_path)
     capabilities = _capabilities()

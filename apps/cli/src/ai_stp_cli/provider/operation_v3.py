@@ -346,8 +346,22 @@ def require_verified_status(
     if answer.get("provider_id") != capabilities.provider_id:
         raise _refused("provider status names a different provider")
     nested = _provider_state(answer)
-    drift = answer.get("drift_state", nested.get("drift_state"))
-    if str(drift) not in {"verified", "clean"}:
+    # Every drift statement present has to hold, not the first one found. A
+    # status can carry the fact twice — at the top level and inside
+    # `provider_state` — and reading one meant a provider reporting `clean`
+    # beside a nested `drifted` was accepted on the strength of the half that
+    # was read. Two records of one fact where only one is checked is a fail-open
+    # by construction, and its silence is what would keep it alive.
+    #
+    # Both spellings of "no drift" stay admissible on both, so a release mixing
+    # the legacy `verified` with the current `clean` is not caught in a
+    # vocabulary difference that means nothing.
+    stated = [
+        value
+        for value in (answer.get("drift_state"), nested.get("drift_state"))
+        if value is not None
+    ]
+    if not stated or any(str(value) not in {"verified", "clean"} for value in stated):
         raise _refused("provider status does not prove a clean managed target")
     optional: dict[str, JsonValue] = {
         "provider_version": capabilities.provider_version,
