@@ -158,8 +158,11 @@ class BubblewrapLauncher:
 #: and its exact bytes before this was reached.
 #: `explicit_unverified_provider` — the operator named an unverified provider on
 #: purpose, which is already a separate, deliberate act.
+TRUSTED_RELEASE: Final[str] = "trusted_release"
+EXPLICIT_UNVERIFIED_PROVIDER: Final[str] = "explicit_unverified_provider"
+
 WINDOWS_UNISOLATED_REASONS: Final[frozenset[str]] = frozenset(
-    {"trusted_release", "explicit_unverified_provider"}
+    {TRUSTED_RELEASE, EXPLICIT_UNVERIFIED_PROVIDER}
 )
 
 

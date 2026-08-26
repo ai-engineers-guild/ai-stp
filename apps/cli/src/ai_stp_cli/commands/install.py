@@ -55,6 +55,7 @@ from ai_stp_cli.provider import (
     bundle_protocol,
     conformance,
     invocation,
+    network_launcher,
     operation_v3,
     protocol,
     protocol_v2,
@@ -1584,9 +1585,9 @@ def _unisolated_reason(
     reads which of the two happened. Off Windows it is ignored.
     """
     if trusted_release is not None:
-        return "trusted_release"
+        return network_launcher.TRUSTED_RELEASE
     if bool(parameters.get("unverified-provider", False)):
-        return "explicit_unverified_provider"
+        return network_launcher.EXPLICIT_UNVERIFIED_PROVIDER
     return None
 
 

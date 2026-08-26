@@ -1441,12 +1441,22 @@ def provider_conformance(parameters: Mapping[str, object]) -> Answer[Conformance
                 details={"target": redact_home(target)},
             )
         if version == protocol_v3.VERSION:
-            # The shared invoker, not a copy of it. Conformance names no reason
-            # to run unisolated, so it keeps refusing where isolation is absent
-            # — that is `#416`'s scope, and it stays one line in one file rather
-            # than a second decision that drifts from the first.
+            # The shared invoker, not a copy of it. The reason is the operator's
+            # own — `--unverified-provider` — because that is the only one of the
+            # two this command can establish: it loads no release manifest and
+            # takes whatever path it is handed. Without the flag it refuses
+            # exactly as before, so nothing is weaker by default (`ADR-0126`).
             report = conformance_v3.run(
-                invocation.provider_invoker(resolved_executable, str(target), version),
+                invocation.provider_invoker(
+                    resolved_executable,
+                    str(target),
+                    version,
+                    unisolated_reason=(
+                        network_launcher.EXPLICIT_UNVERIFIED_PROVIDER
+                        if parameters.get("unverified-provider") is True
+                        else None
+                    ),
+                ),
                 harness_id=harness,
                 target=target,
             )

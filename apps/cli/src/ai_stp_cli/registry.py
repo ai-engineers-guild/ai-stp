@@ -2099,6 +2099,14 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "integer",
                 "Protocol version to check explicitly. Defaults to frozen v1.",
             ),
+            option(
+                "unverified-provider",
+                "boolean",
+                "Check an executable no signed or attested release covers, such "
+                "as one you built yourself. On Windows this is also what lets "
+                "the check run at all, since no launcher there can deny the "
+                "network. Elsewhere it changes nothing.",
+            ),
         ),
         next_actions=("toolchain harnesses",),
     ),

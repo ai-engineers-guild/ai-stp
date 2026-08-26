@@ -244,3 +244,71 @@ def test_a_program_operation_binds_its_prefix_writable(tmp_path: Path) -> None:
     assert launcher_module._path_token(prefix.resolve()) in binds, (  # pyright: ignore[reportPrivateUsage]
         "the prefix is where the program goes"
     )
+
+
+def _conformance_reasons(monkeypatch: pytest.MonkeyPatch) -> list[str | None]:
+    """Record the reason `provider conformance` hands the shared invoker."""
+    seen: list[str | None] = []
+
+    def invoker(
+        executable: str,
+        target: str,
+        version: int,
+        *,
+        unisolated_reason: str | None = None,
+        writable: tuple[Path, ...] = (),
+    ) -> object:
+        seen.append(unisolated_reason)
+        raise _Stop
+
+    monkeypatch.setattr("ai_stp_cli.provider.invocation.provider_invoker", invoker)
+    return seen
+
+
+class _Stop(Exception):
+    """Ends the command once the reason has been observed."""
+
+
+def test_conformance_asks_for_the_exception_only_when_the_operator_names_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`ADR-0126`: the same gate as an install, not a read-only exemption.
+
+    Refusing conformance while permitting install was inconsistent — the same
+    provider, the same target, strictly fewer rights, refused. The difference
+    that matters is whose executable it is, and this command can establish only
+    one of the two answers: the operator's own `--unverified-provider`, because
+    it reads no release manifest and takes whatever path it is handed.
+
+    Asserted on the reason handed to the shared invoker rather than on a spawn,
+    so the test states the decision instead of the platform's ability to run a
+    file — which is how the Windows leg was broken by its own test once.
+    """
+    from ai_stp_cli.commands import select
+
+    target = tmp_path / "target"
+    target.mkdir()
+    executable = tmp_path / "provider-stub"
+    executable.write_text("stub", encoding="utf-8")
+    executable.chmod(0o755)
+
+    base = {
+        "harness": "claude-code",
+        "executable": str(executable),
+        "target": str(target),
+        "protocol-version": 3,
+    }
+
+    seen = _conformance_reasons(monkeypatch)
+    with pytest.raises(_Stop):
+        select.provider_conformance(base)
+    assert seen == [None], "without the flag nothing is asked for, exactly as before"
+
+    seen.clear()
+    with pytest.raises(_Stop):
+        select.provider_conformance({**base, "unverified-provider": True})
+    assert seen == [network_launcher.EXPLICIT_UNVERIFIED_PROVIDER]
+
+    # `trusted_release` is the other reason `#416` accepts, and conformance must
+    # never claim it: no manifest was read, so the claim would be unfounded.
+    assert network_launcher.TRUSTED_RELEASE not in seen
