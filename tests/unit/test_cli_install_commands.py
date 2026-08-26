@@ -557,6 +557,9 @@ def _v3_test_invoker(
             "provider_build_digest": build_digest,
             "provider_release_digest": held["provider_release_digest"],
             "provider_plan_digest": state["plan_digest"],
+            # Stated because a status that names no operation binds itself to
+            # nothing, and is refused before any field is compared.
+            "operation_id": held["operation_id"],
             "projection_profile_digest": projection_digest,
             "bundle_digest": bound["bundle_digest"],
             "artifact_digest": bound["artifact_digest"],

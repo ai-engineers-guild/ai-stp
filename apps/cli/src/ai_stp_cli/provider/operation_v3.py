@@ -363,18 +363,33 @@ def require_verified_status(
     ]
     if not stated or any(str(value) not in {"verified", "clean"} for value in stated):
         raise _refused("provider status does not prove a clean managed target")
-    optional: dict[str, JsonValue] = {
+    # These two are what make the status about *this* operation rather than
+    # about some installation. Without them a provider answering `managed` and
+    # `clean` for an entirely different, older install verifies the one being
+    # applied now — and the refusal below, whose whole subject is "the approved"
+    # installation, could never fire. Everything else binds content or identity
+    # and is checked when stated.
+    binding: dict[str, JsonValue] = {
+        "operation_id": plan.artifact.get("operation_id", ""),
+        "provider_plan_digest": plan.digest,
+    }
+    unstated = [name for name in binding if name not in answer and name not in nested]
+    if unstated:
+        raise _refused(
+            "provider status binds itself to no approved operation",
+            fields=", ".join(sorted(unstated)),
+        )
+    stated_bindings: dict[str, JsonValue] = {
         "provider_version": capabilities.provider_version,
         "provider_build_digest": capabilities.provider_build_digest,
         "provider_release_digest": release_digest,
-        "provider_plan_digest": plan.digest,
         "projection_profile_digest": capabilities.projection.digest,
-        "operation_id": plan.artifact.get("operation_id", ""),
+        **binding,
     }
     if bundle is not None:
-        optional["bundle_digest"] = bundle.bundle_digest
-        optional["artifact_digest"] = bundle.artifact_digest
-    mismatches = _present_mismatches(answer, nested, optional)
+        stated_bindings["bundle_digest"] = bundle.bundle_digest
+        stated_bindings["artifact_digest"] = bundle.artifact_digest
+    mismatches = _present_mismatches(answer, nested, stated_bindings)
     if mismatches:
         raise _refused(
             "provider status does not prove the approved v3 installation",

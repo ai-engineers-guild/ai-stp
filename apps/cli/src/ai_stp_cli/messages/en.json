@@ -44,6 +44,7 @@
   "an empty proposal cannot name members": "an empty proposal cannot name members",
   "no regular provider attestation bundle sits at that path": "no regular provider attestation bundle sits at that path",
   "provider release recovery currently requires signed local history": "provider release recovery currently requires signed local history",
+  "provider status binds itself to no approved operation": "provider status binds itself to no approved operation",
   "removing a harness program requires explicit confirmation": "removing a harness program requires explicit confirmation",
   "that is not a reason a local phase may run without network isolation": "that is not a reason a local phase may run without network isolation",
   "that provider is for a different harness": "that provider is for a different harness",

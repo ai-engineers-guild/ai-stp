@@ -44,6 +44,7 @@
   "an empty proposal cannot name members": "пустое предложение не может называть участников",
   "no regular provider attestation bundle sits at that path": "по этому пути нет обычного файла provider attestation bundle",
   "provider release recovery currently requires signed local history": "для восстановления релиза провайдера сейчас требуется подписанная локальная история",
+  "provider status binds itself to no approved operation": "статус провайдера не связывает себя ни с одной одобренной операцией",
   "removing a harness program requires explicit confirmation": "удаление программы харнесса требует явного подтверждения",
   "that is not a reason a local phase may run without network isolation": "это не причина, по которой локальная фаза может идти без сетевой изоляции",
   "that provider is for a different harness": "этот провайдер относится к другому харнессу",

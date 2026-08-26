@@ -388,6 +388,7 @@ def test_v3_plan_load_apply_and_status_require_the_same_exact_identity(tmp_path:
         "provider_build_digest": capabilities.provider_build_digest,
         "provider_release_digest": _digest("d"),
         "provider_plan_digest": digest,
+        "operation_id": "operation_test_v3",
         "projection_profile_digest": capabilities.projection.digest,
         "bundle_digest": bound.bundle_digest,
         "artifact_digest": bound.artifact_digest,
@@ -410,6 +411,7 @@ def test_v3_plan_load_apply_and_status_require_the_same_exact_identity(tmp_path:
             "present": True,
             "readable": True,
             "operation_id": "operation_test_v3",
+            "provider_plan_digest": digest,
             "drift_state": "clean",
             "backup_ref": "slot-000000000001",
         },
@@ -422,6 +424,91 @@ def test_v3_plan_load_apply_and_status_require_the_same_exact_identity(tmp_path:
         bundle=bound,
         operation=protocol_v3.Operation.INSTALL,
     ) == _digest("e")
+
+
+def test_a_status_that_binds_itself_to_no_operation_is_refused(tmp_path: Path) -> None:
+    """The refusal names "the approved" installation; it has to be able to fire.
+
+    Every provenance field was checked only when the provider stated it, so a
+    status naming no operation, no plan digest and no bundle — just `managed`
+    and `clean` — verified. A provider answering with a stale status from an
+    older, unrelated install would have proved the operation being applied now,
+    and the one refusal whose whole subject is *the approved* installation could
+    never have fired.
+
+    `operation_id` and `provider_plan_digest` are what make a status about this
+    operation rather than about an installation, so they must be stated. The
+    rest still binds content and is checked when present, because requiring a
+    provider to state everything it can state is a different decision from
+    requiring it to say which operation it is talking about.
+
+    Found by running the real thing: `install apply` against `claude-setup-system
+    0.0.5` refused on `provider_plan_digest` because that provider sends it as
+    null. Null is stated. Omission was not, and that was the hole.
+    """
+    answer, bound, expiry, digest = _plan_answer(tmp_path)
+    capabilities = _capabilities()
+    plan = operation_v3.require_plan(
+        answer,
+        capabilities=capabilities,
+        release_digest=_digest("d"),
+        operation_id="operation_test_v3",
+        operation=protocol_v3.Operation.INSTALL,
+        target=tmp_path,
+        expected_target_digest=_digest("a"),
+        bundle=bound,
+        backup_ref=None,
+        permission_profile=None,
+        expires_at=expiry,
+    )
+
+    def verify(held: dict[str, JsonValue]) -> str:
+        return operation_v3.require_verified_status(
+            held,
+            capabilities=capabilities,
+            release_digest=_digest("d"),
+            plan=plan,
+            bundle=None,
+            operation=protocol_v3.Operation.INSTALL,
+        )
+
+    managed: dict[str, JsonValue] = {
+        "state": "managed",
+        "target_digest": _digest("e"),
+        "drift_state": "clean",
+        "protocol_version": protocol_v3.VERSION,
+        "provider_id": capabilities.provider_id,
+    }
+    with pytest.raises(CliFailure, match="binds itself to no approved operation"):
+        verify(dict(managed))
+
+    # Either one alone is still not a binding.
+    with pytest.raises(CliFailure, match="binds itself to no approved operation"):
+        verify({**managed, "operation_id": "operation_test_v3"})
+    with pytest.raises(CliFailure, match="binds itself to no approved operation"):
+        verify({**managed, "provider_plan_digest": digest})
+
+    bound_status = {
+        **managed,
+        "operation_id": "operation_test_v3",
+        "provider_plan_digest": digest,
+    }
+    assert verify(bound_status) == _digest("e")
+
+    # Nested counts as stated: a provider may put its state one level down.
+    assert verify(
+        {
+            **managed,
+            "provider_state": {
+                "operation_id": "operation_test_v3",
+                "provider_plan_digest": digest,
+            },
+        }
+    ) == _digest("e")
+
+    # And a stated-but-wrong binding keeps failing the way it already did.
+    with pytest.raises(CliFailure, match="does not prove the approved"):
+        verify({**bound_status, "operation_id": "operation_somebody_elses"})
 
 
 def test_every_drift_statement_a_status_carries_has_to_hold(tmp_path: Path) -> None:
@@ -459,7 +546,10 @@ def test_every_drift_statement_a_status_carries_has_to_hold(tmp_path: Path) -> N
             "target_digest": _digest("e"),
             "protocol_version": protocol_v3.VERSION,
             "provider_id": capabilities.provider_id,
+            # Stated because the subject here is drift, and an unbound status is
+            # refused earlier now for its own reason.
             "provider_plan_digest": digest,
+            "operation_id": "operation_test_v3",
         }
         if top is not None:
             held["drift_state"] = top
