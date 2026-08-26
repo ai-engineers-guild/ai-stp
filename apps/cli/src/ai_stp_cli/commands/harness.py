@@ -304,6 +304,11 @@ def _apply(
         ],
         executable=str(answer.get("executable", "")),
         version=str(answer.get("version", "")),
+        removed=(
+            bool(answer.get("removed"))
+            if operation is protocol_v3.Operation.SOFTWARE_REMOVE
+            else None
+        ),
     )
 
 

@@ -236,5 +236,11 @@ def test_a_program_operation_binds_its_prefix_writable(tmp_path: Path) -> None:
         for index, item in enumerate(wrapped)
         if item == "--bind" and index + 1 < len(wrapped)
     ]
-    assert str(target.resolve()) in binds
-    assert str(prefix.resolve()) in binds, "the prefix is where the program goes"
+    # Compared through the module's own token function rather than `str`.
+    # `wrap` renders paths the way bwrap wants them, which on Windows is not
+    # what `Path.__str__` produces — and a test that spells the path itself is
+    # asserting its own idea of a path rather than the code's.
+    assert launcher_module._path_token(target.resolve()) in binds  # pyright: ignore[reportPrivateUsage]
+    assert launcher_module._path_token(prefix.resolve()) in binds, (  # pyright: ignore[reportPrivateUsage]
+        "the prefix is where the program goes"
+    )

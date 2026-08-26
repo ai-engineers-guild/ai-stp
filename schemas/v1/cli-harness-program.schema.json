@@ -102,6 +102,18 @@
       "title": "Prefix",
       "type": "string"
     },
+    "removed": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Removed"
+    },
     "schema_version": {
       "const": 1,
       "default": 1,
@@ -128,6 +140,7 @@
     "operation_id",
     "plan_digest",
     "prefix",
+    "removed",
     "schema_version",
     "state",
     "version"

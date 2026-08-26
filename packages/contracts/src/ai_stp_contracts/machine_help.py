@@ -889,6 +889,14 @@ class HarnessProgram(BaseModel):
     executable: str = ""
     version: str = ""
 
+    #: `software_remove` only. `false` means there was nothing of this program
+    #: under the prefix — which is a success, because removing is idempotent,
+    #: and a different answer from having removed something. Collapsing the two
+    #: into `verified` alone leaves an agent unable to tell an absence from a
+    #: deletion, and an absence that reads as a deletion invites a retry that
+    #: will never change anything.
+    removed: bool | None = None
+
 
 class ToolInstallation(BaseModel):
     """The outcome of one managed install (`SPEC-014` REQ-1405, REQ-1410, REQ-1411).
