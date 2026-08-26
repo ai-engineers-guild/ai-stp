@@ -34,6 +34,21 @@ INFO_FIELDS: Final[tuple[str, ...]] = (
     "projection_profile",
 )
 
+#: Names `provider-info` may carry beyond `INFO_FIELDS`, and the only reason
+#: the required set is compared after subtracting them.
+#:
+#: The comparison below is exact equality, so a provider adding a field is
+#: refused *whole* — not its profile, the entire `provider-info`, and with it
+#: `fetch`, `conformance`, `plan`, `apply` and `status`. An older CLI cannot be
+#: taught tolerance after the fact, which is why a widening arrives as an
+#: optional name here rather than as a new shape for something that already
+#: exists (`ADR-0125`).
+OPTIONAL_INFO_FIELDS: Final[frozenset[str]] = frozenset({"scoped_projection_profiles"})
+
+#: Target scopes a projection may own, spelled as the harness catalog already
+#: spells them (`local/harness_catalog.py`). This adds no vocabulary.
+PROJECTION_SCOPES: Final[frozenset[str]] = frozenset({"global", "project"})
+
 CORE_COMMANDS: Final[tuple[str, ...]] = (
     "provider-info",
     "validate-bundle",
@@ -166,10 +181,17 @@ class ProjectionProfile:
     bundle_formats: tuple[str, ...]
     max_files: int
     max_bytes: int
+    #: Which kind of target this profile owns. `global` is the harness's own
+    #: configuration home and is what `projection_profile` has always meant, so
+    #: it is the default and no existing declaration changes. A `project`
+    #: profile arrives in `scoped_projection_profiles` (`ADR-0125`).
+    scope: str = "global"
 
     def __post_init__(self) -> None:
         if not self.profile_id:
             raise ValueError("projection profile id is required")
+        if self.scope not in PROJECTION_SCOPES:
+            raise ValueError("projection profile names an unknown target scope")
         if not _is_sha256(self.digest):
             raise ValueError("projection profile digest must be canonical sha256")
         if not self.component_kinds or not self.projection_kinds:
@@ -198,6 +220,10 @@ class ProviderCapabilities:
     supported_arch: tuple[str, ...]
     permission_profiles: tuple[str, ...]
     projection: ProjectionProfile
+    #: Profiles for targets that are not the harness home, each naming its own
+    #: scope. Empty means this release owns the global scope alone, which is not
+    #: a degradation and carries no warning.
+    scoped_projections: tuple[ProjectionProfile, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.provider_id or not self.harness_id or not self.provider_version:
@@ -293,30 +319,15 @@ def normalize_operations(values: Iterable[str]) -> frozenset[Operation]:
     return frozenset(operations)
 
 
-def parse_capabilities(value: Mapping[str, object]) -> ProviderCapabilities:
-    """Parse one closed provider-info object without trusting schema prose."""
-    required = frozenset(INFO_FIELDS)
-    if frozenset(value) != required:
-        raise ValueError("provider-info fields differ from the closed v3 schema")
-    if value.get("protocol_version") != VERSION:
-        raise ValueError("provider-info protocol version differs")
+def _parse_projection(raw_profile: dict[str, object], *, scope: str) -> ProjectionProfile:
+    """Parse one closed projection declaration and prove its digest binds it.
 
-    def strings(name: str, *, nonempty: bool = True) -> tuple[str, ...]:
-        raw = value.get(name)
-        if not isinstance(raw, list):
-            raise ValueError(f"provider-info {name} must be a string array")
-        values = cast(list[object], raw)
-        if any(not isinstance(item, str) or (nonempty and not item) for item in values):
-            raise ValueError(f"provider-info {name} must be a string array")
-        held = cast(tuple[str, ...], tuple(values))
-        if len(held) != len(set(held)):
-            raise ValueError(f"provider-info {name} must be unique")
-        return held
-
-    untyped_profile = value.get("projection_profile")
-    if not isinstance(untyped_profile, dict):
-        raise ValueError("provider-info projection_profile must be an object")
-    raw_profile = cast(dict[str, object], untyped_profile)
+    A scoped entry carries `target_scope` and folds it into the digest input, so
+    two profiles differing only in which target they own cannot share an
+    identity. The global entry carries neither, which is what keeps every
+    declaration shipped before `ADR-0125` byte-identical and its digest
+    unchanged.
+    """
     profile_fields = {
         "profile_id",
         "digest",
@@ -327,7 +338,8 @@ def parse_capabilities(value: Mapping[str, object]) -> ProviderCapabilities:
         "max_files",
         "max_bytes",
     }
-    if set(raw_profile) != profile_fields:
+    expected_fields = profile_fields if scope == "global" else profile_fields | {"target_scope"}
+    if set(raw_profile) != expected_fields:
         raise ValueError("provider projection fields differ from the closed v3 schema")
 
     def profile_strings(name: str) -> tuple[str, ...]:
@@ -373,9 +385,11 @@ def parse_capabilities(value: Mapping[str, object]) -> ProviderCapabilities:
         "max_files": max_files,
         "max_bytes": max_bytes,
     }
+    if scope != "global":
+        digest_input["target_scope"] = scope
     if digest_canonical(PROJECTION_DOMAIN, digest_input) != profile_digest:
         raise ValueError("provider projection digest does not bind its exact declaration")
-    profile = ProjectionProfile(
+    return ProjectionProfile(
         profile_id=profile_id,
         digest=profile_digest,
         component_kinds=components,
@@ -384,7 +398,56 @@ def parse_capabilities(value: Mapping[str, object]) -> ProviderCapabilities:
         bundle_formats=profile_strings("bundle_formats"),
         max_files=max_files,
         max_bytes=max_bytes,
+        scope=scope,
     )
+
+
+def parse_capabilities(value: Mapping[str, object]) -> ProviderCapabilities:
+    """Parse one closed provider-info object without trusting schema prose."""
+    required = frozenset(INFO_FIELDS)
+    if frozenset(value) - OPTIONAL_INFO_FIELDS != required:
+        raise ValueError("provider-info fields differ from the closed v3 schema")
+    if value.get("protocol_version") != VERSION:
+        raise ValueError("provider-info protocol version differs")
+
+    def strings(name: str, *, nonempty: bool = True) -> tuple[str, ...]:
+        raw = value.get(name)
+        if not isinstance(raw, list):
+            raise ValueError(f"provider-info {name} must be a string array")
+        values = cast(list[object], raw)
+        if any(not isinstance(item, str) or (nonempty and not item) for item in values):
+            raise ValueError(f"provider-info {name} must be a string array")
+        held = cast(tuple[str, ...], tuple(values))
+        if len(held) != len(set(held)):
+            raise ValueError(f"provider-info {name} must be unique")
+        return held
+
+    untyped_profile = value.get("projection_profile")
+    if not isinstance(untyped_profile, dict):
+        raise ValueError("provider-info projection_profile must be an object")
+    profile = _parse_projection(cast(dict[str, object], untyped_profile), scope="global")
+
+    raw_scoped = value.get("scoped_projection_profiles", [])
+    if not isinstance(raw_scoped, list):
+        raise ValueError("provider-info scoped_projection_profiles must be an array")
+    scoped: list[ProjectionProfile] = []
+    for entry in cast(list[object], raw_scoped):
+        if not isinstance(entry, dict):
+            raise ValueError("each scoped projection profile must be an object")
+        held = cast(dict[str, object], entry)
+        named = held.get("target_scope")
+        if not isinstance(named, str) or named not in PROJECTION_SCOPES:
+            raise ValueError("a scoped projection profile names an unknown target scope")
+        # The global scope already has an owner, and two statements about one
+        # fact are a defect even while they agree.
+        if named == "global":
+            raise ValueError(
+                "the global scope is declared by projection_profile, not by a scoped entry"
+            )
+        scoped.append(_parse_projection(held, scope=named))
+    if len({item.scope for item in scoped}) != len(scoped):
+        raise ValueError("scoped projection profiles must name distinct target scopes")
+
     commands = frozenset(strings("supported_commands"))
     operations = normalize_operations(strings("supported_operations"))
     provider_id = value.get("provider_id")
@@ -407,6 +470,7 @@ def parse_capabilities(value: Mapping[str, object]) -> ProviderCapabilities:
         supported_arch=strings("supported_arch"),
         permission_profiles=strings("permission_profiles", nonempty=True),
         projection=profile,
+        scoped_projections=tuple(scoped),
     )
 
 
@@ -436,6 +500,66 @@ def validate_profile_for_projections(
 
 def _closed_string_enum(values: Sequence[StrEnum]) -> dict[str, object]:
     return {"type": "string", "enum": [value.value for value in values]}
+
+
+def _projection_schema(*, scoped: bool) -> dict[str, object]:
+    """One projection profile on the wire, global or scoped.
+
+    Built once for both so the two cannot drift. A scoped entry adds
+    `target_scope` and nothing else; the global one is byte-identical to what
+    every release before `ADR-0125` already validates against.
+    """
+    properties: dict[str, object] = {
+        "profile_id": {"type": "string", "minLength": 1},
+        "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "component_kinds": {
+            "type": "array",
+            "items": _closed_string_enum(tuple(ComponentKind)),
+            "minItems": 1,
+            "uniqueItems": True,
+        },
+        "projection_kinds": {
+            "type": "array",
+            "items": _closed_string_enum(tuple(ProjectionKind)),
+            "minItems": 1,
+            "uniqueItems": True,
+        },
+        "native_namespaces": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1},
+            "minItems": 1,
+            "uniqueItems": True,
+        },
+        "bundle_formats": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1},
+            "minItems": 1,
+            "uniqueItems": True,
+        },
+        "max_files": {"type": "integer", "minimum": 1},
+        "max_bytes": {"type": "integer", "minimum": 1},
+    }
+    required = [
+        "profile_id",
+        "digest",
+        "component_kinds",
+        "projection_kinds",
+        "native_namespaces",
+        "bundle_formats",
+        "max_files",
+        "max_bytes",
+    ]
+    if scoped:
+        # `global` is absent on purpose: `projection_profile` owns it, and a
+        # second way to say the same thing is a defect even while they agree.
+        properties["target_scope"] = {"type": "string", "enum": ["project"]}
+        required.append("target_scope")
+    return {
+        "type": "object",
+        "properties": properties,
+        "required": required,
+        "additionalProperties": False,
+    }
 
 
 def _build_wire_schema() -> dict[str, object]:
@@ -483,49 +607,11 @@ def _build_wire_schema() -> dict[str, object]:
                 "items": {"type": "string", "minLength": 1},
                 "uniqueItems": True,
             },
-            "projection_profile": {
-                "type": "object",
-                "properties": {
-                    "profile_id": {"type": "string", "minLength": 1},
-                    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
-                    "component_kinds": {
-                        "type": "array",
-                        "items": _closed_string_enum(tuple(ComponentKind)),
-                        "minItems": 1,
-                        "uniqueItems": True,
-                    },
-                    "projection_kinds": {
-                        "type": "array",
-                        "items": _closed_string_enum(tuple(ProjectionKind)),
-                        "minItems": 1,
-                        "uniqueItems": True,
-                    },
-                    "native_namespaces": {
-                        "type": "array",
-                        "items": {"type": "string", "minLength": 1},
-                        "minItems": 1,
-                        "uniqueItems": True,
-                    },
-                    "bundle_formats": {
-                        "type": "array",
-                        "items": {"type": "string", "minLength": 1},
-                        "minItems": 1,
-                        "uniqueItems": True,
-                    },
-                    "max_files": {"type": "integer", "minimum": 1},
-                    "max_bytes": {"type": "integer", "minimum": 1},
-                },
-                "required": [
-                    "profile_id",
-                    "digest",
-                    "component_kinds",
-                    "projection_kinds",
-                    "native_namespaces",
-                    "bundle_formats",
-                    "max_files",
-                    "max_bytes",
-                ],
-                "additionalProperties": False,
+            "projection_profile": _projection_schema(scoped=False),
+            "scoped_projection_profiles": {
+                "type": "array",
+                "items": _projection_schema(scoped=True),
+                "uniqueItems": True,
             },
         },
         "required": list(INFO_FIELDS),

@@ -23,7 +23,7 @@ KIT_IDENTITY_SCHEMA: Final[str] = "ai-stp-provider-kit-identity/1"
 #: for a caller naming a profile outside `permission_profiles`: the operation
 #: itself is supported, and `projection_profile_mismatch` is a different kind
 #: of profile.
-KIT_VERSION: Final[str] = "0.2.2"
+KIT_VERSION: Final[str] = "0.2.3"
 
 #: Files the aggregate identity covers, in the order `SHA256SUMS` lists them.
 MACHINE_FILES: Final[tuple[str, ...]] = (

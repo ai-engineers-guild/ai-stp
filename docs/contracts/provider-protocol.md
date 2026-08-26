@@ -197,6 +197,19 @@ bundle formats, limits, permission profiles, OS и architectures. Compiler ст�
 projection только для exact профиля, а provider независимо проверяет bundle.
 Permission profile является отдельным plan input и не входит в setup/component digest.
 
+Набор полей `provider-info` закрыт и сравнивается на точное равенство, поэтому
+неизвестное поле отклоняет весь ответ, а не его часть. Единственное необязательное
+имя — `scoped_projection_profiles`: массив профилей, каждый из которых объявляет
+`target_scope` из словаря `global` / `project`. Запись со значением `global`
+отклоняется, потому что глобальную область объявляет `projection_profile`; области
+в массиве уникальны; digest каждой записи связывает её декларацию вместе с
+областью. Отсутствие массива означает владение только глобальной областью и не
+является деградацией. `projection_profile` не меняется ни одним полем, поэтому
+declaration и digest релиза, выпущенного до этого расширения, остаются прежними.
+Разрешение области выполняется один раз, к моменту планирования, когда цель уже
+известна; plan artifact и status по-прежнему несут один `projection_profile_digest`
+— digest разрешённого профиля. Решение и порядок выпуска — `ADR-0125`.
+
 Необязательный жизненный цикл программы (`software_install`, `software_update`,
 `software_remove`) не добавляет команд: те же `plan-operation` и
 `apply-operation`, те же журнал, backup и plan-digest. Провайдер не открывает

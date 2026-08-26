@@ -254,7 +254,21 @@ def test_wire_schema_is_closed_and_requires_core_commands() -> None:
         "enum": list(protocol_v3.COMMANDS),
     }
     assert command_schema["minItems"] == len(protocol_v3.CORE_COMMANDS)
-    assert set(cast(list[str], schema["required"])) == set(properties)
+
+    # Closed, and required everywhere except the one name that may be absent.
+    # `scoped_projection_profiles` must never join `required`: a provider built
+    # before `ADR-0125` does not send it, and requiring it would refuse that
+    # provider *whole* on every installed CLI. The global profile must likewise
+    # stay free of `target_scope`, for the same reason and with the same blast
+    # radius.
+    required = set(cast(list[str], schema["required"]))
+    assert required == set(properties) - protocol_v3.OPTIONAL_INFO_FIELDS
+    assert "scoped_projection_profiles" not in required
+    global_profile = cast(dict[str, object], properties["projection_profile"])
+    assert "target_scope" not in cast(dict[str, object], global_profile["properties"])
+    scoped = cast(dict[str, object], properties["scoped_projection_profiles"])
+    scoped_item = cast(dict[str, object], scoped["items"])
+    assert "target_scope" in cast(list[str], scoped_item["required"])
 
 
 def test_provider_info_parser_binds_the_exact_projection_and_capabilities() -> None:
@@ -346,3 +360,115 @@ def test_contract_and_adr_name_v3_without_redefining_old_versions() -> None:
     adr = ADR.read_text(encoding="utf-8")
     assert "Protocol v1 и v2 остаются без изменений" in adr
     assert "protocol v3" in contract.lower()
+
+
+def _info_with(**overrides: object) -> dict[str, object]:
+    """One valid `provider-info`, as a release shipped before `ADR-0125` sends it."""
+    projection: dict[str, JsonValue] = {
+        "profile_id": "antigravity/1",
+        "component_kinds": ["skill"],
+        "projection_kinds": ["native_files"],
+        "native_namespaces": ["config/skills"],
+        "bundle_formats": ["ai-stp-bundle/1"],
+        "max_files": 2000,
+        "max_bytes": 64 * 1024 * 1024,
+    }
+    info: dict[str, object] = {
+        "protocol_version": 3,
+        "provider_id": "nddev-antigravity",
+        "harness_id": "antigravity",
+        "provider_version": "0.0.6",
+        "provider_build_digest": _digest("4"),
+        "supported_commands": list(protocol_v3.CORE_COMMANDS),
+        "supported_operations": sorted(item.value for item in protocol_v3.CORE_OPERATIONS),
+        "supported_os": ["linux", "macos", "windows"],
+        "supported_arch": ["arm64", "x86_64"],
+        "permission_profiles": [],
+        "projection_profile": {
+            **projection,
+            "digest": digest_canonical(protocol_v3.PROJECTION_DOMAIN, projection),
+        },
+    }
+    return {**info, **overrides}
+
+
+def _scoped(scope: str, *, bind_scope: bool = True) -> dict[str, JsonValue]:
+    """One scoped entry. `bind_scope=False` omits the scope from its digest input."""
+    body: dict[str, JsonValue] = {
+        "profile_id": f"antigravity/{scope}",
+        "component_kinds": ["command", "instruction"],
+        "projection_kinds": ["native_files"],
+        "native_namespaces": [".agents"],
+        "bundle_formats": ["ai-stp-bundle/1"],
+        "max_files": 2000,
+        "max_bytes": 64 * 1024 * 1024,
+    }
+    digest_input = {**body, "target_scope": scope} if bind_scope else dict(body)
+    return {
+        **body,
+        "target_scope": scope,
+        "digest": digest_canonical(protocol_v3.PROJECTION_DOMAIN, digest_input),
+    }
+
+
+def test_a_release_shipped_before_the_second_scope_parses_unchanged() -> None:
+    """The compatibility this whole shape exists to keep (`ADR-0125`).
+
+    `provider-info` is compared on exact field equality, so a provider adding a
+    field is refused *whole* — not its profile, the entire declaration, and with
+    it fetch, conformance, plan, apply and status. An installed CLI cannot be
+    taught tolerance afterwards, so the widening had to be a name that may be
+    absent, and the existing profile had to keep its bytes and its digest.
+    """
+    parsed = protocol_v3.parse_capabilities(_info_with())
+    assert parsed.scoped_projections == ()
+    assert parsed.projection.scope == "global"
+
+
+def test_a_second_scope_is_parsed_and_keeps_the_global_profile_untouched() -> None:
+    parsed = protocol_v3.parse_capabilities(
+        _info_with(scoped_projection_profiles=[_scoped("project")])
+    )
+    assert parsed.projection.scope == "global"
+    assert (
+        parsed.projection.digest == protocol_v3.parse_capabilities(_info_with()).projection.digest
+    )
+    assert [item.scope for item in parsed.scoped_projections] == ["project"]
+    assert parsed.scoped_projections[0].native_namespaces == (".agents",)
+
+
+def test_a_scoped_entry_binds_its_scope_into_its_own_identity() -> None:
+    """Otherwise two profiles owning different targets could share a digest.
+
+    The digest is what a plan pins and a status is verified against, so an
+    identity blind to scope would let a provider answer for the wrong target
+    while every comparison agreed.
+    """
+    with pytest.raises(ValueError, match="does not bind"):
+        protocol_v3.parse_capabilities(
+            _info_with(scoped_projection_profiles=[_scoped("project", bind_scope=False)])
+        )
+
+
+def test_the_global_scope_keeps_exactly_one_owner() -> None:
+    entry = dict(_scoped("project"))
+    entry["target_scope"] = "global"
+    with pytest.raises(ValueError, match="declared by projection_profile"):
+        protocol_v3.parse_capabilities(_info_with(scoped_projection_profiles=[entry]))
+
+
+def test_two_entries_cannot_claim_the_same_scope() -> None:
+    with pytest.raises(ValueError, match="distinct target scopes"):
+        protocol_v3.parse_capabilities(
+            _info_with(scoped_projection_profiles=[_scoped("project"), _scoped("project")])
+        )
+
+
+def test_the_widening_admits_exactly_one_new_name() -> None:
+    """A closed set that grew by one is still closed."""
+    with pytest.raises(ValueError, match="differ from the closed v3 schema"):
+        protocol_v3.parse_capabilities(_info_with(something_else=[]))
+    with pytest.raises(ValueError, match="unknown target scope"):
+        protocol_v3.parse_capabilities(
+            _info_with(scoped_projection_profiles=[{**_scoped("project"), "target_scope": "user"}])
+        )

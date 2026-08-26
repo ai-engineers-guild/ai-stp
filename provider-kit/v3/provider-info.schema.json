@@ -112,6 +112,99 @@
       "minLength": 1,
       "type": "string"
     },
+    "scoped_projection_profiles": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "bundle_formats": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "component_kinds": {
+            "items": {
+              "enum": [
+                "instruction",
+                "skill",
+                "mcp",
+                "hook",
+                "command",
+                "agent",
+                "plugin",
+                "setting"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "digest": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "max_bytes": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_files": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "native_namespaces": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "profile_id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "projection_kinds": {
+            "items": {
+              "enum": [
+                "marketplace",
+                "plugin",
+                "native_files",
+                "package"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "target_scope": {
+            "enum": [
+              "project"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "digest",
+          "component_kinds",
+          "projection_kinds",
+          "native_namespaces",
+          "bundle_formats",
+          "max_files",
+          "max_bytes",
+          "target_scope"
+        ],
+        "type": "object"
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
     "supported_arch": {
       "items": {
         "minLength": 1,
