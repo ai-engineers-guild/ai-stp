@@ -20,6 +20,81 @@ class ProviderPlan:
     effects: tuple[str, ...]
 
 
+#: Operations whose subject is a program rather than the configuration in the
+#: target. They are the only ones that take `--prefix`, and they require it:
+#: a provider asked to install a program without being told where would be
+#: guessing a path.
+SOFTWARE_OPERATIONS: frozenset[protocol_v3.Operation] = frozenset(
+    {
+        protocol_v3.Operation.SOFTWARE_INSTALL,
+        protocol_v3.Operation.SOFTWARE_UPDATE,
+        protocol_v3.Operation.SOFTWARE_REMOVE,
+    }
+)
+
+
+def plan_arguments(
+    *,
+    operation: protocol_v3.Operation,
+    release_digest: str,
+    operation_id: str,
+    expires_at: str,
+    prefix: Path | None = None,
+    backup_ref: str | None = None,
+    permission_profile: str | None = None,
+    bundle: bundle_protocol.Binding | None = None,
+) -> tuple[str, ...]:
+    """Build the `plan-operation` argv once, for every caller that needs one.
+
+    This existed twice before it existed here: the installation path built it
+    and the conformance run built it again, and the copies agreed until one of
+    them had to grow `--prefix` for the program lifecycle. The one that did not
+    grow it asked six providers to install a program without saying where, and
+    every one of them refused — which read as six provider defects rather than
+    one argv defect, because the case that broke was the case testing them.
+
+    A third copy for the harness commands would be the same bet a third time.
+
+    `--prefix` is required for a software operation and refused for every other
+    one, so the shape cannot be assembled wrongly by a caller that passes the
+    wrong pair: getting it wrong raises here rather than at a provider.
+    """
+    software = operation in SOFTWARE_OPERATIONS
+    if software and prefix is None:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "a program operation needs the prefix the program goes under",
+            details={"operation": operation.value},
+        )
+    if prefix is not None and not software:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "only a program operation takes a prefix",
+            details={"operation": operation.value},
+        )
+    arguments: tuple[str, ...] = (
+        "--operation",
+        operation.value,
+        "--provider-release-digest",
+        release_digest,
+        "--operation-id",
+        operation_id,
+        "--expires-at",
+        expires_at,
+    )
+    if prefix is not None:
+        # Absolute, because the provider resolves it against nothing: a relative
+        # prefix would land wherever the provider happened to be started from.
+        arguments = (*arguments, "--prefix", str(prefix.resolve()))
+    if backup_ref is not None:
+        arguments = (*arguments, "--backup-ref", backup_ref)
+    if permission_profile is not None:
+        arguments = (*arguments, "--permission-profile", permission_profile)
+    if bundle is not None:
+        arguments = (*arguments, *bundle.common_arguments())
+    return arguments
+
+
 def load_plan(path: Path, expected_digest: str) -> ProviderPlan:
     """Load the consumer cache artifact and re-check its logical identity."""
     try:

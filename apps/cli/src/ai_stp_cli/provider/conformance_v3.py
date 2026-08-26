@@ -122,16 +122,12 @@ def run(
         )
         release_digest = "sha256:" + "d" * 64
         operation_id = "operation_provider_conformance_v3"
-        arguments = (
-            "--operation",
-            operation.value,
-            "--provider-release-digest",
-            release_digest,
-            "--operation-id",
-            operation_id,
-            "--expires-at",
-            expiry,
-            *corpus.valid.common_arguments(),
+        arguments = operation_v3.plan_arguments(
+            operation=operation,
+            release_digest=release_digest,
+            operation_id=operation_id,
+            expires_at=expiry,
+            bundle=corpus.valid,
         )
         first_plan = _object(invoke("plan-operation", arguments))
         second_plan = _object(invoke("plan-operation", arguments))
@@ -312,14 +308,18 @@ def _declared_software_artifact(
     """
     name = "software_lifecycle_matches_its_declaration"
     declared = protocol_v3.Operation.SOFTWARE_INSTALL in capabilities.operations
-    replaced = list(arguments)
-    replaced[replaced.index("--operation") + 1] = protocol_v3.Operation.SOFTWARE_INSTALL.value
     # Never created and never written: `plan-operation` is pure, and the
     # provider accepts a `--prefix` that does not exist yet. A directory made
     # here would be one this run has to remove again.
     prefix = Path(tempfile.gettempdir()).resolve() / "ai-stp-conformance-prefix"
-    replaced += ["--prefix", str(prefix)]
-    answer = _object(invoke("plan-operation", tuple(replaced)))
+    request = operation_v3.plan_arguments(
+        operation=protocol_v3.Operation.SOFTWARE_INSTALL,
+        release_digest=_argument(arguments, "--provider-release-digest"),
+        operation_id=_argument(arguments, "--operation-id"),
+        expires_at=_argument(arguments, "--expires-at"),
+        prefix=prefix,
+    )
+    answer = _object(invoke("plan-operation", request))
     reason = answer.get("reason")
     if not declared:
         refused = (
@@ -441,6 +441,11 @@ def _rejections(
             )
         )
     return cases
+
+
+def _argument(arguments: tuple[str, ...], flag: str) -> str:
+    """Read one value out of an argv the run already built."""
+    return arguments[arguments.index(flag) + 1]
 
 
 def _object(value: JsonValue) -> dict[str, JsonValue]:

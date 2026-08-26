@@ -530,22 +530,15 @@ def _plan_v3(
         return _view(connection, existing)
 
     operation_id = new_id("operation")
-    arguments: tuple[str, ...] = (
-        "--operation",
-        operation.value,
-        "--provider-release-digest",
-        release_digest,
-        "--operation-id",
-        operation_id,
-        "--expires-at",
-        expires_at,
+    arguments = operation_v3.plan_arguments(
+        operation=operation,
+        release_digest=release_digest,
+        operation_id=operation_id,
+        expires_at=expires_at,
+        backup_ref=backup_ref,
+        permission_profile=permission_profile,
+        bundle=bound_bundle,
     )
-    if backup_ref is not None:
-        arguments = (*arguments, "--backup-ref", backup_ref)
-    if permission_profile is not None:
-        arguments = (*arguments, "--permission-profile", permission_profile)
-    if bound_bundle is not None:
-        arguments = (*arguments, *bound_bundle.common_arguments())
     provider_plan = operation_v3.require_plan(
         _object(invoke("plan-operation", arguments)),
         capabilities=capabilities,

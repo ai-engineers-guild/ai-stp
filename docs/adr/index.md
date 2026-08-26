@@ -120,6 +120,7 @@ last_verified: "2026-08-03"
 | [ADR-0119-the-fifth-harness-is-cursor.md](ADR-0119-the-fifth-harness-is-cursor.md) | Решение заменить opencode на cursor в закрытом наборе поддерживаемых харнессов вслед за переездом эстейта провайдеров. | 2026-08-23 |
 | [ADR-0120-the-supported-set-is-seven.md](ADR-0120-the-supported-set-is-seven.md) | Решение расширить закрытый набор поддерживаемых харнессов с пяти до семи: opencode остаётся, cursor и antigravity добавляются. | 2026-08-24 |
 | [ADR-0121-provider-release-trust-levels.md](ADR-0121-provider-release-trust-levels.md) | Решение различать verified publisher, подписанный, build-attested и непроверенный выпуск провайдера. | 2026-08-24 |
+| [ADR-0122-harness-is-the-program-lifecycle-noun.md](ADR-0122-harness-is-the-program-lifecycle-noun.md) | Решение сделать harness существительным жизненного цикла программы, оставив toolchain harnesses чтением детекции. | 2026-08-26 |
 | [template.md](template.md) | Шаблон записи архитектурного решения. | 2026-08-03 |
 
 <!-- КОНЕЦ СОДЕРЖИМОГО -->

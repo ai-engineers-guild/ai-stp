@@ -98,13 +98,21 @@ def _conforming(target: Path) -> tuple[conformance.Invoker, list[str]]:
         if command == "status":
             return {"state": "missing", "target_digest": target_digest}
         supplied = _arguments(arguments)
-        bound: dict[str, JsonValue] = {
-            "bundle_format": supplied["--bundle-format"],
-            "bundle_digest": supplied["--bundle-digest"],
-            "artifact_digest": supplied["--artifact-digest"],
-            "bundle_size": int(supplied["--bundle-size"]),
-        }
-        case = Path(supplied["--bundle"]).parent.name
+        # A program operation carries no bundle: its subject is the program
+        # under `--prefix`, not a setup projected into the target. The stub has
+        # to answer that shape too, or the only request without bundle
+        # arguments is one it cannot serve.
+        bound: dict[str, JsonValue] = (
+            {
+                "bundle_format": supplied["--bundle-format"],
+                "bundle_digest": supplied["--bundle-digest"],
+                "artifact_digest": supplied["--artifact-digest"],
+                "bundle_size": int(supplied["--bundle-size"]),
+            }
+            if "--bundle" in supplied
+            else {}
+        )
+        case = Path(supplied["--bundle"]).parent.name if "--bundle" in supplied else ""
         if command == "validate-bundle":
             reason = refusals.get(case)
             return (
