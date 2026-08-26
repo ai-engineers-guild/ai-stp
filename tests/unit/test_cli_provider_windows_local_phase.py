@@ -171,7 +171,11 @@ def test_windows_with_the_exception_reaches_the_spawn_unwrapped(
         return {"state": "missing", "target_digest": "x", "command": command}
 
     monkeypatch.setattr(conformance, "invoke_argv", spawn)
-    monkeypatch.setattr(conformance, "resolve_executable", lambda given: str(Path(given).resolve()))
+
+    def resolve(given: str) -> str:
+        return str(Path(given).resolve())
+
+    monkeypatch.setattr(conformance, "resolve_executable", resolve)
 
     answer = invocation_v3.invoke(
         str(executable),
