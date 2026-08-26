@@ -1786,6 +1786,14 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "Provider protocol selected before invocation. Defaults to frozen v1.",
             ),
             option(
+                "unverified-provider",
+                "boolean",
+                "Read the target through an executable no signed or attested "
+                "release covers. On Windows this is also what lets the read run "
+                "at all, since no launcher there can deny the network. "
+                "Elsewhere it changes nothing.",
+            ),
+            option(
                 "target",
                 "string",
                 "Existing absolute provider target directory. Required by protocol v2.",
@@ -1881,6 +1889,14 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "protocol-version",
                 "integer",
                 "Provider protocol selected before invocation. Defaults to frozen v1.",
+            ),
+            option(
+                "unverified-provider",
+                "boolean",
+                "Read the target through an executable no signed or attested "
+                "release covers. On Windows this is also what lets the read run "
+                "at all, since no launcher there can deny the network. "
+                "Elsewhere it changes nothing.",
             ),
             option(
                 "target",

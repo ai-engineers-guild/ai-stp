@@ -2003,6 +2003,39 @@ def _project_id(connection: sqlite3.Connection, given: str) -> str:
     return given if found is None else found
 
 
+def _observe_target(
+    parameters: Mapping[str, object], project_id: str, harness: str
+) -> tuple[str, provider_status.AuthorizationEvidence | None]:
+    """Read one target through the provider the caller named, or read nothing.
+
+    Both observers did this identically, which made the Windows decision below
+    a thing to remember in two places. It is one place now, for the same reason
+    every other duplicate here was collapsed.
+
+    The reason is the operator's own and only Windows can act on one. These
+    commands install nothing, but that is not why they may ask: `ADR-0126` puts
+    the gate on whose executable it is, and `--unverified-provider` is the
+    operator saying whose. Without it they refuse where isolation is absent,
+    exactly as before.
+    """
+    if not parameters.get("provider"):
+        return "", None
+    version = _protocol_version(parameters)
+    logical = f"{project_id}:{harness}"
+    target = _provider_target(parameters, logical, version)
+    invoke = invocation.provider_invoker(
+        _executable(parameters),
+        target,
+        version,
+        unisolated_reason=(
+            network_launcher.EXPLICIT_UNVERIFIED_PROVIDER
+            if parameters.get("unverified-provider") is True
+            else None
+        ),
+    )
+    return _provider_observation(invoke)
+
+
 def target_status(parameters: Mapping[str, object]) -> Answer[TargetSurvey]:
     """The daily state of one pair. Reads, and changes nothing (`#177`).
 
@@ -2019,14 +2052,7 @@ def target_status(parameters: Mapping[str, object]) -> Answer[TargetSurvey]:
     registry = configured_path()
     if not registry.exists():
         return Answer(_survey(targets.Survey(project_id=project_id, harness_id=harness)))
-    observed = ""
-    authorization_evidence = None
-    if parameters.get("provider"):
-        version = _protocol_version(parameters)
-        logical = f"{project_id}:{harness}"
-        target = _provider_target(parameters, logical, version)
-        invoke = invocation.provider_invoker(_executable(parameters), target, version)
-        observed, authorization_evidence = _provider_observation(invoke)
+    observed, authorization_evidence = _observe_target(parameters, project_id, harness)
 
     with closing(open_readonly(registry)) as connection:
         found = targets.survey(
@@ -2062,14 +2088,7 @@ def target_diff(parameters: Mapping[str, object]) -> Answer[TargetDiff]:
                 managed_detail="not_applicable",
             )
         )
-    observed = ""
-    authorization_evidence = None
-    if parameters.get("provider"):
-        version = _protocol_version(parameters)
-        logical = f"{project_id}:{harness}"
-        target = _provider_target(parameters, logical, version)
-        invoke = invocation.provider_invoker(_executable(parameters), target, version)
-        observed, authorization_evidence = _provider_observation(invoke)
+    observed, authorization_evidence = _observe_target(parameters, project_id, harness)
 
     with closing(open_readonly(registry)) as connection:
         found = targets.survey(

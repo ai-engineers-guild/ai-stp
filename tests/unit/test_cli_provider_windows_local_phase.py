@@ -312,3 +312,70 @@ def test_conformance_asks_for_the_exception_only_when_the_operator_names_it(
     # `trusted_release` is the other reason `#416` accepts, and conformance must
     # never claim it: no manifest was read, so the claim would be unfounded.
     assert network_launcher.TRUSTED_RELEASE not in seen
+
+
+def test_the_observers_ask_on_the_same_named_gate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`ADR-0126`'s amendment: a rule, not a list that grows by one per commit.
+
+    `target status` and `target diff` take an arbitrary `--provider` exactly as
+    conformance does, and on Windows they did not run at all — the same hole in
+    the platform. They read rather than write, which is precisely the wrong
+    distinction: an unisolated phase is already permitted for the install that
+    *changes* the same live target.
+
+    Both observers went through one identical block, so the decision would have
+    had to be remembered twice. It is one function now, and this asserts the
+    reason it hands over — for both commands, and only when asked.
+    """
+    from ai_stp_cli.commands import install
+
+    executable = tmp_path / "provider-stub"
+    executable.write_text("stub", encoding="utf-8")
+    executable.chmod(0o755)
+    target = tmp_path / "target"
+    target.mkdir()
+
+    seen: list[str | None] = []
+
+    def invoker(
+        _executable: str,
+        _target: str,
+        _version: int,
+        *,
+        unisolated_reason: str | None = None,
+        writable: tuple[Path, ...] = (),
+    ) -> object:
+        seen.append(unisolated_reason)
+        raise _Stop
+
+    monkeypatch.setattr("ai_stp_cli.provider.invocation.provider_invoker", invoker)
+
+    # Both observers answer from local state alone when no registry exists, and
+    # return before reaching a provider at all. The file only has to be there;
+    # the invoker is called before anything reads it.
+    from contextlib import closing
+
+    from ai_stp_cli.local.database import configured_path, open_registry
+
+    with closing(open_registry(configured_path(), create=True)):
+        pass
+
+    base = {
+        "project": "project_01ABCDEFGHJKMNPQRSTVWXYZ00",
+        "harness": "claude-code",
+        "provider": str(executable),
+        "protocol-version": 3,
+        "target": str(target),
+    }
+    for handler in (install.target_status, install.target_diff):
+        seen.clear()
+        with pytest.raises(_Stop):
+            handler(dict(base))
+        assert seen == [None], handler.__name__
+
+        seen.clear()
+        with pytest.raises(_Stop):
+            handler({**base, "unverified-provider": True})
+        assert seen == [network_launcher.EXPLICIT_UNVERIFIED_PROVIDER], handler.__name__

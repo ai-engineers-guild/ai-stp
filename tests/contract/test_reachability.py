@@ -396,3 +396,27 @@ def test_only_the_shared_invoker_calls_the_v3_transport() -> None:
         "these spawn a v3 provider without the shared boundary; "
         "call provider.invocation.provider_invoker instead: " + ", ".join(strays)
     )
+
+
+def test_no_command_declares_one_option_twice() -> None:
+    """A duplicate declaration is invisible: the second silently wins.
+
+    Added after a blind edit gave `install plan` two `unverified-provider`
+    options. Nothing caught it — not the option-is-read sweep, which only asks
+    whether *some* handler reads the name, and not the golden fixture, which
+    records whatever the registry says. The machine help would then have shown
+    one option twice to every agent reading it.
+
+    The failure is quiet by construction, which is the only reason this is worth
+    a structural check rather than review.
+    """
+    from ai_stp_cli.registry import COMMANDS
+
+    duplicated: list[str] = []
+    for command in COMMANDS:
+        names = [option.name for option in command.descriptor.parameters]
+        repeated = sorted({name for name in names if names.count(name) > 1})
+        if repeated:
+            duplicated.append(f"{' '.join(command.descriptor.path)}: {', '.join(repeated)}")
+
+    assert not duplicated, sorted(duplicated)
