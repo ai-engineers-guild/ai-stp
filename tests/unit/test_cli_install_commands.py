@@ -37,6 +37,7 @@ from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_cli.provider import (
     build_attestation,
     conformance,
+    invocation,
     invocation_v2,
     network_launcher,
     protocol,
@@ -639,7 +640,7 @@ def _v3_test_invoker(
         assert version == protocol_v3.VERSION
         return invoke
 
-    monkeypatch.setattr(install, "_provider_invoker", invoker)
+    monkeypatch.setattr(invocation, "provider_invoker", invoker)
     return state
 
 
@@ -1725,7 +1726,7 @@ def test_plan_refuses_an_unpinned_release_before_the_provider_is_spawned(
     def forbidden(*_args: object, **_kwargs: object) -> conformance.Invoker:
         raise AssertionError("an unpinned provider must not be spawned")
 
-    monkeypatch.setattr(install, "_provider_invoker", forbidden)
+    monkeypatch.setattr(invocation, "provider_invoker", forbidden)
     with pytest.raises(CliFailure) as raised:
         install.plan(
             {
@@ -1778,7 +1779,7 @@ def test_resume_refuses_a_release_unpinned_after_the_plan_before_provider_spawn(
     def forbidden(*_args: object, **_kwargs: object) -> conformance.Invoker:
         raise AssertionError("an unpinned provider must not be spawned")
 
-    monkeypatch.setattr(install, "_provider_invoker", forbidden)
+    monkeypatch.setattr(invocation, "provider_invoker", forbidden)
     with pytest.raises(CliFailure) as raised:
         install.resume({"operation": planned.operation_id, "provider": executable})
 
@@ -1821,7 +1822,7 @@ def test_resume_refuses_a_release_revoked_after_the_plan_before_provider_spawn(
         spawned = True
         raise AssertionError("a revoked provider must not be spawned")
 
-    monkeypatch.setattr(install, "_provider_invoker", forbidden)
+    monkeypatch.setattr(invocation, "provider_invoker", forbidden)
     with pytest.raises(CliFailure) as raised:
         install.resume({"operation": planned.operation_id, "provider": executable})
 
@@ -2077,7 +2078,7 @@ def test_resume_only_observes_and_never_reapplies_the_bundle(
 
         return invoke
 
-    monkeypatch.setattr(install, "_provider_invoker", invoker)
+    monkeypatch.setattr(invocation, "provider_invoker", invoker)
     resumed = install.resume({"operation": planned.operation_id, "provider": executable}).payload
 
     assert resumed.state == "verified"

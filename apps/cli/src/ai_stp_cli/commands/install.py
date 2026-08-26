@@ -22,7 +22,7 @@ import platform
 import re
 import sqlite3
 import subprocess
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from contextlib import closing
 from dataclasses import dataclass
 from datetime import timedelta
@@ -54,9 +54,7 @@ from ai_stp_cli.provider import (
     build_attestation,
     bundle_protocol,
     conformance,
-    invocation_v2,
-    invocation_v3,
-    network_launcher,
+    invocation,
     operation_v3,
     protocol,
     protocol_v2,
@@ -300,7 +298,7 @@ def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
                 details={"protocol_version": str(protocol_version)},
             )
         provider_target = _provider_target(parameters, target, protocol_version)
-        invoke = _provider_invoker(executable, provider_target, protocol_version)
+        invoke = invocation.provider_invoker(executable, provider_target, protocol_version)
         info = _object(invoke("provider-info", ()))
         _speaks(info, protocol_version)
         provider_version = str(info.get("provider_version", ""))
@@ -622,7 +620,7 @@ def apply(parameters: Mapping[str, object]) -> Answer[InstallationView]:
     def work(connection: sqlite3.Connection) -> InstallationView:
         held = installation._require(connection, operation_id)  # pyright: ignore[reportPrivateUsage]
         trusted_release = _verify_bound_release(connection, held, executable)
-        invoke = _provider_invoker(
+        invoke = invocation.provider_invoker(
             executable,
             held.provider_target or held.target_id,
             held.provider_protocol_version,
@@ -954,7 +952,7 @@ def resume(parameters: Mapping[str, object]) -> Answer[InstallationView]:
             )
 
         trusted_release = _verify_bound_release(connection, held, executable)
-        invoke = _provider_invoker(
+        invoke = invocation.provider_invoker(
             executable,
             held.provider_target or held.target_id,
             held.provider_protocol_version,
@@ -1829,48 +1827,6 @@ def _provider_target(parameters: Mapping[str, object], logical: str, version: in
     return str(place.resolve())
 
 
-def _provider_invoker(executable: str, target: str, version: int) -> conformance.Invoker:
-    """Select frozen v1 or an enforced local-only v2/v3 boundary."""
-    if version == protocol.VERSION:
-        return conformance.subprocess_invoker(executable, target)
-
-    launcher, capability = network_launcher.discover_bubblewrap()
-
-    def invoke(command: str, arguments: Sequence[str]) -> JsonValue:
-        try:
-            if version == protocol_v3.VERSION:
-                return invocation_v3.invoke(
-                    executable,
-                    target,
-                    command,
-                    arguments,
-                    launcher=launcher,
-                    capability=capability,
-                )
-            return invocation_v2.invoke(
-                executable,
-                target,
-                command,
-                protocol_v2.ActionPhase.EXECUTE,
-                arguments,
-                launcher=launcher,
-                capability=capability,
-            ).payload
-        except protocol_v2.NetworkCapabilityUnavailable as error:
-            raise CliFailure(
-                error.error_code,
-                "provider protocol v2/v3 cannot run this local phase without network isolation",
-                details={
-                    "command": error.decision.command,
-                    "phase": error.decision.phase.value,
-                    "network_enforcement": error.decision.enforcement.value,
-                },
-                next_actions=["provider network --json"],
-            ) from None
-
-    return invoke
-
-
 def _executable(parameters: Mapping[str, object]) -> str:
     given = str(parameters.get("provider") or "")
     if not given:
@@ -2032,7 +1988,7 @@ def target_status(parameters: Mapping[str, object]) -> Answer[TargetSurvey]:
         version = _protocol_version(parameters)
         logical = f"{project_id}:{harness}"
         target = _provider_target(parameters, logical, version)
-        invoke = _provider_invoker(_executable(parameters), target, version)
+        invoke = invocation.provider_invoker(_executable(parameters), target, version)
         observed, authorization_evidence = _provider_observation(invoke)
 
     with closing(open_readonly(registry)) as connection:
@@ -2075,7 +2031,7 @@ def target_diff(parameters: Mapping[str, object]) -> Answer[TargetDiff]:
         version = _protocol_version(parameters)
         logical = f"{project_id}:{harness}"
         target = _provider_target(parameters, logical, version)
-        invoke = _provider_invoker(_executable(parameters), target, version)
+        invoke = invocation.provider_invoker(_executable(parameters), target, version)
         observed, authorization_evidence = _provider_observation(invoke)
 
     with closing(open_readonly(registry)) as connection:
