@@ -11,6 +11,7 @@ import pytest
 
 from ai_stp_cli.commands import install as install_cmd
 from ai_stp_cli.errors import CliFailure
+from ai_stp_cli.local import installation
 from ai_stp_cli.provider import protocol
 
 pytestmark = pytest.mark.cli
@@ -262,3 +263,34 @@ def test_network_launcher_path_token_and_wrap(tmp_path: Path) -> None:
     except Exception:
         # Structural validation may still reject; path token coverage is enough.
         pass
+
+
+def test_a_software_action_is_refused_by_naming_the_command_that_has_it() -> None:
+    """`install` does not perform a program operation, and says where one lives.
+
+    The journal accepts these actions because its state machine is the same
+    whatever is being installed — `ADR-0122`, amended. The command surface is
+    where the split belongs, so `install` still refuses them; what changed is
+    that the refusal is an address rather than a break. Before this it fell into
+    `KeyError` and surfaced as "that installation action has no provider v3
+    operation", which tells an agent something is broken rather than which door
+    to use.
+    """
+    for action in ("software_install", "software_update", "software_remove"):
+        with pytest.raises(CliFailure) as raised:
+            install_cmd._v3_operation(action)  # pyright: ignore[reportPrivateUsage]
+
+        assert "harness" in raised.value.message
+        assert raised.value.details.get("action") == action
+
+
+def test_the_journal_accepts_what_the_command_surface_refuses() -> None:
+    """One journal, two action maps.
+
+    `installation.ACTIONS` is the journal's set, not `install`'s. Reading it as
+    the second is the mistake the amendment names, so this pins both halves at
+    once: the action is in the journal's vocabulary and still not something
+    `install` will carry out.
+    """
+    for action in ("software_install", "software_update", "software_remove"):
+        assert action in installation.ACTIONS

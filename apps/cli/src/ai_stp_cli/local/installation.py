@@ -48,7 +48,25 @@ PLAN_DOMAIN: Final[str] = "ai-stp:plan:v1"
 
 #: What a plan may ask for. Closed: an action nobody named has no declared
 #: effects, no recovery and no place in the failure matrix.
-ACTIONS: Final[frozenset[str]] = frozenset({"install", "update", "backup", "remove", "rollback"})
+#: What the **journal** accepts, which is not the same as what `install` does.
+#: The state machine — planned, approved, applying, applied_unverified,
+#: verified — plus backup and `plan-digest` are identical whether configuration
+#: or a program is being installed, so there is one journal rather than two
+#: (`ADR-0122`, amended). The split between setups and the program lifecycle
+#: lives on the command surface: `install` refuses a `software_*` action and
+#: names `harness`, which is where it is carried out.
+ACTIONS: Final[frozenset[str]] = frozenset(
+    {
+        "install",
+        "update",
+        "backup",
+        "remove",
+        "rollback",
+        "software_install",
+        "software_update",
+        "software_remove",
+    }
+)
 
 #: How the user's decision is expressed for a plan. A plan carrying an effect
 #: always needs the digest form — an explicit flag says "yes" to whatever is in

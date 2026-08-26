@@ -202,6 +202,7 @@
   "sync merge requires exactly two local heads": "слиянию sync нужны ровно две локальные головы",
   "target versions must use canonical X.Y notation": "версии цели должны использовать каноническую запись X.Y",
   "telemetry is turned on by consenting, not by setting a value": "телеметрия включается согласием, а не установкой значения",
+  "that action installs a program, which harness does, not install": "это действие ставит программу — им занимается harness, а не install",
   "that approval is for a different plan": "это одобрение для другого плана",
   "that backup is for another harness": "эта резервная копия для другой упряжки",
   "that component has no local passport": "у этого компонента нет локального паспорта",

@@ -1453,6 +1453,13 @@ def _v3_profile_accepts(
 _SOURCELESS_ACTIONS: Final[frozenset[str]] = frozenset({"backup", "rollback"})
 
 
+#: Journal actions whose subject is a program. Named here so the refusal below
+#: reads them from one place rather than restating the three.
+_PROGRAM_ACTIONS: Final[frozenset[str]] = frozenset(
+    {"software_install", "software_update", "software_remove"}
+)
+
+
 def _v3_operation(action: str) -> protocol_v3.Operation:
     mapping = {
         "install": protocol_v3.Operation.INSTALL,
@@ -1461,6 +1468,17 @@ def _v3_operation(action: str) -> protocol_v3.Operation:
         "remove": protocol_v3.Operation.REMOVE,
         "rollback": protocol_v3.Operation.RESTORE,
     }
+    if action in _PROGRAM_ACTIONS:
+        # An address, not a break. The journal accepts these because its state
+        # machine is the same for either subject; `install` does not perform
+        # them because its subject is a setup, and an agent that asked here
+        # needs to be told where they are rather than that something failed.
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "that action installs a program, which harness does, not install",
+            details={"action": action},
+            next_actions=[f"harness {action.removeprefix('software_')} --json"],
+        )
     try:
         return mapping[action]
     except KeyError as error:
