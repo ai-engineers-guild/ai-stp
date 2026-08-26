@@ -384,6 +384,52 @@ def test_a_harness_whose_mcp_lives_inside_a_settings_file_has_no_surface() -> No
         assert relative in declared, (harness, relative, declared)
 
 
+def test_where_the_two_tables_both_speak_they_name_the_same_path() -> None:
+    """Two tables, two questions, one shared fact — and nothing checked it.
+
+    `PROVIDER_RULES` answers *where does a provider write this kind*. The
+    catalog's `Layout` answers *where might a person have written it*, which is
+    why the catalog is deliberately incomplete: its own comment says importing
+    only what is declared would silently drop configuration somebody wrote. So
+    an absence on either side proves nothing, and this deliberately does not
+    require either table to be complete.
+
+    What it does require is agreement wherever both name the same kind for the
+    same harness at global scope. That is one fact recorded twice, and it drifted
+    exactly once: grok-build's MCP said `.mcp.json` here — claude-code's spelling
+    — against the catalog's cited `config.toml`. A component would have been
+    projected into a file the harness never reads.
+
+    Only `root="config"` layouts are compared, because those are the ones
+    relative to the target a provider is handed. `undefined` is the shared
+    conventions entry rather than a harness and has no provider at all.
+    """
+    from ai_stp_cli.local import harness_catalog
+    from ai_stp_foundation.harnesses import UNDEFINED_HARNESS
+
+    rules = {(rule.harness_id, rule.component_type): rule for rule in composition.PROVIDER_RULES}
+    disagreements: list[str] = []
+    for definition in harness_catalog.DEFINITIONS:
+        if definition.harness_id == UNDEFINED_HARNESS:
+            continue
+        for kind in {item.component_type for item in definition.layouts}:
+            rule = rules.get((definition.harness_id, kind))
+            if rule is None:
+                continue
+            declared = {
+                item.relative
+                for item in definition.layouts
+                if item.component_type == kind and item.scope == "global" and item.root == "config"
+            }
+            if declared and rule.relative not in declared:
+                disagreements.append(
+                    f"{definition.harness_id}/{kind}: rule says {rule.relative!r}, "
+                    f"catalog says {sorted(declared)}"
+                )
+
+    assert not disagreements, sorted(disagreements)
+
+
 def test_provider_rule_projection_kinds_are_the_protocol_closed_set() -> None:
     """A typo here becomes `the exact native package family exceeds provider capabilities`."""
     from ai_stp_cli.provider.protocol_v3 import ProjectionKind

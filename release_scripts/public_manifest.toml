@@ -27,6 +27,7 @@ roots = [
   ".serena",
   "alembic.ini",
   ".bun-version",
+  ".uv-version",
   "justfile",
   "pyproject.toml",
   "uv.lock",
