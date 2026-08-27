@@ -182,6 +182,25 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
         ".codex",
         f"{CODEX}/config-file/config-reference",
         (
+            # `AGENTS.override.md` supersedes `AGENTS.md` entirely: codex reads
+            # "the first non-empty file at this level", checking the override
+            # first, in the codex home and in every directory from the project
+            # root down. Its whole purpose is a temporary escape from a managed
+            # floor without deleting one.
+            #
+            # Discovery only. A provider that owned this path could take that
+            # escape away with `remove`, and the provider side declines it for
+            # that reason. What we owe a person is not ownership but an answer:
+            # a home holding one makes an installed instruction inert, the
+            # install still reports `verified`, and without this row nothing
+            # anywhere would say why the floor is not applying.
+            _layout(
+                "instruction",
+                "AGENTS.override.md",
+                "file",
+                "developers.openai.com/codex/guides/agents-md",
+                G,
+            ),
             _layout("instruction", "AGENTS.md", "file", f"{CODEX}/config-file/config-reference", G),
             _layout("command", "prompts", "directory", f"{CODEX}/config-file/config-reference", G),
             _layout("setting", "config.toml", "file", f"{CODEX}/config-file/config-reference", G),
@@ -222,6 +241,17 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
         ".pi/agent",
         f"{PI}/environment-variables",
         (
+            # The same escape hatch, and the same reason for discovering it
+            # without owning it: a directory holding `AGENTS.override.md` makes
+            # Pi load it *instead of* `AGENTS.md` or `CLAUDE.md` from that
+            # directory, and `~/.pi/agent` is the directory a provider writes
+            # the global floor into.
+            #
+            # Global only, here and for codex. A project-scope override displaces
+            # files this program does not install, so discovering it would report
+            # a fact with no consequence; the global one silences the floor we
+            # put there and reports `verified` doing it.
+            _layout("instruction", "AGENTS.override.md", "file", f"{PI}/sdk", G),
             _layout("instruction", "AGENTS.md", "file", f"{PI}/sdk", G),
             _layout("skill", "skills", "directory", f"{PI}/skills", G),
             _layout("plugin", "extensions", "directory", f"{PI}/extensions", G),

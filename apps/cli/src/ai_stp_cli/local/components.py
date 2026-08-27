@@ -427,6 +427,25 @@ _ADDED_BOTH_SCOPES_SINCE_MIGRATION: Final[tuple[Rule, ...]] = (
 #: belongs to no single product, and a per-harness copy of it would report one
 #: file as several components.
 _ADDED_GLOBAL_SINCE_MIGRATION: Final[tuple[Rule, ...]] = (
+    # The override files, discovered and deliberately not owned. Each supersedes
+    # the `AGENTS.md` a provider writes into the same directory — codex takes
+    # "the first non-empty file at this level", Pi loads the override *instead
+    # of* `AGENTS.md` — so a home holding one makes an installed instruction
+    # inert while the install still answers `verified`.
+    #
+    # Owning them would be worse than not discovering them: an override exists
+    # so a person can escape a managed floor, and a `remove` that took it away
+    # would remove the escape. Discovery is the whole intervention, and it is
+    # what turns "my instructions are not applying" from a bug report into an
+    # answer.
+    Rule(
+        "instruction",
+        "AGENTS.override.md",
+        "file",
+        "codex",
+        "developers.openai.com/codex/guides/agents-md",
+    ),
+    Rule("instruction", "AGENTS.override.md", "file", "pi", f"{harness_catalog.PI}/sdk"),
     Rule("instruction", "AGENTS.md", "file", "opencode", f"{harness_catalog.OPENCODE}/rules"),
     Rule(
         "instruction",
