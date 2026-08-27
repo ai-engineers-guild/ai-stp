@@ -58,7 +58,7 @@ docs = [
     "MarkupSafe==3.0.3",
     "mergedeep==1.3.4",
     "mkdocs==1.6.1",
-    "mkdocs-awesome-pages-plugin==2.9.3",
+    "mkdocs-awesome-pages-plugin==2.10.1",
     "mkdocs-get-deps==0.2.2",
     "mkdocs-git-revision-date-localized-plugin==1.5.3",
     "mkdocs-material==9.7.7",
