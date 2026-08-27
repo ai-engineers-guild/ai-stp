@@ -1965,6 +1965,33 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 required=True,
                 choices=tuple(sorted(HARNESS_IDS)),
             ),
+            # Optional, and the answer without it is exactly the answer this
+            # command gave before: the journal's own record. With it the same
+            # rows also carry what the provider says now, which is the only way
+            # to see a copy the journal still offers and the provider no longer
+            # has.
+            option(
+                "provider",
+                "string",
+                "Provider executable, to also report which copies still exist and are held.",
+            ),
+            option(
+                "protocol-version",
+                "integer",
+                "Provider protocol selected before invocation. Defaults to frozen v1.",
+            ),
+            option(
+                "unverified-provider",
+                "boolean",
+                "Read through an executable no signed or attested release covers. "
+                "On Windows this is also what lets the read run at all, since no "
+                "launcher there can deny the network. Elsewhere it changes nothing.",
+            ),
+            option(
+                "target",
+                "string",
+                "Existing absolute provider target directory. Required by protocol v2.",
+            ),
         ),
         next_actions=("install plan",),
     ),

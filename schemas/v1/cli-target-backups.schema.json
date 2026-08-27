@@ -26,10 +26,46 @@
           "title": "Created At",
           "type": "string"
         },
+        "held": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Held"
+        },
+        "hold_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Hold Reason"
+        },
         "operation_id": {
           "minLength": 1,
           "title": "Operation Id",
           "type": "string"
+        },
+        "present": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Present"
         },
         "provider_target": {
           "default": "",
@@ -56,7 +92,10 @@
       "required": [
         "backup_ref",
         "created_at",
+        "held",
+        "hold_reason",
         "operation_id",
+        "present",
         "provider_target",
         "schema_version",
         "setup_stable_id",
@@ -86,6 +125,11 @@
       "title": "Project Id",
       "type": "string"
     },
+    "provider_observed": {
+      "default": false,
+      "title": "Provider Observed",
+      "type": "boolean"
+    },
     "schema_version": {
       "const": 1,
       "default": 1,
@@ -97,6 +141,7 @@
     "backups",
     "harness_id",
     "project_id",
+    "provider_observed",
     "schema_version"
   ],
   "title": "TargetBackups",

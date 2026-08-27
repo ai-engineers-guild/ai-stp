@@ -2310,6 +2310,23 @@ class TargetBackup(BaseModel):
     provider_target: str = ""
     created_at: str = ""
 
+    #: Whether the provider is protecting this copy from retention, as the
+    #: provider reports it *now*. `None` whenever nobody asked — no provider was
+    #: named, or the one named predates the field. Absence is never `false`: a
+    #: reader that flattened the two would call an unprotected baseline checked.
+    held: bool | None = None
+
+    #: Free text a person typed when placing the hold. Opaque by contract:
+    #: display it, never branch on it. The provider stores a fixed placeholder
+    #: when the operator gave no reason, so its presence is not evidence that
+    #: anybody considered anything.
+    hold_reason: str | None = None
+
+    #: Whether the provider still reports this copy at all. `None` when no
+    #: provider was consulted. `False` is the answer worth having: this pair's
+    #: journal offers a restore source the provider no longer has.
+    present: bool | None = None
+
 
 class TargetBackups(BaseModel):
     """Every provider-owned copy this pair can restore from, oldest first.
@@ -2326,6 +2343,11 @@ class TargetBackups(BaseModel):
     project_id: Annotated[str, Field(min_length=1)]
     harness_id: HarnessId
     backups: list[TargetBackup] = Field(default_factory=list[TargetBackup])
+
+    #: Whether a provider answered while building this list. False means every
+    #: `held` and `present` below is `None` because nothing was asked, which is
+    #: a different answer from a provider that was asked and said no.
+    provider_observed: bool = False
 
 
 class LanguageOutline(BaseModel):

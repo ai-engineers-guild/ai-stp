@@ -4782,6 +4782,42 @@
             "opencode",
             "pi"
           ]
+        },
+        {
+          "name": "provider",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Provider executable, to also report which copies still exist and are held.",
+          "choices": []
+        },
+        {
+          "name": "protocol-version",
+          "kind": "option",
+          "value_type": "integer",
+          "required": false,
+          "repeatable": false,
+          "summary": "Provider protocol selected before invocation. Defaults to frozen v1.",
+          "choices": []
+        },
+        {
+          "name": "unverified-provider",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Read through an executable no signed or attested release covers. On Windows this is also what lets the read run at all, since no launcher there can deny the network. Elsewhere it changes nothing.",
+          "choices": []
+        },
+        {
+          "name": "target",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Existing absolute provider target directory. Required by protocol v2.",
+          "choices": []
         }
       ],
       "parameter_rules": [],

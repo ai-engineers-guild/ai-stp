@@ -360,6 +360,7 @@
   "the provider release does not satisfy the pinned trust policy and exact bytes": "the provider release does not satisfy the pinned trust policy and exact bytes",
   "the provider release is no longer acceptable before apply": "the provider release is no longer acceptable before apply",
   "the provider reported a state this build cannot map": "the provider reported a state this build cannot map",
+  "the provider status carries a malformed copy list": "the provider status carries a malformed copy list",
   "the provider status carries malformed authorization evidence": "the provider status carries malformed authorization evidence",
   "the provider target must be an existing absolute directory, not a symlink": "the provider target must be an existing absolute directory, not a symlink",
   "the provider trust policy is not valid TOML": "the provider trust policy is not valid TOML",

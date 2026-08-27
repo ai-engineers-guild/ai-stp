@@ -14,7 +14,7 @@ rollback plan that needs neither `--setup` nor `--proposal`.
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping, Sequence
 from contextlib import closing
 
 import pytest
@@ -22,6 +22,8 @@ import pytest
 from ai_stp_cli.commands import install as install_cmd
 from ai_stp_cli.local import installation, targets
 from ai_stp_cli.local.database import configured_path, open_registry
+from ai_stp_cli.provider import conformance
+from ai_stp_foundation.canonical import JsonValue
 
 pytestmark = pytest.mark.cli
 
@@ -258,3 +260,120 @@ def test_a_sourceless_action_can_name_the_pair_it_acts_on() -> None:
         assert name in options, (
             f"install plan reads {name!r} for {sorted(_SOURCELESS_ACTIONS)} and cannot accept it"
         )
+
+
+# --- Reconciliation against the provider (`held` / `hold_reason`, `#428`) ---
+
+
+def _answering(payload: JsonValue) -> conformance.Invoker:
+    """An invoker that returns one canned answer to `status` and refuses the rest."""
+
+    def invoke(command: str, arguments: Sequence[str]) -> JsonValue:
+        assert command == "status", command
+        return payload
+
+    return invoke
+
+
+def _with_provider(monkeypatch: pytest.MonkeyPatch, reported: JsonValue) -> dict[str, object]:
+    """Answer `target backups` as if a provider had been named and had replied."""
+
+    def fake(
+        parameters: Mapping[str, object], project_id: str, harness: str
+    ) -> conformance.Invoker:
+        return _answering({"backups": reported})
+
+    monkeypatch.setattr(install_cmd, "_optional_invoker", fake)
+    return {"project": PROJECT, "harness": HARNESS, "provider": "/usr/bin/true"}
+
+
+def test_without_a_provider_the_answer_is_the_journal_and_says_so(
+    registry: sqlite3.Connection,
+) -> None:
+    """The pre-existing contract, unchanged: nothing was asked, so nothing is claimed."""
+    _take_copy(registry, "1.0", backup_ref="backup-a", at="2026-01-01T00:00:00.000Z")
+
+    answer = install_cmd.target_backups({"project": PROJECT, "harness": HARNESS})
+
+    assert answer.payload.provider_observed is False
+    only = answer.payload.backups[0]
+    assert only.held is None
+    assert only.hold_reason is None
+    assert only.present is None
+
+
+def test_a_held_copy_reports_the_hold_and_the_operator_text(
+    registry: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _take_copy(registry, "1.0", backup_ref="backup-a", at="2026-01-01T00:00:00.000Z")
+    parameters = _with_provider(
+        monkeypatch,
+        [{"backup_ref": "backup-a", "held": True, "hold_reason": "baseline for the migration"}],
+    )
+
+    answer = install_cmd.target_backups(parameters)
+
+    assert answer.payload.provider_observed is True
+    only = answer.payload.backups[0]
+    assert only.held is True
+    assert only.hold_reason == "baseline for the migration"
+    assert only.present is True
+
+
+def test_a_copy_the_journal_offers_and_the_provider_no_longer_has_is_reported_gone(
+    registry: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The disagreement is the interesting answer, not an inconsistency to smooth.
+
+    Our journal is the record of copies taken; the provider's status is the
+    authority on which still exist. A ref listed here and absent there is a
+    restore source that is gone, and an agent planning a rollback against it
+    should learn that from the read rather than from a refused plan.
+
+    `held` stays `None` rather than becoming `False`: a copy that does not
+    exist is not an unheld copy.
+    """
+    _take_copy(registry, "1.0", backup_ref="backup-a", at="2026-01-01T00:00:00.000Z")
+    _take_copy(registry, "1.1", backup_ref="backup-b", at="2026-01-02T00:00:00.000Z")
+    parameters = _with_provider(
+        monkeypatch, [{"backup_ref": "backup-b", "held": False, "hold_reason": None}]
+    )
+
+    answer = install_cmd.target_backups(parameters)
+
+    gone, kept = answer.payload.backups
+    assert gone.backup_ref == "backup-a"
+    assert gone.present is False
+    assert gone.held is None
+    assert kept.backup_ref == "backup-b"
+    assert kept.present is True
+    assert kept.held is False
+
+
+def test_a_provider_older_than_the_field_is_not_read_as_an_empty_pool(
+    registry: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No `backups` key at all means it was never asked, so nothing is concluded.
+
+    The dangerous reading is the other one: treating a missing list as "the
+    provider has no copies" would mark every journalled ref `present: false`
+    against every release before `0.0.7` — a fleet of copies reported gone on
+    the day the reader shipped.
+    """
+    _take_copy(registry, "1.0", backup_ref="backup-a", at="2026-01-01T00:00:00.000Z")
+
+    def fake(
+        parameters: Mapping[str, object], project_id: str, harness: str
+    ) -> conformance.Invoker:
+        return _answering({"state": "verified"})
+
+    monkeypatch.setattr(install_cmd, "_optional_invoker", fake)
+
+    answer = install_cmd.target_backups(
+        {"project": PROJECT, "harness": HARNESS, "provider": "/usr/bin/true"}
+    )
+
+    assert answer.payload.provider_observed is False
+    only = answer.payload.backups[0]
+    assert only.present is None
+    assert only.held is None

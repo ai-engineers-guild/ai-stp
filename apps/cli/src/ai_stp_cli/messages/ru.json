@@ -360,6 +360,7 @@
   "the provider release does not satisfy the pinned trust policy and exact bytes": "выпуск провайдера не удовлетворяет закреплённой политике доверия и точным байтам",
   "the provider release is no longer acceptable before apply": "выпуск провайдера больше недопустим до apply",
   "the provider reported a state this build cannot map": "провайдер сообщил состояние, которое эта сборка не умеет сопоставить",
+  "the provider status carries a malformed copy list": "статус провайдера несёт повреждённый список копий",
   "the provider status carries malformed authorization evidence": "статус провайдера несёт повреждённые доказательства авторизации",
   "the provider target must be an existing absolute directory, not a symlink": "цель провайдера должна быть существующим абсолютным каталогом, не symlink",
   "the provider trust policy is not valid TOML": "политика доверия провайдера не является допустимым TOML",

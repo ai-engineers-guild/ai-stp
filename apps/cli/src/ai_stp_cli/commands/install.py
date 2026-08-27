@@ -2026,12 +2026,28 @@ def _observe_target(
     operator saying whose. Without it they refuse where isolation is absent,
     exactly as before.
     """
-    if not parameters.get("provider"):
+    invoke = _optional_invoker(parameters, project_id, harness)
+    if invoke is None:
         return "", None
+    return _provider_observation(invoke)
+
+
+def _optional_invoker(
+    parameters: Mapping[str, object], project_id: str, harness: str
+) -> conformance.Invoker | None:
+    """Build an invoker for the provider the caller named, or `None` for none.
+
+    Three read commands now reach a provider only when asked to. The
+    construction is here rather than in each of them because it carries the
+    Windows decision above, and a decision remembered in three places is a
+    decision that will be remembered in two.
+    """
+    if not parameters.get("provider"):
+        return None
     version = _protocol_version(parameters)
     logical = f"{project_id}:{harness}"
     target = _provider_target(parameters, logical, version)
-    invoke = invocation.provider_invoker(
+    return invocation.provider_invoker(
         _executable(parameters),
         target,
         version,
@@ -2041,7 +2057,6 @@ def _observe_target(
             else None
         ),
     )
-    return _provider_observation(invoke)
 
 
 def target_status(parameters: Mapping[str, object]) -> Answer[TargetSurvey]:
@@ -2206,6 +2221,7 @@ def target_backups(parameters: Mapping[str, object]) -> Answer[TargetBackups]:
                 harness_id=harness,  # pyright: ignore[reportArgumentType]
             )
         )
+    observed = _observe_backups(parameters, project_id, harness)
     with closing(open_readonly(registry)) as connection:
         found = targets.backups(
             connection, project_id=_project_id(connection, project_id), harness_id=harness
@@ -2214,6 +2230,7 @@ def target_backups(parameters: Mapping[str, object]) -> Answer[TargetBackups]:
             TargetBackups(
                 project_id=project_id,
                 harness_id=harness,  # pyright: ignore[reportArgumentType]
+                provider_observed=observed is not None,
                 backups=[
                     TargetBackup(
                         backup_ref=item.backup_ref,
@@ -2222,11 +2239,53 @@ def target_backups(parameters: Mapping[str, object]) -> Answer[TargetBackups]:
                         setup_version=item.setup_version,
                         provider_target=item.provider_target,
                         created_at=item.created_at,
+                        held=None if observed is None else _held(observed, item.backup_ref),
+                        hold_reason=(
+                            None if observed is None else _hold_reason(observed, item.backup_ref)
+                        ),
+                        present=None if observed is None else item.backup_ref in observed,
                     )
                     for item in found
                 ],
             )
         )
+
+
+def _observe_backups(
+    parameters: Mapping[str, object], project_id: str, harness: str
+) -> dict[str, provider_status.BackupObservation] | None:
+    """What the provider says it owns right now, or `None` if none was named.
+
+    The journal answers what this pair recorded; this answers what still exists.
+    They are allowed to disagree, and the disagreement is the point: a ref the
+    journal still offers and the provider no longer reports is a restore source
+    that is gone, and an agent planning a rollback against it should learn that
+    here rather than from a refused plan.
+
+    A provider older than the field reports no list at all. That is `None` too,
+    and it produces the same `held: null` as not asking — correctly, because
+    neither answered the question.
+    """
+    invoke = _optional_invoker(parameters, project_id, harness)
+    if invoke is None:
+        return None
+    reported = provider_status.backups(_object(invoke("status", ())))
+    if reported is None:
+        return None
+    return {item.backup_ref: item for item in reported}
+
+
+def _held(observed: dict[str, provider_status.BackupObservation], backup_ref: str) -> bool | None:
+    """`None` for a ref the provider does not report: unknown, not unheld."""
+    found = observed.get(backup_ref)
+    return None if found is None else found.held
+
+
+def _hold_reason(
+    observed: dict[str, provider_status.BackupObservation], backup_ref: str
+) -> str | None:
+    found = observed.get(backup_ref)
+    return None if found is None else found.hold_reason
 
 
 def _survey(found: targets.Survey) -> TargetSurvey:
