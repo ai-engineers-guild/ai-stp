@@ -30,7 +30,7 @@ last_verified: "2026-08-03"
 | [sprint1-external-review-prompt.md](sprint1-external-review-prompt.md) | Запрос внешнего ревью CLI-трека спринта 1 для агента без доступа к репозиторию. | 2026-08-06 |
 | [tech-debt-rules.md](tech-debt-rules.md) | Правила регистрации временных компромиссов. | 2026-08-03 |
 | [tech-stack.md](tech-stack.md) | Целевой стек MVP и правила выбора зависимостей. | 2026-08-05 |
-| [testing.md](testing.md) | Тестовая стратегия для паспортов, сборки, sync, providers и platform. | 2026-08-22 |
+| [testing.md](testing.md) | Тестовая стратегия для паспортов, сборки, sync, providers и platform. | 2026-08-27 |
 | [web-backend-issues-241-307-309-344-347.md](web-backend-issues-241-307-309-344-347.md) | План реализации web/backend пачки #241, #307, #309, #344 и #347. | 2026-08-15 |
 | [web-quality.md](web-quality.md) | Эксплуатационные правила web: SEO, machine discovery, browser storage, selectors и quality gates. | 2026-08-09 |
 
