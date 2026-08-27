@@ -14,6 +14,7 @@ them.
 import re
 from pathlib import Path
 from typing import Any, cast
+from urllib.parse import urlsplit
 
 import yaml
 
@@ -76,3 +77,40 @@ def test_the_contract_states_a_default_for_every_field_it_declares() -> None:
     text = CONTRACT.read_text(encoding="utf-8")
     tabled = set(re.findall(r"^\| `([a-z][a-z0-9_.]*)` \|", text, re.MULTILINE))
     assert tabled == set(_documented())
+
+
+def test_the_shipped_catalogue_address_is_one_that_can_answer() -> None:
+    """A default that cannot work is not a default.
+
+    `catalog.url` shipped as `https://ai-stp.example`. `.example` is reserved by
+    RFC 2606 for documentation and resolves nowhere, so a fresh install found no
+    components and no setups at all — and said so as
+    `AI_STP_DEPENDENCY_UNAVAILABLE: the platform could not be reached`, which
+    reads as an outage rather than as an address that was never real.
+
+    Measured before the change: `registry search --kind component` on a clean
+    home returned that error; with `catalog.url` pointed at the deployment it
+    returned fifty components and a cursor. Every evidence slice in this
+    repository already defaulted to the deployment, so the CLI was the one place
+    still holding the placeholder.
+
+    The check is the property rather than the hostname: a reserved documentation
+    domain may not be the value a person gets before configuring anything.
+    """
+    reserved = (".example", ".invalid", ".test", ".localhost")
+    shipped = {
+        field.path: field.default
+        for field in declared_fields()
+        if isinstance(field.default, str) and field.default.startswith("https://")
+    }
+    assert shipped, "no address-shaped defaults found, so this guards nothing"
+    offending = {
+        path: value
+        for path, value in shipped.items()
+        # Telemetry is off unless a consent event turns it on (`ADR-0112`), so
+        # its address is never reached by default and a placeholder there costs
+        # nobody a working command.
+        if path != "telemetry.url"
+        and any(urlsplit(value).hostname.endswith(suffix) for suffix in reserved)  # pyright: ignore[reportOptionalMemberAccess]
+    }
+    assert not offending, offending

@@ -63,9 +63,24 @@ def declared_fields() -> tuple[Field, ...]:
     """The closed field list, in the order `cli-config.md` states it."""
     return (
         Field("catalog.enabled", True, "Whether the public catalogue is consulted."),
+        # The deployment, not a placeholder. This shipped as
+        # `https://ai-stp.example`, and `.example` is reserved by RFC 2606 for
+        # documentation and resolves nowhere — so a fresh install found no
+        # components and no setups, and reported it as
+        # `the platform could not be reached`, which reads as an outage rather
+        # than as an address that was never real.
+        #
+        # Every evidence slice in this repository already defaulted to this
+        # origin; the CLI was the one place still holding the example domain,
+        # and it is the place where that costs somebody a working command.
+        #
+        # Anonymous reads need no sign-in, which is what makes a working default
+        # possible at all: `verify_live_slice` proves the catalogue answers with
+        # no credential. Point it elsewhere with
+        # `config set --set catalog.url=<origin>`.
         Field(
             "catalog.url",
-            "https://ai-stp.example",
+            "https://nddev.asia",
             "Base address of the platform, without the /v1 prefix. HTTPS,"
             " or cleartext to a loopback host for local development.",
         ),

@@ -1,4 +1,5 @@
 {
+  "--limit must be a whole number": "--limit должен быть целым числом",
   "--id is required": "нужно указать --id",
   "--major must be an integer": "--major должен быть целым числом",
   "--page-size is outside the contract limit": "--page-size вне предела контракта",

@@ -26,6 +26,7 @@ from ai_stp_cli.local import cache, components, content, revisions, store_ports,
 from ai_stp_cli.local.database import configured_path, open_registry, transaction
 from ai_stp_cli.local.passports import moment
 from ai_stp_cli.paths import redact_home
+from ai_stp_contracts.http import PAGE_SIZE_MAX
 from ai_stp_contracts.machine_help import (
     AcquiredComponentVersion,
     CatalogArtifactView,
@@ -147,6 +148,31 @@ def _kind(raw: object) -> CatalogKind:
     return value  # pyright: ignore[reportReturnType]
 
 
+def _limit(value: object) -> int | None:
+    """Bound `--limit` here, and refuse in the words a person used.
+
+    It travelled to the platform unchecked, so an out-of-range value came back
+    as `a supplied value is not valid for this command: page_size` — a field
+    that appears in no help text and on no command line. `PAGE_SIZE_MAX` is a
+    published contract constant, so the answer is available locally and costs no
+    round trip that can only fail.
+    """
+    if value is None:
+        return None
+    try:
+        found = int(str(value))
+    except ValueError as error:
+        raise CliFailure("AI_STP_VALIDATION_ERROR", "--limit must be a whole number") from error
+    if not 1 <= found <= PAGE_SIZE_MAX:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            f"--limit must be between 1 and {PAGE_SIZE_MAX}; "
+            "walk the pages with --cursor to read more",
+            details={"limit": str(found)},
+        )
+    return found
+
+
 def search(parameters: Mapping[str, object]) -> Answer[CatalogSearchResult]:
     """One page of public results, in a stable order and without duplicates.
 
@@ -155,14 +181,14 @@ def search(parameters: Mapping[str, object]) -> Answer[CatalogSearchResult]:
     keep — that walking the cursors visits each object once.
     """
     query = parameters.get("query")
-    limit = parameters.get("limit")
+    limit = _limit(parameters.get("limit"))
     return Answer(
         catalog.search(
             endpoint(),
             _kind(parameters.get("kind")),
             query=None if query is None else str(query),
             cursor=None if parameters.get("cursor") is None else str(parameters["cursor"]),
-            page_size=None if limit is None else int(str(limit)),
+            page_size=limit,
             include_experimental=bool(parameters.get("include-experimental")),
         )
     )

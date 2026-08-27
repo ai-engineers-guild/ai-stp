@@ -73,6 +73,22 @@ def run(*argv: str, home: Path) -> subprocess.CompletedProcess[str]:
 
 @pytest.fixture
 def home(tmp_path: Path) -> Path:
+    """A clean installation whose catalogue address resolves nowhere.
+
+    Pinned rather than inherited. These checks were written when the shipped
+    `catalog.url` was `https://ai-stp.example`, and several of them mean "no
+    platform" — an offline machine meeting a typed refusal. They said so by
+    saying nothing, and relied on the default being unusable.
+
+    The default is the deployment now, so inheriting it would point this suite
+    at production: real requests, from a test run, against the live catalogue.
+    `.example` is reserved by RFC 2606 for exactly this and belongs here, in the
+    test that wants an address which cannot answer, rather than in the value a
+    person gets before configuring anything.
+    """
+    settings = tmp_path / "config" / "ai-stp" / "config.yaml"
+    settings.parent.mkdir(parents=True, exist_ok=True)
+    settings.write_text('catalog:\n  url: "https://ai-stp.example"\n', encoding="utf-8")
     return tmp_path
 
 

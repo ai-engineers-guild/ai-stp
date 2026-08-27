@@ -438,3 +438,24 @@ def test_a_setup_version_takes_the_same_path() -> None:
     view = catalog.version(mock(), "setup", str(params["stable_id"]), str(params["version"]))
     assert view.kind == "setup"
     assert cache.digest_of(view.passport) == view.passport_digest
+
+
+def test_an_out_of_range_limit_names_the_flag_a_person_typed() -> None:
+    """A refusal that names a wire field sends somebody looking for it.
+
+    `--limit 200` travelled to the platform unchecked and came back as
+    `a supplied value is not valid for this command: page_size` — a field that
+    appears in no help text and on no command line. The bound is a published
+    contract constant, so the CLI can refuse locally and say which flag and
+    which maximum, without a round trip that only fails.
+    """
+    from ai_stp_cli.commands import registry as registry_commands
+
+    with pytest.raises(CliFailure) as caught:
+        registry_commands.search({"kind": "component", "limit": 200})
+    assert caught.value.code == "AI_STP_VALIDATION_ERROR"
+    assert "--limit" in caught.value.message
+    assert "100" in caught.value.message
+    with pytest.raises(CliFailure) as zero:
+        registry_commands.search({"kind": "component", "limit": 0})
+    assert "--limit" in zero.value.message

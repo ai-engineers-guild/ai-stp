@@ -15,7 +15,7 @@ last_verified: "2026-08-04"
 schema_version: 1
 catalog:
   enabled: true
-  url: "https://ai-stp.example"
+  url: "https://nddev.asia"
 sync:
   enabled: false
 registry:
