@@ -13,6 +13,7 @@ from ai_stp_cli.cloud import client, login, session
 from ai_stp_cli.cloud.client import Endpoint
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import passports
+from ai_stp_cli.runtime import cli_version
 from ai_stp_cli.secrets import open_store
 from ai_stp_contracts.auth import DeviceAuthorizationResponse, DeviceTokenResponse
 from ai_stp_contracts.http import API_BASE_PATH
@@ -1206,3 +1207,25 @@ def test_a_configured_base_address_is_not_given_the_prefix_twice() -> None:
     with client.open_client(endpoint) as http:
         http.get(f"{API_BASE_PATH}/health/live")
     assert seen == ["/v1/health/live"]
+
+
+def test_the_shipped_client_names_itself_rather_than_its_library() -> None:
+    """A request that says `python-httpx` has not said who is calling.
+
+    The provider side measured the cost of the general case: their evidence job
+    fetched pinned artifacts with `urllib`, and `downloads.cursor.com` answered
+    `403 Forbidden` to `Python-urllib/3.x` while serving the identical URL to
+    `curl`. Six vendors were untested because the one they had tried by hand
+    serves anything.
+
+    Ours talks to an origin we operate, so nothing refuses it today. But
+    `catalog.url` is configurable, a deployment can sit behind something that
+    declines generic library agents, and in anybody's logs our traffic is
+    indistinguishable from an arbitrary Python script. Naming the caller is the
+    difference between a refusal that can be diagnosed and one that cannot.
+    """
+    with client.open_client(client.Endpoint("https://ai-stp.example")) as opened:
+        agent = opened.headers.get("user-agent", "")
+    assert agent.startswith("ai-stp-cli/"), agent
+    assert "httpx" not in agent
+    assert cli_version() in agent

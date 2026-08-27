@@ -29,6 +29,7 @@ import httpx
 from pydantic import BaseModel, ValidationError
 
 from ai_stp_cli.errors import CliFailure
+from ai_stp_cli.runtime import DISTRIBUTION, cli_version
 from ai_stp_contracts.http import (
     API_BASE_PATH,
     REQUEST_ID_HEADER,
@@ -211,7 +212,21 @@ def open_client(
     access_token: str | None = None,
 ) -> Generator[httpx.Client]:
     """A client with the contract's headers already on it."""
-    headers = {SCHEMA_VERSION_HEADER: str(SCHEMA_VERSION), "Accept": "application/json"}
+    # Name the caller. Left to `httpx` this reads `python-httpx/0.28.1`, which
+    # says which library was linked and nothing about who is calling — the same
+    # request an arbitrary script sends, indistinguishable in anybody's logs.
+    #
+    # The provider side measured what that costs in the general case: their
+    # evidence job fetched pinned artifacts with `urllib`, and a vendor CDN
+    # answered `403 Forbidden` to `Python-urllib/3.x` while serving the same URL
+    # to `curl`. Nothing refuses us today because the origin is one we operate,
+    # but `catalog.url` is configurable and a deployment may sit behind
+    # something that declines generic agents.
+    headers = {
+        SCHEMA_VERSION_HEADER: str(SCHEMA_VERSION),
+        "Accept": "application/json",
+        "User-Agent": f"{DISTRIBUTION}/{cli_version()}",
+    }
     if access_token is not None:
         headers["Authorization"] = f"Bearer {access_token}"
     client = httpx.Client(
