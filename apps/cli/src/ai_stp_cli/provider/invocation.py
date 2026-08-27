@@ -49,8 +49,9 @@ def provider_invoker(
     # refusing there, which is the scope `#416` decided rather than a scope
     # inferred from which function happens to call this.
     unisolated = (
-        network_launcher.windows_unisolated(unisolated_reason)
-        if unisolated_reason is not None and platform.system().lower() == "windows"
+        network_launcher.unisolated_local_phase(unisolated_reason)
+        if unisolated_reason is not None
+        and platform.system().lower() in network_launcher.UNISOLATED_PLATFORMS
         else None
     )
 

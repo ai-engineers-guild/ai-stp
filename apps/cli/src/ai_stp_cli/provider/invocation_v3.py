@@ -51,8 +51,8 @@ def invoke(
     # proved capability being skipped, which is a different thing entirely.
     excepted = (
         unisolated is not None
-        and platform.system().lower() == "windows"
-        and unisolated.reason in network_launcher.WINDOWS_UNISOLATED_REASONS
+        and platform.system().lower() in network_launcher.UNISOLATED_PLATFORMS
+        and unisolated.reason in network_launcher.UNISOLATED_REASONS
     )
     if not isolated and not excepted:
         raise protocol_v2.NetworkCapabilityUnavailable(

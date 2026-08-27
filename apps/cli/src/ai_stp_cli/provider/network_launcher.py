@@ -161,9 +161,25 @@ class BubblewrapLauncher:
 TRUSTED_RELEASE: Final[str] = "trusted_release"
 EXPLICIT_UNVERIFIED_PROVIDER: Final[str] = "explicit_unverified_provider"
 
-WINDOWS_UNISOLATED_REASONS: Final[frozenset[str]] = frozenset(
+UNISOLATED_REASONS: Final[frozenset[str]] = frozenset(
     {TRUSTED_RELEASE, EXPLICIT_UNVERIFIED_PROVIDER}
 )
+
+#: Systems where no launcher a plain CLI may use can deny the network, so the
+#: exception above is the only way a local phase runs at all. Closed, and it is
+#: a statement about the platform rather than about this machine.
+#:
+#: Linux is deliberately absent: there the absence of `bwrap` is a missing
+#: dependency, not a missing capability of the operating system, and skipping a
+#: capability that exists is a different act from conceding one that does not.
+#:
+#: macOS is here because it was missing, not because anything decided it should
+#: be. `windows` was written into the name and the check, so on macOS
+#: `discover_bubblewrap` returned nothing and the exception refused to be built
+#: — every v3 provider call refused, on a platform whose providers we fetch and
+#: attest. `sandbox-exec` may yet give macOS a real launcher; until something
+#: proves one on the platform itself, it carries the same debt as Windows.
+UNISOLATED_PLATFORMS: Final[frozenset[str]] = frozenset({"windows", "darwin"})
 
 
 @dataclass(frozen=True)
@@ -178,7 +194,7 @@ class UnisolatedLocalPhase:
     reason: str
 
 
-def windows_unisolated(reason: str) -> UnisolatedLocalPhase:
+def unisolated_local_phase(reason: str) -> UnisolatedLocalPhase:
     """Build the Windows exception, or refuse to.
 
     Windows 11 has no network-denying launcher a plain CLI may use. Classic
@@ -199,18 +215,18 @@ def windows_unisolated(reason: str) -> UnisolatedLocalPhase:
     and those are different things that must not share a code path.
     """
     os_name = platform.system().lower()
-    if os_name != "windows":
+    if os_name not in UNISOLATED_PLATFORMS:
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED",
-            "a local phase may only run without network isolation on windows",
+            "this system can deny the network, so a local phase is not excused from it",
             details={"os": os_name, "reason": reason},
             next_actions=["provider network --json"],
         )
-    if reason not in WINDOWS_UNISOLATED_REASONS:
+    if reason not in UNISOLATED_REASONS:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
             "that is not a reason a local phase may run without network isolation",
-            details={"reason": reason, "allowed": ", ".join(sorted(WINDOWS_UNISOLATED_REASONS))},
+            details={"reason": reason, "allowed": ", ".join(sorted(UNISOLATED_REASONS))},
         )
     return UnisolatedLocalPhase(reason=reason)
 

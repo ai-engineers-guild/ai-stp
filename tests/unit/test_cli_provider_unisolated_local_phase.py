@@ -30,8 +30,8 @@ def _on(monkeypatch: pytest.MonkeyPatch, system: str) -> None:
 def test_windows_may_run_a_local_phase_for_a_named_reason(monkeypatch: pytest.MonkeyPatch) -> None:
     _on(monkeypatch, "Windows")
 
-    for reason in sorted(network_launcher.WINDOWS_UNISOLATED_REASONS):
-        assert network_launcher.windows_unisolated(reason).reason == reason
+    for reason in sorted(network_launcher.UNISOLATED_REASONS):
+        assert network_launcher.unisolated_local_phase(reason).reason == reason
 
 
 def test_the_exception_cannot_be_made_on_linux(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -43,16 +43,45 @@ def test_the_exception_cannot_be_made_on_linux(monkeypatch: pytest.MonkeyPatch) 
     _on(monkeypatch, "Linux")
 
     with pytest.raises(CliFailure) as raised:
-        network_launcher.windows_unisolated("trusted_release")
+        network_launcher.unisolated_local_phase("trusted_release")
 
-    assert "windows" in raised.value.message.lower()
+    assert raised.value.details["os"] == "linux"
+    assert "can deny the network" in raised.value.message
+
+
+def test_every_launcherless_platform_can_build_the_exception(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """macOS was missing, and nothing had decided it should be.
+
+    `windows` was written into the name and into the platform check, so on macOS
+    `discover_bubblewrap` returned nothing *and* the exception refused to be
+    built — every v3 provider call refused, on a platform whose providers this
+    CLI fetches and attests and whose jobs run in the gate matrix.
+
+    The rule is about the platform, not about the name: a system that cannot
+    deny the network gets the exception, a system that can does not. Linux is
+    excluded because its missing `bwrap` is a missing dependency rather than a
+    missing capability, and skipping a capability that exists is a different act
+    from conceding one that does not.
+    """
+    for system in ("Windows", "Darwin"):
+        _on(monkeypatch, system)
+        held = network_launcher.unisolated_local_phase(network_launcher.TRUSTED_RELEASE)
+        assert held.reason == network_launcher.TRUSTED_RELEASE, system
+        _, capability = network_launcher.discover_bubblewrap()
+        assert capability.enforcement is protocol_v2.NetworkEnforcement.UNAVAILABLE, system
+
+    _on(monkeypatch, "Linux")
+    with pytest.raises(CliFailure):
+        network_launcher.unisolated_local_phase(network_launcher.TRUSTED_RELEASE)
 
 
 def test_a_reason_outside_the_closed_set_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
     _on(monkeypatch, "Windows")
 
     with pytest.raises(CliFailure):
-        network_launcher.windows_unisolated("because the install needs it")
+        network_launcher.unisolated_local_phase("because the install needs it")
 
 
 def test_windows_capability_still_reports_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -118,7 +147,7 @@ def test_linux_may_not_use_the_exception_even_if_one_is_handed_to_it(
     from ai_stp_cli.provider import invocation_v3
 
     _on(monkeypatch, "Windows")
-    permission = network_launcher.windows_unisolated("trusted_release")
+    permission = network_launcher.unisolated_local_phase("trusted_release")
     _on(monkeypatch, "Linux")
     monkeypatch.setattr("ai_stp_cli.provider.invocation_v3.platform.system", lambda: "Linux")
 
@@ -156,7 +185,7 @@ def test_windows_with_the_exception_reaches_the_spawn_unwrapped(
     from ai_stp_cli.provider import conformance, invocation_v3
 
     _on(monkeypatch, "Windows")
-    permission = network_launcher.windows_unisolated("trusted_release")
+    permission = network_launcher.unisolated_local_phase("trusted_release")
     monkeypatch.setattr("ai_stp_cli.provider.invocation_v3.platform.system", lambda: "Windows")
 
     target = tmp_path / "target"
