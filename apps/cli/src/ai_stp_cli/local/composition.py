@@ -124,7 +124,20 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     # Nothing in the live catalog is an `mcp` component yet, so this was a
     # defect with no victim rather than one already paid for.
     Rule("hook", "hooks", "directory", "grok-build"),
-    Rule("command", "commands", "directory", "grok-build"),
+    # No `command` rule either, and it is the same copy as the `.mcp.json` above
+    # rather than a separate mistake: claude-code has `mcp`, `command`, `agent`
+    # and `instruction`, and all four arrived here together.
+    #
+    # Grok surfaces slash commands as **skills** — a user-invocable skill is
+    # `/<skill-name>`, qualified on collision — so there is no `~/.grok/commands`
+    # for a provider to write to. Measured on the vendor's own documentation by
+    # the provider side (`grok-setup-system#36`), which declines to declare
+    # `Command` for grok for exactly this reason: declaring a kind is a promise
+    # of rollback, and there is nothing to roll back.
+    #
+    # `agent` and `instruction` stay. They are absent from the vendor page the
+    # catalog cites but present in the provider's own `grok-baseline`
+    # `native_discovery`, which is a source rather than a memory.
     Rule("agent", "agents", "directory", "grok-build"),
     Rule("plugin", "plugins", "directory", "grok-build", projection_kind="plugin"),
     Rule("setting", "config.toml", "file", "grok-build"),

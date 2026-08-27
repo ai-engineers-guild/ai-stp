@@ -2,6 +2,7 @@
 
 import re
 from pathlib import Path
+from typing import Final
 
 import pytest
 
@@ -428,6 +429,85 @@ def test_where_the_two_tables_both_speak_they_name_the_same_path() -> None:
                 )
 
     assert not disagreements, sorted(disagreements)
+
+
+#: A rule may rest on a shared convention rather than on a product's own
+#: documented surface, so a kind the catalog does not list for that harness is
+#: not automatically wrong. What is wrong is not saying which. Each entry names
+#: the basis; a rule that cannot name one is a guess about somebody's product.
+_CONVENTION_BACKED: Final[dict[tuple[str, str], str]] = {
+    ("codex", "skill"): (
+        "`.agents/skills`, the shared skills convention the catalog records "
+        "under `undefined` with source learn.chatgpt.com/docs/build-skills"
+    ),
+    ("opencode", "instruction"): (
+        "`AGENTS.md`, the agents.md convention the catalog records under `undefined`"
+    ),
+    ("grok-build", "instruction"): (
+        "`AGENTS.md`, the same convention; declared in the provider's own "
+        "grok-baseline native_discovery"
+    ),
+    ("grok-build", "agent"): (
+        "declared in the provider's own grok-baseline native_discovery, which "
+        "the catalog's cited vendor page does not enumerate"
+    ),
+}
+
+
+def test_every_rule_the_catalog_does_not_know_names_why_it_exists() -> None:
+    """Agreement by omission is not agreement (`grok-setup-system#36`).
+
+    The neighbouring guard only compares rows where *both* tables speak, which
+    is right: the catalog is deliberately incomplete, so an absence there
+    proves nothing about a provider. The cost is that a rule the catalog has
+    never heard of passes in silence — and that is exactly where the defects
+    have been.
+
+    Four of them were claude-code's block copied down onto `grok-build`:
+    `mcp -> .mcp.json`, and `command -> commands` beside `agent` and
+    `instruction`. The first was removed when a cited source contradicted it.
+    The second was removed when the provider measured the vendor's own
+    documentation: Grok surfaces slash commands as **skills**, `/<skill-name>`,
+    and there is no `~/.grok/commands` for anyone to write to. Both tables are
+    silent about it now, which is agreement rather than omission.
+
+    So a rule whose kind the catalog does not list for that harness has to say
+    what it rests on instead. It may be a shared convention or a provider's own
+    declaration — both are real sources — but it may not be nothing.
+    """
+    from ai_stp_cli.local import harness_catalog
+
+    unexplained: list[str] = []
+    for rule in composition.PROVIDER_RULES:
+        definition = harness_catalog.BY_ID.get(rule.harness_id)
+        if definition is None:
+            continue
+        declared = {item.component_type for item in definition.layouts}
+        if rule.component_type in declared:
+            continue
+        if (rule.harness_id, rule.component_type) in _CONVENTION_BACKED:
+            continue
+        unexplained.append(f"{rule.harness_id}/{rule.component_type} -> {rule.relative}")
+
+    assert not unexplained, sorted(unexplained)
+
+
+def test_the_stated_bases_are_all_still_load_bearing() -> None:
+    """An allowlist nobody prunes becomes a place to hide the next one."""
+    from ai_stp_cli.local import harness_catalog
+
+    rules = {(rule.harness_id, rule.component_type) for rule in composition.PROVIDER_RULES}
+    stale: list[str] = []
+    for harness_id, kind in _CONVENTION_BACKED:
+        definition = harness_catalog.BY_ID.get(harness_id)
+        if (harness_id, kind) not in rules:
+            stale.append(f"{harness_id}/{kind}: no such rule any more")
+        elif definition is not None and kind in {
+            item.component_type for item in definition.layouts
+        }:
+            stale.append(f"{harness_id}/{kind}: the catalog declares it now")
+
+    assert not stale, sorted(stale)
 
 
 def test_provider_rule_projection_kinds_are_the_protocol_closed_set() -> None:
