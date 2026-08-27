@@ -174,6 +174,21 @@ def test_both_reports_are_inside_the_hashed_manifest() -> None:
         (bundle.Source("bad\u0000name.md", b"x", "c"), "path_invalid_character"),
         (bundle.Source("bad\nname.md", b"x", "c"), "path_invalid_character"),
         (bundle.Source("x" * 256, b"x", "c"), "path_too_long"),
+        # Windows portability. The owner chose one globally portable bundle, so
+        # a digest means one installability everywhere rather than depending on
+        # the host that materialises it. Each of these is a real filesystem
+        # object on Linux and is either impossible or a *different* object on
+        # Windows: `CON` and friends are reserved devices whatever the
+        # extension, a trailing dot or space is silently stripped, and a colon
+        # selects an NTFS alternate data stream instead of a file.
+        (bundle.Source("skills/CON/SKILL.md", b"x", "c"), "path_not_portable"),
+        (bundle.Source("con.md", b"x", "c"), "path_not_portable"),
+        (bundle.Source("commands/PRN.json", b"x", "c"), "path_not_portable"),
+        (bundle.Source("agents/COM1", b"x", "c"), "path_not_portable"),
+        (bundle.Source("agents/lpt9.txt", b"x", "c"), "path_not_portable"),
+        (bundle.Source("commands/build.", b"x", "c"), "path_not_portable"),
+        (bundle.Source("settings/name ", b"x", "c"), "path_not_portable"),
+        (bundle.Source("plugins/name:stream", b"x", "c"), "path_not_portable"),
         (bundle.Source("link", b"", "c", kind=bundle.KIND_SYMLINK), "link_not_allowed"),
         (bundle.Source("hard", b"", "c", kind=bundle.KIND_HARDLINK), "link_not_allowed"),
         (bundle.Source("dir", b"", "c", kind=bundle.KIND_DIRECTORY), "link_not_allowed"),
@@ -340,3 +355,22 @@ def test_the_declared_limits_match_the_contract() -> None:
     text = CONTRACT.read_text("utf-8")
     assert f"максимум файлов: {bundle.MAX_FILES}" in text
     assert "0644 и 0755" in text
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        # Near neighbours of the reserved names, which must stay valid. The
+        # rule is the whole basename before its extension, not a substring:
+        # refusing these would make the guard cost real names.
+        "console.md",
+        "commands/connect.json",
+        "auxiliary.md",
+        "skills/nullable/SKILL.md",
+        "com10.txt",
+        "prnt.md",
+        "a.con",
+    ],
+)
+def test_a_name_that_merely_resembles_a_reserved_device_stays_valid(path: str) -> None:
+    assert bundle._path_problem(path) is None, path  # pyright: ignore[reportPrivateUsage]
