@@ -731,3 +731,56 @@ def test_a_projection_rule_names_a_kind_the_released_provider_accepts() -> None:
     # A declared kind written to a path the provider does not own is the same
     # defect one level down, and has no standing exception.
     assert not unnamed, sorted(unnamed)
+
+
+#: Kinds a released provider accepts that this program cannot compose.
+#:
+#: Not defects — nothing is written to a wrong place — but capability a person
+#: cannot reach, and invisible until measured. The guard above catches a
+#: provider *dropping* a kind we project; nothing caught a provider *gaining*
+#: one, so a surface could be installable for months with no rule to reach it.
+#:
+#: An inventory rather than a threshold: adding a rule needs the vendor page and
+#: the provider's agreement, so the value here is that a change arrives as a
+#: reviewed diff and asks the question out loud.
+_PROVIDER_OFFERS_UNUSED: dict[str, tuple[str, ...]] = {
+    "claude-code": ("plugin", "setting"),
+    "codex": ("command", "hook"),
+    "pi": ("command",),
+}
+
+
+def test_the_capability_this_program_leaves_unused_is_the_measured_set() -> None:
+    """What the providers can install and nothing here can ask for."""
+    directory = os.environ.get("AI_STP_PROVIDER_V3_DIR")
+    if directory is None:
+        pytest.skip("set AI_STP_PROVIDER_V3_DIR to a directory of v3 provider binaries")
+
+    from ai_stp_cli.local import harness_catalog
+
+    unused: dict[str, tuple[str, ...]] = {}
+    for definition in harness_catalog.DEFINITIONS:
+        harness_id = definition.harness_id
+        stem = harness_id.removesuffix("-code").removesuffix("-build")
+        binary = Path(directory) / f"{stem}-setup-system"
+        if not binary.is_file():
+            continue
+        completed = subprocess.run(
+            [str(binary), "provider-info"],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=60,
+        )
+        answer: dict[str, Any] = json.loads(completed.stdout)
+        profile: dict[str, Any] = answer.get("projection_profile") or {}
+        kinds = {str(item) for item in profile.get("component_kinds", [])}
+        projected = {
+            rule.component_type
+            for rule in composition.PROVIDER_RULES
+            if rule.harness_id == harness_id
+        }
+        if kinds - projected:
+            unused[harness_id] = tuple(sorted(kinds - projected))
+
+    assert unused == _PROVIDER_OFFERS_UNUSED
