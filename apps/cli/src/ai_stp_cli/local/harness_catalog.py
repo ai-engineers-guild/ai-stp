@@ -128,7 +128,12 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
             _layout("agent", "agents", "directory", f"{CLAUDE}/sub-agents", G),
             _layout("command", "commands", "directory", f"{CLAUDE}/slash-commands", G),
             _layout("setting", "settings.json", "file", f"{CLAUDE}/settings", G),
-            _layout("mcp", ".mcp.json", "file", f"{CLAUDE}/mcp", G),
+            # No global `mcp` row. The cited page lists three scopes and none of
+            # them is a `.mcp.json` in the configuration home: `local` and `user`
+            # both live in `~/.claude.json`, and `project` is `.mcp.json` at a
+            # repository root. This entry took the project scope's filename and
+            # called it global, which is why it read as correct and why the two
+            # tables agreed with each other while both were wrong.
             _layout("instruction", "CLAUDE.md", "file", f"{CLAUDE}/memory", P),
             # Both project placements are read by the harness, and only the
             # root one was declared. Observed directly: a Claude Code session

@@ -41,9 +41,22 @@ def test_detection_and_discovery_are_derived_from_the_catalog() -> None:
     migrated = {rule.harness_id for rule in global_oracle} | {
         rule.harness_id for rule in project_oracle
     }
-    assert {rule for rule in components.GLOBAL_RULES if rule.harness_id in migrated} == set(
-        global_oracle
+    # A row withdrawn after the migration is subtracted rather than deleted from
+    # the oracle. The oracle records what the hand table held; deleting from a
+    # record makes it stop proving anything, and the withdrawal has its own
+    # reason written beside it.
+    withdrawn = set(
+        components._WITHDRAWN_GLOBAL_SINCE_MIGRATION  # pyright: ignore[reportPrivateUsage]
     )
+    assert withdrawn <= set(global_oracle), (
+        "a withdrawal must name a row the global oracle actually recorded"
+    )
+    assert {rule for rule in components.GLOBAL_RULES if rule.harness_id in migrated} == (
+        set(global_oracle) - withdrawn
+    )
+    # The project oracle is untouched by a global withdrawal. `Rule` carries no
+    # scope, so the two rows for one kind are equal objects in different tuples;
+    # subtracting from both would take a project surface that is real.
     assert {rule for rule in components.PROJECT_RULES if rule.harness_id in migrated} == set(
         project_oracle
     )

@@ -358,6 +358,28 @@ def _declared_rules(scope: str) -> tuple[Rule, ...]:
 # Discovery consumes only the declarative catalog. The independent frozen
 # oracle proves that centralizing the facts did not silently widen or narrow
 # the already released discovery contract.
+#: Global rules the migration oracle records and the catalog has since withdrawn
+#: on evidence. Named rather than edited out of the oracle: an oracle is a record
+#: of what the hand-written tables held, and quietly deleting a row from a record
+#: makes it stop proving anything. Subtracting a stated set keeps both facts —
+#: what was, and what moved since, with why.
+#:
+#: **Global specifically.** `Rule` carries no scope, so the global and project
+#: rows for one kind are equal objects living in different tuples. A withdrawal
+#: that did not say which scope it meant would take the project row with it —
+#: which is precisely the defect being withdrawn here, committed again in the
+#: record of it.
+_WITHDRAWN_GLOBAL_SINCE_MIGRATION: Final[tuple[Rule, ...]] = (
+    # `.mcp.json` is claude-code's **project** file. `code.claude.com/docs/en/mcp`
+    # lists three scopes — `local` and `user` in `~/.claude.json`, `project` at a
+    # repository root — and none of them is a `.mcp.json` in the configuration
+    # home. The global row took the project scope's filename, which is why it
+    # read as correct; the provider lists `~/.claude.json` in `never_touch`, so
+    # no MCP surface is ownable inside a claude-code target at all.
+    Rule("mcp", ".mcp.json", "file", "claude-code", "code.claude.com/docs/en/mcp"),
+)
+
+
 GLOBAL_RULES: Final[tuple[Rule, ...]] = _declared_rules(harness_catalog.G)
 PROJECT_RULES: Final[tuple[Rule, ...]] = _declared_rules(harness_catalog.P)
 

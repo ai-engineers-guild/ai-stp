@@ -370,11 +370,20 @@ def test_a_harness_whose_mcp_lives_inside_a_settings_file_has_no_surface() -> No
     """
     from ai_stp_cli.local import harness_catalog
 
-    for harness in ("codex", "grok-build", "opencode", "pi", "cursor"):
+    for harness in ("codex", "grok-build", "opencode", "pi", "cursor", "claude-code"):
         assert composition.native_surface("mcp", harness) == "", harness
 
+    # `claude-code` joined that list on 2026-08-27, and for a third reason
+    # rather than the same one. Its MCP does not live inside a settings file —
+    # `code.claude.com/docs/en/mcp` lists three scopes, `local` and `user` both
+    # in `~/.claude.json` and `project` as `.mcp.json` at a repository root, and
+    # the provider lists `~/.claude.json` in `never_touch`. So nothing MCP-shaped
+    # is ownable inside the target. The global row had taken the project scope's
+    # filename, which is why both tables agreed and both were wrong: they cited
+    # the same page, and the page is *about* scopes.
+
     # And where a surface *is* claimed, the catalog has to agree it exists.
-    for harness in ("claude-code", "antigravity"):
+    for harness in ("antigravity",):
         relative = composition.native_surface("mcp", harness)
         assert relative, harness
         declared = {

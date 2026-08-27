@@ -72,7 +72,19 @@ LANE_EXPERIMENTAL: Final[str] = "experimental"
 PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     Rule("instruction", "CLAUDE.md", "file", "claude-code"),
     Rule("skill", "skills", "directory", "claude-code"),
-    Rule("mcp", ".mcp.json", "file", "claude-code"),
+    # No `mcp` rule. `.mcp.json` is claude-code's **project** file, committed to
+    # version control at a repository root; the user scope lives in
+    # `~/.claude.json` under a top-level `mcpServers` table, and the provider
+    # lists that file in `never_touch`. So there is no MCP surface a provider
+    # can own inside the target at all, and the honest answer is that it does
+    # not exist: `native_surface_lost` blocks the bundle.
+    #
+    # This row and the catalog's global one both cited `code.claude.com/docs/en/mcp`
+    # and neither had read it. That page is *about* MCP scopes, and the global
+    # entry took the project scope's filename — the same failure as `.mcp.json`
+    # on grok, one row further back: a filename travelling without its scope.
+    # Settled from the vendor page by the provider side, which withdrew `Mcp`
+    # from claude-code's declaration for the same reason.
     Rule("command", "commands", "directory", "claude-code"),
     Rule("agent", "agents", "directory", "claude-code"),
     Rule("instruction", "AGENTS.md", "file", "codex"),
