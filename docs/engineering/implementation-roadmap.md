@@ -1,6 +1,6 @@
 ---
 description: "Зависимый порядок реализации MVP и межрепозиторных изменений."
-last_verified: "2026-08-25"
+last_verified: "2026-08-27"
 ---
 
 # Порядок реализации
@@ -29,13 +29,13 @@ last_verified: "2026-08-25"
 | --- | --- | --- |
 | 2 | SQLite registry, migrations, revisions, journal, passports, config, auth и безопасный lifecycle соединений | поддерживать совместимость новых sync-схем |
 | 3 | `mvp-full`, discovery, project index/passport, safe-text и symbol adapters | подтверждать реальные tool manifests при выпусках |
-| 4 | локальные components, adoption, подтверждённое passport enrichment/validation, immutable `X.Y`, forks, consent, search и полный локальный first-party corpus | server seed и одинаковая публичная проекция CLI/web для `#162`; cloud drafts/publication относятся к фазе 8 |
+| 4 | локальные components, adoption, подтверждённое passport enrichment/validation, immutable `X.Y`, forks, consent, search и полный локальный first-party corpus; корпус опубликован обычным аутентифицированным конвейером, и живой каталог отдаёт его (`#162` закрыт) | корпус на один сетап и два компонента шире каталога: antigravity засеян локально и не опубликован; cloud drafts/publication относятся к фазе 8 |
 | 5 | eligibility, selection sessions, полный `SetupVersionPassport`, `SetupGraph`, impact/composition reports, evaluation profiles, deterministic `HarnessBundle` и literal golden oracle | повтор полного oracle на точном кандидате выпуска вместе с фазой 7 |
-| 6 | provider protocols v1/v2/v3, conformance kits, release trust, Linux/Bubblewrap boundary, семь аттестованных выпусков OpenNetwork и потребительский bind без подписанного манифеста, exact policy pins, key rotation и вредоносный corpus | повтор trust/effect evidence на финальном CLI release candidate |
+| 6 | provider protocols v1/v2/v3, conformance kits, release trust, Linux/Bubblewrap boundary, семь аттестованных выпусков OpenNetwork и потребительский bind без подписанного манифеста, exact policy pins, key rotation и вредоносный corpus | trust/effect evidence снят на опубликованном `0.0.6` в обе стороны для claude-code и codex; повтор на финальном release candidate |
 | 7 | install/import/status/diff/update/rollback/recovery framework, prepared/composed convergence, offline closure и Linux lifecycle exact releases; real-catalog прогоны `#175`, `#176`, `#294` закрыты | повтор на семи системах сетапов: релизы `0.0.1` и `0.0.2` есть у всех семи, остаток — `#408` |
-| 8 | то же плюс доказательство против развёрнутой среды: `evidence-sync` даёт все пять сценариев, `evidence-publication` — читающую половину и две локальные записи, оба повторяемы | три драйвера, которые мутируют развёрнутую среду `#405` |
+| 8 | то же плюс доказательство против развёрнутой среды: `evidence-sync` даёт все пять сценариев, `evidence-publication` — читающую половину и две локальные записи, оба повторяемы; пишущие драйверы реализованы (`#405` закрыт) | прогнать пишущую половину против развёрнутой среды: сам прогон требует уже выполненного входа, а не кода |
 | 9 | landing, catalog, login/account/device surface, own objects, publication, grants, reports и admin projection | — |
-| 10 | то же плюс публикующий workflow с Trusted Publishing, ожидающий настройки на стороне PyPI | настройка PyPI и защищённого окружения `#403`, финальный RC `#408` |
+| 10 | то же плюс публикующий workflow с Trusted Publishing; PyPI настроен, и все пять пакетов опубликованы им (`#403` закрыт) | финальный RC `#408` |
 | 11 | provider implementations, lifecycle evidence и публичная beta read-model завершены; набор расширен до семи по `ADR-0120` | состав уровней принадлежит `SPEC-033` `REQ-3315`; `#294` закрывает support state Grok Build, а не его уровень |
 
 ## Фаза 2. Локальное состояние и CLI — реализована
@@ -97,8 +97,8 @@ digest, размер и exact provider plan: validate/plan не создают o
 Реализован полный повседневный цикл через команды install, import, status, diff,
 update и rollback, а также
 механизмы восстановления restart и автономного замыкания offline closure. Реальная
-установка и восстановление всех пяти exact Linux releases доказаны disposable-target
-прогоном. Для `#175`, `#176` и `#294` остаётся полный real-catalog повтор на
+установка и восстановление доказаны disposable-target прогоном на exact Linux
+releases всех семи систем сетапов (`ADR-0120`). Для `#175`, `#176` и `#294` остаётся полный real-catalog повтор на
 финальном CLI release-candidate SHA;
 unit/contract tests сами по себе его не заменяют. Будущая
 macOS line получает отдельное evidence до расширения support matrix.
@@ -124,7 +124,7 @@ projection стабильных API фазы 8. Создание паспорт�
 
 ## Фаза 10. Выпуск
 
-Завершить вредоносные проверки, тренировки восстановления, документацию оператора и финальные выпускные доказательства каталога запуска: содержимое корпуса создаётся поэтапно с фазы 4 (владельцы гильдии делят ролевые семейства между собой с обязательным взаимным ревью), а здесь остаётся только его итоговая инвентаризация и доказательства. Первый выпуск блокируется полнотой продуктовых требований, полным сквозным доказательством Claude Code и Codex и укомплектованным первопартийным каталогом запуска по `release-evidence.md`. Репозиторий уже публичный — `ai-engineers-guild/ai-stp` по `ADR-0108` и `ADR-0110`, и работа идёт там, — поэтому от этого пункта осталась только защита веток по `quality-gates.md`, которую там можно включить и которая ждёт решения владельца.
+Завершить вредоносные проверки, тренировки восстановления, документацию оператора и финальные выпускные доказательства каталога запуска: содержимое корпуса создаётся поэтапно с фазы 4 (владельцы гильдии делят ролевые семейства между собой с обязательным взаимным ревью), а здесь остаётся только его итоговая инвентаризация и доказательства. Первый выпуск блокируется полнотой продуктовых требований, полным сквозным доказательством Claude Code и Codex и укомплектованным первопартийным каталогом запуска по `release-evidence.md`. Репозиторий уже публичный — `ai-engineers-guild/ai-stp` по `ADR-0108` и `ADR-0110`, и работа идёт там. Защита веток из этого пункта ушла целиком: `ADR-0115` решил вопрос в другую сторону — репозиторий не несёт защит на участников, потому что гейт проверяет изменение, а одобрение проверяло бы разрешение. Ждать здесь больше нечего.
 
 Барьеры deployment описаны здесь по состоянию после `ADR-0109`: развёртывание больше
 не толкается из CI по SSH, а забирается самим хостом — systemd-таймер тянет
