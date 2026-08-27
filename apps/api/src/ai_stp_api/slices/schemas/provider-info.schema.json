@@ -184,7 +184,8 @@
           },
           "target_scope": {
             "enum": [
-              "project"
+              "project",
+              "user_root"
             ],
             "type": "string"
           }

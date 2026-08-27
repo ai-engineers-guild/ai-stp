@@ -23,7 +23,15 @@ KIT_IDENTITY_SCHEMA: Final[str] = "ai-stp-provider-kit-identity/1"
 #: for a caller naming a profile outside `permission_profiles`: the operation
 #: itself is supported, and `projection_profile_mismatch` is a different kind
 #: of profile.
-KIT_VERSION: Final[str] = "0.2.3"
+#:
+#: 0.2.4 adds `user_root` to the target scopes a scoped projection may name
+#: (`ADR-0127`). Its own version rather than a change inside 0.2.3: the
+#: provider side pins the aggregate digest, `0.2.3` is
+#: `sha256:2bf26243478620f018d5891d4e42f27611d37d36c2a6af507d2ecb9df85d833a`,
+#: and it is already pinned in released work. A version whose bytes moved is
+#: the same defect as a republished immutable `X.Y` — the pin would either
+#: fail or, worse, keep matching a name that now means something else.
+KIT_VERSION: Final[str] = "0.2.4"
 
 #: Files the aggregate identity covers, in the order `SHA256SUMS` lists them.
 MACHINE_FILES: Final[tuple[str, ...]] = (

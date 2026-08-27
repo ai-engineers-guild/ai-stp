@@ -472,3 +472,44 @@ def test_the_widening_admits_exactly_one_new_name() -> None:
         protocol_v3.parse_capabilities(
             _info_with(scoped_projection_profiles=[{**_scoped("project"), "target_scope": "user"}])
         )
+
+
+def test_a_third_target_scope_exists_for_a_root_no_product_owns() -> None:
+    """`ADR-0127`: `user_root` is the scope whose target is neither.
+
+    `global` is the product's own configuration home and `project` is the
+    workspace. `.agents/skills` is neither — a cross-product convention under
+    `$HOME` that no product owns — and there was no legal way to declare a
+    profile for it. One provider binary cannot honestly publish two
+    `native_namespaces`: `config.toml` means nothing under `~/.agents` and
+    `skills` means nothing under `~/.codex`.
+
+    Named for where rather than why. `shared`, `convention` and `portable` all
+    explain a motive, and a motive ages badly in an enum that cannot change.
+    `user` was proposed and withdrawn on its own objection: `global` is
+    colloquially user-level too, and a day of words meaning two things is a poor
+    argument for a fourth.
+
+    The CLI accepts it first, per `ADR-0125`'s ordering, so a provider that
+    declares it is not refused by an installed CLI that has never heard of it.
+    """
+    assert "user_root" in protocol_v3.PROJECTION_SCOPES
+    assert frozenset({"global", "project", "user_root"}) == protocol_v3.PROJECTION_SCOPES
+
+
+def test_a_user_root_profile_parses_and_binds_its_own_digest() -> None:
+    """It travels the same path as `project`, digest and all."""
+    parsed = protocol_v3.parse_capabilities(
+        _info_with(scoped_projection_profiles=[_scoped("user_root")])
+    )
+    assert [item.scope for item in parsed.scoped_projections] == ["user_root"]
+
+
+def test_the_global_scope_is_still_refused_in_the_scoped_list() -> None:
+    """Adding a third value does not reopen the one that was closed.
+
+    `projection_profile` already declares the global scope, and two statements
+    about one fact are a defect even while they agree.
+    """
+    with pytest.raises(ValueError):
+        protocol_v3.parse_capabilities(_info_with(scoped_projection_profiles=[_scoped("global")]))

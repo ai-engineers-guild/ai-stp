@@ -45,9 +45,26 @@ INFO_FIELDS: Final[tuple[str, ...]] = (
 #: exists (`ADR-0125`).
 OPTIONAL_INFO_FIELDS: Final[frozenset[str]] = frozenset({"scoped_projection_profiles"})
 
-#: Target scopes a projection may own, spelled as the harness catalog already
-#: spells them (`local/harness_catalog.py`). This adds no vocabulary.
-PROJECTION_SCOPES: Final[frozenset[str]] = frozenset({"global", "project"})
+#: Target scopes a projection may own. `global` and `project` are spelled as the
+#: harness catalog already spells them (`local/harness_catalog.py`).
+#:
+#: `user_root` is the third, and it is honest to say it is **not** yet in the
+#: catalog's scope vocabulary: there the shared conventions are still modelled
+#: as `scope=global` with `root=home`. Moving them changes where discovery
+#: looks for objects that are already published, so it belongs to the corpus
+#: re-seed that rewrites their `managed_paths` anyway rather than to a second
+#: pass over the same components (`ADR-0127`).
+#:
+#: What `user_root` names is a root no product owns — `~/.agents` and the like —
+#: which is neither the product's configuration home nor a workspace. Without
+#: it there is no legal way to declare the profile those objects need, because
+#: one provider binary publishes one `native_namespaces` and `config.toml`
+#: means nothing under `~/.agents` while `skills` means nothing under
+#: `~/.codex`.
+#:
+#: Named for where rather than why: `shared`, `convention` and `portable` all
+#: explain a motive, and a motive ages badly in a value that cannot change.
+PROJECTION_SCOPES: Final[frozenset[str]] = frozenset({"global", "project", "user_root"})
 
 CORE_COMMANDS: Final[tuple[str, ...]] = (
     "provider-info",
@@ -552,7 +569,15 @@ def _projection_schema(*, scoped: bool) -> dict[str, object]:
     if scoped:
         # `global` is absent on purpose: `projection_profile` owns it, and a
         # second way to say the same thing is a defect even while they agree.
-        properties["target_scope"] = {"type": "string", "enum": ["project"]}
+        #
+        # Derived from `PROJECTION_SCOPES` rather than written out, because the
+        # two drifted the moment a third scope existed: the set knew `user_root`
+        # and the schema published to providers did not, so a declaration this
+        # parser accepts would have failed the schema it is checked against.
+        properties["target_scope"] = {
+            "type": "string",
+            "enum": sorted(PROJECTION_SCOPES - {"global"}),
+        }
         required.append("target_scope")
     return {
         "type": "object",

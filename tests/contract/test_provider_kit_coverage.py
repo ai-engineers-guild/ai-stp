@@ -16,6 +16,7 @@ written to prevent.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 from release_scripts import provider_kit
 
@@ -100,3 +101,63 @@ def test_every_command_the_run_will_not_invoke_is_declared_forbidden() -> None:
     assert forbidden >= protocol_v3.APPLY_COMMANDS, (
         "a mutating command the run will not invoke must say so"
     )
+
+
+#: Kit versions whose bytes are pinned by somebody else. The ledger beside this
+#: file is the record; this is the code that makes it mean something.
+_LEDGER = Path(__file__).resolve().parents[1] / "golden" / "provider-kit" / "identity-ledger.json"
+
+
+def _ledger() -> dict[str, str]:
+    document = json.loads(_LEDGER.read_text(encoding="utf-8"))
+    return {item["kit_version"]: item["aggregate_digest"] for item in document["released"]}
+
+
+def test_a_released_kit_version_never_changes_its_bytes() -> None:
+    """A version whose contents moved is a republished immutable `X.Y`.
+
+    Providers vendor the kit and pin its aggregate digest — the provider side
+    pins `0.2.3` at `sha256:2bf26243…` in work that is already merged. Editing
+    a released version's files while leaving `KIT_VERSION` alone gives that pin
+    two possible failures, and the quieter one is worse: it keeps matching a
+    name that now means something else.
+
+    **The ledger existed and nothing read it.** It was written as a record of
+    released versions and no code compared anything against it, so it drifted
+    at the first release nobody added — `0.2.3` was pinned by a provider and
+    never entered the file. A record with no guard is the same shape as a guard
+    with no path: it reads as protection and protects nothing.
+
+    Found by nearly committing the defect: adding `user_root` to the scope set
+    changed `0.2.3`'s aggregate in place, and nothing said so.
+    """
+    released = _ledger()
+    current = provider_kit.KIT_VERSION
+    identity = json.loads(
+        (
+            Path(provider_kit.__file__).resolve().parents[1]
+            / "provider-kit"
+            / "v3"
+            / "KIT-IDENTITY.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert identity["kit_version"] == current
+
+    if current in released:
+        assert identity["aggregate_digest"] == released[current], (
+            f"kit {current} is released and its bytes moved; bump KIT_VERSION instead"
+        )
+
+
+def test_the_ledger_names_each_version_and_each_digest_once() -> None:
+    """Two names for one digest means a version that did not change.
+
+    And one name with two digests is the defect above, recorded rather than
+    caught. Either way the ledger stops being a record of distinct releases.
+    """
+    document = json.loads(_LEDGER.read_text(encoding="utf-8"))
+    versions = [item["kit_version"] for item in document["released"]]
+    digests = [item["aggregate_digest"] for item in document["released"]]
+
+    assert len(versions) == len(set(versions)), sorted(versions)
+    assert len(digests) == len(set(digests)), "two kit versions share an aggregate digest"
