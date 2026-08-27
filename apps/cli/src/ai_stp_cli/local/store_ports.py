@@ -580,6 +580,10 @@ def _candidate(
         provenance=provenance,
         source_path=source_path,
         absolute=path,
+        # The snapshot-relative path the mapping already declares, which is what
+        # `provenance.subpath` above uses. A passport records this rather than
+        # the absolute location the snapshot happens to sit at today.
+        native_path=str(mapping.local_path).lstrip("/"),
         byte_length=None,
         holds_secret=False,
         reason="declared by an inspected local setup-store snapshot",

@@ -1035,24 +1035,28 @@ def test_jsonc_comments_and_trailing_commas_do_not_hide_servers(tmp_path: Path) 
     assert [item.evidence_refs for item in found] == [("mcp.context7",)]
 
 
-def test_an_adopted_passport_carries_no_home_path_and_can_therefore_sync(
+def test_an_adopted_passport_records_where_a_component_sits_not_where_it_was(
     registry: sqlite3.Connection, harness_home: Path
 ) -> None:
-    """A passport that records where it was found must still be able to leave.
+    """The fact is the layout position, never a filesystem path.
 
-    `redact_home` exists because "a passport, a log or an agent transcript"
-    must not carry home-path material, and adoption already applies it. Nothing
-    pinned the consequence, though, and the two halves live far apart: the
-    redaction is in `local/components.py`, the refusal is
-    `check_sync_payload` in the contracts package, and neither mentions the
-    other. Reading only the refusal, it is easy to conclude that adopted
-    components cannot sync at all — which is what I concluded, from a component
-    I had put in a scratch directory outside the home.
+    This replaces a weaker property, and the reasoning it replaces is worth
+    keeping. That version asserted the fact began with `~/` and concluded that a
+    component outside the home simply could not sync — "shortening it would hide
+    rather than redact, and it means nothing on another machine either".
 
-    An absolute path outside the home directory does stay refused, and should:
-    shortening it would hide rather than redact, and it means nothing on
-    another machine either. That is the boundary this test draws, so the next
-    reader does not mistake it for a defect.
+    The first half of that is right and the second is what changed. `redact_home`
+    substitutes the home prefix; it does not make a path relative, so anything
+    outside the home stayed absolute, reached the passport, and was refused by
+    `check_sync_payload` forever — no patch schema can remove the fact
+    afterwards. Whether a component could ever leave the machine depended on
+    where on disk its author happened to put it.
+
+    What is recorded now is not a shortened absolute path. It is a different
+    fact: where the component sits inside the layout that found it. That does
+    mean something on another machine — it is the only part that does — and
+    `SPEC-013` REQ-1313 asks for exactly this, that source paths stay in local
+    detector state. `Found.source_path` keeps the redacted form for display.
     """
     found = next(
         item
@@ -1064,8 +1068,10 @@ def test_an_adopted_passport_carries_no_home_path_and_can_therefore_sync(
 
     recorded = document["facts"]["source_path"]["value"]
     assert not recorded.startswith(str(harness_home)), recorded
-    assert recorded.startswith("~/"), recorded
-    # The point of the redaction, not a restatement of it.
+    assert not recorded.startswith("~"), recorded
+    assert not Path(recorded).is_absolute(), recorded
+    assert recorded.endswith("CLAUDE.md"), recorded
+    # The point of the rule, not a restatement of it.
     check_sync_payload(document)
 
 

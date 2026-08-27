@@ -435,10 +435,18 @@ class Found:
     layout_source: str
     provenance: Provenance
 
-    #: Where it is, redacted. The absolute path stays in the caller's hands and
-    #: never reaches a passport (`SPEC-013` REQ-1313).
+    #: Where it is, redacted for display. `redact_home` substitutes the home
+    #: prefix — it does not make a path relative, so for anything outside the
+    #: home this stays absolute. Useful to show; never a passport fact.
     source_path: str
     absolute: Path
+
+    #: Where it sits inside the layout that matched, always relative — the only
+    #: form a passport may record (`SPEC-013` REQ-1313). Absolute paths are
+    #: machine-specific, carry the account name, and `check_sync_payload`
+    #: refuses them, so one recorded as a fact makes the component unsyncable
+    #: for good: no patch schema can remove it afterwards.
+    native_path: str
 
     #: `None` when the file was not read, which is every discovery.
     byte_length: int | None
@@ -731,7 +739,10 @@ def _passport(
         "native_role": item.native_role,
         "harness_id": item.harness_id,
         "scope": item.scope,
-        "source_path": item.source_path,
+        # The layout-relative form, never the absolute one: a passport is shared
+        # and content-addressed, and `SPEC-013` REQ-1313 keeps source paths in
+        # local detector state.
+        "source_path": item.native_path,
         "source_repository": item.provenance.repository,
         "source_revision": item.provenance.revision,
         "source_subpath": item.provenance.subpath,
@@ -1198,6 +1209,25 @@ def _plugin_subtree(
     return found, []
 
 
+def _native_path(place: Path, rule: Rule) -> str:
+    """The component's place inside the layout that found it, always relative.
+
+    The rule declares where a kind lives, so the meaningful part of an absolute
+    path is the tail starting at that declaration: `.claude/CLAUDE.md`, or
+    `.claude/skills/<name>` for a directory rule. That is portable, says more to
+    a reader than a local absolute path, and cannot be absolute by construction.
+
+    The fallback is the file name rather than the absolute path: if the rule
+    cannot be located in the path, recording the whole thing is exactly the
+    outcome this exists to prevent.
+    """
+    posix = place.as_posix()
+    marker = "/" + rule.relative.strip("/")
+    at = posix.rfind(marker)
+    tail = posix[at + 1 :] if at >= 0 else place.name
+    return tail.lstrip("/")
+
+
 def _describe(
     place: Path,
     rule: Rule,
@@ -1268,6 +1298,7 @@ def _describe(
         provenance=origin,
         source_path=source_path,
         absolute=place,
+        native_path=_native_path(place, rule),
         byte_length=size,
         holds_secret=secret,
         reason=reason,
