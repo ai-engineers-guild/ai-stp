@@ -110,7 +110,24 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     # Cursor installs a plugin rather than sibling directories: its manifest
     # declares commands, hooks, MCP entries, agents, skills and rules as paths
     # inside the plugin, so the plugin is what a provider writes.
-    Rule("instruction", "AGENTS.md", "file", "cursor"),
+    #
+    # No `instruction` rule. It used to project `AGENTS.md` into the target,
+    # which is cursor's configuration home — and `cursor.com/docs/rules`, the
+    # page this row and the catalog's global one both cited, says AGENTS.md is
+    # read from the **project root and its subdirectories**. There is no global
+    # `~/.cursor/AGENTS.md`; user-level rules are a setting, not a file. So the
+    # rule wrote a real file to a path cursor never reads, and the install
+    # answered `verified`.
+    #
+    # The sixth instance of one sentence: a project-scope placement named as a
+    # global surface. `.mcp.json` on claude-code and on grok were the same, and
+    # the citation was the same kind of citation — a page about the subject,
+    # taken as agreement with the row beneath it.
+    #
+    # Corroborated independently: the released `cursor-setup-system` 0.0.7
+    # declares `component_kinds` of exactly `plugin` and `setting`, and its
+    # `native_namespaces` are `cli-config.json` and `plugins`. The provider had
+    # already stopped accepting the kind this rule produced.
     Rule("setting", "cli-config.json", "file", "cursor"),
     Rule("plugin", "plugins", "directory", "cursor", projection_kind="plugin"),
     # Antigravity's home belongs to Gemini: `antigravity-cli/` is its own and

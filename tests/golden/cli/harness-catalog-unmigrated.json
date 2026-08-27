@@ -1,0 +1,159 @@
+{
+  "cursor": [
+    {
+      "component_type": "setting",
+      "relative": "cli-config.json",
+      "shape": "file",
+      "scope": "global",
+      "root": "config",
+      "source": "cursor.com/docs/cli/reference/configuration",
+      "declared_key": ""
+    },
+    {
+      "component_type": "plugin",
+      "relative": "plugins",
+      "shape": "directory",
+      "scope": "global",
+      "root": "config",
+      "source": "cursor.com/docs/reference/plugins",
+      "declared_key": ""
+    },
+    {
+      "component_type": "instruction",
+      "relative": ".cursor/rules",
+      "shape": "directory",
+      "scope": "project",
+      "root": "config",
+      "source": "cursor.com/docs/rules",
+      "declared_key": ""
+    },
+    {
+      "component_type": "plugin",
+      "relative": ".cursor/plugins",
+      "shape": "directory",
+      "scope": "project",
+      "root": "config",
+      "source": "cursor.com/docs/reference/plugins",
+      "declared_key": ""
+    }
+  ],
+  "antigravity": [
+    {
+      "component_type": "setting",
+      "relative": "antigravity-cli/settings.json",
+      "shape": "file",
+      "scope": "global",
+      "root": "config",
+      "source": "antigravity.google/docs/settings",
+      "declared_key": ""
+    },
+    {
+      "component_type": "setting",
+      "relative": "antigravity-cli/keybindings.json",
+      "shape": "file",
+      "scope": "global",
+      "root": "config",
+      "source": "antigravity.google/docs/settings",
+      "declared_key": ""
+    },
+    {
+      "component_type": "plugin",
+      "relative": "antigravity-cli/plugins",
+      "shape": "directory",
+      "scope": "global",
+      "root": "config",
+      "source": "antigravity.google/docs/plugins",
+      "declared_key": ""
+    },
+    {
+      "component_type": "plugin",
+      "relative": "config/plugins",
+      "shape": "directory",
+      "scope": "global",
+      "root": "config",
+      "source": "antigravity.google/docs/plugins",
+      "declared_key": ""
+    },
+    {
+      "component_type": "skill",
+      "relative": "config/skills",
+      "shape": "directory",
+      "scope": "global",
+      "root": "config",
+      "source": "antigravity.google/docs/skills",
+      "declared_key": ""
+    },
+    {
+      "component_type": "agent",
+      "relative": "config/agents",
+      "shape": "directory",
+      "scope": "global",
+      "root": "config",
+      "source": "antigravity.google/docs/agents",
+      "declared_key": ""
+    },
+    {
+      "component_type": "hook",
+      "relative": "config/hooks.json",
+      "shape": "file",
+      "scope": "global",
+      "root": "config",
+      "source": "antigravity.google/docs/hooks",
+      "declared_key": ""
+    },
+    {
+      "component_type": "mcp",
+      "relative": "config/mcp_config.json",
+      "shape": "file",
+      "scope": "global",
+      "root": "config",
+      "source": "antigravity.google/docs/mcp",
+      "declared_key": ""
+    },
+    {
+      "component_type": "plugin",
+      "relative": ".agents/plugins",
+      "shape": "directory",
+      "scope": "project",
+      "root": "config",
+      "source": "antigravity.google/docs/plugins",
+      "declared_key": ""
+    },
+    {
+      "component_type": "skill",
+      "relative": ".agents/skills",
+      "shape": "directory",
+      "scope": "project",
+      "root": "config",
+      "source": "antigravity.google/docs/skills",
+      "declared_key": ""
+    },
+    {
+      "component_type": "agent",
+      "relative": ".agents/agents",
+      "shape": "directory",
+      "scope": "project",
+      "root": "config",
+      "source": "antigravity.google/docs/agents",
+      "declared_key": ""
+    },
+    {
+      "component_type": "hook",
+      "relative": ".agents/hooks.json",
+      "shape": "file",
+      "scope": "project",
+      "root": "config",
+      "source": "antigravity.google/docs/hooks",
+      "declared_key": ""
+    },
+    {
+      "component_type": "mcp",
+      "relative": ".agents/mcp_config.json",
+      "shape": "file",
+      "scope": "project",
+      "root": "config",
+      "source": "antigravity.google/docs/mcp",
+      "declared_key": ""
+    }
+  ]
+}

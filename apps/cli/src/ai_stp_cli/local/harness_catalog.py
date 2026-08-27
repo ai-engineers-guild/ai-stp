@@ -392,7 +392,6 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
         ".cursor",
         f"{CURSOR}/cli/reference/configuration",
         (
-            _layout("instruction", "AGENTS.md", "file", f"{CURSOR}/rules", G),
             _layout(
                 "setting", "cli-config.json", "file", f"{CURSOR}/cli/reference/configuration", G
             ),

@@ -1,8 +1,11 @@
 """Every named conflict class has a fixture, and the reports stay stable."""
 
+import json
+import os
 import re
+import subprocess
 from pathlib import Path
-from typing import Final
+from typing import Any, Final
 
 import pytest
 
@@ -649,3 +652,82 @@ def test_the_operation_registry_matches_the_contract() -> None:
     text = CONTRACT.read_text("utf-8")
     for name in composition.OPERATIONS:
         assert name in text
+
+
+#: Projection rules a released provider does not accept, and why each may stay.
+#:
+#: Empty is the goal. An entry means a component of that kind cannot be
+#: installed on that harness by the provider people actually have.
+_UNDECLARED_BY_PROVIDER: dict[tuple[str, str], str] = {
+    ("codex", "skill"): (
+        "`ADR-0127`. The provider withdrew `skill` from codex's declaration at "
+        "0.0.7 exactly as that record predicted, so the 62 corpus skills — 61 "
+        "published — now refuse rather than installing where codex cannot read. "
+        "The refusal is the improvement; removing the rule first would leave "
+        "nothing to install once corrected versions exist. Closes with the "
+        "corpus re-seed."
+    ),
+}
+
+
+def test_a_projection_rule_names_a_kind_the_released_provider_accepts() -> None:
+    """The one table that is not ours, asked directly instead of remembered.
+
+    Every other guard here compares two of our own tables, so both can be wrong
+    together — and twice now they were, agreeing on a surface no product reads.
+    `provider-info` is the provider's own declaration of what it will accept and
+    where it writes, so it settles those cases from outside.
+
+    It found cursor's `instruction -> AGENTS.md`: the released provider declares
+    `plugin` and `setting` only, because `cursor.com/docs/rules` puts AGENTS.md
+    at a project root and there is no global `~/.cursor/AGENTS.md`. Our rule and
+    the catalog row both cited that page. The kind-level guard above could not
+    see it, since cursor's project `.cursor/rules` makes `instruction` a
+    declared kind for the harness — a kind without a scope is not a surface.
+
+    Skipped unless real providers are wired, because it is evidence rather than
+    a unit: what it asserts is a property of built binaries, not of this file.
+    """
+    directory = os.environ.get("AI_STP_PROVIDER_V3_DIR")
+    if directory is None:
+        pytest.skip("set AI_STP_PROVIDER_V3_DIR to a directory of v3 provider binaries")
+
+    from ai_stp_cli.local import harness_catalog
+
+    binaries = {
+        definition.harness_id: name
+        for definition in harness_catalog.DEFINITIONS
+        for name in [
+            f"{definition.harness_id.removesuffix('-code').removesuffix('-build')}-setup-system"
+        ]
+        if (Path(directory) / name).is_file()
+    }
+    assert binaries, f"no provider binaries found under {directory}"
+
+    undeclared: list[str] = []
+    unnamed: list[str] = []
+    for harness_id, binary in sorted(binaries.items()):
+        completed = subprocess.run(
+            [str(Path(directory) / binary), "provider-info"],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=60,
+        )
+        answer: dict[str, Any] = json.loads(completed.stdout)
+        profile: dict[str, Any] = answer.get("projection_profile") or {}
+        kinds = {str(item) for item in profile.get("component_kinds", [])}
+        namespaces = {str(item) for item in profile.get("native_namespaces", [])}
+        for rule in composition.PROVIDER_RULES:
+            if rule.harness_id != harness_id:
+                continue
+            if rule.component_type not in kinds:
+                undeclared.append(f"{harness_id}/{rule.component_type} -> {rule.relative}")
+            elif rule.relative not in namespaces:
+                unnamed.append(f"{harness_id}/{rule.component_type} -> {rule.relative}")
+
+    allowed = {f"{h}/{k}" for h, k in _UNDECLARED_BY_PROVIDER}
+    assert {item.split(" ->")[0] for item in undeclared} <= allowed, sorted(undeclared)
+    # A declared kind written to a path the provider does not own is the same
+    # defect one level down, and has no standing exception.
+    assert not unnamed, sorted(unnamed)

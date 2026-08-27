@@ -1,5 +1,8 @@
 """One table owns harness detection, layouts, projections and support labels."""
 
+import json
+from pathlib import Path
+
 from ai_stp_cli.commands import toolchain
 from ai_stp_cli.local import components, harness_catalog, harnesses
 
@@ -135,3 +138,69 @@ def test_every_harness_either_declares_client_mcp_or_states_a_verified_gap() -> 
     assert "no_documented_mcp_client_config" in rows["pi"].gaps
     assert "components_are_plugin_declared" in rows["cursor"].gaps
     assert all("no_documented_mcp_client_config" not in rows[harness].gaps for harness in declaring)
+
+
+#: Harnesses the migration oracles cannot cover, pinned instead.
+#:
+#: The oracles record the hand-written tables that existed before the catalog,
+#: so a harness added afterwards has nothing to be compared against and cannot
+#: be given one retroactively. That left `cursor` and `antigravity` — 17 layout
+#: rows — where a row could be added, changed or deleted and no test would say
+#: anything. Measured while removing a cursor row that was genuinely wrong:
+#: nothing noticed, correctly, and that silence is the hole.
+#:
+#: A golden rather than a second oracle, because the question differs. The
+#: oracles ask whether centralising the facts changed the released discovery
+#: contract. This asks whether a row changed at all, and its whole value is that
+#: the answer arrives as a reviewed diff.
+UNMIGRATED_GOLDEN = Path(__file__).parents[1] / "golden" / "cli" / "harness-catalog-unmigrated.json"
+
+
+def _oracle_harnesses() -> set[str]:
+    """Harnesses either oracle covers, spelled the way the catalog spells them.
+
+    The oracles call the shared conventions `""` and the catalog calls that
+    harness `undefined`; `components._declared_rules` maps between them. The
+    same mapping belongs here, or `undefined` reads as unguarded and the golden
+    grows a row that another test already pins.
+    """
+    covered = {rule.harness_id for rule in components._MIGRATION_GLOBAL_ORACLE} | {  # pyright: ignore[reportPrivateUsage]
+        rule.harness_id
+        for rule in components._MIGRATION_PROJECT_ORACLE  # pyright: ignore[reportPrivateUsage]
+    }
+    return {"undefined" if harness_id == "" else harness_id for harness_id in covered}
+
+
+def _unmigrated_rows() -> dict[str, list[dict[str, object]]]:
+    return {
+        definition.harness_id: [
+            {
+                "component_type": item.component_type,
+                "relative": item.relative,
+                "shape": item.shape,
+                "scope": item.scope,
+                "root": item.root,
+                "source": item.source,
+                "declared_key": item.declared_key,
+            }
+            for item in definition.layouts
+        ]
+        for definition in harness_catalog.DEFINITIONS
+        if definition.harness_id not in _oracle_harnesses()
+    }
+
+
+def test_every_catalog_harness_is_guarded_by_an_oracle_or_by_the_golden() -> None:
+    """A harness added later must not arrive in the blind spot silently.
+
+    Without this the next one joins `cursor` and `antigravity` unguarded, and
+    the golden's share of the catalog shrinks while every test stays green.
+    """
+    guarded = _oracle_harnesses() | set(_unmigrated_rows())
+    assert guarded >= {definition.harness_id for definition in harness_catalog.DEFINITIONS}
+
+
+def test_the_unmigrated_catalog_rows_match_their_golden() -> None:
+    """A layout row for these harnesses changes as a reviewed diff or not at all."""
+    expected = json.loads(UNMIGRATED_GOLDEN.read_text(encoding="utf-8"))
+    assert _unmigrated_rows() == expected
