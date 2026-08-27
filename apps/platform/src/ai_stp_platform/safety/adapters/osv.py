@@ -103,7 +103,7 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
     used: list[str] = []
     for argv in argv_candidates:
         used = argv
-        code, out, err, ms = run_cli(argv, cwd=tree, timeout=min(spec.timeout_seconds, 30))
+        code, out, err, ms = run_cli(argv, cwd=tree, timeout=spec.timeout_seconds)
         # 127 only if first token missing — should not happen after which().
         if code != 127:
             break

@@ -38,7 +38,7 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
             if (where / "requirements.txt").is_file()
             else ["pip-audit"],
             cwd=where,
-            timeout=min(spec.timeout_seconds, 25),
+            timeout=spec.timeout_seconds,
         )
         state, detail = classify_cli_exit(code, out, err)
         outcomes.append((state, detail, out, err, ms))

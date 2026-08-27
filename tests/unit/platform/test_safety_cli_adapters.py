@@ -1611,6 +1611,47 @@ def test_no_check_asks_for_longer_than_a_tool_is_ever_given() -> None:
     assert over == {}, "these declare a limit no tool will ever be given"
 
 
+def test_no_adapter_keeps_a_second_limit_of_its_own() -> None:
+    """The same defect as the test above, one level further down.
+
+    That test tied the policy's declaration to the runner's ceiling, because a
+    ceiling that silently overruled the declaration made raising
+    `skill_static_gate` to 60 change nothing. Twelve adapters then kept a
+    *third* limit — `min(spec.timeout_seconds, 25)` and friends — written into
+    the call as a literal.
+
+    Every one of them happened to sit at or above its own check's declaration,
+    so none was biting. That is not the same as harmless: it means a raised
+    declaration would be clamped by a number in a different file, and the only
+    symptom would be a tool still being killed at the old limit. Which is the
+    story the test above exists to tell.
+
+    Found by raising `malware_clamav` after measuring `clamscan` at 19-22s of
+    signature loading before it scans anything — the raise would have done
+    nothing, silently, exactly as before.
+
+    `MAX_TIMEOUT_SECONDS` stays: it is one backstop applied in one place,
+    inside `run_cli`, against a bad argument. What is refused here is a second
+    opinion per adapter.
+    """
+    import re
+
+    adapters = Path(_cli_module_dir())
+    offenders: dict[str, list[str]] = {}
+    for path in sorted(adapters.glob("*.py")):
+        found = re.findall(r"min\(\s*spec\.timeout_seconds\s*,\s*[\d.]+\s*\)", path.read_text())
+        if found:
+            offenders[path.name] = found
+
+    assert offenders == {}, "the policy declares the limit; an adapter may not lower it"
+
+
+def _cli_module_dir() -> str:
+    from ai_stp_platform.safety import adapters
+
+    return str(Path(str(adapters.__file__)).parent)
+
+
 def test_a_report_names_the_limit_the_tool_actually_got(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

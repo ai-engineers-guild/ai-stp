@@ -360,7 +360,20 @@ CHECK_REGISTRY: tuple[CheckSpec, ...] = (
         check_id="malware_clamav",
         family="malware",
         mandatory=True,
-        timeout_seconds=30,
+        # `clamscan` loads its whole signature database on every invocation and
+        # scans afterwards. Measured in the worker image on a one-file tree:
+        # 19.3s, 21.9s, 20.1s — that is the floor, before any artefact is read.
+        #
+        # Thirty seconds was 1.4x a fixed cost, not a limit on the work, and a
+        # publication run with other checks competing crossed it: an antigravity
+        # component was refused twice by `malware_clamav: degraded` with no
+        # verdict about its content at all.
+        #
+        # Ninety leaves the scan itself four times the startup. The structural
+        # fix is `clamdscan` against a resident daemon, which removes the floor
+        # rather than budgeting for it; the worker image carries no `clamd`
+        # today, so that is an infrastructure change and this is not.
+        timeout_seconds=90,
         stage=7,
         kinds=frozenset({"component"}),
         languages=frozenset(),

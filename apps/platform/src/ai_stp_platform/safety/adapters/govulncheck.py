@@ -22,7 +22,7 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
     code, out, err, ms = run_cli(
         ["govulncheck", "./..."],
         cwd=tree,
-        timeout=min(spec.timeout_seconds, 25),
+        timeout=spec.timeout_seconds,
     )
     state, detail = classify_cli_exit(code, out, err)
     if state != "finding" and state != "passed":

@@ -40,7 +40,7 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
     code, out, err, ms = run_cli(
         ["clamscan", "-r", "--no-summary", str(tree)],
         cwd=tree,
-        timeout=min(spec.timeout_seconds, 30),
+        timeout=spec.timeout_seconds,
     )
     tool = "clamscan"
     state, detail = classify_cli_exit(code, out, err)

@@ -24,7 +24,7 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
     code, out, err, ms = run_cli(
         ["eslint", ".", "--max-warnings", "0"],
         cwd=tree,
-        timeout=min(spec.timeout_seconds, 25),
+        timeout=spec.timeout_seconds,
     )
     state, detail = classify_cli_exit(code, out, err)
     if state not in {"finding", "passed"}:

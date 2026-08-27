@@ -50,7 +50,7 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
     code, out, err, ms = run_cli(
         ["yara", "-r", str(rules_file), str(tree)],
         cwd=tree,
-        timeout=min(spec.timeout_seconds, 25),
+        timeout=spec.timeout_seconds,
     )
     tool = "yara"
     if code == 127:

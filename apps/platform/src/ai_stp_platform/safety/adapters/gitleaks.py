@@ -27,7 +27,7 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
             "1",
         ],
         cwd=tree,
-        timeout=min(spec.timeout_seconds, 20),
+        timeout=spec.timeout_seconds,
     )
     if code == 127:
         return CheckOutcome(

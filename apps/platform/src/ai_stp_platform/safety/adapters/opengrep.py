@@ -54,7 +54,7 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
         if rules.is_dir() and any(rules.glob("*.yml")):
             argv.extend(["--config", str(rules)])
     argv.append(str(tree))
-    code, out, err, ms = run_cli(argv, cwd=tree, timeout=min(spec.timeout_seconds, 25))
+    code, out, err, ms = run_cli(argv, cwd=tree, timeout=spec.timeout_seconds)
     if code != 127:
         if code == 124:
             return CheckOutcome(

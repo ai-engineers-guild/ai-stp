@@ -33,11 +33,11 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
     all_results: list[tuple[str, dict[str, object], str, str, int]] = []
     for root in roots:
         code, out, err, ms = run_cli(
-            ["cargo", "audit", "--json"], cwd=root, timeout=min(spec.timeout_seconds, 25)
+            ["cargo", "audit", "--json"], cwd=root, timeout=spec.timeout_seconds
         )
         if code == 127:
             code, out, err, ms = run_cli(
-                ["cargo-audit", "audit"], cwd=root, timeout=min(spec.timeout_seconds, 25)
+                ["cargo-audit", "audit"], cwd=root, timeout=spec.timeout_seconds
             )
         state, detail = classify_cli_exit(code, out, err)
         all_results.append((state, detail, out, err, ms))
