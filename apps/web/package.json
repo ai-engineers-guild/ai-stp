@@ -80,7 +80,7 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "7.1.1",
     "globals": "^17.9.0",
-    "jsdom": "^26.1.0",
+    "jsdom": "^30.0.1",
     "msw": "^2.10.4",
     "prettier": "^3.6.2",
     "prettier-plugin-tailwindcss": "^0.8.1",
