@@ -91,11 +91,17 @@ def test_a_read_reports_identities_and_counts_rather_than_content(
         "owner_objects", ("owner", "objects"), tmp_path, python=sys.executable
     )
 
+    # The kind rides with the id because that is what it takes to address the
+    # object: `owner object show` demands `--kind`, and `owner objects` returns
+    # both kinds, so a bare id is not an address. It is still identity and not
+    # content, which is what this test is about. A row that does not state its
+    # kind is defaulted rather than dropped — dropping it would empty this list,
+    # and an empty list reads downstream as "the account owns nothing".
     assert result == {
         "state": "verified",
         "command": "owner objects",
         "rows": 2,
-        "identities": ["component_01", "component_02"],
+        "identities": ["component:component_01", "component:component_02"],
     }
     assert "source" not in json.dumps(result)
 

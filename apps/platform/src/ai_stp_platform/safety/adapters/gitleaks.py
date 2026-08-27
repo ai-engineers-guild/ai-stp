@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ai_stp_platform.safety.adapters._cli import run_cli
+from ai_stp_platform.safety.adapters._cli import classify_cli_exit, run_cli
 from ai_stp_platform.safety.normalize import redact_message
 from ai_stp_platform.safety.policy import CheckSpec
 from ai_stp_platform.safety.types import ArtifactManifest, CheckOutcome, Finding
@@ -47,7 +47,9 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
             mandatory=spec.mandatory,
             tool_name="gitleaks",
             duration_ms=ms,
-            detail={"reason": "timeout"},
+            # The shared classifier, so this says which limit was hit and
+            # whether the tool ran at all rather than only "timeout".
+            detail=classify_cli_exit(code, out, err)[1],
         )
     findings: list[Finding] = []
     # Exit 1 means leaks found for gitleaks with --exit-code 1

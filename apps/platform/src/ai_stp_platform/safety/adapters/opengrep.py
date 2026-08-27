@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from ai_stp_platform.safety.adapters._cli import run_cli
+from ai_stp_platform.safety.adapters._cli import classify_cli_exit, run_cli
 from ai_stp_platform.safety.normalize import redact_message
 from ai_stp_platform.safety.policy import CheckSpec
 from ai_stp_platform.safety.policy_pack import (
@@ -64,7 +64,12 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
                 mandatory=spec.mandatory,
                 tool_name="opengrep",
                 duration_ms=ms,
-                detail={"reason": "timeout", "rule_files": [p.name for p in rule_files]},
+                # The shared classifier so the limit and a spent suite deadline
+                # reach the wire; the rule files are this adapter's own addition.
+                detail={
+                    **classify_cli_exit(code, out, err)[1],
+                    "rule_files": [p.name for p in rule_files],
+                },
             )
         findings: list[Finding] = []
         if code not in (0,) and (out or err):

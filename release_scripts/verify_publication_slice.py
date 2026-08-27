@@ -96,10 +96,30 @@ def _read(name: str, arguments: Sequence[str], home: Path, *, python: str) -> di
         # out, and a report that pasted an object's content would be the thing it
         # is meant to rule out.
         "rows": len(rows),
-        "identities": [
-            row.get("stable_id") for row in rows if isinstance(row.get("stable_id"), str)
-        ][:5],
+        # Kind travels with the identity. `owner objects` returns both kinds and
+        # `owner object show` demands one, so an identity on its own is not
+        # enough to read it back — a setup asked for as a component is answered
+        # `AI_STP_NOT_FOUND`, correctly, and the slice would call a healthy
+        # deployment broken.
+        #
+        # A row that does not state its kind is still carried, defaulted, rather
+        # than dropped: dropping it would empty this list, and an empty list is
+        # read downstream as "the account owns nothing yet" — a quiet success
+        # standing in for a failure.
+        "identities": [_identity(row) for row in rows if isinstance(row.get("stable_id"), str)][:5],
     }
+
+
+def _identity(row: dict[str, Any]) -> str:
+    """`kind:stable_id`, which is what it takes to address an owned object."""
+    kind = row.get("object_kind")
+    return f"{kind if isinstance(kind, str) else 'component'}:{row['stable_id']}"
+
+
+def _split(identity: str) -> tuple[str, str]:
+    """`kind:stable_id` as the listing reports it, tolerating a bare id."""
+    kind, _, stable_id = identity.partition(":")
+    return (kind, stable_id) if stable_id else ("component", kind)
 
 
 def _owned_detail(home: Path, identities: Sequence[str], *, python: str) -> dict[str, Any]:
@@ -109,9 +129,9 @@ def _owned_detail(home: Path, identities: Sequence[str], *, python: str) -> dict
             "state": "not_verified",
             "reason": "the account owns no object yet, so there is nothing to read back",
         }
-    stable_id = identities[0]
+    kind, stable_id = _split(identities[0])
     envelope = cli(
-        ["owner", "object", "show", "--kind", "component", "--id", stable_id],
+        ["owner", "object", "show", "--kind", kind, "--id", stable_id],
         home=home,
         python=python,
         allow_failure=True,
@@ -119,20 +139,30 @@ def _owned_detail(home: Path, identities: Sequence[str], *, python: str) -> dict
     if envelope.get("ok") is not True:
         return {
             "state": "failed",
+            "object_kind": kind,
             "stable_id": stable_id,
             "error_code": error_code(envelope),
         }
     payload = data(envelope, "owner object show")
     return {
         "state": "verified",
+        "object_kind": kind,
         "stable_id": stable_id,
         "versions": len(cast(list[Any], payload.get("versions") or [])),
     }
 
 
 def _first_release(home: Path, identities: Sequence[str], *, python: str) -> tuple[str, str, str]:
-    """One owned released component: its id, exact version and content digest."""
-    for stable_id in identities:
+    """One owned released component: its id, exact version and content digest.
+
+    A component specifically: what follows it signs and reports a component
+    version. Setups in the listing are skipped rather than asked for under the
+    wrong kind.
+    """
+    for identity in identities:
+        kind, stable_id = _split(identity)
+        if kind != "component":
+            continue
         envelope = cli(
             ["owner", "object", "show", "--kind", "component", "--id", stable_id],
             home=home,

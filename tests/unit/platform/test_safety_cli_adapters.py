@@ -296,7 +296,10 @@ def test_run_cli_subprocess_success_and_timeout(
     monkeypatch.setattr("ai_stp_platform.safety.adapters._cli.subprocess.run", _timeout)
     code, out, err, ms = run_cli(["echo"], cwd=tmp_path, timeout=100)
     assert code == 124
-    assert err == "timeout"
+    # The limit travels with the code. It is the effective one — after the
+    # ceiling and the suite deadline — because that is the only number a
+    # report about this timeout may name.
+    assert err == "timeout:100"
 
     def _oserr(*_a, **_k):
         raise OSError("boom")
@@ -1630,6 +1633,43 @@ def test_a_report_names_the_limit_the_tool_actually_got(
     assert spec.timeout_seconds > 5.0
 
 
+def test_a_timeout_reports_the_limit_it_was_actually_given() -> None:
+    """The classifier never recorded the number, so no message could name it.
+
+    `effective_timeout` exists precisely so a report says what a tool *waited
+    for* rather than what it *asked for* — its own docstring says a check
+    claiming 60s after being killed at 25 sends somebody looking in the wrong
+    place. The one branch that needs that number, the timeout branch, did not
+    take it, so twenty-three adapters produced "did not finish within Nones".
+
+    `run_cli` is the only caller that knows: it reduces the requested limit by
+    the suite's remaining wall time. It reports through the channel the
+    classifier already reads.
+    """
+    from ai_stp_platform.safety.adapters._cli import classify_cli_exit
+
+    state, detail = classify_cli_exit(124, "", "timeout:25")
+    assert state == "degraded"
+    assert detail["timeout_seconds"] == 25.0
+    assert detail["timed_out"] == ["scanner"]
+
+
+def test_a_deadline_that_expired_before_the_tool_started_is_not_a_slow_tool() -> None:
+    """Two different repairs, and they were spelled the same.
+
+    `run_cli` refuses to start a tool once the suite's budget is gone, and
+    returned the same bare `timeout` as a tool it had actually killed. The
+    first says the suite ran out of time before this check began; the second
+    says this check is slow. Telling them apart is the whole diagnosis.
+    """
+    from ai_stp_platform.safety.adapters._cli import classify_cli_exit
+
+    state, detail = classify_cli_exit(124, "", "timeout:deadline")
+    assert state == "degraded"
+    assert detail["reason"] == "deadline_expired"
+    assert "timeout_seconds" not in detail
+
+
 def test_a_check_that_did_not_pass_says_why_on_the_wire() -> None:
     """A refusal without a reason is a dead end for whoever is refused.
 
@@ -1646,6 +1686,22 @@ def test_a_check_that_did_not_pass_says_why_on_the_wire() -> None:
         detail={"timed_out": ["skillspector"], "timeout_seconds": 60},
     )
     assert timed_out.as_binding()["reason"] == "did not finish within 60s: skillspector"
+
+    # The same check without a recorded limit. Interpolating the missing value
+    # produced "did not finish within Nones", which reads as a defect in the
+    # reporter rather than a timeout — met in the wild while publishing, where
+    # it cost a trip into this file to learn it meant "the scanner did not
+    # finish". A message whose own repair is unreadable is the failure this
+    # test exists for.
+    unbounded = CheckOutcome(
+        check_id="malware_clamav",
+        family="malware",
+        result="degraded",
+        detail={"timed_out": ["scanner"]},
+    )
+    reason = str(unbounded.as_binding()["reason"])
+    assert "None" not in reason
+    assert "scanner" in reason
 
     found = CheckOutcome(
         check_id="skill_static_gate",

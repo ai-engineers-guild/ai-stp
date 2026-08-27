@@ -8,7 +8,7 @@ import shutil
 import subprocess
 import tempfile
 import time
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from contextvars import ContextVar
 from pathlib import Path
 from typing import Final
@@ -76,7 +76,22 @@ def classify_cli_exit(code: int, stdout: str, stderr: str) -> tuple[str, dict[st
     if code == 127:
         return "not_run", {"reason": "tool_missing"}
     if code == 124:
-        return "degraded", {"reason": "timeout", "timed_out": ["scanner"]}
+        # `run_cli` is the only caller that knows the limit a tool was actually
+        # given — it reduces the requested one by the suite's remaining wall
+        # time — and it says so through `stderr`, which arrives here already.
+        # Without it every timeout reported `did not finish within Nones`,
+        # which is what `effective_timeout` exists to prevent and what twenty
+        # three adapters produced.
+        marker = stderr.strip()
+        if marker == "timeout:deadline":
+            # Not a slow tool: the suite's budget was gone before this check
+            # started. The repairs differ, so the names do.
+            return "degraded", {"reason": "deadline_expired", "timed_out": ["scanner"]}
+        detail: dict[str, object] = {"reason": "timeout", "timed_out": ["scanner"]}
+        if marker.startswith("timeout:"):
+            with suppress(ValueError):
+                detail["timeout_seconds"] = float(marker.removeprefix("timeout:"))
+        return "degraded", detail
     if code == 0:
         return "passed", {}
     if code == 1 and (stdout or stderr):
@@ -123,7 +138,9 @@ def run_cli(
     timeout = remaining_timeout(timeout)
     if timeout <= 0:
         _record(124, 0, "deadline")
-        return 124, "", "timeout", 0
+        # Named apart from a killed tool: nothing ran, and what needs fixing is
+        # the suite's budget rather than this check.
+        return 124, "", "timeout:deadline", 0
     from ai_stp_platform.safety.sandbox import (
         force_sandbox_mode,
         is_bwrap_failure,
@@ -197,7 +214,10 @@ def _run(
     except subprocess.TimeoutExpired:
         ms = int((time.perf_counter() - started) * 1000)
         # subprocess.run already terminated the child on timeout; no process handle.
-        return 124, "", "timeout", ms
+        # The limit travels with the code: this is the effective one, after the
+        # ceiling and the suite deadline, and it is the only number a report
+        # should name.
+        return 124, "", f"timeout:{timeout:g}", ms
     except OSError as exc:
         ms = int((time.perf_counter() - started) * 1000)
         return 126, "", str(exc), ms

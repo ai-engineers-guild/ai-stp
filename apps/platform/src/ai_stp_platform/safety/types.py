@@ -97,6 +97,13 @@ class CheckOutcome:
         if timed_out:
             limit = self.detail.get("timeout_seconds")
             names = ", ".join(str(item) for item in cast(list[object], timed_out))
+            # A limit nobody recorded is said as an absence. Interpolating it
+            # produced "did not finish within Nones", which reads as a defect in
+            # this reporter rather than as a timeout, and the repair for the two
+            # is not the same. Met in the wild during a publication, where it
+            # cost a trip into this file to learn what it meant.
+            if limit is None:
+                return f"did not finish, and no limit was recorded: {names}"[:200]
             return f"did not finish within {limit}s: {names}"[:200]
         no_report = self.detail.get("no_report")
         if no_report:
