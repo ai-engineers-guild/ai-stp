@@ -103,6 +103,82 @@ def test_agentic_behavior_detects_delegation_persistence_and_unsafe_flow(tmp_pat
     assert outcome.result == "failed"
 
 
+def test_mcp_config_sees_a_credential_in_the_shape_mcp_configs_are_written_in(
+    tmp_path: Path,
+) -> None:
+    """`#429`: the secret lives in the value of an `env` map, not in a field name.
+
+    `secrets_heuristic` catches tokens by their *shape* — `ghp_`, `AKIA`,
+    `sk-`. `mcp_secret_like` is the layer for the ones whose shape nobody
+    knows: a vendor key, a bare password. It was written for
+    `token = "..."`, and a `.mcp.json` does not look like that. Measured
+    before this test:
+
+        token = "abcdefghijklmnop"                 -> caught
+        {"env": {"GITHUB_TOKEN": "abcdefghijkl"}}  -> missed
+        {"headers": {"Authorization": "Bearer …"}} -> missed
+
+    JSON is the native shape for every MCP configuration we support, so the
+    layer was blind exactly where it was needed. A vendor key in an `env`
+    block passed both layers.
+
+    The declared form stays clean: `required_env` carries `{name, purpose}`
+    and no value, which is the whole point of declaring one.
+    """
+    from ai_stp_platform.safety.adapters import mcp_config
+
+    secret = "Zq7NxP2mK9wLd4Vt"
+    payload = {
+        "mcpServers": {
+            "local": {
+                "command": "node",
+                "args": ["server.js"],
+                "env": {"VENDOR_CREDENTIAL": secret},
+                "headers": {"Authorization": f"Bearer {secret}"},
+            }
+        },
+        "required_env": [{"name": "VENDOR_CREDENTIAL", "purpose": "authenticate to the vendor"}],
+    }
+    (tmp_path / "mcp.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    outcome = mcp_config.run(
+        tmp_path,
+        ArtifactManifest(component_type="mcp"),
+        _spec("mcp_config_static", family="mcp_config", mandatory=True),
+    )
+
+    assert "mcp_secret_like" in {finding.rule_id for finding in outcome.findings}
+    # Names where, never what: a finding travels into reports and logs.
+    assert secret not in repr(outcome.findings)
+
+
+def test_mcp_config_does_not_call_a_declared_variable_name_a_secret(tmp_path: Path) -> None:
+    """A declaration carries no value, and calling it a leak would teach nothing.
+
+    The counterpart to the test above. If `required_env` tripped the same rule,
+    every correctly-authored MCP component would carry a high finding and the
+    rule would be ignored by everybody within a week.
+    """
+    from ai_stp_platform.safety.adapters import mcp_config
+
+    payload = {
+        "mcpServers": {"local": {"command": "node", "args": ["server.js"]}},
+        "required_env": [
+            {"name": "VENDOR_CREDENTIAL", "purpose": "authenticate to the vendor"},
+            {"name": "GITHUB_TOKEN", "purpose": "read the repository"},
+        ],
+    }
+    (tmp_path / "mcp.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    outcome = mcp_config.run(
+        tmp_path,
+        ArtifactManifest(component_type="mcp"),
+        _spec("mcp_config_static", family="mcp_config", mandatory=True),
+    )
+
+    assert "mcp_secret_like" not in {finding.rule_id for finding in outcome.findings}
+
+
 def test_mcp_config_detects_metadata_poisoning_rug_pull_and_toxic_flow(tmp_path: Path) -> None:
     from ai_stp_platform.safety.adapters import mcp_config
 

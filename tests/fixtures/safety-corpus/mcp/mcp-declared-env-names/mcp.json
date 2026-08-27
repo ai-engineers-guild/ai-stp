@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "vendor": {
+      "command": "node",
+      "args": ["server.js"]
+    }
+  },
+  "required_env": [
+    {"name": "VENDOR_CREDENTIAL", "purpose": "authenticate to the vendor"},
+    {"name": "GITHUB_TOKEN", "purpose": "read the repository"}
+  ]
+}

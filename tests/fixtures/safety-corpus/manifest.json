@@ -701,6 +701,15 @@
       }
     },
     {
+      "id": "mcp-declared-env-names",
+      "kind": "mcp",
+      "class": "benign",
+      "path": "mcp/mcp-declared-env-names",
+      "expected": {
+        "findings": []
+      }
+    },
+    {
       "id": "mcp-download-pipe-shell",
       "kind": "mcp",
       "class": "malicious",

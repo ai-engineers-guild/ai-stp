@@ -19,8 +19,26 @@ RISKY_COMMAND_PATTERNS = [
     re.compile(r"wget\s+.*\|\s*(bash|sh)", re.I),
     re.compile(r"powershell.*(iex|invoke-expression)", re.I),
 ]
+# A credential whose *shape* is known — `ghp_`, `AKIA`, `sk-` — is caught by
+# `secrets_heuristic` wherever it sits. This is the other layer: a vendor key or
+# a bare password nobody can pattern-match, found by the word next to it.
+#
+# It has to survive the quote. Every MCP configuration we support is JSON, so
+# the key is `"GITHUB_TOKEN"` and the separator arrives *after* a closing quote
+# — which the previous expression did not allow, making this rule blind in the
+# one format it exists for. `Bearer` and `Basic` are admitted before the value
+# for the same reason: an `Authorization` header is written that way and the
+# scheme word is not the secret.
+#
+# The keyword may be a suffix (`GITHUB_TOKEN`, `ANTHROPIC_API_KEY`), which is
+# how environment variables are named. A *declared* variable stays clean:
+# `required_env` carries `{"name": …, "purpose": …}`, where the name is a value
+# followed by a comma rather than by a separator, and no value travels at all.
 SECRET_LIKE = re.compile(
-    r"(?i)(token|secret|password|api[_-]?key)\s*[:=]\s*['\"]?[A-Za-z0-9_\-/.=]{12,}"
+    r"(?i)(?:token|secret|password|api[_-]?key|credential|authorization)"
+    r"[\"']?\s*[:=]\s*[\"']?"
+    r"(?:bearer|basic|token)?\s*"
+    r"[A-Za-z0-9_\-/.=]{12,}"
 )
 DOCKER_LATEST = re.compile(r"(?i)\bdocker://[^\s\"']+:latest\b")
 WRITE_SCOPE = re.compile(r"(?i)\b(write|delete|admin|full|all|\*)\b")

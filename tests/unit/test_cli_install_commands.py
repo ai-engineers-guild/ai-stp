@@ -2638,6 +2638,44 @@ def test_a_copy_or_a_restore_without_a_setup_still_needs_the_pair(
     assert "must be named" in str(raised.value)
 
 
+def test_a_rollback_without_a_backup_ref_is_refused(
+    registry: sqlite3.Connection,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A restore has to name the exact slot it restores (`#427`).
+
+    The refusal existed and nothing exercised it, which is the state a refusal
+    should never be in: it is the one line standing between "restore" and
+    "restore whatever the provider happens to consider newest", and a provider
+    that pruned the slot the caller meant would be indistinguishable from one
+    that restored it.
+
+    Consumer-side, so a stub is enough: what is asserted is our own refusal,
+    not the provider's behaviour.
+    """
+    del registry
+    executable = _provider(tmp_path, "v3-rollback")
+    _v3_test_invoker(monkeypatch, target=tmp_path)
+
+    with pytest.raises(CliFailure) as raised:
+        install.plan(
+            {
+                "action": "rollback",
+                "project": "project_01J0000000000000000000000A",
+                "harness": "claude-code",
+                "provider": executable,
+                "protocol-version": 3,
+                "target": str(tmp_path),
+                "unverified-provider": True,
+            }
+        )
+
+    assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+    assert "BackupRef" in str(raised.value)
+    assert raised.value.next_actions == ["install plan --action rollback --backup-ref <ref> --json"]
+
+
 @pytest.mark.parametrize("action", ["backup", "rollback"])
 def test_naming_two_sources_is_refused_for_a_copy_as_well(tmp_path: Path, action: str) -> None:
     """Optional is not "ignored". Two sources is still a contradiction."""
