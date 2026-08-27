@@ -467,17 +467,19 @@ def test_where_the_two_tables_both_speak_they_name_the_same_path() -> None:
 #: documented surface, so a kind the catalog does not list for that harness is
 #: not automatically wrong. What is wrong is not saying which. Each entry names
 #: the basis; a rule that cannot name one is a guess about somebody's product.
+#:
+#: **Naming a basis does not make the surface discoverable, and this list held
+#: two entries where those came apart.** `opencode/instruction` and
+#: `grok-build/instruction` both cited the agents.md convention, which was true
+#: and which quietly excused a real gap: each product reads its *own* global
+#: `AGENTS.md` — `~/.config/opencode/AGENTS.md`, `~/.grok/AGENTS.md` — a
+#: provider was already writing there, and discovery could find neither. The
+#: repair was the catalog row, not the entry. Before adding one here, ask
+#: whether the honest answer is a row instead.
 _CONVENTION_BACKED: Final[dict[tuple[str, str], str]] = {
     ("codex", "skill"): (
         "`.agents/skills`, the shared skills convention the catalog records "
         "under `undefined` with source learn.chatgpt.com/docs/build-skills"
-    ),
-    ("opencode", "instruction"): (
-        "`AGENTS.md`, the agents.md convention the catalog records under `undefined`"
-    ),
-    ("grok-build", "instruction"): (
-        "`AGENTS.md`, the same convention; declared in the provider's own "
-        "grok-baseline native_discovery"
     ),
     ("grok-build", "agent"): (
         "declared in the provider's own grok-baseline native_discovery, which "

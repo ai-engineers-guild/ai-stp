@@ -55,18 +55,30 @@ def test_detection_and_discovery_are_derived_from_the_catalog() -> None:
     # oracle already covers, is added rather than folded into the record. The
     # comment above anticipated a new harness and not a new surface on an old
     # one, which is what `tui.json` turned out to be.
-    added = set(components._ADDED_SINCE_MIGRATION)  # pyright: ignore[reportPrivateUsage]
-    assert not (added & (set(global_oracle) | set(project_oracle))), (
+    added = set(
+        components._ADDED_BOTH_SCOPES_SINCE_MIGRATION  # pyright: ignore[reportPrivateUsage]
+    )
+    added_global = set(
+        components._ADDED_GLOBAL_SINCE_MIGRATION  # pyright: ignore[reportPrivateUsage]
+    )
+    assert not ((added | added_global) & (set(global_oracle) | set(project_oracle))), (
         "an addition must name a row the oracles never recorded"
     )
+    assert not (added & added_global), (
+        "a surface is documented at both scopes or at one, and never declared twice"
+    )
     assert {rule for rule in components.GLOBAL_RULES if rule.harness_id in migrated} == (
-        (set(global_oracle) - withdrawn) | added
+        (set(global_oracle) - withdrawn) | added | added_global
     )
     # The project oracle is untouched by a *global* withdrawal. `Rule` carries no
     # scope, so the two rows for one kind are equal objects in different tuples;
-    # subtracting from both would take a project surface that is real. Additions
-    # are not scoped that way — `tui.json` is documented at both — so they apply
-    # to both.
+    # subtracting from both would take a project surface that is real.
+    #
+    # Additions are scoped the same way, and were not until a global-only one
+    # arrived. `tui.json` is documented at both scopes, so a single unscoped set
+    # was indistinguishable from a correct one — and the first global-only
+    # addition would have been asserted into the project table, where the file
+    # does not exist. Same defect as the withdrawal, opposite direction.
     assert {rule for rule in components.PROJECT_RULES if rule.harness_id in migrated} == (
         set(project_oracle) | added
     )

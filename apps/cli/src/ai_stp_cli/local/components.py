@@ -381,14 +381,24 @@ _WITHDRAWN_GLOBAL_SINCE_MIGRATION: Final[tuple[Rule, ...]] = (
 
 
 #: Surfaces the catalog learned **after** the migration, on a harness the
-#: oracles already cover. The mirror of the withdrawal above, and needed for the
-#: same reason: the oracle records what the hand table held, so a row that was
-#: never in it has to be named rather than quietly widening the record.
+#: oracles already cover, and documented at **both** scopes. The mirror of the
+#: withdrawal above, and needed for the same reason: the oracle records what the
+#: hand table held, so a row that was never in it has to be named rather than
+#: quietly widening the record.
 #:
 #: The oracle comment says it "says nothing about a harness added after the
 #: migration". True, and it did not anticipate a *surface* added to a harness it
 #: already covers, which is what `tui.json` is.
-_ADDED_SINCE_MIGRATION: Final[tuple[Rule, ...]] = (
+#:
+#: **Both scopes specifically**, and the name says so now because the split was
+#: latent. The withdrawal above learned in August that `Rule` carries no scope,
+#: so one kind's global and project rows are equal objects in different tuples —
+#: and additions were left unscoped only because `tui.json`, the single entry,
+#: happened to be documented at both. The first global-only addition would have
+#: been asserted into the project table, where its surface does not exist. That
+#: is the same defect in the opposite direction, and it is a scope missing from
+#: a name rather than a root missing from a path.
+_ADDED_BOTH_SCOPES_SINCE_MIGRATION: Final[tuple[Rule, ...]] = (
     # opencode's TUI half — keybinds, theme, attention, sounds — is a document
     # separate from `opencode.json`, which the same docs describe as server and
     # runtime behaviour. Declared by neither this project nor the provider until
@@ -401,6 +411,30 @@ _ADDED_SINCE_MIGRATION: Final[tuple[Rule, ...]] = (
     # exactly like `.mcp.json`, and this set applies to both.
     Rule("setting", "tui.json", "file", "opencode", f"{harness_catalog.OPENCODE}/tui"),
     Rule("setting", "tui.jsonc", "file", "opencode", f"{harness_catalog.OPENCODE}/tui"),
+)
+
+
+#: The same, for a surface documented at the **global** scope only.
+#:
+#: Both entries are one file under a harness's own configuration home —
+#: `~/.config/opencode/AGENTS.md` and `~/.grok/AGENTS.md` — and both were already
+#: being written there by a provider while discovery could not find them. A kind
+#: that can be installed and cannot be discovered means an existing file is
+#: invisible to the person about to have it replaced.
+#:
+#: Global only, and not by omission. The project-scope instruction for both is
+#: the shared convention's row under `undefined`: a repository-root `AGENTS.md`
+#: belongs to no single product, and a per-harness copy of it would report one
+#: file as several components.
+_ADDED_GLOBAL_SINCE_MIGRATION: Final[tuple[Rule, ...]] = (
+    Rule("instruction", "AGENTS.md", "file", "opencode", f"{harness_catalog.OPENCODE}/rules"),
+    Rule(
+        "instruction",
+        "AGENTS.md",
+        "file",
+        "grok-build",
+        f"{harness_catalog.GROK}/features/project-rules",
+    ),
 )
 
 

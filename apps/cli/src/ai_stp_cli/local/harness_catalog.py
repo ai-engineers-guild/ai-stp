@@ -266,6 +266,13 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
                     ("plugin", f"{prefix}plugins", "directory", "plugins"),
                 )
             ),
+            # `~/.config/opencode/AGENTS.md`, which is the target a provider
+            # already writes an instruction to. Projected since the rules table
+            # was written and discoverable by nothing, so a person's existing
+            # global rules were invisible to `harness discover` and to every
+            # plan built on it. Project scope is the shared convention's, under
+            # `undefined`, rather than a second per-harness copy of one file.
+            _layout("instruction", "AGENTS.md", "file", f"{OPENCODE}/rules", G),
             *(
                 _layout("setting", f"opencode.{suffix}", "file", f"{OPENCODE}/config", scope)
                 for scope in (G, P)
@@ -311,6 +318,19 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
         ".grok",
         f"{GROK}/settings",
         (
+            # `~/.grok/AGENTS.md`. The vendor page names `~/.grok/` as the
+            # global rules location and `AGENTS.md` as one of the filenames read
+            # there. Projected all along and discoverable by nothing, the same
+            # gap as opencode's and found the same way — by resolving the
+            # projection against the vendor page rather than reading the row.
+            #
+            # Only `AGENTS.md`. Grok also reads `Agents.md`, `AGENT.md`,
+            # `CLAUDE.md`, `Claude.md`, `CLAUDE.local.md` and `.grok/rules/*.md`,
+            # and modelling those would make discovery report six components
+            # where a person wrote one file. They are alternative spellings of
+            # the surface this row already names, and `AGENTS.md` is the one a
+            # provider writes.
+            _layout("instruction", "AGENTS.md", "file", f"{GROK}/features/project-rules", G),
             _layout(
                 "skill", "skills", "directory", f"{GROK}/features/skills-plugins-marketplaces", G
             ),
