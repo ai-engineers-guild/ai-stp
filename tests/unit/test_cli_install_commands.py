@@ -1126,6 +1126,25 @@ def _acquire_first_party_setup(
     return setup
 
 
+# Every profile is `("", "")`, and that is the corrected value rather than a
+# placeholder. Four of these asked for `--permission-profile full-auto` then
+# `safe`, and no released provider declares either: all seven declare
+# `permission_profiles: ["default"]`, which is the honest declaration.
+#
+# `permission_profiles` gates one operation-level posture and changes nothing
+# else; declaring `full-auto` there would promise that passing it makes the
+# operation run differently, which is false — the value would be accepted,
+# recorded in the plan, and ignored.
+#
+# The names came from the other axis. `full-auto` is a **setup id**: installing
+# it writes different bytes into the target, in each product's own keys, and
+# changes what the *product* asks a person rather than what the *operation*
+# does. It was never reachable through this parameter.
+#
+# That word now names four things — `ADR-0017`'s execution profile,
+# `AGENTS.md`'s permission scope, the providers' setup posture, and this
+# parameter — and this is the second time the collision cost a measurement. A
+# name is only a name together with the axis it names on.
 @pytest.mark.parametrize(
     ("harness_id", "provider_environment", "manifest_environment", "profiles"),
     [
@@ -1139,25 +1158,25 @@ def _acquire_first_party_setup(
             "codex",
             "AI_STP_CODEX_PROVIDER_V3",
             "AI_STP_CODEX_PROVIDER_V3_MANIFEST",
-            ("full-auto", "safe"),
+            ("", ""),
         ),
         (
             "grok-build",
             "AI_STP_GROK_BUILD_PROVIDER_V3",
             "AI_STP_GROK_BUILD_PROVIDER_V3_MANIFEST",
-            ("full-auto", "safe"),
+            ("", ""),
         ),
         (
             "opencode",
             "AI_STP_OPENCODE_PROVIDER_V3",
             "AI_STP_OPENCODE_PROVIDER_V3_MANIFEST",
-            ("full-auto", "safe"),
+            ("", ""),
         ),
         (
             "pi",
             "AI_STP_PI_PROVIDER_V3",
             "AI_STP_PI_PROVIDER_V3_MANIFEST",
-            ("full-auto", "safe"),
+            ("", ""),
         ),
     ],
 )
