@@ -394,6 +394,29 @@ def test_a_harness_whose_mcp_lives_inside_a_settings_file_has_no_surface() -> No
         assert relative in declared, (harness, relative, declared)
 
 
+def test_grok_has_no_provider_projection_for_mcp_or_command() -> None:
+    """Both were claude-code's rows copied down, and neither surface exists.
+
+    Named explicitly rather than left to the general guards, because
+    `ai_stp#434` asks for exactly this pair and an issue answered by "a broader
+    test covers it" is answered by nobody.
+
+    MCP is real for Grok and lives under `[mcp_servers.<name>]` inside the
+    owned `config.toml`; there is no standalone file for a provider to write,
+    and promising one would mean promising a partial-TOML rollback. Slash
+    commands are skills — `/<skill-name>`, qualified on collision — so there is
+    no `commands/` directory either. The provider declares neither, and fails
+    closed for the same reasons.
+
+    `setting -> config.toml` stays: that file is genuinely owned. Discovery
+    keeps measuring the nested `mcp_servers` table for inventory, which is a
+    different question from whether a provider may install one.
+    """
+    for kind in ("mcp", "command"):
+        assert composition.native_surface(kind, "grok-build") == "", kind
+    assert composition.native_surface("setting", "grok-build") == "config.toml"
+
+
 def test_where_the_two_tables_both_speak_they_name_the_same_path() -> None:
     """Two tables, two questions, one shared fact — and nothing checked it.
 
@@ -517,6 +540,87 @@ def test_the_stated_bases_are_all_still_load_bearing() -> None:
             stale.append(f"{harness_id}/{kind}: the catalog declares it now")
 
     assert not stale, sorted(stale)
+
+
+#: Surfaces the catalog anchors to `$HOME` that `PROVIDER_RULES` still names,
+#: with what closes each. A provider owns only its `--target`, so a rule naming
+#: a home-anchored path resolves under the target instead and lands one
+#: directory across from where the product reads.
+#:
+#: Empty is the goal. An entry here is a defect with a due date, not a decision.
+_HOME_ANCHORED_DEBT: dict[tuple[str, str], str] = {
+    ("codex", "skill"): (
+        "62 corpus objects, 61 published, all skills declaring "
+        "`managed_paths` of `.agents/skills/<name>`. `managed_paths` is inside "
+        "the content-addressed passport, so the repair is new versions of all "
+        "62 — the pi `managed_paths` precedent. Removing the rule first would "
+        "make 61 published objects refuse before a corrected version exists. "
+        "Closes with the corpus re-seed; the provider withdraws `skill` from "
+        "codex's declaration at its own 0.0.7."
+    ),
+}
+
+
+def test_a_provider_rule_never_names_a_surface_anchored_outside_its_target() -> None:
+    """A path is only a path together with what it is relative to.
+
+    Five defects in one day were this sentence: three filenames copied across
+    scopes, one scope misresolved, and one root dropped. This guards the last
+    kind, which is the one with published victims.
+
+    `Rule` carries a `root` that means something in discovery — `config` for a
+    harness configuration home, `home` for a cross-product convention under
+    `$HOME` — and means nothing in projection, because a provider owns exactly
+    one directory and it is the `--target` it was handed. So a projection rule
+    naming a surface the catalog anchors to `$HOME` is not merely undeclared;
+    it is unrepresentable, and it resolves under the target instead.
+
+    Measured: codex's `.agents/skills` resolves to `~/.codex/.agents/skills`
+    while the documented directory is `$HOME/.agents/skills` — a sibling, not a
+    child. An install writes twenty-nine files, answers `verified`, and the
+    product reads none of them. The provider is truthful and conformance cannot
+    see it: its cases are refusals, and none asks whether the harness reads what
+    was written.
+
+    Stated as a general rule rather than as one row, because the shared
+    conventions the catalog knows — `.agents/skills` and `.agents/commands` —
+    are exactly the paths most likely to be copied into a projection table by
+    someone reading the string and not the anchor.
+    """
+    from ai_stp_cli.local import harness_catalog
+
+    home_anchored = {
+        item.relative
+        for definition in harness_catalog.DEFINITIONS
+        for item in definition.layouts
+        if item.root == "home"
+    }
+    assert home_anchored, "the catalog must still know at least one shared convention"
+
+    offending = {
+        (rule.harness_id, rule.component_type)
+        for rule in composition.PROVIDER_RULES
+        if rule.relative in home_anchored
+    }
+    assert offending <= set(_HOME_ANCHORED_DEBT), sorted(offending - set(_HOME_ANCHORED_DEBT))
+
+
+def test_the_home_anchored_debt_is_still_owed() -> None:
+    """An entry that has been paid must leave, or the list becomes a hiding place."""
+    from ai_stp_cli.local import harness_catalog
+
+    home_anchored = {
+        item.relative
+        for definition in harness_catalog.DEFINITIONS
+        for item in definition.layouts
+        if item.root == "home"
+    }
+    live = {
+        (rule.harness_id, rule.component_type)
+        for rule in composition.PROVIDER_RULES
+        if rule.relative in home_anchored
+    }
+    assert set(_HOME_ANCHORED_DEBT) <= live, sorted(set(_HOME_ANCHORED_DEBT) - live)
 
 
 def test_provider_rule_projection_kinds_are_the_protocol_closed_set() -> None:

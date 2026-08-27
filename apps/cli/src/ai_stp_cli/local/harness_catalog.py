@@ -271,6 +271,19 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
                 for scope in (G, P)
                 for suffix in ("json", "jsonc")
             ),
+            # The TUI half — keybinds, theme, attention, sounds — is a separate
+            # document from `opencode.json`, which the same docs describe as
+            # server and runtime behaviour. Both formats again, for the same
+            # reason: opencode reads JSON and JSONC wherever the file sits, so
+            # `.jsonc` is an alternative spelling rather than a second scope.
+            #
+            # Declared by neither side until 2026-08-27, and found by reading
+            # the page rather than either table.
+            *(
+                _layout("setting", f"tui.{suffix}", "file", f"{OPENCODE}/tui", scope)
+                for scope in (G, P)
+                for suffix in ("json", "jsonc")
+            ),
             *(
                 _layout(
                     "mcp",

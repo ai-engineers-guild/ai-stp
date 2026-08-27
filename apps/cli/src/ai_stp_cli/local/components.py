@@ -380,6 +380,30 @@ _WITHDRAWN_GLOBAL_SINCE_MIGRATION: Final[tuple[Rule, ...]] = (
 )
 
 
+#: Surfaces the catalog learned **after** the migration, on a harness the
+#: oracles already cover. The mirror of the withdrawal above, and needed for the
+#: same reason: the oracle records what the hand table held, so a row that was
+#: never in it has to be named rather than quietly widening the record.
+#:
+#: The oracle comment says it "says nothing about a harness added after the
+#: migration". True, and it did not anticipate a *surface* added to a harness it
+#: already covers, which is what `tui.json` is.
+_ADDED_SINCE_MIGRATION: Final[tuple[Rule, ...]] = (
+    # opencode's TUI half — keybinds, theme, attention, sounds — is a document
+    # separate from `opencode.json`, which the same docs describe as server and
+    # runtime behaviour. Declared by neither this project nor the provider until
+    # 2026-08-27, and found by reading `opencode.ai/docs/tui` rather than either
+    # table. Both formats, because opencode reads JSON and JSONC wherever the
+    # file sits.
+    # Both scopes, and the project one carries no prefix: the documented project
+    # placement is `tui.json` at the repository root, not `.opencode/tui.json`.
+    # So the global and project rows are equal objects in different tuples,
+    # exactly like `.mcp.json`, and this set applies to both.
+    Rule("setting", "tui.json", "file", "opencode", f"{harness_catalog.OPENCODE}/tui"),
+    Rule("setting", "tui.jsonc", "file", "opencode", f"{harness_catalog.OPENCODE}/tui"),
+)
+
+
 GLOBAL_RULES: Final[tuple[Rule, ...]] = _declared_rules(harness_catalog.G)
 PROJECT_RULES: Final[tuple[Rule, ...]] = _declared_rules(harness_catalog.P)
 
