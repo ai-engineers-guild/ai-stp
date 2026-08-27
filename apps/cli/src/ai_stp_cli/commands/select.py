@@ -1544,6 +1544,17 @@ def provider_network(_parameters: Mapping[str, object]) -> Answer[ProviderNetwor
         if decision.enforcement is protocol_v2.NetworkEnforcement.ENFORCED
         else "unavailable"
     )
+    # What a v3 local phase does here, which the v2 fields above cannot say.
+    # Three answers, and the third is deliberately not the second: on a platform
+    # that could deny the network, its absence is a missing dependency, and
+    # `unisolated_local_phase` refuses to be built there for the same reason.
+    if launcher is not None:
+        phase, reasons = "network_denied", []
+    elif capability.os_name in network_launcher.UNISOLATED_PLATFORMS:
+        phase = "unisolated_by_trust"
+        reasons = sorted(network_launcher.UNISOLATED_REASONS)
+    else:
+        phase, reasons = "refused", []
     return Answer(
         ProviderNetworkCapability(
             os_name=capability.os_name,
@@ -1551,6 +1562,8 @@ def provider_network(_parameters: Mapping[str, object]) -> Answer[ProviderNetwor
             launcher_id=capability.launcher_id or "",
             evidence=list(capability.evidence),
             local_actions_available=available,
+            v3_local_phase=phase,  # pyright: ignore[reportArgumentType]
+            v3_local_phase_reasons=reasons,
         )
     )
 

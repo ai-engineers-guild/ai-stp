@@ -2,7 +2,7 @@
   "$id": "urn:ai-stp:schema:v1:cli-provider-network-capability",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "Observed protocol-v2 network boundary on this exact machine.\n\nThe report never turns absence into support. Evidence names the launcher\nversion/digest and transport probes when enforcement is observed; an\nunavailable result remains actionable machine data rather than a log line.",
+  "description": "The observed network boundary on this exact machine, for both protocols.\n\nThe report never turns absence into support. Evidence names the launcher\nversion/digest and transport probes when enforcement is observed; an\nunavailable result remains actionable machine data rather than a log line.\n\nIt answered for protocol v2 alone until 2026-08-27, and v2 is not what\nanything installs with. `#416` allows a **v3** local phase to run with no\nnetwork-denying launcher on a platform that has none, gated on a trusted\nrelease or an explicit `--unverified-provider` — deliberate security debt,\nand this is the one output someone would check to find it. Describing only\nv2 meant the marker pointed at a protocol nobody runs.",
   "properties": {
     "evidence": {
       "items": {
@@ -45,6 +45,23 @@
       "default": 1,
       "title": "Schema Version",
       "type": "integer"
+    },
+    "v3_local_phase": {
+      "enum": [
+        "network_denied",
+        "unisolated_by_trust",
+        "refused"
+      ],
+      "title": "V3 Local Phase",
+      "type": "string"
+    },
+    "v3_local_phase_reasons": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "V3 Local Phase Reasons",
+      "type": "array"
     }
   },
   "required": [
@@ -54,7 +71,9 @@
     "network_enforcement",
     "os_name",
     "protocol_version",
-    "schema_version"
+    "schema_version",
+    "v3_local_phase",
+    "v3_local_phase_reasons"
   ],
   "title": "ProviderNetworkCapability",
   "type": "object"

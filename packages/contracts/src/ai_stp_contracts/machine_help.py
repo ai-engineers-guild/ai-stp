@@ -1776,22 +1776,53 @@ class ConformanceReport(BaseModel):
 
 
 class ProviderNetworkCapability(BaseModel):
-    """Observed protocol-v2 network boundary on this exact machine.
+    """The observed network boundary on this exact machine, for both protocols.
 
     The report never turns absence into support. Evidence names the launcher
     version/digest and transport probes when enforcement is observed; an
     unavailable result remains actionable machine data rather than a log line.
+
+    It answered for protocol v2 alone until 2026-08-27, and v2 is not what
+    anything installs with. `#416` allows a **v3** local phase to run with no
+    network-denying launcher on a platform that has none, gated on a trusted
+    release or an explicit `--unverified-provider` — deliberate security debt,
+    and this is the one output someone would check to find it. Describing only
+    v2 meant the marker pointed at a protocol nobody runs.
     """
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
+
+    #: The protocol the *enforcement* fields below describe. Unchanged: v2 gets
+    #: no exception anywhere, which is what `#423` decided for `target status`,
+    #: `diff` and every spawn outside an install plan.
     protocol_version: Literal[2] = 2
     os_name: Annotated[str, Field(min_length=1)]
     network_enforcement: Literal["enforced", "unavailable"]
     launcher_id: str = ""
     evidence: Annotated[list[str], Field(min_length=1)]
     local_actions_available: bool
+
+    #: What a **v3** local phase does on this machine, which is the question the
+    #: fields above cannot answer.
+    #:
+    #: - `network_denied` — a launcher was proved and the phase runs inside it.
+    #: - `unisolated_by_trust` — no launcher exists on this platform, so the
+    #:   phase runs with the network reachable, permitted only by one of the
+    #:   reasons below. This is the debt `#416` accepted, stated where it can be
+    #:   found rather than left to be inferred from a v2 answer.
+    #: - `refused` — a launcher could exist here and does not, so nothing runs.
+    #:   Distinct from the line above on purpose: a missing dependency and a
+    #:   missing capability of the operating system are different facts with
+    #:   different repairs, and `unisolated_local_phase` refuses to be built on
+    #:   a platform that could isolate.
+    v3_local_phase: Literal["network_denied", "unisolated_by_trust", "refused"]
+
+    #: The reasons that would permit an unisolated phase, empty unless
+    #: `v3_local_phase` is `unisolated_by_trust`. Named rather than counted: a
+    #: caller deciding whether to proceed needs to know it must supply one.
+    v3_local_phase_reasons: list[str] = []
 
 
 class ReleaseRefusal(BaseModel):
