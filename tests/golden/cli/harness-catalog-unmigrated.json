@@ -11,11 +11,11 @@
     },
     {
       "component_type": "plugin",
-      "relative": "plugins",
+      "relative": "plugins/local",
       "shape": "directory",
       "scope": "global",
       "root": "config",
-      "source": "cursor.com/docs/reference/plugins",
+      "source": "cursor.com/docs/plugins",
       "declared_key": ""
     },
     {

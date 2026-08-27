@@ -465,8 +465,14 @@ def test_two_entries_cannot_claim_the_same_scope() -> None:
 
 
 def test_the_widening_admits_exactly_one_new_name() -> None:
-    """A closed set that grew by one is still closed."""
-    with pytest.raises(ValueError, match="differ from the closed v3 schema"):
+    """A closed set that grew by one is still closed.
+
+    The refusal is unchanged; the sentence is not. An unknown name cannot be
+    told apart from a field a later release added, so the message names both
+    readings rather than asserting the provider is malformed — which is what it
+    used to say, and what sent somebody to the wrong repository.
+    """
+    with pytest.raises(ValueError, match="this checker does not know"):
         protocol_v3.parse_capabilities(_info_with(something_else=[]))
     with pytest.raises(ValueError, match="unknown target scope"):
         protocol_v3.parse_capabilities(
@@ -513,3 +519,34 @@ def test_the_global_scope_is_still_refused_in_the_scoped_list() -> None:
     """
     with pytest.raises(ValueError):
         protocol_v3.parse_capabilities(_info_with(scoped_projection_profiles=[_scoped("global")]))
+
+
+def test_a_field_this_build_does_not_know_reads_as_an_old_checker_not_a_broken_provider() -> None:
+    """A newer provider must not be reported as malformed (`ADR-0125`).
+
+    The ordering rule — the CLI accepts a field, the CLI ships, then a provider
+    may declare it — governs releases. It says nothing about which build a
+    person has installed, and that is where it fails: measured on this machine,
+    an `ai-stp-cli` 0.0.3 checking a provider that declares
+    `scoped_projection_profiles` reported `conforms=false` with "provider-info
+    fields differ from the closed v3 schema".
+
+    Six of the seven passed, and they passed by accident: the field is omitted
+    when empty, so only the provider genuinely declaring a project scope tripped
+    it. The natural reading of that sentence is that the provider is broken, and
+    it sends somebody to the wrong repository.
+
+    The distinction is available without guessing: an *extra* name is a provider
+    newer than this checker, a *missing* one is a provider that is wrong.
+    """
+    from ai_stp_cli.provider import protocol_v3
+
+    known: dict[str, object] = {name: [] for name in protocol_v3.INFO_FIELDS}
+    known["protocol_version"] = protocol_v3.VERSION
+    with pytest.raises(ValueError, match="either the provider is newer"):
+        protocol_v3.parse_capabilities({**known, "a_field_from_a_later_release": True})
+    # A missing required field is still the provider's fault and still says so.
+    lacking: dict[str, object] = dict(known)
+    del lacking["harness_id"]
+    with pytest.raises(ValueError, match="differ from the closed v3 schema"):
+        protocol_v3.parse_capabilities(lacking)

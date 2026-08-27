@@ -136,18 +136,22 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     # placement: the plugin reference explains how to build one, not where it
     # is installed.
     #
-    # **Not corrected here yet, and the ordering is why.** `install.py` refuses
-    # a bundle whose `native_surface` is absent from the provider's declared
-    # `native_namespaces`, so changing this row before the provider declares
-    # `plugins/local` turns every cursor install into
-    # `the exact native projection exceeds provider capabilities`. The reverse
-    # order breaks equally. The rollover needs a release declaring **both**,
-    # after which this row moves and the old name can be dropped.
+    # **The rollover, and why it needed a release in the middle.** `install.py`
+    # refuses a bundle whose `native_surface` is absent from the provider's
+    # declared `native_namespaces`, an exact set difference. So moving this row
+    # while the released provider declared `plugins` alone would have turned
+    # every cursor install into `the exact native projection exceeds provider
+    # capabilities`, and moving the declaration first would have broken every
+    # already-shipped CLI. Neither order works: `0.0.8` declares **both**, which
+    # opens the window this row moves through, and the old name is dropped a
+    # release later. Verified on the released artifact rather than the tag:
+    # `["cli-config.json", "plugins", "plugins/local"]`, attestation passing.
     #
-    # Neither table caught it: the released provider declared `plugins` too, so
-    # the cross-check against `provider-info` passed on two tables that were
-    # wrong together. Only the vendor page settled it.
-    Rule("plugin", "plugins", "directory", "cursor", projection_kind="plugin"),
+    # Neither table caught the original: the released provider declared
+    # `plugins` too, so the cross-check against `provider-info` passed on two
+    # tables that were wrong together. Only the vendor page settled it, and no
+    # test on either side can read one.
+    Rule("plugin", "plugins/local", "directory", "cursor", projection_kind="plugin"),
     # Antigravity's home belongs to Gemini: `antigravity-cli/` is its own and
     # `config/` is shared, so both prefixes are part of the relative path rather
     # than something a target adds.

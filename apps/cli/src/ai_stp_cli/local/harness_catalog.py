@@ -446,7 +446,17 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
             # directories: `.cursor-plugin/plugin.json` declares `commands`,
             # `hooks`, `mcpServers`, `agents`, `skills` and `rules` as relative
             # paths, so the plugin is the unit this harness installs.
-            _layout("plugin", "plugins", "directory", f"{CURSOR}/reference/plugins", G),
+            # `~/.cursor/plugins/local/<name>` — "put either plugin format in
+            # `~/.cursor/plugins/local`". The row said `plugins`, one level
+            # short, and the discovery half of the same defect the projection
+            # rule carried: a person writing their own plugin writes here, and
+            # a scan of the parent finds a directory rather than a plugin.
+            #
+            # Cited to `cursor.com/docs/plugins` rather than the plugin
+            # reference. The reference explains how to build one and never says
+            # where it is installed — the third Cursor row where the page that
+            # looks authoritative for a thing does not name its placement.
+            _layout("plugin", "plugins/local", "directory", f"{CURSOR}/plugins", G),
             _layout("instruction", ".cursor/rules", "directory", f"{CURSOR}/rules", P),
             _layout("plugin", ".cursor/plugins", "directory", f"{CURSOR}/reference/plugins", P),
         ),

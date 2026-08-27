@@ -422,7 +422,27 @@ def _parse_projection(raw_profile: dict[str, object], *, scope: str) -> Projecti
 def parse_capabilities(value: Mapping[str, object]) -> ProviderCapabilities:
     """Parse one closed provider-info object without trusting schema prose."""
     required = frozenset(INFO_FIELDS)
-    if frozenset(value) - OPTIONAL_INFO_FIELDS != required:
+    present = frozenset(value)
+    # An *extra* name is a provider newer than this build; a *missing* one is a
+    # provider that is wrong. Reporting both as "differ from the closed schema"
+    # sends somebody to the wrong repository, and it is the reading a person
+    # naturally takes: measured against an installed `ai-stp-cli` 0.0.3, a
+    # provider declaring `scoped_projection_profiles` came back `conforms=false`
+    # and looked like a broken build.
+    #
+    # `ADR-0125`'s ordering — CLI accepts, CLI ships, provider declares —
+    # governs releases and says nothing about which build a person has
+    # installed. This is that last mile, and the repair is a sentence rather
+    # than a rule.
+    unknown = present - required - OPTIONAL_INFO_FIELDS
+    if unknown:
+        raise ValueError(
+            "provider-info declares "
+            + ", ".join(sorted(unknown))
+            + ", which this checker does not know: either the provider is newer"
+            + " than this ai-stp-cli, or the name is not a v3 field"
+        )
+    if present - OPTIONAL_INFO_FIELDS != required:
         raise ValueError("provider-info fields differ from the closed v3 schema")
     if value.get("protocol_version") != VERSION:
         raise ValueError("provider-info protocol version differs")
