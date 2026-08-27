@@ -105,7 +105,7 @@ jobs:
     # `test_deploy_verification_outlasts_its_own_wait` now holds the pair, which
     # is a relationship the tree can state: the comment above says the ceiling
     # must exceed the wait, and nothing checked that it did.
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -127,12 +127,27 @@ jobs:
       # than no check: a red run for a healthy deployment teaches people to
       # ignore the colour.
       #
-      # Twenty-five minutes is the current bound. It is roughly twice the
-      # observed time rather than a round number, because what dominates is the
-      # target rebuilding images, and that grows with the tree. If this starts
-      # failing again, measure before raising it — a deploy that genuinely takes
-      # half an hour is a fact about the host worth knowing, not a number to
-      # bump.
+      # Twenty-five minutes was the bound until 2026-08-27, chosen as roughly
+      # twice an observed thirteen. The instruction it left — measure before
+      # raising — is what produced the numbers below, and they say the margin
+      # was gone rather than that this was one bad run:
+      #
+      #   33078274318  failure  25.4 min   promote 13:43:01 → host recorded 14:10:10
+      #   33026898606  success  25.2 min
+      #   33026235678  success  25.4 min
+      #
+      # Three of the last six sat on the ceiling; two got in and one did not.
+      # The real figure is the first line: **27m09s** from promote to the host
+      # recording the commit. So it was never twice the observed time, it was
+      # a hair over it, and what actually happened on 2026-08-27 is that the
+      # host crossed by two minutes.
+      #
+      # Forty minutes now, against a measured 27. What dominates is the target
+      # rebuilding images and that grows with the tree — the failing run's log
+      # carries 503s and read timeouts from the host while it rebuilds, which
+      # is the same growth seen from the other side. Measure again before
+      # raising; a deploy that genuinely takes three quarters of an hour is a
+      # fact about the host worth acting on, not a number to bump.
       #
       # Deliberately not held by a test. The only relationship available in the
       # tree is to the timer's sixty-second tick, and a bound stated against
@@ -152,4 +167,4 @@ jobs:
             --expected-commit "${HEAD_SHA}" \
             --migrations-dir migrations/versions \
             --expected-environment prod \
-            --wait-seconds 1500
+            --wait-seconds 2400
