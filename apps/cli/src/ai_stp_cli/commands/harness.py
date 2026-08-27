@@ -44,7 +44,12 @@ from ai_stp_cli.provider import (
     protocol_v3,
     software_fetch,
 )
-from ai_stp_contracts.machine_help import HarnessProgram, HarnessProgramArtifact
+from ai_stp_contracts.machine_help import (
+    HarnessProgram,
+    HarnessProgramArtifact,
+    HarnessProgramOperation,
+    HarnessProgramStatus,
+)
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.ids import new_id
 
@@ -116,6 +121,121 @@ def remove(parameters: Mapping[str, object]) -> Answer[HarnessProgram]:
             next_actions=["harness remove --confirm --json"],
         )
     return _perform("remove", parameters)
+
+
+def status(parameters: Mapping[str, object]) -> Answer[HarnessProgramStatus]:
+    """What stands under one prefix (`ADR-0122`).
+
+    Two sources on purpose. The journal says what this installation did; the
+    filesystem says what is there now. Only the second can tell that a verified
+    operation left nothing behind, and that is not hypothetical — a provider
+    once unpacked into a sandbox's own tmpfs, verified it where every check was
+    true, and reported success for files that died with the namespace. `lost`
+    is that case, named rather than left to be inferred from two fields.
+
+    No provider is invoked. The kit's `status` describes the *target*, and its
+    seven commands include nothing that describes a prefix; asking the program
+    its own version would run a foreign executable from a command declared
+    `read`, which `doctor` already refuses to do for `gh`.
+    """
+    harness_id = _required(parameters, "harness")
+    prefix = _directory(parameters, "prefix")
+
+    with open_registry(configured_path()) as connection:
+        history = installation.program_history(connection, str(prefix))
+
+    stopped = tuple(item for item in history if item.state not in installation.REPLANNABLE_STATES)
+    settled = next((item for item in history if item.state == installation.STATE_VERIFIED), None)
+
+    entry_point = settled.entry_point if settled else ""
+    executable = prefix / entry_point if entry_point else None
+    on_disk = executable is not None and executable.exists()
+
+    state, reason = _standing(settled=settled, stopped=stopped, on_disk=on_disk, prefix=prefix)
+    return Answer(
+        HarnessProgramStatus(
+            harness_id=harness_id,
+            prefix=str(prefix),
+            state=state,  # pyright: ignore[reportArgumentType]
+            reason=reason,
+            executable=str(executable) if on_disk and executable is not None else "",
+            entry_point=entry_point,
+            version=settled.version if settled else "",
+            operation_id=settled.operation_id if settled else "",
+            recorded_operation=settled.action if settled else "",
+            recorded_state=settled.state if settled else "",
+            recorded_at=settled.at if settled else "",
+            stopped=[
+                HarnessProgramOperation(
+                    operation_id=item.operation_id,
+                    operation=item.action,  # pyright: ignore[reportArgumentType]
+                    state=item.state,
+                    at=item.at,
+                )
+                for item in stopped
+            ],
+        )
+    )
+
+
+def _standing(
+    *,
+    settled: installation.ProgramRecord | None,
+    stopped: tuple[installation.ProgramRecord, ...],
+    on_disk: bool,
+    prefix: Path,
+) -> tuple[str, str]:
+    """One of six answers, and the sentence that says why.
+
+    Order matters in one place: an unsettled operation outranks everything,
+    because it is the answer that asks for an action rather than a reading, and
+    it is usually also the explanation for whatever the other fields show.
+    """
+    if stopped:
+        return (
+            "interrupted",
+            f"{len(stopped)} program operation(s) here stopped without settling; "
+            "recover before planning another",
+        )
+    if settled is None:
+        if _occupied(prefix):
+            return (
+                "foreign",
+                "something is installed under this prefix that this installation did not put "
+                "there; a program operation here would refuse rather than adopt it",
+            )
+        return ("never_installed", "this installation has never put a program under this prefix")
+    if settled.action == "software_remove":
+        if on_disk:
+            return (
+                "foreign",
+                "this installation removed what it owned and a program is still exposed here; "
+                "the provider removes only what it installed",
+            )
+        return ("removed", f"removed by {settled.operation_id}, and nothing is exposed here")
+    if not on_disk:
+        return (
+            "lost",
+            f"{settled.operation_id} verified {settled.version or 'a build'} here and "
+            f"{settled.entry_point or 'the entry point'} is not on disk; ask what bound the "
+            "prefix before asking the provider",
+        )
+    return (
+        "present",
+        f"{settled.version or 'a build'} exposed at {settled.entry_point}, "
+        f"verified by {settled.operation_id}",
+    )
+
+
+def _occupied(prefix: Path) -> bool:
+    """Whether anything is exposed under this prefix.
+
+    `bin/` and nothing deeper: that is where a provider exposes a command, and
+    it is the one place a sibling copy of the program would be visible. Walking
+    the whole prefix would call a leftover download an installation.
+    """
+    exposed = prefix / "bin"
+    return exposed.is_dir() and any(exposed.iterdir())
 
 
 def _perform(action: str, parameters: Mapping[str, object]) -> Answer[HarnessProgram]:
@@ -283,6 +403,15 @@ def _apply(
         postconditions_met=True,
         at=moment(),
         evidence=str(answer.get("executable", "")),
+    )
+    # What this operation exposed, in columns rather than in the effect prose,
+    # so `harness status` can name the exact build without parsing a sentence
+    # or running the program.
+    installation.record_program(
+        connection,
+        held.operation_id,
+        version=str(answer.get("version", "")),
+        entry_point=artifacts[0].entry_point if artifacts else "",
     )
     return HarnessProgram(
         harness_id=harness_id,

@@ -706,6 +706,26 @@ MIGRATIONS: Final[tuple[Migration, ...]] = (
             "ALTER TABLE operation_plan DROP COLUMN provider_release_trust",
         ),
     ),
+    Migration(
+        version=23,
+        summary="a verified program operation records which build it exposed",
+        # The same argument that added `setup_version`: the version is in the
+        # effect prose, and reading a version out of a sentence written for a
+        # person is parsing prose. `harness status` has to name the exact build
+        # standing under a prefix, and asking the program itself would run a
+        # foreign binary from a command declared `read`.
+        #
+        # Written at verify time beside `verified_target_digest`, because only
+        # the provider's apply answer knows them.
+        up=(
+            "ALTER TABLE operation_plan ADD COLUMN program_version TEXT",
+            "ALTER TABLE operation_plan ADD COLUMN program_entry_point TEXT",
+        ),
+        down=(
+            "ALTER TABLE operation_plan DROP COLUMN program_entry_point",
+            "ALTER TABLE operation_plan DROP COLUMN program_version",
+        ),
+    ),
 )
 
 #: Names for nested savepoints. A counter rather than a fixed name: two nested

@@ -46,23 +46,25 @@ from ai_stp_foundation.ids import is_valid_id, new_id
 #: The plan's own hash domain (`canonical-data.md`).
 PLAN_DOMAIN: Final[str] = "ai-stp:plan:v1"
 
-#: What a plan may ask for. Closed: an action nobody named has no declared
-#: effects, no recovery and no place in the failure matrix.
+#: Journal actions whose subject is the harness program under a prefix rather
+#: than the configuration in a target. `begin` reads this to decide whether a
+#: moved target invalidates the plan — for these it does not, and
+#: `program_history` reads it to answer for one prefix.
+PROGRAM_ACTIONS: Final[frozenset[str]] = frozenset(
+    {"software_install", "software_update", "software_remove"}
+)
+
+
 #: What the **journal** accepts, which is not the same as what `install` does.
+#: Closed: an action nobody named has no declared effects, no recovery and no
+#: place in the failure matrix.
+#:
 #: The state machine — planned, approved, applying, applied_unverified,
 #: verified — plus backup and `plan-digest` are identical whether configuration
 #: or a program is being installed, so there is one journal rather than two
 #: (`ADR-0122`, amended). The split between setups and the program lifecycle
 #: lives on the command surface: `install` refuses a `software_*` action and
 #: names `harness`, which is where it is carried out.
-#: Journal actions whose subject is the harness program under a prefix rather
-#: than the configuration in a target. `begin` reads this to decide whether a
-#: moved target invalidates the plan — for these it does not.
-PROGRAM_ACTIONS: Final[frozenset[str]] = frozenset(
-    {"software_install", "software_update", "software_remove"}
-)
-
-
 ACTIONS: Final[frozenset[str]] = frozenset(
     {
         "install",
@@ -70,9 +72,7 @@ ACTIONS: Final[frozenset[str]] = frozenset(
         "backup",
         "remove",
         "rollback",
-        "software_install",
-        "software_update",
-        "software_remove",
+        *PROGRAM_ACTIONS,
     }
 )
 
@@ -676,6 +676,74 @@ def backup_reference(connection: sqlite3.Connection, operation_id: str) -> str |
         "SELECT backup_ref FROM operation_plan WHERE operation_id = ?", (operation_id,)
     ).fetchone()
     return None if row is None or row["backup_ref"] is None else str(row["backup_ref"])
+
+
+def record_program(
+    connection: sqlite3.Connection,
+    operation_id: str,
+    *,
+    version: str,
+    entry_point: str,
+) -> None:
+    """Store which build a program operation exposed, and where.
+
+    Only the provider's apply answer knows these, and only a verified operation
+    is entitled to claim them, so this is called beside `verify` rather than at
+    plan time. Kept in columns for the same reason `setup_version` is: the
+    version also appears in the effect prose, and reading it back out of a
+    sentence written for a person is parsing prose.
+    """
+    with transaction(connection):
+        connection.execute(
+            "UPDATE operation_plan SET program_version = ?, program_entry_point = ? "
+            "WHERE operation_id = ?",
+            (version, entry_point, operation_id),
+        )
+
+
+@dataclass(frozen=True)
+class ProgramRecord:
+    """One program operation this installation carried out against a prefix."""
+
+    operation_id: str
+    action: str
+    state: str
+    at: str
+    version: str
+    entry_point: str
+
+
+def program_history(connection: sqlite3.Connection, prefix: str) -> tuple[ProgramRecord, ...]:
+    """Every program operation recorded against one prefix, newest first.
+
+    Newest first because the question this answers is what stands there now,
+    and the answer is the most recent settled word. The older entries stay
+    visible: an interrupted operation two steps back is still something to
+    recover, and a caller that only saw the newest would never learn of it.
+    """
+    placeholders = ", ".join("?" for _ in PROGRAM_ACTIONS)
+    rows = connection.execute(
+        "SELECT p.operation_id, p.action, p.created_at, p.program_version, "
+        "       p.program_entry_point, o.state "
+        "FROM operation_plan AS p "
+        "JOIN operation AS o ON o.operation_id = p.operation_id "
+        f"WHERE p.target_id = ? AND p.action IN ({placeholders}) "
+        "ORDER BY p.created_at DESC, p.operation_id DESC",
+        (prefix, *sorted(PROGRAM_ACTIONS)),
+    ).fetchall()
+    return tuple(
+        ProgramRecord(
+            operation_id=str(row["operation_id"]),
+            action=str(row["action"]),
+            state=str(row["state"]),
+            at=str(row["created_at"]),
+            version="" if row["program_version"] is None else str(row["program_version"]),
+            entry_point=(
+                "" if row["program_entry_point"] is None else str(row["program_entry_point"])
+            ),
+        )
+        for row in rows
+    )
 
 
 def resumable(connection: sqlite3.Connection) -> tuple[Recovery, ...]:

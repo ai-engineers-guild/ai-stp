@@ -1,0 +1,148 @@
+{
+  "$defs": {
+    "HarnessProgramOperation": {
+      "additionalProperties": true,
+      "description": "One program operation this installation recorded against a prefix.",
+      "properties": {
+        "at": {
+          "minLength": 1,
+          "title": "At",
+          "type": "string"
+        },
+        "operation": {
+          "enum": [
+            "software_install",
+            "software_update",
+            "software_remove"
+          ],
+          "title": "Operation",
+          "type": "string"
+        },
+        "operation_id": {
+          "minLength": 1,
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "state": {
+          "minLength": 1,
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "at",
+        "operation",
+        "operation_id",
+        "schema_version",
+        "state"
+      ],
+      "title": "HarnessProgramOperation",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-harness-program-status",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "What stands under one prefix, read from the disk and from the journal.\n\nThe standing report the program lifecycle owes, and the only one\n(`ADR-0122`). `toolchain harnesses` answers a different question — what is\nvisible on this machine — and the two vocabularies are kept disjoint so no\nword carries two subjects.\n\nTwo independent sources, deliberately: the journal says what this\ninstallation did, the filesystem says what is there now. Reporting only the\nfirst would have called a verified operation a success on an empty prefix,\nwhich is exactly what happened once — a provider unpacked into a sandbox's\nown tmpfs, verified it where every check was true, and the files died with\nthe namespace. `lost` exists to make that one glance rather than an\ninvestigation.\n\n`version` comes from the journal and never from running the program.\nAsking a binary its version would execute a foreign executable from a\ncommand declared `read`, which is the same reason `doctor` only checks that\n`gh` is present.",
+  "properties": {
+    "entry_point": {
+      "default": "",
+      "title": "Entry Point",
+      "type": "string"
+    },
+    "executable": {
+      "default": "",
+      "title": "Executable",
+      "type": "string"
+    },
+    "harness_id": {
+      "minLength": 1,
+      "title": "Harness Id",
+      "type": "string"
+    },
+    "operation_id": {
+      "default": "",
+      "title": "Operation Id",
+      "type": "string"
+    },
+    "prefix": {
+      "minLength": 1,
+      "title": "Prefix",
+      "type": "string"
+    },
+    "reason": {
+      "minLength": 1,
+      "title": "Reason",
+      "type": "string"
+    },
+    "recorded_at": {
+      "default": "",
+      "title": "Recorded At",
+      "type": "string"
+    },
+    "recorded_operation": {
+      "default": "",
+      "title": "Recorded Operation",
+      "type": "string"
+    },
+    "recorded_state": {
+      "default": "",
+      "title": "Recorded State",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "state": {
+      "enum": [
+        "present",
+        "removed",
+        "never_installed",
+        "foreign",
+        "lost",
+        "interrupted"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "stopped": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/HarnessProgramOperation"
+      },
+      "title": "Stopped",
+      "type": "array"
+    },
+    "version": {
+      "default": "",
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "entry_point",
+    "executable",
+    "harness_id",
+    "operation_id",
+    "prefix",
+    "reason",
+    "recorded_at",
+    "recorded_operation",
+    "recorded_state",
+    "schema_version",
+    "state",
+    "stopped",
+    "version"
+  ],
+  "title": "HarnessProgramStatus",
+  "type": "object"
+}

@@ -1244,7 +1244,23 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 required=True,
             ),
         ),
-        next_actions=("toolchain harnesses",),
+        next_actions=("harness status",),
+    ),
+    Declaration(
+        path=["harness", "status"],
+        summary="What program stands under one prefix, from the journal and the disk.",
+        result_schema="urn:ai-stp:schema:v1:cli-harness-program-status",
+        handler=harness.status,
+        parameters=(
+            option("harness", "string", "Harness whose program this is.", required=True),
+            option(
+                "prefix",
+                "string",
+                "Absolute directory the program lives under. Not the target.",
+                required=True,
+            ),
+        ),
+        next_actions=("harness install", "install recover"),
     ),
     Declaration(
         path=["toolchain", "install"],

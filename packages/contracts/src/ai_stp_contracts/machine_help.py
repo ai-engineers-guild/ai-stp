@@ -898,6 +898,83 @@ class HarnessProgram(BaseModel):
     removed: bool | None = None
 
 
+class HarnessProgramOperation(BaseModel):
+    """One program operation this installation recorded against a prefix."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    operation_id: Annotated[str, Field(min_length=1)]
+    operation: Literal["software_install", "software_update", "software_remove"]
+    state: Annotated[str, Field(min_length=1)]
+    at: Annotated[str, Field(min_length=1)]
+
+
+class HarnessProgramStatus(BaseModel):
+    """What stands under one prefix, read from the disk and from the journal.
+
+    The standing report the program lifecycle owes, and the only one
+    (`ADR-0122`). `toolchain harnesses` answers a different question — what is
+    visible on this machine — and the two vocabularies are kept disjoint so no
+    word carries two subjects.
+
+    Two independent sources, deliberately: the journal says what this
+    installation did, the filesystem says what is there now. Reporting only the
+    first would have called a verified operation a success on an empty prefix,
+    which is exactly what happened once — a provider unpacked into a sandbox's
+    own tmpfs, verified it where every check was true, and the files died with
+    the namespace. `lost` exists to make that one glance rather than an
+    investigation.
+
+    `version` comes from the journal and never from running the program.
+    Asking a binary its version would execute a foreign executable from a
+    command declared `read`, which is the same reason `doctor` only checks that
+    `gh` is present.
+    """
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    harness_id: Annotated[str, Field(min_length=1)]
+    prefix: Annotated[str, Field(min_length=1)]
+
+    #: - `present` — this installation put a program here and it is here.
+    #: - `removed` — this installation's last word was a removal, and nothing
+    #:   is here. Distinct from `never_installed` for the same reason
+    #:   `removed: false` is distinct from `verified`: an absence that reads as
+    #:   a deletion invites a retry that cannot change anything.
+    #: - `never_installed` — no record, nothing here.
+    #: - `foreign` — something is here that this installation did not put here.
+    #:   The provider behaves the same way: it removes only what it installed,
+    #:   and an unowned sibling copy survives and is reported.
+    #: - `lost` — a verified operation is recorded and the program is not on
+    #:   disk. Nothing else in the system reports this.
+    #: - `interrupted` — an operation against this prefix stopped without
+    #:   settling. It outranks the rest because it is the one that needs an
+    #:   action rather than a reading.
+    state: Literal["present", "removed", "never_installed", "foreign", "lost", "interrupted"]
+    reason: Annotated[str, Field(min_length=1)]
+
+    #: Read from the filesystem now. Absolute, and empty when nothing is there.
+    executable: str = ""
+
+    #: Relative to the prefix, as the provider exposed it — `bin/<command>`,
+    #: never a path inside the archive.
+    entry_point: str = ""
+
+    #: From the journal. Empty when this installation has no verified record.
+    version: str = ""
+    operation_id: str = ""
+    recorded_operation: str = ""
+    recorded_state: str = ""
+    recorded_at: str = ""
+
+    #: Every operation against this prefix that stopped without settling, so a
+    #: caller that reads `state` alone still learns there is something to
+    #: recover.
+    stopped: list[HarnessProgramOperation] = []
+
+
 class ToolInstallation(BaseModel):
     """The outcome of one managed install (`SPEC-014` REQ-1405, REQ-1410, REQ-1411).
 
