@@ -129,6 +129,24 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     # `native_namespaces` are `cli-config.json` and `plugins`. The provider had
     # already stopped accepting the kind this rule produced.
     Rule("setting", "cli-config.json", "file", "cursor"),
+    # `plugins`, and `cursor.com/docs/plugins` says local plugins go in
+    # `~/.cursor/plugins/local/<name>`. So this is one level short and the
+    # product reads nothing — the seventh instance of one sentence, and the
+    # third on Cursor where the page that looks authoritative does not name the
+    # placement: the plugin reference explains how to build one, not where it
+    # is installed.
+    #
+    # **Not corrected here yet, and the ordering is why.** `install.py` refuses
+    # a bundle whose `native_surface` is absent from the provider's declared
+    # `native_namespaces`, so changing this row before the provider declares
+    # `plugins/local` turns every cursor install into
+    # `the exact native projection exceeds provider capabilities`. The reverse
+    # order breaks equally. The rollover needs a release declaring **both**,
+    # after which this row moves and the old name can be dropped.
+    #
+    # Neither table caught it: the released provider declared `plugins` too, so
+    # the cross-check against `provider-info` passed on two tables that were
+    # wrong together. Only the vendor page settled it.
     Rule("plugin", "plugins", "directory", "cursor", projection_kind="plugin"),
     # Antigravity's home belongs to Gemini: `antigravity-cli/` is its own and
     # `config/` is shared, so both prefixes are part of the relative path rather

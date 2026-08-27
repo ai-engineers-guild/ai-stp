@@ -454,6 +454,27 @@ _ADDED_GLOBAL_SINCE_MIGRATION: Final[tuple[Rule, ...]] = (
         "grok-build",
         f"{harness_catalog.GROK}/features/project-rules",
     ),
+    Rule("instruction", "rules", "directory", "claude-code", f"{harness_catalog.CLAUDE}/memory"),
+)
+
+
+#: The same, for a surface documented at the **project** scope only.
+#:
+#: The third case, and it completes a split that arrived in two halves. The
+#: additions record was unscoped while it held one row documented at both
+#: scopes; a global-only addition forced the first half out this morning, and
+#: `.claude/rules` is the mirror. `rules` and `.claude/rules` are different
+#: paths rather than one path at two scopes, so neither set can carry both.
+_ADDED_PROJECT_SINCE_MIGRATION: Final[tuple[Rule, ...]] = (
+    # User rules load first and a project `.claude/rules` takes precedence over
+    # them, so a repository holding one changes what a machine-wide floor means.
+    Rule(
+        "instruction",
+        ".claude/rules",
+        "directory",
+        "claude-code",
+        f"{harness_catalog.CLAUDE}/memory",
+    ),
 )
 
 

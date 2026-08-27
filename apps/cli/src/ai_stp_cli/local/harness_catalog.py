@@ -123,6 +123,18 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
         ".claude",
         f"{CLAUDE}/settings",
         (
+            # `~/.claude/rules/` — "personal rules ... apply to every project on
+            # your machine", a directory beside `CLAUDE.md` and not inside it.
+            # Declared by neither this project nor the provider until now, and
+            # found the same way the last four were: by re-reading a page cited
+            # for a different row.
+            #
+            # Discovery only, and for a reason that is not the override files'.
+            # Nothing is being protected from us here — the surface is simply
+            # already spoken for. `instruction` routes to `CLAUDE.md`, and one
+            # component kind with two projection surfaces leaves the compiler
+            # choosing between them with nothing to choose on.
+            _layout("instruction", "rules", "directory", f"{CLAUDE}/memory", G),
             _layout("instruction", "CLAUDE.md", "file", f"{CLAUDE}/memory", G),
             _layout("skill", "skills", "directory", f"{CLAUDE}/skills", G),
             _layout("agent", "agents", "directory", f"{CLAUDE}/sub-agents", G),
@@ -142,6 +154,11 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
             # checked into the codebase" — this repository is such a case, so
             # `ai-stp` was blind to its own.
             _layout("instruction", ".claude/CLAUDE.md", "file", f"{CLAUDE}/memory", P),
+            # The project half of the same pair, and it has consequence rather
+            # than symmetry: user rules load first and a project `.claude/rules`
+            # takes precedence over them, so a repository holding one changes
+            # what a machine-wide floor means.
+            _layout("instruction", ".claude/rules", "directory", f"{CLAUDE}/memory", P),
             _layout("skill", ".claude/skills", "directory", f"{CLAUDE}/skills", P),
             _layout("agent", ".claude/agents", "directory", f"{CLAUDE}/sub-agents", P),
             _layout("command", ".claude/commands", "directory", f"{CLAUDE}/slash-commands", P),

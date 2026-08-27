@@ -64,10 +64,13 @@ def test_detection_and_discovery_are_derived_from_the_catalog() -> None:
     added_global = set(
         components._ADDED_GLOBAL_SINCE_MIGRATION  # pyright: ignore[reportPrivateUsage]
     )
-    assert not ((added | added_global) & (set(global_oracle) | set(project_oracle))), (
-        "an addition must name a row the oracles never recorded"
+    added_project = set(
+        components._ADDED_PROJECT_SINCE_MIGRATION  # pyright: ignore[reportPrivateUsage]
     )
-    assert not (added & added_global), (
+    assert not (
+        (added | added_global | added_project) & (set(global_oracle) | set(project_oracle))
+    ), "an addition must name a row the oracles never recorded"
+    assert not (added & (added_global | added_project)), (
         "a surface is documented at both scopes or at one, and never declared twice"
     )
     assert {rule for rule in components.GLOBAL_RULES if rule.harness_id in migrated} == (
@@ -83,7 +86,7 @@ def test_detection_and_discovery_are_derived_from_the_catalog() -> None:
     # addition would have been asserted into the project table, where the file
     # does not exist. Same defect as the withdrawal, opposite direction.
     assert {rule for rule in components.PROJECT_RULES if rule.harness_id in migrated} == (
-        set(project_oracle) | added
+        set(project_oracle) | added | added_project
     )
 
 
