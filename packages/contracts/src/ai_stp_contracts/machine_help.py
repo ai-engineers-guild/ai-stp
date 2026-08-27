@@ -2349,6 +2349,22 @@ class TargetBackups(BaseModel):
     #: a different answer from a provider that was asked and said no.
     provider_observed: bool = False
 
+    #: Copies the provider reports that this pair's journal does not record,
+    #: oldest first. Empty unless a provider answered.
+    #:
+    #: The mirror of `present: false`, and the reason the reconciliation is not
+    #: one-directional. A backup taken with the provider's own CLI — an operator
+    #: holding a baseline before an experiment — never reaches our journal, and
+    #: `install plan --action rollback --backup-ref` accepts it all the same. So
+    #: leaving these out under-answered this command's own summary: they are
+    #: provider-owned copies this pair can restore from.
+    #:
+    #: Refs only, deliberately. A `TargetBackup` carries an `operation_id`
+    #: because every row in `backups` came from an operation we ran; a copy we
+    #: never saw taken has none, and inventing one would put our name on
+    #: somebody else's action. `provider status` holds the detail.
+    unjournalled_refs: list[str] = Field(default_factory=list[str])
+
 
 class LanguageOutline(BaseModel):
     """What one language contributes to a project (`SPEC-004` REQ-404).

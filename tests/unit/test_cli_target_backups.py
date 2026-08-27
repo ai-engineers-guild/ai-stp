@@ -377,3 +377,46 @@ def test_a_provider_older_than_the_field_is_not_read_as_an_empty_pool(
     only = answer.payload.backups[0]
     assert only.present is None
     assert only.held is None
+
+
+def test_a_copy_the_provider_has_and_the_journal_never_saw_is_still_offered(
+    registry: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The mirror of `present: false`, and the half that was missing.
+
+    Measured by accident against a real provider: two backups taken with the
+    provider's own CLI, and this command answered with zero rows while its
+    summary promises "copies this pair can restore from". An operator holding a
+    baseline before an experiment never touches our journal, and
+    `install plan --action rollback --backup-ref` accepts that ref regardless.
+
+    Refs only. Every row in `backups` carries an `operation_id` because we ran
+    the operation; a copy we never saw taken has none, and minting one would put
+    our name on somebody else's action.
+    """
+    _take_copy(registry, "1.0", backup_ref="backup-a", at="2026-01-01T00:00:00.000Z")
+    parameters = _with_provider(
+        monkeypatch,
+        [
+            {"backup_ref": "backup-a", "held": False, "hold_reason": None},
+            {"backup_ref": "slot-000000000002", "held": True, "hold_reason": "operator baseline"},
+            {"backup_ref": "slot-000000000001", "held": True, "hold_reason": "no reason recorded"},
+        ],
+    )
+
+    answer = install_cmd.target_backups(parameters)
+
+    assert [item.backup_ref for item in answer.payload.backups] == ["backup-a"]
+    assert answer.payload.unjournalled_refs == ["slot-000000000001", "slot-000000000002"]
+
+
+def test_no_provider_means_no_claim_about_copies_it_might_have(
+    registry: sqlite3.Connection,
+) -> None:
+    """Nothing was asked, so the absence of extra refs asserts nothing."""
+    _take_copy(registry, "1.0", backup_ref="backup-a", at="2026-01-01T00:00:00.000Z")
+
+    answer = install_cmd.target_backups({"project": PROJECT, "harness": HARNESS})
+
+    assert answer.payload.unjournalled_refs == []
+    assert answer.payload.provider_observed is False

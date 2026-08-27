@@ -135,6 +135,13 @@
       "default": 1,
       "title": "Schema Version",
       "type": "integer"
+    },
+    "unjournalled_refs": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Unjournalled Refs",
+      "type": "array"
     }
   },
   "required": [
@@ -142,7 +149,8 @@
     "harness_id",
     "project_id",
     "provider_observed",
-    "schema_version"
+    "schema_version",
+    "unjournalled_refs"
   ],
   "title": "TargetBackups",
   "type": "object"

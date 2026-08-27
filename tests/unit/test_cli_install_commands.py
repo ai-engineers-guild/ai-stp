@@ -2691,3 +2691,48 @@ def test_naming_two_sources_is_refused_for_a_copy_as_well(tmp_path: Path, action
 
     assert raised.value.code == "AI_STP_VALIDATION_ERROR"
     assert "at most one" in str(raised.value)
+
+
+def test_target_backups_reaches_a_real_provider_when_one_is_wired(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """The live invocation path, which a monkeypatched invoker cannot prove.
+
+    The unit tests for this command replace `_optional_invoker`, so they say
+    nothing about whether a provider is actually reached: protocol selection,
+    `--target` validation, the trust gate and the sandbox launcher are all
+    downstream of the seam they patch. This runs the real thing when a real
+    provider is wired, and asserts the one fact those tests cannot — that the
+    answer is the provider's rather than the journal's.
+
+    Zero rows is the expected shape against a fresh target and is not what is
+    being checked. `provider_observed` is: it is `True` only if a subprocess
+    answered, so it separates "asked and told nothing" from "never asked".
+    """
+    # Deliberately *not* `AI_STP_CLAUDE_PROVIDER_V3`. That variable means "a
+    # signed provider release is wired here", and the lifecycle E2Es below rely
+    # on it meaning that: `install plan` refuses an unsigned executable under
+    # v3. This check only reads, so any v3 binary satisfies it — and borrowing
+    # the narrower name made four passing tests fail the moment it was set to a
+    # development build. One token, two meanings, again.
+    executable = os.environ.get("AI_STP_PROVIDER_V3_READONLY")
+    if executable is None:
+        pytest.skip("set AI_STP_PROVIDER_V3_READONLY to reach a real provider")
+    target = tmp_path / "target"
+    target.mkdir()
+    answer = install.target_backups(
+        {
+            "project": _project_context(registry, tmp_path),
+            "harness": "claude-code",
+            "provider": executable,
+            "protocol-version": 3,
+            "target": str(target),
+        }
+    ).payload
+    assert answer.provider_observed is True
+    for item in answer.backups:
+        # Whatever the provider reported, a row it did not name is unknown
+        # rather than unheld — the rule the whole reader turns on.
+        assert item.present is not None
+        if item.present is False:
+            assert item.held is None

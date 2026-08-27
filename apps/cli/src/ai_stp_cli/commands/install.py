@@ -2226,11 +2226,13 @@ def target_backups(parameters: Mapping[str, object]) -> Answer[TargetBackups]:
         found = targets.backups(
             connection, project_id=_project_id(connection, project_id), harness_id=harness
         )
+        journalled = {item.backup_ref for item in found}
         return Answer(
             TargetBackups(
                 project_id=project_id,
                 harness_id=harness,  # pyright: ignore[reportArgumentType]
                 provider_observed=observed is not None,
+                unjournalled_refs=([] if observed is None else sorted(set(observed) - journalled)),
                 backups=[
                     TargetBackup(
                         backup_ref=item.backup_ref,
