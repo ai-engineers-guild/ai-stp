@@ -3,6 +3,14 @@
 # Actions are pinned by commit here, which is the right default for a public
 # repository and also the reason this file exists: a pinned commit does not
 # drift, so nothing tells you it has gone stale unless something looks.
+#
+# `bun`, not `npm`, for both JavaScript directories. They carry `bun.lock` and
+# no `package-lock.json`, and Dependabot's npm ecosystem edits `package.json`
+# without regenerating a bun lockfile — so every pull request it opened here
+# failed `bun install --frozen-lockfile` with
+# `lockfile had changes, but lockfile is frozen`, five of them at once and none
+# of them mergeable as generated. Bun is a supported ecosystem from bun 1.1.39;
+# this repository pins 1.4.0.
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -12,14 +20,14 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(ci)"
-  - package-ecosystem: npm
+  - package-ecosystem: bun
     directory: /docs_scripts
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(docs)"
-  - package-ecosystem: npm
+  - package-ecosystem: bun
     directory: /apps/web
     schedule:
       interval: weekly
