@@ -782,7 +782,41 @@ def test_v3_remove_status_requires_managed_state_to_be_gone(tmp_path: Path) -> N
         bundle=None,
         operation=protocol_v3.Operation.REMOVE,
     ) == _digest("f")
-    with pytest.raises(CliFailure, match="does not prove managed-state removal"):
+    # A provider that still manages the directory but holds no setup has
+    # removed it. Measured against the released providers: after `remove` they
+    # report `managed` with `setup_stable_id: null`, because they keep a control
+    # directory and the backup slot the removal is undone from. Requiring
+    # `missing` here asked them to claim no state while a restore was pending —
+    # which is the reading that invites a consumer to treat the place as free.
+    assert operation_v3.require_verified_status(
+        {
+            "state": "managed",
+            "target_digest": _digest("f"),
+            "provider_state": {"present": True, "setup_stable_id": None},
+        },
+        capabilities=capabilities,
+        release_digest=_digest("d"),
+        plan=plan,
+        bundle=None,
+        operation=protocol_v3.Operation.REMOVE,
+    ) == _digest("f")
+    # And the fact that actually proves it is the field, not the word.
+    with pytest.raises(CliFailure, match="does not prove the setup was removed"):
+        operation_v3.require_verified_status(
+            {
+                "state": "managed",
+                "target_digest": _digest("f"),
+                "provider_state": {"present": True, "setup_stable_id": "setup_still_here"},
+            },
+            capabilities=capabilities,
+            release_digest=_digest("d"),
+            plan=plan,
+            bundle=None,
+            operation=protocol_v3.Operation.REMOVE,
+        )
+    # A provider that says nothing about its own state has not proved removal
+    # either. Absence is never evidence, here as everywhere else.
+    with pytest.raises(CliFailure, match="does not prove the setup was removed"):
         operation_v3.require_verified_status(
             {"state": "managed", "target_digest": _digest("f")},
             capabilities=capabilities,

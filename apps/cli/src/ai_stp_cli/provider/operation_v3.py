@@ -331,8 +331,32 @@ def require_verified_status(
     if not is_digest(target_digest):
         raise _refused("provider status has no exact target digest")
     if operation is protocol_v3.Operation.REMOVE:
-        if answer.get("state") not in {"missing", "unmanaged"}:
-            raise _refused("provider status does not prove managed-state removal")
+        # The fact that proves a removal is the absent setup, not the absent
+        # provider. This used to require `state ∈ {missing, unmanaged}`, and no
+        # released provider has ever satisfied it: after a remove they report
+        # `managed`, because they keep a control directory and the backup slot
+        # the removal is undone from. Asking them for `missing` asked them to
+        # claim no state while a restore was pending — the reading that invites
+        # a consumer to treat a populated directory as free, which is the
+        # defect the provider side narrowed `missing` to avoid.
+        #
+        # `state` answers *who manages this target*; `setup_stable_id` answers
+        # *whether a setup is installed*, and is `null` exactly when none is.
+        # Neither word was in the shared contract, so both sides had assumed
+        # one — the same shape as a path with no declared root.
+        #
+        # A missing or malformed `provider_state` refuses. Absence is not
+        # evidence here any more than it is on `held`.
+        # Two answers prove it, and they are different sentences rather than a
+        # loosening. A provider owning nothing owns no setup by definition; a
+        # provider still owning the directory proves it by naming no setup.
+        if answer.get("state") in {"missing", "unmanaged"}:
+            return target_digest
+        reported = answer.get("provider_state")
+        if not isinstance(reported, dict) or "setup_stable_id" not in reported:
+            raise _refused("provider status does not prove the setup was removed")
+        if reported["setup_stable_id"] is not None:
+            raise _refused("provider status does not prove the setup was removed")
         return target_digest
     if operation is protocol_v3.Operation.RESTORE:
         expected_restore = str(plan.artifact.get("restore_target_digest", ""))

@@ -1465,8 +1465,17 @@ def test_real_v3_full_setup_lifecycle_uses_one_exact_bundle_path(
         restored = execute("rollback", backup_ref=removed.backup_ref)
         assert restored.state == "verified"
         if manifest_path:
+            # The floor is the highest accepted sequence, so it is the manifest's
+            # own — not the literal `1` this asserted while the only manifest it
+            # ever saw was a fixture built with sequence 1. Run against a real
+            # signed release it read 7 and failed, having proved the whole
+            # lifecycle first: the anti-rollback floor was correct and the
+            # expectation was a fixture's number written as an invariant.
             manifest = release.parse_manifest(Path(manifest_path).read_text("utf-8"))
-            assert provider_releases.minimum_sequence(registry, manifest.provider_id) == 1
+            assert (
+                provider_releases.minimum_sequence(registry, manifest.provider_id)
+                == manifest.sequence
+            )
 
 
 def test_the_whole_path_records_every_step(registry: sqlite3.Connection, tmp_path: Path) -> None:
