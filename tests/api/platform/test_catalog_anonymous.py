@@ -264,6 +264,17 @@ async def test_cursor_and_page_modes_are_mutually_exclusive(seeded_client: Async
     )
     cursor = first.json()["page"]["next_cursor"]
     if cursor is None:
+        # The reason blames the corpus, so check the corpus. A missing cursor
+        # can also mean the endpoint stopped issuing them, and that defect
+        # would skip here under a sentence that exonerates it.
+        held = await seeded_client.get(
+            "/v1/catalog/components",
+            params={"page_size": "100", "include_experimental": "true"},
+        )
+        assert len(held.json()["items"]) <= 1, (
+            "a page of one returned no cursor while more than one component exists, "
+            "so the corpus is not what this skip claims"
+        )
         pytest.skip("fixture corpus fits one cursor page")
 
     response = await seeded_client.get(

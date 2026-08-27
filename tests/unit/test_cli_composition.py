@@ -727,7 +727,15 @@ def test_a_projection_rule_names_a_kind_the_released_provider_accepts() -> None:
                 unnamed.append(f"{harness_id}/{rule.component_type} -> {rule.relative}")
 
     allowed = {f"{h}/{k}" for h, k in _UNDECLARED_BY_PROVIDER}
-    assert {item.split(" ->")[0] for item in undeclared} <= allowed, sorted(undeclared)
+    named = {item.split(" ->")[0] for item in undeclared}
+    assert named <= allowed, sorted(undeclared)
+    # And the other direction, without which this list outlives its reasons.
+    # Every other exception register here has this pair; this one shipped
+    # without it, so a `codex/skill` entry would have sat unopposed the day the
+    # corpus re-seed paid the debt. An allowlist nobody prunes is a hiding
+    # place — the same sentence that removed two entries from
+    # `_CONVENTION_BACKED` when the catalog learned their rows.
+    assert allowed <= named, sorted(allowed - named)
     # A declared kind written to a path the provider does not own is the same
     # defect one level down, and has no standing exception.
     assert not unnamed, sorted(unnamed)
