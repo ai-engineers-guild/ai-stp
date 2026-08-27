@@ -827,6 +827,70 @@ def test_v3_prepared_and_newly_composed_sources_bind_the_same_harness_bundle(
     assert prepared.target_id == composed.target_id
 
 
+def test_a_refused_postcondition_leaves_the_operation_resumable(
+    registry: sqlite3.Connection,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """One failed resume must not spend the operation. This one did.
+
+    On a real target a provider defect made the postcondition refuse. `resume`
+    caught that and marked the operation `partial` — and `resume` accepts only
+    `applied_unverified`, so the refusal buried it. When the provider was fixed
+    there was nothing left to resume, and the effect it had already applied was
+    stranded.
+
+    A postcondition is a verdict about evidence, not an interruption: `status`
+    is read-only, the provider answered, and nothing became unknown that was
+    known before. `partial` belongs to a timeout or a malformed answer after a
+    possible effect. `apply` never confused the two, which is the whole reason
+    its half of the same path recovered.
+    """
+    proposal_id = _confirmed(registry, tmp_path, "Q")
+    executable = _provider(tmp_path, "v3-resume-twice")
+    state = _v3_test_invoker(monkeypatch, target=tmp_path)
+    planned = install.plan(
+        {
+            "proposal": proposal_id,
+            "provider": executable,
+            "protocol-version": 3,
+            "unverified-provider": True,
+            "target": str(tmp_path),
+        }
+    ).payload
+    install.approve({"operation": planned.operation_id, "plan-digest": planned.plan_digest})
+    installation.begin(
+        registry,
+        planned.operation_id,
+        observed_target_digest=planned.expected_target_digest,
+        at=MOMENT,
+    )
+    state["installed"] = True
+
+    # A provider that answers, cleanly, without binding itself to the operation
+    # — exactly the shape a released provider had.
+    held = cast(dict[str, JsonValue], state["plan"])
+    broken = dict(held)
+    broken["operation_id"] = ""
+    state["plan"] = cast(JsonValue, broken)
+
+    with pytest.raises(CliFailure):
+        install.resume({"operation": planned.operation_id, "provider": executable})
+
+    stopped = {item.operation_id: item.state for item in installation.resumable(registry)}
+    assert stopped.get(planned.operation_id) == installation.STATE_APPLIED_UNVERIFIED, (
+        "a refused postcondition must not consume the only path back"
+    )
+
+    # The provider is fixed; the same operation verifies without reapplying.
+    state["plan"] = cast(JsonValue, held)
+    cast(list[str], state["calls"]).clear()
+    resumed = install.resume({"operation": planned.operation_id, "provider": executable}).payload
+
+    assert resumed.state == "verified"
+    assert "apply-operation" not in cast(list[str], state["calls"])
+
+
 def test_v3_resume_only_verifies_exact_provenance_and_never_reapplies(
     registry: sqlite3.Connection,
     tmp_path: Path,

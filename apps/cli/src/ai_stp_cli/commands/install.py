@@ -1019,13 +1019,21 @@ def resume(parameters: Mapping[str, object]) -> Answer[InstallationView]:
                     bundle=bound_bundle,
                     operation=operation,
                 )
-            except CliFailure as error:
-                installation.interrupted(
-                    connection,
-                    operation_id,
-                    at=moment(),
-                    reason=f"the provider v3 postcondition is not proven: {error.code}",
-                )
+            except CliFailure:
+                # Deliberately no state change. The postcondition is a verdict
+                # about evidence, not an interruption: `status` is read-only,
+                # the provider answered, and nothing became unknown that was
+                # known before. `applied_unverified` already says the effect
+                # landed and was not proven, which is exactly the truth.
+                #
+                # Marking `partial` here spent the operation. `partial` is for a
+                # timeout or a malformed answer after a possible effect, and
+                # `resume` accepts only `applied_unverified` — so one refusal
+                # made the operation permanently unresumable. That is what
+                # happened on a real target: a provider defect made the
+                # postcondition refuse, the refusal buried the operation, and
+                # when the provider was fixed there was nothing left to resume.
+                # `apply` never did this, which is why its half recovered.
                 raise
             _verify(
                 connection,
