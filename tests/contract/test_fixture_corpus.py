@@ -222,6 +222,21 @@ def test_the_model_is_never_more_permissive_than_its_published_schema(case: Fixt
     # refuse a payload our own code calls valid. That is an interop break, and
     # it is what this checks.
     if case.body is None:
+        # The reason and the condition are two statements, and only one of them
+        # was being checked. Skipping on `body is None` while explaining it as
+        # "a rejection" means an *acceptance* without a body — a 204, say —
+        # would skip under a sentence that is false about it, and its schema
+        # comparison would never run under a green suite.
+        #
+        # Measured when this was written: all twelve bodyless cases are
+        # `rejected_request` with a 4xx and an error code, so the reason is true
+        # today. The corpus already holds a rejection *with* a body, so the two
+        # sets are not the same set and the claim has to be checked rather than
+        # trusted.
+        assert case.kind == "rejected_request", (
+            f"{case.case_id} carries no body and is not a rejection, "
+            "so this skip's reason does not describe it"
+        )
         pytest.skip("a rejection carries no body")
     model = response_model(BY_ID[case.operation_id], case.status)
     if _model_accepts(model, dict(case.body)):
