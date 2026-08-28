@@ -294,6 +294,8 @@
   "the exact catalogue version is not available in the verified cache": "the exact catalogue version is not available in the verified cache",
   "the exact component graph exceeds provider capabilities": "the exact component graph exceeds provider capabilities",
   "the exact native package family exceeds provider capabilities": "the exact native package family exceeds provider capabilities",
+  "this provider declares no projection profile for the scope this graph needs": "this provider declares no projection profile for the scope this graph needs",
+  "the exact component graph spans more than one projection scope": "the exact component graph spans more than one projection scope",
   "the exact native projection exceeds provider capabilities": "the exact native projection exceeds provider capabilities",
   "the exact prepared SetupVersion has no passport revision": "the exact prepared SetupVersion has no passport revision",
   "the exact prepared SetupVersion is not held by this registry": "the exact prepared SetupVersion is not held by this registry",

@@ -1755,6 +1755,13 @@ class ConformanceCase(BaseModel):
     passed: bool
     detail: Annotated[str, Field(min_length=1)]
 
+    #: Whose obligation this case is about: `provider` for the protocol,
+    #: `consumer` for reach. A provider declaring a component kind this compiler
+    #: has no route for has met every obligation v3 places on it, so `conforms`
+    #: is decided by provider-subject cases alone. Reporting a consumer gap as
+    #: non-conformance names the wrong party in the one field people read.
+    subject: str = "provider"
+
 
 class ConformanceReport(BaseModel):
     """Whether one provider conforms to the frozen protocol (`SPEC-008` REQ-802).

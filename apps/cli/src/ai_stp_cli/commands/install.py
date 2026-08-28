@@ -36,6 +36,7 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import (
     bundle,
     cache,
+    composition,
     harnesses,
     installation,
     journal,
@@ -1399,6 +1400,53 @@ def _v3_capabilities(
     return capabilities
 
 
+def _profile_for_graph(
+    capabilities: protocol_v3.ProviderCapabilities, component_kinds: list[str]
+) -> protocol_v3.ProjectionProfile:
+    """The declared profile this graph is compiled against (`ADR-0127`).
+
+    The consumer half of the scope. `provider-info` may carry more than one
+    projection profile — the global one, whose target is the harness
+    configuration home, and any scoped profile whose target is somewhere else
+    entirely. `user_root` is the shared-convention root `~/.agents`.
+
+    Everything here validated against `capabilities.projection` unconditionally,
+    so a component belonging to a scoped surface was checked against a profile
+    that does not describe it: its kind read as undeclared and its namespace as
+    unsupported, both correctly for the wrong profile. `scoped_projections` was
+    parsed and nothing asked for it.
+
+    One graph, one scope, because one operation hands the provider one
+    `--target`. A graph mixing them is not a harder plan; it is two plans, and
+    the refusal says so rather than silently choosing whichever came first.
+    """
+    scopes = {
+        rule.target_scope
+        for kind in component_kinds
+        for rule in [composition.rule_for(kind, capabilities.harness_id)]
+        if rule is not None
+    } or {"global"}
+    if len(scopes) > 1:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the exact component graph spans more than one projection scope",
+            details={"scopes": ", ".join(sorted(scopes))},
+            next_actions=["select graph --json"],
+        )
+    scope = scopes.pop()
+    if scope == capabilities.projection.scope:
+        return capabilities.projection
+    for candidate in capabilities.scoped_projections:
+        if candidate.scope == scope:
+            return candidate
+    raise CliFailure(
+        "AI_STP_PRECONDITION_FAILED",
+        "this provider declares no projection profile for the scope this graph needs",
+        details={"scope": scope, "provider": capabilities.provider_id},
+        next_actions=["provider conformance --harness <id> --executable <path> --json"],
+    )
+
+
 def _v3_profile_accepts(
     capabilities: protocol_v3.ProviderCapabilities, compiled: bundle.Bundle
 ) -> None:
@@ -1417,8 +1465,9 @@ def _v3_profile_accepts(
         component_kinds.append(str(item.get("component_type", "")))
         native_surfaces.append(str(item.get("native_surface", "")))
         projection_kinds.append(str(item.get("projection_kind", "native_files")))
+    profile = _profile_for_graph(capabilities, component_kinds)
     try:
-        protocol_v3.validate_profile_for_components(capabilities.projection, component_kinds)
+        protocol_v3.validate_profile_for_components(profile, component_kinds)
     except ValueError as error:
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED",
@@ -1426,24 +1475,21 @@ def _v3_profile_accepts(
             details={"reason": str(error)},
         ) from error
     try:
-        protocol_v3.validate_profile_for_projections(capabilities.projection, projection_kinds)
+        protocol_v3.validate_profile_for_projections(profile, projection_kinds)
     except ValueError as error:
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED",
             "the exact native package family exceeds provider capabilities",
             details={"reason": str(error)},
         ) from error
-    unsupported = sorted(set(native_surfaces) - set(capabilities.projection.native_namespaces))
+    unsupported = sorted(set(native_surfaces) - set(profile.native_namespaces))
     if unsupported:
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED",
             "the exact native projection exceeds provider capabilities",
             details={"native_surfaces": ", ".join(unsupported)},
         )
-    if (
-        len(compiled.files) > capabilities.projection.max_files
-        or len(compiled.archive) > capabilities.projection.max_bytes
-    ):
+    if len(compiled.files) > profile.max_files or len(compiled.archive) > profile.max_bytes:
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED",
             "the exact HarnessBundle exceeds provider-declared limits",

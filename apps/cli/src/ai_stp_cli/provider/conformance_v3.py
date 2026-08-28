@@ -397,7 +397,13 @@ def _route_coverage(
     verdict nobody can act on.
     """
     cases: list[conformance.Case] = []
-    declared = {kind.value for kind in capabilities.projection.component_kinds}
+    # Every declared profile, keyed by the scope whose target it is relative to.
+    # Asking the global profile about a `user_root` rule reports its kind as
+    # undeclared and its path as unsupported — both correctly, for a profile
+    # that does not describe it (`ADR-0127`).
+    profiles = {capabilities.projection.scope: capabilities.projection}
+    profiles.update({item.scope: item for item in capabilities.scoped_projections})
+    declared = {kind.value for profile in profiles.values() for kind in profile.component_kinds}
     projected = {
         rule.component_type
         for rule in composition.PROVIDER_RULES
@@ -405,7 +411,10 @@ def _route_coverage(
     }
     for kind in sorted(declared):
         rule = composition.rule_for(kind, capabilities.harness_id)
-        reachable = rule is not None and rule.relative in capabilities.projection.native_namespaces
+        profile = None if rule is None else profiles.get(rule.target_scope)
+        reachable = (
+            rule is not None and profile is not None and rule.relative in profile.native_namespaces
+        )
         cases.append(
             conformance.Case(
                 f"declared_route_is_compilable:{kind}",

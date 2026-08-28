@@ -294,6 +294,8 @@
   "the exact catalogue version is not available in the verified cache": "точной версии каталога нет в проверенном кэше",
   "the exact component graph exceeds provider capabilities": "точный граф компонентов превышает возможности провайдера",
   "the exact native package family exceeds provider capabilities": "точное семейство нативных пакетов превышает возможности провайдера",
+  "this provider declares no projection profile for the scope this graph needs": "этот провайдер не объявляет профиль проекции для области, которая нужна этому графу",
+  "the exact component graph spans more than one projection scope": "точный граф компонентов охватывает более одной области проекции",
   "the exact native projection exceeds provider capabilities": "точная нативная проекция превышает возможности провайдера",
   "the exact prepared SetupVersion has no passport revision": "у точного подготовленного SetupVersion нет ревизии паспорта",
   "the exact prepared SetupVersion is not held by this registry": "точный подготовленный SetupVersion этот реестр не держит",

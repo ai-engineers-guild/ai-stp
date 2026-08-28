@@ -330,7 +330,12 @@ def test_the_native_surface_matches_provider_targets() -> None:
     """Composition paths are relative to each explicit provider target."""
     assert composition.native_surface("skill", "claude-code") == "skills"
     assert composition.native_surface("instruction", "codex") == "AGENTS.md"
-    assert composition.native_surface("skill", "codex") == ".agents/skills"
+    # `skills` relative to the `user_root` target `~/.agents`, not
+    # `.agents/skills` relative to codex's configuration home. Resolved the old
+    # way it landed in `~/.codex/.agents/skills`, a sibling of what codex reads
+    # rather than a child, and the install said `verified` (`ADR-0127`).
+    assert composition.native_surface("skill", "codex") == "skills"
+    assert composition.rule_for("skill", "codex").target_scope == "user_root"  # pyright: ignore[reportOptionalMemberAccess]
     # Pi's target is `~/.pi/agent`, so `agent` is the last segment of the home
     # and not a directory inside it. This line asserted the prefix while the
     # docstring above stated the rule the prefix breaks.
@@ -553,17 +558,7 @@ def test_the_stated_bases_are_all_still_load_bearing() -> None:
 #: directory across from where the product reads.
 #:
 #: Empty is the goal. An entry here is a defect with a due date, not a decision.
-_HOME_ANCHORED_DEBT: dict[tuple[str, str], str] = {
-    ("codex", "skill"): (
-        "62 corpus objects, 61 published, all skills declaring "
-        "`managed_paths` of `.agents/skills/<name>`. `managed_paths` is inside "
-        "the content-addressed passport, so the repair is new versions of all "
-        "62 — the pi `managed_paths` precedent. Removing the rule first would "
-        "make 61 published objects refuse before a corrected version exists. "
-        "Closes with the corpus re-seed; the provider withdraws `skill` from "
-        "codex's declaration at its own 0.0.7."
-    ),
-}
+_HOME_ANCHORED_DEBT: dict[tuple[str, str], str] = {}
 
 
 def test_a_provider_rule_never_names_a_surface_anchored_outside_its_target() -> None:
@@ -591,6 +586,13 @@ def test_a_provider_rule_never_names_a_surface_anchored_outside_its_target() -> 
     conventions the catalog knows — `.agents/skills` and `.agents/commands` —
     are exactly the paths most likely to be copied into a projection table by
     someone reading the string and not the anchor.
+
+    **A rule that declares a non-global `target_scope` is exempt, and that is
+    the repair rather than a hole in the guard.** The defect was never the path;
+    it was a path with no statement of what it hangs off, resolved against the
+    only root the rule could reach. A `user_root` rule names its root, so
+    `skills` under it is `~/.agents/skills` and nothing about it is ambiguous.
+    The list is empty now because the one entry was paid that way.
     """
     from ai_stp_cli.local import harness_catalog
 
@@ -605,7 +607,7 @@ def test_a_provider_rule_never_names_a_surface_anchored_outside_its_target() -> 
     offending = {
         (rule.harness_id, rule.component_type)
         for rule in composition.PROVIDER_RULES
-        if rule.relative in home_anchored
+        if rule.relative in home_anchored and rule.target_scope == "global"
     }
     assert offending <= set(_HOME_ANCHORED_DEBT), sorted(offending - set(_HOME_ANCHORED_DEBT))
 

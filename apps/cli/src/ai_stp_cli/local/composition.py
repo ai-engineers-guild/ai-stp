@@ -88,7 +88,22 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     Rule("command", "commands", "directory", "claude-code"),
     Rule("agent", "agents", "directory", "claude-code"),
     Rule("instruction", "AGENTS.md", "file", "codex"),
-    Rule("skill", ".agents/skills", "directory", "codex"),
+    # `skills`, under the shared convention's own root, not `.agents/skills`
+    # under codex's configuration home. `ADR-0127`, and the eighth face of one
+    # sentence: this row said `.agents/skills` and was resolved against
+    # `--target`, so it landed in `~/.codex/.agents/skills` — a sibling of the
+    # directory codex reads, not a child. An install answered `verified` and
+    # wrote twenty-nine files the product never saw.
+    #
+    # The path is right only together with the root it hangs off, and the root
+    # is what `target_scope` names. Under `user_root` the provider's target is
+    # `~/.agents`, so the surface is `skills` — writing `.agents/` in again
+    # would land them at `~/.agents/.agents/skills`.
+    #
+    # Measured against codex 0.0.10, which declares the scope:
+    # `codex/native-files/user-root/1`, namespaces `["skills"]`,
+    # kinds `["skill"]`.
+    Rule("skill", "skills", "directory", "codex", target_scope="user_root"),
     Rule("setting", "config.toml", "file", "codex"),
     # No `agent/` prefix: these are relative to the target, and Pi's target
     # already is `~/.pi/agent`. The segment belongs to the home, not inside it,

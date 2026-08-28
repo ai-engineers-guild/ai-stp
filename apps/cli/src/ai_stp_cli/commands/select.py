@@ -1474,6 +1474,7 @@ def provider_conformance(parameters: Mapping[str, object]) -> Answer[Conformance
                             name=item.name,
                             passed=item.passed,
                             detail=item.detail,
+                            subject=item.subject,
                         )
                         for item in report.cases
                     ],
@@ -1518,7 +1519,12 @@ def provider_conformance(parameters: Mapping[str, object]) -> Answer[Conformance
             reported_version=report.protocol_version,
             conforms=report.conforms,
             cases=[
-                ConformanceCase(name=item.name, passed=item.passed, detail=item.detail)
+                ConformanceCase(
+                    name=item.name,
+                    passed=item.passed,
+                    detail=item.detail,
+                    subject=item.subject,
+                )
                 for item in report.cases
             ],
         )

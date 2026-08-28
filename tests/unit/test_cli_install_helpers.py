@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 from contextlib import suppress
 from pathlib import Path
 from types import SimpleNamespace
@@ -294,3 +295,84 @@ def test_the_journal_accepts_what_the_command_surface_refuses() -> None:
     """
     for action in ("software_install", "software_update", "software_remove"):
         assert action in installation.ACTIONS
+
+
+def test_a_scoped_graph_is_validated_against_the_profile_that_describes_it() -> None:
+    """The consumer half of `ADR-0127`, which did not exist.
+
+    `provider-info` may carry more than one projection profile: the global one,
+    whose target is the harness configuration home, and a scoped profile whose
+    target is somewhere else entirely — `user_root` is the shared-convention
+    root `~/.agents`. `protocol_v3` parsed `scoped_projection_profiles`
+    faithfully into `capabilities.scoped_projections`, and a grep for it across
+    the whole CLI found nothing outside the parser.
+
+    So a codex skill, which belongs to `user_root`, was validated against the
+    global profile: its kind read as undeclared and its namespace as
+    unsupported, both correctly for a profile that does not describe it.
+    """
+    from ai_stp_cli.commands import install as install_commands
+    from ai_stp_cli.provider import protocol_v3
+
+    scoped = protocol_v3.ProjectionProfile(
+        profile_id="codex/native-files/user-root/1",
+        digest="sha256:" + "c" * 64,
+        component_kinds=(protocol_v3.ComponentKind.SKILL,),
+        projection_kinds=(protocol_v3.ProjectionKind.NATIVE_FILES,),
+        native_namespaces=("skills",),
+        bundle_formats=("ai-stp-bundle/1",),
+        max_files=100,
+        max_bytes=1_000_000,
+        scope="user_root",
+    )
+    globally = protocol_v3.ProjectionProfile(
+        profile_id="codex/native-files/1",
+        digest="sha256:" + "d" * 64,
+        component_kinds=(protocol_v3.ComponentKind.INSTRUCTION,),
+        projection_kinds=(protocol_v3.ProjectionKind.NATIVE_FILES,),
+        native_namespaces=("AGENTS.md",),
+        bundle_formats=("ai-stp-bundle/1",),
+        max_files=100,
+        max_bytes=1_000_000,
+    )
+    capabilities = protocol_v3.ProviderCapabilities(
+        provider_id="codex-setup-system",
+        harness_id="codex",
+        provider_version="0.0.10",
+        provider_build_digest="sha256:" + "e" * 64,
+        commands=frozenset(protocol_v3.CORE_COMMANDS),
+        operations=frozenset(protocol_v3.CORE_OPERATIONS),
+        supported_os=("linux",),
+        supported_arch=("x86_64",),
+        permission_profiles=("default",),
+        projection=globally,
+        scoped_projections=(scoped,),
+    )
+
+    chosen = install_commands._profile_for_graph(capabilities, ["skill"])  # pyright: ignore[reportPrivateUsage]
+    assert chosen.scope == "user_root"
+    assert chosen.native_namespaces == ("skills",)
+
+    # An unscoped kind still resolves to the global profile.
+    assert (
+        install_commands._profile_for_graph(  # pyright: ignore[reportPrivateUsage]
+            capabilities, ["instruction"]
+        ).scope
+        == "global"
+    )
+
+    # One operation hands the provider one target, so a graph spanning both is
+    # two plans and is refused as such rather than resolved to whichever came
+    # first.
+    with pytest.raises(CliFailure) as caught:
+        install_commands._profile_for_graph(  # pyright: ignore[reportPrivateUsage]
+            capabilities, ["skill", "instruction"]
+        )
+    assert "more than one projection scope" in caught.value.message
+
+    # And a provider that declares no such profile is refused by name rather
+    # than validated against a profile that does not describe the graph.
+    without = dataclasses.replace(capabilities, scoped_projections=())
+    with pytest.raises(CliFailure) as missing:
+        install_commands._profile_for_graph(without, ["skill"])  # pyright: ignore[reportPrivateUsage]
+    assert "no projection profile for the scope" in missing.value.message
