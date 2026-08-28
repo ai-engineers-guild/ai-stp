@@ -121,6 +121,19 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     # elimination would have got these two right. It got claude-code's `plugin`
     # wrong in the same pass, and a method that is right four times out of five
     # is not a method.
+    # `~/.codex/agents/`, declared in the provider's `0.0.11` and vendor
+    # documented (TOML: `name`, `description`, `model`,
+    # `model_reasoning_effort`, `developer_instructions`). Added after the
+    # release rather than after the declaration: against `0.0.10` this row names
+    # a namespace the released provider does not declare, and the evidence slice
+    # would have gone red for codex — correctly.
+    #
+    # The content format is TOML here where claude-code, opencode and pi take
+    # Markdown for the same kind. That belongs to the component rather than to
+    # this row: the provider writes a bundle's bytes verbatim at their relative
+    # paths and has no notion of format, so a format on the route would be a
+    # field nobody could honour.
+    Rule("agent", "agents", "directory", "codex"),
     Rule("hook", "hooks.json", "file", "codex"),
     Rule("command", "prompts", "directory", "codex"),
     # No `agent/` prefix: these are relative to the target, and Pi's target

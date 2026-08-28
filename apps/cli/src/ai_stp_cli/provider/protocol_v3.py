@@ -181,6 +181,19 @@ PROVENANCE_FIELDS: Final[tuple[str, ...]] = (
     "operation_id",
     "target_precondition_digest",
     "native_ownership",
+    # The files this provider actually wrote, beside the namespaces it owns
+    # rather than inside them: a read asking *which namespaces* should not have
+    # to walk a file list, and under `user_root` the two answer different
+    # questions entirely. A real codex install measures five owned namespaces
+    # and two written files, and only the second number could ever scope a
+    # removal on a root four products share (`ADR-0127`).
+    #
+    # Three states, and the middle one is why this is not just a nicety.
+    # Absent means *not recorded* — a provider older than the field. An empty
+    # array means *this provider wrote nothing here*, which a `remove` leaves
+    # behind. Reading absence as empty would let a scoped removal take
+    # everything, which is the failure the field exists to prevent.
+    "written_paths",
     "backup_ref",
     "previous_verified_identity",
     "drift_state",
