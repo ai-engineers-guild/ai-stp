@@ -224,6 +224,12 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     # rule for its kind — the corpus had carried the right path all along and
     # nothing had ever compared the two.
     Rule("plugin", "config/plugins", "directory", "antigravity", projection_kind="plugin"),
+    # `config/global_workflows/<name>.md`, invoked as `/workflow-name` across
+    # every workspace. Found as a path literal in the pinned `1.1.22` binary and
+    # then run, which is the difference between a string and a surface — the
+    # catalogue's `no_global_command` gap said this did not exist, on the
+    # strength of the product's documentation.
+    Rule("command", "config/global_workflows", "directory", "antigravity"),
     Rule("skill", "config/skills", "directory", "antigravity"),
     Rule("agent", "config/agents", "directory", "antigravity"),
     Rule("hook", "config/hooks.json", "file", "antigravity"),

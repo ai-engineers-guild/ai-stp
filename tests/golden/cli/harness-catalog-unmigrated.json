@@ -75,6 +75,15 @@
       "declared_key": ""
     },
     {
+      "component_type": "command",
+      "relative": "config/global_workflows",
+      "shape": "directory",
+      "scope": "global",
+      "root": "config",
+      "source": "antigravity.google/docs/commands",
+      "declared_key": ""
+    },
+    {
       "component_type": "skill",
       "relative": "config/skills",
       "shape": "directory",

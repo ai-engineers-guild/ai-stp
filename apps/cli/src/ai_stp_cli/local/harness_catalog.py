@@ -486,6 +486,13 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
             ),
             _layout("plugin", "antigravity-cli/plugins", "directory", f"{ANTIGRAVITY}/plugins", G),
             _layout("plugin", "config/plugins", "directory", f"{ANTIGRAVITY}/plugins", G),
+            # Global workflows, Markdown invoked as `/workflow-name` across
+            # every workspace. Discovery has to know it for the same reason
+            # projection does: an object living here is one this catalogue
+            # would otherwise report as somebody's loose notes.
+            _layout(
+                "command", "config/global_workflows", "directory", f"{ANTIGRAVITY}/commands", G
+            ),
             _layout("skill", "config/skills", "directory", f"{ANTIGRAVITY}/skills", G),
             _layout("agent", "config/agents", "directory", f"{ANTIGRAVITY}/agents", G),
             _layout("hook", "config/hooks.json", "file", f"{ANTIGRAVITY}/hooks", G),
@@ -508,12 +515,12 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
         # `1.1.22` binary — a global workflow surface, which is the first
         # evidence against the sentence above.
         #
-        # Left standing rather than removed, because a string in a binary is not
-        # a run and neither side has watched the product read one. What changes
-        # is that this is recorded as unmeasured instead of settled: a gap
-        # asserted from a vendor page is exactly how `.mcp.json` came to be
-        # called global on two harnesses. Withdrawn the moment somebody runs it.
-        gaps=("no_global_instruction", "no_global_command", "no_documented_root_override"),
+        # Somebody ran it. Global workflows are Markdown invoked as
+        # `/workflow-name` across every workspace, so `no_global_command` was
+        # false — a gap asserted from a vendor page, which is exactly how
+        # `.mcp.json` came to be called global on two harnesses. Withdrawn, and
+        # `command` now routes to `config/global_workflows` in `composition.py`.
+        gaps=("no_global_instruction", "no_documented_root_override"),
     ),
     HarnessDefinition(
         "undefined",
