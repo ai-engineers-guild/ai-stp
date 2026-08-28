@@ -276,3 +276,68 @@ def test_opencode_is_xdg_on_every_system_including_windows() -> None:
     assert harnesses.config_root(opencode, {**home, "XDG_CONFIG_HOME": "/elsewhere"}) == Path(
         "/elsewhere/opencode"
     )
+
+
+def test_the_evidence_default_is_the_weakest_value_and_the_set_is_closed() -> None:
+    """A column that graded generously would make the catalogue look measured.
+
+    `page` marks a row whose wrong answer is **undetectable by anything in this
+    repository** — a property of the tooling, not a verdict on whoever wrote the
+    row. Most `page` rows are correct and several were carefully reasoned. But
+    every projection defect found this week sat on a real, live vendor page:
+    `antigravity-cli/plugins` was the directory the CLI manages itself, cursor's
+    `plugins` was one level short of `plugins/local`, and `.mcp.json` was called
+    global on two harnesses. A ranking that put a page above a measurement would
+    have promoted exactly those.
+
+    So the default is the weakest value. Absence of a record of measurement is
+    not evidence of measurement, and the alternative — defaulting to the middle
+    and letting somebody argue a row up — is how a column becomes decoration.
+    """
+    from dataclasses import fields
+
+    from ai_stp_cli.local import harness_catalog
+
+    default = next(item for item in fields(harness_catalog.Layout) if item.name == "evidence")
+    assert default.default == "page"
+
+    values = {layout.evidence for item in harness_catalog.DEFINITIONS for layout in item.layouts}
+    assert values <= {"ran", "bytes", "page"}, sorted(values)
+
+
+def test_every_exercised_row_is_one_somebody_actually_exercised() -> None:
+    """The claim, pinned, so a promotion is a reviewed diff rather than a habit.
+
+    Seven rows out of ninety-three. Each was established by running the product
+    or by reading its shipped bytes, and each is named here so that raising one
+    requires saying which. The number being small is the finding: five of the
+    seven harnesses have no exercised row at all, which means sixty-six surfaces
+    rest on a page and nothing local can tell a right one from a wrong one.
+    """
+    from ai_stp_cli.local import harness_catalog
+
+    exercised = {
+        (item.harness_id, layout.component_type, layout.relative, layout.evidence)
+        for item in harness_catalog.DEFINITIONS
+        for layout in item.layouts
+        if layout.evidence != "page"
+    }
+    assert exercised == {
+        # A server written straight to `~/.cursor/mcp.json` is listed and
+        # dialled; the file removed, and the same file one directory to the
+        # side, both report no servers.
+        ("cursor", "mcp", "mcp.json", "ran"),
+        # Confirmed at the line in the pinned bundle: the joins, the `user`
+        # scope tags, and the product's own User Rule picker.
+        ("cursor", "command", "commands", "bytes"),
+        ("cursor", "hook", "hooks.json", "bytes"),
+        ("cursor", "instruction", "rules", "bytes"),
+        # `antigravity plugin install` creates `~/.gemini/config/plugins/` and
+        # validates the plugin; no `antigravity-cli/plugins` is created at all.
+        ("antigravity", "plugin", "config/plugins", "ran"),
+        # Global workflows invoked as `/workflow-name` across every workspace.
+        ("antigravity", "command", "config/global_workflows", "ran"),
+        # Measured against a real codex install: skills land under the shared
+        # convention root rather than the product's configuration home.
+        ("undefined", "skill", ".agents/skills", "ran"),
+    }

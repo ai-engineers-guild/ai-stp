@@ -24,6 +24,26 @@ class Layout:
     source: str
     scope: str
     root: str = "config"
+
+    #: How this row was established, weakest first: `page` — a vendor page and
+    #: nothing else; `bytes` — the product's own shipped bytes were read, a
+    #: literal or an embedded reference in a pinned artifact; `ran` — the
+    #: product was run and the behaviour observed.
+    #:
+    #: The default is the weakest value on purpose. Absence of a record of
+    #: measurement is not evidence of measurement, and a column that graded
+    #: generously would make the catalogue look measured and change nothing.
+    #:
+    #: What it marks is a property of *this repository*, not of the row.
+    #: `page` rows are not suspicious — most are correct and several were
+    #: carefully reasoned. They are the rows where **a wrong answer is
+    #: undetectable by anything here**, which is a different and worse property
+    #: than being unverified. Every projection defect found this week sat on a
+    #: real, live vendor page: `antigravity-cli/plugins`, cursor's `plugins`,
+    #: `.mcp.json` called global on two harnesses. Ranking a page above a
+    #: measurement would promote exactly those.
+    evidence: str = "page"
+
     excluded_names: frozenset[str] = frozenset()
     projection_kind: str = "native_files"
 
@@ -94,9 +114,18 @@ def _layout(
     root: str = "config",
     excluded: frozenset[str] = frozenset(),
     declared_key: str = "",
+    evidence: str = "page",
 ) -> Layout:
     return Layout(
-        component_type, relative, shape, source, scope, root, excluded, declared_key=declared_key
+        component_type,
+        relative,
+        shape,
+        source,
+        scope,
+        root,
+        evidence,
+        excluded,
+        declared_key=declared_key,
     )
 
 
@@ -481,10 +510,10 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
             # The `rules` row below is the User Rule scope, a sibling of the
             # project one two lines up rather than a correction of it.
             _layout("skill", "skills", "directory", f"{CURSOR}/skills", G),
-            _layout("instruction", "rules", "directory", f"{CURSOR}/rules", G),
-            _layout("command", "commands", "directory", CURSOR_COMMANDS, G),
-            _layout("hook", "hooks.json", "file", f"{CURSOR}/hooks", G),
-            _layout("mcp", "mcp.json", "file", f"{CURSOR}/mcp", G),
+            _layout("instruction", "rules", "directory", f"{CURSOR}/rules", G, evidence="bytes"),
+            _layout("command", "commands", "directory", CURSOR_COMMANDS, G, evidence="bytes"),
+            _layout("hook", "hooks.json", "file", f"{CURSOR}/hooks", G, evidence="bytes"),
+            _layout("mcp", "mcp.json", "file", f"{CURSOR}/mcp", G, evidence="ran"),
         ),
         frozenset({"native_files", "plugin_manifest"}),
         # `components_are_plugin_declared` withdrawn. It said skills, agents,
@@ -541,12 +570,21 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
                 "setting", "antigravity-cli/keybindings.json", "file", f"{ANTIGRAVITY}/settings", G
             ),
             _layout("plugin", "antigravity-cli/plugins", "directory", f"{ANTIGRAVITY}/plugins", G),
-            _layout("plugin", "config/plugins", "directory", f"{ANTIGRAVITY}/plugins", G),
+            _layout(
+                "plugin", "config/plugins", "directory", f"{ANTIGRAVITY}/plugins", G, evidence="ran"
+            ),
             # Global workflows, Markdown invoked as `/workflow-name` across
             # every workspace. Discovery has to know it for the same reason
             # projection does: an object living here is one this catalogue
             # would otherwise report as somebody's loose notes.
-            _layout("command", "config/global_workflows", "directory", ANTIGRAVITY_COMMANDS, G),
+            _layout(
+                "command",
+                "config/global_workflows",
+                "directory",
+                ANTIGRAVITY_COMMANDS,
+                G,
+                evidence="ran",
+            ),
             _layout("skill", "config/skills", "directory", f"{ANTIGRAVITY}/skills", G),
             _layout("agent", "config/agents", "directory", ANTIGRAVITY_AGENTS, G),
             _layout("hook", "config/hooks.json", "file", f"{ANTIGRAVITY}/hooks", G),
@@ -585,7 +623,13 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
         "agentskills.io/specification",
         (
             _layout(
-                "skill", ".agents/skills", "directory", f"{CODEX}/build-skills", G, root="home"
+                "skill",
+                ".agents/skills",
+                "directory",
+                f"{CODEX}/build-skills",
+                G,
+                root="home",
+                evidence="ran",
             ),
             _layout(
                 "command",
