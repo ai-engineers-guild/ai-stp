@@ -34,7 +34,7 @@ releases = []
 
 
 _ALLOWED_REPOSITORY = "github.com/NDDev-OpenNetwork/claude-setup-system"
-_PIN_FIELDS = f'provider_id = "nddev-claude-app", repository = "{_ALLOWED_REPOSITORY}"'
+_PIN_FIELDS = f'provider_id = "claude-setup-system", repository = "{_ALLOWED_REPOSITORY}"'
 _DIGEST_A = "sha256:" + "a" * 64
 
 
@@ -512,7 +512,7 @@ def test_pinned_releases_are_closed_unique_and_exact() -> None:
     assert policy.pinned_releases == frozenset(
         {
             release.PinnedRelease(
-                provider_id="nddev-claude-app",
+                provider_id="claude-setup-system",
                 repository=_ALLOWED_REPOSITORY,
                 artifact_digest=_DIGEST_A,
             )

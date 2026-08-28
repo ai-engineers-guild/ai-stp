@@ -146,7 +146,7 @@ def test_a_claude_plugin_pack_is_a_project_inventory(tmp_path: Path) -> None:
     components while the same family pack for Codex answered fifty-five
     (`#378`).
     """
-    pack = tmp_path / "rldyour-claudecode"
+    pack = tmp_path / "example-pack"
     plugin = pack / "plugins" / "rldyour-flow"
     (plugin / ".claude-plugin").mkdir(parents=True)
     (plugin / ".claude-plugin" / "plugin.json").write_text('{"name": "flow"}', encoding="utf-8")
