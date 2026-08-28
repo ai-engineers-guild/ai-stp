@@ -227,9 +227,18 @@ def test_v3_conformance_refuses_a_profile_without_a_compiler_native_route(
 
     report = conformance_v3.run(invoke, harness_id="codex", target=tmp_path)
 
-    assert not report.conforms
-    failed = {case.name for case in report.failures}
-    assert failed == {"declared_native_route_is_compilable"}
+    # The provider is honest: it declares what it can install, and every
+    # obligation v3 places on it is met. This used to make `conforms` false,
+    # which named the wrong party — the gap is that *this compiler* has no route
+    # for the pair, and whoever read that verdict was sent to the provider's
+    # repository to fix a defect that was here.
+    assert report.conforms
+    unreachable = {case.name for case in report.unreachable}
+    assert "declared_route_is_compilable:plugin" in unreachable, unreachable
+    # And it is named per pair rather than aggregated, so the report says which
+    # kind rather than that something, somewhere, did not line up.
+    detail = next(case.detail for case in report.unreachable)
+    assert "plugin" in detail
 
 
 def test_cli_v3_conformance_fails_before_spawn_without_network_isolation(
@@ -1329,4 +1338,75 @@ def test_a_remove_status_must_belong_to_the_operation_that_just_ran(tmp_path: Pa
                 plan=plan,
                 bundle=None,
                 operation=protocol_v3.Operation.REMOVE,
+            )
+
+
+def test_a_fact_stated_twice_must_agree_with_itself(tmp_path: Path) -> None:
+    """Two records of one fact where only one is read is a fail-open.
+
+    A v3 status may carry provenance at the top level and again inside
+    `provider_state`, and `_present_mismatches` stopped at the first place it
+    found each name. So a provider could state the expected `operation_id` at
+    the top and a different one nested, and the contradiction was never looked
+    at — the half that was read agreed, and the half that disagreed was skipped
+    by an `elif`.
+
+    The drift check immediately above already collects every stated copy and
+    requires all of them to hold. This is the same rule for the provenance
+    fields, and the reason it was worth writing twice is that the two lived in
+    one function and still disagreed about what "stated" means.
+    """
+    answer, bound, expiry, _digest_value = _plan_answer(tmp_path)
+    capabilities = _capabilities()
+    plan = operation_v3.require_plan(
+        answer,
+        capabilities=capabilities,
+        release_digest=_digest("d"),
+        operation_id="operation_test_v3",
+        operation=protocol_v3.Operation.INSTALL,
+        target=tmp_path,
+        expected_target_digest=_digest("a"),
+        bundle=bound,
+        backup_ref=None,
+        permission_profile=None,
+        expires_at=expiry,
+    )
+
+    def status(nested: dict[str, JsonValue]) -> dict[str, JsonValue]:
+        return {
+            "state": "managed",
+            "target_digest": _digest("f"),
+            "protocol_version": protocol_v3.VERSION,
+            "provider_id": capabilities.provider_id,
+            "drift_state": "clean",
+            "operation_id": plan.artifact["operation_id"],
+            "provider_plan_digest": plan.digest,
+            "provider_state": nested,
+        }
+
+    # Agreeing copies are fine, and stay fine.
+    assert operation_v3.require_verified_status(
+        status({"operation_id": plan.artifact["operation_id"]}),
+        capabilities=capabilities,
+        release_digest=_digest("d"),
+        plan=plan,
+        bundle=None,
+        operation=protocol_v3.Operation.INSTALL,
+    ) == _digest("f")
+
+    # A nested copy naming an older install must not pass because the top-level
+    # one happened to be right.
+    for field, wrong in (
+        ("operation_id", "operation_from_last_week"),
+        ("provider_plan_digest", _digest("e")),
+        ("provider_release_digest", _digest("0")),
+    ):
+        with pytest.raises(CliFailure, match="does not prove the approved"):
+            operation_v3.require_verified_status(
+                status({field: wrong}),
+                capabilities=capabilities,
+                release_digest=_digest("d"),
+                plan=plan,
+                bundle=None,
+                operation=protocol_v3.Operation.INSTALL,
             )

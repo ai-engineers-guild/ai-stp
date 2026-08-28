@@ -543,12 +543,30 @@ def _present_mismatches(
     nested: dict[str, JsonValue],
     expected: dict[str, JsonValue],
 ) -> list[str]:
+    """Every stated copy of a fact has to hold, not the first one found.
+
+    A v3 status may carry provenance at the top level and again inside
+    `provider_state`. This stopped at the first place each name appeared, so a
+    provider stating the expected `operation_id` at the top and a different one
+    nested was accepted on the strength of the half that was read — the
+    contradiction sat behind an `elif` and was never looked at.
+
+    The drift check already collected every stated copy and required all of them
+    to hold. The two rules lived in one function and still disagreed about what
+    "stated" means, which is the shape this repository keeps finding: one fact,
+    two readers, and only one of them checking.
+
+    Absence stays compatible. A field present in neither place is not a
+    mismatch — that is what the caller's separate "binds itself to no approved
+    operation" check is for, and legacy placement in either location alone
+    remains valid.
+    """
     mismatches: list[str] = []
     for name, value in expected.items():
-        if name in answer:
-            if answer.get(name) != value:
-                mismatches.append(name)
-        elif name in nested and nested.get(name) != value:
+        stated = [
+            place[name] for place in (answer, nested) if name in place and place[name] != value
+        ]
+        if stated:
             mismatches.append(name)
     return mismatches
 
