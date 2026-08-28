@@ -212,3 +212,42 @@ def test_status_never_runs_the_program_it_reports(
 
     report = _status(prefix)
     assert report.version == "1.18.23"  # type: ignore[attr-defined]
+
+
+def test_status_creates_nothing_on_a_fresh_installation(tmp_path: Path) -> None:
+    """A command declared `read` must leave the disk as it found it.
+
+    This opened the registry with `open_registry`, whose default creates the
+    database and its parent, switches to WAL, applies pending migrations and
+    sets filesystem permissions — so asking "is anything installed" on a clean
+    machine wrote a database, WAL and SHM in order to answer `never_installed`,
+    and failed outright on a read-only data directory it could have queried.
+
+    A registry that does not exist is a history with nothing in it. Creating one
+    to say so was the command answering its own question by writing.
+    """
+    import os
+
+    from ai_stp_cli.commands import harness as harness_commands
+    from ai_stp_cli.local.database import configured_path
+
+    home = tmp_path / "home"
+    (home / "config").mkdir(parents=True)
+    (home / "data").mkdir(parents=True)
+    prefix = tmp_path / "prefix"
+    prefix.mkdir()
+    for name, value in (
+        ("HOME", str(home)),
+        ("XDG_CONFIG_HOME", str(home / "config")),
+        ("XDG_DATA_HOME", str(home / "data")),
+    ):
+        os.environ[name] = value
+
+    registry = configured_path()
+    before = sorted(item.name for item in (home / "data").rglob("*"))
+
+    answer = harness_commands.status({"harness": "claude-code", "prefix": str(prefix)})
+
+    assert answer.payload.state == "never_installed"
+    assert not registry.exists(), f"{registry} was created by a read"
+    assert sorted(item.name for item in (home / "data").rglob("*")) == before

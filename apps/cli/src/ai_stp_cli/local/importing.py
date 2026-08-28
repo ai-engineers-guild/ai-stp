@@ -367,13 +367,30 @@ def inspect(root: Path, *, harness_id: str) -> Inspection:
         relative = place.relative_to(resolved).as_posix()
         if _is_state(relative, state_paths):
             continue
+        # Ask how big it is before reading it. `REQ-841` requires an oversized
+        # file to be read and hashed, and it still is — but "read" used to mean
+        # "read into one `bytes` object", so a multi-gigabyte cache blob in a
+        # harness root was allocated whole in order to discover that it would be
+        # excluded. A real `~/.codex` holds exactly that shape of file.
+        #
+        # The evidence is unchanged: same digest, same length, same exclusion.
+        # Only the memory is bounded.
         try:
+            oversized_by_stat = place.stat().st_size > MAX_FILE_BYTES
+            if oversized_by_stat:
+                digest, length = content.address_of_file(place)
+                findings.append(
+                    Finding(path=relative, byte_length=length, digest=digest, oversized=True)
+                )
+                continue
             raw = place.read_bytes()
         except OSError as error:
             findings.append(
                 Finding(path=relative, byte_length=0, digest="", unreadable=type(error).__name__)
             )
             continue
+        # A file that grew past the bound between the stat and the read is
+        # still oversized, and this is the branch that says so.
         if len(raw) > MAX_FILE_BYTES:
             # Read and hashed, so it is not unreadable. Harness roots carry
             # caches — a real `~/.codex` holds multi-megabyte catalogue blobs —

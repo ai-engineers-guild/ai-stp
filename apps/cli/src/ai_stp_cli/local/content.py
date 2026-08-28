@@ -11,8 +11,10 @@ plugin, a file in an encoding nobody declared — and `TEXT` would assert UTF-8
 that SQLite cannot enforce on the way in.
 """
 
+import hashlib as _hashlib
 import sqlite3
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Final
 
 from ai_stp_cli.errors import CliFailure
@@ -100,3 +102,24 @@ def address_of(payload: bytes) -> str:
     to do twice.
     """
     return digest_bytes(CONTENT_DOMAIN, payload)
+
+
+def address_of_file(place: Path, *, chunk: int = 1024 * 1024) -> tuple[str, int]:
+    """The address of a file's bytes and its length, without holding them.
+
+    For a subject too large to allocate. `REQ-841` says an oversized file is
+    read and hashed, and it is — the change is that "read" no longer means
+    "read into one object". A harness root can hold a multi-gigabyte cache blob
+    that the import plan hashes only to record that it was seen and excluded,
+    and doing that through `read_bytes` allocated the whole thing first.
+    """
+    digest = _hashlib.sha256(CONTENT_DOMAIN.encode("ascii") + b"\x00")
+    length = 0
+    with place.open("rb") as handle:
+        while True:
+            block = handle.read(chunk)
+            if not block:
+                break
+            length += len(block)
+            digest.update(block)
+    return f"sha256:{digest.hexdigest()}", length

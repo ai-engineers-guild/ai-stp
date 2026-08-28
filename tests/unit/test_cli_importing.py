@@ -639,3 +639,47 @@ def test_a_harness_with_no_declared_state_keeps_every_file(native: Path) -> None
     (native / "jobs" / "run.json").write_text('{"a": 1}', encoding="utf-8")
     found = importing.inspect(native, harness_id="opencode")
     assert "jobs/run.json" in {item.path for item in found.findings}
+
+
+def test_an_oversized_file_is_never_read_whole_into_memory(native: Path) -> None:
+    """The declared bound has to bound something.
+
+    `MAX_FILE_BYTES` was checked *after* `read_bytes()`, so the limit described
+    the outcome and not the cost: a harness root holding a multi-gigabyte cache
+    blob — a real `~/.codex` does — was allocated whole in order to discover
+    that it would be excluded.
+
+    `REQ-841` still holds: the file is read and hashed, and the finding carries
+    the same digest and length it always did. What changed is that "read" no
+    longer means "read into one object", which the requirement never said.
+
+    Proven by watching the reads rather than by trusting the shape: the whole
+    body must never arrive in a single call.
+    """
+    import pathlib
+
+    huge = native / "huge.json"
+    huge.write_bytes(b"x" * (importing.MAX_FILE_BYTES * 3))
+    biggest: list[int] = []
+    original = pathlib.Path.read_bytes
+
+    def spy(self: pathlib.Path) -> bytes:
+        payload = original(self)
+        biggest.append(len(payload))
+        return payload
+
+    pathlib.Path.read_bytes = spy  # pyright: ignore[reportAttributeAccessIssue]
+    try:
+        inspected = importing.inspect(native, harness_id="codex")
+    finally:
+        pathlib.Path.read_bytes = original  # pyright: ignore[reportAttributeAccessIssue]
+
+    assert "huge.json" in inspected.oversized
+    assert max(biggest, default=0) <= importing.MAX_FILE_BYTES, (
+        f"a single read returned {max(biggest, default=0)} bytes, "
+        "so the declared bound bounds nothing"
+    )
+    # And the evidence is unchanged: the exclusion still names an exact digest.
+    found = next(item for item in inspected.findings if item.path == "huge.json")
+    assert found.digest.startswith("sha256:")
+    assert found.byte_length == importing.MAX_FILE_BYTES * 3

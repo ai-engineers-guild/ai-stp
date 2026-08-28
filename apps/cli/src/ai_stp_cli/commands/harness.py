@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Mapping
+from contextlib import closing
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Final
@@ -35,7 +36,7 @@ from typing import Final
 from ai_stp_cli.answer import Answer
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import cache, installation, journal
-from ai_stp_cli.local.database import configured_path, open_registry
+from ai_stp_cli.local.database import configured_path, open_readonly, open_registry
 from ai_stp_cli.local.passports import moment
 from ai_stp_cli.provider import (
     conformance,
@@ -143,8 +144,21 @@ def status(parameters: Mapping[str, object]) -> Answer[HarnessProgramStatus]:
     harness_id = _required(parameters, "harness")
     prefix = _directory(parameters, "prefix")
 
-    with open_registry(configured_path()) as connection:
-        history = installation.program_history(connection, str(prefix))
+    # Read-only, as the command declares itself. This opened the registry with
+    # `open_registry`, which creates the database and its parent on a fresh
+    # installation, switches it to WAL, applies pending migrations and sets
+    # filesystem permissions — a diagnostic with durable side effects, and one
+    # that fails outright on a read-only data directory it could have queried.
+    #
+    # A registry that does not exist is a history with nothing in it, which is
+    # exactly what `never_installed` means. Creating one to say so was the
+    # command answering its own question by writing.
+    registry = configured_path()
+    if registry.exists():
+        with closing(open_readonly(registry)) as connection:
+            history = installation.program_history(connection, str(prefix))
+    else:
+        history = ()
 
     stopped = tuple(item for item in history if item.state not in installation.REPLANNABLE_STATES)
     settled = next((item for item in history if item.state == installation.STATE_VERIFIED), None)
