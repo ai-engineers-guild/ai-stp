@@ -21,7 +21,7 @@ python apps/cli/tools/provider_release.py keygen \
 доказанные `linux` и `x86_64`; переносимые code paths не являются macOS evidence:
 
 `--publisher` обязателен и не имеет умолчания. Раньше инструмент подставлял
-`NDDev-it-com` — издателя, которому поставляемая `provider-policy.toml` уже не
+издателя, которому поставляемая `provider-policy.toml` уже не
 доверяет, — то есть подписывал релизы от имени организации, с которой эстейт
 съехал.
 

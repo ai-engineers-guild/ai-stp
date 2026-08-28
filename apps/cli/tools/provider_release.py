@@ -34,7 +34,7 @@ def _parser() -> argparse.ArgumentParser:
     sign.add_argument("--provider-id", required=True)
     sign.add_argument("--provider-version", required=True)
     sign.add_argument("--repository", required=True)
-    # Required rather than defaulted. This was `NDDev-it-com`, a publisher the
+    # Required rather than defaulted. It used to default to a publisher the
     # shipped `provider-policy.toml` explicitly no longer trusts — so the tool
     # minted releases under an organisation the estate had moved off, and the
     # only thing that would have caught it is somebody reading both files.

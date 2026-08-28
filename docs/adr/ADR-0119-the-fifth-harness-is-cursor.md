@@ -52,7 +52,7 @@ last_verified: "2026-08-23"
 
 `ADR-0003` и `SPEC-001 REQ-105` объявили закрытый набор из пяти харнессов:
 `claude-code`, `codex`, `pi`, `opencode`, `grok-build`. Набор выбирался под
-эстейт провайдеров `NDDev-it-com/nddev-*-app` — пять публичных setup-менеджеров,
+прежний эстейт провайдеров — пять публичных setup-менеджеров,
 которые тогда существовали.
 
 Эстейт переехал. Поддерживаемые реализации теперь разрабатываются в
@@ -64,7 +64,7 @@ last_verified: "2026-08-23"
 | репозиторий | `claude-setup-system` | `codex-setup-system` | `cursor-setup-system` | `grok-setup-system` | `pi-setup-system` |
 
 `*-setup-system` для opencode не существует ни в одной из организаций.
-`NDDev-it-com/nddev-opencode-app` остаётся и описан своим владельцем как
+Прежний opencode-провайдер остаётся и описан своим владельцем как
 «setup module skeleton».
 
 Проверено против самих репозиториев, а не по описанию. Все пять вендорят

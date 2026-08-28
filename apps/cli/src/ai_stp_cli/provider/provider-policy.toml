@@ -5,7 +5,7 @@
 # itself, and this describes what this machine is willing to believe.
 #
 # Signature verification remains supported by the contract, but the displaced
-# NDDev-it-com provider line is no longer trusted by the shipped policy.
+# displaced provider line is no longer trusted by the shipped policy.
 #
 # NDDev-OpenNetwork setup-systems are verified publishers of their attested
 # builds. That overlay does not pin bytes into `releases` and does not restore

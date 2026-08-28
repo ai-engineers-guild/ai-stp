@@ -21,7 +21,6 @@ last_verified: "2026-08-03"
 | [platform-reachability-346.md](platform-reachability-346.md) | План расширения гейта достижимости на api, platform и worker. | 2026-08-16 |
 | [platform-sync-cursor-302.md](platform-sync-cursor-302.md) | План реализации курсора последней непустой страницы sync pull. | 2026-08-16 |
 | [pr-214-integration-handoff.md](pr-214-integration-handoff.md) | Проверенный порядок разделения и интеграции PR #214 через актуальную линию dev. | 2026-08-08 |
-| [provider-integration-readiness.md](provider-integration-readiness.md) | Замещённый снимок пяти provider v3 эстейта NDDev-it-com; текущий эстейт — семь NDDev-OpenNetwork setup-systems. | 2026-08-28 |
 | [quality-gates.md](quality-gates.md) | Обязательные проверки и release evidence. | 2026-08-22 |
 | [release-evidence.md](release-evidence.md) | Обязательные доказательства выпуска CLI, платформы и провайдеров. | 2026-08-04 |
 | [repository-structure.md](repository-structure.md) | Целевая структура монорепозитория и правила владения кодом. | 2026-08-05 |

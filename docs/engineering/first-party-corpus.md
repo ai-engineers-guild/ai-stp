@@ -138,5 +138,4 @@ publication plan существует с 2026-08-16: `#312` закрыт сли�
 ролевого setup хранится в `#186`: паспорт ссылается на эту запись, а не выдаёт
 upstream release page за доказательство установки производной композиции.
 Протокол v3 этих providers не объявляет отдельную launch operation; следующий
-read-only process проверяет установленную поверхность через `status`, как
-зафиксировано в `provider-integration-readiness.md`.
+read-only process проверяет установленную поверхность через `status`.

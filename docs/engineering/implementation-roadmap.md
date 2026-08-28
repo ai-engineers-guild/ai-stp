@@ -75,7 +75,7 @@ artifact digest имеют исполняемые проверки. Для те�
 Протокол v1, проверка соответствия, доверие к выпускам Ed25519, доверенный план
 установки с повторной проверкой точного артефакта, долговечная история защиты от
 отката, exact-digest recovery без снижения минимальной последовательности и автомат состояний операции
-реализованы в `ai_stp`. Линия `NDDev-it-com` с Ed25519-манифестами снята: семь
+реализованы в `ai_stp`. Прежняя линия провайдеров с Ed25519-манифестами снята: семь
 репозиториев `NDDev-OpenNetwork/*-setup-system` выпускают неизменяемые артефакты
 протокола v3 с build attestation, и потребитель связывает их командой
 `provider fetch` (`signing_key=attested`, пустая подпись). Подписанный путь
@@ -83,8 +83,8 @@ artifact digest имеют исполняемые проверки. Для те�
 `releases` не ставит ничего. ADR-0047 фиксирует network
 boundary и versioned compatibility plan. Отдельные v2 models, закрытая action/phase
 схема, CLI capability report, явный v2 conformance и Linux/Bubblewrap launcher
-реализованы без изменения v1. Точные refs, blocker политики и gap matrix адаптера зафиксированы в
-`provider-integration-readiness.md`. Проверка Linux
+реализованы без изменения v1. Точные refs, blocker политики и gap matrix адаптера принадлежат
+`provider-policy.toml` и срезу `just evidence-providers <tag>`. Проверка Linux
 требует положительный контроль и наблюдаемый запрет DNS-UDP/IPv4/IPv6; до
 финального RC остаётся повтор exact Linux enforcement-or-refusal evidence;
 install plan/apply/resume уже используют phase invoker и связывают protocol/target
