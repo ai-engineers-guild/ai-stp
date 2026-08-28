@@ -43,7 +43,24 @@ INFO_FIELDS: Final[tuple[str, ...]] = (
 #: taught tolerance after the fact, which is why a widening arrives as an
 #: optional name here rather than as a new shape for something that already
 #: exists (`ADR-0125`).
-OPTIONAL_INFO_FIELDS: Final[frozenset[str]] = frozenset({"scoped_projection_profiles"})
+OPTIONAL_INFO_FIELDS: Final[frozenset[str]] = frozenset(
+    {"scoped_projection_profiles", "plan_request_fields"}
+)
+
+#: Request-side arguments a provider says it accepts on `plan-operation`.
+#:
+#: `ADR-0125` orders *response* fields — the consumer accepts, ships, and only
+#: then may a provider declare. A request field is the mirror image: an argument
+#: sent to a provider whose parser has never heard of it is refused outright, so
+#: the provider must tolerate it before any consumer sends it. Without something
+#: to read, the consumer's only options are a version comparison or an
+#: inference, and the inference available here is wrong: codex declares
+#: `user_root` in `0.0.10` and does not accept `--target-scope` until the next
+#: release, so "declares a scoped profile" does not imply "accepts the flag".
+#:
+#: Closed, so a provider naming a field this build cannot send is a refusal
+#: rather than a silently ignored promise.
+PLAN_REQUEST_FIELDS: Final[frozenset[str]] = frozenset({"target_scope"})
 
 #: Target scopes a projection may own. `global` and `project` are spelled as the
 #: harness catalog already spells them (`local/harness_catalog.py`).
@@ -164,6 +181,19 @@ PROVENANCE_FIELDS: Final[tuple[str, ...]] = (
     "operation_id",
     "target_precondition_digest",
     "native_ownership",
+    # The files this provider actually wrote, beside the namespaces it owns
+    # rather than inside them: a read asking *which namespaces* should not have
+    # to walk a file list, and under `user_root` the two answer different
+    # questions entirely. A real codex install measures five owned namespaces
+    # and two written files, and only the second number could ever scope a
+    # removal on a root four products share (`ADR-0127`).
+    #
+    # Three states, and the middle one is why this is not just a nicety.
+    # Absent means *not recorded* — a provider older than the field. An empty
+    # array means *this provider wrote nothing here*, which a `remove` leaves
+    # behind. Reading absence as empty would let a scoped removal take
+    # everything, which is the failure the field exists to prevent.
+    "written_paths",
     "backup_ref",
     "previous_verified_identity",
     "drift_state",
@@ -250,6 +280,10 @@ class ProviderCapabilities:
     #: scope. Empty means this release owns the global scope alone, which is not
     #: a degradation and carries no warning.
     scoped_projections: tuple[ProjectionProfile, ...] = ()
+
+    #: `plan-operation` arguments this release accepts. Empty means the closed
+    #: v3 argv and nothing more, which is every provider released so far.
+    plan_request_fields: frozenset[str] = frozenset()
 
     def __post_init__(self) -> None:
         if not self.provider_id or not self.harness_id or not self.provider_version:
@@ -497,6 +531,22 @@ def parse_capabilities(value: Mapping[str, object]) -> ProviderCapabilities:
     if len({item.scope for item in scoped}) != len(scoped):
         raise ValueError("scoped projection profiles must name distinct target scopes")
 
+    raw_request_fields = value.get("plan_request_fields", [])
+    if not isinstance(raw_request_fields, list):
+        raise ValueError("provider-info plan_request_fields must be a string array")
+    request_fields: frozenset[str] = (
+        frozenset(strings("plan_request_fields", nonempty=True))
+        if raw_request_fields
+        else frozenset()
+    )
+    unknown_request = request_fields - PLAN_REQUEST_FIELDS
+    if unknown_request:
+        raise ValueError(
+            "provider-info plan_request_fields names "
+            + ", ".join(sorted(unknown_request))
+            + f", which this build cannot send; it knows {', '.join(sorted(PLAN_REQUEST_FIELDS))}"
+        )
+
     commands = frozenset(strings("supported_commands"))
     operations = normalize_operations(strings("supported_operations"))
     provider_id = value.get("provider_id")
@@ -520,6 +570,7 @@ def parse_capabilities(value: Mapping[str, object]) -> ProviderCapabilities:
         permission_profiles=strings("permission_profiles", nonempty=True),
         projection=profile,
         scoped_projections=tuple(scoped),
+        plan_request_fields=request_fields,
     )
 
 
@@ -668,6 +719,16 @@ def _build_wire_schema() -> dict[str, object]:
             "scoped_projection_profiles": {
                 "type": "array",
                 "items": _projection_schema(scoped=True),
+                "uniqueItems": True,
+            },
+            # Enum derived from the constant, for the reason `PROJECTION_SCOPES`
+            # already learned one release ago: written out, the schema and the
+            # set drift the moment a member is added, and the kit is what a
+            # provider is told to build against. A provider declaring a field
+            # this parser accepts would fail the schema it is checked against.
+            "plan_request_fields": {
+                "type": "array",
+                "items": {"type": "string", "enum": sorted(PLAN_REQUEST_FIELDS)},
                 "uniqueItems": True,
             },
         },

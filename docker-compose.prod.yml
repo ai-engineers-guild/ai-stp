@@ -4,7 +4,7 @@
 
 services:
   postgres:
-    image: postgres:16
+    image: postgres:16@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94
     env_file:
       - path: .env.prod
         required: false
@@ -284,7 +284,7 @@ services:
     restart: always
 
   caddy:
-    image: caddy:2
+    image: caddy:2@sha256:df7f1c2fb114453b951de51a98efc010db1655a92c2e86be6706714e2417a78d
     environment:
       AI_STP_PUBLIC_HOST: ${AI_STP_PUBLIC_HOST:-localhost}
       AI_STP_DOCS_HOST: ${AI_STP_DOCS_HOST:-docs.example.invalid}

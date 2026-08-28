@@ -385,8 +385,17 @@ def test_a_harness_whose_mcp_lives_inside_a_settings_file_has_no_surface() -> No
     """
     from ai_stp_cli.local import harness_catalog
 
-    for harness in ("codex", "grok-build", "opencode", "pi", "cursor", "claude-code"):
+    for harness in ("codex", "grok-build", "opencode", "pi", "claude-code"):
         assert composition.native_surface("mcp", harness) == "", harness
+
+    # `cursor` left this list on 2026-08-28, and by measurement rather than by
+    # argument: a server written straight to `~/.cursor/mcp.json` is listed and
+    # dialled by the product, with both controls holding — the file removed
+    # reports no servers, and the same file one directory to the side reports
+    # no servers. So there *is* a separate file here, and refusing to name it
+    # would be the mirror defect: `native_surface_lost` blocking a bundle for a
+    # surface the harness reads.
+    assert composition.native_surface("mcp", "cursor") == "mcp.json"
 
     # `claude-code` joined that list on 2026-08-27, and for a third reason
     # rather than the same one. Its MCP does not live inside a settings file —
@@ -854,8 +863,11 @@ def test_a_managed_path_at_or_under_its_projection_root_is_accepted() -> None:
 def test_a_kind_with_no_rule_makes_no_claim_about_its_paths() -> None:
     """Absence of a rule is not a rule that everything is wrong.
 
-    Cursor has no `instruction` row — there is no global `~/.cursor/AGENTS.md`
-    for one to name. Refusing its paths here would be inventing a projection
+    Cursor has no `agent` row: the sweep that found five user-scope surfaces in
+    its bundle found no directory for that kind, so the gap narrowed to exactly
+    one rather than disappearing. `instruction` was the example here until
+    2026-08-28, when the User Rule scope at `~/.cursor/rules` was confirmed and
+    routed. Refusing its paths here would be inventing a projection
     from the fact that none exists, and the honest refusal for a kind this
     compiler cannot place belongs to eligibility, not to path arithmetic.
     """
@@ -863,9 +875,9 @@ def test_a_kind_with_no_rule_makes_no_claim_about_its_paths() -> None:
         (
             _surface(
                 "component_a",
-                component_type="instruction",
+                component_type="agent",
                 harness_id="cursor",
-                managed_paths=("AGENTS.md",),
+                managed_paths=("agents/reviewer.md",),
             ),
         ),
         composition.Target(harness_id="cursor", os="linux", arch="x86_64"),

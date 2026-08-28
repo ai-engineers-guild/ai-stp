@@ -71,6 +71,14 @@ class Detector:
     config_root: str
     xdg_config: bool = False
 
+    #: The leaf under `XDG_CONFIG_HOME`, when the product spells it differently
+    #: there. Cursor is `~/.cursor` from the home and `$XDG_CONFIG_HOME/cursor`
+    #: — `cursor`, not `.cursor` — under XDG, which one field cannot say. It
+    #: was reported as `~/.cursor` unconditionally, so on a Linux machine with
+    #: the variable set every answer named a directory the product was not
+    #: using. `None` means the same leaf in both, which is opencode's case.
+    xdg_config_root: str | None = None
+
     #: Environment variable that moves the configuration root, where one exists.
     root_override: str | None = None
 
@@ -93,6 +101,7 @@ DETECTORS: Final[tuple[Detector, ...]] = tuple(
         version_arguments=item.version_arguments,
         config_root=item.config_root,
         xdg_config=item.xdg_config,
+        xdg_config_root=item.xdg_config_root,
         root_override=item.root_override,
         source=item.source,
         npm_packages=item.npm_packages,
@@ -148,10 +157,19 @@ def config_root(detector: Detector, environment: dict[str, str] | None = None) -
     if override and held.get(override):
         return Path(held[override]).expanduser()
     if detector.xdg_config:
-        base = held.get("XDG_CONFIG_HOME") or str(
-            Path(held.get("HOME", "~")).expanduser() / ".config"
-        )
-        return Path(base).expanduser() / detector.config_root
+        base = held.get("XDG_CONFIG_HOME")
+        if base is None and detector.xdg_config_root is None:
+            # A product that is XDG all the way down uses the specification's
+            # own default when the variable is unset. OpenCode is this one.
+            base = str(Path(held.get("HOME", "~")).expanduser() / ".config")
+        if base is not None:
+            leaf = detector.xdg_config_root or detector.config_root
+            return Path(base).expanduser() / leaf
+        # A product that honours the variable but falls back to a dotted home
+        # rather than to `~/.config`. Cursor is this one: `CURSOR_CONFIG_DIR`,
+        # then `$XDG_CONFIG_HOME/cursor`, else `~/.cursor`. Defaulting the base
+        # here would have answered `~/.config/cursor` on a machine with no
+        # variable set — a second wrong answer introduced by fixing the first.
     return Path(held.get("HOME", "~")).expanduser() / detector.config_root
 
 

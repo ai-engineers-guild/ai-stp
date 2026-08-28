@@ -31,7 +31,7 @@ KIT_IDENTITY_SCHEMA: Final[str] = "ai-stp-provider-kit-identity/1"
 #: and it is already pinned in released work. A version whose bytes moved is
 #: the same defect as a republished immutable `X.Y` — the pin would either
 #: fail or, worse, keep matching a name that now means something else.
-KIT_VERSION: Final[str] = "0.2.4"
+KIT_VERSION: Final[str] = "0.2.6"
 
 #: Files the aggregate identity covers, in the order `SHA256SUMS` lists them.
 MACHINE_FILES: Final[tuple[str, ...]] = (

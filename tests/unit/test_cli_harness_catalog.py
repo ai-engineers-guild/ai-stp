@@ -122,12 +122,19 @@ def test_every_harness_either_declares_client_mcp_or_states_a_verified_gap() -> 
     the key, and its documentation index carries no MCP page to declare one
     from (`#377`).
 
-    Cursor has MCP, but not as a global file: `mcpServers` is a key inside a
-    plugin manifest, so what a provider installs is the plugin. Declaring a
-    global layout for it would state a location the product does not have.
+    Cursor was the second until 2026-08-28, on the reading that `mcpServers` is
+    a key inside a plugin manifest and there is no global file. The product
+    disagrees, and it was settled by running it rather than by reading: a server
+    written straight to `~/.cursor/mcp.json` is listed and dialled, the file
+    removed reports no servers, and the same file one directory to the side
+    reports no servers. The CLI's own help names the global path unprompted.
 
-    Inventing a layout in either case would be the guess the discovery contract
-    forbids, so the table says so instead.
+    So the gap was true of `cursor.com/docs` and false of the product. It is
+    withdrawn rather than softened, and what remains of it is `no_global_agent`
+    — the one kind the same sweep found no user-scope directory for.
+
+    Inventing a layout would be the guess the discovery contract forbids. So
+    would keeping a gap after the thing it denies has been observed.
     """
     rows = {row.harness_id: row for row in toolchain.harness_capabilities({}).payload.harnesses}
     declaring = {
@@ -137,9 +144,16 @@ def test_every_harness_either_declares_client_mcp_or_states_a_verified_gap() -> 
         if layout.component_type == "mcp"
     }
 
-    assert declaring == {"claude-code", "codex", "opencode", "grok-build", "antigravity"}
+    assert declaring == {
+        "claude-code",
+        "codex",
+        "opencode",
+        "grok-build",
+        "antigravity",
+        "cursor",
+    }
     assert "no_documented_mcp_client_config" in rows["pi"].gaps
-    assert "components_are_plugin_declared" in rows["cursor"].gaps
+    assert "no_global_agent" in rows["cursor"].gaps
     assert all("no_documented_mcp_client_config" not in rows[harness].gaps for harness in declaring)
 
 
@@ -207,3 +221,41 @@ def test_the_unmigrated_catalog_rows_match_their_golden() -> None:
     """A layout row for these harnesses changes as a reviewed diff or not at all."""
     expected = json.loads(UNMIGRATED_GOLDEN.read_text(encoding="utf-8"))
     assert _unmigrated_rows() == expected
+
+
+def test_a_products_config_home_can_be_spelled_differently_under_xdg() -> None:
+    """One `config_root` cannot say `~/.cursor` and `$XDG_CONFIG_HOME/cursor`.
+
+    Cursor resolves in three steps: `CURSOR_CONFIG_DIR` outright, then
+    `XDG_CONFIG_HOME` giving `cursor` **without the dot**, and only otherwise
+    `~/.cursor`. The catalogue stated `~/.cursor` unconditionally, so on a Linux
+    machine with the variable set every answer named a directory the product was
+    not using — discovery, projection and the target survey alike.
+
+    OpenCode is the other shape and the reason a single flag was not enough: it
+    is XDG all the way down, so with no variable set it uses the specification's
+    own `~/.config` default rather than a dotted home.
+
+    The first fix collapsed the two and answered `~/.config/cursor` where there
+    was no variable — a second wrong answer introduced by correcting the first,
+    which is why both fallbacks are asserted here rather than only the branch
+    that was broken.
+    """
+    from ai_stp_cli.local import harnesses
+
+    cursor = next(item for item in harnesses.DETECTORS if item.harness_id == "cursor")
+    opencode = next(item for item in harnesses.DETECTORS if item.harness_id == "opencode")
+    home = {"HOME": "/home/u"}
+
+    assert str(harnesses.config_root(cursor, home)) == "/home/u/.cursor"
+    assert (
+        str(harnesses.config_root(cursor, {**home, "XDG_CONFIG_HOME": "/home/u/.config"}))
+        == "/home/u/.config/cursor"
+    )
+    assert str(harnesses.config_root(cursor, {**home, "CURSOR_CONFIG_DIR": "/opt/c"})) == "/opt/c"
+
+    assert str(harnesses.config_root(opencode, home)) == "/home/u/.config/opencode"
+    assert (
+        str(harnesses.config_root(opencode, {**home, "XDG_CONFIG_HOME": "/elsewhere"}))
+        == "/elsewhere/opencode"
+    )

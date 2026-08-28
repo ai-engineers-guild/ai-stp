@@ -88,6 +88,12 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     # from claude-code's declaration for the same reason.
     Rule("command", "commands", "directory", "claude-code"),
     Rule("agent", "agents", "directory", "claude-code"),
+    # Declared by the released provider and unroutable here until now, so a
+    # `setting` component for claude-code was refused as exceeding provider
+    # capabilities — by *our* table, while the provider had always accepted it.
+    # Citation is the provider's own baseline row rather than elimination:
+    # `references/claude-code-baseline.json:100`.
+    Rule("setting", "settings.json", "file", "claude-code"),
     Rule("instruction", "AGENTS.md", "file", "codex"),
     # `skills`, under the shared convention's own root, not `.agents/skills`
     # under codex's configuration home. `ADR-0127`, and the eighth face of one
@@ -106,6 +112,30 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     # kinds `["skill"]`.
     Rule("skill", "skills", "directory", "codex", target_scope="user_root"),
     Rule("setting", "config.toml", "file", "codex"),
+    # `references/codex-baseline.json:52` and `:60`. Both were declared by the
+    # provider and routable by nothing here, which conformance reported as
+    # `declared_route_is_compilable:hook` and `:command` failing under the
+    # *consumer* subject — the provider was right and this table was short.
+    #
+    # Taken from the baseline rather than by elimination even though
+    # elimination would have got these two right. It got claude-code's `plugin`
+    # wrong in the same pass, and a method that is right four times out of five
+    # is not a method.
+    # `~/.codex/agents/`, declared in the provider's `0.0.11` and vendor
+    # documented (TOML: `name`, `description`, `model`,
+    # `model_reasoning_effort`, `developer_instructions`). Added after the
+    # release rather than after the declaration: against `0.0.10` this row names
+    # a namespace the released provider does not declare, and the evidence slice
+    # would have gone red for codex — correctly.
+    #
+    # The content format is TOML here where claude-code, opencode and pi take
+    # Markdown for the same kind. That belongs to the component rather than to
+    # this row: the provider writes a bundle's bytes verbatim at their relative
+    # paths and has no notion of format, so a format on the route would be a
+    # field nobody could honour.
+    Rule("agent", "agents", "directory", "codex"),
+    Rule("hook", "hooks.json", "file", "codex"),
+    Rule("command", "prompts", "directory", "codex"),
     # No `agent/` prefix: these are relative to the target, and Pi's target
     # already is `~/.pi/agent`. The segment belongs to the home, not inside it,
     # and prefixing it landed every Pi projection in `~/.pi/agent/agent/`.
@@ -117,6 +147,9 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     # protocol value and install plan refused it as an invalid ProjectionKind.
     Rule("plugin", "extensions", "directory", "pi", projection_kind="package"),
     Rule("setting", "settings.json", "file", "pi"),
+    # `references/pi-baseline.json:229`. Same shape as codex's `prompts`, and
+    # the same reason: declared by the provider, reachable by nothing here.
+    Rule("command", "prompts", "directory", "pi"),
     Rule("instruction", "AGENTS.md", "file", "opencode"),
     Rule("skill", "skills", "directory", "opencode"),
     Rule("command", "commands", "directory", "opencode"),
@@ -168,6 +201,45 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     # tables that were wrong together. Only the vendor page settled it, and no
     # test on either side can read one.
     Rule("plugin", "plugins/local", "directory", "cursor", projection_kind="plugin"),
+    # Five global surfaces, held for a round because they contradicted
+    # `components_are_plugin_declared` — the sentence three cursor defects were
+    # corrected *towards*. The question that settled them was whether the
+    # product reads a file placed there with no plugin manifest naming it.
+    #
+    # `mcp.json` was answered by running it: a server written straight to
+    # `~/.cursor/mcp.json` is listed and dialled, and both controls hold — the
+    # file removed reports no servers, and the same file one directory to the
+    # side reports no servers. The product's own help names the global path
+    # unprompted.
+    #
+    # The other four are confirmed at the line in the pinned bundle rather than
+    # by a run, because they need an authenticated session: `commands` joins
+    # `homedir(), ".cursor", "commands"` and tags entries `scope: "user"`;
+    # `hooks.json` has a distinct user tier beside enterprise and project;
+    # `rules` is the User Rule branch of the product's own scope picker,
+    # hinted "Applies to all your projects"; `skills` is one row of a table the
+    # bundle carries, beside `.claude`, `.codex`, `.grok` and `.agents`.
+    #
+    # So the gap was true of the documentation and false of the product — the
+    # docs page describes the manifest key and has not caught up. It is
+    # withdrawn in `harness_catalog.py` rather than left standing, because a gap
+    # asserted from a page is how `.mcp.json` came to be called global twice.
+    #
+    # `mcp.json` here is deliberately not the same claim as `.mcp.json` on
+    # claude-code and grok. Those were project files at a repository root called
+    # global — a filename travelling without its scope. This one is under the
+    # configuration home the provider owns, and the provider declares it.
+    #
+    # `skill -> skills` is measured and **not** here yet: the released `0.0.11`
+    # does not declare the kind, because it was the provider's own false
+    # decline and is found after that tag. The evidence slice caught the row
+    # arriving first — `skill -> skills: kind not declared` — which is the
+    # ordering it exists to enforce, and the same refusal it would have raised
+    # for `codex agent` had that gone in a release early.
+    Rule("instruction", "rules", "directory", "cursor"),
+    Rule("command", "commands", "directory", "cursor"),
+    Rule("hook", "hooks.json", "file", "cursor"),
+    Rule("mcp", "mcp.json", "file", "cursor"),
     # Antigravity's home belongs to Gemini: `antigravity-cli/` is its own and
     # `config/` is shared, so both prefixes are part of the relative path rather
     # than something a target adds.
@@ -191,6 +263,12 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     # rule for its kind — the corpus had carried the right path all along and
     # nothing had ever compared the two.
     Rule("plugin", "config/plugins", "directory", "antigravity", projection_kind="plugin"),
+    # `config/global_workflows/<name>.md`, invoked as `/workflow-name` across
+    # every workspace. Found as a path literal in the pinned `1.1.22` binary and
+    # then run, which is the difference between a string and a surface — the
+    # catalogue's `no_global_command` gap said this did not exist, on the
+    # strength of the product's documentation.
+    Rule("command", "config/global_workflows", "directory", "antigravity"),
     Rule("skill", "config/skills", "directory", "antigravity"),
     Rule("agent", "config/agents", "directory", "antigravity"),
     Rule("hook", "config/hooks.json", "file", "antigravity"),

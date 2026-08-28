@@ -46,6 +46,9 @@ class HarnessDefinition:
     native_authoring: frozenset[str]
     gaps: tuple[str, ...] = ()
     xdg_config: bool = False
+    #: The leaf under `XDG_CONFIG_HOME` when the product spells it differently
+    #: there than under the home directory.
+    xdg_config_root: str | None = None
     root_override: str | None = None
     npm_packages: tuple[str, ...] = ()
     scoop_app: str | None = None
@@ -459,12 +462,33 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
             _layout("plugin", "plugins/local", "directory", f"{CURSOR}/plugins", G),
             _layout("instruction", ".cursor/rules", "directory", f"{CURSOR}/rules", P),
             _layout("plugin", ".cursor/plugins", "directory", f"{CURSOR}/reference/plugins", P),
+            # Five user-scope surfaces the docs page does not mention and the
+            # product reads. `mcp.json` was confirmed by running the product,
+            # with both controls; the rest at the line in the pinned bundle.
+            # The `rules` row below is the User Rule scope, a sibling of the
+            # project one two lines up rather than a correction of it.
+            _layout("instruction", "rules", "directory", f"{CURSOR}/rules", G),
+            _layout("command", "commands", "directory", f"{CURSOR}/commands", G),
+            _layout("hook", "hooks.json", "file", f"{CURSOR}/hooks", G),
+            _layout("mcp", "mcp.json", "file", f"{CURSOR}/mcp", G),
         ),
         frozenset({"native_files", "plugin_manifest"}),
-        # Skills, agents, commands, hooks and MCP entries are declared by a
-        # plugin manifest rather than discovered as free-standing global
-        # directories, so there is no global layout to state for them.
-        gaps=("components_are_plugin_declared",),
+        # `components_are_plugin_declared` withdrawn. It said skills, agents,
+        # commands, hooks and MCP entries are declared by a plugin manifest and
+        # have no global layout — true of `cursor.com/docs`, false of the
+        # product, which reads all of them at user scope. `agent` is the one
+        # kind with no global surface found, so the gap narrows rather than
+        # disappearing.
+        gaps=("no_global_agent",),
+        # Two overrides, and the second renames the leaf: `CURSOR_CONFIG_DIR`
+        # wins outright, then `XDG_CONFIG_HOME` gives `$XDG_CONFIG_HOME/cursor`
+        # — without the dot — and only otherwise is it `~/.cursor`. Stated as
+        # `~/.cursor` unconditionally until 2026-08-28, so on a Linux machine
+        # with the variable set every answer named a directory the product was
+        # not using. Found by the provider author reading the same resolution
+        # order in the shipped bundle.
+        xdg_config=True,
+        xdg_config_root="cursor",
         root_override="CURSOR_CONFIG_DIR",
     ),
     HarnessDefinition(
@@ -486,6 +510,13 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
             ),
             _layout("plugin", "antigravity-cli/plugins", "directory", f"{ANTIGRAVITY}/plugins", G),
             _layout("plugin", "config/plugins", "directory", f"{ANTIGRAVITY}/plugins", G),
+            # Global workflows, Markdown invoked as `/workflow-name` across
+            # every workspace. Discovery has to know it for the same reason
+            # projection does: an object living here is one this catalogue
+            # would otherwise report as somebody's loose notes.
+            _layout(
+                "command", "config/global_workflows", "directory", f"{ANTIGRAVITY}/commands", G
+            ),
             _layout("skill", "config/skills", "directory", f"{ANTIGRAVITY}/skills", G),
             _layout("agent", "config/agents", "directory", f"{ANTIGRAVITY}/agents", G),
             _layout("hook", "config/hooks.json", "file", f"{ANTIGRAVITY}/hooks", G),
@@ -500,7 +531,20 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
         # The product documents instructions and commands only per project, in
         # `.agents/`, so there is nothing global to declare for either. There is
         # also no documented variable that moves the home.
-        gaps=("no_global_instruction", "no_global_command", "no_documented_root_override"),
+        #
+        # `no_global_command` is now known to be a claim about the documentation
+        # rather than about the product. The provider author found
+        # `config/workflows/`, `config/workflows.json` and
+        # `config/global_workflows/<name>.md` as path literals in the pinned
+        # `1.1.22` binary — a global workflow surface, which is the first
+        # evidence against the sentence above.
+        #
+        # Somebody ran it. Global workflows are Markdown invoked as
+        # `/workflow-name` across every workspace, so `no_global_command` was
+        # false — a gap asserted from a vendor page, which is exactly how
+        # `.mcp.json` came to be called global on two harnesses. Withdrawn, and
+        # `command` now routes to `config/global_workflows` in `composition.py`.
+        gaps=("no_global_instruction", "no_documented_root_override"),
     ),
     HarnessDefinition(
         "undefined",

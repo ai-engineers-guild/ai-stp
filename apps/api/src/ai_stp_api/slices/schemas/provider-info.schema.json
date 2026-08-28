@@ -15,6 +15,16 @@
       "type": "array",
       "uniqueItems": true
     },
+    "plan_request_fields": {
+      "items": {
+        "enum": [
+          "target_scope"
+        ],
+        "type": "string"
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
     "projection_profile": {
       "additionalProperties": false,
       "properties": {

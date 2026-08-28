@@ -17,6 +17,7 @@ Both are about ordering, so both are checked by recording the order.
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
@@ -54,7 +55,13 @@ def _parameters(tmp_path: Path) -> dict[str, object]:
     target.mkdir()
     return {
         "harness": "claude-code",
-        "provider": "/usr/bin/true",
+        # An executable that exists on all three systems. This was
+        # `/usr/bin/true`, which resolves on Linux and macOS and does not exist
+        # on Windows, so four of these tests failed there with
+        # `FileNotFoundError` — never reaching the ordering they exist to check.
+        # Nothing is ever run: the invoker is replaced. The path only has to
+        # resolve, and `sys.executable` always does.
+        "provider": sys.executable,
         "provider-release-digest": "sha256:" + "a" * 64,
         "prefix": str(prefix),
         "target": str(target),
