@@ -574,6 +574,19 @@ def test_two_threads_opening_a_clean_registry_both_succeed(tmp_path: Path) -> No
     another opener can finish the same migration in between. Without asking
     again under the write lock, the loser re-runs `CREATE TABLE` on tables that
     now exist and crashes — which is how six concurrent first runs failed.
+
+    **Observed failing once, on `windows-latest`, 2026-08-28** (`33218639098`):
+    `sqlite3.OperationalError: database is locked` from `BEGIN IMMEDIATE`, one
+    failure in the last twelve `check` runs and none on the two other operating
+    systems. `BUSY_TIMEOUT_MILLISECONDS` is 5000; a clean open measured here
+    takes **33 ms** across five runs of all 23 migrations, so the budget is
+    roughly 150x the work and raising it would be a round number against no
+    measurement. What exceeded it was the runner, not the migration chain.
+
+    Left as it is deliberately, with the numbers recorded so a second occurrence
+    has a first to compare against. If it recurs, the thing to measure is how
+    long the *winner* holds the write lock on that platform under parallel load
+    — not how long the loser is willing to wait.
     """
     import concurrent.futures
     import threading
