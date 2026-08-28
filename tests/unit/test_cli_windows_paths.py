@@ -32,7 +32,6 @@ def test_nothing_is_refused_on_a_platform_with_no_such_limit(
     """
     monkeypatch.setattr(windows_paths, "on_windows", lambda: False)
     assert windows_paths.too_long_for_windows(Path("/home/someone/.codex"), ["x" * 4000]) == []
-    assert windows_paths.long_paths_enabled() is False
 
 
 def test_the_root_is_counted_with_the_relative_path_and_the_separator(
@@ -61,16 +60,24 @@ def test_a_machine_that_opted_out_of_the_limit_is_not_refused(
     assert windows_paths.too_long_for_windows(Path("C:/x"), ["y" * 4000]) == []
 
 
-def test_a_machine_that_cannot_be_asked_is_treated_as_not_opted_out(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """No registry here, so the import fails and the answer is the safe one.
+def test_the_opt_out_is_read_from_the_machine_rather_than_assumed() -> None:
+    """Off Windows there is nothing to ask, and the answer is the safe one.
 
-    Being wrong this way costs a refusal the operator can act on. Being wrong
-    the other way costs a half-applied install.
+    Asserted against the real platform rather than a patched one, because this
+    is the one function that deliberately branches on `sys.platform` directly —
+    the type checker has no `winreg` elsewhere. Patching `on_windows` does not
+    reach it, which is the point: the first version of this test asserted
+    `False` unconditionally, passed on Linux and macOS, and failed on the
+    Windows runner, where the registry can be asked and says the opt-out is on.
+
+    Being wrong towards `False` costs a refusal an operator can act on. Being
+    wrong the other way costs a half-applied install, which is why an
+    unreadable registry still answers `False`.
     """
-    monkeypatch.setattr(windows_paths, "on_windows", lambda: True)
-    assert windows_paths.long_paths_enabled() is False
+    answer = windows_paths.long_paths_enabled()
+    assert isinstance(answer, bool)
+    if not windows_paths.on_windows():
+        assert answer is False
 
 
 def test_the_limit_is_the_documented_one_rather_than_a_round_number() -> None:
