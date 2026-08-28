@@ -71,12 +71,15 @@ class Detector:
     config_root: str
     xdg_config: bool = False
 
-    #: The leaf under `XDG_CONFIG_HOME`, when the product spells it differently
-    #: there. Cursor is `~/.cursor` from the home and `$XDG_CONFIG_HOME/cursor`
-    #: — `cursor`, not `.cursor` — under XDG, which one field cannot say. It
-    #: was reported as `~/.cursor` unconditionally, so on a Linux machine with
-    #: the variable set every answer named a directory the product was not
-    #: using. `None` means the same leaf in both, which is opencode's case.
+    #: The leaf under `XDG_CONFIG_HOME`, when a product spells it differently
+    #: there than under the home directory. `None` means the same leaf in both.
+    #:
+    #: No harness sets it today. It was added for cursor and withdrawn the same
+    #: day: cursor's config *resolver* does rename the leaf, but only one of the
+    #: eight surfaces it owns is built by calling that resolver, and the rest are
+    #: literal `~/.cursor`. Kept because the distinction it draws is real and the
+    #: next product to need it will need exactly this, and because deleting it
+    #: would lose the reason — a resolver is not a statement about a home.
     xdg_config_root: str | None = None
 
     #: Environment variable that moves the configuration root, where one exists.

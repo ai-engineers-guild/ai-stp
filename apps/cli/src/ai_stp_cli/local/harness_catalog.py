@@ -481,34 +481,33 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
         # kind with no global surface found, so the gap narrows rather than
         # disappearing.
         gaps=("no_global_agent",),
-        # Two overrides, and the second renames the leaf: `CURSOR_CONFIG_DIR`
-        # wins outright, then `XDG_CONFIG_HOME` gives `$XDG_CONFIG_HOME/cursor`
-        # — without the dot — and only otherwise is it `~/.cursor`. Stated as
-        # `~/.cursor` unconditionally until 2026-08-28, so on a Linux machine
-        # with the variable set every answer named a directory the product was
-        # not using. Found by the provider author reading the same resolution
-        # order in the shipped bundle.
+        # **Not XDG, and the correction is to a fix made here yesterday.**
         #
-        # **Open, and created by the line above.** Cursor also has a separate
-        # `CURSOR_DATA_DIR`, defaulting to `~/.cursor` and *not* XDG-aware. So a
-        # machine with `XDG_CONFIG_HOME` set has configuration at
-        # `$XDG_CONFIG_HOME/cursor` and data still at `~/.cursor` — two roots
-        # where there was one.
+        # `CURSOR_CONFIG_DIR`, then `XDG_CONFIG_HOME` giving `$XDG_CONFIG_HOME/cursor`,
+        # else `~/.cursor` is the config *resolver*, and it was read correctly.
+        # What was wrong was treating a resolver as a statement about the home:
+        # of the eight namespaces this harness owns, exactly one —
+        # `cli-config.json` — is built by calling it. `commands`, `rules`,
+        # `hooks.json`, `mcp.json`, `plugins` and `plugins/local` are literal
+        # `join(homedir(), ".cursor", …)` in the pinned bundle and move for no
+        # variable at all. A separate `CURSOR_DATA_DIR` carries `projects` and
+        # `computer-use`, and nothing here.
         #
-        # Every layout here is `root="config"`, and the vocabulary has only
-        # `config` and `home`; there is no `data`. While this harness was
-        # unconditionally `~/.cursor` the distinction could not be wrong,
-        # because both resolved to the same directory. Making configuration
-        # conditional is what split them, so this row introduced the exposure it
-        # now records.
+        # So turning XDG on sent discovery, projection and the target survey to
+        # `$XDG_CONFIG_HOME/cursor` for six of the seven surfaces this catalogue
+        # carries, on any machine with the variable set. Before that change the
+        # home was unconditionally `~/.cursor` and could not be wrong; the fix
+        # is what broke it. Reverted.
         #
-        # Which surfaces follow which root is **not** guessed here. `plugins`
-        # is the obvious candidate — installed artifacts read like data — but
-        # "reads like" is the reasoning that produced `antigravity-cli/plugins`
-        # and cursor's own `plugins`. Asked of the provider author, who holds
-        # the bundle's resolution order; a `data` root arrives with the answer.
-        xdg_config=True,
-        xdg_config_root="cursor",
+        # `~/.cursor` was right for seven of eight all along. The one surface
+        # that does move needs a per-surface root, which the vocabulary here
+        # (`config` and `home`) cannot express and which is not worth inventing
+        # for a single file until something depends on it.
+        #
+        # Both of the guesses considered were wrong, and neither was the shape:
+        # "reads like data" would have put `plugins` under `CURSOR_DATA_DIR`,
+        # and "comes off the config resolver" would have kept all seven on XDG.
+        # Only following each surface's own construction answered it.
         root_override="CURSOR_CONFIG_DIR",
     ),
     HarnessDefinition(

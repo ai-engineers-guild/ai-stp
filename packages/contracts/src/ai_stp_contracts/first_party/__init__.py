@@ -136,6 +136,33 @@ class _RoleSourceManifest(BaseModel):
     harnesses: tuple[_RoleHarnessSource, ...]
 
 
+#: Five of the seven harnesses cite a repository that no longer belongs to the
+#: organisation naming it. Verified 2026-08-28 against the API rather than taken
+#: on report: `NDDev-it-com/nddev-codex-app` and its four siblings redirect to
+#: `rldyourmnd/<name>` and answer `archived: true`. They were transferred to a
+#: personal account and frozen on 2026-08-25.
+#:
+#: Nothing is broken by it. Every artifact is embedded under `v1/` and read from
+#: the package, so no publication or install reaches the network for these
+#: bytes, and the recorded commit and tree still identify the exact objects.
+#: What is stale is the *organisation* in the URL, and a redirect is not the
+#: same as a correction.
+#:
+#: It cannot be fixed by editing this file. `managed_paths`, `source` and the
+#: commit are inside the content-addressed passport, so a published `X.Y` cannot
+#: be rewritten (`REQ-2606`) — the same constraint that made `pi`, `codex` and
+#: `cursor` layout corrections into new versions rather than edits.
+#:
+#: And it cannot be fixed by pointing at the OpenNetwork estate either, because
+#: the bytes are not there: five of those seven repositories carry only
+#: `baseline`, `full-auto` and `minimal` — nine blobs — while this corpus
+#: publishes 43 components from a `nddev-builder` setup that only `antigravity`
+#: and `cursor` have. Naming a repository as the source of components it does
+#: not contain would be the string-only URL replacement `#433` forbids, written
+#: where it reads as provenance.
+#:
+#: So it is recorded rather than repaired, and the repair belongs to the wave
+#: that gives those five a `nddev-builder` setup (`#433`).
 def _sources() -> tuple[_HarnessSource, ...]:
     raw = files(__package__).joinpath("v1/corpus-sources.json").read_bytes()
     return _SourceManifest.model_validate_json(raw).harnesses
