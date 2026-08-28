@@ -161,3 +161,37 @@ def test_the_ledger_names_each_version_and_each_digest_once() -> None:
 
     assert len(versions) == len(set(versions)), sorted(versions)
     assert len(digests) == len(set(digests)), "two kit versions share an aggregate digest"
+
+    # `republished` is where a version that did name two byte sets keeps the one
+    # it no longer names. It is a record, so it must not also be a claim: a
+    # digest cannot be both withdrawn and current.
+    withdrawn = [item["aggregate_digest"] for item in document.get("republished", ())]
+    assert len(withdrawn) == len(set(withdrawn)), sorted(withdrawn)
+    assert not set(withdrawn) & set(digests), "a withdrawn digest is also recorded as released"
+
+
+def test_the_kit_version_that_ships_is_recorded_before_anybody_pins_it() -> None:
+    """The half of the contract that lived where nothing runs it.
+
+    `test_a_released_kit_version_never_changes_its_bytes` above only fires when
+    the current version is *already* in the ledger, so a release that never
+    entered the file was checked against nothing. The stricter assertion — the
+    shipping version must be recorded — existed, in a private-only test file, in
+    a repository that runs no CI. Nobody ran it, so it went red at `0.2.4` and
+    stayed red unobserved.
+
+    What it was hiding, measured on 2026-08-29 from the providers' own git
+    history and confirmed independently in four of the seven repositories:
+
+        8f948aba  2026-08-28T01:37Z  0.2.4  sha256:1d117032cee41bb8…
+        a0f9ad90  2026-08-28T07:21Z  0.2.4  sha256:8e6f4fa1c1639681…
+
+    One released `X.Y`, two byte sets, six hours apart, vendored by every
+    provider both times. That is precisely what the ledger exists to prevent,
+    and the record could not say so because it stopped three versions earlier.
+    """
+    released = _ledger()
+    assert provider_kit.KIT_VERSION in released, (
+        f"kit {provider_kit.KIT_VERSION} ships and the ledger does not record its bytes; "
+        "add the pair in the same change that bumps the version"
+    )
