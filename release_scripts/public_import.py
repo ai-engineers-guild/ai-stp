@@ -12,6 +12,11 @@ stays private, and `release_scripts/public_overlay/` names the files the public
 tree carries *instead of* this one's. Everything else is published, so
 everything else is imported.
 
+An overlay path is not skipped, though — it is imported one directory over.
+`release_scripts/public_overlay/<name>` is the source of the public tree's copy
+of `<name>`, so an edit made upstream belongs there, and only the private
+document at `<name>` itself has to survive untouched.
+
 The asymmetry with the export is deliberate. The export refuses on doubt,
 because a mistake there publishes something private and is fixed by rotating
 whatever leaked. A mistake here overwrites a local file, which Git makes
@@ -48,13 +53,34 @@ from release_scripts.public_export import (
 
 
 def overlay_targets() -> frozenset[str]:
-    """Paths the public tree holds that this one must keep its own version of.
+    """Paths the public tree holds that this one keeps its own version of.
 
     They exist in both trees with different content — `AGENTS.md`, the CI
-    documents, the workflows — so importing them would replace the private half
-    with the public half and lose it without a word.
+    documents, the workflows — so importing one *at its own path* would replace
+    the private half with the public half and lose it without a word.
+
+    That is why they are separated, and it is only half the story. The bytes the
+    public tree carries came from `release_scripts/public_overlay/<name>`, and
+    that copy is a file of this repository like any other. Skipping the name
+    outright left the overlay unable to learn anything: work lands in the public
+    tree (`ADR-0110`), so a workflow edited there had no route home, and the
+    next `public-build` put the old bytes back without failing anything.
+
+    Measured on 2026-08-29, seven of twenty-one had drifted that way — the
+    Dependabot ecosystem fix, a pinned Postgres digest, the deploy timeout
+    raised against a measured 27 minutes, a script-injection fix and two action
+    bumps. `public-sync-verify` answered `disagreements: 0` throughout, because
+    it excluded exactly the paths that can disagree unobserved.
+
+    So the name is kept out of `write` and its bytes are imported into the
+    overlay instead.
     """
     return frozenset(overlay_files())
+
+
+def overlay_dir(root: Path = ROOT) -> Path:
+    """Where this copy keeps the bytes the public tree publishes at `<name>`."""
+    return root / "release_scripts" / "public_overlay"
 
 
 class ImportError_(RuntimeError):
@@ -104,14 +130,31 @@ def plan(
         if not (root / name).is_file() or not filecmp.cmp(tree / name, root / name, shallow=False)
     )
 
+    held = overlay_dir(root)
+    overlay_write = tuple(
+        name
+        for name in sorted(overlay & set(public))
+        if not (held / name).is_file() or not filecmp.cmp(tree / name, held / name, shallow=False)
+    )
+
     published_here = set(eligible(tracked_files(root), manifest))
     delete = tuple(sorted(published_here - set(public) - overlay))
-    return write, delete, tuple(sorted(overlay & set(public)))
+    return write, delete, overlay_write
 
 
-def apply(tree: Path, write: tuple[str, ...], delete: tuple[str, ...], root: Path = ROOT) -> None:
-    for name in write:
-        target = root / name
+def apply(
+    tree: Path,
+    write: tuple[str, ...],
+    delete: tuple[str, ...],
+    root: Path = ROOT,
+    overlay: tuple[str, ...] = (),
+) -> None:
+    destinations = [(name, root / name) for name in write]
+    # The overlay's copy, never the path itself: `AGENTS.md` at the root is this
+    # repository's own document and is withheld from publication precisely so
+    # that it can say more.
+    destinations += [(name, overlay_dir(root) / name) for name in overlay]
+    for name, target in destinations:
         target.parent.mkdir(parents=True, exist_ok=True)
         # `copy2` carries the mode, which matters for the same reason it
         # mattered in the publisher: `deploy/pull-deploy.sh` is executed
@@ -157,6 +200,13 @@ def verify(tree: Path, manifest: Manifest, root: Path = ROOT) -> tuple[str, ...]
             disagreements.append(f"missing here: {name}")
         elif not filecmp.cmp(tree / name, here, shallow=False) and not is_generated(here):
             disagreements.append(f"differs: {name}")
+    held = overlay_dir(root)
+    for name in sorted(overlay & public):
+        source = held / name
+        if not source.is_file():
+            disagreements.append(f"overlay missing: {name}")
+        elif not filecmp.cmp(tree / name, source, shallow=False):
+            disagreements.append(f"overlay differs: {name}")
     for name in sorted(mine - public - overlay):
         disagreements.append(f"only here: {name}")
     return tuple(disagreements)
@@ -226,7 +276,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"disagreements: {len(disagreements)}")
             return 1 if disagreements else 0
 
-        write, delete, kept = plan(tree, manifest)
+        write, delete, overlay = plan(tree, manifest)
         offenders = withheld_touched(write, manifest)
     except (ImportError_, ExportError) as error:
         print(f"public import failed: {error}", file=sys.stderr)
@@ -240,12 +290,12 @@ def main(argv: list[str] | None = None) -> int:
 
     _print_names("writes", write)
     _print_names("deletes", delete)
-    print(f"kept (this copy owns them): {len(kept)}")
+    _print_names("overlays", overlay)
 
     if args.report:
         return 0
-    apply(tree, write, delete)
-    print(f"imported: {len(write)} written, {len(delete)} removed")
+    apply(tree, write, delete, overlay=overlay)
+    print(f"imported: {len(write)} written, {len(delete)} removed, {len(overlay)} into the overlay")
     print("run `just docs-gen` and `just back-gen`: the indexes are derived")
     return 0
 
