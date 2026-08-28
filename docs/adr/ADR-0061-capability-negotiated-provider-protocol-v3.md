@@ -105,7 +105,7 @@ Codex и Pi — отсутствие software removal. Grok Build и OpenCode м
 
 Появляется новый неизменяемый публичный артефакт соответствия: схемы и эталонные примеры,
 hostile corpus и expected digests. Public providers не зависят во время исполнения
-от private `nddev-harnesses` или private `ai_stp`; они проверяются против exact
+от закрытого контура авторинга или private `ai_stp`; они проверяются против exact
 точной опубликованной версии набора, а закрытый control plane повторяет E2E и проверки promotion.
 
 Миграция выполняется provider-first. Старые standalone stamps читаются без

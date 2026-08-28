@@ -15,7 +15,7 @@ last_verified: "2026-08-27"
 
 Прежний эстейт провайдеров снят (`ADR-0119`, `ADR-0120`). Он остаётся в исторических ADR как контекст и не является источником для нового объекта; линия доверия закреплена `provider-policy.toml` за семью `*-setup-system`.
 
-Закрытый `nddev-harnesses` является контуром проверок и координации: он не клонируется пользователю, не является зависимостью или источником runtime-поведения и не участвует в работе приложения. Прямая запись `ai_stp` в нативные каталоги запрещена.
+Закрытый контур авторинга систем сетапов является контуром проверок и координации: он не клонируется пользователю, не является зависимостью или источником runtime-поведения и не участвует в работе приложения. Прямая запись `ai_stp` в нативные каталоги запрещена.
 
 ## Термины
 
@@ -63,7 +63,7 @@ last_verified: "2026-08-27"
 - `REQ-834`: `plan-operation` является чистым и связывает operation, provider build, проверенный consumer release digest/protocol, снимок цели, optional exact bundle/BackupRef, permission profile, platform/runtime identity, срок и эффекты; `apply-operation` требует точный plan artifact/digest и повторную проверку после блокировки.
 - `REQ-835`: Permission/execution profile не является setup identity и не меняет SetupDefinition/component graph digest; standalone legacy identities мигрируют только в подтверждённой mutation после резервной копии.
 - `REQ-836`: Состояние provider и метаданные backup связывают exact SetupVersion, SetupDefinition, components, bundle, projection profile, provider plan/release, цель и native ownership; `status` не мигрирует состояние, а секретные значения не сохраняются.
-- `REQ-837`: Provider v3 conformance распространяется как неизменяемый public artifact без зависимости во время исполнения от закрытых `ai_stp` или `nddev-harnesses` и включает схемы, canonical examples, hostile corpus и expected digests.
+- `REQ-837`: Provider v3 conformance распространяется как неизменяемый public artifact без зависимости во время исполнения от закрытых `ai_stp` или контура авторинга и включает схемы, canonical examples, hostile corpus и expected digests.
 - `REQ-838`: Software download разрешается только отдельной phase; последующая local apply снова требует доказанной network isolation, а launch использует только явно объявленную `runtime_external` capability.
 - `REQ-839`: Provider durable journal имеет закрытые фазы `prepared` и `committed`, связывает exact plan/operation/target-bound BackupRef и блокирует новый plan до recovery; prepared восстанавливает exact pre-operation target, committed только проверяет result и дренирует cleanup.
 - `REQ-840`: Отчёт преобразования связывает вид компонента, нативную поверхность и вид проекции; каждый точный компонент владеет непустым содержимым, а принадлежащие provider нативный синтаксис и обязательные маркеры дерева проверяются до плана без изменения цели.
