@@ -21,11 +21,18 @@ from ai_stp_passports.envelope import derive_revision_id, verify_revision_id
 from ai_stp_passports.versions import ComponentVersionPassport, SetupVersionPassport
 
 
-def _grok() -> tuple[FirstPartyVersion, FirstPartyVersion]:
-    component, setup = [
-        item for item in corpus_versions() if item.passport.harness_id == "grok-build"
-    ]
-    return component, setup
+def _grok() -> tuple[tuple[FirstPartyVersion, ...], FirstPartyVersion]:
+    """The grok-build family: every component, then the setup that pins them.
+
+    This unpacked two values until 2026-08-29, when the corpus was rebuilt from
+    the live setup systems and grok-build went from one component to four. A
+    family is a set of an unknown size, and a test that says so keeps working
+    when somebody else's builder tree grows.
+    """
+    family = [item for item in corpus_versions() if item.passport.harness_id == "grok-build"]
+    components = tuple(item for item in family if item.kind == "component")
+    (setup,) = [item for item in family if item.kind == "setup"]
+    return components, setup
 
 
 def _held(
@@ -54,12 +61,10 @@ def _held(
 def test_exact_setup_graph_is_idempotently_acquired_and_compiled_offline(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    component, setup = _grok()
+    components, setup = _grok()
     held = {
-        ("component", component.passport.stable_id, component.passport.version): _held(
-            component, source="cache"
-        ),
-        ("setup", setup.passport.stable_id, setup.passport.version): _held(setup, source="cache"),
+        (item.kind, item.passport.stable_id, item.passport.version): _held(item, source="cache")
+        for item in (*components, setup)
     }
     calls: list[tuple[str, str, str, bool]] = []
 
@@ -76,12 +81,14 @@ def test_exact_setup_graph_is_idempotently_acquired_and_compiled_offline(
 
     assert first == second
     assert first.source == "cache"
-    assert [item.stable_id for item in first.components] == [component.passport.stable_id]
+    assert [item.stable_id for item in first.components] == [
+        item.passport.stable_id for item in components
+    ]
     assert (
         calls
         == [
             ("setup", setup.passport.stable_id, "1.0", True),
-            ("component", component.passport.stable_id, "1.0", True),
+            *(("component", item.passport.stable_id, "1.0", True) for item in components),
         ]
         * 2
     )
@@ -95,7 +102,7 @@ def test_exact_setup_graph_is_idempotently_acquired_and_compiled_offline(
             "SELECT (SELECT count(*) FROM object_version), "
             "(SELECT count(*) FROM revision), (SELECT count(*) FROM content)"
         ).fetchone()
-        assert tuple(counts) == (2, 2, 2)
+        assert tuple(counts) == ((len(components) + 1,) * 3)
 
 
 def test_all_role_family_graphs_are_acquired_and_compiled_for_their_harness(
@@ -148,40 +155,19 @@ def test_all_role_family_graphs_are_acquired_and_compiled_for_their_harness(
         assert len({item.path for item in compiled.files}) == len(compiled.files)
 
 
-@pytest.mark.parametrize(
-    ("harness_id", "expected_paths"),
-    [
-        (
-            "opencode",
-            {
-                "AGENTS.md",
-                "agents/nddev-builder.md",
-                "commands/nddev-orient.md",
-                "commands/nddev-validate.md",
-                "plugins/nddev-builder.js",
-                "skills/nddev-builder/SKILL.md",
-                "skills/nddev-builder/references/native-surfaces.md",
-                "skills/nddev-builder/references/security-boundary.md",
-            },
-        ),
-        (
-            "pi",
-            {
-                "AGENTS.md",
-                "extensions/nddev-builder/AGENTS.md",
-                "extensions/nddev-builder/package.json",
-                "extensions/nddev-builder/skills/nddev-builder/SKILL.md",
-                "settings.json",
-                "skills/nddev-builder/SKILL.md",
-            },
-        ),
-    ],
-)
+@pytest.mark.parametrize("harness_id", ["opencode", "pi"])
 def test_beta_base_setup_graphs_acquire_and_compile_to_exact_native_surfaces(
     monkeypatch: pytest.MonkeyPatch,
     harness_id: str,
-    expected_paths: set[str],
 ) -> None:
+    """Every compiled file sits under a root some member declared, and none is lost.
+
+    The expectation was a pinned set of file names until 2026-08-29. Those names
+    belong to somebody else's builder tree — they move when the setup systems
+    release — so the test was measuring their content rather than our compiler.
+    What is ours is the pairing: the bundle contains exactly the files the
+    artifacts carry, each under the managed root its component declared.
+    """
     corpus = corpus_versions()
     setup = next(
         item
@@ -219,17 +205,29 @@ def test_beta_base_setup_graphs_acquire_and_compile_to_exact_native_surfaces(
             setup.passport.version,
             expected_harness=harness_id,
         )
-    assert {item.path for item in compiled.files} == expected_paths
+    members = [
+        item
+        for item in corpus
+        if item.kind == "component"
+        and item.passport.stable_id in {ref.stable_id for ref in setup.passport.components}
+    ]
+    roots = {path for item in members for path in getattr(item.passport, "managed_paths", ())}
+    assert roots
+    compiled_paths = {item.path for item in compiled.files}
+    assert compiled_paths
+    for path in compiled_paths:
+        assert any(path == root or path.startswith(f"{root}/") for root in roots), path
+    for root in roots:
+        assert any(path == root or path.startswith(f"{root}/") for path in compiled_paths), (
+            f"{root} declared and nothing written under it"
+        )
 
 
 def test_acquisition_failure_rolls_back_the_whole_graph(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    component, setup = _grok()
-    held = {
-        ("component", component.passport.stable_id): _held(component),
-        ("setup", setup.passport.stable_id): _held(setup),
-    }
+    components, setup = _grok()
+    held = {(item.kind, item.passport.stable_id): _held(item) for item in (*components, setup)}
 
     def acquire_one(
         kind: str, stable_id: str, _version: str, *, offline: bool
@@ -260,7 +258,7 @@ def test_acquisition_failure_rolls_back_the_whole_graph(
 def test_offline_acquisition_reads_verified_bytes_without_resolving_an_endpoint(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    component, _setup = _grok()
+    (component, *_rest), _setup = _grok()
     acquired = _held(component, source="cache")
     artifact = tmp_path / "component.zip"
     artifact.write_bytes(component.artifact)
@@ -293,7 +291,7 @@ def test_acquire_version_seals_published_bytes_not_a_model_dump(
     `verify_revision_id` dumps the validated model, which injects empty
     `harness_ids` / `supported_os` and is not the published seal.
     """
-    component, _setup = _grok()
+    (component, *_rest), _setup = _grok()
     published = component.passport.model_dump(mode="json")
     published.pop("harness_ids", None)
     published.pop("supported_os", None)
@@ -341,7 +339,7 @@ def test_acquire_version_seals_published_bytes_not_a_model_dump(
 def test_offline_acquisition_refuses_corrupt_cached_bytes(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    component, _setup = _grok()
+    (component, *_rest), _setup = _grok()
     acquired = _held(component, source="cache")
     artifact = tmp_path / "component.zip"
     artifact.write_bytes(component.artifact + b"corrupt")

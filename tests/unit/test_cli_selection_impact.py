@@ -3,6 +3,7 @@
 import json
 from contextlib import closing
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -13,34 +14,63 @@ from ai_stp_cli.local.database import configured_path, open_registry, transactio
 from ai_stp_contracts.first_party import FirstPartyVersion
 from ai_stp_contracts.first_party import versions as corpus_versions
 from ai_stp_contracts.impact import ComponentTokenMeasurement, ExactCoordinate
+from ai_stp_foundation.canonical import JsonValue, canonize
+from ai_stp_foundation.digests import digest_bytes
 from ai_stp_passports import SetupVersionPassport
+from ai_stp_passports.envelope import seal_envelope, verify_revision_id
 
 AT = "2026-08-13T12:00:00.000Z"
 
 
 def _shared_corpus() -> tuple[FirstPartyVersion, FirstPartyVersion, FirstPartyVersion]:
+    """One component, and two local setups that both pin it.
+
+    The corpus used to carry twelve role setups per pair of harnesses, six of
+    them sharing components, so this could be found by search. Rebuilt from the
+    live setup systems it carries exactly one setup per harness, and the shape
+    this exercises — two selections overlapping on one component — is a property
+    of the local registry rather than of the published catalogue.
+
+    So the second setup is derived here instead of hunted for: the same members
+    minus the last one, resealed under a new identifier. Nothing about the
+    report under test depends on where the second selection came from, and a
+    fixture that says what it needs does not go stale when somebody else's
+    builder tree changes.
+    """
     corpus = corpus_versions()
-    setups = [item for item in corpus if item.passport.kind == "setup"]
-    for first in setups:
-        first_passport = SetupVersionPassport.model_validate(first.passport.model_dump(mode="json"))
-        first_ids = {item.stable_id for item in first_passport.components}
-        for second in setups:
-            if first is second or second.passport.harness_id != first.passport.harness_id:
-                continue
-            second_passport = SetupVersionPassport.model_validate(
-                second.passport.model_dump(mode="json")
-            )
-            second_ids = {item.stable_id for item in second_passport.components}
-            shared = first_ids & second_ids
-            if shared:
-                component = next(
-                    item
-                    for item in corpus
-                    if item.passport.kind == "component"
-                    and item.passport.stable_id == sorted(shared)[0]
-                )
-                return component, first, second
-    raise AssertionError("the first-party corpus must exercise shared components")
+    base = max(
+        (item for item in corpus if item.passport.kind == "setup"),
+        key=lambda item: len(
+            SetupVersionPassport.model_validate(item.passport.model_dump(mode="json")).components
+        ),
+    )
+    base_passport = SetupVersionPassport.model_validate(base.passport.model_dump(mode="json"))
+    assert len(base_passport.components) > 1, "the derivation needs a member to drop"
+    kept = base_passport.components[:-1]
+
+    body = base.passport.model_dump(mode="json")
+    body.pop("revision_id")
+    body["stable_id"] = "setup_01J0000000000000000000000A"
+    body["name"] = f"{body['name']} (subset)"
+    body["components"] = [item.model_dump(mode="json") for item in kept]
+    sealed = SetupVersionPassport.model_validate(seal_envelope(body).model_dump(mode="json"))
+    assert verify_revision_id(sealed)
+    derived = FirstPartyVersion(
+        kind="setup",
+        passport=sealed,
+        passport_digest=digest_bytes(
+            "ai-stp:passport:v1", canonize(cast(JsonValue, sealed.model_dump(mode="json")))
+        ),
+        artifact=base.artifact,
+        artifact_format=base.artifact_format,
+        source_tree=base.source_tree,
+    )
+    component = next(
+        item
+        for item in corpus
+        if item.passport.kind == "component" and item.passport.stable_id == kept[0].stable_id
+    )
+    return component, derived, base
 
 
 def _materialize(*setups: FirstPartyVersion) -> None:
@@ -52,11 +82,15 @@ def _materialize(*setups: FirstPartyVersion) -> None:
             setup.passport.model_dump(mode="json")
         ).components
     }
+    # The setups are recorded as given rather than looked up: one of them is
+    # derived here and is deliberately not a member of the published corpus.
     selected = [
-        item
-        for item in corpus
-        if item in setups
-        or (item.passport.kind == "component" and item.passport.stable_id in wanted)
+        *setups,
+        *(
+            item
+            for item in corpus
+            if item.passport.kind == "component" and item.passport.stable_id in wanted
+        ),
     ]
     with (
         closing(open_registry(configured_path(), create=True)) as connection,

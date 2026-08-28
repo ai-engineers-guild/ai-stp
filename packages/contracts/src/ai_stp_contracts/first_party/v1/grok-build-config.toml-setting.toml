@@ -1,0 +1,12 @@
+# Managed by grok-setup-system.
+#
+# Every table and key here is from docs.x.ai/build/settings/reference.
+
+[session]
+# A project's .envrc is someone else's environment; sourcing it without being
+# asked is the kind of default a floor should not carry.
+load_envrc = false
+
+[features]
+# Reaching the network to read a page is a capability, not a default.
+web_fetch = false

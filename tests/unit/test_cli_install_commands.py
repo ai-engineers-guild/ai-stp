@@ -1012,7 +1012,6 @@ def test_catalogue_setup_binds_to_an_explicit_current_project_context(
         if item.kind == "setup"
         and isinstance(item.passport, SetupVersionPassport)
         and item.passport.harness_id == "claude-code"
-        and item.passport.target_role == "research"
     )
     assert isinstance(setup.passport, SetupVersionPassport)
     members = {

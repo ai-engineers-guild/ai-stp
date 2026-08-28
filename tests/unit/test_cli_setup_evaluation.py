@@ -15,20 +15,22 @@ from ai_stp_contracts.first_party import versions as corpus_versions
 AT = "2026-08-13T12:00:00.000Z"
 
 
-def _grok() -> tuple[FirstPartyVersion, FirstPartyVersion]:
-    component, setup = [
-        item for item in corpus_versions() if item.passport.harness_id == "grok-build"
-    ]
-    return component, setup
+def _grok() -> tuple[tuple[FirstPartyVersion, ...], FirstPartyVersion]:
+    """The whole grok-build family, which stopped being a pair on 2026-08-29."""
+    family = [item for item in corpus_versions() if item.passport.harness_id == "grok-build"]
+    components = tuple(item for item in family if item.kind == "component")
+    (setup,) = [item for item in family if item.kind == "setup"]
+    return components, setup
 
 
 def _materialize() -> tuple[FirstPartyVersion, FirstPartyVersion]:
-    component, setup = _grok()
+    """Record the whole graph, and hand back one member to name in a plan."""
+    components, setup = _grok()
     with (
         closing(open_registry(configured_path(), create=True)) as connection,
         transaction(connection),
     ):
-        for item in (component, setup):
+        for item in (*components, setup):
             content.put(connection, item.artifact, at=AT)
             document = item.passport.model_dump(mode="json")
             document.pop("revision_id")
@@ -41,7 +43,7 @@ def _materialize() -> tuple[FirstPartyVersion, FirstPartyVersion]:
                 revision_id=stored.revision_id,
                 at=AT,
             )
-    return component, setup
+    return components[0], setup
 
 
 @pytest.mark.parametrize(
@@ -152,7 +154,8 @@ def test_exact_plan_and_run_are_idempotent_without_promoting_unavailable_runners
             "(SELECT count(*) FROM revision), (SELECT count(*) FROM content), "
             "(SELECT count(*) FROM eval_plan), (SELECT count(*) FROM eval_result)"
         ).fetchone()
-        assert tuple(counts) == (2, 2, 2, 1, 1)
+        members = len(_grok()[0]) + 1
+        assert tuple(counts) == (members, members, members, 1, 1)
 
 
 def test_plan_rejects_a_component_outside_the_exact_setup_graph() -> None:

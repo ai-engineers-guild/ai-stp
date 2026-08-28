@@ -254,7 +254,11 @@ def test_process_full_first_party_corpus_plan_bind_confirm_publish_components_be
     components = [item for item in corpus if item.kind == "component"]
     setups = [item for item in corpus if item.kind == "setup"]
 
-    assert len(applied.objects) == len(corpus) == 126
+    # The size is the corpus's to state. It was `== 126` until 2026-08-29, when
+    # rebuilding from the live setup systems made it 40, and the literal was
+    # measuring the catalogue rather than the pipeline.
+    assert len(applied.objects) == len(corpus)
+    assert components and setups
     assert [item.kind for item in applied.objects[: len(components)]] == ["component"] * len(
         components
     )
@@ -348,7 +352,11 @@ def test_resume_reuses_saved_keys_after_an_interrupted_confirm(tmp_path: Path) -
         published_digest=_unpublished,
     )
     assert first.objects[0].blocker is not None
-    assert first.objects[1].state == "blocked"
+    # The dependent setup, not "the next object": grok-build was one component
+    # and one setup when this was written and is four and one now, so index 1
+    # became a sibling component that publishes perfectly well.
+    blocked_setup = next(item for item in first.objects if item.kind == "setup")
+    assert blocked_setup.state == "blocked"
     create_keys = [item.create_idempotency_key for item in first.objects]
     confirm_keys = [item.confirm_idempotency_key for item in first.objects]
     plan_ids = [item.plan_id for item in first.objects]
@@ -366,7 +374,7 @@ def test_resume_reuses_saved_keys_after_an_interrupted_confirm(tmp_path: Path) -
     assert [item.confirm_idempotency_key for item in resumed.objects] == confirm_keys
     assert [item.plan_id for item in resumed.objects] == plan_ids
     assert all(item.state == "published" for item in resumed.objects)
-    assert len(pipeline.by_create_key) == 2
+    assert len(pipeline.by_create_key) == len(objects)
 
 
 def test_missing_required_evidence_blocks_dependent_setup_without_exemption(
@@ -376,7 +384,6 @@ def test_missing_required_evidence_blocks_dependent_setup_without_exemption(
         [item for item in first_party_versions() if item.passport.harness_id == "grok-build"]
     )
     component = next(item for item in objects if item.kind == "component")
-    setup = next(item for item in objects if item.kind == "setup")
     passport = dict(component.passport)
     passport["compatibility_evidence_refs"] = []
     stripped = tool.LaunchObject(
@@ -389,12 +396,18 @@ def test_missing_required_evidence_blocks_dependent_setup_without_exemption(
         artifact=component.artifact,
         component_pins=component.component_pins,
     )
-    applied = _review_apply(PublicationPipeline(), tmp_path, objects=(stripped, setup))
-    assert applied.objects[0].state == "blocked"
-    assert applied.objects[0].blocker == "required publication evidence is missing"
-    assert applied.objects[1].state == "blocked"
-    assert applied.objects[1].blocker == "exact component pins are not published"
-    assert applied.objects[1].plan_id is not None
+    # Every member travels: the setup pins its whole graph, and a list holding
+    # one component of four is refused before the property under test is
+    # reached. grok-build was a single pair when this was written.
+    submitted = tuple(stripped if item is component else item for item in objects)
+    applied = _review_apply(PublicationPipeline(), tmp_path, objects=submitted)
+    blocked = next(item for item in applied.objects if item.stable_id == component.stable_id)
+    assert blocked.state == "blocked"
+    assert blocked.blocker == "required publication evidence is missing"
+    blocked_setup = next(item for item in applied.objects if item.kind == "setup")
+    assert blocked_setup.state == "blocked"
+    assert blocked_setup.blocker == "exact component pins are not published"
+    assert blocked_setup.plan_id is not None
 
 
 def test_apply_skips_an_already_published_matching_digest(tmp_path: Path) -> None:
@@ -433,7 +446,10 @@ def test_apply_skips_an_already_published_matching_digest(tmp_path: Path) -> Non
     assert published_component.state == "published"
     assert published_component.blocker is None
     assert published_setup.state == "published"
-    assert pipeline.confirm_order == ["setup"]
+    # Its siblings still confirm: one component of four is already published,
+    # not the whole family. This read `== ["setup"]` when grok-build was a pair.
+    others = [item for item in objects if item.kind == "component"][1:]
+    assert pipeline.confirm_order == ["component"] * len(others) + ["setup"]
 
 
 def test_published_digest_treats_catalog_not_found_as_unpublished() -> None:
@@ -516,7 +532,10 @@ def test_apply_blocks_an_already_published_different_digest(tmp_path: Path) -> N
     assert blocked_component.blocker == "version already published with different digest"
     assert blocked_setup.state == "blocked"
     assert blocked_setup.blocker == "exact component pins are not published"
-    assert pipeline.confirm_order == []
+    # Nothing blocked is confirmed, and nothing else is held back for it: the
+    # siblings publish and only the setup waits on the pin that did not.
+    others = [item for item in objects if item.kind == "component"][1:]
+    assert pipeline.confirm_order == ["component"] * len(others)
 
 
 def test_review_refuses_a_non_owner_account(tmp_path: Path) -> None:

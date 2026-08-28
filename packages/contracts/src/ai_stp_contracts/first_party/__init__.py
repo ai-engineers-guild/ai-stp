@@ -14,39 +14,22 @@ from ai_stp_passports.versions import ComponentVersionPassport, SetupVersionPass
 
 OWNER_ID: Final[str] = "account_01KZET6ZKJN7S72T5H4WDV62T0"
 VERSION: Final[str] = "1.0"
-# Pi 1.0 recorded `agent/` as if it were inside the home. The home is already
-# `~/.pi/agent`, so those passports resolve one directory too deep. Same X.Y
-# with different bytes is refused (`REQ-2606`); the correction is a new version.
-PI_LAYOUT_VERSION: Final[str] = "1.1"
-# Codex 1.0 wrote `.agents/skills/<slug>`, relative to `$HOME`, from when the
-# shared convention was modelled as a global rule with `root=home`. The surface
-# is its own projection scope now (`ADR-0127`): the target *is* `~/.agents`, so
-# the same directory is named `skills/<slug>` and the old value resolves to
-# `~/.agents/.agents/skills/<slug>`, which codex does not read. 61 published
-# versions carry it. Same X.Y with different bytes is refused (`REQ-2606`).
-CODEX_SKILLS_VERSION: Final[str] = "1.1"
-# Cursor 1.0 is wrong twice. Its plugin sat at `plugins/<slug>` while
-# `cursor.com/docs/plugins` puts local plugins in `~/.cursor/plugins/local/`,
-# and it published an `instruction` — a kind the released provider stopped
-# declaring, because there is no global `~/.cursor/AGENTS.md` at all. The
-# instruction is dropped rather than moved: no path is correct for it.
-CURSOR_LAYOUT_VERSION: Final[str] = "1.1"
+# Three constants stood here — `PI_LAYOUT_VERSION`, `CODEX_SKILLS_VERSION`,
+# `CURSOR_LAYOUT_VERSION` — because a published `X.Y` is immutable and three
+# families needed a corrected projection. They are gone with the objects they
+# corrected: this corpus is built from a different repository and mints new
+# stable identifiers, so every member is `1.0` and nothing here is a second
+# attempt at an identifier somebody already holds.
 PUBLISHED_AT: Final[str] = "2026-08-13T00:00:00.000Z"
 COMPONENT_FORMAT: Final[str] = "ai-stp-component-tree/1"
 COMPONENT_FILE_FORMAT: Final[str] = "ai-stp-component-file/1"
 SETUP_FORMAT: Final[str] = "ai-stp-setup-definition/1"
 PASSPORT_DIGEST_DOMAIN: Final[str] = "ai-stp:passport:v1"
 ARTIFACT_DIGEST_DOMAIN: Final[str] = "ai-stp:artifact:v1"
-ROLE_LIFECYCLE_EVIDENCE: Final[str] = "https://github.com/ai-engineers-guild/ai_stp/issues/186"
 
-# Compatibility names for the first Grok Build pair. Consumers should prefer
-# ``versions()`` and inspect each passport instead of depending on one member.
-COMPONENT_ID: Final[str] = "component_01KZWSHE3V0T8KVJYFEKWJV63Y"
-SETUP_ID: Final[str] = "setup_01KZWSHE3V0T8KVJYFEKWJV63Z"
-SOURCE_REPOSITORY: Final[str] = "https://github.com/NDDev-it-com/nddev-grok-build-app"
-SOURCE_COMMIT: Final[str] = "307e5124a1919a2224692cc8d64c50f98364ef2b"
-SOURCE_TREE: Final[str] = "1db75b64678b476840fbe50f98a061dac6893ab2"
-SETUP_SOURCE_BLOB: Final[str] = "2acec9e28f0aaac9a6f12e92d4d14785c9aed891"
+# The compatibility names for the first Grok Build pair are gone: nothing
+# outside this package imported them, and they named objects from a
+# repository this corpus no longer draws on. `versions()` is the surface.
 
 
 class FirstPartyVersion(BaseModel):
@@ -70,6 +53,11 @@ class _ComponentSource(BaseModel):
     source_path: str
     source_tree: str
     artifact_name: str
+    #: Where the compiler projects this component, recorded by the builder
+    #: from `composition.rule_for` rather than restated here. A second copy of
+    #: that table lived in this module until 2026-08-29 and had already drifted
+    #: from the first.
+    native_path: str
     artifact_format: Literal["ai-stp-component-file/1", "ai-stp-component-tree/1"] = (
         COMPONENT_FORMAT
     )
@@ -79,7 +67,6 @@ class _ComponentSource(BaseModel):
     native_id: str | None = None
     name: str | None = None
     description: str | None = None
-    tags: tuple[str, ...] = ()
 
 
 class _HarnessSource(BaseModel):
@@ -95,33 +82,6 @@ class _HarnessSource(BaseModel):
     components: tuple[_ComponentSource, ...]
 
 
-class _RoleSetupSource(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
-
-    stable_id: str
-    slug: str
-    name: str
-    description: str
-    purpose: str
-    target_role: str
-    supported_tasks: tuple[str, ...]
-    tags: tuple[str, ...]
-    component_slugs: tuple[str, ...]
-
-
-class _RoleHarnessSource(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
-
-    harness_id: str
-    repository: str
-    commit: str
-    source_path: str
-    source_blob: str
-    evidence_ref: str
-    components: tuple[_ComponentSource, ...]
-    setups: tuple[_RoleSetupSource, ...]
-
-
 class _SourceManifest(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
@@ -129,48 +89,26 @@ class _SourceManifest(BaseModel):
     harnesses: tuple[_HarnessSource, ...]
 
 
-class _RoleSourceManifest(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
-
-    schema_version: Literal[1]
-    harnesses: tuple[_RoleHarnessSource, ...]
-
-
-#: Five of the seven harnesses cite a repository that no longer belongs to the
-#: organisation naming it. Verified 2026-08-28 against the API rather than taken
-#: on report: `NDDev-it-com/nddev-codex-app` and its four siblings redirect to
-#: `rldyourmnd/<name>` and answer `archived: true`. They were transferred to a
-#: personal account and frozen on 2026-08-25.
+#: Built by `release_scripts/build_first_party_corpus.py` from the seven live
+#: `*-setup-system` repositories, at the commit each one's `main` carried when
+#: it ran, with git's own tree and blob SHAs as provenance.
 #:
-#: Nothing is broken by it. Every artifact is embedded under `v1/` and read from
-#: the package, so no publication or install reaches the network for these
-#: bytes, and the recorded commit and tree still identify the exact objects.
-#: What is stale is the *organisation* in the URL, and a redirect is not the
-#: same as a correction.
+#: The corpus it replaces cited five repositories that had been transferred to
+#: a personal account and archived on 2026-08-25 — 120 of 126 objects. That was
+#: not repairable in place: `source` and the commit are inside the
+#: content-addressed passport and a published `X.Y` cannot be rewritten
+#: (`REQ-2606`), so the only honest correction is different objects with new
+#: identifiers. The old ones stay published and immutable; they are simply no
+#: longer what this package carries.
 #:
-#: It cannot be fixed by editing this file. `managed_paths`, `source` and the
-#: commit are inside the content-addressed passport, so a published `X.Y` cannot
-#: be rewritten (`REQ-2606`) — the same constraint that made `pi`, `codex` and
-#: `cursor` layout corrections into new versions rather than edits.
-#:
-#: And it cannot be fixed by pointing at the OpenNetwork estate either, because
-#: the bytes are not there: five of those seven repositories carry only
-#: `baseline`, `full-auto` and `minimal` — nine blobs — while this corpus
-#: publishes 43 components from a `nddev-builder` setup that only `antigravity`
-#: and `cursor` have. Naming a repository as the source of components it does
-#: not contain would be the string-only URL replacement `#433` forbids, written
-#: where it reads as provenance.
-#:
-#: So it is recorded rather than repaired, and the repair belongs to the wave
-#: that gives those five a `nddev-builder` setup (`#433`).
+#: It cost catalogue size and the trade is deliberate: 126 objects pointing at
+#: an archive become 40 with a living source. The 60 role components came from
+#: `rldyour-claudecode` and `rldyour-codex`, both archived under the same
+#: personal account, and there is no live repository to rebuild them from —
+#: that, and not a modelling decision, is why the role corpus is gone.
 def _sources() -> tuple[_HarnessSource, ...]:
     raw = files(__package__).joinpath("v1/corpus-sources.json").read_bytes()
     return _SourceManifest.model_validate_json(raw).harnesses
-
-
-def _role_sources() -> tuple[_RoleHarnessSource, ...]:
-    raw = files(__package__).joinpath("v1/role-sources.json").read_bytes()
-    return _RoleSourceManifest.model_validate_json(raw).harnesses
 
 
 def _sealed(
@@ -192,7 +130,7 @@ def _passport_digest(passport: ComponentVersionPassport | SetupVersionPassport) 
 
 
 def _common(
-    source: _HarnessSource | _RoleHarnessSource,
+    source: _HarnessSource,
     *,
     kind: str,
     stable_id: str,
@@ -234,59 +172,12 @@ def _title(slug: str) -> str:
 
 
 def _version_for(harness_id: str) -> str:
-    return {
-        "pi": PI_LAYOUT_VERSION,
-        "codex": CODEX_SKILLS_VERSION,
-        "cursor": CURSOR_LAYOUT_VERSION,
-    }.get(harness_id, VERSION)
-
-
-def _native_path(harness_id: str, component: _ComponentSource) -> str:
-    if harness_id == "pi":
-        return {
-            "instruction": "AGENTS.md",
-            "setting": "settings.json",
-            "skill": f"skills/{component.slug}",
-            "plugin": f"extensions/{component.slug}",
-        }[component.component_type]
-    if harness_id == "opencode":
-        return {
-            "instruction": "AGENTS.md",
-            "setting": "opencode.json",
-            "skill": f"skills/{component.slug}",
-            "agent": f"agents/{component.slug}",
-            "command": f"commands/{component.slug}",
-            "plugin": f"plugins/{component.slug}",
-        }[component.component_type]
-    if harness_id == "antigravity":
-        # Antigravity is a guest in `~/.gemini`: Gemini CLI still owns files at
-        # the root of it, and `config/` is the shared surface while
-        # `antigravity-cli/` is its own. The plugin belongs under
-        # `config/plugins`; `antigravity-cli/plugins` is where the CLI puts what
-        # it installs itself, and the two are not interchangeable.
-        return {
-            "setting": "antigravity-cli/settings.json",
-            "plugin": f"config/plugins/{component.slug}",
-            "skill": f"config/skills/{component.slug}",
-            "agent": f"config/agents/{component.slug}",
-        }[component.component_type]
-    if harness_id == "cursor":
-        # No `instruction`: the kind is gone from the manifest, so a key for it
-        # here would be a path for something that can no longer be built.
-        return {
-            "setting": "cli-config.json",
-            "plugin": f"plugins/local/{component.slug}",
-        }[component.component_type]
-    if component.component_type == "plugin":
-        return f"plugins/{component.slug}"
-    if harness_id == "codex":
-        # Relative to the `user_root` target `~/.agents`, not to `$HOME`.
-        return f"skills/{component.slug}"
-    return f"skills/{component.slug}"
+    del harness_id
+    return VERSION
 
 
 def _component(
-    source: _HarnessSource | _RoleHarnessSource,
+    source: _HarnessSource,
     component_source: _ComponentSource,
 ) -> FirstPartyVersion:
     artifact = files(__package__).joinpath(f"v1/{component_source.artifact_name}").read_bytes()
@@ -297,12 +188,14 @@ def _component(
         source_path=component_source.source_path,
         artifact=artifact,
     )
-    kind_title = "plugin" if component_source.component_type == "plugin" else "skill"
-    native_path = _native_path(source.harness_id, component_source)
-    grok = source.harness_id == "grok-build"
-    role_component = bool(component_source.tags)
+    native_path = component_source.native_path
+    # Every family is built the same way now. Grok Build had a branch here from
+    # when it was the only pair in the corpus and its single plugin declared no
+    # conflicting path; it has four components from the same builder tree as the
+    # other six harnesses, so a name and an empty conflict set written for one
+    # object would have been applied to four.
     conflicts: dict[str, JsonValue] = {
-        "paths": [] if grok else [native_path],
+        "paths": [native_path],
         "commands": [],
         "hooks": [],
         "mcp": [],
@@ -312,29 +205,16 @@ def _component(
     body.update(
         {
             "name": (
-                "NDDev Builder for Grok Build"
-                if grok
-                else component_source.name
-                or f"{_title(component_source.slug)} for {source.harness_id}"
+                component_source.name or f"{_title(component_source.slug)} for {source.harness_id}"
             ),
             "description": (
-                (
-                    "Grok Build-native plugin with focused skills and an agent for creating, "
-                    "checking and releasing harness artifacts."
-                )
-                if grok
-                else component_source.description
-                if role_component
-                else (
-                    f"First-party {source.harness_id} {kind_title} from the exact "
-                    "NDDev Builder provider release."
+                component_source.description
+                or (
+                    f"First-party {source.harness_id} {component_source.component_type} "
+                    "from the exact NDDev Builder provider release."
                 )
             ),
-            "tags": (
-                list(component_source.tags)
-                if role_component
-                else ["code-review", "devops", "planning"]
-            ),
+            "tags": ["code-review", "devops", "planning"],
             "component_type": component_source.component_type,
             "projection_kind": component_source.projection_kind,
             "variant_id": None,
@@ -399,40 +279,24 @@ def _setup(source: _HarnessSource, components: tuple[FirstPartyVersion, ...]) ->
         source_path=source.setup_path,
         artifact=artifact,
     )
-    grok = source.harness_id == "grok-build"
     body.update(
         cast(
             dict[str, JsonValue],
             {
-                "name": (
-                    "NDDev Builder Grok Build setup"
-                    if grok
-                    else f"NDDev Builder {source.harness_id} setup"
-                ),
+                "name": f"NDDev Builder {source.harness_id} setup",
                 "description": (
-                    (
-                        "Full-auto Grok Build setup carrying the exact NDDev Builder plugin for "
-                        "harness artifact development and validation."
-                    )
-                    if grok
-                    else (
-                        f"Exact first-party {source.harness_id} setup containing "
-                        f"{len(components)} native NDDev Builder components."
-                    )
+                    f"Exact first-party {source.harness_id} setup containing "
+                    f"{len(components)} native NDDev Builder components."
                 ),
                 "tags": ["code-review", "devops", "planning"],
-                "purpose": (
-                    "Develop and validate native Grok Build artifacts."
-                    if grok
-                    else "Develop and validate native harness artifacts."
-                ),
+                "purpose": "Develop and validate native harness artifacts.",
                 "target_role": "ai-harness-engineer",
                 "supported_tasks": ["development", "validation", "release"],
                 "components": refs,
                 "ported_from": None,
                 "related_setup_ids": [],
                 "execution_profile": "full-auto",
-                "supported_harness_versions": ["1.0.0"] if grok else [],
+                "supported_harness_versions": [],
                 "supported_os": ["linux"],
                 "supported_arch": ["x86_64"],
                 "composition_report_ref": source.evidence_ref,
@@ -455,100 +319,12 @@ def _setup(source: _HarnessSource, components: tuple[FirstPartyVersion, ...]) ->
     )
 
 
-def _role_setup(
-    source: _RoleHarnessSource,
-    setup_source: _RoleSetupSource,
-    components_by_slug: dict[str, FirstPartyVersion],
-) -> FirstPartyVersion:
-    components = tuple(components_by_slug[slug] for slug in setup_source.component_slugs)
-    refs: list[JsonValue] = [
-        cast(
-            JsonValue,
-            {
-                "stable_id": component.passport.stable_id,
-                "variant_id": None,
-                "version": component.passport.version,
-                "passport_digest": component.passport_digest,
-            },
-        )
-        for component in components
-    ]
-    selection_digest = digest_canonical(
-        "ai-stp:selection-snapshot:v1",
-        cast(JsonValue, {"harness_id": source.harness_id, "components": refs}),
-    )
-    artifact = canonize(
-        cast(
-            JsonValue,
-            {
-                "schema_version": 1,
-                "format": SETUP_FORMAT,
-                "stable_id": setup_source.stable_id,
-                "version": _version_for(source.harness_id),
-                "harness_id": source.harness_id,
-                "input_digest": selection_digest,
-                "components": refs,
-            },
-        )
-    )
-    body = _common(
-        source,
-        kind="setup",
-        stable_id=setup_source.stable_id,
-        source_path=source.source_path,
-        artifact=artifact,
-    )
-    body.update(
-        cast(
-            dict[str, JsonValue],
-            {
-                "name": setup_source.name,
-                "description": setup_source.description,
-                "tags": list(setup_source.tags),
-                "purpose": setup_source.purpose,
-                "target_role": setup_source.target_role,
-                "supported_tasks": list(setup_source.supported_tasks),
-                "components": refs,
-                "ported_from": None,
-                "related_setup_ids": [],
-                "execution_profile": "full-auto",
-                "supported_harness_versions": [],
-                "supported_os": ["linux"],
-                "supported_arch": ["x86_64"],
-                "composition_report_ref": source.evidence_ref,
-                "conversion_report_ref": source.evidence_ref,
-                "install_evidence_ref": ROLE_LIFECYCLE_EVIDENCE,
-                "launch_evidence_ref": ROLE_LIFECYCLE_EVIDENCE,
-                "artifact_format": SETUP_FORMAT,
-                "member_metadata_complete": True,
-            },
-        )
-    )
-    passport = cast(SetupVersionPassport, _sealed(body, SetupVersionPassport))
-    return FirstPartyVersion(
-        kind="setup",
-        passport=passport,
-        passport_digest=_passport_digest(passport),
-        artifact=artifact,
-        artifact_format=SETUP_FORMAT,
-        source_tree=source.source_blob,
-    )
-
-
 def _build() -> tuple[FirstPartyVersion, ...]:
     corpus: list[FirstPartyVersion] = []
     for source in _sources():
         components = tuple(_component(source, item) for item in source.components)
         corpus.extend(components)
         corpus.append(_setup(source, components))
-    for source in _role_sources():
-        components = tuple(_component(source, item) for item in source.components)
-        corpus.extend(components)
-        components_by_slug = {
-            item.slug: component
-            for item, component in zip(source.components, components, strict=True)
-        }
-        corpus.extend(_role_setup(source, setup, components_by_slug) for setup in source.setups)
     return tuple(corpus)
 
 

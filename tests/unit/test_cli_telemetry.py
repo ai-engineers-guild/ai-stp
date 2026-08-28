@@ -19,7 +19,7 @@ import json
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import closing
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -36,10 +36,28 @@ pytestmark = pytest.mark.cli
 
 AT = "2026-01-01T00:00:00.000Z"
 
-#: A published first-party setup that installs exactly three components. The
-#: acceptance row for `REQ-1318` is stated in those terms, so the fixture is a
-#: real setup of that shape rather than three invented passports.
-THREE_COMPONENT_SETUP = "setup_01KZWSHE3VWEF0NT2XVRH45AJ9"
+
+def _many_component_setup() -> tuple[str, int]:
+    """A real first-party setup with more than one component, and how many.
+
+    `REQ-1318` says one request per component installed, so the fixture has to
+    be a setup of more than one — but *which* setup and *how many* are facts
+    about somebody else's builder tree. A pinned identifier stood here until
+    2026-08-29 and stopped existing the moment the corpus was rebuilt from the
+    live setup systems. The shape is asserted; the identity is looked up.
+    """
+    setups = [
+        item
+        for item in corpus_versions()
+        if item.kind == "setup" and isinstance(item.passport, SetupVersionPassport)
+    ]
+    chosen = max(setups, key=lambda item: len(cast(SetupVersionPassport, item.passport).components))
+    members = len(cast(SetupVersionPassport, chosen.passport).components)
+    assert members > 1
+    return chosen.passport.stable_id, members
+
+
+MANY_COMPONENT_SETUP, MANY_COMPONENT_COUNT = _many_component_setup()
 
 
 @pytest.fixture
@@ -157,10 +175,10 @@ def test_an_install_without_consent_sends_nothing(
     sent: list[tuple[str, dict[str, str]]], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The default state is silence, and it takes no configuration to get it."""
-    harness = _materialize(THREE_COMPONENT_SETUP, "1.0")
+    harness = _materialize(MANY_COMPONENT_SETUP, "1.0")
     config.write_config({"telemetry.url": "https://collector.example"})
 
-    _report(_plan("install", harness, THREE_COMPONENT_SETUP, "1.0"), monkeypatch)
+    _report(_plan("install", harness, MANY_COMPONENT_SETUP, "1.0"), monkeypatch)
 
     assert telemetry.consent().state == telemetry.STATE_NOT_ASKED
     assert sent == []
@@ -197,8 +215,8 @@ def test_refusing_and_never_being_asked_are_identical_on_the_wire(
     one where silence is not the default — then the refusal itself would be the
     signal, and refusing would report something about the operator.
     """
-    harness = _materialize(THREE_COMPONENT_SETUP, "1.0")
-    plan = _plan("install", harness, THREE_COMPONENT_SETUP, "1.0")
+    harness = _materialize(MANY_COMPONENT_SETUP, "1.0")
+    plan = _plan("install", harness, MANY_COMPONENT_SETUP, "1.0")
 
     _report(plan, monkeypatch)
     while_never_asked = list(sent)
@@ -378,10 +396,10 @@ def test_the_request_names_the_kind_of_component_not_the_kind_of_passport(
     reading `kind` here sent a constant under the name of an answer — a field
     that looked populated and told nobody anything.
     """
-    harness = _materialize(THREE_COMPONENT_SETUP, "1.0")
+    harness = _materialize(MANY_COMPONENT_SETUP, "1.0")
     _consented()
 
-    _report(_plan("install", harness, THREE_COMPONENT_SETUP, "1.0"), monkeypatch)
+    _report(_plan("install", harness, MANY_COMPONENT_SETUP, "1.0"), monkeypatch)
 
     kinds = {fields["component_type"] for _, fields in sent}
     assert kinds
@@ -408,11 +426,11 @@ def test_nothing_sent_names_the_machine_it_was_sent_from(
     keys, so a future field that happens to carry a path fails here even though
     nobody thought to add it to a list.
     """
-    harness = _materialize(THREE_COMPONENT_SETUP, "1.0")
+    harness = _materialize(MANY_COMPONENT_SETUP, "1.0")
     _consented()
     monkeypatch.setenv("AI_STP_PROJECT", "a-private-project-name")
 
-    _report(_plan("install", harness, THREE_COMPONENT_SETUP, "1.0"), monkeypatch)
+    _report(_plan("install", harness, MANY_COMPONENT_SETUP, "1.0"), monkeypatch)
 
     assert sent
     home = str(isolated_environment)
@@ -445,27 +463,27 @@ def test_only_installing_something_reports_installing_something(
     action: str, sent: list[tuple[str, dict[str, str]]], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A restore put nothing anywhere, and reads put nothing anywhere twice."""
-    harness = _materialize(THREE_COMPONENT_SETUP, "1.0")
+    harness = _materialize(MANY_COMPONENT_SETUP, "1.0")
     _consented()
 
-    _report(_plan(action, harness, THREE_COMPONENT_SETUP, "1.0"), monkeypatch)
+    _report(_plan(action, harness, MANY_COMPONENT_SETUP, "1.0"), monkeypatch)
 
     assert sent == []
 
 
 @pytest.mark.parametrize("action", ["install", "update"])
-def test_a_setup_of_three_components_gives_three_requests(
+def test_a_setup_of_many_components_gives_one_request_each(
     action: str, sent: list[tuple[str, dict[str, str]]], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """One request per component actually installed, not one per operation."""
-    harness = _materialize(THREE_COMPONENT_SETUP, "1.0")
+    harness = _materialize(MANY_COMPONENT_SETUP, "1.0")
     _consented()
 
-    _report(_plan(action, harness, THREE_COMPONENT_SETUP, "1.0"), monkeypatch)
+    _report(_plan(action, harness, MANY_COMPONENT_SETUP, "1.0"), monkeypatch)
 
-    assert len(sent) == 3
+    assert len(sent) == MANY_COMPONENT_COUNT
     assert {url for url, _ in sent} == {"https://collector.example"}
-    assert len({fields["id"] for _, fields in sent}) == 3
+    assert len({fields["id"] for _, fields in sent}) == MANY_COMPONENT_COUNT
     assert {fields["anon"] for _, fields in sent} == {telemetry.consent().anon}
 
 
@@ -473,13 +491,13 @@ def test_a_harness_version_nobody_observed_is_not_guessed_at(
     sent: list[tuple[str, dict[str, str]]], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A declared field cannot be filled with an empty string and sent."""
-    harness = _materialize(THREE_COMPONENT_SETUP, "1.0")
+    harness = _materialize(MANY_COMPONENT_SETUP, "1.0")
     _consented()
     monkeypatch.setattr(install_cmd, "_observed_harness_version", _observed(""))
 
     with closing(open_registry(configured_path(), create=True)) as connection:
         install_cmd._report_installation(
-            connection, _plan("install", harness, THREE_COMPONENT_SETUP, "1.0")
+            connection, _plan("install", harness, MANY_COMPONENT_SETUP, "1.0")
         )
 
     assert sent == []

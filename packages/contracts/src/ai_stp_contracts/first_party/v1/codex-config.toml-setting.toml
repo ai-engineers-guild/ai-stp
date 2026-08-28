@@ -1,0 +1,13 @@
+# Managed by codex-setup-system.
+#
+# Every key here is from learn.chatgpt.com/docs/config-file/config-reference.
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+model_reasoning_effort = "medium"
+
+# The builder role. Both halves are written by
+# tools/build_nddev_builder.py: a role is this declaration plus the
+# layer it points at, and `config_file` resolves from this file.
+[agents.nddev-builder]
+description = "Work on codex-setup-system -- change a declaration, add or revise a setup, or check a target lifecycle end to end."
+config_file = "agents/nddev-builder.toml"

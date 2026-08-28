@@ -29,12 +29,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import stat
 import subprocess
 import zipfile
 from collections.abc import Sequence
 from io import BytesIO
 from pathlib import Path
 from typing import Any
+
+from ai_stp_foundation.digests import digest_bytes
 
 #: harness_id -> setup-system repository. The two differ, and assuming they did
 #: not is how a first probe reported two of these as nonexistent.
@@ -52,6 +55,7 @@ ORGANISATION = "NDDev-OpenNetwork"
 SETUP_PATH = "setups/nddev-builder/setup.json"
 HOME_PREFIX = "setups/nddev-builder/home/"
 
+ARTIFACT_DIGEST_DOMAIN = "ai-stp:artifact:v1"
 COMPONENT_TREE = "ai-stp-component-tree/1"
 COMPONENT_FILE = "ai-stp-component-file/1"
 
@@ -103,6 +107,13 @@ def _components(
                         "component_type": rule.component_type,
                         "projection_kind": rule.projection_kind,
                         "slug": rule.relative,
+                        # The path the compiler will project this to, taken from
+                        # the same rule rather than restated. The corpus used to
+                        # carry a third hand-written projection table beside
+                        # `PROVIDER_RULES` and the harness catalogue, and the
+                        # three had already drifted — cursor's plugin was
+                        # `plugins/local` in one and `plugins` in another.
+                        "native_path": rule.relative,
                         "source_path": f"nddev-builder/home/{rule.relative}",
                         "source_tree": blobs[base]["sha"],
                         "artifact_format": COMPONENT_FILE,
@@ -121,6 +132,7 @@ def _components(
                     "component_type": rule.component_type,
                     "projection_kind": rule.projection_kind,
                     "slug": name,
+                    "native_path": f"{rule.relative}/{name}",
                     "source_path": f"nddev-builder/home/{rule.relative}/{name}",
                     "source_tree": item["sha"],
                     "artifact_format": (
@@ -158,31 +170,44 @@ def _package(repository: str, entries: list[dict[str, Any]], component: dict[str
         ),
         key=lambda item: str(item["path"]),
     )
+    contents = [
+        (item["path"][len(prefix) + 1 :], _blob(repository, item["sha"])) for item in members
+    ]
+    # The reader recomputes this with `digest_bytes`, which is domain-separated.
+    # A plain `sha256` here produced an archive that validated against itself and
+    # was refused by the only consumer — the manifest is not the authority on how
+    # its own digests are formed.
+    manifest = [
+        {
+            "path": relative,
+            "byte_length": len(content),
+            "digest": digest_bytes(ARTIFACT_DIGEST_DOMAIN, content),
+            "mode": 420,
+        }
+        for relative, content in contents
+    ]
+    body = json.dumps(
+        {"files": manifest, "format": COMPONENT_TREE}, separators=(",", ":"), sort_keys=True
+    ).encode()
+
     held = BytesIO()
     with zipfile.ZipFile(held, "w", zipfile.ZIP_STORED) as archive:
-        manifest: list[dict[str, Any]] = []
-        for item in members:
-            content = _blob(repository, item["sha"])
-            relative = item["path"][len(prefix) + 1 :]
-            info = zipfile.ZipInfo(f"files/{relative}", date_time=(1980, 1, 1, 0, 0, 0))
-            info.external_attr = 0o644 << 16
+        # `component.json` first, and the members after it in name order: the
+        # reader asserts the name list is sorted, and `component.json` sorts
+        # before `files/`. Writing the manifest last produced an archive that
+        # was valid and refused.
+        for name, content in [("component.json", body)] + [
+            (f"files/{relative}", content) for relative, content in contents
+        ]:
+            info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+            # The same three fields the local writer sets, and the reader checks
+            # all three. `external_attr` without `S_IFREG` fails `stat.S_ISREG`,
+            # which is how the first build produced archives every consumer
+            # refused as corrupt — the file-type bits are not decoration.
+            info.create_system = 3
+            info.compress_type = zipfile.ZIP_STORED
+            info.external_attr = (stat.S_IFREG | 0o644) << 16
             archive.writestr(info, content)
-            import hashlib
-
-            manifest.append(
-                {
-                    "path": relative,
-                    "byte_length": len(content),
-                    "digest": f"sha256:{hashlib.sha256(content).hexdigest()}",
-                    "mode": 420,
-                }
-            )
-        body = json.dumps(
-            {"files": manifest, "format": COMPONENT_TREE}, separators=(",", ":"), sort_keys=True
-        ).encode()
-        info = zipfile.ZipInfo("component.json", date_time=(1980, 1, 1, 0, 0, 0))
-        info.external_attr = 0o644 << 16
-        archive.writestr(info, body)
     return held.getvalue()
 
 
