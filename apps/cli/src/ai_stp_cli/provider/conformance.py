@@ -58,6 +58,18 @@ class Invoker(Protocol):
     def __call__(self, command: str, arguments: Sequence[str]) -> JsonValue: ...
 
 
+#: Whose obligation a case is about. `provider` is the protocol: failing one
+#: means the provider did not do what v3 requires. `consumer` is reach: the
+#: provider is correct and *this* compiler cannot get to something it offers, or
+#: projects something it does not accept.
+#:
+#: Separated because one word was answering two questions. Reporting a consumer
+#: gap as non-conformance blames a provider that satisfied every obligation it
+#: has, and sends whoever reads the report to the wrong repository.
+SUBJECT_PROVIDER: Final[str] = "provider"
+SUBJECT_CONSUMER: Final[str] = "consumer"
+
+
 @dataclass(frozen=True)
 class Case:
     """One conformance check and what it decided."""
@@ -65,6 +77,7 @@ class Case:
     name: str
     passed: bool
     detail: str
+    subject: str = SUBJECT_PROVIDER
 
 
 @dataclass(frozen=True)
@@ -77,7 +90,21 @@ class Report:
 
     @property
     def conforms(self) -> bool:
-        return all(case.passed for case in self.cases)
+        """Whether the *provider* met the protocol.
+
+        Consumer-subject cases are reported and do not decide this. A provider
+        declaring a component kind this compiler has no route for has satisfied
+        every obligation v3 places on it; the gap is ours, and calling it
+        non-conformance would name the wrong party in the one field people read.
+        """
+        return all(case.passed for case in self.cases if case.subject == SUBJECT_PROVIDER)
+
+    @property
+    def unreachable(self) -> tuple[Case, ...]:
+        """Consumer-subject cases that failed: capability neither side can use."""
+        return tuple(
+            case for case in self.cases if case.subject == SUBJECT_CONSUMER and not case.passed
+        )
 
     @property
     def failures(self) -> tuple[Case, ...]:

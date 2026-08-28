@@ -56,15 +56,7 @@ def run(
         )
     )
     route = _literal_route(capabilities)
-    cases.append(
-        conformance.Case(
-            "declared_native_route_is_compilable",
-            route is not None,
-            "one declared component route matches the canonical compiler"
-            if route is not None
-            else "no declared component kind/native namespace pair matches the compiler",
-        )
-    )
+    cases.extend(_route_coverage(capabilities))
     first_status = _object(invoke("status", ()))
     second_status = _object(invoke("status", ()))
     state = str(first_status.get("state", ""))
@@ -383,6 +375,66 @@ def _undeclared_permission_profile(
         else f"asked for undeclared profile {asked!r} and received "
         f"{answer.get('reason', answer)!r}",
     )
+
+
+def _route_coverage(
+    capabilities: protocol_v3.ProviderCapabilities,
+) -> list[conformance.Case]:
+    """One case per declared kind, and one per compiler route, in both directions.
+
+    This was a single case that passed when *any* declared kind had a matching
+    compiler rule. A provider declaring eight kinds with one usable route was
+    green, and the report said nothing about the other seven — a check that asks
+    for one thing and reads as if it asked for all of them, which stays green
+    through exactly the drift it exists to find.
+
+    The reverse direction is here for the same reason and is not the same
+    question: a compiler route the provider does not declare is a component this
+    program can compose and no provider will accept, and it fails late, after
+    an immutable version can already exist.
+
+    Named per kind so a report names the exact pair rather than aggregating a
+    verdict nobody can act on.
+    """
+    cases: list[conformance.Case] = []
+    # Every declared profile, keyed by the scope whose target it is relative to.
+    # Asking the global profile about a `user_root` rule reports its kind as
+    # undeclared and its path as unsupported — both correctly, for a profile
+    # that does not describe it (`ADR-0127`).
+    profiles = {capabilities.projection.scope: capabilities.projection}
+    profiles.update({item.scope: item for item in capabilities.scoped_projections})
+    declared = {kind.value for profile in profiles.values() for kind in profile.component_kinds}
+    projected = {
+        rule.component_type
+        for rule in composition.PROVIDER_RULES
+        if rule.harness_id == capabilities.harness_id
+    }
+    for kind in sorted(declared):
+        rule = composition.rule_for(kind, capabilities.harness_id)
+        profile = None if rule is None else profiles.get(rule.target_scope)
+        reachable = (
+            rule is not None and profile is not None and rule.relative in profile.native_namespaces
+        )
+        cases.append(
+            conformance.Case(
+                f"declared_route_is_compilable:{kind}",
+                reachable,
+                f"{kind} projects to {rule.relative!r}"
+                if reachable and rule is not None
+                else f"{kind} is declared and this compiler has no route the provider owns",
+                subject=conformance.SUBJECT_CONSUMER,
+            )
+        )
+    for kind in sorted(projected - declared):
+        cases.append(
+            conformance.Case(
+                f"compiler_route_is_declared:{kind}",
+                False,
+                f"this compiler projects {kind} and the provider does not declare it",
+                subject=conformance.SUBJECT_CONSUMER,
+            )
+        )
+    return cases
 
 
 def _literal_route(

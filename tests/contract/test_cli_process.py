@@ -473,6 +473,15 @@ def test_no_command_puts_key_material_on_either_stream(home: Path) -> None:
         # File-tier oracle: Linux CI forces the file tier through a broken D-Bus.
         # On Windows, and on any host with a trusted OS keyring, the seed is not
         # on disk at all, so this process-level harvest cannot run.
+        #
+        # The reason names the keyring, so check that a key exists at all. A
+        # device that never recorded one would land here too, and skip under a
+        # sentence saying the seed is safely elsewhere.
+        assert device_id, "no device identity, so nothing establishes where a seed is"
+        status = run("device", "show", "--json", home=home)
+        assert json.loads(status.stdout)["ok"] is True, (
+            "the device cannot be read, so this skip cannot claim the keyring holds its seed"
+        )
         pytest.skip("file-tier secret absent; OS keyring holds the seed on this host")
     seed = secret_path.read_text(encoding="utf-8")
     material = json.loads(seed)["seed"]

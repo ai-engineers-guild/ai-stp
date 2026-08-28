@@ -3,7 +3,7 @@
 import io
 import json
 import sys
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Annotated, cast
 
@@ -373,6 +373,26 @@ UNREAD_BY_DESIGN: dict[str, str] = {
 }
 
 
+def _handler_sources(handler: Callable[..., object]) -> str:
+    """The handler's module and the `ai_stp_cli` modules it imports, as text."""
+    import inspect
+    import sys
+
+    place = inspect.getsourcefile(handler)
+    if place is None:
+        return ""
+    text = Path(place).read_text("utf-8")
+    module = sys.modules.get(getattr(handler, "__module__", ""))
+    for value in vars(module or object()).values():
+        name = getattr(value, "__name__", "")
+        if not name.startswith("ai_stp_cli"):
+            continue
+        nested = getattr(value, "__file__", None)
+        if nested:
+            text += Path(nested).read_text("utf-8")
+    return text
+
+
 def test_every_declared_option_is_read_by_the_handler_that_declares_it() -> None:
     """A declared option nobody reads does nothing, and says nothing about it.
 
@@ -381,19 +401,25 @@ def test_every_declared_option_is_read_by_the_handler_that_declares_it() -> None
     it. `_as_declared` fixes how a name *arrives*; this asks whether anybody is
     there to receive it.
 
-    Matched on the quoted name in the handler's own module rather than on one
-    access shape — handlers read through `parameters.get`, `parameters[...]` and
-    a shared `_required(parameters, name)` helper, and a check that knew only
-    the first would fail seven honest commands.
+    Matched on the quoted name rather than on one access shape — handlers read
+    through `parameters.get`, `parameters[...]` and a shared
+    `_required(parameters, name)` helper, and a check that knew only the first
+    would fail seven honest commands.
+
+    Read across one level of delegation, not the handler's file alone. When the
+    release-trust helpers moved out of `commands.install` so the harness program
+    path could stop spawning providers it had not verified, three options that
+    `install plan` genuinely reads went unread here — the reader had moved one
+    import away. Following the `ai_stp_cli` modules a handler imports keeps the
+    question "is anybody receiving this" answerable when the answer is a shared
+    module, without naming that module and turning a mechanism into a list.
     """
-    import inspect
 
     from ai_stp_cli.registry import COMMANDS
 
     unread: list[str] = []
     for command in COMMANDS:
-        place = inspect.getsourcefile(command.handler)
-        source = Path(place).read_text("utf-8") if place else ""
+        source = _handler_sources(command.handler)
         for parameter in command.descriptor.parameters:
             named = f'"{parameter.name}"' in source or f"'{parameter.name}'" in source
             if not named:

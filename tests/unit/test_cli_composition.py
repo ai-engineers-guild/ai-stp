@@ -117,6 +117,13 @@ FIXTURES: list[tuple[tuple[composition.Surface, ...], composition.Target, str]] 
         "unverified_without_consent",
     ),
     (
+        # A path relative to `$HOME` where the rule's root is the config home:
+        # correct against a root nobody wrote down, which is the whole class.
+        (_surface("component_a", managed_paths=(".agents/skills/x",), source_name="x"),),
+        CLAUDE,
+        "managed_path_outside_projection",
+    ),
+    (
         (_surface("component_a"),),
         composition.Target(
             harness_id="claude-code",
@@ -330,7 +337,12 @@ def test_the_native_surface_matches_provider_targets() -> None:
     """Composition paths are relative to each explicit provider target."""
     assert composition.native_surface("skill", "claude-code") == "skills"
     assert composition.native_surface("instruction", "codex") == "AGENTS.md"
-    assert composition.native_surface("skill", "codex") == ".agents/skills"
+    # `skills` relative to the `user_root` target `~/.agents`, not
+    # `.agents/skills` relative to codex's configuration home. Resolved the old
+    # way it landed in `~/.codex/.agents/skills`, a sibling of what codex reads
+    # rather than a child, and the install said `verified` (`ADR-0127`).
+    assert composition.native_surface("skill", "codex") == "skills"
+    assert composition.rule_for("skill", "codex").target_scope == "user_root"  # pyright: ignore[reportOptionalMemberAccess]
     # Pi's target is `~/.pi/agent`, so `agent` is the last segment of the home
     # and not a directory inside it. This line asserted the prefix while the
     # docstring above stated the rule the prefix breaks.
@@ -553,17 +565,7 @@ def test_the_stated_bases_are_all_still_load_bearing() -> None:
 #: directory across from where the product reads.
 #:
 #: Empty is the goal. An entry here is a defect with a due date, not a decision.
-_HOME_ANCHORED_DEBT: dict[tuple[str, str], str] = {
-    ("codex", "skill"): (
-        "62 corpus objects, 61 published, all skills declaring "
-        "`managed_paths` of `.agents/skills/<name>`. `managed_paths` is inside "
-        "the content-addressed passport, so the repair is new versions of all "
-        "62 — the pi `managed_paths` precedent. Removing the rule first would "
-        "make 61 published objects refuse before a corrected version exists. "
-        "Closes with the corpus re-seed; the provider withdraws `skill` from "
-        "codex's declaration at its own 0.0.7."
-    ),
-}
+_HOME_ANCHORED_DEBT: dict[tuple[str, str], str] = {}
 
 
 def test_a_provider_rule_never_names_a_surface_anchored_outside_its_target() -> None:
@@ -591,6 +593,13 @@ def test_a_provider_rule_never_names_a_surface_anchored_outside_its_target() -> 
     conventions the catalog knows — `.agents/skills` and `.agents/commands` —
     are exactly the paths most likely to be copied into a projection table by
     someone reading the string and not the anchor.
+
+    **A rule that declares a non-global `target_scope` is exempt, and that is
+    the repair rather than a hole in the guard.** The defect was never the path;
+    it was a path with no statement of what it hangs off, resolved against the
+    only root the rule could reach. A `user_root` rule names its root, so
+    `skills` under it is `~/.agents/skills` and nothing about it is ambiguous.
+    The list is empty now because the one entry was paid that way.
     """
     from ai_stp_cli.local import harness_catalog
 
@@ -605,7 +614,7 @@ def test_a_provider_rule_never_names_a_surface_anchored_outside_its_target() -> 
     offending = {
         (rule.harness_id, rule.component_type)
         for rule in composition.PROVIDER_RULES
-        if rule.relative in home_anchored
+        if rule.relative in home_anchored and rule.target_scope == "global"
     }
     assert offending <= set(_HOME_ANCHORED_DEBT), sorted(offending - set(_HOME_ANCHORED_DEBT))
 
@@ -727,7 +736,15 @@ def test_a_projection_rule_names_a_kind_the_released_provider_accepts() -> None:
                 unnamed.append(f"{harness_id}/{rule.component_type} -> {rule.relative}")
 
     allowed = {f"{h}/{k}" for h, k in _UNDECLARED_BY_PROVIDER}
-    assert {item.split(" ->")[0] for item in undeclared} <= allowed, sorted(undeclared)
+    named = {item.split(" ->")[0] for item in undeclared}
+    assert named <= allowed, sorted(undeclared)
+    # And the other direction, without which this list outlives its reasons.
+    # Every other exception register here has this pair; this one shipped
+    # without it, so a `codex/skill` entry would have sat unopposed the day the
+    # corpus re-seed paid the debt. An allowlist nobody prunes is a hiding
+    # place — the same sentence that removed two entries from
+    # `_CONVENTION_BACKED` when the catalog learned their rows.
+    assert allowed <= named, sorted(allowed - named)
     # A declared kind written to a path the provider does not own is the same
     # defect one level down, and has no standing exception.
     assert not unnamed, sorted(unnamed)
@@ -784,3 +801,73 @@ def test_the_capability_this_program_leaves_unused_is_the_measured_set() -> None
             unused[harness_id] = tuple(sorted(kinds - projected))
 
     assert unused == _PROVIDER_OFFERS_UNUSED
+
+
+def test_a_managed_path_outside_its_kinds_projection_root_is_refused() -> None:
+    """The published path and the computed one were unioned, never compared.
+
+    A component declares `managed_paths` and the rule for its kind names a root.
+    Both went into one set and the composition carried whichever it was given,
+    so a path relative to the wrong root produced a second, silently wrong
+    surface beside the right one. Against a `~/.agents` target, a codex skill
+    declaring `.agents/skills/x` projects into `~/.agents/.agents/skills/x`.
+
+    `install.py` does refuse a native surface the provider never declared, but
+    it refuses the whole bundle after selection and names provider capabilities.
+    This names the component and the path while a person can still act on it.
+    """
+    report = composition.compose(
+        (_surface("component_a", managed_paths=(".agents/skills/x",), source_name="x"),),
+        CLAUDE,
+    )
+    assert report.blocked
+    assert "managed_path_outside_projection" in _codes(report)
+    detail = next(
+        item for item in report.conflicts if item.code == "managed_path_outside_projection"
+    )
+    # The root, not only the offending path: the two are only comparable
+    # together, and a message with one of them asks the reader to guess.
+    assert detail.details["path"] == ".agents/skills/x"
+    assert detail.details["projection_root"] == "skills"
+
+
+def test_a_managed_path_at_or_under_its_projection_root_is_accepted() -> None:
+    """Both shapes: a directory rule's child, and a file rule's exact path."""
+    directory = composition.compose(
+        (_surface("component_a", managed_paths=("skills/x",), source_name="x"),), CLAUDE
+    )
+    assert "managed_path_outside_projection" not in _codes(directory)
+    exact = composition.compose(
+        (
+            _surface(
+                "component_b",
+                component_type="setting",
+                harness_id="cursor",
+                managed_paths=("cli-config.json",),
+            ),
+        ),
+        composition.Target(harness_id="cursor", os="linux", arch="x86_64"),
+    )
+    assert "managed_path_outside_projection" not in _codes(exact)
+
+
+def test_a_kind_with_no_rule_makes_no_claim_about_its_paths() -> None:
+    """Absence of a rule is not a rule that everything is wrong.
+
+    Cursor has no `instruction` row — there is no global `~/.cursor/AGENTS.md`
+    for one to name. Refusing its paths here would be inventing a projection
+    from the fact that none exists, and the honest refusal for a kind this
+    compiler cannot place belongs to eligibility, not to path arithmetic.
+    """
+    report = composition.compose(
+        (
+            _surface(
+                "component_a",
+                component_type="instruction",
+                harness_id="cursor",
+                managed_paths=("AGENTS.md",),
+            ),
+        ),
+        composition.Target(harness_id="cursor", os="linux", arch="x86_64"),
+    )
+    assert "managed_path_outside_projection" not in _codes(report)

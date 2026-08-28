@@ -211,6 +211,7 @@
   "target versions must use canonical X.Y notation": "версии цели должны использовать каноническую запись X.Y",
   "telemetry is turned on by consenting, not by setting a value": "телеметрия включается согласием, а не установкой значения",
   "that action installs a program, which harness does, not install": "это действие ставит программу — им занимается harness, а не install",
+  "that program operation is not waiting on a postcondition": "эта программная операция не ждёт проверки постусловия",
   "that approval is for a different plan": "это одобрение для другого плана",
   "that backup is for another harness": "эта резервная копия для другой упряжки",
   "that component has no local passport": "у этого компонента нет локального паспорта",
@@ -293,6 +294,8 @@
   "the exact catalogue version is not available in the verified cache": "точной версии каталога нет в проверенном кэше",
   "the exact component graph exceeds provider capabilities": "точный граф компонентов превышает возможности провайдера",
   "the exact native package family exceeds provider capabilities": "точное семейство нативных пакетов превышает возможности провайдера",
+  "this provider declares no projection profile for the scope this graph needs": "этот провайдер не объявляет профиль проекции для области, которая нужна этому графу",
+  "the exact component graph spans more than one projection scope": "точный граф компонентов охватывает более одной области проекции",
   "the exact native projection exceeds provider capabilities": "точная нативная проекция превышает возможности провайдера",
   "the exact prepared SetupVersion has no passport revision": "у точного подготовленного SetupVersion нет ревизии паспорта",
   "the exact prepared SetupVersion is not held by this registry": "точный подготовленный SetupVersion этот реестр не держит",
@@ -454,5 +457,6 @@
   "unexpected internal failure": "неожиданный внутренний сбой",
   "usage text is not machine readable": "текст справки не машиночитаем",
   "verified catalogue bytes changed before local materialization": "проверенные байты каталога изменились до локальной материализации",
-  "verified provider release evidence is incomplete": "доказательства проверенного выпуска провайдера неполны"
+  "verified provider release evidence is incomplete": "доказательства проверенного выпуска провайдера неполны",
+  "this target root is too long for the paths this bundle manages": "корень target слишком длинный для путей, которыми управляет этот пакет"
 }

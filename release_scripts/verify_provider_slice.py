@@ -93,13 +93,28 @@ def _disagreements(harness_id: str, declared: dict[str, Any]) -> list[str]:
     """
     from ai_stp_cli.local import composition
 
-    profile = declared.get("projection_profile") or {}
-    kinds = {str(item) for item in profile.get("component_kinds", [])}
-    namespaces = {str(item) for item in profile.get("native_namespaces", [])}
+    # One profile per scope, because a rule is only answerable against the
+    # profile whose target it is relative to. Comparing a `user_root` rule with
+    # the global profile reports its kind as undeclared and its path as
+    # unsupported — both correctly, for a profile that does not describe it.
+    profiles: dict[str, dict[str, Any]] = {}
+    globally = declared.get("projection_profile") or {}
+    profiles[str(globally.get("target_scope") or "global")] = globally
+    for scoped in declared.get("scoped_projection_profiles") or []:
+        profiles[str(scoped.get("target_scope") or "")] = scoped
+
     found: list[str] = []
     for rule in composition.PROVIDER_RULES:
         if rule.harness_id != harness_id:
             continue
+        profile = profiles.get(rule.target_scope)
+        if profile is None:
+            found.append(
+                f"{rule.component_type} -> {rule.relative}: no {rule.target_scope} profile declared"
+            )
+            continue
+        kinds = {str(item) for item in profile.get("component_kinds", [])}
+        namespaces = {str(item) for item in profile.get("native_namespaces", [])}
         if rule.component_type not in kinds:
             found.append(f"{rule.component_type} -> {rule.relative}: kind not declared")
         elif rule.relative not in namespaces:
@@ -172,10 +187,24 @@ def verify_provider_slice(
                 ),
                 "provider conformance",
             )
+            # Split by whose obligation it is, the same way the report does.
+            # A case failing under `consumer` means the provider is correct and
+            # this compiler cannot reach something it offers — real, worth
+            # naming, and not a reason to call a release red. Counting them
+            # together turned three sound providers red the moment conformance
+            # started reporting reach.
+            cases = [item for item in conformance.get("cases", []) if isinstance(item, dict)]
             failing = [
                 str(case.get("name"))
-                for case in conformance.get("cases", [])
-                if isinstance(case, dict) and case.get("passed") is not True
+                for case in cases
+                if case.get("passed") is not True
+                and str(case.get("subject", "provider")) == "provider"
+            ]
+            unreachable = [
+                str(case.get("name"))
+                for case in cases
+                if case.get("passed") is not True
+                and str(case.get("subject", "provider")) == "consumer"
             ]
             mismatched = _disagreements(harness_id, declared)
             if mismatched or failing:
@@ -189,6 +218,7 @@ def verify_provider_slice(
                 "conforms": conformance.get("conforms"),
                 "conformance_cases": len(conformance.get("cases", [])),
                 "conformance_failing": failing,
+                "capability_unreachable": unreachable,
                 "declared_component_kinds": (declared.get("projection_profile") or {}).get(
                     "component_kinds"
                 ),

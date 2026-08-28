@@ -211,6 +211,7 @@
   "target versions must use canonical X.Y notation": "target versions must use canonical X.Y notation",
   "telemetry is turned on by consenting, not by setting a value": "telemetry is turned on by consenting, not by setting a value",
   "that action installs a program, which harness does, not install": "that action installs a program, which harness does, not install",
+  "that program operation is not waiting on a postcondition": "that program operation is not waiting on a postcondition",
   "that approval is for a different plan": "that approval is for a different plan",
   "that backup is for another harness": "that backup is for another harness",
   "that component has no local passport": "that component has no local passport",
@@ -293,6 +294,8 @@
   "the exact catalogue version is not available in the verified cache": "the exact catalogue version is not available in the verified cache",
   "the exact component graph exceeds provider capabilities": "the exact component graph exceeds provider capabilities",
   "the exact native package family exceeds provider capabilities": "the exact native package family exceeds provider capabilities",
+  "this provider declares no projection profile for the scope this graph needs": "this provider declares no projection profile for the scope this graph needs",
+  "the exact component graph spans more than one projection scope": "the exact component graph spans more than one projection scope",
   "the exact native projection exceeds provider capabilities": "the exact native projection exceeds provider capabilities",
   "the exact prepared SetupVersion has no passport revision": "the exact prepared SetupVersion has no passport revision",
   "the exact prepared SetupVersion is not held by this registry": "the exact prepared SetupVersion is not held by this registry",
@@ -454,5 +457,6 @@
   "unexpected internal failure": "unexpected internal failure",
   "usage text is not machine readable": "usage text is not machine readable",
   "verified catalogue bytes changed before local materialization": "verified catalogue bytes changed before local materialization",
-  "verified provider release evidence is incomplete": "verified provider release evidence is incomplete"
+  "verified provider release evidence is incomplete": "verified provider release evidence is incomplete",
+  "this target root is too long for the paths this bundle manages": "this target root is too long for the paths this bundle manages"
 }

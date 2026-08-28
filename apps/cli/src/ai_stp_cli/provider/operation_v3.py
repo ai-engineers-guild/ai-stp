@@ -330,6 +330,7 @@ def require_verified_status(
     target_digest = str(answer.get("target_digest", ""))
     if not is_digest(target_digest):
         raise _refused("provider status has no exact target digest")
+
     if operation is protocol_v3.Operation.REMOVE:
         # The fact that proves a removal is the absent setup, not the absent
         # provider. This used to require `state ∈ {missing, unmanaged}`, and no
@@ -351,17 +352,44 @@ def require_verified_status(
         # loosening. A provider owning nothing owns no setup by definition; a
         # provider still owning the directory proves it by naming no setup.
         if answer.get("state") in {"missing", "unmanaged"}:
+            # Bound here too. This branch returned first, so a provider under a
+            # stale plan reporting an empty target verified an operation it had
+            # never run — the same hole as the one below, on the path that skips
+            # it. Found by a mutation that deleted the other call and changed
+            # nothing, which is what a guard covering one of two identical
+            # branches looks like from the outside.
+            _require_belongs_here(
+                answer,
+                capabilities=capabilities,
+                release_digest=release_digest,
+                plan=plan,
+                bundle=bundle,
+            )
             return target_digest
         reported = answer.get("provider_state")
         if not isinstance(reported, dict) or "setup_stable_id" not in reported:
             raise _refused("provider status does not prove the setup was removed")
         if reported["setup_stable_id"] is not None:
             raise _refused("provider status does not prove the setup was removed")
+        _require_belongs_here(
+            answer,
+            capabilities=capabilities,
+            release_digest=release_digest,
+            plan=plan,
+            bundle=bundle,
+        )
         return target_digest
     if operation is protocol_v3.Operation.RESTORE:
         expected_restore = str(plan.artifact.get("restore_target_digest", ""))
         if target_digest != expected_restore:
             raise _refused("provider restore status differs from the exact BackupRef identity")
+        _require_belongs_here(
+            answer,
+            capabilities=capabilities,
+            release_digest=release_digest,
+            plan=plan,
+            bundle=bundle,
+        )
         return target_digest
     if answer.get("state") != "managed":
         raise _refused("provider status does not prove managed installation")
@@ -393,6 +421,83 @@ def require_verified_status(
     # applied now — and the refusal below, whose whole subject is "the approved"
     # installation, could never fire. Everything else binds content or identity
     # and is checked when stated.
+    _require_operation_binding(
+        answer,
+        nested,
+        capabilities=capabilities,
+        release_digest=release_digest,
+        plan=plan,
+        bundle=bundle,
+    )
+    return target_digest
+
+
+def _require_belongs_here(
+    answer: dict[str, JsonValue],
+    *,
+    capabilities: protocol_v3.ProviderCapabilities,
+    release_digest: str,
+    plan: ProviderPlan,
+    bundle: bundle_protocol.Binding | None,
+) -> None:
+    """Whose target this is, and which operation reached it.
+
+    `remove` and `restore` proved only the destination. A target digest says
+    what is there, and nothing about who put it there or under what plan — two
+    different providers reach an identical digest and were indistinguishable,
+    and so was the same provider under a stale plan. That is how a status
+    reporting `recovery_required` with the right bytes could be recorded
+    `verified`.
+
+    Deliberately *not* hoisted above the operation branches, which is where this
+    was first written. On a drifted managed target the seven publish
+    `operation_id` without `provider_plan_digest` on purpose, so a binding check
+    running before the drift check would refuse a drifted target for a missing
+    field — a familiar refusal, accurate about the wrong thing. The install path
+    keeps drift first and binds afterwards; these two have no drift to protect
+    and bind here.
+
+    Nothing new is asked of any provider: all four facts are in the state file
+    after an applied operation and already reported. A new field would have been
+    a seven-provider release and a version window.
+    """
+    if answer.get("provider_id") != capabilities.provider_id:
+        raise _refused("provider status names a different provider")
+    _require_operation_binding(
+        answer,
+        _provider_state(answer),
+        capabilities=capabilities,
+        release_digest=release_digest,
+        plan=plan,
+        bundle=bundle,
+    )
+
+
+def _require_operation_binding(
+    answer: dict[str, JsonValue],
+    nested: dict[str, JsonValue],
+    *,
+    capabilities: protocol_v3.ProviderCapabilities,
+    release_digest: str,
+    plan: ProviderPlan,
+    bundle: bundle_protocol.Binding | None,
+) -> None:
+    """Make a status about *this* operation rather than about some installation.
+
+    Without it a provider answering for an entirely different, older install
+    verifies the one being applied now. It used to run only on the install path:
+    `remove` and `restore` returned from their own proof first, so a target
+    digest — which says what the destination *is*, and nothing about who put it
+    there or under what plan — was the whole of their evidence. Two different
+    providers reach an identical digest and were indistinguishable; so was the
+    same provider under a stale plan, which is how `recovery_required` with the
+    right bytes could be recorded `verified`.
+
+    Nothing new is asked of any provider. All four facts are already in the
+    state file after an applied operation and already reported by `status`; the
+    change is reading what was arriving. A new field would have been a
+    seven-provider release and a version window.
+    """
     binding: dict[str, JsonValue] = {
         "operation_id": plan.artifact.get("operation_id", ""),
         "provider_plan_digest": plan.digest,
@@ -419,7 +524,6 @@ def require_verified_status(
             "provider status does not prove the approved v3 installation",
             fields=", ".join(mismatches),
         )
-    return target_digest
 
 
 def _reported_operation_state(answer: dict[str, JsonValue]) -> str:
@@ -439,12 +543,30 @@ def _present_mismatches(
     nested: dict[str, JsonValue],
     expected: dict[str, JsonValue],
 ) -> list[str]:
+    """Every stated copy of a fact has to hold, not the first one found.
+
+    A v3 status may carry provenance at the top level and again inside
+    `provider_state`. This stopped at the first place each name appeared, so a
+    provider stating the expected `operation_id` at the top and a different one
+    nested was accepted on the strength of the half that was read — the
+    contradiction sat behind an `elif` and was never looked at.
+
+    The drift check already collected every stated copy and required all of them
+    to hold. The two rules lived in one function and still disagreed about what
+    "stated" means, which is the shape this repository keeps finding: one fact,
+    two readers, and only one of them checking.
+
+    Absence stays compatible. A field present in neither place is not a
+    mismatch — that is what the caller's separate "binds itself to no approved
+    operation" check is for, and legacy placement in either location alone
+    remains valid.
+    """
     mismatches: list[str] = []
     for name, value in expected.items():
-        if name in answer:
-            if answer.get(name) != value:
-                mismatches.append(name)
-        elif name in nested and nested.get(name) != value:
+        stated = [
+            place[name] for place in (answer, nested) if name in place and place[name] != value
+        ]
+        if stated:
             mismatches.append(name)
     return mismatches
 

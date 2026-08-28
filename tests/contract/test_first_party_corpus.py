@@ -8,7 +8,9 @@ from importlib.resources import files
 from typing import cast
 
 from ai_stp_contracts.first_party import (
+    CODEX_SKILLS_VERSION,
     COMPONENT_FORMAT,
+    CURSOR_LAYOUT_VERSION,
     PI_LAYOUT_VERSION,
     SETUP_FORMAT,
     VERSION,
@@ -54,7 +56,7 @@ def _git_tree(entries: dict[str, tuple[int, bytes]]) -> str:
 
 def test_first_party_corpus_has_exact_real_component_and_setup_bytes() -> None:
     corpus = versions()
-    assert len(corpus) == 127
+    assert len(corpus) == 126
     expected = {
         "antigravity": (
             "https://github.com/NDDev-OpenNetwork/antigravity-setup-system",
@@ -78,7 +80,9 @@ def test_first_party_corpus_has_exact_real_component_and_setup_bytes() -> None:
             "https://github.com/NDDev-OpenNetwork/cursor-setup-system",
             "27b07f2edaea248ceb7348d1d10a7f2d2b8d64d8",
             "02ef1e0cec37b0f4be65aecfdecc510d782ca14f",
-            3,
+            # Two, not three: the `instruction` is withdrawn rather than moved.
+            # There is no global `~/.cursor/AGENTS.md` for it to move to.
+            2,
         ),
         "grok-build": (
             "https://github.com/NDDev-it-com/nddev-grok-build-app",
@@ -169,7 +173,7 @@ def test_first_party_source_manifest_is_canonical_closed_and_unique() -> None:
         "antigravity": {"plugin", "setting"},
         "claude-code": {"skill"},
         "codex": {"skill"},
-        "cursor": {"instruction", "plugin", "setting"},
+        "cursor": {"plugin", "setting"},
         "grok-build": {"plugin"},
         "opencode": {"agent", "command", "instruction", "plugin", "skill"},
         "pi": {"instruction", "plugin", "setting", "skill"},
@@ -306,25 +310,39 @@ def test_first_party_passports_are_complete_public_immutable_snapshots() -> None
     )
 
 
-def test_pi_layout_version_is_relative_to_the_harness_home() -> None:
-    """Pi 1.0 treated `agent/` as a directory inside `~/.pi/agent`.
+def test_every_corrected_layout_publishes_a_new_version_rather_than_new_bytes() -> None:
+    """A projection fixed in place cannot rewrite the version that carried it.
 
-    The target already ends in `agent`, so those passports resolved to
-    `~/.pi/agent/agent/AGENTS.md`. Provider rules were fixed in place; the
-    corpus cannot rewrite `1.0`. This is the `1.1` that names the same objects
-    with paths relative to the home.
+    Three harnesses have now had the same defect, and each is a path that was
+    only ever half a path — correct against a root nobody had written down:
+
+    - `pi` 1.0 treated `agent/` as a directory inside `~/.pi/agent`, so those
+      passports resolved to `~/.pi/agent/agent/AGENTS.md`;
+    - `codex` 1.0 wrote `.agents/skills/<slug>` relative to `$HOME`, which
+      against the `~/.agents` target it now projects into is
+      `~/.agents/.agents/skills/<slug>`;
+    - `cursor` 1.0 put its plugin at `plugins/<slug>` where the product reads
+      `plugins/local/<slug>`, and published an `instruction` for a surface —
+      a global `~/.cursor/AGENTS.md` — that does not exist at all.
+
+    Provider rules were fixed in place in every case. Same `X.Y` with different
+    bytes is refused (`REQ-2606`), so the correction is a new version naming the
+    same objects, and the wrong one stays published and readable.
+
+    The list is asserted rather than the count: a fourth correction has to be
+    named here, which is the only place that says why any of them moved.
     """
-    pi = [item for item in versions() if item.passport.harness_id == "pi"]
-    others = [item for item in versions() if item.passport.harness_id != "pi"]
-    assert {item.passport.version for item in pi} == {PI_LAYOUT_VERSION}
-    assert {item.passport.version for item in others} == {VERSION}
-    for item in pi:
-        if item.kind != "component":
+    corrected = {
+        "pi": PI_LAYOUT_VERSION,
+        "codex": CODEX_SKILLS_VERSION,
+        "cursor": CURSOR_LAYOUT_VERSION,
+    }
+    published: dict[str, set[str]] = {}
+    for item in versions():
+        published.setdefault(item.passport.harness_id, set()).add(item.passport.version)
+    for harness_id, expected in corrected.items():
+        assert published[harness_id] == {expected}, harness_id
+    for harness_id, seen in published.items():
+        if harness_id in corrected:
             continue
-        passport = item.passport
-        assert isinstance(passport, ComponentVersionPassport)
-        assert passport.managed_paths
-        assert all(not path.startswith("agent/") for path in passport.managed_paths), (
-            passport.managed_paths
-        )
-        assert list(passport.managed_paths) == list(passport.conflicts.paths)
+        assert seen == {VERSION}, f"{harness_id} moved without being named above"

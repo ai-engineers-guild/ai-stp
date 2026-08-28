@@ -123,15 +123,24 @@ def test_all_role_family_graphs_are_acquired_and_compiled_for_their_harness(
     monkeypatch.setattr(registry_commands, "acquire_version", acquire_one)
     for setup in role_setups:
         assert isinstance(setup.passport, SetupVersionPassport)
+        # The passport's own version, not a literal `1.0`. A harness whose
+        # projection was corrected republishes at `1.1` (`codex`, `cursor`,
+        # `pi`), and a literal here asks the corpus for a version it no longer
+        # has — a KeyError about a stable id, which reads as a missing object
+        # rather than as this test naming the wrong one.
         acquired = registry_commands.acquire(
-            {"id": setup.passport.stable_id, "version": "1.0", "offline": True}
+            {
+                "id": setup.passport.stable_id,
+                "version": setup.passport.version,
+                "offline": True,
+            }
         ).payload
         assert acquired.harness_id in {"claude-code", "codex"}
         with closing(open_readonly(configured_path())) as connection:
             compiled = compile_setup_version_bundle(
                 connection,
                 setup.passport.stable_id,
-                "1.0",
+                setup.passport.version,
                 expected_harness=setup.passport.harness_id,
             )
         assert compiled.archive

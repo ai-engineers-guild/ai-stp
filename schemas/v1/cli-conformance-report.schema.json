@@ -23,13 +23,19 @@
           "default": 1,
           "title": "Schema Version",
           "type": "integer"
+        },
+        "subject": {
+          "default": "provider",
+          "title": "Subject",
+          "type": "string"
         }
       },
       "required": [
         "detail",
         "name",
         "passed",
-        "schema_version"
+        "schema_version",
+        "subject"
       ],
       "title": "ConformanceCase",
       "type": "object"

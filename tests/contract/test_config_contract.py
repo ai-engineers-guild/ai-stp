@@ -107,9 +107,20 @@ def test_the_shipped_catalogue_address_is_one_that_can_answer() -> None:
     offending = {
         path: value
         for path, value in shipped.items()
-        # Telemetry is off unless a consent event turns it on (`ADR-0112`), so
-        # its address is never reached by default and a placeholder there costs
-        # nobody a working command.
+        # Telemetry is exempt, and the reason is stronger than the one first
+        # written here. "Off by default" would only argue that the placeholder
+        # is rarely reached; what makes it *correct* is that there is nothing to
+        # point it at. Measured: no telemetry route exists in `apps/api`, and
+        # the deployment answers 404 on every plausible path. `.example` is the
+        # honest value for a receiver that has not been built.
+        #
+        # It is also visible rather than hidden: `telemetry show` prints the
+        # address and its source, so a person reading the consent screen sees a
+        # documentation domain before answering. And the send is best-effort by
+        # construction (`REQ-1318`) — every path out is "no ping" rather than an
+        # error, so a placeholder cannot fail an install.
+        #
+        # When a receiver exists this exemption should go, not be widened.
         if path != "telemetry.url"
         and any(urlsplit(value).hostname.endswith(suffix) for suffix in reserved)  # pyright: ignore[reportOptionalMemberAccess]
     }

@@ -28,21 +28,24 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Mapping
+from contextlib import closing
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Final
 
 from ai_stp_cli.answer import Answer
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import cache, installation
-from ai_stp_cli.local.database import configured_path, open_registry
+from ai_stp_cli.local import cache, installation, journal
+from ai_stp_cli.local.database import configured_path, open_readonly, open_registry
 from ai_stp_cli.local.passports import moment
 from ai_stp_cli.provider import (
     conformance,
     invocation,
     operation_v3,
+    protocol,
     protocol_v3,
     software_fetch,
+    trust,
 )
 from ai_stp_contracts.machine_help import (
     HarnessProgram,
@@ -141,8 +144,21 @@ def status(parameters: Mapping[str, object]) -> Answer[HarnessProgramStatus]:
     harness_id = _required(parameters, "harness")
     prefix = _directory(parameters, "prefix")
 
-    with open_registry(configured_path()) as connection:
-        history = installation.program_history(connection, str(prefix))
+    # Read-only, as the command declares itself. This opened the registry with
+    # `open_registry`, which creates the database and its parent on a fresh
+    # installation, switches it to WAL, applies pending migrations and sets
+    # filesystem permissions — a diagnostic with durable side effects, and one
+    # that fails outright on a read-only data directory it could have queried.
+    #
+    # A registry that does not exist is a history with nothing in it, which is
+    # exactly what `never_installed` means. Creating one to say so was the
+    # command answering its own question by writing.
+    registry = configured_path()
+    if registry.exists():
+        with closing(open_readonly(registry)) as connection:
+            history = installation.program_history(connection, str(prefix))
+    else:
+        history = ()
 
     stopped = tuple(item for item in history if item.state not in installation.REPLANNABLE_STATES)
     settled = next((item for item in history if item.state == installation.STATE_VERIFIED), None)
@@ -245,65 +261,122 @@ def _perform(action: str, parameters: Mapping[str, object]) -> Answer[HarnessPro
     prefix = _directory(parameters, "prefix")
     target = _directory(parameters, "target")
 
-    # The prefix is where the program goes, and the sandbox binds only the
-    # target unless told otherwise. Without this the provider writes into the
-    # namespace's own tmpfs and reports success for files that do not survive it.
-    invoke = invocation.provider_invoker(
-        executable, str(target), protocol_v3.VERSION, writable=(prefix,)
-    )
-    info = _object(invoke("provider-info", ()))
-    capabilities = protocol_v3.parse_capabilities(dict(info))
-    if capabilities.harness_id != harness_id:
-        raise CliFailure(
-            "AI_STP_PRECONDITION_FAILED",
-            "that provider is for a different harness",
-            details={"asked": harness_id, "provider": capabilities.harness_id},
-        )
-    # Asking a provider that never declared the operation is how an agent finds
-    # out, so the refusal is left to the provider rather than pre-empted here:
-    # its detail says why, and ours would only guess.
-    capabilities.require(operation)
-
-    operation_id = new_id("operation")
-    expires_at = (
-        (datetime.now(UTC) + timedelta(seconds=PLAN_TTL_SECONDS))
-        .isoformat(timespec="milliseconds")
-        .replace("+00:00", "Z")
-    )
-    release_digest = _required(parameters, "provider-release-digest")
-    arguments = operation_v3.plan_operation_arguments(
-        operation=operation,
-        release_digest=release_digest,
-        operation_id=operation_id,
-        expires_at=expires_at,
-        prefix=prefix,
-    )
-    answer = _object(invoke("plan-operation", arguments))
-    if answer.get("rejected") is True:
-        raise CliFailure(
-            "AI_STP_PRECONDITION_FAILED",
-            "the provider refused to plan this program operation",
-            details={"reason": str(answer.get("reason", "")), "harness": harness_id},
-        )
-    plan = answer.get("plan")
-    if not isinstance(plan, dict):
-        raise CliFailure(
-            "AI_STP_PRECONDITION_FAILED",
-            "the provider returned no program plan artifact",
-            details={"harness": harness_id},
-        )
-    plan_digest = str(answer.get("plan_digest", ""))
-    raw_effects = answer.get("effects")
-    effects = tuple(str(item) for item in raw_effects) if isinstance(raw_effects, list) else ()
-    artifacts = operation_v3.require_software_artifacts(dict(plan), operation=operation)
-
+    # Trust before the first spawn, exactly as the setup path establishes it.
+    #
+    # This ran `provider-info` on a caller-supplied executable and only then
+    # read the caller-supplied `--provider-release-digest`, so a string copied
+    # from a real release stood in for proof that these were its bytes. The
+    # sandbox binds the target and the prefix writable for every command,
+    # including that first one, so an unverified executable had somewhere to
+    # write before any durable plan existed.
+    #
+    # It also passed no unisolated reason, and macOS and Windows have no
+    # launcher — so this refused there before the provider spawned at all, for
+    # the whole command family. The reason is not new authority: it reads which
+    # of two things the caller already established, a verified release or a
+    # deliberate `--unverified-provider`.
     with open_registry(configured_path()) as connection:
+        evidence = trust.trusted_manifest(
+            connection, parameters, executable, recovery_requested=False
+        )
+        trusted_release = evidence.manifest
+        trust.release_required(parameters, protocol_v3.VERSION, trusted_release)
+
+        # The prefix is where the program goes, and the sandbox binds only the
+        # target unless told otherwise. Without this the provider writes into
+        # the namespace's own tmpfs and reports success for files that do not
+        # survive it.
+        invoke = invocation.provider_invoker(
+            executable,
+            str(target),
+            protocol_v3.VERSION,
+            writable=(prefix,),
+            unisolated_reason=trust.unisolated_reason(trusted_release, parameters),
+        )
+        info = _object(invoke("provider-info", ()))
+        capabilities = protocol_v3.parse_capabilities(dict(info))
+        if capabilities.harness_id != harness_id:
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "that provider is for a different harness",
+                details={"asked": harness_id, "provider": capabilities.harness_id},
+            )
+        # Asking a provider that never declared the operation is how an agent finds
+        # out, so the refusal is left to the provider rather than pre-empted here:
+        # its detail says why, and ours would only guess.
+        capabilities.require(operation)
+
+        # What the target is now, read from the provider before anything is
+        # planned against it. The setup path does the same; this path used to
+        # take the number out of the plan it was about to validate.
+        observed_target_digest = str(_object(invoke("status", ())).get("target_digest", ""))
+        if not observed_target_digest:
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "the provider does not report a target digest, so a plan cannot be bound to one",
+                details={"harness": harness_id},
+            )
+
+        operation_id = new_id("operation")
+        expires_at = (
+            (datetime.now(UTC) + timedelta(seconds=PLAN_TTL_SECONDS))
+            .isoformat(timespec="milliseconds")
+            .replace("+00:00", "Z")
+        )
+        release_digest = _required(parameters, "provider-release-digest")
+        arguments = operation_v3.plan_operation_arguments(
+            operation=operation,
+            release_digest=release_digest,
+            operation_id=operation_id,
+            expires_at=expires_at,
+            prefix=prefix,
+        )
+        answer = _object(invoke("plan-operation", arguments))
+        if answer.get("rejected") is True:
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "the provider refused to plan this program operation",
+                details={"reason": str(answer.get("reason", "")), "harness": harness_id},
+            )
+        # The canonical binder, not a hand-read of four keys.
+        #
+        # This used to take `plan`, `plan_digest` and `effects` out of the
+        # answer and check none of them against what was asked. A provider
+        # returning a correctly hashed plan for a *different* operation, prefix,
+        # release or operation id was accepted, its artifacts downloaded, and it
+        # applied. `require_plan` binds all of that, and it needed no widening
+        # for programs: measured against the released provider, a
+        # `software_install` plan carries the same keys as any other and its
+        # `canonical_target` is the target, not the prefix.
+        #
+        # `expected_target_digest` is the consumer's own observation rather than
+        # the plan's echo of itself. Taking it from the plan made the binding
+        # circular — the provider would have been agreeing with a number it had
+        # just invented.
+        bound = operation_v3.require_plan(
+            answer,
+            capabilities=capabilities,
+            release_digest=release_digest,
+            operation_id=operation_id,
+            operation=operation,
+            target=target,
+            expected_target_digest=observed_target_digest,
+            bundle=None,
+            backup_ref=None,
+            permission_profile=None,
+            expires_at=expires_at,
+        )
+        plan = bound.artifact
+        plan_digest = bound.digest
+        effects = bound.effects
+        artifacts = operation_v3.require_software_artifacts(dict(plan), operation=operation)
+
         held = installation.propose(
             connection,
             action=f"software_{action}",
             author=str(parameters.get("author") or "agent"),
             target_id=str(prefix),
-            expected_target_digest=str(plan.get("expected_target_digest", "")),
+            expected_target_digest=observed_target_digest,
             provider_version=capabilities.provider_version,
             effects=effects,
             recovery_action="remove" if action != "remove" else "install",
@@ -327,6 +400,7 @@ def _perform(action: str, parameters: Mapping[str, object]) -> Answer[HarnessPro
                 release_digest=release_digest,
                 plan=dict(plan),
                 plan_digest=plan_digest,
+                bound=bound,
                 effects=effects,
                 artifacts=artifacts,
             )
@@ -345,6 +419,7 @@ def _apply(
     release_digest: str,
     plan: dict[str, JsonValue],
     plan_digest: str,
+    bound: operation_v3.ProviderPlan,
     effects: tuple[str, ...],
     artifacts: tuple[operation_v3.SoftwareArtifact, ...],
 ) -> HarnessProgram:
@@ -381,17 +456,51 @@ def _apply(
     )
     for place in fetched:
         arguments = (*arguments, "--software-artifact", str(place))
-    answer = _object(invoke("apply-operation", arguments))
-    installation.applied(connection, held.operation_id, at=moment())
-
-    state = str(answer.get("state", ""))
-    if state != "verified":
-        installation.fail(
+    # A timeout or a malformed answer here is not a failure — the provider was
+    # called and may have finished. `applied_unverified` is the state that says
+    # so, and the operation stays resumable from it. Recording `failed` after a
+    # possible effect is the one thing the state machine forbids, and it is what
+    # this path did for every outcome that was not the literal word `verified`.
+    try:
+        answer = _object(invoke("apply-operation", arguments))
+    except CliFailure:
+        installation.applied(connection, held.operation_id, at=moment())
+        installation.interrupted(
             connection,
             held.operation_id,
             at=moment(),
-            reason=f"the provider reported {state!r} rather than verified",
+            reason="the provider did not answer after a program operation may have landed",
         )
+        raise
+    installation.applied(connection, held.operation_id, at=moment())
+
+    # The canonical binder, which also refuses an apply result that names a
+    # different plan or snapshot. It returns the provider's own state word, and
+    # `stale` is a settled no-effect outcome rather than a failure.
+    state = operation_v3.require_applied(answer, plan=bound, bundle=None)
+    mapped = protocol.operation_state(state)
+    if mapped != installation.STATE_VERIFIED:
+        # Each outcome recorded as itself, the way the setup path records them.
+        # `stale` is the provider having locked the target and refused a plan
+        # that no longer describes it — settled, and no effect. `rolled_back` is
+        # the provider having undone its own change. `partial` is an effect
+        # nobody has confirmed, which stays resumable. Collapsing all three into
+        # `failed`, as this did, made a retry look safer than it was.
+        recorder = {
+            installation.STATE_STALE: (
+                installation.stale,
+                "the provider locked the prefix and refused a stale plan",
+            ),
+            installation.STATE_ROLLED_BACK: (
+                installation.roll_back,
+                "the provider undid its own change",
+            ),
+            installation.STATE_PARTIAL: (
+                installation.interrupted,
+                f"the provider reported {state}",
+            ),
+        }.get(mapped, (installation.fail, f"the provider reported {state!r}"))
+        recorder[0](connection, held.operation_id, at=moment(), reason=recorder[1])
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED",
             "the provider did not verify this program operation",
@@ -448,3 +557,109 @@ def _object(value: JsonValue) -> dict[str, JsonValue]:
             "the provider answered with something other than one object",
         )
     return value
+
+
+#: Where a program operation can still be settled by looking rather than by
+#: doing it again. Both mean the provider was called; only the second admits it.
+_UNSETTLED: Final[frozenset[str]] = frozenset(
+    {installation.STATE_APPLYING, installation.STATE_APPLIED_UNVERIFIED}
+)
+
+#: Cleanup the provider says it still owes. Any of these is durable work, so
+#: `recover-operation` is the command that settles it, never a second apply.
+_PENDING_CLEANUP: Final[frozenset[str]] = frozenset({"pending", "required", "in_progress"})
+
+
+def resume(parameters: Mapping[str, object]) -> Answer[HarnessProgram]:
+    """Settle a program operation that stopped, without repeating its effect.
+
+    The program lifecycle had no way back. A process killed after
+    `apply-operation` left the operation in `applying`; `install resume` refuses
+    a program action by design, because its subject is a setup, and it pointed
+    at `harness install` — which would run the whole operation again. So the
+    only offered route out of "the provider was called and nobody has looked"
+    was to do it a second time.
+
+    This looks instead. It reads the provider's own state, calls
+    `recover-operation` when the provider says durable recovery is owed, and
+    never calls `apply-operation`. Nothing here sends an artifact.
+
+    A provider that still does not settle leaves the operation `partial` rather
+    than `failed`: after the call was made, "nothing was done" is a claim nobody
+    is in a position to make.
+    """
+    operation_id = _required(parameters, "operation")
+    executable = conformance.resolve_executable(_required(parameters, "provider"))
+    prefix = _directory(parameters, "prefix")
+    target = _directory(parameters, "target")
+
+    with open_registry(configured_path()) as connection:
+        current = journal.get(connection, operation_id)
+        state = "" if current is None else current.state
+        if state not in _UNSETTLED:
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "that program operation is not waiting on a postcondition",
+                details={"operation": operation_id, "state": state},
+                next_actions=["harness status --harness <id> --prefix <dir> --json"],
+            )
+
+        evidence = trust.trusted_manifest(
+            connection, parameters, executable, recovery_requested=False
+        )
+        trusted_release = evidence.manifest
+        trust.release_required(parameters, protocol_v3.VERSION, trusted_release)
+        invoke = invocation.provider_invoker(
+            executable,
+            str(target),
+            protocol_v3.VERSION,
+            writable=(prefix,),
+            unisolated_reason=trust.unisolated_reason(trusted_release, parameters),
+        )
+
+        # `applying` means the provider was called and nobody has looked since.
+        # Acknowledging that first is not a guess that the effect landed — it is
+        # the honest name for the situation, and the state the journal requires
+        # before any verdict about it.
+        if state == installation.STATE_APPLYING:
+            installation.applied(connection, operation_id, at=moment())
+
+        answer = _object(invoke("status", ()))
+        reported = str(answer.get("state", ""))
+        cleanup = str(answer.get("cleanup_state", ""))
+        if reported == "recovery_required" or cleanup in _PENDING_CLEANUP:
+            invoke("recover-operation", ())
+            answer = _object(invoke("status", ()))
+            reported = str(answer.get("state", ""))
+
+        if reported in {"managed", "missing", "unmanaged"}:
+            installation.verify(
+                connection,
+                operation_id,
+                postconditions_met=True,
+                at=moment(),
+                observed_target_digest=str(answer.get("target_digest", "")),
+            )
+        else:
+            installation.interrupted(
+                connection,
+                operation_id,
+                at=moment(),
+                reason=f"the provider still reports {reported!r} for this program operation",
+            )
+        settled = journal.get(connection, operation_id)
+        # The durable plan, which is what recorded the action. `journal.get`
+        # answers where the operation stopped; it does not carry what it was.
+        held = installation._require(connection, operation_id)  # pyright: ignore[reportPrivateUsage]
+        return Answer(
+            HarnessProgram(
+                harness_id=_required(parameters, "harness"),  # pyright: ignore[reportArgumentType]
+                operation=held.action.removeprefix("software_"),  # pyright: ignore[reportArgumentType]
+                state="" if settled is None else settled.state,
+                operation_id=operation_id,
+                prefix=str(prefix),
+                plan_digest=str(answer.get("provider_plan_digest", "")),
+                effects=[],
+                artifacts=[],
+            )
+        )

@@ -208,7 +208,16 @@ class ProjectionProfile:
         if not self.profile_id:
             raise ValueError("projection profile id is required")
         if self.scope not in PROJECTION_SCOPES:
-            raise ValueError("projection profile names an unknown target scope")
+            # The value and the accepted set, not only the field. A consumer
+            # older than the provider refuses a scope it has never heard of,
+            # which is correct — but "an unknown target scope" alone reads as a
+            # schema-wide problem, and a provider author spent twenty minutes
+            # looking for a defect on their side because of it. The two names
+            # together say which side is behind and by exactly what.
+            raise ValueError(
+                f"projection profile names an unknown target scope {self.scope!r}; "
+                f"this build accepts {', '.join(sorted(PROJECTION_SCOPES))}"
+            )
         if not _is_sha256(self.digest):
             raise ValueError("projection profile digest must be canonical sha256")
         if not self.component_kinds or not self.projection_kinds:
@@ -474,7 +483,10 @@ def parse_capabilities(value: Mapping[str, object]) -> ProviderCapabilities:
         held = cast(dict[str, object], entry)
         named = held.get("target_scope")
         if not isinstance(named, str) or named not in PROJECTION_SCOPES:
-            raise ValueError("a scoped projection profile names an unknown target scope")
+            raise ValueError(
+                f"a scoped projection profile names an unknown target scope {named!r}; "
+                f"this build accepts {', '.join(sorted(PROJECTION_SCOPES - {'global'}))}"
+            )
         # The global scope already has an owner, and two statements about one
         # fact are a defect even while they agree.
         if named == "global":

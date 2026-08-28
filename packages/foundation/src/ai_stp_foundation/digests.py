@@ -7,6 +7,7 @@ Unknown domains fail closed.
 
 import hashlib
 import re
+from collections.abc import Iterable
 from typing import Final
 
 from ai_stp_foundation.canonical import JsonValue, canonize
@@ -48,6 +49,23 @@ def digest_bytes(domain: str, payload: bytes) -> str:
     if domain not in DIGEST_DOMAINS:
         raise DigestError(f"unknown digest domain: {domain!r}")
     digest = hashlib.sha256(domain.encode("ascii") + b"\x00" + payload)
+    return f"sha256:{digest.hexdigest()}"
+
+
+def digest_stream(domain: str, chunks: Iterable[bytes]) -> str:
+    """The same address as `digest_bytes`, without holding the payload.
+
+    A caller that must not allocate the whole subject — a harness root can hold
+    a multi-gigabyte cache blob, and the import plan hashes one to record that
+    it was seen and excluded — needs the identical answer from a bounded
+    buffer. Written beside `digest_bytes` rather than in the caller so the two
+    cannot drift into two addresses for one file.
+    """
+    if domain not in DIGEST_DOMAINS:
+        raise DigestError(f"unknown digest domain: {domain!r}")
+    digest = hashlib.sha256(domain.encode("ascii") + b"\x00")
+    for chunk in chunks:
+        digest.update(chunk)
     return f"sha256:{digest.hexdigest()}"
 
 

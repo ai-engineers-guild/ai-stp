@@ -38,6 +38,7 @@ CONFLICTS: Final[frozenset[str]] = frozenset(
         "hook_order_conflict",
         "native_surface_lost",
         "path_escapes_bundle",
+        "managed_path_outside_projection",
         "undeclared_environment",
         "permission_escalation",
         "redistribution_forbidden",
@@ -88,7 +89,22 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     Rule("command", "commands", "directory", "claude-code"),
     Rule("agent", "agents", "directory", "claude-code"),
     Rule("instruction", "AGENTS.md", "file", "codex"),
-    Rule("skill", ".agents/skills", "directory", "codex"),
+    # `skills`, under the shared convention's own root, not `.agents/skills`
+    # under codex's configuration home. `ADR-0127`, and the eighth face of one
+    # sentence: this row said `.agents/skills` and was resolved against
+    # `--target`, so it landed in `~/.codex/.agents/skills` — a sibling of the
+    # directory codex reads, not a child. An install answered `verified` and
+    # wrote twenty-nine files the product never saw.
+    #
+    # The path is right only together with the root it hangs off, and the root
+    # is what `target_scope` names. Under `user_root` the provider's target is
+    # `~/.agents`, so the surface is `skills` — writing `.agents/` in again
+    # would land them at `~/.agents/.agents/skills`.
+    #
+    # Measured against codex 0.0.10, which declares the scope:
+    # `codex/native-files/user-root/1`, namespaces `["skills"]`,
+    # kinds `["skill"]`.
+    Rule("skill", "skills", "directory", "codex", target_scope="user_root"),
     Rule("setting", "config.toml", "file", "codex"),
     # No `agent/` prefix: these are relative to the target, and Pi's target
     # already is `~/.pi/agent`. The segment belongs to the home, not inside it,
@@ -156,7 +172,25 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     # `config/` is shared, so both prefixes are part of the relative path rather
     # than something a target adds.
     Rule("setting", "antigravity-cli/settings.json", "file", "antigravity"),
-    Rule("plugin", "antigravity-cli/plugins", "directory", "antigravity", projection_kind="plugin"),
+    # `config/plugins`, not `antigravity-cli/plugins`. The row said the latter
+    # while every other antigravity row here — skill, agent, hook, mcp — sits
+    # under `config/`, and a shared surface that holds four of a setup's five
+    # kinds and not the fifth was the tell. Settled against the product rather
+    # than argued: `antigravity-setup-system` ships its own plugin at
+    # `home/config/plugins/nddev-builder`, where `home/` is the target root.
+    #
+    # `antigravity-cli/plugins` is not merely unread — it is where the CLI puts
+    # what it installs itself, so writing a setup's plugin there lands it in
+    # another manager's directory.
+    #
+    # The tenth instance of one sentence, and the first found by our own two
+    # tables being made to answer each other: `provider-info` declares *both*
+    # namespaces, so the released-provider cross-check passed on a wrong row, in
+    # exactly the way it passed for cursor's `plugins`. What caught it is the
+    # new composition conflict comparing a published `managed_paths` against the
+    # rule for its kind — the corpus had carried the right path all along and
+    # nothing had ever compared the two.
+    Rule("plugin", "config/plugins", "directory", "antigravity", projection_kind="plugin"),
     Rule("skill", "config/skills", "directory", "antigravity"),
     Rule("agent", "config/agents", "directory", "antigravity"),
     Rule("hook", "config/hooks.json", "file", "antigravity"),
@@ -450,6 +484,44 @@ def _projected_root(item: Surface, target: Target) -> str:
     return rule.relative
 
 
+def _projection_root_of(component_type: str, harness_id: str) -> str:
+    rule = rule_for(component_type, harness_id)
+    return rule.relative if rule is not None else ""
+
+
+def _outside_projection(item: Surface, rule: Rule | None) -> list[str]:
+    """Managed paths this kind's rule cannot reach.
+
+    A published `managed_paths` and the root computed from the rule were unioned
+    and never compared, so a component could declare any path at all and the
+    composition simply carried both. Measured against the live catalogue on
+    2026-08-28, three groups disagreed: 61 codex skills declaring
+    `.agents/skills/<name>` — relative to `$HOME`, from before the surface moved
+    to a `~/.agents` target — one cursor plugin at `plugins/<name>` from before
+    the `plugins/local` correction, and one cursor `instruction` for a kind the
+    provider stopped accepting.
+
+    Every one of them projected into a path the product does not read, and the
+    install still answered `verified`. `install.py` does refuse a native surface
+    the provider never declared, but it refuses the whole bundle after selection,
+    naming provider capabilities rather than the component that is wrong. This
+    says which component and which path, while a person can still act on it.
+
+    The ninth instance of one sentence: a path is only a path together with what
+    it is relative to. Declaring the root is what makes the two comparable.
+
+    No rule means no claim. A kind with no row is one this compiler does not
+    project, and refusing its paths here would be inventing a rule from absence.
+    """
+    if rule is None:
+        return []
+    return [
+        path
+        for path in sorted(set(item.managed_paths))
+        if path != rule.relative and not path.startswith(f"{rule.relative}/")
+    ]
+
+
 def _paths(surfaces: tuple[Surface, ...], target: Target) -> list[Conflict]:
     """Two owners of one managed path, and paths that leave the bundle.
 
@@ -465,6 +537,21 @@ def _paths(surfaces: tuple[Surface, ...], target: Target) -> list[Conflict]:
         paths = set(item.managed_paths)
         if projected:
             paths.add(projected)
+        outside = _outside_projection(item, rule_for(item.component_type, target.harness_id))
+        for path in sorted(outside):
+            conflicts.append(
+                Conflict(
+                    "managed_path_outside_projection",
+                    "a managed path does not sit under this kind's projection root",
+                    {
+                        "stable_id": item.stable_id,
+                        "path": path,
+                        "projection_root": _projection_root_of(
+                            item.component_type, target.harness_id
+                        ),
+                    },
+                )
+            )
         for path in sorted(paths):
             if _escapes(path):
                 conflicts.append(

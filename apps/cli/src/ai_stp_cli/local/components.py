@@ -24,7 +24,7 @@ import os
 import sqlite3
 import stat
 import zipfile
-from dataclasses import dataclass
+from dataclasses import KW_ONLY, dataclass
 from itertools import islice
 from pathlib import Path
 from typing import Final
@@ -120,6 +120,30 @@ class Rule:
     #: Global rules are normally relative to the harness configuration root.
     #: Cross-harness conventions such as `$HOME/.agents/skills` use `home`.
     root: str = "config"
+
+    # Everything from here on is keyword-only. Adding `target_scope` between
+    # `root` and `excluded_names` silently shifted a nine-argument positional
+    # construction in `_declared_rules` — `excluded_names` became the scope, the
+    # projection kind became the excluded names — and the suite reported it as
+    # two unrelated discovery failures rather than as what it was. A field
+    # inserted into a positional tail cannot be inserted safely, so the tail
+    # stops being positional.
+    _: KW_ONLY
+
+    #: Which provider projection scope this rule is relative to (`ADR-0127`).
+    #:
+    #: `global` is the provider's own `--target`, its configuration home, and is
+    #: what every rule meant when the field did not exist. A non-global value
+    #: names a scoped profile the provider declares in
+    #: `scoped_projection_profiles`, whose target is a different directory
+    #: entirely — `user_root` is the shared-convention root `~/.agents`.
+    #:
+    #: The field exists because the path could not carry the answer. A rule
+    #: naming `skills` means `<config home>/skills` under `global` and
+    #: `~/.agents/skills` under `user_root`, and nothing in the string
+    #: distinguishes them. That is the sentence this repository has paid for
+    #: eight times: a path is only a path together with what it is relative to.
+    target_scope: str = "global"
 
     #: Harness-owned service buckets inside a component directory. These are
     #: containers, not components, and must never be offered for adoption.
@@ -345,9 +369,9 @@ def _declared_rules(scope: str) -> tuple[Rule, ...]:
             "" if definition.harness_id == "undefined" else definition.harness_id,
             layout.source,
             layout.root,
-            layout.excluded_names,
-            layout.projection_kind,
-            layout.declared_key,
+            excluded_names=layout.excluded_names,
+            projection_kind=layout.projection_kind,
+            declared_key=layout.declared_key,
         )
         for definition in harness_catalog.DEFINITIONS
         for layout in definition.layouts

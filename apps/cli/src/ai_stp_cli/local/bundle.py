@@ -29,6 +29,7 @@ import hashlib
 import io
 import unicodedata
 import zipfile
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Final, Literal
 
@@ -65,6 +66,7 @@ REFUSALS: Final[frozenset[str]] = frozenset(
         "path_empty_segment",
         "path_invalid_character",
         "path_too_long",
+        "path_not_portable",
         "path_duplicate",
         "path_case_conflict",
         "path_undeclared",
@@ -536,6 +538,74 @@ def _path_problem(path: str) -> tuple[str, str] | None:
         return "path_escapes_target", "a bundled path cannot climb out of the target"
     if any(segment in {"", "."} for segment in segments):
         return "path_empty_segment", "a bundled path cannot hold an empty or dot segment"
+    return _portability_problem(segments)
+
+
+#: Names Windows reserves for devices, whatever extension follows them. `CON.md`
+#: is the device, not a file, so the test is on the stem rather than the whole
+#: segment.
+_RESERVED_STEMS: Final[frozenset[str]] = frozenset(
+    {"con", "prn", "aux", "nul"}
+    # `¹²³` are not decoration. `learn.microsoft.com/windows/win32/fileio/naming-a-file`
+    # says Windows "recognizes the 8-bit ISO/IEC 8859-1 superscript digits ¹, ²,
+    # and ³ as digits and treats them as valid parts of COM# and LPT# device
+    # names, making them reserved in every directory", and gives the worked
+    # example: `echo test > COM¹` fails to create a file.
+    #
+    # Raised by the provider side, which read the page, implemented it, and then
+    # deliberately did *not* ship stricter than this compiler — a validator that
+    # refuses what the other blessed is `plugins/local` with the roles reversed,
+    # and that cost a release to open a window for. Verified here before
+    # widening rather than taken on the report.
+    | {f"com{digit}" for digit in "123456789¹²³"}
+    | {f"lpt{digit}" for digit in "123456789¹²³"}
+)
+
+#: Characters the same page reserves outright. `/` is the separator and `\` is
+#: refused as a path shape elsewhere, so these are the rest of that list.
+_RESERVED_CHARACTERS: Final[str] = '<>"|?*'
+
+
+def _portability_problem(segments: Sequence[str]) -> tuple[str, str] | None:
+    """One bundle, one installability, on every supported operating system.
+
+    Each of these is an ordinary file on Linux and is either impossible or a
+    *different object* on Windows: a reserved device name is not a file whatever
+    extension follows it, a trailing dot or space is stripped so the written
+    name is not the manifested one, and a colon selects an NTFS alternate data
+    stream rather than a path.
+
+    Refused here rather than left to the provider because the alternative is a
+    digest that means "installable" on the host that built it and something else
+    on the host that receives it. The bundle is the unit of identity, so its
+    validity cannot depend on where it lands.
+
+    Checked on the stem, not by substring: `console.md`, `connect.json` and
+    `com10.txt` are real names people use, and a guard that cost them would be
+    paid for every day to prevent something rare.
+    """
+    for segment in segments:
+        stem = segment.split(".", 1)[0].lower()
+        if stem in _RESERVED_STEMS:
+            return (
+                "path_not_portable",
+                "a bundled path names a reserved device and cannot exist on every target",
+            )
+        if segment.endswith((".", " ")):
+            return (
+                "path_not_portable",
+                "a bundled path segment ends in a dot or space, which is not preserved",
+            )
+        if ":" in segment:
+            return (
+                "path_not_portable",
+                "a bundled path segment carries a stream separator rather than a name",
+            )
+        if any(character in segment for character in _RESERVED_CHARACTERS):
+            return (
+                "path_not_portable",
+                "a bundled path segment holds a character no Windows name may carry",
+            )
     return None
 
 

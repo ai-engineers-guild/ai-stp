@@ -227,9 +227,18 @@ def test_v3_conformance_refuses_a_profile_without_a_compiler_native_route(
 
     report = conformance_v3.run(invoke, harness_id="codex", target=tmp_path)
 
-    assert not report.conforms
-    failed = {case.name for case in report.failures}
-    assert failed == {"declared_native_route_is_compilable"}
+    # The provider is honest: it declares what it can install, and every
+    # obligation v3 places on it is met. This used to make `conforms` false,
+    # which named the wrong party — the gap is that *this compiler* has no route
+    # for the pair, and whoever read that verdict was sent to the provider's
+    # repository to fix a defect that was here.
+    assert report.conforms
+    unreachable = {case.name for case in report.unreachable}
+    assert "declared_route_is_compilable:plugin" in unreachable, unreachable
+    # And it is named per pair rather than aggregated, so the report says which
+    # kind rather than that something, somewhere, did not line up.
+    detail = next(case.detail for case in report.unreachable)
+    assert "plugin" in detail
 
 
 def test_cli_v3_conformance_fails_before_spawn_without_network_isolation(
@@ -774,8 +783,25 @@ def test_v3_remove_status_requires_managed_state_to_be_gone(tmp_path: Path) -> N
         permission_profile=None,
         expires_at=expiry,
     )
+
+    # These answers now state whose target it is and which operation reached it.
+    # They used to prove only the destination, which a provider under a stale
+    # plan — or a different provider entirely — satisfies identically. Measured
+    # against the released claude provider after a real remove: all seven
+    # provenance fields are present at the top level, so requiring them asks
+    # nothing new of anybody.
+    def _bound(**overrides: object) -> dict[str, JsonValue]:
+        answer: dict[str, JsonValue] = {
+            "provider_id": capabilities.provider_id,
+            "provider_release_digest": _digest("d"),
+            "operation_id": plan.artifact["operation_id"],
+            "provider_plan_digest": plan.digest,
+        }
+        answer.update(cast(dict[str, JsonValue], overrides))
+        return answer
+
     assert operation_v3.require_verified_status(
-        {"state": "missing", "target_digest": _digest("f")},
+        _bound(state="missing", target_digest=_digest("f")),
         capabilities=capabilities,
         release_digest=_digest("d"),
         plan=plan,
@@ -789,11 +815,11 @@ def test_v3_remove_status_requires_managed_state_to_be_gone(tmp_path: Path) -> N
     # `missing` here asked them to claim no state while a restore was pending —
     # which is the reading that invites a consumer to treat the place as free.
     assert operation_v3.require_verified_status(
-        {
-            "state": "managed",
-            "target_digest": _digest("f"),
-            "provider_state": {"present": True, "setup_stable_id": None},
-        },
+        _bound(
+            state="managed",
+            target_digest=_digest("f"),
+            provider_state={"present": True, "setup_stable_id": None},
+        ),
         capabilities=capabilities,
         release_digest=_digest("d"),
         plan=plan,
@@ -803,11 +829,11 @@ def test_v3_remove_status_requires_managed_state_to_be_gone(tmp_path: Path) -> N
     # And the fact that actually proves it is the field, not the word.
     with pytest.raises(CliFailure, match="does not prove the setup was removed"):
         operation_v3.require_verified_status(
-            {
-                "state": "managed",
-                "target_digest": _digest("f"),
-                "provider_state": {"present": True, "setup_stable_id": "setup_still_here"},
-            },
+            _bound(
+                state="managed",
+                target_digest=_digest("f"),
+                provider_state={"present": True, "setup_stable_id": "setup_still_here"},
+            ),
             capabilities=capabilities,
             release_digest=_digest("d"),
             plan=plan,
@@ -818,7 +844,7 @@ def test_v3_remove_status_requires_managed_state_to_be_gone(tmp_path: Path) -> N
     # either. Absence is never evidence, here as everywhere else.
     with pytest.raises(CliFailure, match="does not prove the setup was removed"):
         operation_v3.require_verified_status(
-            {"state": "managed", "target_digest": _digest("f")},
+            _bound(state="managed", target_digest=_digest("f")),
             capabilities=capabilities,
             release_digest=_digest("d"),
             plan=plan,
@@ -885,7 +911,22 @@ def test_v3_restore_status_accepts_exact_backup_identity_without_managed_drift(
     capabilities = _capabilities()
     plan = _restore_plan(tmp_path)
     restore_digest = str(plan.artifact["restore_target_digest"])
-    unmanaged: dict[str, JsonValue] = {"state": "unmanaged", "target_digest": restore_digest}
+
+    # Stating whose target it is and which operation reached it. A digest names
+    # the destination and nothing else, so these four are what make the answer
+    # about this restore rather than about an older one that happened to leave
+    # the same bytes.
+    def _bound(**overrides: object) -> dict[str, JsonValue]:
+        answer: dict[str, JsonValue] = {
+            "provider_id": capabilities.provider_id,
+            "provider_release_digest": _digest("d"),
+            "operation_id": plan.artifact["operation_id"],
+            "provider_plan_digest": plan.digest,
+        }
+        answer.update(cast(dict[str, JsonValue], overrides))
+        return answer
+
+    unmanaged: dict[str, JsonValue] = _bound(state="unmanaged", target_digest=restore_digest)
     assert (
         operation_v3.require_verified_status(
             unmanaged,
@@ -899,7 +940,7 @@ def test_v3_restore_status_accepts_exact_backup_identity_without_managed_drift(
     )
     with pytest.raises(CliFailure, match="exact BackupRef identity"):
         operation_v3.require_verified_status(
-            {"state": "unmanaged", "target_digest": _digest("0")},
+            _bound(state="unmanaged", target_digest=_digest("0")),
             capabilities=capabilities,
             release_digest=_digest("d"),
             plan=plan,
@@ -920,6 +961,13 @@ def test_v3_restore_status_accepts_exact_backup_identity_without_managed_drift(
         permission_profile=None,
         expires_at=expiry,
     )
+
+    # These answers now state whose target it is and which operation reached it.
+    # They used to prove only the destination, which a provider under a stale
+    # plan — or a different provider entirely — satisfies identically. Measured
+    # against the released claude provider after a real remove: all seven
+    # provenance fields are present at the top level, so requiring them asks
+
     with pytest.raises(CliFailure, match="managed installation"):
         operation_v3.require_verified_status(
             unmanaged,
@@ -1145,3 +1193,231 @@ def test_the_software_plan_request_names_a_prefix(tmp_path: Path) -> None:
         # Named, never created: `plan-operation` is pure, and a directory made
         # here would be one the run has to remove again.
         assert not prefix.exists(), f"conformance created {prefix}"
+
+
+def test_a_restore_status_must_belong_to_the_operation_that_just_ran(tmp_path: Path) -> None:
+    """A target digest says what the destination is, not who put it there.
+
+    `require_verified_status` returned as soon as a restore's `target_digest`
+    matched the plan's `restore_target_digest`, before anything asked which
+    provider, release, plan or operation the answer described. Two different
+    providers reach an identical digest and are indistinguishable to that check,
+    and so is the same provider under a stale plan.
+
+    So a provider could answer `recovery_required` with the right digest and be
+    recorded `verified` — the state file naming an older operation entirely,
+    while the consumer wrote down that this one had succeeded.
+
+    Nothing new is asked of any provider. `provider_id`,
+    `provider_release_digest`, `operation_id` and `provider_plan_digest` are
+    already in the state file after an applied operation and already reported by
+    `status`; the change is reading four facts that were already arriving.
+    """
+    plan = _restore_plan(tmp_path)
+    capabilities = _capabilities()
+    exact = str(plan.artifact["restore_target_digest"])
+
+    def status(**overrides: object) -> dict[str, JsonValue]:
+        answer: dict[str, JsonValue] = {
+            "state": "managed",
+            "target_digest": exact,
+            "provider_id": capabilities.provider_id,
+            "provider_release_digest": _digest("d"),
+            "operation_id": plan.artifact["operation_id"],
+            "provider_plan_digest": plan.digest,
+        }
+        answer.update(cast(dict[str, JsonValue], overrides))
+        return answer
+
+    # The honest answer still verifies.
+    assert (
+        operation_v3.require_verified_status(
+            status(),
+            capabilities=capabilities,
+            release_digest=_digest("d"),
+            plan=plan,
+            bundle=None,
+            operation=protocol_v3.Operation.RESTORE,
+        )
+        == exact
+    )
+
+    # An older operation with the right bytes must not.
+    for field, wrong in (
+        ("operation_id", "operation_from_last_week"),
+        ("provider_plan_digest", _digest("f")),
+        ("provider_id", "some-other-setup-system"),
+        ("provider_release_digest", _digest("e")),
+    ):
+        with pytest.raises(CliFailure, match=r"does not prove|names a different provider"):
+            operation_v3.require_verified_status(
+                status(**{field: wrong}),
+                capabilities=capabilities,
+                release_digest=_digest("d"),
+                plan=plan,
+                bundle=None,
+                operation=protocol_v3.Operation.RESTORE,
+            )
+
+    # And a status that binds itself to no operation at all is refused, rather
+    # than passing because the one field it did state happened to match.
+    #
+    # It carries `provider_id` deliberately. The first version omitted it and
+    # asserted only that *something* raised — which it did, at the identity
+    # check one line earlier, so the binding this case exists to exercise was
+    # never reached. Naming the refusal is what exposed that; the case had been
+    # passing for the wrong reason since it was written.
+    bare: dict[str, JsonValue] = {
+        "state": "managed",
+        "target_digest": exact,
+        "provider_id": capabilities.provider_id,
+        "provider_release_digest": _digest("d"),
+    }
+    with pytest.raises(CliFailure, match="binds itself to no approved operation"):
+        operation_v3.require_verified_status(
+            bare,
+            capabilities=capabilities,
+            release_digest=_digest("d"),
+            plan=plan,
+            bundle=None,
+            operation=protocol_v3.Operation.RESTORE,
+        )
+
+
+def test_a_remove_status_must_belong_to_the_operation_that_just_ran(tmp_path: Path) -> None:
+    """The same hole as restore's, on the branch beside it.
+
+    Written after a mutation proved the first version of this guard covered only
+    one of the two: deleting the binding from the `remove` branch changed
+    nothing, because every case exercising it lived in the restore test. A guard
+    that protects one of two identical branches is protecting neither in the one
+    that matters next.
+
+    `remove` proves the setup is gone. It did not prove *whose* target that is
+    or which operation reached it, so a provider under a stale plan reporting an
+    empty target verified an operation it had never run.
+    """
+    answer, bound, expiry, _digest_value = _plan_answer(
+        tmp_path, operation=protocol_v3.Operation.REMOVE
+    )
+    capabilities = _capabilities()
+    plan = operation_v3.require_plan(
+        answer,
+        capabilities=capabilities,
+        release_digest=_digest("d"),
+        operation_id="operation_test_v3",
+        operation=protocol_v3.Operation.REMOVE,
+        target=tmp_path,
+        expected_target_digest=_digest("a"),
+        bundle=bound,
+        backup_ref=None,
+        permission_profile=None,
+        expires_at=expiry,
+    )
+
+    def gone(**overrides: object) -> dict[str, JsonValue]:
+        answer: dict[str, JsonValue] = {
+            "state": "missing",
+            "target_digest": _digest("f"),
+            "provider_id": capabilities.provider_id,
+            "provider_release_digest": _digest("d"),
+            "operation_id": plan.artifact["operation_id"],
+            "provider_plan_digest": plan.digest,
+        }
+        answer.update(cast(dict[str, JsonValue], overrides))
+        return answer
+
+    assert operation_v3.require_verified_status(
+        gone(),
+        capabilities=capabilities,
+        release_digest=_digest("d"),
+        plan=plan,
+        bundle=None,
+        operation=protocol_v3.Operation.REMOVE,
+    ) == _digest("f")
+    for field, wrong in (
+        ("operation_id", "operation_from_last_week"),
+        ("provider_plan_digest", _digest("e")),
+        ("provider_id", "some-other-setup-system"),
+        ("provider_release_digest", _digest("0")),
+    ):
+        with pytest.raises(CliFailure, match=r"does not prove|names a different provider"):
+            operation_v3.require_verified_status(
+                gone(**{field: wrong}),
+                capabilities=capabilities,
+                release_digest=_digest("d"),
+                plan=plan,
+                bundle=None,
+                operation=protocol_v3.Operation.REMOVE,
+            )
+
+
+def test_a_fact_stated_twice_must_agree_with_itself(tmp_path: Path) -> None:
+    """Two records of one fact where only one is read is a fail-open.
+
+    A v3 status may carry provenance at the top level and again inside
+    `provider_state`, and `_present_mismatches` stopped at the first place it
+    found each name. So a provider could state the expected `operation_id` at
+    the top and a different one nested, and the contradiction was never looked
+    at — the half that was read agreed, and the half that disagreed was skipped
+    by an `elif`.
+
+    The drift check immediately above already collects every stated copy and
+    requires all of them to hold. This is the same rule for the provenance
+    fields, and the reason it was worth writing twice is that the two lived in
+    one function and still disagreed about what "stated" means.
+    """
+    answer, bound, expiry, _digest_value = _plan_answer(tmp_path)
+    capabilities = _capabilities()
+    plan = operation_v3.require_plan(
+        answer,
+        capabilities=capabilities,
+        release_digest=_digest("d"),
+        operation_id="operation_test_v3",
+        operation=protocol_v3.Operation.INSTALL,
+        target=tmp_path,
+        expected_target_digest=_digest("a"),
+        bundle=bound,
+        backup_ref=None,
+        permission_profile=None,
+        expires_at=expiry,
+    )
+
+    def status(nested: dict[str, JsonValue]) -> dict[str, JsonValue]:
+        return {
+            "state": "managed",
+            "target_digest": _digest("f"),
+            "protocol_version": protocol_v3.VERSION,
+            "provider_id": capabilities.provider_id,
+            "drift_state": "clean",
+            "operation_id": plan.artifact["operation_id"],
+            "provider_plan_digest": plan.digest,
+            "provider_state": nested,
+        }
+
+    # Agreeing copies are fine, and stay fine.
+    assert operation_v3.require_verified_status(
+        status({"operation_id": plan.artifact["operation_id"]}),
+        capabilities=capabilities,
+        release_digest=_digest("d"),
+        plan=plan,
+        bundle=None,
+        operation=protocol_v3.Operation.INSTALL,
+    ) == _digest("f")
+
+    # A nested copy naming an older install must not pass because the top-level
+    # one happened to be right.
+    for field, wrong in (
+        ("operation_id", "operation_from_last_week"),
+        ("provider_plan_digest", _digest("e")),
+        ("provider_release_digest", _digest("0")),
+    ):
+        with pytest.raises(CliFailure, match="does not prove the approved"):
+            operation_v3.require_verified_status(
+                status({field: wrong}),
+                capabilities=capabilities,
+                release_digest=_digest("d"),
+                plan=plan,
+                bundle=None,
+                operation=protocol_v3.Operation.INSTALL,
+            )

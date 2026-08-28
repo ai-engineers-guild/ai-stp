@@ -1990,6 +1990,33 @@
           "repeatable": false,
           "summary": "Absolute harness configuration target.",
           "choices": []
+        },
+        {
+          "name": "provider-manifest",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Signed provider release manifest proving these exact bytes.",
+          "choices": []
+        },
+        {
+          "name": "provider-build-attestation",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Require a GitHub build attestation for the provider artifact.",
+          "choices": []
+        },
+        {
+          "name": "unverified-provider",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Run a provider no signed release covers. On macOS and Windows this is also what lets the call run at all, since no launcher there can deny the network.",
+          "choices": []
         }
       ],
       "parameter_rules": [],
@@ -2053,12 +2080,127 @@
           "choices": []
         },
         {
+          "name": "provider-manifest",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Signed provider release manifest proving these exact bytes.",
+          "choices": []
+        },
+        {
+          "name": "provider-build-attestation",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Require a GitHub build attestation for the provider artifact.",
+          "choices": []
+        },
+        {
+          "name": "unverified-provider",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Run a provider no signed release covers. On macOS and Windows this is also what lets the call run at all, since no launcher there can deny the network.",
+          "choices": []
+        },
+        {
           "name": "confirm",
           "kind": "option",
           "value_type": "boolean",
           "required": true,
           "repeatable": false,
           "summary": "Confirm removing the program this CLI installed under the prefix.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-harness-program",
+      "next_actions": [
+        "harness status"
+      ]
+    },
+    {
+      "path": [
+        "harness",
+        "resume"
+      ],
+      "summary": "Settle a stopped program operation by looking, never by applying again.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "operation",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The operation that stopped.",
+          "choices": []
+        },
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Harness whose program this is.",
+          "choices": []
+        },
+        {
+          "name": "provider",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact provider executable to invoke.",
+          "choices": []
+        },
+        {
+          "name": "prefix",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Absolute directory the program lives under. Not the target.",
+          "choices": []
+        },
+        {
+          "name": "target",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Absolute harness configuration target.",
+          "choices": []
+        },
+        {
+          "name": "provider-manifest",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Signed provider release manifest proving these exact bytes.",
+          "choices": []
+        },
+        {
+          "name": "provider-build-attestation",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Require a GitHub build attestation for the provider artifact.",
+          "choices": []
+        },
+        {
+          "name": "unverified-provider",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Run a provider no signed release covers. On macOS and Windows this is also what lets the call run at all, since no launcher there can deny the network.",
           "choices": []
         }
       ],
@@ -2155,6 +2297,33 @@
           "required": true,
           "repeatable": false,
           "summary": "Absolute harness configuration target.",
+          "choices": []
+        },
+        {
+          "name": "provider-manifest",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Signed provider release manifest proving these exact bytes.",
+          "choices": []
+        },
+        {
+          "name": "provider-build-attestation",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Require a GitHub build attestation for the provider artifact.",
+          "choices": []
+        },
+        {
+          "name": "unverified-provider",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Run a provider no signed release covers. On macOS and Windows this is also what lets the call run at all, since no launcher there can deny the network.",
           "choices": []
         }
       ],
