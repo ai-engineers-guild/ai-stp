@@ -241,21 +241,26 @@ def test_a_products_config_home_can_be_spelled_differently_under_xdg() -> None:
     which is why both fallbacks are asserted here rather than only the branch
     that was broken.
     """
+    from pathlib import Path
+
     from ai_stp_cli.local import harnesses
 
     cursor = next(item for item in harnesses.DETECTORS if item.harness_id == "cursor")
     opencode = next(item for item in harnesses.DETECTORS if item.harness_id == "opencode")
     home = {"HOME": "/home/u"}
 
-    assert str(harnesses.config_root(cursor, home)) == "/home/u/.cursor"
-    assert (
-        str(harnesses.config_root(cursor, {**home, "XDG_CONFIG_HOME": "/home/u/.config"}))
-        == "/home/u/.config/cursor"
+    # `Path`, not `str`. The first version compared the rendered string and
+    # failed on the Windows runner with `\\home\\u\\.cursor` — a test
+    # asserting the separator of the machine it happened to run on, which is the
+    # same platform assumption these three OS legs exist to catch. What is being
+    # checked here is which directory is chosen, and that is separator-free.
+    assert harnesses.config_root(cursor, home) == Path("/home/u/.cursor")
+    assert harnesses.config_root(cursor, {**home, "XDG_CONFIG_HOME": "/home/u/.config"}) == Path(
+        "/home/u/.config/cursor"
     )
-    assert str(harnesses.config_root(cursor, {**home, "CURSOR_CONFIG_DIR": "/opt/c"})) == "/opt/c"
+    assert harnesses.config_root(cursor, {**home, "CURSOR_CONFIG_DIR": "/opt/c"}) == Path("/opt/c")
 
-    assert str(harnesses.config_root(opencode, home)) == "/home/u/.config/opencode"
-    assert (
-        str(harnesses.config_root(opencode, {**home, "XDG_CONFIG_HOME": "/elsewhere"}))
-        == "/elsewhere/opencode"
+    assert harnesses.config_root(opencode, home) == Path("/home/u/.config/opencode")
+    assert harnesses.config_root(opencode, {**home, "XDG_CONFIG_HOME": "/elsewhere"}) == Path(
+        "/elsewhere/opencode"
     )

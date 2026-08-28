@@ -230,13 +230,12 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     # global — a filename travelling without its scope. This one is under the
     # configuration home the provider owns, and the provider declares it.
     #
-    # `skill -> skills` is measured and **not** here yet: the released `0.0.11`
-    # does not declare the kind, because it was the provider's own false
-    # decline and is found after that tag. The evidence slice caught the row
-    # arriving first — `skill -> skills: kind not declared` — which is the
-    # ordering it exists to enforce, and the same refusal it would have raised
-    # for `codex agent` had that gone in a release early.
+    # `skill -> skills` waited one release. Added with the rest and refused by
+    # the evidence slice — `skill -> skills: kind not declared` against
+    # `0.0.11` — because it was the provider's own false decline and is declared
+    # only from `0.0.13`. Verified against that tag before landing here.
     Rule("instruction", "rules", "directory", "cursor"),
+    Rule("skill", "skills", "directory", "cursor"),
     Rule("command", "commands", "directory", "cursor"),
     Rule("hook", "hooks.json", "file", "cursor"),
     Rule("mcp", "mcp.json", "file", "cursor"),

@@ -37,6 +37,15 @@
       "declared_key": ""
     },
     {
+      "component_type": "skill",
+      "relative": "skills",
+      "shape": "directory",
+      "scope": "global",
+      "root": "config",
+      "source": "cursor.com/docs/skills",
+      "declared_key": ""
+    },
+    {
       "component_type": "instruction",
       "relative": "rules",
       "shape": "directory",

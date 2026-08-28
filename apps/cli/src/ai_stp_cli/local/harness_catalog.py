@@ -467,6 +467,7 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
             # with both controls; the rest at the line in the pinned bundle.
             # The `rules` row below is the User Rule scope, a sibling of the
             # project one two lines up rather than a correction of it.
+            _layout("skill", "skills", "directory", f"{CURSOR}/skills", G),
             _layout("instruction", "rules", "directory", f"{CURSOR}/rules", G),
             _layout("command", "commands", "directory", f"{CURSOR}/commands", G),
             _layout("hook", "hooks.json", "file", f"{CURSOR}/hooks", G),
@@ -487,6 +488,25 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
         # with the variable set every answer named a directory the product was
         # not using. Found by the provider author reading the same resolution
         # order in the shipped bundle.
+        #
+        # **Open, and created by the line above.** Cursor also has a separate
+        # `CURSOR_DATA_DIR`, defaulting to `~/.cursor` and *not* XDG-aware. So a
+        # machine with `XDG_CONFIG_HOME` set has configuration at
+        # `$XDG_CONFIG_HOME/cursor` and data still at `~/.cursor` — two roots
+        # where there was one.
+        #
+        # Every layout here is `root="config"`, and the vocabulary has only
+        # `config` and `home`; there is no `data`. While this harness was
+        # unconditionally `~/.cursor` the distinction could not be wrong,
+        # because both resolved to the same directory. Making configuration
+        # conditional is what split them, so this row introduced the exposure it
+        # now records.
+        #
+        # Which surfaces follow which root is **not** guessed here. `plugins`
+        # is the obvious candidate — installed artifacts read like data — but
+        # "reads like" is the reasoning that produced `antigravity-cli/plugins`
+        # and cursor's own `plugins`. Asked of the provider author, who holds
+        # the bundle's resolution order; a `data` root arrives with the answer.
         xdg_config=True,
         xdg_config_root="cursor",
         root_override="CURSOR_CONFIG_DIR",
