@@ -1,6 +1,6 @@
 ---
 description: "Runbook: provider update."
-last_verified: "2026-08-03"
+last_verified: "2026-08-28"
 ---
 
 # Обновление провайдера
@@ -20,23 +20,33 @@ python apps/cli/tools/provider_release.py keygen \
 монотонную sequence. Для текущего release profile указываются только фактически
 доказанные `linux` и `x86_64`; переносимые code paths не являются macOS evidence:
 
+`--publisher` обязателен и не имеет умолчания. Раньше инструмент подставлял
+`NDDev-it-com` — издателя, которому поставляемая `provider-policy.toml` уже не
+доверяет, — то есть подписывал релизы от имени организации, с которой эстейт
+съехал.
+
 ```bash
 python apps/cli/tools/provider_release.py sign \
   --private-key /secure/ai-stp/provider-release-ed25519.pem \
-  --provider-id nddev-claude-app \
-  --provider-version 0.2.0 \
-  --repository github.com/NDDev-it-com/nddev-claude-app \
+  --provider-id claude-setup-system \
+  --provider-version 0.0.16 \
+  --publisher NDDev-OpenNetwork \
+  --repository github.com/NDDev-OpenNetwork/claude-setup-system \
   --commit <exact-commit> \
   --license AGPL-3.0-or-later \
-  --artifact /secure/candidates/nddev-claude-app-0.2.0 \
-  --artifact-url https://github.com/NDDev-it-com/nddev-claude-app/releases/download/0.2.0/nddev-claude-app-0.2.0 \
-  --entry-point nddev-claude-app-0.2.0 \
+  --artifact /secure/candidates/claude-setup-system-0.0.16 \
+  --artifact-url https://github.com/NDDev-OpenNetwork/claude-setup-system/releases/download/0.0.16/claude-setup-system-0.0.16 \
+  --entry-point claude-setup-system-0.0.16 \
   --protocol-version 3 \
   --sequence 1 \
   --supported-os linux \
   --supported-arch x86_64 \
-  --output /secure/candidates/nddev-claude-app-0.2.0.manifest.json
+  --output /secure/candidates/claude-setup-system-0.0.16.manifest.json
 ```
+
+`--provider-id` — то, чем провайдер называет себя в `provider-info`, и это
+`<name>-setup-system`, а не имя прежнего репозитория. Проверено на выпущенных
+`0.0.16`: `claude-setup-system`, `codex-setup-system`, `pi-setup-system`.
 
 Перед публикацией `verify` повторно читает точные байты артефакта и применяет
 тот же договор доверия потребителя. Закрытый ключ, байты кандидата и

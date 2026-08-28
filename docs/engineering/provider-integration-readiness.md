@@ -1,9 +1,19 @@
 ---
-description: "Проверяемая матрица пяти public provider v3 и их exact release evidence."
-last_verified: "2026-08-10"
+description: "Замещённый снимок пяти provider v3 эстейта NDDev-it-com; текущий эстейт — семь NDDev-OpenNetwork setup-systems."
+last_verified: "2026-08-28"
 ---
 
 # Готовность public providers
+
+> **Замещён.** Этот снимок описывает эстейт `NDDev-it-com/*-app`, снятый
+> `ADR-0119`/`ADR-0120`. Те пять репозиториев переведены на личный аккаунт
+> `rldyourmnd` и заархивированы 2026-08-25 — проверено против API, а не по
+> отчёту. Текущий эстейт — **семь** `NDDev-OpenNetwork/*-setup-system`, все на
+> `0.0.16`, реализация на Rust, а не Python-адаптеры, описанные ниже.
+>
+> Сохранён как запись выполненной работы: merge SHA и номера PR остаются
+> проверяемыми фактами о том, что было сделано. Не читать как текущее
+> состояние — за ним `provider-policy.toml` и `just evidence-providers <tag>`.
 
 ## Назначение и граница
 

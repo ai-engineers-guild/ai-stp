@@ -34,6 +34,12 @@ def _parser() -> argparse.ArgumentParser:
     sign.add_argument("--provider-id", required=True)
     sign.add_argument("--provider-version", required=True)
     sign.add_argument("--repository", required=True)
+    # Required rather than defaulted. This was `NDDev-it-com`, a publisher the
+    # shipped `provider-policy.toml` explicitly no longer trusts — so the tool
+    # minted releases under an organisation the estate had moved off, and the
+    # only thing that would have caught it is somebody reading both files.
+    # Who is publishing is a fact the caller has and this tool does not.
+    sign.add_argument("--publisher", required=True)
     sign.add_argument("--commit", required=True)
     sign.add_argument("--license", required=True, dest="license_name")
     sign.add_argument("--artifact", required=True, type=Path)
@@ -154,7 +160,7 @@ def sign(args: argparse.Namespace) -> dict[str, object]:
         supported_arch=frozenset(args.supported_arch),
         sequence=args.sequence,
         policy_id=POLICY_ID,
-        publisher="NDDev-it-com",
+        publisher=args.publisher,
         signing_key=_key_id(public),
         signature_subject=SUBJECT,
         signature="",
@@ -172,7 +178,7 @@ def sign(args: argparse.Namespace) -> dict[str, object]:
     policy = release.TrustPolicy(
         schema_version=release.POLICY_SCHEMA_VERSION,
         policy_id=POLICY_ID,
-        allowed_publishers=frozenset({"NDDev-it-com"}),
+        allowed_publishers=frozenset({args.publisher}),
         allowed_keys=frozenset({_key_id(public)}),
         allowed_repositories=frozenset({args.repository}),
         pinned_releases=frozenset(

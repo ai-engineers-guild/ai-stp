@@ -121,19 +121,25 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     # elimination would have got these two right. It got claude-code's `plugin`
     # wrong in the same pass, and a method that is right four times out of five
     # is not a method.
-    # `~/.codex/agents/`, declared in the provider's `0.0.11` and vendor
-    # documented (TOML: `name`, `description`, `model`,
-    # `model_reasoning_effort`, `developer_instructions`). Added after the
-    # release rather than after the declaration: against `0.0.10` this row names
-    # a namespace the released provider does not declare, and the evidence slice
-    # would have gone red for codex — correctly.
+    # No `agent` row, and the one that was here for a few hours is the sharpest
+    # instance of a rule I had already written down. Codex does not load an
+    # agent from a file in `~/.codex/agents/`: a role is an `agents.<name>`
+    # table in the settings file whose `config_file` points at a TOML layer,
+    # resolved relative to the declaring file. Measured against a temporary
+    # `CODEX_HOME` — a bad pointer is reported as a malformed role definition,
+    # while an `agents/<name>.md` sitting beside it is loaded by nothing and
+    # complained about by nothing.
     #
-    # The content format is TOML here where claude-code, opencode and pi take
-    # Markdown for the same kind. That belongs to the component rather than to
-    # this row: the provider writes a bundle's bytes verbatim at their relative
-    # paths and has no notion of format, so a format on the route would be a
-    # field nobody could honour.
-    Rule("agent", "agents", "directory", "codex"),
+    # It went in on the provider's declaration plus a vendor page listing the
+    # TOML fields, which is exactly the move I had argued against in the same
+    # week: **a declaration can refute a route and cannot confirm one.** The
+    # provider had declared the kind since it was written and its own builder
+    # setup had never run, so nothing on either side had exercised it.
+    #
+    # The route would need two files written together — a settings table and a
+    # layer it points at — and a component of one kind is one thing in one
+    # namespace. There is no honest way to state it, so it is absent rather
+    # than approximated.
     Rule("hook", "hooks.json", "file", "codex"),
     Rule("command", "prompts", "directory", "codex"),
     # No `agent/` prefix: these are relative to the target, and Pi's target

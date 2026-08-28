@@ -510,7 +510,7 @@ def _v3_test_invoker(
     build_digest = "sha256:" + "c" * 64
     info: dict[str, JsonValue] = {
         "protocol_version": protocol_v3.VERSION,
-        "provider_id": "nddev-claude-app",
+        "provider_id": "claude-setup-system",
         "harness_id": "claude-code",
         "provider_version": "3.0.0",
         "provider_build_digest": build_digest,
@@ -552,7 +552,7 @@ def _v3_test_invoker(
             "target_digest": TARGET_AFTER,
             "drift_state": "verified",
             "protocol_version": protocol_v3.VERSION,
-            "provider_id": "nddev-claude-app",
+            "provider_id": "claude-setup-system",
             "provider_version": "3.0.0",
             "provider_build_digest": build_digest,
             "provider_release_digest": held["provider_release_digest"],
@@ -599,7 +599,7 @@ def _v3_test_invoker(
             artifact: dict[str, JsonValue] = {
                 "format": "ai-stp-provider-plan/3",
                 "protocol_version": protocol_v3.VERSION,
-                "provider_id": "nddev-claude-app",
+                "provider_id": "claude-setup-system",
                 "provider_version": "3.0.0",
                 "provider_build_digest": build_digest,
                 "provider_release_digest": supplied["--provider-release-digest"],

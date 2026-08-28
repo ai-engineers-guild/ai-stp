@@ -12,7 +12,7 @@ last_verified: "2026-08-03"
 | [coding-rules.md](coding-rules.md) | Правила ошибок, I/O, безопасности и предсказуемого поведения. | 2026-08-03 |
 | [dependency-policy.md](dependency-policy.md) | Правила Python, Node, external tools и provider dependencies. | 2026-08-15 |
 | [federated-source-threat-model.md](federated-source-threat-model.md) | Модель угроз федеративных local ports и metadata adapters. | 2026-08-16 |
-| [first-party-corpus.md](first-party-corpus.md) | Проверяемая инвентаризация реальных байтов и паспортов первопартийного корпуса запуска. | 2026-08-25 |
+| [first-party-corpus.md](first-party-corpus.md) | Проверяемая инвентаризация реальных байтов и паспортов первопартийного корпуса запуска. | 2026-08-28 |
 | [git-workflow.md](git-workflow.md) | Правила веток, коммитов, PR и межрепозиторных изменений. | 2026-08-12 |
 | [implementation-roadmap.md](implementation-roadmap.md) | Зависимый порядок реализации MVP и межрепозиторных изменений. | 2026-08-27 |
 | [platform-artifact-bind-312.md](platform-artifact-bind-312.md) | План реализации plan-scoped upload байт публикации. | 2026-08-16 |
@@ -21,7 +21,7 @@ last_verified: "2026-08-03"
 | [platform-reachability-346.md](platform-reachability-346.md) | План расширения гейта достижимости на api, platform и worker. | 2026-08-16 |
 | [platform-sync-cursor-302.md](platform-sync-cursor-302.md) | План реализации курсора последней непустой страницы sync pull. | 2026-08-16 |
 | [pr-214-integration-handoff.md](pr-214-integration-handoff.md) | Проверенный порядок разделения и интеграции PR #214 через актуальную линию dev. | 2026-08-08 |
-| [provider-integration-readiness.md](provider-integration-readiness.md) | Проверяемая матрица пяти public provider v3 и их exact release evidence. | 2026-08-10 |
+| [provider-integration-readiness.md](provider-integration-readiness.md) | Замещённый снимок пяти provider v3 эстейта NDDev-it-com; текущий эстейт — семь NDDev-OpenNetwork setup-systems. | 2026-08-28 |
 | [quality-gates.md](quality-gates.md) | Обязательные проверки и release evidence. | 2026-08-22 |
 | [release-evidence.md](release-evidence.md) | Обязательные доказательства выпуска CLI, платформы и провайдеров. | 2026-08-04 |
 | [repository-structure.md](repository-structure.md) | Целевая структура монорепозитория и правила владения кодом. | 2026-08-05 |

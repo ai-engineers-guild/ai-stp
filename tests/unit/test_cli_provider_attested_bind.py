@@ -35,7 +35,11 @@ def _info(*, harness_id: str = "pi") -> dict[str, JsonValue]:
     }
     return {
         "protocol_version": protocol_v3.VERSION,
-        "provider_id": f"nddev-{harness_id}-app",
+        # The naming the released providers actually use. `nddev-<id>-app` was
+        # the displaced estate's, and those repositories are archived under a
+        # personal account — a stub declaring an identity no provider answers to
+        # teaches the wrong shape to whoever reads it next.
+        "provider_id": f"{harness_id}-setup-system",
         "harness_id": harness_id,
         "provider_version": "0.0.1",
         "provider_build_digest": _digest("b"),
@@ -267,7 +271,7 @@ def test_fetch_runs_provider_info_only_after_attestation(
         directory=tmp_path,
         github=_Github(blob=_provider_script()),
     )
-    assert bound.provider_id == "nddev-pi-app"
+    assert bound.provider_id == "pi-setup-system"
     parsed = release.parse_manifest(bound.manifest_path.read_text("utf-8"))
     assert parsed.entry_point == bound.artifact.name
 

@@ -23,8 +23,8 @@ schema_version = 2
 policy_id = "nddev/provider/1"
 signature_subject = "ai-stp:provider-release-manifest:v1"
 minimum_sequence = 0
-allowed_publishers = ["NDDev-it-com"]
-allowed_repositories = ["github.com/NDDev-it-com/nddev-claude-app"]
+allowed_publishers = ["NDDev-OpenNetwork"]
+allowed_repositories = ["github.com/NDDev-OpenNetwork/claude-setup-system"]
 allowed_keys = []
 public_keys = {}
 revoked_keys = []
@@ -33,7 +33,7 @@ releases = []
 """
 
 
-_ALLOWED_REPOSITORY = "github.com/NDDev-it-com/nddev-claude-app"
+_ALLOWED_REPOSITORY = "github.com/NDDev-OpenNetwork/claude-setup-system"
 _PIN_FIELDS = f'provider_id = "nddev-claude-app", repository = "{_ALLOWED_REPOSITORY}"'
 _DIGEST_A = "sha256:" + "a" * 64
 
@@ -50,16 +50,16 @@ def _public(private: Ed25519PrivateKey) -> str:
 #: fixture that pins nothing would be testing refusal, not acceptance.
 PINNED = release.PinnedRelease(
     provider_id="claude-code",
-    repository="github.com/NDDev-it-com/nddev-claude-app",
+    repository="github.com/NDDev-OpenNetwork/claude-setup-system",
     artifact_digest="sha256:" + "b" * 64,
 )
 
 POLICY = release.TrustPolicy(
     schema_version=release.POLICY_SCHEMA_VERSION,
     policy_id="nddev/provider/1",
-    allowed_publishers=frozenset({"NDDev-it-com"}),
+    allowed_publishers=frozenset({"NDDev-OpenNetwork"}),
     allowed_keys=frozenset({"key-2026"}),
-    allowed_repositories=frozenset({"github.com/NDDev-it-com/nddev-claude-app"}),
+    allowed_repositories=frozenset({"github.com/NDDev-OpenNetwork/claude-setup-system"}),
     pinned_releases=frozenset({PINNED}),
     signature_subject="ai-stp:provider-release-manifest:v1",
     public_keys={"key-2026": _public(PRIVATE_2026)},
@@ -73,7 +73,7 @@ def _manifest(**overrides: object) -> release.ReleaseManifest:
         "provider_id": "claude-code",
         "provider_version": "1.0.0",
         "protocol_version": 1,
-        "repository": "github.com/NDDev-it-com/nddev-claude-app",
+        "repository": "github.com/NDDev-OpenNetwork/claude-setup-system",
         "commit": "a" * 40,
         "license": "MIT",
         "artifact_url": "https://example.test/releases/1.0.0/provider.tar.gz",
@@ -84,7 +84,7 @@ def _manifest(**overrides: object) -> release.ReleaseManifest:
         "supported_arch": frozenset({"x86_64"}),
         "sequence": 7,
         "policy_id": "nddev/provider/1",
-        "publisher": "NDDev-it-com",
+        "publisher": "NDDev-OpenNetwork",
         "signing_key": "key-2026",
         "signature_subject": "ai-stp:provider-release-manifest:v1",
         "signature": "",
@@ -411,14 +411,14 @@ def test_pinned_bytes_are_refused_under_another_provider_identity() -> None:
     lenient = _policy(
         allowed_repositories=frozenset(
             {
-                "github.com/NDDev-it-com/nddev-claude-app",
-                "github.com/NDDev-it-com/nddev-codex-app",
+                "github.com/NDDev-OpenNetwork/claude-setup-system",
+                "github.com/NDDev-OpenNetwork/codex-setup-system",
             }
         )
     )
     for wrong in (
         _manifest(provider_id="codex"),
-        _manifest(repository="github.com/NDDev-it-com/nddev-codex-app"),
+        _manifest(repository="github.com/NDDev-OpenNetwork/codex-setup-system"),
     ):
         verdict = release.verify(wrong, lenient, known_sequence=6, platform="linux/x86_64")
         assert _codes(verdict) == ("release_not_pinned",)
@@ -460,7 +460,7 @@ def test_a_policy_field_in_the_wrong_shape_names_it() -> None:
         ("schema_version = 2", "schema_version = true", "schema_version"),
         ("minimum_sequence = 0", "minimum_sequence = -1", "minimum_sequence"),
         (
-            'allowed_publishers = ["NDDev-it-com"]',
+            'allowed_publishers = ["NDDev-OpenNetwork"]',
             "allowed_publishers = [1]",
             "allowed_publishers",
         ),
@@ -599,7 +599,11 @@ def test_the_trust_command_checks_a_named_manifest(tmp_path: Path) -> None:
                 "provider_id": "claude-code",
                 "provider_version": "1.0.0",
                 "protocol_version": 1,
-                "repository": "github.com/NDDev-it-com/nddev-claude-app",
+                # Unknown to the shipped policy, like the publisher below and
+                # for a sharper reason: `build_attestations` matches on the
+                # **repository**, so naming a real one accepts the manifest
+                # through attestation and the key is never reached.
+                "repository": "github.com/example-org/provider-example",
                 "commit": "a" * 40,
                 "license": "MIT",
                 "artifact_url": "https://example.test/releases/1.0.0/provider.tar.gz",
@@ -610,7 +614,12 @@ def test_the_trust_command_checks_a_named_manifest(tmp_path: Path) -> None:
                 "supported_arch": ["x86_64"],
                 "sequence": 7,
                 "policy_id": "nddev/provider/1",
-                "publisher": "NDDev-it-com",
+                # Deliberately a publisher the shipped policy does not know.
+                # This case proves an unpinned key is refused, and naming a
+                # verified publisher here routes it through the attestation
+                # path instead — the manifest is accepted and the assertion
+                # below stops testing anything.
+                "publisher": "example-org",
                 "signing_key": "key-nobody-pinned",
                 "signature_subject": "ai-stp:provider-release-manifest:v1",
                 "signature": "not-a-real-signature",

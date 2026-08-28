@@ -68,7 +68,7 @@ def _capabilities(
     operations: frozenset[protocol_v3.Operation],
 ) -> protocol_v3.ProviderCapabilities:
     return protocol_v3.ProviderCapabilities(
-        provider_id="nddev-claude-app",
+        provider_id="claude-setup-system",
         harness_id="claude-code",
         provider_version="1.0.0",
         provider_build_digest=_digest("2"),
@@ -283,7 +283,7 @@ def test_provider_info_parser_binds_the_exact_projection_and_capabilities() -> N
     }
     info: dict[str, object] = {
         "protocol_version": 3,
-        "provider_id": "nddev-claude-app",
+        "provider_id": "claude-setup-system",
         "harness_id": "claude-code",
         "provider_version": "0.2.0",
         "provider_build_digest": _digest("3"),
@@ -331,7 +331,7 @@ def test_provider_info_parser_fails_closed_for_malformed_wire_fields(
     }
     value: dict[str, object] = {
         "protocol_version": 3,
-        "provider_id": "nddev-claude-app",
+        "provider_id": "claude-setup-system",
         "harness_id": "claude-code",
         "provider_version": "3.0.0",
         "provider_build_digest": _digest("3"),
