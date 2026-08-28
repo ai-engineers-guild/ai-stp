@@ -60,7 +60,7 @@
       "shape": "directory",
       "scope": "global",
       "root": "config",
-      "source": "cursor.com/docs/commands",
+      "source": "docs.cursor.com/en/cli/reference/slash-commands",
       "declared_key": ""
     },
     {
@@ -125,7 +125,7 @@
       "shape": "directory",
       "scope": "global",
       "root": "config",
-      "source": "antigravity.google/docs/commands",
+      "source": "antigravity.google/docs/slash-commands",
       "declared_key": ""
     },
     {
@@ -143,7 +143,7 @@
       "shape": "directory",
       "scope": "global",
       "root": "config",
-      "source": "antigravity.google/docs/agents",
+      "source": "antigravity.google/docs/subagents",
       "declared_key": ""
     },
     {
@@ -188,7 +188,7 @@
       "shape": "directory",
       "scope": "project",
       "root": "config",
-      "source": "antigravity.google/docs/agents",
+      "source": "antigravity.google/docs/subagents",
       "declared_key": ""
     },
     {

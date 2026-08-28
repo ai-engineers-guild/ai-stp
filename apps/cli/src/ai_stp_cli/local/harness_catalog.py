@@ -117,6 +117,19 @@ GROK = "docs.x.ai/build"
 CURSOR = "cursor.com/docs"
 ANTIGRAVITY = "antigravity.google/docs"
 
+#: Four citations in this file answered 404 when somebody finally fetched them,
+#: and two of those were written the same day — a URL composed from the pattern
+#: of its neighbours rather than from a page that was opened. Nothing here
+#: fetches a citation, so a dead one is found by a person reading it and in no
+#: other way; `just evidence-citations` is that person, made repeatable.
+#:
+#: Named rather than interpolated, because `f"{ANTIGRAVITY}/commands"` reads as
+#: derived from a known root and is exactly how the wrong three were produced.
+ANTIGRAVITY_AGENTS = "antigravity.google/docs/subagents"
+ANTIGRAVITY_COMMANDS = "antigravity.google/docs/slash-commands"
+ANTIGRAVITY_SETTINGS = "antigravity.google/docs/settings"
+CURSOR_COMMANDS = "docs.cursor.com/en/cli/reference/slash-commands"
+
 DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
     HarnessDefinition(
         "claude-code",
@@ -469,7 +482,7 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
             # project one two lines up rather than a correction of it.
             _layout("skill", "skills", "directory", f"{CURSOR}/skills", G),
             _layout("instruction", "rules", "directory", f"{CURSOR}/rules", G),
-            _layout("command", "commands", "directory", f"{CURSOR}/commands", G),
+            _layout("command", "commands", "directory", CURSOR_COMMANDS, G),
             _layout("hook", "hooks.json", "file", f"{CURSOR}/hooks", G),
             _layout("mcp", "mcp.json", "file", f"{CURSOR}/mcp", G),
         ),
@@ -519,7 +532,7 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
         # inside Gemini's, split between `antigravity-cli/` for what is its own
         # and `config/` for surfaces shared with Gemini CLI.
         ".gemini",
-        f"{ANTIGRAVITY}/configuration",
+        ANTIGRAVITY_SETTINGS,
         (
             _layout(
                 "setting", "antigravity-cli/settings.json", "file", f"{ANTIGRAVITY}/settings", G
@@ -533,16 +546,14 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
             # every workspace. Discovery has to know it for the same reason
             # projection does: an object living here is one this catalogue
             # would otherwise report as somebody's loose notes.
-            _layout(
-                "command", "config/global_workflows", "directory", f"{ANTIGRAVITY}/commands", G
-            ),
+            _layout("command", "config/global_workflows", "directory", ANTIGRAVITY_COMMANDS, G),
             _layout("skill", "config/skills", "directory", f"{ANTIGRAVITY}/skills", G),
-            _layout("agent", "config/agents", "directory", f"{ANTIGRAVITY}/agents", G),
+            _layout("agent", "config/agents", "directory", ANTIGRAVITY_AGENTS, G),
             _layout("hook", "config/hooks.json", "file", f"{ANTIGRAVITY}/hooks", G),
             _layout("mcp", "config/mcp_config.json", "file", f"{ANTIGRAVITY}/mcp", G),
             _layout("plugin", ".agents/plugins", "directory", f"{ANTIGRAVITY}/plugins", P),
             _layout("skill", ".agents/skills", "directory", f"{ANTIGRAVITY}/skills", P),
-            _layout("agent", ".agents/agents", "directory", f"{ANTIGRAVITY}/agents", P),
+            _layout("agent", ".agents/agents", "directory", ANTIGRAVITY_AGENTS, P),
             _layout("hook", ".agents/hooks.json", "file", f"{ANTIGRAVITY}/hooks", P),
             _layout("mcp", ".agents/mcp_config.json", "file", f"{ANTIGRAVITY}/mcp", P),
         ),
