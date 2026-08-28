@@ -189,6 +189,26 @@ def test_both_reports_are_inside_the_hashed_manifest() -> None:
         (bundle.Source("commands/build.", b"x", "c"), "path_not_portable"),
         (bundle.Source("settings/name ", b"x", "c"), "path_not_portable"),
         (bundle.Source("plugins/name:stream", b"x", "c"), "path_not_portable"),
+        # The superscript device digits, which are not decoration:
+        # `learn.microsoft.com/windows/win32/fileio/naming-a-file` says Windows
+        # treats ¹ ² ³ as digits in COM# and LPT# names and gives the worked
+        # example `echo test > COM¹`. Raised by the provider side, which read
+        # the page and then deliberately did not ship stricter than this
+        # compiler, and verified here before widening.
+        (bundle.Source("agents/COM¹", b"x", "c"), "path_not_portable"),
+        (bundle.Source("agents/lpt³.txt", b"x", "c"), "path_not_portable"),
+        # And the rest of that page's reserved characters. `/` is the separator
+        # and `\` is refused as a path shape, so these are what remains.
+        (bundle.Source("a<b.md", b"x", "c"), "path_not_portable"),
+        (bundle.Source("a>b.md", b"x", "c"), "path_not_portable"),
+        (bundle.Source('a"b.md', b"x", "c"), "path_not_portable"),
+        (bundle.Source("a|b.md", b"x", "c"), "path_not_portable"),
+        (bundle.Source("a?b.md", b"x", "c"), "path_not_portable"),
+        (bundle.Source("a*b.md", b"x", "c"), "path_not_portable"),
+        # The page states this one outright: "NUL.txt and NUL.tar.gz are both
+        # equivalent to NUL", which is why the stem is taken before the *first*
+        # dot rather than by splitting off one extension.
+        (bundle.Source("commands/NUL.tar.gz", b"x", "c"), "path_not_portable"),
         (bundle.Source("link", b"", "c", kind=bundle.KIND_SYMLINK), "link_not_allowed"),
         (bundle.Source("hard", b"", "c", kind=bundle.KIND_HARDLINK), "link_not_allowed"),
         (bundle.Source("dir", b"", "c", kind=bundle.KIND_DIRECTORY), "link_not_allowed"),

@@ -546,9 +546,24 @@ def _path_problem(path: str) -> tuple[str, str] | None:
 #: segment.
 _RESERVED_STEMS: Final[frozenset[str]] = frozenset(
     {"con", "prn", "aux", "nul"}
-    | {f"com{digit}" for digit in "123456789"}
-    | {f"lpt{digit}" for digit in "123456789"}
+    # `¹²³` are not decoration. `learn.microsoft.com/windows/win32/fileio/naming-a-file`
+    # says Windows "recognizes the 8-bit ISO/IEC 8859-1 superscript digits ¹, ²,
+    # and ³ as digits and treats them as valid parts of COM# and LPT# device
+    # names, making them reserved in every directory", and gives the worked
+    # example: `echo test > COM¹` fails to create a file.
+    #
+    # Raised by the provider side, which read the page, implemented it, and then
+    # deliberately did *not* ship stricter than this compiler — a validator that
+    # refuses what the other blessed is `plugins/local` with the roles reversed,
+    # and that cost a release to open a window for. Verified here before
+    # widening rather than taken on the report.
+    | {f"com{digit}" for digit in "123456789¹²³"}
+    | {f"lpt{digit}" for digit in "123456789¹²³"}
 )
+
+#: Characters the same page reserves outright. `/` is the separator and `\` is
+#: refused as a path shape elsewhere, so these are the rest of that list.
+_RESERVED_CHARACTERS: Final[str] = '<>"|?*'
 
 
 def _portability_problem(segments: Sequence[str]) -> tuple[str, str] | None:
@@ -585,6 +600,11 @@ def _portability_problem(segments: Sequence[str]) -> tuple[str, str] | None:
             return (
                 "path_not_portable",
                 "a bundled path segment carries a stream separator rather than a name",
+            )
+        if any(character in segment for character in _RESERVED_CHARACTERS):
+            return (
+                "path_not_portable",
+                "a bundled path segment holds a character no Windows name may carry",
             )
     return None
 
