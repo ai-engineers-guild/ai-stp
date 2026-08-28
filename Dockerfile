@@ -1,7 +1,16 @@
 # Multi-stage image for the platform apps (SPEC-019, ADR-0040).
 # Base installs the locked workspace; api and worker are minimal final stages.
 
-FROM python:3.12-slim AS base
+# Pinned by digest and named by tag, for the same reason the `uv` line below
+# gives and against the same hazard: `python:3.12-slim` is republished whenever
+# its Debian base takes a security update, and a republished tag leaves no
+# trace at all — unlike a stale pin, which shows up as a version going
+# backwards. Two builds of one commit could resolve different interpreters, and
+# the image would not be reproducible from the commit that `SPEC-024` requires.
+#
+# The argument was already written two lines further down and applied only to
+# `uv`. The base underneath it was the thing not pinned.
+FROM python:3.12-slim@sha256:09f7da3bc104798d0afb40bc08d23ab2da20a76130cec1f2ef170848f5d85217 AS base
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     UV_COMPILE_BYTECODE=1 \

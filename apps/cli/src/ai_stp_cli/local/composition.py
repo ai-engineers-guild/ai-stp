@@ -88,6 +88,12 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     # from claude-code's declaration for the same reason.
     Rule("command", "commands", "directory", "claude-code"),
     Rule("agent", "agents", "directory", "claude-code"),
+    # Declared by the released provider and unroutable here until now, so a
+    # `setting` component for claude-code was refused as exceeding provider
+    # capabilities — by *our* table, while the provider had always accepted it.
+    # Citation is the provider's own baseline row rather than elimination:
+    # `references/claude-code-baseline.json:100`.
+    Rule("setting", "settings.json", "file", "claude-code"),
     Rule("instruction", "AGENTS.md", "file", "codex"),
     # `skills`, under the shared convention's own root, not `.agents/skills`
     # under codex's configuration home. `ADR-0127`, and the eighth face of one
@@ -106,6 +112,17 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     # kinds `["skill"]`.
     Rule("skill", "skills", "directory", "codex", target_scope="user_root"),
     Rule("setting", "config.toml", "file", "codex"),
+    # `references/codex-baseline.json:52` and `:60`. Both were declared by the
+    # provider and routable by nothing here, which conformance reported as
+    # `declared_route_is_compilable:hook` and `:command` failing under the
+    # *consumer* subject — the provider was right and this table was short.
+    #
+    # Taken from the baseline rather than by elimination even though
+    # elimination would have got these two right. It got claude-code's `plugin`
+    # wrong in the same pass, and a method that is right four times out of five
+    # is not a method.
+    Rule("hook", "hooks.json", "file", "codex"),
+    Rule("command", "prompts", "directory", "codex"),
     # No `agent/` prefix: these are relative to the target, and Pi's target
     # already is `~/.pi/agent`. The segment belongs to the home, not inside it,
     # and prefixing it landed every Pi projection in `~/.pi/agent/agent/`.
@@ -117,6 +134,9 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     # protocol value and install plan refused it as an invalid ProjectionKind.
     Rule("plugin", "extensions", "directory", "pi", projection_kind="package"),
     Rule("setting", "settings.json", "file", "pi"),
+    # `references/pi-baseline.json:229`. Same shape as codex's `prompts`, and
+    # the same reason: declared by the provider, reachable by nothing here.
+    Rule("command", "prompts", "directory", "pi"),
     Rule("instruction", "AGENTS.md", "file", "opencode"),
     Rule("skill", "skills", "directory", "opencode"),
     Rule("command", "commands", "directory", "opencode"),

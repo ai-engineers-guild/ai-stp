@@ -500,6 +500,19 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
         # The product documents instructions and commands only per project, in
         # `.agents/`, so there is nothing global to declare for either. There is
         # also no documented variable that moves the home.
+        #
+        # `no_global_command` is now known to be a claim about the documentation
+        # rather than about the product. The provider author found
+        # `config/workflows/`, `config/workflows.json` and
+        # `config/global_workflows/<name>.md` as path literals in the pinned
+        # `1.1.22` binary — a global workflow surface, which is the first
+        # evidence against the sentence above.
+        #
+        # Left standing rather than removed, because a string in a binary is not
+        # a run and neither side has watched the product read one. What changes
+        # is that this is recorded as unmeasured instead of settled: a gap
+        # asserted from a vendor page is exactly how `.mcp.json` came to be
+        # called global on two harnesses. Withdrawn the moment somebody runs it.
         gaps=("no_global_instruction", "no_global_command", "no_documented_root_override"),
     ),
     HarnessDefinition(

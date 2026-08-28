@@ -1,5 +1,5 @@
 {
-  "aggregate_digest": "sha256:1d117032cee41bb807a90e66a185111b3243f415a056d54f5f22af0daf21eda9",
+  "aggregate_digest": "sha256:8e6f4fa1c163968166ff37ab548895fc59dde051405124c757161b3528457246",
   "files": [
     "conformance-cases.json",
     "manifest.json",

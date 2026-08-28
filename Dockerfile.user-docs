@@ -1,6 +1,6 @@
 # Multi-stage image for the public user documentation site.
 
-FROM python:3.12-slim AS base
+FROM python:3.12-slim@sha256:09f7da3bc104798d0afb40bc08d23ab2da20a76130cec1f2ef170848f5d85217 AS base
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     UV_COMPILE_BYTECODE=1 \
@@ -42,7 +42,7 @@ ENV AI_STP_USER_DOCS_EN_SITE_URL=${AI_STP_USER_DOCS_SITE_URL}en/
 RUN python -m mkdocs build --strict -f docs_scripts/user-mkdocs.yml \
     && python -m mkdocs build --strict -f docs_scripts/user-mkdocs.en.yml
 
-FROM caddy:2 AS prod
+FROM caddy:2@sha256:df7f1c2fb114453b951de51a98efc010db1655a92c2e86be6706714e2417a78d AS prod
 COPY deploy/caddy/Caddyfile.user-docs /etc/caddy/Caddyfile
 COPY --from=build /app/.site-user-docs /srv
 EXPOSE 8080

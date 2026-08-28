@@ -82,6 +82,12 @@ jobs:
         env:
           EXPECTED_VERSION: ${{ inputs.version }}
           DISTRIBUTION: ai_stp_${{ inputs.package }}
+          # Through the environment for the same reason as the two above it.
+          # This one was expanded straight into the `run` block below, so the
+          # file was already doing the right thing twice and the wrong thing
+          # once — the shape a review reads past, because the correct lines are
+          # adjacent and look like the whole answer.
+          RUN_ID: ${{ inputs.run_id }}
         run: |
           set -euo pipefail
           mkdir -p dist
@@ -89,7 +95,7 @@ jobs:
           sdist="candidate/${DISTRIBUTION}-${EXPECTED_VERSION}.tar.gz"
           for path in "${wheel}" "${sdist}"; do
             if [[ ! -f "${path}" ]]; then
-              echo "run ${{ inputs.run_id }} has no $(basename "${path}")" >&2
+              echo "run ${RUN_ID} has no $(basename "${path}")" >&2
               exit 1
             fi
             cp "${path}" dist/

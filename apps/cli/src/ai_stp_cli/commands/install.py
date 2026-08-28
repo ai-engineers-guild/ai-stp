@@ -465,6 +465,10 @@ def _plan_v3(
 
     compiled: bundle.Bundle | None = None
     bound_bundle: bundle_protocol.Binding | None = None
+    # `global` until a graph says otherwise. The operations that bind to a
+    # target and a backup rather than to a component graph have no rules to
+    # resolve a scope from, and their target is the harness home.
+    planned_scope = "global"
     if operation in {protocol_v3.Operation.INSTALL, protocol_v3.Operation.REPLACE}:
         if (
             proposal is None
@@ -481,7 +485,7 @@ def _plan_v3(
             proposal.confirmed_version,
             expected_harness=pair.harness_id,
         )
-        _v3_profile_accepts(capabilities, compiled)
+        planned_scope = _v3_profile_accepts(capabilities, compiled).scope
         bundle_path = cache.store_raw_artifact_bytes(compiled.archive, compiled.artifact_digest)
         bound_bundle = bundle_protocol.binding(
             bundle_path,
@@ -517,6 +521,9 @@ def _plan_v3(
             release_digest,
             str(release_recovery),
             capabilities.projection.digest,
+            # A plan against a different scope is a different plan: same graph,
+            # same bytes, different root.
+            planned_scope,
             expected_target_digest,
             "" if bound_bundle is None else bound_bundle.bundle_digest,
             "" if bound_bundle is None else bound_bundle.artifact_digest,
@@ -557,6 +564,8 @@ def _plan_v3(
         backup_ref=backup_ref,
         permission_profile=permission_profile,
         bundle=bound_bundle,
+        target_scope=planned_scope,
+        accepted_request_fields=capabilities.plan_request_fields,
     )
     provider_plan = operation_v3.require_plan(
         _object(invoke("plan-operation", arguments)),
@@ -1470,7 +1479,13 @@ def _profile_for_graph(
 
 def _v3_profile_accepts(
     capabilities: protocol_v3.ProviderCapabilities, compiled: bundle.Bundle
-) -> None:
+) -> protocol_v3.ProjectionProfile:
+    """Check the graph against the profile it resolves to, and return that profile.
+
+    Returned rather than discarded because the caller needs its `scope`: the
+    scope is what `--target-scope` carries, and re-resolving it there would be a
+    second answer to a question already settled here.
+    """
     conversion = compiled.manifest.get("conversion_report")
     if not isinstance(conversion, dict):
         raise CliFailure("AI_STP_INTERNAL", "the compiled bundle has no conversion report")
@@ -1515,6 +1530,7 @@ def _v3_profile_accepts(
             "AI_STP_PRECONDITION_FAILED",
             "the exact HarnessBundle exceeds provider-declared limits",
         )
+    return profile
 
 
 #: Actions that bind to a target and a `BackupRef` rather than to a setup graph.

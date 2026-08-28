@@ -214,7 +214,9 @@ jobs:
             extra: tests/property
     services:
       postgres:
-        image: postgres:16
+        # Pinned like every other base in this tree: a republished tag changes
+        # what CI ran against and records nothing that it did.
+        image: postgres:16@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94
         env:
           POSTGRES_USER: ai_stp
           POSTGRES_PASSWORD: ai_stp_dev

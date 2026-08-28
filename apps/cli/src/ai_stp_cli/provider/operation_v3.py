@@ -154,6 +154,8 @@ def plan_operation_arguments(
     backup_ref: str | None = None,
     permission_profile: str | None = None,
     bundle: bundle_protocol.Binding | None = None,
+    target_scope: str = "global",
+    accepted_request_fields: frozenset[str] = frozenset(),
 ) -> tuple[str, ...]:
     """Build the `plan-operation` argv once, for every caller that needs one.
 
@@ -203,7 +205,32 @@ def plan_operation_arguments(
         arguments = (*arguments, "--permission-profile", permission_profile)
     if bundle is not None:
         arguments = (*arguments, *bundle.common_arguments())
+    arguments = (*arguments, *_scope_argument(target_scope, accepted_request_fields))
     return arguments
+
+
+def _scope_argument(target_scope: str, accepted_request_fields: frozenset[str]) -> tuple[str, ...]:
+    """`--target-scope`, when the target is not the harness home and it is safe to say so.
+
+    Two conditions, and both are load-bearing.
+
+    Omitted for `global`, because that is what every argv has always meant and a
+    second way to say it is a defect even while the two agree. A provider that
+    accepts the flag plans identically for an absent value.
+
+    Omitted for a provider that has not declared it accepts the field, because a
+    request argument is the mirror of `ADR-0125`: an unknown flag is refused
+    outright rather than ignored, so the provider tolerates it before any
+    consumer sends it. The tempting inference — that a provider declaring a
+    scoped profile understands scopes — is measurably wrong: codex declares
+    `user_root` in `0.0.10` and accepts the flag only in the release after it.
+
+    So the refusal this avoids is not hypothetical, and it would arrive as
+    "unknown argument" from a provider that is behaving correctly.
+    """
+    if target_scope == "global" or "target_scope" not in accepted_request_fields:
+        return ()
+    return ("--target-scope", target_scope)
 
 
 def load_plan(path: Path, expected_digest: str) -> ProviderPlan:
