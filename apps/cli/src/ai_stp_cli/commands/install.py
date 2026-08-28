@@ -61,6 +61,7 @@ from ai_stp_cli.provider import (
     protocol_v2,
     protocol_v3,
     release,
+    trust,
 )
 from ai_stp_cli.provider import (
     status as provider_status,
@@ -82,14 +83,6 @@ from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.ids import new_id
 from ai_stp_foundation.timestamps import format_timestamp, parse_timestamp
 from ai_stp_passports.versions import ENV_NAME_PATTERN
-
-
-@dataclass(frozen=True)
-class _ReleaseEvidence:
-    manifest: release.ReleaseManifest | None
-    trust: str = "unverified"
-    evidence: str = ""
-
 
 #: How long a plan stays applicable. Short, because a plan is a statement about
 #: a target as it was: the longer it lives, the more likely it describes
@@ -283,7 +276,7 @@ def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
         )
         target = f"{pair.project_id}:{pair.harness_id}"
         release_recovery = bool(parameters.get("provider-release-recovery", False))
-        release_evidence = _trusted_manifest(
+        release_evidence = trust.trusted_manifest(
             connection,
             parameters,
             executable,
@@ -291,7 +284,7 @@ def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
         )
         trusted_release = release_evidence.manifest
         protocol_version = _protocol_version(parameters, trusted_release)
-        _release_required(parameters, protocol_version, trusted_release)
+        trust.release_required(parameters, protocol_version, trusted_release)
         if prepared_ref and protocol_version != protocol_v3.VERSION:
             raise CliFailure(
                 "AI_STP_SCHEMA_UNSUPPORTED",
@@ -303,7 +296,7 @@ def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
             executable,
             provider_target,
             protocol_version,
-            unisolated_reason=_unisolated_reason(trusted_release, parameters),
+            unisolated_reason=trust.unisolated_reason(trusted_release, parameters),
         )
         info = _object(invoke("provider-info", ()))
         _speaks(info, protocol_version)
@@ -630,7 +623,7 @@ def apply(parameters: Mapping[str, object]) -> Answer[InstallationView]:
             executable,
             held.provider_target or held.target_id,
             held.provider_protocol_version,
-            unisolated_reason=_unisolated_reason(trusted_release, parameters),
+            unisolated_reason=trust.unisolated_reason(trusted_release, parameters),
         )
         bound_bundle = (
             _bound_bundle_v3(held)
@@ -963,7 +956,7 @@ def resume(parameters: Mapping[str, object]) -> Answer[InstallationView]:
             executable,
             held.provider_target or held.target_id,
             held.provider_protocol_version,
-            unisolated_reason=_unisolated_reason(trusted_release, parameters),
+            unisolated_reason=trust.unisolated_reason(trusted_release, parameters),
         )
         info = _object(invoke("provider-info", ()))
         _speaks(info, held.provider_protocol_version)
@@ -1579,181 +1572,6 @@ def _protocol_version(
             },
         )
     return version
-
-
-def _unisolated_reason(
-    trusted_release: _ReleaseEvidence | release.ReleaseManifest | None,
-    parameters: Mapping[str, object],
-) -> str | None:
-    """Why this install may proceed on Windows with nothing denying the network.
-
-    Both answers are things the caller already had to establish: a release
-    verified against manifest, policy and exact bytes, or an operator who named
-    an unverified provider on purpose. Neither is new authority — this only
-    reads which of the two happened. Off Windows it is ignored.
-    """
-    if trusted_release is not None:
-        return network_launcher.TRUSTED_RELEASE
-    if bool(parameters.get("unverified-provider", False)):
-        return network_launcher.EXPLICIT_UNVERIFIED_PROVIDER
-    return None
-
-
-def _release_required(
-    parameters: Mapping[str, object],
-    protocol_version: int,
-    trusted_release: release.ReleaseManifest | None,
-) -> None:
-    """Protocol v3 installs a signed release, or says out loud that it does not.
-
-    v1 and v2 predate the signed-release line and keep their behaviour. v3 is
-    where prepared SetupVersions and provider-owned operations live, so it is
-    where an unverified executable would matter most.
-
-    An unverified install stays possible. Refusing it outright would only move
-    the same act outside the tool, where nothing records that it happened, and
-    the person running a provider they just built is not the threat the pinned
-    policy exists for. What changes is that it can no longer happen by
-    omission: `unverified-provider` is the difference between a decision and a
-    default, and the plan it produces reports `provider_release_trusted` false
-    for anybody reading it afterwards.
-
-    The rule governs the mutating path. `install target-status` and `diff`
-    spawn an executable the caller named in order to observe, and install
-    nothing; `provider-release.md` records that scope rather than leaving it to
-    be inferred from which function happens to call this one.
-    """
-    unverified = bool(parameters.get("unverified-provider", False))
-    if unverified and trusted_release is not None:
-        raise CliFailure(
-            "AI_STP_VALIDATION_ERROR",
-            "a signed release manifest and unverified-provider contradict each other",
-            next_actions=["install plan --provider-manifest <path> --json"],
-        )
-    if protocol_version != protocol_v3.VERSION or trusted_release is not None or unverified:
-        return
-    raise CliFailure(
-        "AI_STP_VALIDATION_ERROR",
-        "protocol v3 installs a signed provider release",
-        details={"protocol_version": str(protocol_version)},
-        next_actions=[
-            "provider fetch --harness <id> --json",
-            "install plan --provider-manifest <path> --json",
-            "install plan --unverified-provider --json",
-        ],
-    )
-
-
-def _trusted_manifest(
-    connection: sqlite3.Connection,
-    parameters: Mapping[str, object],
-    executable: str,
-    *,
-    recovery_requested: bool,
-) -> _ReleaseEvidence:
-    """Verify a signed manifest and exact executable before the first spawn."""
-    given = str(parameters.get("provider-manifest") or "")
-    if not given:
-        if recovery_requested:
-            raise CliFailure(
-                "AI_STP_VALIDATION_ERROR",
-                "provider release recovery requires the exact signed release manifest",
-                next_actions=["install plan --provider-manifest <path> --json"],
-            )
-        return _ReleaseEvidence(None)
-    place = Path(given).expanduser()
-    if place.is_symlink() or not place.is_file():
-        raise CliFailure(
-            "AI_STP_NOT_FOUND",
-            "no regular provider release manifest sits at that path",
-            details={"manifest": redact_home(place)},
-        )
-    manifest = release.parse_manifest(place.read_text("utf-8"))
-    observed_digest, observed_size = release.artifact_identity(Path(executable))
-    known_sequence = provider_releases.minimum_sequence(connection, manifest.provider_id)
-    if recovery_requested and manifest.sequence >= known_sequence:
-        raise CliFailure(
-            "AI_STP_VALIDATION_ERROR",
-            "provider release recovery must name an older release than the local floor",
-            details={
-                "sequence": str(manifest.sequence),
-                "known_sequence": str(known_sequence),
-            },
-        )
-    recovery_verified = recovery_requested and provider_releases.was_verified(
-        connection,
-        provider_id=manifest.provider_id,
-        sequence=manifest.sequence,
-        artifact_digest=manifest.artifact_digest,
-    )
-    policy = release.pinned_policy()
-    attested = bool(parameters.get("provider-build-attestation", False)) or (
-        manifest.repository in policy.build_attestations
-    )
-    if attested and recovery_requested:
-        raise CliFailure(
-            "AI_STP_VALIDATION_ERROR",
-            "provider release recovery currently requires signed local history",
-        )
-    verdict = (
-        release.verify_attested(
-            manifest,
-            policy,
-            known_sequence=known_sequence,
-            observed_digest=observed_digest,
-            observed_size=observed_size,
-            platform=_release_platform(),
-        )
-        if attested
-        else release.verify(
-            manifest,
-            policy,
-            known_sequence=known_sequence,
-            observed_digest=observed_digest,
-            observed_size=observed_size,
-            platform=_release_platform(),
-            recovery_requested=recovery_requested,
-            recovery_to_verified=recovery_verified,
-        )
-    )
-    if not verdict.accepted:
-        raise CliFailure(
-            "AI_STP_PRECONDITION_FAILED",
-            "the provider release does not satisfy the pinned trust policy and exact bytes",
-            details={"refusals": ", ".join(item.code for item in verdict.refusals)},
-            next_actions=["provider trust --manifest <path> --json"],
-        )
-    if Path(manifest.entry_point).name != Path(executable).name:
-        raise CliFailure(
-            "AI_STP_PRECONDITION_FAILED",
-            "the signed provider entry point does not name this executable",
-            details={
-                "entry_point": manifest.entry_point,
-                "executable": Path(executable).name,
-            },
-        )
-    if not attested:
-        return _ReleaseEvidence(manifest, verdict.trust_level)
-    rule = policy.build_attestations[manifest.repository]
-    given_bundle = str(parameters.get("provider-attestation-bundle") or "")
-    bundle = Path(given_bundle).expanduser() if given_bundle else None
-    if bundle is not None and (bundle.is_symlink() or not bundle.is_file()):
-        raise CliFailure(
-            "AI_STP_NOT_FOUND",
-            "no regular provider attestation bundle sits at that path",
-            details={"bundle": redact_home(bundle)},
-        )
-    evidence = build_attestation.verify(
-        Path(executable),
-        build_attestation.Policy(
-            repository=manifest.repository.removeprefix("github.com/"),
-            source_commit=manifest.commit,
-            signer_workflow=rule.signer_workflow,
-            verified_publisher=rule.verified_publisher,
-        ),
-        bundle=bundle,
-    )
-    return _ReleaseEvidence(manifest, evidence.trust_level, evidence.document)
 
 
 def _verify_bound_release(

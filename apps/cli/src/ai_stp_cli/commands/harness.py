@@ -43,6 +43,7 @@ from ai_stp_cli.provider import (
     operation_v3,
     protocol_v3,
     software_fetch,
+    trust,
 )
 from ai_stp_contracts.machine_help import (
     HarnessProgram,
@@ -245,59 +246,84 @@ def _perform(action: str, parameters: Mapping[str, object]) -> Answer[HarnessPro
     prefix = _directory(parameters, "prefix")
     target = _directory(parameters, "target")
 
-    # The prefix is where the program goes, and the sandbox binds only the
-    # target unless told otherwise. Without this the provider writes into the
-    # namespace's own tmpfs and reports success for files that do not survive it.
-    invoke = invocation.provider_invoker(
-        executable, str(target), protocol_v3.VERSION, writable=(prefix,)
-    )
-    info = _object(invoke("provider-info", ()))
-    capabilities = protocol_v3.parse_capabilities(dict(info))
-    if capabilities.harness_id != harness_id:
-        raise CliFailure(
-            "AI_STP_PRECONDITION_FAILED",
-            "that provider is for a different harness",
-            details={"asked": harness_id, "provider": capabilities.harness_id},
-        )
-    # Asking a provider that never declared the operation is how an agent finds
-    # out, so the refusal is left to the provider rather than pre-empted here:
-    # its detail says why, and ours would only guess.
-    capabilities.require(operation)
-
-    operation_id = new_id("operation")
-    expires_at = (
-        (datetime.now(UTC) + timedelta(seconds=PLAN_TTL_SECONDS))
-        .isoformat(timespec="milliseconds")
-        .replace("+00:00", "Z")
-    )
-    release_digest = _required(parameters, "provider-release-digest")
-    arguments = operation_v3.plan_operation_arguments(
-        operation=operation,
-        release_digest=release_digest,
-        operation_id=operation_id,
-        expires_at=expires_at,
-        prefix=prefix,
-    )
-    answer = _object(invoke("plan-operation", arguments))
-    if answer.get("rejected") is True:
-        raise CliFailure(
-            "AI_STP_PRECONDITION_FAILED",
-            "the provider refused to plan this program operation",
-            details={"reason": str(answer.get("reason", "")), "harness": harness_id},
-        )
-    plan = answer.get("plan")
-    if not isinstance(plan, dict):
-        raise CliFailure(
-            "AI_STP_PRECONDITION_FAILED",
-            "the provider returned no program plan artifact",
-            details={"harness": harness_id},
-        )
-    plan_digest = str(answer.get("plan_digest", ""))
-    raw_effects = answer.get("effects")
-    effects = tuple(str(item) for item in raw_effects) if isinstance(raw_effects, list) else ()
-    artifacts = operation_v3.require_software_artifacts(dict(plan), operation=operation)
-
+    # Trust before the first spawn, exactly as the setup path establishes it.
+    #
+    # This ran `provider-info` on a caller-supplied executable and only then
+    # read the caller-supplied `--provider-release-digest`, so a string copied
+    # from a real release stood in for proof that these were its bytes. The
+    # sandbox binds the target and the prefix writable for every command,
+    # including that first one, so an unverified executable had somewhere to
+    # write before any durable plan existed.
+    #
+    # It also passed no unisolated reason, and macOS and Windows have no
+    # launcher — so this refused there before the provider spawned at all, for
+    # the whole command family. The reason is not new authority: it reads which
+    # of two things the caller already established, a verified release or a
+    # deliberate `--unverified-provider`.
     with open_registry(configured_path()) as connection:
+        evidence = trust.trusted_manifest(
+            connection, parameters, executable, recovery_requested=False
+        )
+        trusted_release = evidence.manifest
+        trust.release_required(parameters, protocol_v3.VERSION, trusted_release)
+
+        # The prefix is where the program goes, and the sandbox binds only the
+        # target unless told otherwise. Without this the provider writes into
+        # the namespace's own tmpfs and reports success for files that do not
+        # survive it.
+        invoke = invocation.provider_invoker(
+            executable,
+            str(target),
+            protocol_v3.VERSION,
+            writable=(prefix,),
+            unisolated_reason=trust.unisolated_reason(trusted_release, parameters),
+        )
+        info = _object(invoke("provider-info", ()))
+        capabilities = protocol_v3.parse_capabilities(dict(info))
+        if capabilities.harness_id != harness_id:
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "that provider is for a different harness",
+                details={"asked": harness_id, "provider": capabilities.harness_id},
+            )
+        # Asking a provider that never declared the operation is how an agent finds
+        # out, so the refusal is left to the provider rather than pre-empted here:
+        # its detail says why, and ours would only guess.
+        capabilities.require(operation)
+
+        operation_id = new_id("operation")
+        expires_at = (
+            (datetime.now(UTC) + timedelta(seconds=PLAN_TTL_SECONDS))
+            .isoformat(timespec="milliseconds")
+            .replace("+00:00", "Z")
+        )
+        release_digest = _required(parameters, "provider-release-digest")
+        arguments = operation_v3.plan_operation_arguments(
+            operation=operation,
+            release_digest=release_digest,
+            operation_id=operation_id,
+            expires_at=expires_at,
+            prefix=prefix,
+        )
+        answer = _object(invoke("plan-operation", arguments))
+        if answer.get("rejected") is True:
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "the provider refused to plan this program operation",
+                details={"reason": str(answer.get("reason", "")), "harness": harness_id},
+            )
+        plan = answer.get("plan")
+        if not isinstance(plan, dict):
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "the provider returned no program plan artifact",
+                details={"harness": harness_id},
+            )
+        plan_digest = str(answer.get("plan_digest", ""))
+        raw_effects = answer.get("effects")
+        effects = tuple(str(item) for item in raw_effects) if isinstance(raw_effects, list) else ()
+        artifacts = operation_v3.require_software_artifacts(dict(plan), operation=operation)
+
         held = installation.propose(
             connection,
             action=f"software_{action}",

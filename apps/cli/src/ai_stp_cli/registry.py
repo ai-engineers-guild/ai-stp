@@ -1186,6 +1186,23 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 required=True,
             ),
             option("target", "string", "Absolute harness configuration target.", required=True),
+            option(
+                "provider-manifest",
+                "string",
+                "Signed provider release manifest proving these exact bytes.",
+            ),
+            option(
+                "provider-build-attestation",
+                "boolean",
+                "Require a GitHub build attestation for the provider artifact.",
+            ),
+            option(
+                "unverified-provider",
+                "boolean",
+                "Run a provider no signed release covers. On macOS and Windows this "
+                "is also what lets the call run at all, since no launcher there can "
+                "deny the network.",
+            ),
         ),
         next_actions=("toolchain harnesses",),
     ),
@@ -1211,6 +1228,23 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 required=True,
             ),
             option("target", "string", "Absolute harness configuration target.", required=True),
+            option(
+                "provider-manifest",
+                "string",
+                "Signed provider release manifest proving these exact bytes.",
+            ),
+            option(
+                "provider-build-attestation",
+                "boolean",
+                "Require a GitHub build attestation for the provider artifact.",
+            ),
+            option(
+                "unverified-provider",
+                "boolean",
+                "Run a provider no signed release covers. On macOS and Windows this "
+                "is also what lets the call run at all, since no launcher there can "
+                "deny the network.",
+            ),
         ),
         next_actions=("toolchain harnesses",),
     ),
@@ -1237,6 +1271,23 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 required=True,
             ),
             option("target", "string", "Absolute harness configuration target.", required=True),
+            option(
+                "provider-manifest",
+                "string",
+                "Signed provider release manifest proving these exact bytes.",
+            ),
+            option(
+                "provider-build-attestation",
+                "boolean",
+                "Require a GitHub build attestation for the provider artifact.",
+            ),
+            option(
+                "unverified-provider",
+                "boolean",
+                "Run a provider no signed release covers. On macOS and Windows this "
+                "is also what lets the call run at all, since no launcher there can "
+                "deny the network.",
+            ),
             option(
                 "confirm",
                 "boolean",
