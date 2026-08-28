@@ -70,6 +70,7 @@ REFUSALS: Final[frozenset[str]] = frozenset(
         "path_duplicate",
         "path_case_conflict",
         "path_undeclared",
+        "declared_path_absent",
         "link_not_allowed",
         "special_file_not_allowed",
         "mode_not_allowed",
@@ -368,6 +369,31 @@ def compile_bundle(
         )
         accepted.append(
             Source(path=path, content=source.content, owner=source.owner, mode=source.mode)
+        )
+
+    # The other direction, which nothing asked until a hook shipped without its
+    # handler. `path_undeclared` above refuses a file that arrived and was not
+    # declared; a path that was **declared and did not arrive** produced no
+    # entry, so no iteration of that loop ever saw it and nothing noticed.
+    #
+    # Measured on Windows against antigravity: a passport declaring
+    # `config/hooks.json` and `config/hooks/h01.py` released, composed and
+    # planned, and the plan emitted `write the 1 declared files`. The provider
+    # reported the install verified — correctly, because it wrote everything the
+    # bundle held. The bundle was what had been quietly weakened, and the
+    # installed hook could not execute.
+    #
+    # A one-sided check is the shape this estate keeps finding: the assertion
+    # that a set has nothing extra says nothing about it being complete.
+    absent = sorted(declared_paths - {item.path for item in entries}) if declared_paths else []
+    for path in absent:
+        refusals.append(
+            _refuse(
+                "declared_path_absent",
+                "the composition declares this managed path and no source carries it",
+                path,
+                seen.get(path, ""),
+            )
         )
 
     refusals.sort(key=lambda item: (item.code, item.details.get("path", "")))

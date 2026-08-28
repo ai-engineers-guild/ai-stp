@@ -257,6 +257,46 @@ def test_a_path_outside_the_declared_managed_paths_is_refused() -> None:
     assert "path_undeclared" in _codes(compiled)
 
 
+def test_a_declared_path_no_source_carries_is_refused() -> None:
+    """The other direction, and it was missing until a hook shipped without it.
+
+    The test above proves a file that arrived and was not declared is refused.
+    That says nothing about completeness: a declared path with no source
+    produces no entry, so no iteration of the loop that raises `path_undeclared`
+    ever sees it, and the bundle is quietly one file short.
+
+    Measured on Windows against antigravity. A passport declaring
+    `config/hooks.json` and `config/hooks/h01.py` was released, composed and
+    planned; the plan emitted *write the 1 declared files* and the provider
+    reported the install verified. The provider was right — it wrote everything
+    the bundle held. The bundle was what had been weakened, and the installed
+    hook could not execute.
+    """
+    compiled = _compile(
+        (bundle.Source("config/hooks.json", b"{}", "component_a"),),
+        declared_paths=frozenset({"config/hooks.json", "config/hooks/h01.py"}),
+    )
+    assert "declared_path_absent" in _codes(compiled)
+    absent = next(item for item in compiled.refusals if item.code == "declared_path_absent")
+    assert absent.details["path"] == "config/hooks/h01.py"
+    # `REQ-608` again: one missing artifact blocks the bundle rather than
+    # shipping the rest, which is the whole difference from what happened.
+    assert not compiled.compiled
+
+
+def test_a_composition_declaring_nothing_still_builds() -> None:
+    """An empty declaration is "no claim", not "claims nothing arrives".
+
+    Several call sites pass no managed paths at all, and reading that as a
+    declaration that the bundle must be empty would refuse every one of them.
+    """
+    compiled = _compile(
+        (bundle.Source("skills/anything.md", b"x", "component_a"),),
+        declared_paths=frozenset[str](),
+    )
+    assert compiled.compiled
+
+
 def test_declared_paths_that_match_are_allowed() -> None:
     compiled = _compile(
         (bundle.Source("skills/allowed.md", b"x", "component_a"),),
