@@ -94,7 +94,10 @@ def test_explicit_consent_reaches_the_provider_and_names_why(
     monkeypatch.setattr(invocation, "provider_invoker", recorder.invoker)
     parameters = {**_parameters(tmp_path), "unverified-provider": True}
 
-    with pytest.raises(CliFailure):
+    # The recorder answers nothing, so the refusal is its own — asserted by
+    # name rather than by "something raised", which would pass if the command
+    # had failed for any earlier reason and never reached the provider at all.
+    with pytest.raises(CliFailure, match="the recorder answers nothing"):
         harness_commands.install(parameters)
 
     assert recorder.spawned[:1] == ["provider-info"]
@@ -159,7 +162,7 @@ def test_a_plan_for_a_different_operation_is_refused_before_anything_is_fetched(
     monkeypatch.setattr(invocation, "provider_invoker", answering.invoker)
     parameters = {**_parameters(tmp_path), "unverified-provider": True}
 
-    with pytest.raises(CliFailure):
+    with pytest.raises(CliFailure, match="not reached in this check"):
         harness_commands.install(parameters)
 
     assert fetched == [], "an artifact was fetched for a plan that was never validated"

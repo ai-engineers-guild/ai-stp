@@ -1249,7 +1249,7 @@ def test_a_restore_status_must_belong_to_the_operation_that_just_ran(tmp_path: P
         ("provider_id", "some-other-setup-system"),
         ("provider_release_digest", _digest("e")),
     ):
-        with pytest.raises(CliFailure):
+        with pytest.raises(CliFailure, match=r"does not prove|names a different provider"):
             operation_v3.require_verified_status(
                 status(**{field: wrong}),
                 capabilities=capabilities,
@@ -1261,8 +1261,19 @@ def test_a_restore_status_must_belong_to_the_operation_that_just_ran(tmp_path: P
 
     # And a status that binds itself to no operation at all is refused, rather
     # than passing because the one field it did state happened to match.
-    bare: dict[str, JsonValue] = {"state": "managed", "target_digest": exact}
-    with pytest.raises(CliFailure):
+    #
+    # It carries `provider_id` deliberately. The first version omitted it and
+    # asserted only that *something* raised — which it did, at the identity
+    # check one line earlier, so the binding this case exists to exercise was
+    # never reached. Naming the refusal is what exposed that; the case had been
+    # passing for the wrong reason since it was written.
+    bare: dict[str, JsonValue] = {
+        "state": "managed",
+        "target_digest": exact,
+        "provider_id": capabilities.provider_id,
+        "provider_release_digest": _digest("d"),
+    }
+    with pytest.raises(CliFailure, match="binds itself to no approved operation"):
         operation_v3.require_verified_status(
             bare,
             capabilities=capabilities,
@@ -1330,7 +1341,7 @@ def test_a_remove_status_must_belong_to_the_operation_that_just_ran(tmp_path: Pa
         ("provider_id", "some-other-setup-system"),
         ("provider_release_digest", _digest("0")),
     ):
-        with pytest.raises(CliFailure):
+        with pytest.raises(CliFailure, match=r"does not prove|names a different provider"):
             operation_v3.require_verified_status(
                 gone(**{field: wrong}),
                 capabilities=capabilities,

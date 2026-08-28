@@ -457,5 +457,6 @@
   "unexpected internal failure": "неожиданный внутренний сбой",
   "usage text is not machine readable": "текст справки не машиночитаем",
   "verified catalogue bytes changed before local materialization": "проверенные байты каталога изменились до локальной материализации",
-  "verified provider release evidence is incomplete": "доказательства проверенного выпуска провайдера неполны"
+  "verified provider release evidence is incomplete": "доказательства проверенного выпуска провайдера неполны",
+  "this target root is too long for the paths this bundle manages": "корень target слишком длинный для путей, которыми управляет этот пакет"
 }

@@ -457,5 +457,6 @@
   "unexpected internal failure": "unexpected internal failure",
   "usage text is not machine readable": "usage text is not machine readable",
   "verified catalogue bytes changed before local materialization": "verified catalogue bytes changed before local materialization",
-  "verified provider release evidence is incomplete": "verified provider release evidence is incomplete"
+  "verified provider release evidence is incomplete": "verified provider release evidence is incomplete",
+  "this target root is too long for the paths this bundle manages": "this target root is too long for the paths this bundle manages"
 }

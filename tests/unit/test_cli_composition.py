@@ -117,6 +117,13 @@ FIXTURES: list[tuple[tuple[composition.Surface, ...], composition.Target, str]] 
         "unverified_without_consent",
     ),
     (
+        # A path relative to `$HOME` where the rule's root is the config home:
+        # correct against a root nobody wrote down, which is the whole class.
+        (_surface("component_a", managed_paths=(".agents/skills/x",), source_name="x"),),
+        CLAUDE,
+        "managed_path_outside_projection",
+    ),
+    (
         (_surface("component_a"),),
         composition.Target(
             harness_id="claude-code",
@@ -794,3 +801,73 @@ def test_the_capability_this_program_leaves_unused_is_the_measured_set() -> None
             unused[harness_id] = tuple(sorted(kinds - projected))
 
     assert unused == _PROVIDER_OFFERS_UNUSED
+
+
+def test_a_managed_path_outside_its_kinds_projection_root_is_refused() -> None:
+    """The published path and the computed one were unioned, never compared.
+
+    A component declares `managed_paths` and the rule for its kind names a root.
+    Both went into one set and the composition carried whichever it was given,
+    so a path relative to the wrong root produced a second, silently wrong
+    surface beside the right one. Against a `~/.agents` target, a codex skill
+    declaring `.agents/skills/x` projects into `~/.agents/.agents/skills/x`.
+
+    `install.py` does refuse a native surface the provider never declared, but
+    it refuses the whole bundle after selection and names provider capabilities.
+    This names the component and the path while a person can still act on it.
+    """
+    report = composition.compose(
+        (_surface("component_a", managed_paths=(".agents/skills/x",), source_name="x"),),
+        CLAUDE,
+    )
+    assert report.blocked
+    assert "managed_path_outside_projection" in _codes(report)
+    detail = next(
+        item for item in report.conflicts if item.code == "managed_path_outside_projection"
+    )
+    # The root, not only the offending path: the two are only comparable
+    # together, and a message with one of them asks the reader to guess.
+    assert detail.details["path"] == ".agents/skills/x"
+    assert detail.details["projection_root"] == "skills"
+
+
+def test_a_managed_path_at_or_under_its_projection_root_is_accepted() -> None:
+    """Both shapes: a directory rule's child, and a file rule's exact path."""
+    directory = composition.compose(
+        (_surface("component_a", managed_paths=("skills/x",), source_name="x"),), CLAUDE
+    )
+    assert "managed_path_outside_projection" not in _codes(directory)
+    exact = composition.compose(
+        (
+            _surface(
+                "component_b",
+                component_type="setting",
+                harness_id="cursor",
+                managed_paths=("cli-config.json",),
+            ),
+        ),
+        composition.Target(harness_id="cursor", os="linux", arch="x86_64"),
+    )
+    assert "managed_path_outside_projection" not in _codes(exact)
+
+
+def test_a_kind_with_no_rule_makes_no_claim_about_its_paths() -> None:
+    """Absence of a rule is not a rule that everything is wrong.
+
+    Cursor has no `instruction` row — there is no global `~/.cursor/AGENTS.md`
+    for one to name. Refusing its paths here would be inventing a projection
+    from the fact that none exists, and the honest refusal for a kind this
+    compiler cannot place belongs to eligibility, not to path arithmetic.
+    """
+    report = composition.compose(
+        (
+            _surface(
+                "component_a",
+                component_type="instruction",
+                harness_id="cursor",
+                managed_paths=("AGENTS.md",),
+            ),
+        ),
+        composition.Target(harness_id="cursor", os="linux", arch="x86_64"),
+    )
+    assert "managed_path_outside_projection" not in _codes(report)

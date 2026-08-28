@@ -47,6 +47,7 @@ from ai_stp_cli.local import (
     selection,
     targets,
     versions,
+    windows_paths,
 )
 from ai_stp_cli.local.database import configured_path, open_readonly, open_registry, transaction
 from ai_stp_cli.local.passports import moment, owner
@@ -528,6 +529,26 @@ def _plan_v3(
         return _view(connection, existing)
 
     operation_id = new_id("operation")
+    # Before the provider is asked to plan, not after it fails to apply.
+    # `MAX_PATH` counts the whole path, so this is the first moment anybody
+    # holds both halves of it: the bundle was built without knowing the root,
+    # and `validate-bundle` ran before a target was named.
+    if bound_bundle is not None:
+        overlong = windows_paths.too_long_for_windows(
+            Path(provider_target),
+            managed_diff.bundle_manifest(bound_bundle.path).expected,
+        )
+        if overlong:
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "this target root is too long for the paths this bundle manages",
+                details={
+                    "target": redact_home(Path(provider_target)),
+                    "longest": overlong[-1],
+                    "limit": str(windows_paths.MAX_PATH_CHARACTERS),
+                },
+                next_actions=["install plan --target <shorter path> --json"],
+            )
     arguments = operation_v3.plan_operation_arguments(
         operation=operation,
         release_digest=release_digest,

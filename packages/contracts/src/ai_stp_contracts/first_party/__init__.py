@@ -18,6 +18,19 @@ VERSION: Final[str] = "1.0"
 # `~/.pi/agent`, so those passports resolve one directory too deep. Same X.Y
 # with different bytes is refused (`REQ-2606`); the correction is a new version.
 PI_LAYOUT_VERSION: Final[str] = "1.1"
+# Codex 1.0 wrote `.agents/skills/<slug>`, relative to `$HOME`, from when the
+# shared convention was modelled as a global rule with `root=home`. The surface
+# is its own projection scope now (`ADR-0127`): the target *is* `~/.agents`, so
+# the same directory is named `skills/<slug>` and the old value resolves to
+# `~/.agents/.agents/skills/<slug>`, which codex does not read. 61 published
+# versions carry it. Same X.Y with different bytes is refused (`REQ-2606`).
+CODEX_SKILLS_VERSION: Final[str] = "1.1"
+# Cursor 1.0 is wrong twice. Its plugin sat at `plugins/<slug>` while
+# `cursor.com/docs/plugins` puts local plugins in `~/.cursor/plugins/local/`,
+# and it published an `instruction` — a kind the released provider stopped
+# declaring, because there is no global `~/.cursor/AGENTS.md` at all. The
+# instruction is dropped rather than moved: no path is correct for it.
+CURSOR_LAYOUT_VERSION: Final[str] = "1.1"
 PUBLISHED_AT: Final[str] = "2026-08-13T00:00:00.000Z"
 COMPONENT_FORMAT: Final[str] = "ai-stp-component-tree/1"
 COMPONENT_FILE_FORMAT: Final[str] = "ai-stp-component-file/1"
@@ -194,9 +207,11 @@ def _title(slug: str) -> str:
 
 
 def _version_for(harness_id: str) -> str:
-    if harness_id == "pi":
-        return PI_LAYOUT_VERSION
-    return VERSION
+    return {
+        "pi": PI_LAYOUT_VERSION,
+        "codex": CODEX_SKILLS_VERSION,
+        "cursor": CURSOR_LAYOUT_VERSION,
+    }.get(harness_id, VERSION)
 
 
 def _native_path(harness_id: str, component: _ComponentSource) -> str:
@@ -229,15 +244,17 @@ def _native_path(harness_id: str, component: _ComponentSource) -> str:
             "agent": f"config/agents/{component.slug}",
         }[component.component_type]
     if harness_id == "cursor":
+        # No `instruction`: the kind is gone from the manifest, so a key for it
+        # here would be a path for something that can no longer be built.
         return {
-            "instruction": "AGENTS.md",
             "setting": "cli-config.json",
-            "plugin": f"plugins/{component.slug}",
+            "plugin": f"plugins/local/{component.slug}",
         }[component.component_type]
     if component.component_type == "plugin":
         return f"plugins/{component.slug}"
     if harness_id == "codex":
-        return f".agents/skills/{component.slug}"
+        # Relative to the `user_root` target `~/.agents`, not to `$HOME`.
+        return f"skills/{component.slug}"
     return f"skills/{component.slug}"
 
 
