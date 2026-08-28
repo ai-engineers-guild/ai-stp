@@ -201,6 +201,45 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     # tables that were wrong together. Only the vendor page settled it, and no
     # test on either side can read one.
     Rule("plugin", "plugins/local", "directory", "cursor", projection_kind="plugin"),
+    # Five global surfaces, held for a round because they contradicted
+    # `components_are_plugin_declared` — the sentence three cursor defects were
+    # corrected *towards*. The question that settled them was whether the
+    # product reads a file placed there with no plugin manifest naming it.
+    #
+    # `mcp.json` was answered by running it: a server written straight to
+    # `~/.cursor/mcp.json` is listed and dialled, and both controls hold — the
+    # file removed reports no servers, and the same file one directory to the
+    # side reports no servers. The product's own help names the global path
+    # unprompted.
+    #
+    # The other four are confirmed at the line in the pinned bundle rather than
+    # by a run, because they need an authenticated session: `commands` joins
+    # `homedir(), ".cursor", "commands"` and tags entries `scope: "user"`;
+    # `hooks.json` has a distinct user tier beside enterprise and project;
+    # `rules` is the User Rule branch of the product's own scope picker,
+    # hinted "Applies to all your projects"; `skills` is one row of a table the
+    # bundle carries, beside `.claude`, `.codex`, `.grok` and `.agents`.
+    #
+    # So the gap was true of the documentation and false of the product — the
+    # docs page describes the manifest key and has not caught up. It is
+    # withdrawn in `harness_catalog.py` rather than left standing, because a gap
+    # asserted from a page is how `.mcp.json` came to be called global twice.
+    #
+    # `mcp.json` here is deliberately not the same claim as `.mcp.json` on
+    # claude-code and grok. Those were project files at a repository root called
+    # global — a filename travelling without its scope. This one is under the
+    # configuration home the provider owns, and the provider declares it.
+    #
+    # `skill -> skills` is measured and **not** here yet: the released `0.0.11`
+    # does not declare the kind, because it was the provider's own false
+    # decline and is found after that tag. The evidence slice caught the row
+    # arriving first — `skill -> skills: kind not declared` — which is the
+    # ordering it exists to enforce, and the same refusal it would have raised
+    # for `codex agent` had that gone in a release early.
+    Rule("instruction", "rules", "directory", "cursor"),
+    Rule("command", "commands", "directory", "cursor"),
+    Rule("hook", "hooks.json", "file", "cursor"),
+    Rule("mcp", "mcp.json", "file", "cursor"),
     # Antigravity's home belongs to Gemini: `antigravity-cli/` is its own and
     # `config/` is shared, so both prefixes are part of the relative path rather
     # than something a target adds.

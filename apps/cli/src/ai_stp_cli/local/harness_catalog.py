@@ -459,12 +459,24 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
             _layout("plugin", "plugins/local", "directory", f"{CURSOR}/plugins", G),
             _layout("instruction", ".cursor/rules", "directory", f"{CURSOR}/rules", P),
             _layout("plugin", ".cursor/plugins", "directory", f"{CURSOR}/reference/plugins", P),
+            # Five user-scope surfaces the docs page does not mention and the
+            # product reads. `mcp.json` was confirmed by running the product,
+            # with both controls; the rest at the line in the pinned bundle.
+            # The `rules` row below is the User Rule scope, a sibling of the
+            # project one two lines up rather than a correction of it.
+            _layout("instruction", "rules", "directory", f"{CURSOR}/rules", G),
+            _layout("command", "commands", "directory", f"{CURSOR}/commands", G),
+            _layout("hook", "hooks.json", "file", f"{CURSOR}/hooks", G),
+            _layout("mcp", "mcp.json", "file", f"{CURSOR}/mcp", G),
         ),
         frozenset({"native_files", "plugin_manifest"}),
-        # Skills, agents, commands, hooks and MCP entries are declared by a
-        # plugin manifest rather than discovered as free-standing global
-        # directories, so there is no global layout to state for them.
-        gaps=("components_are_plugin_declared",),
+        # `components_are_plugin_declared` withdrawn. It said skills, agents,
+        # commands, hooks and MCP entries are declared by a plugin manifest and
+        # have no global layout — true of `cursor.com/docs`, false of the
+        # product, which reads all of them at user scope. `agent` is the one
+        # kind with no global surface found, so the gap narrows rather than
+        # disappearing.
+        gaps=("no_global_agent",),
         root_override="CURSOR_CONFIG_DIR",
     ),
     HarnessDefinition(

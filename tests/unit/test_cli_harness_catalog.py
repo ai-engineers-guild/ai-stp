@@ -122,12 +122,19 @@ def test_every_harness_either_declares_client_mcp_or_states_a_verified_gap() -> 
     the key, and its documentation index carries no MCP page to declare one
     from (`#377`).
 
-    Cursor has MCP, but not as a global file: `mcpServers` is a key inside a
-    plugin manifest, so what a provider installs is the plugin. Declaring a
-    global layout for it would state a location the product does not have.
+    Cursor was the second until 2026-08-28, on the reading that `mcpServers` is
+    a key inside a plugin manifest and there is no global file. The product
+    disagrees, and it was settled by running it rather than by reading: a server
+    written straight to `~/.cursor/mcp.json` is listed and dialled, the file
+    removed reports no servers, and the same file one directory to the side
+    reports no servers. The CLI's own help names the global path unprompted.
 
-    Inventing a layout in either case would be the guess the discovery contract
-    forbids, so the table says so instead.
+    So the gap was true of `cursor.com/docs` and false of the product. It is
+    withdrawn rather than softened, and what remains of it is `no_global_agent`
+    — the one kind the same sweep found no user-scope directory for.
+
+    Inventing a layout would be the guess the discovery contract forbids. So
+    would keeping a gap after the thing it denies has been observed.
     """
     rows = {row.harness_id: row for row in toolchain.harness_capabilities({}).payload.harnesses}
     declaring = {
@@ -137,9 +144,16 @@ def test_every_harness_either_declares_client_mcp_or_states_a_verified_gap() -> 
         if layout.component_type == "mcp"
     }
 
-    assert declaring == {"claude-code", "codex", "opencode", "grok-build", "antigravity"}
+    assert declaring == {
+        "claude-code",
+        "codex",
+        "opencode",
+        "grok-build",
+        "antigravity",
+        "cursor",
+    }
     assert "no_documented_mcp_client_config" in rows["pi"].gaps
-    assert "components_are_plugin_declared" in rows["cursor"].gaps
+    assert "no_global_agent" in rows["cursor"].gaps
     assert all("no_documented_mcp_client_config" not in rows[harness].gaps for harness in declaring)
 
 

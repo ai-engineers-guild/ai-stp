@@ -35,6 +35,42 @@
       "root": "config",
       "source": "cursor.com/docs/reference/plugins",
       "declared_key": ""
+    },
+    {
+      "component_type": "instruction",
+      "relative": "rules",
+      "shape": "directory",
+      "scope": "global",
+      "root": "config",
+      "source": "cursor.com/docs/rules",
+      "declared_key": ""
+    },
+    {
+      "component_type": "command",
+      "relative": "commands",
+      "shape": "directory",
+      "scope": "global",
+      "root": "config",
+      "source": "cursor.com/docs/commands",
+      "declared_key": ""
+    },
+    {
+      "component_type": "hook",
+      "relative": "hooks.json",
+      "shape": "file",
+      "scope": "global",
+      "root": "config",
+      "source": "cursor.com/docs/hooks",
+      "declared_key": ""
+    },
+    {
+      "component_type": "mcp",
+      "relative": "mcp.json",
+      "shape": "file",
+      "scope": "global",
+      "root": "config",
+      "source": "cursor.com/docs/mcp",
+      "declared_key": ""
     }
   ],
   "antigravity": [
