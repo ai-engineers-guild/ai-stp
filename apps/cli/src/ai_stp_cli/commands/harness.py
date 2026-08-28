@@ -41,6 +41,7 @@ from ai_stp_cli.provider import (
     conformance,
     invocation,
     operation_v3,
+    protocol,
     protocol_v3,
     software_fetch,
     trust,
@@ -291,6 +292,17 @@ def _perform(action: str, parameters: Mapping[str, object]) -> Answer[HarnessPro
         # its detail says why, and ours would only guess.
         capabilities.require(operation)
 
+        # What the target is now, read from the provider before anything is
+        # planned against it. The setup path does the same; this path used to
+        # take the number out of the plan it was about to validate.
+        observed_target_digest = str(_object(invoke("status", ())).get("target_digest", ""))
+        if not observed_target_digest:
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "the provider does not report a target digest, so a plan cannot be bound to one",
+                details={"harness": harness_id},
+            )
+
         operation_id = new_id("operation")
         expires_at = (
             (datetime.now(UTC) + timedelta(seconds=PLAN_TTL_SECONDS))
@@ -312,16 +324,37 @@ def _perform(action: str, parameters: Mapping[str, object]) -> Answer[HarnessPro
                 "the provider refused to plan this program operation",
                 details={"reason": str(answer.get("reason", "")), "harness": harness_id},
             )
-        plan = answer.get("plan")
-        if not isinstance(plan, dict):
-            raise CliFailure(
-                "AI_STP_PRECONDITION_FAILED",
-                "the provider returned no program plan artifact",
-                details={"harness": harness_id},
-            )
-        plan_digest = str(answer.get("plan_digest", ""))
-        raw_effects = answer.get("effects")
-        effects = tuple(str(item) for item in raw_effects) if isinstance(raw_effects, list) else ()
+        # The canonical binder, not a hand-read of four keys.
+        #
+        # This used to take `plan`, `plan_digest` and `effects` out of the
+        # answer and check none of them against what was asked. A provider
+        # returning a correctly hashed plan for a *different* operation, prefix,
+        # release or operation id was accepted, its artifacts downloaded, and it
+        # applied. `require_plan` binds all of that, and it needed no widening
+        # for programs: measured against the released provider, a
+        # `software_install` plan carries the same keys as any other and its
+        # `canonical_target` is the target, not the prefix.
+        #
+        # `expected_target_digest` is the consumer's own observation rather than
+        # the plan's echo of itself. Taking it from the plan made the binding
+        # circular — the provider would have been agreeing with a number it had
+        # just invented.
+        bound = operation_v3.require_plan(
+            answer,
+            capabilities=capabilities,
+            release_digest=release_digest,
+            operation_id=operation_id,
+            operation=operation,
+            target=target,
+            expected_target_digest=observed_target_digest,
+            bundle=None,
+            backup_ref=None,
+            permission_profile=None,
+            expires_at=expires_at,
+        )
+        plan = bound.artifact
+        plan_digest = bound.digest
+        effects = bound.effects
         artifacts = operation_v3.require_software_artifacts(dict(plan), operation=operation)
 
         held = installation.propose(
@@ -329,7 +362,7 @@ def _perform(action: str, parameters: Mapping[str, object]) -> Answer[HarnessPro
             action=f"software_{action}",
             author=str(parameters.get("author") or "agent"),
             target_id=str(prefix),
-            expected_target_digest=str(plan.get("expected_target_digest", "")),
+            expected_target_digest=observed_target_digest,
             provider_version=capabilities.provider_version,
             effects=effects,
             recovery_action="remove" if action != "remove" else "install",
@@ -353,6 +386,7 @@ def _perform(action: str, parameters: Mapping[str, object]) -> Answer[HarnessPro
                 release_digest=release_digest,
                 plan=dict(plan),
                 plan_digest=plan_digest,
+                bound=bound,
                 effects=effects,
                 artifacts=artifacts,
             )
@@ -371,6 +405,7 @@ def _apply(
     release_digest: str,
     plan: dict[str, JsonValue],
     plan_digest: str,
+    bound: operation_v3.ProviderPlan,
     effects: tuple[str, ...],
     artifacts: tuple[operation_v3.SoftwareArtifact, ...],
 ) -> HarnessProgram:
@@ -407,17 +442,51 @@ def _apply(
     )
     for place in fetched:
         arguments = (*arguments, "--software-artifact", str(place))
-    answer = _object(invoke("apply-operation", arguments))
-    installation.applied(connection, held.operation_id, at=moment())
-
-    state = str(answer.get("state", ""))
-    if state != "verified":
-        installation.fail(
+    # A timeout or a malformed answer here is not a failure — the provider was
+    # called and may have finished. `applied_unverified` is the state that says
+    # so, and the operation stays resumable from it. Recording `failed` after a
+    # possible effect is the one thing the state machine forbids, and it is what
+    # this path did for every outcome that was not the literal word `verified`.
+    try:
+        answer = _object(invoke("apply-operation", arguments))
+    except CliFailure:
+        installation.applied(connection, held.operation_id, at=moment())
+        installation.interrupted(
             connection,
             held.operation_id,
             at=moment(),
-            reason=f"the provider reported {state!r} rather than verified",
+            reason="the provider did not answer after a program operation may have landed",
         )
+        raise
+    installation.applied(connection, held.operation_id, at=moment())
+
+    # The canonical binder, which also refuses an apply result that names a
+    # different plan or snapshot. It returns the provider's own state word, and
+    # `stale` is a settled no-effect outcome rather than a failure.
+    state = operation_v3.require_applied(answer, plan=bound, bundle=None)
+    mapped = protocol.operation_state(state)
+    if mapped != installation.STATE_VERIFIED:
+        # Each outcome recorded as itself, the way the setup path records them.
+        # `stale` is the provider having locked the target and refused a plan
+        # that no longer describes it — settled, and no effect. `rolled_back` is
+        # the provider having undone its own change. `partial` is an effect
+        # nobody has confirmed, which stays resumable. Collapsing all three into
+        # `failed`, as this did, made a retry look safer than it was.
+        recorder = {
+            installation.STATE_STALE: (
+                installation.stale,
+                "the provider locked the prefix and refused a stale plan",
+            ),
+            installation.STATE_ROLLED_BACK: (
+                installation.roll_back,
+                "the provider undid its own change",
+            ),
+            installation.STATE_PARTIAL: (
+                installation.interrupted,
+                f"the provider reported {state}",
+            ),
+        }.get(mapped, (installation.fail, f"the provider reported {state!r}"))
+        recorder[0](connection, held.operation_id, at=moment(), reason=recorder[1])
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED",
             "the provider did not verify this program operation",

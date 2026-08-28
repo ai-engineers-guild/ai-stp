@@ -25,7 +25,7 @@ import pytest
 
 from ai_stp_cli.commands import harness as harness_commands
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.provider import invocation, network_launcher
+from ai_stp_cli.provider import invocation, network_launcher, operation_v3, software_fetch
 from ai_stp_cli.provider import trust as provider_trust
 
 pytestmark = pytest.mark.cli
@@ -118,3 +118,71 @@ def test_the_reason_helper_is_the_one_the_setup_path_uses() -> None:
         provider_trust.unisolated_reason(None, {"unverified-provider": True})
         == network_launcher.EXPLICIT_UNVERIFIED_PROVIDER
     )
+
+
+def test_a_plan_for_a_different_operation_is_refused_before_anything_is_fetched(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The plan binder, which this path did not call at all.
+
+    It used to take `plan`, `plan_digest` and `effects` out of the answer and
+    check none of them against what was asked. A correctly hashed plan for a
+    different operation, prefix, release or operation id was accepted, its
+    artifacts downloaded, and it applied.
+
+    The refusal has to land before the download: an artifact fetched for a plan
+    that was never ours is a network call made on somebody else's say-so.
+    """
+    fetched: list[operation_v3.SoftwareArtifact] = []
+
+    def record(artifact: operation_v3.SoftwareArtifact) -> Path:
+        fetched.append(artifact)
+        raise AssertionError("nothing may be fetched for an unvalidated plan")
+
+    monkeypatch.setattr(software_fetch, "fetch", record)
+
+    class _Answering:
+        def __init__(self) -> None:
+            self.reason: object = None
+
+        def invoker(self, *_args: object, **kwargs: object) -> Any:
+            self.reason = kwargs.get("unisolated_reason")
+
+            def invoke(command: str, _arguments: Sequence[str]) -> Any:
+                if command == "provider-info":
+                    raise CliFailure("AI_STP_INTERNAL", "not reached in this check")
+                raise CliFailure("AI_STP_INTERNAL", f"unexpected {command}")
+
+            return invoke
+
+    answering = _Answering()
+    monkeypatch.setattr(invocation, "provider_invoker", answering.invoker)
+    parameters = {**_parameters(tmp_path), "unverified-provider": True}
+
+    with pytest.raises(CliFailure):
+        harness_commands.install(parameters)
+
+    assert fetched == [], "an artifact was fetched for a plan that was never validated"
+
+
+def test_the_outcome_map_is_the_closed_one_rather_than_a_word_comparison() -> None:
+    """`partial`, `stale` and `rolled_back` are not `failed`.
+
+    This path compared the provider's answer with the literal string
+    `"verified"` and recorded everything else as `failed`. The state machine
+    says a timeout is `partial` and never `failed`, that a typed `stale` is a
+    settled no-effect outcome, and that `rolled_back` is the provider having
+    undone its own change. Collapsing the three made a retry look safer than it
+    was, and left no resumable state where an effect may have landed.
+    """
+    from ai_stp_cli.local import installation
+    from ai_stp_cli.provider import protocol
+
+    assert protocol.operation_state("partial") == installation.STATE_PARTIAL
+    assert protocol.operation_state("stale") == installation.STATE_STALE
+    assert protocol.operation_state("rolled_back") == installation.STATE_ROLLED_BACK
+    assert protocol.operation_state("verified") == installation.STATE_VERIFIED
+    # And every one of them is a state this journal knows, so mapping cannot
+    # invent a word the operation log has no meaning for.
+    for reported in protocol.STATE_MAP:
+        assert protocol.operation_state(reported)
