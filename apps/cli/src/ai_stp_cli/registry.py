@@ -1298,6 +1298,43 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         next_actions=("harness status",),
     ),
     Declaration(
+        path=["harness", "resume"],
+        summary="Settle a stopped program operation by looking, never by applying again.",
+        result_schema="urn:ai-stp:schema:v1:cli-harness-program",
+        handler=harness.resume,
+        mutability="apply",
+        parameters=(
+            option("operation", "string", "The operation that stopped.", required=True),
+            option("harness", "string", "Harness whose program this is.", required=True),
+            option("provider", "string", "Exact provider executable to invoke.", required=True),
+            option(
+                "prefix",
+                "string",
+                "Absolute directory the program lives under. Not the target.",
+                required=True,
+            ),
+            option("target", "string", "Absolute harness configuration target.", required=True),
+            option(
+                "provider-manifest",
+                "string",
+                "Signed provider release manifest proving these exact bytes.",
+            ),
+            option(
+                "provider-build-attestation",
+                "boolean",
+                "Require a GitHub build attestation for the provider artifact.",
+            ),
+            option(
+                "unverified-provider",
+                "boolean",
+                "Run a provider no signed release covers. On macOS and Windows this "
+                "is also what lets the call run at all, since no launcher there can "
+                "deny the network.",
+            ),
+        ),
+        next_actions=("harness status",),
+    ),
+    Declaration(
         path=["harness", "status"],
         summary="What program stands under one prefix, from the journal and the disk.",
         result_schema="urn:ai-stp:schema:v1:cli-harness-program-status",

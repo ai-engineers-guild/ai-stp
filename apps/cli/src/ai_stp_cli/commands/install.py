@@ -1472,7 +1472,14 @@ def _v3_operation(action: str) -> protocol_v3.Operation:
             "AI_STP_VALIDATION_ERROR",
             "that action installs a program, which harness does, not install",
             details={"action": action},
-            next_actions=[f"harness {action.removeprefix('software_')} --json"],
+            # `harness resume` rather than `harness <action>`. An operation
+            # that stopped after the provider was called must be settled by
+            # looking, and pointing an agent at the verb would have it apply the
+            # whole thing a second time — which is what `operation.md` forbids.
+            next_actions=[
+                "harness resume --operation <id> --json",
+                f"harness {action.removeprefix('software_')} --json",
+            ],
         )
     try:
         return mapping[action]

@@ -186,3 +186,67 @@ def test_the_outcome_map_is_the_closed_one_rather_than_a_word_comparison() -> No
     # invent a word the operation log has no meaning for.
     for reported in protocol.STATE_MAP:
         assert protocol.operation_state(reported)
+
+
+def test_resume_refuses_an_operation_that_is_not_waiting_on_a_postcondition(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Settling is for an operation that stopped, not a way to redo a finished one."""
+    recorder = _Recorder()
+    monkeypatch.setattr(invocation, "provider_invoker", recorder.invoker)
+    parameters = {
+        **_parameters(tmp_path),
+        "operation": "operation_01J0000000000000000000000A",
+        "unverified-provider": True,
+    }
+
+    with pytest.raises(CliFailure) as caught:
+        harness_commands.resume(parameters)
+
+    assert caught.value.code == "AI_STP_PRECONDITION_FAILED"
+    # And nothing was spawned to find that out: the journal answers it.
+    assert recorder.spawned == [], recorder.spawned
+
+
+def test_resume_never_offers_to_apply_again() -> None:
+    """The command exists because the only route out used to be a second apply.
+
+    `install resume` refuses a program action by design — its subject is a setup
+    — and it pointed at `harness install`, which runs the whole operation again.
+    An operation that stopped after the provider was called cannot be settled
+    that way; `operation.md` forbids repeating the effect.
+    """
+    import ast
+    import inspect
+    import textwrap
+
+    from ai_stp_cli.commands import install as install_commands
+
+    # The commands it *invokes*, not the words in its prose. A text search finds
+    # `apply-operation` in the docstring that exists to say it is never called,
+    # which is the check reading the explanation rather than the code.
+    tree = ast.parse(textwrap.dedent(inspect.getsource(harness_commands.resume)))
+    invoked = {
+        node.args[0].value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "invoke"
+        and node.args
+        and isinstance(node.args[0], ast.Constant)
+        and isinstance(node.args[0].value, str)
+    }
+    assert "apply-operation" not in invoked, invoked
+    assert {"status", "recover-operation"} <= invoked, invoked
+
+    refusal = inspect.getsource(install_commands._v3_operation)  # pyright: ignore[reportPrivateUsage]
+    assert "harness resume" in refusal
+
+
+def test_resume_declares_the_same_trust_parameters_as_the_verbs() -> None:
+    """It spawns a provider, so it establishes trust the same way they do."""
+    from ai_stp_cli.registry import DECLARATIONS
+
+    declared = next(item for item in DECLARATIONS if item.path == ["harness", "resume"])
+    names = {option.name for option in declared.parameters}
+    assert {"provider-manifest", "unverified-provider", "operation"} <= names, sorted(names)

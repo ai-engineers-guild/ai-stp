@@ -211,6 +211,7 @@
   "target versions must use canonical X.Y notation": "target versions must use canonical X.Y notation",
   "telemetry is turned on by consenting, not by setting a value": "telemetry is turned on by consenting, not by setting a value",
   "that action installs a program, which harness does, not install": "that action installs a program, which harness does, not install",
+  "that program operation is not waiting on a postcondition": "that program operation is not waiting on a postcondition",
   "that approval is for a different plan": "that approval is for a different plan",
   "that backup is for another harness": "that backup is for another harness",
   "that component has no local passport": "that component has no local passport",

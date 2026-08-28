@@ -34,7 +34,7 @@ from typing import Final
 
 from ai_stp_cli.answer import Answer
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import cache, installation
+from ai_stp_cli.local import cache, installation, journal
 from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_cli.local.passports import moment
 from ai_stp_cli.provider import (
@@ -543,3 +543,109 @@ def _object(value: JsonValue) -> dict[str, JsonValue]:
             "the provider answered with something other than one object",
         )
     return value
+
+
+#: Where a program operation can still be settled by looking rather than by
+#: doing it again. Both mean the provider was called; only the second admits it.
+_UNSETTLED: Final[frozenset[str]] = frozenset(
+    {installation.STATE_APPLYING, installation.STATE_APPLIED_UNVERIFIED}
+)
+
+#: Cleanup the provider says it still owes. Any of these is durable work, so
+#: `recover-operation` is the command that settles it, never a second apply.
+_PENDING_CLEANUP: Final[frozenset[str]] = frozenset({"pending", "required", "in_progress"})
+
+
+def resume(parameters: Mapping[str, object]) -> Answer[HarnessProgram]:
+    """Settle a program operation that stopped, without repeating its effect.
+
+    The program lifecycle had no way back. A process killed after
+    `apply-operation` left the operation in `applying`; `install resume` refuses
+    a program action by design, because its subject is a setup, and it pointed
+    at `harness install` — which would run the whole operation again. So the
+    only offered route out of "the provider was called and nobody has looked"
+    was to do it a second time.
+
+    This looks instead. It reads the provider's own state, calls
+    `recover-operation` when the provider says durable recovery is owed, and
+    never calls `apply-operation`. Nothing here sends an artifact.
+
+    A provider that still does not settle leaves the operation `partial` rather
+    than `failed`: after the call was made, "nothing was done" is a claim nobody
+    is in a position to make.
+    """
+    operation_id = _required(parameters, "operation")
+    executable = conformance.resolve_executable(_required(parameters, "provider"))
+    prefix = _directory(parameters, "prefix")
+    target = _directory(parameters, "target")
+
+    with open_registry(configured_path()) as connection:
+        current = journal.get(connection, operation_id)
+        state = "" if current is None else current.state
+        if state not in _UNSETTLED:
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "that program operation is not waiting on a postcondition",
+                details={"operation": operation_id, "state": state},
+                next_actions=["harness status --harness <id> --prefix <dir> --json"],
+            )
+
+        evidence = trust.trusted_manifest(
+            connection, parameters, executable, recovery_requested=False
+        )
+        trusted_release = evidence.manifest
+        trust.release_required(parameters, protocol_v3.VERSION, trusted_release)
+        invoke = invocation.provider_invoker(
+            executable,
+            str(target),
+            protocol_v3.VERSION,
+            writable=(prefix,),
+            unisolated_reason=trust.unisolated_reason(trusted_release, parameters),
+        )
+
+        # `applying` means the provider was called and nobody has looked since.
+        # Acknowledging that first is not a guess that the effect landed — it is
+        # the honest name for the situation, and the state the journal requires
+        # before any verdict about it.
+        if state == installation.STATE_APPLYING:
+            installation.applied(connection, operation_id, at=moment())
+
+        answer = _object(invoke("status", ()))
+        reported = str(answer.get("state", ""))
+        cleanup = str(answer.get("cleanup_state", ""))
+        if reported == "recovery_required" or cleanup in _PENDING_CLEANUP:
+            invoke("recover-operation", ())
+            answer = _object(invoke("status", ()))
+            reported = str(answer.get("state", ""))
+
+        if reported in {"managed", "missing", "unmanaged"}:
+            installation.verify(
+                connection,
+                operation_id,
+                postconditions_met=True,
+                at=moment(),
+                observed_target_digest=str(answer.get("target_digest", "")),
+            )
+        else:
+            installation.interrupted(
+                connection,
+                operation_id,
+                at=moment(),
+                reason=f"the provider still reports {reported!r} for this program operation",
+            )
+        settled = journal.get(connection, operation_id)
+        # The durable plan, which is what recorded the action. `journal.get`
+        # answers where the operation stopped; it does not carry what it was.
+        held = installation._require(connection, operation_id)  # pyright: ignore[reportPrivateUsage]
+        return Answer(
+            HarnessProgram(
+                harness_id=_required(parameters, "harness"),  # pyright: ignore[reportArgumentType]
+                operation=held.action.removeprefix("software_"),  # pyright: ignore[reportArgumentType]
+                state="" if settled is None else settled.state,
+                operation_id=operation_id,
+                prefix=str(prefix),
+                plan_digest=str(answer.get("provider_plan_digest", "")),
+                effects=[],
+                artifacts=[],
+            )
+        )
