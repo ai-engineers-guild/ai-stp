@@ -221,3 +221,41 @@ def test_the_unmigrated_catalog_rows_match_their_golden() -> None:
     """A layout row for these harnesses changes as a reviewed diff or not at all."""
     expected = json.loads(UNMIGRATED_GOLDEN.read_text(encoding="utf-8"))
     assert _unmigrated_rows() == expected
+
+
+def test_a_products_config_home_can_be_spelled_differently_under_xdg() -> None:
+    """One `config_root` cannot say `~/.cursor` and `$XDG_CONFIG_HOME/cursor`.
+
+    Cursor resolves in three steps: `CURSOR_CONFIG_DIR` outright, then
+    `XDG_CONFIG_HOME` giving `cursor` **without the dot**, and only otherwise
+    `~/.cursor`. The catalogue stated `~/.cursor` unconditionally, so on a Linux
+    machine with the variable set every answer named a directory the product was
+    not using — discovery, projection and the target survey alike.
+
+    OpenCode is the other shape and the reason a single flag was not enough: it
+    is XDG all the way down, so with no variable set it uses the specification's
+    own `~/.config` default rather than a dotted home.
+
+    The first fix collapsed the two and answered `~/.config/cursor` where there
+    was no variable — a second wrong answer introduced by correcting the first,
+    which is why both fallbacks are asserted here rather than only the branch
+    that was broken.
+    """
+    from ai_stp_cli.local import harnesses
+
+    cursor = next(item for item in harnesses.DETECTORS if item.harness_id == "cursor")
+    opencode = next(item for item in harnesses.DETECTORS if item.harness_id == "opencode")
+    home = {"HOME": "/home/u"}
+
+    assert str(harnesses.config_root(cursor, home)) == "/home/u/.cursor"
+    assert (
+        str(harnesses.config_root(cursor, {**home, "XDG_CONFIG_HOME": "/home/u/.config"}))
+        == "/home/u/.config/cursor"
+    )
+    assert str(harnesses.config_root(cursor, {**home, "CURSOR_CONFIG_DIR": "/opt/c"})) == "/opt/c"
+
+    assert str(harnesses.config_root(opencode, home)) == "/home/u/.config/opencode"
+    assert (
+        str(harnesses.config_root(opencode, {**home, "XDG_CONFIG_HOME": "/elsewhere"}))
+        == "/elsewhere/opencode"
+    )

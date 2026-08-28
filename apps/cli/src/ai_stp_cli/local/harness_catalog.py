@@ -46,6 +46,9 @@ class HarnessDefinition:
     native_authoring: frozenset[str]
     gaps: tuple[str, ...] = ()
     xdg_config: bool = False
+    #: The leaf under `XDG_CONFIG_HOME` when the product spells it differently
+    #: there than under the home directory.
+    xdg_config_root: str | None = None
     root_override: str | None = None
     npm_packages: tuple[str, ...] = ()
     scoop_app: str | None = None
@@ -477,6 +480,15 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
         # kind with no global surface found, so the gap narrows rather than
         # disappearing.
         gaps=("no_global_agent",),
+        # Two overrides, and the second renames the leaf: `CURSOR_CONFIG_DIR`
+        # wins outright, then `XDG_CONFIG_HOME` gives `$XDG_CONFIG_HOME/cursor`
+        # — without the dot — and only otherwise is it `~/.cursor`. Stated as
+        # `~/.cursor` unconditionally until 2026-08-28, so on a Linux machine
+        # with the variable set every answer named a directory the product was
+        # not using. Found by the provider author reading the same resolution
+        # order in the shipped bundle.
+        xdg_config=True,
+        xdg_config_root="cursor",
         root_override="CURSOR_CONFIG_DIR",
     ),
     HarnessDefinition(
