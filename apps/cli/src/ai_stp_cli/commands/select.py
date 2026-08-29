@@ -1650,6 +1650,7 @@ def _conversion_json(report: composition.ConversionReport) -> JsonValue:
                 "component_type": item.component_type,
                 "native_surface": item.native_surface,
                 "projection_kind": item.projection_kind,
+                "provider_kind": item.provider_kind or item.component_type,
                 "state": item.state,
                 "losses": list(item.losses),
             }

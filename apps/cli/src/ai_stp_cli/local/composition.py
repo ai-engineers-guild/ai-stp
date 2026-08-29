@@ -206,6 +206,26 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     # passports, OpenNetwork Pi `projection_kinds`). `extension` is not a
     # protocol value and install plan refused it as an invalid ProjectionKind.
     Rule("plugin", "extensions", "directory", "pi", projection_kind="package"),
+    # Pi declares no `mcp` kind, and that is a product decision it states
+    # itself: it "intentionally does not include built-in MCP, sub-agents,
+    # permission popups, plan mode, to-dos, or background bash. You can build or
+    # install those workflows as extensions or packages." So an MCP adapter for
+    # Pi is an extension package, and the only honest way to install one is to
+    # say `plugin` at the provider boundary while the passport keeps `mcp`.
+    #
+    # This is the first rule where the two differ, and it is a translation
+    # rather than a claim: nothing about the component changes, only the word
+    # the provider is given. Measured against the released `0.0.32`: kinds are
+    # `instruction, skill, plugin, setting, command`, `extensions` is owned, and
+    # `package` is among the declared projection kinds.
+    Rule(
+        "mcp",
+        "extensions",
+        "directory",
+        "pi",
+        projection_kind="package",
+        provider_kind="plugin",
+    ),
     Rule("setting", "settings.json", "file", "pi"),
     # `references/pi-baseline.json:229`. Same shape as codex's `prompts`, and
     # the same reason: declared by the provider, reachable by nothing here.
@@ -507,6 +527,13 @@ class ConversionEntry:
     state: str
     losses: tuple[str, ...] = ()
 
+    #: The kind named to the provider. Equal to `component_type` for every
+    #: harness that declares the kind itself; different where the product has
+    #: no such kind and the component's native form is another one (`#454`).
+    #: Empty is read as "the same", so an entry that never reached a rule does
+    #: not have to invent one.
+    provider_kind: str = ""
+
 
 @dataclass(frozen=True)
 class ConversionReport:
@@ -671,6 +698,7 @@ def convert(surfaces: tuple[Surface, ...], target: Target) -> ConversionReport:
                 component_type=item.component_type,
                 native_surface=rule.relative,
                 projection_kind=rule.projection_kind,
+                provider_kind=rule.provider_kind or item.component_type,
                 state=STATE_PARTIAL if losses else STATE_COMPLETE,
                 losses=losses,
             )

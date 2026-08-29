@@ -495,8 +495,19 @@ def test_a_harness_whose_mcp_lives_inside_a_settings_file_has_no_surface() -> No
     """
     from ai_stp_cli.local import harness_catalog
 
-    for harness in ("codex", "grok-build", "opencode", "pi", "claude-code"):
+    for harness in ("codex", "grok-build", "opencode", "claude-code"):
         assert composition.native_surface("mcp", harness) == "", harness
+
+    # `pi` left this list on 2026-08-29, and it had been here for the wrong
+    # reason: its MCP does not live inside a settings file, it does not exist.
+    # The product says so itself — "intentionally does not include built-in MCP
+    # … you can build or install those workflows as extensions or packages" —
+    # so an MCP adapter for Pi is an extension package, and refusing it was
+    # refusing something the product supports (`#454`). The passport still says
+    # `mcp`; only the kind named to the provider is `plugin`.
+    assert composition.native_surface("mcp", "pi") == "extensions"
+    pi_rule = composition.rule_for("mcp", "pi")
+    assert pi_rule is not None and pi_rule.provider_kind == "plugin"
 
     # `cursor` left this list on 2026-08-28, and by measurement rather than by
     # argument: a server written straight to `~/.cursor/mcp.json` is listed and
@@ -624,6 +635,13 @@ _CONVENTION_BACKED: Final[dict[tuple[str, str], str]] = {
     ("grok-build", "agent"): (
         "declared in the provider's own grok-baseline native_discovery, which "
         "the catalog's cited vendor page does not enumerate"
+    ),
+    ("pi", "mcp"): (
+        "declared by the product rather than by the provider: Pi states it "
+        '"intentionally does not include built-in MCP … you can build or '
+        'install those workflows as extensions or packages", so an MCP adapter '
+        "is an extension package. The provider is told `plugin`, which it "
+        "declares, and `extensions`, which it owns; the passport keeps `mcp`"
     ),
     ("claude-code", "plugin"): (
         "declared by the released provider: `0.0.30` carries `plugin` in "

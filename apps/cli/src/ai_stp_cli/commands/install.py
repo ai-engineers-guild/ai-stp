@@ -1506,7 +1506,11 @@ def _v3_profile_accepts(
     for item in entries:
         if not isinstance(item, dict):
             raise CliFailure("AI_STP_INTERNAL", "the compiled conversion entry is malformed")
-        component_kinds.append(str(item.get("component_type", "")))
+        # The kind the provider is told, which differs from the logical kind
+        # exactly where a harness has no native kind of its own for it
+        # (`#454`). Falling back to `component_type` keeps every other entry —
+        # and every bundle compiled before this field existed — unchanged.
+        component_kinds.append(str(item.get("provider_kind") or item.get("component_type", "")))
         native_surfaces.append(str(item.get("native_surface", "")))
         projection_kinds.append(str(item.get("projection_kind", "native_files")))
     profile = _profile_for_graph(capabilities, component_kinds)

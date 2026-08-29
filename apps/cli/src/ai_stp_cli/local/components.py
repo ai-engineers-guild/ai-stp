@@ -165,6 +165,23 @@ class Rule:
     #: inside a file that is also a setting and presence alone proves nothing.
     declared_key: str = ""
 
+    #: The kind the provider is told, when the harness has no native kind of
+    #: its own for this one. Empty means the two are the same, which is every
+    #: rule but one.
+    #:
+    #: A component's kind is what it *is*; a projection is where it lands. Those
+    #: are usually the same word and one product made them different: Pi
+    #: declares no `mcp` kind and says why in its own documentation — it
+    #: "intentionally does not include built-in MCP … you can build or install
+    #: those workflows as extensions or packages". So an MCP adapter for Pi is
+    #: an extension, and calling it one at the provider boundary is a
+    #: translation rather than a claim: the passport keeps `mcp`, and only the
+    #: sentence spoken to the provider changes.
+    #:
+    #: Without this the component fails twice — no route at all, and then
+    #: `unsupported_component_kind: mcp` if a route is added naively (`#454`).
+    provider_kind: str = ""
+
     #: A child of this `directory` rule that carries a plugin manifest belongs
     #: to the `plugin` kind rather than to this one. Set on the rule for the
     #: *other* kind when a product routes two kinds to one directory and tells
