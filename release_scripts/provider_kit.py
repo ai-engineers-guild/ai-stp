@@ -137,8 +137,16 @@ def _cases() -> dict[str, object]:
 def aggregate_digest(checksums: bytes) -> str:
     """One name for one exact revision of the whole kit.
 
-    Taken over the canonical `SHA256SUMS` bytes, which already cover every
-    machine file, so a change anywhere inside the kit changes this string.
+    Taken over the `SHA256SUMS` file exactly as written — no canonicalisation,
+    no normalisation — which already covers every machine file, so a change
+    anywhere inside the kit changes this string. `sha256sum SHA256SUMS` is the
+    whole of it, which is what lets a provider author verify the identity with
+    nothing of ours.
+
+    This said "the canonical bytes" until 2026-08-29, and `canonical` in this
+    repository means canonical JSON. A reader applying that sense to
+    `SHA256SUMS` would compute a different number and have no way to see why —
+    reported by a kit reader who checked rather than assumed.
 
     A semantic version is a label somebody maintains; this is what a provider
     can pin without trusting anyone to have maintained it. That is why the
