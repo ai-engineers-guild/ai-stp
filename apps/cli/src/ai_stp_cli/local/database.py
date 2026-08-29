@@ -726,6 +726,25 @@ MIGRATIONS: Final[tuple[Migration, ...]] = (
             "ALTER TABLE operation_plan DROP COLUMN program_version",
         ),
     ),
+    Migration(
+        version=24,
+        summary="record the catalogue's trust verdict for an acquired version",
+        up=(
+            """
+            CREATE TABLE acquired_trust (
+                stable_id          TEXT NOT NULL REFERENCES entity(stable_id),
+                version            TEXT NOT NULL,
+                passport_digest    TEXT NOT NULL,
+                trust_lane         TEXT NOT NULL,
+                author_verified    INTEGER NOT NULL,
+                component_verified INTEGER NOT NULL,
+                acquired_at        TEXT NOT NULL,
+                PRIMARY KEY (stable_id, version)
+            ) STRICT
+            """,
+        ),
+        down=("DROP TABLE acquired_trust",),
+    ),
 )
 
 #: Names for nested savepoints. A counter rather than a fixed name: two nested

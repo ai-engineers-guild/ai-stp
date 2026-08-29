@@ -22,7 +22,15 @@ from ai_stp_cli.answer import Answer
 from ai_stp_cli.cloud import catalog
 from ai_stp_cli.cloud.client import Endpoint
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import cache, components, content, revisions, store_ports, versions
+from ai_stp_cli.local import (
+    acquired_trust,
+    cache,
+    components,
+    content,
+    revisions,
+    store_ports,
+    versions,
+)
 from ai_stp_cli.local.database import configured_path, open_registry, transaction
 from ai_stp_cli.local.passports import moment
 from ai_stp_cli.paths import redact_home
@@ -352,6 +360,21 @@ def acquire(parameters: Mapping[str, object]) -> Answer[CatalogSetupAcquisition]
                 version=item.passport.version,
                 passport_digest=item.view.passport_digest,
                 revision_id=stored.revision_id,
+                at=at,
+            )
+            # What the catalogue said about this version, recorded here because
+            # this is the only moment it is known. Without it every acquired
+            # object reads as the user's own work (`#447`).
+            acquired_trust.record(
+                connection,
+                stable_id=item.passport.stable_id,
+                version=item.passport.version,
+                passport_digest=item.view.passport_digest,
+                verdict=acquired_trust.Verdict(
+                    trust_lane=item.view.trust.trust_lane,
+                    author_verified=item.view.trust.author_verified,
+                    component_verified=item.view.trust.component_verified,
+                ),
                 at=at,
             )
 

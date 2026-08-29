@@ -30,6 +30,7 @@ from ai_stp_cli.answer import Answer
 from ai_stp_cli.config import effective_config
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import (
+    acquired_trust,
     bundle,
     components,
     composition,
@@ -389,6 +390,7 @@ def _candidates(
     rows = connection.execute(
         "SELECT stable_id FROM entity WHERE kind IN ('component', 'setup')"
     ).fetchall()
+    recorded = acquired_trust.verdicts(connection)
     wanted = dict(at_version or {})
     held: list[eligibility.CandidateFacts] = []
     for row in rows:
@@ -396,6 +398,9 @@ def _candidates(
         stored = _revision_at(connection, stable_id, wanted.get(stable_id))
         if stored is None:
             continue
+        verdict = recorded.get(
+            (stable_id, str(stored.envelope.model_dump(mode="json").get("version") or ""))
+        )
         document = cast(dict[str, JsonValue], stored.envelope.model_dump(mode="json"))
         facts = cast(dict[str, JsonValue], document.get("facts") or {})
         held.append(
@@ -418,10 +423,17 @@ def _candidates(
                 requires_credentials=bool(document.get("requires_credentials") or False),
                 requires_authorization=str(document.get("requires_authorization") or "none"),
                 license_id=_license_id(document),
-                # The user's own work: no grant, no licence, no verification
-                # invented. `ADR-0016` says exactly this, and it is why the
-                # three trust axes below stay false.
-                owned_or_pinned=True,
+                # The user's own work — **unless the catalogue said otherwise**.
+                # `registry acquire` materialises a published graph into these
+                # same tables, and before `#447` those rows also read as the
+                # user's own: `lane_of` checks ownership first, so an acquired
+                # object never reached `experimental` and skipped consent, the
+                # licence and the grant together. An excess permission, not a
+                # missing refusal, so the repair records what the catalogue said
+                # rather than adding a check.
+                owned_or_pinned=verdict is None,
+                author_verified=verdict.author_verified if verdict else False,
+                component_verified=verdict.component_verified if verdict else False,
                 registrable=lifecycle.registrable(connection, stored),
                 consented=consented,
             )

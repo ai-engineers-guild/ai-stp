@@ -17,6 +17,7 @@ from ai_stp_cli import identity
 from ai_stp_cli.answer import Answer
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import (
+    acquired_trust,
     authoring,
     cache,
     component_passports,
@@ -750,14 +751,20 @@ def find(parameters: Mapping[str, object]) -> Answer[LocalSearchResults]:
 def _candidates(connection: sqlite3.Connection) -> tuple[search.Candidate, ...]:
     """Every registered component, as search sees it.
 
-    Everything local is `owned_or_pinned`: nothing here came from a platform
-    that could have confirmed it, so claiming any other lane would be inventing
-    a confirmation. When the catalogue supplies candidates they will carry their
-    own axes, and `lane_of` already refuses to promote on one alone.
+    Local *authorship* is `owned_or_pinned`; an acquired version is not.
+    `registry acquire` materialises a published graph into these same tables,
+    and before `#447` those rows claimed ownership too — which put somebody
+    else's object in the `local_owner_or_pinned` lane and past the consent,
+    licence and grant questions in one step.
+
+    So the axes come from what the catalogue said when the version was
+    acquired, and only a row with no recorded verdict is this user's own work.
+    `lane_of` still refuses to promote on one axis alone.
     """
     rows = connection.execute(
         "SELECT stable_id FROM entity WHERE kind IN ('component', 'setup')"
     ).fetchall()
+    recorded = acquired_trust.verdicts(connection)
     held: list[search.Candidate] = []
     for row in rows:
         stored = revisions.head(connection, str(row["stable_id"]))
@@ -765,12 +772,15 @@ def _candidates(connection: sqlite3.Connection) -> tuple[search.Candidate, ...]:
             continue
         document = cast(dict[str, JsonValue], stored.envelope.model_dump(mode="json"))
         facts = cast(dict[str, JsonValue], document["facts"])
+        verdict = recorded.get((stored.stable_id, str(document.get("version") or "")))
         held.append(
             search.Candidate(
                 stable_id=stored.stable_id,
                 revision_id=stored.revision_id,
                 fields={name: _value(fact) for name, fact in facts.items()},
-                owned_or_pinned=True,
+                owned_or_pinned=verdict is None,
+                author_verified=verdict.author_verified if verdict else False,
+                component_verified=verdict.component_verified if verdict else False,
             )
         )
     return tuple(held)
