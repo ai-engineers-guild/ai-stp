@@ -33,6 +33,27 @@ KIT_IDENTITY_SCHEMA: Final[str] = "ai-stp-provider-kit-identity/1"
 #: fail or, worse, keep matching a name that now means something else.
 KIT_VERSION: Final[str] = "0.2.6"
 
+#: The kit's only artifact with no source to re-derive it from, and therefore
+#: the exact limit of what `--check` can see. Everything else here is rendered
+#: and compared byte for byte, which refuses ways of being wrong nobody
+#: enumerated — an emptied `SHA256SUMS`, a doctored `aggregate_digest`, an extra
+#: byte in a member — because it never enumerates them.
+#:
+#: Named as a set rather than left inline in the expression that skips it. The
+#: reach of a re-derivation is exactly the artifacts that have a source, so the
+#: uncovered set is whatever the generator was told to skip: small, knowable,
+#: and worth stating where a reader will meet it. Measured 2026-08-29 across
+#: every generated directory in this repository — `schemas/v1` (187 files, all
+#: rendered, the OpenAPI document included by a second pass of the same
+#: checker), the seven skill projections, the docs indexes — this is the one
+#: member in the whole estate.
+#:
+#: It drifted, and so did its counterpart in the consuming repository, on the
+#: same day and independently. That is what an unheld file does; a digest here
+#: would not have helped, because the failure is a copy falling behind its
+#: upstream and no check in one tree can see the other.
+UNDERIVED: Final[tuple[str, ...]] = ("README.md",)
+
 #: Files the aggregate identity covers, in the order `SHA256SUMS` lists them.
 MACHINE_FILES: Final[tuple[str, ...]] = (
     "conformance-cases.json",
@@ -190,7 +211,7 @@ def synchronize(output: Path, *, check: bool) -> tuple[str, ...]:
     expected = render()
     mismatches: list[str] = []
     actual_names = {path.name for path in output.iterdir()} if output.is_dir() else set()
-    unexpected = actual_names - set(OUTPUT_FILES) - {"README.md"}
+    unexpected = actual_names - set(OUTPUT_FILES) - set(UNDERIVED)
     mismatches.extend(str(output / name) for name in sorted(unexpected))
     for name in OUTPUT_FILES:
         path = output / name
