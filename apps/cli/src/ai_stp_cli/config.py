@@ -177,15 +177,15 @@ def _validate_document(document: Mapping[str, object], path: Path) -> None:
                 )
             continue
         if key not in sections:
-            raise _refused(f"unknown configuration key: {key}", path, key)
+            raise _refused("unknown configuration key", path, key)
         if not isinstance(value, dict):
-            raise _refused(f"configuration section {key} must be a mapping", path, key)
+            raise _refused("a configuration section must be a mapping", path, key)
         for inner, held in cast(dict[object, object], value).items():
             dotted = f"{key}.{inner}"
             if dotted not in declared:
-                raise _refused(f"unknown configuration key: {dotted}", path, dotted)
+                raise _refused("unknown configuration key", path, dotted)
             if isinstance(held, dict):
-                raise _refused(f"configuration value {dotted} must not be a mapping", path, dotted)
+                raise _refused("a configuration value must not be a mapping", path, dotted)
 
 
 def _refused(message: str, path: Path, at: str) -> CliFailure:
@@ -217,8 +217,11 @@ def effective_config(overrides: Mapping[str, str] | None = None) -> ConfigReport
     if unknown_override:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
-            f"unknown configuration key: {unknown_override[0]}",
-            details={"allowed": ", ".join(sorted(declared))},
+            "unknown configuration key",
+            details={
+                "key": ", ".join(unknown_override),
+                "allowed": ", ".join(sorted(declared)),
+            },
         )
 
     written = _dotted(document)
@@ -386,8 +389,8 @@ def _declared_or_refused(dotted: str) -> Field:
     if dotted not in declared:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
-            f"unknown configuration key: {dotted}",
-            details={"allowed": ", ".join(sorted(declared))},
+            "unknown configuration key",
+            details={"key": dotted, "allowed": ", ".join(sorted(declared))},
             next_actions=["config show --json"],
         )
     return declared[dotted]

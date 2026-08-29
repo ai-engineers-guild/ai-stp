@@ -56,9 +56,11 @@ def test_an_unknown_key_is_named_rather_than_ignored() -> None:
     # `SPEC-011` REQ-1115. A silently ignored key is how a user spends an
     # afternoon wondering why a setting has no effect.
     _write("catalogue:\n  enabled: false\n")
-    with pytest.raises(CliFailure, match="unknown configuration key: catalogue") as raised:
+    with pytest.raises(CliFailure, match="unknown configuration key") as raised:
         config.effective_config()
     assert raised.value.exit_code == 2
+    # The key is named where a caller reads it, not inside the sentence.
+    assert raised.value.details["at"] == "catalogue"
 
 
 def test_a_file_that_is_not_yaml_is_a_validation_error() -> None:
@@ -192,8 +194,9 @@ def test_an_unparseable_override_is_refused_rather_than_coerced(
 
 
 def test_an_override_of_an_undeclared_key_is_refused() -> None:
-    with pytest.raises(CliFailure, match=r"unknown configuration key: catalog\.colour"):
+    with pytest.raises(CliFailure, match="unknown configuration key") as raised:
         config.effective_config({"catalog.colour": "blue"})
+    assert raised.value.details["key"] == "catalog.colour"
 
 
 def test_rendering_folds_the_home_directory_away_but_reading_does_not(
@@ -315,8 +318,9 @@ def test_writing_an_undeclared_field_is_refused_before_the_file_is_touched() -> 
         lambda: config.set_values({"catalog.colour": "blue"}),
         lambda: config.unset_values(("catalog.colour",)),
     ):
-        with pytest.raises(CliFailure, match=r"unknown configuration key: catalog\.colour"):
+        with pytest.raises(CliFailure, match="unknown configuration key") as raised:
             call()
+        assert raised.value.details["key"] == "catalog.colour"
     assert config.config_path().read_bytes() == before
 
 

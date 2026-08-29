@@ -79,9 +79,10 @@ def invalid_parameters(error: ValidationError) -> CliFailure:
     named = ", ".join(fields)
     return CliFailure(
         "AI_STP_VALIDATION_ERROR",
-        f"a supplied value is not valid for this command: {named}"
-        if named
-        else "a supplied value is not valid for this command",
+        # The field names travel in `details`, which is where a caller reads
+        # them; interpolating them into the message put the one user-facing
+        # sentence outside the locale catalog for every possible field set.
+        "a supplied value is not valid for this command",
         details={"fields": named},
         next_actions=["help --agent --json"],
     )

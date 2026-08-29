@@ -681,6 +681,9 @@ def test_validating_a_broken_configuration_file_names_where_it_is() -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("catalog:\n  urll: https://elsewhere.test/v1\n", encoding="utf-8")
 
-    with pytest.raises(CliFailure, match=r"unknown configuration key: catalog\.urll") as raised:
+    # The sentence is one catalogued template and the key travels in `details`,
+    # where a caller reads it. Interpolating it put the only user-facing string
+    # outside the locale catalog once per possible key.
+    with pytest.raises(CliFailure, match="unknown configuration key") as raised:
         config_show.validate({})
     assert raised.value.details["at"] == "catalog.urll"
