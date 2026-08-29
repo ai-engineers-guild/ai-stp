@@ -31,6 +31,7 @@ import argparse
 import json
 import stat
 import subprocess
+import tempfile
 import zipfile
 from collections.abc import Sequence
 from io import BytesIO
@@ -80,6 +81,63 @@ def _tree(repository: str) -> tuple[str, list[dict[str, Any]]]:
     commit = _gh(f"repos/{ORGANISATION}/{repository}/commits/main", ".sha")
     raw = _gh(f"repos/{ORGANISATION}/{repository}/git/trees/main?recursive=1", ".tree")
     return commit, json.loads(raw)
+
+
+#: The asset every setup-system publishes for the platform this script runs on.
+#: Only Linux, and deliberately so: the point is to *ask* the provider, and a
+#: build host that cannot run it must say so rather than guess.
+LINUX_ASSET = "{name}-x86_64-unknown-linux-gnu"
+
+
+def _platform_support(repository: str) -> tuple[list[str], list[str]]:
+    """The operating systems and architectures the provider itself declares.
+
+    This was two literals — `["linux"]` and `["x86_64"]` — written into the
+    setup body below. All seven providers declare three systems and two
+    architectures, so every published setup understated its own platform support,
+    and it had done since the value was first typed. A value copied from a source
+    and never compared to it again: the same defect as the archived provenance
+    this builder exists to fix, one field along.
+
+    The repair is one fewer copy rather than one more check. There is no
+    fallback: a literal that stands in when the question cannot be asked is the
+    copy coming back.
+    """
+    with tempfile.TemporaryDirectory() as held:
+        directory = Path(held)
+        name = LINUX_ASSET.format(name=repository)
+        result = subprocess.run(
+            [
+                "gh",
+                "release",
+                "download",
+                "--repo",
+                f"{ORGANISATION}/{repository}",
+                "--pattern",
+                name,
+                "--dir",
+                str(directory),
+                "--clobber",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(f"{repository}: could not download {name}: {result.stderr.strip()}")
+        binary = directory / name
+        binary.chmod(0o755)
+        answer = subprocess.run(
+            [str(binary), "provider-info"], capture_output=True, text=True, check=False
+        )
+        if answer.returncode != 0:
+            raise RuntimeError(f"{repository}: provider-info failed: {answer.stderr.strip()}")
+        declared = json.loads(answer.stdout)
+    systems = [str(item) for item in declared["supported_os"]]
+    machines = [str(item) for item in declared["supported_arch"]]
+    if not systems or not machines:
+        raise RuntimeError(f"{repository}: provider-info declares an empty platform set")
+    return sorted(systems), sorted(machines)
 
 
 def _components(
@@ -220,6 +278,7 @@ def build(harnesses: Sequence[str], *, out: Path) -> dict[str, Any]:
         repository = REPOSITORIES[harness_id]
         commit, entries = _tree(repository)
         components, unrouted = _components(harness_id, entries)
+        systems, machines = _platform_support(repository)
         setup = next((item for item in entries if item["path"] == SETUP_PATH), None)
         if setup is None:
             raise RuntimeError(f"{repository} has no {SETUP_PATH}")
@@ -245,6 +304,8 @@ def build(harnesses: Sequence[str], *, out: Path) -> dict[str, Any]:
                 "evidence_ref": f"https://github.com/{ORGANISATION}/{repository}",
                 "harness_id": harness_id,
                 "repository": f"https://github.com/{ORGANISATION}/{repository}",
+                "supported_os": systems,
+                "supported_arch": machines,
                 "setup_blob": setup["sha"],
                 "setup_id": new_id("setup"),
                 "setup_path": SETUP_PATH,

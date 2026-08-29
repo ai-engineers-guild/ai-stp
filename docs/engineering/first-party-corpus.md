@@ -55,23 +55,30 @@ commit входят в адресуемый содержимым паспорт,
 
 | Харнесс | Source commit | Setup blob | Компонентов | Виды |
 |---|---|---|---:|---|
-| claude-code | `6125d13018981e3e4e10a80d26578efb8d322cb2` | `6829174c2c4adec189c6460fcce2f052a241a586` | 7 | agent 1, command 3, instruction 1, setting 1, skill 1 |
-| opencode | `8f74cdbacea1db164821bb513d72958273bb2c28` | `289ead7c5a204dcc4a6be130bbacc0e9889112b1` | 7 | agent 1, command 3, instruction 1, setting 1, skill 1 |
-| pi | `a57925465e642e393bc3c33bbd122713484a9338` | `129c37f42ce6b77a8646f41a2e0e59ceed58ba40` | 6 | command 3, instruction 1, setting 1, skill 1 |
-| codex | `285d747ff5e2adca2f4328b2e820c0a45e3fda2c` | `744a7eb0ddddfddafa1903dacb3dc9e1f30459be` | 5 | command 3, instruction 1, setting 1 |
-| grok-build | `f26ace5ea740cec17e81691d2f87767fc05cc884` | `ad85bcf2fc24401dead53c1507753fde3477af4c` | 4 | agent 1, instruction 1, setting 1, skill 1 |
-| antigravity | `24df47df6b13771f0df618f9ce89e116d801e5cf` | `474eae579d58a4d1935c9e62886ef9ada2eeadd9` | 2 | plugin 1, setting 1 |
-| cursor | `27dfe55652250838af034a73be96e067809ea7f2` | `2969fcc33b9a793bd44c6f438e8065aefb87045f` | 2 | plugin 1, setting 1 |
+| claude-code | `a529b61bfb5fac1c0c543654028dbdc7f5fbbdea` | `6829174c2c4adec189c6460fcce2f052a241a586` | 7 | agent 1, command 3, instruction 1, setting 1, skill 1 |
+| opencode | `7da6ffbdfbf83fac1451c177ebc695bd70b14de0` | `289ead7c5a204dcc4a6be130bbacc0e9889112b1` | 7 | agent 1, command 3, instruction 1, setting 1, skill 1 |
+| pi | `ed40936551b4db2f06181916be0fae8bf36cc99c` | `129c37f42ce6b77a8646f41a2e0e59ceed58ba40` | 6 | command 3, instruction 1, setting 1, skill 1 |
+| codex | `312b94b3a0b85b160ddce4687615169d34e23de0` | `744a7eb0ddddfddafa1903dacb3dc9e1f30459be` | 5 | command 3, instruction 1, setting 1 |
+| grok-build | `b3baa4baef43c7f87eb3771c70ac5b7634af538c` | `ad85bcf2fc24401dead53c1507753fde3477af4c` | 4 | agent 1, instruction 1, setting 1, skill 1 |
+| antigravity | `0e5c1d6b4dbd86c72cde7ab98ed778a0927b8501` | `474eae579d58a4d1935c9e62886ef9ada2eeadd9` | 2 | plugin 1, setting 1 |
+| cursor | `b9d879d6b8d582e2e43bd1545fe7c29d6750bb69` | `2969fcc33b9a793bd44c6f438e8065aefb87045f` | 2 | plugin 1, setting 1 |
 
 | Сетап | ID | Passport digest |
 |---|---|---|
-| antigravity | `setup_01M158TQB3XDEETKKZNFM7754F` | `sha256:46004a48d18dd6a0f54654fd27eeccbc9a3f79993fe99fe8172a9cc1edf8ff8b` |
-| claude-code | `setup_01M158TZVSBDWK6DHCMDKHPXZ9` | `sha256:6e70bc7e47cc236b4837079581242b305ae704975845fc4efa714285ed74ece9` |
-| codex | `setup_01M158V40SW3SQJZMPACNCSBXZ` | `sha256:3d7cd12eefb79f0009590bf772015d2d87202944e3bfefeb0fcb8316eb5e63b7` |
-| cursor | `setup_01M158VJXC9W3HVRV1Q1H5S2JJ` | `sha256:84f2dd5a11e5772c239dd57ee0e64a5d8a376dfad527119f4e0d2aac9232a4b5` |
-| grok-build | `setup_01M158VTFDEEZJBCCJV157FE6Z` | `sha256:537939ad06bf62a689d0df21c388fe3e5ba57e02cb86b68cd18e521935dbbc41` |
-| opencode | `setup_01M158W3JTBSYYC69AAGZR1A01` | `sha256:d455dcacbd42f01583ff9b84a052ba510cb4316bcfc1b9d8c375afe774e4a322` |
-| pi | `setup_01M158WBQXMNQSSVXMF0J792ZY` | `sha256:89fb3c5388e01076bc739a5d69d2ffb9a25ae92aed4884d264661343bca2d1c4` |
+| antigravity | `setup_01M15CGRYS25M43Y9T3EQKXX03` | `sha256:87ece26fbf315c5586bfc9831cfafaa35442b4d386ecf427ddc341e62ef790d8` |
+| claude-code | `setup_01M15CH37CNF7VVFAWXYH37EMG` | `sha256:150633a00c088a432b35361c27a4c8dd2b563b5866d3a0b4eb117be9fedad4da` |
+| codex | `setup_01M15CH8YBY8HGW164AK3F5VET` | `sha256:d300299ed838bd565c7da49fc69d783fe83d883a6a0cfb7b9592e87828d29ae1` |
+| cursor | `setup_01M15CHSX8HBHSPE6K8VECMRAM` | `sha256:5eccf8ddab1588edb3f781c47ef074d3e10c593b8f2892d8ad8cc1125432b9c5` |
+| grok-build | `setup_01M15CJ310025WJ0GCK4YVCVYD` | `sha256:ccea0292ddee92aef51aad0baf976e13044fd3cc54e97c7bc5207c2a32ffdfd4` |
+| opencode | `setup_01M15CJDMFG6642BXGVGGHX39P` | `sha256:87b579944978a8aa1b9210a78f58d3af69336f8d1951d8084bada6d83e81eb8e` |
+| pi | `setup_01M15CJPY4MZ68HS6T4Q915N7D` | `sha256:406ab3a1ae2269108010d0ac8ac711a46251d97213136ae333a54befd7ae9233` |
+
+Платформенный набор каждого сетапа — три ОС и две архитектуры — **спрошен у
+выпущенного бинаря провайдера** при сборке, а не записан литералом. До
+2026-08-29 здесь стояли `["linux"]` и `["x86_64"]`, и каждый опубликованный
+сетап занижал собственную поддержку у всех семи сразу. Запасного значения в
+сборщике нет намеренно: литерал, подставляемый когда вопрос задать не удалось,
+и есть возвращение копии.
 
 Точные подпути, Git object SHA, стабильные ID и **путь проекции** каждого
 компонента принадлежат `first_party/v1/corpus-sources.json`. Контрактный тест

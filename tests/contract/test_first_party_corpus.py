@@ -140,6 +140,41 @@ def test_the_corpus_projects_where_the_compiler_projects() -> None:
         assert passport.projection_kind == rule.projection_kind
 
 
+def test_a_setup_publishes_the_platform_set_its_provider_declared() -> None:
+    """The claim came from a literal until 2026-08-29 and understated all seven.
+
+    `"supported_os": ["linux"]` and `"supported_arch": ["x86_64"]` were written
+    into the setup body, while every one of the seven providers declares three
+    operating systems and two architectures. So each published setup told a
+    reader it could not be installed on the two systems it works on — for as
+    long as the value had existed, because nothing ever compared it to the
+    provider that owns it.
+
+    The builder now asks the released binary and records the answer beside the
+    commit; this is what stops the literal coming back. There is deliberately no
+    fallback in the builder: a default that stands in when the question cannot be
+    asked is the copy returning under another name.
+    """
+    document = json.loads(
+        files("ai_stp_contracts.first_party").joinpath("v1/corpus-sources.json").read_bytes()
+    )
+    declared = {
+        item["harness_id"]: (tuple(item["supported_os"]), tuple(item["supported_arch"]))
+        for item in document["harnesses"]
+    }
+    assert set(declared) == set(REPOSITORIES)
+
+    for item in versions():
+        if item.kind != "setup":
+            continue
+        passport = item.passport
+        assert isinstance(passport, SetupVersionPassport)
+        systems, machines = declared[passport.harness_id]
+        assert tuple(passport.supported_os) == systems, passport.harness_id
+        assert tuple(passport.supported_arch) == machines, passport.harness_id
+        assert systems and machines
+
+
 def test_one_version_because_every_object_here_is_new() -> None:
     """Three per-family version constants stood here and are gone with their objects.
 

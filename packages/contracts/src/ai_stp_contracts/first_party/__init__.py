@@ -79,6 +79,12 @@ class _HarnessSource(BaseModel):
     setup_path: str
     setup_blob: str
     evidence_ref: str
+    #: What the provider declares, asked of the released binary at build time.
+    #: These were `["linux"]` and `["x86_64"]` written into the setup body until
+    #: 2026-08-29, understating all seven at once — every provider declares three
+    #: systems and two architectures.
+    supported_os: tuple[str, ...]
+    supported_arch: tuple[str, ...]
     components: tuple[_ComponentSource, ...]
 
 
@@ -297,8 +303,8 @@ def _setup(source: _HarnessSource, components: tuple[FirstPartyVersion, ...]) ->
                 "related_setup_ids": [],
                 "execution_profile": "full-auto",
                 "supported_harness_versions": [],
-                "supported_os": ["linux"],
-                "supported_arch": ["x86_64"],
+                "supported_os": list(source.supported_os),
+                "supported_arch": list(source.supported_arch),
                 "composition_report_ref": source.evidence_ref,
                 "conversion_report_ref": source.evidence_ref,
                 "install_evidence_ref": source.evidence_ref,
