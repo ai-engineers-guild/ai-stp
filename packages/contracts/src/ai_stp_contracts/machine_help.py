@@ -1207,6 +1207,11 @@ class ConsentRecord(BaseModel):
     revoked_at: str | None = None
     fingerprint: dict[str, JsonValue] = {}
 
+    #: The objects the fingerprint was taken from. Empty means the record
+    #: observed no shape at all, which is not the same as a shape that needed
+    #: nothing, and does not cover anything.
+    observed: list[str] = []
+
 
 class ConsentSummary(BaseModel):
     """Every consent still in force."""

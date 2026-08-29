@@ -14,7 +14,16 @@ import pytest
 
 from ai_stp_cli.commands import select
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import cache, content, passports, project_passport, revisions, versions
+from ai_stp_cli.local import (
+    acquired_trust,
+    cache,
+    consent,
+    content,
+    passports,
+    project_passport,
+    revisions,
+    versions,
+)
 from ai_stp_cli.local.database import configured_path, open_readonly, open_registry
 from ai_stp_cli.local.passports import owner
 from ai_stp_cli.paths import data_dir
@@ -1247,3 +1256,124 @@ def test_a_named_version_is_assessed_by_its_own_declared_facts(
         {"harness": "claude-code", "project": str(tmp_path), "member": [f"{stable_id}@1.0"]}
     ).payload
     assert session.proposals
+
+
+# --- durable consent at eligibility (#447) --------------------------------
+
+
+def _acquired(connection: sqlite3.Connection, suffix: str, **facts: str) -> str:
+    """An object the catalogue handed over: somebody else's, and unverified.
+
+    This is the only shape that reaches the `experimental` lane, and until the
+    first half of `#447` nothing could: `_candidates` claimed `owned_or_pinned`
+    for every local row, so an acquired object was treated as the user's own.
+    """
+    stable_id = f"component_01J0000000000000000000000{suffix}"
+    connection.execute(
+        "INSERT INTO entity (stable_id, kind, created_at) VALUES (?, 'component', ?)",
+        (stable_id, MOMENT),
+    )
+    document: dict[str, Any] = {
+        "schema_version": 1,
+        "kind": "component",
+        "stable_id": stable_id,
+        "owner_id": "account_01J00000000000000000000FAR",
+        "version": "1.0",
+        "created_at": MOMENT,
+        "visibility": "public",
+        "parent_revision_ids": [],
+        "license_id": "MIT",
+        "facts": {
+            name: {
+                "value": value,
+                "origin": "observed",
+                "confirmation": "none",
+                "observed_at": MOMENT,
+            }
+            for name, value in (
+                ("harness_id", "claude-code"),
+                ("component_type", "skill"),
+                *facts.items(),
+            )
+        },
+    }
+    revisions.commit(connection, document, device_id=DEVICE)
+    acquired_trust.record(
+        connection,
+        stable_id=stable_id,
+        version="1.0",
+        passport_digest="sha256:" + "0" * 64,
+        verdict=acquired_trust.Verdict(
+            trust_lane="experimental", author_verified=False, component_verified=False
+        ),
+        at=MOMENT,
+    )
+    connection.commit()
+    return stable_id
+
+
+def _codes(report: EligibilityReport, stable_id: str) -> set[str]:
+    for candidate in report.candidates:
+        if candidate.stable_id == stable_id:
+            return {refusal.code for refusal in candidate.refusals}
+    raise AssertionError(f"{stable_id} is not in the report")
+
+
+def test_an_acquired_object_without_consent_is_refused_by_name(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    stable_id = _acquired(registry, "C")
+    assert "unverified_without_consent" in _codes(_report(tmp_path), stable_id)
+
+
+def test_a_durable_consent_admits_an_acquired_object_without_making_it_automatic(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """The ticket's own proof: consent admits, and admits is not selects.
+
+    `select propose` has no `--include-unverified` and read no records, so this
+    refusal was unreachable by any means — a durable consent could be granted,
+    listed, and had no effect on the one path it exists for.
+    """
+    stable_id = _acquired(registry, "D")
+    consent.grant(
+        registry,
+        consent_id="request_01J00000000000000000000CNS",
+        scope=consent.SCOPE_PUBLISHER,
+        target="account_01J00000000000000000000FAR",
+        fingerprint=consent.fingerprint_of({}),
+        observed=(stable_id,),
+        decided_by=owner().account_id,
+        origin="component consent allow",
+        at=MOMENT,
+    )
+    registry.commit()
+
+    report = _report(tmp_path)
+    assert "unverified_without_consent" not in _codes(report, stable_id)
+    only = next(item for item in report.candidates if item.stable_id == stable_id)
+    assert only.lane == "experimental"
+    # Consent never promotes: `ADR-0016` keeps an experimental candidate out of
+    # automatic selection whatever the user agreed to.
+    assert not only.auto_selectable
+
+
+def test_a_permission_grown_since_the_consent_is_refused_and_the_field_named(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    stable_id = _acquired(registry, "F", network_permissions="collect.elsewhere.test")
+    consent.grant(
+        registry,
+        consent_id="request_01J00000000000000000000GRW",
+        scope=consent.SCOPE_PUBLISHER,
+        target="account_01J00000000000000000000FAR",
+        # The shape agreed to had no network permission; the object now asks
+        # for one. That is the contract's revoking event, by name.
+        fingerprint=consent.fingerprint_of({}),
+        observed=(stable_id,),
+        decided_by=owner().account_id,
+        origin="component consent allow",
+        at=MOMENT,
+    )
+    registry.commit()
+    assert "unverified_without_consent" in _codes(_report(tmp_path), stable_id)

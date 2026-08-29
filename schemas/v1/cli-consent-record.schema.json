@@ -60,6 +60,14 @@
       "title": "Fingerprint",
       "type": "object"
     },
+    "observed": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Observed",
+      "type": "array"
+    },
     "origin": {
       "minLength": 1,
       "title": "Origin",
@@ -102,6 +110,7 @@
     "created_at",
     "decided_by",
     "fingerprint",
+    "observed",
     "origin",
     "revoked_at",
     "schema_version",

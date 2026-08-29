@@ -34,6 +34,7 @@ from ai_stp_cli.local import (
     bundle,
     components,
     composition,
+    consent,
     content,
     eligibility,
     graph,
@@ -139,7 +140,7 @@ def eligible(parameters: Mapping[str, object]) -> Answer[EligibilityReport]:
             owner_id=_registry_owner_id(connection),
         )
         assessed = eligibility.assess_all(
-            _candidates(connection, consented=bool(parameters.get("include-unverified"))),
+            _candidates(connection, flagged=bool(parameters.get("include-unverified"))),
             target,
         )
         return _eligibility_report(target, assessed)
@@ -189,12 +190,12 @@ def eligible_everywhere(parameters: Mapping[str, object]) -> Answer[EligibilityM
     root = Path(str(parameters.get("project") or Path.cwd()))
     registry = configured_path()
     redistribution = bool(parameters.get("for-redistribution"))
-    consented = bool(parameters.get("include-unverified"))
+    flagged = bool(parameters.get("include-unverified"))
 
     def rows(connection: sqlite3.Connection | None) -> list[EligibilityReport]:
         owner = _registry_owner_id(connection) if connection is not None else ""
         held: tuple[eligibility.CandidateFacts, ...] = (
-            () if connection is None else _candidates(connection, consented=consented)
+            () if connection is None else _candidates(connection, flagged=flagged)
         )
         reports: list[EligibilityReport] = []
         for harness in requested:
@@ -364,7 +365,7 @@ def _version_of(found: harnesses.Found) -> str:
 def _candidates(
     connection: sqlite3.Connection,
     *,
-    consented: bool,
+    flagged: bool = False,
     at_version: Mapping[str, str] | None = None,
 ) -> tuple[eligibility.CandidateFacts, ...]:
     """Every locally registered object, as the constraint engine sees it.
@@ -386,6 +387,13 @@ def _candidates(
     `at_version` names the revision to assess for the objects a caller is asking
     about. Anything not named is still read at its head, because that is what
     `select eligibility` without arguments is asking about.
+
+    `flagged` is the per-command `--include-unverified`, and it belongs to
+    `select eligibility` alone: `select propose` has no such flag, because
+    proposing is a step towards installing and only a durable decision should
+    carry it. Durable records are read either way, and **per candidate** — one
+    boolean for the whole set could not express consent given to one publisher,
+    which is the only kind the contract defines.
     """
     rows = connection.execute(
         "SELECT stable_id FROM entity WHERE kind IN ('component', 'setup')"
@@ -403,6 +411,13 @@ def _candidates(
         )
         document = cast(dict[str, JsonValue], stored.envelope.model_dump(mode="json"))
         facts = cast(dict[str, JsonValue], document.get("facts") or {})
+        agreed = consent.consulted(
+            connection,
+            stable_id=stored.stable_id,
+            owner_id=str(document.get("owner_id") or ""),
+            version=str(document.get("version") or ""),
+            capabilities={name: _value(fact) for name, fact in facts.items()},
+        )
         held.append(
             eligibility.CandidateFacts(
                 stable_id=stored.stable_id,
@@ -435,7 +450,14 @@ def _candidates(
                 author_verified=verdict.author_verified if verdict else False,
                 component_verified=verdict.component_verified if verdict else False,
                 registrable=lifecycle.registrable(connection, stored),
-                consented=consented,
+                consented=flagged or agreed.covered,
+                consent_source=(
+                    agreed.source
+                    if agreed.covered
+                    else "request flag, for this command only"
+                    if flagged
+                    else ""
+                ),
             )
         )
     return tuple(held)
@@ -724,9 +746,7 @@ def _resolve(
     # declared facts — and did, until 2026-08-29.
     assessed = {
         item.stable_id: item
-        for item in eligibility.assess_all(
-            _candidates(connection, consented=False, at_version=dict(named)), target
-        )
+        for item in eligibility.assess_all(_candidates(connection, at_version=dict(named)), target)
     }
 
     members: list[selection.Member] = []

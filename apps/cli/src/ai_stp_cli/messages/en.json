@@ -139,6 +139,7 @@
   "no plan with that operation identifier is recorded": "no plan with that operation identifier is recorded",
   "no proposal with that identifier is held by this session": "no proposal with that identifier is held by this session",
   "no provider executable sits at that path": "no provider executable sits at that path",
+  "no registered object matches that target, so there is no shape to consent to": "no registered object matches that target, so there is no shape to consent to",
   "no regular provider attestation bundle sits at that path": "no regular provider attestation bundle sits at that path",
   "no regular provider release manifest sits at that path": "no regular provider release manifest sits at that path",
   "no release manifest sits at that path": "no release manifest sits at that path",

@@ -139,6 +139,7 @@
   "no plan with that operation identifier is recorded": "план с таким идентификатором операции не записан",
   "no proposal with that identifier is held by this session": "это сеанс не держит предложение с таким идентификатором",
   "no provider executable sits at that path": "по этому пути нет исполняемого файла провайдера",
+  "no registered object matches that target, so there is no shape to consent to": "нет зарегистрированного объекта под эту цель, поэтому согласовывать нечего",
   "no regular provider attestation bundle sits at that path": "по этому пути нет обычного файла provider attestation bundle",
   "no regular provider release manifest sits at that path": "по этому пути нет обычного манифеста выпуска провайдера",
   "no release manifest sits at that path": "по этому пути нет манифеста выпуска",

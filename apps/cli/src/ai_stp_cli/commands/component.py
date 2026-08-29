@@ -483,15 +483,30 @@ def consent_allow(parameters: Mapping[str, object]) -> Answer[ConsentRecord]:
         )
 
     def work(connection: sqlite3.Connection) -> ConsentRecord:
+        # The contract asks for "the fingerprint of the candidate at the moment
+        # of consent", so the shape is read from the objects the target
+        # actually covers right now. It used to record `fingerprint_of({})`
+        # regardless, which is not an empty ceiling but no observation at all —
+        # and compared as a ceiling it refused every candidate needing
+        # anything, which is every candidate worth consenting to.
+        seen = _covered_by(connection, scope=str(scope), target=str(target))
+        if not seen:
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "no registered object matches that target, so there is no shape to consent to",
+                details={
+                    "scope": str(scope),
+                    "target": str(target),
+                    "remedy": "acquire or register the object first, then record the consent",
+                },
+            )
         record = consent.grant(
             connection,
             consent_id=new_id("request"),
             scope=str(scope),
             target=str(target),
-            # Nothing has been selected yet, so the fingerprint starts empty and
-            # every later candidate reads as an expansion. Failing towards
-            # asking the user again is the safe direction.
-            fingerprint=consent.fingerprint_of({}),
+            fingerprint=consent.ceiling_of(tuple(fields for _, fields in seen)),
+            observed=tuple(stable_id for stable_id, _ in seen),
             decided_by=owner().account_id,
             origin="component consent allow",
             at=moment(),
@@ -500,6 +515,28 @@ def consent_allow(parameters: Mapping[str, object]) -> Answer[ConsentRecord]:
 
     with closing(open_registry(configured_path(), create=True)) as connection:
         return Answer(work(connection))
+
+
+def _covered_by(
+    connection: sqlite3.Connection, *, scope: str, target: str
+) -> tuple[tuple[str, dict[str, JsonValue]], ...]:
+    """The registered objects a consent target names, with their capabilities.
+
+    One reader for both scopes: a `publisher` target names every object with
+    that owner, an `object_major` target names one object's major line. Reading
+    the same candidates search does keeps "what you were shown" and "what you
+    consented to" the same set.
+    """
+    found: list[tuple[str, dict[str, JsonValue]]] = []
+    for candidate in _candidates(connection):
+        if scope == consent.SCOPE_PUBLISHER:
+            if candidate.owner_id and candidate.owner_id == target:
+                found.append((candidate.stable_id, candidate.fields))
+            continue
+        major = consent.major_of(candidate.version)
+        if major is not None and f"{candidate.stable_id}@{major}" == target:
+            found.append((candidate.stable_id, candidate.fields))
+    return tuple(found)
 
 
 def consent_revoke(parameters: Mapping[str, object]) -> Answer[ConsentRecord]:
@@ -549,6 +586,7 @@ def _record(record: consent.Record) -> ConsentRecord:
         created_at=record.created_at,
         revoked_at=record.revoked_at,
         fingerprint=record.fingerprint,
+        observed=list(record.observed),
     )
 
 
@@ -778,6 +816,8 @@ def _candidates(connection: sqlite3.Connection) -> tuple[search.Candidate, ...]:
                 stable_id=stored.stable_id,
                 revision_id=stored.revision_id,
                 fields={name: _value(fact) for name, fact in facts.items()},
+                owner_id=str(document.get("owner_id") or ""),
+                version=str(document.get("version") or ""),
                 owned_or_pinned=verdict is None,
                 author_verified=verdict.author_verified if verdict else False,
                 component_verified=verdict.component_verified if verdict else False,

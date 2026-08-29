@@ -20,7 +20,7 @@ returning a trust lane.
 import json
 import sqlite3
 from dataclasses import dataclass
-from typing import Final
+from typing import Final, cast
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_foundation.canonical import JsonValue, canonize
@@ -53,6 +53,15 @@ class Record:
     scope: str
     target: str
     fingerprint: dict[str, JsonValue]
+
+    #: The objects whose capabilities the fingerprint was taken from, at the
+    #: moment of consent. Empty is a distinct fact from "they needed nothing":
+    #: a record made before any covered object existed has observed no shape,
+    #: and `covers` refuses it rather than treating an empty ceiling as a
+    #: ceiling. The contract asks for the fingerprint *of the candidate*, so a
+    #: record with no candidate behind it is incomplete, not permissive.
+    observed: tuple[str, ...]
+
     decided_by: str
     origin: str
     created_at: str
@@ -94,6 +103,7 @@ def grant(
     scope: str,
     target: str,
     fingerprint: dict[str, JsonValue],
+    observed: tuple[str, ...],
     decided_by: str,
     origin: str,
     at: str,
@@ -119,11 +129,13 @@ def grant(
     connection.execute(
         """
         INSERT INTO consent
-            (consent_id, scope, target, fingerprint, decided_by, origin, created_at, revoked_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, NULL)
+            (consent_id, scope, target, fingerprint, observed,
+             decided_by, origin, created_at, revoked_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL)
         ON CONFLICT (scope, target) DO UPDATE SET
             consent_id = excluded.consent_id,
             fingerprint = excluded.fingerprint,
+            observed = excluded.observed,
             decided_by = excluded.decided_by,
             origin = excluded.origin,
             created_at = excluded.created_at,
@@ -134,6 +146,7 @@ def grant(
             scope,
             target,
             canonize(fingerprint).decode("utf-8"),
+            canonize(cast(JsonValue, sorted(observed))).decode("utf-8"),
             decided_by,
             origin,
             at,
@@ -189,6 +202,13 @@ def covers(record: Record, candidate: dict[str, JsonValue], *, major: int | None
     if not record.active:
         return Verdict(False, "the consent was withdrawn")
 
+    if not record.observed:
+        return Verdict(
+            False,
+            "the consent was recorded before any object of this target was known, "
+            "so the shape it would cover was never observed",
+        )
+
     if record.scope == SCOPE_OBJECT_MAJOR and major is not None:
         _, _, recorded = record.target.rpartition("@")
         if recorded and recorded != str(major):
@@ -213,6 +233,98 @@ def covers(record: Record, candidate: dict[str, JsonValue], *, major: int | None
     return Verdict(True, f"covered by the {record.scope} consent recorded at {record.created_at}")
 
 
+def ceiling_of(capabilities: tuple[dict[str, JsonValue], ...]) -> dict[str, JsonValue]:
+    """The union of several candidates' fingerprints, as one recorded shape.
+
+    The contract asks for "the fingerprint of the candidate at the moment of
+    consent", and a `publisher` record covers more than one candidate. The
+    honest generalisation is the union of what those objects need *now*: the
+    user is agreeing to everything the target currently asks for, and anything
+    beyond it is the revoking event the contract describes.
+
+    Taking the union rather than the intersection is deliberate. An
+    intersection would refuse objects the user could plainly see when they
+    agreed, and re-asking about something already shown is not caution.
+    """
+    merged: dict[str, JsonValue] = {}
+    for name in FINGERPRINT_FIELDS:
+        wanted: set[str] = set()
+        for capability in capabilities:
+            wanted |= set(_as_set(capability.get(name)))
+        merged[name] = cast(JsonValue, sorted(wanted))
+    return merged
+
+
+def major_of(version: str) -> int | None:
+    """The major line of an `X.Y` version, or `None` when there is not one."""
+    major, _, _ = version.partition(".")
+    return int(major) if major.isdigit() else None
+
+
+@dataclass(frozen=True)
+class Consultation:
+    """What the durable records say about one candidate, and which one said it."""
+
+    covered: bool
+    reason: str
+
+    #: The record that decided, as `scope:target`. Empty when none applied —
+    #: the outcome the trail and the install plan record as "no durable
+    #: consent", distinct from "a record refused".
+    source: str = ""
+
+    changed: tuple[str, ...] = ()
+
+
+def consulted(
+    connection: sqlite3.Connection,
+    *,
+    stable_id: str,
+    owner_id: str,
+    version: str,
+    capabilities: dict[str, JsonValue],
+) -> Consultation:
+    """Whether any durable record covers this candidate, and on what basis.
+
+    The two scopes are consulted most specific first: a record naming this
+    object's major line answers before one naming its publisher, because the
+    user who wrote the narrower one was being more precise, and letting the
+    broader record overrule it would make the narrower one unwritable.
+
+    Until 2026-08-29 nothing called this, under either scope. `search` asked
+    for a `publisher_of` mapping that no caller ever passed, so the publisher
+    was always unknown and the lookup always missed; `object_major` had no
+    reader at all, and `covers` took a `major` argument nobody supplied. The
+    records were writable, listable and inert — which reads from the outside
+    exactly like consent being refused on purpose.
+    """
+    major = major_of(version)
+    tried: list[tuple[str, Record]] = []
+    if major is not None:
+        narrow = held(connection, scope=SCOPE_OBJECT_MAJOR, target=f"{stable_id}@{major}")
+        if narrow is not None:
+            tried.append((SCOPE_OBJECT_MAJOR, narrow))
+    if owner_id:
+        broad = held(connection, scope=SCOPE_PUBLISHER, target=owner_id)
+        if broad is not None:
+            tried.append((SCOPE_PUBLISHER, broad))
+
+    if not tried:
+        return Consultation(False, "no durable consent record covers this candidate")
+
+    refusal: Consultation | None = None
+    for scope, record in tried:
+        verdict = covers(record, capabilities, major=major)
+        if verdict.covered:
+            return Consultation(True, verdict.reason, f"{scope}:{record.target}")
+        if refusal is None:
+            refusal = Consultation(
+                False, verdict.reason, f"{scope}:{record.target}", verdict.changed
+            )
+    assert refusal is not None
+    return refusal
+
+
 def _as_set(value: JsonValue) -> frozenset[str]:
     """A fingerprint field as a comparable set, whatever shape it arrived in."""
     if isinstance(value, list):
@@ -225,11 +337,13 @@ def _as_set(value: JsonValue) -> frozenset[str]:
 def _decode(row: sqlite3.Row) -> Record:
     decoded: JsonValue = json.loads(str(row["fingerprint"]))
     held_fingerprint: dict[str, JsonValue] = decoded if isinstance(decoded, dict) else {}
+    seen: JsonValue = json.loads(str(row["observed"]))
     return Record(
         consent_id=str(row["consent_id"]),
         scope=str(row["scope"]),
         target=str(row["target"]),
         fingerprint=held_fingerprint,
+        observed=tuple(str(item) for item in seen) if isinstance(seen, list) else (),
         decided_by=str(row["decided_by"]),
         origin=str(row["origin"]),
         created_at=str(row["created_at"]),

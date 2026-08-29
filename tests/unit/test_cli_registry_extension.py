@@ -20,6 +20,11 @@ MOMENT = "2026-08-07T10:00:00.000Z"
 LATER = "2026-08-07T11:00:00.000Z"
 OWNER = "account_01J0000000000000000000000A"
 
+#: What the consent records below observed. Any identity will do — what
+#: matters is that it is not empty: a record that observed nothing has no
+#: ceiling to compare against and covers nothing at all.
+SEEN = "component_01J0000000000000000000SEEN"
+
 
 @pytest.fixture
 def registry() -> Iterator[sqlite3.Connection]:
@@ -338,6 +343,7 @@ def test_a_consent_records_the_shape_the_candidate_had(registry: sqlite3.Connect
         consent_id="request_01J0000000000000000000000N",
         scope=consent.SCOPE_PUBLISHER,
         target="publisher/acme",
+        observed=(SEEN,),
         fingerprint=consent.fingerprint_of(_capabilities(network_permissions=["api.acme.test"])),  # pyright: ignore[reportArgumentType]
         decided_by=OWNER,
         origin="registry search",
@@ -371,6 +377,7 @@ def test_a_candidate_asking_for_more_than_recorded_is_no_longer_covered() -> Non
         consent_id="request_01J0000000000000000000000P",
         scope=consent.SCOPE_PUBLISHER,
         target="publisher/acme",
+        observed=(SEEN,),
         fingerprint=consent.fingerprint_of(_capabilities(network_permissions=["api.acme.test"])),  # pyright: ignore[reportArgumentType]
         decided_by=OWNER,
         origin="registry search",
@@ -396,6 +403,7 @@ def test_a_candidate_asking_for_less_stays_covered() -> None:
         consent_id="request_01J0000000000000000000000Q",
         scope=consent.SCOPE_PUBLISHER,
         target="publisher/acme",
+        observed=(SEEN,),
         fingerprint=consent.fingerprint_of(
             _capabilities(network_permissions=["a.test", "b.test"], process_permissions=["spawn"])  # pyright: ignore[reportArgumentType]
         ),
@@ -414,6 +422,7 @@ def test_a_new_major_line_is_not_covered_by_the_previous_ones_consent() -> None:
         consent_id="request_01J0000000000000000000000R",
         scope=consent.SCOPE_OBJECT_MAJOR,
         target="component_01J0000000000000000000000S@2",
+        observed=(SEEN,),
         fingerprint=consent.fingerprint_of({}),
         decided_by=OWNER,
         origin="registry show",
@@ -434,6 +443,7 @@ def test_revoking_takes_effect_immediately_and_leaves_the_record(
         consent_id="request_01J0000000000000000000000T",
         scope=consent.SCOPE_PUBLISHER,
         target="publisher/acme",
+        observed=(SEEN,),
         fingerprint=consent.fingerprint_of({}),
         decided_by=OWNER,
         origin="registry search",
@@ -458,6 +468,7 @@ def test_re_granting_replaces_the_record_rather_than_adding_a_second(
             consent_id=f"request_01J000000000000000000000{moment[-3]}0",
             scope=consent.SCOPE_PUBLISHER,
             target="publisher/acme",
+            observed=(SEEN,),
             fingerprint=consent.fingerprint_of(_capabilities(network_permissions=hosts)),  # pyright: ignore[reportArgumentType]
             decided_by=OWNER,
             origin="registry search",
@@ -478,6 +489,7 @@ def test_re_granting_a_revoked_target_makes_it_active_again(
         "scope": consent.SCOPE_PUBLISHER,
         "target": "publisher/acme",
         "fingerprint": consent.fingerprint_of({}),
+        "observed": (SEEN,),
         "decided_by": OWNER,
         "origin": "registry search",
     }
@@ -511,6 +523,7 @@ def test_a_consent_that_covers_nothing_definite_is_refused(
             scope=scope,
             target=target,
             fingerprint={},
+            observed=(SEEN,),
             decided_by=OWNER,
             origin="registry search",
             at=MOMENT,
@@ -527,6 +540,7 @@ def test_a_fingerprint_field_written_as_a_bare_value_still_compares(
         consent_id="request_01J0000000000000000000000Y",
         scope=consent.SCOPE_PUBLISHER,
         target="publisher/acme",
+        observed=(SEEN,),
         fingerprint={"network_permissions": "a.test", "external_endpoints": None},
         decided_by=OWNER,
         origin="sync",
@@ -545,6 +559,7 @@ def test_a_corrupt_fingerprint_reads_as_empty_rather_than_raising(
         consent_id="request_01J0000000000000000000000Z",
         scope=consent.SCOPE_PUBLISHER,
         target="publisher/acme",
+        observed=(SEEN,),
         fingerprint=consent.fingerprint_of({}),
         decided_by=OWNER,
         origin="registry search",
@@ -667,6 +682,7 @@ def test_growth_in_any_declared_field_revokes_coverage(field: str) -> None:
         consent_id="request_01J00000000000000000000080",
         scope=consent.SCOPE_PUBLISHER,
         target="publisher/acme",
+        observed=(SEEN,),
         fingerprint=consent.fingerprint_of({}),
         decided_by=OWNER,
         origin="registry search",
@@ -688,6 +704,7 @@ def test_a_consent_records_the_actor_the_moment_and_where_it_was_given(
         consent_id="request_01J00000000000000000000081",
         scope=consent.SCOPE_OBJECT_MAJOR,
         target="component_01J00000000000000000000082@1",
+        observed=(SEEN,),
         fingerprint=consent.fingerprint_of({"network_permissions": ["a.test"]}),
         decided_by=OWNER,
         origin="registry show",

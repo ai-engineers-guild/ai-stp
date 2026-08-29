@@ -745,6 +745,24 @@ MIGRATIONS: Final[tuple[Migration, ...]] = (
         ),
         down=("DROP TABLE acquired_trust",),
     ),
+    Migration(
+        version=25,
+        summary="record what a consent fingerprint was taken from",
+        up=(
+            # A fingerprint of `{}` cannot be told apart from a fingerprint of
+            # objects that genuinely need nothing, and the two must not decide
+            # the same way: the first has observed no shape and has to ask
+            # again, the second is a real ceiling. So the record now carries the
+            # identities it was taken from.
+            #
+            # Existing rows get `[]` and therefore stop covering. That is the
+            # safe direction and costs nothing real: every row written before
+            # this migration held `fingerprint_of({})`, which already refused
+            # every candidate needing anything at all.
+            "ALTER TABLE consent ADD COLUMN observed TEXT NOT NULL DEFAULT '[]'",
+        ),
+        down=("ALTER TABLE consent DROP COLUMN observed",),
+    ),
 )
 
 #: Names for nested savepoints. A counter rather than a fixed name: two nested

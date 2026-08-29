@@ -52,7 +52,7 @@ last_verified: "2026-08-03"
 | [setup-store-ports.md](setup-store-ports.md) | Контракт локального обнаружения, preview и импорта компонентов из SX и APM. | 2026-08-13 |
 | [sync-event.md](sync-event.md) | Поля, ответы, повтор и конфликты события синхронизации. | 2026-08-15 |
 | [tag-vocabulary.md](tag-vocabulary.md) | Формат словаря тегов, нормализация, предел и поведение поиска. | 2026-08-04 |
-| [unverified-consent.md](unverified-consent.md) | Сеансовый признак согласия на непроверенное и долговечные записи исключений по издателю и основной линии. | 2026-08-04 |
+| [unverified-consent.md](unverified-consent.md) | Сеансовый признак согласия на непроверенное и долговечные записи исключений по издателю и основной линии. | 2026-08-29 |
 | [validation-policy.md](validation-policy.md) | Обязательные проверки по видам компонентов, классам MCP и сетапу. | 2026-08-23 |
 | [web-cookie-consent.md](web-cookie-consent.md) | Категории cookies и правило запуска необязательных интеграций Web. | 2026-08-22 |
 | [web-machine-projection.md](web-machine-projection.md) | Поля машинного документа web, парные URL и запрет утечек. | 2026-08-16 |

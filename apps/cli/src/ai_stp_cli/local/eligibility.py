@@ -252,9 +252,14 @@ class CandidateFacts:
     owned_or_pinned: bool = False
 
     #: Whether a consent — request flag or durable record — covers this
-    #: candidate. Decided by `consent.covers` before it gets here; this engine
-    #: does not re-derive it, it only refuses to auto-select on it.
+    #: candidate. Decided by `consent.consulted` before it gets here; this
+    #: engine does not re-derive it, it only refuses to auto-select on it.
     consented: bool = False
+
+    #: Which consent decided, as `scope:target`, or the request flag. Carried
+    #: so the recommendation trail and the install plan can record the basis
+    #: rather than the bare fact, as the contract's last section requires.
+    consent_source: str = ""
 
 
 @dataclass(frozen=True)

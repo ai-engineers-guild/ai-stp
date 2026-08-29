@@ -28,6 +28,8 @@ def _register(
     description: str = "",
     tags: tuple[str, ...] = (),
     state: str | None = None,
+    owner_id: str = OWNER,
+    version: str = "1.0",
     **flags: bool,
 ) -> search.Candidate:
     stable_id = f"component_01J000000000000000000000{suffix}"
@@ -39,7 +41,8 @@ def _register(
         "schema_version": 1,
         "kind": "component",
         "stable_id": stable_id,
-        "owner_id": OWNER,
+        "owner_id": owner_id,
+        "version": version,
         "created_at": MOMENT,
         "visibility": "private",
         "parent_revision_ids": [],
@@ -59,6 +62,8 @@ def _register(
         stable_id=stable_id,
         revision_id=stored.revision_id,
         fields={"name": name, "description": description, "tags": list(tags)},
+        owner_id=owner_id,
+        version=version,
         **flags,
     )
 
@@ -164,22 +169,81 @@ def test_an_unverified_candidate_is_absent_without_consent(
 def test_a_durable_consent_shows_a_candidate_without_the_request_flag(
     registry: sqlite3.Connection,
 ) -> None:
+    """The publisher comes from the candidate, which is why this now proves it.
+
+    Until 2026-08-29 this test passed a `publisher_of` mapping of its own, and
+    that was the only place one was ever passed: `component search` did not,
+    so the publisher was always unknown, every durable record missed, and the
+    feature was dead while its test was green. The argument is gone and the
+    candidate carries its own owner.
+    """
     unproven = _register(registry, "24", name="unproven")
     consent.grant(
         registry,
         consent_id="request_01J00000000000000000000025",
         scope=consent.SCOPE_PUBLISHER,
-        target="publisher/acme",
-        fingerprint=consent.fingerprint_of({}),
+        target=OWNER,
+        fingerprint=consent.ceiling_of((unproven.fields,)),
+        observed=(unproven.stable_id,),
         decided_by=OWNER,
         origin="registry search",
         at=MOMENT,
     )
-    found = search.search(
-        registry, (unproven,), publisher_of={unproven.stable_id: "publisher/acme"}
-    )
+    found = search.search(registry, (unproven,))
     assert len(found.experimental) == 1
     assert "durable consent" in found.experimental[0].reason
+
+
+def test_a_durable_consent_on_the_major_line_shows_a_candidate(
+    registry: sqlite3.Connection,
+) -> None:
+    """The second scope had no reader at all until 2026-08-29.
+
+    `consent allow --scope object_major` wrote a row, `consent list` showed it,
+    and nothing ever queried it: `_consented` asked only for `publisher`, and
+    the `major` argument of `covers` had no caller. Writable, listable, inert.
+    """
+    unproven = _register(registry, "28", name="line")
+    consent.grant(
+        registry,
+        consent_id="request_01J00000000000000000000029",
+        scope=consent.SCOPE_OBJECT_MAJOR,
+        target=f"{unproven.stable_id}@1",
+        fingerprint=consent.ceiling_of((unproven.fields,)),
+        observed=(unproven.stable_id,),
+        decided_by=OWNER,
+        origin="registry search",
+        at=MOMENT,
+    )
+    found = search.search(registry, (unproven,))
+    assert len(found.experimental) == 1
+    assert "object_major" in found.experimental[0].reason
+
+
+def test_a_consent_recorded_with_nothing_observed_covers_nothing(
+    registry: sqlite3.Connection,
+) -> None:
+    """An empty fingerprint is not an empty ceiling.
+
+    `consent allow` used to store `fingerprint_of({})` whatever the target,
+    which is no observation at all. Compared as a ceiling it refuses every
+    candidate that needs anything — so the record read as consent and behaved
+    as refusal, without ever saying which it was.
+    """
+    unproven = _register(registry, "30", name="unobserved")
+    consent.grant(
+        registry,
+        consent_id="request_01J00000000000000000000031",
+        scope=consent.SCOPE_PUBLISHER,
+        target=OWNER,
+        fingerprint=consent.fingerprint_of({}),
+        observed=(),
+        decided_by=OWNER,
+        origin="registry search",
+        at=MOMENT,
+    )
+    found = search.search(registry, (unproven,))
+    assert found.experimental == ()
 
 
 def test_a_consent_that_stopped_covering_hides_the_candidate_even_with_the_flag(
@@ -190,28 +254,26 @@ def test_a_consent_that_stopped_covering_hides_the_candidate_even_with_the_flag(
     The contract requires the exact cause be shown, and a flag answers a
     different question than "does the old fingerprint still cover this".
     """
-    grown = _register(registry, "26", name="grown")
-    grown = search.Candidate(
-        grown.stable_id,
-        grown.revision_id,
-        {**grown.fields, "network_permissions": ["collect.elsewhere.test"]},
-    )
+    before = _register(registry, "26", name="grown")
     consent.grant(
         registry,
         consent_id="request_01J00000000000000000000027",
         scope=consent.SCOPE_PUBLISHER,
-        target="publisher/acme",
-        fingerprint=consent.fingerprint_of({}),
+        target=OWNER,
+        fingerprint=consent.ceiling_of((before.fields,)),
+        observed=(before.stable_id,),
         decided_by=OWNER,
         origin="registry search",
         at=MOMENT,
     )
-    found = search.search(
-        registry,
-        (grown,),
-        include_unverified=True,
-        publisher_of={grown.stable_id: "publisher/acme"},
+    grown = search.Candidate(
+        before.stable_id,
+        before.revision_id,
+        {**before.fields, "network_permissions": ["collect.elsewhere.test"]},
+        owner_id=before.owner_id,
+        version=before.version,
     )
+    found = search.search(registry, (grown,), include_unverified=True)
     assert found.experimental == ()
 
 

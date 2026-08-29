@@ -14,6 +14,8 @@ from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_contracts.sync_payload import check_sync_payload
 
 SECRET = "AKIAIOSFODNN7EXAMPLE"
+MOMENT = "2026-01-01T00:00:00.000Z"
+ELSEWHERE = "account_01J" + "0" * 20 + "FAR"
 
 
 @pytest.fixture
@@ -834,20 +836,74 @@ def test_the_forget_command_marks_and_refuses_an_unknown_id(
         command.forget({})
 
 
-def test_the_consent_commands_record_list_and_withdraw() -> None:
+def _publish(connection: sqlite3.Connection, suffix: str, *, owner_id: str) -> str:
+    """One registered component belonging to somebody else, ready to consent to."""
+    from ai_stp_cli.local import revisions
+
+    stable_id = f"component_01J0000000000000000000000{suffix}"
+    connection.execute(
+        "INSERT INTO entity (stable_id, kind, created_at) VALUES (?, 'component', ?)",
+        (stable_id, MOMENT),
+    )
+    revisions.commit(
+        connection,
+        {  # pyright: ignore[reportArgumentType]
+            "schema_version": 1,
+            "kind": "component",
+            "stable_id": stable_id,
+            "owner_id": owner_id,
+            "version": "1.0",
+            "created_at": MOMENT,
+            "visibility": "public",
+            "parent_revision_ids": [],
+            "facts": {
+                "name": {
+                    "value": "shared",
+                    "origin": "observed",
+                    "confirmation": "none",
+                    "observed_at": MOMENT,
+                }
+            },
+        },
+        device_id="device_test",
+    )
+    connection.commit()
+    return stable_id
+
+
+def test_the_consent_commands_record_list_and_withdraw(registry: sqlite3.Connection) -> None:
     from ai_stp_cli.commands import component as command
 
-    granted = command.consent_allow({"scope": "publisher", "target": "publisher/acme"}).payload
+    shared = _publish(registry, "C", owner_id=ELSEWHERE)
+    granted = command.consent_allow({"scope": "publisher", "target": ELSEWHERE}).payload
     assert granted.scope == "publisher"
     assert granted.revoked_at is None
+    # The fingerprint is taken from what the target covers, so the record names
+    # what it looked at. Before 2026-08-29 it stored `{}` regardless, which is
+    # not a small ceiling but no observation — and refused everything.
+    assert granted.observed == [shared]
     assert command.consent_list({}).payload.records == [granted]
 
-    withdrawn = command.consent_revoke({"scope": "publisher", "target": "publisher/acme"}).payload
+    withdrawn = command.consent_revoke({"scope": "publisher", "target": ELSEWHERE}).payload
     assert withdrawn.revoked_at is not None
     assert command.consent_list({}).payload.records == []
 
     with pytest.raises(CliFailure, match="no consent record covers"):
         command.consent_revoke({"scope": "publisher", "target": "publisher/nobody"})
+
+
+def test_consent_to_a_target_holding_nothing_is_refused(registry: sqlite3.Connection) -> None:
+    """You cannot record the shape of something that is not here.
+
+    The contract asks for the fingerprint *of the candidate*, so a record made
+    with no candidate behind it has nothing to compare later versions against.
+    Storing one anyway is what produced a consent that read as granted and
+    behaved as refusal.
+    """
+    from ai_stp_cli.commands import component as command
+
+    with pytest.raises(CliFailure, match="no registered object matches that target"):
+        command.consent_allow({"scope": "publisher", "target": ELSEWHERE})
 
 
 @pytest.mark.parametrize("missing", [{}, {"scope": "publisher"}, {"target": "publisher/acme"}])

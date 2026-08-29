@@ -79,6 +79,16 @@ class Candidate:
     revision_id: str
     fields: dict[str, JsonValue]
 
+    #: Who published it, and which exact version this is. Both are here because
+    #: the durable consent records are keyed by them — a `publisher` record by
+    #: the owner, an `object_major` record by the object and its major line.
+    #: They used to be absent, and the publisher arrived instead through a
+    #: `publisher_of` mapping that `search` accepted and no caller ever passed;
+    #: the lookup therefore always missed and every durable record was inert.
+    #: A fact the candidate owns cannot be forgotten by a caller.
+    owner_id: str = ""
+    version: str = ""
+
     #: Independent axes (`ADR-0016`): a confirmed author does not confirm a
     #: version and a confirmed version does not confirm an author. Kept apart
     #: here because `authoritative` needs both and a single flag would let one
@@ -227,7 +237,6 @@ def search(
     field: str = "",
     value: str = "",
     include_unverified: bool = False,
-    publisher_of: dict[str, str] | None = None,
 ) -> Results:
     """Filter, sort and lane every candidate. Offline, deterministic, bounded.
 
@@ -237,7 +246,6 @@ def search(
     which is why there is no third option here.
     """
     validate_query(prefix=prefix, phrase=phrase, field=field, value=value)
-    publishers = publisher_of or {}
     laned: dict[str, list[Hit]] = {lane: [] for lane in LANES}
     truncated = False
 
@@ -254,9 +262,7 @@ def search(
 
         lane, reason = lane_of(candidate)
         if lane == LANE_EXPERIMENTAL:
-            allowed, why = _consented(
-                connection, candidate, publishers, include_unverified=include_unverified
-            )
+            allowed, why = _consented(connection, candidate, include_unverified=include_unverified)
             if not allowed:
                 continue
             reason = f"{reason}; {why}"
@@ -288,7 +294,6 @@ def search(
 def _consented(
     connection: sqlite3.Connection,
     candidate: Candidate,
-    publishers: dict[str, str],
     *,
     include_unverified: bool,
 ) -> tuple[bool, str]:
@@ -299,22 +304,22 @@ def _consented(
     candidate is a revoking event the user must be told about, and a flag does
     not answer that question.
     """
-    publisher = publishers.get(candidate.stable_id)
-    record = (
-        consent.held(connection, scope=consent.SCOPE_PUBLISHER, target=publisher)
-        if publisher
-        else None
+    found = consent.consulted(
+        connection,
+        stable_id=candidate.stable_id,
+        owner_id=candidate.owner_id,
+        version=candidate.version,
+        capabilities=candidate.fields,
     )
-    if record is not None:
-        verdict = consent.covers(record, candidate.fields)
-        if verdict.covered:
-            return True, f"shown by a durable consent: {verdict.reason}"
+    if found.covered:
+        return True, f"shown by a durable consent ({found.source}): {found.reason}"
+    if found.source:
         # A record that stopped covering is not silently ignored: the contract
         # requires the exact cause, and a request flag must not paper over it.
-        return False, verdict.reason
+        return False, found.reason
     if include_unverified:
         return True, "shown by the request flag, for this command only"
-    return False, "no consent covers this candidate"
+    return False, found.reason
 
 
 def _ordering(hit: Hit) -> tuple[str, str]:
