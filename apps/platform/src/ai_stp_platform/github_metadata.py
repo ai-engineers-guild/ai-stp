@@ -120,9 +120,20 @@ def redirect_path(fetch: GithubFetch) -> str | None:
     ):
         return None
     parts = [part for part in parsed.path.split("/") if part]
-    if len(parts) != 3 or parts[0] != "repos":
-        return None
-    return f"/repos/{quote(parts[1], safe='')}/{quote(parts[2], safe='')}"
+    # Two shapes, and the second is the one GitHub actually sends. Measured
+    # against the live API: `/repos/NDDev-it-com/nddev-claude-app` answers
+    # `301 -> https://api.github.com/repositories/1307421318`, the numeric
+    # identity of the repository rather than its new owner and name. The first
+    # version of this validator accepted only `/repos/<owner>/<name>`, written
+    # from an assumption about the shape rather than from a reading of it, and
+    # refused every real transfer — the defect it was written to fix, one layer
+    # in. Both forms stay on `api.github.com` and both are repository
+    # endpoints; the numeric one is digits, so there is nothing in it to quote.
+    if len(parts) == 3 and parts[0] == "repos":
+        return f"/repos/{quote(parts[1], safe='')}/{quote(parts[2], safe='')}"
+    if len(parts) == 2 and parts[0] == "repositories" and parts[1].isdigit():
+        return f"/repositories/{parts[1]}"
+    return None
 
 
 def metadata_from_fetch(fetch: GithubFetch) -> GitHubMetadata:

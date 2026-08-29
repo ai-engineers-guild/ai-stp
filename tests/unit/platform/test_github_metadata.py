@@ -140,9 +140,12 @@ async def test_a_transferred_repository_is_read_at_the_owner_it_moved_to() -> No
         assert "Authorization" not in request.headers
         assert request.url.host == "api.github.com"
         if request.url.path == "/repos/old-owner/tool":
+            # The shape GitHub actually sends, measured against the live API:
+            # a transfer redirects to the repository's numeric identity, not to
+            # its new owner and name.
             return httpx.Response(
                 301,
-                headers={"location": "https://api.github.com/repos/new-owner/tool"},
+                headers={"location": "https://api.github.com/repositories/1307421318"},
                 request=request,
             )
         return httpx.Response(
@@ -155,7 +158,7 @@ async def test_a_transferred_repository_is_read_at_the_owner_it_moved_to() -> No
         result = await fetch_github_metadata("https://github.com/old-owner/tool", client=client)
     assert result.archived is True
     assert result.stars == 3
-    assert seen == ["/repos/old-owner/tool", "/repos/new-owner/tool"]
+    assert seen == ["/repos/old-owner/tool", "/repositories/1307421318"]
 
 
 @pytest.mark.asyncio
@@ -168,7 +171,7 @@ async def test_only_one_hop_is_followed() -> None:
         nxt = len(seen)
         return httpx.Response(
             301,
-            headers={"location": f"https://api.github.com/repos/owner/tool{nxt}"},
+            headers={"location": f"https://api.github.com/repositories/{1000 + nxt}"},
             request=request,
         )
 
@@ -183,6 +186,11 @@ def test_redirect_path_accepts_only_a_repository_on_api_github() -> None:
         return GithubFetch(status_code=status, body=b"", headers={"location": location})
 
     assert redirect_path(fetch("https://api.github.com/repos/new/tool")) == "/repos/new/tool"
+    # The form a real transfer sends.
+    assert redirect_path(fetch("https://api.github.com/repositories/1307421318")) == (
+        "/repositories/1307421318"
+    )
+    assert redirect_path(fetch("https://api.github.com/repositories/not-a-number")) is None
     # Off-host, credentialled, non-repository and non-redirect are all refused.
     assert redirect_path(fetch("https://evil.test/repos/new/tool")) is None
     assert redirect_path(fetch("https://user:pass@api.github.com/repos/new/tool")) is None
