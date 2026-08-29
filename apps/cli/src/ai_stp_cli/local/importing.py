@@ -819,6 +819,24 @@ def _content(
     }
 
 
+#: Maps whose keys are environment variable names, so every value inside is an
+#: environment variable's value. `REQ-815` lets an imported setup carry those
+#: *names* and nothing else, which makes the whole map a value rule rather than
+#: a name rule.
+#:
+#: Measured on 2026-08-29: an MCP configuration with
+#: `"env": {"GITHUB_TOKEN": "ghp_…"}` came back from `scrub` untouched. The
+#: neighbouring `Authorization` was redacted because that word is in
+#: `SECRET_KEYS`; `GITHUB_TOKEN` is not, and the comparison is exact against a
+#: folded key rather than a substring — deliberately, because substrings call a
+#: `tokenizer` a credential. The platform's safety scanner had the same hole
+#: and closing it there did not close it here.
+#:
+#: A longer word list would be the wrong repair: it has to be right about every
+#: name a vendor invents next. The contract already says what travels.
+ENVIRONMENT_MAPS: Final[frozenset[str]] = frozenset({"env", "environment"})
+
+
 def _walk(value: object, names: set[str], prefix: str = "") -> JsonValue:
     """Rewrite a decoded document, removing values under credential keys."""
     if isinstance(value, dict):
@@ -830,6 +848,9 @@ def _walk(value: object, names: set[str], prefix: str = "") -> JsonValue:
                 names.add(path)
                 cleaned[name] = REDACTED
                 continue
+            if _fold_key(name) in ENVIRONMENT_MAPS and isinstance(item, dict):
+                cleaned[name] = _environment(cast(dict[object, object], item), names, path)
+                continue
             cleaned[name] = _walk(item, names, path)
         return cleaned
     if isinstance(value, list):
@@ -838,6 +859,22 @@ def _walk(value: object, names: set[str], prefix: str = "") -> JsonValue:
     if isinstance(value, str | int | float | bool) or value is None:
         return value
     return str(value)
+
+
+def _environment(block: dict[object, object], names: set[str], prefix: str) -> JsonValue:
+    """Keep every variable name; keep no value at all.
+
+    Not "redact the ones that look like credentials". A scrubber that decides
+    which environment values are harmless is guessing at exactly the point where
+    it must not, and `MODEL=sonnet` costs nothing to lose while one wrong guess
+    writes a live token into the registry.
+    """
+    kept: dict[str, JsonValue] = {}
+    for key, _value in block.items():
+        variable = str(key)
+        names.add(f"{prefix}.{variable}")
+        kept[variable] = REDACTED
+    return kept
 
 
 def _fact(value: JsonValue, at: str) -> JsonValue:

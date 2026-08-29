@@ -32,9 +32,16 @@ pytestmark = pytest.mark.cli
 
 
 def _answering(verdict: tuple[str, str]) -> Callable[[str], tuple[str, str]]:
-    """One canned answer for every citation, typed so the checker can read it."""
+    """One canned answer for every real citation; the control stays honest.
 
-    def reach(_citation: str) -> tuple[str, str]:
+    The control page has to keep coming back `dead`, or the run is void and the
+    test below it would be asserting the voiding rather than its own subject.
+    Tests that want to injure the control do it explicitly.
+    """
+
+    def reach(citation: str) -> tuple[str, str]:
+        if citation == slice_.CONTROL_CITATION:
+            return ("dead", "HTTP 404")
         return verdict
 
     return reach
@@ -108,3 +115,55 @@ def test_an_inconclusive_answer_does_not_fail_the_slice(
     monkeypatch.setattr(slice_, "_reach", _answering(("inconclusive", "HTTP 403")))
     assert slice_.main([]) == 0
     assert '"inconclusive"' in capsys.readouterr().out
+
+
+def test_a_run_whose_classifier_stopped_classifying_is_void_not_clean(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The instrument is given something it must reject, every run.
+
+    Every test above stubs `_reach`, so they prove the collection and the
+    grading and say nothing about a live run where the fetch itself stopped
+    working. A proxy, a resolver or a captive portal makes every citation
+    `inconclusive`; the report then prints `dead: {}` and exits 0, and that
+    green is indistinguishable from a clean estate. *Everything matched* and
+    *the search matches everything* are the same output.
+
+    So a control page that must come back dead travels with the real ones,
+    through the same classifier. If it does not, the run is void rather than
+    clean — an absent measurement and a measurement of nothing are different
+    states, and only one is good news.
+    """
+    assert slice_.CONTROL_CITATION.startswith("https://")
+
+    # Everything inconclusive, control included: the shape that used to report
+    # a clean estate.
+    def all_inconclusive(_citation: str) -> tuple[str, str]:
+        return ("inconclusive", "URLError")
+
+    monkeypatch.setattr(slice_, "_reach", all_inconclusive)
+    assert slice_.main([]) == 1
+    assert "void" in capsys.readouterr().err
+
+    # A classifier that calls the control alive is worse, and also void.
+    def all_reachable(_citation: str) -> tuple[str, str]:
+        return ("reachable", "200")
+
+    monkeypatch.setattr(slice_, "_reach", all_reachable)
+    assert slice_.main([]) == 1
+    assert "void" in capsys.readouterr().err
+
+
+def test_the_control_does_not_hide_a_real_dead_citation(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A working control must not turn a genuine finding into a pass."""
+
+    def reach(citation: str) -> tuple[str, str]:
+        return ("dead", "HTTP 404")
+
+    monkeypatch.setattr(slice_, "_reach", reach)
+    assert slice_.main([]) == 1
+    report = capsys.readouterr().out
+    assert '"verdict": "dead"' in report
+    assert '"dead": {}' not in report

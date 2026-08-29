@@ -28,10 +28,11 @@ from __future__ import annotations
 import argparse
 import json
 import ssl
+import sys
 import urllib.error
 import urllib.request
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, cast
 
 #: A vendor host answering one of these is declining the request, not denying
 #: the page. Treated as unproven so the report keeps its signal.
@@ -84,8 +85,22 @@ def _reach(citation: str) -> tuple[str, str]:
         return "inconclusive", type(error).__name__
 
 
+#: A page that must come back dead, fetched by the same classifier as every
+#: real citation. Without it, a run where every fetch failed — a proxy, a
+#: resolver, a captive portal — prints `dead: {}` and exits 0, and that green is
+#: indistinguishable from a clean estate. An instrument that cannot fail says
+#: nothing when it passes.
+#:
+#: The host is ours, so this proves the classifier rather than a vendor's
+#: uptime, and it is a real 404 rather than an unresolvable name: a DNS failure
+#: grades `inconclusive`, which is precisely the state this is here to tell
+#: apart from a genuine death.
+CONTROL_CITATION = "https://nddev.asia/ai-stp-citation-slice-control-404"
+
+
 def verify_citations() -> dict[str, Any]:
     citations = _citations()
+    control, control_detail = _reach(CONTROL_CITATION)
     dead: dict[str, list[str]] = {}
     inconclusive: dict[str, str] = {}
     reachable = 0
@@ -100,6 +115,9 @@ def verify_citations() -> dict[str, Any]:
     return {
         "schema_version": 1,
         "slice": "catalog-citations",
+        # `dead` is the only verdict that proves the classifier can still say
+        # "dead". Anything else voids the run rather than reporting a clean one.
+        "control": {"verdict": control, "detail": control_detail},
         "checked": len(citations),
         "reachable": reachable,
         "dead": dead,
@@ -118,6 +136,17 @@ def main(arguments: Sequence[str] | None = None) -> int:
     parser.parse_args(arguments)
     report = verify_citations()
     print(json.dumps(report, indent=2, sort_keys=True))
+    control = cast(dict[str, str], report["control"])
+    if control["verdict"] != "dead":
+        # An absent measurement and a measurement of nothing are different
+        # states, and only one of them is good news.
+        print(
+            "citation slice void: the control page did not come back dead "
+            f"({control['verdict']}: {control['detail']}), so a clean report "
+            "would only mean the classifier stopped classifying",
+            file=sys.stderr,
+        )
+        return 1
     # Red on a dead citation, because that is a fact about this repository
     # rather than about a vendor's uptime — an inconclusive answer is not.
     return 1 if report["dead"] else 0

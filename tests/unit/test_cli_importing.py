@@ -683,3 +683,51 @@ def test_an_oversized_file_is_never_read_whole_into_memory(native: Path) -> None
     found = next(item for item in inspected.findings if item.path == "huge.json")
     assert found.digest.startswith("sha256:")
     assert found.byte_length == importing.MAX_FILE_BYTES * 3
+
+
+def test_an_environment_block_keeps_its_names_and_loses_every_value() -> None:
+    """`REQ-815` says an imported setup carries names of variables and nothing else.
+
+    Measured on 2026-08-29, before this existed: an MCP configuration carrying
+
+        "env": {"GITHUB_TOKEN": "ghp_realsecretvalue", "MODEL": "sonnet"}
+
+    came back from `scrub` **unchanged**. `Authorization` beside it was redacted
+    because that word is in `SECRET_KEYS`; `GITHUB_TOKEN` is not, and the
+    comparison is exact against the folded key rather than a substring — for
+    good reasons that do not help here.
+
+    The platform's safety scanner had the same hole and it was closed on
+    2026-08-27 (`mcp_secret_like` never matching JSON). This is the same defect
+    one layer over, on the path that writes the registry, and closing one did
+    not close the other.
+
+    The rule is the contract rather than a longer word list: inside an `env`
+    map every value is an environment variable's value, and `REQ-815` lets the
+    name travel and nothing else. `MODEL` is not a secret and its value goes
+    too, because a scrubber that decides which environment values are harmless
+    is guessing at exactly the point it must not.
+    """
+    raw = json.dumps(
+        {
+            "mcpServers": {
+                "demo": {
+                    "command": "node",
+                    "env": {"GITHUB_TOKEN": "ghp_realsecretvalue", "MODEL": "sonnet"},
+                }
+            }
+        }
+    ).encode("utf-8")
+
+    cleaned, names = importing.scrub(raw)
+    text = cleaned.decode("utf-8")
+    assert "ghp_realsecretvalue" not in text
+    document = json.loads(cleaned)
+    block = document["mcpServers"]["demo"]["env"]
+    # The names survive, which is what a passport is allowed to carry.
+    assert sorted(block) == ["GITHUB_TOKEN", "MODEL"]
+    assert block["GITHUB_TOKEN"] == importing.REDACTED
+    assert block["MODEL"] == importing.REDACTED
+    # And the command beside it is untouched: this is a rule about one map.
+    assert document["mcpServers"]["demo"]["command"] == "node"
+    assert "mcpServers.demo.env.GITHUB_TOKEN" in names
