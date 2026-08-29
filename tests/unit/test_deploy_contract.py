@@ -535,6 +535,12 @@ def test_ancestry_is_asked_of_github_because_the_clone_cannot_answer() -> None:
 
 
 def test_the_deploy_workflow_names_the_repository_ancestry_is_asked_of() -> None:
-    """The predicate is only reachable if the workflow supplies its input."""
-    workflow = Path(".github/workflows/deploy.yml").read_text(encoding="utf-8")
-    assert "--repository" in workflow
+    """The predicate is only reachable if the workflow supplies its input.
+
+    Read through `_deploy_workflow`, which is where this file resolves that path
+    once — overlay first, then the tree's own, and skip where neither exists. I
+    wrote `Path(".github/workflows/deploy.yml")` here instead and it failed in
+    the copy that holds no workflows: a second resolution of a fact this module
+    states at the top, in the same session spent removing exactly that.
+    """
+    assert "--repository" in _deploy_workflow()
