@@ -18,7 +18,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from ai_stp_api.correlation import CorrelationMiddleware
 from ai_stp_api.errors import register_exception_handlers
 from ai_stp_api.observability import configure_observability
-from ai_stp_api.rate_limit import RateLimitMiddleware, SlidingWindowLimiter
+from ai_stp_api.rate_limit import RateLimitMiddleware, build_http_rate_gate
 from ai_stp_api.settings import Settings, load_settings
 from ai_stp_api.slices.auth.oauth import build_oauth
 from ai_stp_api.slices.auth.router import router as auth_router
@@ -100,9 +100,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.add_middleware(
         RateLimitMiddleware,
-        limiter=SlidingWindowLimiter(
-            maximum=resolved.service.rate_limit_requests,
-            window_seconds=resolved.service.rate_limit_window_seconds,
+        gate=build_http_rate_gate(
+            overall_requests=resolved.service.rate_limit_overall_requests,
+            overall_window_seconds=resolved.service.rate_limit_overall_window_seconds,
+            ip_requests=resolved.service.rate_limit_ip_requests,
+            ip_window_seconds=resolved.service.rate_limit_ip_window_seconds,
             max_keys=resolved.service.rate_limit_max_keys,
         ),
     )

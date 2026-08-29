@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ntpath
 import platform
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -300,7 +301,15 @@ def require_plan(
         "platform": _platform(),
         "expires_at": expires_at,
     }
-    mismatches = [name for name, value in expected.items() if artifact.get(name) != value]
+    mismatches = [
+        name
+        for name, value in expected.items()
+        if (
+            not _same_windows_target(str(value), artifact.get(name))
+            if name == "canonical_target"
+            else artifact.get(name) != value
+        )
+    ]
     if mismatches:
         raise _refused(
             "the provider plan differs from exact consumer inputs",
@@ -613,6 +622,24 @@ def _platform() -> dict[str, JsonValue]:
     machine = platform.machine().casefold()
     architecture = {"amd64": "x86_64", "aarch64": "arm64"}.get(machine, machine)
     return {"os": os_name, "arch": architecture}
+
+
+def _same_windows_target(expected: str, actual: JsonValue | None) -> bool:
+    """Same target on Windows regardless of slash or extended-path spelling.
+
+    Uses ``ntpath`` rather than ``os.path`` so a Linux CI host that patches
+    ``platform.system`` still compares the way Windows will at plan time.
+    """
+    if not isinstance(actual, str):
+        return False
+    if platform.system() != "Windows":
+        return actual == expected
+
+    def normalized(value: str) -> str:
+        held = ntpath.normcase(ntpath.normpath(value))
+        return held[4:] if held.startswith("\\\\?\\") else held
+
+    return normalized(actual) == normalized(expected)
 
 
 def _strings(value: JsonValue, label: str) -> tuple[str, ...]:

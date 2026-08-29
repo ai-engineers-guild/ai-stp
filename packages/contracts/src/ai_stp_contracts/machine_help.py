@@ -1625,6 +1625,17 @@ class CompositionChoice(BaseModel):
     reason: Annotated[str, Field(min_length=1)]
 
 
+class CompositionRejection(BaseModel):
+    """One candidate considered and not chosen, with a stable reason."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    stable_id: Annotated[str, Field(min_length=1)]
+    version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
+    reason: Annotated[str, Field(min_length=1)]
+
+
 class ConversionEntry(BaseModel):
     """What one component becomes on the target harness, and what is lost.
 
@@ -1667,6 +1678,7 @@ class CompositionReports(BaseModel):
     #: no package, so this is the field a caller branches on before building.
     blocked: bool
     chosen: list[CompositionChoice] = []
+    rejected: list[CompositionRejection] = []
     conflicts: list[CompositionConflict] = []
 
     #: Only from the closed set `REQ-625` allows. Naming the whole set every

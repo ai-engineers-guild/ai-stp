@@ -419,6 +419,17 @@ def test_codex_project_hooks_agents_and_manifest_backed_plugins_are_bounded(
     assert [item.path for item in expanded] == ["guard.sh", "hooks.json"]
 
 
+def test_adopting_a_hook_manifest_keeps_sibling_handlers(tmp_path: Path) -> None:
+    """`hooks.json` is the discovered file; handlers live next to it, not inside it."""
+    (tmp_path / "hooks.json").write_text('{"hooks": {}}\n', encoding="utf-8")
+    (tmp_path / "hooks").mkdir()
+    (tmp_path / "hooks" / "guard.py").write_text("print('deny')\n", encoding="utf-8")
+    held = components.inspect_content(tmp_path / "hooks.json")
+    assert held.format == components.COMPONENT_TREE_FORMAT
+    expanded = components.expand(held.payload, held.format)
+    assert {item.path for item in expanded} == {"hooks.json", "hooks/guard.py"}
+
+
 def test_legacy_codex_markdown_is_explained_without_becoming_an_instruction(
     harness_home: Path, tmp_path: Path
 ) -> None:
@@ -536,6 +547,40 @@ def test_an_absent_root_is_simply_not_reported(
     monkeypatch.setenv("HOME", str(tmp_path / "empty"))
     assert components.discover() == ()
     assert components.discover(project=tmp_path / "nothing-here") == ()
+
+
+def test_adoption_records_projection_relative_managed_paths(
+    registry: sqlite3.Connection, harness_home: Path
+) -> None:
+    """Adopted covers are target-relative. Discovery paths are not (`ADR-0127`)."""
+    instruction = next(
+        item
+        for item in components.discover()
+        if item.component_type == "instruction" and item.harness_id == "claude-code"
+    )
+    stored_instruction = components.adopt(registry, instruction, device_id="device_test")
+    facts = stored_instruction.envelope.model_dump(mode="json")["facts"]
+    assert facts["managed_paths"]["value"] == ["CLAUDE.md"]
+
+    skill = next(
+        item
+        for item in components.discover()
+        if item.component_type == "skill" and item.harness_id == "claude-code"
+    )
+    stored = components.adopt(registry, skill, device_id="device_test")
+    skill_facts = stored.envelope.model_dump(mode="json")["facts"]
+    assert skill_facts["managed_paths"]["value"] == ["skills/reviewing"]
+    assert all(not path.startswith(".agents") for path in skill_facts["managed_paths"]["value"])
+
+    shared = next(
+        item
+        for item in components.discover()
+        if item.component_type == "skill" and item.absolute.name == "shared"
+    )
+    shared_stored = components.adopt(registry, shared, device_id="device_test")
+    shared_paths = shared_stored.envelope.model_dump(mode="json")["facts"]["managed_paths"]["value"]
+    assert shared_paths == ["skills/shared"]
+    assert all(".agents" not in path for path in shared_paths)
 
 
 def test_adoption_registers_the_component_and_stores_its_bytes(

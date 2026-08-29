@@ -33,6 +33,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Final, Literal
 
+from ai_stp_cli.local import composition
 from ai_stp_foundation.canonical import JsonValue, canonize
 from ai_stp_foundation.digests import digest_canonical
 
@@ -310,7 +311,9 @@ def compile_bundle(
                 )
             )
             continue
-        if declared_paths and path not in declared_paths:
+        if declared_paths and not any(
+            composition.path_covers(root, path) for root in declared_paths
+        ):
             refusals.append(
                 _refuse(
                     "path_undeclared",
@@ -385,7 +388,16 @@ def compile_bundle(
     #
     # A one-sided check is the shape this estate keeps finding: the assertion
     # that a set has nothing extra says nothing about it being complete.
-    absent = sorted(declared_paths - {item.path for item in entries}) if declared_paths else []
+    held_paths = {item.path for item in entries}
+    absent = (
+        sorted(
+            root
+            for root in declared_paths
+            if not any(composition.path_covers(root, path) for path in held_paths)
+        )
+        if declared_paths
+        else []
+    )
     for path in absent:
         refusals.append(
             _refuse(

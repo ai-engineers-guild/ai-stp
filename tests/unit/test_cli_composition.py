@@ -38,6 +38,92 @@ def test_a_composition_with_nothing_wrong_is_not_blocked() -> None:
     assert [item.stable_id for item in report.chosen] == ["component_a", "component_b"]
 
 
+def test_an_empty_composition_is_a_composition_not_an_absence() -> None:
+    """`ADR-0124`: managed emptiness is a graph of zero, not a missing graph."""
+    report = composition.compose((), CLAUDE)
+    assert not report.blocked
+    assert report.chosen == ()
+    assert report.rejected == ()
+    assert report.conflicts == ()
+    assert "deterministic_report_generation" in report.operations
+    assert composition.convert((), CLAUDE).complete
+    contract = CONTRACT.read_text(encoding="utf-8")
+    assert "Пустой состав" in contract
+    assert "Пустого состава не бывает" not in contract
+
+
+def test_a_nested_managed_path_is_the_same_claim_as_its_root() -> None:
+    """Disjoint union is about ownership, not string equality.
+
+    A passport names roots. `skills/foo` already owns `skills/foo/SKILL.md`, so
+    a second component declaring the child is the same conflict as declaring
+    the root twice. `skills/review` does not own `skills/review.md`.
+    """
+    nested = composition.compose(
+        (
+            _surface("component_a", managed_paths=("skills/foo",)),
+            _surface("component_b", managed_paths=("skills/foo/SKILL.md",)),
+        ),
+        CLAUDE,
+    )
+    assert "managed_path_owned_twice" in _codes(nested)
+    neighbour = composition.compose(
+        (
+            _surface("component_a", managed_paths=("skills/review",)),
+            _surface("component_b", managed_paths=("skills/review.md",)),
+        ),
+        CLAUDE,
+    )
+    assert "managed_path_owned_twice" not in _codes(neighbour)
+    assert composition.path_covers("skills/foo", "skills/foo/SKILL.md")
+    assert not composition.path_covers("skills/review", "skills/review.md")
+
+
+def test_a_hook_manifest_owns_its_sibling_handler_directory() -> None:
+    """`hooks.json` is the discovered file; handlers live next to it.
+
+    A second component claiming `config/hooks/h01.py` is the same collision as
+    claiming the manifest: they are one native surface. Handlers under that
+    sibling are also inside the file-shaped projection, not outside it.
+    """
+    antigravity = composition.Target(harness_id="antigravity", os="linux", arch="x86_64")
+    overlap = composition.compose(
+        (
+            _surface(
+                "component_a",
+                component_type="hook",
+                harness_id="antigravity",
+                managed_paths=("config/hooks.json",),
+            ),
+            _surface(
+                "component_b",
+                component_type="hook",
+                harness_id="antigravity",
+                managed_paths=("config/hooks/h01.py",),
+            ),
+        ),
+        antigravity,
+    )
+    assert "managed_path_owned_twice" in _codes(overlap)
+    inside = composition.compose(
+        (
+            _surface(
+                "component_a",
+                component_type="hook",
+                harness_id="antigravity",
+                managed_paths=("config/hooks.json", "config/hooks/h01.py"),
+            ),
+        ),
+        antigravity,
+    )
+    assert "managed_path_outside_projection" not in _codes(inside)
+    assert composition.hook_sibling_directory("config/hooks.json") == "config/hooks"
+    assert composition.claimed_paths("config/hooks.json") == (
+        "config/hooks.json",
+        "config/hooks",
+    )
+
+
 #: One fixture per named conflict class. Held as a constant rather than inline,
 #: so the coverage check below reads the same list the parametrisation does — an
 #: introspected list would drift the first time the decorator changed shape.
@@ -254,6 +340,30 @@ def test_an_operation_that_was_not_applied_is_not_claimed() -> None:
     assert "exact_reference_deduplication" not in report.operations
 
 
+def test_an_exact_duplicate_reference_is_rejected_not_chosen_twice() -> None:
+    """`REQ-625` names the operation. Claiming it while keeping both is a lie."""
+    report = composition.compose((_surface("component_a"), _surface("component_a")), CLAUDE)
+    assert [item.stable_id for item in report.chosen] == ["component_a"]
+    assert [item.reason for item in report.rejected] == [
+        "exact reference already in the composition"
+    ]
+    assert "exact_reference_deduplication" in report.operations
+    assert not report.blocked
+
+
+def test_the_chosen_reason_is_the_recorded_lane_reason() -> None:
+    report = composition.compose(
+        (
+            _surface(
+                "component_a",
+                lane_reason="your own or exactly pinned; installable after local checks",
+            ),
+        ),
+        CLAUDE,
+    )
+    assert report.chosen[0].reason == ("your own or exactly pinned; installable after local checks")
+
+
 def test_the_operations_come_back_in_the_declared_order() -> None:
     report = composition.compose(
         (_surface("component_a", managed_paths=("a.md",)), _surface("component_a")), CLAUDE
@@ -396,6 +506,12 @@ def test_a_harness_whose_mcp_lives_inside_a_settings_file_has_no_surface() -> No
     # would be the mirror defect: `native_surface_lost` blocking a bundle for a
     # surface the harness reads.
     assert composition.native_surface("mcp", "cursor") == "mcp.json"
+    lost = composition.compose(
+        (_surface("component_a", component_type="mcp", harness_id="codex"),),
+        composition.Target(harness_id="codex", os="linux", arch="x86_64"),
+    )
+    hint = next(item for item in lost.conflicts if item.code == "native_surface_lost")
+    assert "setting" in hint.details["hint"]
 
     # `claude-code` joined that list on 2026-08-27, and for a third reason
     # rather than the same one. Its MCP does not live inside a settings file —

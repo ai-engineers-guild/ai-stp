@@ -18,7 +18,7 @@ last_verified: "2026-08-03"
 | [SPEC-007-validation-publishing.md](SPEC-007-validation-publishing.md) | SPEC-007: Проверки, доказательства и публикация. | 2026-08-13 |
 | [SPEC-008-provider-installation.md](SPEC-008-provider-installation.md) | SPEC-008: Провайдеры, установка и восстановление. | 2026-08-27 |
 | [SPEC-009-local-registry-sync.md](SPEC-009-local-registry-sync.md) | SPEC-009: Локальный реестр и синхронизация. | 2026-08-04 |
-| [SPEC-010-platform-api.md](SPEC-010-platform-api.md) | SPEC-010: Серверная платформа и API. | 2026-08-15 |
+| [SPEC-010-platform-api.md](SPEC-010-platform-api.md) | SPEC-010: Серверная платформа и API. | 2026-08-28 |
 | [SPEC-011-cli-agent-skill.md](SPEC-011-cli-agent-skill.md) | SPEC-011: CLI, машинная справка и навык агента. | 2026-08-24 |
 | [SPEC-012-uninstall-recovery.md](SPEC-012-uninstall-recovery.md) | SPEC-012: Удаление, полная очистка и восстановление. | 2026-08-03 |
 | [SPEC-013-data-governance.md](SPEC-013-data-governance.md) | SPEC-013: Управление пользовательскими данными. | 2026-08-16 |

@@ -93,7 +93,16 @@ def test_every_harness_has_a_prose_spelling() -> None:
 #: walk that counted it would report a duplicate of the file it just read
 #: (`ADR-0108`).
 GENERATED_OR_VENDORED: Final[frozenset[str]] = frozenset(
-    {".venv", "node_modules", "public", ".work", "dist", ".site", ".site-user-docs"}
+    {
+        ".venv",
+        "node_modules",
+        "public",
+        ".work",
+        ".tmp",
+        "dist",
+        ".site",
+        ".site-user-docs",
+    }
 )
 
 

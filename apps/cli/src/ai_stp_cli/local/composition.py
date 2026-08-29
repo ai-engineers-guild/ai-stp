@@ -22,9 +22,10 @@ that are fine and would hide the ones that are not.
 """
 
 from dataclasses import dataclass, field
+from pathlib import PurePosixPath
 from typing import Final
 
-from ai_stp_cli.local.components import Rule
+from ai_stp_cli.local.components import Found, Rule
 
 #: Every conflict this module can report, closed by `composition-reports.md`.
 #: The four closure conflicts — cycle, missing reference, digest mismatch and
@@ -353,6 +354,9 @@ class Surface:
     required: bool = True
 
     lane: str = "local_owner_or_pinned"
+    #: Why this lane was assigned. Empty means the caller did not record one,
+    #: and the report then says only that the component was named.
+    lane_reason: str = ""
     consented: bool = False
 
 
@@ -456,6 +460,28 @@ def rule_for(component_type: str, harness_id: str) -> Rule | None:
     return None
 
 
+def adopted_covers(item: Found) -> tuple[str, ...]:
+    """Target-relative roots an adopted component owns.
+
+    Discovery paths are relative to a config home or ``$HOME`` and must not be
+    copied into ``managed_paths`` (`ADR-0127`): ``.agents/skills/x`` against a
+    ``~/.agents`` target lands at ``~/.agents/.agents/skills/x``.
+    """
+    rule = rule_for(item.component_type, item.harness_id)
+    name = ""
+    if item.provenance.subpath:
+        name = PurePosixPath(item.provenance.subpath).name
+    if not name:
+        name = item.absolute.name
+    if rule is None:
+        return (f"skills/{name}",) if item.component_type == "skill" and name else ()
+    if rule.shape == "file":
+        return claimed_paths(rule.relative) if item.component_type == "hook" else (rule.relative,)
+    if not name:
+        return (rule.relative,)
+    return (f"{rule.relative}/{name}",)
+
+
 def native_surface(component_type: str, harness_id: str) -> str:
     """Where a component of this kind lives, or empty when nowhere."""
     rule = rule_for(component_type, harness_id)
@@ -468,32 +494,55 @@ def compose(surfaces: tuple[Surface, ...], target: Target) -> CompositionReport:
     Every class is checked and every conflict collected: a composition with
     three problems should be fixable in one pass. The result is sorted, so one
     canonical input produces one report.
+
+    Exact duplicate references are collapsed, not conflicted: `REQ-625` names
+    that operation. The extra copy is rejected rather than chosen twice, and
+    conflicts run on the collapsed set so a component does not collide with
+    itself.
     """
+    ordered = sorted(surfaces, key=lambda item: (item.stable_id, item.version, item.revision_id))
+    kept: list[Surface] = []
+    rejected: list[Rejected] = []
+    seen: set[tuple[str, str]] = set()
+    for item in ordered:
+        key = (item.stable_id, item.version)
+        if key in seen:
+            rejected.append(
+                Rejected(
+                    stable_id=item.stable_id,
+                    version=item.version,
+                    reason="exact reference already in the composition",
+                )
+            )
+            continue
+        seen.add(key)
+        kept.append(item)
+    kept_surfaces = tuple(kept)
+
     conflicts: list[Conflict] = []
-    conflicts.extend(_paths(surfaces, target))
-    conflicts.extend(_identities(surfaces))
-    conflicts.extend(_precedence(surfaces))
-    conflicts.extend(_hooks(surfaces))
-    conflicts.extend(_surfaces(surfaces, target))
-    conflicts.extend(_environment(surfaces, target))
-    conflicts.extend(_permissions(surfaces, target))
-    conflicts.extend(_licences(surfaces, target))
-    conflicts.extend(_trust(surfaces))
+    conflicts.extend(_paths(kept_surfaces, target))
+    conflicts.extend(_identities(kept_surfaces))
+    conflicts.extend(_precedence(kept_surfaces))
+    conflicts.extend(_hooks(kept_surfaces))
+    conflicts.extend(_surfaces(kept_surfaces, target))
+    conflicts.extend(_environment(kept_surfaces, target))
+    conflicts.extend(_permissions(kept_surfaces, target))
+    conflicts.extend(_licences(kept_surfaces, target))
+    conflicts.extend(_trust(kept_surfaces))
     conflicts.extend(_platform(target))
     conflicts.sort(key=lambda item: (item.code, item.details.get("stable_id", "")))
 
-    ordered = sorted(surfaces, key=lambda item: (item.stable_id, item.version))
     return CompositionReport(
         chosen=tuple(
             Chosen(
                 stable_id=item.stable_id,
                 version=item.version,
                 lane=item.lane,
-                reason="named by the confirmed composition",
+                reason=item.lane_reason or "named by the confirmed composition",
             )
-            for item in ordered
+            for item in kept
         ),
-        rejected=(),
+        rejected=tuple(rejected),
         operations=_applied(surfaces),
         conflicts=tuple(conflicts),
     )
@@ -572,6 +621,73 @@ def _projection_root_of(component_type: str, harness_id: str) -> str:
     return rule.relative if rule is not None else ""
 
 
+def path_covers(root: str, path: str) -> bool:
+    """Whether `path` is `root` or sits strictly under it.
+
+    Passports name native roots. `skills/foo` owns `skills/foo/SKILL.md`.
+    `skills/review` does not own `skills/review.md`.
+    """
+    return path == root or path.startswith(f"{root}/")
+
+
+def paths_overlap(left: str, right: str) -> bool:
+    """Two managed-path claims that are not disjoint."""
+    return path_covers(left, right) or path_covers(right, left)
+
+
+def hook_sibling_directory(manifest: str) -> str:
+    """The `hooks/` directory that sits beside a `hooks.json` manifest.
+
+    Native layouts discover the file and keep handlers next to it, not inside
+    it. A claim on the file that did not also claim that sibling let a second
+    component own `config/hooks/h01.py` while the first owned `config/hooks.json`.
+    """
+    held = PurePosixPath(manifest)
+    if held.name != "hooks.json":
+        return ""
+    parent = str(held.parent)
+    return "hooks" if parent == "." else f"{parent}/hooks"
+
+
+def claimed_paths(path: str) -> tuple[str, ...]:
+    """Ownership claims one declared path actually makes.
+
+    `hooks.json` also owns the sibling handler directory. Every other path is
+    itself, as a root.
+    """
+    sibling = hook_sibling_directory(path)
+    return (path, sibling) if sibling else (path,)
+
+
+def projection_covers(rule: Rule, path: str) -> bool:
+    """Whether this kind's native surface can hold `path`."""
+    if path_covers(rule.relative, path):
+        return True
+    if rule.component_type == "hook" and rule.shape == "file":
+        sibling = hook_sibling_directory(rule.relative)
+        return bool(sibling) and path_covers(sibling, path)
+    return False
+
+
+def managed_path_drift(
+    declared: frozenset[str], projected: frozenset[str]
+) -> tuple[frozenset[str], frozenset[str]]:
+    """Declared roots the artifact missed, and projected paths it never claimed.
+
+    Passports name the native roots a component owns. The artifact then expands
+    into files under those roots. Set equality would refuse every directory
+    component: the passport says ``skills/foo``, the zip contains
+    ``skills/foo/SKILL.md``.
+    """
+    missing = frozenset(
+        root for root in declared if not any(path_covers(root, path) for path in projected)
+    )
+    undeclared = frozenset(
+        path for path in projected if not any(path_covers(root, path) for root in declared)
+    )
+    return missing, undeclared
+
+
 def _outside_projection(item: Surface, rule: Rule | None) -> list[str]:
     """Managed paths this kind's rule cannot reach.
 
@@ -598,11 +714,7 @@ def _outside_projection(item: Surface, rule: Rule | None) -> list[str]:
     """
     if rule is None:
         return []
-    return [
-        path
-        for path in sorted(set(item.managed_paths))
-        if path != rule.relative and not path.startswith(f"{rule.relative}/")
-    ]
+    return [path for path in sorted(set(item.managed_paths)) if not projection_covers(rule, path)]
 
 
 def _paths(surfaces: tuple[Surface, ...], target: Target) -> list[Conflict]:
@@ -645,8 +757,17 @@ def _paths(surfaces: tuple[Surface, ...], target: Target) -> list[Conflict]:
                     )
                 )
                 continue
-            held = owners.get(path)
-            if held is not None and held != item.stable_id:
+            claims = claimed_paths(path) if item.component_type == "hook" else (path,)
+            held = next(
+                (
+                    owner
+                    for claim in claims
+                    for claimed, owner in owners.items()
+                    if owner != item.stable_id and paths_overlap(claimed, claim)
+                ),
+                None,
+            )
+            if held is not None:
                 conflicts.append(
                     Conflict(
                         "managed_path_owned_twice",
@@ -655,7 +776,8 @@ def _paths(surfaces: tuple[Surface, ...], target: Target) -> list[Conflict]:
                     )
                 )
                 continue
-            owners[path] = item.stable_id
+            for claim in claims:
+                owners[claim] = item.stable_id
     return conflicts
 
 
@@ -746,6 +868,16 @@ def _surfaces(surfaces: tuple[Surface, ...], target: Target) -> list[Conflict]:
                 "stable_id": item.stable_id,
                 "component_type": item.component_type,
                 "harness_id": target.harness_id,
+                **(
+                    {
+                        "hint": (
+                            "carry servers in the setting component; "
+                            "this harness has no separate MCP file"
+                        )
+                    }
+                    if item.component_type == "mcp"
+                    else {}
+                ),
             },
         )
         for item in sorted(surfaces, key=lambda item: item.stable_id)

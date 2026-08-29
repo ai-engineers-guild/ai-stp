@@ -499,6 +499,9 @@ def test_the_reports_come_back_together_through_the_command(
         }
     ).payload
     assert [item.stable_id for item in both.chosen] == [stable_id]
+    assert both.chosen[0].lane == "local_owner_or_pinned"
+    assert both.chosen[0].reason == ("your own or exactly pinned; installable after local checks")
+    assert both.rejected == []
     assert set(both.operations) <= {
         "canonical_ordering",
         "exact_reference_deduplication",
@@ -575,6 +578,157 @@ def test_a_bundle_compiles_from_adopted_content(
     assert compiled.byte_length > compiled.files[0].byte_length
     assert [item.path for item in compiled.files] == ["skills/review.md"]
     assert compiled.files[0].owner == stable_id
+
+
+def test_a_hook_manifest_bundle_keeps_sibling_handlers(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    from ai_stp_cli.local import components, composition
+
+    hooks = tmp_path / ".agents"
+    (hooks / "hooks").mkdir(parents=True)
+    (hooks / "hooks.json").write_text('{"hooks": {}}\n', encoding="utf-8")
+    (hooks / "hooks" / "h01.py").write_text("print('deny')\n", encoding="utf-8")
+    found = next(
+        item
+        for item in components.discover(project=tmp_path)
+        if item.component_type == "hook" and item.absolute == hooks / "hooks.json"
+    )
+    stored = components.adopt(registry, found, device_id=DEVICE)
+    facts = stored.envelope.model_dump(mode="json")["facts"]
+    surface = composition.Surface(
+        stable_id=stored.stable_id,
+        version="1.0",
+        component_type="hook",
+        harness_id="antigravity",
+        revision_id=stored.revision_id,
+        source_name="hooks.json",
+        content_format=str(facts["content_format"]["value"]),
+        managed_paths=("config/hooks.json", "config/hooks/h01.py"),
+    )
+
+    sources = select._bundle_sources(  # pyright: ignore[reportPrivateUsage]
+        registry,
+        (surface,),
+        composition.Target(harness_id="antigravity", os="windows", arch="amd64"),
+    )
+
+    assert [item.path for item in sources] == ["config/hooks.json", "config/hooks/h01.py"]
+
+
+def test_a_directory_hook_artifact_lands_handlers_under_hooks(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """Plugin-style `hooks/` directories store handlers beside `hooks.json`.
+
+    Adopting the directory captures `hooks.json` and `guard.sh`, not
+    `hooks/guard.sh`. Projection still has to land the handler at
+    `config/hooks/guard.sh`, or the installed hook cannot execute.
+    """
+    from ai_stp_cli.local import components, composition
+
+    plugin = tmp_path / "plugins" / "flow"
+    (plugin / ".codex-plugin").mkdir(parents=True)
+    (plugin / ".codex-plugin" / "plugin.json").write_text('{"name": "flow"}\n', encoding="utf-8")
+    (plugin / "hooks").mkdir()
+    (plugin / "hooks" / "hooks.json").write_text('{"hooks": {}}\n', encoding="utf-8")
+    (plugin / "hooks" / "guard.sh").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    found = next(
+        item
+        for item in components.discover(project=tmp_path)
+        if item.component_type == "hook" and item.absolute == plugin / "hooks"
+    )
+    stored = components.adopt(registry, found, device_id=DEVICE)
+    facts = stored.envelope.model_dump(mode="json")["facts"]
+    surface = composition.Surface(
+        stable_id=stored.stable_id,
+        version="1.0",
+        component_type="hook",
+        harness_id="antigravity",
+        revision_id=stored.revision_id,
+        source_name="hooks",
+        content_format=str(facts["content_format"]["value"]),
+        managed_paths=("config/hooks.json",),
+    )
+
+    sources = select._bundle_sources(  # pyright: ignore[reportPrivateUsage]
+        registry,
+        (surface,),
+        composition.Target(harness_id="antigravity", os="windows", arch="amd64"),
+    )
+
+    assert sorted(item.path for item in sources) == [
+        "config/hooks.json",
+        "config/hooks/guard.sh",
+    ]
+
+
+def test_bundle_sources_refuse_a_declared_root_the_artifact_does_not_cover(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    from ai_stp_cli.local import composition, revisions
+
+    _ready(registry, tmp_path)
+    stable_id = _adopted(registry, tmp_path, "review.md")
+    stored = revisions.head(registry, stable_id)
+    assert stored is not None
+    facts = stored.envelope.model_dump(mode="json")["facts"]
+    surface = composition.Surface(
+        stable_id=stored.stable_id,
+        version="1.0",
+        component_type="skill",
+        harness_id="claude-code",
+        revision_id=stored.revision_id,
+        source_name="review.md",
+        content_format=str(facts["content_format"]["value"]),
+        managed_paths=("skills/review.md", "skills/missing.md"),
+    )
+    with pytest.raises(CliFailure, match="declared managed paths"):
+        select._bundle_sources(  # pyright: ignore[reportPrivateUsage]
+            registry,
+            (surface,),
+            composition.Target(harness_id="claude-code", os="linux", arch="x86_64"),
+        )
+
+
+def test_declared_covers_prefer_passport_roots_over_projected_files() -> None:
+    from ai_stp_cli.local import bundle, composition
+
+    surfaces = (
+        composition.Surface(
+            stable_id="component_a",
+            version="1.0",
+            component_type="skill",
+            harness_id="claude-code",
+            managed_paths=("skills/foo",),
+        ),
+    )
+    sources = (
+        bundle.Source("skills/foo/SKILL.md", b"# foo\n", "component_a"),
+        bundle.Source("skills/foo/references/a.md", b"a\n", "component_a"),
+    )
+    assert select._declared_covers(surfaces, sources) == frozenset({"skills/foo"})  # pyright: ignore[reportPrivateUsage]
+
+
+def test_managed_path_drift_treats_declared_paths_as_roots() -> None:
+    missing, undeclared = select._managed_path_drift(  # pyright: ignore[reportPrivateUsage]
+        frozenset({"skills/foo"}),
+        frozenset({"skills/foo/SKILL.md", "skills/foo/references/a.md"}),
+    )
+    assert missing == frozenset()
+    assert undeclared == frozenset()
+    missing, undeclared = select._managed_path_drift(  # pyright: ignore[reportPrivateUsage]
+        frozenset({"skills/foo"}),
+        frozenset({"skills/foo/SKILL.md", "other.md"}),
+    )
+    assert missing == frozenset()
+    assert undeclared == frozenset({"other.md"})
+    missing, undeclared = select._managed_path_drift(  # pyright: ignore[reportPrivateUsage]
+        frozenset({"skills/foo", "skills/bar"}),
+        frozenset({"skills/foo/SKILL.md"}),
+    )
+    assert missing == frozenset({"skills/bar"})
+    assert undeclared == frozenset()
 
 
 def test_a_bundle_preserves_every_file_and_mode_from_an_adopted_skill_tree(
@@ -879,6 +1033,22 @@ def test_a_named_empty_setup_is_proposed_confirmed_and_immutable(
     again = select.confirm({"proposal": proposal_id, "confirm": True}).payload
     assert (again.stable_id, again.version) == (confirmed.stable_id, confirmed.version)
     assert not again.created, "an empty version is as immutable as any other"
+
+    compiled = select.compile_harness_bundle(registry, proposal_id, "claude-code")
+    assert compiled.compiled
+    assert compiled.files == ()
+    conversion = compiled.manifest["conversion_report"]
+    assert isinstance(conversion, dict)
+    assert conversion["complete"] is True
+    assert conversion["entries"] == []
+
+    from ai_stp_cli.commands import install
+
+    prepared = install._prepared_setup_source(  # pyright: ignore[reportPrivateUsage]
+        registry, f"{confirmed.stable_id}@{confirmed.version}", str(tmp_path)
+    )
+    assert prepared.members == ()
+    assert prepared.harness_id == "claude-code"
 
 
 def test_a_resolved_component_with_no_digest_refuses_instead_of_vanishing(

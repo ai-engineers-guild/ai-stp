@@ -34,7 +34,7 @@ last_verified: "2026-08-03"
 | [fixture-corpus.md](fixture-corpus.md) | Общий корпус фикстур /v1: виды случаев, инварианты и порядок использования обеими сторонами. | 2026-08-05 |
 | [github-archive-evidence.md](github-archive-evidence.md) | Машинный контракт локального GitHub archive evidence и истории наблюдений. | 2026-08-15 |
 | [harness-bundle.md](harness-bundle.md) | Ограниченный и детерминированный пакет для публичного провайдера харнесса. | 2026-08-28 |
-| [http-api.md](http-api.md) | Версионирование HTTP API, полномочия, идемпотентность и конкуренция. | 2026-08-25 |
+| [http-api.md](http-api.md) | Версионирование HTTP API, полномочия, идемпотентность и конкуренция. | 2026-08-28 |
 | [native-component-discovery.md](native-component-discovery.md) | Машинный контракт read-only обнаружения нативных компонентов поддерживаемых харнессов. | 2026-08-26 |
 | [offline-capability.md](offline-capability.md) | Что работает без сети после первичной настройки и что требует подключения. | 2026-08-13 |
 | [operation.md](operation.md) | Состояния, план, журнал и восстановление изменяющей операции. | 2026-08-09 |
@@ -45,7 +45,7 @@ last_verified: "2026-08-03"
 | [public-profile.md](public-profile.md) | Поля публичного профиля, ревизии, avatar и отделение от паспорта разработчика. | 2026-08-08 |
 | [report-case.md](report-case.md) | Закрытый случай жалобы: разрешённый состав, предпросмотр, состояния и аудируемые действия модератора. | 2026-08-13 |
 | [selection-impact.md](selection-impact.md) | Машинный контракт локального бюджета контекста, capability delta и blast radius. | 2026-08-15 |
-| [selection-proposal.md](selection-proposal.md) | Недолговечное предложение состава, его подтверждение и атомарная фиксация SetupVersion. | 2026-08-09 |
+| [selection-proposal.md](selection-proposal.md) | Недолговечное предложение состава, его подтверждение и атомарная фиксация SetupVersion. | 2026-08-25 |
 | [setup-evaluation.md](setup-evaluation.md) | Машинный контракт профиля, плана и результата локальной оценки точного SetupVersion. | 2026-08-13 |
 | [setup-graph.md](setup-graph.md) | Точное замыкание зависимостей сетапа: узел, детерминированный порядок, закрытый перечень отказов и пределы ресурсов. | 2026-08-08 |
 | [setup-import.md](setup-import.md) | Машинная граница обнаружения и регистрации существующего нативного сетапа. | 2026-08-12 |

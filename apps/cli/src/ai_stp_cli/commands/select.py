@@ -23,7 +23,7 @@ import sqlite3
 from collections.abc import Mapping, Sequence
 from contextlib import closing
 from datetime import timedelta
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Final, cast
 
 from ai_stp_cli.answer import Answer
@@ -73,6 +73,7 @@ from ai_stp_contracts.machine_help import (
     CandidateEligibility,
     CompositionChoice,
     CompositionConflict,
+    CompositionRejection,
     CompositionReports,
     ConfirmationView,
     ConformanceCase,
@@ -783,7 +784,7 @@ def _revision(connection: sqlite3.Connection, stable_id: str | None, kind: str) 
             return stored.revision_id
     raise CliFailure(
         "AI_STP_PRECONDITION_FAILED",
-        f"the {kind} passport is required before a composition can be proposed",
+        "the required context passport is missing",
         details={"missing": kind},
         next_actions=[passports.CREATES_PASSPORT.get(kind, "doctor --json")],
     )
@@ -1016,7 +1017,8 @@ def reports(parameters: Mapping[str, object]) -> Answer[CompositionReports]:
                 next_actions=[f"select graph --proposal {proposal_id} --json"],
             )
 
-        surfaces = _surfaces(connection, closure)
+        proposal = selection.held(connection, proposal_id)
+        surfaces = _surfaces(connection, closure, () if proposal is None else proposal.members)
         target = _composition_target(harness, surfaces)
         composed = composition.compose(surfaces, target)
         converted = composition.convert(surfaces, target)
@@ -1031,6 +1033,14 @@ def reports(parameters: Mapping[str, object]) -> Answer[CompositionReports]:
                     reason=item.reason,
                 )
                 for item in composed.chosen
+            ],
+            rejected=[
+                CompositionRejection(
+                    stable_id=item.stable_id,
+                    version=item.version,
+                    reason=item.reason,
+                )
+                for item in composed.rejected
             ],
             conflicts=[
                 CompositionConflict(code=item.code, summary=item.summary, details=item.details)
@@ -1092,9 +1102,19 @@ def _composition_target(
 
 
 def _surfaces(
-    connection: sqlite3.Connection, closure: graph.Closure
+    connection: sqlite3.Connection,
+    closure: graph.Closure,
+    members: Sequence[selection.Member] = (),
 ) -> tuple[composition.Surface, ...]:
-    """Read what each node in the closure contributes, from its passport."""
+    """Read what each node in the closure contributes, from its passport.
+
+    Lane and consent travel with the proposal member when one exists, so the
+    report names the decision the user was shown (`REQ-616`) rather than a
+    lane recomputed from the passport after confirmation. Local registry
+    objects without a member are the owner's own: claiming another lane would
+    invent a platform confirmation.
+    """
+    by_member = {item.stable_id: item for item in members}
     surfaces: list[composition.Surface] = []
     for node in closure.nodes:
         stored = revisions.get(connection, node.revision_id)
@@ -1104,6 +1124,15 @@ def _surfaces(
         facts = cast(dict[str, JsonValue], document.get("facts") or {})
         source = document.get("source")
         source_path = str(source.get("path") or "") if isinstance(source, dict) else ""
+        member = by_member.get(node.stable_id)
+        if member is not None and member.lane:
+            lane = member.lane
+            lane_reason = member.lane_reason
+            consented = bool(member.consent_source)
+        else:
+            lane = "local_owner_or_pinned"
+            lane_reason = "your own or exactly pinned; installable after local checks"
+            consented = False
         surfaces.append(
             composition.Surface(
                 stable_id=node.stable_id,
@@ -1126,6 +1155,9 @@ def _surfaces(
                 precedence=_number(facts.get("precedence")),
                 hook_event=str(_value(facts.get("hook_event")) or ""),
                 hook_order=_number(facts.get("hook_order")),
+                lane=lane,
+                lane_reason=lane_reason,
+                consented=consented,
             )
         )
     return tuple(surfaces)
@@ -1248,6 +1280,7 @@ def compile_harness_bundle(
         proposal.confirmed_stable_id,
         proposal.confirmed_version,
         expected_harness=harness,
+        members=proposal.members,
     )
 
 
@@ -1257,6 +1290,7 @@ def compile_setup_version_bundle(
     version: str,
     *,
     expected_harness: str | None = None,
+    members: tuple[selection.Member, ...] = (),
 ) -> bundle.Bundle:
     """Compile one stored immutable SetupVersion through the canonical bundle path.
 
@@ -1288,7 +1322,7 @@ def compile_setup_version_bundle(
             details={"expected": expected_harness or "declared", "reported": harness},
         )
     raw_components = setup_document.get("components")
-    if not isinstance(raw_components, list) or not raw_components:
+    if not isinstance(raw_components, list):
         raise CliFailure(
             "AI_STP_CONFLICT",
             "the prepared SetupVersion has no exact component graph",
@@ -1317,7 +1351,7 @@ def compile_setup_version_bundle(
             details={"refusals": ", ".join(item.code for item in closure.refusals)},
         )
 
-    surfaces = _surfaces(connection, closure)
+    surfaces = _surfaces(connection, closure, members)
     target = _composition_target(harness, surfaces)
     composed = composition.compose(surfaces, target)
     if composed.blocked:
@@ -1347,7 +1381,7 @@ def compile_setup_version_bundle(
         setup_version=setup_version.version,
         setup_digest=setup_version.passport_digest,
         harness_id=harness,
-        declared_paths=frozenset(item.path for item in sources),
+        declared_paths=_declared_covers(surfaces, sources),
         setup_passport=cast(JsonValue, setup_revision.envelope.model_dump(mode="json")),
         composition_report=_as_json(composed),
         conversion_report=_conversion_json(converted),
@@ -1454,18 +1488,50 @@ def _bundle_sources(
             payload,
             content_format or components.COMPONENT_FILE_FORMAT,
         )
-        if rule.shape == "file" and (len(expanded) != 1 or expanded[0].path):
-            raise CliFailure(
-                "AI_STP_PRECONDITION_FAILED",
-                "a directory artifact cannot project onto one native file",
-                details={"stable_id": item.stable_id, "native_surface": rule.relative},
-            )
-        for member in expanded:
-            if rule.shape == "directory":
-                root = f"{rule.relative}/{name}" if name else rule.relative
-                place = f"{root}/{member.path}" if member.path else root
+        if rule.shape == "file":
+            if len(expanded) == 1 and not expanded[0].path:
+                projection = ((rule.relative, expanded[0]),)
+            elif item.component_type == "hook":
+                projected = _project_hook_tree(rule, expanded)
+                if projected is None:
+                    raise CliFailure(
+                        "AI_STP_PRECONDITION_FAILED",
+                        "a hook artifact has no native manifest",
+                        details={"stable_id": item.stable_id, "native_surface": rule.relative},
+                    )
+                projection = projected
             else:
-                place = rule.relative
+                raise CliFailure(
+                    "AI_STP_PRECONDITION_FAILED",
+                    "a directory artifact cannot project onto one native file",
+                    details={"stable_id": item.stable_id, "native_surface": rule.relative},
+                )
+        else:
+            root = f"{rule.relative}/{name}" if name else rule.relative
+            projection = tuple(
+                (f"{root}/{member.path}" if member.path else root, member) for member in expanded
+            )
+        if item.managed_paths:
+            declared = frozenset(item.managed_paths)
+            if item.component_type == "hook":
+                declared = frozenset(
+                    claim for path in declared for claim in composition.claimed_paths(path)
+                )
+            missing, undeclared = _managed_path_drift(
+                declared,
+                frozenset(path for path, _ in projection),
+            )
+            if missing or undeclared:
+                raise CliFailure(
+                    "AI_STP_PRECONDITION_FAILED",
+                    "the component artifact does not contain exactly its declared managed paths",
+                    details={
+                        "stable_id": item.stable_id,
+                        "missing": ", ".join(sorted(missing)),
+                        "undeclared": ", ".join(sorted(undeclared)),
+                    },
+                )
+        for place, member in projection:
             sources.append(
                 bundle.Source(
                     path=place,
@@ -1477,14 +1543,91 @@ def _bundle_sources(
     return tuple(sources)
 
 
+def _project_hook_tree(
+    rule: components.Rule, expanded: tuple[components.ComponentFile, ...]
+) -> tuple[tuple[str, components.ComponentFile], ...] | None:
+    """Land a hook tree onto the file-shaped native surface.
+
+    Discovery sees `hooks.json`. Handlers live in the sibling `hooks/`
+    directory. Adoption may capture that as a file-plus-siblings tree
+    (``hooks.json``, ``hooks/h01.py``) or as the directory itself
+    (``hooks.json``, ``h01.py``). Both have to land at the same native
+    places: the manifest on the declared file, handlers under `hooks/`.
+    """
+    manifest_name = PurePosixPath(rule.relative).name
+    if not any(member.path == manifest_name for member in expanded):
+        return None
+    parent = str(PurePosixPath(rule.relative).parent)
+    parent = "" if parent == "." else parent
+    projection: list[tuple[str, components.ComponentFile]] = []
+    for member in expanded:
+        if member.path == manifest_name:
+            place = rule.relative
+        else:
+            relative = member.path if member.path.startswith("hooks/") else f"hooks/{member.path}"
+            place = f"{parent}/{relative}".lstrip("/")
+        projection.append((place, member))
+    return tuple(projection)
+
+
+def _managed_path_drift(
+    declared: frozenset[str], projected: frozenset[str]
+) -> tuple[frozenset[str], frozenset[str]]:
+    return composition.managed_path_drift(declared, projected)
+
+
+def _declared_covers(
+    surfaces: tuple[composition.Surface, ...], sources: tuple[bundle.Source, ...]
+) -> frozenset[str]:
+    """Passport roots when declared, otherwise the files this compile projected.
+
+    Passing the source paths alone made `path_undeclared` / `declared_path_absent`
+    a tautology: the writer checked the set it had just built. Passport covers
+    are roots, so `skills/foo` must still cover `skills/foo/SKILL.md`.
+    """
+    by_owner: dict[str, list[str]] = {}
+    for source in sources:
+        by_owner.setdefault(source.owner, []).append(source.path)
+    covers: set[str] = set()
+    for item in surfaces:
+        if item.managed_paths:
+            for path in item.managed_paths:
+                covers.update(
+                    composition.claimed_paths(path) if item.component_type == "hook" else (path,)
+                )
+        else:
+            covers.update(by_owner.get(item.stable_id, ()))
+    return frozenset(covers)
+
+
 def _as_json(report: composition.CompositionReport) -> JsonValue:
-    return {
-        "chosen": [
-            {"stable_id": item.stable_id, "version": item.version, "lane": item.lane}
-            for item in report.chosen
-        ],
-        "operations": list(report.operations),
-    }
+    return cast(
+        JsonValue,
+        {
+            "chosen": [
+                {
+                    "stable_id": item.stable_id,
+                    "version": item.version,
+                    "lane": item.lane,
+                    "reason": item.reason,
+                }
+                for item in report.chosen
+            ],
+            "rejected": [
+                {
+                    "stable_id": item.stable_id,
+                    "version": item.version,
+                    "reason": item.reason,
+                }
+                for item in report.rejected
+            ],
+            "operations": list(report.operations),
+            "conflicts": [
+                {"code": item.code, "summary": item.summary, "details": item.details}
+                for item in report.conflicts
+            ],
+        },
+    )
 
 
 def _conversion_json(report: composition.ConversionReport) -> JsonValue:

@@ -297,6 +297,19 @@ def test_scaffold_contract_rejects_invalid_descriptor_and_paths() -> None:
         )
 
 
+def test_scaffold_skill_declares_the_projection_root_not_the_entry_file(tmp_path: Path) -> None:
+    _plan, files = authoring.scaffold_plan(
+        component_type="skill",
+        name="review-kit",
+        language="none",
+        harness_variant="portable",
+        output=tmp_path / "review-kit",
+    )
+    passport = json.loads(files["component-passport.json"].decode())
+    assert passport["managed_paths"] == ["skills/review-kit"]
+    assert passport["entry_points"] == ["SKILL.md"]
+
+
 def test_versioned_reference_scaffolds_match_the_reviewed_golden(tmp_path: Path) -> None:
     golden = json.loads(SCAFFOLD_GOLDEN.read_text(encoding="utf-8"))
     assert golden["template_version"] == "component-scaffold/1"

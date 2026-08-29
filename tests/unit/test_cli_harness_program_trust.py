@@ -128,6 +128,11 @@ def test_the_reason_helper_is_the_one_the_setup_path_uses() -> None:
         provider_trust.unisolated_reason(None, {"unverified-provider": True})
         == network_launcher.EXPLICIT_UNVERIFIED_PROVIDER
     )
+    assert (
+        provider_trust.unisolated_reason(None, {}, recorded_trust="unverified")
+        == network_launcher.EXPLICIT_UNVERIFIED_PROVIDER
+    )
+    assert provider_trust.unisolated_reason(None, {}, recorded_trust="build_attested") is None
 
 
 def test_a_plan_for_a_different_operation_is_refused_before_anything_is_fetched(

@@ -1,6 +1,6 @@
 ---
 description: "Операторская процедура evidence-gated готовности production и опционального OpenObserve."
-last_verified: "2026-08-08"
+last_verified: "2026-08-28"
 ---
 
 # Готовность production
@@ -57,9 +57,10 @@ timestamp/expiry, safe outcomes и остаточные риски. Нельзя
 `0.5%`. Telemetry OpenObserve хранится `14 days`, а оператор оставляет не менее
 `20%` свободного места на файловой системе тома. Evidence действует `24 hours`.
 
-Rate limit — `120` запросов на origin/path за `60 seconds`, с не более `2048`
-ключами в памяти. Это намеренно базовая single-node защита: browser state и
-forwarded headers не становятся источником полномочия. Для входа, жалоб и
+Rate limit — `100` запросов за `60 seconds` на весь процесс и `1000` запросов
+за `3600 seconds` с одного транспортного адреса, с не более `2048` ключами в
+таблице адресов (`ADR-0128`). Это намеренно базовая single-node защита: browser
+state и forwarded headers не становятся источником полномочия. Для входа, жалоб и
 чувствительных изменений до production approval требуется отдельный класс policy
 и проверка на server boundary.
 

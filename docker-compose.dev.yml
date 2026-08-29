@@ -13,6 +13,14 @@ x-app-env: &app-env
   AI_STP_STORAGE_KEY_PREFIX: objects
   AI_STP_API_ENVIRONMENT: dev
   AI_STP_API_LOG_DIR: /var/log/ai_stp
+  # Dual-window HTTP gate (ADR-0128 / SPEC-010 REQ-1015). Code defaults match
+  # these values; they are named here so a stack without .env.dev still shows
+  # the policy. Explicit 0 disables that dimension.
+  AI_STP_API_RATE_LIMIT_OVERALL_REQUESTS: "100"
+  AI_STP_API_RATE_LIMIT_OVERALL_WINDOW_SECONDS: "60"
+  AI_STP_API_RATE_LIMIT_IP_REQUESTS: "1000"
+  AI_STP_API_RATE_LIMIT_IP_WINDOW_SECONDS: "3600"
+  AI_STP_API_RATE_LIMIT_MAX_KEYS: "2048"
   AI_STP_WORKER_LOG_DIR: /var/log/ai_stp
   AI_STP_WORKER_WORKER_ID: worker-dev
   # Dev-only HMAC secret for opaque public-catalog cursors (ADR-0042, min 32 chars).

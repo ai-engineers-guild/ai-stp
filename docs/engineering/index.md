@@ -17,7 +17,7 @@ last_verified: "2026-08-03"
 | [implementation-roadmap.md](implementation-roadmap.md) | Зависимый порядок реализации MVP и межрепозиторных изменений. | 2026-08-27 |
 | [platform-artifact-bind-312.md](platform-artifact-bind-312.md) | План реализации plan-scoped upload байт публикации. | 2026-08-16 |
 | [platform-attestation-verify-300.md](platform-attestation-verify-300.md) | План реализации проверки Ed25519 авторского подтверждения. | 2026-08-16 |
-| [platform-rate-limiter-345.md](platform-rate-limiter-345.md) | План реализации вытеснения ключей HTTP rate limiter. | 2026-08-16 |
+| [platform-rate-limiter-345.md](platform-rate-limiter-345.md) | План реализации вытеснения ключей HTTP rate limiter. | 2026-08-28 |
 | [platform-reachability-346.md](platform-reachability-346.md) | План расширения гейта достижимости на api, platform и worker. | 2026-08-16 |
 | [platform-sync-cursor-302.md](platform-sync-cursor-302.md) | План реализации курсора последней непустой страницы sync pull. | 2026-08-16 |
 | [pr-214-integration-handoff.md](pr-214-integration-handoff.md) | Проверенный порядок разделения и интеграции PR #214 через актуальную линию dev. | 2026-08-08 |

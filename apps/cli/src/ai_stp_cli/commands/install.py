@@ -138,7 +138,7 @@ def _prepared_setup_source(
     harness_id = str(document.get("harness_id") or "")
     raw_components = document.get("components")
     facts = document.get("facts")
-    if not harness_id or not isinstance(raw_components, list) or not raw_components:
+    if not harness_id or not isinstance(raw_components, list):
         raise CliFailure(
             "AI_STP_CONFLICT",
             "the prepared setup passport has no complete harness/component identity",
@@ -654,7 +654,11 @@ def apply(parameters: Mapping[str, object]) -> Answer[InstallationView]:
             executable,
             held.provider_target or held.target_id,
             held.provider_protocol_version,
-            unisolated_reason=trust.unisolated_reason(trusted_release, parameters),
+            unisolated_reason=trust.unisolated_reason(
+                trusted_release,
+                parameters,
+                recorded_trust=held.provider_release_trust,
+            ),
         )
         bound_bundle = (
             _bound_bundle_v3(held)
@@ -987,7 +991,11 @@ def resume(parameters: Mapping[str, object]) -> Answer[InstallationView]:
             executable,
             held.provider_target or held.target_id,
             held.provider_protocol_version,
-            unisolated_reason=trust.unisolated_reason(trusted_release, parameters),
+            unisolated_reason=trust.unisolated_reason(
+                trusted_release,
+                parameters,
+                recorded_trust=held.provider_release_trust,
+            ),
         )
         info = _object(invoke("provider-info", ()))
         _speaks(info, held.provider_protocol_version)

@@ -534,6 +534,7 @@ ADOPTED_FIELDS: Final[tuple[str, ...]] = (
     "content_format",
     "content_digest",
     "byte_length",
+    "managed_paths",
 )
 
 
@@ -912,6 +913,7 @@ def _passport(
         "content_format": content_format,
         "content_digest": digest,
         "byte_length": byte_length,
+        "managed_paths": list(_adopted_managed_paths(item)),
     }
     facts: dict[str, JsonValue] = {
         name: {
@@ -932,6 +934,13 @@ def _passport(
         "parent_revision_ids": [],
         "facts": facts,
     }
+
+
+def _adopted_managed_paths(item: Found) -> tuple[str, ...]:
+    """Projection-relative covers, never the discovery path (`ADR-0127`)."""
+    from ai_stp_cli.local.composition import adopted_covers
+
+    return adopted_covers(item)
 
 
 def _source_name(item: Found) -> str:
@@ -1482,6 +1491,16 @@ def _read(place: Path) -> ComponentContent:
                 "a component must be one regular file or real directory",
                 details={"source_path": redact_home(place)},
             )
+        # Hook manifests may have executable siblings in the native
+        # `<root>/hooks/` directory. The manifest is the discovered component,
+        # but adopting only its bytes would make a later bundle silently lose
+        # those siblings. Capture that bounded sibling tree while keeping the
+        # manifest as the artifact root.
+        siblings = place.with_name(place.stem)
+        if place.name == "hooks.json" and _shape_of(siblings) == "directory":
+            return ComponentContent(
+                _hook_tree_artifact(place, siblings, held), COMPONENT_TREE_FORMAT
+            )
         return ComponentContent(_read_regular(place, held), COMPONENT_FILE_FORMAT)
     except CliFailure:
         raise
@@ -1533,13 +1552,26 @@ def _read_regular(place: Path, held: os.stat_result) -> bytes:
 
 
 def _tree_artifact(root: Path) -> bytes:
+    return _encode_tree_artifact(_tree_files(root), root)
+
+
+def _hook_tree_artifact(manifest: Path, siblings: Path, manifest_stat: os.stat_result) -> bytes:
+    manifest_mode = 0o755 if stat.S_IMODE(manifest_stat.st_mode) & 0o111 else 0o644
+    files = [
+        ComponentFile("hooks.json", _read_regular(manifest, manifest_stat), manifest_mode),
+        *_tree_files(siblings, prefix="hooks"),
+    ]
+    return _encode_tree_artifact(files, manifest.parent)
+
+
+def _tree_files(root: Path, *, prefix: str = "") -> list[ComponentFile]:
     files: list[ComponentFile] = []
-    stack = [root]
+    stack: list[tuple[Path, str]] = [(root, prefix)]
     total = 0
     while stack:
-        directory = stack.pop()
+        directory, base = stack.pop()
         for place in sorted(directory.iterdir(), key=lambda item: item.name, reverse=True):
-            relative = place.relative_to(root).as_posix()
+            relative = f"{base}/{place.name}" if base else place.name
             held = place.lstat()
             if stat.S_ISLNK(held.st_mode):
                 raise CliFailure(
@@ -1548,7 +1580,7 @@ def _tree_artifact(root: Path) -> bytes:
                     details={"source_path": redact_home(place)},
                 )
             if stat.S_ISDIR(held.st_mode):
-                stack.append(place)
+                stack.append((place, relative))
                 continue
             if not stat.S_ISREG(held.st_mode) or held.st_nlink != 1:
                 raise CliFailure(
@@ -1572,6 +1604,10 @@ def _tree_artifact(root: Path) -> bytes:
                 )
             mode = 0o755 if stat.S_IMODE(held.st_mode) & 0o111 else 0o644
             files.append(ComponentFile(relative, payload, mode))
+    return files
+
+
+def _encode_tree_artifact(files: list[ComponentFile], source_root: Path) -> bytes:
     manifest_names = {
         "SKILL.md",
         "AGENTS.md",
@@ -1587,7 +1623,7 @@ def _tree_artifact(root: Path) -> bytes:
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED",
             "this directory holds no manifest to adopt",
-            details={"source_path": redact_home(root)},
+            details={"source_path": redact_home(source_root)},
         )
     ordered = sorted(files, key=lambda item: item.path)
     manifest: dict[str, JsonValue] = {

@@ -38,6 +38,19 @@ def _platform() -> dict[str, JsonValue]:
     return {"os": os_name, "arch": architecture}
 
 
+def test_windows_target_comparison_accepts_slash_and_extended_forms(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("ai_stp_cli.provider.operation_v3.platform.system", lambda: "Windows")
+
+    same = operation_v3._same_windows_target  # pyright: ignore[reportPrivateUsage]
+    assert same(r"C:\Users\User\target", r"C:/Users/User/target")
+    assert same(r"C:\Users\User\target", r"\\?\C:\Users\User\target")
+    assert same(r"C:\Users\User\target", r"c:\users\user\target")
+    assert not same(r"C:\Users\User\target", r"D:\Users\User\target")
+    assert not same(r"C:\Users\User\target", None)
+
+
 def _info(
     *,
     harness_id: str = "claude-code",

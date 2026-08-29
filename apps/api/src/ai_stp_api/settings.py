@@ -23,6 +23,13 @@ from ai_stp_contracts.catalog import (
 from ai_stp_platform.catalog_usage import CatalogUsagePolicy
 from ai_stp_platform.settings import DatabaseSettings, StorageSettings
 
+# Fail-closed single-node HTTP gate (SPEC-010 REQ-1015, ADR-0128).
+RATE_LIMIT_OVERALL_REQUESTS = 100
+RATE_LIMIT_OVERALL_WINDOW_SECONDS = 60
+RATE_LIMIT_IP_REQUESTS = 1000
+RATE_LIMIT_IP_WINDOW_SECONDS = 3600
+RATE_LIMIT_MAX_KEYS = 2048
+
 
 def _distribution_version() -> str:
     """The version of the installed API distribution.
@@ -69,19 +76,22 @@ class ServiceSettings(BaseSettings):
     # Runtime-only OTLP headers, formatted as comma-separated ``name=value`` pairs.
     # The values may be credentials and must never be logged or copied into evidence.
     otel_exporter_headers: str = Field(default="")
-    # The single-node MVP policy `SPEC-010` names, and the value the shipped
-    # `.env.prod.example` has always carried. It is the default rather than an
-    # opt-in because `SlidingWindowLimiter.allow` returns `True` for everything
-    # when `maximum` is `0`: an environment that simply never mentioned this
-    # variable ran a public API with no limit, and absence looked exactly like a
-    # deliberate decision to switch the limiter off. Measured on the deployed
-    # environment: 150 requests in one burst returned 150 x 200.
+    # The single-node MVP policy `SPEC-010` `REQ-1015` / `ADR-0128` names. It is
+    # the default rather than an opt-in because `SlidingWindowLimiter.allow`
+    # returns `True` for everything when `maximum` is `0`: an environment that
+    # simply never mentioned the variable ran a public API with no limit, and
+    # absence looked exactly like a deliberate decision to switch the limiter
+    # off. Measured on the deployed environment before the first fail-closed
+    # default: 150 requests in one burst returned 150 x 200.
     #
-    # `0` still turns the limiter off, and still means that — it just has to be
-    # asked for now.
-    rate_limit_requests: int = Field(default=120, ge=0)
-    rate_limit_window_seconds: int = Field(default=60, gt=0)
-    rate_limit_max_keys: int = Field(default=2048, gt=0)
+    # `0` still turns that dimension off, and still means that — it just has to
+    # be asked for now. The retired `AI_STP_API_RATE_LIMIT_REQUESTS` name is not
+    # an alias: `extra=ignore` drops it so a leftover `0` cannot fail open.
+    rate_limit_overall_requests: int = Field(default=RATE_LIMIT_OVERALL_REQUESTS, ge=0)
+    rate_limit_overall_window_seconds: int = Field(default=RATE_LIMIT_OVERALL_WINDOW_SECONDS, gt=0)
+    rate_limit_ip_requests: int = Field(default=RATE_LIMIT_IP_REQUESTS, ge=0)
+    rate_limit_ip_window_seconds: int = Field(default=RATE_LIMIT_IP_WINDOW_SECONDS, gt=0)
+    rate_limit_max_keys: int = Field(default=RATE_LIMIT_MAX_KEYS, gt=0)
 
     def otel_headers(self) -> dict[str, str]:
         """Return validated OTLP headers without exposing their values in errors."""

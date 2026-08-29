@@ -9,6 +9,9 @@
 .work/
 public/build/
 
+# Локальный scratch экспериментов. Не источник продукта.
+.tmp/
+
 # Agent/session local notes and check reports (not product docs)
 plans/
 

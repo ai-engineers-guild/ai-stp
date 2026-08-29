@@ -305,6 +305,36 @@ def test_declared_paths_that_match_are_allowed() -> None:
     assert compiled.compiled
 
 
+def test_a_declared_root_covers_the_files_under_it() -> None:
+    """Passports name roots. The zip holds files. That is not undeclared drift."""
+    compiled = _compile(
+        (
+            bundle.Source("skills/foo/SKILL.md", b"x", "component_a"),
+            bundle.Source("skills/foo/references/a.md", b"y", "component_a"),
+        ),
+        declared_paths=frozenset({"skills/foo"}),
+    )
+    assert compiled.compiled
+
+
+def test_a_file_beside_a_declared_root_is_undeclared() -> None:
+    compiled = _compile(
+        (bundle.Source("skills/foo.md", b"x", "component_a"),),
+        declared_paths=frozenset({"skills/foo"}),
+    )
+    assert "path_undeclared" in _codes(compiled)
+
+
+def test_a_declared_root_with_no_file_under_it_is_absent() -> None:
+    compiled = _compile(
+        (bundle.Source("skills/foo/SKILL.md", b"x", "component_a"),),
+        declared_paths=frozenset({"skills/foo", "skills/bar"}),
+    )
+    assert "declared_path_absent" in _codes(compiled)
+    absent = next(item for item in compiled.refusals if item.code == "declared_path_absent")
+    assert absent.details["path"] == "skills/bar"
+
+
 def test_a_bundle_with_a_refusal_carries_no_manifest_and_no_digest() -> None:
     """`REQ-608`: a blocked bundle is not a partial one."""
     compiled = _compile(

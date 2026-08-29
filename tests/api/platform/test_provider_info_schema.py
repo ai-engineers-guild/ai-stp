@@ -19,7 +19,12 @@ _TEST_CURSOR_SECRET = "test-catalog-cursor-secret-32b-min!!"
 
 def _settings(log_dir: Path) -> Settings:
     return Settings(
-        service=ServiceSettings(environment="test", log_dir=log_dir, rate_limit_requests=0),
+        service=ServiceSettings(
+            environment="test",
+            log_dir=log_dir,
+            rate_limit_overall_requests=0,
+            rate_limit_ip_requests=0,
+        ),
         database=DatabaseSettings(url=f"postgresql+asyncpg://u:p@{_UNREACHABLE}/db"),
         storage=StorageSettings(
             endpoint=f"http://{_UNREACHABLE}",

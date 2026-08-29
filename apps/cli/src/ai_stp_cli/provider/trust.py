@@ -33,6 +33,8 @@ class ReleaseEvidence:
 def unisolated_reason(
     trusted_release: ReleaseEvidence | release.ReleaseManifest | None,
     parameters: Mapping[str, object],
+    *,
+    recorded_trust: str = "",
 ) -> str | None:
     """Why this install may proceed on Windows with nothing denying the network.
 
@@ -40,10 +42,14 @@ def unisolated_reason(
     verified against manifest, policy and exact bytes, or an operator who named
     an unverified provider on purpose. Neither is new authority — this only
     reads which of the two happened. Off Windows it is ignored.
+
+    `install apply` and `install resume` do not take `--unverified-provider`.
+    The operator already named it at plan time, and the durable plan recorded
+    `provider_release_trust`. Reading that record is not a new decision.
     """
     if trusted_release is not None:
         return network_launcher.TRUSTED_RELEASE
-    if bool(parameters.get("unverified-provider", False)):
+    if bool(parameters.get("unverified-provider", False)) or recorded_trust == "unverified":
         return network_launcher.EXPLICIT_UNVERIFIED_PROVIDER
     return None
 

@@ -242,7 +242,7 @@ def _scaffold_files(name: str, descriptor: ComponentTemplateDescriptor) -> dict[
             "agents": [],
             "plugins": [],
         },
-        "managed_paths": [entry],
+        "managed_paths": [_managed_cover(name, descriptor)],
         "native_ids": [name],
         "entry_points": [entry],
         "runtime_requirements": [],
@@ -279,6 +279,42 @@ def _scaffold_files(name: str, descriptor: ComponentTemplateDescriptor) -> dict[
     }
     files.update(_source_files(name, descriptor, entry))
     return files
+
+
+def _managed_cover(name: str, descriptor: ComponentTemplateDescriptor) -> str:
+    """Where this component lands on a target, not the file inside the scaffold.
+
+    `SKILL.md` is an entry point of the artifact. The passport `managed_paths`
+    is the native root (`skills/<name>`). Declaring the inner file as the cover
+    is `managed_path_outside_projection` against a directory rule.
+    """
+    from ai_stp_cli.local import composition
+
+    component_type = descriptor.component_type
+    harness = descriptor.harness_variant
+    if harness == "portable":
+        if component_type == "skill":
+            return f"skills/{name}"
+        if component_type == "instruction":
+            return "AGENTS.md"
+        if component_type == "agent":
+            return f"agents/{name}"
+        if component_type == "command":
+            return f"commands/{name}"
+        if component_type == "plugin":
+            return f"plugins/{name}"
+        if component_type == "hook":
+            return "hooks.json"
+        if component_type == "setting":
+            return "settings.json"
+        if component_type == "mcp":
+            return "mcp.json"
+    rule = composition.rule_for(component_type, harness)
+    if rule is None:
+        return _entry_path(name, descriptor)
+    if rule.shape == "directory":
+        return f"{rule.relative}/{name}"
+    return rule.relative
 
 
 def _entry_path(name: str, descriptor: ComponentTemplateDescriptor) -> str:

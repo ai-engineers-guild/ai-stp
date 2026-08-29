@@ -83,6 +83,41 @@
       "title": "CompositionConflict",
       "type": "object"
     },
+    "CompositionRejection": {
+      "additionalProperties": true,
+      "description": "One candidate considered and not chosen, with a stable reason.",
+      "properties": {
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "stable_id": {
+          "minLength": 1,
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^\\d+\\.\\d+$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "reason",
+        "schema_version",
+        "stable_id",
+        "version"
+      ],
+      "title": "CompositionRejection",
+      "type": "object"
+    },
     "ConversionEntry": {
       "additionalProperties": true,
       "description": "What one component becomes on the target harness, and what is lost.\n\n`losses` names each one. A report that says something was lost without\nsaying what cannot be acted on, and `REQ-609` asks for a loss-aware report\nrather than a loss-counting one.",
@@ -211,6 +246,14 @@
       "title": "Operations",
       "type": "array"
     },
+    "rejected": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CompositionRejection"
+      },
+      "title": "Rejected",
+      "type": "array"
+    },
     "schema_version": {
       "const": 1,
       "default": 1,
@@ -226,6 +269,7 @@
     "conversion_complete",
     "harness_id",
     "operations",
+    "rejected",
     "schema_version"
   ],
   "title": "CompositionReports",

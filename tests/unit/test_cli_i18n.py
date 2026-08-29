@@ -38,10 +38,30 @@ def _static_failure_messages() -> set[str]:
                 continue
             if len(node.args) < 2:
                 continue
-            arg = node.args[1]
-            if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
-                found.add(arg.value)
+            found.update(_message_texts(node.args[1]))
     return found
+
+
+def _message_texts(node: ast.AST) -> set[str]:
+    """English catalog keys that do not depend on a runtime value.
+
+    Interpolated f-strings and names (`INTERNAL_MESSAGE`, a helper's `message`)
+    are not keys: each interpolation would be a different catalog entry, and
+    the variable belongs in `details`. Both branches of a constant `if` are.
+    """
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return {node.value}
+    if isinstance(node, ast.JoinedStr):
+        parts: list[str] = []
+        for value in node.values:
+            if isinstance(value, ast.Constant) and isinstance(value.value, str):
+                parts.append(value.value)
+            else:
+                return set()
+        return {"".join(parts)} if parts else set()
+    if isinstance(node, ast.IfExp):
+        return _message_texts(node.body) | _message_texts(node.orelse)
+    return set()
 
 
 def test_locale_catalogs_share_keys() -> None:
