@@ -15,7 +15,7 @@ last_verified: "2026-08-03"
 | [first-party-corpus.md](first-party-corpus.md) | Проверяемая инвентаризация реальных байтов и паспортов первопартийного корпуса запуска. | 2026-08-29 |
 | [git-workflow.md](git-workflow.md) | Правила веток, коммитов, PR и межрепозиторных изменений. | 2026-08-12 |
 | [implementation-roadmap.md](implementation-roadmap.md) | Зависимый порядок реализации MVP и межрепозиторных изменений. | 2026-08-27 |
-| [quality-gates.md](quality-gates.md) | Обязательные проверки и release evidence. | 2026-08-22 |
+| [quality-gates.md](quality-gates.md) | Обязательные проверки и release evidence. | 2026-08-29 |
 | [release-evidence.md](release-evidence.md) | Обязательные доказательства выпуска CLI, платформы и провайдеров. | 2026-08-04 |
 | [repository-structure.md](repository-structure.md) | Целевая структура монорепозитория и правила владения кодом. | 2026-08-05 |
 | [schema-evolution.md](schema-evolution.md) | Версионирование, совместимость и миграция сохраняемых и передаваемых схем. | 2026-08-03 |
@@ -24,6 +24,6 @@ last_verified: "2026-08-03"
 | [tech-debt-rules.md](tech-debt-rules.md) | Правила регистрации временных компромиссов. | 2026-08-03 |
 | [tech-stack.md](tech-stack.md) | Целевой стек MVP и правила выбора зависимостей. | 2026-08-05 |
 | [testing.md](testing.md) | Тестовая стратегия для паспортов, сборки, sync, providers и platform. | 2026-08-27 |
-| [web-quality.md](web-quality.md) | Эксплуатационные правила web: SEO, machine discovery, browser storage, selectors и quality gates. | 2026-08-09 |
+| [web-quality.md](web-quality.md) | Эксплуатационные правила web: SEO, machine discovery, browser storage, selectors и quality gates. | 2026-08-29 |
 
 <!-- КОНЕЦ СОДЕРЖИМОГО -->

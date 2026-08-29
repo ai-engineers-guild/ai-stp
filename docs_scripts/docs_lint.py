@@ -672,6 +672,31 @@ class Linter:
                     f"заголовок ADR-{heading.group(1)} не совпадает с именем ADR-{identifier}",
                 )
 
+    def _withheld_adrs(self) -> frozenset[str]:
+        """ADR identifiers the publication manifest keeps out of the public tree.
+
+        Read from `release_scripts/public_manifest.toml`, which owns the
+        boundary; restating the list here would be the second copy this
+        repository forbids. Absent manifest means nothing is withheld, which is
+        the honest answer for a tree that does not publish.
+        """
+        manifest = self.root / "release_scripts" / "public_manifest.toml"
+        if not manifest.is_file():
+            return frozenset()
+        found: set[str] = set()
+        section = False
+        for line in manifest.read_text(encoding="utf-8").splitlines():
+            stripped = line.strip()
+            if stripped.startswith("["):
+                section = stripped == "[withheld]"
+                continue
+            if not section:
+                continue
+            match = re.search(r"docs/adr/ADR-(\d{4})-", stripped)
+            if match:
+                found.add(f"ADR-{match.group(1)}")
+        return frozenset(found)
+
     def check_adr_chain(self) -> None:
         """A record that changed another must be findable from the one it changed.
 
@@ -699,9 +724,17 @@ class Linter:
             heads[identifier] = region.group(0) if region else text[:1200]
             lines_of[identifier] = path
 
+        withheld = self._withheld_adrs()
         for identifier, region in sorted(heads.items()):
             path = lines_of[identifier]
             for verb, _between, target in ADR_SUPERSEDES_RE.findall(region):
+                # A withheld record may point at a published one; the published
+                # one must not point back. Requiring it would put a reference to
+                # a document the public reader cannot open into the published
+                # tree, which is the defect this check exists to prevent — one
+                # boundary along. The manifest owns which records those are.
+                if identifier in withheld and target not in withheld:
+                    continue
                 if target not in heads:
                     self.error(
                         path,

@@ -24,6 +24,6 @@ last_verified: "2026-08-03"
 | [security-incident.md](security-incident.md) | Runbook: security incident. | 2026-08-03 |
 | [sync-conflict.md](sync-conflict.md) | Runbook: sync conflict. | 2026-08-03 |
 | [uninstall-purge.md](uninstall-purge.md) | Runbook: uninstall purge. | 2026-08-03 |
-| [web-feature-profiles.md](web-feature-profiles.md) | Сборка, проверка и откат deploy-профилей web. | 2026-08-22 |
+| [web-feature-profiles.md](web-feature-profiles.md) | Сборка, проверка и откат deploy-профилей web. | 2026-08-29 |
 
 <!-- КОНЕЦ СОДЕРЖИМОГО -->
