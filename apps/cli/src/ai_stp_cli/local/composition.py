@@ -147,6 +147,29 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     # already is `~/.pi/agent`. The segment belongs to the home, not inside it,
     # and prefixing it landed every Pi projection in `~/.pi/agent/agent/`.
     Rule("instruction", "AGENTS.md", "file", "pi"),
+    # `skill` stays global for pi, and for opencode, cursor and grok-build
+    # below, and that is a measurement rather than an omission.
+    #
+    # From `0.0.28` those four publish a `user_root` scoped profile carrying
+    # `skill` -> `skills`, beside codex's. It is tempting to follow, and it
+    # would be wrong: read from the shipped binaries, all four **also** keep
+    # `skill` in their global profile with `skills` among its namespaces.
+    # Codex is the only harness whose global profile does not declare the kind,
+    # which is why its row is scoped — forced, not chosen.
+    #
+    # So for these four the provider offers a second root; it does not retire
+    # the first. Moving them would relocate every published skill component out
+    # of the harness's own home into `~/.agents`, which is shared across
+    # harnesses — a skill installed for pi becomes visible to grok. That is a
+    # product decision about who sees what, not a mechanical follow-the-
+    # declaration step, and `managed_paths` records `skills/nddev-builder`
+    # without the root it hangs off, so the relocation would not be visible in
+    # any published passport.
+    #
+    # Measured 2026-08-29 against `0.0.28`:
+    #     claude   global skill=yes  scoped skill=no
+    #     codex    global skill=NO   scoped skill=yes
+    #     cursor, grok, pi, opencode   global yes  AND  scoped yes
     Rule("skill", "skills", "directory", "pi"),
     # Native path is `extensions/`; the package family is `package`
     # (`docs/contracts/component-setup-passports.md`, first-party Pi plugin
