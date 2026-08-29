@@ -657,3 +657,53 @@ def test_the_reason_travels_onto_the_record_and_into_the_report() -> None:
     assert reported[0]["refused_by"] == [
         "skill_static_gate: failed — ran without producing a report: skill-scanner"
     ]
+
+
+def test_a_retryable_rejection_is_waited_out_rather_than_recorded_as_a_blocker() -> None:
+    """A rate limit is not a verdict about the object.
+
+    Every `CliFailure` used to become a blocker, and a blocker reads as "this
+    object cannot be published". `AI_STP_RATE_LIMITED` carries
+    `retryable: true`; nothing is wrong with the object and nothing about it
+    would differ a minute later.
+
+    Live on 2026-08-29: the reseed met the dual-window limiter that shipped the
+    same day, fourteen objects published and five were recorded `blocked` with
+    "request rate limit exceeded".
+    """
+    waits: list[float] = []
+    attempts = {"n": 0}
+
+    def _work() -> str:
+        attempts["n"] += 1
+        if attempts["n"] < 3:
+            raise CliFailure("AI_STP_RATE_LIMITED", "request rate limit exceeded", retryable=True)
+        return "published"
+
+    assert tool._retrying(_work, pause=waits.append) == "published"
+    assert attempts["n"] == 3
+    assert waits == [2.0, 5.0]
+
+
+def test_a_failure_that_is_not_retryable_is_raised_at_once() -> None:
+    """Spinning on a real refusal would hide it behind a delay."""
+    waits: list[float] = []
+
+    def _work() -> str:
+        raise CliFailure("AI_STP_PRECONDITION_FAILED", "the plan hash does not match")
+
+    with pytest.raises(CliFailure, match="plan hash"):
+        tool._retrying(_work, pause=waits.append)
+    assert waits == []
+
+
+def test_a_rejection_that_never_stops_being_retryable_still_fails() -> None:
+    """Bounded waits: an unavailable platform must fail, not spin forever."""
+    waits: list[float] = []
+
+    def _work() -> str:
+        raise CliFailure("AI_STP_RATE_LIMITED", "request rate limit exceeded", retryable=True)
+
+    with pytest.raises(CliFailure, match="rate limit"):
+        tool._retrying(_work, pause=waits.append)
+    assert waits == list(tool.RETRY_PAUSES)

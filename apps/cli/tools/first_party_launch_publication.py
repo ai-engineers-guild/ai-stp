@@ -15,6 +15,7 @@ import sys
 import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 from typing import Final, Literal, cast
 
@@ -326,6 +327,7 @@ def review(
     endpoint: Endpoint,
     held: Session,
     objects: Sequence[LaunchObject] | None = None,
+    pause: Callable[[float], None] = time.sleep,
 ) -> BatchState:
     """Create exact plans for the ordered corpus and persist resume coordinates."""
     _require_owner(held)
@@ -376,7 +378,7 @@ def review(
         if record.plan_id is not None and record.blocker is None:
             continue
         try:
-            _plan_create(endpoint, held, item, record)
+            _retrying(partial(_plan_create, endpoint, held, item, record), pause=pause)
             record.blocker = None
         except CliFailure as error:
             record.blocker = error.message
@@ -384,6 +386,41 @@ def review(
                 record.state = BLOCKED
         _save_state(state_path, state)
     return state
+
+
+RETRY_PAUSES: Final[tuple[float, ...]] = (2.0, 5.0, 15.0, 30.0, 60.0)
+
+
+def _retrying[T](work: Callable[[], T], *, pause: Callable[[float], None]) -> T:
+    """Run `work`, waiting out a rejection that says it is worth retrying.
+
+    Every `CliFailure` used to become a blocker, and a blocker is a terminal
+    verdict a human reads as "this object cannot be published". A rate-limit
+    rejection is not that: `AI_STP_RATE_LIMITED` carries `retryable: true`, and
+    the honest response to it is to wait rather than to record a defeat.
+
+    This bit on 2026-08-29 when the reseed ran against the dual-window limiter
+    that shipped the same day. Publishing forty objects, each with a plan, a
+    bind, a confirm and a poll loop, exhausts a hundred-request window quickly;
+    fourteen went out and five were recorded `blocked` with "request rate limit
+    exceeded". Nothing was wrong with those five, and nothing about them would
+    have been different a minute later.
+
+    Waits are bounded and escalating rather than unlimited: the caller's own
+    failure is still reached when the rejection is not transient, so a genuinely
+    unavailable platform fails as before instead of spinning.
+    """
+    last: CliFailure | None = None
+    for wait in (*RETRY_PAUSES, None):
+        try:
+            return work()
+        except CliFailure as error:
+            if not error.retryable or wait is None:
+                raise
+            last = error
+            pause(wait)
+    assert last is not None
+    raise last
 
 
 def _wait_terminal(
@@ -402,7 +439,10 @@ def _wait_terminal(
         )
     plan: PublicationPlanResponse | None = None
     for _ in range(max(1, max_polls)):
-        plan = publication.status(endpoint, held.access_token, record.plan_id)
+        plan = _retrying(
+            partial(publication.status, endpoint, held.access_token, record.plan_id),
+            pause=pause,
+        )
         _apply_plan(record, plan)
         if plan.state == PUBLISHED or plan.state in TERMINAL_FAILURES:
             return plan
@@ -477,7 +517,9 @@ def apply(
         if record.state == PUBLISHED:
             continue
         try:
-            live_digest = lookup(item.kind, item.stable_id, item.version)
+            live_digest = _retrying(
+                partial(lookup, item.kind, item.stable_id, item.version), pause=pause
+            )
         except CliFailure as error:
             record.blocker = error.message
             if record.state not in TERMINAL_FAILURES:
@@ -500,8 +542,11 @@ def apply(
             continue
         try:
             if record.plan_id is None:
-                _plan_create(endpoint, held, item, record)
-            current = publication.status(endpoint, held.access_token, cast(str, record.plan_id))
+                _retrying(partial(_plan_create, endpoint, held, item, record), pause=pause)
+            current = _retrying(
+                partial(publication.status, endpoint, held.access_token, cast(str, record.plan_id)),
+                pause=pause,
+            )
             _apply_plan(record, current)
             if current.state == PUBLISHED:
                 record.blocker = None
@@ -512,11 +557,15 @@ def apply(
                 _save_state(state_path, state)
                 continue
             if current.state in {"ready", "draft"}:
-                publication.bind(
-                    endpoint,
-                    held.access_token,
-                    current.plan_id,
-                    item.artifact,
+                _retrying(
+                    partial(
+                        publication.bind,
+                        endpoint,
+                        held.access_token,
+                        current.plan_id,
+                        item.artifact,
+                        pause=pause,
+                    ),
                     pause=pause,
                 )
                 if record.plan_hash is None:
@@ -525,15 +574,19 @@ def apply(
                         "a reviewed plan is missing its exact hash",
                         details={"stable_id": record.stable_id},
                     )
-                confirmed = publication.confirm(
-                    endpoint,
-                    held.access_token,
-                    current.plan_id,
-                    PublicationConfirmRequest(
-                        plan_hash=record.plan_hash,
-                        confirmed=True,
-                        idempotency_key=record.confirm_idempotency_key,
+                confirmed = _retrying(
+                    partial(
+                        publication.confirm,
+                        endpoint,
+                        held.access_token,
+                        current.plan_id,
+                        PublicationConfirmRequest(
+                            plan_hash=record.plan_hash,
+                            confirmed=True,
+                            idempotency_key=record.confirm_idempotency_key,
+                        ),
                     ),
+                    pause=pause,
                 )
                 _apply_plan(record, confirmed)
             finished = _wait_terminal(endpoint, held, record, pause=pause, max_polls=max_polls)
