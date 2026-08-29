@@ -1,6 +1,6 @@
 [project]
 name = "ai-stp-foundation"
-version = "0.0.8"
+version = "0.0.9"
 description = "Cross-cutting primitives: typed stable IDs, canonical JSON, digest domains, exact references, machine envelope."
 readme = "README.md"
 requires-python = ">=3.12"
