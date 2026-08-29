@@ -31,6 +31,7 @@ from typing import Final
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import (
+    component_passports,
     component_sources,
     content,
     harness_catalog,
@@ -521,6 +522,12 @@ ADOPTED_FIELDS: Final[tuple[str, ...]] = (
     "source_package_version",
     "source_digest",
     "source_name",
+    # The identity `composition._identities` refuses collisions on. It was
+    # absent until 2026-08-29, so `native_id_collision` was unreachable by the
+    # ordinary adopt → version → propose → bundle path and fired only in
+    # fixtures. Nothing new is discovered for it: this is `source_name`, and it
+    # is recorded only for kinds whose contract has a native identifier.
+    "native_ids",
     "entry_points",
     "transport_capabilities",
     "evidence_refs",
@@ -894,6 +901,11 @@ def _passport(
         "source_package_version": item.provenance.package_version,
         "source_digest": item.provenance.digest,
         "source_name": _source_name(item),
+        "native_ids": (
+            [_source_name(item)]
+            if component_passports.names_a_native_identifier(item.component_type)
+            else []
+        ),
         "entry_points": list(item.entry_points),
         "transport_capabilities": list(item.transport_capabilities),
         "evidence_refs": list(item.evidence_refs),

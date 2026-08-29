@@ -122,6 +122,16 @@ _ACTION_SURFACES: Final[dict[ComponentType, tuple[str, ...]]] = {
 }
 
 
+def names_a_native_identifier(component_type: str) -> bool:
+    """Whether this kind's contract has a native identifier at all.
+
+    Read from `_ACTION_SURFACES` rather than restated: the set that decides
+    which kinds carry `native_ids` is already written down once, and a second
+    list would agree with it exactly until somebody edited one.
+    """
+    return "native_ids" in _ACTION_SURFACES.get(cast(ComponentType, component_type), ())
+
+
 def evaluate_quality(connection: sqlite3.Connection, stable_id: str) -> QualityReport:
     """Return deterministic authoring hints that never participate in trust."""
     current = _component_head(connection, stable_id)

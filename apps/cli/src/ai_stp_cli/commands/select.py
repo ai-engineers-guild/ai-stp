@@ -18,7 +18,6 @@ they were built from comes back in the answer. A verdict whose inputs are
 invisible cannot be checked, and this stage exists precisely to be checkable.
 """
 
-import os
 import platform
 import sqlite3
 from collections.abc import Mapping, Sequence
@@ -361,7 +360,10 @@ def _version_of(found: harnesses.Found) -> str:
 
 
 def _candidates(
-    connection: sqlite3.Connection, *, consented: bool
+    connection: sqlite3.Connection,
+    *,
+    consented: bool,
+    at_version: Mapping[str, str] | None = None,
 ) -> tuple[eligibility.CandidateFacts, ...]:
     """Every locally registered object, as the constraint engine sees it.
 
@@ -370,17 +372,31 @@ def _candidates(
     a confirmation, so the trust axes stay false and `owned_or_pinned` carries
     the truth — which is also what keeps a licence and a grant from being
     demanded of somebody for their own work.
+
+    What it did **not** do until 2026-08-29 is read anything else. Three fields
+    reached the engine — harness, kind, owner — so `os_unsupported`,
+    `arch_unsupported`, `capability_*`, `license_undeclared`,
+    `entitlement_not_granted` and the rest of `SPEC-006` `REQ-601` were
+    implemented, unit-tested and unreachable from `select propose`. It also read
+    `revisions.head` while a proposal names an exact `X.Y`, so a member could be
+    admitted on the facts of a different version.
+
+    `at_version` names the revision to assess for the objects a caller is asking
+    about. Anything not named is still read at its head, because that is what
+    `select eligibility` without arguments is asking about.
     """
     rows = connection.execute(
         "SELECT stable_id FROM entity WHERE kind IN ('component', 'setup')"
     ).fetchall()
+    wanted = dict(at_version or {})
     held: list[eligibility.CandidateFacts] = []
     for row in rows:
-        stored = revisions.head(connection, str(row["stable_id"]))
+        stable_id = str(row["stable_id"])
+        stored = _revision_at(connection, stable_id, wanted.get(stable_id))
         if stored is None:
             continue
         document = cast(dict[str, JsonValue], stored.envelope.model_dump(mode="json"))
-        facts = cast(dict[str, JsonValue], document["facts"])
+        facts = cast(dict[str, JsonValue], document.get("facts") or {})
         held.append(
             eligibility.CandidateFacts(
                 stable_id=stored.stable_id,
@@ -390,12 +406,63 @@ def _candidates(
                     document.get("component_type") or _value(facts.get("component_type")) or ""
                 ),
                 owner_id=str(document.get("owner_id") or ""),
+                version=str(document.get("version") or ""),
+                visibility=str(document.get("visibility") or "private"),
+                supported_os=frozenset(_document_strings(document, facts, "supported_os")),
+                supported_arch=frozenset(_document_strings(document, facts, "supported_arch")),
+                requires_capabilities=tuple(
+                    _document_strings(document, facts, "requires_capabilities")
+                ),
+                required_env=tuple(_required_env_names(document, facts)),
+                requires_credentials=bool(document.get("requires_credentials") or False),
+                requires_authorization=str(document.get("requires_authorization") or "none"),
+                license_id=_license_id(document),
+                # The user's own work: no grant, no licence, no verification
+                # invented. `ADR-0016` says exactly this, and it is why the
+                # three trust axes below stay false.
                 owned_or_pinned=True,
                 registrable=lifecycle.registrable(connection, stored),
                 consented=consented,
             )
         )
     return tuple(held)
+
+
+def _revision_at(
+    connection: sqlite3.Connection, stable_id: str, version: str | None
+) -> revisions.StoredRevision | None:
+    """The revision of the exact version asked for, or the head when none is."""
+    if version:
+        recorded = versions.held(connection, stable_id, version)
+        if recorded is not None:
+            return revisions.get(connection, recorded.revision_id)
+    return revisions.head(connection, stable_id)
+
+
+def _required_env_names(
+    document: Mapping[str, JsonValue], facts: Mapping[str, JsonValue]
+) -> list[str]:
+    """The *names* only. `REQ-1108` keeps values out of every agent-reachable path."""
+    raw = document.get("required_env")
+    if not isinstance(raw, list):
+        return []
+    names: list[str] = []
+    for item in cast(list[object], raw):
+        if isinstance(item, dict):
+            name = cast(dict[str, object], item).get("name")
+            if isinstance(name, str) and name:
+                names.append(name)
+        elif isinstance(item, str) and item:
+            names.append(item)
+    return names
+
+
+def _license_id(document: Mapping[str, JsonValue]) -> str:
+    licence = document.get("license")
+    if isinstance(licence, dict):
+        value = cast(dict[str, object], licence).get("spdx_id")
+        return str(value) if isinstance(value, str) else ""
+    return ""
 
 
 def _value(fact: JsonValue) -> JsonValue:
@@ -639,9 +706,14 @@ def _resolve(
     mechanical stage before selection, and a proposal *is* a selection.
     """
     target = _target(harness, root, for_redistribution=False)
+    # The exact versions being proposed, not the entity heads. A proposal pins
+    # `X.Y`, so assessing the head could admit a member on another version's
+    # declared facts — and did, until 2026-08-29.
     assessed = {
         item.stable_id: item
-        for item in eligibility.assess_all(_candidates(connection, consented=False), target)
+        for item in eligibility.assess_all(
+            _candidates(connection, consented=False, at_version=dict(named)), target
+        )
     }
 
     members: list[selection.Member] = []
@@ -945,7 +1017,7 @@ def reports(parameters: Mapping[str, object]) -> Answer[CompositionReports]:
             )
 
         surfaces = _surfaces(connection, closure)
-        target = _composition_target(harness)
+        target = _composition_target(harness, surfaces)
         composed = composition.compose(surfaces, target)
         converted = composition.convert(surfaces, target)
         return CompositionReports(
@@ -983,18 +1055,37 @@ def reports(parameters: Mapping[str, object]) -> Answer[CompositionReports]:
         return Answer(work(connection))
 
 
-def _composition_target(harness: str) -> composition.Target:
+def _composition_target(
+    harness: str, surfaces: tuple[composition.Surface, ...] = ()
+) -> composition.Target:
     """What this machine allows a composition to need.
 
     Permissions and entitlements start empty: nothing has granted any yet, and
-    an empty set refuses honestly rather than permitting by default. The
-    declared environment is what this machine actually has, by name only.
+    an empty set refuses honestly rather than permitting by default.
+
+    The declared environment is the **composition's**, which is what
+    `composition._environment` says it checks — and it read
+    `frozenset(os.environ)` until 2026-08-29. That turned a question about the
+    composition into "is this variable exported in the shell that ran the CLI",
+    which the same docstring explicitly disclaims: a missing value is an
+    advisory at install (`REQ-111`, `REQ-816`) and a note at eligibility, not a
+    reason to refuse to build a package. Endpoints were never declared at all,
+    so any `external_endpoints` blocked unconditionally.
+
+    Two documented facts about one thing, disagreeing. The composition declares
+    what its members declare, so at this call site the check is satisfied by
+    construction — deliberately, because there is no independent declaration
+    here to compare against. The conflict code stays live for a caller that has
+    one, and the user-facing answer lives where it can be given.
     """
     return composition.Target(
         harness_id=harness,
         os=_operating_system(),
         arch=platform.machine().lower(),
-        declared_env=frozenset(os.environ),
+        declared_env=frozenset(name for item in surfaces for name in item.required_env),
+        declared_endpoints=frozenset(
+            endpoint for item in surfaces for endpoint in item.external_endpoints
+        ),
         supported_platforms=frozenset(),
         for_redistribution=False,
     )
@@ -1227,7 +1318,7 @@ def compile_setup_version_bundle(
         )
 
     surfaces = _surfaces(connection, closure)
-    target = _composition_target(harness)
+    target = _composition_target(harness, surfaces)
     composed = composition.compose(surfaces, target)
     if composed.blocked:
         raise CliFailure(
@@ -1322,11 +1413,38 @@ def _bundle_sources(
         artifact = document.get("artifact")
         direct_digest = artifact.get("digest") if isinstance(artifact, dict) else None
         digest = str(_value(facts.get("content_digest")) or direct_digest or "")
+        # Both of these were `continue`, and both silently produced a bundle
+        # weaker than the report describing it. The closure resolved the node,
+        # the composition report names it under `chosen`, and the plan then
+        # counts files that do not include it — every downstream statement stays
+        # true about what the writer was handed, which is the same shape as the
+        # dropped sibling artifacts of `#438`.
+        #
+        # An empty graph stays a real graph (`ADR-0124`, `REQ-630`): zero nodes
+        # give a zero-file bundle. A *present* node with nothing to write is not
+        # emptiness, and the honest answer is a refusal naming it.
         if not digest:
-            continue
+            raise CliFailure(
+                "AI_STP_CONFLICT",
+                "a resolved component carries no artifact digest to bundle",
+                details={"stable_id": item.stable_id, "revision_id": item.revision_id},
+            )
         rule = composition.rule_for(item.component_type, target.harness_id)
         if rule is None:
-            continue
+            # `native_surface_lost` blocks this at composition — but only when
+            # the component is `required`, so an optional member of a kind this
+            # harness cannot hold reached here and disappeared. Confirming a
+            # component into a composition is choosing it; `required` decides
+            # dependency resolution, not whether the writer may drop it.
+            raise CliFailure(
+                "AI_STP_CONFLICT",
+                "the target harness has no native surface for a chosen component",
+                details={
+                    "stable_id": item.stable_id,
+                    "component_type": item.component_type,
+                    "harness_id": target.harness_id,
+                },
+            )
         name = item.source_name
         content_format = str(
             document.get("artifact_format") or _value(facts.get("content_format")) or ""

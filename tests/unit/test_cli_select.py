@@ -6,8 +6,9 @@ import sqlite3
 import zipfile
 from collections.abc import Iterator
 from contextlib import closing
+from dataclasses import replace
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import pytest
 
@@ -878,3 +879,201 @@ def test_a_named_empty_setup_is_proposed_confirmed_and_immutable(
     again = select.confirm({"proposal": proposal_id, "confirm": True}).payload
     assert (again.stable_id, again.version) == (confirmed.stable_id, confirmed.version)
     assert not again.created, "an empty version is as immutable as any other"
+
+
+def test_a_resolved_component_with_no_digest_refuses_instead_of_vanishing(
+    registry: sqlite3.Connection, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The closure named it, the report chose it, and the writer dropped it.
+
+    `_bundle_sources` skipped a resolved component whose passport carries no
+    artifact digest, so the bundle compiled as though that member had never been
+    part of the graph. Same shape as the sibling artifacts of `#438`: a package
+    silently weaker than the passport describing it, with every downstream
+    report — composition `chosen`, the plan's file count, the provider's
+    verified answer — still true about what it was handed.
+
+    Zero components stays a real graph (`ADR-0124`, `REQ-630`). A *present* node
+    without bytes is not emptiness, and that is the distinction asserted here.
+    """
+    _ready(registry, tmp_path)
+    stable_id = _adopted(registry, tmp_path, "review.md")
+    session = select.propose(
+        {"harness": "claude-code", "project": str(tmp_path), "member": [f"{stable_id}@1.0"]}
+    ).payload
+    select.confirm({"proposal": session.proposals[0].proposal_id, "confirm": True})
+
+    real = revisions.get
+
+    def without_digest(
+        connection: sqlite3.Connection, revision_id: str
+    ) -> revisions.StoredRevision | None:
+        stored = real(connection, revision_id)
+        if stored is None or stored.stable_id != stable_id:
+            return stored
+        document: dict[str, Any] = stored.envelope.model_dump(mode="json")
+        document.pop("artifact", None)
+        facts: object = document.get("facts")
+        if isinstance(facts, dict):
+            cast(dict[str, Any], facts).pop("content_digest", None)
+        return replace(stored, envelope=type(stored.envelope).model_validate(document))
+
+    monkeypatch.setattr(revisions, "get", without_digest)
+
+    with pytest.raises(CliFailure) as raised:
+        select.harness_bundle(
+            {
+                "harness": "claude-code",
+                "project": str(tmp_path),
+                "proposal": session.proposals[0].proposal_id,
+            }
+        )
+    assert raised.value.code == "AI_STP_CONFLICT"
+    assert "digest" in raised.value.message
+    assert raised.value.details.get("stable_id") == stable_id
+
+
+def test_a_component_needing_an_unset_variable_still_compiles(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """The process environment is not the composition's declaration.
+
+    `_composition_target` passed `frozenset(os.environ)` as `declared_env`, so
+    `_environment` — whose own docstring says it is about the *composition*
+    declaring what it needs and explicitly not about a value being present —
+    became "is this variable exported in the shell that ran the CLI". A
+    component declaring `required_env` for a key nobody had exported blocked the
+    bundle with `undeclared_environment`, and any `external_endpoints` blocked
+    unconditionally because endpoints were never declared at all.
+
+    A missing value is an advisory at install time (`REQ-111`, `REQ-816`) and a
+    note at eligibility. It is not a reason to refuse to build a package.
+    """
+    _ready(registry, tmp_path)
+    stable_id = _adopted(registry, tmp_path, "review.md")
+
+    # State the need on the passport the composition reads.
+    stored = revisions.head(registry, stable_id)
+    assert stored is not None
+    document: dict[str, Any] = stored.envelope.model_dump(mode="json")
+    document["required_env"] = [
+        {"name": "AI_STP_NOT_EXPORTED_ANYWHERE", "purpose": "a key nobody exported"}
+    ]
+    document["external_endpoints"] = ["https://api.example.test"]
+    document.pop("revision_id")
+    document["parent_revision_ids"] = [stored.revision_id]
+    revisions.commit(registry, document, device_id="device_test")
+    from ai_stp_cli.commands import component as command
+
+    command.version_release({"id": stable_id, "version": "1.1"})
+
+    assert "AI_STP_NOT_EXPORTED_ANYWHERE" not in os.environ
+    session = select.propose(
+        {"harness": "claude-code", "project": str(tmp_path), "member": [f"{stable_id}@1.1"]}
+    ).payload
+    select.confirm({"proposal": session.proposals[0].proposal_id, "confirm": True})
+
+    compiled = select.harness_bundle(
+        {
+            "harness": "claude-code",
+            "project": str(tmp_path),
+            "proposal": session.proposals[0].proposal_id,
+        }
+    ).payload
+    assert compiled.compiled
+
+
+def test_an_adopted_command_records_the_native_identity_discovery_found(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """`native_id_collision` existed and the ordinary path could never reach it.
+
+    `composition._identities` refuses two components claiming one native
+    identifier, `_surfaces` reads `native_ids` from the passport, and authoring
+    scaffolds it — but adoption never recorded it. `ADOPTED_FIELDS` carried
+    `source_name` and `entry_points` and stopped there, so
+    adopt → version → propose → bundle produced passports whose `native_ids`
+    were always empty and the conflict was unreachable outside fixtures.
+
+    Nothing is invented: the identifier is the `source_name` discovery already
+    determined, recorded only for the kinds whose contract has one
+    (`component_passports._ACTION_SURFACES`). A skill gets none, and
+    `permissions` and `precedence` stay absent — undeclared stays undeclared.
+    """
+    from ai_stp_cli.commands import component as command
+
+    _ready(registry, tmp_path)
+    commands = tmp_path / ".claude" / "commands"
+    commands.mkdir(parents=True, exist_ok=True)
+    (commands / "review.md").write_text("# review\n", encoding="utf-8")
+    identified = command.adopt(
+        {"path": str(commands / "review.md"), "root": str(tmp_path)}
+    ).payload.stable_id
+
+    assert _document_list(registry, identified, "native_ids") == ["review.md"]
+
+    skill = _adopted(registry, tmp_path, "helper.md")
+    assert _document_list(registry, skill, "native_ids") == []
+
+
+def _document_list(connection: sqlite3.Connection, stable_id: str, key: str) -> list[str]:
+    """One list of strings from a head passport, wherever the field is recorded."""
+    stored = revisions.head(connection, stable_id)
+    assert stored is not None
+    document: dict[str, Any] = stored.envelope.model_dump(mode="json")
+    holders: list[dict[str, Any]] = [document]
+    facts: object = document.get("facts")
+    if isinstance(facts, dict):
+        holders.append(cast(dict[str, Any], facts))
+    for holder in holders:
+        value: object = holder.get(key)
+        if isinstance(value, dict):
+            value = cast(dict[str, Any], value).get("value")
+        if isinstance(value, list):
+            return [str(item) for item in cast(list[object], value)]
+    return []
+
+
+def test_a_named_version_is_assessed_by_its_own_declared_facts(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """Live eligibility read three fields and the mutable head.
+
+    `_candidates` copied `harness_id`, `component_type` and `owner_id` from
+    `revisions.head` and nothing else, so `os_unsupported`, `arch_unsupported`,
+    `capability_*`, `license_undeclared` and the rest of `SPEC-006` `REQ-601`
+    could not fire on the live path at all — the families were implemented,
+    covered by their own unit tests, and unreachable from `select propose`.
+    It also assessed the entity head rather than the exact `X.Y` being proposed,
+    so a member could be admitted on facts belonging to a different version.
+
+    `owned_or_pinned` stays true for adopted local objects (`ADR-0016`): this is
+    the user's own work and it needs no grant and no licence. What changes is
+    that the mechanical constraints now see what the version declares.
+    """
+    _ready(registry, tmp_path)
+    stable_id = _adopted(registry, tmp_path, "review.md")
+
+    stored = revisions.head(registry, stable_id)
+    assert stored is not None
+    document: dict[str, Any] = stored.envelope.model_dump(mode="json")
+    document["supported_os"] = ["plan9"]
+    document.pop("revision_id")
+    document["parent_revision_ids"] = [stored.revision_id]
+    revisions.commit(registry, document, device_id="device_test")
+    from ai_stp_cli.commands import component as command
+
+    command.version_release({"id": stable_id, "version": "1.1"})
+
+    with pytest.raises(CliFailure) as raised:
+        select.propose(
+            {"harness": "claude-code", "project": str(tmp_path), "member": [f"{stable_id}@1.1"]}
+        )
+    assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
+    assert "os_unsupported" in str(raised.value.details.get("refusals"))
+
+    # The version that declares nothing about the operating system still proposes.
+    session = select.propose(
+        {"harness": "claude-code", "project": str(tmp_path), "member": [f"{stable_id}@1.0"]}
+    ).payload
+    assert session.proposals
