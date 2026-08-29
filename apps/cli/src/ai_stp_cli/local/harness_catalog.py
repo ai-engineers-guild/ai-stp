@@ -568,6 +568,15 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
         # (`config` and `home`) cannot express and which is not worth inventing
         # for a single file until something depends on it.
         #
+        # The two counts above are unverified rather than confirmed. Re-measured
+        # 2026-08-29: this catalogue carries nine cursor layouts, seven global
+        # and two project, so "the seven surfaces this catalogue carries" reads
+        # as the global set and "eight" as that set plus the `CURSOR_DATA_DIR`
+        # surface named above, which the catalogue does not carry. That is a
+        # reading, not the author's measurement, and inventing a justification
+        # for a number is not checking it. The decision the paragraph records —
+        # revert to XDG-blind — does not rest on either count.
+        #
         # Both of the guesses considered were wrong, and neither was the shape:
         # "reads like data" would have put `plugins` under `CURSOR_DATA_DIR`,
         # and "comes off the config resolver" would have kept all seven on XDG.

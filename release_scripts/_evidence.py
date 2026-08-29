@@ -21,8 +21,15 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, cast
 
-# Anything credential-shaped must not reach a report. Two of the three slices
+# Anything credential-shaped must not reach a report. Two of the five slices
 # hold a session, which makes the guard load-bearing rather than decorative.
+#
+# It said "two of the three" until 2026-08-29, and was written when there were
+# three: `citation` and `provider` arrived on 2026-08-28 and the count was never
+# re-measured. The substantive half stayed true — `sync` and `publication` are
+# still the two that log in — but the sentence understated the surface the guard
+# covers by two whole slices. Counts get typed while the lists they summarise
+# get measured, which is why one drifts and the other does not.
 FORBIDDEN_IN_REPORT: tuple[str, ...] = (
     "authorization",
     "bearer ",
