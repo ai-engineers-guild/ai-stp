@@ -309,6 +309,24 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     # catalogue's `no_global_command` gap said this did not exist, on the
     # strength of the product's documentation.
     Rule("command", "config/global_workflows", "directory", "antigravity"),
+    # Antigravity was the only harness of the seven with no `instruction` route,
+    # and the blank was ours rather than the product's: its own reference lists
+    # rules among the five customization elements available inside any
+    # customization root, and the provider's declaration had carried four of
+    # them.
+    #
+    # Directory, not file: the product takes `rules/` relative to the
+    # customization root, whose global form is `~/.gemini/config/`, and its
+    # reference recommends one consolidated `AGENTS.md` under that directory
+    # over separate rule files.
+    #
+    # Landed against the released `0.0.29`, read from the downloaded binary:
+    # `instruction` in `component_kinds` and `config/rules` in
+    # `native_namespaces`. `0.0.28` declared neither, which is why this row
+    # waited a release — with no declaration the route would have composed a
+    # bundle the provider refuses, moving an early `native_surface_lost` refusal
+    # to a late one, past the point an immutable version can exist.
+    Rule("instruction", "config/rules", "directory", "antigravity"),
     Rule("skill", "config/skills", "directory", "antigravity"),
     Rule("agent", "config/agents", "directory", "antigravity"),
     Rule("hook", "config/hooks.json", "file", "antigravity"),

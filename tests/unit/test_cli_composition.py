@@ -625,6 +625,13 @@ _CONVENTION_BACKED: Final[dict[tuple[str, str], str]] = {
         "declared in the provider's own grok-baseline native_discovery, which "
         "the catalog's cited vendor page does not enumerate"
     ),
+    ("antigravity", "instruction"): (
+        "declared by the released provider: `0.0.29` carries `instruction` in "
+        "`component_kinds` and `config/rules` in `native_namespaces`, read from "
+        "the downloaded binary. `0.0.28` declared neither, and the catalog's "
+        "cited vendor page does not enumerate rules among the customization "
+        "elements although the product's own reference does"
+    ),
 }
 
 
