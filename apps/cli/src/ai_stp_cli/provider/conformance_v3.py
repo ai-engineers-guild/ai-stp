@@ -404,8 +404,22 @@ def _route_coverage(
     profiles = {capabilities.projection.scope: capabilities.projection}
     profiles.update({item.scope: item for item in capabilities.scoped_projections})
     declared = {kind.value for profile in profiles.values() for kind in profile.component_kinds}
+    # The kind the provider is actually **told**, not the logical one the
+    # passport keeps. They are the same word for every harness that declares
+    # the kind itself and differ exactly where a product has none: Pi declares
+    # no `mcp`, so an MCP adapter is an extension package and the provider
+    # hears `plugin` (`#454`).
+    #
+    # Reading `component_type` here reported a mismatch the compiler cannot
+    # produce — Pi is never asked to accept `mcp`; it is asked to accept
+    # `plugin`, which it declares and which the same run passes two cases
+    # above. Found by the setup-systems session against released `0.0.9`, and
+    # this is the fourth reader of a field wired into the first three: the
+    # docstring says it equals `component_type` for every harness that declares
+    # the kind itself, so every reader written before `#454` keeps answering
+    # for the majority and stays green.
     projected = {
-        rule.component_type
+        rule.provider_kind or rule.component_type
         for rule in composition.PROVIDER_RULES
         if rule.harness_id == capabilities.harness_id
     }
@@ -430,7 +444,7 @@ def _route_coverage(
             conformance.Case(
                 f"compiler_route_is_declared:{kind}",
                 False,
-                f"this compiler projects {kind} and the provider does not declare it",
+                f"this compiler asks the provider to accept {kind} and it does not declare it",
                 subject=conformance.SUBJECT_CONSUMER,
             )
         )

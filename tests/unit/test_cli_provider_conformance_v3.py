@@ -254,6 +254,43 @@ def test_v3_conformance_refuses_a_profile_without_a_compiler_native_route(
     assert "plugin" in detail
 
 
+def test_the_reverse_route_check_asks_about_the_kind_the_provider_is_told(
+    tmp_path: Path,
+) -> None:
+    """Pi declares no `mcp`, and is never asked to accept one.
+
+    Its MCP adapter is an extension package, so the compiler tells the provider
+    `plugin` — which Pi does declare, and which the same run passes as
+    `declared_route_is_compilable:plugin`. Comparing the *logical* kind here
+    reported a mismatch the compiler cannot produce, and named the consumer for
+    a disagreement that does not exist.
+
+    Found by the setup-systems session against released `0.0.9`, from the other
+    side of the same measurement: two independent readings of Pi's own
+    documentation, one answer. This was the fourth reader of `provider_kind`,
+    and the field's docstring is why they keep appearing — it equals
+    `component_type` for every harness that declares the kind itself, so a
+    reader written before `#454` answers correctly for six of seven and stays
+    green.
+    """
+    del tmp_path
+    info = _info(harness_id="pi", component_kind="plugin", native_namespace="extensions")
+    capabilities = protocol_v3.parse_capabilities(cast(dict[str, object], info))
+
+    # The route check alone, because that is the whole subject here: driving a
+    # full run would exercise bundle validation for a provider that does not
+    # exist and say nothing more about which kind is compared.
+    names = {
+        case.name
+        for case in conformance_v3._route_coverage(capabilities)  # pyright: ignore[reportPrivateUsage]
+    }
+    assert "compiler_route_is_declared:mcp" not in names, sorted(names)
+    assert "declared_route_is_compilable:plugin" in names
+    # And the check still fires for a kind genuinely not declared, or it would
+    # have stopped being a check rather than become a correct one.
+    assert "compiler_route_is_declared:instruction" in names
+
+
 def test_cli_v3_conformance_fails_before_spawn_without_network_isolation(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
