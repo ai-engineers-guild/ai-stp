@@ -21,7 +21,7 @@ an agent's context (SPEC-002 security section). Excluding them from `repr` stops
 the most common accident — an object interpolated into a log line.
 """
 
-from typing import Annotated, Final, Literal
+from typing import Annotated, Final, Literal, get_args
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -36,6 +36,11 @@ from ai_stp_foundation.ids import stable_id_pattern
 #: The two identity providers of the MVP (SPEC-002 REQ-1002). A third one is a
 #: new enum value and therefore a schema change, not a configuration flag.
 type OAuthProvider = Literal["google", "github"]
+
+#: The same set as a sequence, derived rather than restated. A second literal
+#: list agrees today and drifts the first time the type changes; this is the
+#: shape `HARNESS_IDS` already uses for the harness enum.
+OAUTH_PROVIDERS: Final[tuple[OAuthProvider, ...]] = get_args(OAuthProvider.__value__)
 
 #: Opaque to the CLI, which echoes it back verbatim while polling. Bounded so it
 #: cannot become an unbounded key on either side.

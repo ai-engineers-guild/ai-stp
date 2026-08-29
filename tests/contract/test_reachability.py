@@ -204,6 +204,22 @@ def _references() -> set[str]:
                         else node.value.id,
                     )
                     references.add(f"{receiver}.{node.attr}")
+                elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+                    # A command handler is declared by name rather than by
+                    # reference: `handler="version:run"` in `registry.py`. The
+                    # registry is still the caller — the import simply happens
+                    # at dispatch, so thirty command modules stop loading to
+                    # answer one command — but an attribute reference was what
+                    # proved these functions were reached, and removing it made
+                    # 113 of them read as orphans here.
+                    #
+                    # Read the declaration instead. `test_every_declared_handler
+                    # _resolves` proves every one of these strings names a real
+                    # callable, so this is a reference the gate can trust rather
+                    # than an exemption that hides one.
+                    module, separator, attribute = node.value.partition(":")
+                    if separator and module.isidentifier() and attribute.isidentifier():
+                        references.add(f"{module}.{attribute}")
     return references
 
 

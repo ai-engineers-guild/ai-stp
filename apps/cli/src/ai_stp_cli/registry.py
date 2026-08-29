@@ -17,42 +17,14 @@ machine help that cannot run, and the Skill would plan a step around it.
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from typing import Final
+from importlib import import_module
+from typing import Final, cast
 
 from pydantic import BaseModel
 
 from ai_stp_cli.answer import Answer
-from ai_stp_cli.commands import (
-    attestations,
-    auth,
-    auth_status,
-    component,
-    config_show,
-    device,
-    doctor,
-    evaluation,
-    grants,
-    harness,
-    install,
-    link,
-    machine_help,
-    owner,
-    passport,
-    project,
-    publication,
-    reports,
-    select,
-    setup_publication,
-    skill,
-    sync,
-    telemetry,
-    toolchain,
-    version,
-)
-from ai_stp_cli.commands import (
-    registry as registry_commands,
-)
 from ai_stp_cli.output import JSON_FLAG
+from ai_stp_contracts.auth import OAUTH_PROVIDERS
 from ai_stp_contracts.machine_help import (
     CommandDescriptor,
     CommandParameter,
@@ -67,14 +39,33 @@ type Handler = Callable[[Mapping[str, object]], Answer[BaseModel]]
 
 @dataclass(frozen=True)
 class Command:
-    """One declared command and the callable that answers it."""
+    """One declared command and the callable that answers it.
+
+    The callable is named rather than referenced. Importing thirty command
+    modules to answer `version` cost 0.36s of a 1.0s run, measured 2026-08-29:
+    `import ai_stp_cli.registry` was 0.818s against 0.461s for the descriptors
+    alone, and every invocation paid it whichever command was typed.
+
+    Only the handler is deferred. Descriptors stay declared here, so the
+    property this module exists for — one declaration, and the parser and
+    machine help built from it — is untouched: a command that is not here still
+    does not exist in any of the three.
+    """
 
     descriptor: CommandDescriptor
-    handler: Handler
+    #: `module:function`, relative to `ai_stp_cli.commands`.
+    handler_ref: str
 
     @property
     def name(self) -> str:
         return " ".join(self.descriptor.path)
+
+    @property
+    def handler(self) -> Handler:
+        """Import the command module on dispatch and return its entry point."""
+        module_name, _, attribute = self.handler_ref.partition(":")
+        module = import_module(f"ai_stp_cli.commands.{module_name}")
+        return cast(Handler, getattr(module, attribute))
 
 
 def option(
@@ -112,7 +103,9 @@ class Declaration:
     path: list[str]
     summary: str
     result_schema: str | None
-    handler: Handler
+    #: `module:function`, relative to `ai_stp_cli.commands`. Resolved on
+    #: dispatch; `test_every_declared_handler_resolves` proves every one.
+    handler: str
     mutability: MutabilityClass = "read"
     confirmation: ConfirmationKind = "none"
     parameters: tuple[CommandParameter, ...] = ()
@@ -125,7 +118,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["eval", "profile"],
         summary="Show the versioned reference evaluation profile for all or one component type.",
         result_schema="urn:ai-stp:schema:v1:cli-setup-eval-profile",
-        handler=evaluation.profile,
+        handler="evaluation:profile",
         parameters=(
             option(
                 "type",
@@ -149,7 +142,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["eval", "plan"],
         summary="Bind a reference evaluation profile to one exact local setup graph.",
         result_schema="urn:ai-stp:schema:v1:cli-setup-eval-plan",
-        handler=evaluation.plan,
+        handler="evaluation:plan",
         mutability="plan",
         parameters=(
             option("setup-id", "string", "Exact local setup identifier.", required=True),
@@ -172,7 +165,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["eval", "run"],
         summary="Run local deterministic checks for one confirmed exact evaluation plan.",
         result_schema="urn:ai-stp:schema:v1:cli-setup-eval-result",
-        handler=evaluation.run,
+        handler="evaluation:run",
         mutability="apply",
         confirmation="explicit_flag",
         parameters=(
@@ -191,7 +184,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["eval", "status"],
         summary="Read the immutable status of one local evaluation run.",
         result_schema="urn:ai-stp:schema:v1:cli-setup-eval-result",
-        handler=evaluation.status,
+        handler="evaluation:status",
         parameters=(option("run-id", "string", "Evaluation run identifier.", required=True),),
         next_actions=("eval show",),
     ),
@@ -199,14 +192,14 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["eval", "show"],
         summary="Show full immutable local evidence for one evaluation run.",
         result_schema="urn:ai-stp:schema:v1:cli-setup-eval-result",
-        handler=evaluation.show,
+        handler="evaluation:show",
         parameters=(option("run-id", "string", "Evaluation run identifier.", required=True),),
     ),
     Declaration(
         path=["publication", "plan"],
         summary="Create an immutable server plan for one exact released component version.",
         result_schema="urn:ai-stp:schema:v1:cli-publication-plan",
-        handler=publication.plan,
+        handler="publication:plan",
         mutability="plan",
         parameters=(
             option("id", "string", "Stable identifier of the released component.", required=True),
@@ -224,7 +217,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["attestation", "sign"],
         summary="Sign exact credential-dependent test evidence with the active device key.",
         result_schema="urn:ai-stp:schema:v1:cli-signed-attestation",
-        handler=attestations.sign,
+        handler="attestations:sign",
         mutability="apply",
         confirmation="explicit_flag",
         parameters=(
@@ -257,7 +250,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["publication", "status"],
         summary="Read the current server state of one publication plan.",
         result_schema="urn:ai-stp:schema:v1:cli-publication-plan",
-        handler=publication.show,
+        handler="publication:show",
         parameters=(option("plan-id", "string", "Publication plan identifier.", required=True),),
         next_actions=("publication confirm",),
     ),
@@ -265,7 +258,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["publication", "confirm"],
         summary="Confirm one exact unexpired publication plan hash.",
         result_schema="urn:ai-stp:schema:v1:cli-publication-plan",
-        handler=publication.confirm,
+        handler="publication:confirm",
         mutability="apply",
         confirmation="explicit_flag",
         parameters=(
@@ -284,14 +277,14 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["grant", "list"],
         summary="List invitations and major-line grants owned by the current account.",
         result_schema="urn:ai-stp:schema:v1:cli-grant-list",
-        handler=grants.list_all,
+        handler="grants:list_all",
         next_actions=("grant invite", "grant direct"),
     ),
     Declaration(
         path=["grant", "invite"],
         summary="Create an email invitation for one exact object major line.",
         result_schema="urn:ai-stp:schema:v1:cli-grant-invitation",
-        handler=grants.invite,
+        handler="grants:invite",
         mutability="apply",
         confirmation="explicit_flag",
         parameters=(
@@ -309,7 +302,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["grant", "direct"],
         summary="Grant one exact object major line to an explicit account identifier.",
         result_schema="urn:ai-stp:schema:v1:cli-grant-access",
-        handler=grants.direct,
+        handler="grants:direct",
         mutability="apply",
         confirmation="explicit_flag",
         parameters=(
@@ -335,7 +328,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["grant", "accept"],
         summary="Accept an invitation using a token read from a named environment variable.",
         result_schema="urn:ai-stp:schema:v1:cli-grant-access",
-        handler=grants.accept,
+        handler="grants:accept",
         mutability="apply",
         confirmation="explicit_flag",
         parameters=(
@@ -355,7 +348,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["grant", "invitation", "revoke"],
         summary="Revoke one pending invitation without deleting local bytes.",
         result_schema="urn:ai-stp:schema:v1:cli-grant-revoke",
-        handler=grants.revoke_invitation,
+        handler="grants:revoke_invitation",
         mutability="destructive",
         confirmation="explicit_flag",
         parameters=(
@@ -370,7 +363,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["grant", "revoke"],
         summary="Revoke one active grant forward-only while retaining local bytes.",
         result_schema="urn:ai-stp:schema:v1:cli-grant-revoke",
-        handler=grants.revoke,
+        handler="grants:revoke",
         mutability="destructive",
         confirmation="explicit_flag",
         parameters=(
@@ -385,7 +378,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["report", "preview"],
         summary="Prepare and show the exact bounded report payload without sending it.",
         result_schema="urn:ai-stp:schema:v1:cli-report-preview",
-        handler=reports.preview,
+        handler="reports:preview",
         mutability="plan",
         parameters=(
             option("kind", "string", "Object kind.", required=True, choices=("component", "setup")),
@@ -413,7 +406,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["report", "confirm"],
         summary="Submit one exact durable report preview after explicit confirmation.",
         result_schema="urn:ai-stp:schema:v1:cli-report-case",
-        handler=reports.confirm,
+        handler="reports:confirm",
         mutability="apply",
         confirmation="explicit_flag",
         parameters=(
@@ -431,14 +424,14 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["report", "list"],
         summary="List the current account's closed report cases.",
         result_schema="urn:ai-stp:schema:v1:cli-report-list",
-        handler=reports.list_all,
+        handler="reports:list_all",
         next_actions=("report preview",),
     ),
     Declaration(
         path=["owner", "objects"],
         summary="List objects owned by the authenticated account.",
         result_schema="urn:ai-stp:schema:v1:cli-owner-object-list",
-        handler=owner.list_objects,
+        handler="owner:list_objects",
         parameters=(
             option(
                 "kind", "string", "Optional object-kind filter.", choices=("component", "setup")
@@ -452,7 +445,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["owner", "object", "show"],
         summary="Read one server-authorized owned object and its exact versions.",
         result_schema="urn:ai-stp:schema:v1:cli-owner-object-detail",
-        handler=owner.show_object,
+        handler="owner:show_object",
         parameters=(
             option("kind", "string", "Object kind.", required=True, choices=("component", "setup")),
             option("id", "string", "Stable object identifier.", required=True),
@@ -463,7 +456,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["owner", "version", "show"],
         summary="Read one exact owned version and its server lifecycle evidence.",
         result_schema="urn:ai-stp:schema:v1:cli-owner-version-detail",
-        handler=owner.show_version,
+        handler="owner:show_version",
         parameters=(
             option("kind", "string", "Object kind.", required=True, choices=("component", "setup")),
             option("id", "string", "Stable object identifier.", required=True),
@@ -475,7 +468,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["auth", "complete"],
         summary="Finish the pending sign-in once the user has approved it.",
         result_schema="urn:ai-stp:schema:v1:cli-auth-status",
-        handler=auth.complete,
+        handler="auth:complete",
         parameters=(
             option(
                 "wait",
@@ -494,7 +487,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["auth", "login"],
         summary="Start a sign-in and report the code the user must approve.",
         result_schema="urn:ai-stp:schema:v1:cli-device-approval",
-        handler=auth.begin,
+        handler="auth:begin",
         # It records a pending authorization, which is durable state.
         mutability="apply",
         parameters=(
@@ -503,7 +496,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "string",
                 "Which identity provider to sign in with: google or github.",
                 required=True,
-                choices=auth.PROVIDERS,
+                choices=OAUTH_PROVIDERS,
             ),
             option(
                 "open-browser",
@@ -517,7 +510,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["auth", "logout"],
         summary="End the cloud session on the server and here, keeping all local data.",
         result_schema="urn:ai-stp:schema:v1:cli-auth-status",
-        handler=auth.logout,
+        handler="auth:logout",
         mutability="apply",
         next_actions=("auth status",),
     ),
@@ -525,21 +518,21 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["auth", "status"],
         summary="Report the platform relationship: local-only, authenticated, expired or revoked.",
         result_schema="urn:ai-stp:schema:v1:cli-auth-status",
-        handler=auth_status.run,
+        handler="auth_status:run",
         next_actions=("device show",),
     ),
     Declaration(
         path=["capabilities"],
         summary="Report what this installation can do right now.",
         result_schema="urn:ai-stp:schema:v1:cli-capabilities",
-        handler=machine_help.capabilities,
+        handler="machine_help:capabilities",
         next_actions=("doctor", "help --agent"),
     ),
     Declaration(
         path=["component", "discover"],
         summary="List native components in the harness roots and one project. Changes nothing.",
         result_schema="urn:ai-stp:schema:v1:cli-native-components",
-        handler=component.discover,
+        handler="component:discover",
         parameters=(option("root", "string", "Project root to look inside, beside the roots."),),
         next_actions=("component adopt",),
     ),
@@ -547,7 +540,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["component", "scaffold", "plan"],
         summary="Preview exact files and digests for one versioned component scaffold.",
         result_schema="urn:ai-stp:schema:v1:cli-component-scaffold-plan",
-        handler=component.scaffold_plan,
+        handler="component:scaffold_plan",
         mutability="plan",
         parameters=(
             option(
@@ -597,7 +590,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["component", "scaffold", "apply"],
         summary="Create exactly the confirmed component scaffold without overwriting a path.",
         result_schema="urn:ai-stp:schema:v1:cli-component-scaffold-result",
-        handler=component.scaffold_apply,
+        handler="component:scaffold_apply",
         mutability="apply",
         confirmation="explicit_flag",
         parameters=(
@@ -655,7 +648,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["component", "template", "render"],
         summary="Render and validate a portable template for one concrete harness.",
         result_schema="urn:ai-stp:schema:v1:cli-component-template",
-        handler=component.template_render,
+        handler="component:template_render",
         parameters=(
             option("template", "string", "Existing UTF-8 authoring template.", required=True),
             option(
@@ -679,7 +672,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["component", "source", "parse"],
         summary="Parse an external component source as untrusted structured intent.",
         result_schema="urn:ai-stp:schema:v1:cli-external-source-identity",
-        handler=component.source_parse,
+        handler="component:source_parse",
         parameters=(
             option(
                 "source",
@@ -697,7 +690,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["component", "source", "resolve"],
         summary="Bind a GitHub source intent to one exact full commit SHA.",
         result_schema="urn:ai-stp:schema:v1:cli-external-source-identity",
-        handler=component.source_resolve,
+        handler="component:source_resolve",
         parameters=(
             option(
                 "source",
@@ -716,7 +709,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["component", "source", "evidence", "refresh"],
         summary="Refresh official GitHub archived evidence for one exact local version.",
         result_schema="urn:ai-stp:schema:v1:cli-github-archive-evidence",
-        handler=component.source_evidence_refresh,
+        handler="component:source_evidence_refresh",
         mutability="apply",
         parameters=(
             option("id", "string", "Stable identifier of a local object.", required=True),
@@ -728,7 +721,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["component", "source", "evidence", "show"],
         summary="Show the latest local GitHub archived evidence and freshness.",
         result_schema="urn:ai-stp:schema:v1:cli-github-archive-evidence",
-        handler=component.source_evidence_show,
+        handler="component:source_evidence_show",
         parameters=(
             option("id", "string", "Stable identifier of a local object.", required=True),
             option("version", "string", "Exact recorded X.Y version.", required=True),
@@ -739,7 +732,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["component", "source", "evidence", "history"],
         summary="Show bounded append-only GitHub archived evidence history.",
         result_schema="urn:ai-stp:schema:v1:cli-github-archive-history",
-        handler=component.source_evidence_history,
+        handler="component:source_evidence_history",
         parameters=(
             option("id", "string", "Stable identifier of a local object.", required=True),
             option("version", "string", "Exact recorded X.Y version.", required=True),
@@ -751,7 +744,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["component", "adopt"],
         summary="Register one discovered component in the local registry.",
         result_schema="urn:ai-stp:schema:v1:cli-passport-view",
-        handler=component.adopt,
+        handler="component:adopt",
         # It writes a passport and stores bytes. `SPEC-005` REQ-518 makes taking
         # something into the registry an explicit act, not a side effect.
         mutability="apply",
@@ -765,7 +758,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["component", "passport", "show"],
         summary="Show the current local passport draft for one adopted component.",
         result_schema="urn:ai-stp:schema:v1:cli-passport-view",
-        handler=component.passport_show,
+        handler="component:passport_show",
         parameters=(
             option("id", "string", "Stable identifier of an adopted component.", required=True),
         ),
@@ -775,7 +768,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["component", "passport", "suggest"],
         summary="Suggest exact manifest facts for confirmation without changing the draft.",
         result_schema="urn:ai-stp:schema:v1:cli-component-passport-suggestions",
-        handler=component.passport_suggest,
+        handler="component:passport_suggest",
         parameters=(
             option("id", "string", "Stable identifier of an adopted component.", required=True),
         ),
@@ -785,7 +778,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["component", "passport", "update"],
         summary="Add confirmed declared facts as a new content-addressed passport revision.",
         result_schema="urn:ai-stp:schema:v1:cli-passport-view",
-        handler=component.passport_update,
+        handler="component:passport_update",
         mutability="apply",
         confirmation="explicit_flag",
         parameters=(
@@ -805,7 +798,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["component", "passport", "validate"],
         summary="Report every structural blocker to publishing the current passport revision.",
         result_schema="urn:ai-stp:schema:v1:cli-component-passport-validation",
-        handler=component.passport_validate,
+        handler="component:passport_validate",
         parameters=(
             option("id", "string", "Stable identifier of an adopted component.", required=True),
             option(
@@ -821,7 +814,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["component", "passport", "quality"],
         summary="Show optional mechanical authoring hints without changing trust or readiness.",
         result_schema="urn:ai-stp:schema:v1:cli-component-quality-report",
-        handler=component.passport_quality,
+        handler="component:passport_quality",
         parameters=(
             option("id", "string", "Stable identifier of an adopted component.", required=True),
         ),
@@ -831,7 +824,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["component", "forget"],
         summary="Mark a registered component deleted, keeping its history.",
         result_schema="urn:ai-stp:schema:v1:cli-passport-view",
-        handler=component.forget,
+        handler="component:forget",
         mutability="apply",
         parameters=(
             option(
@@ -848,7 +841,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["consent", "allow"],
         summary="Record consent to unverified objects of one publisher or major line.",
         result_schema="urn:ai-stp:schema:v1:cli-consent-record",
-        handler=component.consent_allow,
+        handler="component:consent_allow",
         mutability="apply",
         parameters=(
             option("scope", "string", "publisher or object_major. No wider form exists."),
@@ -860,7 +853,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["consent", "revoke"],
         summary="Withdraw a consent. Takes effect immediately for later requests.",
         result_schema="urn:ai-stp:schema:v1:cli-consent-record",
-        handler=component.consent_revoke,
+        handler="component:consent_revoke",
         mutability="apply",
         parameters=(
             option("scope", "string", "publisher or object_major."),
@@ -872,14 +865,14 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["consent", "list"],
         summary="Every consent still in force, and what each covered when given.",
         result_schema="urn:ai-stp:schema:v1:cli-consent-summary",
-        handler=component.consent_list,
+        handler="component:consent_list",
         next_actions=("consent allow",),
     ),
     Declaration(
         path=["component", "version", "list"],
         summary="Every recorded version of one object, and the next minor number.",
         result_schema="urn:ai-stp:schema:v1:cli-version-line",
-        handler=component.version_list,
+        handler="component:version_list",
         parameters=(
             option("id", "string", "Stable identifier of a registered object.", required=True),
         ),
@@ -889,7 +882,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["component", "version", "release"],
         summary="Give the current head an immutable X.Y number. Minor unless told otherwise.",
         result_schema="urn:ai-stp:schema:v1:cli-version-line",
-        handler=component.version_release,
+        handler="component:version_release",
         mutability="apply",
         # A major line is a separate access boundary, so asking for one needs a
         # decision rather than a flag that defaults to yes.
@@ -904,7 +897,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["component", "fork"],
         summary="Copy one recorded version under a new identity. The original is untouched.",
         result_schema="urn:ai-stp:schema:v1:cli-version-line",
-        handler=component.fork,
+        handler="component:fork",
         mutability="apply",
         parameters=(
             option("id", "string", "Stable identifier of the object being forked.", required=True),
@@ -916,7 +909,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["component", "find"],
         summary="Search the local registry by prefix, phrase, tag or field. No model, no network.",
         result_schema="urn:ai-stp:schema:v1:cli-local-search",
-        handler=component.find,
+        handler="component:find",
         parameters=(
             option("prefix", "string", "Match the start of a name."),
             option("phrase", "string", "Match inside a name or description."),
@@ -940,7 +933,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["config", "init"],
         summary="Create the configuration file if it is absent, and validate it either way.",
         result_schema="urn:ai-stp:schema:v1:cli-config-report",
-        handler=config_show.init,
+        handler="config_show:init",
         # Idempotent and never destructive: an existing file is validated rather
         # than replaced, so there is nothing for the user to decide.
         mutability="apply",
@@ -950,7 +943,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["config", "set"],
         summary="Write declared values to the configuration file.",
         result_schema="urn:ai-stp:schema:v1:cli-config-report",
-        handler=config_show.set_,
+        handler="config_show:set_",
         mutability="apply",
         parameters=(
             option(
@@ -966,7 +959,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["config", "unset"],
         summary="Remove declared values so their defaults apply again.",
         result_schema="urn:ai-stp:schema:v1:cli-config-report",
-        handler=config_show.unset,
+        handler="config_show:unset",
         mutability="apply",
         parameters=(
             option(
@@ -982,14 +975,14 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["config", "validate"],
         summary="Read the configuration file and refuse it if it cannot be honoured.",
         result_schema="urn:ai-stp:schema:v1:cli-config-report",
-        handler=config_show.validate,
+        handler="config_show:validate",
         next_actions=("config show",),
     ),
     Declaration(
         path=["config", "show"],
         summary="Show the effective configuration and where each value came from.",
         result_schema="urn:ai-stp:schema:v1:cli-config-report",
-        handler=config_show.run,
+        handler="config_show:run",
         parameters=(
             option(
                 "set",
@@ -1005,7 +998,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["device", "reset"],
         summary="Retire this device identity and create a new one.",
         result_schema="urn:ai-stp:schema:v1:cli-device-identity",
-        handler=device.reset,
+        handler="device:reset",
         # Destructive: the retired private key is discarded and cannot be
         # recovered, and any cloud account that trusted it must approve the new
         # one. Local data is untouched, but that does not make it reversible.
@@ -1025,7 +1018,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["device", "init"],
         summary="Create the identity of this installation, or return the existing one.",
         result_schema="urn:ai-stp:schema:v1:cli-device-identity",
-        handler=device.init,
+        handler="device:init",
         # Idempotent, so there is nothing for the user to decide: a second run
         # returns the identity the first one made.
         mutability="apply",
@@ -1035,21 +1028,21 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["device", "show"],
         summary="Show this device identity and where its key is kept.",
         result_schema="urn:ai-stp:schema:v1:cli-device-identity",
-        handler=device.show,
+        handler="device:show",
         next_actions=("auth status",),
     ),
     Declaration(
         path=["doctor"],
         summary="Report the setup state of this installation without changing it.",
         result_schema="urn:ai-stp:schema:v1:cli-doctor-report",
-        handler=doctor.run,
+        handler="doctor:run",
         next_actions=("config show",),
     ),
     Declaration(
         path=["help"],
         summary="Emit the full command registry for an agent.",
         result_schema="urn:ai-stp:schema:v1:cli-machine-help",
-        handler=machine_help.registry,
+        handler="machine_help:registry",
         parameters=(
             option(
                 "agent",
@@ -1064,7 +1057,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["link", "web"],
         summary="Print a canonical web URL and round-trippable CLI reference.",
         result_schema="urn:ai-stp:schema:v1:cli-deep-link",
-        handler=link.web,
+        handler="link:web",
         parameters=(
             option(
                 "kind",
@@ -1086,7 +1079,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["passport", "developer", "init"],
         summary="Create the developer passport of this installation.",
         result_schema="urn:ai-stp:schema:v1:cli-passport-view",
-        handler=passport.developer_init,
+        handler="passport:developer_init",
         # It creates durable state, and running it twice is a no-op rather than
         # a second passport, so it needs no decision from the user.
         mutability="apply",
@@ -1096,14 +1089,14 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["passport", "developer", "show"],
         summary="Show the developer passport at its current head.",
         result_schema="urn:ai-stp:schema:v1:cli-passport-view",
-        handler=passport.developer_show,
+        handler="passport:developer_show",
         next_actions=("passport device show",),
     ),
     Declaration(
         path=["passport", "developer", "update"],
         summary="Declare developer facts, adding one revision.",
         result_schema="urn:ai-stp:schema:v1:cli-passport-view",
-        handler=passport.developer_update,
+        handler="passport:developer_update",
         mutability="apply",
         parameters=(
             option(
@@ -1120,7 +1113,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["passport", "device", "refresh"],
         summary="Create this device passport, or bring it up to what is observable now.",
         result_schema="urn:ai-stp:schema:v1:cli-passport-view",
-        handler=passport.device_refresh,
+        handler="passport:device_refresh",
         # Observing writes a revision only when something actually changed, but
         # it can add history, so the class is the honest one.
         mutability="apply",
@@ -1130,14 +1123,14 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["passport", "device", "show"],
         summary="Show this device passport at its current head.",
         result_schema="urn:ai-stp:schema:v1:cli-passport-view",
-        handler=passport.device_show,
+        handler="passport:device_show",
         next_actions=("passport developer show",),
     ),
     Declaration(
         path=["project", "discover"],
         summary="List the projects inside a directory you name. Scans nothing else.",
         result_schema="urn:ai-stp:schema:v1:cli-project-candidates",
-        handler=project.discover,
+        handler="project:discover",
         parameters=(
             option(
                 "root",
@@ -1152,7 +1145,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["project", "index"],
         summary="Index one project root, bounded, skipping secrets and binary content.",
         result_schema="urn:ai-stp:schema:v1:cli-project-index",
-        handler=project.index,
+        handler="project:index",
         parameters=(option("root", "string", "Exact project root to index.", required=True),),
         next_actions=("project discover",),
     ),
@@ -1160,7 +1153,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["project", "symbols"],
         summary="Read a project's public symbols, entry points and tests. No call graph.",
         result_schema="urn:ai-stp:schema:v1:cli-project-symbols",
-        handler=project.symbol_index,
+        handler="project:symbol_index",
         parameters=(option("root", "string", "Exact project root to read.", required=True),),
         next_actions=("project index",),
     ),
@@ -1168,7 +1161,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["harness", "install"],
         summary="Install the harness program itself under an exact prefix.",
         result_schema="urn:ai-stp:schema:v1:cli-harness-program",
-        handler=harness.install,
+        handler="harness:install",
         mutability="apply",
         parameters=(
             option("harness", "string", "Harness whose program this is.", required=True),
@@ -1210,7 +1203,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["harness", "update"],
         summary="Move the exposed harness program to the version its provider pins.",
         result_schema="urn:ai-stp:schema:v1:cli-harness-program",
-        handler=harness.update,
+        handler="harness:update",
         mutability="apply",
         parameters=(
             option("harness", "string", "Harness whose program this is.", required=True),
@@ -1252,7 +1245,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["harness", "remove"],
         summary="Remove the harness program this CLI installed, and nothing else.",
         result_schema="urn:ai-stp:schema:v1:cli-harness-program",
-        handler=harness.remove,
+        handler="harness:remove",
         mutability="destructive",
         confirmation="explicit_flag",
         parameters=(
@@ -1301,7 +1294,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["harness", "resume"],
         summary="Settle a stopped program operation by looking, never by applying again.",
         result_schema="urn:ai-stp:schema:v1:cli-harness-program",
-        handler=harness.resume,
+        handler="harness:resume",
         mutability="apply",
         parameters=(
             option("operation", "string", "The operation that stopped.", required=True),
@@ -1338,7 +1331,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["harness", "status"],
         summary="What program stands under one prefix, from the journal and the disk.",
         result_schema="urn:ai-stp:schema:v1:cli-harness-program-status",
-        handler=harness.status,
+        handler="harness:status",
         parameters=(
             option("harness", "string", "Harness whose program this is.", required=True),
             option(
@@ -1354,7 +1347,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["toolchain", "install"],
         summary="Install one pinned tool into the managed directory. Runs nothing from it.",
         result_schema="urn:ai-stp:schema:v1:cli-toolchain-installation",
-        handler=toolchain.install_tool,
+        handler="toolchain:install_tool",
         mutability="apply",
         parameters=(
             option("tool", "string", "Identifier of a tool the profile pins.", required=True),
@@ -1366,7 +1359,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["toolchain", "remove"],
         summary="Remove one managed tool, touching only paths this CLI created.",
         result_schema="urn:ai-stp:schema:v1:cli-toolchain-installation",
-        handler=toolchain.remove_tool,
+        handler="toolchain:remove_tool",
         mutability="destructive",
         confirmation="explicit_flag",
         parameters=(
@@ -1384,7 +1377,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["project", "passport"],
         summary="Record a project passport revision pinning the index, toolchain and config.",
         result_schema="urn:ai-stp:schema:v1:cli-passport-view",
-        handler=project.passport,
+        handler="project:passport",
         # It stores a revision in the local registry. Idempotent — an unchanged
         # project adds nothing — but idempotent is not read-only.
         mutability="apply",
@@ -1395,7 +1388,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["registry", "acquire"],
         summary="Acquire one exact published setup graph for local offline compilation.",
         result_schema="urn:ai-stp:schema:v1:cli-catalog-setup-acquisition",
-        handler=registry_commands.acquire,
+        handler="registry:acquire",
         mutability="apply",
         parameters=(
             option("id", "string", "Stable identifier of the published setup.", required=True),
@@ -1408,7 +1401,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["registry", "port", "discover"],
         summary="Find compatible SX and APM snapshots under one explicit local root.",
         result_schema="urn:ai-stp:schema:v1:cli-store-port-discovery",
-        handler=registry_commands.port_discover,
+        handler="registry:port_discover",
         parameters=(option("root", "string", "Exact local directory to inspect.", required=True),),
         next_actions=("registry port inspect",),
     ),
@@ -1416,7 +1409,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["registry", "port", "inspect"],
         summary="Inspect one setup-store mapping without importing or running its CLI.",
         result_schema="urn:ai-stp:schema:v1:cli-store-port-inspection",
-        handler=registry_commands.port_inspect,
+        handler="registry:port_inspect",
         parameters=(
             option("root", "string", "Exact local directory to inspect.", required=True),
             option("adapter", "string", "Store contract.", required=True, choices=("sx", "apm")),
@@ -1427,7 +1420,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["registry", "port", "plan"],
         summary="Preview a local-only setup-store import and bind it to exact manifest bytes.",
         result_schema="urn:ai-stp:schema:v1:cli-store-port-import-plan",
-        handler=registry_commands.port_plan,
+        handler="registry:port_plan",
         mutability="plan",
         parameters=(
             option("root", "string", "Exact local directory to inspect.", required=True),
@@ -1439,7 +1432,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["registry", "port", "import"],
         summary="Import a confirmed exact SX or APM snapshot into the local registry only.",
         result_schema="urn:ai-stp:schema:v1:cli-store-port-import-result",
-        handler=registry_commands.port_import,
+        handler="registry:port_import",
         mutability="apply",
         confirmation="plan_digest",
         parameters=(
@@ -1456,7 +1449,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["registry", "fetch"],
         summary="Fetch the exact bytes of one published version into the local cache.",
         result_schema="urn:ai-stp:schema:v1:cli-catalog-artifact",
-        handler=registry_commands.fetch,
+        handler="registry:fetch",
         # Writes to the local cache and nothing else; the bytes are immutable and
         # addressed by content, so a second call is a no-op.
         mutability="apply",
@@ -1476,7 +1469,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["registry", "search"],
         summary="Search the public catalogue without an account.",
         result_schema="urn:ai-stp:schema:v1:cli-catalog-search",
-        handler=registry_commands.search,
+        handler="registry:search",
         parameters=(
             option(
                 "kind",
@@ -1500,7 +1493,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["registry", "version"],
         summary="Show one exact published version and its verified passport.",
         result_schema="urn:ai-stp:schema:v1:cli-catalog-version",
-        handler=registry_commands.version,
+        handler="registry:version",
         parameters=(
             option(
                 "kind",
@@ -1518,7 +1511,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["registry", "show"],
         summary="Show one catalogue object and its published versions.",
         result_schema="urn:ai-stp:schema:v1:cli-catalog-object",
-        handler=registry_commands.show,
+        handler="registry:show",
         parameters=(
             option(
                 "kind",
@@ -1535,7 +1528,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["select", "eligibility"],
         summary="Which candidates a harness may be composed from, and why each refusal happened.",
         result_schema="urn:ai-stp:schema:v1:cli-eligibility-report",
-        handler=select.eligible,
+        handler="select:eligible",
         parameters=(
             option("harness", "string", "The harness being composed for.", required=True),
             option("project", "string", "Project root whose facts the target is built from."),
@@ -1557,7 +1550,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["select", "eligibility-matrix"],
         summary="Where one object may be composed, answered for every supported harness.",
         result_schema="urn:ai-stp:schema:v1:cli-eligibility-matrix",
-        handler=select.eligible_everywhere,
+        handler="select:eligible_everywhere",
         parameters=(
             option(
                 "harness",
@@ -1585,7 +1578,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["select", "impact"],
         summary="Compare context, token cost and capabilities of exact local setup versions.",
         result_schema="urn:ai-stp:schema:v1:cli-selection-impact-report",
-        handler=select.impact_report,
+        handler="select:impact_report",
         parameters=(
             option("setup-id", "string", "Candidate setup stable identifier.", required=True),
             option("setup-version", "string", "Candidate exact X.Y version.", required=True),
@@ -1611,7 +1604,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["select", "blast-radius"],
         summary="Show local setup, project, device and installed-target references to a component.",
         result_schema="urn:ai-stp:schema:v1:cli-blast-radius-report",
-        handler=select.blast_radius,
+        handler="select:blast_radius",
         parameters=(
             option("component-id", "string", "Component stable identifier.", required=True),
             option("component-version", "string", "Component exact X.Y version.", required=True),
@@ -1628,7 +1621,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["select", "propose"],
         summary="Record one composition proposal. Creates no version and no target.",
         result_schema="urn:ai-stp:schema:v1:cli-proposal-session",
-        handler=select.propose,
+        handler="select:propose",
         # Persists only the exact, expiring session proposal that confirmation
         # names. It is a plan, not an apply: no version or target exists yet.
         mutability="plan",
@@ -1653,7 +1646,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["select", "confirm"],
         summary="Freeze one proposal as a private setup version, its trace and its pin.",
         result_schema="urn:ai-stp:schema:v1:cli-confirmation",
-        handler=select.confirm,
+        handler="select:confirm",
         # The only path from a shown composition to a stored object, and the
         # user's decision is what authorises it.
         mutability="apply",
@@ -1673,7 +1666,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["select", "cancel"],
         summary="Close one proposal without creating a version or changing a target.",
         result_schema="urn:ai-stp:schema:v1:cli-proposal-session",
-        handler=select.cancel,
+        handler="select:cancel",
         mutability="apply",
         parameters=(option("proposal", "string", "The proposal being cancelled.", required=True),),
         next_actions=("select session",),
@@ -1682,7 +1675,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["select", "graph"],
         summary="Resolve the exact dependency closure, or name every reason it cannot be.",
         result_schema="urn:ai-stp:schema:v1:cli-setup-graph",
-        handler=select.dependency_graph,
+        handler="select:dependency_graph",
         parameters=(
             option("proposal", "string", "Resolve the closure of this proposal's members."),
             option(
@@ -1698,7 +1691,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["select", "reports"],
         summary="Composition and conversion reports: what is chosen, what conflicts, what is lost.",
         result_schema="urn:ai-stp:schema:v1:cli-composition-reports",
-        handler=select.reports,
+        handler="select:reports",
         parameters=(
             option("harness", "string", "The harness being composed for.", required=True),
             option("proposal", "string", "The composition being reported on.", required=True),
@@ -1710,7 +1703,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["select", "bundle"],
         summary="Compile the deterministic package for one composition. Writes to no target.",
         result_schema="urn:ai-stp:schema:v1:cli-harness-bundle",
-        handler=select.harness_bundle,
+        handler="select:harness_bundle",
         # Compiles bytes and a manifest. `ADR-0012` gives the write to the
         # provider, so this is a read even though it produces a package.
         parameters=(
@@ -1724,7 +1717,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["install", "plan"],
         summary="Compute an immutable installation plan. Has no effect of its own.",
         result_schema="urn:ai-stp:schema:v1:cli-installation",
-        handler=install.plan,
+        handler="install:plan",
         # A plan is recorded, so it writes; it changes no target, so the
         # decision it needs is the approval that follows, not one of its own.
         mutability="plan",
@@ -1833,7 +1826,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["install", "approve"],
         summary="Approve one plan by its exact digest. Nothing else approves it.",
         result_schema="urn:ai-stp:schema:v1:cli-installation",
-        handler=install.approve,
+        handler="install:approve",
         mutability="apply",
         confirmation="plan_digest",
         parameters=(
@@ -1846,7 +1839,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["install", "apply"],
         summary="Carry out one approved plan through its provider and record what happened.",
         result_schema="urn:ai-stp:schema:v1:cli-installation",
-        handler=install.apply,
+        handler="install:apply",
         mutability="apply",
         confirmation="plan_digest",
         parameters=(
@@ -1861,7 +1854,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["install", "cancel"],
         summary="Abandon a plan before anything is applied. Refused once applying began.",
         result_schema="urn:ai-stp:schema:v1:cli-installation",
-        handler=install.cancel,
+        handler="install:cancel",
         mutability="apply",
         parameters=(
             option("operation", "string", "The operation being abandoned.", required=True),
@@ -1873,7 +1866,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["target", "status"],
         summary="The daily state of one project and harness. Reads; never updates anything.",
         result_schema="urn:ai-stp:schema:v1:cli-target-survey",
-        handler=install.target_status,
+        handler="install:target_status",
         parameters=(
             option("project", "string", "The project passport's stable id.", required=True),
             option(
@@ -1917,7 +1910,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["sync", "preview"],
         summary="Preview local fast-forward, merge or conflict without changing a head.",
         result_schema="urn:ai-stp:schema:v1:cli-sync-preview",
-        handler=sync.preview,
+        handler="sync:preview",
         parameters=(
             option(
                 "id",
@@ -1932,7 +1925,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["sync", "push"],
         summary="Push one exact local head with a durable replay-safe event.",
         result_schema="urn:ai-stp:schema:v1:cli-sync-push",
-        handler=sync.push,
+        handler="sync:push",
         mutability="apply",
         confirmation="explicit_flag",
         parameters=(
@@ -1945,7 +1938,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["sync", "merge"],
         summary="Commit a mechanically clean merge of two developer-passport heads.",
         result_schema="urn:ai-stp:schema:v1:cli-sync-preview",
-        handler=sync.merge,
+        handler="sync:merge",
         mutability="apply",
         confirmation="explicit_flag",
         parameters=(
@@ -1958,7 +1951,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["sync", "pull"],
         summary="Pull and atomically apply one bounded page from the account stream.",
         result_schema="urn:ai-stp:schema:v1:cli-sync-pull",
-        handler=sync.pull,
+        handler="sync:pull",
         mutability="apply",
         confirmation="explicit_flag",
         parameters=(
@@ -1978,7 +1971,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["target", "diff"],
         summary="What installing the selected version would change. Changes nothing.",
         result_schema="urn:ai-stp:schema:v1:cli-target-diff",
-        handler=install.target_diff,
+        handler="install:target_diff",
         parameters=(
             option("project", "string", "The project passport's stable id.", required=True),
             option(
@@ -2022,14 +2015,14 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["telemetry", "show"],
         summary="What the anonymous install ping would carry, and whether it is on.",
         result_schema="urn:ai-stp:schema:v1:cli-telemetry-status",
-        handler=telemetry.show,
+        handler="telemetry:show",
         next_actions=("telemetry consent",),
     ),
     Declaration(
         path=["telemetry", "consent"],
         summary="Answer the telemetry screen. Sends nothing itself.",
         result_schema="urn:ai-stp:schema:v1:cli-telemetry-status",
-        handler=telemetry.consent,
+        handler="telemetry:consent",
         mutability="apply",
         confirmation="explicit_flag",
         parameters=(
@@ -2043,7 +2036,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["target", "backups"],
         summary="Provider-owned copies this pair can restore from. Restores nothing itself.",
         result_schema="urn:ai-stp:schema:v1:cli-target-backups",
-        handler=install.target_backups,
+        handler="install:target_backups",
         parameters=(
             option("project", "string", "The project passport's stable id.", required=True),
             option(
@@ -2087,7 +2080,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["target", "rollback"],
         summary="Name the exact previous verified version. Rolls nothing back itself.",
         result_schema="urn:ai-stp:schema:v1:cli-rollback-target",
-        handler=install.target_rollback,
+        handler="install:target_rollback",
         parameters=(
             option("project", "string", "The project passport's stable id.", required=True),
             option(
@@ -2108,14 +2101,14 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["install", "status"],
         summary="Operations that stopped without a settled outcome. Changes nothing.",
         result_schema="urn:ai-stp:schema:v1:cli-installation-status",
-        handler=install.status,
+        handler="install:status",
         next_actions=("install recover",),
     ),
     Declaration(
         path=["install", "recover"],
         summary="What one stopped operation left, and what may be done. Recovers nothing itself.",
         result_schema="urn:ai-stp:schema:v1:cli-recovery-report",
-        handler=install.recover,
+        handler="install:recover",
         parameters=(option("operation", "string", "The stopped operation.", required=True),),
         next_actions=("install resume", "install plan"),
     ),
@@ -2124,7 +2117,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         summary="Finish the result check an interrupted apply never made. Applies nothing.",
         result_schema="urn:ai-stp:schema:v1:cli-installation",
         mutability="apply",
-        handler=install.resume,
+        handler="install:resume",
         parameters=(
             option("operation", "string", "The interrupted operation.", required=True),
             option("provider", "string", "The provider executable to ask.", required=True),
@@ -2135,7 +2128,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["setup", "import", "inspect"],
         summary="Read one native configuration and report what it holds. Writes nothing.",
         result_schema="urn:ai-stp:schema:v1:cli-import-inspection",
-        handler=project.import_inspect,
+        handler="project:import_inspect",
         parameters=(
             option("root", "string", "The native configuration directory to read.", required=True),
             option(
@@ -2148,7 +2141,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["setup", "import", "plan"],
         summary="Plan exact component and setup drafts from one native configuration.",
         result_schema="urn:ai-stp:schema:v1:cli-setup-import-plan",
-        handler=project.import_plan,
+        handler="project:import_plan",
         mutability="plan",
         parameters=(
             option(
@@ -2166,7 +2159,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             "Plan the publication of one released setup together with every component it pins."
         ),
         result_schema="urn:ai-stp:schema:v1:cli-publication-set",
-        handler=setup_publication.plan,
+        handler="setup_publication:plan",
         # Creates server plans and writes the reviewed set locally. It publishes
         # nothing: the whole point of the set is that one confirmation follows.
         mutability="plan",
@@ -2180,7 +2173,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["setup", "publish", "confirm"],
         summary="Confirm one exact reviewed publication set: pinned components, then the setup.",
         result_schema="urn:ai-stp:schema:v1:cli-publication-set",
-        handler=setup_publication.confirm,
+        handler="setup_publication:confirm",
         mutability="apply",
         confirmation="explicit_flag",
         parameters=(
@@ -2203,7 +2196,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["setup", "import", "register"],
         summary="Register an inspected configuration as your own setup. No secret value is stored.",
         result_schema="urn:ai-stp:schema:v1:cli-imported-setup",
-        handler=project.import_register,
+        handler="project:import_register",
         # It writes a passport and a backup reference. The target is untouched:
         # the provider made the backup and this only records where it is.
         mutability="apply",
@@ -2236,7 +2229,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["provider", "conformance"],
         summary="Check one provider against an explicitly selected protocol. Changes nothing.",
         result_schema="urn:ai-stp:schema:v1:cli-conformance-report",
-        handler=select.provider_conformance,
+        handler="select:provider_conformance",
         parameters=(
             option("harness", "string", "The harness this provider claims.", required=True),
             option("executable", "string", "The provider executable to check.", required=True),
@@ -2261,7 +2254,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["provider", "fetch"],
         summary=("Download an attested OpenNetwork provider and bind a closed release manifest."),
         result_schema="urn:ai-stp:schema:v1:cli-provider-bound-release",
-        handler=select.provider_fetch,
+        handler="select:provider_fetch",
         mutability="apply",
         parameters=(
             option(
@@ -2301,14 +2294,14 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["provider", "network"],
         summary="Report observed protocol-v2 network isolation on this machine.",
         result_schema="urn:ai-stp:schema:v1:cli-provider-network-capability",
-        handler=select.provider_network,
+        handler="select:provider_network",
         next_actions=("provider conformance",),
     ),
     Declaration(
         path=["provider", "trust"],
         summary="Report the pinned provider trust policy, and check one release against it.",
         result_schema="urn:ai-stp:schema:v1:cli-provider-trust",
-        handler=select.provider_trust,
+        handler="select:provider_trust",
         parameters=(
             option("manifest", "string", "Release manifest to check. Omit to report the policy."),
         ),
@@ -2318,7 +2311,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["select", "session"],
         summary="Open proposals for one project and harness, and the version selected.",
         result_schema="urn:ai-stp:schema:v1:cli-proposal-session",
-        handler=select.session,
+        handler="select:session",
         parameters=(
             option("harness", "string", "The harness being composed for.", required=True),
             option("project", "string", "Project root whose passport anchors the session."),
@@ -2329,7 +2322,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["skill", "install"],
         summary="Install the canonical Agent Skill at a named destination.",
         result_schema="urn:ai-stp:schema:v1:cli-skill-delivery",
-        handler=skill.install,
+        handler="skill:install",
         # Writes one file and its ownership record, and refuses to replace a
         # skill this installation did not write.
         mutability="apply",
@@ -2347,7 +2340,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["skill", "remove"],
         summary="Remove the Agent Skill this installation put at a destination.",
         result_schema="urn:ai-stp:schema:v1:cli-skill-delivery",
-        handler=skill.remove,
+        handler="skill:remove",
         mutability="apply",
         parameters=(
             option("target", "string", "Directory the harness reads its native skill from."),
@@ -2358,7 +2351,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         path=["skill", "status"],
         summary="Report what Agent Skill is at a destination and who owns it.",
         result_schema="urn:ai-stp:schema:v1:cli-skill-delivery",
-        handler=skill.status,
+        handler="skill:status",
         parameters=(
             option("target", "string", "Directory the harness reads its native skill from."),
         ),
@@ -2370,28 +2363,28 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             "Report declared layouts, projections, support tiers and known gaps for every harness."
         ),
         result_schema="urn:ai-stp:schema:v1:cli-harness-capability-table",
-        handler=toolchain.harness_capabilities,
+        handler="toolchain:harness_capabilities",
         next_actions=("toolchain harnesses", "component discover"),
     ),
     Declaration(
         path=["toolchain", "harnesses"],
         summary="Report every supported harness and whether it is on this machine.",
         result_schema="urn:ai-stp:schema:v1:cli-harness-survey",
-        handler=toolchain.harnesses,
+        handler="toolchain:harnesses",
         next_actions=("toolchain profile",),
     ),
     Declaration(
         path=["toolchain", "profile"],
         summary="Show the managed toolchain profile as it resolves on this machine.",
         result_schema="urn:ai-stp:schema:v1:cli-toolchain-profile",
-        handler=toolchain.profile,
+        handler="toolchain:profile",
         next_actions=("doctor",),
     ),
     Declaration(
         path=["version"],
         summary="Report the running build and the contract versions it speaks.",
         result_schema="urn:ai-stp:schema:v1:cli-version-report",
-        handler=version.run,
+        handler="version:run",
         next_actions=("doctor",),
     ),
 )
@@ -2409,7 +2402,7 @@ def _command(declaration: Declaration) -> Command:
             result_schema=declaration.result_schema,
             next_actions=list(declaration.next_actions),
         ),
-        handler=declaration.handler,
+        handler_ref=declaration.handler,
     )
 
 

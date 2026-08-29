@@ -259,7 +259,12 @@ def test_a_valued_option_reaches_its_handler(
             ],
         }
     )
-    monkeypatch.setattr(app, "COMMANDS", (Command(descriptor, handler),))
+    # The handler is named rather than referenced, so the stub is installed
+    # where the name resolves rather than passed in.
+    from ai_stp_cli.commands import version as version_command
+
+    monkeypatch.setattr(version_command, "run", handler)
+    monkeypatch.setattr(app, "COMMANDS", (Command(descriptor, "version:run"),))
 
     code, out, _err = _run(["probe", "--thing", "value", "--json"], capsys)
     assert code == 0
@@ -305,7 +310,12 @@ def test_a_hyphenated_option_reaches_its_handler_under_its_declared_name(
             ],
         }
     )
-    monkeypatch.setattr(app, "COMMANDS", (Command(descriptor, handler),))
+    # The handler is named rather than referenced, so the stub is installed
+    # where the name resolves rather than passed in.
+    from ai_stp_cli.commands import version as version_command
+
+    monkeypatch.setattr(version_command, "run", handler)
+    monkeypatch.setattr(app, "COMMANDS", (Command(descriptor, "version:run"),))
 
     code, _out, _err = _run(["probe", "--two-words", "value", "--json"], capsys)
     assert code == 0
@@ -337,7 +347,12 @@ def test_a_required_hyphenated_boolean_is_checked_under_its_declared_name(
             ],
         }
     )
-    monkeypatch.setattr(app, "COMMANDS", (Command(descriptor, handler),))
+    # The handler is named rather than referenced, so the stub is installed
+    # where the name resolves rather than passed in.
+    from ai_stp_cli.commands import version as version_command
+
+    monkeypatch.setattr(version_command, "run", handler)
+    monkeypatch.setattr(app, "COMMANDS", (Command(descriptor, "version:run"),))
 
     assert _run(["probe", "--for-publication", "--json"], capsys)[0] == 0
     code, out, _err = _run(["probe", "--json"], capsys)

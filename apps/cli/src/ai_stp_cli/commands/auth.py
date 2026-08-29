@@ -16,10 +16,11 @@ from ai_stp_cli.cloud.client import Endpoint
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local.database import configured_path
 from ai_stp_cli.secrets import open_store
-from ai_stp_contracts.auth import OAuthProvider
+from ai_stp_contracts.auth import OAUTH_PROVIDERS, OAuthProvider
 from ai_stp_contracts.machine_help import AuthStatus, DeviceApproval
 
-PROVIDERS: tuple[OAuthProvider, ...] = ("google", "github")
+#: Re-exported from the contract that owns the set.
+PROVIDERS: tuple[OAuthProvider, ...] = OAUTH_PROVIDERS
 
 
 def endpoint() -> Endpoint:

@@ -3,7 +3,7 @@
 import click
 import pytest
 
-from ai_stp_cli import app
+from ai_stp_cli import app, registry
 from ai_stp_cli.commands import machine_help
 from ai_stp_cli.registry import (
     COMMANDS,
@@ -188,7 +188,7 @@ def test_a_command_path_deeper_than_the_contract_allows_is_refused(
     # `CommandPath` allows four segments; a fifth has to fail loudly, because a
     # silently dropped command would be in machine help and not in the parser.
     deep = COMMANDS[0].descriptor.model_copy(update={"path": ["a", "b", "c", "d", "e"]})
-    monkeypatch.setattr(app, "COMMANDS", (COMMANDS[0].__class__(deep, COMMANDS[0].handler),))
+    monkeypatch.setattr(app, "COMMANDS", (COMMANDS[0].__class__(deep, COMMANDS[0].handler_ref),))
     with pytest.raises(Exception, match="deeper than the contract allows"):
         app.build_group()
 
@@ -219,7 +219,7 @@ def test_value_typed_options_reach_click_with_their_declared_type(
             ],
         }
     )
-    monkeypatch.setattr(app, "COMMANDS", (type(original)(descriptor, original.handler),))
+    monkeypatch.setattr(app, "COMMANDS", (type(original)(descriptor, original.handler_ref),))
 
     option = next(
         parameter
@@ -255,9 +255,59 @@ def test_a_command_and_a_group_cannot_claim_the_same_name(
         app,
         "COMMANDS",
         (
-            type(original)(leaf, original.handler),
-            type(original)(nested, original.handler),
+            type(original)(leaf, original.handler_ref),
+            type(original)(nested, original.handler_ref),
         ),
     )
     with pytest.raises(Exception, match="claim the same name"):
         app.build_group()
+
+
+def test_every_declared_handler_resolves() -> None:
+    """A named handler is a string until something resolves it.
+
+    The registry imported thirty command modules at load so that
+    `handler=version.run` could be a reference, and every invocation paid for
+    all of them: measured 2026-08-29, `import ai_stp_cli.registry` cost 0.818s
+    against 0.461s for the descriptors alone, on a 1.0s `ai-stp version`.
+
+    Naming the handler defers that to dispatch and moves the cost onto the
+    command actually typed. What it also does is turn a typo from an import
+    error at startup into a failure at dispatch, on one command, possibly the
+    one nobody runs. This test is the exchange: every declaration resolves here
+    instead.
+    """
+    unresolved: list[str] = []
+    for command in registry.COMMANDS:
+        try:
+            handler = command.handler
+        except (ImportError, AttributeError) as error:
+            unresolved.append(f"{command.name} -> {command.handler_ref}: {error}")
+            continue
+        if not callable(handler):
+            unresolved.append(f"{command.name} -> {command.handler_ref}: not callable")
+
+    assert not unresolved, unresolved
+    assert len(registry.COMMANDS) == len(registry.DECLARATIONS)
+
+
+def test_dispatching_one_command_does_not_import_every_command_module() -> None:
+    """The property the change was made for, asserted rather than assumed.
+
+    Without this, the handlers could quietly become eager again — a single
+    module-level `from ai_stp_cli.commands import x` restores the old cost and
+    nothing else in the suite would notice.
+    """
+    import subprocess
+    import sys
+
+    probe = (
+        "import ai_stp_cli.registry, sys;"
+        "loaded = {name for name in sys.modules if name.startswith('ai_stp_cli.commands.')};"
+        "print(len(loaded))"
+    )
+    result = subprocess.run([sys.executable, "-c", probe], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    # A handful arrive through other module-level imports; thirty would mean the
+    # registry is eager again.
+    assert int(result.stdout.strip()) < 10, result.stdout
