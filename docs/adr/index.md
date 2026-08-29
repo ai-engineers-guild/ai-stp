@@ -127,6 +127,7 @@ last_verified: "2026-08-03"
 | [ADR-0126-conformance-earns-the-windows-exception-by-the-same-gate.md](ADR-0126-conformance-earns-the-windows-exception-by-the-same-gate.md) | Решение распространить windows-исключение на provider conformance через тот же признак доверия, а не по признаку read-only. | 2026-08-26 |
 | [ADR-0127-a-projection-surface-names-the-root-it-hangs-off.md](ADR-0127-a-projection-surface-names-the-root-it-hangs-off.md) | Решение сделать корень проекции объявленным фактом бандла, а не предположением на месте вызова, и признать общие конвенции отдельной областью установки. | 2026-08-28 |
 | [ADR-0128-in-process-dual-window-http-rate-limiter.md](ADR-0128-in-process-dual-window-http-rate-limiter.md) | Решение держать HTTP rate limit одного узла двумя скользящими окнами в процессе API, а не Redis, SlowAPI или Caddy. | 2026-08-28 |
+| [ADR-0129-a-component-landing-inside-an-owned-file-is-a-contribution-to-it.md](ADR-0129-a-component-landing-inside-an-owned-file-is-a-contribution-to-it.md) | Решение компилировать компонент, чьё место посадки — ключ внутри файла, которым владеет провайдер, как вклад в этот файл, реконструируемый потребителем. | 2026-08-29 |
 | [template.md](template.md) | Шаблон записи архитектурного решения. | 2026-08-03 |
 
 <!-- КОНЕЦ СОДЕРЖИМОГО -->
