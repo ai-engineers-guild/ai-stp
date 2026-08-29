@@ -12,7 +12,8 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from ai_stp_contracts.catalog import GitHubMetadata
 
-API_ROOT = "https://api.github.com"
+API_HOST = "api.github.com"
+API_ROOT = f"https://{API_HOST}"
 API_VERSION = "2022-11-28"
 TIMEOUT_SECONDS = 5.0
 MAX_RESPONSE_BYTES = 65_536
@@ -82,6 +83,48 @@ def repository_from_passport(document: object) -> str | None:
     return repository if isinstance(repository, str) else None
 
 
+def redirect_path(fetch: GithubFetch) -> str | None:
+    """The repository path a transfer redirect points at, if it is safe to follow.
+
+    GitHub answers `301` for a repository whose owner changed, and this request
+    is deliberately made with `follow_redirects=False`, so a transferred
+    repository read as "metadata unavailable" rather than as what it is.
+
+    That blinded the archive evidence to the one history it exists for. Measured
+    2026-08-29 against the live catalogue: nineteen published setups cite
+    `NDDev-it-com/*`, every one of those repositories was transferred to a
+    personal account and archived, and `github-metadata` answered
+    `{"stars": null, "archived": null}` for all of them — the feature looking
+    straight at its own case and reporting nothing.
+
+    Following it stays inside the original guarantee rather than relaxing it.
+    The `Location` must be an absolute URL on `api.github.com` whose path is
+    still `/repos/<owner>/<name>`; anything else is refused, so no request ever
+    leaves that host and none of them carries a credential. One hop only: a
+    second redirect is refused rather than chased, because a chain is a budget
+    nobody set.
+    """
+    if fetch.status_code not in (301, 302, 307, 308):
+        return None
+    location = fetch.headers.get("location")
+    if not location:
+        return None
+    parsed = urlsplit(location)
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname != API_HOST
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+    ):
+        return None
+    parts = [part for part in parsed.path.split("/") if part]
+    if len(parts) != 3 or parts[0] != "repos":
+        return None
+    return f"/repos/{quote(parts[1], safe='')}/{quote(parts[2], safe='')}"
+
+
 def metadata_from_fetch(fetch: GithubFetch) -> GitHubMetadata:
     """Project a bounded GitHub response into nullable stars/archived."""
     if fetch.status_code != 200:
@@ -123,19 +166,23 @@ async def fetch_github_metadata(
         "X-GitHub-Api-Version": API_VERSION,
         "User-Agent": USER_AGENT,
     }
-    try:
-        response = await client.get(
-            f"{API_ROOT}{path}",
-            headers=headers,
-            timeout=TIMEOUT_SECONDS,
-            follow_redirects=False,
-        )
-    except httpx.HTTPError:
-        return unavailable_metadata()
-    return metadata_from_fetch(
-        GithubFetch(
+    for _hop in range(2):
+        try:
+            response = await client.get(
+                f"{API_ROOT}{path}",
+                headers=headers,
+                timeout=TIMEOUT_SECONDS,
+                follow_redirects=False,
+            )
+        except httpx.HTTPError:
+            return unavailable_metadata()
+        fetch = GithubFetch(
             status_code=response.status_code,
             body=response.content,
             headers={key.lower(): value for key, value in response.headers.items()},
         )
-    )
+        moved = redirect_path(fetch)
+        if moved is None or moved == path:
+            return metadata_from_fetch(fetch)
+        path = moved
+    return unavailable_metadata()

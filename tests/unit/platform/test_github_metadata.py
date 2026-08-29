@@ -10,6 +10,7 @@ from ai_stp_platform.github_metadata import (
     canonical_github_source,
     fetch_github_metadata,
     metadata_from_fetch,
+    redirect_path,
     repository_from_passport,
     unavailable_metadata,
 )
@@ -107,7 +108,7 @@ async def test_fetch_github_metadata_sends_no_credentials_and_follows_no_redirec
 
 
 @pytest.mark.asyncio
-async def test_fetch_github_metadata_does_not_follow_redirects() -> None:
+async def test_fetch_github_metadata_refuses_a_redirect_off_api_github() -> None:
     async def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
             302,
@@ -118,3 +119,75 @@ async def test_fetch_github_metadata_does_not_follow_redirects() -> None:
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
         result = await fetch_github_metadata("https://github.com/acme/tool", client=client)
     assert result == unavailable_metadata()
+
+
+@pytest.mark.asyncio
+async def test_a_transferred_repository_is_read_at_the_owner_it_moved_to() -> None:
+    """GitHub answers 301 for a transferred repository, and that is the case.
+
+    Every one of the nineteen setups published from the former estate cites a
+    `NDDev-it-com/*` repository that was transferred to a personal account and
+    then archived. Measured against the live catalogue on 2026-08-29,
+    `github-metadata` answered `{"stars": null, "archived": null}` for all of
+    them: the archive evidence looking straight at its own case and reporting
+    nothing, because the request was made with `follow_redirects=False` and a
+    transfer is a redirect.
+    """
+    seen: list[str] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.url.path)
+        assert "Authorization" not in request.headers
+        assert request.url.host == "api.github.com"
+        if request.url.path == "/repos/old-owner/tool":
+            return httpx.Response(
+                301,
+                headers={"location": "https://api.github.com/repos/new-owner/tool"},
+                request=request,
+            )
+        return httpx.Response(
+            200,
+            json={"stargazers_count": 3, "archived": True, "private": False},
+            request=request,
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        result = await fetch_github_metadata("https://github.com/old-owner/tool", client=client)
+    assert result.archived is True
+    assert result.stars == 3
+    assert seen == ["/repos/old-owner/tool", "/repos/new-owner/tool"]
+
+
+@pytest.mark.asyncio
+async def test_only_one_hop_is_followed() -> None:
+    """A chain is a budget nobody set, so the second redirect is refused."""
+    seen: list[str] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.url.path)
+        nxt = len(seen)
+        return httpx.Response(
+            301,
+            headers={"location": f"https://api.github.com/repos/owner/tool{nxt}"},
+            request=request,
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        result = await fetch_github_metadata("https://github.com/owner/tool", client=client)
+    assert result == unavailable_metadata()
+    assert len(seen) == 2
+
+
+def test_redirect_path_accepts_only_a_repository_on_api_github() -> None:
+    def fetch(location: str, status: int = 301) -> GithubFetch:
+        return GithubFetch(status_code=status, body=b"", headers={"location": location})
+
+    assert redirect_path(fetch("https://api.github.com/repos/new/tool")) == "/repos/new/tool"
+    # Off-host, credentialled, non-repository and non-redirect are all refused.
+    assert redirect_path(fetch("https://evil.test/repos/new/tool")) is None
+    assert redirect_path(fetch("https://user:pass@api.github.com/repos/new/tool")) is None
+    assert redirect_path(fetch("https://api.github.com/users/new")) is None
+    assert redirect_path(fetch("https://api.github.com/repos/new/tool/contents")) is None
+    assert redirect_path(fetch("/repos/new/tool")) is None
+    assert redirect_path(fetch("https://api.github.com/repos/new/tool", status=200)) is None
+    assert redirect_path(GithubFetch(status_code=301, body=b"", headers={})) is None
