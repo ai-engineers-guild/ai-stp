@@ -1158,3 +1158,57 @@ def test_a_provider_rule_lands_inside_the_harness_home_it_is_relative_to() -> No
         if rule.harness_id == "pi" and rule.component_type == "plugin"
     )
     assert (pi_plugin.relative, pi_plugin.projection_kind) == ("extensions", "package")
+
+
+def test_a_plugin_under_the_skills_directory_is_not_offered_as_a_skill(
+    harness_home: Path,
+) -> None:
+    """One directory, two kinds, told apart by a manifest the product reads.
+
+    `~/.claude/skills/` holds both: a folder with `SKILL.md` is a skill, and a
+    folder carrying a plugin manifest is loaded as a plugin on the next session
+    with no marketplace and no install step. Discovery walked the directory and
+    reported every child as the rule's kind, so the plugin came back as a skill
+    that happened to be missing its entry point.
+
+    Live before this test rather than latent: the product already loads these,
+    and claude-code declared no plugin layout for anything to disagree with.
+    """
+    claude = harness_home / ".claude"
+    (claude / "skills" / "toolkit" / ".claude-plugin").mkdir(parents=True)
+    (claude / "skills" / "toolkit" / ".claude-plugin" / "plugin.json").write_text(
+        '{"name": "toolkit"}', encoding="utf-8"
+    )
+    # A vendor this estate has not met, matched on the suffix rather than on a
+    # list of the four it has: a list makes the fifth vendor a silent miss.
+    (claude / "skills" / "vendored" / ".acme-plugin").mkdir(parents=True)
+    (claude / "skills" / "vendored" / ".acme-plugin" / "plugin.json").write_text(
+        '{"name": "vendored"}', encoding="utf-8"
+    )
+    # The second shape: a manifest at the plugin root with no prefixed
+    # directory, which is how antigravity packages one.
+    (claude / "skills" / "flat").mkdir(parents=True)
+    (claude / "skills" / "flat" / "plugin.json").write_text('{"name": "flat"}', encoding="utf-8")
+
+    offered = {
+        item.source_path.rsplit("/", 1)[-1]
+        for item in components.discover()
+        if item.harness_id == "claude-code" and item.component_type == "skill"
+    }
+
+    assert "toolkit" not in offered
+    assert "vendored" not in offered
+    assert "flat" not in offered
+    # The control, and the reason it sits in this test: the fix must not turn a
+    # real defect into a silently skipped case. `reviewing` carries `SKILL.md`
+    # and no manifest, and a skill directory holding neither is still a skill
+    # discovery has to offer — otherwise a generator that emits `references/`
+    # without `SKILL.md` stops being reported at all.
+    assert "reviewing" in offered
+    (claude / "skills" / "bare").mkdir(parents=True)
+    bare = {
+        item.source_path.rsplit("/", 1)[-1]
+        for item in components.discover()
+        if item.harness_id == "claude-code" and item.component_type == "skill"
+    }
+    assert "bare" in bare

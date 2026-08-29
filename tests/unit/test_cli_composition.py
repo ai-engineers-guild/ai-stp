@@ -625,6 +625,14 @@ _CONVENTION_BACKED: Final[dict[tuple[str, str], str]] = {
         "declared in the provider's own grok-baseline native_discovery, which "
         "the catalog's cited vendor page does not enumerate"
     ),
+    ("claude-code", "plugin"): (
+        "declared by the released provider: `0.0.30` carries `plugin` in "
+        "`component_kinds` with `skills` among its namespaces, read from the "
+        "downloaded binary. The catalog has no plugin layout for claude-code "
+        "and must not gain one until a directory rule can carry a marker test: "
+        "the product separates the two kinds by a manifest inside the child, "
+        "and discovery reports every child of a directory rule as its kind"
+    ),
     ("antigravity", "instruction"): (
         "declared by the released provider: `0.0.29` carries `instruction` in "
         "`component_kinds` and `config/rules` in `native_namespaces`, read from "

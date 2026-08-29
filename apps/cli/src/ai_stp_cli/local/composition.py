@@ -87,6 +87,25 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     # on grok, one row further back: a filename travelling without its scope.
     # Settled from the vendor page by the provider side, which withdrew `Mcp`
     # from claude-code's declaration for the same reason.
+    # `plugin` and `skill` project to the **same** directory, and this is the
+    # first row in this table where one relative path serves two kinds for one
+    # harness. The product tells them apart by a manifest rather than by
+    # location: `skills/foo/SKILL.md` is a skill, `skills/foo/.claude-plugin/
+    # plugin.json` is a plugin, and a skill inside a plugin is
+    # `<plugin>/skills/bar/SKILL.md`.
+    #
+    # Safe here and not safe everywhere. `rule_for` returns one rule per
+    # (kind, harness), so two kinds naming `skills` is two lookups, and a real
+    # collision — both claiming `skills/foo` — is caught by
+    # `managed_path_owned_twice`, because `_outside_projection` roots every
+    # managed path at its kind's projection. Discovery is a walk instead and
+    # has no marker test, so the mirror row does **not** belong in the harness
+    # catalogue until a directory rule can carry one.
+    #
+    # Declared by the released `0.0.30`, read from the downloaded binary:
+    # `plugin` in `component_kinds`, `skills` in `native_namespaces`. `0.0.29`
+    # declared neither.
+    Rule("plugin", "skills", "directory", "claude-code", projection_kind="plugin"),
     Rule("command", "commands", "directory", "claude-code"),
     Rule("agent", "agents", "directory", "claude-code"),
     # Declared by the released provider and unroutable here until now, so a

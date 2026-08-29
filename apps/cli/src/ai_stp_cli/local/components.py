@@ -72,6 +72,11 @@ PORTABLE_SKILL_SOURCE: Final[str] = "agentskills.io/specification"
 PORTABLE_SKILL_EXCLUDED_NAMES: Final[frozenset[str]] = frozenset(
     {".git", ".venv", "__pycache__", "cache", "fixtures", "node_modules", "vendor"}
 )
+#: The manifest that marks a directory as a packaged plugin, and the suffix of
+#: the vendor-prefixed directory some products put it in.
+PLUGIN_MANIFEST: Final[str] = "plugin.json"
+PLUGIN_MANIFEST_SUFFIX: Final[str] = "-plugin"
+
 MAX_CODEX_PLUGIN_ENTRIES: Final[int] = 1000
 CODEX_AGENTS_SOURCE: Final[str] = "learn.chatgpt.com/docs/agent-configuration/subagents"
 CODEX_HOOKS_SOURCE: Final[str] = "learn.chatgpt.com/docs/hooks"
@@ -160,10 +165,29 @@ class Rule:
     #: inside a file that is also a setting and presence alone proves nothing.
     declared_key: str = ""
 
+    #: A child of this `directory` rule that carries a plugin manifest belongs
+    #: to the `plugin` kind rather than to this one. Set on the rule for the
+    #: *other* kind when a product routes two kinds to one directory and tells
+    #: them apart by a manifest instead of by location.
+    #:
+    #: This is `declared_key` for the directory shape, and it arrived for the
+    #: same reason: `~/.claude/skills/` holds skills *and* plugins, and the walk
+    #: below reported every child as the rule's kind, so a plugin came back as a
+    #: skill missing its entry point. Live rather than latent — the product
+    #: already loads them.
+    excludes_plugin_manifest: bool = False
+
 
 _MIGRATION_GLOBAL_ORACLE: Final[tuple[Rule, ...]] = (
     Rule("instruction", "CLAUDE.md", "file", "claude-code", "code.claude.com/docs/en/memory"),
-    Rule("skill", "skills", "directory", "claude-code", "code.claude.com/docs/en/skills"),
+    Rule(
+        "skill",
+        "skills",
+        "directory",
+        "claude-code",
+        "code.claude.com/docs/en/skills",
+        excludes_plugin_manifest=True,
+    ),
     Rule("agent", "agents", "directory", "claude-code", "code.claude.com/docs/en/sub-agents"),
     Rule(
         "command", "commands", "directory", "claude-code", "code.claude.com/docs/en/slash-commands"
@@ -277,7 +301,14 @@ _MIGRATION_PROJECT_ORACLE: Final[tuple[Rule, ...]] = (
         "claude-code",
         "code.claude.com/docs/en/memory",
     ),
-    Rule("skill", ".claude/skills", "directory", "claude-code", "code.claude.com/docs/en/skills"),
+    Rule(
+        "skill",
+        ".claude/skills",
+        "directory",
+        "claude-code",
+        "code.claude.com/docs/en/skills",
+        excludes_plugin_manifest=True,
+    ),
     Rule(
         "agent", ".claude/agents", "directory", "claude-code", "code.claude.com/docs/en/sub-agents"
     ),
@@ -373,6 +404,7 @@ def _declared_rules(scope: str) -> tuple[Rule, ...]:
             excluded_names=layout.excluded_names,
             projection_kind=layout.projection_kind,
             declared_key=layout.declared_key,
+            excludes_plugin_manifest=layout.excludes_plugin_manifest,
         )
         for definition in harness_catalog.DEFINITIONS
         for layout in definition.layouts
@@ -1043,7 +1075,9 @@ def _at(place: Path, rule: Rule, scope: str) -> list[Found]:
         entries = sorted(
             item
             for item in place.iterdir()
-            if item.name not in rule.excluded_names and _is_offered(item.name)
+            if item.name not in rule.excluded_names
+            and _is_offered(item.name)
+            and not (rule.excludes_plugin_manifest and _holds_plugin_manifest(item))
         )
     except OSError:
         return []
@@ -1054,6 +1088,34 @@ def _at(place: Path, rule: Rule, scope: str) -> list[Found]:
         for entry in entries
         if _shape_of(entry) in {"file", "directory", "unreadable"}
     ]
+
+
+def _holds_plugin_manifest(entry: Path) -> bool:
+    """Whether a directory entry is packaged as a plugin rather than a component.
+
+    Two shapes, because the products use two. A vendor-prefixed manifest
+    directory — `.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json` —
+    matched on its **suffix** rather than against a list of the vendors this
+    estate has met, because a list makes the fifth vendor a silent miss. And a
+    manifest at the entry root, which is how antigravity packages one.
+
+    A file entry is never a plugin: a command is a single file and has nothing
+    to hold a manifest in.
+    """
+    if not entry.is_dir():
+        return False
+    try:
+        if (entry / PLUGIN_MANIFEST).is_file():
+            return True
+        return any(
+            child.is_dir()
+            and child.name.startswith(".")
+            and child.name.endswith(PLUGIN_MANIFEST_SUFFIX)
+            and (child / PLUGIN_MANIFEST).is_file()
+            for child in entry.iterdir()
+        )
+    except OSError:
+        return False
 
 
 def _portable_skills(

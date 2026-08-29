@@ -53,6 +53,12 @@ class Layout:
     #: names are read; see `ai_stp_cli.local.mcp_clients`.
     declared_key: str = ""
 
+    #: The same idea for the directory shape: a child carrying a plugin
+    #: manifest belongs to the `plugin` kind rather than to this layout's. Set
+    #: where one directory serves two kinds and the product separates them by a
+    #: manifest instead of by location.
+    excludes_plugin_manifest: bool = False
+
 
 @dataclass(frozen=True)
 class HarnessDefinition:
@@ -114,6 +120,7 @@ def _layout(
     root: str = "config",
     excluded: frozenset[str] = frozenset(),
     declared_key: str = "",
+    excludes_plugin_manifest: bool = False,
     evidence: str = "page",
 ) -> Layout:
     return Layout(
@@ -126,6 +133,7 @@ def _layout(
         evidence,
         excluded,
         declared_key=declared_key,
+        excludes_plugin_manifest=excludes_plugin_manifest,
     )
 
 
@@ -181,7 +189,14 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
             # choosing between them with nothing to choose on.
             _layout("instruction", "rules", "directory", f"{CLAUDE}/memory", G),
             _layout("instruction", "CLAUDE.md", "file", f"{CLAUDE}/memory", G),
-            _layout("skill", "skills", "directory", f"{CLAUDE}/skills", G),
+            _layout(
+                "skill",
+                "skills",
+                "directory",
+                f"{CLAUDE}/skills",
+                G,
+                excludes_plugin_manifest=True,
+            ),
             _layout("agent", "agents", "directory", f"{CLAUDE}/sub-agents", G),
             _layout("command", "commands", "directory", f"{CLAUDE}/slash-commands", G),
             _layout("setting", "settings.json", "file", f"{CLAUDE}/settings", G),
@@ -204,7 +219,14 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
             # takes precedence over them, so a repository holding one changes
             # what a machine-wide floor means.
             _layout("instruction", ".claude/rules", "directory", f"{CLAUDE}/memory", P),
-            _layout("skill", ".claude/skills", "directory", f"{CLAUDE}/skills", P),
+            _layout(
+                "skill",
+                ".claude/skills",
+                "directory",
+                f"{CLAUDE}/skills",
+                P,
+                excludes_plugin_manifest=True,
+            ),
             _layout("agent", ".claude/agents", "directory", f"{CLAUDE}/sub-agents", P),
             _layout("command", ".claude/commands", "directory", f"{CLAUDE}/slash-commands", P),
             _layout("setting", ".claude/settings.json", "file", f"{CLAUDE}/settings", P),
