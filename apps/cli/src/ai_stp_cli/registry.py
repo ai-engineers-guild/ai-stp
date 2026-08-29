@@ -2290,6 +2290,17 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         next_actions=("toolchain harnesses",),
     ),
     Declaration(
+        path=["component", "skill", "validate"],
+        summary=(
+            "Check a skill package against the Agent Skills Specification and "
+            "name every deviation. Changes nothing."
+        ),
+        result_schema="urn:ai-stp:schema:v1:cli-skill-package",
+        handler="component:skill_validate",
+        parameters=(option("path", "string", "The skill package directory.", required=True),),
+        next_actions=("component adopt", "component passport validate"),
+    ),
+    Declaration(
         path=["provider", "check"],
         summary=(
             "Report each harness's installed setup-system provider and whether "

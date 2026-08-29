@@ -1940,6 +1940,53 @@ class ProviderTrust(BaseModel):
     refusals: list[ReleaseRefusal] = []
 
 
+class SkillPackageFinding(BaseModel):
+    """One deviation from the Agent Skills Specification (`#455`)."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+
+    #: Stable, so a caller branches on the code rather than on the sentence.
+    code: Annotated[str, Field(pattern=r"^SK[0-9]{3}$")]
+    summary: Annotated[str, Field(min_length=1)]
+
+    #: The field or path it is about. Never empty: a finding nobody can locate
+    #: is a finding that has not been reported.
+    at: Annotated[str, Field(min_length=1)]
+
+
+class SkillPackageReport(BaseModel):
+    """Whether a directory is a conforming skill package (`#455`).
+
+    Checked against <https://agentskills.io/specification>, which exists
+    independently of this estate — which is why `skill` is the kind where a
+    validator can be right or wrong about something other than our own opinion.
+    """
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    path: Annotated[str, Field(min_length=1)]
+
+    #: `skill`, `plugin`, or `unknown`. A plugin under `skills/` is a
+    #: well-formed something else, not a skill missing its entry point.
+    packaged_as: Literal["skill", "plugin", "unknown"]
+
+    conforms: bool
+    findings: list[SkillPackageFinding] = []
+
+    name: str = ""
+    description: str = ""
+
+    #: Directories the specification names as conventions, and the ones this
+    #: estate adds. Neither list is a defect: the standard permits any content
+    #: beyond `SKILL.md`.
+    standard_directories: list[str] = []
+    extension_directories: list[str] = []
+    other_entries: list[str] = []
+
+
 class ProviderInstallationCheck(BaseModel):
     """One harness's provider installation against its pinned release source (`#452`).
 

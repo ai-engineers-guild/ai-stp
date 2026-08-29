@@ -11,7 +11,7 @@ import sqlite3
 from collections.abc import Mapping
 from contextlib import closing
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 from ai_stp_cli import identity
 from ai_stp_cli.answer import Answer
@@ -28,10 +28,12 @@ from ai_stp_cli.local import (
     lifecycle,
     revisions,
     search,
+    skill_package,
     versions,
 )
 from ai_stp_cli.local.database import configured_path, open_readonly, open_registry
 from ai_stp_cli.local.passports import moment, owner
+from ai_stp_cli.paths import redact_home
 from ai_stp_contracts.authoring import ComponentScaffoldPlan, ComponentScaffoldResult
 from ai_stp_contracts.github_evidence import GitHubArchiveEvidence, GitHubArchiveHistory
 from ai_stp_contracts.machine_help import (
@@ -53,6 +55,8 @@ from ai_stp_contracts.machine_help import (
     PassportView,
     RecordedVersion,
     SearchHit,
+    SkillPackageFinding,
+    SkillPackageReport,
     VersionLine,
 )
 from ai_stp_foundation.canonical import JsonValue
@@ -837,4 +841,33 @@ def _hit(hit: search.Hit) -> SearchHit:
         lane=hit.lane,  # pyright: ignore[reportArgumentType]
         reason=hit.reason,
         fields=hit.fields,
+    )
+
+
+def skill_validate(parameters: Mapping[str, object]) -> Answer[SkillPackageReport]:
+    """Check a skill package against the Agent Skills Specification (`#455`).
+
+    Reads a directory and changes nothing. Of the eight component kinds this is
+    the one with a published standard that exists independently of this estate,
+    so every limit it enforces is quoted from that document rather than chosen
+    here — which is what makes the answer checkable by somebody who does not
+    trust us.
+    """
+    given = _required(parameters, "path", "a skill package directory is required")
+    report = skill_package.validate(Path(given))
+    return Answer(
+        SkillPackageReport(
+            path=redact_home(Path(report.path)),
+            packaged_as=cast(Any, report.packaged_as),
+            conforms=report.conforms,
+            findings=[
+                SkillPackageFinding(code=item.code, summary=item.summary, at=item.at)
+                for item in report.findings
+            ],
+            name=report.name,
+            description=report.description,
+            standard_directories=list(report.standard_directories),
+            extension_directories=list(report.extension_directories),
+            other_entries=list(report.other_entries),
+        )
     )

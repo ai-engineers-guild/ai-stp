@@ -59,10 +59,17 @@ TARGETS: Final[tuple[Projection, ...]] = (
 
 def render(projection: Projection) -> str:
     """One projection: a pointer, not a copy."""
+    # `harness` sat at the top level until `#455`, where the validator built
+    # against the Agent Skills Specification was run over our own shipped texts
+    # and found it: the standard defines six frontmatter fields and `harness`
+    # is not one of them. `metadata` is the standard's own answer for a client's
+    # extra properties, so that is where it goes — a map of string values, hence
+    # the quoting.
     return f"""---
 name: ai-stp
-harness: {projection.harness_id}
 description: Нативная проекция канонического Skill ai-stp.
+metadata:
+  harness: "{projection.harness_id}"
 ---
 
 {MARKER}

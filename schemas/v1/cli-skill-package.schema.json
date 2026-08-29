@@ -1,0 +1,125 @@
+{
+  "$defs": {
+    "SkillPackageFinding": {
+      "additionalProperties": true,
+      "description": "One deviation from the Agent Skills Specification (`#455`).",
+      "properties": {
+        "at": {
+          "minLength": 1,
+          "title": "At",
+          "type": "string"
+        },
+        "code": {
+          "pattern": "^SK[0-9]{3}$",
+          "title": "Code",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "summary": {
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "at",
+        "code",
+        "schema_version",
+        "summary"
+      ],
+      "title": "SkillPackageFinding",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-skill-package",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Whether a directory is a conforming skill package (`#455`).\n\nChecked against <https://agentskills.io/specification>, which exists\nindependently of this estate — which is why `skill` is the kind where a\nvalidator can be right or wrong about something other than our own opinion.",
+  "properties": {
+    "conforms": {
+      "title": "Conforms",
+      "type": "boolean"
+    },
+    "description": {
+      "default": "",
+      "title": "Description",
+      "type": "string"
+    },
+    "extension_directories": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Extension Directories",
+      "type": "array"
+    },
+    "findings": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/SkillPackageFinding"
+      },
+      "title": "Findings",
+      "type": "array"
+    },
+    "name": {
+      "default": "",
+      "title": "Name",
+      "type": "string"
+    },
+    "other_entries": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Other Entries",
+      "type": "array"
+    },
+    "packaged_as": {
+      "enum": [
+        "skill",
+        "plugin",
+        "unknown"
+      ],
+      "title": "Packaged As",
+      "type": "string"
+    },
+    "path": {
+      "minLength": 1,
+      "title": "Path",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "standard_directories": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Standard Directories",
+      "type": "array"
+    }
+  },
+  "required": [
+    "conforms",
+    "description",
+    "extension_directories",
+    "findings",
+    "name",
+    "other_entries",
+    "packaged_as",
+    "path",
+    "schema_version",
+    "standard_directories"
+  ],
+  "title": "SkillPackageReport",
+  "type": "object"
+}

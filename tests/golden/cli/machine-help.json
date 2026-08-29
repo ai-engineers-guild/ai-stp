@@ -815,6 +815,33 @@
     {
       "path": [
         "component",
+        "skill",
+        "validate"
+      ],
+      "summary": "Check a skill package against the Agent Skills Specification and name every deviation. Changes nothing.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "path",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The skill package directory.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-skill-package",
+      "next_actions": [
+        "component adopt",
+        "component passport validate"
+      ]
+    },
+    {
+      "path": [
+        "component",
         "source",
         "evidence",
         "history"

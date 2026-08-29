@@ -205,6 +205,7 @@ def _group(name: str, help_text: str, *, epilog: str | None = None) -> click.Gro
 #: `select` or `target` means learned nothing from the place built to tell
 #: them. Repeating the name is not a description; it only looks like one.
 _GROUP_SUMMARIES: Final[dict[tuple[str, ...], str]] = {
+    ("component", "skill"): "The Agent Skills authoring contract for one package.",
     ("provider", "update"): "Move a harness's provider to the newest released version.",
     ("provider", "reinstall"): "Install one exact provider version into the same path again.",
     ("attestation",): "Sign exact test evidence with this device's key.",
