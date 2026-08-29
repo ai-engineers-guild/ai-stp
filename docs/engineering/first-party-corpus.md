@@ -1,6 +1,6 @@
 ---
 description: "Проверяемая инвентаризация реальных байтов и паспортов первопартийного корпуса запуска."
-last_verified: "2026-08-28"
+last_verified: "2026-08-29"
 ---
 
 # Первопартийный корпус запуска
@@ -53,25 +53,63 @@ commit входят в адресуемый содержимым паспорт,
 
 Семь харнессов, 40 объектов: 33 компонентов и 7 сетапов, все версии `1.0`.
 
-| Харнесс | Source commit | Setup blob | Компонентов | Виды |
-|---|---|---|---:|---|
-| claude-code | `4957198882182c3690e15fcfb4db914e0a292f9a` | `6829174c2c4adec189c6460fcce2f052a241a586` | 7 | agent 1, command 3, instruction 1, setting 1, skill 1 |
-| opencode | `eedaf7f7ea43f8d42739780d13d3d1f9d11f6844` | `289ead7c5a204dcc4a6be130bbacc0e9889112b1` | 7 | agent 1, command 3, instruction 1, setting 1, skill 1 |
-| pi | `fe1c13ec616c4631d5700002f076b84f4b4a0645` | `129c37f42ce6b77a8646f41a2e0e59ceed58ba40` | 6 | command 3, instruction 1, setting 1, skill 1 |
-| codex | `7067bc084f34aebe91119690c722a7d4bf2fbff3` | `744a7eb0ddddfddafa1903dacb3dc9e1f30459be` | 5 | command 3, instruction 1, setting 1 |
-| grok-build | `f08ea75c4a6db1770936f7b4da959179dbd7985d` | `ad85bcf2fc24401dead53c1507753fde3477af4c` | 4 | agent 1, instruction 1, setting 1, skill 1 |
-| antigravity | `638c2deed87044cbf8e92e532e8994cfb1c5f493` | `474eae579d58a4d1935c9e62886ef9ada2eeadd9` | 2 | plugin 1, setting 1 |
-| cursor | `992008e9616208567b1d3dab4ceb764225358fe9` | `2969fcc33b9a793bd44c6f438e8065aefb87045f` | 2 | plugin 1, setting 1 |
+| Харнесс | Компонентов | Виды |
+|---|---:|---|
+| claude-code | 7 | agent 1, command 3, instruction 1, setting 1, skill 1 |
+| opencode | 7 | agent 1, command 3, instruction 1, setting 1, skill 1 |
+| pi | 6 | command 3, instruction 1, setting 1, skill 1 |
+| codex | 5 | command 3, instruction 1, setting 1 |
+| grok-build | 4 | agent 1, instruction 1, setting 1, skill 1 |
+| antigravity | 2 | plugin 1, setting 1 |
+| cursor | 2 | plugin 1, setting 1 |
 
-| Сетап | ID | Passport digest |
-|---|---|---|
-| antigravity | `setup_01M15EMQ6KFFYVYA57NCZETW63` | `sha256:5cb62cb04910a32cdcce7ac4403d2e8a04dff3a5bfb137d50a3bde69680c06ea` |
-| claude-code | `setup_01M15EN1ETTRD8DWJM8RD6F3AV` | `sha256:5d2d665cfa0ee786e32055e62a8ed6b02fe1acffc8f727475acee536e9ac40f1` |
-| codex | `setup_01M15EN748TQX8H824ERR55JXC` | `sha256:b89b2025561474965f1cc0bfa12bb56d74bec2dd53a581a5ea2f0bcefdfdb5ef` |
-| cursor | `setup_01M15ENRBHRMHPE7XP20T1R1R1` | `sha256:a0a2d74d4255055be57bdb0b23f586dc31f6248f938d53c0c5c28fde12c88719` |
-| grok-build | `setup_01M15EP1E2STXXY3PC5H7RAQAZ` | `sha256:f7fc019ccad0f374821d5e9d5290b69d44beff8c89cc2fd041ed2747dbe84bf1` |
-| opencode | `setup_01M15EPCN05VTEYD18SY089ZMX` | `sha256:9e1d20a1e075389a5d13c40c4d91e530b05a1a709a1057cf7d43880e2750411a` |
-| pi | `setup_01M15EPP0MJ8HM21NW6Y74Z9RN` | `sha256:953cc58374b8c4d168284a6a15d72d214ad1ff815cf02cde5e98d56262b4eb70` |
+Коммитов, blob-SHA и passport digest здесь **нет намеренно**. Их живой владелец —
+`ai_stp_contracts.first_party.versions()` и `corpus-sources.json` рядом с
+артефактами; таблица в документе была их копией и за одну сессию 2026-08-29
+устарела дважды. Текущие значения печатает:
+
+```bash
+uv run python -c "from ai_stp_contracts.first_party import versions
+for v in versions(): print(v.kind, v.passport.stable_id, v.passport_digest)"
+```
+
+Проверить, разошёлся ли корпус с провайдерами, — по содержимому, а не по HEAD:
+
+```bash
+uv run python release_scripts/build_first_party_corpus.py \
+  --out packages/contracts/src/ai_stp_contracts/first_party/v1 --drift
+```
+
+`--drift` отвечает, сколько компонентов и сетапов действительно сдвинулось, и
+ничего не собирает. Отставание на компонент — публикуемое состояние, а не отказ:
+его несёт следующая версия.
+
+## Провенанс называет коммит, который произвёл байты
+
+`source.commit` — последний коммит, тронувший `setups/nddev-builder`, а не HEAD
+репозитория. До 2026-08-29 это был HEAD, и, поскольку `source` входит в
+адресуемый содержимым паспорт, **все семь сетапов меняли digest при любом
+релизе любого провайдера** — включая пять, чей payload не двигался. Измерено в
+тот день: три релиза провайдеров сдвинули два компонента из тридцати трёх и ни
+одного сетапа, а паспорта отличались все семь.
+
+Опубликованная `X.Y` неизменяема, поэтому именно это делало посеянный корпус
+«устаревшим» через минуты после посева — навсегда. Эта видимость, а не
+содержимое, дважды откладывала пересев каталога.
+
+## Идентичность переживает пересборку
+
+`new_id` выдаёт новый ULID на каждый вызов, поэтому до 2026-08-29 каждая
+пересборка заменяла все сорок идентичностей. С неизменяемой `X.Y` это
+означало, что у посеянного корпуса нет пути из `1.0` в `1.1`: следующее
+изменение провайдера можно было бы опубликовать только как сорок **новых**
+объектов, осиротив посеянный набор.
+
+Логическая идентичность компонента — `(харнесс, вид, slug)`, сетапа — харнесс.
+Пересборка переиспользует идентификатор, который прошлая сборка уже выдала
+этому объекту, и печатает `new_identities` для путей, которых раньше не было.
+Идентификаторы снятого эстейта при этом по-прежнему не переиспользуются: те
+объекты пришли из другого репозитория.
 
 Платформенный набор каждого сетапа — три ОС и две архитектуры — **спрошен у
 выпущенного бинаря провайдера** при сборке, а не записан литералом. До

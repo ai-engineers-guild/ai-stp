@@ -6,10 +6,12 @@ an estate that had been transferred to a personal account and archived — nothi
 here could rebuild it, so nothing here noticed.
 
 What it does. For each harness it reads the `setups/nddev-builder/` tree of that
-harness's setup-system at its current `main` commit, maps every path to a
-component using this repository's own projection rules, packages each one, and
-emits a manifest beside the artifacts. Git's own tree and blob SHAs are recorded
-as `source_tree`, so provenance is the repository's hash rather than ours.
+harness's setup-system at `main`, maps every path to a component using this
+repository's own projection rules, packages each one, and emits a manifest
+beside the artifacts. Git's own tree and blob SHAs are recorded as
+`source_tree`, so provenance is the repository's hash rather than ours, and
+`source.commit` names the last commit that touched the captured path rather
+than HEAD — see `_tree`.
 
 Two things it deliberately does not do.
 
@@ -20,9 +22,11 @@ codex role is an `agents.<name>` table in the settings file plus a layer it
 points at, so the file is a companion of the setting rather than a component,
 and there is no honest kind for it.
 
-It does not reuse stable identifiers. These are new objects from a different
-repository, and giving them the old ids would say a published version came from
-a source it did not.
+It does not reuse the displaced estate's stable identifiers. Those objects came
+from a different repository, and wearing their ids would say a published version
+came from a source it did not. Its **own** previous ids it does reuse, and must:
+see `held_identities` for why a rebuild that reminted them would leave a seeded
+corpus with no path from `1.0` to `1.1`.
 """
 
 from __future__ import annotations
@@ -77,10 +81,47 @@ def _blob(repository: str, sha: str) -> bytes:
     return base64.b64decode(raw)
 
 
+#: The path whose history is this corpus's provenance. A commit that did not
+#: touch it did not produce any byte recorded here.
+SOURCE_PATH = "setups/nddev-builder"
+
+
+def source_commit(repository: str) -> str:
+    """The last commit that touched the captured path.
+
+    Split out of `_tree` so the property can be exercised directly: the question
+    "which commit produced these bytes" has one answer, and it is not HEAD.
+    """
+    commit = _gh(
+        f"repos/{ORGANISATION}/{repository}/commits?path={SOURCE_PATH}&per_page=1", ".[0].sha"
+    )
+    if not commit:
+        raise RuntimeError(f"{repository}: no commit has touched {SOURCE_PATH}")
+    return commit
+
+
 def _tree(repository: str) -> tuple[str, list[dict[str, Any]]]:
-    commit = _gh(f"repos/{ORGANISATION}/{repository}/commits/main", ".sha")
+    """The captured tree, and the commit that actually produced it.
+
+    This asked for `commits/main` — the repository's HEAD — until 2026-08-29.
+    HEAD moves on every provider release, and `source.commit` is inside a
+    content-addressed passport, so all seven setup passports changed their
+    digest whenever any provider released, whether or not `setups/nddev-builder`
+    had moved. Measured that day: three provider releases moved two of
+    thirty-three components and none of the seven setups, yet every setup
+    passport differed.
+
+    Because a published `X.Y` is immutable, that made a seeded corpus look
+    outdated the moment any provider released, forever — and that appearance,
+    not any content, deferred the catalogue reseed twice.
+
+    So the provenance names the last commit that touched the captured path. It
+    is the honest answer to "which commit produced these bytes", it changes when
+    and only when they do, and git already holds it. The tree itself is still
+    read at `main`: that is the state being captured.
+    """
     raw = _gh(f"repos/{ORGANISATION}/{repository}/git/trees/main?recursive=1", ".tree")
-    return commit, json.loads(raw)
+    return source_commit(repository), json.loads(raw)
 
 
 #: The asset every setup-system publishes for the platform this script runs on.
@@ -269,10 +310,48 @@ def _package(repository: str, entries: list[dict[str, Any]], component: dict[str
     return held.getvalue()
 
 
+def held_identities(out: Path) -> tuple[dict[tuple[str, str, str], str], dict[str, str]]:
+    """The identifiers a previous build of this corpus already gave these objects.
+
+    The docstring above says this builder does not reuse *the archived estate's*
+    identifiers, and it does not: those objects came from another repository and
+    wearing their ids would claim a source they never had.
+
+    Reusing its **own** previous ids is the opposite case and it is required.
+    `new_id` mints a fresh ULID per call, so before this function every rebuild
+    replaced all forty identities. Published `X.Y` is immutable, so once the
+    corpus is seeded that behaviour leaves no path from `1.0` to `1.1`: the next
+    provider change could only be published as forty *new* objects, orphaning
+    the seeded set and growing the catalogue by forty on every rebuild.
+
+    Logical identity is `(harness, kind, slug)` for a component and the harness
+    for a setup — what the object *is*, not where its bytes currently hash to.
+    A path that no earlier build carried still gets a new id; that is a new
+    object and should say so.
+    """
+    manifest_path = out / "corpus-sources.json"
+    if not manifest_path.is_file():
+        return {}, {}
+    held = json.loads(manifest_path.read_text(encoding="utf-8"))
+    components = {
+        (entry["harness_id"], item["component_type"], item["slug"]): item["stable_id"]
+        for entry in held.get("harnesses", [])
+        for item in entry.get("components", [])
+        if item.get("stable_id")
+    }
+    setups = {
+        entry["harness_id"]: entry["setup_id"]
+        for entry in held.get("harnesses", [])
+        if entry.get("setup_id")
+    }
+    return components, setups
+
+
 def build(harnesses: Sequence[str], *, out: Path) -> dict[str, Any]:
     from ai_stp_foundation.ids import new_id
 
-    report: dict[str, Any] = {"harnesses": {}, "unrouted": {}}
+    known_components, known_setups = held_identities(out)
+    report: dict[str, Any] = {"harnesses": {}, "unrouted": {}, "new_identities": []}
     manifest: list[dict[str, Any]] = []
     for harness_id in harnesses:
         repository = REPOSITORIES[harness_id]
@@ -282,6 +361,10 @@ def build(harnesses: Sequence[str], *, out: Path) -> dict[str, Any]:
         setup = next((item for item in entries if item["path"] == SETUP_PATH), None)
         if setup is None:
             raise RuntimeError(f"{repository} has no {SETUP_PATH}")
+        setup_id = known_setups.get(harness_id)
+        if setup_id is None:
+            setup_id = new_id("setup")
+            report["new_identities"].append(f"setup {harness_id}")
         for component in components:
             # A file rule's slug is its relative path, which may carry a
             # separator — antigravity's setting is `antigravity-cli/settings.json`.
@@ -295,7 +378,12 @@ def build(harnesses: Sequence[str], *, out: Path) -> dict[str, Any]:
                 else Path(component["slug"]).suffix or ".txt"
             )
             component["artifact_name"] = f"{name}{suffix}"
-            component["stable_id"] = new_id("component")
+            identity = (harness_id, component["component_type"], component["slug"])
+            held = known_components.get(identity)
+            if held is None:
+                held = new_id("component")
+                report["new_identities"].append(f"component {harness_id}/{component['slug']}")
+            component["stable_id"] = held
             (out / component["artifact_name"]).write_bytes(_package(repository, entries, component))
         manifest.append(
             {
@@ -307,7 +395,7 @@ def build(harnesses: Sequence[str], *, out: Path) -> dict[str, Any]:
                 "supported_os": systems,
                 "supported_arch": machines,
                 "setup_blob": setup["sha"],
-                "setup_id": new_id("setup"),
+                "setup_id": setup_id,
                 "setup_path": SETUP_PATH,
             }
         )
@@ -318,11 +406,69 @@ def build(harnesses: Sequence[str], *, out: Path) -> dict[str, Any]:
     return report
 
 
+def drift(manifest: dict[str, Any], harnesses: Sequence[str]) -> dict[str, Any]:
+    """What actually moved since this manifest was built, counted in content.
+
+    The manifest records each repository's `commit`, and a commit changes every
+    time the provider releases — for reasons that have nothing to do with the
+    `setups/nddev-builder/` payload this corpus captures. Comparing commits made
+    all seven look stale after every provider release, and that reading deferred
+    the catalogue reseed twice while the bytes had barely moved: measured on
+    2026-08-29, three provider releases had changed **two** of thirty-three
+    components and none of the seven setups.
+
+    So the question is asked of the content. `source_tree` is git's own SHA of
+    the blob or tree, and `setup_blob` of `setup.json`; both are recorded
+    already. Comparing them against the live tree answers "does republishing
+    this object say anything new", which is the question a reseed is actually
+    waiting on.
+
+    It reports and never refuses. A corpus that lags the provider by two
+    components is a normal, publishable state — the next version carries them —
+    and a tool that exits non-zero on it would reinstate exactly the block this
+    measurement removes.
+    """
+    moved: dict[str, Any] = {"components": {}, "setups": [], "unchanged": 0, "changed": 0}
+    recorded = {item["harness_id"]: item for item in manifest["harnesses"]}
+    for harness_id in harnesses:
+        entry = recorded.get(harness_id)
+        if entry is None:
+            continue
+        _, entries = _tree(REPOSITORIES[harness_id])
+        live = {item["path"]: item["sha"] for item in entries}
+        if live.get(SETUP_PATH) != entry.get("setup_blob"):
+            moved["setups"].append(harness_id)
+        for component in entry["components"]:
+            path = f"{HOME_PREFIX}{component['source_path'].split('home/', 1)[1]}"
+            if live.get(path) == component["source_tree"]:
+                moved["unchanged"] += 1
+                continue
+            moved["changed"] += 1
+            moved["components"].setdefault(harness_id, []).append(component["slug"])
+    return moved
+
+
 def main(arguments: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", required=True, type=Path)
     parser.add_argument("--harness", action="append", choices=sorted(REPOSITORIES))
+    parser.add_argument(
+        "--drift",
+        action="store_true",
+        help="report what moved in the content since --out was built, and build nothing",
+    )
     options = parser.parse_args(arguments)
+    if options.drift:
+        manifest = json.loads((options.out / "corpus-sources.json").read_text(encoding="utf-8"))
+        print(
+            json.dumps(
+                drift(manifest, options.harness or sorted(REPOSITORIES)),
+                indent=2,
+                sort_keys=True,
+                ensure_ascii=False,
+            )
+        )
+        return 0
     options.out.mkdir(parents=True, exist_ok=True)
     report = build(options.harness or sorted(REPOSITORIES), out=options.out)
     (options.out / "corpus-sources.json").write_text(
