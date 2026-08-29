@@ -5,9 +5,10 @@ last_verified: "2026-08-28"
 
 # Готовность production
 
-Нормативные требования принадлежат `SPEC-032` и `ADR-0071`. Эта процедура не
-разрешает production action: owner approval остаётся отдельным действием на
-актуальном наборе evidence.
+Нормативные требования принадлежат `SPEC-032` и `ADR-0071`. Эта процедура
+собирает evidence и ничего не выкатывает: выкатку выполняет конвейер
+`ADR-0109` — зелёный `check` продвигает `deploy/prod`. Решение выпустить
+принимает агент на действующем наборе evidence (`ADR-0118`).
 
 ## Optional OpenObserve profile
 
@@ -36,7 +37,7 @@ digest. Compose намеренно откажется запускать profile
 
 ## Evidence checklist
 
-Перед owner approval записать exact commit, schema/config/policy revisions,
+Перед выпуском записать exact commit, schema/config/policy revisions,
 timestamp/expiry, safe outcomes и остаточные риски. Нельзя включать значения env,
 учётные данные, tokens, raw logs, персональные данные или object bytes.
 
