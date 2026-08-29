@@ -659,6 +659,7 @@ def test_an_installation_without_a_copy_is_not_listed_as_one(
     assert targets.backups(registry, project_id=PROJECT, harness_id=HARNESS) == ()
 
 
+# `REQ-848`.
 def test_setup_requirements_carry_what_the_setup_says_about_itself(
     registry: sqlite3.Connection,
 ) -> None:
