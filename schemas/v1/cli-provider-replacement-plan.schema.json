@@ -1,0 +1,134 @@
+{
+  "$id": "urn:ai-stp:schema:v1:cli-provider-replacement-plan",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "What replacing one provider executable would do, exactly (`#452`).\n\nA plan, not an installation. Every field a user needs to decide is here —\nwhere it would write, what it would replace, the exact bytes it would fetch\nand the trust verdict on them — because a confirmation given against a\nsummary is a confirmation of something else.\n\nReplacing a provider does not touch a harness target. That is still the\nprovider's own operation, planned and confirmed on its own.",
+  "properties": {
+    "artifact_bytes": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Artifact Bytes",
+      "type": "integer"
+    },
+    "artifact_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Artifact Digest",
+      "type": "string"
+    },
+    "artifact_url": {
+      "minLength": 1,
+      "title": "Artifact Url",
+      "type": "string"
+    },
+    "backup": {
+      "default": "",
+      "title": "Backup",
+      "type": "string"
+    },
+    "commit": {
+      "pattern": "^[0-9a-f]{40}$",
+      "title": "Commit",
+      "type": "string"
+    },
+    "current_digest": {
+      "default": "",
+      "title": "Current Digest",
+      "type": "string"
+    },
+    "current_version": {
+      "default": "",
+      "title": "Current Version",
+      "type": "string"
+    },
+    "foreign": {
+      "default": false,
+      "title": "Foreign",
+      "type": "boolean"
+    },
+    "harness_id": {
+      "minLength": 1,
+      "title": "Harness Id",
+      "type": "string"
+    },
+    "idempotency_key": {
+      "minLength": 1,
+      "title": "Idempotency Key",
+      "type": "string"
+    },
+    "operation": {
+      "enum": [
+        "update",
+        "reinstall"
+      ],
+      "title": "Operation",
+      "type": "string"
+    },
+    "path": {
+      "minLength": 1,
+      "title": "Path",
+      "type": "string"
+    },
+    "plan_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Plan Digest",
+      "type": "string"
+    },
+    "provider_id": {
+      "minLength": 1,
+      "title": "Provider Id",
+      "type": "string"
+    },
+    "provider_version": {
+      "minLength": 1,
+      "title": "Provider Version",
+      "type": "string"
+    },
+    "repository": {
+      "minLength": 1,
+      "title": "Repository",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "tag": {
+      "minLength": 1,
+      "title": "Tag",
+      "type": "string"
+    },
+    "trust_level": {
+      "enum": [
+        "verified_publisher",
+        "build_attested"
+      ],
+      "title": "Trust Level",
+      "type": "string"
+    }
+  },
+  "required": [
+    "artifact_bytes",
+    "artifact_digest",
+    "artifact_url",
+    "backup",
+    "commit",
+    "current_digest",
+    "current_version",
+    "foreign",
+    "harness_id",
+    "idempotency_key",
+    "operation",
+    "path",
+    "plan_digest",
+    "provider_id",
+    "provider_version",
+    "repository",
+    "schema_version",
+    "tag",
+    "trust_level"
+  ],
+  "title": "ProviderReplacementPlan",
+  "type": "object"
+}

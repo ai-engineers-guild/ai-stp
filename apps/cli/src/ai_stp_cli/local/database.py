@@ -763,6 +763,32 @@ MIGRATIONS: Final[tuple[Migration, ...]] = (
         ),
         down=("ALTER TABLE consent DROP COLUMN observed",),
     ),
+    Migration(
+        version=26,
+        summary="remember which provider executable serves each harness",
+        up=(
+            # One row per harness, because "which provider runs" must have one
+            # answer. `#452`: the choice used to live in whichever `--provider`
+            # argument the last command carried, which is not a place a later
+            # command can read.
+            """
+            CREATE TABLE provider_installation (
+                harness_id        TEXT PRIMARY KEY,
+                path              TEXT NOT NULL,
+                source            TEXT NOT NULL,
+                state             TEXT NOT NULL,
+                provider_id       TEXT NOT NULL,
+                provider_version  TEXT NOT NULL,
+                tag               TEXT NOT NULL,
+                commit_sha        TEXT NOT NULL,
+                artifact_digest   TEXT NOT NULL,
+                checked_at        TEXT NOT NULL,
+                source_checked_at TEXT NOT NULL
+            ) STRICT
+            """,
+        ),
+        down=("DROP TABLE provider_installation",),
+    ),
 )
 
 #: Names for nested savepoints. A counter rather than a fixed name: two nested

@@ -16,6 +16,7 @@ last_verified: "2026-08-03"
 | [github-repository-metrics.md](github-repository-metrics.md) | Runbook: best-effort кэш GitHub stars для публичного каталога. | 2026-08-12 |
 | [installation-recovery.md](installation-recovery.md) | Runbook: installation recovery. | 2026-08-03 |
 | [macos-evidence.md](macos-evidence.md) | Получение CLI/package evidence на стандартном GitHub-hosted macOS runner. | 2026-08-18 |
+| [provider-lifecycle.md](provider-lifecycle.md) | Обнаружение, проверка версии, обновление и переустановка setup-system provider. | 2026-08-29 |
 | [provider-update.md](provider-update.md) | Runbook: provider update. | 2026-08-28 |
 | [publish-recovery.md](publish-recovery.md) | Runbook: publish recovery. | 2026-08-03 |
 | [pypi-release.md](pypi-release.md) | Сборка, проверка, публикация, отзыв и восстановление Python-релиза. | 2026-08-29 |

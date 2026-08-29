@@ -1,0 +1,144 @@
+{
+  "$defs": {
+    "ProviderInstallationCheck": {
+      "additionalProperties": true,
+      "description": "One harness's provider installation against its pinned release source (`#452`).\n\n`status` is one word and every one of them is an outcome, including the ones\nthat are not answers: a release source that cannot be reached is\n`source_unavailable`, not silence and not a guess at the newest version.",
+      "properties": {
+        "candidates": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Candidates",
+          "type": "array"
+        },
+        "checked_at": {
+          "default": "",
+          "title": "Checked At",
+          "type": "string"
+        },
+        "harness_id": {
+          "minLength": 1,
+          "title": "Harness Id",
+          "type": "string"
+        },
+        "latest_commit": {
+          "default": "",
+          "title": "Latest Commit",
+          "type": "string"
+        },
+        "latest_tag": {
+          "default": "",
+          "title": "Latest Tag",
+          "type": "string"
+        },
+        "path": {
+          "default": "",
+          "title": "Path",
+          "type": "string"
+        },
+        "provider_id": {
+          "default": "",
+          "title": "Provider Id",
+          "type": "string"
+        },
+        "provider_version": {
+          "default": "",
+          "title": "Provider Version",
+          "type": "string"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "repository": {
+          "default": "",
+          "title": "Repository",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source": {
+          "default": "",
+          "enum": [
+            "argument",
+            "config",
+            "chosen",
+            "discovered",
+            ""
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "up_to_date",
+            "update_available",
+            "unknown_version",
+            "source_unavailable",
+            "unsupported_platform",
+            "unmanaged",
+            "missing",
+            "ambiguous"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "candidates",
+        "checked_at",
+        "harness_id",
+        "latest_commit",
+        "latest_tag",
+        "path",
+        "provider_id",
+        "provider_version",
+        "reason",
+        "repository",
+        "schema_version",
+        "source",
+        "status"
+      ],
+      "title": "ProviderInstallationCheck",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-provider-installations",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Every harness asked about, in a fixed order (`#452`).",
+  "properties": {
+    "installations": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ProviderInstallationCheck"
+      },
+      "title": "Installations",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "source_consulted": {
+      "default": false,
+      "title": "Source Consulted",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "installations",
+    "schema_version",
+    "source_consulted"
+  ],
+  "title": "ProviderInstallationReport",
+  "type": "object"
+}

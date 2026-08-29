@@ -25,6 +25,7 @@ import yaml
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.paths import config_home, data_home, redact_home, write_private
 from ai_stp_contracts.machine_help import ConfigReport, ConfigValue
+from ai_stp_foundation.harnesses import HARNESS_IDS
 
 type ConfigScalar = str | int | bool | list[str] | None
 
@@ -97,6 +98,20 @@ def declared_fields() -> tuple[Field, ...]:
             "https://telemetry.ai-stp.example",
             "Where the anonymous install ping goes. HTTPS, or cleartext to a"
             " loopback host for local development, as for the catalogue.",
+        ),
+        # One field per supported harness rather than a `provider.paths` map
+        # (`#452`). The schema is closed on purpose, and a map keyed by
+        # anything the user types is not a closed schema: an unknown harness
+        # would be accepted, stored, and never read by anything.
+        *(
+            Field(
+                f"provider.paths.{harness_id}",
+                "",
+                f"Absolute path to the {harness_id} setup-system provider."
+                " Empty defers to the registry and then to discovery.",
+                True,
+            )
+            for harness_id in sorted(HARNESS_IDS)
         ),
     )
 
@@ -415,12 +430,33 @@ def set_values(assignments: Mapping[str, str]) -> tuple[Path, tuple[str, ...]]:
         field = _declared_or_refused(dotted)
         parsed = _parse_scalar(text, field)
         _refuse_consent_by_assignment(dotted, parsed)
+        _refuse_an_unusable_provider_path(dotted, parsed)
         if dotted not in held or held[dotted] != parsed:
             changed.append(dotted)
         held[dotted] = parsed
     path = write_config(held)
     _forget_identifier_if_disabled(assignments, held)
     return path, tuple(sorted(changed))
+
+
+def _refuse_an_unusable_provider_path(dotted: str, parsed: object) -> None:
+    """A configured provider path is checked when written, not when run.
+
+    `#452` names what is refused: a relative path, a symlink standing in for
+    the executable, and anything that is not a runnable file. Checking at write
+    time is what makes the refusal useful — the alternative is a value that
+    stores cleanly and fails much later, inside an install, with the config
+    file looking correct.
+
+    Clearing it is always allowed: an empty value defers to the registry and
+    then to discovery, and making a value harder to remove than to set is how
+    a machine ends up stuck on a path that no longer exists.
+    """
+    if not dotted.startswith("provider.paths.") or not parsed:
+        return
+    from ai_stp_cli.local import provider_installations
+
+    provider_installations.validated(str(parsed), harness_id=dotted.rpartition(".")[2])
 
 
 def _refuse_consent_by_assignment(dotted: str, parsed: object) -> None:

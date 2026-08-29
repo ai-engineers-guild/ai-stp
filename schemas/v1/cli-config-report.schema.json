@@ -5,7 +5,7 @@
       "description": "One effective configuration value and where it came from.\n\n`SPEC-011` REQ-1116 requires the effective value **and** its source, because\n\"it is 20 because that is the default\" and \"it is 20 because you wrote 20\"\nlead to different next actions. No secret is representable: the config\ncarries none by contract (`docs/contracts/cli-config.md`).",
       "properties": {
         "path": {
-          "pattern": "^[a-z][a-z0-9_.]*$",
+          "pattern": "^[a-z][a-z0-9_.-]*$",
           "title": "Path",
           "type": "string"
         },

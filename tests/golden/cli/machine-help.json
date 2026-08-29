@@ -3113,6 +3113,49 @@
     {
       "path": [
         "provider",
+        "check"
+      ],
+      "summary": "Report each harness's installed setup-system provider and whether a newer release exists. Changes nothing.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "Harness to ask about. Repeatable. Omit for every supported one.",
+          "choices": [
+            "antigravity",
+            "claude-code",
+            "codex",
+            "cursor",
+            "grok-build",
+            "opencode",
+            "pi"
+          ]
+        },
+        {
+          "name": "offline",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Read what is installed without asking the release source. A failed request is not reported as 'no update'.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-provider-installations",
+      "next_actions": [
+        "provider fetch",
+        "provider trust"
+      ]
+    },
+    {
+      "path": [
+        "provider",
         "conformance"
       ],
       "summary": "Check one provider against an explicitly selected protocol. Changes nothing.",
@@ -3244,6 +3287,39 @@
     {
       "path": [
         "provider",
+        "forget"
+      ],
+      "summary": "Drop the recorded provider choice so configuration and discovery decide again.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "Harness to forget. Repeatable. Omit for every supported one.",
+          "choices": [
+            "antigravity",
+            "claude-code",
+            "codex",
+            "cursor",
+            "grok-build",
+            "opencode",
+            "pi"
+          ]
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-provider-installations",
+      "next_actions": [
+        "provider check"
+      ]
+    },
+    {
+      "path": [
+        "provider",
         "network"
       ],
       "summary": "Report observed protocol-v2 network isolation on this machine.",
@@ -3254,6 +3330,148 @@
       "result_schema": "urn:ai-stp:schema:v1:cli-provider-network-capability",
       "next_actions": [
         "provider conformance"
+      ]
+    },
+    {
+      "path": [
+        "provider",
+        "reinstall",
+        "apply"
+      ],
+      "summary": "Carry out exactly the provider reinstallation a plan described.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Harness whose provider is replaced.",
+          "choices": [
+            "antigravity",
+            "claude-code",
+            "codex",
+            "cursor",
+            "grok-build",
+            "opencode",
+            "pi"
+          ]
+        },
+        {
+          "name": "executable",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "The provider to replace. Required when more than one is installed.",
+          "choices": []
+        },
+        {
+          "name": "adopt",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Replace a provider ai-stp did not install. Nothing else overwrites one.",
+          "choices": []
+        },
+        {
+          "name": "expected-plan-digest",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact digest returned by the plan.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": true,
+          "repeatable": false,
+          "summary": "Confirm the exact replacement the plan described.",
+          "choices": []
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Exact release tag. Omit to reinstall the version already there; moving to the newest is provider update.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-provider-replacement-result",
+      "next_actions": [
+        "provider check",
+        "provider conformance"
+      ]
+    },
+    {
+      "path": [
+        "provider",
+        "reinstall",
+        "plan"
+      ],
+      "summary": "Describe re-installing one exact provider version into the same path. Changes nothing.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Harness whose provider is replaced.",
+          "choices": [
+            "antigravity",
+            "claude-code",
+            "codex",
+            "cursor",
+            "grok-build",
+            "opencode",
+            "pi"
+          ]
+        },
+        {
+          "name": "executable",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "The provider to replace. Required when more than one is installed.",
+          "choices": []
+        },
+        {
+          "name": "adopt",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Replace a provider ai-stp did not install. Nothing else overwrites one.",
+          "choices": []
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Exact release tag. Omit to reinstall the version already there; moving to the newest is provider update.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-provider-replacement-plan",
+      "next_actions": [
+        "provider reinstall apply",
+        "provider trust"
       ]
     },
     {
@@ -3279,6 +3497,130 @@
       "result_schema": "urn:ai-stp:schema:v1:cli-provider-trust",
       "next_actions": [
         "provider conformance"
+      ]
+    },
+    {
+      "path": [
+        "provider",
+        "update",
+        "apply"
+      ],
+      "summary": "Carry out exactly the provider replacement a plan described.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Harness whose provider is replaced.",
+          "choices": [
+            "antigravity",
+            "claude-code",
+            "codex",
+            "cursor",
+            "grok-build",
+            "opencode",
+            "pi"
+          ]
+        },
+        {
+          "name": "executable",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "The provider to replace. Required when more than one is installed.",
+          "choices": []
+        },
+        {
+          "name": "adopt",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Replace a provider ai-stp did not install. Nothing else overwrites one.",
+          "choices": []
+        },
+        {
+          "name": "expected-plan-digest",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact digest returned by the plan.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": true,
+          "repeatable": false,
+          "summary": "Confirm the exact replacement the plan described.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-provider-replacement-result",
+      "next_actions": [
+        "provider check",
+        "provider conformance"
+      ]
+    },
+    {
+      "path": [
+        "provider",
+        "update",
+        "plan"
+      ],
+      "summary": "Describe replacing one harness's provider with the newest released version, in the same path. Changes nothing.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Harness whose provider is replaced.",
+          "choices": [
+            "antigravity",
+            "claude-code",
+            "codex",
+            "cursor",
+            "grok-build",
+            "opencode",
+            "pi"
+          ]
+        },
+        {
+          "name": "executable",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "The provider to replace. Required when more than one is installed.",
+          "choices": []
+        },
+        {
+          "name": "adopt",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Replace a provider ai-stp did not install. Nothing else overwrites one.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-provider-replacement-plan",
+      "next_actions": [
+        "provider update apply",
+        "provider trust"
       ]
     },
     {

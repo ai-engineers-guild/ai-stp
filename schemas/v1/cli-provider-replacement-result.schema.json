@@ -1,0 +1,85 @@
+{
+  "$id": "urn:ai-stp:schema:v1:cli-provider-replacement-result",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "What replacing a provider actually did (`#452`).",
+  "properties": {
+    "artifact_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Artifact Digest",
+      "type": "string"
+    },
+    "backup": {
+      "default": "",
+      "title": "Backup",
+      "type": "string"
+    },
+    "harness_id": {
+      "minLength": 1,
+      "title": "Harness Id",
+      "type": "string"
+    },
+    "operation": {
+      "enum": [
+        "update",
+        "reinstall"
+      ],
+      "title": "Operation",
+      "type": "string"
+    },
+    "outcome": {
+      "enum": [
+        "replaced",
+        "unchanged"
+      ],
+      "title": "Outcome",
+      "type": "string"
+    },
+    "path": {
+      "minLength": 1,
+      "title": "Path",
+      "type": "string"
+    },
+    "plan_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Plan Digest",
+      "type": "string"
+    },
+    "previous_version": {
+      "default": "",
+      "title": "Previous Version",
+      "type": "string"
+    },
+    "provider_version": {
+      "minLength": 1,
+      "title": "Provider Version",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "tag": {
+      "minLength": 1,
+      "title": "Tag",
+      "type": "string"
+    }
+  },
+  "required": [
+    "artifact_digest",
+    "backup",
+    "harness_id",
+    "operation",
+    "outcome",
+    "path",
+    "plan_digest",
+    "previous_version",
+    "provider_version",
+    "schema_version",
+    "tag"
+  ],
+  "title": "ProviderReplacementResult",
+  "type": "object"
+}

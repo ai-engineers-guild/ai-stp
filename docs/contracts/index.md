@@ -15,7 +15,7 @@ last_verified: "2026-08-03"
 | [catalog-reactions.md](catalog-reactions.md) | Приватные reactions аккаунта на публичные компоненты и сетапы каталога. | 2026-08-17 |
 | [catalog-support-evidence.md](catalog-support-evidence.md) | Безопасная публичная проекция evidence поддержки харнесса в каталоге. | 2026-08-09 |
 | [catalog-usage-metrics.md](catalog-usage-metrics.md) | Проводная семантика публичных detail view и artifact download counters. | 2026-08-17 |
-| [cli-config.md](cli-config.md) | Поля глобального конфига CLI, значения по умолчанию и приоритет источников. | 2026-08-04 |
+| [cli-config.md](cli-config.md) | Поля глобального конфига CLI, значения по умолчанию и приоритет источников. | 2026-08-29 |
 | [cli-copy-templates.md](cli-copy-templates.md) | Канонические CLI-шаблоны для copy-блоков веб-UI (SPEC-037). | 2026-08-13 |
 | [cli-grants.md](cli-grants.md) | Клиентская последовательность выдачи, принятия и отзыва прав доступа. | 2026-08-13 |
 | [cli-json.md](cli-json.md) | Конверт JSON, классы ошибок и правила машинного вывода CLI. | 2026-08-13 |

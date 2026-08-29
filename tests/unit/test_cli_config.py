@@ -228,9 +228,15 @@ def test_rendering_folds_the_home_directory_away_but_reading_does_not(
 def test_only_declared_path_fields_are_folded() -> None:
     # Declared, not inferred from the field name: a rename must not silently
     # change what gets redacted.
+    from ai_stp_foundation.harnesses import HARNESS_IDS
+
     assert {item.path for item in config.declared_fields() if item.is_path} == {
         "registry.path",
         "projects.discovery_roots",
+        # One per harness (`#452`). They are folded for the same reason as the
+        # other two: a machine-readable answer carries the absolute path, and
+        # only a human reading it sees `~`.
+        *(f"provider.paths.{harness}" for harness in HARNESS_IDS),
     }
 
 

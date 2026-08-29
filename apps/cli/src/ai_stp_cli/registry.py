@@ -113,6 +113,45 @@ class Declaration:
     next_actions: tuple[str, ...] = field(default_factory=tuple)
 
 
+#: Options both replacement commands take. Spelled once: two copies of a
+#: plan/confirm pair are two chances for one of them to quietly lose a guard.
+_REPLACEMENT_OPTIONS: Final[tuple[CommandParameter, ...]] = (
+    option(
+        "harness",
+        "string",
+        "Harness whose provider is replaced.",
+        required=True,
+        choices=tuple(sorted(HARNESS_IDS)),
+    ),
+    option(
+        "executable",
+        "string",
+        "The provider to replace. Required when more than one is installed.",
+    ),
+    option(
+        "adopt",
+        "boolean",
+        "Replace a provider ai-stp did not install. Nothing else overwrites one.",
+    ),
+)
+
+#: What `apply` adds: the plan's exact digest and an explicit confirmation. Both
+#: required, so a confirmation can only ever be of something already described.
+_CONFIRMED_OPTIONS: Final[tuple[CommandParameter, ...]] = (
+    *_REPLACEMENT_OPTIONS,
+    option("expected-plan-digest", "string", "Exact digest returned by the plan.", required=True),
+    option(
+        "confirm", "boolean", "Confirm the exact replacement the plan described.", required=True
+    ),
+)
+
+_VERSION_OPTION: Final[CommandParameter] = option(
+    "version",
+    "string",
+    "Exact release tag. Omit to reinstall the version already there; moving to"
+    " the newest is provider update.",
+)
+
 DECLARATIONS: Final[tuple[Declaration, ...]] = (
     Declaration(
         path=["eval", "profile"],
@@ -2249,6 +2288,87 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
         ),
         next_actions=("toolchain harnesses",),
+    ),
+    Declaration(
+        path=["provider", "check"],
+        summary=(
+            "Report each harness's installed setup-system provider and whether "
+            "a newer release exists. Changes nothing."
+        ),
+        result_schema="urn:ai-stp:schema:v1:cli-provider-installations",
+        handler="provider:check",
+        parameters=(
+            option(
+                "harness",
+                "string",
+                "Harness to ask about. Repeatable. Omit for every supported one.",
+                repeatable=True,
+                choices=tuple(sorted(HARNESS_IDS)),
+            ),
+            option(
+                "offline",
+                "boolean",
+                "Read what is installed without asking the release source. A "
+                "failed request is not reported as 'no update'.",
+            ),
+        ),
+        next_actions=("provider fetch", "provider trust"),
+    ),
+    Declaration(
+        path=["provider", "update", "plan"],
+        summary=(
+            "Describe replacing one harness's provider with the newest released "
+            "version, in the same path. Changes nothing."
+        ),
+        result_schema="urn:ai-stp:schema:v1:cli-provider-replacement-plan",
+        handler="provider:update_plan",
+        parameters=_REPLACEMENT_OPTIONS,
+        next_actions=("provider update apply", "provider trust"),
+    ),
+    Declaration(
+        path=["provider", "update", "apply"],
+        summary="Carry out exactly the provider replacement a plan described.",
+        result_schema="urn:ai-stp:schema:v1:cli-provider-replacement-result",
+        handler="provider:update_apply",
+        mutability="apply",
+        parameters=_CONFIRMED_OPTIONS,
+        next_actions=("provider check", "provider conformance"),
+    ),
+    Declaration(
+        path=["provider", "reinstall", "plan"],
+        summary=(
+            "Describe re-installing one exact provider version into the same path. Changes nothing."
+        ),
+        result_schema="urn:ai-stp:schema:v1:cli-provider-replacement-plan",
+        handler="provider:reinstall_plan",
+        parameters=(*_REPLACEMENT_OPTIONS, _VERSION_OPTION),
+        next_actions=("provider reinstall apply", "provider trust"),
+    ),
+    Declaration(
+        path=["provider", "reinstall", "apply"],
+        summary="Carry out exactly the provider reinstallation a plan described.",
+        result_schema="urn:ai-stp:schema:v1:cli-provider-replacement-result",
+        handler="provider:reinstall_apply",
+        mutability="apply",
+        parameters=(*_CONFIRMED_OPTIONS, _VERSION_OPTION),
+        next_actions=("provider check", "provider conformance"),
+    ),
+    Declaration(
+        path=["provider", "forget"],
+        summary=("Drop the recorded provider choice so configuration and discovery decide again."),
+        result_schema="urn:ai-stp:schema:v1:cli-provider-installations",
+        handler="provider:forget",
+        mutability="apply",
+        parameters=(
+            option(
+                "harness",
+                "string",
+                "Harness to forget. Repeatable. Omit for every supported one.",
+                repeatable=True,
+                choices=tuple(sorted(HARNESS_IDS)),
+            ),
+        ),
+        next_actions=("provider check",),
     ),
     Declaration(
         path=["provider", "fetch"],

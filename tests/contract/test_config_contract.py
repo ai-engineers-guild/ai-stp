@@ -35,15 +35,26 @@ def _documented() -> dict[str, object]:
     document = cast(dict[str, Any], yaml.safe_load(block.group(1)))
 
     flat: dict[str, object] = {}
-    for key, value in document.items():
-        if key == "schema_version":
-            continue
-        if isinstance(value, dict):
-            for inner, item in cast(dict[str, object], value).items():
-                flat[f"{key}.{inner}"] = item
-        else:
-            flat[key] = value
+    _flatten(document, "", flat)
     return flat
+
+
+def _flatten(document: dict[str, Any], prefix: str, into: dict[str, object]) -> None:
+    """Every leaf of the block, at whatever depth it sits.
+
+    Recursive rather than two levels deep. `provider.paths.<harness_id>`
+    (`#452`) is three, and a fixed depth silently flattened it to one entry
+    named `provider.paths` holding a dict — so the contract and the code
+    disagreed about seven fields while the comparison looked at one.
+    """
+    for key, value in document.items():
+        if not prefix and key == "schema_version":
+            continue
+        dotted = f"{prefix}.{key}" if prefix else str(key)
+        if isinstance(value, dict):
+            _flatten(cast(dict[str, Any], value), dotted, into)
+        else:
+            into[dotted] = value
 
 
 def test_the_code_declares_exactly_the_fields_the_contract_does() -> None:
@@ -75,7 +86,9 @@ def test_the_contract_states_a_default_for_every_field_it_declares() -> None:
     # A field in the table with no value in the block would leave the code free
     # to choose, and then the document would stop being the owner.
     text = CONTRACT.read_text(encoding="utf-8")
-    tabled = set(re.findall(r"^\| `([a-z][a-z0-9_.]*)` \|", text, re.MULTILINE))
+    # A hyphen belongs in the pattern: a harness identifier carries one, and
+    # the config spells it the way every other surface does.
+    tabled = set(re.findall(r"^\| `([a-z][a-z0-9_.-]*)` \|", text, re.MULTILINE))
     assert tabled == set(_documented())
 
 
