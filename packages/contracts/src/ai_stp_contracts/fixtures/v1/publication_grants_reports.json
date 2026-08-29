@@ -17,8 +17,12 @@
           "passport": {
             "name": "demo",
             "version": "1.0",
-            "tags": ["review"],
-            "license": {"spdx_id": "MIT"},
+            "tags": [
+              "review"
+            ],
+            "license": {
+              "spdx_id": "MIT"
+            },
             "source": {
               "repository": "https://github.com/example/demo",
               "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -50,7 +54,10 @@
         "expires_at": "2026-08-09T00:00:00.000Z",
         "component_verified": false,
         "evidence": [],
-        "effects": ["validate", "publish_catalog_version"]
+        "effects": [
+          "validate",
+          "publish_catalog_version"
+        ]
       }
     },
     {
@@ -79,7 +86,10 @@
         "expires_at": "2026-08-09T00:00:00.000Z",
         "component_verified": false,
         "evidence": [],
-        "effects": ["validate", "publish_catalog_version"]
+        "effects": [
+          "validate",
+          "publish_catalog_version"
+        ]
       }
     },
     {
@@ -108,7 +118,10 @@
         "expires_at": "2026-08-09T00:00:00.000Z",
         "component_verified": false,
         "evidence": [],
-        "effects": ["validate", "publish_catalog_version"]
+        "effects": [
+          "validate",
+          "publish_catalog_version"
+        ]
       }
     },
     {
@@ -143,7 +156,10 @@
         "expires_at": "2026-08-09T00:00:00.000Z",
         "component_verified": false,
         "evidence": [],
-        "effects": ["validate", "publish_catalog_version"]
+        "effects": [
+          "validate",
+          "publish_catalog_version"
+        ]
       }
     },
     {
@@ -584,8 +600,59 @@
         "expires_at": "2026-08-09T00:00:00.000Z",
         "component_verified": false,
         "evidence": [],
-        "effects": ["validate", "publish_catalog_version"]
+        "effects": [
+          "validate",
+          "publish_catalog_version"
+        ]
       }
+    },
+    {
+      "case_id": "setOwnerVersionLifecycle.deprecated",
+      "operation_id": "setOwnerVersionLifecycle",
+      "kind": "positive",
+      "why": "An author marks their own published version deprecated; it stays readable and installable, because a published X.Y is immutable and a lifecycle mark that changed what somebody depends on would be an edit by another name.",
+      "request": {
+        "path_params": {
+          "object_kind": "component",
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.0"
+        },
+        "body": {
+          "schema_version": 1,
+          "action": "deprecate",
+          "reason": "superseded by 1.1",
+          "idempotency_key": "ownerlifecycle0001"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "version": "1.0",
+        "lifecycle": "deprecated",
+        "applied": true
+      }
+    },
+    {
+      "case_id": "setOwnerVersionLifecycle.moderated",
+      "operation_id": "setOwnerVersionLifecycle",
+      "kind": "rejected_request",
+      "why": "An author cannot leave a moderation state. Undoing a staff decision is a different authority, and SPEC-026 REQ-2617 reserves hide, block and restore to staff.",
+      "request": {
+        "path_params": {
+          "object_kind": "component",
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.0"
+        },
+        "body": {
+          "schema_version": 1,
+          "action": "undeprecate",
+          "reason": "asking for it back",
+          "idempotency_key": "ownerlifecycle0002"
+        }
+      },
+      "status": 409,
+      "error_code": "AI_STP_CONFLICT"
     },
     {
       "case_id": "listStaffReports.empty",

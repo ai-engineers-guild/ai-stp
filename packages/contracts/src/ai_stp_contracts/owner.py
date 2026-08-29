@@ -297,6 +297,50 @@ class StaffReportDetail(BaseModel):
     harness_id: Annotated[str, Field(default="", max_length=64)] = ""
 
 
+#: What an owner may do to the lifecycle of their own published version.
+#:
+#: Not `block`, `hide` or `restore-from-hidden`: those are moderation, they are
+#: named by `SPEC-026` `REQ-2617` as staff actions with a reason and an audit
+#: event, and an author moderating their own object would be a different
+#: decision with a different authority behind it.
+type OwnerLifecycleAction = Literal["deprecate", "undeprecate"]
+
+
+class OwnerLifecycleRequest(BaseModel):
+    """POST a lifecycle transition on an exact owned version (`SPEC-007`).
+
+    `deprecated` was declared in the state vocabulary, listed in three models
+    and offered by a CLI hint, and written by nothing: the staff route accepts
+    only `block`, `hide` and `restore`, and every owner version route was a
+    read. Two successive plans carried "deprecate the old corpus" as pending
+    work against a verb that did not exist.
+
+    The author holds this one because deprecation is a statement about the
+    object's own future rather than about its acceptability, and because the
+    evidence that motivates it — `SPEC-044` archive observation — already
+    reaches the author as a proposal.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+
+    schema_version: Literal[1] = 1
+    action: OwnerLifecycleAction
+    reason: Annotated[str, Field(min_length=1, max_length=500)]
+    idempotency_key: Annotated[str, Field(min_length=16, max_length=128)]
+
+
+class OwnerLifecycleResponse(BaseModel):
+    """The state the version is in after the transition."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    stable_id: Annotated[str, Field(min_length=1)]
+    version: Annotated[str, Field(min_length=1)]
+    lifecycle: LifecycleState
+    applied: bool
+
+
 class OwnerStartPublicationRequest(BaseModel):
     """POST start publication plan from an exact owned version (no browser passport)."""
 

@@ -1,0 +1,45 @@
+{
+  "$defs": {
+    "OwnerLifecycleAction": {
+      "enum": [
+        "deprecate",
+        "undeprecate"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:owner-lifecycle-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "POST a lifecycle transition on an exact owned version (`SPEC-007`).\n\n`deprecated` was declared in the state vocabulary, listed in three models\nand offered by a CLI hint, and written by nothing: the staff route accepts\nonly `block`, `hide` and `restore`, and every owner version route was a\nread. Two successive plans carried \"deprecate the old corpus\" as pending\nwork against a verb that did not exist.\n\nThe author holds this one because deprecation is a statement about the\nobject's own future rather than about its acceptability, and because the\nevidence that motivates it — `SPEC-044` archive observation — already\nreaches the author as a proposal.",
+  "properties": {
+    "action": {
+      "$ref": "#/$defs/OwnerLifecycleAction"
+    },
+    "idempotency_key": {
+      "maxLength": 128,
+      "minLength": 16,
+      "title": "Idempotency Key",
+      "type": "string"
+    },
+    "reason": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Reason",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "action",
+    "reason",
+    "idempotency_key"
+  ],
+  "title": "OwnerLifecycleRequest",
+  "type": "object"
+}

@@ -4,12 +4,13 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import UTC, datetime
-from typing import Any, cast
+from typing import Any, Final, cast
 from uuid import uuid4
 
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ai_stp_api.audit import emit_audit
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.publish import service as publish_service
@@ -20,6 +21,8 @@ from ai_stp_contracts.owner import (
     OwnerEvidenceRow,
     OwnerExternalProductAttachRequest,
     OwnerExternalProductCreateRequest,
+    OwnerLifecycleRequest,
+    OwnerLifecycleResponse,
     OwnerObjectDetail,
     OwnerObjectListResponse,
     OwnerObjectSummary,
@@ -760,3 +763,85 @@ async def start_publication(
         device_id=body.device_id,  # type: ignore[arg-type]
     )
     return await publish_service.create_plan(db, ctx=ctx, body=create)
+
+
+#: The states an owner transition moves between, and nothing else. `blocked`
+#: and `hidden` are moderation outcomes: an author cannot leave them, and an
+#: author who could would be undoing a staff decision.
+_OWNER_LIFECYCLE: Final[dict[str, tuple[str, str]]] = {
+    "deprecate": ("active", "deprecated"),
+    "undeprecate": ("deprecated", "active"),
+}
+
+
+async def set_owner_lifecycle(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    object_kind: str,
+    stable_id: str,
+    version: str,
+    body: OwnerLifecycleRequest,
+) -> OwnerLifecycleResponse:
+    """Deprecate an owned published version, or take the mark off again.
+
+    `deprecated` says the author no longer intends this version to be chosen.
+    It is deliberately **not** a restriction: the version stays readable,
+    installable and exactly as published, because a published `X.Y` is
+    immutable and a lifecycle mark that changed what somebody already depends
+    on would be an edit by another name. Anyone who pinned it keeps it working.
+
+    Reversible for the same reason. An author who deprecates by mistake has not
+    destroyed anything, and `undeprecate` is the ordinary way back rather than
+    a recovery procedure.
+    """
+    row = await db.scalar(
+        select(CatalogMetadata).where(
+            CatalogMetadata.owner_account_id == ctx.account_id,
+            CatalogMetadata.object_kind == object_kind,
+            CatalogMetadata.stable_id == stable_id,
+            CatalogMetadata.version == version,
+        )
+    )
+    if row is None:
+        raise ApiError(ErrorCategory.NOT_FOUND, "version not found")
+
+    expected, resulting = _OWNER_LIFECYCLE[body.action]
+    if row.lifecycle_state == resulting:
+        # A replay, not a conflict: the version is already where the caller
+        # asked it to be, and the idempotency key exists to make that safe.
+        return OwnerLifecycleResponse(
+            schema_version=1,
+            stable_id=stable_id,
+            version=version,
+            lifecycle=resulting,  # pyright: ignore[reportArgumentType]
+            applied=False,
+        )
+    if row.lifecycle_state != expected:
+        raise ApiError(
+            ErrorCategory.CONFLICT,
+            f"a version in {row.lifecycle_state} cannot be {body.action}d by its author",
+        )
+
+    row.lifecycle_state = resulting
+    await emit_audit(
+        db,
+        actor_account_id=ctx.account_id,
+        action=f"owner.version_{body.action}",
+        target_table="catalog_metadata",
+        target_id=str(row.id),
+        reason=body.reason,
+        payload={
+            "stable_id": stable_id,
+            "version": version,
+            "lifecycle_state": resulting,
+        },
+    )
+    await db.flush()
+    return OwnerLifecycleResponse(
+        schema_version=1,
+        stable_id=stable_id,
+        version=version,
+        lifecycle=resulting,  # pyright: ignore[reportArgumentType]
+        applied=True,
+    )

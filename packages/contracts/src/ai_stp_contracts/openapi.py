@@ -93,6 +93,8 @@ from ai_stp_contracts.impact import (
     AccountSelectionImpactReport,
 )
 from ai_stp_contracts.owner import (
+    OwnerLifecycleRequest,
+    OwnerLifecycleResponse,
     OwnerObjectDetail,
     OwnerObjectListQuery,
     OwnerObjectListResponse,
@@ -807,6 +809,30 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         ),
         authenticated=True,
         status=201,
+        idempotent_mutation=True,
+        errors=("AI_STP_NOT_FOUND", "AI_STP_VALIDATION_ERROR", "AI_STP_CONFLICT"),
+    ),
+    Operation(
+        method="post",
+        path="/owner/objects/{object_kind}/{stable_id}/versions/{version}/lifecycle",
+        operation_id="setOwnerVersionLifecycle",
+        summary="Deprecate an owned published version, or take the mark off again.",
+        response=OwnerLifecycleResponse,
+        body=OwnerLifecycleRequest,
+        path_params=(
+            PathParam(
+                name="object_kind",
+                description="component or setup",
+                pattern=r"^(component|setup)$",
+            ),
+            PathParam(
+                name="stable_id",
+                description="Typed stable identifier of the owned object.",
+                pattern=r"^(component|setup)_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            ),
+            _VERSION,
+        ),
+        authenticated=True,
         idempotent_mutation=True,
         errors=("AI_STP_NOT_FOUND", "AI_STP_VALIDATION_ERROR", "AI_STP_CONFLICT"),
     ),

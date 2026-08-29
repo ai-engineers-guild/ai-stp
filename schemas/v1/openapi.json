@@ -3731,6 +3731,85 @@
         "title": "OwnerEvidenceRow",
         "type": "object"
       },
+      "OwnerLifecycleAction": {
+        "enum": [
+          "deprecate",
+          "undeprecate"
+        ],
+        "type": "string"
+      },
+      "OwnerLifecycleRequest": {
+        "additionalProperties": false,
+        "description": "POST a lifecycle transition on an exact owned version (`SPEC-007`).\n\n`deprecated` was declared in the state vocabulary, listed in three models\nand offered by a CLI hint, and written by nothing: the staff route accepts\nonly `block`, `hide` and `restore`, and every owner version route was a\nread. Two successive plans carried \"deprecate the old corpus\" as pending\nwork against a verb that did not exist.\n\nThe author holds this one because deprecation is a statement about the\nobject's own future rather than about its acceptability, and because the\nevidence that motivates it — `SPEC-044` archive observation — already\nreaches the author as a proposal.",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/OwnerLifecycleAction"
+          },
+          "idempotency_key": {
+            "maxLength": 128,
+            "minLength": 16,
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "action",
+          "reason",
+          "idempotency_key"
+        ],
+        "title": "OwnerLifecycleRequest",
+        "type": "object"
+      },
+      "OwnerLifecycleResponse": {
+        "additionalProperties": true,
+        "description": "The state the version is in after the transition.",
+        "properties": {
+          "applied": {
+            "title": "Applied",
+            "type": "boolean"
+          },
+          "lifecycle": {
+            "$ref": "#/components/schemas/LifecycleState"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "stable_id": {
+            "minLength": 1,
+            "title": "Stable Id",
+            "type": "string"
+          },
+          "version": {
+            "minLength": 1,
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "applied",
+          "lifecycle",
+          "schema_version",
+          "stable_id",
+          "version"
+        ],
+        "title": "OwnerLifecycleResponse",
+        "type": "object"
+      },
       "OwnerObjectDetail": {
         "additionalProperties": true,
         "description": "Owner object detail with versions.",
@@ -15011,6 +15090,281 @@
           }
         ],
         "summary": "Read one exact owned version with evidence."
+      }
+    },
+    "/v1/owner/objects/{object_kind}/{stable_id}/versions/{version}/lifecycle": {
+      "post": {
+        "operationId": "setOwnerVersionLifecycle",
+        "parameters": [
+          {
+            "description": "component or setup",
+            "in": "path",
+            "name": "object_kind",
+            "required": true,
+            "schema": {
+              "pattern": "^(component|setup)$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Typed stable identifier of the owned object.",
+            "in": "path",
+            "name": "stable_id",
+            "required": true,
+            "schema": {
+              "pattern": "^(component|setup)_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exact two-integer version. A range or `latest` is not a reference.",
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "setOwnerVersionLifecycle.deprecated": {
+                  "summary": "An author marks their own published version deprecated; it stays readable and installable, because a published X.Y is immutable and a lifecycle mark that changed what somebody depends on would be an edit by another name.",
+                  "value": {
+                    "action": "deprecate",
+                    "idempotency_key": "ownerlifecycle0001",
+                    "reason": "superseded by 1.1",
+                    "schema_version": 1
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/OwnerLifecycleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "setOwnerVersionLifecycle.deprecated": {
+                    "summary": "An author marks their own published version deprecated; it stays readable and installable, because a published X.Y is immutable and a lifecycle mark that changed what somebody depends on would be an edit by another name.",
+                    "value": {
+                      "applied": true,
+                      "lifecycle": "deprecated",
+                      "schema_version": 1,
+                      "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "version": "1.0"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/OwnerLifecycleResponse"
+                }
+              }
+            },
+            "description": "Deprecate an owned published version, or take the mark off again.",
+            "headers": {
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_CONFLICT.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Deprecate an owned published version, or take the mark off again."
       }
     },
     "/v1/owner/objects/{object_kind}/{stable_id}/versions/{version}/publication-plans": {

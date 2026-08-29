@@ -16,6 +16,7 @@ from ai_stp_contracts.http import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
 from ai_stp_contracts.owner import (
     OwnerExternalProductAttachRequest,
     OwnerExternalProductCreateRequest,
+    OwnerLifecycleRequest,
     OwnerPresentationUpdateRequest,
     OwnerStartPublicationRequest,
 )
@@ -220,3 +221,26 @@ async def start_owner_publication(
         body=body,
     )
     return _resource(result, status_code=201)
+
+
+@router.post(
+    "/owner/objects/{object_kind}/{stable_id}/versions/{version}/lifecycle",
+    response_model=None,
+)
+async def set_owner_version_lifecycle(
+    object_kind: Literal["component", "setup"],
+    stable_id: str,
+    version: str,
+    body: OwnerLifecycleRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> JSONResponse:
+    result = await service.set_owner_lifecycle(
+        db,
+        ctx=ctx,
+        object_kind=object_kind,
+        stable_id=stable_id,
+        version=version,
+        body=body,
+    )
+    return _resource(result)

@@ -1,0 +1,59 @@
+{
+  "$defs": {
+    "LifecycleState": {
+      "enum": [
+        "draft",
+        "active",
+        "deprecated",
+        "blocked",
+        "hidden",
+        "published",
+        "ready",
+        "validating",
+        "publish_planned",
+        "failed",
+        "stale",
+        "cancelled"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:owner-lifecycle-response",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "The state the version is in after the transition.",
+  "properties": {
+    "applied": {
+      "title": "Applied",
+      "type": "boolean"
+    },
+    "lifecycle": {
+      "$ref": "#/$defs/LifecycleState"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stable_id": {
+      "minLength": 1,
+      "title": "Stable Id",
+      "type": "string"
+    },
+    "version": {
+      "minLength": 1,
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "applied",
+    "lifecycle",
+    "schema_version",
+    "stable_id",
+    "version"
+  ],
+  "title": "OwnerLifecycleResponse",
+  "type": "object"
+}
