@@ -32,7 +32,14 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, Final, cast
 
-from release_scripts._evidence import EvidenceError, cli, data, error_code, without_credentials
+from release_scripts._evidence import (
+    EvidenceError,
+    cli,
+    data,
+    error_code,
+    login_commands,
+    without_credentials,
+)
 from release_scripts._evidence import origin as bare_origin
 
 
@@ -154,10 +161,7 @@ def _unauthenticated(home: Path, label: str, state: str) -> dict[str, Any]:
     return {
         "state": "not_verified",
         "reason": f"home {label} reports auth state {state!r}",
-        "commands": [
-            f"HOME={home} ai-stp auth login --provider github --json",
-            f"HOME={home} ai-stp auth complete --wait --json",
-        ],
+        "commands": login_commands(home),
     }
 
 

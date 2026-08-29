@@ -123,3 +123,24 @@ def without_credentials(report: dict[str, Any]) -> dict[str, Any]:
                 f"the report contains {marker!r}, which no evidence artefact may hold"
             )
     return report
+
+
+def login_commands(home: Path) -> list[str]:
+    """The exact commands that put a session where a slice will look for it.
+
+    `HOME=<home> ai-stp auth login` is not enough and saying so cost a real
+    session: `cli()` also sets `XDG_CONFIG_HOME`, `XDG_DATA_HOME` and the forced
+    file credential store, so a login run without them writes to the XDG
+    defaults under that home and the slice reads a different directory and
+    answers `local_only`. Following the instruction could not satisfy the
+    instrument that printed it.
+    """
+    prefix = (
+        f"HOME={home} USERPROFILE={home} "
+        f"XDG_CONFIG_HOME={home}/config XDG_DATA_HOME={home}/data "
+        f"AI_STP_FORCE_FILE_CREDENTIAL_STORE=1"
+    )
+    return [
+        f"{prefix} ai-stp auth login --provider github --json",
+        f"{prefix} ai-stp auth complete --wait --json",
+    ]

@@ -29,7 +29,14 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, Final, cast
 
-from release_scripts._evidence import EvidenceError, cli, data, error_code, without_credentials
+from release_scripts._evidence import (
+    EvidenceError,
+    cli,
+    data,
+    error_code,
+    login_commands,
+    without_credentials,
+)
 from release_scripts._evidence import origin as bare_origin
 
 # Read-only commands, each named with the surface it proves. A command that
@@ -489,10 +496,7 @@ def verify_publication_slice(
     owned: list[str] = []
     if state != "authenticated":
         reason = f"the home reports auth state {state!r}"
-        commands = [
-            f"HOME={home} ai-stp auth login --provider github --json",
-            f"HOME={home} ai-stp auth complete --wait --json",
-        ]
+        commands = login_commands(home)
         for name, _arguments in READS:
             scenarios[name] = {"state": "not_verified", "reason": reason, "commands": commands}
         scenarios["owner_object_show"] = {
