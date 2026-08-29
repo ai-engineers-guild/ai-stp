@@ -47,7 +47,6 @@ from ai_stp_cli.local import (
     provider_releases,
     revisions,
     selection,
-    symbols,
     versions,
 )
 from ai_stp_cli.local.database import configured_path, open_readonly, open_registry
@@ -307,16 +306,27 @@ def _target(
 ) -> eligibility.Target:
     """Build the target from what this machine and project actually show.
 
-    The harness version is read from the survey rather than assumed. It is
+    The harness version is read from the installation rather than assumed. It is
     allowed to come back empty — `REQ-1415` has `unknown_version` — and the
     engine treats that as unreadable rather than as "any version", which is why
     it is passed through instead of being defaulted to something plausible.
+
+    The languages come from the index and not from a symbol survey. The survey
+    was 1.16s of this command's 2.9s (`#453`) and answered a question the index
+    had already answered: it is *handed* `(path, language)` from the index and
+    `_summarised` groups every outline it received, readable or not, so the
+    languages it reports are the languages it was given.
+
+    They were not quite, and that was the second defect: `survey` stops at
+    `MAX_OUTLINED_FILES` and reports only the languages before the cut. A
+    project whose Go files all sorted past the two-thousandth file lost
+    `language:go` from its capabilities and had Go components refused for a
+    capability it has. Reading the index directly is both cheaper and complete.
     """
     resolved = root.resolve()
-    index = project_index.build(resolved)
-    survey = symbols.survey(
-        index.root, [(item.path, item.language) for item in index.entries if item.language]
-    )
+    # Names, languages and whether `.git` exists — no digest is read below, so
+    # none is computed. That was three quarters of the walk (`#453`).
+    index = project_index.build(resolved, digests=False)
     detector = next(item for item in harnesses.DETECTORS if item.harness_id == harness)
 
     return eligibility.Target(
@@ -325,7 +335,7 @@ def _target(
         arch=platform.machine().lower(),
         harness_version=_version_of(harnesses.detect(detector)),
         capabilities=eligibility.observed_capabilities(
-            languages=[item.language for item in survey.languages if item.files],
+            languages=sorted({item.language for item in index.entries if item.language}),
             surfaces=[Path(item.path).name for item in index.entries],
             git=(index.root / ".git").exists(),
             tools_current=[

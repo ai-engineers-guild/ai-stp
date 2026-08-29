@@ -26,6 +26,7 @@ import re
 import shutil
 import stat
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, cast
@@ -415,10 +416,26 @@ def detect(
 def detect_all(
     environment: dict[str, str] | None = None, *, system_name: str | None = None
 ) -> tuple[Found, ...]:
-    """Every declared harness, in declaration order. Total by construction."""
-    return tuple(
-        detect(detector, environment=environment, system_name=system_name) for detector in DETECTORS
-    )
+    """Every declared harness, in declaration order. Total by construction.
+
+    Detection is one `--version` subprocess per harness, and the seven of them
+    took 1.74s of `toolchain harnesses`'s 2.29s in series (`#453`) — the
+    process spent that time in `poll`, waiting, one harness at a time. They are
+    independent read-only queries of different programs, so they are asked
+    together.
+
+    `ThreadPoolExecutor.map` yields in **input** order, not completion order,
+    so the answer is the same tuple it always was: this changes when the waits
+    happen and nothing about what is returned. Threads rather than processes
+    because every one of these waits on a subprocess and holds no GIL while it
+    does.
+    """
+
+    def ask(detector: Detector) -> Found:
+        return detect(detector, environment=environment, system_name=system_name)
+
+    with ThreadPoolExecutor(max_workers=len(DETECTORS)) as pool:
+        return tuple(pool.map(ask, DETECTORS))
 
 
 def present_installations(found: tuple[Found, ...]) -> tuple[Found, ...]:

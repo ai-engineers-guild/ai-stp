@@ -9,6 +9,7 @@ last_verified: "2026-08-03"
 
 | Документ | О чём | Сверено |
 | -------- | ----- | ------- |
+| [cli-performance.md](cli-performance.md) | Измеренная стоимость команд CLI, устранённые узкие места и бюджеты. | 2026-08-29 |
 | [coding-rules.md](coding-rules.md) | Правила ошибок, I/O, безопасности и предсказуемого поведения. | 2026-08-03 |
 | [dependency-policy.md](dependency-policy.md) | Правила Python, Node, external tools и provider dependencies. | 2026-08-15 |
 | [federated-source-threat-model.md](federated-source-threat-model.md) | Модель угроз федеративных local ports и metadata adapters. | 2026-08-16 |

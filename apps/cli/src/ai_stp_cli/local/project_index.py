@@ -194,6 +194,11 @@ class Index:
     #: Which bound stopped it, when one did.
     stopped_by: str | None
 
+    #: Whether the entries carry content digests. When false, every `digest` is
+    #: `None` because none was asked for — which is a different fact from a
+    #: file too large to read, and the two would otherwise be spelled the same.
+    digested: bool = True
+
 
 def is_secret_name(name: str) -> bool:
     """Whether this file name says it holds a credential.
@@ -240,12 +245,23 @@ def classify(path: Path) -> tuple[str, str | None]:
     return "text", None
 
 
-def build(root: Path) -> Index:
+def build(root: Path, *, digests: bool = True) -> Index:
     """Walk the root once and describe what is safely readable inside it.
 
     Deterministic: entries come back sorted by path, so two runs over an
     unchanged tree produce the same index and a difference between them is worth
     looking at.
+
+    `digests=False` is for a caller that needs the inventory and not the
+    content-addressed part of it. Measured on this repository (`#453`, 4080
+    files): reading them costs 0.29s and hashing them 0.91s, so the hash is
+    three quarters of the walk and `select eligibility` — which reads only
+    names, languages and whether `.git` exists — paid all of it.
+
+    Everything else is unchanged: the same walk, the same classification, the
+    same exclusions, the same binary check, which is why the content is still
+    read. Only the hash is skipped, and `Index.digested` says so, so that
+    `digest is None` does not have to carry two meanings at once.
     """
     base = projects.resolved(root)
     if not base.is_dir():
@@ -286,7 +302,7 @@ def build(root: Path) -> Index:
                 stopped_by = reached
                 break
             place = directory / name
-            outcome = _describe(base, place)
+            outcome = _describe(base, place, digests=digests)
             if isinstance(outcome, Excluded):
                 excluded.append(outcome)
                 continue
@@ -301,6 +317,7 @@ def build(root: Path) -> Index:
         entries=tuple(sorted(entries, key=lambda item: item.path)),
         excluded=tuple(sorted(excluded, key=lambda item: item.path)),
         stopped_by=stopped_by,
+        digested=digests,
     )
 
 
@@ -318,7 +335,7 @@ def _relative(base: Path, place: Path) -> str:
         return place.name
 
 
-def _describe(base: Path, place: Path) -> Entry | Excluded:
+def _describe(base: Path, place: Path, *, digests: bool = True) -> Entry | Excluded:
     """Decide one file: excluded with a reason, or an entry."""
     relative = _relative(base, place)
     if is_secret_name(place.name):
@@ -356,6 +373,6 @@ def _describe(base: Path, place: Path) -> Entry | Excluded:
         kind=kind,
         language=language,
         size_bytes=size,
-        digest=f"sha256:{hashlib.sha256(content).hexdigest()}",
+        digest=f"sha256:{hashlib.sha256(content).hexdigest()}" if digests else None,
         lines=content.count(b"\n") + (0 if content.endswith(b"\n") or not content else 1),
     )
