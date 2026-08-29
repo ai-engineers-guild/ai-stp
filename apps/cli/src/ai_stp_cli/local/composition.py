@@ -170,6 +170,17 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     #     claude   global skill=yes  scoped skill=no
     #     codex    global skill=NO   scoped skill=yes
     #     cursor, grok, pi, opencode   global yes  AND  scoped yes
+    #
+    # The rule that falls out, and it is derivable from the wire format rather
+    # than from anyone's judgement: **route a kind to a scope only where the
+    # global profile does not declare that kind.** Codex gets its route for the
+    # reason it actually has one; the four keep theirs; and a provider adding a
+    # second root stops being a decision this table has to make.
+    #
+    # What the wire format cannot say, and why the rule stops there: declaring
+    # `skill` in both profiles answers *can you?*. A routing table needs
+    # *should you?*, and whether these four should move is a decision about who
+    # sees what.
     Rule("skill", "skills", "directory", "pi"),
     # Native path is `extensions/`; the package family is `package`
     # (`docs/contracts/component-setup-passports.md`, first-party Pi plugin
