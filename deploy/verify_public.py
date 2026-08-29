@@ -7,6 +7,7 @@ import argparse
 import ast
 import http.client
 import json
+import re
 import sys
 import time
 import urllib.error
@@ -158,8 +159,23 @@ def verify(
     expected_schema: str,
     expected_environment: str,
     fetch: Callable[[str, int], tuple[int, bytes]] = _default_fetch,
+    commit_accepted: Callable[[str], bool] | None = None,
 ) -> None:
-    """Verify user-visible health, TLS route and exact deployed identity."""
+    """Verify user-visible health, TLS route and the deployed identity.
+
+    `commit_accepted` decides what counts as the promoted commit having arrived.
+    The default is exact equality, and that is what this asserted unconditionally
+    until 2026-08-29 — when three pushes inside twenty minutes put three deploy
+    runs against one host. The ref is monotonic and the host deploys the newest,
+    so each older run waited for a SHA the host would never record again and
+    failed after 106 attempts against a host serving a commit that *contained*
+    its own.
+
+    Being overtaken is the deployment succeeding. The property is that the
+    promoted commit reached the target, and a descendant carries it — so the
+    caller supplies the ancestry test rather than this file guessing, and an
+    unrelated SHA still fails.
+    """
     origin = validated_origin(origin)
     expected = {
         "/v1/health/live": ("status", "alive"),
@@ -178,7 +194,6 @@ def verify(
         raise VerificationError(f"/v1/system/version returned HTTP {status}")
     identity = _json(body, "/v1/system/version")
     claims = {
-        "git_commit": expected_commit,
         "schema_revision": expected_schema,
         "environment": expected_environment,
     }
@@ -187,6 +202,14 @@ def verify(
             raise VerificationError(
                 f"deployed {field} is {identity.get(field)!r}, expected {expected_value!r}"
             )
+
+    deployed = identity.get("git_commit")
+    accepted = commit_accepted if commit_accepted is not None else expected_commit.__eq__
+    if not isinstance(deployed, str) or not accepted(deployed):
+        raise VerificationError(
+            f"deployed git_commit is {deployed!r}, expected {expected_commit!r} "
+            "or a commit containing it"
+        )
 
     status, _body = fetch(origin + "/", MAX_WEB_BYTES)
     if status != 200:
@@ -197,6 +220,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--origin", required=True)
     parser.add_argument("--expected-commit", required=True)
+    # Named rather than derived from the checkout: the clone is shallow and its
+    # remote is not the fact this needs. Only used to ask which commit contains
+    # which.
+    parser.add_argument("--repository", default="ai-engineers-guild/ai-stp")
     parser.add_argument("--migrations-dir", type=Path, required=True)
     # `prod` is the name of the one deployed environment (ADR-0086). The
     # default used to be `staging` while `.env.prod` declared `prod`, so the
@@ -211,6 +238,45 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--wait-seconds", type=int, default=0)
     parser.add_argument("--poll-seconds", type=int, default=20)
     return parser.parse_args(argv)
+
+
+#: Where the commit graph actually lives. Asked over HTTPS rather than of the
+#: local clone: `actions/checkout` here is shallow and pinned to the promoted
+#: SHA, so a commit pushed *after* this job started — which is precisely the
+#: overtaking case — is not in the clone at all, and `git merge-base` would
+#: answer "not an ancestor" for the one situation this exists to recognise. A
+#: repair that is correct in isolation and unreachable in place is worse than
+#: none, because it reads as fixed.
+COMPARE_URL = "https://api.github.com/repos/{repository}/compare/{base}...{head}"
+
+
+def contains(
+    expected: str,
+    deployed: str,
+    *,
+    repository: str,
+    fetch: Callable[[str, int], tuple[int, bytes]] = _default_fetch,
+) -> bool:
+    """Whether `deployed` is `expected` or a commit that contains it.
+
+    `identical` and `ahead` mean the promotion arrived. `behind`, `diverged`, an
+    unparseable answer or any transport failure mean it did not — the caller
+    then keeps waiting and eventually fails, which is the previous behaviour and
+    the safe direction.
+    """
+    if deployed == expected:
+        return True
+    if not re.fullmatch(r"[0-9a-f]{40}", deployed) or not re.fullmatch(r"[0-9a-f]{40}", expected):
+        return False
+    url = COMPARE_URL.format(repository=repository, base=expected, head=deployed)
+    try:
+        status, body = fetch(url, MAX_JSON_BYTES)
+        if status != 200:
+            return False
+        answer = json.loads(body.decode("utf-8"))
+    except (OSError, http.client.HTTPException, ValueError, UnicodeDecodeError):
+        return False
+    return isinstance(answer, dict) and answer.get("status") in {"identical", "ahead"}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -233,6 +299,9 @@ def main(argv: list[str] | None = None) -> int:
                 expected_commit=args.expected_commit,
                 expected_schema=expected_schema,
                 expected_environment=args.expected_environment,
+                commit_accepted=lambda deployed: contains(
+                    args.expected_commit, deployed, repository=args.repository
+                ),
             )
         except VerificationError as error:
             if time.monotonic() >= deadline:

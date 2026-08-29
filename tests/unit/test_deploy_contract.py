@@ -9,11 +9,14 @@ must therefore be provable from the tree that actually deploys.
 
 from __future__ import annotations
 
+import json
 import re
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from deploy import verify_public
 
 #: Only the tree that promotes carries this workflow. The private working copy
 #: stopped promoting under `ADR-0109`, and asserting a file it must not have
@@ -404,3 +407,134 @@ def test_the_worker_apparmor_profile_allows_userns_and_is_loaded_before_compose(
         text=True,
     )
     assert listed.startswith("100755 "), listed
+
+
+def test_a_deploy_overtaken_by_a_newer_one_is_not_a_failure() -> None:
+    """Being superseded is the deployment succeeding, and it was reported red.
+
+    Measured on 2026-08-29, run `33220211048`. Three commits were pushed within
+    twenty minutes, so three deploy runs were in flight against one host. The
+    ref is monotonic, the host deploys the newest, and each job then waits for
+    the host to record **its own** SHA. `ba0546e` retried 106 times against a
+    host that was already serving `40f9850` — a commit containing it — and
+    failed.
+
+    That is failure by construction: any run overtaken by a newer one must go
+    red, whatever the host does. The property being defended is *the promoted
+    commit reached the target*, and a descendant carries it; the check asked the
+    narrower question of exact identity, which is the same shape as every other
+    defect this week.
+
+    So the caller decides what counts, and the default stays exact equality: the
+    workflow supplies a predicate backed by `git merge-base --is-ancestor`, and
+    nothing here silently accepts an unrelated SHA.
+    """
+    older = "a" * 40
+    newer = "b" * 40
+
+    def fetch(url: str, _limit: int) -> tuple[int, bytes]:
+        if url.endswith("/health/live"):
+            payload: dict[str, object] = {"schema_version": 1, "status": "alive"}
+        elif url.endswith("/health/ready"):
+            payload = {"schema_version": 1, "status": "ready"}
+        elif url.endswith("/v1/system/version"):
+            payload = {
+                "schema_version": 1,
+                "git_commit": newer,
+                "schema_revision": "0005",
+                "environment": "prod",
+            }
+        else:
+            return 200, b"web"
+        return 200, json.dumps(payload).encode()
+
+    # Overtaken, and the caller can say so.
+    verify_public.verify(
+        "https://nddev.asia",
+        expected_commit=older,
+        expected_schema="0005",
+        expected_environment="prod",
+        fetch=fetch,
+        commit_accepted=lambda deployed: deployed == newer,
+    )
+
+    # Unrelated is still a failure, and the default is still exact equality.
+    with pytest.raises(verify_public.VerificationError, match="deployed git_commit"):
+        verify_public.verify(
+            "https://nddev.asia",
+            expected_commit=older,
+            expected_schema="0005",
+            expected_environment="prod",
+            fetch=fetch,
+            commit_accepted=lambda _deployed: False,
+        )
+    with pytest.raises(verify_public.VerificationError, match="deployed git_commit"):
+        verify_public.verify(
+            "https://nddev.asia",
+            expected_commit=older,
+            expected_schema="0005",
+            expected_environment="prod",
+            fetch=fetch,
+        )
+
+
+def test_ancestry_is_asked_of_github_because_the_clone_cannot_answer() -> None:
+    """The repair that would have been correct and unreachable.
+
+    `actions/checkout` in `deploy.yml` is shallow and pinned to the promoted
+    SHA, so the commit that overtook it — pushed after this job started — is not
+    in the clone. `git merge-base --is-ancestor` would answer "no" for exactly
+    the case this recognises, and the fix would have read as done while changing
+    nothing. So the question goes to the graph's owner.
+    """
+    calls: list[str] = []
+
+    def compare(status: str) -> Callable[[str, int], tuple[int, bytes]]:
+        def fetch(url: str, _limit: int) -> tuple[int, bytes]:
+            calls.append(url)
+            return 200, json.dumps({"status": status}).encode()
+
+        return fetch
+
+    older, newer = "a" * 40, "b" * 40
+    for status, expected in (
+        ("ahead", True),
+        ("identical", True),
+        ("behind", False),
+        ("diverged", False),
+    ):
+        assert (
+            verify_public.contains(
+                older,
+                newer,
+                repository="owner/repo",
+                fetch=compare(status),  # type: ignore[arg-type]
+            )
+            is expected
+        ), status
+
+    assert calls[0] == f"https://api.github.com/repos/owner/repo/compare/{older}...{newer}"
+
+    # Equality never asks anything.
+    before = len(calls)
+    assert verify_public.contains(older, older, repository="owner/repo", fetch=compare("behind"))
+    assert len(calls) == before
+
+    # A transport failure, a non-200 and a malformed SHA all refuse rather than
+    # assume: the caller keeps waiting, which is the previous behaviour.
+    def exploding(_url: str, _limit: int) -> tuple[int, bytes]:
+        raise OSError("no network")
+
+    assert not verify_public.contains(older, newer, repository="owner/repo", fetch=exploding)
+
+    def missing(_url: str, _limit: int) -> tuple[int, bytes]:
+        return 404, b"{}"
+
+    assert not verify_public.contains(older, newer, repository="owner/repo", fetch=missing)
+    assert not verify_public.contains(older, "not-a-sha", repository="owner/repo", fetch=missing)
+
+
+def test_the_deploy_workflow_names_the_repository_ancestry_is_asked_of() -> None:
+    """The predicate is only reachable if the workflow supplies its input."""
+    workflow = Path(".github/workflows/deploy.yml").read_text(encoding="utf-8")
+    assert "--repository" in workflow

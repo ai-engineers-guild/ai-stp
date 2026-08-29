@@ -159,12 +159,17 @@ jobs:
         env:
           ORIGIN: ${{ vars.AI_STP_PUBLIC_ORIGIN }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          # Which commit contains which is asked of GitHub, because this
+          # checkout is shallow and pinned to `HEAD_SHA`: the commit that
+          # overtook it does not exist in the clone.
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
           test -n "${ORIGIN}"
           python3 deploy/verify_public.py \
             --origin "${ORIGIN}" \
             --expected-commit "${HEAD_SHA}" \
+            --repository "${GITHUB_REPOSITORY}" \
             --migrations-dir migrations/versions \
             --expected-environment prod \
             --wait-seconds 2400
