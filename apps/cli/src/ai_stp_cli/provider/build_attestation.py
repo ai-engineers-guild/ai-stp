@@ -8,10 +8,14 @@ import subprocess
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import cast
+from typing import Final, cast
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_foundation.canonical import JsonValue, canonize
+
+#: `gh` exits 4 when no credential is configured. Every other non-zero exit is
+#: a verdict about the artifact; this one is a fact about the machine.
+GH_NOT_AUTHENTICATED: Final[int] = 4
 
 
 @dataclass(frozen=True)
@@ -64,6 +68,28 @@ def verify(artifact: Path, policy: Policy, *, bundle: Path | None = None) -> Evi
             "GitHub attestation verification is unavailable",
             details={"dependency": "gh", "exception": type(error).__name__},
         ) from error
+    if completed.returncode == GH_NOT_AUTHENTICATED:
+        # `gh` exits 4 when it has no credential, and that is a fact about this
+        # machine, not about the bytes. Reporting it as "the artifact has no
+        # acceptable attestation" accuses the artifact: it sends the reader to
+        # the provider's repository to look for a signing defect that is not
+        # there, when the fix is one `gh auth login` here.
+        #
+        # Measured 2026-08-29 while wiring the real-provider E2E: five of five
+        # harnesses failed identically, which is the shape of an instrument
+        # problem and not of five broken releases. The two are cleanly
+        # distinguishable — a genuine verdict exits 1 — so nothing is guessed.
+        raise CliFailure(
+            "AI_STP_DEPENDENCY_UNAVAILABLE",
+            "GitHub attestation cannot be checked because gh is not authenticated here",
+            # The remedy goes in `details`, not `next_actions`: that list names
+            # this CLI's own commands, and `gh auth login` is somebody else's.
+            details={
+                "dependency": "gh",
+                "repository": policy.repository,
+                "remedy": "run 'gh auth login', or set GH_TOKEN",
+            },
+        )
     if completed.returncode != 0:
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED",

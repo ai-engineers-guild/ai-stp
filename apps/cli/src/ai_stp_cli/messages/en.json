@@ -6,6 +6,7 @@
   "--page-size must be an integer": "--page-size must be an integer",
   "--skip-event is bounded at 64 ids": "--skip-event is bounded at 64 ids",
   "--skip-event takes the exact event id a refused pull named": "--skip-event takes the exact event id a refused pull named",
+  "GitHub attestation cannot be checked because gh is not authenticated here": "GitHub attestation cannot be checked because gh is not authenticated here",
   "GitHub attestation verification is unavailable": "GitHub attestation verification is unavailable",
   "GitHub attestation verification returned invalid JSON": "GitHub attestation verification returned invalid JSON",
   "GitHub release metadata is not valid JSON": "GitHub release metadata is not valid JSON",

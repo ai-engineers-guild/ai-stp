@@ -1076,14 +1076,34 @@ def _acquire_first_party_setup(
     monkeypatch: pytest.MonkeyPatch,
 ) -> FirstPartyVersion:
     corpus = corpus_versions()
-    setup = next(
+    matching = [
         item
         for item in corpus
         if item.kind == "setup"
         and isinstance(item.passport, SetupVersionPassport)
         and item.passport.harness_id == harness_id
         and item.passport.target_role == role
-    )
+    ]
+    if not matching:
+        # `next()` over an empty generator raised a bare `StopIteration` here,
+        # which names neither the role asked for nor the ones that exist. That
+        # matters more than usual because these tests only run when a real
+        # provider is wired, so the message is read rarely and by somebody who
+        # has just spent minutes fetching artifacts.
+        held = sorted(
+            {
+                item.passport.target_role
+                for item in corpus
+                if item.kind == "setup"
+                and isinstance(item.passport, SetupVersionPassport)
+                and item.passport.harness_id == harness_id
+            }
+        )
+        raise AssertionError(
+            f"the first-party corpus has no {harness_id} setup for role {role!r}; "
+            f"it carries {held or 'none'}"
+        )
+    setup = matching[0]
     assert isinstance(setup.passport, SetupVersionPassport)
     held = {
         item.passport.stable_id: item
