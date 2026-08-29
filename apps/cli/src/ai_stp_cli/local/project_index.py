@@ -152,7 +152,12 @@ class Entry:
     language: str | None
     size_bytes: int
 
-    #: `None` when the file was too large to read. Its size is still known.
+    #: `None` for two different reasons, and `Index.digested` says which: the
+    #: file was too large to read — its size is still known — or no digest was
+    #: asked for. Stating only the first was true until `build` grew a
+    #: `digests` argument on 2026-08-29, and stayed here afterwards: the new
+    #: meaning was documented on `Index`, one field away, while this went on
+    #: telling a reader the file was too large.
     digest: str | None
     lines: int | None
 
