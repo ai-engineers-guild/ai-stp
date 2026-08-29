@@ -1266,78 +1266,29 @@ def test_real_first_party_base_setup_profiles_use_one_exact_bundle_lifecycle(
         assert restored.state == "verified"
 
 
-@pytest.mark.parametrize(
-    "role", ["backend", "frontend", "full-stack", "code-review", "security", "research"]
-)
-@pytest.mark.parametrize(
-    ("harness_id", "provider_environment", "manifest_environment"),
-    [
-        ("claude-code", "AI_STP_CLAUDE_PROVIDER_V3", "AI_STP_CLAUDE_PROVIDER_V3_MANIFEST"),
-        ("codex", "AI_STP_CODEX_PROVIDER_V3", "AI_STP_CODEX_PROVIDER_V3_MANIFEST"),
-    ],
-)
-def test_real_role_setup_install_status_remove_and_rollback(
-    registry: sqlite3.Connection,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    role: str,
-    harness_id: str,
-    provider_environment: str,
-    manifest_environment: str,
-) -> None:
-    executable = os.environ.get(provider_environment)
-    manifest = os.environ.get(manifest_environment)
-    if executable is None or manifest is None:
-        pytest.skip(f"set {provider_environment} and {manifest_environment} for role E2E")
-    project_id = _project_context(registry, tmp_path)
-    setup = _acquire_first_party_setup(harness_id, role, monkeypatch)
-    assert isinstance(setup.passport, SetupVersionPassport)
-    reference = f"{setup.passport.stable_id}@{setup.passport.version}"
-    cache_root = Path.home() / ".cache"
-    cache_root.mkdir(mode=0o700, exist_ok=True)
-    target_holder = tempfile.TemporaryDirectory(prefix=f"ai-stp-role-{harness_id}-", dir=cache_root)
-    target = Path(target_holder.name)
-
-    def execute(action: str, *, backup_ref: str = "") -> Any:
-        parameters = {
-            "setup": reference,
-            "project": str(tmp_path),
-            "provider": executable,
-            "provider-manifest": manifest,
-            "protocol-version": 3,
-            "target": str(target),
-            "action": action,
-        }
-        if backup_ref:
-            parameters["backup-ref"] = backup_ref
-        try:
-            planned = install.plan(parameters).payload
-        except CliFailure as error:
-            pytest.fail(f"provider role plan failed: {error.details}")
-        assert planned.provider_release_trusted is True
-        install.approve({"operation": planned.operation_id, "plan-digest": planned.plan_digest})
-        completed = install.apply(
-            {"operation": planned.operation_id, "provider": executable}
-        ).payload
-        assert completed.state == "verified"
-        return completed
-
-    execute("install")
-    status = install.target_status(
-        {
-            "project": project_id,
-            "harness": harness_id,
-            "provider": executable,
-            "protocol-version": 3,
-            "target": str(target),
-        }
-    ).payload
-    assert status.states == ["installed"]
-    removed = execute("remove")
-    assert removed.backup_ref
-    restored = execute("rollback", backup_ref=removed.backup_ref)
-    assert restored.state == "verified"
-    target_holder.cleanup()
+# The role-setup E2E lived here until 2026-08-29 and named six roles — backend,
+# frontend, full-stack, code-review, security, research — that no repository
+# publishes. Settled with the setup-systems session rather than assumed: that
+# side publishes 28 setups, four per harness across all seven, and the axis is
+# **product posture**, not role — `minimal`, `baseline`, `full-auto`,
+# `nddev-builder`. None of the six appears anywhere as a setup identity, and
+# neither does `ai-harness-engineer`, which is a name this repository's own
+# corpus builder puts on the one posture it imports.
+#
+# The boundary is deliberate on their side: a posture is a statement about the
+# harness's own configuration and every one of the 28 is sourceable to a vendor
+# page, which is why each carries `sources`. A role is a statement about
+# *content* — which skills a backend engineer wants — and nothing there can
+# source that, so publishing one would be the first setup whose identity rests
+# on somebody's taste.
+#
+# So this was not a corpus gap waiting to be filled. It was a test asking for
+# objects nobody planned, and it could only ever fail once a real provider was
+# wired — which is to say, in the one run where it was read. Removed rather than
+# renamed: pointing it at the single existing setup would have duplicated
+# `test_real_first_party_base_setup_profiles_use_one_exact_bundle_lifecycle`
+# exactly. If the other three postures are imported later, the test to write
+# then is parametrised over postures and is a different test.
 
 
 @pytest.mark.parametrize(
