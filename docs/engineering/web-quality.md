@@ -1,6 +1,6 @@
 ---
 description: "Эксплуатационные правила web: SEO, machine discovery, browser storage, selectors и quality gates."
-last_verified: "2026-08-09"
+last_verified: "2026-08-29"
 ---
 
 # Качество web-поверхности
@@ -25,7 +25,7 @@ Human и Machine являются двумя режимами отображен
 
 ## Стабильные selectors
 
-Единый каталог находится в `apps/web/src/lib/ui-selectors.ts`. Значения используются через `data-ui`; классы и локализованный текст не являются API для browser tests. Реальные `id` остаются у landmarks, form controls и anchor targets, где они нужны семантике HTML. Новое значение selector должно быть уникальным, читаемым и пройти `tests/unit/ui-selectors.test.ts`.
+Единый каталог находится в `apps/web/src/lib/ui-selectors.ts`. Значения используются через `data-ui`; классы и локализованный текст не являются API для browser tests. Реальные `id` остаются у landmarks, form controls и anchor targets, где они нужны семантике HTML. Новое значение selector должно быть уникальным, читаемым и пройти `apps/web/tests/unit/ui-selectors.test.ts`.
 
 ## Клавиатура, touch и motion
 

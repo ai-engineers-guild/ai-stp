@@ -8,6 +8,7 @@ last_verified: "2026-08-09"
 Статус: принято; machine model и contract tests реализуются этим решением,
 public provider releases и cross-repository E2E остаются обязательными условиями
 ввода в эксплуатацию.
+Дополнено `ADR-0085`: личность комплекта провайдера — его агрегатный digest.
 
 ## Контекст
 

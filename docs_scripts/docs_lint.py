@@ -87,6 +87,18 @@ PLACEHOLDER_RE = re.compile(r"\{\{[^}]*\}\}")
 CHECKBOX_RE = re.compile(r"^\s*[-*]\s+\[[ xX]\]\s")
 ADR_FILENAME_RE = re.compile(r"^ADR-(\d{4})-[a-z0-9-]+\.md$")
 ADR_HEADING_RE = re.compile(r"^# ADR-(\d{4}):\s+\S", re.M)
+#: From the H1 to the first `##`. A status lives there; a mention in the body
+#: is not one, and counting the body would let any passing reference satisfy
+#: the back-reference rule.
+ADR_HEAD_RE = re.compile(r"^# ADR-\d{4}.*?(?=^## )", re.S | re.M)
+#: The verbs an ADR uses to say it changed another record. Up to four words may
+#: sit between the verb and the identifier — "Уточняет транспорт `ADR-0103`" is
+#: real, and a regex demanding adjacency silently misses it, which is how the
+#: first version of this check under-counted its own subject.
+ADR_SUPERSEDES_RE = re.compile(
+    r"(Заменяет|Заменено|Уточняет|Уточнено|Дополняет|Дополнено|Расширяет|Расширено"
+    r"|Продолжает|Продолжено)((?:\s+[^\s`]+){0,4})\s+`?(ADR-\d{4})`?"
+)
 
 # Таблица детей в index.md собирается автоматически между этими маркерами.
 TABLE_START = "<!-- СОДЕРЖИМОЕ: генерируется через just docs-gen, руками не править -->"
@@ -204,6 +216,7 @@ class Linter:
             self.check_frontmatter(path, text)
 
         self.check_adr_identities()
+        self.check_adr_chain()
 
         # Таблицы пересобираются до проверки ссылок: иначе после удаления
         # документа первый прогон ругается на ссылку в устаревшей таблице,
@@ -659,6 +672,55 @@ class Linter:
                     f"заголовок ADR-{heading.group(1)} не совпадает с именем ADR-{identifier}",
                 )
 
+    def check_adr_chain(self) -> None:
+        """A record that changed another must be findable from the one it changed.
+
+        `AGENTS.md` states the rule: a superseded record is kept and points at
+        the one that replaced it. Nothing checked the second half, and a reader
+        landing on the older ADR saw `Статус: принято.` with no way forward.
+        Measured 2026-08-29: ten of fourteen supersession claims were
+        one-directional, and two named ADRs the public tree does not carry.
+
+        Only the head region counts — from the H1 to the first `##`. That is
+        where a status lives, and a mention buried in the body is not a status.
+        """
+        base = self.root / "docs" / "adr"
+        if not base.exists():
+            return
+        heads: dict[str, str] = {}
+        lines_of: dict[str, Path] = {}
+        for path in sorted(base.glob("ADR-*.md")):
+            match = ADR_FILENAME_RE.fullmatch(path.name)
+            if match is None:
+                continue
+            identifier = f"ADR-{match.group(1)}"
+            text = path.read_text(encoding="utf-8")
+            region = ADR_HEAD_RE.search(text)
+            heads[identifier] = region.group(0) if region else text[:1200]
+            lines_of[identifier] = path
+
+        for identifier, region in sorted(heads.items()):
+            path = lines_of[identifier]
+            for verb, _between, target in ADR_SUPERSEDES_RE.findall(region):
+                if target not in heads:
+                    self.error(
+                        path,
+                        1,
+                        "AD005",
+                        f"{identifier} говорит, что {verb.lower()} {target}, "
+                        f"а {target} в этом дереве нет. Читатель идёт в никуда",
+                    )
+                    continue
+                if identifier not in heads[target]:
+                    self.error(
+                        path,
+                        1,
+                        "AD006",
+                        f"{identifier} говорит, что {verb.lower()} {target}, "
+                        f"а {target} об этом не сообщает. Добавь обратную ссылку "
+                        f"в его статус: заменённая запись ссылается на заменившую",
+                    )
+
     def check_mermaid(self, path: Path, text: str) -> None:
         for line_no, info, body in iter_fences(text):
             if info != "mermaid":
@@ -854,7 +916,17 @@ def main() -> int:
         "--template", action="store_true", help="режим шаблона: плейсхолдеры {{...}} допустимы"
     )
     parser.add_argument(
-        "--max-age", type=int, default=180, help="порог протухания last_verified в днях"
+        # 180 days could never fire: measured 2026-08-29, the oldest document in
+        # the tree was 26 days old and the whole project was younger than the
+        # threshold. A check that cannot reach its own subject reads as
+        # protection while examining nothing. 90 is reachable within this
+        # project's life and stays a warning, not a gate — age is a weak proxy
+        # anyway, and the rules that actually catch a wrong document are the
+        # mechanical ones: AD005, AD006, LN001, LN002.
+        "--max-age",
+        type=int,
+        default=90,
+        help="порог протухания last_verified в днях",
     )
     parser.add_argument(
         "--fix", action="store_true", help="пересобрать таблицы содержимого в index.md"
