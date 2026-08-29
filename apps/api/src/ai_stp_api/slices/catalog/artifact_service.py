@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from functools import partial
-from typing import cast
+from typing import Final, cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,6 +29,23 @@ class ArtifactCorrupt(RuntimeError):
     conflict to be refused by a typed error, and "does not exist" is the wrong
     type for bytes that do exist and disagree with their passport.
     """
+
+
+#: The lifecycle states whose bytes a caller may still fetch.
+#:
+#: `deprecated` is here and it is the whole point of the state. A published
+#: `X.Y` is immutable and consumers pin exact versions — a setup passport pins
+#: its components by exact digest — so refusing the bytes of a deprecated
+#: version breaks every pin that already resolved, which is a far larger act
+#: than an author saying "do not choose this next time". Deprecation is a
+#: signal; `blocked` and `hidden` are the restrictions, and they stay out.
+#:
+#: Measured 2026-08-29 on the live catalogue before this changed: the read
+#: surface already listed `deprecated` as public (`catalog_read.PUBLIC_LIFECYCLES`)
+#: while this query required `active`, so metadata was readable and the bytes
+#: were not. Two independent decisions about what one state means, neither
+#: written down as a requirement. `SPEC-007` `REQ-730` now says which one holds.
+INSTALLABLE_LIFECYCLES: Final[tuple[str, ...]] = ("active", "deprecated")
 
 
 def _corrupt(reason: str, *, object_kind: str, stable_id: str, version: str) -> ArtifactCorrupt:
@@ -60,7 +77,7 @@ async def read_public_artifact(
             CatalogMetadata.stable_id == stable_id,
             CatalogMetadata.version == version,
             CatalogMetadata.visibility == "public",
-            CatalogMetadata.lifecycle_state == "active",
+            CatalogMetadata.lifecycle_state.in_(INSTALLABLE_LIFECYCLES),
             CatalogMetadata.published_at.is_not(None),
             ObjectLocation.purpose == "artifact",
         )

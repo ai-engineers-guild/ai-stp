@@ -215,3 +215,43 @@ async def test_a_dangling_object_reference_reports_integrity_not_absence(
 
     assert response.status_code == 500
     assert response.json()["error"]["code"] == CATEGORY_CODE[ErrorCategory.CATALOG_INTEGRITY]
+
+
+@pytest.mark.parametrize(
+    ("lifecycle", "expected"),
+    [("active", 200), ("deprecated", 200), ("blocked", 404), ("hidden", 404)],
+)
+async def test_deprecation_is_a_signal_and_the_bytes_stay_available(
+    artifact_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], MemoryObjectClient, str],
+    lifecycle: str,
+    expected: int,
+) -> None:
+    """`SPEC-007` `REQ-730`: deprecating must not break an already resolved pin.
+
+    Measured on the live catalogue before this was fixed: reading a deprecated
+    version answered 200 and fetching its bytes answered 404, because
+    `catalog_read.PUBLIC_LIFECYCLES` admitted `deprecated` and this query
+    required `active`. Two independent decisions about what one state means,
+    and neither written down.
+
+    A published `X.Y` is immutable and consumers pin exact versions — a setup
+    passport pins its components by exact digest — so refusing the bytes breaks
+    every pin that already resolved. That is a far larger act than an author
+    saying "do not choose this next time", and it is what `blocked` and
+    `hidden` are for. Both stay refused here, which is the control: without
+    them this test would pass on a filter that admitted everything.
+    """
+    client, sessionmaker, _object_client, _payload = artifact_harness
+    async with sessionmaker() as session:
+        row = await session.scalar(
+            select(CatalogMetadata).where(
+                CatalogMetadata.stable_id == FIXTURE_SETUP_ID,
+                CatalogMetadata.version == "1.0",
+            )
+        )
+        assert row is not None
+        row.lifecycle_state = lifecycle
+        await session.commit()
+
+    response = await client.get(f"/v1/catalog/setups/{FIXTURE_SETUP_ID}/versions/1.0/artifact")
+    assert response.status_code == expected, f"{lifecycle}: {response.status_code}"
