@@ -17,6 +17,7 @@ last_verified: "2026-08-03"
 | [git-workflow.md](git-workflow.md) | Правила веток, коммитов, PR и межрепозиторных изменений. | 2026-08-12 |
 | [implementation-roadmap.md](implementation-roadmap.md) | Зависимый порядок реализации MVP и межрепозиторных изменений. | 2026-08-27 |
 | [quality-gates.md](quality-gates.md) | Обязательные проверки и release evidence. | 2026-08-29 |
+| [real-provider-evidence.md](real-provider-evidence.md) | Как прогнать полный жизненный цикл против выпущенных провайдеров и что при этом проверяется. | 2026-08-29 |
 | [release-evidence.md](release-evidence.md) | Обязательные доказательства выпуска CLI, платформы и провайдеров. | 2026-08-04 |
 | [repository-structure.md](repository-structure.md) | Целевая структура монорепозитория и правила владения кодом. | 2026-08-05 |
 | [schema-evolution.md](schema-evolution.md) | Версионирование, совместимость и миграция сохраняемых и передаваемых схем. | 2026-08-03 |
