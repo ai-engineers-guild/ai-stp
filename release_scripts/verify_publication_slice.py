@@ -158,8 +158,29 @@ def _first_release(home: Path, identities: Sequence[str], *, python: str) -> tup
     A component specifically: what follows it signs and reports a component
     version. Setups in the listing are skipped rather than asked for under the
     wrong kind.
+
+    Asked for by kind rather than filtered out of the sample. The sample is the
+    first five rows of one unfiltered page, and when those five are setups this
+    returned nothing and the caller reported "the account owns no released
+    component version" — which was false: the account owned thirty-three, all
+    of them past the first page. A partial read presented as a total, and the
+    listing takes `--kind`, so the question could have been asked directly.
     """
-    for identity in identities:
+    listed = cli(
+        ["owner", "objects", "--kind", "component"],
+        home=home,
+        python=python,
+        allow_failure=True,
+    )
+    owned: list[str] = []
+    if listed.get("ok") is True:
+        rows = cast(list[Any], data(listed, "owner objects").get("items") or [])
+        owned = [
+            f"component:{row['stable_id']}"
+            for row in rows
+            if isinstance(row, dict) and isinstance(row.get("stable_id"), str)
+        ]
+    for identity in [*owned, *identities]:
         kind, stable_id = _split(identity)
         if kind != "component":
             continue

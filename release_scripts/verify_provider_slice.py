@@ -115,7 +115,15 @@ def _disagreements(harness_id: str, declared: dict[str, Any]) -> list[str]:
             continue
         kinds = {str(item) for item in profile.get("component_kinds", [])}
         namespaces = {str(item) for item in profile.get("native_namespaces", [])}
-        if rule.component_type not in kinds:
+        # The kind the provider is actually told, which differs from the logical
+        # one exactly where a harness has no native kind of its own for it
+        # (`#454`: Pi has no `mcp`, so an MCP adapter is an extension package
+        # and the provider hears `plugin`). Comparing the logical kind here
+        # reported a disagreement that does not exist — this slice was the third
+        # reader of that field and the one I forgot when the first two were
+        # wired.
+        declared_as = rule.provider_kind or rule.component_type
+        if declared_as not in kinds:
             found.append(f"{rule.component_type} -> {rule.relative}: kind not declared")
         elif rule.relative not in namespaces:
             found.append(f"{rule.component_type} -> {rule.relative}: path not a native namespace")
