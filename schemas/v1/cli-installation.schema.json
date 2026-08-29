@@ -196,6 +196,16 @@
       "title": "Schema Version",
       "type": "integer"
     },
+    "setup_description": {
+      "default": "",
+      "title": "Setup Description",
+      "type": "string"
+    },
+    "setup_name": {
+      "default": "",
+      "title": "Setup Name",
+      "type": "string"
+    },
     "state": {
       "enum": [
         "planned",
@@ -249,6 +259,8 @@
     "recovery_action",
     "required_authorization",
     "schema_version",
+    "setup_description",
+    "setup_name",
     "state",
     "steps",
     "target_id"

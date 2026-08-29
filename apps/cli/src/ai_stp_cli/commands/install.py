@@ -1861,6 +1861,8 @@ def _view(connection: sqlite3.Connection, held: installation.Plan) -> Installati
         backup_ref=installation.backup_reference(connection, held.operation_id),
         required_authorization=requirements.requires_authorization,
         effects=list(held.effects),
+        setup_name=requirements.name,
+        setup_description=requirements.description,
         managed_paths=_planned_managed_paths(held),
         recovery_action=held.recovery_action,
         expires_at=held.expires_at,

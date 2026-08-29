@@ -86,6 +86,8 @@ def _selected_setup(
     *,
     required_env: tuple[str, ...] = ("OPENAI_API_KEY",),
     requires_authorization: str = "none",
+    name: str = "readiness fixture",
+    description: str = "An exact selected setup used by target status tests.",
 ) -> None:
     stable_id = "setup_01J0000000000000000000000C"
     for entity, kind in ((PROJECT, "project"), (stable_id, "setup")):
@@ -102,8 +104,8 @@ def _selected_setup(
         "visibility": "private",
         "parent_revision_ids": [],
         "facts": {},
-        "name": "readiness fixture",
-        "description": "An exact selected setup used by target status tests.",
+        "name": name,
+        "description": description,
         "version": "1.0",
         "tags": ["tests"],
         "source": None,
@@ -655,3 +657,35 @@ def test_an_installation_without_a_copy_is_not_listed_as_one(
     _verified(registry, "1.0", digest="sha256:" + "a" * 64, at="2026-08-08T10:00:00.000Z")
 
     assert targets.backups(registry, project_id=PROJECT, harness_id=HARNESS) == ()
+
+
+def test_setup_requirements_carry_what_the_setup_says_about_itself(
+    registry: sqlite3.Connection,
+) -> None:
+    """A plan enumerates files; only the description says what changing them means.
+
+    Raised by the setup-systems session while settling posture import: their
+    `full-auto` turns off a product's sandbox and its prompting, and 690
+    characters of its description carry the qualifications — including that the
+    sandbox key reaches nothing on native Windows. Measured here rather than
+    assumed: the browse card clamps to two lines but cannot install from there,
+    the detail page shows the whole text, and `install plan` — the surface that
+    actually precedes an install, and the primary consumer — carried none of it.
+    """
+    _selected_setup(
+        registry,
+        name="Full auto",
+        description=(
+            "Full auto: nothing is asked, nothing is sandboxed. Note that the "
+            "sandbox key reaches nothing on native Windows."
+        ),
+    )
+    held = targets.setup_requirements(
+        registry, stable_id="setup_01J0000000000000000000000C", version="1.0"
+    )
+    assert held.name == "Full auto"
+    assert "nothing is sandboxed" in held.description
+    # The qualification is the part that must survive, not just the headline: a
+    # description truncated to its first clause reads as a stronger claim than
+    # the one its author made.
+    assert "native Windows" in held.description

@@ -156,6 +156,17 @@ class SetupRequirements:
     required_env: tuple[str, ...] = ()
     requires_authorization: Literal["none", "user_account", "external_service"] = "none"
 
+    #: What the setup says it does, in its own words. Carried to the approval
+    #: point because a plan enumerates the *files* a provider will write and
+    #: never what changing them means — and for at least one published setup
+    #: that meaning is the whole content. `full-auto` turns off a product's
+    #: sandbox and its prompting, and 690 characters of its description say
+    #: which parts of that claim hold on which platform. The listing card
+    #: clamps to two lines and cannot install from there; the CLI, which is the
+    #: primary consumer, showed none of it at all.
+    name: str = ""
+    description: str = ""
+
 
 def survey(
     connection: sqlite3.Connection,
@@ -250,6 +261,8 @@ def setup_requirements(
     return SetupRequirements(
         required_env=tuple(item.name for item in passport.required_env),
         requires_authorization=passport.requires_authorization,
+        name=passport.name,
+        description=passport.description,
     )
 
 

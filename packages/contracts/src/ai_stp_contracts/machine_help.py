@@ -2212,6 +2212,21 @@ class InstallationView(BaseModel):
     #: What the plan says it will do, enumerated. `REQ-805` makes a plan's
     #: effects part of what the user is approving, not a summary of them.
     effects: list[str] = []
+
+    #: What the selected setup is and what it says about itself, at the point
+    #: of approval. `effects` enumerates the files a provider will write, which
+    #: is exact and says nothing about what changing them means — and for at
+    #: least one published setup the meaning is the entire content. `full-auto`
+    #: turns off a product's sandbox and its prompting, and its description is
+    #: where the qualifications live, including which parts of that claim hold
+    #: on which platform.
+    #:
+    #: The browse card clamps to two lines and cannot install from there, and
+    #: the detail page shows the whole text — but the CLI is the primary
+    #: consumer here and carried none of it, so the one surface that actually
+    #: precedes an install was the one that said least.
+    setup_name: str = ""
+    setup_description: str = ""
     managed_paths: list[str] = []
     recovery_action: str = ""
     expires_at: Annotated[str, Field(min_length=1)]
