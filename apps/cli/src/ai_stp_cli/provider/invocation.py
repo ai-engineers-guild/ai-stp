@@ -43,7 +43,7 @@ def provider_invoker(
     if version == protocol.VERSION:
         return conformance.subprocess_invoker(executable, target)
 
-    launcher, capability = network_launcher.discover_launcher()
+    launcher, capability = network_launcher.discover_bubblewrap()
     # Only the install lifecycle names a reason, and only Windows can act on
     # one. Everything that merely observes a target passes nothing and keeps
     # refusing there, which is the scope `#416` decided rather than a scope

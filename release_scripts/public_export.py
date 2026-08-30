@@ -21,9 +21,11 @@ from __future__ import annotations
 
 import argparse
 import shutil
+import stat
 import subprocess
 import sys
 import tomllib
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
@@ -95,6 +97,23 @@ def tracked_files(root: Path = ROOT) -> tuple[str, ...]:
     except (OSError, subprocess.CalledProcessError) as error:
         raise ExportError(f"could not list tracked files: {error}") from error
     return tuple(name for name in listed.split("\0") if name)
+
+
+def executable_files(root: Path = ROOT) -> frozenset[str]:
+    """Tracked paths whose executable bit must survive a Windows export."""
+    try:
+        listed = subprocess.run(
+            ["git", "ls-files", "-s", "-z"],
+            cwd=root,
+            capture_output=True,
+            check=True,
+            text=True,
+        ).stdout
+    except (OSError, subprocess.CalledProcessError) as error:
+        raise ExportError(f"could not read tracked file modes: {error}") from error
+    return frozenset(
+        record.split("\t", 1)[1] for record in listed.split("\0") if record.startswith("100755 ")
+    )
 
 
 def eligible(files: tuple[str, ...], manifest: Manifest) -> tuple[str, ...]:
@@ -179,7 +198,7 @@ def overlay_files(overlay: Path = OVERLAY) -> tuple[str, ...]:
 
 def write_tree(files: tuple[str, ...], destination: Path, root: Path = ROOT) -> int:
     if destination.exists():
-        shutil.rmtree(destination)
+        shutil.rmtree(destination, onexc=_remove_readonly)
     for name in files:
         target = destination / name
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -190,7 +209,35 @@ def write_tree(files: tuple[str, ...], destination: Path, root: Path = ROOT) -> 
         shutil.copy2(OVERLAY / name, target)
     _initialise_repository(destination)
     _regenerate_indexes(destination)
+    _stage_tree(destination, files, root)
     return len(files) + len(overlay_files())
+
+
+def _remove_readonly(function: Callable[[str], object], path: str, _error: BaseException) -> None:
+    """Let Windows replace Git object files, which Git marks read-only."""
+    Path(path).chmod(stat.S_IWRITE)
+    function(path)
+
+
+def _stage_tree(destination: Path, files: tuple[str, ...], root: Path) -> None:
+    """Stage the publishable tree while preserving Git modes on every OS."""
+    overlay_prefix = "release_scripts/public_overlay/"
+    executable = set(files) & executable_files(root)
+    executable.update(
+        name.removeprefix(overlay_prefix)
+        for name in executable_files(root)
+        if name.startswith(overlay_prefix)
+    )
+    try:
+        subprocess.run(["git", "add", "-A"], cwd=destination, check=True)
+        if executable:
+            subprocess.run(
+                ["git", "update-index", "--chmod=+x", "--", *sorted(executable)],
+                cwd=destination,
+                check=True,
+            )
+    except (OSError, subprocess.CalledProcessError) as error:
+        raise ExportError(f"could not stage the built tree: {error}") from error
 
 
 def _regenerate_indexes(destination: Path) -> None:

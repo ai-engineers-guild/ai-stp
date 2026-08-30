@@ -2382,20 +2382,6 @@ class ImportedSetup(BaseModel):
     component_ids: Annotated[list[str], Field(min_length=1)]
 
 
-class ShadowedSurface(BaseModel):
-    """A name the product reads that the provider does not own."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
-
-    schema_version: Literal[1] = 1
-    #: The name the product reads.
-    name: Annotated[str, Field(min_length=1)]
-    #: The owned surface it takes precedence over.
-    over: Annotated[str, Field(min_length=1)]
-    #: What the product does as a result, in the provider's own words.
-    effect: Annotated[str, Field(min_length=1)]
-
-
 class TargetSurvey(BaseModel):
     """The daily state of one project-and-harness pair (`#177`).
 
@@ -2440,20 +2426,6 @@ class TargetSurvey(BaseModel):
     #: Empty means nobody asked the catalogue, which is not the same as "there
     #: is nothing newer".
     catalog_version: str = ""
-
-    #: Names the product obeys that the provider does not own, from its `status`.
-    #:
-    #: `installed` with a matching digest says the bytes the provider wrote are
-    #: intact. It says nothing about which file the product reads, and the two
-    #: differ — a `.jsonc` beside an owned `.json`, or a plural spelling of a
-    #: globbed directory, takes precedence over the owned copy. Without this the
-    #: survey called such a target clean.
-    #:
-    #: Empty means nothing shadows, or an older provider that was never asked;
-    #: those are not distinguished here because both leave the operator with
-    #: nothing to act on. The list is reported and never acted on, like
-    #: `catalog_drift`: which file should win belongs to whoever put it there.
-    shadowed_by: list[ShadowedSurface] = []
 
 
 class ManagedPathChange(BaseModel):

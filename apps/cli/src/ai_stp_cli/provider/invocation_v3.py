@@ -8,6 +8,7 @@ from pathlib import Path
 
 from ai_stp_cli.provider import (
     conformance,
+    invocation_v2,
     network_launcher,
     protocol_v2,
     protocol_v3,
@@ -28,7 +29,7 @@ def invoke(
     command: str,
     arguments: Sequence[str] = (),
     *,
-    launcher: network_launcher.NetworkLauncher | None,
+    launcher: invocation_v2.NetworkLauncher | None,
     capability: protocol_v2.NetworkCapability | None,
     unisolated: network_launcher.UnisolatedLocalPhase | None = None,
     writable: tuple[Path, ...] = (),
@@ -69,8 +70,9 @@ def invoke(
     )
     argv = (resolved_executable, command, *provider_arguments, *arguments)
     # Everything else is unchanged by the exception: literal argv, the resolved
-    # target, the timeouts and output limits. Only the isolation is absent, and
+    # target, the timeouts and output limits. Only the wrapper is absent, and
     # its absence is what `provider network` keeps reporting.
-    if launcher is None:
-        return conformance.invoke_argv(argv, command=command)
-    return launcher.run(argv, target=resolved_target, writable=writable, command=command)
+    wrapped = (
+        argv if launcher is None else launcher.wrap(argv, target=resolved_target, writable=writable)
+    )
+    return conformance.invoke_argv(wrapped, command=command)

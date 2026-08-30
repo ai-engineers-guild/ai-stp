@@ -1,8 +1,6 @@
 """Provider-observed authorization readiness (`ADR-0052`)."""
 
 import json
-from collections.abc import Mapping
-from typing import cast
 
 import pytest
 
@@ -132,58 +130,3 @@ def test_a_malformed_backup_list_is_refused_rather_than_read_past(
     with pytest.raises(CliFailure) as caught:
         status.backups(payload)  # pyright: ignore[reportArgumentType]
     assert caught.value.code == "AI_STP_SCHEMA_UNSUPPORTED"
-
-
-def test_a_shadow_list_reaches_the_caller_and_an_absent_one_is_not_a_clean_one() -> None:
-    """`managed` and a clean digest are statements about the provider's bytes.
-
-    Neither is a statement about what the product obeys. An `opencode.jsonc`
-    beside an owned `opencode.json` is the file the product keeps, so a target
-    the provider reports intact can be running a file it never wrote — and this
-    side used to take the digest from that answer and drop the rest.
-
-    `None` and `()` stay different for the same reason they do for copies: an
-    empty list is the provider saying nothing shadows, and `None` is a build
-    that was never asked. Rendering the second as the first is the failure the
-    field exists to end.
-    """
-    assert status.shadowed({"target_digest": "sha256:" + "a" * 64}) is None
-    assert status.shadowed({"shadowed_by": []}) == ()
-    observed = status.shadowed(
-        {
-            "shadowed_by": [
-                {
-                    "name": "opencode.jsonc",
-                    "over": "opencode.json",
-                    "effect": "the product reads the JSONC file instead",
-                }
-            ]
-        }
-    )
-    assert observed is not None
-    assert observed[0].name == "opencode.jsonc"
-    assert observed[0].over == "opencode.json"
-
-
-@pytest.mark.parametrize(
-    "hostile",
-    [
-        {"shadowed_by": "opencode.jsonc"},
-        {"shadowed_by": [{"name": "a", "over": "b"}]},
-        {"shadowed_by": [{"name": "", "over": "b", "effect": "c"}]},
-        {"shadowed_by": [["a", "b", "c"]]},
-    ],
-)
-def test_a_malformed_shadow_list_is_refused_rather_than_read_past(
-    hostile: dict[str, object],
-) -> None:
-    """Refused, unlike the recovery list, and the difference is what they describe.
-
-    A recovery list reports what happened before an operation that has already
-    landed, so failing on it would turn a completed effect into an error. A
-    shadow list describes the target a caller is about to act on, and a partial
-    reading of it is a quieter wrong answer than a refusal.
-    """
-    with pytest.raises(CliFailure) as raised:
-        status.shadowed(cast("Mapping[str, JsonValue]", hostile))
-    assert raised.value.code == "AI_STP_SCHEMA_UNSUPPORTED"

@@ -380,7 +380,6 @@
   "the provider reported a state this build cannot map": "the provider reported a state this build cannot map",
   "the provider returned no program plan artifact": "the provider returned no program plan artifact",
   "the provider status carries a malformed copy list": "the provider status carries a malformed copy list",
-  "the provider status carries a malformed shadow list": "the provider status carries a malformed shadow list",
   "the provider status carries malformed authorization evidence": "the provider status carries malformed authorization evidence",
   "the provider target must be an existing absolute directory, not a symlink": "the provider target must be an existing absolute directory, not a symlink",
   "the provider trust policy is not valid TOML": "the provider trust policy is not valid TOML",

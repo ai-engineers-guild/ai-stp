@@ -25,10 +25,10 @@ import os
 import subprocess
 import sys
 import threading
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO, Final, Protocol, Self, cast
+from typing import Final, Protocol, cast
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.paths import is_executable_file
@@ -164,61 +164,17 @@ def _executable_argv(executable: str) -> list[str]:
     return [executable]
 
 
-class ProcessLike(Protocol):
-    """The four members of `subprocess.Popen` this boundary actually uses."""
-
-    stdout: IO[bytes] | None
-
-    def kill(self) -> None: ...
-
-    def wait(self) -> int: ...
-
-    def __enter__(self) -> Self: ...
-
-    def __exit__(self, *args: object) -> None: ...
-
-
-#: How a process gets created. Named so a launcher can supply its own without
-#: the boundary knowing what an AppContainer is.
-type SpawnProcess = Callable[[list[str], dict[str, str]], ProcessLike]
-
-
-def _popen(command: list[str], environment: dict[str, str]) -> ProcessLike:
-    """The ordinary factory, and the one every platform but Windows uses."""
-    return cast(
-        ProcessLike,
-        subprocess.Popen(
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            env=environment,
-        ),
-    )
-
-
-def invoke_argv(
-    argv: Sequence[str], *, command: str, spawn: SpawnProcess | None = None
-) -> JsonValue:
+def invoke_argv(argv: Sequence[str], *, command: str) -> JsonValue:
     """Run one already-decided provider argv under the common process boundary.
 
     Network policy is intentionally absent here. Frozen v1 calls this function
     directly; protocol v2 first makes an auditable phase decision and, for a
-    local-only phase, hands the argv to its proved OS launcher. Every version
-    shares the same environment, timeout and output-volume boundary.
-
-    `spawn` is how a launcher that cannot be expressed as a wrapper still gets
-    to run under that boundary. Bubblewrap is an executable, so it rewrites the
-    argv and leaves this alone. An AppContainer is a token: `subprocess` cannot
-    create one, and its `STARTUPINFO` accepts only a handle list. Passing the
-    process factory instead of the argv is what lets the read limit, the
-    watchdog and the environment allowlist stay written once — the alternative
-    was a second copy of them behind the Windows branch, which is where the
-    output-volume bug would have been reintroduced without anyone porting it.
+    local-only phase, wraps ``argv`` in its proved OS launcher. Both versions
+    still share the same environment, timeout and output-volume boundary.
     """
     boundary = protocol.BOUNDARY
     raw, over_limit = _bounded_output(
         argv,
-        spawn=spawn,
         limit=boundary.output_limit_bytes,
         timeout_seconds=boundary.timeout_seconds,
         # An allowlist, not the caller's environment: these names pass through
@@ -246,7 +202,6 @@ def _bounded_output(
     limit: int,
     timeout_seconds: float,
     environment: dict[str, str],
-    spawn: SpawnProcess | None = None,
 ) -> tuple[bytes, bool]:
     """Run a provider and read at most ``limit`` bytes of what it says.
 
@@ -274,8 +229,12 @@ def _bounded_output(
     expired = threading.Event()
     # An argument array, no shell and the exact executable the caller named —
     # `protocol.BOUNDARY` in three of its terms, applied rather than described.
-    started = _popen if spawn is None else spawn
-    with started(command, environment) as child:
+    with subprocess.Popen(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        env=environment,
+    ) as child:
         stream = child.stdout
         if stream is None:  # pragma: no cover - Popen always gives a pipe here
             raise RuntimeError("the provider was started without a readable pipe")
