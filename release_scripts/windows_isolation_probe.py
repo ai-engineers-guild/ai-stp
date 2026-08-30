@@ -13,11 +13,12 @@ from __future__ import annotations
 
 import ctypes
 import json
+import os
 import platform
+import shutil
 import socket
 import subprocess
 import sys
-import tempfile
 from ctypes import wintypes
 from pathlib import Path
 from typing import Any
@@ -52,11 +53,11 @@ else:
     out["dns_udp"] = "sent"
 finally:
     d.close()
-for label, target in (("granted_target", grant), ("ungranted_target", deny)):
+for label, target in (("leaf_only", grant), ("ungranted", deny), ("full_chain", sys.argv[4])):
     try:
         out[label] = sorted(p.name for p in Path(target).iterdir())[:3] or ["<empty>"]
     except OSError as exc:
-        out[label] = "denied:" + type(exc).__name__
+        out[label] = "denied:" + type(exc).__name__ + ":" + str(getattr(exc, "winerror", ""))
 sub = None
 try:
     sub = subprocess.run(
@@ -160,9 +161,15 @@ def main() -> int:
             control[label] = f"unreachable:{type(exc).__name__}"
     report["positive_control_from_parent"] = control
 
-    root = Path(tempfile.mkdtemp(prefix="ai-stp-probe-"))
-    granted, ungranted, workspace = root / "granted", root / "ungranted", root / "out"
-    for place in (granted, ungranted, workspace):
+    # A shallow root the parent controls, so the ancestor chain is short and
+    # explicit rather than buried under a user profile.
+    root = Path(os.environ.get("SYSTEMDRIVE", "C:") + "\\ai-stp-probe")
+    if root.exists():
+        shutil.rmtree(root, ignore_errors=True)
+    leaf_only = root / "a" / "b" / "leaf"
+    full_chain = root / "c" / "d" / "leaf"
+    ungranted = root / "e" / "f" / "leaf"
+    for place in (leaf_only, full_chain, ungranted):
         place.mkdir(parents=True)
         (place / "marker.txt").write_text("x", encoding="utf-8")
 
@@ -176,30 +183,45 @@ def main() -> int:
             encoding="utf-8",
             errors="replace",
         )
-        return {"rc": done.returncode, "out": (done.stdout + done.stderr).strip()[:160]}
+        return {"rc": done.returncode, "out": (done.stdout + done.stderr).strip()[:120]}
 
-    # The runtime the container must execute and a place it may write. `#51`
-    # asks for "the chosen target and the necessary runtime" and nothing else,
-    # and this is what that costs in ACEs. Measured rather than assumed: the
-    # first run launched successfully and returned an empty exit 1, which is
-    # what a container that cannot read its own interpreter looks like.
-    #
-    # Deliberately not granted: `ungranted`, and every parent of `granted`.
-    # Bypass-traverse-checking is granted to Everyone by default, so whether a
-    # full path reaches the leaf without rights on its parents is the question
-    # `#51`'s objection turns on.
+    # The decisive comparison. `#51` says AppContainer "does not reach an
+    # arbitrary target without editing the parents' DACLs"; bypass traverse
+    # checking is granted to Everyone by default, so if an AppContainer token
+    # keeps it, `leaf_only` reads and the objection is wrong. If only
+    # `full_chain` reads, the objection is right and the cost of the design is
+    # an ACE on every ancestor.
+    grants: dict[str, Any] = {"leaf_only_leaf": icacls(leaf_only, "(RX)")}
+    for ancestor in (root / "c", root / "c" / "d", full_chain):
+        grants[f"full_chain:{ancestor.name}"] = icacls(ancestor, "(RX)")
+    grants["runtime"] = icacls(Path(sys.executable).parent, "(RX)")
+    # `ungranted` gets nothing, and neither do `a` and `b`.
+
     script = root / "child.py"
     script.write_text("import subprocess\n" + CHILD, encoding="utf-8")
-    report["grants"] = {
-        "granted_leaf": icacls(granted, "(RX)"),
-        "runtime": icacls(Path(sys.executable).parent, "(RX)"),
-        "workspace": icacls(workspace, "(M)"),
-        "script": icacls(script, "(RX)"),
-    }
+    grants["script"] = icacls(script, "(RX)")
+    grants["root_traverse"] = icacls(root, "(RX)")
+    report["grants"] = grants
+
+    # The container's own folder is the one place it can always write, so the
+    # result never depends on the thing being measured. The previous run wrote
+    # into a granted temp directory and produced no file at all, which said
+    # nothing about why.
+    userenv.GetAppContainerFolderPath.argtypes = [wintypes.LPCWSTR, ctypes.POINTER(wintypes.LPWSTR)]
+    userenv.GetAppContainerFolderPath.restype = ctypes.c_long
+    folder = wintypes.LPWSTR()
+    hr = userenv.GetAppContainerFolderPath(package, ctypes.byref(folder))
+    report["container_folder_hresult"] = hex(hr & 0xFFFFFFFF)
+    if hr < 0:
+        report["verdict"] = "no container folder; cannot collect the child's answer"
+        print(json.dumps(report, indent=1, sort_keys=True))
+        return 0
+    result = Path(folder.value) / "probe-result.json"
+    report["container_folder"] = str(result.parent)
 
     quoted = json.dumps(ports).replace(chr(34), chr(92) + chr(34))
-    argv = f'"{sys.executable}" "{script}" "{quoted}" "{granted}" "{ungranted}"'
-    report["child"] = _launch_in_container(kernel, sid, argv, workspace / "result.json")
+    argv = f'"{sys.executable}" "{script}" "{quoted}" "{leaf_only}" "{ungranted}" "{full_chain}"'
+    report["child"] = _launch_in_container(kernel, sid, argv, result)
     print(json.dumps(report, indent=1, sort_keys=True))
     return 0
 
