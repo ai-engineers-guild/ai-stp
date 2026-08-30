@@ -376,3 +376,93 @@ def test_a_scoped_graph_is_validated_against_the_profile_that_describes_it() -> 
     with pytest.raises(CliFailure) as missing:
         install_commands._profile_for_graph(without, ["skill"])  # pyright: ignore[reportPrivateUsage]
     assert "no projection profile for the scope" in missing.value.message
+
+
+def test_a_bundle_over_the_declared_limits_is_refused_by_name() -> None:
+    """The refusal at the provider-limit check, driven with data that violates it.
+
+    `_v3_profile_accepts` refuses a compiled bundle exceeding the limits the
+    provider declares. Nothing had ever handed it one: every fixture declares
+    `max_files=100` and `max_bytes=1_000_000` while every bundle under test
+    holds a handful of small files, so the comparison and the data agreed by
+    accident and inverting `>` to `<` would have kept the suite green.
+
+    Found by the setup-systems side hitting the same shape in a security clamp —
+    `effective_max_files`, whose comment names the threat outright and which no
+    test had ever fed a bundle declaring more than the contract allows.
+
+    The direction is the reassuring part and it is asserted here too: the
+    provider's declaration can only *tighten*. Bundle construction is already
+    bounded by this side's own `MAX_FILES`, so a hostile provider declaring a
+    ceiling of its own choosing cannot make this side build a larger bundle —
+    it can only refuse a smaller one.
+    """
+    from ai_stp_cli.commands import install as install_commands
+    from ai_stp_cli.local import bundle as bundle_module
+    from ai_stp_cli.provider import protocol_v3
+
+    profile = protocol_v3.ProjectionProfile(
+        profile_id="codex/native-files/1",
+        digest="sha256:" + "d" * 64,
+        component_kinds=frozenset({protocol_v3.ComponentKind.INSTRUCTION}),
+        projection_kinds=frozenset({protocol_v3.ProjectionKind.NATIVE_FILES}),
+        native_namespaces=("AGENTS.md",),
+        bundle_formats=("ai-stp-bundle/1",),
+        max_files=1,
+        max_bytes=1_000_000,
+    )
+    capabilities = protocol_v3.ProviderCapabilities(
+        provider_id="codex-setup-system",
+        harness_id="codex",
+        provider_version="0.0.10",
+        provider_build_digest="sha256:" + "e" * 64,
+        commands=frozenset(protocol_v3.CORE_COMMANDS),
+        operations=frozenset(protocol_v3.CORE_OPERATIONS),
+        supported_os=("linux",),
+        supported_arch=("x86_64",),
+        permission_profiles=("default",),
+        projection=profile,
+        scoped_projections=(),
+    )
+
+    def _entry(path: str) -> bundle_module.FileEntry:
+        return bundle_module.FileEntry(
+            path=path, digest="sha256:" + "0" * 64, byte_length=1, mode=0o644, owner="AGENTS.md"
+        )
+
+    def _bundle(files: tuple[bundle_module.FileEntry, ...], archive: bytes) -> bundle_module.Bundle:
+        return bundle_module.Bundle(
+            manifest={
+                "conversion_report": {
+                    "entries": [
+                        {
+                            "component_type": "instruction",
+                            "projection_kind": "native_files",
+                            "native_surface": "AGENTS.md",
+                        }
+                    ]
+                }
+            },
+            files=files,
+            digest="sha256:" + "1" * 64,
+            archive=archive,
+            artifact_digest="sha256:" + "2" * 64,
+            refusals=(),
+        )
+
+    # One file is exactly the declared ceiling and passes.
+    accepted = _bundle((_entry("AGENTS.md"),), b"x")
+    assert install_commands._v3_profile_accepts(capabilities, accepted) is profile  # pyright: ignore[reportPrivateUsage]
+
+    # Two files exceed it and are refused by name rather than sent.
+    too_many = _bundle((_entry("AGENTS.md"), _entry("AGENTS.other.md")), b"x")
+    with pytest.raises(CliFailure) as files_caught:
+        install_commands._v3_profile_accepts(capabilities, too_many)  # pyright: ignore[reportPrivateUsage]
+    assert "exceeds provider-declared limits" in files_caught.value.message
+
+    # And the byte ceiling is a separate term, so it needs its own violation.
+    tight = dataclasses.replace(profile, max_files=10, max_bytes=1)
+    byte_bound = dataclasses.replace(capabilities, projection=tight)
+    with pytest.raises(CliFailure) as bytes_caught:
+        install_commands._v3_profile_accepts(byte_bound, _bundle((_entry("AGENTS.md"),), b"xx"))  # pyright: ignore[reportPrivateUsage]
+    assert "exceeds provider-declared limits" in bytes_caught.value.message
