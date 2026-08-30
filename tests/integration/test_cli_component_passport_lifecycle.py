@@ -110,7 +110,6 @@ redistribution_allowed = true
         original_revision,
         "--from",
         str(incomplete_patch),
-        "--confirm",
     )
     enriched_revision = str(enriched["revision_id"])
     incomplete = _run(
@@ -149,7 +148,6 @@ redistribution_allowed = true
         enriched_revision,
         "--from",
         str(floating_source),
-        "--confirm",
     )
     assert floating["code"] == "AI_STP_VALIDATION_ERROR"
 
@@ -167,7 +165,6 @@ redistribution_allowed = true
         enriched_revision,
         "--from",
         str(secret_patch),
-        "--confirm",
     )
     assert secret["code"] == "AI_STP_VALIDATION_ERROR"
     assert secret_value not in json.dumps(secret)
@@ -209,7 +206,6 @@ redistribution_allowed = true
         enriched_revision,
         "--from",
         str(complete_patch),
-        "--confirm",
     )
     ready = _run(
         environment,
@@ -248,7 +244,6 @@ redistribution_allowed = true
         str(complete["revision_id"]),
         "--from",
         str(later_patch),
-        "--confirm",
     )
     assert later["revision_id"] != complete["revision_id"]
     line = _run(environment, "component", "version", "list", "--id", stable_id)
@@ -269,7 +264,6 @@ redistribution_allowed = true
             original_revision,
             "--from",
             str(complete_patch),
-            "--confirm",
             "--json",
         ],
         capture_output=True,
