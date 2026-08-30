@@ -5618,13 +5618,14 @@
         "toolchain",
         "harness-capabilities"
       ],
-      "summary": "Report declared layouts, projections, support tiers and known gaps for every harness.",
+      "summary": "Per harness and kind: what the product natively reads, what this build can project, and why any gap is a gap. Not a claim that a component is active — ask the provider for that.",
       "mutability": "read",
       "confirmation": "none",
       "parameters": [],
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-harness-capability-table",
       "next_actions": [
+        "provider conformance",
         "toolchain harnesses",
         "component discover"
       ]

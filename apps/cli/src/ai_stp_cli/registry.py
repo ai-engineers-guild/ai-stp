@@ -2483,12 +2483,24 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
     ),
     Declaration(
         path=["toolchain", "harness-capabilities"],
+        # `#462` item 5 asked for this to be renamed *or* clarified so the
+        # result cannot be read as effective provider support. Clarified: the
+        # payload now answers both questions per kind — what the product reads
+        # and what this build routes — so the ambiguity is gone from the data
+        # rather than from the name. A path change costs every caller that has
+        # this in machine help, and buys nothing the payload does not already
+        # say.
         summary=(
-            "Report declared layouts, projections, support tiers and known gaps for every harness."
+            "Per harness and kind: what the product natively reads, what this build "
+            "can project, and why any gap is a gap. Not a claim that a component "
+            "is active — ask the provider for that."
         ),
         result_schema="urn:ai-stp:schema:v1:cli-harness-capability-table",
         handler="toolchain:harness_capabilities",
-        next_actions=("toolchain harnesses", "component discover"),
+        # The third column is the provider's own declaration, which needs a
+        # fetched provider and so is a different command rather than a field
+        # this one could fill offline.
+        next_actions=("provider conformance", "toolchain harnesses", "component discover"),
     ),
     Declaration(
         path=["toolchain", "harnesses"],
