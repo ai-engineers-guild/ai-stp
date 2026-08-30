@@ -172,7 +172,7 @@ def _permissions_check() -> DoctorCheck:
     `paths.write_private` makes it impossible to create one, but not impossible
     for someone to `chmod` it later.
     """
-    if not paths.POSIX:  # pragma: no cover - the CI platforms are POSIX
+    if not paths.POSIX:  # pragma: no cover - the coverage leg is Linux; Windows asserts this
         return DoctorCheck(
             name="file_permissions",
             state="ready",

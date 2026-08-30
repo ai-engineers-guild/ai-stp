@@ -828,7 +828,7 @@ def _apply_permissions(path: Path) -> None:
     comes from the process umask rather than from the mode the database was
     given. They hold the same rows.
     """
-    if not POSIX:  # pragma: no cover - the CI platforms are POSIX
+    if not POSIX:  # pragma: no cover - the coverage leg is Linux; Windows asserts this
         return
     for candidate in (path, Path(f"{path}-wal"), Path(f"{path}-shm")):
         if candidate.exists():
