@@ -726,6 +726,50 @@ def _pinned(manifest: ReleaseManifest, policy: TrustPolicy) -> list[Refusal]:
     ]
 
 
+#: The musl dynamic loader, which Alpine and other musl distributions install
+#: under this name. Positive evidence rather than an absence: a check that
+#: refused whenever glibc could not be *confirmed* would refuse on every system
+#: whose detection this code has not met.
+_MUSL_LOADER: Final[str] = "ld-musl-"
+
+
+def _runs_musl() -> bool:
+    """Whether this Linux runs musl rather than glibc.
+
+    Nothing in protocol v3 can express this. `provider-info.schema.json`
+    requires `supported_os` and `supported_arch` and has no libc field, both
+    are open arrays of free strings so `linux-musl` would validate, and the
+    match key is split at exactly one `/` — there is no third axis for a
+    spelling to land in. So the answer cannot come from a manifest and has to
+    be read from the machine.
+
+    Measured on the publishing side rather than assumed: `0.0.40` ships
+    `…-x86_64-unknown-linux-gnu`, dynamically linked against `libc.so.6` with
+    interpreter `/lib64/ld-linux-x86-64.so.2`, and the release carries no musl
+    asset at all. This program is Python and runs on Alpine perfectly well, so
+    without this the sequence there is: resolve the platform, accept the
+    release, fetch it, and fail to execute with a dynamic-loader error naming
+    neither libc nor the actual problem.
+
+    Refusing on this reading is safe in a way that *selecting* on it would not
+    be. It only ever turns a confusing failure into a true sentence; it never
+    picks an artifact.
+    """
+    if platform.system().casefold() != "linux":
+        return False
+    library, _ = platform.libc_ver()
+    if "musl" in library.casefold():
+        return True
+    try:
+        return any(
+            any(directory.glob(f"{_MUSL_LOADER}*"))
+            for directory in (Path("/lib"), Path("/usr/lib"))
+            if directory.is_dir()
+        )
+    except OSError:  # pragma: no cover - an unreadable /lib is not a musl proof
+        return False
+
+
 def _platform(manifest: ReleaseManifest, policy: TrustPolicy, platform: str) -> list[Refusal]:
     found: list[Refusal] = []
     if manifest.protocol_version not in policy.supported_protocols:
@@ -744,6 +788,21 @@ def _platform(manifest: ReleaseManifest, policy: TrustPolicy, platform: str) -> 
                     "platform_unsupported",
                     "this release does not support this platform",
                     {"platform": platform},
+                )
+            )
+        elif system == "linux" and _runs_musl():
+            # The manifest said yes and could not have said otherwise: v3 has
+            # no libc field, so `linux/x86_64` matches a glibc-only release
+            # exactly as well here as on Debian. The refusal has to come from
+            # the machine, and it names the axis the manifest cannot carry so
+            # the answer is actionable rather than merely negative.
+            found.append(
+                Refusal(
+                    "platform_unsupported",
+                    "this release is linked against glibc and this system runs musl; "
+                    "protocol v3 has no field for a C library, so the manifest cannot "
+                    "say so and this is read from the machine",
+                    {"platform": platform, "libc": "musl"},
                 )
             )
     return found

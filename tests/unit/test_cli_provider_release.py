@@ -2,6 +2,7 @@
 
 import base64
 import json
+import platform
 import re
 from dataclasses import replace
 from pathlib import Path
@@ -313,6 +314,56 @@ def test_nothing_is_claimed_about_bytes_nobody_fetched() -> None:
 def test_a_platform_the_release_does_not_support_is_refused() -> None:
     verdict = release.verify(_manifest(), POLICY, known_sequence=6, platform="darwin/arm64")
     assert "platform_unsupported" in _codes(verdict)
+
+
+def test_a_glibc_release_on_musl_is_refused_with_the_axis_the_manifest_cannot_carry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The manifest says yes and could not say otherwise.
+
+    Protocol v3 requires `supported_os` and `supported_arch` and has no libc
+    field, so `linux/x86_64` matches a glibc-only release on Alpine exactly as
+    well as on Debian. The published provider is glibc-linked and ships no musl
+    asset, so accepting here means fetching a binary that cannot start and
+    failing with a dynamic-loader error that names neither libc nor the
+    problem.
+    """
+    monkeypatch.setattr(release, "_runs_musl", lambda: True)
+    verdict = release.verify(_manifest(), POLICY, known_sequence=6, platform="linux/x86_64")
+    refusal = next(item for item in verdict.refusals if item.code == "platform_unsupported")
+    assert refusal.details["libc"] == "musl"
+
+
+def test_glibc_is_not_refused_by_the_musl_reading(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The control. A reading that cannot answer "no" refuses everyone."""
+    monkeypatch.setattr(release, "_runs_musl", lambda: False)
+    verdict = release.verify(_manifest(), POLICY, known_sequence=6, platform="linux/x86_64")
+    assert "platform_unsupported" not in _codes(verdict)
+
+
+@pytest.mark.skipif(platform.system().casefold() != "linux", reason="reads a Linux loader path")
+def test_an_unidentifiable_libc_is_not_read_as_musl(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The reading must be positive evidence, not an absence.
+
+    Selecting an artifact on an absence is the defect this exists to avoid, and
+    refusing on one would be the same mistake in a safer coat: every system
+    whose libc this code has not learned to name would be told it runs musl.
+
+    So this simulates exactly that — a Linux reporting no libc at all — on a
+    machine that has no musl loader, and requires the answer to stay `False`.
+    The runners are glibc, which is what makes the simulation the interesting
+    half rather than the whole test.
+    """
+
+    def unidentifiable(executable: str = "", lib: str = "", version: str = "") -> tuple[str, str]:
+        del executable, lib, version
+        return ("", "")
+
+    monkeypatch.setattr(platform, "libc_ver", unidentifiable)
+    # Through the public surface rather than the reading, so this asserts the
+    # decision a caller actually gets.
+    verdict = release.verify(_manifest(), POLICY, known_sequence=6, platform="linux/x86_64")
+    assert "platform_unsupported" not in _codes(verdict)
 
 
 # The pinned policy this build ships.
