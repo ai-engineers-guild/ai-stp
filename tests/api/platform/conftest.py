@@ -23,7 +23,13 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from ai_stp_api.app import create_app
-from ai_stp_api.settings import AuthSettings, CatalogSettings, ServiceSettings, Settings
+from ai_stp_api.settings import (
+    AuthSettings,
+    CatalogSettings,
+    ContentSettings,
+    ServiceSettings,
+    Settings,
+)
 from ai_stp_platform.settings import DatabaseSettings, StorageSettings
 
 pytestmark = pytest.mark.platform
@@ -68,6 +74,7 @@ def make_settings(
     database_url: str | None = None,
     auth: AuthSettings | None = None,
     catalog: CatalogSettings | None = None,
+    content: ContentSettings | None = None,
 ) -> Settings:
     """Compose Settings for ASGI tests."""
     url = database_url or f"postgresql+asyncpg://u:p@{_UNREACHABLE}/db"
@@ -91,6 +98,7 @@ def make_settings(
         auth=auth or make_test_auth(),
         catalog=catalog
         or CatalogSettings(cursor_signing_secret=TEST_CURSOR_SECRET, usage_enabled=False),
+        content=content or ContentSettings(),
     )
 
 

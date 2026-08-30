@@ -1,0 +1,25 @@
+{
+  "$defs": {
+    "ContentLocale": {
+      "enum": [
+        "ru",
+        "en"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:content-locale-query",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Locale selector for public content reads. No automatic fallback.",
+  "properties": {
+    "locale": {
+      "$ref": "#/$defs/ContentLocale"
+    }
+  },
+  "required": [
+    "locale"
+  ],
+  "title": "ContentLocaleQuery",
+  "type": "object"
+}

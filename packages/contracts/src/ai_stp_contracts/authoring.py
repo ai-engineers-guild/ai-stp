@@ -31,23 +31,44 @@ AUTHORING_LANGUAGES: Final[tuple[AuthoringLanguage, ...]] = (
 #: harness variant is unsupported" for two supported harnesses.
 AUTHORING_VARIANTS: Final[tuple[AuthoringVariant, ...]] = ("portable", *HARNESS_ID_ORDER)
 DECLARATIVE_COMPONENT_TYPES: Final[frozenset[ComponentType]] = frozenset(
-    {"instruction", "skill", "agent", "setting"}
+    {"instruction", "skill", "command", "agent", "setting"}
 )
 AUTHORING_TYPE_LANGUAGE_MATRIX: Final[dict[ComponentType, tuple[AuthoringLanguage, ...]]] = {
-    component_type: (
-        ("none",) if component_type in DECLARATIVE_COMPONENT_TYPES else AUTHORING_LANGUAGES[1:]
-    )
-    for component_type in (
-        "instruction",
-        "skill",
-        "mcp",
-        "hook",
-        "command",
-        "agent",
-        "plugin",
-        "setting",
-    )
+    "instruction": ("none",),
+    "skill": ("none",),
+    "mcp": AUTHORING_LANGUAGES[1:],
+    # A hook handler must be directly runnable after installation. Rust and Go
+    # source need a build step, which the scaffold and provider are forbidden
+    # to invent or execute.
+    "hook": ("python", "typescript", "javascript", "dart-flutter"),
+    "command": ("none",),
+    "agent": ("none",),
+    "plugin": AUTHORING_LANGUAGES[1:],
+    "setting": ("none",),
 }
+
+type ComponentTemplateVersion = Literal["component-scaffold/1", "component-scaffold/2"]
+type ComponentGeneratorVersion = Literal["ai-stp/1", "ai-stp/2"]
+
+
+class PortableHookHandler(BaseModel):
+    """One command handler in the portable hook source model."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    command: Annotated[str, Field(min_length=1, max_length=512)]
+
+
+class PortableHookSource(BaseModel):
+    """Lossless hook intent projected into one harness-native manifest."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    schema_version: Literal[1] = 1
+    event: Annotated[str, Field(pattern=r"^[A-Za-z][A-Za-z0-9_.:-]{0,127}$")]
+    order: Annotated[int, Field(ge=0, le=65535)] = 0
+    failure: Literal["block"] = "block"
+    handler: PortableHookHandler
 
 
 class ComponentTemplateDescriptor(BaseModel):
@@ -56,8 +77,8 @@ class ComponentTemplateDescriptor(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
     schema_version: Literal[1] = 1
-    template_version: Literal["component-scaffold/1"] = "component-scaffold/1"
-    generator_version: Literal["ai-stp/1"] = "ai-stp/1"
+    template_version: ComponentTemplateVersion = "component-scaffold/2"
+    generator_version: ComponentGeneratorVersion = "ai-stp/2"
     component_type: ComponentType
     language: AuthoringLanguage
     harness_variant: AuthoringVariant
@@ -128,5 +149,5 @@ class ComponentScaffoldResult(BaseModel):
     plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
     output: Annotated[str, Field(min_length=1)]
     files_written: Annotated[int, Field(ge=6)]
-    template_version: Literal["component-scaffold/1"] = "component-scaffold/1"
-    generator_version: Literal["ai-stp/1"] = "ai-stp/1"
+    template_version: ComponentTemplateVersion = "component-scaffold/2"
+    generator_version: ComponentGeneratorVersion = "ai-stp/2"

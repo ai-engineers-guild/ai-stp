@@ -1,6 +1,6 @@
 ---
 description: "Версионируемые scaffold-планы и безопасная проекция authoring templates компонентов."
-last_verified: "2026-08-13"
+last_verified: "2026-08-29"
 ---
 
 # Authoring templates компонентов
@@ -24,17 +24,28 @@ plan digest.
 неполный результат при отказе. Существующий target — даже пустой — symlink и
 отсутствующий parent отклоняются; скрытой перезаписи или merge нет.
 
-Декларативные `instruction`, `skill`, `agent`, `setting` используют
-`--language none`. Исполняемые `mcp`, `hook`, `command`, `plugin` выбирают
-`python`, `typescript`, `javascript`, `rust`, `go` или `dart-flutter`. Вариант —
-`portable`, `claude-code`, `codex`, `pi`, `opencode` или `grok-build`.
+Декларативные `instruction`, `skill`, `command`, `agent`, `setting` используют
+`--language none`. Исполняемые `mcp` и `plugin` выбирают `python`, `typescript`,
+`javascript`, `rust`, `go` или `dart-flutter`; `hook` не принимает Rust и Go,
+потому что provider не выполняет скрытую сборку source. Вариант — `portable`
+или один из харнессов закрытого реестра. Если у выбранного харнесса нет
+самостоятельной нативной формы вида, plan закрывается отказом до записи.
 
-Каталог содержит `component-passport.json`, `eval-profile.json`, descriptor,
+Каталог версии `component-scaffold/2` содержит `component-passport.json`, `eval-profile.json`, descriptor,
 переносимый файл authoring-template.md, README, safety declaration, publication checklist,
-исходник и тест. Паспорт —
+а также готовую нативную раскладку в `native/`. Паспорт —
 локальный patch: в нём нет придуманного source, секретов или разрешения
 распространения. Автор продолжает путь через `component passport validate`,
 локальную регистрацию и команды публикационного плана.
+
+Для hook канонический `hook-source.json` хранит событие, порядок, блокирующую
+failure policy и команду handler; строгая схема запрещает лишние поля. Из него
+детерминированно создаются `native/hooks.json` и соседний исполняемый handler.
+Manifest-directory plugins получают product manifest. OpenCode и Pi получают
+одиночный JS/TS module без придуманного manifest. Marketplace registration не
+является plugin package: это отдельный `setting`, владеющий целым нативным
+settings-файлом. Codex agent как standalone component не существует и
+отклоняется вместо преобразования в другой вид.
 
 ## Путь автора
 

@@ -12,6 +12,7 @@ describe("AvatarImage", () => {
     const image = container.querySelector("img");
     expect(image).not.toBeNull();
     if (!image) throw new Error("expected avatar image");
+    expect(image).toHaveAttribute("sizes", "36px");
     fireEvent.error(image);
 
     expect(container.querySelector("img")).not.toBeInTheDocument();

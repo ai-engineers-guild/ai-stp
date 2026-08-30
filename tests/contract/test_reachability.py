@@ -97,6 +97,9 @@ EXEMPT: dict[str, str] = {
     "metrics.reset_metrics": (
         "in-process counter reset tests use so one case cannot leak into the next"
     ),
+    "metrics.reset_seo_metrics": (
+        "in-process SEO counter reset tests use so one case cannot leak into the next"
+    ),
     "sandbox.reset_sandbox_cache": (
         "sandbox mode cache reset tests use so one case cannot leak into the next"
     ),

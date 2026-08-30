@@ -351,6 +351,116 @@ a {
   border-color: hsl(var(--primary));
 }
 
+.landing-hero__media {
+  position: absolute;
+  inset: -4% 0;
+  z-index: 0;
+  overflow: hidden;
+  transform: rotate(-6deg) translateX(5%) scale(1.09);
+  filter: blur(0.4px) saturate(0.88) brightness(0.78);
+}
+
+.landing-hero__video {
+  display: block;
+  object-position: center top;
+}
+
+.landing-hero__media img {
+  object-position: center top;
+}
+
+.landing-hero__veil {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      90deg,
+      hsl(var(--background) / 0.3),
+      hsl(var(--background) / 0.1) 58%,
+      hsl(var(--background) / 0.45)
+    ),
+    radial-gradient(ellipse at center, transparent 42%, hsl(var(--background) / 0.32) 100%);
+}
+
+/* Decorative Claude-like activity stream for the public landing surface. */
+.agent-activity-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  mask-image: linear-gradient(to bottom, transparent, black 12%, black 84%, transparent);
+  opacity: 0.42;
+}
+
+.agent-activity-backdrop__line {
+  position: absolute;
+  left: var(--agent-x);
+  top: var(--agent-y);
+  display: grid;
+  width: max-content;
+  color: hsl(var(--muted-foreground) / 0.42);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  white-space: nowrap;
+  animation: agent-activity-drift var(--agent-duration) ease-in-out infinite;
+  animation-delay: var(--agent-delay);
+}
+
+.agent-activity-backdrop__phrase {
+  grid-area: 1 / 1;
+  opacity: 0;
+  animation: agent-activity-phrase var(--agent-duration) ease-in-out infinite;
+}
+
+.agent-activity-backdrop__marker {
+  color: hsl(var(--primary) / 0.72);
+}
+
+@keyframes agent-activity-drift {
+  0%,
+  100% {
+    transform: translate3d(-1.5rem, 0.35rem, 0);
+  }
+  50% {
+    transform: translate3d(1.5rem, -0.35rem, 0);
+  }
+}
+
+@keyframes agent-activity-phrase {
+  0%,
+  16% {
+    opacity: 0;
+    clip-path: inset(0 100% 0 0);
+    transform: translateY(0.3rem);
+  }
+  26%,
+  54% {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+    transform: translateY(0);
+  }
+  64%,
+  100% {
+    opacity: 0;
+    clip-path: inset(0 0 0 100%);
+    transform: translateY(-0.3rem);
+  }
+}
+
+@media (max-width: 639px) {
+  .agent-activity-backdrop__line {
+    font-size: 0.625rem;
+  }
+
+  .agent-activity-backdrop__line:nth-child(n + 13) {
+    display: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html:focus-within {
     scroll-behavior: auto !important;
@@ -362,6 +472,18 @@ a {
     animation-play-state: paused !important;
     transition-property: color, background-color, border-color, box-shadow, opacity !important;
     transition-duration: 80ms !important;
+  }
+
+  .agent-activity-backdrop__line,
+  .agent-activity-backdrop__phrase {
+    animation: none;
+  }
+
+  .agent-activity-backdrop__phrase:first-child {
+    position: static;
+    opacity: 1;
+    clip-path: none;
+    transform: none;
   }
 }
 

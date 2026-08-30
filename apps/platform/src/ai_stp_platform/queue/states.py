@@ -35,6 +35,8 @@ class JobType(StrEnum):
     REPOSITORY_METRICS = "repository_metrics"
     GITHUB_ARCHIVE = "github_archive"
     CATALOG_ENRICHMENT = "catalog_enrichment"
+    SEO_BUILD = "seo_build"
+    SEO_ENRICH = "seo_enrich"
 
 
 class Visibility(StrEnum):

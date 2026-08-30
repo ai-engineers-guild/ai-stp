@@ -375,6 +375,8 @@ def _product_summary(product: ExternalProduct, countries: list[str]) -> External
         name=product.name,
         canonical_domain=product.canonical_domain,
         primary_url=product.primary_url,
+        description=product.description,
+        source_url=product.source_url,
         country_codes=sorted(countries),
     )
 

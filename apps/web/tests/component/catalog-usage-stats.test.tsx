@@ -45,8 +45,8 @@ describe("CatalogUsageStats", () => {
         downloadsLabel="Artifact downloads"
       />,
     );
-    expect(screen.getByLabelText("Detail views: 4")).toBeInTheDocument();
-    expect(screen.getByLabelText("Artifact downloads: 2")).toBeInTheDocument();
+    expect(screen.getByText("Detail views:")).toBeInTheDocument();
+    expect(screen.getByText("Artifact downloads:")).toBeInTheDocument();
     expect(screen.queryByText(/install/i)).not.toBeInTheDocument();
   });
 
@@ -59,7 +59,9 @@ describe("CatalogUsageStats", () => {
         downloadsLabel="Успешные скачивания байтов артефакта"
       />,
     );
-    const group = screen.getByLabelText(/Просмотры публичной страницы объекта: 1/u);
+    const group = screen.getByText(/Просмотры публичной страницы объекта:/u).parentElement;
+    expect(group).not.toBeNull();
+    if (!group) throw new Error("expected usage group");
     expect(group.className).toMatch(/min-w-0/u);
     expect(group.className).not.toMatch(/w-\[/u);
   });

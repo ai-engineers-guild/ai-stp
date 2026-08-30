@@ -1,0 +1,63 @@
+{
+  "$defs": {
+    "ContentBody": {
+      "maxLength": 200000,
+      "minLength": 1,
+      "type": "string"
+    },
+    "ContentDate": {
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "type": "string"
+    },
+    "ContentDescription": {
+      "maxLength": 320,
+      "minLength": 1,
+      "type": "string"
+    },
+    "ContentTag": {
+      "maxLength": 40,
+      "minLength": 1,
+      "type": "string"
+    },
+    "ContentTitle": {
+      "maxLength": 160,
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:staff-content-translation",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One locale of a staff publication payload.",
+  "properties": {
+    "body": {
+      "$ref": "#/$defs/ContentBody"
+    },
+    "description": {
+      "$ref": "#/$defs/ContentDescription"
+    },
+    "published_at": {
+      "$ref": "#/$defs/ContentDate"
+    },
+    "tags": {
+      "items": {
+        "$ref": "#/$defs/ContentTag"
+      },
+      "maxItems": 12,
+      "title": "Tags",
+      "type": "array"
+    },
+    "title": {
+      "$ref": "#/$defs/ContentTitle"
+    }
+  },
+  "required": [
+    "title",
+    "description",
+    "published_at",
+    "tags",
+    "body"
+  ],
+  "title": "StaffContentTranslation",
+  "type": "object"
+}

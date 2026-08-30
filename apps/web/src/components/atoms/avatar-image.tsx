@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState, type ReactNode } from "react";
 
 type AvatarImageProps = {
@@ -19,12 +20,15 @@ export function AvatarImage({ src, className, fallback, width, height }: AvatarI
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
 
   if (!src || failedSrc === src) return fallback;
+  const renderedWidth = width ?? 36;
+  const renderedHeight = height ?? renderedWidth;
   return (
-    <img
+    <Image
       src={src}
       alt=""
-      width={width}
-      height={height}
+      width={renderedWidth}
+      height={renderedHeight}
+      sizes={`${renderedWidth}px`}
       className={className}
       onError={() => {
         setFailedSrc(src);

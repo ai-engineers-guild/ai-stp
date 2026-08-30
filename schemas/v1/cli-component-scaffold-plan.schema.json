@@ -1,5 +1,12 @@
 {
   "$defs": {
+    "ComponentGeneratorVersion": {
+      "enum": [
+        "ai-stp/1",
+        "ai-stp/2"
+      ],
+      "type": "string"
+    },
     "ComponentScaffoldFile": {
       "additionalProperties": false,
       "description": "One exact regular file produced by a scaffold plan.",
@@ -47,10 +54,8 @@
           "type": "boolean"
         },
         "generator_version": {
-          "const": "ai-stp/1",
-          "default": "ai-stp/1",
-          "title": "Generator Version",
-          "type": "string"
+          "$ref": "#/$defs/ComponentGeneratorVersion",
+          "default": "ai-stp/2"
         },
         "harness_variant": {
           "anyOf": [
@@ -84,10 +89,8 @@
           "type": "integer"
         },
         "template_version": {
-          "const": "component-scaffold/1",
-          "default": "component-scaffold/1",
-          "title": "Template Version",
-          "type": "string"
+          "$ref": "#/$defs/ComponentTemplateVersion",
+          "default": "component-scaffold/2"
         }
       },
       "required": [
@@ -98,6 +101,13 @@
       ],
       "title": "ComponentTemplateDescriptor",
       "type": "object"
+    },
+    "ComponentTemplateVersion": {
+      "enum": [
+        "component-scaffold/1",
+        "component-scaffold/2"
+      ],
+      "type": "string"
     },
     "ComponentType": {
       "enum": [

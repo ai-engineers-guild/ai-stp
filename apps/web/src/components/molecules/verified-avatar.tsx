@@ -49,14 +49,15 @@ export function VerifiedAvatar({
       </span>
       {verified ? (
         <span
+          role="img"
+          aria-label={verifiedLabel}
           className={cn(
             "border-background bg-primary text-primary-foreground absolute bottom-0 left-0 grid -translate-x-1/4 translate-y-1/4 place-items-center rounded-full border-2",
             styles.marker,
           )}
           title={verifiedLabel}
-          aria-label={verifiedLabel}
         >
-          <Icon name="verified" className={styles.icon} strokeWidth={2} />
+          <Icon name="verified" className={styles.icon} strokeWidth={2} aria-hidden="true" />
         </span>
       ) : null}
     </span>

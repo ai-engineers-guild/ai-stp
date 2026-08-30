@@ -10,8 +10,10 @@ from sqlalchemy import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from ai_stp_platform import models as _platform_models  # noqa: F401  register Sprint-1 metadata
+from ai_stp_platform.content import orm as _content_orm  # noqa: F401  register article metadata
 from ai_stp_platform.db import Base
 from ai_stp_platform.queue import models as _models  # noqa: F401  register Job metadata
+from ai_stp_platform.seo import orm as _seo_orm  # noqa: F401  register SEO metadata
 
 target_metadata = Base.metadata
 

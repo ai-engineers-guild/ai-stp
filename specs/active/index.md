@@ -11,7 +11,7 @@ last_verified: "2026-08-03"
 | -------- | ----- | ------- |
 | [SPEC-001-product-contract.md](SPEC-001-product-contract.md) | SPEC-001: Продуктовый контракт MVP. | 2026-08-24 |
 | [SPEC-002-identity-devices-access.md](SPEC-002-identity-devices-access.md) | SPEC-002: Аккаунты, OAuth, устройства и доступ. | 2026-08-13 |
-| [SPEC-003-developer-passport.md](SPEC-003-developer-passport.md) | SPEC-003: Паспорт разработчика и публичная проекция. | 2026-08-04 |
+| [SPEC-003-developer-passport.md](SPEC-003-developer-passport.md) | SPEC-003: Паспорт разработчика и публичная проекция. | 2026-08-29 |
 | [SPEC-004-project-index-passport.md](SPEC-004-project-index-passport.md) | SPEC-004: Индекс и паспорт проекта. | 2026-08-03 |
 | [SPEC-005-registry-versioning.md](SPEC-005-registry-versioning.md) | SPEC-005: Реестр, варианты и версии объектов. | 2026-08-24 |
 | [SPEC-006-search-and-setup-compiler.md](SPEC-006-search-and-setup-compiler.md) | SPEC-006: Поиск, отбор кандидатов и сборщик сетапа. | 2026-08-26 |
@@ -19,14 +19,14 @@ last_verified: "2026-08-03"
 | [SPEC-008-provider-installation.md](SPEC-008-provider-installation.md) | SPEC-008: Провайдеры, установка и восстановление. | 2026-08-27 |
 | [SPEC-009-local-registry-sync.md](SPEC-009-local-registry-sync.md) | SPEC-009: Локальный реестр и синхронизация. | 2026-08-04 |
 | [SPEC-010-platform-api.md](SPEC-010-platform-api.md) | SPEC-010: Серверная платформа и API. | 2026-08-28 |
-| [SPEC-011-cli-agent-skill.md](SPEC-011-cli-agent-skill.md) | SPEC-011: CLI, машинная справка и навык агента. | 2026-08-24 |
+| [SPEC-011-cli-agent-skill.md](SPEC-011-cli-agent-skill.md) | SPEC-011: CLI, машинная справка и навык агента. | 2026-08-29 |
 | [SPEC-012-uninstall-recovery.md](SPEC-012-uninstall-recovery.md) | SPEC-012: Удаление, полная очистка и восстановление. | 2026-08-03 |
 | [SPEC-013-data-governance.md](SPEC-013-data-governance.md) | SPEC-013: Управление пользовательскими данными. | 2026-08-16 |
 | [SPEC-014-toolchain-bootstrap.md](SPEC-014-toolchain-bootstrap.md) | SPEC-014: Управляемый набор инструментов и первичная настройка. | 2026-08-04 |
 | [SPEC-015-canonical-contracts.md](SPEC-015-canonical-contracts.md) | SPEC-015: Канонические данные, идентификаторы и хэши. | 2026-08-03 |
 | [SPEC-016-reports-moderation.md](SPEC-016-reports-moderation.md) | SPEC-016: Жалобы на объекты и модерация. | 2026-08-04 |
 | [SPEC-017-runtime-shell-observability.md](SPEC-017-runtime-shell-observability.md) | SPEC-017: Каркас серверного приложения и наблюдаемость. | 2026-08-05 |
-| [SPEC-018-worker-job-queue.md](SPEC-018-worker-job-queue.md) | SPEC-018: Фоновый worker и очередь заданий на PostgreSQL. | 2026-08-08 |
+| [SPEC-018-worker-job-queue.md](SPEC-018-worker-job-queue.md) | SPEC-018: Фоновый worker и очередь заданий на PostgreSQL. | 2026-08-29 |
 | [SPEC-019-runtime-deployment-operability.md](SPEC-019-runtime-deployment-operability.md) | SPEC-019: Развёртывание среды выполнения и эксплуатация. | 2026-08-10 |
 | [SPEC-020-persistence-migrations-object-store.md](SPEC-020-persistence-migrations-object-store.md) | SPEC-020: Серверное хранилище, миграции PostgreSQL и неизменяемое объектное хранилище. | 2026-08-25 |
 | [SPEC-021-anonymous-catalog-read-and-seed.md](SPEC-021-anonymous-catalog-read-and-seed.md) | SPEC-021: Анонимное чтение публичного каталога и первичный посев объектов. | 2026-08-25 |
@@ -49,17 +49,19 @@ last_verified: "2026-08-03"
 | [SPEC-038-cli-publication-access-reports.md](SPEC-038-cli-publication-access-reports.md) | SPEC-038: CLI-клиент публикации, прав доступа и жалоб. | 2026-08-13 |
 | [SPEC-039-cli-private-sync.md](SPEC-039-cli-private-sync.md) | SPEC-039: CLI-синхронизация приватного реестра между устройствами. | 2026-08-13 |
 | [SPEC-040-setup-evaluation-profiles.md](SPEC-040-setup-evaluation-profiles.md) | SPEC-040: Локальные профили функциональной оценки точного сетапа. | 2026-08-13 |
-| [SPEC-041-component-scaffold-framework.md](SPEC-041-component-scaffold-framework.md) | SPEC-041: Версионируемые scaffold-планы полного authoring-каталога компонента. | 2026-08-13 |
+| [SPEC-041-component-scaffold-framework.md](SPEC-041-component-scaffold-framework.md) | SPEC-041: Версионируемые scaffold-планы полного authoring-каталога компонента. | 2026-08-29 |
 | [SPEC-042-local-setup-store-ports.md](SPEC-042-local-setup-store-ports.md) | SPEC-042: Локальные versioned ports для контролируемого импорта SX и APM. | 2026-08-13 |
 | [SPEC-043-selection-impact-reports.md](SPEC-043-selection-impact-reports.md) | SPEC-043: Локальные отчёты бюджета контекста, capability delta и blast radius. | 2026-08-15 |
 | [SPEC-044-github-archive-evidence.md](SPEC-044-github-archive-evidence.md) | SPEC-044: GitHub archived state как локальное evidence устаревания. | 2026-08-13 |
 | [SPEC-045-federated-source-boundaries.md](SPEC-045-federated-source-boundaries.md) | SPEC-045: Федеративные source descriptors и границы внешних наблюдений. | 2026-08-16 |
-| [SPEC-046-web-feature-registry-and-content-hub.md](SPEC-046-web-feature-registry-and-content-hub.md) | SPEC-046: Типизированные deploy-профили web и отключаемый git-native content hub. | 2026-08-12 |
+| [SPEC-046-web-feature-registry-and-content-hub.md](SPEC-046-web-feature-registry-and-content-hub.md) | SPEC-046: Типизированные deploy-профили web и отключаемый content hub. | 2026-08-29 |
 | [SPEC-047-web-backend-consumer-surfaces.md](SPEC-047-web-backend-consumer-surfaces.md) | SPEC-047: Web/backend consumer surfaces for canonical CLI contracts and catalog delivery. | 2026-08-15 |
 | [SPEC-048-web-rsc-cache-and-fetch-boundaries.md](SPEC-048-web-rsc-cache-and-fetch-boundaries.md) | SPEC-048: Быстрый RSC-каталог, явные public/private fetch boundaries и управляемый prefetch. | 2026-08-15 |
 | [SPEC-049-on-demand-github-and-web-context-budget.md](SPEC-049-on-demand-github-and-web-context-budget.md) | SPEC-049: On-demand GitHub metadata, CLI-only blast radius и честный context budget в Web. | 2026-08-16 |
 | [SPEC-050-external-catalog-enrichment.md](SPEC-050-external-catalog-enrichment.md) | SPEC-050: Безопасное обогащение каталога наблюдаемыми метаданными внешних каталогов. | 2026-08-16 |
 | [SPEC-051-public-catalog-usage-counters.md](SPEC-051-public-catalog-usage-counters.md) | SPEC-051: Приватные события и публичные счётчики просмотров и загрузок каталога. | 2026-08-16 |
 | [SPEC-052-complaint-intake.md](SPEC-052-complaint-intake.md) | SPEC-052: Публичный приём обращений о авторе, объекте каталога или произвольной цели. | 2026-08-22 |
+| [SPEC-053-server-seo-publication-projections.md](SPEC-053-server-seo-publication-projections.md) | SPEC-053: Серверные SEO-ревизии для компонентов, сетапов, статей, сервисов и стран. | 2026-08-29 |
+| [SPEC-054-hybrid-article-publication.md](SPEC-054-hybrid-article-publication.md) | SPEC-054: Единая серверная публикация repository- и staff-authored статей. | 2026-08-29 |
 
 <!-- КОНЕЦ СОДЕРЖИМОГО -->

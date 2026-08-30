@@ -1,0 +1,116 @@
+{
+  "$defs": {
+    "ContentBody": {
+      "maxLength": 200000,
+      "minLength": 1,
+      "type": "string"
+    },
+    "ContentDate": {
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "type": "string"
+    },
+    "ContentDescription": {
+      "maxLength": 320,
+      "minLength": 1,
+      "type": "string"
+    },
+    "ContentTag": {
+      "maxLength": 40,
+      "minLength": 1,
+      "type": "string"
+    },
+    "ContentTitle": {
+      "maxLength": 160,
+      "minLength": 1,
+      "type": "string"
+    },
+    "DigestValue": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "StaffContentTranslation": {
+      "additionalProperties": false,
+      "description": "One locale of a staff publication payload.",
+      "properties": {
+        "body": {
+          "$ref": "#/$defs/ContentBody"
+        },
+        "description": {
+          "$ref": "#/$defs/ContentDescription"
+        },
+        "published_at": {
+          "$ref": "#/$defs/ContentDate"
+        },
+        "tags": {
+          "items": {
+            "$ref": "#/$defs/ContentTag"
+          },
+          "maxItems": 12,
+          "title": "Tags",
+          "type": "array"
+        },
+        "title": {
+          "$ref": "#/$defs/ContentTitle"
+        }
+      },
+      "required": [
+        "title",
+        "description",
+        "published_at",
+        "tags",
+        "body"
+      ],
+      "title": "StaffContentTranslation",
+      "type": "object"
+    },
+    "StaffContentTranslations": {
+      "additionalProperties": false,
+      "description": "Exact RU/EN pair. Any other locale set is unrepresentable.",
+      "properties": {
+        "en": {
+          "$ref": "#/$defs/StaffContentTranslation"
+        },
+        "ru": {
+          "$ref": "#/$defs/StaffContentTranslation"
+        }
+      },
+      "required": [
+        "ru",
+        "en"
+      ],
+      "title": "StaffContentTranslations",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:staff-content-publish-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Atomic staff publication of one article identity.",
+  "properties": {
+    "expected_active_digest": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DigestValue"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "translations": {
+      "$ref": "#/$defs/StaffContentTranslations"
+    }
+  },
+  "required": [
+    "expected_active_digest",
+    "translations"
+  ],
+  "title": "StaffContentPublishRequest",
+  "type": "object"
+}

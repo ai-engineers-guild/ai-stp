@@ -132,6 +132,8 @@ class ExternalProductSummary(BaseModel):
     name: Annotated[str, Field(min_length=1, max_length=160)]
     canonical_domain: Annotated[str, Field(min_length=3, max_length=253)]
     primary_url: Annotated[str, Field(pattern=r"^https://", max_length=512)]
+    description: Annotated[str, Field(min_length=1, max_length=320)] | None = None
+    source_url: Annotated[str, Field(pattern=r"^https://", max_length=512)] | None = None
     country_codes: Annotated[list[CountryCode], Field(max_length=249)] = Field(default_factory=list)
 
 

@@ -9,7 +9,6 @@ import {
   isImpossibleCountryPath,
 } from "@/lib/projection/missing-route";
 import { COMPILED_FEATURES } from "@/lib/features/compiled";
-import { COMPILED_CONTENT_PATHS } from "@/lib/content/compiled-paths";
 
 const intlMiddleware = createMiddleware(routing);
 
@@ -23,14 +22,11 @@ const intlMiddleware = createMiddleware(routing);
 export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const contentMatch = pathname.match(/^\/(?:ru|en)\/(?:ai\/)?content(?:\/|$)/);
-  const humanDetail = pathname.match(/^\/(?:ru|en)\/content\/[^/]+\/[^/]+\/?$/);
-  const unknownContentDetail =
-    humanDetail && !COMPILED_CONTENT_PATHS.has(pathname.replace(/\/$/, ""));
   const disabledSaasPage =
     !COMPILED_FEATURES.saas_public_pages &&
     /^\/(?:ru|en)\/(?:ai\/)?(?:contact|legal(?:\/|$))/.test(pathname);
   if (
-    (contentMatch && (!COMPILED_FEATURES.content_hub || unknownContentDetail)) ||
+    (contentMatch && !COMPILED_FEATURES.content_hub) ||
     disabledSaasPage ||
     isImpossibleCatalogObjectPath(pathname) ||
     isImpossibleCountryPath(pathname)

@@ -45,6 +45,46 @@ def test_dev_compose_worker_uses_worker_safety_and_osv_volume() -> None:
     )
 
 
+def test_compose_imports_repository_snapshot_before_web() -> None:
+    for name in ("docker-compose.prod.yml", "docker-compose.dev.yml"):
+        text = _read(name)
+        assert "content-import:" in text
+        assert "ai_stp_platform.content.importer" in text
+        assert "target: content-import" in text
+        assert "AI_STP_GIT_COMMIT: ${AI_STP_API_GIT_COMMIT:-" in text
+        web_block = text.split("\n  web:\n", 1)[1]
+        assert "content-import:" in web_block
+        assert "service_completed_successfully" in web_block
+
+
+def test_content_import_image_bakes_snapshot_then_drops_hub() -> None:
+    dockerfile = _read("Dockerfile")
+    ignore = _read(".dockerignore")
+    snapshot, remainder = dockerfile.split("FROM base AS content-snapshot", 1)
+    runtime = remainder.split("FROM base AS content-import", 1)[1]
+    assert "COPY apps/web/content/hub /hub" in remainder
+    assert "COPY apps/web/content/hub" not in snapshot
+    assert "rm -rf /hub" in remainder
+    assert "COPY --from=content-snapshot /tmp/content-snapshot.json" in runtime
+    assert "test -s /app/content-snapshot.json" in runtime
+    assert "COPY apps/web/content/hub" not in runtime
+    assert "ARG AI_STP_GIT_COMMIT=" in remainder
+    assert "ai_stp_platform.content.snapshot_cli" in remainder
+    web_ignore = ignore.split("apps/web\n", 1)[1]
+    assert "!apps/web/content/hub/**/*.md" in web_ignore
+    assert ignore.find("apps/web\n") < ignore.find("!apps/web/content/hub/**/*.md")
+
+
+def test_deploy_scripts_always_rerun_content_import() -> None:
+    for name in ("deploy/deploy.sh", "deploy/rollback.sh", "deploy/restore.sh"):
+        text = _read(name)
+        assert "compose rm -fs content-import" in text
+        assert "compose up -d api worker content-import web caddy" in text
+        assert text.find("compose rm -fs content-import") < text.find(
+            "compose up -d api worker content-import web caddy"
+        )
+
+
 def test_prod_compose_worker_safety_and_rustfs_health() -> None:
     text = _read("docker-compose.prod.yml")
     assert "Dockerfile.worker-safety" in text
@@ -99,6 +139,40 @@ def test_install_scanners_requires_govulncheck_and_skill_engines() -> None:
     assert "required tool missing after install" in script
 
 
+def test_seo_enrichment_overlay_routes_alias_through_litellm_not_worker() -> None:
+    overlay = _read("docker-compose.seo-enrichment.yml")
+    config = _read("deploy/litellm/seo-writer.yaml")
+    cliproxy_config = _read("deploy/cliproxy/config.example.yaml")
+    default_dev = _read("docker-compose.dev.yml")
+    default_prod = _read("docker-compose.prod.yml")
+    overlay_exec = _executable("docker-compose.seo-enrichment.yml")
+    assert "seo_enrichment" in overlay
+    assert "litellm:" in overlay
+    assert "cliproxy:" in overlay
+    assert "eceasy/cli-proxy-api:" in overlay
+    assert "CLIPROXY_API_BASE" in overlay
+    assert "CLIPROXY_API_KEY" in overlay
+    assert "http://cliproxy:8317/v1" in overlay
+    assert "host.docker.internal" not in overlay
+    assert "extra_hosts" not in overlay
+    assert "8317:8317" not in overlay_exec
+    assert "127.0.0.1:51121:51121" in overlay
+    assert "AI_STP_SEO_ENRICHMENT_ENABLED: ${AI_STP_SEO_ENRICHMENT_ENABLED:-true}" in overlay
+    worker_env = overlay.split("\n  worker:\n", 1)[1]
+    assert "CLIPROXY_API_KEY" not in worker_env
+    assert "AI_STP_CLIPROXY_API_KEY" not in worker_env
+    assert "model_name: seo-writer" in config
+    assert "os.environ/CLIPROXY_API_BASE" in config
+    assert "os.environ/CLIPROXY_API_KEY" in config
+    assert 'alias: "seo-writer"' in cliproxy_config
+    assert "litellm:" not in default_dev
+    assert "litellm:" not in default_prod
+    assert "cliproxy:" not in default_dev
+    assert "cliproxy:" not in default_prod
+    assert "main-latest" not in overlay
+    assert ":latest" not in overlay_exec
+
+
 def test_no_compose_file_resolves_an_image_by_a_moving_tag() -> None:
     """Every third-party image is pinned, and `:latest` is the one that moved.
 
@@ -111,7 +185,11 @@ def test_no_compose_file_resolves_an_image_by_a_moving_tag() -> None:
     Asserted across both files: development that resolves a different build
     cannot reproduce what production hit.
     """
-    for name in ("docker-compose.prod.yml", "docker-compose.dev.yml"):
+    for name in (
+        "docker-compose.prod.yml",
+        "docker-compose.dev.yml",
+        "docker-compose.seo-enrichment.yml",
+    ):
         for line in _executable(name).splitlines():
             stripped = line.strip()
             if not stripped.startswith("image:"):

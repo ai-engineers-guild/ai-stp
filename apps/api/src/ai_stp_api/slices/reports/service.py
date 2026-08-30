@@ -290,6 +290,20 @@ async def staff_lifecycle(
             "lifecycle_state": row.lifecycle_state,
         },
     )
+    from ai_stp_platform.seo.enqueue import enqueue_seo_build, mutation_digest
+
+    await enqueue_seo_build(
+        db,
+        kind=body.object_kind,  # type: ignore[arg-type]
+        subject_id=body.stable_id,
+        source_digest=mutation_digest(
+            body.object_kind,
+            body.stable_id,
+            body.version,
+            row.lifecycle_state,
+            row.passport_digest or row.current_revision_id or "",
+        ),
+    )
     await db.flush()
     return StaffActionResponse(schema_version=1, applied=True, action=body.action)
 

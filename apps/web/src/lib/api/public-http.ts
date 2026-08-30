@@ -1,3 +1,5 @@
+import { getEnv } from "@/lib/env";
+
 import {
   assertNoCredentialHeaders,
   assertPublicGetPath,
@@ -83,4 +85,32 @@ export async function publicApiGetLive<T>(
     request.query = options.query;
   }
   return executeJsonRequest<T>(path, request);
+}
+
+/**
+ * Anonymous binary GET for immutable OG images. Same public cache boundary.
+ */
+export async function publicApiGetBytes(
+  path: string,
+  options: PublicGetOptions = {},
+): Promise<ArrayBuffer> {
+  assertPublicGetPath(path);
+  if ("sessionToken" in options) {
+    throw new Error("publicApiGet rejected sessionToken");
+  }
+  const headers = asPlainHeaders(options.headers);
+  assertNoCredentialHeaders(headers);
+  const env = getEnv();
+  const base = env.AI_STP_API_BASE_URL.replace(/\/$/, "");
+  const url = new URL(`${base}${path}`);
+  const response = await fetch(url, {
+    method: "GET",
+    headers: { Accept: "image/png", ...(headers ?? {}) },
+    cache: "force-cache",
+    next: { revalidate: PUBLIC_CATALOG_REVALIDATE_SECONDS },
+  });
+  if (!response.ok) {
+    throw new Error(`public binary GET failed: ${response.status}`);
+  }
+  return response.arrayBuffer();
 }

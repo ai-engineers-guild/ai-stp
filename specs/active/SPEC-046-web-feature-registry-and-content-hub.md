@@ -1,6 +1,6 @@
 ---
-description: "SPEC-046: Типизированные deploy-профили web и отключаемый git-native content hub."
-last_verified: "2026-08-12"
+description: "SPEC-046: Типизированные deploy-профили web и отключаемый content hub."
+last_verified: "2026-08-29"
 ---
 
 # SPEC-046: Web feature registry и content hub
@@ -10,8 +10,9 @@ last_verified: "2026-08-12"
 Web получает один типизированный реестр deploy-поверхностей. Выключенная поверхность
 одновременно исчезает из human и machine маршрутов, навигации, sitemap, discovery и
 клиентских entry points, а неизвестная или неполная конфигурация останавливает сборку.
-Первый потребитель реестра — хранимый в Git раздел материалов со статьями, блогом, историей изменений и
-release notes на русском и английском.
+Первый потребитель реестра — раздел материалов со статьями, блогом, историей
+изменений и release notes на русском и английском; его repository и staff
+authoring sources публикуются через единый platform contract по `SPEC-054`.
 
 ## Границы
 
@@ -32,8 +33,9 @@ admin UI, база или Redis для флагов, runtime-включение 
   в точный веб-артефакт.
 - `Feature consumer` — маршрут, navigation item, discovery entry или другой участок,
   чьё наблюдаемое поведение меняется ключом.
-- `Content hub` — публичная поверхность на основе Git с типами `article`, `blog_post`,
-  `changelog` и `release_notes`.
+- `Content hub` — публичная поверхность с типами `article`, `blog_post`,
+  `changelog` и `release_notes`; authoring и serving принадлежат `SPEC-054`, а
+  feature gating — этой спецификации.
 
 ## Требования
 
@@ -81,6 +83,9 @@ admin UI, база или Redis для флагов, runtime-включение 
   `content_hub` и `saas_public_pages`, а `self_hosted` выключает их. Во втором профиле
   contact и legal отсутствуют в human/machine routes, header, footer, keyboard
   navigation, sitemap и robots.
+- `REQ-4618`: При включённом `content_hub` human, machine и discovery consumers
+  читают единый active article set platform по `SPEC-054`; при выключенном
+  профиле web не запрашивает этот set и сохраняет полный 404/absence contract.
 
 ## Состояния и ошибки
 
@@ -97,9 +102,10 @@ metadata, feeds, logs или client bundles.
 
 ## Совместимость и миграция
 
-Существующие routes и API не меняются. Rollback выбирает profile без `content_hub`
-или возвращает предыдущий точный image; runtime mutation artifact не применяется.
-Удаление key требует одновременного удаления всех consumers и profile values.
+Существующие human/machine URLs сохраняются; API расширяется аддитивно по
+`SPEC-054`. Rollback выбирает profile без `content_hub` или возвращает предыдущий
+точный образ image; изменение runtime собранного feature set не применяется. Удаление key
+требует одновременного удаления всех consumers и profile values.
 
 ## Критерии приёмки
 
@@ -122,3 +128,4 @@ metadata, feeds, logs или client bundles.
 | `REQ-4615` | Две последовательные standalone-сборки с одной сценарной suite. |
 | `REQ-4616` | Locale parity test по content registry. |
 | `REQ-4617` | Две локальные production-сборки и Playwright проверяют SaaS и self-hosted поверхности. |
+| `REQ-4618` | Profile E2E проверяет общий platform fixture в human/machine/discovery при enabled profile и отсутствие fetch/routes/links при disabled profile. |

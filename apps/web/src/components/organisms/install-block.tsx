@@ -23,14 +23,14 @@ export function InstallBlock() {
   return (
     <section
       aria-labelledby="install-heading"
-      className="border-border bg-card text-card-foreground min-w-0 rounded-lg border p-4 shadow-sm"
+      className="border-border/70 bg-card/75 text-card-foreground min-w-0 rounded-lg border p-5 shadow-md backdrop-blur-md sm:p-7"
     >
       <h2 id="install-heading" className="text-xl font-medium tracking-tight">
         {t("installHeading")}
       </h2>
       <p className="text-muted-foreground mt-1 text-sm leading-relaxed">{t("installHint")}</p>
-      <div className="mt-3 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
-        <code className="border-border bg-muted text-foreground block min-w-0 flex-1 overflow-x-auto rounded-sm border p-3 font-mono text-sm break-all whitespace-pre-wrap">
+      <div className="mt-5 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
+        <code className="border-border/70 bg-muted/65 text-foreground block min-w-0 flex-1 overflow-x-auto rounded-sm border p-3 font-mono text-sm break-all whitespace-pre-wrap">
           {INSTALL_COMMAND}
         </code>
         <Button

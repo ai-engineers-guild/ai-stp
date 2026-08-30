@@ -49,6 +49,22 @@ from ai_stp_contracts.catalog import (
 )
 from ai_stp_contracts.complaints import ComplaintCreateRequest, ComplaintCreateResponse
 from ai_stp_contracts.component_passport import ComponentPassportPatch
+from ai_stp_contracts.content import (
+    ContentDetail,
+    ContentListResponse,
+    ContentLocaleQuery,
+    ContentRepositoryImportRequest,
+    ContentRepositoryImportResponse,
+    ContentRepositoryState,
+    ContentSnapshotEntry,
+    ContentSummary,
+    StaffContentPublishRequest,
+    StaffContentPublishResponse,
+    StaffContentTranslation,
+    StaffContentTranslations,
+    StaffContentUnpublishRequest,
+    StaffContentUnpublishResponse,
+)
 from ai_stp_contracts.deep_links import DeepLinkView
 from ai_stp_contracts.evaluation import SetupEvalPlan, SetupEvalProfile, SetupEvalResult
 from ai_stp_contracts.federation import (
@@ -196,6 +212,16 @@ from ai_stp_contracts.reports import (
     StaffLifecycleRequest,
     StaffTriageRequest,
 )
+from ai_stp_contracts.seo import (
+    SeoCatalogPage,
+    SeoCatalogQuery,
+    SeoIndexResponse,
+    SeoPublicProfile,
+    SeoRollbackRequest,
+    SeoRollbackResponse,
+    SeoSitemapShard,
+    SeoSubjectQuery,
+)
 from ai_stp_contracts.store_ports import (
     StorePortDiscovery,
     StorePortImportPlan,
@@ -295,6 +321,28 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
     "owner-start-publication-request": OwnerStartPublicationRequest,
     "account-selection-impact-query": AccountSelectionImpactQuery,
     "account-selection-impact-report": AccountSelectionImpactReport,
+    "seo-public-profile": SeoPublicProfile,
+    "seo-subject-query": SeoSubjectQuery,
+    "seo-index-response": SeoIndexResponse,
+    "seo-sitemap-shard": SeoSitemapShard,
+    "seo-catalog-query": SeoCatalogQuery,
+    "seo-catalog-page": SeoCatalogPage,
+    "seo-rollback-request": SeoRollbackRequest,
+    "content-locale-query": ContentLocaleQuery,
+    "content-summary": ContentSummary,
+    "content-detail": ContentDetail,
+    "content-list": ContentListResponse,
+    "content-repository-state": ContentRepositoryState,
+    "content-snapshot-entry": ContentSnapshotEntry,
+    "content-repository-import-request": ContentRepositoryImportRequest,
+    "content-repository-import-response": ContentRepositoryImportResponse,
+    "staff-content-translation": StaffContentTranslation,
+    "staff-content-translations": StaffContentTranslations,
+    "staff-content-publish-request": StaffContentPublishRequest,
+    "staff-content-publish-response": StaffContentPublishResponse,
+    "staff-content-unpublish-request": StaffContentUnpublishRequest,
+    "staff-content-unpublish-response": StaffContentUnpublishResponse,
+    "seo-rollback-response": SeoRollbackResponse,
 }
 
 #: The agent-to-CLI boundary (issue #72). Published under the same gate and for

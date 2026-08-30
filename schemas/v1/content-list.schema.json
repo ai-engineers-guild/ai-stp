@@ -1,0 +1,151 @@
+{
+  "$defs": {
+    "ContentDate": {
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "type": "string"
+    },
+    "ContentDescription": {
+      "maxLength": 320,
+      "minLength": 1,
+      "type": "string"
+    },
+    "ContentLocale": {
+      "enum": [
+        "ru",
+        "en"
+      ],
+      "type": "string"
+    },
+    "ContentSlug": {
+      "maxLength": 120,
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "type": "string"
+    },
+    "ContentSourceKind": {
+      "enum": [
+        "repository",
+        "staff"
+      ],
+      "type": "string"
+    },
+    "ContentSummary": {
+      "additionalProperties": true,
+      "description": "Public list item for one published localized article.",
+      "properties": {
+        "content_digest": {
+          "$ref": "#/$defs/DigestValue"
+        },
+        "description": {
+          "$ref": "#/$defs/ContentDescription"
+        },
+        "locale": {
+          "$ref": "#/$defs/ContentLocale"
+        },
+        "published_at": {
+          "$ref": "#/$defs/ContentDate"
+        },
+        "revision_id": {
+          "$ref": "#/$defs/RevisionId"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "slug": {
+          "$ref": "#/$defs/ContentSlug"
+        },
+        "source_kind": {
+          "$ref": "#/$defs/ContentSourceKind"
+        },
+        "tags": {
+          "items": {
+            "$ref": "#/$defs/ContentTag"
+          },
+          "maxItems": 12,
+          "title": "Tags",
+          "type": "array"
+        },
+        "title": {
+          "$ref": "#/$defs/ContentTitle"
+        },
+        "type": {
+          "$ref": "#/$defs/ContentType"
+        }
+      },
+      "required": [
+        "content_digest",
+        "description",
+        "locale",
+        "published_at",
+        "revision_id",
+        "schema_version",
+        "slug",
+        "source_kind",
+        "tags",
+        "title",
+        "type"
+      ],
+      "title": "ContentSummary",
+      "type": "object"
+    },
+    "ContentTag": {
+      "maxLength": 40,
+      "minLength": 1,
+      "type": "string"
+    },
+    "ContentTitle": {
+      "maxLength": 160,
+      "minLength": 1,
+      "type": "string"
+    },
+    "ContentType": {
+      "enum": [
+        "article",
+        "blog_post",
+        "changelog",
+        "release_notes"
+      ],
+      "type": "string"
+    },
+    "DigestValue": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "RevisionId": {
+      "pattern": "^revision_[0-9a-f]{64}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:content-list",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Published repository and staff articles for one locale.",
+  "properties": {
+    "etag": {
+      "$ref": "#/$defs/DigestValue"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/$defs/ContentSummary"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "etag",
+    "items",
+    "schema_version"
+  ],
+  "title": "ContentListResponse",
+  "type": "object"
+}

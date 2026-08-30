@@ -780,6 +780,14 @@ async def execute_publish(
             msg = "version already published with different digest"
             raise ValueError(msg)
         plan.state = "published"
+        from ai_stp_platform.seo.enqueue import enqueue_seo_build
+
+        await enqueue_seo_build(
+            session,
+            kind=plan.object_kind,  # type: ignore[arg-type]
+            subject_id=plan.stable_id,
+            source_digest=canonical_digest,
+        )
         return existing
 
     snapshot = await session.scalar(
@@ -861,6 +869,14 @@ async def execute_publish(
             payload={"repository": repository},
             idempotency_key=f"repository-metrics:{repository}",
         )
+    from ai_stp_platform.seo.enqueue import enqueue_seo_build
+
+    await enqueue_seo_build(
+        session,
+        kind=plan.object_kind,  # type: ignore[arg-type]
+        subject_id=plan.stable_id,
+        source_digest=canonical_digest,
+    )
     return metadata
 
 

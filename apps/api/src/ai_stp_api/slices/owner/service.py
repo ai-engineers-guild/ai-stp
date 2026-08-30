@@ -144,17 +144,28 @@ async def create_external_product(
             details={"candidates": ",".join(similar)},
         )
     product = ExternalProduct(
-        canonical_domain=domain, primary_url=primary_url, name=body.name.strip()
+        canonical_domain=domain,
+        primary_url=primary_url,
+        name=body.name.strip(),
+        description=body.description,
+        source_url=body.source_url,
     )
     db.add(product)
     await db.flush()
     for code in sorted(set(body.country_codes)):
         db.add(ExternalProductCountry(external_product_id=product.id, country_code=code))
+    from ai_stp_platform.seo.enqueue import enqueue_service_and_countries
+
+    await enqueue_service_and_countries(
+        db, domain=domain, country_codes=sorted(set(body.country_codes))
+    )
     await db.commit()
     return ExternalProductSummary(
         name=product.name,
         canonical_domain=domain,
         primary_url=primary_url,
+        description=product.description,
+        source_url=product.source_url,
         country_codes=sorted(set(body.country_codes)),
     )
 
@@ -207,6 +218,34 @@ async def replace_object_external_products(
                     catalog_metadata_id=metadata_id, external_product_id=product.id
                 )
             )
+    from ai_stp_platform.seo.enqueue import (
+        enqueue_seo_build,
+        enqueue_service_and_countries,
+        mutation_digest,
+    )
+
+    await enqueue_seo_build(
+        db,
+        kind=object_kind,  # type: ignore[arg-type]
+        subject_id=stable_id,
+        source_digest=mutation_digest(object_kind, stable_id, *sorted(domains)),
+    )
+    for product in products:
+        related = list(
+            (
+                await db.execute(
+                    select(ExternalProductCountry.country_code).where(
+                        ExternalProductCountry.external_product_id == product.id
+                    )
+                )
+            ).scalars()
+        )
+        await enqueue_service_and_countries(
+            db,
+            domain=product.canonical_domain,
+            country_codes=related,
+            extra=stable_id,
+        )
     await db.commit()
     country_rows = list((await db.execute(select(ExternalProductCountry))).scalars())
     countries: dict[int, list[str]] = {}
@@ -218,6 +257,8 @@ async def replace_object_external_products(
                 name=row.name,
                 canonical_domain=row.canonical_domain,
                 primary_url=row.primary_url,
+                description=row.description,
+                source_url=row.source_url,
                 country_codes=sorted(countries.get(row.id, [])),
             )
             for row in products
@@ -265,6 +306,8 @@ async def read_object_external_products(
                 name=row.name,
                 canonical_domain=row.canonical_domain,
                 primary_url=row.primary_url,
+                description=row.description,
+                source_url=row.source_url,
                 country_codes=sorted(countries.get(row.id, [])),
             )
             for row in products

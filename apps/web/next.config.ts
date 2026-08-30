@@ -3,14 +3,11 @@ import createNextIntlPlugin from "next-intl/plugin";
 
 import { resolveDevApiRewrites } from "./src/lib/dev-api-rewrites";
 import { resolveFeatureProfile } from "./src/lib/features/load-profile";
-import { allContentEntries } from "./src/lib/content/source";
+import { assertContentLocaleParity } from "./src/lib/content/source";
 
 const withNextIntl = createNextIntlPlugin("./src/lib/i18n/request.ts");
 const featureProfile = resolveFeatureProfile(process.cwd(), process.env);
-const contentPaths = allContentEntries()
-  .filter((entry) => !entry.draft)
-  .map((entry) => `/${entry.locale}/content/${entry.type}/${entry.slug}`)
-  .join("|");
+assertContentLocaleParity();
 
 const isDevelopment = process.env.NODE_ENV === "development";
 const contentSecurityPolicy = [
@@ -37,7 +34,6 @@ const nextConfig: NextConfig = {
     AI_STP_COMPILED_FEATURE_CATALOG_USAGE_METRICS: String(
       featureProfile.features.catalog_usage_metrics,
     ),
-    AI_STP_COMPILED_CONTENT_PATHS: contentPaths,
   },
   // CI/diagnostics may isolate build artifacts when another local build owns .next.
   ...(process.env["AI_STP_NEXT_DIST_DIR"] ? { distDir: process.env["AI_STP_NEXT_DIST_DIR"] } : {}),
@@ -45,6 +41,13 @@ const nextConfig: NextConfig = {
   devIndicators: false,
   poweredByHeader: false,
   compress: true,
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "avatars.githubusercontent.com" },
+      { protocol: "https", hostname: "lh3.googleusercontent.com" },
+      { protocol: "https", hostname: "raw.githubusercontent.com" },
+    ],
+  },
   headers() {
     return Promise.resolve([
       {

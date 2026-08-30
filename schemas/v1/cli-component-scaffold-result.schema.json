@@ -1,4 +1,20 @@
 {
+  "$defs": {
+    "ComponentGeneratorVersion": {
+      "enum": [
+        "ai-stp/1",
+        "ai-stp/2"
+      ],
+      "type": "string"
+    },
+    "ComponentTemplateVersion": {
+      "enum": [
+        "component-scaffold/1",
+        "component-scaffold/2"
+      ],
+      "type": "string"
+    }
+  },
   "$id": "urn:ai-stp:schema:v1:cli-component-scaffold-result",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
@@ -10,10 +26,8 @@
       "type": "integer"
     },
     "generator_version": {
-      "const": "ai-stp/1",
-      "default": "ai-stp/1",
-      "title": "Generator Version",
-      "type": "string"
+      "$ref": "#/$defs/ComponentGeneratorVersion",
+      "default": "ai-stp/2"
     },
     "output": {
       "minLength": 1,
@@ -37,10 +51,8 @@
       "type": "integer"
     },
     "template_version": {
-      "const": "component-scaffold/1",
-      "default": "component-scaffold/1",
-      "title": "Template Version",
-      "type": "string"
+      "$ref": "#/$defs/ComponentTemplateVersion",
+      "default": "component-scaffold/2"
     }
   },
   "required": [

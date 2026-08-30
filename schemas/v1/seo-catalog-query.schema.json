@@ -1,0 +1,81 @@
+{
+  "$defs": {
+    "Cursor": {
+      "pattern": "^[A-Za-z0-9_-]{1,512}$",
+      "type": "string"
+    },
+    "PageSize": {
+      "maximum": 100,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "SeoLocale": {
+      "enum": [
+        "ru",
+        "en"
+      ],
+      "type": "string"
+    },
+    "SeoSubjectKind": {
+      "enum": [
+        "component",
+        "setup",
+        "article",
+        "service",
+        "country"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:seo-catalog-query",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Paginated LLM catalog manifest query.",
+  "properties": {
+    "cursor": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Cursor"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "kind": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SeoSubjectKind"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "locale": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SeoLocale"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "page_size": {
+      "$ref": "#/$defs/PageSize",
+      "default": 20
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "title": "SeoCatalogQuery",
+  "type": "object"
+}

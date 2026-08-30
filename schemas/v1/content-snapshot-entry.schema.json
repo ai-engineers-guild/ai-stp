@@ -1,0 +1,126 @@
+{
+  "$defs": {
+    "ContentBody": {
+      "maxLength": 200000,
+      "minLength": 1,
+      "type": "string"
+    },
+    "ContentCommit": {
+      "pattern": "^[0-9a-f]{40}$",
+      "type": "string"
+    },
+    "ContentDate": {
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "type": "string"
+    },
+    "ContentDescription": {
+      "maxLength": 320,
+      "minLength": 1,
+      "type": "string"
+    },
+    "ContentLocale": {
+      "enum": [
+        "ru",
+        "en"
+      ],
+      "type": "string"
+    },
+    "ContentSlug": {
+      "maxLength": 120,
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "type": "string"
+    },
+    "ContentTag": {
+      "maxLength": 40,
+      "minLength": 1,
+      "type": "string"
+    },
+    "ContentTitle": {
+      "maxLength": 160,
+      "minLength": 1,
+      "type": "string"
+    },
+    "ContentType": {
+      "enum": [
+        "article",
+        "blog_post",
+        "changelog",
+        "release_notes"
+      ],
+      "type": "string"
+    },
+    "DigestValue": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:content-snapshot-entry",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One published localized repository article in a snapshot.",
+  "properties": {
+    "body": {
+      "$ref": "#/$defs/ContentBody"
+    },
+    "content_digest": {
+      "$ref": "#/$defs/DigestValue"
+    },
+    "description": {
+      "$ref": "#/$defs/ContentDescription"
+    },
+    "locale": {
+      "$ref": "#/$defs/ContentLocale"
+    },
+    "published_at": {
+      "$ref": "#/$defs/ContentDate"
+    },
+    "slug": {
+      "$ref": "#/$defs/ContentSlug"
+    },
+    "source_kind": {
+      "const": "repository",
+      "default": "repository",
+      "title": "Source Kind",
+      "type": "string"
+    },
+    "source_path": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Source Path",
+      "type": "string"
+    },
+    "source_ref": {
+      "$ref": "#/$defs/ContentCommit"
+    },
+    "tags": {
+      "items": {
+        "$ref": "#/$defs/ContentTag"
+      },
+      "maxItems": 12,
+      "title": "Tags",
+      "type": "array"
+    },
+    "title": {
+      "$ref": "#/$defs/ContentTitle"
+    },
+    "type": {
+      "$ref": "#/$defs/ContentType"
+    }
+  },
+  "required": [
+    "type",
+    "slug",
+    "locale",
+    "title",
+    "description",
+    "published_at",
+    "tags",
+    "body",
+    "content_digest",
+    "source_ref",
+    "source_path"
+  ],
+  "title": "ContentSnapshotEntry",
+  "type": "object"
+}

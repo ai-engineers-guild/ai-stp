@@ -5781,6 +5781,30 @@
       "description": "concurrent change or revision mismatch"
     },
     {
+      "code": "AI_STP_CONTENT_IMPORT_FORBIDDEN",
+      "exit_class": 3,
+      "handling": "stop_for_permission",
+      "description": "content import credential is missing, invalid or has another scope"
+    },
+    {
+      "code": "AI_STP_CONTENT_INVALID",
+      "exit_class": 2,
+      "handling": "correct_request",
+      "description": "article schema, limits, digest, locale parity or safe Markdown failed"
+    },
+    {
+      "code": "AI_STP_CONTENT_SOURCE_CONFLICT",
+      "exit_class": 4,
+      "handling": "reconcile_state",
+      "description": "article identity already belongs to a different source owner"
+    },
+    {
+      "code": "AI_STP_CONTENT_STALE",
+      "exit_class": 4,
+      "handling": "reconcile_state",
+      "description": "expected article generation or active digest no longer matches"
+    },
+    {
       "code": "AI_STP_DEPENDENCY_UNAVAILABLE",
       "exit_class": 5,
       "handling": "retry_if_retryable",
@@ -5839,6 +5863,36 @@
       "exit_class": 2,
       "handling": "correct_request",
       "description": "the requested schema or API major version is not supported"
+    },
+    {
+      "code": "AI_STP_SEO_ENRICHMENT_UNAVAILABLE",
+      "exit_class": 5,
+      "handling": "retry_if_retryable",
+      "description": "SEO enrichment endpoint timed out or was unavailable"
+    },
+    {
+      "code": "AI_STP_SEO_FACTS_INVALID",
+      "exit_class": 2,
+      "handling": "correct_request",
+      "description": "SEO snapshot facts failed the public allowlist or digest check"
+    },
+    {
+      "code": "AI_STP_SEO_OUTPUT_INVALID",
+      "exit_class": 2,
+      "handling": "correct_request",
+      "description": "SEO model output failed schema or factual validation"
+    },
+    {
+      "code": "AI_STP_SEO_RENDER_FAILED",
+      "exit_class": 70,
+      "handling": "report_bug",
+      "description": "SEO profile or social image could not be rendered from stored facts"
+    },
+    {
+      "code": "AI_STP_SEO_SOURCE_STALE",
+      "exit_class": 4,
+      "handling": "reconcile_state",
+      "description": "SEO enrichment answered for a source digest that is no longer current"
     },
     {
       "code": "AI_STP_TIMEOUT_UNCONFIRMED",

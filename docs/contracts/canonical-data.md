@@ -1,6 +1,6 @@
 ---
 description: "Канонические идентификаторы, сериализация, ссылки, хэши и подписи."
-last_verified: "2026-08-05"
+last_verified: "2026-08-29"
 ---
 
 # Канонические данные
@@ -41,6 +41,12 @@ ai-stp:project-index:v1
 ai-stp:project-toolchain:v1
 ai-stp:project-configuration:v1
 ai-stp:selection-snapshot:v1
+ai-stp:seo-snapshot:v1
+ai-stp:seo-profile:v1
+ai-stp:article-body:v1
+ai-stp:article-revision:v1
+ai-stp:article-active:v1
+ai-stp:article-snapshot:v1
 ```
 
 Три области `project-*` принадлежат паспорту проекта и разделены между собой:
@@ -51,6 +57,16 @@ ai-stp:selection-snapshot:v1
 `selection-proposal.md`: ревизии паспортов контекста, выбранный харнесс, точные
 кандидаты и версия политики. Именно её изменение делает предложение устаревшим,
 поэтому она отделена от паспортов, из которых собрана.
+
+Области `seo-snapshot`, `seo-profile` и `article-body` принадлежат серверному
+SEO-контуру по `seo-publication-projection.md`: публичный агрегат фактов,
+presentation-документ ревизии и тело статьи. Совпадение байтов между ними не
+даёт взаимозаменяемый идентификатор.
+
+Области `article-revision`, `article-active` и `article-snapshot` принадлежат
+публикации статей по `article-publication.md`: каноническая локализованная
+ревизия, активная RU/EN пара и полный repository snapshot. `article-body`
+остаётся SEO-хэшем тела и не заменяет `content_digest` ревизии.
 
 Область `native-discovery` принадлежит воспроизводимому кандидату read-only
 обнаружения по `ADR-0054` и `ADR-0055`. Она связывает объявленный layout, область,

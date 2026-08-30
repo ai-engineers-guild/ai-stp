@@ -1,0 +1,29 @@
+{
+  "$defs": {
+    "SeoLocale": {
+      "enum": [
+        "ru",
+        "en"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:seo-subject-query",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Locale selector for one subject read.",
+  "properties": {
+    "locale": {
+      "$ref": "#/$defs/SeoLocale",
+      "default": "en"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "title": "SeoSubjectQuery",
+  "type": "object"
+}

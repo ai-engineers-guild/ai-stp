@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 
@@ -24,12 +25,18 @@ import { asVersionId, tryAsSetupId } from "@/lib/brands";
 import { namedOperatingSystems } from "@/lib/catalog-harnesses";
 import { registryVersion, selectImpact } from "@/lib/cli-copy";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
+import { versionPageMetadata } from "@/lib/seo/metadata";
 import { publicOrigin } from "@/lib/site";
 import { Link } from "@/lib/i18n/navigation";
 
 type PageProps = {
   params: Promise<{ locale: string; stableId: string; version: string }>;
 };
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { locale, stableId, version } = await params;
+  return versionPageMetadata(`/${locale}/catalog/setups/${stableId}`, `${stableId}@${version}`);
+}
 
 // The page intentionally renders the complete immutable passport in one server component.
 // eslint-disable-next-line max-lines-per-function

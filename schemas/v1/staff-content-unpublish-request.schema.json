@@ -1,0 +1,35 @@
+{
+  "$defs": {
+    "DigestValue": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:staff-content-unpublish-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Optimistic staff unpublish of both locales.",
+  "properties": {
+    "expected_active_digest": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DigestValue"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "expected_active_digest"
+  ],
+  "title": "StaffContentUnpublishRequest",
+  "type": "object"
+}

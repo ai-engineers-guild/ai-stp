@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 
@@ -43,10 +44,19 @@ import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { publicOrigin } from "@/lib/site";
 import { Link } from "@/lib/i18n/navigation";
 import { UI } from "@/lib/ui-selectors";
+import { SeoJsonLd } from "@/components/molecules/seo-json-ld";
+import { readSeoProfile } from "@/lib/api/seo";
+import { metadataFromSeo } from "@/lib/seo/metadata";
 import { ComponentTypeIcon } from "@/theme/component-types";
 import { Icon } from "@/theme/icons";
 
 type PageProps = { params: Promise<{ locale: string; stableId: string }> };
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { locale, stableId } = await params;
+  const seo = await readSeoProfile("component", stableId, locale);
+  return metadataFromSeo(seo, { title: stableId });
+}
 
 // Page owns both human layout and machine presenter branch from the same reads.
 // eslint-disable-next-line max-lines-per-function, complexity
@@ -73,6 +83,7 @@ export default async function ComponentDetailPage({ params }: PageProps) {
   const tc = await getTranslations("common");
   const tCli = await getTranslations("cli");
 
+  const seo = await readSeoProfile("component", stableId, locale);
   const summary = detail.summary;
   const latest = await readLatestComponentVersion(stableId, summary.latest_version);
   const passport = latest?.passport;
@@ -102,6 +113,7 @@ export default async function ComponentDetailPage({ params }: PageProps) {
 
   return (
     <article className="mx-auto max-w-6xl min-w-0 space-y-8 overflow-x-clip">
+      {seo ? <SeoJsonLd jsonLd={seo.profile.json_ld} /> : null}
       <Button asChild variant="ghost" size="sm">
         <Link href="/catalog?include_experimental=1&resource=components">
           <Icon name="arrowLeft" size="sm" /> {t("backToCatalog")}
@@ -169,7 +181,7 @@ export default async function ComponentDetailPage({ params }: PageProps) {
       <ObjectDetailFrame
         description={
           <MarkdownDescription
-            source={passport?.description ?? summary.latest_description}
+            source={seo?.profile.summary ?? passport?.description ?? summary.latest_description}
             heading={t("description")}
           />
         }
@@ -177,6 +189,8 @@ export default async function ComponentDetailPage({ params }: PageProps) {
           media.length > 0 ? (
             <ComponentMediaGallery
               items={media}
+              locale={locale}
+              fallbackAlt={`${summary.latest_name} — ${t("gallery")}`}
               labels={{
                 gallery: t("gallery"),
                 open: t("openMedia"),
@@ -190,6 +204,15 @@ export default async function ComponentDetailPage({ params }: PageProps) {
         }
         main={
           <>
+            {seo?.profile.sections
+              .filter((section) => section.provenance === "model")
+              .map((section) => (
+                <MarkdownDescription
+                  key={section.id}
+                  source={section.body}
+                  heading={section.heading}
+                />
+              ))}
             {passport ? (
               <ObjectTechnicalDetails
                 title={t("technicalDetails")}

@@ -59,3 +59,26 @@ ENV AI_STP_SAFETY_EXTERNAL_CLI=0 \
     OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY=/var/lib/ai_stp/osv \
     AI_STP_OSV_MAX_AGE_HOURS=36
 CMD ["python", "-m", "ai_stp_worker"]
+
+# Bake the hub snapshot in a throwaway stage so the runtime image has no
+# checkout. The importer POSTs this file; it never reads Markdown on the host.
+# Bake fails closed on an empty COPY (a dockerignore miss would otherwise
+# unpublish every repository article) and on the zero SHA placeholder.
+FROM base AS content-snapshot
+USER root
+COPY apps/web/content/hub /hub
+ARG AI_STP_GIT_COMMIT=0000000000000000000000000000000000000000
+RUN python -m ai_stp_platform.content.snapshot_cli \
+      --hub /hub \
+      --commit "$AI_STP_GIT_COMMIT" \
+      --out /tmp/content-snapshot.json \
+    && rm -rf /hub
+
+FROM base AS content-import
+USER root
+COPY --from=content-snapshot /tmp/content-snapshot.json /app/content-snapshot.json
+RUN test -s /app/content-snapshot.json \
+    && chown appuser:appuser /app/content-snapshot.json
+USER appuser
+ENV AI_STP_CONTENT_SNAPSHOT=/app/content-snapshot.json
+CMD ["python", "-m", "ai_stp_platform.content.importer"]

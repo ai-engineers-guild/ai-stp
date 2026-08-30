@@ -1,0 +1,75 @@
+# Optional LiteLLM + CLIPROXY enrichment. API, web and the default worker
+# start without it. Enable with:
+#   docker compose -f docker-compose.dev.yml \
+#     -f docker-compose.seo-enrichment.yml --profile seo_enrichment up -d
+# Then enqueue pending enrich jobs:
+#   docker compose -f docker-compose.dev.yml \
+#     -f docker-compose.seo-enrichment.yml --profile seo_enrichment \
+#     exec worker python -m ai_stp_platform.seo.enqueue_pending
+#
+# CLIPROXY is the official CLIProxyAPI image on the compose network. LiteLLM
+# talks to http://cliproxy:8317/v1. The Google/Antigravity session is JSON in
+# deploy/cliproxy/auths (gitignored); copy that directory to a server. Do not
+# route LiteLLM to the host. Worker never receives CLIPROXY_* values.
+
+services:
+  cliproxy:
+    profiles: ["seo_enrichment"]
+    image: ${AI_STP_CLIPROXY_IMAGE:-eceasy/cli-proxy-api:v7.2.145}
+    # 8317 stays on `internal`. 51121 is the Antigravity OAuth callback,
+    # localhost-only, for first login or `ssh -L` on a server.
+    ports:
+      - "127.0.0.1:51121:51121"
+    environment:
+      TZ: UTC
+    volumes:
+      - ${AI_STP_CLIPROXY_CONFIG:-./deploy/cliproxy/config.example.yaml}:/CLIProxyAPI/config.yaml:ro
+      - ${AI_STP_CLIPROXY_AUTH_DIR:-./deploy/cliproxy/auths}:/root/.cli-proxy-api
+    networks: [internal]
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - bash -c "echo >/dev/tcp/127.0.0.1/8317"
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 10s
+    restart: unless-stopped
+
+  litellm:
+    profiles: ["seo_enrichment"]
+    image: ${AI_STP_LITELLM_IMAGE:-ghcr.io/berriai/litellm:v1.82.3}
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    environment:
+      LITELLM_MASTER_KEY:
+        ${AI_STP_SEO_ENRICHMENT_CREDENTIAL:-dev-only-seo-enrichment-credential-32chars}
+      CLIPROXY_API_BASE: ${AI_STP_CLIPROXY_URL:-http://cliproxy:8317/v1}
+      CLIPROXY_API_KEY: ${AI_STP_CLIPROXY_API_KEY:-sk-none}
+      CLIPROXY_MODEL: ${AI_STP_CLIPROXY_MODEL:-openai/seo-writer}
+    env_file:
+      - path: .env.dev
+        required: false
+    volumes:
+      - ./deploy/litellm/seo-writer.yaml:/app/config.yaml:ro
+    networks: [internal]
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:4000/health/liveliness')
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 20s
+    restart: unless-stopped
+
+  worker:
+    environment:
+      AI_STP_SEO_ENRICHMENT_ENABLED: ${AI_STP_SEO_ENRICHMENT_ENABLED:-true}
+      AI_STP_SEO_ENRICHMENT_URL:
+        ${AI_STP_SEO_ENRICHMENT_URL:-http://litellm:4000/v1/chat/completions}
+      AI_STP_SEO_ENRICHMENT_CREDENTIAL:
+        ${AI_STP_SEO_ENRICHMENT_CREDENTIAL:-dev-only-seo-enrichment-credential-32chars}
+      AI_STP_SEO_ENRICHMENT_MODEL_ALIAS: seo-writer
+      AI_STP_SEO_PUBLIC_ORIGIN: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}

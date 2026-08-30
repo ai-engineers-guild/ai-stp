@@ -124,6 +124,31 @@ services:
       start_period: 15s
     restart: always
 
+  content-import:
+    # One-shot after migrate + healthy API. Web waits for exit 0 (SPEC-054).
+    # Snapshot is baked at image build from AI_STP_API_GIT_COMMIT; the zero
+    # placeholder and an empty hub COPY fail the bake. Import token comes from
+    # .env.prod as AI_STP_CONTENT_IMPORT_TOKEN. Empty token fails closed.
+    build:
+      context: .
+      target: content-import
+      args:
+        AI_STP_GIT_COMMIT: ${AI_STP_API_GIT_COMMIT:-0000000000000000000000000000000000000000}
+    command: ["python", "-m", "ai_stp_platform.content.importer"]
+    environment:
+      AI_STP_API_BASE_URL: http://api:8000
+      AI_STP_CONTENT_SNAPSHOT: /app/content-snapshot.json
+    env_file:
+      - path: .env.prod
+        required: false
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      api:
+        condition: service_healthy
+    networks: [internal]
+    restart: "no"
+
   osv-refresh:
     build:
       context: .
@@ -261,6 +286,8 @@ services:
     depends_on:
       api:
         condition: service_healthy
+      content-import:
+        condition: service_completed_successfully
     healthcheck:
       test:
         - CMD

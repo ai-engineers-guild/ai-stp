@@ -27,6 +27,14 @@ plans/
 .deploy-state/
 .backups/
 
+# CLIPROXY OAuth session and operator config. Copy auths/ between hosts;
+# never commit the JSON or a filled config.yaml.
+deploy/cliproxy/config.yaml
+deploy/cliproxy/auths/*
+!deploy/cliproxy/auths/.gitkeep
+deploy/cliproxy/logs/
+deploy/cliproxy/plugins/
+
 # Local browser-automation artifacts (Playwright MCP scratch output)
 .playwright-mcp/
 apps/web/test-results/
@@ -52,6 +60,7 @@ build/
 .ruff_cache/
 .hypothesis/
 .serena/cache/
+.serena/memories/current-work.md
 .serena.local-backup-before-ff/
 
 # Редакторы и ОС

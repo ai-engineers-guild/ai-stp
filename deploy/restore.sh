@@ -51,7 +51,7 @@ require_cmd docker
 log info "restore_start"
 
 # Stop writers that depend on database/storage identity before restore.
-compose stop api worker web seed migrate >/dev/null 2>&1 || true
+compose stop api worker web seed migrate content-import >/dev/null 2>&1 || true
 
 # Restore PostgreSQL.
 compose cp "${FROM}/postgres/ai_stp.dump" postgres:/tmp/ai_stp.dump >/dev/null
@@ -76,9 +76,13 @@ fi
 log info "rustfs_restore_ok"
 
 # Bring the stack back; migrate is forward-only and should be a no-op on restored schema.
+# Re-import of the current image snapshot is intended: repository articles match
+# the image, staff articles come from the backup. Force a new one-shot so an
+# already-exited importer container cannot skip the POST.
 compose up -d postgres rustfs >/dev/null
 compose run --rm migrate >/dev/null
-compose up -d api worker web caddy >/dev/null
+compose rm -fs content-import >/dev/null 2>&1 || true
+compose up -d api worker content-import web caddy >/dev/null
 wait_for_readiness
 
 log info "restore_complete"

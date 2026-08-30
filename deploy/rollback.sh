@@ -73,7 +73,8 @@ compose build
 compose up -d postgres rustfs
 compose run --rm migrate
 compose run --rm seed || true
-compose up -d api worker web caddy
+compose rm -fs content-import >/dev/null 2>&1 || true
+compose up -d api worker content-import web caddy
 
 wait_for_liveness
 wait_for_readiness

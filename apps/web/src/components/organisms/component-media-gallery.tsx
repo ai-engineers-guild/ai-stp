@@ -20,8 +20,12 @@ export type ComponentMediaItem = {
 export function ComponentMediaGallery({
   items,
   labels,
+  locale = "en",
+  fallbackAlt,
 }: {
   items: ReadonlyArray<ComponentMediaItem>;
+  locale?: string;
+  fallbackAlt?: string;
   labels: {
     gallery: string;
     open: string;
@@ -31,8 +35,12 @@ export function ComponentMediaGallery({
     next?: string;
   };
 }) {
+  const localizedItems = items.map((item) => ({
+    ...item,
+    alt: localizedAlt(item.alt, locale, fallbackAlt ?? labels.gallery),
+  }));
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const selected = selectedIndex === null ? null : items[selectedIndex];
+  const selected = selectedIndex === null ? null : localizedItems[selectedIndex];
   if (items.length === 0) return null;
 
   return (
@@ -45,7 +53,7 @@ export function ComponentMediaGallery({
         {labels.gallery}
       </h2>
       <div className="flex gap-3 overflow-x-auto pb-1">
-        {items.map((item, index) => (
+        {localizedItems.map((item, index) => (
           <button
             key={item.id}
             type="button"
@@ -65,7 +73,7 @@ export function ComponentMediaGallery({
         ))}
       </div>
       <MediaLightbox
-        items={items}
+        items={localizedItems}
         selectedIndex={selectedIndex}
         selected={selected ?? null}
         labels={labels}
@@ -76,6 +84,16 @@ export function ComponentMediaGallery({
       />
     </section>
   );
+}
+
+function localizedAlt(alt: string, locale: string, fallback: string): string {
+  const value = alt.trim();
+  if (value.length < 4) return fallback;
+  if (locale !== "ru") return value;
+  const letters = Array.from(value).filter((character) => /\p{L}/u.test(character));
+  if (letters.length === 0) return fallback;
+  const cyrillic = letters.filter((character) => /\p{Script=Cyrillic}/u.test(character)).length;
+  return cyrillic / letters.length >= 0.2 ? value : fallback;
 }
 
 function MediaLightbox({
@@ -274,6 +292,7 @@ function Media({
           poster={item.thumbnail_url || undefined}
           aria-label={label ?? item.alt}
           muted
+          preload="metadata"
           playsInline
           controls={expanded}
           disablePictureInPicture
@@ -292,6 +311,10 @@ function Media({
         <img
           src={item.thumbnail_url || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`}
           alt={item.alt}
+          width={1280}
+          height={720}
+          loading="lazy"
+          decoding="async"
           onError={() => {
             setFailed(true);
           }}
@@ -307,6 +330,7 @@ function Media({
           title={label ?? item.alt}
           allow="autoplay; encrypted-media; picture-in-picture"
           referrerPolicy="strict-origin-when-cross-origin"
+          loading="lazy"
           className="h-full w-full border-0"
         />
       </div>
@@ -316,6 +340,10 @@ function Media({
     <img
       src={expanded ? item.url : item.thumbnail_url || item.url}
       alt={item.alt}
+      width={1280}
+      height={720}
+      loading="lazy"
+      decoding="async"
       onError={() => {
         setFailed(true);
       }}

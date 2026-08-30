@@ -22,6 +22,13 @@ const PUBLIC_GET_PATHS: readonly RegExp[] = [
   /^\/v1\/catalog\/setups\/[^/?]+\/versions\/[^/?]+\/github-metadata$/,
   /^\/v1\/catalog\/setups\/[^/?]+\/versions\/[^/?]+\/context-budget$/,
   /^\/v1\/publishers\/[^/?]+$/,
+  /^\/v1\/seo\/subjects\/[^/?]+\/[^/?]+$/,
+  /^\/v1\/seo\/sitemap$/,
+  /^\/v1\/seo\/sitemaps\/[^/?]+\/[^/?]+\/[^/?]+$/,
+  /^\/v1\/seo\/catalog$/,
+  /^\/v1\/seo\/og\/[^/?]+$/,
+  /^\/v1\/content$/,
+  /^\/v1\/content\/(?:article|blog_post|changelog|release_notes)\/[^/?]+$/,
 ];
 
 const FORBIDDEN_PUBLIC_HEADER_NAMES = new Set(["cookie", "authorization", "x-csrf-token"]);

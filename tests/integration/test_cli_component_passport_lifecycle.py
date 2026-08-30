@@ -66,6 +66,7 @@ redistribution_allowed = true
         "XDG_CONFIG_HOME": str(home / ".config"),
         "XDG_DATA_HOME": str(home / ".local" / "share"),
         "XDG_STATE_HOME": str(home / ".local" / "state"),
+        "AI_STP_FORCE_FILE_CREDENTIAL_STORE": "1",
     }
 
     discovered = _run(environment, "component", "discover", "--root", str(project))

@@ -138,7 +138,7 @@ export function SiteHeader({ docsHref }: SiteHeaderProps) {
               switchLocale(nextLocale);
             }}
           >
-            {locale}
+            {nextLocale}
           </button>
           <ThemeToggle />
           {contactItem ? (

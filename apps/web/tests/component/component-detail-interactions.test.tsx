@@ -174,6 +174,27 @@ describe("component detail interactions", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it("replaces invalid Russian media alt text with the localized fallback", () => {
+    render(
+      <ComponentMediaGallery
+        locale="ru"
+        fallbackAlt="ai-repo-safety — Галерея"
+        items={[
+          {
+            id: "media_example",
+            kind: "image",
+            url: "/catalog-art/agent.webp",
+            alt: "Planner preview",
+            source_label: "storage",
+          },
+        ]}
+        labels={{ gallery: "Галерея", open: "Открыть", source: "Источник", close: "Закрыть" }}
+      />,
+    );
+
+    expect(screen.getByAltText("ai-repo-safety — Галерея")).toBeInTheDocument();
+  });
+
   it("opens media in an accessible dialog without a bottom close control", async () => {
     const user = userEvent.setup();
     render(

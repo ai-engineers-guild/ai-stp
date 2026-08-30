@@ -1,6 +1,11 @@
 {
   "components": {
     "schemas": {
+      "AbsoluteUrl": {
+        "maxLength": 2048,
+        "pattern": "^https?://",
+        "type": "string"
+      },
       "AccessGrantResponse": {
         "additionalProperties": true,
         "description": "One major-line access grant.",
@@ -2195,8 +2200,470 @@
         "title": "Conflicts",
         "type": "object"
       },
+      "ContentBody": {
+        "maxLength": 200000,
+        "minLength": 1,
+        "type": "string"
+      },
+      "ContentCommit": {
+        "pattern": "^[0-9a-f]{40}$",
+        "type": "string"
+      },
+      "ContentDate": {
+        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+        "type": "string"
+      },
+      "ContentDescription": {
+        "maxLength": 320,
+        "minLength": 1,
+        "type": "string"
+      },
+      "ContentDetail": {
+        "additionalProperties": true,
+        "description": "Public detail. Repository provenance is exact commit and path only.",
+        "properties": {
+          "body": {
+            "$ref": "#/components/schemas/ContentBody"
+          },
+          "content_digest": {
+            "$ref": "#/components/schemas/DigestValue"
+          },
+          "description": {
+            "$ref": "#/components/schemas/ContentDescription"
+          },
+          "locale": {
+            "$ref": "#/components/schemas/ContentLocale"
+          },
+          "published_at": {
+            "$ref": "#/components/schemas/ContentDate"
+          },
+          "revision_id": {
+            "$ref": "#/components/schemas/RevisionId"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "slug": {
+            "$ref": "#/components/schemas/ContentSlug"
+          },
+          "source_kind": {
+            "$ref": "#/components/schemas/ContentSourceKind"
+          },
+          "source_path": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Path"
+          },
+          "source_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContentCommit"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tags": {
+            "items": {
+              "$ref": "#/components/schemas/ContentTag"
+            },
+            "maxItems": 12,
+            "title": "Tags",
+            "type": "array"
+          },
+          "title": {
+            "$ref": "#/components/schemas/ContentTitle"
+          },
+          "type": {
+            "$ref": "#/components/schemas/ContentType"
+          }
+        },
+        "required": [
+          "body",
+          "content_digest",
+          "description",
+          "locale",
+          "published_at",
+          "revision_id",
+          "schema_version",
+          "slug",
+          "source_kind",
+          "source_path",
+          "source_ref",
+          "tags",
+          "title",
+          "type"
+        ],
+        "title": "ContentDetail",
+        "type": "object"
+      },
       "ContentDigest": {
         "pattern": "^sha256:[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "ContentListResponse": {
+        "additionalProperties": true,
+        "description": "Published repository and staff articles for one locale.",
+        "properties": {
+          "etag": {
+            "$ref": "#/components/schemas/DigestValue"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ContentSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "etag",
+          "items",
+          "schema_version"
+        ],
+        "title": "ContentListResponse",
+        "type": "object"
+      },
+      "ContentLocale": {
+        "enum": [
+          "ru",
+          "en"
+        ],
+        "type": "string"
+      },
+      "ContentLocaleQuery": {
+        "additionalProperties": false,
+        "description": "Locale selector for public content reads. No automatic fallback.",
+        "properties": {
+          "locale": {
+            "$ref": "#/components/schemas/ContentLocale"
+          }
+        },
+        "required": [
+          "locale"
+        ],
+        "title": "ContentLocaleQuery",
+        "type": "object"
+      },
+      "ContentRepositoryImportRequest": {
+        "additionalProperties": false,
+        "description": "Full replacement of the repository-owned active article set.",
+        "properties": {
+          "commit": {
+            "$ref": "#/components/schemas/ContentCommit"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/ContentSnapshotEntry"
+            },
+            "maxItems": 10000,
+            "title": "Entries",
+            "type": "array"
+          },
+          "expected_generation": {
+            "minimum": 0,
+            "title": "Expected Generation",
+            "type": "integer"
+          },
+          "repository": {
+            "const": "ai-engineers-guild/ai-stp",
+            "default": "ai-engineers-guild/ai-stp",
+            "title": "Repository",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "snapshot_digest": {
+            "$ref": "#/components/schemas/DigestValue"
+          }
+        },
+        "required": [
+          "commit",
+          "snapshot_digest",
+          "expected_generation",
+          "entries"
+        ],
+        "title": "ContentRepositoryImportRequest",
+        "type": "object"
+      },
+      "ContentRepositoryImportResponse": {
+        "additionalProperties": true,
+        "description": "Outcome of one repository snapshot import.",
+        "properties": {
+          "activated": {
+            "minimum": 0,
+            "title": "Activated",
+            "type": "integer"
+          },
+          "created": {
+            "minimum": 0,
+            "title": "Created",
+            "type": "integer"
+          },
+          "generation": {
+            "minimum": 0,
+            "title": "Generation",
+            "type": "integer"
+          },
+          "removed": {
+            "minimum": 0,
+            "title": "Removed",
+            "type": "integer"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "snapshot_digest": {
+            "$ref": "#/components/schemas/DigestValue"
+          },
+          "unchanged": {
+            "minimum": 0,
+            "title": "Unchanged",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "activated",
+          "created",
+          "generation",
+          "removed",
+          "schema_version",
+          "snapshot_digest",
+          "unchanged"
+        ],
+        "title": "ContentRepositoryImportResponse",
+        "type": "object"
+      },
+      "ContentRepositoryState": {
+        "additionalProperties": true,
+        "description": "Current repository import generation without entries.",
+        "properties": {
+          "commit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContentCommit"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "generation": {
+            "minimum": 0,
+            "title": "Generation",
+            "type": "integer"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "snapshot_digest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DigestValue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "commit",
+          "generation",
+          "schema_version",
+          "snapshot_digest"
+        ],
+        "title": "ContentRepositoryState",
+        "type": "object"
+      },
+      "ContentSlug": {
+        "maxLength": 120,
+        "minLength": 1,
+        "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+        "type": "string"
+      },
+      "ContentSnapshotEntry": {
+        "additionalProperties": false,
+        "description": "One published localized repository article in a snapshot.",
+        "properties": {
+          "body": {
+            "$ref": "#/components/schemas/ContentBody"
+          },
+          "content_digest": {
+            "$ref": "#/components/schemas/DigestValue"
+          },
+          "description": {
+            "$ref": "#/components/schemas/ContentDescription"
+          },
+          "locale": {
+            "$ref": "#/components/schemas/ContentLocale"
+          },
+          "published_at": {
+            "$ref": "#/components/schemas/ContentDate"
+          },
+          "slug": {
+            "$ref": "#/components/schemas/ContentSlug"
+          },
+          "source_kind": {
+            "const": "repository",
+            "default": "repository",
+            "title": "Source Kind",
+            "type": "string"
+          },
+          "source_path": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Source Path",
+            "type": "string"
+          },
+          "source_ref": {
+            "$ref": "#/components/schemas/ContentCommit"
+          },
+          "tags": {
+            "items": {
+              "$ref": "#/components/schemas/ContentTag"
+            },
+            "maxItems": 12,
+            "title": "Tags",
+            "type": "array"
+          },
+          "title": {
+            "$ref": "#/components/schemas/ContentTitle"
+          },
+          "type": {
+            "$ref": "#/components/schemas/ContentType"
+          }
+        },
+        "required": [
+          "type",
+          "slug",
+          "locale",
+          "title",
+          "description",
+          "published_at",
+          "tags",
+          "body",
+          "content_digest",
+          "source_ref",
+          "source_path"
+        ],
+        "title": "ContentSnapshotEntry",
+        "type": "object"
+      },
+      "ContentSourceKind": {
+        "enum": [
+          "repository",
+          "staff"
+        ],
+        "type": "string"
+      },
+      "ContentSummary": {
+        "additionalProperties": true,
+        "description": "Public list item for one published localized article.",
+        "properties": {
+          "content_digest": {
+            "$ref": "#/components/schemas/DigestValue"
+          },
+          "description": {
+            "$ref": "#/components/schemas/ContentDescription"
+          },
+          "locale": {
+            "$ref": "#/components/schemas/ContentLocale"
+          },
+          "published_at": {
+            "$ref": "#/components/schemas/ContentDate"
+          },
+          "revision_id": {
+            "$ref": "#/components/schemas/RevisionId"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "slug": {
+            "$ref": "#/components/schemas/ContentSlug"
+          },
+          "source_kind": {
+            "$ref": "#/components/schemas/ContentSourceKind"
+          },
+          "tags": {
+            "items": {
+              "$ref": "#/components/schemas/ContentTag"
+            },
+            "maxItems": 12,
+            "title": "Tags",
+            "type": "array"
+          },
+          "title": {
+            "$ref": "#/components/schemas/ContentTitle"
+          },
+          "type": {
+            "$ref": "#/components/schemas/ContentType"
+          }
+        },
+        "required": [
+          "content_digest",
+          "description",
+          "locale",
+          "published_at",
+          "revision_id",
+          "schema_version",
+          "slug",
+          "source_kind",
+          "tags",
+          "title",
+          "type"
+        ],
+        "title": "ContentSummary",
+        "type": "object"
+      },
+      "ContentTag": {
+        "maxLength": 40,
+        "minLength": 1,
+        "type": "string"
+      },
+      "ContentTitle": {
+        "maxLength": 160,
+        "minLength": 1,
+        "type": "string"
+      },
+      "ContentType": {
+        "enum": [
+          "article",
+          "blog_post",
+          "changelog",
+          "release_notes"
+        ],
         "type": "string"
       },
       "ContextBudget": {
@@ -2762,6 +3229,10 @@
         "title": "DeviceTokenResponse",
         "type": "object"
       },
+      "DigestValue": {
+        "pattern": "^sha256:[0-9a-f]{64}$",
+        "type": "string"
+      },
       "DirectGrantCreateRequest": {
         "additionalProperties": false,
         "description": "POST /v1/grants/direct body with an explicit recipient identifier kind.",
@@ -3036,6 +3507,20 @@
             "title": "Country Codes",
             "type": "array"
           },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 320,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
           "name": {
             "maxLength": 160,
             "minLength": 1,
@@ -3053,14 +3538,30 @@
             "default": 1,
             "title": "Schema Version",
             "type": "integer"
+          },
+          "source_url": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "pattern": "^https://",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Source Url"
           }
         },
         "required": [
           "canonical_domain",
           "country_codes",
+          "description",
           "name",
           "primary_url",
-          "schema_version"
+          "schema_version",
+          "source_url"
         ],
         "title": "ExternalProductSummary",
         "type": "object"
@@ -4824,6 +5325,21 @@
         "pattern": "^revision_[0-9a-f]{64}$",
         "type": "string"
       },
+      "SafeText160": {
+        "maxLength": 160,
+        "minLength": 1,
+        "type": "string"
+      },
+      "SafeText200": {
+        "maxLength": 200,
+        "minLength": 1,
+        "type": "string"
+      },
+      "SafeText320": {
+        "maxLength": 320,
+        "minLength": 1,
+        "type": "string"
+      },
       "SafetyCheckEntry": {
         "additionalProperties": true,
         "description": "One check line on an audit list.",
@@ -5038,6 +5554,790 @@
           "truncated"
         ],
         "title": "SafetyFindingSummary",
+        "type": "object"
+      },
+      "SeoCatalogEntry": {
+        "additionalProperties": true,
+        "description": "One LLM catalog manifest row.",
+        "properties": {
+          "canonical_url": {
+            "$ref": "#/components/schemas/AbsoluteUrl"
+          },
+          "description": {
+            "$ref": "#/components/schemas/SafeText320"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/SeoSubjectKind"
+          },
+          "locale": {
+            "$ref": "#/components/schemas/SeoLocale"
+          },
+          "markdown_url": {
+            "$ref": "#/components/schemas/AbsoluteUrl"
+          },
+          "modified_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "revision_id": {
+            "$ref": "#/components/schemas/RevisionId"
+          },
+          "subject_id": {
+            "maxLength": 253,
+            "minLength": 1,
+            "title": "Subject Id",
+            "type": "string"
+          },
+          "title": {
+            "$ref": "#/components/schemas/SafeText160"
+          }
+        },
+        "required": [
+          "canonical_url",
+          "description",
+          "kind",
+          "locale",
+          "markdown_url",
+          "modified_at",
+          "revision_id",
+          "subject_id",
+          "title"
+        ],
+        "title": "SeoCatalogEntry",
+        "type": "object"
+      },
+      "SeoCatalogPage": {
+        "additionalProperties": true,
+        "properties": {
+          "generation": {
+            "minimum": 0,
+            "title": "Generation",
+            "type": "integer"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SeoCatalogEntry"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "generation",
+          "items",
+          "page",
+          "schema_version"
+        ],
+        "title": "SeoCatalogPage",
+        "type": "object"
+      },
+      "SeoCatalogQuery": {
+        "additionalProperties": false,
+        "description": "Paginated LLM catalog manifest query.",
+        "properties": {
+          "cursor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Cursor"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SeoSubjectKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "locale": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SeoLocale"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "page_size": {
+            "$ref": "#/components/schemas/PageSize",
+            "default": 20
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "title": "SeoCatalogQuery",
+        "type": "object"
+      },
+      "SeoGenerator": {
+        "additionalProperties": true,
+        "description": "Provenance of one SEO revision. Model alias is operator-facing only.",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/SeoGeneratorKind"
+          },
+          "model_alias": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Model Alias"
+          },
+          "prompt_version": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Prompt Version"
+          },
+          "template_version": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Template Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "model_alias",
+          "prompt_version",
+          "template_version"
+        ],
+        "title": "SeoGenerator",
+        "type": "object"
+      },
+      "SeoGeneratorKind": {
+        "enum": [
+          "template",
+          "model"
+        ],
+        "type": "string"
+      },
+      "SeoIndexDecision": {
+        "additionalProperties": true,
+        "description": "Deterministic index eligibility. Model output never supplies this.",
+        "properties": {
+          "eligible": {
+            "title": "Eligible",
+            "type": "boolean"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/SeoIndexReason"
+            },
+            "maxItems": 12,
+            "title": "Reasons",
+            "type": "array"
+          }
+        },
+        "required": [
+          "eligible",
+          "reasons"
+        ],
+        "title": "SeoIndexDecision",
+        "type": "object"
+      },
+      "SeoIndexReason": {
+        "enum": [
+          "eligible",
+          "not_public",
+          "blocked",
+          "hidden",
+          "deprecated",
+          "missing_primary_content",
+          "missing_source",
+          "empty_collection",
+          "duplicate_canonical",
+          "unavailable",
+          "materialization_pending"
+        ],
+        "type": "string"
+      },
+      "SeoIndexResponse": {
+        "additionalProperties": true,
+        "description": "Sitemap index for the current SEO generation.",
+        "properties": {
+          "etag": {
+            "$ref": "#/components/schemas/DigestValue"
+          },
+          "generation": {
+            "minimum": 0,
+            "title": "Generation",
+            "type": "integer"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "shards": {
+            "items": {
+              "$ref": "#/components/schemas/SeoIndexShardRef"
+            },
+            "title": "Shards",
+            "type": "array"
+          }
+        },
+        "required": [
+          "etag",
+          "generation",
+          "schema_version",
+          "shards"
+        ],
+        "title": "SeoIndexResponse",
+        "type": "object"
+      },
+      "SeoIndexShardRef": {
+        "properties": {
+          "lastmod": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "loc": {
+            "$ref": "#/components/schemas/AbsoluteUrl"
+          }
+        },
+        "required": [
+          "loc",
+          "lastmod"
+        ],
+        "title": "SeoIndexShardRef",
+        "type": "object"
+      },
+      "SeoLink": {
+        "additionalProperties": true,
+        "description": "One crawlable visible link.",
+        "properties": {
+          "href": {
+            "$ref": "#/components/schemas/AbsoluteUrl"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SeoSubjectKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "rel": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Rel",
+            "type": "string"
+          },
+          "subject_id": {
+            "anyOf": [
+              {
+                "maxLength": 253,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject Id"
+          },
+          "text": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "href",
+          "kind",
+          "rel",
+          "subject_id",
+          "text"
+        ],
+        "title": "SeoLink",
+        "type": "object"
+      },
+      "SeoLocale": {
+        "enum": [
+          "ru",
+          "en"
+        ],
+        "type": "string"
+      },
+      "SeoProfileDocument": {
+        "additionalProperties": true,
+        "description": "Closed profile document v1 stored on a revision.",
+        "properties": {
+          "alternates": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/AbsoluteUrl"
+            },
+            "title": "Alternates",
+            "type": "object"
+          },
+          "breadcrumbs": {
+            "items": {
+              "$ref": "#/components/schemas/SeoLink"
+            },
+            "maxItems": 12,
+            "title": "Breadcrumbs",
+            "type": "array"
+          },
+          "canonical_url": {
+            "$ref": "#/components/schemas/AbsoluteUrl"
+          },
+          "description": {
+            "$ref": "#/components/schemas/SafeText320"
+          },
+          "generator": {
+            "$ref": "#/components/schemas/SeoGenerator"
+          },
+          "heading": {
+            "$ref": "#/components/schemas/SafeText200"
+          },
+          "index_decision": {
+            "$ref": "#/components/schemas/SeoIndexDecision"
+          },
+          "internal_links": {
+            "items": {
+              "$ref": "#/components/schemas/SeoLink"
+            },
+            "maxItems": 48,
+            "title": "Internal Links",
+            "type": "array"
+          },
+          "json_ld": {
+            "additionalProperties": true,
+            "title": "Json Ld",
+            "type": "object"
+          },
+          "locale": {
+            "$ref": "#/components/schemas/SeoLocale"
+          },
+          "modified_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "published_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "robots": {
+            "$ref": "#/components/schemas/SeoRobots"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "search_intents": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 12,
+            "title": "Search Intents",
+            "type": "array"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/SeoSection"
+            },
+            "maxItems": 24,
+            "title": "Sections",
+            "type": "array"
+          },
+          "social": {
+            "$ref": "#/components/schemas/SeoSocial"
+          },
+          "subject": {
+            "$ref": "#/components/schemas/SeoSubjectRef"
+          },
+          "summary": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Summary",
+            "type": "string"
+          },
+          "taxonomy_tags": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 12,
+            "title": "Taxonomy Tags",
+            "type": "array"
+          },
+          "title": {
+            "$ref": "#/components/schemas/SafeText160"
+          }
+        },
+        "required": [
+          "alternates",
+          "breadcrumbs",
+          "canonical_url",
+          "description",
+          "generator",
+          "heading",
+          "index_decision",
+          "internal_links",
+          "json_ld",
+          "locale",
+          "modified_at",
+          "published_at",
+          "robots",
+          "schema_version",
+          "search_intents",
+          "sections",
+          "social",
+          "subject",
+          "summary",
+          "taxonomy_tags",
+          "title"
+        ],
+        "title": "SeoProfileDocument",
+        "type": "object"
+      },
+      "SeoPublicProfile": {
+        "additionalProperties": true,
+        "description": "Anonymous read of the active SEO revision.",
+        "properties": {
+          "etag": {
+            "$ref": "#/components/schemas/DigestValue"
+          },
+          "generation": {
+            "minimum": 0,
+            "title": "Generation",
+            "type": "integer"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/SeoProfileDocument"
+          },
+          "revision_id": {
+            "$ref": "#/components/schemas/RevisionId"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "snapshot_id": {
+            "$ref": "#/components/schemas/DigestValue"
+          }
+        },
+        "required": [
+          "etag",
+          "generation",
+          "profile",
+          "revision_id",
+          "schema_version",
+          "snapshot_id"
+        ],
+        "title": "SeoPublicProfile",
+        "type": "object"
+      },
+      "SeoRobots": {
+        "enum": [
+          "index,follow",
+          "noindex,follow"
+        ],
+        "type": "string"
+      },
+      "SeoRollbackRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "locale": {
+            "$ref": "#/components/schemas/SeoLocale",
+            "default": "en"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "title": "SeoRollbackRequest",
+        "type": "object"
+      },
+      "SeoRollbackResponse": {
+        "additionalProperties": true,
+        "properties": {
+          "generator_kind": {
+            "$ref": "#/components/schemas/SeoGeneratorKind"
+          },
+          "locale": {
+            "$ref": "#/components/schemas/SeoLocale"
+          },
+          "revision_id": {
+            "$ref": "#/components/schemas/RevisionId"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "subject_id": {
+            "maxLength": 253,
+            "minLength": 1,
+            "title": "Subject Id",
+            "type": "string"
+          },
+          "subject_kind": {
+            "$ref": "#/components/schemas/SeoSubjectKind"
+          }
+        },
+        "required": [
+          "generator_kind",
+          "locale",
+          "revision_id",
+          "schema_version",
+          "subject_id",
+          "subject_kind"
+        ],
+        "title": "SeoRollbackResponse",
+        "type": "object"
+      },
+      "SeoSection": {
+        "additionalProperties": true,
+        "description": "One visible kind-specific page section.",
+        "properties": {
+          "body": {
+            "maxLength": 8000,
+            "minLength": 1,
+            "title": "Body",
+            "type": "string"
+          },
+          "heading": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Heading",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "provenance": {
+            "default": "template",
+            "enum": [
+              "template",
+              "model"
+            ],
+            "title": "Provenance",
+            "type": "string"
+          }
+        },
+        "required": [
+          "body",
+          "heading",
+          "id",
+          "provenance"
+        ],
+        "title": "SeoSection",
+        "type": "object"
+      },
+      "SeoSitemapShard": {
+        "additionalProperties": true,
+        "description": "One kind/locale shard of at most 50_000 URLs.",
+        "properties": {
+          "generation": {
+            "minimum": 0,
+            "title": "Generation",
+            "type": "integer"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/SeoSubjectKind"
+          },
+          "locale": {
+            "$ref": "#/components/schemas/SeoLocale"
+          },
+          "page": {
+            "minimum": 1,
+            "title": "Page",
+            "type": "integer"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "urls": {
+            "items": {
+              "$ref": "#/components/schemas/SeoSitemapUrl"
+            },
+            "maxItems": 50000,
+            "title": "Urls",
+            "type": "array"
+          }
+        },
+        "required": [
+          "generation",
+          "kind",
+          "locale",
+          "page",
+          "schema_version",
+          "urls"
+        ],
+        "title": "SeoSitemapShard",
+        "type": "object"
+      },
+      "SeoSitemapUrl": {
+        "additionalProperties": true,
+        "description": "One eligible canonical URL in a sitemap shard.",
+        "properties": {
+          "alternates": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/AbsoluteUrl"
+            },
+            "title": "Alternates",
+            "type": "object"
+          },
+          "lastmod": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "loc": {
+            "$ref": "#/components/schemas/AbsoluteUrl"
+          }
+        },
+        "required": [
+          "alternates",
+          "lastmod",
+          "loc"
+        ],
+        "title": "SeoSitemapUrl",
+        "type": "object"
+      },
+      "SeoSocial": {
+        "additionalProperties": true,
+        "description": "Open Graph / Twitter preview facts.",
+        "properties": {
+          "description": {
+            "$ref": "#/components/schemas/SafeText320"
+          },
+          "image_alt": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Image Alt",
+            "type": "string"
+          },
+          "image_url": {
+            "$ref": "#/components/schemas/AbsoluteUrl"
+          },
+          "locale": {
+            "$ref": "#/components/schemas/SeoLocale"
+          },
+          "title": {
+            "$ref": "#/components/schemas/SafeText160"
+          }
+        },
+        "required": [
+          "description",
+          "image_alt",
+          "image_url",
+          "locale",
+          "title"
+        ],
+        "title": "SeoSocial",
+        "type": "object"
+      },
+      "SeoSubjectKind": {
+        "enum": [
+          "component",
+          "setup",
+          "article",
+          "service",
+          "country"
+        ],
+        "type": "string"
+      },
+      "SeoSubjectQuery": {
+        "additionalProperties": false,
+        "description": "Locale selector for one subject read.",
+        "properties": {
+          "locale": {
+            "$ref": "#/components/schemas/SeoLocale",
+            "default": "en"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "title": "SeoSubjectQuery",
+        "type": "object"
+      },
+      "SeoSubjectRef": {
+        "additionalProperties": true,
+        "description": "Identity of one SEO subject revision.",
+        "properties": {
+          "id": {
+            "maxLength": 253,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/SeoSubjectKind"
+          },
+          "source_digest": {
+            "$ref": "#/components/schemas/DigestValue"
+          },
+          "source_revision": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Source Revision",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "source_digest",
+          "source_revision"
+        ],
+        "title": "SeoSubjectRef",
         "type": "object"
       },
       "SetupContextBudget": {
@@ -6060,6 +7360,204 @@
           "idempotency_key"
         ],
         "title": "StaffAuthorVerifiedRequest",
+        "type": "object"
+      },
+      "StaffContentPublishRequest": {
+        "additionalProperties": false,
+        "description": "Atomic staff publication of one article identity.",
+        "properties": {
+          "expected_active_digest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DigestValue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "translations": {
+            "$ref": "#/components/schemas/StaffContentTranslations"
+          }
+        },
+        "required": [
+          "expected_active_digest",
+          "translations"
+        ],
+        "title": "StaffContentPublishRequest",
+        "type": "object"
+      },
+      "StaffContentPublishResponse": {
+        "additionalProperties": true,
+        "description": "Staff publication result with the public article pair.",
+        "properties": {
+          "active_digest": {
+            "$ref": "#/components/schemas/DigestValue"
+          },
+          "article_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Article Id",
+            "type": "string"
+          },
+          "articles": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ContentDetail"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/ContentLocale"
+            },
+            "title": "Articles",
+            "type": "object"
+          },
+          "revision_ids": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/RevisionId"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/ContentLocale"
+            },
+            "title": "Revision Ids",
+            "type": "object"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "active_digest",
+          "article_id",
+          "articles",
+          "revision_ids",
+          "schema_version"
+        ],
+        "title": "StaffContentPublishResponse",
+        "type": "object"
+      },
+      "StaffContentTranslation": {
+        "additionalProperties": false,
+        "description": "One locale of a staff publication payload.",
+        "properties": {
+          "body": {
+            "$ref": "#/components/schemas/ContentBody"
+          },
+          "description": {
+            "$ref": "#/components/schemas/ContentDescription"
+          },
+          "published_at": {
+            "$ref": "#/components/schemas/ContentDate"
+          },
+          "tags": {
+            "items": {
+              "$ref": "#/components/schemas/ContentTag"
+            },
+            "maxItems": 12,
+            "title": "Tags",
+            "type": "array"
+          },
+          "title": {
+            "$ref": "#/components/schemas/ContentTitle"
+          }
+        },
+        "required": [
+          "title",
+          "description",
+          "published_at",
+          "tags",
+          "body"
+        ],
+        "title": "StaffContentTranslation",
+        "type": "object"
+      },
+      "StaffContentTranslations": {
+        "additionalProperties": false,
+        "description": "Exact RU/EN pair. Any other locale set is unrepresentable.",
+        "properties": {
+          "en": {
+            "$ref": "#/components/schemas/StaffContentTranslation"
+          },
+          "ru": {
+            "$ref": "#/components/schemas/StaffContentTranslation"
+          }
+        },
+        "required": [
+          "ru",
+          "en"
+        ],
+        "title": "StaffContentTranslations",
+        "type": "object"
+      },
+      "StaffContentUnpublishRequest": {
+        "additionalProperties": false,
+        "description": "Optimistic staff unpublish of both locales.",
+        "properties": {
+          "expected_active_digest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DigestValue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_active_digest"
+        ],
+        "title": "StaffContentUnpublishRequest",
+        "type": "object"
+      },
+      "StaffContentUnpublishResponse": {
+        "additionalProperties": true,
+        "description": "Terminal unpublished staff article. Repeatable.",
+        "properties": {
+          "active_digest": {
+            "default": null,
+            "title": "Active Digest",
+            "type": "null"
+          },
+          "article_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Article Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "unpublished": {
+            "const": true,
+            "default": true,
+            "title": "Unpublished",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "active_digest",
+          "article_id",
+          "schema_version",
+          "unpublished"
+        ],
+        "title": "StaffContentUnpublishResponse",
         "type": "object"
       },
       "StaffLifecycleRequest": {
@@ -11989,6 +13487,730 @@
         "summary": "Accept a complaint about an author, catalog object, or other target."
       }
     },
+    "/v1/content": {
+      "get": {
+        "operationId": "listContent",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "locale",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ContentLocale"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "listContent.published": {
+                    "summary": "Published locale list returns repository and staff summaries.",
+                    "value": {
+                      "etag": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "items": [
+                        {
+                          "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                          "description": "safe-setup-description",
+                          "locale": "en",
+                          "published_at": "2026-08-12",
+                          "revision_id": "revision_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                          "schema_version": 1,
+                          "slug": "safe-setup",
+                          "source_kind": "repository",
+                          "tags": [
+                            "setup",
+                            "trust"
+                          ],
+                          "title": "safe-setup-title",
+                          "type": "article"
+                        }
+                      ],
+                      "schema_version": 1
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ContentListResponse"
+                }
+              }
+            },
+            "description": "List published repository and staff articles for one locale.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_CONTENT_INVALID, AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "summary": "List published repository and staff articles for one locale."
+      }
+    },
+    "/v1/content/repository/import": {
+      "post": {
+        "operationId": "importContentRepository",
+        "parameters": [
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "importContentRepository.accepted": {
+                  "summary": "Snapshot import reports created activated removed and unchanged counts.",
+                  "value": {
+                    "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "entries": [
+                      {
+                        "body": "Use exact versions.",
+                        "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                        "description": "safe-setup-description",
+                        "locale": "en",
+                        "published_at": "2026-08-12",
+                        "slug": "safe-setup",
+                        "source_kind": "repository",
+                        "source_path": "en/article-safe-setup.md",
+                        "source_ref": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                        "tags": [
+                          "setup"
+                        ],
+                        "title": "safe-setup-title",
+                        "type": "article"
+                      },
+                      {
+                        "body": "Tochnye versii.",
+                        "content_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                        "description": "safe-setup-description-ru",
+                        "locale": "ru",
+                        "published_at": "2026-08-12",
+                        "slug": "safe-setup",
+                        "source_kind": "repository",
+                        "source_path": "ru/article-safe-setup.md",
+                        "source_ref": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                        "tags": [
+                          "setup"
+                        ],
+                        "title": "safe-setup-title-ru",
+                        "type": "article"
+                      }
+                    ],
+                    "expected_generation": 0,
+                    "repository": "ai-engineers-guild/ai-stp",
+                    "schema_version": 1,
+                    "snapshot_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/ContentRepositoryImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "importContentRepository.accepted": {
+                    "summary": "Snapshot import reports created activated removed and unchanged counts.",
+                    "value": {
+                      "activated": 2,
+                      "created": 2,
+                      "generation": 1,
+                      "removed": 0,
+                      "schema_version": 1,
+                      "snapshot_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                      "unchanged": 0
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ContentRepositoryImportResponse"
+                }
+              }
+            },
+            "description": "Replace the repository-owned active article set from a snapshot.",
+            "headers": {
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_CONTENT_INVALID, AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_CONTENT_IMPORT_FORBIDDEN.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_CONTENT_SOURCE_CONFLICT, AI_STP_CONTENT_STALE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "summary": "Replace the repository-owned active article set from a snapshot."
+      }
+    },
+    "/v1/content/repository/state": {
+      "get": {
+        "operationId": "readContentRepositoryState",
+        "parameters": [
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readContentRepositoryState.current": {
+                    "summary": "Repository state returns generation without snapshot entries.",
+                    "value": {
+                      "commit": null,
+                      "generation": 0,
+                      "schema_version": 1,
+                      "snapshot_digest": null
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ContentRepositoryState"
+                }
+              }
+            },
+            "description": "Read the current repository import generation without entries.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_CONTENT_IMPORT_FORBIDDEN.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "summary": "Read the current repository import generation without entries."
+      }
+    },
+    "/v1/content/{type}/{slug}": {
+      "get": {
+        "operationId": "readContent",
+        "parameters": [
+          {
+            "description": "Content hub article type.",
+            "in": "path",
+            "name": "type",
+            "required": true,
+            "schema": {
+              "pattern": "^(article|blog_post|changelog|release_notes)$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Lowercase kebab-case article slug.",
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "locale",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ContentLocale"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readContent.published": {
+                    "summary": "Published detail returns body and repository provenance.",
+                    "value": {
+                      "body": "Use exact versions.",
+                      "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                      "description": "safe-setup-description",
+                      "locale": "en",
+                      "published_at": "2026-08-12",
+                      "revision_id": "revision_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "schema_version": 1,
+                      "slug": "safe-setup",
+                      "source_kind": "repository",
+                      "source_path": "en/article-safe-setup.md",
+                      "source_ref": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "tags": [
+                        "setup",
+                        "trust"
+                      ],
+                      "title": "safe-setup-title",
+                      "type": "article"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ContentDetail"
+                }
+              }
+            },
+            "description": "Read one published localized article.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_CONTENT_INVALID, AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "summary": "Read one published localized article."
+      }
+    },
     "/v1/devices": {
       "get": {
         "operationId": "listDevices",
@@ -17446,6 +19668,1165 @@
         "summary": "Read an account-scoped selection impact report."
       }
     },
+    "/v1/seo/catalog": {
+      "get": {
+        "operationId": "readSeoCatalog",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Cursor"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SeoSubjectKind"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          {
+            "in": "query",
+            "name": "locale",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SeoLocale"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/PageSize",
+              "default": 20
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readSeoCatalog.page": {
+                    "summary": "LLM catalog manifest is paginated and does not embed the whole catalog.",
+                    "value": {
+                      "generation": 1,
+                      "items": [
+                        {
+                          "canonical_url": "https://example.test/en/catalog/components/component_01jqzk7b8n4m6p2r9t5v0x3y70",
+                          "description": "Public skill for catalog search and install.",
+                          "kind": "component",
+                          "locale": "en",
+                          "markdown_url": "https://example.test/llms/component/component_01jqzk7b8n4m6p2r9t5v0x3y70.md",
+                          "modified_at": "2026-08-01T00:00:00.000Z",
+                          "revision_id": "revision_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                          "subject_id": "component_01jqzk7b8n4m6p2r9t5v0x3y70",
+                          "title": "Demo skill - component"
+                        }
+                      ],
+                      "page": {
+                        "next_cursor": null,
+                        "page_size": 20,
+                        "schema_version": 1
+                      },
+                      "schema_version": 1
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/SeoCatalogPage"
+                }
+              }
+            },
+            "description": "Read a paginated LLM catalog manifest of active subjects.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "summary": "Read a paginated LLM catalog manifest of active subjects."
+      }
+    },
+    "/v1/seo/og/{revision_id}": {
+      "get": {
+        "operationId": "readSeoOgImage",
+        "parameters": [
+          {
+            "description": "Immutable SEO revision identifier.",
+            "in": "path",
+            "name": "revision_id",
+            "required": true,
+            "schema": {
+              "pattern": "^revision_[0-9a-f]{64}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/png": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Read the immutable 1200 by 630 Open Graph image for one revision.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL, AI_STP_SEO_RENDER_FAILED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "summary": "Read the immutable 1200 by 630 Open Graph image for one revision."
+      }
+    },
+    "/v1/seo/sitemap": {
+      "get": {
+        "operationId": "readSeoSitemapIndex",
+        "parameters": [
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readSeoSitemapIndex.current": {
+                    "summary": "Sitemap index lists generation-aware shards without mutating a shared file.",
+                    "value": {
+                      "etag": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                      "generation": 1,
+                      "schema_version": 1,
+                      "shards": [
+                        {
+                          "lastmod": "2026-08-01T00:00:00.000Z",
+                          "loc": "https://example.test/sitemaps/component-en-1.xml"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/SeoIndexResponse"
+                }
+              }
+            },
+            "description": "Read the generation-aware sitemap index.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "summary": "Read the generation-aware sitemap index."
+      }
+    },
+    "/v1/seo/sitemaps/{subject_kind}/{locale}/{page}": {
+      "get": {
+        "operationId": "readSeoSitemapShard",
+        "parameters": [
+          {
+            "description": "SEO subject kind.",
+            "in": "path",
+            "name": "subject_kind",
+            "required": true,
+            "schema": {
+              "pattern": "^(component|setup|article|service|country)$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "SEO locale.",
+            "in": "path",
+            "name": "locale",
+            "required": true,
+            "schema": {
+              "pattern": "^(ru|en)$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "1-based shard page.",
+            "in": "path",
+            "name": "page",
+            "required": true,
+            "schema": {
+              "pattern": "^[1-9][0-9]*$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readSeoSitemapShard.page": {
+                    "summary": "One shard lists absolute canonical URLs with lastmod from source facts.",
+                    "value": {
+                      "generation": 1,
+                      "kind": "component",
+                      "locale": "en",
+                      "page": 1,
+                      "schema_version": 1,
+                      "urls": [
+                        {
+                          "alternates": {
+                            "en": "https://example.test/en/catalog/components/component_01jqzk7b8n4m6p2r9t5v0x3y70"
+                          },
+                          "lastmod": "2026-08-01T00:00:00.000Z",
+                          "loc": "https://example.test/en/catalog/components/component_01jqzk7b8n4m6p2r9t5v0x3y70"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/SeoSitemapShard"
+                }
+              }
+            },
+            "description": "Read one sitemap shard of at most 50 000 eligible URLs.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "summary": "Read one sitemap shard of at most 50 000 eligible URLs."
+      }
+    },
+    "/v1/seo/subjects/{subject_kind}/{subject_id}": {
+      "get": {
+        "operationId": "readSeoProfile",
+        "parameters": [
+          {
+            "description": "SEO subject kind.",
+            "in": "path",
+            "name": "subject_kind",
+            "required": true,
+            "schema": {
+              "pattern": "^(component|setup|article|service|country)$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Stable subject identifier.",
+            "in": "path",
+            "name": "subject_id",
+            "required": true,
+            "schema": {
+              "pattern": "^.{1,253}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "locale",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/SeoLocale",
+              "default": "en"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readSeoProfile.public": {
+                    "summary": "Anonymous read of the active SEO revision for one public component.",
+                    "value": {
+                      "etag": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                      "generation": 1,
+                      "profile": {
+                        "alternates": {
+                          "en": "https://example.test/en/catalog/components/component_01jqzk7b8n4m6p2r9t5v0x3y70"
+                        },
+                        "breadcrumbs": [
+                          {
+                            "href": "https://example.test/en",
+                            "kind": null,
+                            "rel": "home",
+                            "subject_id": null,
+                            "text": "Home"
+                          }
+                        ],
+                        "canonical_url": "https://example.test/en/catalog/components/component_01jqzk7b8n4m6p2r9t5v0x3y70",
+                        "description": "Public skill for catalog search and install.",
+                        "generator": {
+                          "kind": "template",
+                          "model_alias": null,
+                          "prompt_version": null,
+                          "template_version": "seo-template-v1"
+                        },
+                        "heading": "Demo skill",
+                        "index_decision": {
+                          "eligible": true,
+                          "reasons": [
+                            "eligible"
+                          ]
+                        },
+                        "internal_links": [],
+                        "json_ld": {
+                          "@context": "https://schema.org",
+                          "@graph": [
+                            {
+                              "@type": "SoftwareSourceCode",
+                              "name": "Demo skill",
+                              "url": "https://example.test/en/catalog/components/component_01jqzk7b8n4m6p2r9t5v0x3y70"
+                            }
+                          ]
+                        },
+                        "locale": "en",
+                        "modified_at": "2026-08-01T00:00:00.000Z",
+                        "published_at": "2026-08-01T00:00:00.000Z",
+                        "robots": "index,follow",
+                        "schema_version": 1,
+                        "search_intents": [
+                          "skill"
+                        ],
+                        "sections": [
+                          {
+                            "body": "Public skill for catalog search and install.",
+                            "heading": "Purpose",
+                            "id": "purpose",
+                            "provenance": "template"
+                          }
+                        ],
+                        "social": {
+                          "description": "Public skill for catalog search and install.",
+                          "image_alt": "Demo skill",
+                          "image_url": "https://example.test/og/revision_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.png",
+                          "locale": "en",
+                          "title": "Demo skill - component"
+                        },
+                        "subject": {
+                          "id": "component_01jqzk7b8n4m6p2r9t5v0x3y70",
+                          "kind": "component",
+                          "source_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                          "source_revision": "revision_dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                        },
+                        "summary": "Public skill for catalog search and install.",
+                        "taxonomy_tags": [
+                          "skill"
+                        ],
+                        "title": "Demo skill - component"
+                      },
+                      "revision_id": "revision_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "schema_version": 1,
+                      "snapshot_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/SeoPublicProfile"
+                }
+              }
+            },
+            "description": "Read the active public SEO profile for one subject and locale.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "summary": "Read the active public SEO profile for one subject and locale."
+      }
+    },
+    "/v1/seo/subjects/{subject_kind}/{subject_id}/rollback": {
+      "post": {
+        "operationId": "rollbackSeoRevision",
+        "parameters": [
+          {
+            "description": "SEO subject kind.",
+            "in": "path",
+            "name": "subject_kind",
+            "required": true,
+            "schema": {
+              "pattern": "^(component|setup|article|service|country)$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Stable subject identifier.",
+            "in": "path",
+            "name": "subject_id",
+            "required": true,
+            "schema": {
+              "pattern": "^.{1,253}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "rollbackSeoRevision.base": {
+                  "summary": "Operator rollback points the subject at the last valid base revision.",
+                  "value": {
+                    "locale": "en",
+                    "schema_version": 1
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/SeoRollbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "rollbackSeoRevision.base": {
+                    "summary": "Operator rollback points the subject at the last valid base revision.",
+                    "value": {
+                      "generator_kind": "template",
+                      "locale": "en",
+                      "revision_id": "revision_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "schema_version": 1,
+                      "subject_id": "component_01jqzk7b8n4m6p2r9t5v0x3y70",
+                      "subject_kind": "component"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/SeoRollbackResponse"
+                }
+              }
+            },
+            "description": "Point one subject locale at its last valid base SEO revision.",
+            "headers": {
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Point one subject locale at its last valid base SEO revision."
+      }
+    },
     "/v1/staff/author-verified": {
       "post": {
         "operationId": "staffAuthorVerified",
@@ -17669,6 +21050,570 @@
           }
         ],
         "summary": "Issue or revoke author_verified for an account."
+      }
+    },
+    "/v1/staff/content/{type}/{slug}": {
+      "delete": {
+        "operationId": "deleteStaffContent",
+        "parameters": [
+          {
+            "description": "Content hub article type.",
+            "in": "path",
+            "name": "type",
+            "required": true,
+            "schema": {
+              "pattern": "^(article|blog_post|changelog|release_notes)$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Lowercase kebab-case article slug.",
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "deleteStaffContent.unpublished": {
+                  "summary": "Staff unpublish removes both locales and keeps history.",
+                  "value": {
+                    "expected_active_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                    "schema_version": 1
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/StaffContentUnpublishRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "deleteStaffContent.unpublished": {
+                    "summary": "Staff unpublish removes both locales and keeps history.",
+                    "value": {
+                      "active_digest": null,
+                      "article_id": "article:staff-note",
+                      "schema_version": 1,
+                      "unpublished": true
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/StaffContentUnpublishResponse"
+                }
+              }
+            },
+            "description": "Unpublish both locales of a staff article without deleting history.",
+            "headers": {
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_CONTENT_SOURCE_CONFLICT, AI_STP_CONTENT_STALE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Unpublish both locales of a staff article without deleting history."
+      },
+      "put": {
+        "operationId": "putStaffContent",
+        "parameters": [
+          {
+            "description": "Content hub article type.",
+            "in": "path",
+            "name": "type",
+            "required": true,
+            "schema": {
+              "pattern": "^(article|blog_post|changelog|release_notes)$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Lowercase kebab-case article slug.",
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "putStaffContent.created": {
+                  "summary": "Staff publish creates an exact RU/EN pair.",
+                  "value": {
+                    "expected_active_digest": null,
+                    "schema_version": 1,
+                    "translations": {
+                      "en": {
+                        "body": "Staff body EN.",
+                        "description": "staff-description-en",
+                        "published_at": "2026-08-12",
+                        "tags": [
+                          "note"
+                        ],
+                        "title": "staff-title-en"
+                      },
+                      "ru": {
+                        "body": "Staff body RU.",
+                        "description": "staff-description-ru",
+                        "published_at": "2026-08-12",
+                        "tags": [
+                          "note"
+                        ],
+                        "title": "staff-title-ru"
+                      }
+                    }
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/StaffContentPublishRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "putStaffContent.created": {
+                    "summary": "Staff publish creates an exact RU/EN pair.",
+                    "value": {
+                      "active_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                      "article_id": "article:staff-note",
+                      "articles": {
+                        "en": {
+                          "body": "Staff body EN.",
+                          "content_digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                          "description": "staff-description-en",
+                          "locale": "en",
+                          "published_at": "2026-08-12",
+                          "revision_id": "revision_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                          "schema_version": 1,
+                          "slug": "staff-note",
+                          "source_kind": "staff",
+                          "source_path": null,
+                          "source_ref": null,
+                          "tags": [
+                            "note"
+                          ],
+                          "title": "staff-title-en",
+                          "type": "article"
+                        },
+                        "ru": {
+                          "body": "Staff body RU.",
+                          "content_digest": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+                          "description": "staff-description-ru",
+                          "locale": "ru",
+                          "published_at": "2026-08-12",
+                          "revision_id": "revision_cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                          "schema_version": 1,
+                          "slug": "staff-note",
+                          "source_kind": "staff",
+                          "source_path": null,
+                          "source_ref": null,
+                          "tags": [
+                            "note"
+                          ],
+                          "title": "staff-title-ru",
+                          "type": "article"
+                        }
+                      },
+                      "revision_ids": {
+                        "en": "revision_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                        "ru": "revision_cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                      },
+                      "schema_version": 1
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/StaffContentPublishResponse"
+                }
+              }
+            },
+            "description": "Publish an exact RU/EN staff article pair.",
+            "headers": {
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_CONTENT_INVALID, AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_CONTENT_SOURCE_CONFLICT, AI_STP_CONTENT_STALE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Publish an exact RU/EN staff article pair."
       }
     },
     "/v1/staff/reports": {

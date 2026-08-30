@@ -1,0 +1,168 @@
+{
+  "$defs": {
+    "AbsoluteUrl": {
+      "maxLength": 2048,
+      "pattern": "^https?://",
+      "type": "string"
+    },
+    "Cursor": {
+      "pattern": "^[A-Za-z0-9_-]{1,512}$",
+      "type": "string"
+    },
+    "PageInfo": {
+      "additionalProperties": true,
+      "description": "Cursor pagination state (docs/contracts/http-api.md).\n\nNo total is exposed. Reporting one would let a caller detect objects it is\nnot allowed to read, so a hidden or deleted object leaks through neither a\ncount nor a cursor.",
+      "properties": {
+        "next_cursor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Cursor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "page_size": {
+          "$ref": "#/$defs/PageSize"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "next_cursor",
+        "page_size",
+        "schema_version"
+      ],
+      "title": "PageInfo",
+      "type": "object"
+    },
+    "PageSize": {
+      "maximum": 100,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "RevisionId": {
+      "pattern": "^revision_[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "SafeText160": {
+      "maxLength": 160,
+      "minLength": 1,
+      "type": "string"
+    },
+    "SafeText320": {
+      "maxLength": 320,
+      "minLength": 1,
+      "type": "string"
+    },
+    "SeoCatalogEntry": {
+      "additionalProperties": true,
+      "description": "One LLM catalog manifest row.",
+      "properties": {
+        "canonical_url": {
+          "$ref": "#/$defs/AbsoluteUrl"
+        },
+        "description": {
+          "$ref": "#/$defs/SafeText320"
+        },
+        "kind": {
+          "$ref": "#/$defs/SeoSubjectKind"
+        },
+        "locale": {
+          "$ref": "#/$defs/SeoLocale"
+        },
+        "markdown_url": {
+          "$ref": "#/$defs/AbsoluteUrl"
+        },
+        "modified_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "revision_id": {
+          "$ref": "#/$defs/RevisionId"
+        },
+        "subject_id": {
+          "maxLength": 253,
+          "minLength": 1,
+          "title": "Subject Id",
+          "type": "string"
+        },
+        "title": {
+          "$ref": "#/$defs/SafeText160"
+        }
+      },
+      "required": [
+        "canonical_url",
+        "description",
+        "kind",
+        "locale",
+        "markdown_url",
+        "modified_at",
+        "revision_id",
+        "subject_id",
+        "title"
+      ],
+      "title": "SeoCatalogEntry",
+      "type": "object"
+    },
+    "SeoLocale": {
+      "enum": [
+        "ru",
+        "en"
+      ],
+      "type": "string"
+    },
+    "SeoSubjectKind": {
+      "enum": [
+        "component",
+        "setup",
+        "article",
+        "service",
+        "country"
+      ],
+      "type": "string"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:seo-catalog-page",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "generation": {
+      "minimum": 0,
+      "title": "Generation",
+      "type": "integer"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/$defs/SeoCatalogEntry"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "page": {
+      "$ref": "#/$defs/PageInfo"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "generation",
+    "items",
+    "page",
+    "schema_version"
+  ],
+  "title": "SeoCatalogPage",
+  "type": "object"
+}

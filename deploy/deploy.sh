@@ -20,7 +20,7 @@ Deploy steps (order):
   1. Acquire deploy lock (flock)
   2. Record previous artifact for rollback
   3. Build images (unless --skip-build)
-  4. migrate -> seed -> api/worker/web/caddy up
+  4. migrate -> seed -> api/worker + content-import -> web/caddy up
   5. Wait for readiness; abort on timeout
   6. Record current artifact
 
@@ -103,7 +103,10 @@ record_deploy_stage "${COMMIT}" "migrated"
 compose run --rm seed
 log info "seed_ok"
 record_deploy_stage "${COMMIT}" "seeded"
-compose up -d api worker web caddy
+# One-shot importer: an exited container from the previous release is not
+# current. Remove it so `up` POSTs this image's snapshot (same digest is no-op).
+compose rm -fs content-import >/dev/null 2>&1 || true
+compose up -d api worker content-import web caddy
 # rsync deploys replace bind-mounted files by new inodes. The official
 # caddy:2 image does not follow that; a long-lived container keeps serving
 # the Caddyfile it opened at start, and `caddy reload` reloads that inode.

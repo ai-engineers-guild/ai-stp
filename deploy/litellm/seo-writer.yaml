@@ -1,0 +1,14 @@
+# LiteLLM routes the product alias `seo-writer` to the operator CLIPROXY.
+# Worker never reads these values; it calls only this proxy.
+
+model_list:
+  - model_name: seo-writer
+    litellm_params:
+      model: os.environ/CLIPROXY_MODEL
+      api_base: os.environ/CLIPROXY_API_BASE
+      api_key: os.environ/CLIPROXY_API_KEY
+      drop_params: true
+
+litellm_settings:
+  drop_params: true
+  num_retries: 0

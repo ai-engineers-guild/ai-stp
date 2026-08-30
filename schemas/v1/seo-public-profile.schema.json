@@ -1,0 +1,489 @@
+{
+  "$defs": {
+    "AbsoluteUrl": {
+      "maxLength": 2048,
+      "pattern": "^https?://",
+      "type": "string"
+    },
+    "DigestValue": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "RevisionId": {
+      "pattern": "^revision_[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "SafeText160": {
+      "maxLength": 160,
+      "minLength": 1,
+      "type": "string"
+    },
+    "SafeText200": {
+      "maxLength": 200,
+      "minLength": 1,
+      "type": "string"
+    },
+    "SafeText320": {
+      "maxLength": 320,
+      "minLength": 1,
+      "type": "string"
+    },
+    "SeoGenerator": {
+      "additionalProperties": true,
+      "description": "Provenance of one SEO revision. Model alias is operator-facing only.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/SeoGeneratorKind"
+        },
+        "model_alias": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Alias"
+        },
+        "prompt_version": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prompt Version"
+        },
+        "template_version": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Template Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "model_alias",
+        "prompt_version",
+        "template_version"
+      ],
+      "title": "SeoGenerator",
+      "type": "object"
+    },
+    "SeoGeneratorKind": {
+      "enum": [
+        "template",
+        "model"
+      ],
+      "type": "string"
+    },
+    "SeoIndexDecision": {
+      "additionalProperties": true,
+      "description": "Deterministic index eligibility. Model output never supplies this.",
+      "properties": {
+        "eligible": {
+          "title": "Eligible",
+          "type": "boolean"
+        },
+        "reasons": {
+          "items": {
+            "$ref": "#/$defs/SeoIndexReason"
+          },
+          "maxItems": 12,
+          "title": "Reasons",
+          "type": "array"
+        }
+      },
+      "required": [
+        "eligible",
+        "reasons"
+      ],
+      "title": "SeoIndexDecision",
+      "type": "object"
+    },
+    "SeoIndexReason": {
+      "enum": [
+        "eligible",
+        "not_public",
+        "blocked",
+        "hidden",
+        "deprecated",
+        "missing_primary_content",
+        "missing_source",
+        "empty_collection",
+        "duplicate_canonical",
+        "unavailable",
+        "materialization_pending"
+      ],
+      "type": "string"
+    },
+    "SeoLink": {
+      "additionalProperties": true,
+      "description": "One crawlable visible link.",
+      "properties": {
+        "href": {
+          "$ref": "#/$defs/AbsoluteUrl"
+        },
+        "kind": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SeoSubjectKind"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "rel": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Rel",
+          "type": "string"
+        },
+        "subject_id": {
+          "anyOf": [
+            {
+              "maxLength": 253,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subject Id"
+        },
+        "text": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "href",
+        "kind",
+        "rel",
+        "subject_id",
+        "text"
+      ],
+      "title": "SeoLink",
+      "type": "object"
+    },
+    "SeoLocale": {
+      "enum": [
+        "ru",
+        "en"
+      ],
+      "type": "string"
+    },
+    "SeoProfileDocument": {
+      "additionalProperties": true,
+      "description": "Closed profile document v1 stored on a revision.",
+      "properties": {
+        "alternates": {
+          "additionalProperties": {
+            "$ref": "#/$defs/AbsoluteUrl"
+          },
+          "title": "Alternates",
+          "type": "object"
+        },
+        "breadcrumbs": {
+          "items": {
+            "$ref": "#/$defs/SeoLink"
+          },
+          "maxItems": 12,
+          "title": "Breadcrumbs",
+          "type": "array"
+        },
+        "canonical_url": {
+          "$ref": "#/$defs/AbsoluteUrl"
+        },
+        "description": {
+          "$ref": "#/$defs/SafeText320"
+        },
+        "generator": {
+          "$ref": "#/$defs/SeoGenerator"
+        },
+        "heading": {
+          "$ref": "#/$defs/SafeText200"
+        },
+        "index_decision": {
+          "$ref": "#/$defs/SeoIndexDecision"
+        },
+        "internal_links": {
+          "items": {
+            "$ref": "#/$defs/SeoLink"
+          },
+          "maxItems": 48,
+          "title": "Internal Links",
+          "type": "array"
+        },
+        "json_ld": {
+          "additionalProperties": true,
+          "title": "Json Ld",
+          "type": "object"
+        },
+        "locale": {
+          "$ref": "#/$defs/SeoLocale"
+        },
+        "modified_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "published_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "robots": {
+          "$ref": "#/$defs/SeoRobots"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "search_intents": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 12,
+          "title": "Search Intents",
+          "type": "array"
+        },
+        "sections": {
+          "items": {
+            "$ref": "#/$defs/SeoSection"
+          },
+          "maxItems": 24,
+          "title": "Sections",
+          "type": "array"
+        },
+        "social": {
+          "$ref": "#/$defs/SeoSocial"
+        },
+        "subject": {
+          "$ref": "#/$defs/SeoSubjectRef"
+        },
+        "summary": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        },
+        "taxonomy_tags": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 12,
+          "title": "Taxonomy Tags",
+          "type": "array"
+        },
+        "title": {
+          "$ref": "#/$defs/SafeText160"
+        }
+      },
+      "required": [
+        "alternates",
+        "breadcrumbs",
+        "canonical_url",
+        "description",
+        "generator",
+        "heading",
+        "index_decision",
+        "internal_links",
+        "json_ld",
+        "locale",
+        "modified_at",
+        "published_at",
+        "robots",
+        "schema_version",
+        "search_intents",
+        "sections",
+        "social",
+        "subject",
+        "summary",
+        "taxonomy_tags",
+        "title"
+      ],
+      "title": "SeoProfileDocument",
+      "type": "object"
+    },
+    "SeoRobots": {
+      "enum": [
+        "index,follow",
+        "noindex,follow"
+      ],
+      "type": "string"
+    },
+    "SeoSection": {
+      "additionalProperties": true,
+      "description": "One visible kind-specific page section.",
+      "properties": {
+        "body": {
+          "maxLength": 8000,
+          "minLength": 1,
+          "title": "Body",
+          "type": "string"
+        },
+        "heading": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Heading",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "provenance": {
+          "default": "template",
+          "enum": [
+            "template",
+            "model"
+          ],
+          "title": "Provenance",
+          "type": "string"
+        }
+      },
+      "required": [
+        "body",
+        "heading",
+        "id",
+        "provenance"
+      ],
+      "title": "SeoSection",
+      "type": "object"
+    },
+    "SeoSocial": {
+      "additionalProperties": true,
+      "description": "Open Graph / Twitter preview facts.",
+      "properties": {
+        "description": {
+          "$ref": "#/$defs/SafeText320"
+        },
+        "image_alt": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Image Alt",
+          "type": "string"
+        },
+        "image_url": {
+          "$ref": "#/$defs/AbsoluteUrl"
+        },
+        "locale": {
+          "$ref": "#/$defs/SeoLocale"
+        },
+        "title": {
+          "$ref": "#/$defs/SafeText160"
+        }
+      },
+      "required": [
+        "description",
+        "image_alt",
+        "image_url",
+        "locale",
+        "title"
+      ],
+      "title": "SeoSocial",
+      "type": "object"
+    },
+    "SeoSubjectKind": {
+      "enum": [
+        "component",
+        "setup",
+        "article",
+        "service",
+        "country"
+      ],
+      "type": "string"
+    },
+    "SeoSubjectRef": {
+      "additionalProperties": true,
+      "description": "Identity of one SEO subject revision.",
+      "properties": {
+        "id": {
+          "maxLength": 253,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/SeoSubjectKind"
+        },
+        "source_digest": {
+          "$ref": "#/$defs/DigestValue"
+        },
+        "source_revision": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Source Revision",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "source_digest",
+        "source_revision"
+      ],
+      "title": "SeoSubjectRef",
+      "type": "object"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:seo-public-profile",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Anonymous read of the active SEO revision.",
+  "properties": {
+    "etag": {
+      "$ref": "#/$defs/DigestValue"
+    },
+    "generation": {
+      "minimum": 0,
+      "title": "Generation",
+      "type": "integer"
+    },
+    "profile": {
+      "$ref": "#/$defs/SeoProfileDocument"
+    },
+    "revision_id": {
+      "$ref": "#/$defs/RevisionId"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "snapshot_id": {
+      "$ref": "#/$defs/DigestValue"
+    }
+  },
+  "required": [
+    "etag",
+    "generation",
+    "profile",
+    "revision_id",
+    "schema_version",
+    "snapshot_id"
+  ],
+  "title": "SeoPublicProfile",
+  "type": "object"
+}

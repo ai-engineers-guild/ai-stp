@@ -33,6 +33,7 @@ roots = [
   "uv.lock",
   "docker-compose.dev.yml",
   "docker-compose.prod.yml",
+  "docker-compose.seo-enrichment.yml",
   "Dockerfile",
   "Dockerfile.user-docs",
   "Dockerfile.worker-safety",

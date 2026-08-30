@@ -1,0 +1,57 @@
+{
+  "$defs": {
+    "ContentCommit": {
+      "pattern": "^[0-9a-f]{40}$",
+      "type": "string"
+    },
+    "DigestValue": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:content-repository-state",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Current repository import generation without entries.",
+  "properties": {
+    "commit": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ContentCommit"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "generation": {
+      "minimum": 0,
+      "title": "Generation",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "snapshot_digest": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DigestValue"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "commit",
+    "generation",
+    "schema_version",
+    "snapshot_digest"
+  ],
+  "title": "ContentRepositoryState",
+  "type": "object"
+}

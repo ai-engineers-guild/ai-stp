@@ -15,6 +15,9 @@ from ai_stp_foundation.canonical import JsonValue, canonize
 DIGEST_DOMAINS: Final[frozenset[str]] = frozenset(
     {
         "ai-stp:artifact:v1",
+        "ai-stp:article-active:v1",
+        "ai-stp:article-revision:v1",
+        "ai-stp:article-snapshot:v1",
         "ai-stp:attestation:v1",
         "ai-stp:bundle:v1",
         "ai-stp:native-discovery:v1",
@@ -32,6 +35,9 @@ DIGEST_DOMAINS: Final[frozenset[str]] = frozenset(
         "ai-stp:setup-eval-plan:v1",
         "ai-stp:setup-eval-result:v1",
         "ai-stp:store-port-plan:v1",
+        "ai-stp:seo-snapshot:v1",
+        "ai-stp:seo-profile:v1",
+        "ai-stp:article-body:v1",
     }
 )
 

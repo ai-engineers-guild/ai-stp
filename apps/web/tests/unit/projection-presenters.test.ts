@@ -15,6 +15,7 @@ import {
 } from "@/lib/projection/regional-presenters";
 import { pairedPath, projectedHref } from "@/lib/projection/paths";
 import { GET as llmsFull } from "@/app/llms-full.txt/route";
+import { resetEnvCache } from "@/lib/env";
 
 const PRESENTER_PATHS = [
   "/",
@@ -40,6 +41,8 @@ describe("machine presenters (REQ-3609, REQ-3610, REQ-3608)", () => {
     vi.stubEnv("AI_STP_API_BASE_URL", "http://localhost:8000");
     vi.stubEnv("AI_STP_SESSION_SECRET", "dev-only-change-me-to-a-long-random-string");
     vi.stubEnv("AI_STP_USER_DOCS_URL", "http://localhost:8011");
+    vi.stubEnv("AI_STP_USE_MOCKS", "true");
+    resetEnvCache();
   });
 
   afterEach(() => {
@@ -102,7 +105,7 @@ describe("machine presenters (REQ-3609, REQ-3610, REQ-3608)", () => {
   });
 
   it("shares presenters with llms-full.txt", async () => {
-    const body = await llmsFull().text();
+    const body = await (await llmsFull()).text();
     const platform = machineDocumentToText(presentPlatformContext(), "en");
     const landing = machineDocumentToText(
       presentLanding({

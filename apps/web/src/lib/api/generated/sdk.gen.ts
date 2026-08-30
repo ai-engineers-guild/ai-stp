@@ -30,6 +30,9 @@ import type {
   CreateReportCaseData,
   CreateReportCaseErrors,
   CreateReportCaseResponses,
+  DeleteStaffContentData,
+  DeleteStaffContentErrors,
+  DeleteStaffContentResponses,
   ExchangeDeviceCodeData,
   ExchangeDeviceCodeErrors,
   ExchangeDeviceCodeResponses,
@@ -39,12 +42,18 @@ import type {
   HealthReadyData,
   HealthReadyErrors,
   HealthReadyResponses,
+  ImportContentRepositoryData,
+  ImportContentRepositoryErrors,
+  ImportContentRepositoryResponses,
   LikeCatalogObjectData,
   LikeCatalogObjectErrors,
   LikeCatalogObjectResponses,
   ListCatalogReactionsData,
   ListCatalogReactionsErrors,
   ListCatalogReactionsResponses,
+  ListContentData,
+  ListContentErrors,
+  ListContentResponses,
   ListDevicesData,
   ListDevicesErrors,
   ListDevicesResponses,
@@ -69,6 +78,9 @@ import type {
   PushSyncEventsData,
   PushSyncEventsErrors,
   PushSyncEventsResponses,
+  PutStaffContentData,
+  PutStaffContentErrors,
+  PutStaffContentResponses,
   ReadAccountData,
   ReadAccountErrors,
   ReadAccountResponses,
@@ -87,6 +99,12 @@ import type {
   ReadComponentVersionData,
   ReadComponentVersionErrors,
   ReadComponentVersionResponses,
+  ReadContentData,
+  ReadContentErrors,
+  ReadContentRepositoryStateData,
+  ReadContentRepositoryStateErrors,
+  ReadContentRepositoryStateResponses,
+  ReadContentResponses,
   ReadOAuthCallbackResultData,
   ReadOAuthCallbackResultErrors,
   ReadOAuthCallbackResultResponses,
@@ -102,6 +120,21 @@ import type {
   ReadSelectionImpactData,
   ReadSelectionImpactErrors,
   ReadSelectionImpactResponses,
+  ReadSeoCatalogData,
+  ReadSeoCatalogErrors,
+  ReadSeoCatalogResponses,
+  ReadSeoOgImageData,
+  ReadSeoOgImageErrors,
+  ReadSeoOgImageResponses,
+  ReadSeoProfileData,
+  ReadSeoProfileErrors,
+  ReadSeoProfileResponses,
+  ReadSeoSitemapIndexData,
+  ReadSeoSitemapIndexErrors,
+  ReadSeoSitemapIndexResponses,
+  ReadSeoSitemapShardData,
+  ReadSeoSitemapShardErrors,
+  ReadSeoSitemapShardResponses,
   ReadSetupArtifactData,
   ReadSetupArtifactErrors,
   ReadSetupArtifactResponses,
@@ -135,6 +168,9 @@ import type {
   RevokeGrantInvitationData,
   RevokeGrantInvitationErrors,
   RevokeGrantInvitationResponses,
+  RollbackSeoRevisionData,
+  RollbackSeoRevisionErrors,
+  RollbackSeoRevisionResponses,
   SearchComponentsData,
   SearchComponentsErrors,
   SearchComponentsResponses,
@@ -498,6 +534,63 @@ export const createComplaint = <ThrowOnError extends boolean = false>(
       "Content-Type": "application/json",
       ...options.headers,
     },
+  });
+
+/**
+ * List published repository and staff articles for one locale.
+ */
+export const listContent = <ThrowOnError extends boolean = false>(
+  options: Options<ListContentData, ThrowOnError>,
+): RequestResult<ListContentResponses, ListContentErrors, ThrowOnError> =>
+  (options.client ?? client).get<ListContentResponses, ListContentErrors, ThrowOnError>({
+    url: "/v1/content",
+    ...options,
+  });
+
+/**
+ * Replace the repository-owned active article set from a snapshot.
+ */
+export const importContentRepository = <ThrowOnError extends boolean = false>(
+  options: Options<ImportContentRepositoryData, ThrowOnError>,
+): RequestResult<ImportContentRepositoryResponses, ImportContentRepositoryErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    ImportContentRepositoryResponses,
+    ImportContentRepositoryErrors,
+    ThrowOnError
+  >({
+    url: "/v1/content/repository/import",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Read the current repository import generation without entries.
+ */
+export const readContentRepositoryState = <ThrowOnError extends boolean = false>(
+  options?: Options<ReadContentRepositoryStateData, ThrowOnError>,
+): RequestResult<
+  ReadContentRepositoryStateResponses,
+  ReadContentRepositoryStateErrors,
+  ThrowOnError
+> =>
+  (options?.client ?? client).get<
+    ReadContentRepositoryStateResponses,
+    ReadContentRepositoryStateErrors,
+    ThrowOnError
+  >({ url: "/v1/content/repository/state", ...options });
+
+/**
+ * Read one published localized article.
+ */
+export const readContent = <ThrowOnError extends boolean = false>(
+  options: Options<ReadContentData, ThrowOnError>,
+): RequestResult<ReadContentResponses, ReadContentErrors, ThrowOnError> =>
+  (options.client ?? client).get<ReadContentResponses, ReadContentErrors, ThrowOnError>({
+    url: "/v1/content/{type}/{slug}",
+    ...options,
   });
 
 /**
@@ -892,6 +985,83 @@ export const readSelectionImpact = <ThrowOnError extends boolean = false>(
   });
 
 /**
+ * Read a paginated LLM catalog manifest of active subjects.
+ */
+export const readSeoCatalog = <ThrowOnError extends boolean = false>(
+  options?: Options<ReadSeoCatalogData, ThrowOnError>,
+): RequestResult<ReadSeoCatalogResponses, ReadSeoCatalogErrors, ThrowOnError> =>
+  (options?.client ?? client).get<ReadSeoCatalogResponses, ReadSeoCatalogErrors, ThrowOnError>({
+    url: "/v1/seo/catalog",
+    ...options,
+  });
+
+/**
+ * Read the immutable 1200 by 630 Open Graph image for one revision.
+ */
+export const readSeoOgImage = <ThrowOnError extends boolean = false>(
+  options: Options<ReadSeoOgImageData, ThrowOnError>,
+): RequestResult<ReadSeoOgImageResponses, ReadSeoOgImageErrors, ThrowOnError> =>
+  (options.client ?? client).get<ReadSeoOgImageResponses, ReadSeoOgImageErrors, ThrowOnError>({
+    url: "/v1/seo/og/{revision_id}",
+    ...options,
+  });
+
+/**
+ * Read the generation-aware sitemap index.
+ */
+export const readSeoSitemapIndex = <ThrowOnError extends boolean = false>(
+  options?: Options<ReadSeoSitemapIndexData, ThrowOnError>,
+): RequestResult<ReadSeoSitemapIndexResponses, ReadSeoSitemapIndexErrors, ThrowOnError> =>
+  (options?.client ?? client).get<
+    ReadSeoSitemapIndexResponses,
+    ReadSeoSitemapIndexErrors,
+    ThrowOnError
+  >({ url: "/v1/seo/sitemap", ...options });
+
+/**
+ * Read one sitemap shard of at most 50 000 eligible URLs.
+ */
+export const readSeoSitemapShard = <ThrowOnError extends boolean = false>(
+  options: Options<ReadSeoSitemapShardData, ThrowOnError>,
+): RequestResult<ReadSeoSitemapShardResponses, ReadSeoSitemapShardErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ReadSeoSitemapShardResponses,
+    ReadSeoSitemapShardErrors,
+    ThrowOnError
+  >({ url: "/v1/seo/sitemaps/{subject_kind}/{locale}/{page}", ...options });
+
+/**
+ * Read the active public SEO profile for one subject and locale.
+ */
+export const readSeoProfile = <ThrowOnError extends boolean = false>(
+  options: Options<ReadSeoProfileData, ThrowOnError>,
+): RequestResult<ReadSeoProfileResponses, ReadSeoProfileErrors, ThrowOnError> =>
+  (options.client ?? client).get<ReadSeoProfileResponses, ReadSeoProfileErrors, ThrowOnError>({
+    url: "/v1/seo/subjects/{subject_kind}/{subject_id}",
+    ...options,
+  });
+
+/**
+ * Point one subject locale at its last valid base SEO revision.
+ */
+export const rollbackSeoRevision = <ThrowOnError extends boolean = false>(
+  options: Options<RollbackSeoRevisionData, ThrowOnError>,
+): RequestResult<RollbackSeoRevisionResponses, RollbackSeoRevisionErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    RollbackSeoRevisionResponses,
+    RollbackSeoRevisionErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/seo/subjects/{subject_kind}/{subject_id}/rollback",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
  * Issue or revoke author_verified for an account.
  */
 export const staffAuthorVerified = <ThrowOnError extends boolean = false>(
@@ -904,6 +1074,42 @@ export const staffAuthorVerified = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/staff/author-verified",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Unpublish both locales of a staff article without deleting history.
+ */
+export const deleteStaffContent = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteStaffContentData, ThrowOnError>,
+): RequestResult<DeleteStaffContentResponses, DeleteStaffContentErrors, ThrowOnError> =>
+  (options.client ?? client).delete<
+    DeleteStaffContentResponses,
+    DeleteStaffContentErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/staff/content/{type}/{slug}",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Publish an exact RU/EN staff article pair.
+ */
+export const putStaffContent = <ThrowOnError extends boolean = false>(
+  options: Options<PutStaffContentData, ThrowOnError>,
+): RequestResult<PutStaffContentResponses, PutStaffContentErrors, ThrowOnError> =>
+  (options.client ?? client).put<PutStaffContentResponses, PutStaffContentErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/staff/content/{type}/{slug}",
     ...options,
     headers: {
       "Content-Type": "application/json",

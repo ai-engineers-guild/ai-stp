@@ -1,6 +1,6 @@
 ---
 description: "Сущности продукта, их владение и основные инварианты."
-last_verified: "2026-08-08"
+last_verified: "2026-08-29"
 ---
 
 # Доменная модель
@@ -46,6 +46,12 @@ last_verified: "2026-08-08"
 | ValidationSnapshot | Результаты проверок exact digest. |
 | EvidenceBinding | Принятый источник доказательства одной обязательной проверки со сроком. |
 | PublicationPlan | Неизменяемый серверный план публикации (Operation) с plan_hash. |
+| Article | Стабильный материал content hub с единственным source owner `repository` или `staff`. |
+| ArticleRevision | Неизменяемая локализованная ревизия Article с canonical digest и provenance. |
+| ArticleActive | Активные RU/EN pointers опубликованной Article. |
+| SeoFactSnapshot | Неизменяемая allowlist-проекция публичных фактов точной ревизии subject и locale. |
+| SeoRevision | Неизменяемое presentation-представление snapshot с provenance генератора. |
+| SeoActiveRevision | Единственный активный указатель presentation для subject и locale. |
 
 ## Сборка
 
@@ -130,3 +136,5 @@ last_verified: "2026-08-08"
 - Число жалоб само не меняет жизненный цикл версии; скрытие и блокировка — аудируемые действия модератора.
 - Пригодность к установке выводится из актуальных обязательных доказательств и не отключает установленные цели.
 - Published version не merge'ится; выпускается новая версия.
+- Article source owner не меняется при import или staff publication; совпадение identity другого owner отклоняется.
+- SEO revision не изменяет passport, тело статьи, trust или lifecycle; созданная моделью presentation активируется только после детерминированной base revision и проверки фактов.

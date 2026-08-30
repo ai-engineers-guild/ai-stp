@@ -479,6 +479,20 @@
           "title": "Country Codes",
           "type": "array"
         },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 320,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
         "name": {
           "maxLength": 160,
           "minLength": 1,
@@ -496,14 +510,30 @@
           "default": 1,
           "title": "Schema Version",
           "type": "integer"
+        },
+        "source_url": {
+          "anyOf": [
+            {
+              "maxLength": 512,
+              "pattern": "^https://",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Url"
         }
       },
       "required": [
         "canonical_domain",
         "country_codes",
+        "description",
         "name",
         "primary_url",
-        "schema_version"
+        "schema_version",
+        "source_url"
       ],
       "title": "ExternalProductSummary",
       "type": "object"

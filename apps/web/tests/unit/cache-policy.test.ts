@@ -39,6 +39,23 @@ describe("public catalog cache policy", () => {
     ).toBe(true);
     expect(isPublicCatalogGetPath("/v1/catalog/setups")).toBe(true);
     expect(isPublicCatalogGetPath("/v1/publishers/account_01JQZK7B8N4M6P2R9T5V0X3Y7Z")).toBe(true);
+    expect(
+      isPublicCatalogGetPath("/v1/seo/subjects/component/component_01JQZK7B8N4M6P2R9T5V0X3Y70"),
+    ).toBe(true);
+    expect(isPublicCatalogGetPath("/v1/seo/sitemap")).toBe(true);
+    expect(isPublicCatalogGetPath("/v1/seo/sitemaps/component/en/1")).toBe(true);
+    expect(isPublicCatalogGetPath("/v1/seo/catalog")).toBe(true);
+    expect(
+      isPublicCatalogGetPath(
+        "/v1/seo/og/revision_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      ),
+    ).toBe(true);
+    expect(isPublicCatalogGetPath("/v1/content")).toBe(true);
+    expect(isPublicCatalogGetPath("/v1/content/article/safe-setup")).toBe(true);
+    expect(isPublicCatalogGetPath("/v1/content/blog_post/first-content")).toBe(true);
+    expect(isPublicCatalogGetPath("/v1/content/repository/state")).toBe(false);
+    expect(isPublicCatalogGetPath("/v1/content/repository/import")).toBe(false);
+    expect(isPublicCatalogGetPath("/v1/staff/content/article/staff-note")).toBe(false);
   });
 
   it("rejects account, private, and mutation-shaped paths", () => {

@@ -5,9 +5,18 @@ import {
   paragraph,
   type MachineDocument,
 } from "@/lib/projection/machine-document";
-import type { ContentEntry } from "@/lib/content/source";
 
-export function presentContentIndex(entries: ContentEntry[]): MachineDocument {
+export type ContentProjectionItem = {
+  type: string;
+  slug: string;
+  title: string;
+  description: string;
+  published_at: string;
+  tags: string[];
+  body?: string;
+};
+
+export function presentContentIndex(entries: ContentProjectionItem[]): MachineDocument {
   const doc: MachineDocument = [heading(1, "Content hub"), link("Home", "/")];
   for (const entry of entries) {
     doc.push(
@@ -20,7 +29,7 @@ export function presentContentIndex(entries: ContentEntry[]): MachineDocument {
   return doc;
 }
 
-export function presentContentEntry(entry: ContentEntry): MachineDocument {
+export function presentContentEntry(entry: ContentProjectionItem): MachineDocument {
   return [
     heading(1, entry.title),
     link("Content hub", "/content"),
@@ -29,6 +38,6 @@ export function presentContentEntry(entry: ContentEntry): MachineDocument {
     field("tags", entry.tags.join(", ")),
     paragraph(entry.description),
     heading(2, "Content"),
-    paragraph(entry.body),
+    paragraph(entry.body ?? ""),
   ];
 }

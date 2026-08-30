@@ -95,7 +95,6 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
   }
   setRequestLocale(locale);
   const messages = await getMessages();
-  const meta = await getTranslations({ locale, namespace: "meta" });
   const projection = await readProjection();
   const canonical = (await readCanonicalPathname()) ?? `/${locale}`;
   const pagePath = pathWithoutLocale(canonical, locale);
@@ -106,7 +105,6 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
   return (
     <html lang={locale} data-mode={projection} suppressHydrationWarning>
       <head>
-        <meta name="description" content={meta("defaultDescription")} />
         <link rel="alternate" href={alternateHref} />
       </head>
       <body>

@@ -1,0 +1,39 @@
+{
+  "$id": "urn:ai-stp:schema:v1:staff-content-unpublish-response",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Terminal unpublished staff article. Repeatable.",
+  "properties": {
+    "active_digest": {
+      "default": null,
+      "title": "Active Digest",
+      "type": "null"
+    },
+    "article_id": {
+      "maxLength": 160,
+      "minLength": 1,
+      "title": "Article Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "unpublished": {
+      "const": true,
+      "default": true,
+      "title": "Unpublished",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "active_digest",
+    "article_id",
+    "schema_version",
+    "unpublished"
+  ],
+  "title": "StaffContentUnpublishResponse",
+  "type": "object"
+}

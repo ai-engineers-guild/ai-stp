@@ -23,6 +23,7 @@ last_verified: "2026-08-03"
 | [report-triage.md](report-triage.md) | Runbook: триаж случая жалобы. | 2026-08-04 |
 | [safety-scan.md](safety-scan.md) | Runbook: platform safety-scan для publication validate. | 2026-08-25 |
 | [security-incident.md](security-incident.md) | Runbook: security incident. | 2026-08-03 |
+| [seo-publication.md](seo-publication.md) | Runbook: серверные SEO-ревизии, sitemap и необязательное LiteLLM enrichment. | 2026-08-29 |
 | [sync-conflict.md](sync-conflict.md) | Runbook: sync conflict. | 2026-08-03 |
 | [uninstall-purge.md](uninstall-purge.md) | Runbook: uninstall purge. | 2026-08-03 |
 | [web-feature-profiles.md](web-feature-profiles.md) | Сборка, проверка и откат deploy-профилей web. | 2026-08-29 |

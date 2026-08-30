@@ -155,6 +155,51 @@ ERROR_CODES: Final[Mapping[str, ErrorCodeEntry]] = MappingProxyType(
             "report_bug",
             "a stored catalog object failed integrity verification",
         ),
+        "AI_STP_SEO_FACTS_INVALID": ErrorCodeEntry(
+            EXIT_INVALID_INPUT,
+            "correct_request",
+            "SEO snapshot facts failed the public allowlist or digest check",
+        ),
+        "AI_STP_SEO_OUTPUT_INVALID": ErrorCodeEntry(
+            EXIT_INVALID_INPUT,
+            "correct_request",
+            "SEO model output failed schema or factual validation",
+        ),
+        "AI_STP_SEO_ENRICHMENT_UNAVAILABLE": ErrorCodeEntry(
+            EXIT_UNAVAILABLE,
+            "retry_if_retryable",
+            "SEO enrichment endpoint timed out or was unavailable",
+        ),
+        "AI_STP_SEO_SOURCE_STALE": ErrorCodeEntry(
+            EXIT_CONFLICT_OR_DECISION,
+            "reconcile_state",
+            "SEO enrichment answered for a source digest that is no longer current",
+        ),
+        "AI_STP_SEO_RENDER_FAILED": ErrorCodeEntry(
+            EXIT_INTERNAL,
+            "report_bug",
+            "SEO profile or social image could not be rendered from stored facts",
+        ),
+        "AI_STP_CONTENT_INVALID": ErrorCodeEntry(
+            EXIT_INVALID_INPUT,
+            "correct_request",
+            "article schema, limits, digest, locale parity or safe Markdown failed",
+        ),
+        "AI_STP_CONTENT_SOURCE_CONFLICT": ErrorCodeEntry(
+            EXIT_CONFLICT_OR_DECISION,
+            "reconcile_state",
+            "article identity already belongs to a different source owner",
+        ),
+        "AI_STP_CONTENT_STALE": ErrorCodeEntry(
+            EXIT_CONFLICT_OR_DECISION,
+            "reconcile_state",
+            "expected article generation or active digest no longer matches",
+        ),
+        "AI_STP_CONTENT_IMPORT_FORBIDDEN": ErrorCodeEntry(
+            EXIT_AUTH,
+            "stop_for_permission",
+            "content import credential is missing, invalid or has another scope",
+        ),
         "AI_STP_INTERNAL": ErrorCodeEntry(EXIT_INTERNAL, "report_bug", "unexpected internal error"),
     }
 )

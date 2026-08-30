@@ -1,0 +1,102 @@
+{
+  "$defs": {
+    "AbsoluteUrl": {
+      "maxLength": 2048,
+      "pattern": "^https?://",
+      "type": "string"
+    },
+    "SeoLocale": {
+      "enum": [
+        "ru",
+        "en"
+      ],
+      "type": "string"
+    },
+    "SeoSitemapUrl": {
+      "additionalProperties": true,
+      "description": "One eligible canonical URL in a sitemap shard.",
+      "properties": {
+        "alternates": {
+          "additionalProperties": {
+            "$ref": "#/$defs/AbsoluteUrl"
+          },
+          "title": "Alternates",
+          "type": "object"
+        },
+        "lastmod": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "loc": {
+          "$ref": "#/$defs/AbsoluteUrl"
+        }
+      },
+      "required": [
+        "alternates",
+        "lastmod",
+        "loc"
+      ],
+      "title": "SeoSitemapUrl",
+      "type": "object"
+    },
+    "SeoSubjectKind": {
+      "enum": [
+        "component",
+        "setup",
+        "article",
+        "service",
+        "country"
+      ],
+      "type": "string"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:seo-sitemap-shard",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "One kind/locale shard of at most 50_000 URLs.",
+  "properties": {
+    "generation": {
+      "minimum": 0,
+      "title": "Generation",
+      "type": "integer"
+    },
+    "kind": {
+      "$ref": "#/$defs/SeoSubjectKind"
+    },
+    "locale": {
+      "$ref": "#/$defs/SeoLocale"
+    },
+    "page": {
+      "minimum": 1,
+      "title": "Page",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "urls": {
+      "items": {
+        "$ref": "#/$defs/SeoSitemapUrl"
+      },
+      "maxItems": 50000,
+      "title": "Urls",
+      "type": "array"
+    }
+  },
+  "required": [
+    "generation",
+    "kind",
+    "locale",
+    "page",
+    "schema_version",
+    "urls"
+  ],
+  "title": "SeoSitemapShard",
+  "type": "object"
+}

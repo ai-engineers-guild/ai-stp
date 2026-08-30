@@ -55,6 +55,23 @@ from ai_stp_contracts.catalog import (
     SetupVersionResponse,
 )
 from ai_stp_contracts.complaints import ComplaintCreateRequest, ComplaintCreateResponse
+from ai_stp_contracts.content import (
+    CONTENT_SLUG_PATTERN,
+    ContentDetail,
+    ContentListResponse,
+    ContentLocaleQuery,
+    ContentRepositoryImportRequest,
+    ContentRepositoryImportResponse,
+    ContentRepositoryState,
+    ContentSnapshotEntry,
+    ContentSummary,
+    StaffContentPublishRequest,
+    StaffContentPublishResponse,
+    StaffContentTranslation,
+    StaffContentTranslations,
+    StaffContentUnpublishRequest,
+    StaffContentUnpublishResponse,
+)
 from ai_stp_contracts.fixtures import load_cases
 from ai_stp_contracts.grants import (
     AccessGrantResponse,
@@ -123,6 +140,26 @@ from ai_stp_contracts.reports import (
     StaffLifecycleRequest,
     StaffTriageRequest,
 )
+from ai_stp_contracts.seo import (
+    SeoCatalogEntry,
+    SeoCatalogPage,
+    SeoCatalogQuery,
+    SeoGenerator,
+    SeoIndexDecision,
+    SeoIndexResponse,
+    SeoIndexShardRef,
+    SeoLink,
+    SeoProfileDocument,
+    SeoPublicProfile,
+    SeoRollbackRequest,
+    SeoRollbackResponse,
+    SeoSection,
+    SeoSitemapShard,
+    SeoSitemapUrl,
+    SeoSocial,
+    SeoSubjectQuery,
+    SeoSubjectRef,
+)
 from ai_stp_contracts.sync import (
     SyncConflictInfo,
     SyncEvent,
@@ -135,6 +172,7 @@ from ai_stp_contracts.sync import (
 )
 from ai_stp_foundation.envelope import ErrorEnvelope
 from ai_stp_foundation.ids import stable_id_pattern
+from ai_stp_foundation.revisions import REVISION_ID_PATTERN
 from ai_stp_foundation.versioning import VERSION_PATTERN
 
 OPENAPI_VERSION: Final[str] = "3.1.0"
@@ -872,6 +910,218 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         authenticated=True,
         errors=("AI_STP_NOT_FOUND", "AI_STP_PERMISSION_DENIED"),
     ),
+    Operation(
+        method="get",
+        path="/seo/subjects/{subject_kind}/{subject_id}",
+        operation_id="readSeoProfile",
+        summary="Read the active public SEO profile for one subject and locale.",
+        response=SeoPublicProfile,
+        query=SeoSubjectQuery,
+        path_params=(
+            PathParam(
+                name="subject_kind",
+                description="SEO subject kind.",
+                pattern=r"^(component|setup|article|service|country)$",
+            ),
+            PathParam(
+                name="subject_id",
+                description="Stable subject identifier.",
+                pattern=r"^.{1,253}$",
+            ),
+        ),
+        errors=("AI_STP_NOT_FOUND", "AI_STP_VALIDATION_ERROR"),
+    ),
+    Operation(
+        method="get",
+        path="/seo/sitemap",
+        operation_id="readSeoSitemapIndex",
+        summary="Read the generation-aware sitemap index.",
+        response=SeoIndexResponse,
+    ),
+    Operation(
+        method="get",
+        path="/seo/sitemaps/{subject_kind}/{locale}/{page}",
+        operation_id="readSeoSitemapShard",
+        summary="Read one sitemap shard of at most 50 000 eligible URLs.",
+        response=SeoSitemapShard,
+        path_params=(
+            PathParam(
+                name="subject_kind",
+                description="SEO subject kind.",
+                pattern=r"^(component|setup|article|service|country)$",
+            ),
+            PathParam(
+                name="locale",
+                description="SEO locale.",
+                pattern=r"^(ru|en)$",
+            ),
+            PathParam(
+                name="page",
+                description="1-based shard page.",
+                pattern=r"^[1-9][0-9]*$",
+            ),
+        ),
+        errors=("AI_STP_NOT_FOUND", "AI_STP_VALIDATION_ERROR"),
+    ),
+    Operation(
+        method="get",
+        path="/seo/catalog",
+        operation_id="readSeoCatalog",
+        summary="Read a paginated LLM catalog manifest of active subjects.",
+        response=SeoCatalogPage,
+        query=SeoCatalogQuery,
+        errors=("AI_STP_VALIDATION_ERROR",),
+    ),
+    Operation(
+        method="get",
+        path="/seo/og/{revision_id}",
+        operation_id="readSeoOgImage",
+        summary="Read the immutable 1200 by 630 Open Graph image for one revision.",
+        response=None,
+        response_media_type="image/png",
+        path_params=(
+            PathParam(
+                name="revision_id",
+                description="Immutable SEO revision identifier.",
+                pattern=REVISION_ID_PATTERN,
+            ),
+        ),
+        errors=("AI_STP_NOT_FOUND", "AI_STP_SEO_RENDER_FAILED", "AI_STP_VALIDATION_ERROR"),
+    ),
+    Operation(
+        method="get",
+        path="/content",
+        operation_id="listContent",
+        summary="List published repository and staff articles for one locale.",
+        response=ContentListResponse,
+        query=ContentLocaleQuery,
+        errors=("AI_STP_CONTENT_INVALID", "AI_STP_VALIDATION_ERROR"),
+    ),
+    Operation(
+        method="get",
+        path="/content/repository/state",
+        operation_id="readContentRepositoryState",
+        summary="Read the current repository import generation without entries.",
+        response=ContentRepositoryState,
+        errors=("AI_STP_CONTENT_IMPORT_FORBIDDEN",),
+    ),
+    Operation(
+        method="post",
+        path="/content/repository/import",
+        operation_id="importContentRepository",
+        summary="Replace the repository-owned active article set from a snapshot.",
+        response=ContentRepositoryImportResponse,
+        body=ContentRepositoryImportRequest,
+        idempotent_mutation=True,
+        errors=(
+            "AI_STP_CONTENT_INVALID",
+            "AI_STP_CONTENT_SOURCE_CONFLICT",
+            "AI_STP_CONTENT_STALE",
+            "AI_STP_CONTENT_IMPORT_FORBIDDEN",
+        ),
+    ),
+    Operation(
+        method="get",
+        path="/content/{type}/{slug}",
+        operation_id="readContent",
+        summary="Read one published localized article.",
+        response=ContentDetail,
+        query=ContentLocaleQuery,
+        path_params=(
+            PathParam(
+                name="type",
+                description="Content hub article type.",
+                pattern=r"^(article|blog_post|changelog|release_notes)$",
+            ),
+            PathParam(
+                name="slug",
+                description="Lowercase kebab-case article slug.",
+                pattern=CONTENT_SLUG_PATTERN,
+            ),
+        ),
+        errors=("AI_STP_NOT_FOUND", "AI_STP_CONTENT_INVALID", "AI_STP_VALIDATION_ERROR"),
+    ),
+    Operation(
+        method="put",
+        path="/staff/content/{type}/{slug}",
+        operation_id="putStaffContent",
+        summary="Publish an exact RU/EN staff article pair.",
+        response=StaffContentPublishResponse,
+        body=StaffContentPublishRequest,
+        authenticated=True,
+        idempotent_mutation=True,
+        path_params=(
+            PathParam(
+                name="type",
+                description="Content hub article type.",
+                pattern=r"^(article|blog_post|changelog|release_notes)$",
+            ),
+            PathParam(
+                name="slug",
+                description="Lowercase kebab-case article slug.",
+                pattern=CONTENT_SLUG_PATTERN,
+            ),
+        ),
+        errors=(
+            "AI_STP_CONTENT_INVALID",
+            "AI_STP_CONTENT_SOURCE_CONFLICT",
+            "AI_STP_CONTENT_STALE",
+            "AI_STP_PERMISSION_DENIED",
+            "AI_STP_VALIDATION_ERROR",
+        ),
+    ),
+    Operation(
+        method="delete",
+        path="/staff/content/{type}/{slug}",
+        operation_id="deleteStaffContent",
+        summary="Unpublish both locales of a staff article without deleting history.",
+        response=StaffContentUnpublishResponse,
+        body=StaffContentUnpublishRequest,
+        authenticated=True,
+        idempotent_mutation=True,
+        path_params=(
+            PathParam(
+                name="type",
+                description="Content hub article type.",
+                pattern=r"^(article|blog_post|changelog|release_notes)$",
+            ),
+            PathParam(
+                name="slug",
+                description="Lowercase kebab-case article slug.",
+                pattern=CONTENT_SLUG_PATTERN,
+            ),
+        ),
+        errors=(
+            "AI_STP_NOT_FOUND",
+            "AI_STP_CONTENT_SOURCE_CONFLICT",
+            "AI_STP_CONTENT_STALE",
+            "AI_STP_PERMISSION_DENIED",
+            "AI_STP_VALIDATION_ERROR",
+        ),
+    ),
+    Operation(
+        method="post",
+        path="/seo/subjects/{subject_kind}/{subject_id}/rollback",
+        operation_id="rollbackSeoRevision",
+        summary="Point one subject locale at its last valid base SEO revision.",
+        response=SeoRollbackResponse,
+        body=SeoRollbackRequest,
+        authenticated=True,
+        idempotent_mutation=True,
+        path_params=(
+            PathParam(
+                name="subject_kind",
+                description="SEO subject kind.",
+                pattern=r"^(component|setup|article|service|country)$",
+            ),
+            PathParam(
+                name="subject_id",
+                description="Stable subject identifier.",
+                pattern=r"^.{1,253}$",
+            ),
+        ),
+        errors=("AI_STP_NOT_FOUND", "AI_STP_VALIDATION_ERROR"),
+    ),
 )
 
 #: Models that are part of the published contract but are only ever reached
@@ -897,6 +1147,20 @@ NESTED_ONLY_MODELS: Final[tuple[type[BaseModel], ...]] = (
     OwnerVersionSummary,
     StaffReportSummary,
     CatalogUsageMetrics,
+    SeoSubjectRef,
+    SeoIndexDecision,
+    SeoLink,
+    SeoSection,
+    SeoSocial,
+    SeoGenerator,
+    SeoProfileDocument,
+    SeoSitemapUrl,
+    SeoIndexShardRef,
+    SeoCatalogEntry,
+    ContentSummary,
+    ContentSnapshotEntry,
+    StaffContentTranslation,
+    StaffContentTranslations,
 )
 
 

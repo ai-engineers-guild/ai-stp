@@ -464,6 +464,7 @@ async def test_publication_database_guards_and_reevaluation_edges() -> None:
     valid_passport = ComponentVersionPassport.model_validate(plan.passport)
     existing_catalog = SimpleNamespace(passport_digest=passport_digest(valid_passport))
     session.scalar.return_value = existing_catalog
+    session.execute.return_value = SimpleNamespace(scalar_one=lambda: SimpleNamespace(id="job_seo"))
     store = cast(
         ImmutableObjectStore,
         SimpleNamespace(

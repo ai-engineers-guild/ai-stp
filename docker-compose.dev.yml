@@ -35,6 +35,8 @@ x-app-env: &app-env
   # osv-scanner offline packs root (must match AI_STP_OSV_OFFLINE_DIR volume).
   OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY: /var/lib/ai_stp/osv
   AI_STP_OSV_MAX_AGE_HOURS: "36"
+  AI_STP_SEO_ENRICHMENT_ENABLED: "false"
+  AI_STP_CONTENT_IMPORT_TOKEN: ${AI_STP_CONTENT_IMPORT_TOKEN:-dev-only-content-import-token-32chars}
 
 x-web-env: &web-env
   # Structural web surfaces are selected before the Next dev/build process starts.
@@ -181,6 +183,32 @@ services:
       start_period: 15s
     restart: unless-stopped
 
+  content-import:
+    # One-shot after migrate + healthy API. Web must not become ready before
+    # this exits 0 (SPEC-054). The image bakes the hub snapshot at build; pass
+    # AI_STP_API_GIT_COMMIT so the baked commit is the exact SHA. The zero
+    # placeholder fails the bake; an empty hub COPY also fails closed.
+    build:
+      context: .
+      target: content-import
+      args:
+        AI_STP_GIT_COMMIT: ${AI_STP_API_GIT_COMMIT:-0000000000000000000000000000000000000000}
+    command: ["python", "-m", "ai_stp_platform.content.importer"]
+    environment:
+      <<: *app-env
+      AI_STP_API_BASE_URL: http://api:8000
+      AI_STP_CONTENT_SNAPSHOT: /app/content-snapshot.json
+    env_file:
+      - path: .env.dev
+        required: false
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      api:
+        condition: service_healthy
+    networks: [internal]
+    restart: "no"
+
   worker:
     # Publication validate uses pinned scanner CLIs (not the bare worker target).
     build:
@@ -226,6 +254,8 @@ services:
     depends_on:
       api:
         condition: service_healthy
+      content-import:
+        condition: service_completed_successfully
     healthcheck:
       test:
         - CMD

@@ -637,6 +637,7 @@ def safety_diagnostics() -> dict[str, object]:
     from ai_stp_platform.safety.metrics import snapshot as metrics_snapshot
     from ai_stp_platform.safety.osv_health import osv_db_ready, osv_db_status
     from ai_stp_platform.safety.sandbox import sandbox_status
+    from ai_stp_platform.seo.metrics import seo_metrics_snapshot
 
     return {
         "ready": safety_readiness(),
@@ -644,7 +645,7 @@ def safety_diagnostics() -> dict[str, object]:
         "osv": osv_db_status(),
         "osv_ready": osv_db_ready(),
         "sandbox": sandbox_status(),
-        "metrics": metrics_snapshot(),
+        "metrics": {**metrics_snapshot(), **seo_metrics_snapshot()},
     }
 
 

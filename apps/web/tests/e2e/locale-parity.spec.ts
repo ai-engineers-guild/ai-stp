@@ -30,6 +30,27 @@ test.describe("locale parity (REQ-2203, REQ-2311)", () => {
     await expect(page).toHaveURL(/\/en\/catalog/);
   });
 
+  test("landing hero video follows the active locale", async ({ page }) => {
+    await page.goto("/ru");
+    const preview = page.locator('[data-ui="landing-workflow-preview"]');
+    await expect(preview.locator("source").first()).toHaveAttribute(
+      "src",
+      "/brand/hero-preview.webm",
+    );
+    await page.locator("#locale-select").click();
+    await expect(page).toHaveURL(/\/en\/?$/);
+    await expect(preview.locator("source").first()).toHaveAttribute(
+      "src",
+      "/brand/hero-preview-en.webm",
+    );
+    await page.locator("#locale-select").click();
+    await expect(page).toHaveURL(/\/ru\/?$/);
+    await expect(preview.locator("source").first()).toHaveAttribute(
+      "src",
+      "/brand/hero-preview.webm",
+    );
+  });
+
   test("Russian login + devices smoke", async ({ page }) => {
     await page.goto("/ru/login");
     await page.getByRole("button", { name: /Continue with GitHub|Войти через GitHub/i }).click();

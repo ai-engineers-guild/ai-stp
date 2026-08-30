@@ -39,6 +39,12 @@ dist
 **/playwright-report
 **/*.tsbuildinfo
 apps/web
+# Hub markdown is the only web path the Python image needs (SPEC-054). Last
+# matching pattern wins, so these exceptions sit after `apps/web` and `*.md`.
+!apps/web/content/
+!apps/web/content/hub/
+!apps/web/content/hub/**
+!apps/web/content/hub/**/*.md
 
 # Docs toolchain (mkdocs node deps)
 docs_scripts/node_modules

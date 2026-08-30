@@ -1,6 +1,6 @@
 ---
 description: "Минимальные сигналы для диагностики CLI, sync, публикации и providers."
-last_verified: "2026-08-22"
+last_verified: "2026-08-29"
 ---
 
 # Наблюдаемость
@@ -34,6 +34,7 @@ Raw secrets, prompts и source content в журнал не входят.
 - объём жалоб, время триажа и действия модерации;
 - rate-limit and abuse signals;
 - platform safety-scan counters (`safety_*`, see runbook `safety-scan.md`).
+- Результат и задержка SEO build/enrichment, доля active base/enriched, причины rejection/stale, решение об индексации, generation/cache age sitemap и расход модели по operator alias без prompt, body и subject ID (`SPEC-053`).
 
 ### Safety-scan signals (`safety_*`)
 

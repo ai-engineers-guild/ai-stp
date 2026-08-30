@@ -4,6 +4,8 @@ export type ClientOptions = {
   baseUrl: `${string}://${string}` | (string & {});
 };
 
+export type AbsoluteUrl = string;
+
 /**
  * AccessGrantResponse
  *
@@ -1113,7 +1115,231 @@ export type Conflicts = {
   plugins?: Array<string>;
 };
 
+export type ContentBody = string;
+
+export type ContentCommit = string;
+
+export type ContentDate = string;
+
+export type ContentDescription = string;
+
+/**
+ * ContentDetail
+ *
+ * Public detail. Repository provenance is exact commit and path only.
+ */
+export type ContentDetail = {
+  body: ContentBody;
+  content_digest: DigestValue;
+  description: ContentDescription;
+  locale: ContentLocale;
+  published_at: ContentDate;
+  revision_id: RevisionId;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  slug: ContentSlug;
+  source_kind: ContentSourceKind;
+  /**
+   * Source Path
+   */
+  source_path: string | null;
+  source_ref: ContentCommit | null;
+  /**
+   * Tags
+   */
+  tags: Array<ContentTag>;
+  title: ContentTitle;
+  type: ContentType;
+  [key: string]: unknown;
+};
+
 export type ContentDigest = string;
+
+/**
+ * ContentListResponse
+ *
+ * Published repository and staff articles for one locale.
+ */
+export type ContentListResponse = {
+  etag: DigestValue;
+  /**
+   * Items
+   */
+  items: Array<ContentSummary>;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+export const ContentLocale = { RU: "ru", EN: "en" } as const;
+
+export type ContentLocale = (typeof ContentLocale)[keyof typeof ContentLocale];
+
+/**
+ * ContentLocaleQuery
+ *
+ * Locale selector for public content reads. No automatic fallback.
+ */
+export type ContentLocaleQuery = {
+  locale: ContentLocale;
+};
+
+/**
+ * ContentRepositoryImportRequest
+ *
+ * Full replacement of the repository-owned active article set.
+ */
+export type ContentRepositoryImportRequest = {
+  commit: ContentCommit;
+  /**
+   * Entries
+   */
+  entries: Array<ContentSnapshotEntry>;
+  /**
+   * Expected Generation
+   */
+  expected_generation: number;
+  /**
+   * Repository
+   */
+  repository?: "ai-engineers-guild/ai-stp";
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  snapshot_digest: DigestValue;
+};
+
+/**
+ * ContentRepositoryImportResponse
+ *
+ * Outcome of one repository snapshot import.
+ */
+export type ContentRepositoryImportResponse = {
+  /**
+   * Activated
+   */
+  activated: number;
+  /**
+   * Created
+   */
+  created: number;
+  /**
+   * Generation
+   */
+  generation: number;
+  /**
+   * Removed
+   */
+  removed: number;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  snapshot_digest: DigestValue;
+  /**
+   * Unchanged
+   */
+  unchanged: number;
+  [key: string]: unknown;
+};
+
+/**
+ * ContentRepositoryState
+ *
+ * Current repository import generation without entries.
+ */
+export type ContentRepositoryState = {
+  commit: ContentCommit | null;
+  /**
+   * Generation
+   */
+  generation: number;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  snapshot_digest: DigestValue | null;
+  [key: string]: unknown;
+};
+
+export type ContentSlug = string;
+
+/**
+ * ContentSnapshotEntry
+ *
+ * One published localized repository article in a snapshot.
+ */
+export type ContentSnapshotEntry = {
+  body: ContentBody;
+  content_digest: DigestValue;
+  description: ContentDescription;
+  locale: ContentLocale;
+  published_at: ContentDate;
+  slug: ContentSlug;
+  /**
+   * Source Kind
+   */
+  source_kind?: "repository";
+  /**
+   * Source Path
+   */
+  source_path: string;
+  source_ref: ContentCommit;
+  /**
+   * Tags
+   */
+  tags: Array<ContentTag>;
+  title: ContentTitle;
+  type: ContentType;
+};
+
+export const ContentSourceKind = { REPOSITORY: "repository", STAFF: "staff" } as const;
+
+export type ContentSourceKind = (typeof ContentSourceKind)[keyof typeof ContentSourceKind];
+
+/**
+ * ContentSummary
+ *
+ * Public list item for one published localized article.
+ */
+export type ContentSummary = {
+  content_digest: DigestValue;
+  description: ContentDescription;
+  locale: ContentLocale;
+  published_at: ContentDate;
+  revision_id: RevisionId;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  slug: ContentSlug;
+  source_kind: ContentSourceKind;
+  /**
+   * Tags
+   */
+  tags: Array<ContentTag>;
+  title: ContentTitle;
+  type: ContentType;
+  [key: string]: unknown;
+};
+
+export type ContentTag = string;
+
+export type ContentTitle = string;
+
+export const ContentType = {
+  ARTICLE: "article",
+  BLOG_POST: "blog_post",
+  CHANGELOG: "changelog",
+  RELEASE_NOTES: "release_notes",
+} as const;
+
+export type ContentType = (typeof ContentType)[keyof typeof ContentType];
 
 /**
  * ContextBudget
@@ -1476,6 +1702,8 @@ export type DeviceTokenResponse = {
   [key: string]: unknown;
 };
 
+export type DigestValue = string;
+
 /**
  * DirectGrantCreateRequest
  *
@@ -1632,6 +1860,10 @@ export type ExternalProductSummary = {
    */
   country_codes: Array<CountryCode>;
   /**
+   * Description
+   */
+  description: string | null;
+  /**
    * Name
    */
   name: string;
@@ -1643,6 +1875,10 @@ export type ExternalProductSummary = {
    * Schema Version
    */
   schema_version: 1;
+  /**
+   * Source Url
+   */
+  source_url: string | null;
   [key: string]: unknown;
 };
 
@@ -2661,6 +2897,12 @@ export type RequestId = string;
 
 export type RevisionId = string;
 
+export type SafeText160 = string;
+
+export type SafeText200 = string;
+
+export type SafeText320 = string;
+
 /**
  * SafetyCheckEntry
  *
@@ -2769,6 +3011,426 @@ export type SafetyFindingSummary = {
    * Truncated
    */
   truncated: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * SeoCatalogEntry
+ *
+ * One LLM catalog manifest row.
+ */
+export type SeoCatalogEntry = {
+  canonical_url: AbsoluteUrl;
+  description: SafeText320;
+  kind: SeoSubjectKind;
+  locale: SeoLocale;
+  markdown_url: AbsoluteUrl;
+  modified_at: Timestamp;
+  revision_id: RevisionId;
+  /**
+   * Subject Id
+   */
+  subject_id: string;
+  title: SafeText160;
+  [key: string]: unknown;
+};
+
+/**
+ * SeoCatalogPage
+ */
+export type SeoCatalogPage = {
+  /**
+   * Generation
+   */
+  generation: number;
+  /**
+   * Items
+   */
+  items: Array<SeoCatalogEntry>;
+  page: PageInfo;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * SeoCatalogQuery
+ *
+ * Paginated LLM catalog manifest query.
+ */
+export type SeoCatalogQuery = {
+  cursor?: Cursor | null;
+  kind?: SeoSubjectKind | null;
+  locale?: SeoLocale | null;
+  page_size?: PageSize;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * SeoGenerator
+ *
+ * Provenance of one SEO revision. Model alias is operator-facing only.
+ */
+export type SeoGenerator = {
+  kind: SeoGeneratorKind;
+  /**
+   * Model Alias
+   */
+  model_alias: string | null;
+  /**
+   * Prompt Version
+   */
+  prompt_version: string | null;
+  /**
+   * Template Version
+   */
+  template_version: string;
+  [key: string]: unknown;
+};
+
+export const SeoGeneratorKind = { TEMPLATE: "template", MODEL: "model" } as const;
+
+export type SeoGeneratorKind = (typeof SeoGeneratorKind)[keyof typeof SeoGeneratorKind];
+
+/**
+ * SeoIndexDecision
+ *
+ * Deterministic index eligibility. Model output never supplies this.
+ */
+export type SeoIndexDecision = {
+  /**
+   * Eligible
+   */
+  eligible: boolean;
+  /**
+   * Reasons
+   */
+  reasons: Array<SeoIndexReason>;
+  [key: string]: unknown;
+};
+
+export const SeoIndexReason = {
+  ELIGIBLE: "eligible",
+  NOT_PUBLIC: "not_public",
+  BLOCKED: "blocked",
+  HIDDEN: "hidden",
+  DEPRECATED: "deprecated",
+  MISSING_PRIMARY_CONTENT: "missing_primary_content",
+  MISSING_SOURCE: "missing_source",
+  EMPTY_COLLECTION: "empty_collection",
+  DUPLICATE_CANONICAL: "duplicate_canonical",
+  UNAVAILABLE: "unavailable",
+  MATERIALIZATION_PENDING: "materialization_pending",
+} as const;
+
+export type SeoIndexReason = (typeof SeoIndexReason)[keyof typeof SeoIndexReason];
+
+/**
+ * SeoIndexResponse
+ *
+ * Sitemap index for the current SEO generation.
+ */
+export type SeoIndexResponse = {
+  etag: DigestValue;
+  /**
+   * Generation
+   */
+  generation: number;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Shards
+   */
+  shards: Array<SeoIndexShardRef>;
+  [key: string]: unknown;
+};
+
+/**
+ * SeoIndexShardRef
+ */
+export type SeoIndexShardRef = {
+  lastmod: Timestamp;
+  loc: AbsoluteUrl;
+};
+
+/**
+ * SeoLink
+ *
+ * One crawlable visible link.
+ */
+export type SeoLink = {
+  href: AbsoluteUrl;
+  kind: SeoSubjectKind | null;
+  /**
+   * Rel
+   */
+  rel: string;
+  /**
+   * Subject Id
+   */
+  subject_id: string | null;
+  /**
+   * Text
+   */
+  text: string;
+  [key: string]: unknown;
+};
+
+export const SeoLocale = { RU: "ru", EN: "en" } as const;
+
+export type SeoLocale = (typeof SeoLocale)[keyof typeof SeoLocale];
+
+/**
+ * SeoProfileDocument
+ *
+ * Closed profile document v1 stored on a revision.
+ */
+export type SeoProfileDocument = {
+  /**
+   * Alternates
+   */
+  alternates: {
+    [key: string]: AbsoluteUrl;
+  };
+  /**
+   * Breadcrumbs
+   */
+  breadcrumbs: Array<SeoLink>;
+  canonical_url: AbsoluteUrl;
+  description: SafeText320;
+  generator: SeoGenerator;
+  heading: SafeText200;
+  index_decision: SeoIndexDecision;
+  /**
+   * Internal Links
+   */
+  internal_links: Array<SeoLink>;
+  /**
+   * Json Ld
+   */
+  json_ld: {
+    [key: string]: unknown;
+  };
+  locale: SeoLocale;
+  modified_at: Timestamp;
+  published_at: Timestamp;
+  robots: SeoRobots;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Search Intents
+   */
+  search_intents: Array<string>;
+  /**
+   * Sections
+   */
+  sections: Array<SeoSection>;
+  social: SeoSocial;
+  subject: SeoSubjectRef;
+  /**
+   * Summary
+   */
+  summary: string;
+  /**
+   * Taxonomy Tags
+   */
+  taxonomy_tags: Array<string>;
+  title: SafeText160;
+  [key: string]: unknown;
+};
+
+/**
+ * SeoPublicProfile
+ *
+ * Anonymous read of the active SEO revision.
+ */
+export type SeoPublicProfile = {
+  etag: DigestValue;
+  /**
+   * Generation
+   */
+  generation: number;
+  profile: SeoProfileDocument;
+  revision_id: RevisionId;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  snapshot_id: DigestValue;
+  [key: string]: unknown;
+};
+
+export const SeoRobots = {
+  "INDEX,FOLLOW": "index,follow",
+  "NOINDEX,FOLLOW": "noindex,follow",
+} as const;
+
+export type SeoRobots = (typeof SeoRobots)[keyof typeof SeoRobots];
+
+/**
+ * SeoRollbackRequest
+ */
+export type SeoRollbackRequest = {
+  locale?: SeoLocale;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * SeoRollbackResponse
+ */
+export type SeoRollbackResponse = {
+  generator_kind: SeoGeneratorKind;
+  locale: SeoLocale;
+  revision_id: RevisionId;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Subject Id
+   */
+  subject_id: string;
+  subject_kind: SeoSubjectKind;
+  [key: string]: unknown;
+};
+
+/**
+ * SeoSection
+ *
+ * One visible kind-specific page section.
+ */
+export type SeoSection = {
+  /**
+   * Body
+   */
+  body: string;
+  /**
+   * Heading
+   */
+  heading: string;
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Provenance
+   */
+  provenance: "template" | "model";
+  [key: string]: unknown;
+};
+
+/**
+ * SeoSitemapShard
+ *
+ * One kind/locale shard of at most 50_000 URLs.
+ */
+export type SeoSitemapShard = {
+  /**
+   * Generation
+   */
+  generation: number;
+  kind: SeoSubjectKind;
+  locale: SeoLocale;
+  /**
+   * Page
+   */
+  page: number;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Urls
+   */
+  urls: Array<SeoSitemapUrl>;
+  [key: string]: unknown;
+};
+
+/**
+ * SeoSitemapUrl
+ *
+ * One eligible canonical URL in a sitemap shard.
+ */
+export type SeoSitemapUrl = {
+  /**
+   * Alternates
+   */
+  alternates: {
+    [key: string]: AbsoluteUrl;
+  };
+  lastmod: Timestamp;
+  loc: AbsoluteUrl;
+  [key: string]: unknown;
+};
+
+/**
+ * SeoSocial
+ *
+ * Open Graph / Twitter preview facts.
+ */
+export type SeoSocial = {
+  description: SafeText320;
+  /**
+   * Image Alt
+   */
+  image_alt: string;
+  image_url: AbsoluteUrl;
+  locale: SeoLocale;
+  title: SafeText160;
+  [key: string]: unknown;
+};
+
+export const SeoSubjectKind = {
+  COMPONENT: "component",
+  SETUP: "setup",
+  ARTICLE: "article",
+  SERVICE: "service",
+  COUNTRY: "country",
+} as const;
+
+export type SeoSubjectKind = (typeof SeoSubjectKind)[keyof typeof SeoSubjectKind];
+
+/**
+ * SeoSubjectQuery
+ *
+ * Locale selector for one subject read.
+ */
+export type SeoSubjectQuery = {
+  locale?: SeoLocale;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * SeoSubjectRef
+ *
+ * Identity of one SEO subject revision.
+ */
+export type SeoSubjectRef = {
+  /**
+   * Id
+   */
+  id: string;
+  kind: SeoSubjectKind;
+  source_digest: DigestValue;
+  /**
+   * Source Revision
+   */
+  source_revision: string;
   [key: string]: unknown;
 };
 
@@ -3227,6 +3889,114 @@ export type StaffAuthorVerifiedRequest = {
    * Verified
    */
   verified: boolean;
+};
+
+/**
+ * StaffContentPublishRequest
+ *
+ * Atomic staff publication of one article identity.
+ */
+export type StaffContentPublishRequest = {
+  expected_active_digest: DigestValue | null;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  translations: StaffContentTranslations;
+};
+
+/**
+ * StaffContentPublishResponse
+ *
+ * Staff publication result with the public article pair.
+ */
+export type StaffContentPublishResponse = {
+  active_digest: DigestValue;
+  /**
+   * Article Id
+   */
+  article_id: string;
+  /**
+   * Articles
+   */
+  articles: {
+    [key in ContentLocale]?: ContentDetail;
+  };
+  /**
+   * Revision Ids
+   */
+  revision_ids: {
+    [key in ContentLocale]?: RevisionId;
+  };
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * StaffContentTranslation
+ *
+ * One locale of a staff publication payload.
+ */
+export type StaffContentTranslation = {
+  body: ContentBody;
+  description: ContentDescription;
+  published_at: ContentDate;
+  /**
+   * Tags
+   */
+  tags: Array<ContentTag>;
+  title: ContentTitle;
+};
+
+/**
+ * StaffContentTranslations
+ *
+ * Exact RU/EN pair. Any other locale set is unrepresentable.
+ */
+export type StaffContentTranslations = {
+  en: StaffContentTranslation;
+  ru: StaffContentTranslation;
+};
+
+/**
+ * StaffContentUnpublishRequest
+ *
+ * Optimistic staff unpublish of both locales.
+ */
+export type StaffContentUnpublishRequest = {
+  expected_active_digest: DigestValue | null;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * StaffContentUnpublishResponse
+ *
+ * Terminal unpublished staff article. Repeatable.
+ */
+export type StaffContentUnpublishResponse = {
+  /**
+   * Active Digest
+   */
+  active_digest: null;
+  /**
+   * Article Id
+   */
+  article_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Unpublished
+   */
+  unpublished: true;
+  [key: string]: unknown;
 };
 
 /**
@@ -5120,6 +5890,215 @@ export type CreateComplaintResponses = {
 
 export type CreateComplaintResponse = CreateComplaintResponses[keyof CreateComplaintResponses];
 
+export type ListContentData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path?: never;
+  query: {
+    locale: ContentLocale;
+  };
+  url: "/v1/content";
+};
+
+export type ListContentErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_CONTENT_INVALID, AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ListContentError = ListContentErrors[keyof ListContentErrors];
+
+export type ListContentResponses = {
+  /**
+   * List published repository and staff articles for one locale.
+   */
+  200: ContentListResponse;
+};
+
+export type ListContentResponse = ListContentResponses[keyof ListContentResponses];
+
+export type ImportContentRepositoryData = {
+  body: ContentRepositoryImportRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/content/repository/import";
+};
+
+export type ImportContentRepositoryErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_CONTENT_INVALID, AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_CONTENT_IMPORT_FORBIDDEN.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_CONTENT_SOURCE_CONFLICT, AI_STP_CONTENT_STALE.
+   */
+  409: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ImportContentRepositoryError =
+  ImportContentRepositoryErrors[keyof ImportContentRepositoryErrors];
+
+export type ImportContentRepositoryResponses = {
+  /**
+   * Replace the repository-owned active article set from a snapshot.
+   */
+  200: ContentRepositoryImportResponse;
+};
+
+export type ImportContentRepositoryResponse =
+  ImportContentRepositoryResponses[keyof ImportContentRepositoryResponses];
+
+export type ReadContentRepositoryStateData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/content/repository/state";
+};
+
+export type ReadContentRepositoryStateErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_CONTENT_IMPORT_FORBIDDEN.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadContentRepositoryStateError =
+  ReadContentRepositoryStateErrors[keyof ReadContentRepositoryStateErrors];
+
+export type ReadContentRepositoryStateResponses = {
+  /**
+   * Read the current repository import generation without entries.
+   */
+  200: ContentRepositoryState;
+};
+
+export type ReadContentRepositoryStateResponse =
+  ReadContentRepositoryStateResponses[keyof ReadContentRepositoryStateResponses];
+
+export type ReadContentData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Content hub article type.
+     */
+    type: string;
+    /**
+     * Lowercase kebab-case article slug.
+     */
+    slug: string;
+  };
+  query: {
+    locale: ContentLocale;
+  };
+  url: "/v1/content/{type}/{slug}";
+};
+
+export type ReadContentErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_CONTENT_INVALID, AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadContentError = ReadContentErrors[keyof ReadContentErrors];
+
+export type ReadContentResponses = {
+  /**
+   * Read one published localized article.
+   */
+  200: ContentDetail;
+};
+
+export type ReadContentResponse = ReadContentResponses[keyof ReadContentResponses];
+
 export type ListDevicesData = {
   body?: never;
   headers?: {
@@ -6595,6 +7574,338 @@ export type ReadSelectionImpactResponses = {
 export type ReadSelectionImpactResponse =
   ReadSelectionImpactResponses[keyof ReadSelectionImpactResponses];
 
+export type ReadSeoCatalogData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path?: never;
+  query?: {
+    cursor?: Cursor | null;
+    kind?: SeoSubjectKind | null;
+    locale?: SeoLocale | null;
+    page_size?: PageSize;
+  };
+  url: "/v1/seo/catalog";
+};
+
+export type ReadSeoCatalogErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadSeoCatalogError = ReadSeoCatalogErrors[keyof ReadSeoCatalogErrors];
+
+export type ReadSeoCatalogResponses = {
+  /**
+   * Read a paginated LLM catalog manifest of active subjects.
+   */
+  200: SeoCatalogPage;
+};
+
+export type ReadSeoCatalogResponse = ReadSeoCatalogResponses[keyof ReadSeoCatalogResponses];
+
+export type ReadSeoOgImageData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Immutable SEO revision identifier.
+     */
+    revision_id: string;
+  };
+  query?: never;
+  url: "/v1/seo/og/{revision_id}";
+};
+
+export type ReadSeoOgImageErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL, AI_STP_SEO_RENDER_FAILED.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadSeoOgImageError = ReadSeoOgImageErrors[keyof ReadSeoOgImageErrors];
+
+export type ReadSeoOgImageResponses = {
+  /**
+   * Read the immutable 1200 by 630 Open Graph image for one revision.
+   */
+  200: Blob | File;
+};
+
+export type ReadSeoOgImageResponse = ReadSeoOgImageResponses[keyof ReadSeoOgImageResponses];
+
+export type ReadSeoSitemapIndexData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/seo/sitemap";
+};
+
+export type ReadSeoSitemapIndexErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadSeoSitemapIndexError = ReadSeoSitemapIndexErrors[keyof ReadSeoSitemapIndexErrors];
+
+export type ReadSeoSitemapIndexResponses = {
+  /**
+   * Read the generation-aware sitemap index.
+   */
+  200: SeoIndexResponse;
+};
+
+export type ReadSeoSitemapIndexResponse =
+  ReadSeoSitemapIndexResponses[keyof ReadSeoSitemapIndexResponses];
+
+export type ReadSeoSitemapShardData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * SEO subject kind.
+     */
+    subject_kind: string;
+    /**
+     * SEO locale.
+     */
+    locale: string;
+    /**
+     * 1-based shard page.
+     */
+    page: string;
+  };
+  query?: never;
+  url: "/v1/seo/sitemaps/{subject_kind}/{locale}/{page}";
+};
+
+export type ReadSeoSitemapShardErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadSeoSitemapShardError = ReadSeoSitemapShardErrors[keyof ReadSeoSitemapShardErrors];
+
+export type ReadSeoSitemapShardResponses = {
+  /**
+   * Read one sitemap shard of at most 50 000 eligible URLs.
+   */
+  200: SeoSitemapShard;
+};
+
+export type ReadSeoSitemapShardResponse =
+  ReadSeoSitemapShardResponses[keyof ReadSeoSitemapShardResponses];
+
+export type ReadSeoProfileData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * SEO subject kind.
+     */
+    subject_kind: string;
+    /**
+     * Stable subject identifier.
+     */
+    subject_id: string;
+  };
+  query?: {
+    locale?: SeoLocale;
+  };
+  url: "/v1/seo/subjects/{subject_kind}/{subject_id}";
+};
+
+export type ReadSeoProfileErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadSeoProfileError = ReadSeoProfileErrors[keyof ReadSeoProfileErrors];
+
+export type ReadSeoProfileResponses = {
+  /**
+   * Read the active public SEO profile for one subject and locale.
+   */
+  200: SeoPublicProfile;
+};
+
+export type ReadSeoProfileResponse = ReadSeoProfileResponses[keyof ReadSeoProfileResponses];
+
+export type RollbackSeoRevisionData = {
+  body: SeoRollbackRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * SEO subject kind.
+     */
+    subject_kind: string;
+    /**
+     * Stable subject identifier.
+     */
+    subject_id: string;
+  };
+  query?: never;
+  url: "/v1/seo/subjects/{subject_kind}/{subject_id}/rollback";
+};
+
+export type RollbackSeoRevisionErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type RollbackSeoRevisionError = RollbackSeoRevisionErrors[keyof RollbackSeoRevisionErrors];
+
+export type RollbackSeoRevisionResponses = {
+  /**
+   * Point one subject locale at its last valid base SEO revision.
+   */
+  200: SeoRollbackResponse;
+};
+
+export type RollbackSeoRevisionResponse =
+  RollbackSeoRevisionResponses[keyof RollbackSeoRevisionResponses];
+
 export type StaffAuthorVerifiedData = {
   body: StaffAuthorVerifiedRequest;
   headers: {
@@ -6654,6 +7965,147 @@ export type StaffAuthorVerifiedResponses = {
 
 export type StaffAuthorVerifiedResponse =
   StaffAuthorVerifiedResponses[keyof StaffAuthorVerifiedResponses];
+
+export type DeleteStaffContentData = {
+  body: StaffContentUnpublishRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Content hub article type.
+     */
+    type: string;
+    /**
+     * Lowercase kebab-case article slug.
+     */
+    slug: string;
+  };
+  query?: never;
+  url: "/v1/staff/content/{type}/{slug}";
+};
+
+export type DeleteStaffContentErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_CONTENT_SOURCE_CONFLICT, AI_STP_CONTENT_STALE.
+   */
+  409: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type DeleteStaffContentError = DeleteStaffContentErrors[keyof DeleteStaffContentErrors];
+
+export type DeleteStaffContentResponses = {
+  /**
+   * Unpublish both locales of a staff article without deleting history.
+   */
+  200: StaffContentUnpublishResponse;
+};
+
+export type DeleteStaffContentResponse =
+  DeleteStaffContentResponses[keyof DeleteStaffContentResponses];
+
+export type PutStaffContentData = {
+  body: StaffContentPublishRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Content hub article type.
+     */
+    type: string;
+    /**
+     * Lowercase kebab-case article slug.
+     */
+    slug: string;
+  };
+  query?: never;
+  url: "/v1/staff/content/{type}/{slug}";
+};
+
+export type PutStaffContentErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_CONTENT_INVALID, AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_CONTENT_SOURCE_CONFLICT, AI_STP_CONTENT_STALE.
+   */
+  409: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type PutStaffContentError = PutStaffContentErrors[keyof PutStaffContentErrors];
+
+export type PutStaffContentResponses = {
+  /**
+   * Publish an exact RU/EN staff article pair.
+   */
+  200: StaffContentPublishResponse;
+};
+
+export type PutStaffContentResponse = PutStaffContentResponses[keyof PutStaffContentResponses];
 
 export type ListStaffReportsData = {
   body?: never;

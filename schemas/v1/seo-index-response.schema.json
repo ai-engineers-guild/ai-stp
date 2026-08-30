@@ -1,0 +1,68 @@
+{
+  "$defs": {
+    "AbsoluteUrl": {
+      "maxLength": 2048,
+      "pattern": "^https?://",
+      "type": "string"
+    },
+    "DigestValue": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "SeoIndexShardRef": {
+      "properties": {
+        "lastmod": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "loc": {
+          "$ref": "#/$defs/AbsoluteUrl"
+        }
+      },
+      "required": [
+        "loc",
+        "lastmod"
+      ],
+      "title": "SeoIndexShardRef",
+      "type": "object"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:seo-index-response",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Sitemap index for the current SEO generation.",
+  "properties": {
+    "etag": {
+      "$ref": "#/$defs/DigestValue"
+    },
+    "generation": {
+      "minimum": 0,
+      "title": "Generation",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "shards": {
+      "items": {
+        "$ref": "#/$defs/SeoIndexShardRef"
+      },
+      "title": "Shards",
+      "type": "array"
+    }
+  },
+  "required": [
+    "etag",
+    "generation",
+    "schema_version",
+    "shards"
+  ],
+  "title": "SeoIndexResponse",
+  "type": "object"
+}

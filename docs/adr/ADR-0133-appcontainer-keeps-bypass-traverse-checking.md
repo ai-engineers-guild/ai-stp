@@ -3,7 +3,7 @@ description: "Решение строить windows network-isolated launcher н
 last_verified: "2026-08-30"
 ---
 
-# ADR-0131: AppContainer сохраняет обход traverse-проверок
+# ADR-0133: AppContainer сохраняет обход traverse-проверок
 
 Статус: принято. Снимает долг `ADR-0126` в части, названной `#51`.
 

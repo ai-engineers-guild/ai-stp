@@ -409,7 +409,10 @@ async def test_scenario_clean_skill_validate_then_publish(
 
     session.scalar = AsyncMock(side_effect=_publish_scalar)
     session.execute = AsyncMock(
-        return_value=SimpleNamespace(scalars=lambda: SimpleNamespace(all=lambda: bindings))
+        return_value=SimpleNamespace(
+            scalars=lambda: SimpleNamespace(all=lambda: bindings),
+            scalar_one=lambda: SimpleNamespace(id=1),
+        )
     )
     # Fix get to return plan for PublicationPlan and author row for AccountAuthorVerification
     from ai_stp_platform.models import AccountAuthorVerification, PublicationPlan

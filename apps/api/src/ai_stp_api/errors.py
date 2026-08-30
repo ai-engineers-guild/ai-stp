@@ -43,6 +43,15 @@ class ErrorCategory(StrEnum):
     AUTHORIZATION_DECLINED = "authorization_declined"
     PRECONDITION = "precondition"
     DEVICE_REVOKED = "device_revoked"
+    SEO_FACTS_INVALID = "seo_facts_invalid"
+    SEO_OUTPUT_INVALID = "seo_output_invalid"
+    SEO_ENRICHMENT_UNAVAILABLE = "seo_enrichment_unavailable"
+    SEO_SOURCE_STALE = "seo_source_stale"
+    SEO_RENDER_FAILED = "seo_render_failed"
+    CONTENT_INVALID = "content_invalid"
+    CONTENT_SOURCE_CONFLICT = "content_source_conflict"
+    CONTENT_STALE = "content_stale"
+    CONTENT_IMPORT_FORBIDDEN = "content_import_forbidden"
 
 
 CATEGORY_CODE: Mapping[ErrorCategory, str] = {
@@ -60,6 +69,15 @@ CATEGORY_CODE: Mapping[ErrorCategory, str] = {
     ErrorCategory.AUTHORIZATION_DECLINED: "AI_STP_AUTHORIZATION_DECLINED",
     ErrorCategory.PRECONDITION: "AI_STP_PRECONDITION_FAILED",
     ErrorCategory.DEVICE_REVOKED: "AI_STP_DEVICE_REVOKED",
+    ErrorCategory.SEO_FACTS_INVALID: "AI_STP_SEO_FACTS_INVALID",
+    ErrorCategory.SEO_OUTPUT_INVALID: "AI_STP_SEO_OUTPUT_INVALID",
+    ErrorCategory.SEO_ENRICHMENT_UNAVAILABLE: "AI_STP_SEO_ENRICHMENT_UNAVAILABLE",
+    ErrorCategory.SEO_SOURCE_STALE: "AI_STP_SEO_SOURCE_STALE",
+    ErrorCategory.SEO_RENDER_FAILED: "AI_STP_SEO_RENDER_FAILED",
+    ErrorCategory.CONTENT_INVALID: "AI_STP_CONTENT_INVALID",
+    ErrorCategory.CONTENT_SOURCE_CONFLICT: "AI_STP_CONTENT_SOURCE_CONFLICT",
+    ErrorCategory.CONTENT_STALE: "AI_STP_CONTENT_STALE",
+    ErrorCategory.CONTENT_IMPORT_FORBIDDEN: "AI_STP_CONTENT_IMPORT_FORBIDDEN",
 }
 
 CATEGORY_STATUS: Mapping[ErrorCategory, HTTPStatus] = {
@@ -77,6 +95,15 @@ CATEGORY_STATUS: Mapping[ErrorCategory, HTTPStatus] = {
     ErrorCategory.AUTHORIZATION_DECLINED: HTTPStatus.BAD_REQUEST,
     ErrorCategory.PRECONDITION: HTTPStatus.PRECONDITION_FAILED,
     ErrorCategory.DEVICE_REVOKED: HTTPStatus.FORBIDDEN,
+    ErrorCategory.SEO_FACTS_INVALID: HTTPStatus.BAD_REQUEST,
+    ErrorCategory.SEO_OUTPUT_INVALID: HTTPStatus.BAD_REQUEST,
+    ErrorCategory.SEO_ENRICHMENT_UNAVAILABLE: HTTPStatus.SERVICE_UNAVAILABLE,
+    ErrorCategory.SEO_SOURCE_STALE: HTTPStatus.CONFLICT,
+    ErrorCategory.SEO_RENDER_FAILED: HTTPStatus.INTERNAL_SERVER_ERROR,
+    ErrorCategory.CONTENT_INVALID: HTTPStatus.BAD_REQUEST,
+    ErrorCategory.CONTENT_SOURCE_CONFLICT: HTTPStatus.CONFLICT,
+    ErrorCategory.CONTENT_STALE: HTTPStatus.CONFLICT,
+    ErrorCategory.CONTENT_IMPORT_FORBIDDEN: HTTPStatus.FORBIDDEN,
 }
 
 _RETRYABLE: frozenset[ErrorCategory] = frozenset(

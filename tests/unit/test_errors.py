@@ -33,6 +33,15 @@ EXPECTED_HANDLING = {
     "AI_STP_TIMEOUT_UNCONFIRMED": "inspect_effect",
     "AI_STP_PARTIAL_OPERATION": "recover_partial",
     "AI_STP_CATALOG_INTEGRITY": "report_bug",
+    "AI_STP_SEO_FACTS_INVALID": "correct_request",
+    "AI_STP_SEO_OUTPUT_INVALID": "correct_request",
+    "AI_STP_SEO_ENRICHMENT_UNAVAILABLE": "retry_if_retryable",
+    "AI_STP_SEO_SOURCE_STALE": "reconcile_state",
+    "AI_STP_SEO_RENDER_FAILED": "report_bug",
+    "AI_STP_CONTENT_INVALID": "correct_request",
+    "AI_STP_CONTENT_SOURCE_CONFLICT": "reconcile_state",
+    "AI_STP_CONTENT_STALE": "reconcile_state",
+    "AI_STP_CONTENT_IMPORT_FORBIDDEN": "stop_for_permission",
     "AI_STP_INTERNAL": "report_bug",
 }
 

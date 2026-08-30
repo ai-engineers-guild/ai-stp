@@ -207,6 +207,14 @@ class CatalogSettings(BaseSettings):
         )
 
 
+class ContentSettings(BaseSettings):
+    """Scoped repository import credential (SPEC-054). Empty token forbids import."""
+
+    model_config = SettingsConfigDict(env_prefix="AI_STP_CONTENT_", extra="ignore")
+
+    import_token: str = Field(default="")
+
+
 class ComplaintSettings(BaseSettings):
     """Limits for public complaint intake (SPEC-052)."""
 
@@ -228,6 +236,7 @@ class Settings:
     auth: AuthSettings
     catalog: CatalogSettings
     complaint: ComplaintSettings = field(default_factory=ComplaintSettings)
+    content: ContentSettings = field(default_factory=ContentSettings)
 
 
 def load_settings() -> Settings:
@@ -239,4 +248,5 @@ def load_settings() -> Settings:
         auth=AuthSettings(),  # pyright: ignore[reportCallIssue]
         catalog=CatalogSettings(),  # pyright: ignore[reportCallIssue]
         complaint=ComplaintSettings(),
+        content=ContentSettings(),
     )

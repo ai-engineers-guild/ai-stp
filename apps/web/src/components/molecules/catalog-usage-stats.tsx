@@ -32,32 +32,22 @@ export function CatalogUsageStats({
       )}
     >
       <span
-        className="inline-flex max-w-full min-w-0 items-center gap-1"
+        role="group"
         aria-label={`${viewsLabel}: ${views}`}
+        className="inline-flex max-w-full min-w-0 items-center gap-1"
       >
         <Icon name="eye" size="sm" />
-        <span className="font-mono tabular-nums" aria-hidden="true">
-          {views}
-        </span>
-        {compact ? null : (
-          <span className="min-w-0 truncate" aria-hidden="true">
-            {viewsLabel}
-          </span>
-        )}
+        <span className="font-mono tabular-nums">{views}</span>
+        {compact ? null : <span className="min-w-0 truncate">{viewsLabel}:</span>}
       </span>
       <span
-        className="inline-flex max-w-full min-w-0 items-center gap-1"
+        role="group"
         aria-label={`${downloadsLabel}: ${downloads}`}
+        className="inline-flex max-w-full min-w-0 items-center gap-1"
       >
         <Icon name="download" size="sm" />
-        <span className="font-mono tabular-nums" aria-hidden="true">
-          {downloads}
-        </span>
-        {compact ? null : (
-          <span className="min-w-0 truncate" aria-hidden="true">
-            {downloadsLabel}
-          </span>
-        )}
+        <span className="font-mono tabular-nums">{downloads}</span>
+        {compact ? null : <span className="min-w-0 truncate">{downloadsLabel}:</span>}
       </span>
     </div>
   );

@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
+import { listPublishedContent } from "@/lib/api/content";
+import { CONTENT_TYPES } from "@/lib/content/source";
 import { Link } from "@/lib/i18n/navigation";
-import { CONTENT_TYPES, publishedContent } from "@/lib/content/source";
+
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,
@@ -18,7 +21,7 @@ export default async function ContentIndex({ params }: { params: Promise<{ local
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("content");
-  const entries = publishedContent(locale);
+  const entries = await listPublishedContent(locale);
   const [featured, ...latest] = entries;
   return (
     <section className="space-y-16 py-6 sm:py-12">

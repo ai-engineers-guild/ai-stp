@@ -1,0 +1,243 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case_id": "listContent.published",
+      "operation_id": "listContent",
+      "kind": "positive",
+      "why": "Published locale list returns repository and staff summaries.",
+      "request": {
+        "query": {
+          "locale": "en"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "etag": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "items": [
+          {
+            "schema_version": 1,
+            "type": "article",
+            "slug": "safe-setup",
+            "locale": "en",
+            "title": "safe-setup-title",
+            "description": "safe-setup-description",
+            "published_at": "2026-08-12",
+            "tags": ["setup", "trust"],
+            "revision_id": "revision_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "source_kind": "repository"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "readContent.published",
+      "operation_id": "readContent",
+      "kind": "positive",
+      "why": "Published detail returns body and repository provenance.",
+      "request": {
+        "path_params": {
+          "type": "article",
+          "slug": "safe-setup"
+        },
+        "query": {
+          "locale": "en"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "type": "article",
+        "slug": "safe-setup",
+        "locale": "en",
+        "title": "safe-setup-title",
+        "description": "safe-setup-description",
+        "published_at": "2026-08-12",
+        "tags": ["setup", "trust"],
+        "revision_id": "revision_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "source_kind": "repository",
+        "body": "Use exact versions.",
+        "source_ref": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "source_path": "en/article-safe-setup.md"
+      }
+    },
+    {
+      "case_id": "readContentRepositoryState.current",
+      "operation_id": "readContentRepositoryState",
+      "kind": "positive",
+      "why": "Repository state returns generation without snapshot entries.",
+      "request": {
+        "headers": {
+          "Authorization": "Bearer content-import-token"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "generation": 0,
+        "snapshot_digest": null,
+        "commit": null
+      }
+    },
+    {
+      "case_id": "importContentRepository.accepted",
+      "operation_id": "importContentRepository",
+      "kind": "positive",
+      "why": "Snapshot import reports created activated removed and unchanged counts.",
+      "request": {
+        "headers": {
+          "Authorization": "Bearer content-import-token"
+        },
+        "body": {
+          "schema_version": 1,
+          "repository": "ai-engineers-guild/ai-stp",
+          "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "snapshot_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "expected_generation": 0,
+          "entries": [
+            {
+              "type": "article",
+              "slug": "safe-setup",
+              "locale": "en",
+              "title": "safe-setup-title",
+              "description": "safe-setup-description",
+              "published_at": "2026-08-12",
+              "tags": ["setup"],
+              "body": "Use exact versions.",
+              "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "source_kind": "repository",
+              "source_ref": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "source_path": "en/article-safe-setup.md"
+            },
+            {
+              "type": "article",
+              "slug": "safe-setup",
+              "locale": "ru",
+              "title": "safe-setup-title-ru",
+              "description": "safe-setup-description-ru",
+              "published_at": "2026-08-12",
+              "tags": ["setup"],
+              "body": "Tochnye versii.",
+              "content_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "source_kind": "repository",
+              "source_ref": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "source_path": "ru/article-safe-setup.md"
+            }
+          ]
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "generation": 1,
+        "snapshot_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "created": 2,
+        "activated": 2,
+        "removed": 0,
+        "unchanged": 0
+      }
+    },
+    {
+      "case_id": "putStaffContent.created",
+      "operation_id": "putStaffContent",
+      "kind": "positive",
+      "why": "Staff publish creates an exact RU/EN pair.",
+      "request": {
+        "path_params": {
+          "type": "article",
+          "slug": "staff-note"
+        },
+        "body": {
+          "schema_version": 1,
+          "expected_active_digest": null,
+          "translations": {
+            "en": {
+              "title": "staff-title-en",
+              "description": "staff-description-en",
+              "published_at": "2026-08-12",
+              "tags": ["note"],
+              "body": "Staff body EN."
+            },
+            "ru": {
+              "title": "staff-title-ru",
+              "description": "staff-description-ru",
+              "published_at": "2026-08-12",
+              "tags": ["note"],
+              "body": "Staff body RU."
+            }
+          }
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "article_id": "article:staff-note",
+        "active_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "revision_ids": {
+          "en": "revision_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "ru": "revision_cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        },
+        "articles": {
+          "en": {
+            "schema_version": 1,
+            "type": "article",
+            "slug": "staff-note",
+            "locale": "en",
+            "title": "staff-title-en",
+            "description": "staff-description-en",
+            "published_at": "2026-08-12",
+            "tags": ["note"],
+            "revision_id": "revision_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "source_kind": "staff",
+            "body": "Staff body EN.",
+            "source_ref": null,
+            "source_path": null
+          },
+          "ru": {
+            "schema_version": 1,
+            "type": "article",
+            "slug": "staff-note",
+            "locale": "ru",
+            "title": "staff-title-ru",
+            "description": "staff-description-ru",
+            "published_at": "2026-08-12",
+            "tags": ["note"],
+            "revision_id": "revision_cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "content_digest": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+            "source_kind": "staff",
+            "body": "Staff body RU.",
+            "source_ref": null,
+            "source_path": null
+          }
+        }
+      }
+    },
+    {
+      "case_id": "deleteStaffContent.unpublished",
+      "operation_id": "deleteStaffContent",
+      "kind": "positive",
+      "why": "Staff unpublish removes both locales and keeps history.",
+      "request": {
+        "path_params": {
+          "type": "article",
+          "slug": "staff-note"
+        },
+        "body": {
+          "schema_version": 1,
+          "expected_active_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "article_id": "article:staff-note",
+        "unpublished": true,
+        "active_digest": null
+      }
+    }
+  ]
+}

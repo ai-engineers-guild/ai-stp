@@ -24,6 +24,7 @@ from ai_stp_api.slices.auth.oauth import build_oauth
 from ai_stp_api.slices.auth.router import router as auth_router
 from ai_stp_api.slices.catalog.router import router as catalog_router
 from ai_stp_api.slices.complaints.router import router as complaints_router
+from ai_stp_api.slices.content.router import router as content_router
 from ai_stp_api.slices.devices.router import router as devices_router
 from ai_stp_api.slices.documents.router import router as documents_router
 from ai_stp_api.slices.grants.router import router as grants_router
@@ -34,6 +35,7 @@ from ai_stp_api.slices.publish.router import router as publish_router
 from ai_stp_api.slices.reports.router import router as reports_router
 from ai_stp_api.slices.schemas.router import router as schemas_router
 from ai_stp_api.slices.selection.router import router as selection_router
+from ai_stp_api.slices.seo.router import router as seo_router
 from ai_stp_api.slices.sync.router import router as sync_router
 from ai_stp_api.slices.system.router import router as system_router
 from ai_stp_platform.db import make_engine, make_sessionmaker
@@ -124,6 +126,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(owner_router, prefix=_API_PREFIX)
     app.include_router(profile_router, prefix=_API_PREFIX)
     app.include_router(documents_router, prefix=_API_PREFIX)
+    app.include_router(content_router, prefix=_API_PREFIX)
+    app.include_router(seo_router, prefix=_API_PREFIX)
     app.include_router(schemas_router)
     configure_observability(
         app,

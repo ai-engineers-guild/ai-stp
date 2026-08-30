@@ -1,0 +1,25 @@
+# Official CLIProxyAPI config for the optional seo_enrichment profile.
+# Port 8317 stays on the compose network; do not publish it to the host.
+# api-keys must match LiteLLM CLIPROXY_API_KEY (compose default sk-none).
+# Auth JSON lives in the sibling auths/ bind (container ~/.cli-proxy-api).
+host: ""
+port: 8317
+auth-dir: "~/.cli-proxy-api"
+request-retry: 3
+logging-to-file: false
+remote-management:
+  allow-remote: false
+  secret-key: ""
+  disable-control-panel: true
+api-keys:
+  - "sk-none"
+quota-exceeded:
+  switch-project: true
+  switch-preview-model: true
+oauth-model-alias:
+  antigravity:
+    # `name` is the upstream Antigravity model.
+    # `alias` is the id LiteLLM requests as CLIPROXY_MODEL.
+    # After login, GET /v1/models and change `name` if this id is absent.
+    - name: "gemini-3-flash"
+      alias: "seo-writer"

@@ -3,26 +3,25 @@ import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { MarkdownDescription } from "@/components/molecules/markdown-description";
-import { allContentEntries, findContent } from "@/lib/content/source";
+import { SeoJsonLd } from "@/components/molecules/seo-json-ld";
+import { readPublishedContent } from "@/lib/api/content";
+import { readSeoProfile } from "@/lib/api/seo";
+import { metadataFromSeo } from "@/lib/seo/metadata";
 import { publicOrigin } from "@/lib/site";
 import { Link } from "@/lib/i18n/navigation";
 
 type Props = { params: Promise<{ locale: string; type: string; slug: string }> };
 
-export function generateStaticParams() {
-  return allContentEntries()
-    .filter((entry) => !entry.draft)
-    .map(({ locale, type, slug }) => ({ locale, type, slug }));
-}
-
-export const dynamicParams = false;
+export const dynamic = "force-dynamic";
+export const dynamicParams = true;
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale, type, slug } = await params;
-  const entry = findContent(locale, type, slug);
+  const entry = await readPublishedContent(locale, type, slug);
   if (!entry) return {};
   const path = `/${locale}/content/${type}/${slug}`;
-  return {
+  const seo = await readSeoProfile("article", `${type}:${slug}`, locale);
+  return metadataFromSeo(seo, {
     title: entry.title,
     description: entry.description,
     alternates: {
@@ -33,17 +32,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       },
     },
     openGraph: { type: "article", title: entry.title, description: entry.description, url: path },
-  };
+  });
 }
 
 export default async function ContentDetail({ params }: Props) {
   const { locale, type, slug } = await params;
   setRequestLocale(locale);
-  const entry = findContent(locale, type, slug);
+  const entry = await readPublishedContent(locale, type, slug);
   if (!entry) notFound();
   const t = await getTranslations("content");
   const canonical = new URL(`/${locale}/content/${type}/${slug}`, publicOrigin()).toString();
-  const jsonLd = {
+  const seo = await readSeoProfile("article", `${type}:${slug}`, locale);
+  const jsonLd = seo?.profile.json_ld ?? {
     "@context": "https://schema.org",
     "@type": type === "blog_post" ? "BlogPosting" : type === "article" ? "TechArticle" : "Article",
     headline: entry.title,
@@ -54,10 +54,7 @@ export default async function ContentDetail({ params }: Props) {
   };
   return (
     <article className="mx-auto max-w-5xl space-y-12 py-6 sm:py-12">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replaceAll("<", "\\u003c") }}
-      />
+      <SeoJsonLd jsonLd={jsonLd} />
       <header className="grid gap-7 border-b pb-10 lg:grid-cols-[minmax(0,1fr)_12rem] lg:items-end">
         <Link
           href="/content"

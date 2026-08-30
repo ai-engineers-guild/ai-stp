@@ -8,8 +8,10 @@ import pytest
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 
+import ai_stp_platform.content.orm
 import ai_stp_platform.models
 import ai_stp_platform.queue.models
+import ai_stp_platform.seo.orm
 from ai_stp_platform.db import Base
 
 pytestmark = pytest.mark.platform
@@ -31,6 +33,8 @@ def test_alembic_history_has_single_head() -> None:
 def test_sprint1_models_are_registered_on_platform_base() -> None:
     assert ai_stp_platform.models.Account.__tablename__ == "account"
     assert ai_stp_platform.queue.models.Job.__tablename__ == "job"
+    assert ai_stp_platform.seo.orm.SeoFactSnapshot.__tablename__ == "seo_fact_snapshot"
+    assert ai_stp_platform.content.orm.Article.__tablename__ == "article"
     expected_tables = {
         "account",
         "oauth_identity",
@@ -40,6 +44,13 @@ def test_sprint1_models_are_registered_on_platform_base() -> None:
         "object_location",
         "audit_event",
         "job",
+        "seo_fact_snapshot",
+        "seo_revision",
+        "seo_active_revision",
+        "article",
+        "article_revision",
+        "article_active",
+        "article_repository_state",
     }
 
     assert expected_tables.issubset(Base.metadata.tables)

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 
@@ -45,10 +46,19 @@ import { registryVersion, selectImpact } from "@/lib/cli-copy";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { publicOrigin } from "@/lib/site";
 import { Link } from "@/lib/i18n/navigation";
+import { SeoJsonLd } from "@/components/molecules/seo-json-ld";
+import { readSeoProfile } from "@/lib/api/seo";
+import { metadataFromSeo } from "@/lib/seo/metadata";
 import { UI } from "@/lib/ui-selectors";
 import { Icon } from "@/theme/icons";
 
 type PageProps = { params: Promise<{ locale: string; stableId: string }> };
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { locale, stableId } = await params;
+  const seo = await readSeoProfile("setup", stableId, locale);
+  return metadataFromSeo(seo, { title: stableId });
+}
 
 // Page owns both human layout and machine presenter branch from the same reads.
 
@@ -77,6 +87,7 @@ export default async function SetupDetailPage({ params }: PageProps) {
   const tCli = await getTranslations("cli");
   const reportLabel = t("reportSetup");
 
+  const seo = await readSeoProfile("setup", stableId, locale);
   const summary = detail.summary;
   const token = await sessionCookieValue();
   const initiallyLiked = token ? await isLiked(token, stableId) : false;
@@ -131,6 +142,7 @@ export default async function SetupDetailPage({ params }: PageProps) {
 
   return (
     <article className="mx-auto max-w-6xl min-w-0 space-y-8 overflow-x-clip">
+      {seo ? <SeoJsonLd jsonLd={seo.profile.json_ld} /> : null}
       <Button asChild variant="ghost" size="sm">
         <Link href="/catalog?include_experimental=1&resource=setups">
           <Icon name="arrowLeft" size="sm" /> {t("backToCatalog")}

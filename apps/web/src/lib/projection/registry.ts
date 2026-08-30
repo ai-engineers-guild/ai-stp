@@ -49,7 +49,7 @@ import {
 import { isExternalCatalogEnabled } from "@/lib/projection/inventory";
 import { orNotFound } from "@/lib/projection/not-found";
 import { githubSourceUrl } from "@/lib/source-url";
-import { publishedContent, findContent } from "@/lib/content/source";
+import { listPublishedContent, readPublishedContent } from "@/lib/api/content";
 import { presentContentEntry, presentContentIndex } from "@/lib/content/presenter";
 import { isFeatureEnabled } from "@/lib/features/gate";
 
@@ -366,13 +366,14 @@ const PUBLIC_ROUTES: MachineRoute[] = [
   {
     pattern: "content",
     feature: "content_hub",
-    resolve: ({ locale }) => presentContentIndex(publishedContent(locale)),
+    resolve: async ({ locale }) =>
+      presentContentIndex(await listPublishedContent(locale).catch(() => [])),
   },
   {
     pattern: "content/:type/:slug",
     feature: "content_hub",
-    resolve: ({ locale, segments }) => {
-      const entry = findContent(locale, segments[1] ?? "", segments[2] ?? "");
+    resolve: async ({ locale, segments }) => {
+      const entry = await readPublishedContent(locale, segments[1] ?? "", segments[2] ?? "");
       return entry ? presentContentEntry(entry) : null;
     },
   },

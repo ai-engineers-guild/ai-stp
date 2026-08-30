@@ -1,6 +1,6 @@
 ---
 description: "SPEC-041: Версионируемые scaffold-планы полного authoring-каталога компонента."
-last_verified: "2026-08-13"
+last_verified: "2026-08-29"
 ---
 
 # SPEC-041: Scaffold framework компонентов
@@ -31,9 +31,10 @@ Framework создаёт локальный authoring-каталог и закр
   видов компонента, язык, portable или конкретный harness variant и признак
   исполняемости.
 - `REQ-4102`: Матрица допускает `none` для декларативных `instruction`, `skill`,
-  `agent`, `setting` и Python, TypeScript, JavaScript, Rust, Go или Dart/Flutter
-  для исполняемых `mcp`, `hook`, `command`, `plugin`; остальные сочетания
-  отклоняются.
+  `command`, `agent`, `setting`; `mcp` и `plugin` используют один из исполняемых
+  языков, а `hook` — только язык, чей source можно запустить после установки без
+  неявной сборки. Сочетание без нативной семантики выбранного харнесса
+  отклоняется до записи файлов.
 - `REQ-4103`: Plan перечисляет каждый относительный путь, точный byte length,
   режим и domain-separated digest и связывает их с абсолютным новым target.
 - `REQ-4104`: Scaffold содержит descriptor, закрытый component passport patch,
@@ -49,6 +50,18 @@ Framework создаёт локальный authoring-каталог и закр
 - `REQ-4107`: Eval skeleton содержит локальную deterministic проверку, а
   недоступные model/human проверки при выполнении получают `not_run` по
   `SPEC-040`; scaffold сам код не исполняет.
+- `REQ-4108`: Scaffold содержит каталог `native/` с точной раскладкой выбранного
+  харнесса. `instruction`, `command`, `agent` и `setting` получают нативный файл
+  или каталог из реестра проекций; целый settings-файл является одним
+  компонентом. Codex `agent` не маскируется под отдельный вид: такая комбинация
+  отклоняется.
+- `REQ-4109`: `hook-source.json` строго фиксирует событие, порядок, блокирующую
+  политику отказа и команду обработчика. Нативный manifest и соседний handler
+  выводятся детерминированно; scaffold не создаёт заглушку `handle_event`.
+- `REQ-4110`: Manifest-directory plugin несёт нативный manifest выбранного
+  продукта. OpenCode plugin является одиночным `plugins/<name>.js|ts`, Pi
+  extension — одиночным JS/TS package entry. Регистрация marketplace не входит
+  в plugin package и моделируется отдельным `setting`.
 
 ## Состояния и ошибки
 
@@ -66,8 +79,8 @@ Scaffold не читает environment values, credentials и пользоват
 
 ## Совместимость и миграция
 
-`component-scaffold/1` и `ai-stp/1` являются независимыми версиями template и
-generator. Изменение точных создаваемых байтов требует новой template version;
+`component-scaffold/2` и `ai-stp/2` являются текущими независимыми версиями
+template и generator; descriptors версии `1` остаются валидными. Изменение точных создаваемых байтов требует новой template version;
 изменение механики без изменения descriptor contract требует новой generator
 version. Старые descriptors остаются валидируемыми собственной схемой.
 
@@ -82,3 +95,6 @@ version. Старые descriptors остаются валидируемыми с
 | `REQ-4105` | Fixtures не содержат secret values, public source claim и разрешение распространения. |
 | `REQ-4106` | Без confirm, со stale digest, существующим target, symlink и отсутствующим parent операция отказана без изменения файлов. |
 | `REQ-4107` | Eval profile содержит deterministic и model-assisted checks; общий runner подтверждает честный `not_run`. |
+| `REQ-4108` | Fixtures нативных instruction/command/agent/setting совпадают с реестром; неподдерживаемый Codex agent отказан без записи. |
+| `REQ-4109` | Hook fixtures сохраняют событие, порядок, failure policy и команду; malformed source отклоняется строгой схемой. |
+| `REQ-4110` | Fixtures различают manifest packages и одиночные OpenCode/Pi modules; plugin не пишет marketplace settings. |

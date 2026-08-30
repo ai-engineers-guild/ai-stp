@@ -1,0 +1,71 @@
+{
+  "$defs": {
+    "RevisionId": {
+      "pattern": "^revision_[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "SeoGeneratorKind": {
+      "enum": [
+        "template",
+        "model"
+      ],
+      "type": "string"
+    },
+    "SeoLocale": {
+      "enum": [
+        "ru",
+        "en"
+      ],
+      "type": "string"
+    },
+    "SeoSubjectKind": {
+      "enum": [
+        "component",
+        "setup",
+        "article",
+        "service",
+        "country"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:seo-rollback-response",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "generator_kind": {
+      "$ref": "#/$defs/SeoGeneratorKind"
+    },
+    "locale": {
+      "$ref": "#/$defs/SeoLocale"
+    },
+    "revision_id": {
+      "$ref": "#/$defs/RevisionId"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "subject_id": {
+      "maxLength": 253,
+      "minLength": 1,
+      "title": "Subject Id",
+      "type": "string"
+    },
+    "subject_kind": {
+      "$ref": "#/$defs/SeoSubjectKind"
+    }
+  },
+  "required": [
+    "generator_kind",
+    "locale",
+    "revision_id",
+    "schema_version",
+    "subject_id",
+    "subject_kind"
+  ],
+  "title": "SeoRollbackResponse",
+  "type": "object"
+}

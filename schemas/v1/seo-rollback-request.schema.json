@@ -1,0 +1,28 @@
+{
+  "$defs": {
+    "SeoLocale": {
+      "enum": [
+        "ru",
+        "en"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:seo-rollback-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "locale": {
+      "$ref": "#/$defs/SeoLocale",
+      "default": "en"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "title": "SeoRollbackRequest",
+  "type": "object"
+}

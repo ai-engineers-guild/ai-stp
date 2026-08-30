@@ -253,6 +253,101 @@ function readUpdatedRange(
   };
 }
 
+const MOCK_REVISION = `revision_${"a".repeat(64)}`;
+const MOCK_DIGEST = `sha256:${"b".repeat(64)}`;
+const MOCK_ETAG = `sha256:${"c".repeat(64)}`;
+
+type MockContent = {
+  type: "article";
+  slug: string;
+  locale: "en" | "ru";
+  title: string;
+  description: string;
+  published_at: string;
+  tags: string[];
+  body: string;
+};
+
+const MOCK_CONTENT: MockContent[] = [
+  {
+    type: "article",
+    slug: "safe-setup",
+    locale: "en",
+    title: "Build a setup without hiding its trust boundary",
+    description: "A practical guide to provenance, exact versions and explicit consent in ai_stp.",
+    published_at: "2026-08-12",
+    tags: ["setup", "trust"],
+    body: "An ai_stp setup pins exact component versions and keeps provenance visible.",
+  },
+  {
+    type: "article",
+    slug: "safe-setup",
+    locale: "ru",
+    title: "Как собрать сетап, не скрывая границу доверия",
+    description:
+      "Практическое руководство о происхождении, точных версиях и явном согласии в ai_stp.",
+    published_at: "2026-08-12",
+    tags: ["setup", "trust"],
+    body: "Сетап ai_stp закрепляет точные версии компонентов и сохраняет видимым их происхождение.",
+  },
+];
+
+function contentHandlers(method: string, path: string, query?: URLSearchParams): MockResult | null {
+  if (method !== "GET") return null;
+  const locale = query?.get("locale");
+  if (path === "/v1/content") {
+    if (locale !== "en" && locale !== "ru") {
+      return validationError("listContent.locale", "locale");
+    }
+    const items = MOCK_CONTENT.filter((entry) => entry.locale === locale).map((entry) => ({
+      schema_version: 1 as const,
+      type: entry.type,
+      slug: entry.slug,
+      locale: entry.locale,
+      title: entry.title,
+      description: entry.description,
+      published_at: entry.published_at,
+      tags: entry.tags,
+      revision_id: MOCK_REVISION,
+      content_digest: MOCK_DIGEST,
+      source_kind: "repository" as const,
+    }));
+    return {
+      status: 200,
+      body: { schema_version: 1, etag: MOCK_ETAG, items },
+    };
+  }
+  const detail = path.match(/^\/v1\/content\/([^/]+)\/([^/]+)$/);
+  if (!detail) return null;
+  if (detail[1] === "repository") return null;
+  if (locale !== "en" && locale !== "ru") {
+    return validationError("readContent.locale", "locale");
+  }
+  const entry = MOCK_CONTENT.find(
+    (item) => item.type === detail[1] && item.slug === detail[2] && item.locale === locale,
+  );
+  if (!entry) return notFound("readContent.unknown");
+  return {
+    status: 200,
+    body: {
+      schema_version: 1,
+      type: entry.type,
+      slug: entry.slug,
+      locale: entry.locale,
+      title: entry.title,
+      description: entry.description,
+      published_at: entry.published_at,
+      tags: entry.tags,
+      revision_id: MOCK_REVISION,
+      content_digest: MOCK_DIGEST,
+      source_kind: "repository",
+      body: entry.body,
+      source_ref: "a".repeat(40),
+      source_path: `${entry.locale}/article-${entry.slug}.md`,
+    },
+  };
+}
+
 function catalogHandlers(method: string, path: string, query?: URLSearchParams): MockResult | null {
   if (method !== "GET") {
     return null;
@@ -465,6 +560,10 @@ export function mockFetch(
   if (complaint) return complaint;
   const reaction = reactionHandler(method, path);
   if (reaction) return reaction;
+  const content = contentHandlers(method, path, init?.query);
+  if (content) {
+    return content;
+  }
   const catalog = catalogHandlers(method, path, init?.query);
   if (catalog) {
     return catalog;

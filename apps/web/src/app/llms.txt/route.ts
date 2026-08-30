@@ -17,6 +17,7 @@ export function GET() {
 - [Provider-info schema](${absolute("/schemas/provider-protocol/v3/provider-info.json")}): JSON Schema for protocol v3 provider-info
 - [Agent instructions](${absolute("/agents.md")}): safe machine onboarding
 - [Extended context](${absolute("/llms-full.txt")}): terminology, trust model and supported harnesses
+- [Catalog manifest](${absolute("/llms/catalog.ndjson")}): paginated active subjects
 ${isFeatureEnabled("content_hub") ? `- [Content](${absolute("/en/content")}): articles, product news, changelog and release notes\n` : ""}
 
 ## Rules

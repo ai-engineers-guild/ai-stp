@@ -20,6 +20,8 @@ from ai_stp_contracts.authoring import (
     ComponentScaffoldPlan,
     ComponentScaffoldResult,
     ComponentTemplateDescriptor,
+    PortableHookHandler,
+    PortableHookSource,
 )
 from ai_stp_contracts.component_passport import ComponentPassportPatch
 from ai_stp_foundation.canonical import JsonValue, canonize
@@ -217,8 +219,7 @@ def _unused_destination(destination: Path) -> None:
 
 def _scaffold_files(name: str, descriptor: ComponentTemplateDescriptor) -> dict[str, bytes]:
     component_type = descriptor.component_type
-    projection = "plugin" if component_type == "plugin" else "native_files"
-    entry = _entry_path(name, descriptor)
+    native, entry, managed, projection, authoring_source = _native_source(name, descriptor)
     patch_input: dict[str, JsonValue] = {
         "name": name.replace("-", " ").title(),
         "description": f"Authoring draft for the {name} {component_type} component.",
@@ -242,7 +243,7 @@ def _scaffold_files(name: str, descriptor: ComponentTemplateDescriptor) -> dict[
             "agents": [],
             "plugins": [],
         },
-        "managed_paths": [_managed_cover(name, descriptor)],
+        "managed_paths": [managed],
         "native_ids": [name],
         "entry_points": [entry],
         "runtime_requirements": [],
@@ -277,163 +278,234 @@ def _scaffold_files(name: str, descriptor: ComponentTemplateDescriptor) -> dict[
             b"- [ ] Run passport validation and the exact SetupEvalProfile.\n"
         ),
     }
-    files.update(_source_files(name, descriptor, entry))
+    files.update({f"native/{path}": payload for path, payload in native.items()})
+    files.update(authoring_source)
     return files
 
 
-def _managed_cover(name: str, descriptor: ComponentTemplateDescriptor) -> str:
-    """Where this component lands on a target, not the file inside the scaffold.
-
-    `SKILL.md` is an entry point of the artifact. The passport `managed_paths`
-    is the native root (`skills/<name>`). Declaring the inner file as the cover
-    is `managed_path_outside_projection` against a directory rule.
-    """
+def _native_source(
+    name: str, descriptor: ComponentTemplateDescriptor
+) -> tuple[dict[str, bytes], str, str, str, dict[str, bytes]]:
+    """Build one exact native artifact and the portable source that produced it."""
     from ai_stp_cli.local import composition
 
     component_type = descriptor.component_type
     harness = descriptor.harness_variant
-    if harness == "portable":
-        if component_type == "skill":
-            return f"skills/{name}"
-        if component_type == "instruction":
-            return "AGENTS.md"
-        if component_type == "agent":
-            return f"agents/{name}"
-        if component_type == "command":
-            return f"commands/{name}"
-        if component_type == "plugin":
-            return f"plugins/{name}"
-        if component_type == "hook":
-            return "hooks.json"
-        if component_type == "setting":
-            return "settings.json"
-        if component_type == "mcp":
-            return "mcp.json"
-    rule = composition.rule_for(component_type, harness)
+    rule = None if harness == "portable" else composition.rule_for(component_type, harness)
+    if harness != "portable" and rule is None and component_type != "mcp":
+        raise _failure(
+            f"{component_type} cannot be projected to {harness} without losing semantics"
+        )
+    if component_type == "plugin" and harness in {"opencode", "pi"}:
+        if descriptor.language not in {"javascript", "typescript"}:
+            raise _failure(f"{harness} plugins are JavaScript or TypeScript modules")
+        suffix = ".js" if descriptor.language == "javascript" else ".ts"
+        entry = f"{name}{suffix}"
+        native = {entry: _program(name, descriptor.language, "activate_plugin")}
+        managed = f"{rule.relative}/{entry}" if rule is not None else f"plugins/{entry}"
+        projection = rule.projection_kind if rule is not None else "native_files"
+        return native, entry, managed, projection, {}
+    if component_type == "plugin":
+        entry = _program_entry(name, descriptor.language)
+        manifest = {
+            "claude-code": ".claude-plugin/plugin.json",
+            "cursor": ".cursor-plugin/plugin.json",
+        }.get(harness, "plugin.json")
+        native = {
+            manifest: canonize(
+                cast(
+                    JsonValue,
+                    {
+                        "name": name,
+                        "version": "0.1.0",
+                        "description": f"Native {harness} plugin {name}",
+                    },
+                )
+            ),
+            entry: _program(name, descriptor.language, "activate_plugin"),
+        }
+        managed = f"plugins/{name}" if rule is None else f"{rule.relative}/{name}"
+        projection = "plugin" if rule is None else rule.projection_kind
+        return native, entry, managed, projection, {}
+    if component_type == "hook":
+        entry = _program_entry(name, descriptor.language, prefix="hooks/handler")
+        manifest = "hooks.json"
+        native_root = "hooks" if rule is None else rule.relative
+        command_path = _hook_command_path(
+            native_root,
+            name,
+            entry,
+            rule is not None and rule.shape == "directory",
+        )
+        source = PortableHookSource(
+            event="PreToolUse",
+            order=0,
+            failure="block",
+            handler=PortableHookHandler(command=command_path),
+        )
+        native = {
+            manifest: canonize(
+                {
+                    "hooks": {
+                        source.event: [
+                            {
+                                "matcher": "*",
+                                "hooks": [{"type": "command", "command": source.handler.command}],
+                            }
+                        ]
+                    }
+                }
+            ),
+            entry: _hook_program(descriptor.language),
+        }
+        managed = (
+            "hooks.json"
+            if rule is None
+            else (rule.relative if rule.shape == "file" else f"{rule.relative}/{name}")
+        )
+        projection = "native_files" if rule is None else rule.projection_kind
+        return (
+            native,
+            entry,
+            managed,
+            projection,
+            {"hook-source.json": canonize(cast(JsonValue, source.model_dump(mode="json")))},
+        )
+
+    if component_type in {"instruction", "command", "agent", "setting"}:
+        if rule is not None and rule.shape == "file":
+            entry = PurePosixPath(rule.relative).name
+            managed = rule.relative
+        else:
+            entry = "settings.json" if component_type == "setting" else f"{name}.md"
+            root = {
+                "instruction": "instructions",
+                "command": "commands",
+                "agent": "agents",
+                "setting": "settings",
+            }[component_type]
+            managed = f"{root}/{entry}" if rule is None else f"{rule.relative}/{entry}"
+        payload = (
+            _setting_payload(entry)
+            if component_type == "setting"
+            else f"# {name}\n\nDescribe the bounded {component_type} behavior.\n".encode()
+        )
+        projection = "native_files" if rule is None else rule.projection_kind
+        return {entry: payload}, entry, managed, projection, {}
+
+    entry = (
+        _program_entry(name, descriptor.language) if descriptor.language != "none" else "SKILL.md"
+    )
+    native = _generic_native_files(name, descriptor, entry)
     if rule is None:
-        return _entry_path(name, descriptor)
-    if rule.shape == "directory":
-        return f"{rule.relative}/{name}"
-    return rule.relative
+        managed = "mcp.json" if component_type == "mcp" else f"skills/{name}"
+        projection = "native_files"
+    elif rule.shape == "file":
+        managed = rule.relative
+        projection = rule.projection_kind
+    else:
+        managed = f"{rule.relative}/{name}"
+        projection = rule.projection_kind
+    return native, entry, managed, projection, {}
 
 
-def _entry_path(name: str, descriptor: ComponentTemplateDescriptor) -> str:
-    if descriptor.language == "none":
-        return {
-            "skill": "SKILL.md",
-            "instruction": "INSTRUCTIONS.md",
-            "agent": "AGENT.md",
-            "setting": "setting.json",
-        }[descriptor.component_type]
-    return {
-        "python": f"src/{name.replace('-', '_')}/main.py",
-        "typescript": "src/index.ts",
-        "javascript": "src/index.js",
-        "rust": "src/main.rs",
-        "go": "main.go",
-        "dart-flutter": f"lib/{name.replace('-', '_')}.dart",
-    }[descriptor.language]
-
-
-def _source_files(
+def _generic_native_files(
     name: str, descriptor: ComponentTemplateDescriptor, entry: str
 ) -> dict[str, bytes]:
     if descriptor.language == "none":
-        body = (
-            canonize(cast(JsonValue, {"schema_version": 1, "settings": {}}))
-            if descriptor.component_type == "setting"
-            else (
-                f"# {name}\n\nDescribe the bounded {descriptor.component_type} behavior.\n"
-            ).encode()
-        )
-        return {
-            entry: body,
-            "tests/static-check.md": b"# Static check\n\nValidate the declared behavior.\n",
-        }
+        return {entry: f"# {name}\n\nDescribe the bounded skill behavior.\n".encode()}
+    return {entry: _program(name, descriptor.language, "handle_request")}
+
+
+def _program_entry(name: str, language: str, *, prefix: str = "src/main") -> str:
     stem = name.replace("-", "_")
-    language = descriptor.language
+    return {
+        "python": f"{prefix}.py",
+        "typescript": f"{prefix}.ts",
+        "javascript": f"{prefix}.js",
+        "rust": f"{prefix}.rs",
+        "go": f"{prefix}.go",
+        "dart-flutter": f"{prefix}-{stem}.dart",
+    }[language]
+
+
+def _program(name: str, language: str, symbol: str) -> bytes:
+    del name
     symbol = {
-        "mcp": "handle_request",
-        "hook": "handle_event",
-        "command": "run_command",
-        "plugin": "activate_plugin",
-    }[descriptor.component_type]
-    sources: dict[str, dict[str, bytes]] = {
-        "python": {
-            entry: (
-                f"def {symbol}() -> int:\n"
-                f'    """Run the {descriptor.component_type} entry contract."""\n'
-                "    return 0\n"
-            ).encode(),
-            f"src/{stem}/__init__.py": b"",
-            "tests/test_component.py": (
-                f"from {stem}.main import {symbol}\n\n\n"
-                f"def test_entrypoint() -> None:\n    assert {symbol}() == 0\n"
-            ).encode(),
-            "pyproject.toml": (
-                f'[project]\nname = "{name}"\nversion = "0.1.0"\n'
-                'requires-python = ">=3.12"\n\n'
-                '[tool.pytest.ini_options]\npythonpath = ["src"]\n'
-            ).encode(),
-        },
-        "typescript": {
-            entry: f"export const {symbol} = (): number => 0;\n".encode(),
-            "tests/component.test.ts": (
-                f"import {{ {symbol} }} from '../src/index';\n"
-                f"if ({symbol}() !== 0) throw new Error('failed');\n"
-            ).encode(),
-            "package.json": canonize(
-                cast(
-                    JsonValue, {"name": name, "private": True, "version": "0.1.0", "type": "module"}
-                )
-            ),
-        },
-        "javascript": {
-            entry: f"export const {symbol} = () => 0;\n".encode(),
-            "tests/component.test.js": (
-                f"import {{ {symbol} }} from '../src/index.js';\n"
-                f"if ({symbol}() !== 0) throw new Error('failed');\n"
-            ).encode(),
-            "package.json": canonize(
-                cast(
-                    JsonValue, {"name": name, "private": True, "version": "0.1.0", "type": "module"}
-                )
-            ),
-        },
-        "rust": {
-            entry: (
-                f"fn {symbol}() -> i32 {{ 0 }}\n\nfn main() {{ let _ = {symbol}(); }}\n"
-            ).encode(),
-            "tests/smoke.rs": b"#[test]\nfn scaffold_is_loadable() { assert!(true); }\n",
-            "Cargo.toml": (
-                f'[package]\nname = "{name}"\nversion = "0.1.0"\nedition = "2024"\n'
-            ).encode(),
-        },
-        "go": {
-            entry: (
-                f"package main\n\nfunc {symbol}() int {{ return 0 }}\n\n"
-                f"func main() {{ _ = {symbol}() }}\n"
-            ).encode(),
-            "main_test.go": (
-                b'package main\n\nimport "testing"\n\n'
-                + (
-                    f"func TestScaffold(t *testing.T) {{ if {symbol}() != 0 {{ t.Fail() }} }}\n"
-                ).encode()
-            ),
-            "go.mod": f"module example.invalid/{name}\n\ngo 1.24\n".encode(),
-        },
-        "dart-flutter": {
-            entry: f"int {symbol}() => 0;\n".encode(),
-            f"test/{stem}_test.dart": (
-                f"import 'package:{stem}/{stem}.dart';\n"
-                f"void main() {{ assert({symbol}() == 0); }}\n"
-            ).encode(),
-            "pubspec.yaml": (
-                f"name: {stem}\nversion: 0.1.0\nenvironment:\n  sdk: '>=3.0.0 <4.0.0'\n"
-            ).encode(),
-        },
+        "python": f"def {symbol}() -> int:\n    return 0\n",
+        "typescript": f"export const {symbol} = (): number => 0;\n",
+        "javascript": f"export const {symbol} = () => 0;\n",
+        "rust": f"fn {symbol}() -> i32 {{ 0 }}\n\nfn main() {{ let _ = {symbol}(); }}\n",
+        "go": (
+            f"package main\n\nfunc {symbol}() int {{ return 0 }}\n\n"
+            f"func main() {{ _ = {symbol}() }}\n"
+        ),
+        "dart-flutter": f"int {symbol}() => 0;\n",
+    }[language]
+    return symbol.encode()
+
+
+def _hook_program(language: str) -> bytes:
+    sources = {
+        "python": (
+            "import json\nimport sys\n\n"
+            "def main() -> int:\n"
+            "    event = json.load(sys.stdin)\n"
+            "    return 0 if isinstance(event, dict) else 2\n\n"
+            "if __name__ == '__main__':\n    raise SystemExit(main())\n"
+        ),
+        "typescript": (
+            "import { readFileSync } from 'node:fs';\n"
+            "const event: unknown = JSON.parse(readFileSync(0, 'utf8'));\n"
+            "if (typeof event !== 'object' || event === null) process.exit(2);\n"
+        ),
+        "javascript": (
+            "import { readFileSync } from 'node:fs';\n"
+            "const event = JSON.parse(readFileSync(0, 'utf8'));\n"
+            "if (typeof event !== 'object' || event === null) process.exit(2);\n"
+        ),
+        "rust": (
+            "use std::io::{self, Read};\n"
+            "fn main() { let mut input = String::new(); "
+            "io::stdin().read_to_string(&mut input).unwrap(); "
+            "if input.trim().is_empty() { std::process::exit(2); } }\n"
+        ),
+        "go": (
+            'package main\n\nimport ("encoding/json"; "os")\n\n'
+            "func main() { var event map[string]any; "
+            "if json.NewDecoder(os.Stdin).Decode(&event) != nil { os.Exit(2) } }\n"
+        ),
+        "dart-flutter": (
+            "import 'dart:convert';\nimport 'dart:io';\n"
+            "void main() { final event = jsonDecode(stdin.readLineSync() ?? ''); "
+            "if (event is! Map) exit(2); }\n"
+        ),
     }
-    return sources[language]
+    return sources[language].encode()
+
+
+def _hook_command_path(root: str, name: str, entry: str, nested: bool) -> str:
+    target = f"{root}/{name}/{entry}" if nested else f"{PurePosixPath(root).parent}/{entry}"
+    target = target.lstrip("./")
+    executable = {
+        ".py": "python",
+        ".js": "node",
+        ".ts": "node",
+        ".rs": "",
+        ".go": "",
+        ".dart": "dart",
+    }[PurePosixPath(entry).suffix]
+    if not executable:
+        raise _failure("this hook language has no directly executable native handler")
+    return f"{executable} {target}"
+
+
+def _setting_payload(name: str) -> bytes:
+    if name.endswith((".json", ".jsonc")):
+        return canonize(cast(JsonValue, {}))
+    if name.endswith(".toml"):
+        return b"# Add the exact owned settings for this component.\n"
+    raise _failure("the setting surface has no supported deterministic syntax")
 
 
 def render(source: str, *, harness_id: str, component_name: str, component_root: str) -> Rendered:

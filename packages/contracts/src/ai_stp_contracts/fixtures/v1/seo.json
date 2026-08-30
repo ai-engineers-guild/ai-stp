@@ -1,0 +1,227 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case_id": "readSeoProfile.public",
+      "operation_id": "readSeoProfile",
+      "kind": "positive",
+      "why": "Anonymous read of the active SEO revision for one public component.",
+      "request": {
+        "path_params": {
+          "subject_kind": "component",
+          "subject_id": "component_01jqzk7b8n4m6p2r9t5v0x3y70"
+        },
+        "query": {
+          "schema_version": 1,
+          "locale": "en"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "revision_id": "revision_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "snapshot_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "generation": 1,
+        "etag": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "profile": {
+          "schema_version": 1,
+          "subject": {
+            "kind": "component",
+            "id": "component_01jqzk7b8n4m6p2r9t5v0x3y70",
+            "source_revision": "revision_dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "source_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+          },
+          "locale": "en",
+          "canonical_url": "https://example.test/en/catalog/components/component_01jqzk7b8n4m6p2r9t5v0x3y70",
+          "title": "Demo skill - component",
+          "description": "Public skill for catalog search and install.",
+          "heading": "Demo skill",
+          "summary": "Public skill for catalog search and install.",
+          "taxonomy_tags": ["skill"],
+          "search_intents": ["skill"],
+          "alternates": {
+            "en": "https://example.test/en/catalog/components/component_01jqzk7b8n4m6p2r9t5v0x3y70"
+          },
+          "robots": "index,follow",
+          "index_decision": {
+            "eligible": true,
+            "reasons": ["eligible"]
+          },
+          "breadcrumbs": [
+            {
+              "rel": "home",
+              "href": "https://example.test/en",
+              "text": "Home",
+              "kind": null,
+              "subject_id": null
+            }
+          ],
+          "sections": [
+            {
+              "id": "purpose",
+              "heading": "Purpose",
+              "body": "Public skill for catalog search and install.",
+              "provenance": "template"
+            }
+          ],
+          "internal_links": [],
+          "json_ld": {
+            "@context": "https://schema.org",
+            "@graph": [
+              {
+                "@type": "SoftwareSourceCode",
+                "name": "Demo skill",
+                "url": "https://example.test/en/catalog/components/component_01jqzk7b8n4m6p2r9t5v0x3y70"
+              }
+            ]
+          },
+          "social": {
+            "title": "Demo skill - component",
+            "description": "Public skill for catalog search and install.",
+            "image_url": "https://example.test/og/revision_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.png",
+            "image_alt": "Demo skill",
+            "locale": "en"
+          },
+          "published_at": "2026-08-01T00:00:00.000Z",
+          "modified_at": "2026-08-01T00:00:00.000Z",
+          "generator": {
+            "kind": "template",
+            "template_version": "seo-template-v1",
+            "prompt_version": null,
+            "model_alias": null
+          }
+        }
+      }
+    },
+    {
+      "case_id": "readSeoSitemapIndex.current",
+      "operation_id": "readSeoSitemapIndex",
+      "kind": "positive",
+      "why": "Sitemap index lists generation-aware shards without mutating a shared file.",
+      "request": {},
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "generation": 1,
+        "etag": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "shards": [
+          {
+            "loc": "https://example.test/sitemaps/component-en-1.xml",
+            "lastmod": "2026-08-01T00:00:00.000Z"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "readSeoSitemapShard.page",
+      "operation_id": "readSeoSitemapShard",
+      "kind": "positive",
+      "why": "One shard lists absolute canonical URLs with lastmod from source facts.",
+      "request": {
+        "path_params": {
+          "subject_kind": "component",
+          "locale": "en",
+          "page": "1"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "generation": 1,
+        "kind": "component",
+        "locale": "en",
+        "page": 1,
+        "urls": [
+          {
+            "loc": "https://example.test/en/catalog/components/component_01jqzk7b8n4m6p2r9t5v0x3y70",
+            "lastmod": "2026-08-01T00:00:00.000Z",
+            "alternates": {
+              "en": "https://example.test/en/catalog/components/component_01jqzk7b8n4m6p2r9t5v0x3y70"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "readSeoCatalog.page",
+      "operation_id": "readSeoCatalog",
+      "kind": "positive",
+      "why": "LLM catalog manifest is paginated and does not embed the whole catalog.",
+      "request": {
+        "query": {
+          "schema_version": 1,
+          "page_size": 20
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "generation": 1,
+        "items": [
+          {
+            "kind": "component",
+            "subject_id": "component_01jqzk7b8n4m6p2r9t5v0x3y70",
+            "locale": "en",
+            "canonical_url": "https://example.test/en/catalog/components/component_01jqzk7b8n4m6p2r9t5v0x3y70",
+            "title": "Demo skill - component",
+            "description": "Public skill for catalog search and install.",
+            "markdown_url": "https://example.test/llms/component/component_01jqzk7b8n4m6p2r9t5v0x3y70.md",
+            "revision_id": "revision_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "modified_at": "2026-08-01T00:00:00.000Z"
+          }
+        ],
+        "page": {
+          "schema_version": 1,
+          "next_cursor": null,
+          "page_size": 20
+        }
+      }
+    },
+    {
+      "case_id": "rollbackSeoRevision.base",
+      "operation_id": "rollbackSeoRevision",
+      "kind": "positive",
+      "why": "Operator rollback points the subject at the last valid base revision.",
+      "request": {
+        "path_params": {
+          "subject_kind": "component",
+          "subject_id": "component_01jqzk7b8n4m6p2r9t5v0x3y70"
+        },
+        "body": {
+          "schema_version": 1,
+          "locale": "en"
+        },
+        "headers": {
+          "Idempotency-Key": "seo-rollback-key-16ch"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "subject_kind": "component",
+        "subject_id": "component_01jqzk7b8n4m6p2r9t5v0x3y70",
+        "locale": "en",
+        "revision_id": "revision_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "generator_kind": "template"
+      }
+    },
+    {
+      "case_id": "readSeoProfile.missing",
+      "operation_id": "readSeoProfile",
+      "kind": "rejected_request",
+      "why": "Missing active revision is not a soft-404 body; the API answers not found.",
+      "request": {
+        "path_params": {
+          "subject_kind": "component",
+          "subject_id": "component_01jqzk7b8n4m6p2r9t5v0x3y71"
+        },
+        "query": {
+          "schema_version": 1,
+          "locale": "en"
+        }
+      },
+      "status": 404,
+      "error_code": "AI_STP_NOT_FOUND"
+    }
+  ]
+}

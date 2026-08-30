@@ -1,0 +1,59 @@
+{
+  "$defs": {
+    "DigestValue": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:content-repository-import-response",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Outcome of one repository snapshot import.",
+  "properties": {
+    "activated": {
+      "minimum": 0,
+      "title": "Activated",
+      "type": "integer"
+    },
+    "created": {
+      "minimum": 0,
+      "title": "Created",
+      "type": "integer"
+    },
+    "generation": {
+      "minimum": 0,
+      "title": "Generation",
+      "type": "integer"
+    },
+    "removed": {
+      "minimum": 0,
+      "title": "Removed",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "snapshot_digest": {
+      "$ref": "#/$defs/DigestValue"
+    },
+    "unchanged": {
+      "minimum": 0,
+      "title": "Unchanged",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "activated",
+    "created",
+    "generation",
+    "removed",
+    "schema_version",
+    "snapshot_digest",
+    "unchanged"
+  ],
+  "title": "ContentRepositoryImportResponse",
+  "type": "object"
+}

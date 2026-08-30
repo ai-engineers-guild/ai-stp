@@ -18,6 +18,8 @@ describe("DetailAccordion", () => {
     );
 
     const trigger = screen.getByRole("button", { name: /Technical details/ });
+    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent(/^Technical details$/);
+    expect(screen.getByText("1.0")).not.toBe(screen.getByRole("heading", { level: 2 }));
     expect(trigger).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByText("Body")).not.toBeInTheDocument();
     expect(container.querySelector("svg.lucide-chevron-down")).not.toBeNull();

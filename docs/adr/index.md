@@ -30,7 +30,7 @@ last_verified: "2026-08-03"
 | [ADR-0019-full-toolchain-index-and-offline-boundary.md](ADR-0019-full-toolchain-index-and-offline-boundary.md) | Решение ставить полный набор инструментов сразу и индексировать любой безопасный текст. | 2026-08-04 |
 | [ADR-0020-access-grants-by-verified-email.md](ADR-0020-access-grants-by-verified-email.md) | Решение выдавать доступ по подтверждённой почте через отдельное приглашение. | 2026-08-04 |
 | [ADR-0021-fact-origin-and-confirmation.md](ADR-0021-fact-origin-and-confirmation.md) | Решение разделить происхождение факта и его подтверждение пользователем. | 2026-08-04 |
-| [ADR-0022-agent-authored-passports-without-model-api.md](ADR-0022-agent-authored-passports-without-model-api.md) | Решение оставить создание паспортов агенту пользователя и не вызывать модель из ai_stp. | 2026-08-04 |
+| [ADR-0022-agent-authored-passports-without-model-api.md](ADR-0022-agent-authored-passports-without-model-api.md) | Решение оставить создание паспортов агенту пользователя и не вызывать модель из ai_stp. | 2026-08-29 |
 | [ADR-0023-public-profile-as-authored-object.md](ADR-0023-public-profile-as-authored-object.md) | Решение сделать публичный профиль отдельно заполняемым объектом, а не проекцией паспорта. | 2026-08-04 |
 | [ADR-0024-closed-tag-vocabulary.md](ADR-0024-closed-tag-vocabulary.md) | Решение публиковать теги только из закрытого версионируемого словаря. | 2026-08-04 |
 | [ADR-0025-developer-device-project-context-owners.md](ADR-0025-developer-device-project-context-owners.md) | Решение разделить контекст на паспорта разработчика, устройства и проекта. | 2026-08-04 |
@@ -129,7 +129,9 @@ last_verified: "2026-08-03"
 | [ADR-0128-in-process-dual-window-http-rate-limiter.md](ADR-0128-in-process-dual-window-http-rate-limiter.md) | Решение держать HTTP rate limit одного узла двумя скользящими окнами в процессе API, а не Redis, SlowAPI или Caddy. | 2026-08-28 |
 | [ADR-0129-a-component-landing-inside-an-owned-file-is-a-contribution-to-it.md](ADR-0129-a-component-landing-inside-an-owned-file-is-a-contribution-to-it.md) | Решение компилировать компонент, чьё место посадки — ключ внутри файла, которым владеет провайдер, как вклад в этот файл, реконструируемый потребителем. | 2026-08-30 |
 | [ADR-0130-a-posture-is-sourceable-a-role-is-not.md](ADR-0130-a-posture-is-sourceable-a-role-is-not.md) | Решение сделать target_role необязательным и ввести posture первоклассным полем паспорта сетапа, потому что позу можно сорсить, а роль нельзя. | 2026-08-30 |
-| [ADR-0131-appcontainer-keeps-bypass-traverse-checking.md](ADR-0131-appcontainer-keeps-bypass-traverse-checking.md) | Решение строить windows network-isolated launcher на AppContainer, потому что измерение опровергло возражение о правке DACL родителей. | 2026-08-30 |
+| [ADR-0131-server-owned-seo-projections-with-optional-model-enrichment.md](ADR-0131-server-owned-seo-projections-with-optional-model-enrichment.md) | Решение материализовать SEO как серверную проекцию опубликованных фактов и разрешить необязательное model-enrichment только после детерминированной публикации. | 2026-08-29 |
+| [ADR-0132-one-server-owned-article-publication-stream.md](ADR-0132-one-server-owned-article-publication-stream.md) | Решение свести repository import и staff API к одному серверному потоку публикации статей. | 2026-08-29 |
+| [ADR-0133-appcontainer-keeps-bypass-traverse-checking.md](ADR-0133-appcontainer-keeps-bypass-traverse-checking.md) | Решение строить windows network-isolated launcher на AppContainer, потому что измерение опровергло возражение о правке DACL родителей. | 2026-08-30 |
 | [template.md](template.md) | Шаблон записи архитектурного решения. | 2026-08-03 |
 
 <!-- КОНЕЦ СОДЕРЖИМОГО -->
