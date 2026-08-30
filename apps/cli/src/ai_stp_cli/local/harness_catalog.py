@@ -310,6 +310,32 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
             _layout(
                 "agent", ".codex/agents", "directory", f"{CODEX}/agent-configuration/subagents", P
             ),
+            # A standalone `<name>.toml` under the configuration home *is* a
+            # role, and both estates recorded the opposite until 2026-08-30:
+            # that a codex role is only an `agents.<name>` table in the settings
+            # file plus a layer it points at.
+            #
+            # Measured on the pinned `codex-cli 0.151.0` binary, `env -i` with a
+            # temporary `CODEX_HOME`, read back through `codex doctor`, and
+            # reproduced here independently of the side that found it:
+            #
+            #   name+description+developer_instructions  accepted, silent
+            #   missing `description`   "role ... must define a description"
+            #   an invented directory   silent — not scanned
+            #   the same file as `.md`  silent — the scan filters on `.toml`
+            #
+            # That last row is why the earlier measurement was wrong: it planted
+            # a `.md`, and `discovery.rs` admits only `*.toml`, so its negative
+            # control could not have failed. `evidence="ran"` because the
+            # product was run, not because a page was read.
+            _layout(
+                "agent",
+                "agents",
+                "directory",
+                f"{CODEX}/agent-configuration/subagents",
+                G,
+                evidence="ran",
+            ),
             _layout("hook", ".codex/hooks.json", "file", f"{CODEX}/hooks", P),
         ),
         frozenset({"native_files", "plugin_manifest", "hooks_directory"}),

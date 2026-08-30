@@ -501,6 +501,23 @@ _ADDED_BOTH_SCOPES_SINCE_MIGRATION: Final[tuple[Rule, ...]] = (
 #: belongs to no single product, and a per-harness copy of it would report one
 #: file as several components.
 _ADDED_GLOBAL_SINCE_MIGRATION: Final[tuple[Rule, ...]] = (
+    # A standalone role file under the configuration home. Both this estate and
+    # the provider recorded that a codex role is only an `agents.<name>` table
+    # in the settings file plus a layer it points at, and the provider withdrew
+    # `ComponentKind::Agent` on that reading. Measured on the pinned
+    # `codex-cli 0.151.0` binary and reproduced independently here: a complete
+    # `<name>.toml` under `$CODEX_HOME/agents/` is accepted, one missing
+    # `description` is refused by name, an invented directory is ignored, and
+    # the same content named `.md` is ignored because the scan filters on
+    # `.toml`. The earlier measurement planted a `.md`, so its negative control
+    # could not have failed.
+    Rule(
+        "agent",
+        "agents",
+        "directory",
+        "codex",
+        CODEX_AGENTS_SOURCE,
+    ),
     # The override files, discovered and deliberately not owned. Each supersedes
     # the `AGENTS.md` a provider writes into the same directory — codex takes
     # "the first non-empty file at this level", Pi loads the override *instead

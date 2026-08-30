@@ -51,6 +51,15 @@ PROJECTION_MISSING: Final[dict[tuple[str, str], str]] = {
     ("codex", "mcp"): "`mcp_servers` is a key inside the owned `config.toml`; ADR-0129, #456",
     ("grok-build", "mcp"): "`mcp_servers` inside the owned `config.toml`; ADR-0129, #456",
     ("opencode", "mcp"): "`mcp` inside the owned `opencode.json`; ADR-0129, #456",
+    ("codex", "agent"): (
+        "a standalone `<name>.toml` under the configuration home is a role, "
+        "measured on the pinned `codex-cli 0.151.0` binary and reproduced here. "
+        "This entry said the opposite — that a role is only an `agents.<name>` "
+        "table plus a layer — and so did the provider, which withdrew "
+        "`ComponentKind::Agent` on it. The rule waits for that declaration to "
+        "come back: a route the provider refuses composes a bundle that fails "
+        "late, which is why antigravity's `instruction` row waited a release."
+    ),
 }
 
 #: Routed by this compiler and absent from the catalogue at an owned scope. Each
@@ -94,11 +103,6 @@ PROJECT_SCOPE_ONLY: Final[dict[tuple[str, str], str]] = {
         "`.mcp.json` is the project file committed to a repository root; the user "
         "scope lives in `~/.claude.json`, which the provider holds in "
         "`never_touch`. There is no surface a provider can own."
-    ),
-    ("codex", "agent"): (
-        "`.codex/agents` is project-scoped. A codex role is an `agents.<name>` "
-        "table in the settings file plus a layer it points at, which is a "
-        "companion of the setting rather than a component."
     ),
 }
 
@@ -166,12 +170,19 @@ def test_no_reason_outlives_the_cell_it_explains() -> None:
     assert not stale, stale
 
 
-def test_the_three_missing_projections_are_the_ones_that_issue_names() -> None:
-    """`#456` derived from the tables rather than restated from its title.
+def test_the_missing_projections_are_derived_and_each_belongs_to_an_issue() -> None:
+    """`#456`'s scope derived from the tables rather than restated from its title.
 
-    The issue is about `mcp` on codex, grok-build and opencode. That set is not
-    written here: it is what the two sources disagree about, and if the work
-    lands the assertion changes because the disagreement is gone.
+    Two claims, kept apart because they answer to different work. The `mcp`
+    cells are `#456` — codex, grok-build and opencode — and that set is not
+    written here: it is what the two sources disagree about, and it changes when
+    the work lands.
+
+    The whole set is larger, and the fourth member is why this test is phrased
+    this way. `codex/agent` joined on 2026-08-30, when a standalone
+    `<name>.toml` under the configuration home turned out to be a role at the
+    pinned `0.151.0` binary. An assertion naming exactly three would have failed
+    on a correct new measurement and read as a regression.
     """
     missing = {
         (harness_id, kind)
@@ -179,4 +190,11 @@ def test_the_three_missing_projections_are_the_ones_that_issue_names() -> None:
         for kind in COMPONENT_KINDS
         if _state(harness_id, kind) == "projection_missing"
     }
-    assert missing == {("codex", "mcp"), ("grok-build", "mcp"), ("opencode", "mcp")}
+    assert {pair for pair in missing if pair[1] == "mcp"} == {
+        ("codex", "mcp"),
+        ("grok-build", "mcp"),
+        ("opencode", "mcp"),
+    }
+    # Every one of them is explained, which the first test also asserts; here it
+    # is the set itself that must not grow silently.
+    assert missing == set(PROJECTION_MISSING), missing

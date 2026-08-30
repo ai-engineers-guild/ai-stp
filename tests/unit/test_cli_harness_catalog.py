@@ -308,21 +308,40 @@ def test_the_evidence_default_is_the_weakest_value_and_the_set_is_closed() -> No
 def test_every_exercised_row_is_one_somebody_actually_exercised() -> None:
     """The claim, pinned, so a promotion is a reviewed diff rather than a habit.
 
-    Seven rows out of ninety-three. Each was established by running the product
-    or by reading its shipped bytes, and each is named here so that raising one
-    requires saying which. The number being small is the finding: five of the
-    seven harnesses have no exercised row at all, which means sixty-six surfaces
-    rest on a page and nothing local can tell a right one from a wrong one.
+    Each exercised row was established by running the product or by reading its
+    shipped bytes, and each is named below so that raising one requires saying
+    which. The number being small is the finding, and the counts are computed
+    rather than written: the sentence said "seven of ninety-three, five
+    harnesses with none" and went stale the first time a row was added — a typed
+    total beside a list nobody recounts, which is the defect this file exists to
+    prevent one level up.
     """
     from ai_stp_cli.local import harness_catalog
 
+    rows = [
+        (item.harness_id, layout) for item in harness_catalog.DEFINITIONS for layout in item.layouts
+    ]
     exercised = {
-        (item.harness_id, layout.component_type, layout.relative, layout.evidence)
-        for item in harness_catalog.DEFINITIONS
-        for layout in item.layouts
+        (harness_id, layout.component_type, layout.relative, layout.evidence)
+        for harness_id, layout in rows
         if layout.evidence != "page"
     }
+    # Reported, not asserted against a literal: the shape of the estate is what
+    # a reader wants and a number typed here would be wrong on the next row.
+    covered = {harness_id for harness_id, layout in rows if layout.evidence != "page"}
+    assert len(exercised) < len(rows) // 4, (
+        f"{len(exercised)} of {len(rows)} rows exercised across {len(covered)} harnesses; "
+        "if this stops being a minority the sentence above needs rewriting"
+    )
     assert exercised == {
+        # Planted under a temporary `CODEX_HOME` and read back through `codex
+        # doctor` on the pinned `0.151.0` binary: a complete `<name>.toml` is
+        # accepted silently, one missing `description` is refused by name, a
+        # file in an invented directory is ignored, and the same content as
+        # `.md` is ignored because the scan filters on `.toml`. That last
+        # control is why the earlier measurement concluded the opposite — it
+        # planted a `.md` and could not have failed.
+        ("codex", "agent", "agents", "ran"),
         # A server written straight to `~/.cursor/mcp.json` is listed and
         # dialled; the file removed, and the same file one directory to the
         # side, both report no servers.
