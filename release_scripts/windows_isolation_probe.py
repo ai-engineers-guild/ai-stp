@@ -206,9 +206,6 @@ def main() -> int:
     grants["runtime"] = icacls(Path(sys.executable).parent, "(RX)")
     # `ungranted` gets nothing, and neither do `a` and `b`.
 
-    script = root / "child.py"
-    script.write_text("import subprocess\n" + CHILD, encoding="utf-8")
-    grants["script"] = icacls(script, "(RX)")
     report["grants"] = grants
 
     # The container's own folder is the one place it can always write, so the
@@ -224,8 +221,17 @@ def main() -> int:
         report["verdict"] = "no container folder; cannot collect the child's answer"
         print(json.dumps(report, indent=1, sort_keys=True))
         return 0
-    result = Path(folder.value) / "probe-result.json"
-    report["container_folder"] = str(result.parent)
+    home = Path(folder.value)
+    report["container_folder"] = str(home)
+
+    # The script lives in the container's own folder rather than in the tree
+    # under test. The previous run granted it `(RX)` where it stood and Python
+    # still reported `Errno 13` on it, so the script's reachability was a second
+    # variable inside an experiment with room for one. A container owns this
+    # directory by construction, which takes the question out of the result.
+    script = home / "child.py"
+    script.write_text("import subprocess\n" + CHILD, encoding="utf-8")
+    result = home / "probe-result.json"
 
     quoted = json.dumps(ports).replace(chr(34), chr(92) + chr(34))
     argv = f'"{sys.executable}" "{script}" "{quoted}" "{leaf_only}" "{ungranted}" "{full_chain}"'
