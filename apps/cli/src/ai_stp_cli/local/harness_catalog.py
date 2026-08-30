@@ -551,6 +551,20 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
     HarnessDefinition(
         "cursor",
         "Cursor CLI",
+        # Detection on `PATH`, which is not the name the provider exposes in its
+        # own prefix. The vendor installs **two**, from the installer object in
+        # the pinned bundle: `binNames: ["agent", "cursor-agent"]`, with a shim
+        # that execs `~/.local/bin/agent`. Neither is more canonical, so either
+        # detects an installation.
+        #
+        # Written down because the names collapse easily and one already did:
+        # `agent` is what the provider exposes and one of the two the vendor
+        # installs, `cursor-agent` is the vendor's other installed name and the
+        # archive member's filename, and `dist-package/cursor-agent.cmd` is a
+        # path inside the Windows archive rather than a command at all. This
+        # field is the first subject only, and changing it to `agent` on a
+        # sentence about exposure would be changing the answer to a different
+        # question.
         "cursor-agent",
         ("--version",),
         ".cursor",
