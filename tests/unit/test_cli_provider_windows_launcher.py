@@ -1,7 +1,7 @@
 """The Windows AppContainer launcher, and what it refuses to claim.
 
 `#51` asks for a launcher that denies the network by the device rather than by
-agreement, and `ADR-0131` measured that an AppContainer does. What these tests
+agreement, and `ADR-0133` measured that an AppContainer does. What these tests
 hold is the half a measurement cannot: that every path which is *not* a passed
 probe reports `unavailable`, because `provider network` reporting `enforced` is
 the one output somebody checks before trusting a local phase.

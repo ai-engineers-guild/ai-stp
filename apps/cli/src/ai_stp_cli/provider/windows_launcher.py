@@ -22,7 +22,7 @@ under a trust exception. `#51` asks for a native launcher and names
 AppContainer, with one objection — that it cannot reach an arbitrary target
 without editing the parents' DACLs.
 
-`ADR-0131` measured that objection and it is false: bypass traverse checking
+`ADR-0133` measured that objection and it is false: bypass traverse checking
 survives into an AppContainer token, so a leaf carrying an ACE for the package
 SID is reachable by full path while its parents carry none. The cost is one ACE
 on the target and one on the runtime, and nothing above them.
@@ -34,7 +34,7 @@ arrives. The denial is enforced by WFP on `FWPM_CONDITION_ALE_PACKAGE_ID` —
 by the device rather than by agreement, which is what `#51` requires.
 
 Two limits are carried deliberately rather than assumed away, both from
-`ADR-0131`. The runner that measured this was elevated, so nothing here proves
+`ADR-0133`. The runner that measured this was elevated, so nothing here proves
 a non-elevated user can create a profile — the code fails closed if it cannot.
 And an AppContainer's denial appears as a *timeout* rather than the immediate
 refusal Linux gives, because the block sits at the accept layer; a timeout is
@@ -390,7 +390,7 @@ class AppContainerLauncher:
         The grants are the whole of the isolation's file side and they are the
         two `#51` allows: the target and the executable's own directory, plus
         whatever the caller named writable. Every ancestor of all of them is
-        left alone, which `ADR-0131` measured to be enough — bypass traverse
+        left alone, which `ADR-0133` measured to be enough — bypass traverse
         checking survives into the token, so a full path reaches a granted leaf
         through ungranted parents.
 

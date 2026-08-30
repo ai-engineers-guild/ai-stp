@@ -239,7 +239,7 @@ def discover_launcher() -> tuple[NetworkLauncher | None, NetworkCapability]:
 
     One place decides, because the alternative is three call sites each holding
     a platform test and drifting apart. Linux proves Bubblewrap, Windows proves
-    an AppContainer (`ADR-0131`), and anything else has no launcher to prove.
+    an AppContainer (`ADR-0133`), and anything else has no launcher to prove.
 
     Imported inside the call rather than at module scope: the Windows module
     binds `WinDLL` and `msvcrt` names, and this one is imported on every
