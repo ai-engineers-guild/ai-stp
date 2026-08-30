@@ -367,3 +367,39 @@ def test_the_journal_still_answers_a_prefix_written_before_markers_existed(
     report = _status(prefix)
     assert report.state == "present"  # type: ignore[attr-defined]
     assert "journal" in report.reason  # type: ignore[attr-defined]
+
+
+def test_a_windows_cmd_exposure_still_finds_its_marker(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """The marker is named for the command, the exposed file may not be.
+
+    Cursor's member is JavaScript, so on Windows the provider exposes
+    `agent.cmd` while still writing `.agent.version` beside it. Reading the
+    marker from the file that is there would look for `.agent.cmd.version` and
+    find nothing, which fails in the safe-looking direction: unknown, then the
+    journal, then an answer that happens to be right for the wrong reason.
+
+    This branch had no test at all until the shape became real. It was written
+    from a description, and the first example written from that description
+    used `cursor-agent` — the vendor's member name rather than the exposed
+    command — which is a shape this estate never produces.
+    """
+    entry = "bin/agent.cmd"
+    prefix = tmp_path / "prefix"
+    _record(
+        registry, prefix, action="software_install", key="one", version="1.18.23", entry_point=entry
+    )
+    _record(
+        registry, prefix, action="software_update", key="two", version="1.19.0", entry_point=entry
+    )
+    _record(
+        registry, prefix, action="software_remove", key="three", version="1.19.0", entry_point=entry
+    )
+    _expose(prefix, entry)
+    _mark(prefix, "1.18.23", command="agent")
+
+    report = _status(prefix)
+    assert report.state == "present"  # type: ignore[attr-defined]
+    assert "1.18.23" in report.reason  # type: ignore[attr-defined]
+    assert "marker" in report.reason  # type: ignore[attr-defined]

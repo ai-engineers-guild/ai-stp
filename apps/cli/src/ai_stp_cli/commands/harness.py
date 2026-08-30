@@ -277,6 +277,13 @@ _VERSION_MARKER: Final[str] = ".{command}.version"
 #: provider exposes `<command>.cmd` for a JavaScript member on Windows while
 #: still writing `.<command>.version`, so the marker is found from the stem
 #: rather than from the file that is actually there.
+#:
+#: Only `.cmd` has a subject: cursor exposes `agent.cmd` on Windows because its
+#: member is JavaScript. No harness exposes a `.exe` — codex ships `codex.exe`
+#: as its member and exposes it as `codex`, because `CreateProcess` on an
+#: explicit path reads the PE header rather than the name. `.exe` and `.bat`
+#: are breadth, not coverage, and are named here so this set is not later read
+#: as evidence that such an exposure exists.
 _EXPOSED_SUFFIXES: Final[frozenset[str]] = frozenset({".cmd", ".exe", ".bat"})
 
 
