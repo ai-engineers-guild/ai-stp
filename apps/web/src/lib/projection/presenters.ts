@@ -48,7 +48,10 @@ type SetupSummaryLike = {
   latest_version: string;
   latest_harness_id: string;
   latest_purpose: string;
-  latest_target_role: string;
+  // Nullable since ADR-0130: a role has no source, so a first-party setup
+  // carries none and the card shows the absence instead of an invented value.
+  latest_target_role: string | null;
+  latest_posture: string | null;
   latest_lifecycle: string;
   latest_tags: string[];
   latest_trust: TrustLike;
@@ -74,6 +77,7 @@ type Labels = {
   type?: string;
   purpose?: string;
   targetRole?: string;
+  posture?: string;
   publisher?: string;
   tags?: string;
   lifecycle?: string;
@@ -215,7 +219,11 @@ export function presentSetupDetail(input: {
     field(labels.digest, passportDigest ?? ""),
     field(labels.harness, summary.latest_harness_id),
     field(labels.purpose ?? "purpose", summary.latest_purpose),
-    field(labels.targetRole ?? "target_role", summary.latest_target_role),
+    // `?? ""` rather than omitting the row: the machine document's shape is a
+    // contract, and a row that appears only sometimes is harder to read than an
+    // empty value. Same convention as `digest` two lines up.
+    field(labels.targetRole ?? "target_role", summary.latest_target_role ?? ""),
+    field(labels.posture ?? "posture", summary.latest_posture ?? ""),
     field(labels.trustLane, summary.latest_trust.trust_lane),
     field(labels.authorVerified, yesNo(summary.latest_trust.author_verified, labels)),
     field(labels.componentVerified, yesNo(summary.latest_trust.component_verified, labels)),
@@ -369,7 +377,8 @@ export function presentSetupVersion(input: {
   digest: string;
   harness: string;
   purpose: string;
-  targetRole: string;
+  targetRole: string | null;
+  posture: string | null;
   trust: TrustLike;
   ownerId: string;
   tags: string[];
@@ -387,7 +396,8 @@ export function presentSetupVersion(input: {
     field(input.labels.digest, input.digest),
     field(input.labels.harness, input.harness),
     field(input.labels.purpose ?? "purpose", input.purpose),
-    field(input.labels.targetRole ?? "target_role", input.targetRole),
+    field(input.labels.targetRole ?? "target_role", input.targetRole ?? ""),
+    field(input.labels.posture ?? "posture", input.posture ?? ""),
     field(input.labels.trustLane, input.trust.trust_lane),
     field(input.labels.authorVerified, yesNo(input.trust.author_verified, input.labels)),
     field(input.labels.componentVerified, yesNo(input.trust.component_verified, input.labels)),

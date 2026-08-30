@@ -7,6 +7,8 @@ import zipfile
 from importlib.resources import files
 from typing import cast
 
+from release_scripts import build_first_party_corpus as builder
+
 from ai_stp_cli.local import composition
 from ai_stp_contracts.first_party import (
     COMPONENT_FORMAT,
@@ -82,7 +84,22 @@ def test_every_first_party_object_names_the_live_repository_of_its_harness() -> 
 
     assert len(corpus) == len(components) + len(setups)
     assert {item.passport.harness_id for item in setups} == set(REPOSITORIES)
-    assert len(setups) == len(REPOSITORIES)
+
+    # One setup per harness *per posture*, and the pair is asserted rather than
+    # the count. `len(setups) == len(REPOSITORIES)` held while one posture of
+    # four was imported, and a count would have been satisfied by any 28 —
+    # including 28 of the same posture.
+    setup_passports = [
+        item.passport for item in setups if isinstance(item.passport, SetupVersionPassport)
+    ]
+    assert len(setup_passports) == len(setups)
+    pairs = {(passport.harness_id, passport.posture) for passport in setup_passports}
+    assert pairs == {(harness, posture) for harness in REPOSITORIES for posture in builder.POSTURES}
+    assert len(setups) == len(pairs)
+
+    # No setup carries a role, because no source publishes one. The invented
+    # `ai-harness-engineer` rendered on every card until `ADR-0130`.
+    assert {passport.target_role for passport in setup_passports} == {None}
 
     for item in corpus:
         assert item.passport.source is not None
@@ -94,8 +111,15 @@ def test_every_first_party_object_names_the_live_repository_of_its_harness() -> 
     for setup in setups:
         assert isinstance(setup.passport, SetupVersionPassport)
         assert setup.artifact_format == SETUP_FORMAT
+        # By harness **and** posture. Selecting on the harness alone held while
+        # one posture was imported and silently made every setup of a harness
+        # claim all four postures' components once four were.
         members = [
-            item for item in components if item.passport.harness_id == setup.passport.harness_id
+            item
+            for item in components
+            if item.passport.harness_id == setup.passport.harness_id
+            and item.passport.source is not None
+            and item.passport.source.path.split("/", 1)[0] == setup.passport.posture
         ]
         assert members
         assert [item.stable_id for item in setup.passport.components] == [

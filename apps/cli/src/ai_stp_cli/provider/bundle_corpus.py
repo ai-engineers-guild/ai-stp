@@ -193,6 +193,8 @@ def _passport(harness_id: str) -> dict[str, JsonValue]:
         "license": {"spdx_id": "MIT", "redistribution_allowed": True},
         "purpose": "Validate provider safety and exact bundle binding.",
         "target_role": "provider-conformance",
+        # A conformance bundle is not published on the posture axis.
+        "posture": None,
         "components": [
             {
                 "stable_id": "component_00000000000000000000000000",

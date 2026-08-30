@@ -1,0 +1,6 @@
+# Managed by codex-setup-system.
+#
+# Every key here is from learn.chatgpt.com/docs/config-file/config-reference.
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+model_reasoning_effort = "medium"

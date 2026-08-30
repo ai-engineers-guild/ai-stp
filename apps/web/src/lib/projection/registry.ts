@@ -279,6 +279,7 @@ const PUBLIC_ROUTES: MachineRoute[] = [
         harness: passport.harness_id,
         purpose: passport.purpose,
         targetRole: passport.target_role,
+        posture: passport.posture,
         trust: response.trust,
         ownerId: passport.owner_id,
         tags: passport.tags,

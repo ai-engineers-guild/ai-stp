@@ -39,7 +39,8 @@ export type SetupSummaryFacts = {
   latest_version: string;
   latest_harness_id: string;
   latest_purpose: string;
-  latest_target_role: string;
+  latest_target_role: string | null;
+  latest_posture: string | null;
   latest_lifecycle: string;
   latest_tags: string[];
   latest_trust: TrustLike;
@@ -64,7 +65,11 @@ export type PublicObjectFacts = {
   componentType?: ComponentTypeId;
   projectionKind?: string;
   purpose?: string;
-  targetRole?: string;
+  // `| undefined` spelled out because the project runs with
+  // `exactOptionalPropertyTypes`: an optional key and a key that may be
+  // explicitly undefined are different types there.
+  targetRole?: string | undefined;
+  posture?: string | undefined;
   trustLane: string;
   authorVerified: boolean;
   componentVerified: boolean;
@@ -316,7 +321,11 @@ export function setupPublicFacts(
     digest,
     harness: summary.latest_harness_id,
     purpose: summary.latest_purpose,
-    targetRole: summary.latest_target_role,
+    // `?? undefined`, not `?? ""`: this shape marks an absent fact by omitting
+    // the key, where the machine document marks it with an empty value. Two
+    // conventions because they answer different readers.
+    targetRole: summary.latest_target_role ?? undefined,
+    posture: summary.latest_posture ?? undefined,
     trustLane: summary.latest_trust.trust_lane,
     authorVerified: summary.latest_trust.author_verified,
     componentVerified: summary.latest_trust.component_verified,

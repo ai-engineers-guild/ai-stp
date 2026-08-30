@@ -155,6 +155,7 @@ export const setupSummaryFixture = makeSetupSummary({
     "Pinned Claude Code workspace for Python services: security review skill, audit hook, and release checklist.",
   latest_purpose: "Day-to-day development and PR review on Python backends",
   latest_target_role: "backend engineer",
+  latest_posture: "baseline",
   latest_harness_id: "claude-code",
   latest_tags: ["python", "tests"],
   latest_published_at: FIXTURE_TIMESTAMP,

@@ -218,7 +218,13 @@ export default async function SetupDetailPage({ params }: PageProps) {
                   { label: t("publishedAt"), value: summary.latest_published_at },
                   { label: t("harness"), value: summary.latest_harness_id },
                   { label: t("purpose"), value: summary.latest_purpose },
-                  { label: t("targetRole"), value: summary.latest_target_role },
+                  // The posture is the axis a user chooses along — four setups
+                  // per harness differ by it — so it sits above the role. The
+                  // role is empty on first-party setups by `ADR-0130`: nobody
+                  // publishes one, and an empty row says that where an invented
+                  // value said something false.
+                  { label: t("posture"), value: summary.latest_posture ?? "" },
+                  { label: t("targetRole"), value: summary.latest_target_role ?? "" },
                 ]}
                 licenseId={passport.license.spdx_id}
                 licenseLabel={t("license")}

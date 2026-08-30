@@ -1160,7 +1160,7 @@ export type DescriptionExcerpt = string;
  *
  * One harness observed on the device, with the version that was observed.
  *
- * Only the five supported harnesses are itemised. An unknown harness stays a
+ * Only the supported harnesses are itemised. An unknown harness stays a
  * local observation and never leaves the machine (SPEC-011 REQ-1109): it
  * creates no managed object, so listing it here would put an environment fact
  * on the wire for something the platform cannot act on.
@@ -1873,6 +1873,8 @@ export const HarnessId = {
   PI: "pi",
   OPENCODE: "opencode",
   GROK_BUILD: "grok-build",
+  CURSOR: "cursor",
+  ANTIGRAVITY: "antigravity",
 } as const;
 
 export type HarnessId = (typeof HarnessId)[keyof typeof HarnessId];
@@ -2045,6 +2047,68 @@ export type OwnerEvidenceRow = {
    * Source
    */
   source: string;
+  [key: string]: unknown;
+};
+
+export const OwnerLifecycleAction = { DEPRECATE: "deprecate", UNDEPRECATE: "undeprecate" } as const;
+
+export type OwnerLifecycleAction = (typeof OwnerLifecycleAction)[keyof typeof OwnerLifecycleAction];
+
+/**
+ * OwnerLifecycleRequest
+ *
+ * POST a lifecycle transition on an exact owned version (`SPEC-007`).
+ *
+ * `deprecated` was declared in the state vocabulary, listed in three models
+ * and offered by a CLI hint, and written by nothing: the staff route accepts
+ * only `block`, `hide` and `restore`, and every owner version route was a
+ * read. Two successive plans carried "deprecate the old corpus" as pending
+ * work against a verb that did not exist.
+ *
+ * The author holds this one because deprecation is a statement about the
+ * object's own future rather than about its acceptability, and because the
+ * evidence that motivates it — `SPEC-044` archive observation — already
+ * reaches the author as a proposal.
+ */
+export type OwnerLifecycleRequest = {
+  action: OwnerLifecycleAction;
+  /**
+   * Idempotency Key
+   */
+  idempotency_key: string;
+  /**
+   * Reason
+   */
+  reason: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * OwnerLifecycleResponse
+ *
+ * The state the version is in after the transition.
+ */
+export type OwnerLifecycleResponse = {
+  /**
+   * Applied
+   */
+  applied: boolean;
+  lifecycle: LifecycleState;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  /**
+   * Version
+   */
+  version: string;
   [key: string]: unknown;
 };
 
@@ -2911,6 +2975,10 @@ export type SetupSummary = {
    * Latest Name
    */
   latest_name: string;
+  /**
+   * Latest Posture
+   */
+  latest_posture: string | null;
   latest_published_at: Timestamp;
   /**
    * Latest Purpose
@@ -2929,7 +2997,7 @@ export type SetupSummary = {
   /**
    * Latest Target Role
    */
-  latest_target_role: string;
+  latest_target_role: string | null;
   latest_trust: CatalogTrust;
   latest_version: Version;
   /**
@@ -3021,6 +3089,10 @@ export type SetupVersionPassport = {
   permissions: Permissions;
   ported_from: SetupRef | null;
   /**
+   * Posture
+   */
+  posture: string | null;
+  /**
    * Purpose
    */
   purpose: string;
@@ -3073,7 +3145,7 @@ export type SetupVersionPassport = {
   /**
    * Target Role
    */
-  target_role: string;
+  target_role: string | null;
   version: Version;
   /**
    * Visibility
@@ -5904,6 +5976,84 @@ export type ReadOwnerVersionResponses = {
 };
 
 export type ReadOwnerVersionResponse = ReadOwnerVersionResponses[keyof ReadOwnerVersionResponses];
+
+export type SetOwnerVersionLifecycleData = {
+  body: OwnerLifecycleRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * component or setup
+     */
+    object_kind: string;
+    /**
+     * Typed stable identifier of the owned object.
+     */
+    stable_id: string;
+    /**
+     * Exact two-integer version. A range or `latest` is not a reference.
+     */
+    version: string;
+  };
+  query?: never;
+  url: "/v1/owner/objects/{object_kind}/{stable_id}/versions/{version}/lifecycle";
+};
+
+export type SetOwnerVersionLifecycleErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_CONFLICT.
+   */
+  409: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type SetOwnerVersionLifecycleError =
+  SetOwnerVersionLifecycleErrors[keyof SetOwnerVersionLifecycleErrors];
+
+export type SetOwnerVersionLifecycleResponses = {
+  /**
+   * Deprecate an owned published version, or take the mark off again.
+   */
+  200: OwnerLifecycleResponse;
+};
+
+export type SetOwnerVersionLifecycleResponse =
+  SetOwnerVersionLifecycleResponses[keyof SetOwnerVersionLifecycleResponses];
 
 export type StartOwnerPublicationData = {
   body: OwnerStartPublicationRequest;

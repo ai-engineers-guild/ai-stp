@@ -10,14 +10,14 @@ from ai_stp_cli.local import content, evaluation, revisions, versions
 from ai_stp_cli.local.database import configured_path, open_readonly, open_registry, transaction
 from ai_stp_contracts.evaluation import EvaluationBudget, EvaluationCheck
 from ai_stp_contracts.first_party import FirstPartyVersion
-from ai_stp_contracts.first_party import versions as corpus_versions
+from ai_stp_contracts.first_party import family as corpus_family
 
 AT = "2026-08-13T12:00:00.000Z"
 
 
 def _grok() -> tuple[tuple[FirstPartyVersion, ...], FirstPartyVersion]:
     """The whole grok-build family, which stopped being a pair on 2026-08-29."""
-    family = [item for item in corpus_versions() if item.passport.harness_id == "grok-build"]
+    family = list(corpus_family("grok-build", "nddev-builder"))
     components = tuple(item for item in family if item.kind == "component")
     (setup,) = [item for item in family if item.kind == "setup"]
     return components, setup

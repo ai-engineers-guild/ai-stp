@@ -1,0 +1,12 @@
+---
+description: NDDev setup manager authoring and validation policy
+alwaysApply: true
+---
+
+- Keep setup-manager changes target-explicit and reversible.
+- Preserve unmanaged Cursor state and co-owned CLI configuration keys.
+- Treat native Cursor plugin, rules, skills, agents, and commands files as the builder projection.
+- Postures are setups, not a second axis: `baseline`, `minimal`, `full-auto`. There is no profile dimension crossing them.
+- Do not invent a posture or an operating-system name; ask `list` and `provider-info`.
+- Keep hooks and MCP as design-only unless a later setup explicitly owns executable hook or MCP configuration.
+- Do not provision team marketplace state from this local setup manager.

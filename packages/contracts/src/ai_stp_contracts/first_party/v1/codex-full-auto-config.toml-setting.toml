@@ -1,0 +1,22 @@
+# Managed by codex-setup-system.
+#
+# This setup asks for nothing and sandboxes nothing. That is the whole point of
+# the posture, and it is only half of what a capability posture owes: approvals
+# and the sandbox decide what you are asked and what is confined, while the keys
+# below decide which tools exist at all.
+#
+# Only keys this build actually reads are set here. The vendor's configuration
+# reference also documents `features.hooks`, `features.memories` and
+# `features.multi_agent`; the pinned 0.149.1 binary carries none of those three
+# spellings and does carry `features.multi_agent_v...`, so writing the
+# documented forms would set keys this build ignores. They are left out until a
+# build names them.
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+
+# The most capable of the four modes this build names -- `disabled`, `cached`,
+# `indexed`, `live` -- and the one a `disabled` default would otherwise withhold.
+web_search = "live"
+
+[tools]
+view_image = true

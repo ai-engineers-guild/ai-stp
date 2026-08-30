@@ -63,7 +63,8 @@ export type SetupSummaryFixture = {
   latest_name: string;
   latest_description: string;
   latest_purpose: string;
-  latest_target_role: string;
+  latest_target_role: string | null;
+  latest_posture: string | null;
   latest_harness_id: "claude-code" | "codex" | "pi" | "opencode" | "grok-build";
   latest_tags: string[];
   latest_lifecycle: "active" | "deprecated" | "blocked";

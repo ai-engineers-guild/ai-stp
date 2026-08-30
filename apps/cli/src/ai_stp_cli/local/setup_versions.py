@@ -93,6 +93,9 @@ def passport_content(
         "compatibility_evidence_refs": [],
         "purpose": "Apply the confirmed component composition to the selected harness.",
         "target_role": "local-project",
+        # A locally discovered setup has no published posture: it was read off a
+        # machine, not off a `setups/<posture>/` tree.
+        "posture": None,
         "supported_tasks": [],
         "components": member_documents,
         "ported_from": None,

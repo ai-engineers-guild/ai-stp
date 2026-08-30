@@ -189,7 +189,22 @@ class SetupVersionPassport(_VersionPassportBase):
     # Narrowing the envelope kind to one literal is safe on a frozen model.
     kind: Literal["setup"] = "setup"  # pyright: ignore[reportIncompatibleVariableOverride]
     purpose: str
-    target_role: str
+    #: Optional, and `ADR-0130` says why: a role is a claim about content that no
+    #: vendor page can source, so a required field forced whoever imported a
+    #: setup to invent one. Three of the four places that fill it already put
+    #: something that is not a role there.
+    target_role: str | None = None
+    #: The published axis the setups of one harness differ along — `minimal`,
+    #: `baseline`, `full-auto`, `nddev-builder` — taken from `setup.json`'s own
+    #: `"id"`. `None` for a setup that has no such axis: a locally discovered
+    #: one, or a conformance bundle.
+    #:
+    #: **`full-auto` here is not `execution_profile` below.** One word, two
+    #: independent axes: a posture is a statement about how much the harness
+    #: configuration asks and sandboxes, and the execution profile is about how
+    #: this CLI runs. Reading either as the other is the mistake `AGENTS.md`
+    #: names about the three automation axes.
+    posture: str | None = None
     supported_tasks: list[str] = Field(default_factory=list)
     #: May be empty, and that is a composition rather than an absence. A setup
     #: declaring no components is a harness managed with declared-empty content:

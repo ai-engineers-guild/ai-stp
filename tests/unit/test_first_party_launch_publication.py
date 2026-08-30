@@ -16,6 +16,7 @@ from ai_stp_cli.cloud import session
 from ai_stp_cli.cloud.client import Endpoint
 from ai_stp_cli.errors import CliFailure
 from ai_stp_contracts.first_party import OWNER_ID
+from ai_stp_contracts.first_party import family as first_party_family
 from ai_stp_contracts.first_party import versions as first_party_versions
 from ai_stp_foundation.digests import digest_bytes
 
@@ -328,9 +329,7 @@ def test_apply_requires_exact_reviewed_digest_and_explicit_confirm(tmp_path: Pat
 
 
 def test_resume_reuses_saved_keys_after_an_interrupted_confirm(tmp_path: Path) -> None:
-    objects = tool.launch_objects(
-        [item for item in first_party_versions() if item.passport.harness_id == "grok-build"]
-    )
+    objects = tool.launch_objects(first_party_family("grok-build", "nddev-builder"))
     component = next(item for item in objects if item.kind == "component")
     pipeline = PublicationPipeline()
     pipeline.fail_confirm_once = component.stable_id
@@ -380,9 +379,7 @@ def test_resume_reuses_saved_keys_after_an_interrupted_confirm(tmp_path: Path) -
 def test_missing_required_evidence_blocks_dependent_setup_without_exemption(
     tmp_path: Path,
 ) -> None:
-    objects = tool.launch_objects(
-        [item for item in first_party_versions() if item.passport.harness_id == "grok-build"]
-    )
+    objects = tool.launch_objects(first_party_family("grok-build", "nddev-builder"))
     component = next(item for item in objects if item.kind == "component")
     passport = dict(component.passport)
     passport["compatibility_evidence_refs"] = []
@@ -411,9 +408,7 @@ def test_missing_required_evidence_blocks_dependent_setup_without_exemption(
 
 
 def test_apply_skips_an_already_published_matching_digest(tmp_path: Path) -> None:
-    objects = tool.launch_objects(
-        [item for item in first_party_versions() if item.passport.harness_id == "grok-build"]
-    )
+    objects = tool.launch_objects(first_party_family("grok-build", "nddev-builder"))
     component = next(item for item in objects if item.kind == "component")
     pipeline = PublicationPipeline()
     state_path = tmp_path / "batch.json"
@@ -466,9 +461,7 @@ def test_published_digest_treats_catalog_not_found_as_unpublished() -> None:
 
 
 def test_apply_blocks_lookup_failures_without_confirming(tmp_path: Path) -> None:
-    objects = tool.launch_objects(
-        [item for item in first_party_versions() if item.passport.harness_id == "grok-build"]
-    )
+    objects = tool.launch_objects(first_party_family("grok-build", "nddev-builder"))
     pipeline = PublicationPipeline()
     state_path = tmp_path / "batch.json"
     reviewed = tool.review(
@@ -496,9 +489,7 @@ def test_apply_blocks_lookup_failures_without_confirming(tmp_path: Path) -> None
 
 
 def test_apply_blocks_an_already_published_different_digest(tmp_path: Path) -> None:
-    objects = tool.launch_objects(
-        [item for item in first_party_versions() if item.passport.harness_id == "grok-build"]
-    )
+    objects = tool.launch_objects(first_party_family("grok-build", "nddev-builder"))
     component = next(item for item in objects if item.kind == "component")
     pipeline = PublicationPipeline()
     state_path = tmp_path / "batch.json"

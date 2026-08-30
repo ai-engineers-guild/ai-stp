@@ -103,8 +103,12 @@ export default async function SetupVersionPage({ params }: PageProps) {
           <dd>{passport.purpose}</dd>
         </div>
         <div>
+          <dt className="text-muted-foreground text-sm">{t("posture")}</dt>
+          <dd>{passport.posture ?? ""}</dd>
+        </div>
+        <div>
           <dt className="text-muted-foreground text-sm">{t("targetRole")}</dt>
-          <dd>{passport.target_role}</dd>
+          <dd>{passport.target_role ?? ""}</dd>
         </div>
         <div>
           <dt className="text-muted-foreground text-sm">{t("harness")}</dt>

@@ -396,7 +396,13 @@ class SetupSummary(BaseModel):
     latest_description: DescriptionExcerpt
     latest_harness_id: HarnessId
     latest_purpose: str
-    latest_target_role: str
+    #: Optional for the same reason the passport field is (`ADR-0130`): a role
+    #: has no source, so first-party setups carry none and the card shows the
+    #: absence rather than an invented value.
+    latest_target_role: str | None = None
+    #: The published axis a user chooses along — `minimal`, `baseline`,
+    #: `full-auto`, `nddev-builder`. `None` for a setup with no such axis.
+    latest_posture: str | None = None
     latest_tags: Tags
     latest_lifecycle: PublicLifecycle
     latest_trust: CatalogTrust

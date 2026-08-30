@@ -254,6 +254,7 @@
     "whyFailed": "Failed checks - review before use",
     "whyWarning": "Warnings in the last scan",
     "purpose": "Purpose",
+    "posture": "Posture",
     "targetRole": "Target role",
     "description": "Description",
     "passportDigest": "Passport digest",

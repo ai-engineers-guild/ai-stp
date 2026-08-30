@@ -4,6 +4,8 @@ from contextlib import closing
 from pathlib import Path
 
 import pytest
+from release_scripts import build_first_party_corpus as builder
+from release_scripts.build_first_party_corpus import REPOSITORIES
 
 from ai_stp_cli.cloud import catalog as cloud_catalog
 from ai_stp_cli.cloud.client import Endpoint
@@ -15,6 +17,7 @@ from ai_stp_cli.local import versions as local_versions
 from ai_stp_cli.local.database import configured_path, open_readonly
 from ai_stp_contracts.catalog import CatalogTrust
 from ai_stp_contracts.first_party import FirstPartyVersion
+from ai_stp_contracts.first_party import family as corpus_family
 from ai_stp_contracts.first_party import versions as corpus_versions
 from ai_stp_contracts.machine_help import AnswerSource, CatalogVersionView
 from ai_stp_passports.envelope import derive_revision_id, verify_revision_id
@@ -29,7 +32,9 @@ def _grok() -> tuple[tuple[FirstPartyVersion, ...], FirstPartyVersion]:
     family is a set of an unknown size, and a test that says so keeps working
     when somebody else's builder tree grows.
     """
-    family = [item for item in corpus_versions() if item.passport.harness_id == "grok-build"]
+    # Harness **and** posture: a setup is a pair since `ADR-0130`, and the
+    # harness alone now returns four of them.
+    family = list(corpus_family("grok-build", "nddev-builder"))
     components = tuple(item for item in family if item.kind == "component")
     (setup,) = [item for item in family if item.kind == "setup"]
     return components, setup
@@ -105,17 +110,23 @@ def test_exact_setup_graph_is_idempotently_acquired_and_compiled_offline(
         assert tuple(counts) == ((len(components) + 1,) * 3)
 
 
-def test_all_role_family_graphs_are_acquired_and_compiled_for_their_harness(
+def test_every_published_posture_graph_is_acquired_and_compiled_for_its_harness(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """All 28, not one — and this test asserted nothing at all until today.
+
+    It selected setups whose `target_role` was **not** `ai-harness-engineer`,
+    meaning the twelve invented role setups. Those went with the archived estate,
+    so every setup in the corpus carried that role and the list came out empty:
+    the loop below ran zero times and the test was green on nothing.
+
+    The successor is the axis that does exist. Four postures on each of seven
+    harnesses are published, all four are imported since `ADR-0130`, and each
+    one's graph has to acquire and compile on its own.
+    """
     corpus = corpus_versions()
-    role_setups: list[FirstPartyVersion] = []
-    for item in corpus:
-        if item.kind != "setup":
-            continue
-        assert isinstance(item.passport, SetupVersionPassport)
-        if item.passport.target_role != "ai-harness-engineer":
-            role_setups.append(item)
+    posture_setups = [item for item in corpus if item.kind == "setup"]
+    assert len(posture_setups) == len(set(REPOSITORIES)) * len(builder.POSTURES)
     held = {
         (item.kind, item.passport.stable_id, item.passport.version): _held(item, source="cache")
         for item in corpus
@@ -128,7 +139,7 @@ def test_all_role_family_graphs_are_acquired_and_compiled_for_their_harness(
         return held[(kind, stable_id, version)]
 
     monkeypatch.setattr(registry_commands, "acquire_version", acquire_one)
-    for setup in role_setups:
+    for setup in posture_setups:
         assert isinstance(setup.passport, SetupVersionPassport)
         # The passport's own version, not a literal `1.0`. A harness whose
         # projection was corrected republishes at `1.1` (`codex`, `cursor`,
@@ -142,7 +153,8 @@ def test_all_role_family_graphs_are_acquired_and_compiled_for_their_harness(
                 "offline": True,
             }
         ).payload
-        assert acquired.harness_id in {"claude-code", "codex"}
+        assert acquired.harness_id == setup.passport.harness_id
+        assert setup.passport.posture in builder.POSTURES
         with closing(open_readonly(configured_path())) as connection:
             compiled = compile_setup_version_bundle(
                 connection,
@@ -175,7 +187,7 @@ def test_beta_base_setup_graphs_acquire_and_compile_to_exact_native_surfaces(
         if item.kind == "setup"
         and isinstance(item.passport, SetupVersionPassport)
         and item.passport.harness_id == harness_id
-        and item.passport.target_role == "ai-harness-engineer"
+        and item.passport.posture == "nddev-builder"
     )
     assert isinstance(setup.passport, SetupVersionPassport)
     held = {

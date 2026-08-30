@@ -141,6 +141,9 @@ import type {
   SearchSetupsData,
   SearchSetupsErrors,
   SearchSetupsResponses,
+  SetOwnerVersionLifecycleData,
+  SetOwnerVersionLifecycleErrors,
+  SetOwnerVersionLifecycleResponses,
   StaffAuthorVerifiedData,
   StaffAuthorVerifiedErrors,
   StaffAuthorVerifiedResponses,
@@ -725,6 +728,26 @@ export const readOwnerVersion = <ThrowOnError extends boolean = false>(
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/owner/objects/{object_kind}/{stable_id}/versions/{version}",
     ...options,
+  });
+
+/**
+ * Deprecate an owned published version, or take the mark off again.
+ */
+export const setOwnerVersionLifecycle = <ThrowOnError extends boolean = false>(
+  options: Options<SetOwnerVersionLifecycleData, ThrowOnError>,
+): RequestResult<SetOwnerVersionLifecycleResponses, SetOwnerVersionLifecycleErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    SetOwnerVersionLifecycleResponses,
+    SetOwnerVersionLifecycleErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/owner/objects/{object_kind}/{stable_id}/versions/{version}/lifecycle",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
   });
 
 /**

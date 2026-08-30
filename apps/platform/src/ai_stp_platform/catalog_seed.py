@@ -276,6 +276,10 @@ def _setup_body(
         "compatibility_evidence_refs": [],
         "purpose": purpose,
         "target_role": target_role,
+        # Spelled out although optional. `seal_envelope` derives the id over the
+        # *validated dump*, so a field left to its default hashes one document
+        # while the sealed envelope is another — see its docstring.
+        "posture": None,
         "supported_tasks": supported_tasks or ["development"],
         "components": components,
         "ported_from": None,

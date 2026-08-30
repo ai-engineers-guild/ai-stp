@@ -27,6 +27,7 @@
           "latest_harness_id": "claude-code",
           "latest_purpose": "fixture-purpose",
           "latest_target_role": "fixture-role",
+          "latest_posture": "baseline",
           "latest_tags": [
             "python"
           ],
@@ -51,7 +52,7 @@
         "versions": [
           {
             "version": "1.0",
-            "passport_digest": "sha256:53c480998fb72ee6148691623b346937ac898600b8e9f2f943733473889dd5e9",
+            "passport_digest": "sha256:18728b7a9da500da37ec83b45a7027093651a94fae5127f2cb488625dce08bbe",
             "lifecycle": "active",
             "trust": {
               "trust_lane": "experimental",
@@ -90,7 +91,7 @@
           "schema_version": 1,
           "kind": "setup",
           "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-          "revision_id": "revision_17c0933d0091430a6750bddf86e03277cd06675b7520a340f75cd30a439c7045",
+          "revision_id": "revision_b4a9fa7b0fc3932a01407ce00ee801bd3fa0422d37fa2fb6a3438c031528845c",
           "parent_revision_ids": [],
           "owner_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
           "created_at": "2026-08-05T00:00:00.000Z",
@@ -124,6 +125,7 @@
           "compatibility_evidence_refs": [],
           "purpose": "fixture-purpose",
           "target_role": "fixture-role",
+          "posture": "baseline",
           "supported_tasks": [
             "fixture-task"
           ],
@@ -152,7 +154,7 @@
           "install_evidence_ref": null,
           "launch_evidence_ref": null
         },
-        "passport_digest": "sha256:53c480998fb72ee6148691623b346937ac898600b8e9f2f943733473889dd5e9",
+        "passport_digest": "sha256:18728b7a9da500da37ec83b45a7027093651a94fae5127f2cb488625dce08bbe",
         "lifecycle": "active",
         "trust": {
           "trust_lane": "experimental",
@@ -208,7 +210,7 @@
         "coordinate": {
           "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
           "version": "1.0",
-          "passport_digest": "sha256:53c480998fb72ee6148691623b346937ac898600b8e9f2f943733473889dd5e9"
+          "passport_digest": "sha256:18728b7a9da500da37ec83b45a7027093651a94fae5127f2cb488625dce08bbe"
         },
         "estimator": {
           "schema_version": 1,

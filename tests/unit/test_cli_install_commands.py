@@ -1072,9 +1072,15 @@ def test_catalogue_setup_binds_to_an_explicit_current_project_context(
 
 def _acquire_first_party_setup(
     harness_id: str,
-    role: str,
+    posture: str,
     monkeypatch: pytest.MonkeyPatch,
 ) -> FirstPartyVersion:
+    """One published setup, named by the axis it is actually published on.
+
+    This selected on `target_role` and the only value it could ever match was
+    the invented `ai-harness-engineer`. `ADR-0130` removed it, and the axis that
+    distinguishes a harness's four setups is the posture.
+    """
     corpus = corpus_versions()
     matching = [
         item
@@ -1082,7 +1088,7 @@ def _acquire_first_party_setup(
         if item.kind == "setup"
         and isinstance(item.passport, SetupVersionPassport)
         and item.passport.harness_id == harness_id
-        and item.passport.target_role == role
+        and item.passport.posture == posture
     ]
     if not matching:
         # `next()` over an empty generator raised a bare `StopIteration` here,
@@ -1091,16 +1097,14 @@ def _acquire_first_party_setup(
         # provider is wired, so the message is read rarely and by somebody who
         # has just spent minutes fetching artifacts.
         held = sorted(
-            {
-                item.passport.target_role
-                for item in corpus
-                if item.kind == "setup"
-                and isinstance(item.passport, SetupVersionPassport)
-                and item.passport.harness_id == harness_id
-            }
+            item.passport.posture or "<none>"
+            for item in corpus
+            if item.kind == "setup"
+            and isinstance(item.passport, SetupVersionPassport)
+            and item.passport.harness_id == harness_id
         )
         raise AssertionError(
-            f"the first-party corpus has no {harness_id} setup for role {role!r}; "
+            f"the first-party corpus has no {harness_id} setup in posture {posture!r}; "
             f"it carries {held or 'none'}"
         )
     setup = matching[0]
@@ -1213,7 +1217,7 @@ def test_real_first_party_base_setup_profiles_use_one_exact_bundle_lifecycle(
     if executable is None or manifest is None:
         pytest.skip(f"set {provider_environment} and {manifest_environment} for base setup E2E")
     project_id = _project_context(registry, tmp_path)
-    setup = _acquire_first_party_setup(harness_id, "ai-harness-engineer", monkeypatch)
+    setup = _acquire_first_party_setup(harness_id, "nddev-builder", monkeypatch)
     assert isinstance(setup.passport, SetupVersionPassport)
     reference = f"{setup.passport.stable_id}@{setup.passport.version}"
     cache_root = Path.home() / ".cache"

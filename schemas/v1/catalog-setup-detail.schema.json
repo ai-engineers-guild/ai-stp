@@ -556,6 +556,18 @@
           "title": "Latest Name",
           "type": "string"
         },
+        "latest_posture": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Latest Posture"
+        },
         "latest_published_at": {
           "$ref": "#/$defs/Timestamp"
         },
@@ -581,8 +593,16 @@
           "$ref": "#/$defs/Tags"
         },
         "latest_target_role": {
-          "title": "Latest Target Role",
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Latest Target Role"
         },
         "latest_trust": {
           "$ref": "#/$defs/CatalogTrust"
@@ -633,6 +653,7 @@
         "latest_harness_id",
         "latest_lifecycle",
         "latest_name",
+        "latest_posture",
         "latest_published_at",
         "latest_purpose",
         "latest_requirements_count",

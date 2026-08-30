@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "approvalMode": "unrestricted",
+  "autoAcceptWebSearch": true,
+  "sandbox": {
+    "mode": "disabled"
+  }
+}

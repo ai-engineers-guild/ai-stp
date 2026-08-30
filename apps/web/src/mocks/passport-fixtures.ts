@@ -90,7 +90,7 @@ type SetupPassportInput = {
   tags: string[];
   harnessId: string;
   purpose: string;
-  targetRole: string;
+  targetRole: string | null;
   components: {
     stable_id: string;
     version: string;
@@ -129,6 +129,7 @@ export function buildSetupPassport(input: SetupPassportInput) {
     compatibility_evidence_refs: [] as string[],
     purpose: input.purpose,
     target_role: input.targetRole,
+    posture: "baseline" as string | null,
     supported_tasks: input.supportedTasks ?? ["development"],
     components: input.components,
     ported_from: null,

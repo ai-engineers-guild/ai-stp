@@ -444,6 +444,18 @@
       ],
       "default": null
     },
+    "posture": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Posture"
+    },
     "purpose": {
       "title": "Purpose",
       "type": "string"
@@ -544,8 +556,16 @@
       "type": "array"
     },
     "target_role": {
-      "title": "Target Role",
-      "type": "string"
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Target Role"
     },
     "version": {
       "$ref": "#/$defs/Version"
@@ -581,6 +601,7 @@
     "parent_revision_ids",
     "permissions",
     "ported_from",
+    "posture",
     "purpose",
     "related_setup_ids",
     "required_env",

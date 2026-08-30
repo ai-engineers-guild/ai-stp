@@ -214,6 +214,7 @@ def setup_summary(row: PublicVersionRow, *, now: datetime | None = None) -> Setu
         latest_harness_id=passport.harness_id,
         latest_purpose=passport.purpose,
         latest_target_role=passport.target_role,
+        latest_posture=passport.posture,
         latest_tags=list(passport.tags),  # type: ignore[arg-type]
         latest_lifecycle=row.lifecycle,  # type: ignore[arg-type]
         latest_trust=project_trust(row),

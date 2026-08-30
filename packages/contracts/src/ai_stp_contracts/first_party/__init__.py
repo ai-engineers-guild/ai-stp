@@ -74,10 +74,21 @@ class _HarnessSource(BaseModel):
 
     harness_id: str
     setup_id: str
+    #: The published axis: `minimal`, `baseline`, `full-auto`, `nddev-builder`,
+    #: read from `setup.json`'s own `"id"` by the builder. `ADR-0130`.
+    posture: str
     repository: str
     commit: str
     setup_path: str
     setup_blob: str
+    #: Published prose, carried whole and never composed here. `full-auto` runs
+    #: to thousands of characters and is load-bearing safety context — it names
+    #: things like the sandbox key reaching nothing on native Windows — so a
+    #: browse card may clamp it and an install surface may not.
+    setup_description: str
+    #: An empty list is a statement, not an omission: five of the seven
+    #: `minimal` setups set no product keys, so there is nothing to source.
+    setup_sources: tuple[str, ...] = ()
     evidence_ref: str
     #: What the provider declares, asked of the released binary at build time.
     #: These were `["linux"]` and `["x86_64"]` written into the setup body until
@@ -289,14 +300,21 @@ def _setup(source: _HarnessSource, components: tuple[FirstPartyVersion, ...]) ->
         cast(
             dict[str, JsonValue],
             {
-                "name": f"NDDev Builder {source.harness_id} setup",
-                "description": (
-                    f"Exact first-party {source.harness_id} setup containing "
-                    f"{len(components)} native NDDev Builder components."
-                ),
+                # Name and description come from the source. They were composed
+                # here until 2026-08-30, and the composition said "NDDev Builder"
+                # about all four postures because only one was ever read.
+                "name": f"{source.harness_id} {source.posture}",
+                "description": source.setup_description,
                 "tags": ["code-review", "devops", "planning"],
-                "purpose": "Develop and validate native harness artifacts.",
-                "target_role": "ai-harness-engineer",
+                "purpose": source.setup_description,
+                # No `target_role`. A role is a claim about content that no
+                # vendor page can source, and the publishing side does not
+                # publish roles — by decision, not omission. This field held
+                # `ai-harness-engineer`, a string that appears in no file of
+                # theirs and rendered on every card as a claim about their
+                # artifact. `ADR-0130`.
+                "target_role": None,
+                "posture": source.posture,
                 "supported_tasks": ["development", "validation", "release"],
                 "components": refs,
                 "ported_from": None,
@@ -341,3 +359,28 @@ def versions() -> tuple[FirstPartyVersion, ...]:
     """Return the ordered immutable corpus without sharing mutable containers."""
 
     return CORPUS
+
+
+def family(harness_id: str, posture: str) -> tuple[FirstPartyVersion, ...]:
+    """One published setup and exactly its own members.
+
+    A setup is a `(harness_id, posture)` since `ADR-0130`, so selecting on the
+    harness alone returns four setups and all four postures' components. Every
+    caller that wanted "the grok-build setup and its parts" wanted this, and got
+    the right answer only while one posture of four was imported.
+
+    Membership is read off the component's own source path, whose first segment
+    is the posture directory the bytes came from — the same fact the setup's
+    pins carry, taken from the side that cannot disagree with itself.
+    """
+    return tuple(
+        item
+        for item in versions()
+        if item.passport.harness_id == harness_id
+        and (
+            item.passport.posture == posture
+            if isinstance(item.passport, SetupVersionPassport)
+            else item.passport.source is not None
+            and item.passport.source.path.split("/", 1)[0] == posture
+        )
+    )
