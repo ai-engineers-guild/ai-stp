@@ -11,6 +11,40 @@
         "antigravity"
       ],
       "type": "string"
+    },
+    "ShadowedSurface": {
+      "additionalProperties": false,
+      "description": "A name the product reads that the provider does not own.",
+      "properties": {
+        "effect": {
+          "minLength": 1,
+          "title": "Effect",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "over": {
+          "minLength": 1,
+          "title": "Over",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name",
+        "over",
+        "effect"
+      ],
+      "title": "ShadowedSurface",
+      "type": "object"
     }
   },
   "$id": "urn:ai-stp:schema:v1:cli-target-survey",
@@ -75,6 +109,14 @@
       "title": "Selected Version",
       "type": "string"
     },
+    "shadowed_by": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ShadowedSurface"
+      },
+      "title": "Shadowed By",
+      "type": "array"
+    },
     "states": {
       "items": {
         "enum": [
@@ -109,6 +151,7 @@
     "schema_version",
     "selected_stable_id",
     "selected_version",
+    "shadowed_by",
     "states",
     "verified_target_digest"
   ],
