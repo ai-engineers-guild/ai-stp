@@ -333,6 +333,52 @@ def _package(repository: str, entries: list[dict[str, Any]], component: dict[str
     return held.getvalue()
 
 
+def held_versions(out: Path) -> dict[str, str]:
+    """The version each identity already carries, by stable id.
+
+    A published `X.Y` is immutable (`REQ-2606`), so an object whose passport
+    changes has to go out as a **new** version. Every member used to be `1.0`,
+    argued from a premise that was true when written: the corpus had just been
+    rebuilt from a different repository and minted fresh identifiers, so nothing
+    here was a second attempt at an id somebody already held.
+
+    That premise stopped being true the moment identity continuity started
+    reusing them. Measured against the deployed catalogue on 2026-08-30: 40 of
+    98 objects were held identities sitting at `1.0`, already published, and all
+    40 had different passport bytes — republishing them at `1.0` is exactly what
+    immutability forbids.
+    """
+    manifest_path = out / "corpus-sources.json"
+    if not manifest_path.is_file():
+        return {}
+    held = json.loads(manifest_path.read_text(encoding="utf-8"))
+    versions: dict[str, str] = {}
+    for entry in held.get("harnesses", []):
+        if entry.get("setup_id"):
+            versions[entry["setup_id"]] = entry.get("setup_version", "1.0")
+        for item in entry.get("components", []):
+            if item.get("stable_id"):
+                versions[item["stable_id"]] = item.get("version", "1.0")
+    return versions
+
+
+def next_version(current: str | None, *, moved: bool) -> str:
+    """`1.0` for something new, the next minor for something that moved.
+
+    Not a bump on every rebuild: a rebuild that changes no bytes must publish
+    nothing, and a version carrying identical content is waste a reader has to
+    tell apart from a real change. `first_party_launch_publication` remains the
+    authority — it refuses a version already published with a different digest —
+    and this only keeps the common case from reaching that refusal.
+    """
+    if current is None:
+        return "1.0"
+    if not moved:
+        return current
+    major, minor = (int(part) for part in current.split("."))
+    return f"{major}.{minor + 1}"
+
+
 def held_identities(
     out: Path,
 ) -> tuple[dict[tuple[str, str, str, str], str], dict[tuple[str, str], str]]:
@@ -413,10 +459,23 @@ def held_identities(
     return components, setups
 
 
-def build(harnesses: Sequence[str], *, out: Path) -> dict[str, Any]:
+def build(harnesses: Sequence[str], *, out: Path, bump_all: bool = False) -> dict[str, Any]:
     from ai_stp_foundation.ids import new_id
 
     known_components, known_setups = held_identities(out)
+    known_versions = held_versions(out)
+    # What the *previous* manifest recorded for each object, so "did this move"
+    # is answered against the bytes rather than against the clock.
+    previous_trees: dict[str, str] = {}
+    previous_setup_blobs: dict[str, str] = {}
+    if (out / "corpus-sources.json").is_file():
+        held = json.loads((out / "corpus-sources.json").read_text(encoding="utf-8"))
+        for entry in held.get("harnesses", []):
+            if entry.get("setup_id"):
+                previous_setup_blobs[entry["setup_id"]] = entry.get("setup_blob", "")
+            for item in entry.get("components", []):
+                if item.get("stable_id"):
+                    previous_trees[item["stable_id"]] = item.get("source_tree", "")
     report: dict[str, Any] = {"harnesses": {}, "unrouted": {}, "new_identities": []}
     manifest: list[dict[str, Any]] = []
     written: dict[str, bytes] = {}
@@ -470,6 +529,12 @@ def build(harnesses: Sequence[str], *, out: Path) -> dict[str, Any]:
                         f"component {harness_id}/{posture}/{component['slug']}"
                     )
                 component["stable_id"] = held
+                component["version"] = next_version(
+                    known_versions.get(held),
+                    moved=bump_all
+                    or previous_trees.get(held, component["source_tree"])
+                    != component["source_tree"],
+                )
                 # Cached by content, not by name: postures sharing a blob share
                 # the packaging work, while each still writes its own artifact,
                 # because each is its own object.
@@ -501,6 +566,11 @@ def build(harnesses: Sequence[str], *, out: Path) -> dict[str, Any]:
                     "supported_arch": machines,
                     "setup_blob": setup["sha"],
                     "setup_id": setup_id,
+                    "setup_version": next_version(
+                        known_versions.get(setup_id),
+                        moved=bump_all
+                        or previous_setup_blobs.get(setup_id, setup["sha"]) != setup["sha"],
+                    ),
                     "setup_path": path,
                 }
             )
@@ -565,6 +635,16 @@ def main(arguments: Sequence[str] | None = None) -> int:
     parser.add_argument("--out", required=True, type=Path)
     parser.add_argument("--harness", action="append", choices=sorted(REPOSITORIES))
     parser.add_argument(
+        "--bump-all",
+        action="store_true",
+        help=(
+            "give every held object its next minor version. For a change to the "
+            "passport itself — a field added or removed — which moves every "
+            "passport's bytes while no source byte moved, so the per-object test "
+            "cannot see it."
+        ),
+    )
+    parser.add_argument(
         "--drift",
         action="store_true",
         help="report what moved in the content since --out was built, and build nothing",
@@ -582,7 +662,9 @@ def main(arguments: Sequence[str] | None = None) -> int:
         )
         return 0
     options.out.mkdir(parents=True, exist_ok=True)
-    report = build(options.harness or sorted(REPOSITORIES), out=options.out)
+    report = build(
+        options.harness or sorted(REPOSITORIES), out=options.out, bump_all=options.bump_all
+    )
     (options.out / "corpus-sources.json").write_text(
         json.dumps(
             report.pop("manifest"), separators=(",", ":"), sort_keys=True, ensure_ascii=False

@@ -80,7 +80,14 @@ def test_exact_setup_graph_is_idempotently_acquired_and_compiled_offline(
         return held[(kind, stable_id, version)]  # type: ignore[index]
 
     monkeypatch.setattr(registry_commands, "acquire_version", acquire_one)
-    parameters = {"id": setup.passport.stable_id, "version": "1.0", "offline": True}
+    # The object's own version. A literal `"1.0"` held while every member of the
+    # corpus carried one; objects that were republished now carry `1.1`, and a
+    # pinned version asks the corpus for something it no longer has.
+    parameters = {
+        "id": setup.passport.stable_id,
+        "version": setup.passport.version,
+        "offline": True,
+    }
     first = registry_commands.acquire(parameters).payload
     second = registry_commands.acquire(parameters).payload
 
@@ -92,15 +99,21 @@ def test_exact_setup_graph_is_idempotently_acquired_and_compiled_offline(
     assert (
         calls
         == [
-            ("setup", setup.passport.stable_id, "1.0", True),
-            *(("component", item.passport.stable_id, "1.0", True) for item in components),
+            ("setup", setup.passport.stable_id, setup.passport.version, True),
+            *(
+                ("component", item.passport.stable_id, item.passport.version, True)
+                for item in components
+            ),
         ]
         * 2
     )
 
     with closing(open_readonly(configured_path())) as connection:
         compiled = compile_setup_version_bundle(
-            connection, setup.passport.stable_id, "1.0", expected_harness="grok-build"
+            connection,
+            setup.passport.stable_id,
+            setup.passport.version,
+            expected_harness="grok-build",
         )
         assert len(compiled.archive) > 0
         counts = connection.execute(
@@ -257,7 +270,9 @@ def test_acquisition_failure_rolls_back_the_whole_graph(
 
     monkeypatch.setattr(local_versions, "record", fail_on_setup)
     with pytest.raises(CliFailure, match="injected"):
-        registry_commands.acquire({"id": setup.passport.stable_id, "version": "1.0"})
+        registry_commands.acquire(
+            {"id": setup.passport.stable_id, "version": setup.passport.version}
+        )
 
     with closing(open_readonly(configured_path())) as connection:
         counts = connection.execute(
@@ -290,7 +305,7 @@ def test_offline_acquisition_reads_verified_bytes_without_resolving_an_endpoint(
     )
 
     found = registry_commands.acquire_version(
-        "component", component.passport.stable_id, "1.0", offline=True
+        "component", component.passport.stable_id, component.passport.version, offline=True
     )
     assert found.artifact == component.artifact
 
@@ -367,5 +382,5 @@ def test_offline_acquisition_refuses_corrupt_cached_bytes(
 
     with pytest.raises(CliFailure, match="no longer matches"):
         registry_commands.acquire_version(
-            "component", component.passport.stable_id, "1.0", offline=True
+            "component", component.passport.stable_id, component.passport.version, offline=True
         )

@@ -13,13 +13,21 @@ from ai_stp_passports.envelope import seal_envelope, verify_revision_id
 from ai_stp_passports.versions import ComponentVersionPassport, SetupVersionPassport
 
 OWNER_ID: Final[str] = "account_01KZET6ZKJN7S72T5H4WDV62T0"
-VERSION: Final[str] = "1.0"
 # Three constants stood here — `PI_LAYOUT_VERSION`, `CODEX_SKILLS_VERSION`,
 # `CURSOR_LAYOUT_VERSION` — because a published `X.Y` is immutable and three
-# families needed a corrected projection. They are gone with the objects they
-# corrected: this corpus is built from a different repository and mints new
-# stable identifiers, so every member is `1.0` and nothing here is a second
-# attempt at an identifier somebody already holds.
+# families needed a corrected projection. They were replaced by a single `1.0`
+# for every member, argued from a premise that was true when written: the corpus
+# had just been rebuilt from a different repository and minted fresh identifiers,
+# so nothing here was a second attempt at an id somebody already held.
+#
+# Identity continuity made that false without changing the sentence. Measured
+# against the deployed catalogue on 2026-08-30: 40 of 98 objects were held
+# identities standing at `1.0`, already published, and all 40 had different
+# passport bytes. A constant cannot express that, because the answer differs per
+# object: what moved needs a new version and what did not must keep its own.
+#
+# So the version is recorded per object by the builder and read from the
+# manifest here. There is no corpus-wide constant left to drift.
 PUBLISHED_AT: Final[str] = "2026-08-13T00:00:00.000Z"
 COMPONENT_FORMAT: Final[str] = "ai-stp-component-tree/1"
 COMPONENT_FILE_FORMAT: Final[str] = "ai-stp-component-file/1"
@@ -67,6 +75,10 @@ class _ComponentSource(BaseModel):
     native_id: str | None = None
     name: str | None = None
     description: str | None = None
+    #: This object's own version, not a corpus-wide constant. A published `X.Y`
+    #: is immutable, so an object whose passport changed must go out as a new
+    #: one while its unchanged siblings keep theirs.
+    version: str = "1.0"
 
 
 class _HarnessSource(BaseModel):
@@ -74,6 +86,7 @@ class _HarnessSource(BaseModel):
 
     harness_id: str
     setup_id: str
+    setup_version: str = "1.0"
     #: The published axis: `minimal`, `baseline`, `full-auto`, `nddev-builder`,
     #: read from `setup.json`'s own `"id"` by the builder. `ADR-0130`.
     posture: str
@@ -153,6 +166,7 @@ def _common(
     stable_id: str,
     source_path: str,
     artifact: bytes,
+    version: str,
 ) -> dict[str, JsonValue]:
     return {
         "schema_version": 1,
@@ -163,7 +177,7 @@ def _common(
         "visibility": "public",
         "parent_revision_ids": [],
         "facts": {},
-        "version": _version_for(source.harness_id),
+        "version": version,
         "source": {
             "repository": source.repository,
             "commit": source.commit,
@@ -188,11 +202,6 @@ def _title(slug: str) -> str:
     return " ".join(part.upper() if part in {"mcp"} else part.title() for part in slug.split("-"))
 
 
-def _version_for(harness_id: str) -> str:
-    del harness_id
-    return VERSION
-
-
 def _component(
     source: _HarnessSource,
     component_source: _ComponentSource,
@@ -204,6 +213,7 @@ def _component(
         stable_id=component_source.stable_id,
         source_path=component_source.source_path,
         artifact=artifact,
+        version=component_source.version,
     )
     native_path = component_source.native_path
     # Every family is built the same way now. Grok Build had a branch here from
@@ -282,7 +292,7 @@ def _setup(source: _HarnessSource, components: tuple[FirstPartyVersion, ...]) ->
                 "schema_version": 1,
                 "format": SETUP_FORMAT,
                 "stable_id": source.setup_id,
-                "version": _version_for(source.harness_id),
+                "version": source.setup_version,
                 "harness_id": source.harness_id,
                 "input_digest": selection_digest,
                 "components": refs,
@@ -295,6 +305,7 @@ def _setup(source: _HarnessSource, components: tuple[FirstPartyVersion, ...]) ->
         stable_id=source.setup_id,
         source_path=source.setup_path,
         artifact=artifact,
+        version=source.setup_version,
     )
     body.update(
         cast(

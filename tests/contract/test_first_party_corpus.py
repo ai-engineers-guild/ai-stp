@@ -13,7 +13,6 @@ from ai_stp_cli.local import composition
 from ai_stp_contracts.first_party import (
     COMPONENT_FORMAT,
     SETUP_FORMAT,
-    VERSION,
     versions,
 )
 from ai_stp_foundation.canonical import JsonValue, canonize
@@ -199,16 +198,33 @@ def test_a_setup_publishes_the_platform_set_its_provider_declared() -> None:
         assert systems and machines
 
 
-def test_one_version_because_every_object_here_is_new() -> None:
-    """Three per-family version constants stood here and are gone with their objects.
+def test_a_republished_object_carries_a_new_version_and_a_new_one_does_not() -> None:
+    """A single corpus-wide version stood here and was true only while nothing was reused.
 
-    `pi` 1.1, `codex` 1.1 and `cursor` 1.1 existed because a published `X.Y` is
-    immutable (`REQ-2606`) and three families had a projection corrected in
-    place. Rebuilding from a different repository mints new stable identifiers,
-    so there is nothing to be a second attempt at, and a family that needs a
-    correction from here on gets `1.1` again for the same reason.
+    Three per-family constants — `pi` 1.1, `codex` 1.1, `cursor` 1.1 — existed
+    because a published `X.Y` is immutable (`REQ-2606`) and three families had a
+    projection corrected. They were replaced by one `1.0` for every member, on
+    the argument that a rebuild from a different repository mints fresh
+    identifiers and so nothing could be a second attempt at an id somebody held.
+
+    Identity continuity made that false without changing the sentence. Measured
+    against the deployed catalogue on 2026-08-30: 40 of 98 objects were held
+    identities standing at `1.0`, already published, and all 40 had different
+    passport bytes.
+
+    So the assertion is no longer "one version" — it is that both cases exist and
+    neither has swallowed the other. A corpus with a single version now means
+    either nothing was ever republished or nothing new was ever added, and both
+    would be worth failing on.
     """
-    assert {item.passport.version for item in versions()} == {VERSION}
+    seen = {item.passport.version for item in versions()}
+    assert seen == {"1.0", "1.1"}, seen
+
+    held = {item.passport.stable_id for item in versions() if item.passport.version != "1.0"}
+    # Exactly the objects the previous corpus published, and nothing else: a new
+    # object's first version is `1.0` (`versions.FIRST_VERSION`), and a bump it
+    # did not earn would put it in the catalogue as a second attempt at itself.
+    assert len(held) == 40, len(held)
 
 
 def test_first_party_source_manifest_is_canonical_closed_and_unique() -> None:
