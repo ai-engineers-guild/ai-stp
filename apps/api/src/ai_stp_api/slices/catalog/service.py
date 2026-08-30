@@ -691,6 +691,7 @@ async def search_components(
         updated_from=request.updated_from,
         updated_to=request.updated_to,
         include_experimental=request.include_experimental,
+        include_deprecated=request.include_deprecated,
         cursor=request.cursor,
         page_size=request.page_size,
         page_number=request.page,
@@ -735,6 +736,7 @@ async def search_setups(
         updated_from=request.updated_from,
         updated_to=request.updated_to,
         include_experimental=request.include_experimental,
+        include_deprecated=request.include_deprecated,
         cursor=request.cursor,
         page_size=request.page_size,
         page_number=request.page,
@@ -929,6 +931,7 @@ async def _search(
     service_domains: list[str],
     country_codes: list[str],
     include_experimental: bool,
+    include_deprecated: bool,
     cursor: str | None,
     page_size: int,
     page_number: int | None,
@@ -961,6 +964,7 @@ async def _search(
         service_domain=signed_service_domain,
         country_code=signed_country_code,
         include_experimental=include_experimental,
+        include_deprecated=include_deprecated,
         updated_from=updated_from.isoformat() if updated_from is not None else None,
         updated_to=updated_to.isoformat() if updated_to is not None else None,
     )
@@ -1033,6 +1037,18 @@ async def _search(
             if not support_matches_filters(
                 support, support_tier=support_tier, support_state=support_state
             ):
+                continue
+            # A superseded version is representable and not recommended, and the
+            # browse listing is a recommendation. `REQ-2107` requires
+            # `deprecated` to be *reachable* — by id, by exact version, and by
+            # asking for it here — and says nothing about the default listing,
+            # which inherited the answer to a different question because one set
+            # served both.
+            #
+            # Measured on 2026-08-30 before this existed: the first page an
+            # anonymous visitor saw was 19 deprecated setups and one active,
+            # with all 28 current ones behind it.
+            if row.lifecycle != "active" and not include_deprecated:
                 continue
             # Trust-lane honesty: never label authoritative without both axes.
             trust = project_trust(row)

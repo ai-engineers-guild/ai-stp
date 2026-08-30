@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from http import HTTPStatus
+from typing import cast
 
 import pytest
 import pytest_asyncio
@@ -505,3 +506,83 @@ async def test_a_sub_millisecond_timestamp_does_not_repeat_a_row(
     assert len(seen) == len(set(seen)), (
         "a row whose timestamp is finer than the cursor came back on the next page"
     )
+
+
+@pytest_asyncio.fixture
+async def lifecycle_harness(
+    migrated_database_url: str,
+    tmp_path_factory: pytest.TempPathFactory,
+) -> AsyncIterator[tuple[AsyncClient, async_sessionmaker[AsyncSession]]]:
+    """`seeded_client` plus the sessionmaker, so a test can move a lifecycle."""
+    log_dir = tmp_path_factory.mktemp("catalog-lifecycle")
+    settings = make_settings(log_dir, database_url=migrated_database_url)
+    engine = create_async_engine(migrated_database_url)
+    sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessionmaker() as session:
+        await load_first_party_seed(session)
+        await session.commit()
+    app = create_app(settings)
+    async with app.router.lifespan_context(app):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            yield client, sessionmaker
+    await engine.dispose()
+
+
+async def test_the_browse_listing_hides_superseded_versions_until_asked(
+    lifecycle_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession]],
+) -> None:
+    """`REQ-2114`. The listing is a recommendation; a superseded version is not one.
+
+    `REQ-2107` makes `deprecated` representable and says nothing about the
+    default listing, which inherited the answer to a different question because
+    one set served both. Measured on the deployed catalogue on 2026-08-30: the
+    first page an anonymous visitor saw held nineteen deprecated setups and one
+    active, with all twenty-eight current ones behind it.
+
+    Reachability is asserted in the same test rather than trusted: the object
+    stays readable by id and by exact version throughout, which is the half
+    `REQ-2107` owns and this change must not touch.
+    """
+    client, sessionmaker = lifecycle_harness
+
+    # `include_experimental` on every call: the seeded setup sits in the
+    # experimental lane, so the authoritative `items` list is empty without it
+    # and this test would read a hidden object as a hidden lifecycle. The lane
+    # and the lifecycle are separate filters and this asserts only the second.
+    browse = {"page_size": "50", "include_experimental": "true"}
+
+    def ids(payload: dict[str, object]) -> set[str]:
+        items = payload["experimental"]
+        assert isinstance(items, list)
+        found: set[str] = set()
+        for item in cast(list[dict[str, object]], items):
+            found.add(str(item["stable_id"]))
+        return found
+
+    listed = await client.get("/v1/catalog/setups", params=browse)
+    assert listed.status_code == 200
+    assert FIXTURE_SETUP_ID in ids(listed.json())
+
+    async with sessionmaker() as session:
+        rows = await session.scalars(
+            select(CatalogMetadata).where(CatalogMetadata.stable_id == FIXTURE_SETUP_ID)
+        )
+        for row in rows.all():
+            row.lifecycle_state = "deprecated"
+        await session.commit()
+
+    hidden = await client.get("/v1/catalog/setups", params=browse)
+    assert hidden.status_code == 200
+    assert FIXTURE_SETUP_ID not in ids(hidden.json())
+
+    asked = await client.get("/v1/catalog/setups", params={**browse, "include_deprecated": "true"})
+    assert asked.status_code == 200
+    assert FIXTURE_SETUP_ID in ids(asked.json())
+
+    # Still representable, which is what `REQ-2107` requires and what a pin needs.
+    detail = await client.get(f"/v1/catalog/setups/{FIXTURE_SETUP_ID}")
+    assert detail.status_code == 200
+    exact = await client.get(f"/v1/catalog/setups/{FIXTURE_SETUP_ID}/versions/1.0")
+    assert exact.status_code == 200
+    assert exact.json()["lifecycle"] == "deprecated"

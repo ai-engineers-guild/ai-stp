@@ -137,6 +137,11 @@
       "title": "Harness Ids",
       "type": "array"
     },
+    "include_deprecated": {
+      "default": false,
+      "title": "Include Deprecated",
+      "type": "boolean"
+    },
     "include_experimental": {
       "default": false,
       "title": "Include Experimental",

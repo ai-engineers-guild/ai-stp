@@ -793,6 +793,10 @@ export type ComponentSearchRequest = {
    */
   harness_ids?: Array<HarnessId>;
   /**
+   * Include Deprecated
+   */
+  include_deprecated?: boolean;
+  /**
    * Include Experimental
    */
   include_experimental?: boolean;
@@ -2914,6 +2918,10 @@ export type SetupSearchRequest = {
    */
   harness_ids?: Array<HarnessId>;
   /**
+   * Include Deprecated
+   */
+  include_deprecated?: boolean;
+  /**
    * Include Experimental
    */
   include_experimental?: boolean;
@@ -4387,6 +4395,10 @@ export type SearchComponentsData = {
      */
     harness_ids?: Array<HarnessId>;
     /**
+     * Include Deprecated
+     */
+    include_deprecated?: boolean;
+    /**
      * Include Experimental
      */
     include_experimental?: boolean;
@@ -4707,6 +4719,10 @@ export type SearchSetupsData = {
      * Harness Ids
      */
     harness_ids?: Array<HarnessId>;
+    /**
+     * Include Deprecated
+     */
+    include_deprecated?: boolean;
     /**
      * Include Experimental
      */

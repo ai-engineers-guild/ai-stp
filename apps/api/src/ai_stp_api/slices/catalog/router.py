@@ -146,6 +146,7 @@ _COMPONENT_SEARCH_KEYS = frozenset(
         "page_size",
         "page",
         "include_experimental",
+        "include_deprecated",
     }
 )
 _SETUP_SEARCH_KEYS = frozenset(
@@ -171,6 +172,7 @@ _SETUP_SEARCH_KEYS = frozenset(
         "page_size",
         "page",
         "include_experimental",
+        "include_deprecated",
     }
 )
 
@@ -289,6 +291,7 @@ def _component_search_request(
     page_size: Annotated[int, Query(ge=1, le=PAGE_SIZE_MAX)] = PAGE_SIZE_DEFAULT,
     page: Annotated[int | None, Query(ge=1, le=10_000)] = None,
     include_experimental: Annotated[bool, Query()] = False,
+    include_deprecated: Annotated[bool, Query()] = False,
 ) -> ComponentSearchRequest:
     _reject_unknown_query(request, _COMPONENT_SEARCH_KEYS)
     try:
@@ -315,6 +318,7 @@ def _component_search_request(
             page_size=page_size,
             page=page,
             include_experimental=include_experimental,
+            include_deprecated=include_deprecated,
         )
     except ValidationError as exc:
         raise ApiError(
@@ -346,6 +350,7 @@ def _setup_search_request(
     page_size: Annotated[int, Query(ge=1, le=PAGE_SIZE_MAX)] = PAGE_SIZE_DEFAULT,
     page: Annotated[int | None, Query(ge=1, le=10_000)] = None,
     include_experimental: Annotated[bool, Query()] = False,
+    include_deprecated: Annotated[bool, Query()] = False,
 ) -> SetupSearchRequest:
     _reject_unknown_query(request, _SETUP_SEARCH_KEYS)
     try:
@@ -370,6 +375,7 @@ def _setup_search_request(
             page_size=page_size,
             page=page,
             include_experimental=include_experimental,
+            include_deprecated=include_deprecated,
         )
     except ValidationError as exc:
         raise ApiError(

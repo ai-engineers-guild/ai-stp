@@ -1466,6 +1466,11 @@
             "title": "Harness Ids",
             "type": "array"
           },
+          "include_deprecated": {
+            "default": false,
+            "title": "Include Deprecated",
+            "type": "boolean"
+          },
           "include_experimental": {
             "default": false,
             "title": "Include Experimental",
@@ -5309,6 +5314,11 @@
             "maxItems": 6,
             "title": "Harness Ids",
             "type": "array"
+          },
+          "include_deprecated": {
+            "default": false,
+            "title": "Include Deprecated",
+            "type": "boolean"
           },
           "include_experimental": {
             "default": false,
@@ -9267,6 +9277,16 @@
           },
           {
             "in": "query",
+            "name": "include_deprecated",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Deprecated",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
             "name": "include_experimental",
             "required": false,
             "schema": {
@@ -10514,6 +10534,16 @@
               "maxItems": 6,
               "title": "Harness Ids",
               "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_deprecated",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Deprecated",
+              "type": "boolean"
             }
           },
           {

@@ -496,6 +496,13 @@ class ComponentSearchRequest(BaseModel):
     #: `search.include_unverified` was deliberately removed from the CLI config,
     #: because open-ended consent to everything unverified is not offered.
     include_experimental: bool = False
+    #: Whether the browse listing offers superseded versions. Off by default:
+    #: `deprecated` stays fully representable — by id, by exact version, and by
+    #: setting this — which is what `REQ-2107` requires, while a listing is a
+    #: recommendation and a superseded version is not one. One set answered both
+    #: questions until 2026-08-30, when the catalogue's first page was 19
+    #: deprecated setups and one active.
+    include_deprecated: bool = False
 
     @model_validator(mode="after")
     def _updated_range_is_ordered(self) -> "ComponentSearchRequest":
@@ -544,6 +551,13 @@ class SetupSearchRequest(BaseModel):
     page: PageNumber | None = None
     page_size: PageSize = PAGE_SIZE_DEFAULT
     include_experimental: bool = False
+    #: Whether the browse listing offers superseded versions. Off by default:
+    #: `deprecated` stays fully representable — by id, by exact version, and by
+    #: setting this — which is what `REQ-2107` requires, while a listing is a
+    #: recommendation and a superseded version is not one. One set answered both
+    #: questions until 2026-08-30, when the catalogue's first page was 19
+    #: deprecated setups and one active.
+    include_deprecated: bool = False
 
     @model_validator(mode="after")
     def _updated_range_is_ordered(self) -> "SetupSearchRequest":

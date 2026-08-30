@@ -271,3 +271,39 @@ def test_cursor_from_one_relation_or_date_filter_is_rejected_by_another() -> Non
         token = encode_cursor(secret=_SECRET, filter_sig=current, key=key)
         with pytest.raises(CursorError, match="filter"):
             decode_cursor(secret=_SECRET, token=token, filter_sig=foreign)
+
+
+def test_a_cursor_does_not_migrate_across_the_deprecated_filter() -> None:
+    """`REQ-2114`: the flag changes the result set, so it must change the signature.
+
+    A cursor issued while superseded versions were hidden, replayed against a
+    listing that offers them, walks a different sequence than the one it was
+    positioned in — the scan skips and duplicates. `include_experimental` is in
+    the signature for exactly this reason and `include_deprecated` is the same
+    kind of filter.
+    """
+    common: dict[str, object] = {
+        "object_kind": "setup",
+        "q": None,
+        "tags": [],
+        "harness_id": None,
+        "component_type": None,
+        "include_experimental": False,
+    }
+    hidden = filter_signature(**common, include_deprecated=False)  # pyright: ignore[reportArgumentType]
+    offered = filter_signature(**common, include_deprecated=True)  # pyright: ignore[reportArgumentType]
+    assert hidden != offered
+
+    key = CursorKey(published_at=datetime(2026, 8, 5, tzinfo=UTC), stable_id="setup_abc")
+    token = encode_cursor(secret=_SECRET, filter_sig=hidden, key=key)
+    assert decode_cursor(secret=_SECRET, token=token, filter_sig=hidden).stable_id == "setup_abc"
+    with pytest.raises(CursorError):
+        decode_cursor(secret=_SECRET, token=token, filter_sig=offered)
+
+
+def test_the_default_hides_superseded_versions() -> None:
+    """Off by default is the requirement, not an implementation detail."""
+    from ai_stp_contracts.catalog import ComponentSearchRequest, SetupSearchRequest
+
+    assert ComponentSearchRequest().include_deprecated is False
+    assert SetupSearchRequest().include_deprecated is False

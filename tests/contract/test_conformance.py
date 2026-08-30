@@ -130,13 +130,16 @@ def test_consent_selects_the_experimental_lane() -> None:
     # The same route with and without consent is two corpus cases, and the mock
     # must tell them apart by the request rather than by order.
     with build_client() as client:
+        # Both filters are named on both calls: the mock matches a case by the
+        # exact query, and the typed client sends `include_deprecated` whether
+        # or not a caller thought about it. A test that omits a filter the
+        # client always sends is testing a request nobody makes.
+        base = {"q": "pytest", "page_size": "20", "include_deprecated": "false"}
         without = client.get(
-            "/v1/catalog/components",
-            params={"q": "pytest", "page_size": "20", "include_experimental": "false"},
+            "/v1/catalog/components", params={**base, "include_experimental": "false"}
         )
         with_consent = client.get(
-            "/v1/catalog/components",
-            params={"q": "pytest", "page_size": "20", "include_experimental": "true"},
+            "/v1/catalog/components", params={**base, "include_experimental": "true"}
         )
     assert without.json()["experimental"] == []
     assert len(with_consent.json()["experimental"]) == 1

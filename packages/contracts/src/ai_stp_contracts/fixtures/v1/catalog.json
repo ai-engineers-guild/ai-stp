@@ -100,7 +100,8 @@
         "query": {
           "q": "pytest",
           "page_size": 20,
-          "include_experimental": false
+          "include_experimental": false,
+          "include_deprecated": false
         }
       },
       "status": 200,
@@ -124,7 +125,8 @@
         "query": {
           "q": "pytest",
           "page_size": 20,
-          "include_experimental": true
+          "include_experimental": true,
+          "include_deprecated": false
         }
       },
       "status": 200,
@@ -199,7 +201,8 @@
       "request": {
         "query": {
           "page_size": 20,
-          "include_experimental": false
+          "include_experimental": false,
+          "include_deprecated": false
         }
       },
       "status": 200,
@@ -329,7 +332,8 @@
       "request": {
         "query": {
           "page_size": 20,
-          "include_experimental": false
+          "include_experimental": false,
+          "include_deprecated": false
         }
       },
       "status": 200,
@@ -385,7 +389,8 @@
       "request": {
         "query": {
           "page_size": 20,
-          "include_experimental": false
+          "include_experimental": false,
+          "include_deprecated": false
         }
       },
       "status": 200,

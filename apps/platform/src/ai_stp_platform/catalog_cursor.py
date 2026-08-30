@@ -37,6 +37,7 @@ def filter_signature(
     harness_id: str | None,
     component_type: str | None,
     include_experimental: bool,
+    include_deprecated: bool = False,
     harness_ids: list[str] | None = None,
     component_types: list[str] | None = None,
     authors: list[str] | None = None,
@@ -57,6 +58,10 @@ def filter_signature(
         "tags": list(tags),
         "harness_id": harness_id,
         "component_type": component_type,
+        # In the signature because it changes the result set: a cursor issued
+        # while superseded versions were hidden must not be replayed against a
+        # listing that offers them, or the walk skips and duplicates.
+        "include_deprecated": include_deprecated,
         "harness_ids": list(harness_ids or []),
         "component_types": list(component_types or []),
         "authors": list(authors or []),
