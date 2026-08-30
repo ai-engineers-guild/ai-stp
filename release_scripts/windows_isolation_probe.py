@@ -175,9 +175,10 @@ def main() -> int:
 
     package = report.get("package_sid")
 
-    def icacls(target: Path, rights: str) -> dict[str, Any]:
+    def icacls(target: Path, rights: str, *, inherit: bool = True) -> dict[str, Any]:
+        scope = "(OI)(CI)" if inherit else ""
         done = subprocess.run(
-            ["icacls", str(target), "/grant", f"*{package}:(OI)(CI){rights}"],
+            ["icacls", str(target), "/grant", f"*{package}:{scope}{rights}"],
             capture_output=True,
             text=True,
             encoding="utf-8",
@@ -191,16 +192,23 @@ def main() -> int:
     # keeps it, `leaf_only` reads and the objection is wrong. If only
     # `full_chain` reads, the objection is right and the cost of the design is
     # an ACE on every ancestor.
-    grants: dict[str, Any] = {"leaf_only_leaf": icacls(leaf_only, "(RX)")}
-    for ancestor in (root / "c", root / "c" / "d", full_chain):
-        grants[f"full_chain:{ancestor.name}"] = icacls(ancestor, "(RX)")
+    # `(OI)(CI)` propagates to every descendant, so granting it on the root
+    # reaches the tree that has to stay ungranted. The first run did exactly
+    # that and all three leaves read, including the one granted nothing: a
+    # negative control that could not fail, inside the probe written to avoid
+    # one. The root and the intermediate directories therefore take a
+    # this-folder-only ACE, which is traversal and nothing more.
+    grants: dict[str, Any] = {"root_this_folder_only": icacls(root, "(RX)", inherit=False)}
+    grants["leaf_only_leaf"] = icacls(leaf_only, "(RX)")
+    for ancestor in (root / "c", root / "c" / "d"):
+        grants[f"full_chain:{ancestor.name}"] = icacls(ancestor, "(RX)", inherit=False)
+    grants["full_chain:leaf"] = icacls(full_chain, "(RX)")
     grants["runtime"] = icacls(Path(sys.executable).parent, "(RX)")
     # `ungranted` gets nothing, and neither do `a` and `b`.
 
     script = root / "child.py"
     script.write_text("import subprocess\n" + CHILD, encoding="utf-8")
     grants["script"] = icacls(script, "(RX)")
-    grants["root_traverse"] = icacls(root, "(RX)")
     report["grants"] = grants
 
     # The container's own folder is the one place it can always write, so the
@@ -222,6 +230,19 @@ def main() -> int:
     quoted = json.dumps(ports).replace(chr(34), chr(92) + chr(34))
     argv = f'"{sys.executable}" "{script}" "{quoted}" "{leaf_only}" "{ungranted}" "{full_chain}"'
     report["child"] = _launch_in_container(kernel, sid, argv, result)
+
+    # `sendto` returns success on a datagram the filter drops, so the sender's
+    # own report says nothing. The receiving socket is the only witness: the
+    # child was told to send a known token, and whether it arrived is the
+    # measurement. A previous run recorded `dns_udp: "sent"` and that was a
+    # statement about the call, not about the network.
+    dns.settimeout(2.0)
+    try:
+        observed, _peer = dns.recvfrom(64)
+    except OSError as error:
+        report["dns_udp_arrived"] = f"no:{type(error).__name__}"
+    else:
+        report["dns_udp_arrived"] = f"yes:{observed[:16]!r}"
     print(json.dumps(report, indent=1, sort_keys=True))
     return 0
 
