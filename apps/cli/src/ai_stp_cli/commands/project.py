@@ -259,13 +259,11 @@ def import_register(parameters: Mapping[str, object]) -> Answer[ImportedSetup]:
     """
     provider_ref = str(parameters.get("backup-ref") or "")
     plan_digest = str(parameters.get("plan-digest") or "")
-    if parameters.get("confirm") is not True or not plan_digest:
+    if not plan_digest:
         raise CliFailure(
-            "AI_STP_USER_DECISION_REQUIRED",
-            "registration requires confirmation of the exact import plan digest",
-            next_actions=[
-                "setup import register --plan-digest <digest> --confirm --backup-ref <ref> --json"
-            ],
+            "AI_STP_VALIDATION_ERROR",
+            "the exact import plan digest is required",
+            next_actions=["setup import register --plan-digest <digest> --backup-ref <ref> --json"],
         )
     harness = _harness(parameters)
     root = _root(parameters)

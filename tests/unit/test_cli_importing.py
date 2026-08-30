@@ -537,22 +537,32 @@ def test_graph_registration_refuses_a_changed_plan_and_leaves_no_backup(
         assert connection.execute("SELECT COUNT(*) FROM backup_ref").fetchone()[0] == 0
 
 
-def test_graph_registration_requires_exact_confirmation(native: Path) -> None:
+def test_graph_registration_requires_the_exact_plan_digest(native: Path) -> None:
+    """The digest is the confirmation; a boolean beside it said only "yes".
+
+    Registering an import writes the local registry and is reversible, so
+    `ADR-0118` puts it inside the task's authority. What must still hold is that
+    the caller names *which* plan — omitted is a malformed call, and a digest
+    the plan no longer matches is refused by `register_graph` itself.
+    """
     from ai_stp_cli.commands import project
 
     digest = project.import_plan(
         {"root": str(native), "harness": "claude-code"}
     ).payload.plan_digest
-    with pytest.raises(CliFailure) as raised:
-        project.import_register(
-            {
-                "root": str(native),
-                "harness": "claude-code",
-                "backup-ref": "provider://backup/unconfirmed",
-                "plan-digest": digest,
-            }
-        )
-    assert raised.value.code == "AI_STP_USER_DECISION_REQUIRED"
+    base = {
+        "root": str(native),
+        "harness": "claude-code",
+        "backup-ref": "provider://backup/unconfirmed",
+    }
+    with pytest.raises(CliFailure) as missing:
+        project.import_register(base)
+    assert missing.value.code == "AI_STP_VALIDATION_ERROR"
+
+    with pytest.raises(CliFailure) as stale:
+        project.import_register({**base, "plan-digest": "sha256:" + "0" * 64})
+    assert stale.value.code != "AI_STP_USER_DECISION_REQUIRED"
+    assert digest not in str(stale.value)
 
 
 @pytest.mark.parametrize("harness", ["", "undefined", "not-a-harness"])

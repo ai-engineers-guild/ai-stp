@@ -219,17 +219,19 @@ def test_scaffold_commands_require_exact_plan_and_never_overwrite(tmp_path: Path
     plan = component.scaffold_plan(parameters).payload
     assert plan == component.scaffold_plan(parameters).payload
 
-    with pytest.raises(CliFailure) as raised:
-        component.scaffold_apply({**parameters, "expected-plan-digest": plan.plan_digest})
-    assert raised.value.code == "AI_STP_USER_DECISION_REQUIRED"
-
+    # The digest is the confirmation, and there is no second flag beside it.
+    # Creating a new directory is local and reversible, so `ADR-0118` leaves it
+    # inside the task's authority; what still has to hold is that the *exact*
+    # plan is named. A wrong digest refuses, and a missing one is a malformed
+    # call rather than an undecided one.
     with pytest.raises(CliFailure, match="digest changed"):
-        component.scaffold_apply(
-            {**parameters, "expected-plan-digest": "sha256:" + "0" * 64, "confirm": True}
-        )
+        component.scaffold_apply({**parameters, "expected-plan-digest": "sha256:" + "0" * 64})
+
+    with pytest.raises(CliFailure, match="scaffold plan digest is required"):
+        component.scaffold_apply(parameters)
 
     result = component.scaffold_apply(
-        {**parameters, "expected-plan-digest": plan.plan_digest, "confirm": True}
+        {**parameters, "expected-plan-digest": plan.plan_digest}
     ).payload
     assert result.output == str(output)
     assert result.files_written == len(plan.files)

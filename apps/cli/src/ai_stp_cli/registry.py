@@ -206,7 +206,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-setup-eval-result",
         handler="evaluation:run",
         mutability="apply",
-        confirmation="explicit_flag",
+        confirmation="plan_digest",
         parameters=(
             option("plan-id", "string", "Stored evaluation plan identifier.", required=True),
             option(
@@ -215,7 +215,6 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "Exact content digest shown by eval plan.",
                 required=True,
             ),
-            option("confirm", "boolean", "Confirm the exact evaluation plan.", required=True),
         ),
         next_actions=("eval status", "eval show"),
     ),
@@ -631,7 +630,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-component-scaffold-result",
         handler="component:scaffold_apply",
         mutability="apply",
-        confirmation="explicit_flag",
+        confirmation="plan_digest",
         parameters=(
             option(
                 "type",
@@ -679,7 +678,6 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "Exact digest returned by scaffold plan.",
                 required=True,
             ),
-            option("confirm", "boolean", "Confirm exact scaffold creation.", required=True),
         ),
         next_actions=("component passport validate", "component adopt"),
     ),
@@ -819,7 +817,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-passport-view",
         handler="component:passport_update",
         mutability="apply",
-        confirmation="explicit_flag",
+        confirmation="plan_digest",
         parameters=(
             option("id", "string", "Stable identifier of an adopted component.", required=True),
             option(
@@ -829,7 +827,6 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 required=True,
             ),
             option("from", "string", "Path to a bounded closed-schema JSON patch.", required=True),
-            option("confirm", "boolean", "Confirm every declared fact in the patch."),
         ),
         next_actions=("component passport validate", "component passport show"),
     ),
@@ -1480,7 +1477,6 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "expected-plan-digest", "string", "Exact digest returned by plan.", required=True
             ),
-            option("confirm", "boolean", "Confirm this exact local registry import."),
         ),
         next_actions=("component passport validate",),
     ),
@@ -2239,7 +2235,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         # It writes a passport and a backup reference. The target is untouched:
         # the provider made the backup and this only records where it is.
         mutability="apply",
-        confirmation="explicit_flag",
+        confirmation="plan_digest",
         parameters=(
             option("root", "string", "The native configuration directory to read.", required=True),
             option(
@@ -2256,9 +2252,6 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "string",
                 "The exact digest returned by setup import plan.",
                 required=True,
-            ),
-            option(
-                "confirm", "boolean", "Confirm the exact plan and listed effects.", required=True
             ),
             option("target", "string", "Which target the backup was taken from."),
         ),

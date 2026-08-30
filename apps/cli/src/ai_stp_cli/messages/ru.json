@@ -297,6 +297,7 @@
   "the exact catalogue version is not available in the verified cache": "точной версии каталога нет в проверенном кэше",
   "the exact component graph exceeds provider capabilities": "точный граф компонентов превышает возможности провайдера",
   "the exact component graph spans more than one projection scope": "точный граф компонентов охватывает более одной области проекции",
+  "the exact import plan digest is required": "нужен точный digest плана импорта ",
   "the exact native package family exceeds provider capabilities": "точное семейство нативных пакетов превышает возможности провайдера",
   "the exact native projection exceeds provider capabilities": "точная нативная проекция превышает возможности провайдера",
   "the exact prepared SetupVersion has no passport revision": "у точного подготовленного SetupVersion нет ревизии паспорта",

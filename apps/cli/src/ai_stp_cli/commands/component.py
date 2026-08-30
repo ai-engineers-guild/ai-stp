@@ -152,19 +152,14 @@ def scaffold_apply(parameters: Mapping[str, object]) -> Answer[ComponentScaffold
     language = _required(parameters, "language", "a scaffold language is required")
     harness = _required(parameters, "harness", "a harness variant is required")
     output = Path(_required(parameters, "output", "an output path is required")).expanduser()
+    # No `--confirm` beside the digest. Creating a new directory is local and
+    # reversible, so `ADR-0118` puts it inside the task's authority, and the
+    # exact plan digest is already the stronger confirmation: it says *which*
+    # scaffold, where a boolean says only "yes". `apply_scaffold` refuses a
+    # digest that no longer matches the recomputed plan.
     expected = _required(
         parameters, "expected-plan-digest", "the exact scaffold plan digest is required"
     )
-    if parameters.get("confirm") is not True:
-        raise CliFailure(
-            "AI_STP_USER_DECISION_REQUIRED",
-            "creating an authoring scaffold requires explicit confirmation",
-            next_actions=[
-                "component scaffold apply --type <type> --name <name> --language <language> "
-                "--harness <variant> --output <new-directory> "
-                "--expected-plan-digest <digest> --confirm"
-            ],
-        )
     plan, files = authoring.scaffold_plan(
         component_type=component_type,
         name=name,
@@ -341,15 +336,6 @@ def passport_update(parameters: Mapping[str, object]) -> Answer[PassportView]:
         parameters, "expected-revision", "the current revision must be named explicitly"
     )
     source = _required(parameters, "from", "a JSON passport patch path is required")
-    if not bool(parameters.get("confirm")):
-        raise CliFailure(
-            "AI_STP_USER_DECISION_REQUIRED",
-            "declared component facts require explicit confirmation",
-            next_actions=[
-                "component passport update --id <stable_id> --expected-revision <revision_id> "
-                "--from <patch.json> --confirm --json"
-            ],
-        )
     patch = component_passports.load_patch(Path(source).expanduser())
     current, _warning = identity.load_or_create()
     with closing(open_registry(configured_path(), create=False)) as connection:

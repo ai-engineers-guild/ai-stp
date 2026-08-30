@@ -128,14 +128,17 @@ def test_exact_plan_and_run_are_idempotent_without_promoting_unavailable_runners
     }
 
     plan = command.plan(parameters).payload
-    with pytest.raises(CliFailure) as decision:
-        command.run({"plan-id": plan.plan_id, "expected-plan-digest": plan.plan_digest})
-    assert decision.value.code == "AI_STP_USER_DECISION_REQUIRED"
+    # The digest is the confirmation. A run is local, reads only, and persists
+    # evidence idempotently, so `ADR-0118` leaves it inside the task's
+    # authority; naming the exact plan is the precondition that still holds, and
+    # a stale one is refused rather than run against whatever the plan is now.
+    with pytest.raises(CliFailure) as stale:
+        command.run({"plan-id": plan.plan_id, "expected-plan-digest": "sha256:" + "0" * 64})
+    assert stale.value.code == "AI_STP_PRECONDITION_FAILED"
 
     run_parameters = {
         "plan-id": plan.plan_id,
         "expected-plan-digest": plan.plan_digest,
-        "confirm": True,
     }
     first = command.run(run_parameters).payload
     second = command.run(run_parameters).payload

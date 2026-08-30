@@ -475,7 +475,7 @@ def test_the_patch_loader_refuses_a_document_that_changed_after_it_was_measured(
 
 
 def test_the_passport_commands_refuse_before_they_open_the_registry(tmp_path: Path) -> None:
-    """A missing identifier or an unconfirmed decision never reaches local state."""
+    """A missing identifier or an unnamed precondition never reaches local state."""
     for handler in (command.passport_show, command.passport_update, command.passport_validate):
         with pytest.raises(CliFailure, match="stable id is required"):
             handler({})
@@ -486,7 +486,12 @@ def test_the_passport_commands_refuse_before_they_open_the_registry(tmp_path: Pa
     with pytest.raises(CliFailure, match="patch path is required"):
         command.passport_update({"id": stable_id, "expected-revision": "revision_test"})
 
-    with pytest.raises(CliFailure) as unconfirmed:
+    # `--expected-revision` is the confirmation and there is no flag beside it:
+    # a child revision leaves its parent standing, so `ADR-0118` leaves the act
+    # inside the task's authority while the exact revision still has to be
+    # named. Refusal now comes from the patch that is not there, having passed
+    # every argument check above.
+    with pytest.raises(CliFailure) as refused:
         command.passport_update(
             {
                 "id": stable_id,
@@ -494,7 +499,7 @@ def test_the_passport_commands_refuse_before_they_open_the_registry(tmp_path: Pa
                 "from": str(tmp_path / "patch.json"),
             }
         )
-    assert unconfirmed.value.code == "AI_STP_USER_DECISION_REQUIRED"
+    assert refused.value.code == "AI_STP_NOT_FOUND"
 
     with pytest.raises(CliFailure, match="profile must be selected"):
         command.passport_validate({"id": stable_id})

@@ -535,7 +535,7 @@
       ],
       "summary": "Add confirmed declared facts as a new content-addressed passport revision.",
       "mutability": "apply",
-      "confirmation": "explicit_flag",
+      "confirmation": "plan_digest",
       "parameters": [
         {
           "name": "id",
@@ -562,15 +562,6 @@
           "required": true,
           "repeatable": false,
           "summary": "Path to a bounded closed-schema JSON patch.",
-          "choices": []
-        },
-        {
-          "name": "confirm",
-          "kind": "option",
-          "value_type": "boolean",
-          "required": false,
-          "repeatable": false,
-          "summary": "Confirm every declared fact in the patch.",
           "choices": []
         }
       ],
@@ -625,7 +616,7 @@
       ],
       "summary": "Create exactly the confirmed component scaffold without overwriting a path.",
       "mutability": "apply",
-      "confirmation": "explicit_flag",
+      "confirmation": "plan_digest",
       "parameters": [
         {
           "name": "type",
@@ -705,15 +696,6 @@
           "required": true,
           "repeatable": false,
           "summary": "Exact digest returned by scaffold plan.",
-          "choices": []
-        },
-        {
-          "name": "confirm",
-          "kind": "option",
-          "value_type": "boolean",
-          "required": true,
-          "repeatable": false,
-          "summary": "Confirm exact scaffold creation.",
           "choices": []
         }
       ],
@@ -1539,7 +1521,7 @@
       ],
       "summary": "Run local deterministic checks for one confirmed exact evaluation plan.",
       "mutability": "apply",
-      "confirmation": "explicit_flag",
+      "confirmation": "plan_digest",
       "parameters": [
         {
           "name": "plan-id",
@@ -1557,15 +1539,6 @@
           "required": true,
           "repeatable": false,
           "summary": "Exact content digest shown by eval plan.",
-          "choices": []
-        },
-        {
-          "name": "confirm",
-          "kind": "option",
-          "value_type": "boolean",
-          "required": true,
-          "repeatable": false,
-          "summary": "Confirm the exact evaluation plan.",
           "choices": []
         }
       ],
@@ -3916,15 +3889,6 @@
           "repeatable": false,
           "summary": "Exact digest returned by plan.",
           "choices": []
-        },
-        {
-          "name": "confirm",
-          "kind": "option",
-          "value_type": "boolean",
-          "required": false,
-          "repeatable": false,
-          "summary": "Confirm this exact local registry import.",
-          "choices": []
         }
       ],
       "parameter_rules": [],
@@ -4928,7 +4892,7 @@
       ],
       "summary": "Register an inspected configuration as your own setup. No secret value is stored.",
       "mutability": "apply",
-      "confirmation": "explicit_flag",
+      "confirmation": "plan_digest",
       "parameters": [
         {
           "name": "root",
@@ -4964,15 +4928,6 @@
           "required": true,
           "repeatable": false,
           "summary": "The exact digest returned by setup import plan.",
-          "choices": []
-        },
-        {
-          "name": "confirm",
-          "kind": "option",
-          "value_type": "boolean",
-          "required": true,
-          "repeatable": false,
-          "summary": "Confirm the exact plan and listed effects.",
           "choices": []
         },
         {

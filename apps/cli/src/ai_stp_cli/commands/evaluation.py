@@ -66,14 +66,6 @@ def run(parameters: Mapping[str, object]) -> Answer[SetupEvalResult]:
     """Run the local-static checks after exact plan confirmation."""
     plan_id = _required(parameters, "plan-id")
     digest = _required(parameters, "expected-plan-digest")
-    if parameters.get("confirm") is not True:
-        raise CliFailure(
-            "AI_STP_USER_DECISION_REQUIRED",
-            "running an evaluation requires confirmation of the exact plan digest",
-            next_actions=[
-                f"eval run --plan-id {plan_id} --expected-plan-digest {digest} --confirm"
-            ],
-        )
     with (
         closing(open_registry(configured_path(), create=False)) as connection,
         transaction(connection),
