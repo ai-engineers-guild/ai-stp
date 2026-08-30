@@ -296,3 +296,74 @@ def test_removing_the_build_that_held_the_exposure_still_reads_foreign(
 
     report = _status(prefix)
     assert report.state == "foreign"  # type: ignore[attr-defined]
+
+
+def _mark(prefix: Path, version: str, command: str = "opencode") -> None:
+    """Write the provider's own exposure marker, and the tree it must name."""
+    (prefix / version).mkdir(parents=True, exist_ok=True)
+    marker = prefix / "bin" / f".{command}.version"
+    marker.parent.mkdir(parents=True, exist_ok=True)
+    marker.write_text(version, encoding="utf-8")
+
+
+def test_a_hand_rollback_the_journal_never_saw_is_read_from_the_marker(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """The case the journal cannot reach, and the reason the marker is read first.
+
+    A person can run the provider's own `rollback` against a prefix this
+    installation manages. Nothing records it here, so the journal shows install,
+    update, remove-the-update — and inferring from it says the build before the
+    removal is the one that was removed, which is no survivor at all. The old
+    answer was `foreign`: an accusation about the provider's own build.
+
+    `bin/.<command>.version` is written by the side that does the exposing, so
+    it names the survivor whoever put it there.
+    """
+    prefix = tmp_path / "prefix"
+    _record(registry, prefix, action="software_install", key="one", version="1.18.23")
+    _record(registry, prefix, action="software_update", key="two", version="1.19.0")
+    _record(registry, prefix, action="software_remove", key="three", version="1.19.0")
+    _expose(prefix)
+    _mark(prefix, "1.18.23")
+
+    report = _status(prefix)
+    assert report.state == "present"  # type: ignore[attr-defined]
+    assert "1.18.23" in report.reason  # type: ignore[attr-defined]
+    assert "marker" in report.reason  # type: ignore[attr-defined]
+
+
+def test_a_marker_naming_a_version_that_is_not_there_is_not_believed(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """The provider's own reader filters on the version trees that exist.
+
+    A hand-edited or half-written marker must not name a version that is not
+    there, so this one is ignored and the answer falls back to the journal —
+    which here has no survivor to offer either.
+    """
+    prefix = tmp_path / "prefix"
+    _record(registry, prefix, action="software_install", key="one", version="1.18.23")
+    _record(registry, prefix, action="software_remove", key="two", version="1.18.23")
+    _expose(prefix)
+    marker = prefix / "bin" / ".opencode.version"
+    marker.write_text("9.9.9", encoding="utf-8")
+
+    report = _status(prefix)
+    assert report.state == "foreign"  # type: ignore[attr-defined]
+
+
+def test_the_journal_still_answers_a_prefix_written_before_markers_existed(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """No marker is unknown, not absent, and the inference is what unknown gets."""
+    prefix = tmp_path / "prefix"
+    _record(registry, prefix, action="software_install", key="one", version="1.18.23")
+    _record(registry, prefix, action="software_update", key="two", version="1.19.0")
+    _record(registry, prefix, action="software_update", key="three", version="1.18.23")
+    _record(registry, prefix, action="software_remove", key="four", version="1.19.0")
+    _expose(prefix)
+
+    report = _status(prefix)
+    assert report.state == "present"  # type: ignore[attr-defined]
+    assert "journal" in report.reason  # type: ignore[attr-defined]

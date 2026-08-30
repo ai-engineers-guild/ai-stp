@@ -30,7 +30,7 @@ import sqlite3
 from collections.abc import Mapping
 from contextlib import closing
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Final
 
 from ai_stp_cli.answer import Answer
@@ -226,13 +226,27 @@ def _standing(
         return ("never_installed", "this installation has never put a program under this prefix")
     if settled.action == "software_remove":
         if on_disk:
+            # The marker first, because it is written by the side that does the
+            # exposing. The journal can only infer, and it infers from
+            # operations this installation drove — a person running the
+            # provider's own `rollback` against this prefix leaves a version
+            # standing that no record here names.
+            marked = _exposed_version(prefix=prefix, entry_point=settled.entry_point)
+            if marked and marked != settled.version:
+                return (
+                    "present",
+                    f"{marked} exposed at {settled.entry_point}, read from the provider's "
+                    f"version marker; {settled.version or 'another build'} was taken off by "
+                    f"{settled.operation_id} and did not hold the exposure",
+                )
             standing = _survivor(settled=settled, history=history)
-            if standing is not None:
+            if not marked and standing is not None:
                 return (
                     "present",
                     f"{standing.version or 'a build'} exposed at {standing.entry_point}, "
-                    f"verified by {standing.operation_id}; {settled.version or 'another build'} "
-                    f"was taken off by {settled.operation_id} and did not hold the exposure",
+                    f"inferred from the journal because this prefix carries no version "
+                    f"marker; {settled.version or 'another build'} was taken off by "
+                    f"{settled.operation_id} and did not hold the exposure",
                 )
             return (
                 "foreign",
@@ -252,6 +266,49 @@ def _standing(
         f"{settled.version or 'a build'} exposed at {settled.entry_point}, "
         f"verified by {settled.operation_id}",
     )
+
+
+#: Where the provider records which version `bin/<command>` points into. Written
+#: by the same code that does the exposing and deleted with the command it
+#: described, so it cannot disagree with the disk the way a separate ledger can.
+_VERSION_MARKER: Final[str] = ".{command}.version"
+
+#: Suffixes the exposed file may carry that the marker's name does not. The
+#: provider exposes `<command>.cmd` for a JavaScript member on Windows while
+#: still writing `.<command>.version`, so the marker is found from the stem
+#: rather than from the file that is actually there.
+_EXPOSED_SUFFIXES: Final[frozenset[str]] = frozenset({".cmd", ".exe", ".bat"})
+
+
+def _exposed_version(*, prefix: Path, entry_point: str) -> str:
+    """The version standing at this prefix, read from the provider's own marker.
+
+    `<prefix>/bin/.<command>.version` is written after the command is in place
+    and removed with it, by the provider rather than by us. Reading it answers
+    what the journal can only infer, and answers it for exposures this
+    installation did not make: a person can run the provider's own `rollback`
+    against a prefix we manage, which puts a version in place through a path
+    `program_history` never sees.
+
+    Two guards, both taken from the provider's own reader rather than invented
+    here. The marker is believed only where the command it describes is
+    actually there, and only when it names a version directory that exists —
+    a hand-edited or half-written marker must not name a version that is not.
+
+    An empty answer means unknown, not absent: a prefix written before markers
+    existed reads the same as one nothing installed into, and neither is a
+    version. The caller decides what unknown is worth.
+    """
+    command = PurePosixPath(entry_point).name
+    stem = Path(command)
+    if stem.suffix.casefold() in _EXPOSED_SUFFIXES:
+        command = stem.stem
+    marker = prefix / "bin" / _VERSION_MARKER.format(command=command)
+    try:
+        held = marker.read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+    return held if held and (prefix / held).is_dir() else ""
 
 
 def _survivor(
