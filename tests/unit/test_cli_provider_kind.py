@@ -42,7 +42,30 @@ def test_no_other_harness_translates_its_kinds() -> None:
         for rule in composition.PROVIDER_RULES
         if rule.provider_kind and rule.provider_kind != rule.component_type
     }
-    assert translated == {("pi", "mcp", "plugin")}
+    # Two reasons a kind is translated, and they are kept apart because they
+    # answer to different decisions. `#454` is the first: the product has no
+    # kind of its own, and pi says so itself.
+    packaged = {
+        (rule.harness_id, rule.component_type, rule.provider_kind)
+        for rule in composition.PROVIDER_RULES
+        if rule.provider_kind
+        and rule.provider_kind != rule.component_type
+        and not rule.declared_key
+    }
+    assert packaged == {("pi", "mcp", "plugin")}
+
+    # `ADR-0129` is the second: the landing is a key inside a file the provider
+    # already owns, so the delivery is that file's kind. Every one of these
+    # names `setting` and every one carries the key it owns — a translation
+    # without a key would be the silent rename this test exists to catch.
+    contributions = {
+        (rule.harness_id, rule.component_type, rule.provider_kind)
+        for rule in composition.PROVIDER_RULES
+        if rule.declared_key
+    }
+    assert contributions == translated - packaged
+    assert {kind for _, _, kind in contributions} == {"setting"}
+    assert all(rule.declared_key for rule in composition.PROVIDER_RULES if rule.declared_key)
 
 
 def test_every_translation_names_a_kind_its_harness_declares_a_route_for() -> None:

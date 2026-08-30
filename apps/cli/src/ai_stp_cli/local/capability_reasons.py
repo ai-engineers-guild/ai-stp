@@ -17,17 +17,7 @@ from typing import Final
 
 #: Native at a scope a provider owns, and this compiler has no route. Waiting
 #: helps here and nowhere else: the surface exists and the work is ours.
-PROJECTION_MISSING: Final[dict[tuple[str, str], str]] = {
-    ("codex", "mcp"): "`mcp_servers` is a key inside the owned `config.toml`; ADR-0129, #456",
-    ("grok-build", "mcp"): "`mcp_servers` inside the owned `config.toml`; ADR-0129, #456",
-    ("opencode", "mcp"): "`mcp` inside the owned `opencode.json`; ADR-0129, #456",
-    ("claude-code", "hook"): (
-        "hooks are a `hooks` key inside the owned `settings.json`, the same "
-        "shape as codex's `mcp_servers`; ADR-0129, #460. There was no catalogue "
-        "row at all, so this cell read `unsupported` — which says the product "
-        "cannot do it, and `#460` is right that it can."
-    ),
-}
+PROJECTION_MISSING: Final[dict[tuple[str, str], str]] = {}
 
 #: Routed by this compiler and absent from the catalogue at an owned scope. Each
 #: is deliberate and each names what it was established from.

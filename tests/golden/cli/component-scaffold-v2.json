@@ -72,7 +72,7 @@
       "README.md": "sha256:12f2e1fcb0493a3c0a360d3e31c3eff5d1a18c967c95806373d7fa24b92eb2fc",
       "SAFETY.md": "sha256:18560bb9b5816df43bcf781b165cb3791b0a3442a4938c8b53283c793b2879fb",
       "authoring-template.md": "sha256:5ab902a4a6dfc6d03941561b05e58ae7772aa55e62cb7858d39ea186434fdc36",
-      "component-passport.json": "sha256:ee4fa385f2905a15e1ee0887cba0db60cc63360a84157786ef04201cf90813c9",
+      "component-passport.json": "sha256:76aa6b939b924f0af42c0666e14788544effe583a4564ea8e9d242c5ae5171ec",
       "eval-profile.json": "sha256:4599e84c9bbbcb33cdf45a6c15016e0cf86474fd1425794fc29c1dbea1863435",
       "native/src/main.js": "sha256:e09b909ed48f02132728a7bfc1d59ed2384be85fafbbacb8b835288dc8768d2a"
     },

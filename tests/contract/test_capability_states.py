@@ -119,6 +119,10 @@ def test_no_reason_outlives_the_cell_it_explains() -> None:
 def test_the_missing_projections_are_derived_and_each_belongs_to_an_issue() -> None:
     """`#456`'s scope derived from the tables rather than restated from its title.
 
+    The set is empty now. It is still derived rather than deleted, because the
+    property this holds is not "three cells are missing" but "every missing cell
+    is explained" — and that survives the work landing.
+
     Two claims, kept apart because they answer to different work. The `mcp`
     cells are `#456` — codex, grok-build and opencode — and that set is not
     written here: it is what the two sources disagree about, and it changes when
@@ -136,11 +140,13 @@ def test_the_missing_projections_are_derived_and_each_belongs_to_an_issue() -> N
         for kind in COMPONENT_KINDS
         if _state(harness_id, kind) == "projection_missing"
     }
-    assert {pair for pair in missing if pair[1] == "mcp"} == {
-        ("codex", "mcp"),
-        ("grok-build", "mcp"),
-        ("opencode", "mcp"),
-    }
+    # Empty since 2026-08-31, and empty is the point rather than an omission.
+    # `#456` was exactly these three, and `ADR-0129` closed them: the landing is
+    # a key inside a file the provider owns, so the component compiles into a
+    # contribution to that file instead of asking for a surface that does not
+    # exist. A cell reappearing here is a regression or a new harness, and
+    # either way it must be explained before it passes.
+    assert {pair for pair in missing if pair[1] == "mcp"} == set()
     # Every one of them is explained, which the first test also asserts; here it
     # is the set itself that must not grow silently.
     assert missing == set(PROJECTION_MISSING), missing

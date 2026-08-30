@@ -495,8 +495,30 @@ def test_a_harness_whose_mcp_lives_inside_a_settings_file_has_no_surface() -> No
     """
     from ai_stp_cli.local import harness_catalog
 
-    for harness in ("codex", "grok-build", "opencode", "claude-code"):
-        assert composition.native_surface("mcp", harness) == "", harness
+    # Three of these four left this list on 2026-08-31, and the reason is
+    # `ADR-0129` rather than a reversal. There *is* a surface — the owned host
+    # file — and the component compiles into a contribution to it: the provider
+    # is handed `setting`, the kind it declares, with the file's complete bytes.
+    # Refusing was the honest answer only while nothing could assemble them.
+    for harness, host in (
+        ("codex", "config.toml"),
+        ("grok-build", "config.toml"),
+        ("opencode", "opencode.json"),
+    ):
+        assert composition.native_surface("mcp", harness) == host, harness
+        rule = composition.rule_for("mcp", harness)
+        assert rule is not None and rule.declared_key, harness
+        # Named to the provider as `setting`, because that is what it declares.
+        # The passport keeps `mcp`: a component's kind is what it is, and a
+        # projection is where it lands.
+        assert rule.provider_kind == "setting", harness
+
+    # `claude-code` stays, and for the reason that has always been its own: its
+    # MCP is not a key inside a file the provider owns. `.mcp.json` is a project
+    # file at a repository root and the user scope lives in `~/.claude.json`,
+    # which the provider holds in `never_touch`. There is no owned host to
+    # contribute to, so the refusal is still the right answer here.
+    assert composition.native_surface("mcp", "claude-code") == ""
 
     # `pi` left this list on 2026-08-29, and it had been here for the wrong
     # reason: its MCP does not live inside a settings file, it does not exist.
@@ -518,11 +540,10 @@ def test_a_harness_whose_mcp_lives_inside_a_settings_file_has_no_surface() -> No
     # surface the harness reads.
     assert composition.native_surface("mcp", "cursor") == "mcp.json"
     lost = composition.compose(
-        (_surface("component_a", component_type="mcp", harness_id="codex"),),
-        composition.Target(harness_id="codex", os="linux", arch="x86_64"),
+        (_surface("component_a", component_type="mcp", harness_id="claude-code"),),
+        composition.Target(harness_id="claude-code", os="linux", arch="x86_64"),
     )
-    hint = next(item for item in lost.conflicts if item.code == "native_surface_lost")
-    assert "setting" in hint.details["hint"]
+    assert any(item.code == "native_surface_lost" for item in lost.conflicts)
 
     # `claude-code` joined that list on 2026-08-27, and for a third reason
     # rather than the same one. Its MCP does not live inside a settings file —
@@ -563,8 +584,16 @@ def test_grok_has_no_provider_projection_for_mcp_or_command() -> None:
     keeps measuring the nested `mcp_servers` table for inventory, which is a
     different question from whether a provider may install one.
     """
-    for kind in ("mcp", "command"):
-        assert composition.native_surface(kind, "grok-build") == "", kind
+    # `command` still has no surface: slash commands are skills for this
+    # product, so there is no `commands/` directory and promising one would
+    # send a projection where the harness never looks.
+    assert composition.native_surface("command", "grok-build") == ""
+
+    # `mcp` left on 2026-08-31 without the surface changing: it is still the
+    # `mcp_servers` table inside the owned `config.toml`, and what changed is
+    # that a contribution to that file can now be assembled (`ADR-0129`).
+    # Promising a standalone file would still be wrong; this promises the host.
+    assert composition.native_surface("mcp", "grok-build") == "config.toml"
     assert composition.native_surface("setting", "grok-build") == "config.toml"
 
 

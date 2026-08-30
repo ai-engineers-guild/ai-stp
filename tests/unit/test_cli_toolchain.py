@@ -319,7 +319,17 @@ def test_capabilities_separate_what_the_product_reads_from_what_this_build_route
     states = {
         cell.state for row in rows.values() if row.components is not None for cell in row.components
     }
-    assert {"supported", "projection_missing", "routed_only", "unsupported"} <= states
+    # `projection_missing` left this list on 2026-08-31, and its absence is the
+    # result rather than a weakening: `ADR-0129` gave the last four cells that
+    # held it — claude-code's `hook` and the `mcp` of codex, grok-build and
+    # opencode — a route, by compiling a component that lands inside an owned
+    # file as a contribution to that file.
+    #
+    # The state itself stays derivable and stays asserted above, cell by cell.
+    # What this line holds is that the table is not answering uniformly, and
+    # four distinct states still say that.
+    assert {"supported", "routed_only", "project_only", "unsupported"} <= states
+    assert "projection_missing" not in states
 
     # `#462` item 4: a state that is not `supported` carries why, on the wire.
     # These reasons were correct and written twice where a caller could not read

@@ -67,6 +67,40 @@ def assemble(*, host: str, current: bytes | None, key: str, value: JsonValue) ->
     return _json(host=host, current=current, key=key, value=value)
 
 
+def parse_value(*, host: str, content: bytes) -> JsonValue:
+    """What a contributing component's own bytes mean as the key's value.
+
+    A component that contributes `mcp_servers` to a `config.toml` carries the
+    servers, not the file: its bytes are read in the host's own format and
+    become what that key holds. The alternative — treating the bytes as opaque
+    and splicing them in as text — would put the consumer in the business of
+    editing TOML by hand, which is what the format-preserving writer exists to
+    avoid.
+
+    Refused rather than guessed when it does not parse. A component whose
+    content is not readable in its host's format is a packaging error, and
+    installing something unreadable under a key the product will read is worse
+    than not installing.
+    """
+    suffix = PurePosixPath(host).suffix.casefold()
+    try:
+        text = content.decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise _refused(
+            "the contributing component is not UTF-8", host=host, detail=type(error).__name__
+        ) from error
+    try:
+        if suffix == TOML:
+            return cast("JsonValue", tomlkit.parse(text).unwrap())
+        return cast("JsonValue", json.loads(text))
+    except ValueError as error:
+        raise _refused(
+            "the contributing component does not parse in its host's format",
+            host=host,
+            detail=type(error).__name__,
+        ) from error
+
+
 def _toml(*, host: str, current: bytes | None, key: str, value: JsonValue) -> bytes:
     """Replace one key, keeping every comment and every unrelated line."""
     if current is None:

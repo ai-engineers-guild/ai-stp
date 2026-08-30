@@ -114,6 +114,23 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     # Citation is the provider's own baseline row rather than elimination:
     # `references/claude-code-baseline.json:100`.
     Rule("setting", "settings.json", "file", "claude-code"),
+    # `ADR-0129`: the landing is a key inside a file the provider already
+    # owns, so this compiles into a contribution to that file and the
+    # provider is told `setting` — the kind it declares. The passport keeps
+    # `hook`, which describes the object rather than its delivery.
+    #
+    # Added last on purpose. A rule that declares the surface before the
+    # reconstruction exists does not fix the refusal, it replaces it with a
+    # silent skip: the bundle compiles, the install answers `verified`, and
+    # nothing is on the machine.
+    Rule(
+        "hook",
+        "settings.json",
+        "file",
+        "claude-code",
+        declared_key="hooks",
+        provider_kind="setting",
+    ),
     Rule("instruction", "AGENTS.md", "file", "codex"),
     # `skills`, under the shared convention's own root, not `.agents/skills`
     # under codex's configuration home. `ADR-0127`, and the eighth face of one
@@ -132,6 +149,23 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     # kinds `["skill"]`.
     Rule("skill", "skills", "directory", "codex", target_scope="user_root"),
     Rule("setting", "config.toml", "file", "codex"),
+    # `ADR-0129`: the landing is a key inside a file the provider already
+    # owns, so this compiles into a contribution to that file and the
+    # provider is told `setting` — the kind it declares. The passport keeps
+    # `mcp`, which describes the object rather than its delivery.
+    #
+    # Added last on purpose. A rule that declares the surface before the
+    # reconstruction exists does not fix the refusal, it replaces it with a
+    # silent skip: the bundle compiles, the install answers `verified`, and
+    # nothing is on the machine.
+    Rule(
+        "mcp",
+        "config.toml",
+        "file",
+        "codex",
+        declared_key="mcp_servers",
+        provider_kind="setting",
+    ),
     # `references/codex-baseline.json:52` and `:60`. Both were declared by the
     # provider and routable by nothing here, which conformance reported as
     # `declared_route_is_compilable:hook` and `:command` failing under the
@@ -246,6 +280,14 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     Rule("agent", "agents", "directory", "opencode"),
     Rule("plugin", "plugins", "directory", "opencode", projection_kind="plugin"),
     Rule("setting", "opencode.json", "file", "opencode"),
+    Rule(
+        "mcp",
+        "opencode.json",
+        "file",
+        "opencode",
+        declared_key="mcp",
+        provider_kind="setting",
+    ),
     # Cursor installs a plugin rather than sibling directories: its manifest
     # declares commands, hooks, MCP entries, agents, skills and rules as paths
     # inside the plugin, so the plugin is what a provider writes.
@@ -411,6 +453,14 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     Rule("agent", "agents", "directory", "grok-build"),
     Rule("plugin", "plugins", "directory", "grok-build", projection_kind="plugin"),
     Rule("setting", "config.toml", "file", "grok-build"),
+    Rule(
+        "mcp",
+        "config.toml",
+        "file",
+        "grok-build",
+        declared_key="mcp_servers",
+        provider_kind="setting",
+    ),
 )
 
 
@@ -866,7 +916,23 @@ def _paths(surfaces: tuple[Surface, ...], target: Target) -> list[Conflict]:
                     )
                 )
                 continue
-            claims = claimed_paths(path) if item.component_type == "hook" else (path,)
+            # A contribution owns a key, not the file (`ADR-0129`). Claiming
+            # the path would collide with the `setting` component that owns the
+            # rest of it, and those two legitimately coexist: the bundle
+            # assembles the contribution onto the sibling's bytes.
+            #
+            # The existing overlap rule needs no change to express this.
+            # `config.toml` and `config.toml#mcp_servers` are disjoint because
+            # neither is a `/`-rooted prefix of the other, while two components
+            # contributing the same key claim the identical string and still
+            # collide — which is the case that must keep failing.
+            contributing = rule_for(item.component_type, target.harness_id)
+            if contributing is not None and contributing.declared_key:
+                claims: tuple[str, ...] = (f"{path}#{contributing.declared_key}",)
+            elif item.component_type == "hook":
+                claims = claimed_paths(path)
+            else:
+                claims = (path,)
             held = next(
                 (
                     owner

@@ -351,7 +351,12 @@ def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
                 next_actions=["install plan --protocol-version 3 ..."],
             )
         _supports_bundle(info, held.harness_id, bundle.BUNDLE_FORMAT)
-        compiled = select_command.compile_harness_bundle(connection, proposal_id, held.harness_id)
+        # The installing machine's target, because a component contributing a
+        # key to an owned file needs that file's current bytes and they exist
+        # only here (`ADR-0129`).
+        compiled = select_command.compile_harness_bundle(
+            connection, proposal_id, held.harness_id, Path(provider_target)
+        )
         bundle_path = cache.store_raw_artifact_bytes(compiled.archive, compiled.artifact_digest)
         bound_bundle = bundle_protocol.binding(
             bundle_path,

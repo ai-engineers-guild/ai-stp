@@ -39,8 +39,15 @@ REFERENCE_CASES = {
     "hook-python-antigravity": ("hook", "python", "antigravity"),
 }
 
+#: Kinds a harness has no projection for, so scaffolding one is refused rather
+#: than producing a component nothing could install.
+#:
+#: `claude-code/hook` left on 2026-08-31 and `opencode` kept its own: hooks for
+#: claude-code are the `hooks` key inside the owned `settings.json`, which
+#: `ADR-0129` compiles as a contribution to that file. Opencode's hook has no
+#: owned host of that shape, so its refusal stands for its own reason rather
+#: than by sharing a row.
 UNSUPPORTED_NATIVE_KINDS = {
-    "claude-code": {"hook"},
     "codex": {"plugin"},
     "pi": {"hook", "agent"},
     "opencode": {"hook"},

@@ -492,7 +492,14 @@ def test_a_kind_the_provider_cannot_project_is_refused_before_selection() -> Non
     assert len(projectable) + len(absent) == len(kinds) == 8
     assert projectable and absent, "the fixture harness must have both, or this proves nothing"
     # Named, so the partition is the assertion rather than its precondition.
-    assert set(absent) == {"mcp", "hook"}, absent
+    # `hook` left on 2026-08-31: `ADR-0129` gives it a surface, the `hooks` key
+    # inside the owned `settings.json`, and a component landing inside a file
+    # the provider owns compiles into a contribution to that file. `mcp` stays
+    # absent for the reason that has always been its own — `.mcp.json` is a
+    # project file and the user scope lives in `~/.claude.json`, which the
+    # provider holds in `never_touch`, so there is no owned host here to
+    # contribute to.
+    assert set(absent) == {"mcp"}, absent
 
     for kind in projectable:
         verdict = eligibility.assess(

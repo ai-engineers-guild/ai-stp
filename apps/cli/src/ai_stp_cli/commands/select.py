@@ -36,6 +36,7 @@ from ai_stp_cli.local import (
     composition,
     consent,
     content,
+    contribution,
     eligibility,
     graph,
     harnesses,
@@ -1294,7 +1295,10 @@ def harness_bundle(parameters: Mapping[str, object]) -> Answer[HarnessBundle]:
 
 
 def compile_harness_bundle(
-    connection: sqlite3.Connection, proposal_id: str, harness: str
+    connection: sqlite3.Connection,
+    proposal_id: str,
+    harness: str,
+    host_root: Path | None = None,
 ) -> bundle.Bundle:
     """Compile exact bytes for a confirmed proposal without opening another registry."""
     proposal = selection.held(connection, proposal_id)
@@ -1323,6 +1327,7 @@ def compile_harness_bundle(
         proposal.confirmed_version,
         expected_harness=harness,
         members=proposal.members,
+        host_root=host_root,
     )
 
 
@@ -1333,6 +1338,7 @@ def compile_setup_version_bundle(
     *,
     expected_harness: str | None = None,
     members: tuple[selection.Member, ...] = (),
+    host_root: Path | None = None,
 ) -> bundle.Bundle:
     """Compile one stored immutable SetupVersion through the canonical bundle path.
 
@@ -1416,7 +1422,7 @@ def compile_setup_version_bundle(
     snapshot = ""
     if isinstance(setup_facts, dict):
         snapshot = str(_value(setup_facts.get("snapshot")) or "")
-    sources = _bundle_sources(connection, surfaces, target)
+    sources = _bundle_sources(connection, surfaces, target, host_root)
     return bundle.compile_bundle(
         sources,
         setup_stable_id=setup_version.stable_id,
@@ -1465,6 +1471,7 @@ def _bundle_sources(
     connection: sqlite3.Connection,
     surfaces: tuple[composition.Surface, ...],
     target: composition.Target,
+    host_root: Path | None = None,
 ) -> tuple[bundle.Source, ...]:
     """The bytes each component contributes, at the path it lands on.
 
@@ -1474,6 +1481,14 @@ def _bundle_sources(
     reviewed.
     """
     sources: list[bundle.Source] = []
+    # Applied after every other source, because a contribution has to land on
+    # whatever else this setup puts in the same file. A setup carrying both a
+    # `setting` component for `config.toml` and an `mcp` component contributing
+    # `mcp_servers` to it has one file and two owners of different parts of it;
+    # assembling the contribution against the target while the setting also
+    # wrote that path would put two sources on one path, and the bundle refuses
+    # that — correctly, because it cannot know which one the harness should get.
+    contributions: list[tuple[components.Rule, str, components.ComponentFile]] = []
     for item in sorted(surfaces, key=lambda item: item.stable_id):
         stored = revisions.get(connection, item.revision_id)
         if stored is None:  # pragma: no cover - the closure already read it
@@ -1530,6 +1545,30 @@ def _bundle_sources(
             payload,
             content_format or components.COMPONENT_FILE_FORMAT,
         )
+        if rule.declared_key:
+            # `ADR-0129`: this component's landing is a key inside a file the
+            # provider already owns, so it compiles into a contribution to that
+            # file rather than a surface of its own. The provider is handed the
+            # host's complete bytes under the kind it does declare.
+            #
+            # `host_root` is the installing machine's target, and its absence is
+            # a refusal rather than a fallback. A bundle is portable and a
+            # merged host file is not: one built without a target would carry
+            # another machine's `config.toml`, and the same bundle installed
+            # twice would write the first machine's file onto the second.
+            if host_root is None:
+                raise CliFailure(
+                    "AI_STP_PRECONDITION_FAILED",
+                    "this component contributes a key to an owned file and needs a named target",
+                    details={
+                        "stable_id": item.stable_id,
+                        "host": rule.relative,
+                        "key": rule.declared_key,
+                    },
+                    next_actions=["install plan --target <directory> --json"],
+                )
+            contributions.append((rule, item.stable_id, expanded[0]))
+            continue
         if rule.shape == "file":
             if len(expanded) == 1 and not expanded[0].path:
                 projection = ((rule.relative, expanded[0]),)
@@ -1582,6 +1621,31 @@ def _bundle_sources(
                     mode=member.mode,
                 )
             )
+    for rule, contributor, member in contributions:
+        # The base is what this setup already puts there, and the target's
+        # current bytes only when it puts nothing. That ordering is the whole
+        # point: a contribution adds a key, and everything else in the file —
+        # whether it came from a sibling component or from the machine — stays.
+        existing = next((s for s in sources if s.path == rule.relative), None)
+        host = host_root / rule.relative if host_root is not None else None
+        if existing is not None:
+            base: bytes | None = existing.content
+            sources.remove(existing)
+        else:
+            base = host.read_bytes() if host is not None and host.is_file() else None
+        sources.append(
+            bundle.Source(
+                path=rule.relative,
+                content=contribution.assemble(
+                    host=rule.relative,
+                    current=base,
+                    key=rule.declared_key,
+                    value=contribution.parse_value(host=rule.relative, content=member.content),
+                ),
+                owner=contributor,
+                mode=member.mode,
+            )
+        )
     return tuple(sources)
 
 
