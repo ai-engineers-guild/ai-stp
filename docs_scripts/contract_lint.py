@@ -160,8 +160,25 @@ ENV_FACT_RE = re.compile(
     r"\bOS\b|\barchitecture\b|операционн[а-яё]+ систем|архитектур"
     r"|установленн[а-яё]+ харнесс|верси[а-яё]+ инструмент",
 )
+#: The exemption for CT055: a line saying the environment does **not** belong to
+#: the developer passport. What matters is that the negation binds to the
+#: passport, not that a negation appears somewhere on the line.
+#:
+#: This was four bare phrases — `не содержит|а не паспорту разработчика|не
+#: записывается|не изменяет` — and it was wrong in both directions. A planted
+#: control, "Паспорт разработчика несёт операционную систему и архитектуру
+#: машины, и порядок записей **не изменяет** их смысл", passed silently: a real
+#: violation exempted because an unrelated clause carried one of the four.
+#: Meanwhile the phrasing the estate actually uses for this exemption —
+#: `ADR-0025`: "не входят в паспорт разработчика" — was in none of the four and
+#: would have been flagged.
+#:
+#: Measured before changing it: the old regex exempted **zero** lines in the
+#: scanned tree. It had no members and cost the check its teeth.
 DEV_PASSPORT_SKIP_RE = re.compile(
-    r"не содержит|а не паспорту разработчика|не записывается|не изменяет",
+    r"не\s+(?:\S+\s+){0,3}(?:в\s+|у\s+)?(?:паспорт[а-яё]*\s+разработчика|DeveloperPassport)"
+    r"|(?:паспорт[а-яё]*\s+разработчика|DeveloperPassport)\s+(?:\S+\s+){0,2}не\s",
+    re.IGNORECASE,
 )
 REPORT_EXCLUDED_RE = re.compile(
     r"канал[а-яё]* жалоб[^\n]{0,30}нет|пользовательск[а-яё]+ жалоб[а-яё]* на компонент",

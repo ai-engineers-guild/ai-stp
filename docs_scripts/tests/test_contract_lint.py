@@ -340,6 +340,35 @@ class ContractLintTests(unittest.TestCase):
         )
         self.assertNotIn("CT055", self.codes())
 
+    def test_an_unrelated_negation_does_not_exempt_the_violation(self) -> None:
+        """The planted control the old four-phrase skip let through.
+
+        A real violation — the developer passport carrying OS and architecture —
+        with `не изменяет` in a clause about something else entirely. The
+        exemption is for a negation that binds to the passport; a negation
+        anywhere on the line is not the same claim, and reading it as one is how
+        a check keeps its green while admitting what it was written to catch.
+        """
+        self.write(
+            "specs/active/x.md",
+            self.doc(
+                "Паспорт разработчика несёт операционную систему и архитектуру "
+                "машины, и порядок записей не изменяет их смысл."
+            ),
+        )
+        self.assertIn("CT055", self.codes())
+
+    def test_the_wording_the_estate_actually_uses_is_exempt(self) -> None:
+        """`ADR-0025` phrases it this way, and the old skip did not carry it."""
+        self.write(
+            "specs/active/x.md",
+            self.doc(
+                "Наблюдаемые операционная система, архитектура и версии "
+                "инструментов не входят в паспорт разработчика."
+            ),
+        )
+        self.assertNotIn("CT055", self.codes())
+
     def test_report_channel_excluded_fails(self) -> None:
         self.write("specs/active/x.md", self.doc("Пользовательского канала жалоб в MVP нет."))
         self.assertIn("CT056", self.codes())
