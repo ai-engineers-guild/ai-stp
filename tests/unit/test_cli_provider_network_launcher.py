@@ -221,17 +221,17 @@ def test_system_path_refusals_are_specific(monkeypatch: pytest.MonkeyPatch) -> N
 
 
 def test_probe_socket_helpers_prove_the_positive_control() -> None:
-    ipv4 = network_launcher._listener(socket.AF_INET, "127.0.0.1")  # pyright: ignore[reportPrivateUsage]
+    ipv4 = network_launcher.listener(socket.AF_INET, "127.0.0.1")
     try:
-        ipv6 = network_launcher._listener(socket.AF_INET6, "::1")  # pyright: ignore[reportPrivateUsage]
+        ipv6 = network_launcher.listener(socket.AF_INET6, "::1")
     except OSError:
         ipv4.close()
         pytest.skip("this host has no IPv6 loopback")
     dns = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     dns.bind(("127.0.0.1", 0))
     try:
-        assert network_launcher._port(ipv4) > 0  # pyright: ignore[reportPrivateUsage]
-        network_launcher._positive_control(ipv4, ipv6, dns)  # pyright: ignore[reportPrivateUsage]
+        assert network_launcher.port(ipv4) > 0
+        network_launcher.positive_control(ipv4, ipv6, dns)
     finally:
         ipv4.close()
         ipv6.close()
@@ -242,7 +242,7 @@ def test_probe_socket_helpers_prove_the_positive_control() -> None:
             return "not-an-address"
 
     with pytest.raises(OSError, match="numeric port"):
-        network_launcher._port(cast(socket.socket, InvalidSocket()))  # pyright: ignore[reportPrivateUsage]
+        network_launcher.port(cast(socket.socket, InvalidSocket()))
 
 
 @pytest.mark.parametrize(
@@ -263,7 +263,7 @@ def test_probe_refuses_bad_child_results(
     expected: str,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(network_launcher, "_positive_control", _ignore_positive_control)
+    monkeypatch.setattr(network_launcher, "positive_control", _ignore_positive_control)
     monkeypatch.setattr(subprocess, "run", _completed_runner(completed))
     passed, evidence = network_launcher._probe_bubblewrap(Path("/usr/bin/bwrap"))  # pyright: ignore[reportPrivateUsage]
     assert not passed
@@ -274,7 +274,7 @@ def test_probe_accepts_only_the_exact_denial_result(monkeypatch: pytest.MonkeyPa
     completed = subprocess.CompletedProcess(
         [], 0, '{"dns_udp":"sent","ipv4":"denied","ipv6":"denied"}', ""
     )
-    monkeypatch.setattr(network_launcher, "_positive_control", _ignore_positive_control)
+    monkeypatch.setattr(network_launcher, "positive_control", _ignore_positive_control)
     monkeypatch.setattr(subprocess, "run", _completed_runner(completed))
     passed, evidence = network_launcher._probe_bubblewrap(Path("/usr/bin/bwrap"))  # pyright: ignore[reportPrivateUsage]
     assert passed
@@ -285,7 +285,7 @@ def test_probe_accepts_only_the_exact_denial_result(monkeypatch: pytest.MonkeyPa
 
 
 def test_probe_failures_never_become_enforcement(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(network_launcher, "_positive_control", _ignore_positive_control)
+    monkeypatch.setattr(network_launcher, "positive_control", _ignore_positive_control)
 
     def timed_out(*_args: object, **_kwargs: object) -> subprocess.CompletedProcess[str]:
         raise subprocess.TimeoutExpired("bwrap", 3)
@@ -298,7 +298,7 @@ def test_probe_failures_never_become_enforcement(monkeypatch: pytest.MonkeyPatch
     def no_socket(*_args: object, **_kwargs: object) -> socket.socket:
         raise OSError("no socket")
 
-    monkeypatch.setattr(network_launcher, "_listener", no_socket)
+    monkeypatch.setattr(network_launcher, "listener", no_socket)
     passed, evidence = network_launcher._probe_bubblewrap(Path("/usr/bin/bwrap"))  # pyright: ignore[reportPrivateUsage]
     assert not passed
     assert "positive-control socket unavailable" in evidence[0]

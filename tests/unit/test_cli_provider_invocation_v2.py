@@ -22,16 +22,26 @@ class RecordingLauncher:
         self.capability = capability
         self.calls: list[tuple[str, ...]] = []
 
-    def wrap(
+    def run(
         self,
         argv: tuple[str, ...],
         *,
         target: Path,
         writable: tuple[Path, ...] = (),
-    ) -> tuple[str, ...]:
+        command: str,
+    ) -> JsonValue:
+        """Record the argv, then run it exactly as an unisolated call would.
+
+        The stub isolates nothing on purpose — the real Bubblewrap test below
+        proves enforcement. What these tests hold is that a local phase reaches
+        the launcher at all and a network phase does not, and that is a property
+        of the call graph rather than of the sandbox.
+        """
+        from ai_stp_cli.provider import conformance
+
         assert target.is_absolute()
         self.calls.append(argv)
-        return argv
+        return conformance.invoke_argv(argv, command=command)
 
 
 def _provider(tmp_path: Path, body: str) -> str:
