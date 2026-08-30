@@ -48,16 +48,26 @@ def test_the_document_lists_success_and_the_registry_does_not() -> None:
     assert SUCCESS not in VALID_EXIT_CLASSES
 
 
-#: The five facts `device-passport.md` closes the published summary to, in the
-#: order the document states them, mapped to the fields that carry them.
-DOCUMENTED_SUMMARY = {
-    "display_name",
-    "operating_system",
-    "architecture",
-    "detected_harnesses",
-    "toolchain_profile_version",
-    "summary_updated_at",
-}
+#: Which fields each bullet of `device-passport.md` carries, in the order the
+#: document states them. One structure, not a set and a count: the comment here
+#: said "five facts" above a six-member set while a second test asserted the
+#: bullets numbered five, and both were green — the five counted bullets, the
+#: six counted fields, and the bullet naming two was what reconciled them.
+#:
+#: The bullets are Russian prose, so the pairing cannot be derived and has to be
+#: written. What it must not be is written *twice*: adding a field now forces
+#: the editor to say which bullet carries it, and the count follows.
+DOCUMENTED_BULLETS: tuple[frozenset[str], ...] = (
+    frozenset({"display_name"}),
+    frozenset({"operating_system", "architecture"}),
+    frozenset({"detected_harnesses"}),
+    frozenset({"toolchain_profile_version"}),
+    frozenset({"summary_updated_at"}),
+)
+
+DOCUMENTED_SUMMARY: frozenset[str] = frozenset(
+    name for bullet in DOCUMENTED_BULLETS for name in bullet
+)
 
 
 def test_the_device_summary_carries_exactly_the_closed_list() -> None:
@@ -67,10 +77,11 @@ def test_the_device_summary_carries_exactly_the_closed_list() -> None:
     assert declared == DOCUMENTED_SUMMARY
 
 
-def test_the_document_still_closes_the_summary_to_five_facts() -> None:
+def test_the_document_still_closes_the_summary_to_the_bullets_it_is_paired_with() -> None:
     # The list is prose, so it is read rather than parsed; what is checked is
-    # that it is still a closed list of five bullets, because the model above is
-    # written against exactly that.
+    # that it is still closed and still as long as the pairing above claims.
+    # The length comes from `DOCUMENTED_BULLETS` rather than a literal, so a
+    # sixth bullet cannot be reconciled by editing one character.
     text = (CONTRACTS / "device-passport.md").read_text(encoding="utf-8")
     section = text.split("Разрешённая сводка устройства закрыта по составу:", 1)[1]
     bullets: list[str] = []
@@ -79,7 +90,7 @@ def test_the_document_still_closes_the_summary_to_five_facts() -> None:
             bullets.append(line)
         elif bullets and line.strip() == "":
             break
-    assert len(bullets) == 5
+    assert len(bullets) == len(DOCUMENTED_BULLETS)
 
 
 def test_the_summary_can_hold_no_path_and_no_environment_value() -> None:
