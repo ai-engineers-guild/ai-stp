@@ -182,17 +182,32 @@ DEFAULT_PATHEXT: Final[str] = ".com;.exe;.bat;.cmd"
 
 
 def is_executable_file(path: Path) -> bool:
-    """Whether `path` is a file this user could run, on this operating system.
+    """Whether `path` is a file **this program** could run, on this platform.
 
     `os.access(path, os.X_OK)` is the POSIX answer and **not** a portable one:
     Windows has no execute permission bit, so the call degrades to an existence
     test and returns `True` for `notes.txt`, a `.dll`, or anything else that is
-    merely there. Every caller here is choosing or validating a provider binary,
+    merely there. Every caller is choosing or validating a provider binary,
     where "returns True for every file" is not a weaker check but the wrong
     question — discovery would adopt the first file in the directory.
 
-    What makes a file runnable on Windows is its extension being in `PATHEXT`,
-    which is what the shell itself consults, so that is what is asked.
+    Windows has two right answers, not one, and taking only the first is how the
+    first attempt at this refused files the CLI runs every day. A file is
+    runnable there if its extension is in `PATHEXT`, which is what the shell
+    consults — our fetched provider artifacts are `.exe` on both Windows
+    targets — **or** if it carries an interpreter shebang, because Windows does
+    not implement that kernel convention and
+    `provider.conformance._executable_argv` hands such a file to the running
+    interpreter instead. Refusing those would deny a launch this program
+    performs.
+
+    Any `#!` line counts, not only the `python` one that launcher acts on, and
+    the asymmetry is deliberate. A validator looser than the launcher costs a
+    loud failure at spawn; one stricter than it silently denies a working
+    configuration. The defect this replaced accepted *everything*; accepting
+    executables and scripts still refuses `notes.txt`, a `.dll`, a `.json` and
+    every other file that is merely present, which is the discrimination that
+    was missing.
     """
     if not path.is_file():
         return False
@@ -200,7 +215,22 @@ def is_executable_file(path: Path) -> bool:
         return os.access(path, os.X_OK)
     suffixes = os.environ.get("PATHEXT") or DEFAULT_PATHEXT
     runnable = {item.strip().lower() for item in suffixes.split(";") if item.strip()}
-    return path.suffix.lower() in runnable
+    if path.suffix.lower() in runnable:
+        return True
+    return _has_interpreter_line(path)
+
+
+def _has_interpreter_line(path: Path) -> bool:
+    """Whether the first bytes name an interpreter, read as bytes, never decoded.
+
+    A provider is somebody else's file: it may be a binary whose first bytes are
+    not text in any encoding, so this reads a bounded prefix and compares bytes.
+    """
+    try:
+        with path.open("rb") as stream:
+            return stream.readline(256).startswith(b"#!")
+    except OSError:
+        return False
 
 
 #: How long a process waits for another one's first-run work before giving up.

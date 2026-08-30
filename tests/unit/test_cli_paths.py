@@ -231,57 +231,72 @@ def test_the_bootstrap_lock_can_be_re_entered_by_its_holder() -> None:
 
 # --- what "runnable" means on each platform -------------------------------
 
+# The Windows branch is pure string and byte work, so it can be exercised
+# anywhere by patching `POSIX`. The POSIX branch cannot: it delegates to
+# `os.access`, whose own answer is the platform's, so forcing `POSIX = True` on
+# a Windows runner asks the real `os.access` and gets the Windows answer back.
+# The first version of these tests did exactly that and failed on the runner it
+# was written to protect. POSIX assertions are therefore guarded by the real
+# platform; Windows assertions are not.
+
 
 def test_a_plain_file_is_not_runnable_on_either_platform(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The predicate `os.access(X_OK)` replaced answered `True` here on Windows.
-
-    Both branches are exercised on whichever platform runs this, because the
-    defect being fixed was invisible to the POSIX leg for seventeen commits: the
-    Windows leg is where the answer differs, so a test that only asks the local
-    platform proves the half that was already right.
-    """
+    """The predicate `os.access(X_OK)` replaced answered `True` here on Windows."""
     plain = tmp_path / "notes.txt"
     plain.write_text("read me\n", encoding="utf-8")
 
-    monkeypatch.setattr(paths, "POSIX", True)
-    assert paths.is_executable_file(plain) is False
-
     monkeypatch.setattr(paths, "POSIX", False)
     assert paths.is_executable_file(plain) is False
 
+    if _POSIX:
+        monkeypatch.setattr(paths, "POSIX", True)
+        assert paths.is_executable_file(plain) is False
 
-def test_the_windows_answer_is_the_extension_and_the_posix_answer_is_the_bit(
+
+def test_the_windows_answer_is_the_extension_or_an_interpreter_line(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Each platform's real question, asked of a file that fails the other's."""
-    named = tmp_path / "provider.exe"
-    named.write_text("", encoding="utf-8")
-    named.chmod(0o600)
-
-    bit = tmp_path / "provider"
-    bit.write_text("", encoding="utf-8")
-    bit.chmod(0o700)
-
+    """Both of Windows' right answers, and a file that is neither."""
     monkeypatch.setattr(paths, "POSIX", False)
-    assert paths.is_executable_file(named) is True
-    assert paths.is_executable_file(bit) is False
 
-    monkeypatch.setattr(paths, "POSIX", True)
-    assert paths.is_executable_file(bit) is True
-    # Skipped where the platform refuses to hand out a file without execute:
-    # the assertion is about the mode, and only POSIX has one to clear.
-    if paths.POSIX:
-        assert paths.is_executable_file(named) is False
+    native = tmp_path / "provider.exe"
+    native.write_bytes(b"MZ\x90\x00")
+    assert paths.is_executable_file(native) is True
+
+    # Windows does not implement shebangs, but this program does: the launcher
+    # hands such a file to the interpreter, so refusing it here would deny a
+    # launch the CLI performs.
+    script = tmp_path / "provider"
+    script.write_text("#!/usr/bin/env python3\nprint('ok')\n", encoding="utf-8")
+    assert paths.is_executable_file(script) is True
+
+    neither = tmp_path / "provider.dll"
+    neither.write_bytes(b"\x00\x01\x02\x03")
+    assert paths.is_executable_file(neither) is False
+
+
+@pytest.mark.skipif(not _POSIX, reason="the mode bit is the POSIX question only")
+def test_the_posix_answer_is_the_mode_bit(tmp_path: Path) -> None:
+    """A shebang without the bit is not runnable here, which is the difference."""
+    script = tmp_path / "provider"
+    script.write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+    script.chmod(0o600)
+    assert paths.is_executable_file(script) is False
+
+    script.chmod(0o700)
+    assert paths.is_executable_file(script) is True
 
 
 def test_a_directory_is_never_runnable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """`os.access` says yes to a traversable directory, which is not the question."""
     place = tmp_path / "provider.exe"
     place.mkdir()
-    for posix in (True, False):
-        monkeypatch.setattr(paths, "POSIX", posix)
+    monkeypatch.setattr(paths, "POSIX", False)
+    assert paths.is_executable_file(place) is False
+    if _POSIX:
+        monkeypatch.setattr(paths, "POSIX", True)
         assert paths.is_executable_file(place) is False
 
 
@@ -290,7 +305,7 @@ def test_the_machine_pathext_is_honoured_over_the_default(
 ) -> None:
     """`PATHEXT` is what the shell consults, so it is what decides here."""
     place = tmp_path / "provider.psm"
-    place.write_text("", encoding="utf-8")
+    place.write_bytes(b"\x00binary, no interpreter line")
     monkeypatch.setattr(paths, "POSIX", False)
 
     monkeypatch.delenv("PATHEXT", raising=False)
