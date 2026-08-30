@@ -149,7 +149,7 @@ export const componentSummary = componentSummaryFixture;
 
 export const setupSummaryFixture = makeSetupSummary({
   stable_id: FIXTURE_SETUP_ID,
-  latest_version: "1.0",
+  latest_version: "1.1",
   latest_name: "python-ci-workspace",
   latest_description:
     "Pinned Claude Code workspace for Python services: security review skill, audit hook, and release checklist.",
@@ -216,18 +216,33 @@ function componentDetailFrom(
   };
 }
 
-function setupDetailFrom(summary: SetupSummaryFixture): SetupDetailFixture {
+function setupDetailFrom(
+  summary: SetupSummaryFixture,
+  versions: string[] = [],
+): SetupDetailFixture {
+  const offered = versions.length > 0 ? versions : [summary.latest_version];
   return {
     schema_version: 1,
     summary,
-    versions: [
-      versionEntry(summary.latest_version, summary.latest_published_at, summary.latest_support),
-    ],
+    versions: offered.map((version) =>
+      versionEntry(
+        version,
+        version === summary.latest_version ? summary.latest_published_at : FIXTURE_TIMESTAMP,
+        summary.latest_support,
+      ),
+    ),
   };
 }
 
 export const componentDetail = componentDetailFrom(componentSummaryFixture, ["1.0", "1.2"]);
-export const setupDetail = setupDetailFrom(setupSummaryFixture);
+// Two versions, and not as decoration. The machine projection paired the
+// heading's `latest_version` with `versions[0]`, which is the *oldest* row —
+// wrong for any object with a history and indistinguishable on a fixture with
+// one version. The component fixture already carried two, so its half of
+// `machine-projection-digest` was a real test; the setup half asserted against a
+// single row that could not disagree with itself, and production shipped a page
+// naming 1.1 beside 1.0's digest.
+export const setupDetail = setupDetailFrom(setupSummaryFixture, ["1.0", "1.1"]);
 
 const COMPONENT_DETAILS: Record<string, ComponentDetailFixture> = Object.fromEntries(
   ALL_COMPONENT_SUMMARIES.map((summary) => [

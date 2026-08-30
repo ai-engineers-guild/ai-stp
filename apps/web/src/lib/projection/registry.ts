@@ -254,7 +254,17 @@ const PUBLIC_ROUTES: MachineRoute[] = [
       const relations = catalogRelations(detail);
       return presentSetupDetail({
         summary: detail.summary,
-        passportDigest: detail.versions[0]?.passport_digest ?? "",
+        // The digest of the version the summary names, not the first row.
+        // `versions` arrives ascending, so `[0]` is the *oldest*: the page said
+        // "version: 1.1" beside 1.0's digest the moment any object gained a
+        // second version. Every object had exactly one until the catalogue was
+        // reseeded, so the two could not disagree and nothing noticed.
+        //
+        // Precise and wrong is worse than absent, which is what
+        // `verify_live_slice._projected_digest` exists to catch — and did.
+        passportDigest:
+          detail.versions.find((item) => item.version === detail.summary.latest_version)
+            ?.passport_digest ?? "",
         labels: await objectLabels(),
         countryCodes: relations.country_codes,
         services: relations.services.map((item) => item.canonical_domain),

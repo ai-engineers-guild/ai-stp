@@ -68,9 +68,27 @@ describe("machine projection pairs a version with its own digest", () => {
   });
 
   it("does the same for setups", async () => {
+    // The same controls as the component case, and their absence is why this
+    // half could not fail: the setup fixture carried a single version, so
+    // `versions[0]` and the row named by `latest_version` were the same object
+    // and `toContain` passed either way. Production shipped a setup page
+    // naming 1.1 beside 1.0's digest, and `evidence-live` caught it against the
+    // deployed site rather than here.
+    const rows = setupDetail.versions;
     const latest = setupDetail.summary.latest_version;
-    const expected = digestOf(setupDetail.versions, latest);
+    expect(rows.length).toBeGreaterThan(1);
+
+    const oldest = rows[0];
+    if (oldest === undefined) {
+      throw new Error("fixture lists no versions");
+    }
+    expect(oldest.version).not.toBe(latest);
+
+    const expected = digestOf(rows, latest);
+    expect(expected).not.toBe(oldest.passport_digest);
+
     const text = await machineText(["catalog", "setups", setupDetail.summary.stable_id]);
     expect(text).toContain(expected);
+    expect(text).not.toContain(oldest.passport_digest);
   });
 });
