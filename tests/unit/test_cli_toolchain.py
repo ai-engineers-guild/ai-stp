@@ -289,6 +289,7 @@ def test_capabilities_separate_what_the_product_reads_from_what_this_build_route
 
     for harness_id in HARNESS_ID_ORDER:
         row = rows[harness_id]
+        assert row.components is not None, harness_id
         kinds = [cell.component_type for cell in row.components]
         assert len(kinds) == len(set(kinds)) == 8, harness_id
         for cell in row.components:
@@ -315,5 +316,28 @@ def test_capabilities_separate_what_the_product_reads_from_what_this_build_route
 
     # The distinction is not academic on this data: every state that names work
     # is present somewhere, or this table would be reporting a uniform answer.
-    states = {cell.state for row in rows.values() for cell in row.components}
+    states = {
+        cell.state for row in rows.values() if row.components is not None for cell in row.components
+    }
     assert {"supported", "projection_missing", "routed_only", "unsupported"} <= states
+
+    # `#462` item 4: a state that is not `supported` carries why, on the wire.
+    # These reasons were correct and written twice where a caller could not read
+    # them — in a comment beside each rule, and in a contract test's table.
+    unexplained = [
+        (harness_id, cell.component_type)
+        for harness_id, row in rows.items()
+        if row.components is not None
+        for cell in row.components
+        if cell.state not in {"supported", "unsupported"} and not cell.reason
+    ]
+    assert not unexplained, unexplained
+
+    # A row no provider owns reports no cells rather than an invented state: the
+    # shared-convention row is a convention, and a projection needs a projector.
+    ownerless = [row for row in table.harnesses if "no_single_harness_owner" in row.gaps]
+    assert ownerless, "the shared-convention row is the subject of this assertion"
+    assert all(row.components is None for row in ownerless)
+    # ...and every real harness reports them:  also holds the
+    # convention row, which is the one exception and is asserted above.
+    assert all(rows[harness_id].components is not None for harness_id in HARNESS_ID_ORDER)

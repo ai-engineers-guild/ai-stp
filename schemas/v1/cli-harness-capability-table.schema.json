@@ -32,11 +32,19 @@
           "type": "array"
         },
         "components": {
-          "items": {
-            "$ref": "#/$defs/HarnessComponentCapability"
-          },
-          "title": "Components",
-          "type": "array"
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/HarnessComponentCapability"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Components"
         },
         "gaps": {
           "items": {
@@ -111,7 +119,6 @@
         "title",
         "support",
         "component_types",
-        "components",
         "native_authoring",
         "global_layouts",
         "project_layouts",
@@ -143,13 +150,39 @@
           "title": "Native At Owned Scope",
           "type": "boolean"
         },
+        "native_scopes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Native Scopes",
+          "type": "array"
+        },
         "native_support": {
           "title": "Native Support",
           "type": "boolean"
         },
+        "projection_scopes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Projection Scopes",
+          "type": "array"
+        },
         "projection_support": {
           "title": "Projection Support",
           "type": "boolean"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
         },
         "schema_version": {
           "const": 1,
@@ -166,6 +199,8 @@
         "native_support",
         "native_at_owned_scope",
         "projection_support",
+        "native_scopes",
+        "projection_scopes",
         "state"
       ],
       "title": "HarnessComponentCapability",

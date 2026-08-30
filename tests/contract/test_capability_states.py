@@ -23,7 +23,7 @@ from typing import Final
 
 import pytest
 
-from ai_stp_cli.local import composition, harness_catalog
+from ai_stp_cli.local import capability_reasons, composition, harness_catalog
 from ai_stp_foundation.harnesses import HARNESS_ID_ORDER
 
 pytestmark = pytest.mark.cli
@@ -45,72 +45,12 @@ COMPONENT_KINDS: Final[tuple[str, ...]] = (
 #: product cannot do it, which is false.
 PROVIDER_OWNED_SCOPES: Final[frozenset[str]] = frozenset({"global", "user_root"})
 
-#: Native at a scope a provider owns, and this compiler has no route. Waiting
-#: helps here and nowhere else: the surface exists and the work is ours.
-PROJECTION_MISSING: Final[dict[tuple[str, str], str]] = {
-    ("codex", "mcp"): "`mcp_servers` is a key inside the owned `config.toml`; ADR-0129, #456",
-    ("grok-build", "mcp"): "`mcp_servers` inside the owned `config.toml`; ADR-0129, #456",
-    ("opencode", "mcp"): "`mcp` inside the owned `opencode.json`; ADR-0129, #456",
-    ("claude-code", "hook"): (
-        "hooks are a `hooks` key inside the owned `settings.json`, the same "
-        "shape as codex's `mcp_servers`; ADR-0129, #460. There was no catalogue "
-        "row at all, so this cell read `unsupported` — which says the product "
-        "cannot do it, and `#460` is right that it can."
-    ),
-    ("codex", "agent"): (
-        "a standalone `<name>.toml` under the configuration home is a role, "
-        "measured on the pinned `codex-cli 0.151.0` binary and reproduced here. "
-        "This entry said the opposite — that a role is only an `agents.<name>` "
-        "table plus a layer — and so did the provider, which withdrew "
-        "`ComponentKind::Agent` on it. The rule waits for that declaration to "
-        "come back: a route the provider refuses composes a bundle that fails "
-        "late, which is why antigravity's `instruction` row waited a release."
-    ),
-}
-
-#: Routed by this compiler and absent from the catalogue at an owned scope. Each
-#: is deliberate and each names what it was established from.
-ROUTED_WITHOUT_A_CATALOGUE_ROW: Final[dict[tuple[str, str], str]] = {
-    ("claude-code", "plugin"): (
-        "plugin and skill project to the same `skills` directory and the product "
-        "separates them by a manifest, not by location. Discovery is a walk with "
-        "no marker test, so the catalogue row waits for a directory rule that can "
-        "carry one."
-    ),
-    ("codex", "skill"): (
-        "`user_root` — the shared-convention root, not codex's configuration home. "
-        "The catalogue records `global` and `project` roots; ADR-0127."
-    ),
-    ("codex", "hook"): (
-        "the catalogue cites `hooks.json` at project scope; the compiler owns the "
-        "harness home copy the provider declares."
-    ),
-    ("pi", "mcp"): (
-        "pi declares no `mcp` kind and says so itself. An adapter is an extension "
-        "package: the passport keeps `mcp` and the provider hears `plugin`. A "
-        "translation, not a claim about pi's contract; #454."
-    ),
-    ("grok-build", "agent"): (
-        "absent from the vendor page the catalogue cites and present in the "
-        "provider's own `grok-baseline` `native_discovery` — a source rather than "
-        "a memory."
-    ),
-    ("antigravity", "instruction"): (
-        "declared by the released provider `0.0.29`, read from the downloaded "
-        "binary: `instruction` in `component_kinds`, `config/rules` in "
-        "`native_namespaces`."
-    ),
-}
-
-#: Native only where no provider writes. `unsupported` would be a lie and
-#: `projection_missing` would promise work that is not ours to do.
-PROJECT_SCOPE_ONLY: Final[dict[tuple[str, str], str]] = {
-    ("claude-code", "mcp"): (
-        "`.mcp.json` is the project file committed to a repository root; the user "
-        "scope lives in `~/.claude.json`, which the provider holds in "
-        "`never_touch`. There is no surface a provider can own."
-    ),
-}
+# The reasons live in the product, because `#462` asks for a machine-readable
+# one and a table only this test can read is not that. Imported rather than
+# restated: a second copy agrees until somebody edits one.
+PROJECTION_MISSING = capability_reasons.PROJECTION_MISSING
+ROUTED_WITHOUT_A_CATALOGUE_ROW = capability_reasons.ROUTED_WITHOUT_A_CATALOGUE_ROW
+PROJECT_SCOPE_ONLY = capability_reasons.PROJECT_SCOPE_ONLY
 
 
 def _state(harness_id: str, kind: str) -> str:

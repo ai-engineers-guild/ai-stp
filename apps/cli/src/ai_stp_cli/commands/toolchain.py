@@ -6,7 +6,7 @@ from typing import Final
 from ai_stp_cli import toolchain
 from ai_stp_cli.answer import Answer
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import composition, harness_catalog
+from ai_stp_cli.local import capability_reasons, composition, harness_catalog
 from ai_stp_cli.local import harnesses as harness_detection
 from ai_stp_cli.paths import redact_home
 from ai_stp_cli.toolchain import install
@@ -26,6 +26,10 @@ from ai_stp_contracts.machine_help import (
 #: project-scoped layout lives in somebody's repository, which discovery may
 #: read and no provider writes.
 _PROVIDER_OWNED_SCOPES: Final[frozenset[str]] = frozenset({harness_catalog.G, "user_root"})
+
+#: The gap that says a row describes a convention rather than a harness with a
+#: provider. A projection state needs somebody to project.
+_OWNERLESS_GAP: Final[str] = "no_single_harness_owner"
 
 _COMPONENT_KINDS: Final[tuple[str, ...]] = (
     "instruction",
@@ -61,12 +65,27 @@ def _capability(definition: harness_catalog.HarnessDefinition, kind: str) -> dic
         state = "routed_only"
     else:
         state = "project_only" if scopes else "unsupported"
+    order = {harness_catalog.G: 0, "user_root": 1, harness_catalog.P: 2}
+    reasons = {
+        "projection_missing": capability_reasons.PROJECTION_MISSING,
+        "routed_only": capability_reasons.ROUTED_WITHOUT_A_CATALOGUE_ROW,
+        "project_only": capability_reasons.PROJECT_SCOPE_ONLY,
+    }.get(state, {})
     return {
         "component_type": kind,
         "native_support": bool(scopes),
         "native_at_owned_scope": owned,
         "projection_support": routed,
+        "native_scopes": sorted(scopes, key=lambda item: (order.get(item, 9), item)),
+        "projection_scopes": sorted(
+            {
+                rule.target_scope
+                for rule in composition.PROVIDER_RULES
+                if rule.harness_id == definition.harness_id and rule.component_type == kind
+            }
+        ),
         "state": state,
+        "reason": reasons.get((definition.harness_id, kind)),
     }
 
 
@@ -87,10 +106,14 @@ def harness_capabilities(_parameters: Mapping[str, object]) -> Answer[HarnessCap
                     component_types=sorted(  # pyright: ignore[reportArgumentType]
                         {layout.component_type for layout in item.layouts}
                     ),
-                    components=[
-                        _capability(item, kind)  # pyright: ignore[reportArgumentType]
-                        for kind in _COMPONENT_KINDS
-                    ],
+                    components=(
+                        None
+                        if _OWNERLESS_GAP in item.gaps
+                        else [
+                            _capability(item, kind)  # pyright: ignore[reportArgumentType]
+                            for kind in _COMPONENT_KINDS
+                        ]
+                    ),
                     native_authoring=sorted(item.native_authoring),
                     global_layouts=sorted(
                         layout.relative

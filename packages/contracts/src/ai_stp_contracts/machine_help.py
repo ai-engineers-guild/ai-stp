@@ -2783,7 +2783,20 @@ class HarnessComponentCapability(BaseModel):
     native_at_owned_scope: bool
     #: This build has a compiler route for it.
     projection_support: bool
+    #: Where the product reads it, in catalogue order: `global` is the harness
+    #: configuration home, `user_root` the shared convention root, `project` a
+    #: directory in somebody's repository. `#462` item 2: a cell is not one
+    #: answer, and "native" at `project` means something a provider cannot act
+    #: on.
+    native_scopes: list[str]
+    #: Which scopes this build routes it to; empty when nothing routes it.
+    projection_scopes: list[str]
     state: CapabilityState
+    #: Why the state is not `supported`, or `None` when it is. `#462` item 4
+    #: asks for a machine reason, and these were written twice in places a
+    #: caller could not read — beside each rule in a comment, and in a contract
+    #: test's table.
+    reason: str | None = None
 
 
 class HarnessCapabilityRow(BaseModel):
@@ -2801,10 +2814,17 @@ class HarnessCapabilityRow(BaseModel):
     component_types: list[
         Literal["instruction", "skill", "mcp", "hook", "command", "agent", "plugin", "setting"]
     ]
-    #: All eight kinds, always, each with its own state. Present for every kind
-    #: rather than only the interesting ones: a caller building a matrix should
+    #: All eight kinds, each with its own state — present for every kind rather
+    #: than only the interesting ones, because a caller building a matrix should
     #: not have to infer absence from a missing row.
-    components: list[HarnessComponentCapability]
+    #:
+    #: `null`, and only, for a row no provider owns: the shared-convention row
+    #: carries `no_single_harness_owner` in `gaps`, and a projection state needs
+    #: somebody to project. Reporting `projection_missing` there would say the
+    #: work is ours when there is no provider to route to, and reporting
+    #: `unsupported` would say the convention does not exist. An absent answer
+    #: is the true one.
+    components: list[HarnessComponentCapability] | None = None
     native_authoring: list[str]
     global_layouts: list[str]
     project_layouts: list[str]
