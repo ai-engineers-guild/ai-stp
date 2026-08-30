@@ -445,3 +445,31 @@ def test_verify_passport_integrity_rejects_unparsable_passport() -> None:
         pytest.fail("ValidationError escaped verify_passport_integrity")
     except CatalogIntegrityError:
         pass
+
+
+def test_a_card_carries_an_excerpt_and_never_the_whole_description() -> None:
+    """The bound and the only data that met it agreed by accident, until today.
+
+    `latest_description` is `DescriptionExcerpt` — `max_length=240` — and both
+    summaries document themselves as carrying a deterministic plain-text
+    excerpt. The projection handed the raw description through, and nothing
+    noticed for as long as no published description exceeded 240 characters.
+
+    Importing all four published postures ended that in one step: `full-auto`
+    descriptions are load-bearing safety context running to 3312 characters.
+    Eleven setups exceeded the bound, every one failed `SetupSummary`
+    validation, and the deployed catalogue answered `AI_STP_INTERNAL` on the
+    detail route and on every listing page that reached them.
+    """
+    from ai_stp_passports.markdown import MAX_EXCERPT_CODEPOINTS
+
+    long_description = " ".join(f"word{index}" for index in range(400))
+    assert len(long_description) > MAX_EXCERPT_CODEPOINTS * 4
+
+    row = _row_with_passport_variant(description=long_description)
+    summary = component_summary(row)
+
+    assert len(summary.latest_description) <= MAX_EXCERPT_CODEPOINTS
+    assert summary.latest_description.endswith("…")
+    # The excerpt is the head of the text, not an arbitrary slice of Markdown.
+    assert summary.latest_description.startswith("word0 word1 ")

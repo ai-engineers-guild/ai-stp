@@ -22,6 +22,7 @@ from ai_stp_foundation.canonical import JsonValue, canonize
 from ai_stp_foundation.digests import digest_bytes
 from ai_stp_foundation.timestamps import format_timestamp
 from ai_stp_passports.envelope import derive_revision_id
+from ai_stp_passports.markdown import project_safe_markdown
 from ai_stp_passports.versions import ComponentVersionPassport, SetupVersionPassport
 from ai_stp_platform.catalog_query_language import Expression, named_harness_ids, parse_query
 from ai_stp_platform.catalog_query_language import matches as query_matches
@@ -179,7 +180,7 @@ def component_summary(row: PublicVersionRow, *, now: datetime | None = None) -> 
         updated_at=format_timestamp(row.metadata.updated_at or row.published_at),  # type: ignore[arg-type]
         latest_version=passport.version,  # type: ignore[arg-type]
         latest_name=passport.name,
-        latest_description=row.metadata.presentation_bio or passport.description,
+        latest_description=_card_excerpt(row.metadata.presentation_bio or passport.description),
         latest_harness_id=passport.harness_id,
         latest_harness_ids=named_harness_ids(passport.model_dump(mode="json")),  # type: ignore[arg-type]
         latest_component_type=passport.component_type,
@@ -191,6 +192,28 @@ def component_summary(row: PublicVersionRow, *, now: datetime | None = None) -> 
         latest_published_at=format_timestamp(row.published_at),  # type: ignore[arg-type]
         latest_checks=project_checks_summary(row),
     )
+
+
+def _card_excerpt(source: str) -> str:
+    """The bounded plain-text excerpt a card carries, never the raw description.
+
+    `DescriptionExcerpt` is `max_length=240` and both summary fields document
+    themselves as "deterministic plain-text `safe_markdown_v1` excerpt, never raw
+    Markdown or HTML". The projection handed the raw description through anyway,
+    and nothing noticed for as long as no published description exceeded 240
+    characters — the bound and the only data that met it agreed by accident.
+
+    Importing all four published postures ended that in one step: `full-auto`
+    descriptions are load-bearing safety context and run from 690 to 3312
+    characters. Eleven setups exceeded the bound, every one of them failed
+    `SetupSummary` validation, and the catalogue answered `AI_STP_INTERNAL` on
+    the detail route and on any listing page that reached them.
+
+    The excerpt is what the field was always meant to hold, and the projector
+    already computes it — `project_safe_markdown(...).excerpt`, bounded to 240
+    with a trailing ellipsis on a word boundary.
+    """
+    return project_safe_markdown(source).excerpt
 
 
 def setup_summary(row: PublicVersionRow, *, now: datetime | None = None) -> SetupSummary:
@@ -210,7 +233,7 @@ def setup_summary(row: PublicVersionRow, *, now: datetime | None = None) -> Setu
         updated_at=format_timestamp(row.metadata.updated_at or row.published_at),  # type: ignore[arg-type]
         latest_version=passport.version,  # type: ignore[arg-type]
         latest_name=passport.name,
-        latest_description=passport.description,
+        latest_description=_card_excerpt(passport.description),
         latest_harness_id=passport.harness_id,
         latest_purpose=passport.purpose,
         latest_target_role=passport.target_role,
