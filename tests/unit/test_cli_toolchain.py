@@ -267,3 +267,53 @@ def test_a_malformed_artifact_table_names_its_platform() -> None:
     )
     with pytest.raises(CliFailure, match="malformed artifact for linux-x86_64"):
         toolchain.parse(broken)
+
+
+def test_capabilities_separate_what_the_product_reads_from_what_this_build_routes() -> None:
+    """`#462`: one list of kinds was being read as what can be installed.
+
+    `component_types` answers what the *product* natively reads. Nothing beside
+    it answered whether this build can hand any of it to a provider, so an agent
+    reading the table built a matrix that was wrong wherever the two disagree —
+    and they disagree on ten of the fifty-six cells.
+
+    Every kind carries a row, including the ones the harness has no surface for:
+    a caller building a matrix should not have to infer absence from a missing
+    row, which is the same reason `unsupported` is a state and not a silence.
+    """
+    from ai_stp_cli.commands import toolchain as toolchain_commands
+    from ai_stp_foundation.harnesses import HARNESS_ID_ORDER
+
+    table = toolchain_commands.harness_capabilities({}).payload
+    rows = {item.harness_id: item for item in table.harnesses}
+
+    for harness_id in HARNESS_ID_ORDER:
+        row = rows[harness_id]
+        kinds = [cell.component_type for cell in row.components]
+        assert len(kinds) == len(set(kinds)) == 8, harness_id
+        for cell in row.components:
+            # The state is derivable from the two booleans, so a row that
+            # disagrees with itself is worse than either field alone.
+            if cell.native_at_owned_scope and cell.projection_support:
+                assert cell.state == "supported", (harness_id, cell)
+            elif cell.native_at_owned_scope:
+                assert cell.state == "projection_missing", (harness_id, cell)
+            elif cell.projection_support:
+                assert cell.state == "routed_only", (harness_id, cell)
+            elif cell.native_support:
+                assert cell.state == "project_only", (harness_id, cell)
+            else:
+                assert cell.state == "unsupported", (harness_id, cell)
+            # Owned scope is a narrowing of native support, never wider.
+            assert not (cell.native_at_owned_scope and not cell.native_support)
+
+        # And the older field still says what it always said, so a reader of
+        # both is not told two different things about the same harness.
+        assert set(row.component_types) == {
+            cell.component_type for cell in row.components if cell.native_support
+        }
+
+    # The distinction is not academic on this data: every state that names work
+    # is present somewhere, or this table would be reporting a uniform answer.
+    states = {cell.state for row in rows.values() for cell in row.components}
+    assert {"supported", "projection_missing", "routed_only", "unsupported"} <= states

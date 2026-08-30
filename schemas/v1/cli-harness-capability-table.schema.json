@@ -1,5 +1,15 @@
 {
   "$defs": {
+    "CapabilityState": {
+      "enum": [
+        "supported",
+        "projection_missing",
+        "project_only",
+        "routed_only",
+        "unsupported"
+      ],
+      "type": "string"
+    },
     "HarnessCapabilityRow": {
       "additionalProperties": false,
       "description": "One executable row from the closed harness capability catalog.",
@@ -19,6 +29,13 @@
             "type": "string"
           },
           "title": "Component Types",
+          "type": "array"
+        },
+        "components": {
+          "items": {
+            "$ref": "#/$defs/HarnessComponentCapability"
+          },
+          "title": "Components",
           "type": "array"
         },
         "gaps": {
@@ -94,6 +111,7 @@
         "title",
         "support",
         "component_types",
+        "components",
         "native_authoring",
         "global_layouts",
         "project_layouts",
@@ -101,6 +119,56 @@
         "gaps"
       ],
       "title": "HarnessCapabilityRow",
+      "type": "object"
+    },
+    "HarnessComponentCapability": {
+      "additionalProperties": false,
+      "description": "One `(harness, kind)` cell, with native support and projection kept apart.\n\nReading a single list of kinds as \"what can be installed\" is the mistake\nthis exists to remove: the catalogue answers what the *product* reads, and\nthe compiler answers what this build can hand a provider. They are different\nquestions and they disagree on ten of fifty-six cells.\n\n**None of these fields claims a component is active.** Whether an installed\nthing is loaded, parsed and running is a third question, and for at least\none surface it is not answerable from outside the product at all: driven at\na temporary `CODEX_HOME` in four states — valid, malformed, an invented\nevent name, an invented top-level key — codex produced byte-identical\noutput, and identical again with the file absent. A model that reported\n\"active\" would have to invent that answer for codex hooks. Runtime evidence\nis a separate record tied to versions, OS and scope (`#462`, item 8).",
+      "properties": {
+        "component_type": {
+          "enum": [
+            "instruction",
+            "skill",
+            "mcp",
+            "hook",
+            "command",
+            "agent",
+            "plugin",
+            "setting"
+          ],
+          "title": "Component Type",
+          "type": "string"
+        },
+        "native_at_owned_scope": {
+          "title": "Native At Owned Scope",
+          "type": "boolean"
+        },
+        "native_support": {
+          "title": "Native Support",
+          "type": "boolean"
+        },
+        "projection_support": {
+          "title": "Projection Support",
+          "type": "boolean"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "state": {
+          "$ref": "#/$defs/CapabilityState"
+        }
+      },
+      "required": [
+        "component_type",
+        "native_support",
+        "native_at_owned_scope",
+        "projection_support",
+        "state"
+      ],
+      "title": "HarnessComponentCapability",
       "type": "object"
     },
     "HarnessId": {

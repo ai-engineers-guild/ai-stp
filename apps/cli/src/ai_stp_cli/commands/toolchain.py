@@ -1,11 +1,12 @@
 """`ai-stp toolchain` — what the managed profile pins (issue #151)."""
 
 from collections.abc import Mapping
+from typing import Final
 
 from ai_stp_cli import toolchain
 from ai_stp_cli.answer import Answer
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import harness_catalog
+from ai_stp_cli.local import composition, harness_catalog
 from ai_stp_cli.local import harnesses as harness_detection
 from ai_stp_cli.paths import redact_home
 from ai_stp_cli.toolchain import install
@@ -21,9 +22,61 @@ from ai_stp_contracts.machine_help import (
     ToolInstallation,
 )
 
+#: The scopes a provider owns and may project into. `project` is not one: a
+#: project-scoped layout lives in somebody's repository, which discovery may
+#: read and no provider writes.
+_PROVIDER_OWNED_SCOPES: Final[frozenset[str]] = frozenset({harness_catalog.G, "user_root"})
+
+_COMPONENT_KINDS: Final[tuple[str, ...]] = (
+    "instruction",
+    "skill",
+    "mcp",
+    "hook",
+    "command",
+    "agent",
+    "plugin",
+    "setting",
+)
+
+
+def _capability(definition: harness_catalog.HarnessDefinition, kind: str) -> dict[str, object]:
+    """Native support and projection support for one cell, kept apart.
+
+    `#462`: `unsupported` was one word for "the product has no such surface",
+    "it has one where no provider writes" and "it has one and we do not route it
+    yet". Only the third is work, and a caller could not tell which it was
+    looking at.
+    """
+    scopes = {layout.scope for layout in definition.layouts if layout.component_type == kind}
+    owned = bool(scopes & _PROVIDER_OWNED_SCOPES)
+    routed = any(
+        rule.harness_id == definition.harness_id and rule.component_type == kind
+        for rule in composition.PROVIDER_RULES
+    )
+    if owned and routed:
+        state = "supported"
+    elif owned:
+        state = "projection_missing"
+    elif routed:
+        state = "routed_only"
+    else:
+        state = "project_only" if scopes else "unsupported"
+    return {
+        "component_type": kind,
+        "native_support": bool(scopes),
+        "native_at_owned_scope": owned,
+        "projection_support": routed,
+        "state": state,
+    }
+
 
 def harness_capabilities(_parameters: Mapping[str, object]) -> Answer[HarnessCapabilityTable]:
-    """Return the exact declarative layouts and capabilities this build consumes."""
+    """Return the exact declarative layouts and capabilities this build consumes.
+
+    `component_types` is what the product reads and was being taken for what can
+    be installed. `components` answers both questions per kind, so an agent can
+    build the matrix without knowing which internal table is which.
+    """
     return Answer(
         HarnessCapabilityTable(
             harnesses=[
@@ -34,6 +87,10 @@ def harness_capabilities(_parameters: Mapping[str, object]) -> Answer[HarnessCap
                     component_types=sorted(  # pyright: ignore[reportArgumentType]
                         {layout.component_type for layout in item.layouts}
                     ),
+                    components=[
+                        _capability(item, kind)  # pyright: ignore[reportArgumentType]
+                        for kind in _COMPONENT_KINDS
+                    ],
                     native_authoring=sorted(item.native_authoring),
                     global_layouts=sorted(
                         layout.relative

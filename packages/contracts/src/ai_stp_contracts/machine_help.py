@@ -2735,6 +2735,57 @@ class HarnessSurvey(BaseModel):
     harnesses: list[HarnessPresence]
 
 
+#: What this build can do with one kind on one harness, and the four answers are
+#: four different situations that `unsupported` was one word for (`#462`).
+#:
+#: `supported` — the product has the surface at a scope a provider owns, and
+#: this compiler routes it.
+#: `projection_missing` — the surface exists and nothing routes it yet. Waiting
+#: helps: the work is on this side.
+#: `project_only` — the surface exists where no provider writes, so there is
+#: nothing to project and nothing missing.
+#: `routed_only` — this compiler routes it and the catalogue records no row at
+#: an owned scope, which is either a translation or a catalogue behind its
+#: source; `tests/contract/test_capability_states.py` names each one.
+#: `unsupported` — the product has no such surface anywhere.
+type CapabilityState = Literal[
+    "supported", "projection_missing", "project_only", "routed_only", "unsupported"
+]
+
+
+class HarnessComponentCapability(BaseModel):
+    """One `(harness, kind)` cell, with native support and projection kept apart.
+
+    Reading a single list of kinds as "what can be installed" is the mistake
+    this exists to remove: the catalogue answers what the *product* reads, and
+    the compiler answers what this build can hand a provider. They are different
+    questions and they disagree on ten of fifty-six cells.
+
+    **None of these fields claims a component is active.** Whether an installed
+    thing is loaded, parsed and running is a third question, and for at least
+    one surface it is not answerable from outside the product at all: driven at
+    a temporary `CODEX_HOME` in four states — valid, malformed, an invented
+    event name, an invented top-level key — codex produced byte-identical
+    output, and identical again with the file absent. A model that reported
+    "active" would have to invent that answer for codex hooks. Runtime evidence
+    is a separate record tied to versions, OS and scope (`#462`, item 8).
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    schema_version: Literal[1] = 1
+    component_type: Literal[
+        "instruction", "skill", "mcp", "hook", "command", "agent", "plugin", "setting"
+    ]
+    #: The product reads this kind somewhere, at any scope.
+    native_support: bool
+    #: ...and at a scope a provider owns, which is what makes it projectable.
+    native_at_owned_scope: bool
+    #: This build has a compiler route for it.
+    projection_support: bool
+    state: CapabilityState
+
+
 class HarnessCapabilityRow(BaseModel):
     """One executable row from the closed harness capability catalog."""
 
@@ -2744,9 +2795,16 @@ class HarnessCapabilityRow(BaseModel):
     harness_id: HarnessId | Literal["undefined"]
     title: Annotated[str, Field(min_length=1)]
     support: Literal["primary", "beta", "portable"]
+    #: Every kind the *product* reads, at any scope. Kept because it is a true
+    #: fact about the harness, and no longer the only one reported: read alone
+    #: it was taken for effective support, which is `#462`.
     component_types: list[
         Literal["instruction", "skill", "mcp", "hook", "command", "agent", "plugin", "setting"]
     ]
+    #: All eight kinds, always, each with its own state. Present for every kind
+    #: rather than only the interesting ones: a caller building a matrix should
+    #: not have to infer absence from a missing row.
+    components: list[HarnessComponentCapability]
     native_authoring: list[str]
     global_layouts: list[str]
     project_layouts: list[str]
