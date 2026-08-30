@@ -12,25 +12,10 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol
 
 from ai_stp_cli.provider import conformance, protocol_v2
+from ai_stp_cli.provider.network_launcher import NetworkLauncher
 from ai_stp_foundation.canonical import JsonValue
-
-
-class NetworkLauncher(Protocol):
-    """One proved launcher capable of wrapping a local-only provider argv."""
-
-    @property
-    def capability(self) -> protocol_v2.NetworkCapability: ...
-
-    def wrap(
-        self,
-        argv: tuple[str, ...],
-        *,
-        target: Path,
-        writable: tuple[Path, ...] = (),
-    ) -> tuple[str, ...]: ...
 
 
 @dataclass(frozen=True)
@@ -48,21 +33,19 @@ def _target(path: str) -> Path:
     return target.resolve()
 
 
-def _local_argv(
-    argv: tuple[str, ...],
+def _require_launcher(
     *,
-    target: Path,
     decision: protocol_v2.NetworkDecision,
     launcher: NetworkLauncher | None,
     capability: protocol_v2.NetworkCapability | None,
-) -> tuple[str, ...]:
+) -> NetworkLauncher:
     """Require the launcher that produced the exact enforced observation."""
     if launcher is None or capability is None or launcher.capability != capability:
         refused = protocol_v2.decide(decision.command, decision.phase, None)
         protocol_v2.require_execution(refused)
         raise AssertionError("an unavailable local phase cannot continue")
     protocol_v2.require_execution(decision)
-    return launcher.wrap(argv, target=target)
+    return launcher
 
 
 def invoke(
@@ -89,16 +72,13 @@ def invoke(
         *arguments,
     )
     if decision.requirement is protocol_v2.NetworkRequirement.NONE:
-        argv = _local_argv(
-            argv,
-            target=resolved_target,
-            decision=decision,
-            launcher=launcher,
-            capability=capability,
-        )
+        # The launcher runs it, rather than rewriting an argv this function then
+        # runs. Bubblewrap could do either; an AppContainer cannot be expressed
+        # as an argv at all, and one call shape for both is what keeps the
+        # process boundary written once.
+        proved = _require_launcher(decision=decision, launcher=launcher, capability=capability)
+        payload = proved.run(argv, target=resolved_target, command=command)
     else:
         protocol_v2.require_execution(decision)
-    return InvocationResult(
-        payload=conformance.invoke_argv(argv, command=command),
-        network=decision,
-    )
+        payload = conformance.invoke_argv(argv, command=command)
+    return InvocationResult(payload=payload, network=decision)

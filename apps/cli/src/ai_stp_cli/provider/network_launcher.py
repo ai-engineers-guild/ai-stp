@@ -19,10 +19,11 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Final, cast
+from typing import Final, Protocol, cast
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.provider.protocol_v2 import NetworkCapability, NetworkEnforcement
+from ai_stp_foundation.canonical import JsonValue
 
 _PROBE_TIMEOUT: Final[float] = 3.0
 _BWRAP_ARGUMENTS: Final[tuple[str, ...]] = (
@@ -38,7 +39,13 @@ _BWRAP_ARGUMENTS: Final[tuple[str, ...]] = (
     "/proc",
 )
 _PROVIDER_RUNTIME_CACHE: Final[str] = "/tmp/ai-stp-provider-runtime"
-_CHILD_PROBE: Final[str] = """
+#: The child half of the capability probe, shared with the Windows launcher.
+#:
+#: Public because `#51` requires an `enforced` claim on Windows to rest on the
+#: **same class** of probe as this one, and the strongest available guarantee of
+#: that is the same literal rather than two texts someone keeps in step. It runs
+#: under whichever isolation is being proved and reports what it could reach.
+CHILD_PROBE: Final[str] = """
 import json, socket, sys
 ports = json.loads(sys.argv[1])
 results = {}
@@ -91,6 +98,26 @@ class BubblewrapLauncher:
             raise ValueError("a launcher requires enforced capability evidence")
         if self.capability.launcher_id != f"bubblewrap:{_path_token(self.executable)}":
             raise ValueError("launcher identity does not match its executable")
+
+    def run(
+        self,
+        argv: tuple[str, ...],
+        *,
+        target: Path,
+        writable: tuple[Path, ...] = (),
+        command: str,
+    ) -> JsonValue:
+        """Wrap, then run under the ordinary boundary.
+
+        Bubblewrap is an executable, so the isolation is entirely in the argv
+        and the process factory stays the default one. This is the whole of the
+        difference from the Windows launcher.
+        """
+        from ai_stp_cli.provider import conformance
+
+        return conformance.invoke_argv(
+            self.wrap(argv, target=target, writable=writable), command=command
+        )
 
     def wrap(
         self,
@@ -165,6 +192,7 @@ UNISOLATED_REASONS: Final[frozenset[str]] = frozenset(
     {TRUSTED_RELEASE, EXPLICIT_UNVERIFIED_PROVIDER}
 )
 
+
 #: Systems where no launcher a plain CLI may use can deny the network, so the
 #: exception above is the only way a local phase runs at all. Closed, and it is
 #: a statement about the platform rather than about this machine.
@@ -179,6 +207,54 @@ UNISOLATED_REASONS: Final[frozenset[str]] = frozenset(
 #: — every v3 provider call refused, on a platform whose providers we fetch and
 #: attest. `sandbox-exec` may yet give macOS a real launcher; until something
 #: proves one on the platform itself, it carries the same debt as Windows.
+class NetworkLauncher(Protocol):
+    """One proved launcher, and the two shapes a denial can take.
+
+    `wrap` is for a launcher that is an executable: Bubblewrap rewrites the argv
+    and the ordinary process boundary runs it. That was the whole interface
+    until Windows arrived, and it cannot express an AppContainer, which is a
+    token rather than a program — `subprocess` has no way to create one.
+
+    `run` is what both can do, so it is what callers use. It exists to keep the
+    read limit, the watchdog and the environment allowlist written once: the
+    alternative was a second copy behind the Windows branch, which is exactly
+    where the output-volume bug would come back unported.
+    """
+
+    @property
+    def capability(self) -> NetworkCapability: ...
+
+    def run(
+        self,
+        argv: tuple[str, ...],
+        *,
+        target: Path,
+        writable: tuple[Path, ...] = (),
+        command: str,
+    ) -> JsonValue: ...
+
+
+def discover_launcher() -> tuple[NetworkLauncher | None, NetworkCapability]:
+    """The proved launcher for this platform, or an unavailable capability.
+
+    One place decides, because the alternative is three call sites each holding
+    a platform test and drifting apart. Linux proves Bubblewrap, Windows proves
+    an AppContainer (`ADR-0133`), and anything else has no launcher to prove.
+
+    Imported inside the call rather than at module scope: the Windows module
+    binds `WinDLL` and `msvcrt` names, and this one is imported on every
+    platform by things that never launch anything.
+    """
+    system = platform.system().casefold()
+    if system == "windows":
+        from ai_stp_cli.provider import windows_launcher
+
+        return windows_launcher.discover_appcontainer()
+    if system == "linux":
+        return discover_bubblewrap()
+    return None, unavailable(system, f"no network-denying launcher exists for {system}")
+
+
 UNISOLATED_PLATFORMS: Final[frozenset[str]] = frozenset({"windows", "darwin"})
 
 
@@ -243,7 +319,7 @@ def unisolated_local_phase(reason: str) -> UnisolatedLocalPhase:
     return UnisolatedLocalPhase(reason=reason)
 
 
-def _unavailable(os_name: str, reason: str) -> NetworkCapability:
+def unavailable(os_name: str, reason: str) -> NetworkCapability:
     return NetworkCapability(
         enforcement=NetworkEnforcement.UNAVAILABLE,
         os_name=os_name,
@@ -286,7 +362,10 @@ def _system_path_refusal(executable: Path) -> str | None:
     return None
 
 
-def _listener(family: socket.AddressFamily, address: str) -> socket.socket:
+#: Shared with the Windows launcher: both prove a denial the same way, and
+#: `#51` requires that to be the same class of probe rather than two that
+#: resemble each other.
+def listener(family: socket.AddressFamily, address: str) -> socket.socket:
     listener = socket.socket(family, socket.SOCK_STREAM)
     listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     listener.bind((address, 0))
@@ -295,27 +374,27 @@ def _listener(family: socket.AddressFamily, address: str) -> socket.socket:
     return listener
 
 
-def _port(sock: socket.socket) -> int:
+def port(sock: socket.socket) -> int:
     address = sock.getsockname()
     if not isinstance(address, tuple) or not isinstance(address[1], int):
         raise OSError("probe socket has no numeric port")
     return address[1]
 
 
-def _positive_control(ipv4: socket.socket, ipv6: socket.socket, dns_udp: socket.socket) -> None:
+def positive_control(ipv4: socket.socket, ipv6: socket.socket, dns_udp: socket.socket) -> None:
     for family, address, listener in (
         (socket.AF_INET, "127.0.0.1", ipv4),
         (socket.AF_INET6, "::1", ipv6),
     ):
         with socket.socket(family, socket.SOCK_STREAM) as client:
             client.settimeout(_PROBE_TIMEOUT)
-            client.connect((address, _port(listener)))
+            client.connect((address, port(listener)))
         accepted, _peer = listener.accept()
         accepted.close()
     token = b"ai-stp-dns-probe"
     dns_udp.settimeout(_PROBE_TIMEOUT)
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as client:
-        client.sendto(token, ("127.0.0.1", _port(dns_udp)))
+        client.sendto(token, ("127.0.0.1", port(dns_udp)))
     observed, _peer = dns_udp.recvfrom(len(token) + 1)
     if observed != token:
         raise OSError("DNS transport positive control returned unexpected bytes")
@@ -323,8 +402,8 @@ def _positive_control(ipv4: socket.socket, ipv6: socket.socket, dns_udp: socket.
 
 def _probe_bubblewrap(executable: Path) -> tuple[bool, tuple[str, ...]]:
     try:
-        ipv4 = _listener(socket.AF_INET, "127.0.0.1")
-        ipv6 = _listener(socket.AF_INET6, "::1")
+        ipv4 = listener(socket.AF_INET, "127.0.0.1")
+        ipv6 = listener(socket.AF_INET6, "::1")
         dns_udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         dns_udp.bind(("127.0.0.1", 0))
     except OSError as error:
@@ -333,8 +412,8 @@ def _probe_bubblewrap(executable: Path) -> tuple[bool, tuple[str, ...]]:
                 held.close()
         return False, (f"positive-control socket unavailable: {error}",)
     try:
-        _positive_control(ipv4, ipv6, dns_udp)
-        ports = {"ipv4": _port(ipv4), "ipv6": _port(ipv6), "dns_udp": _port(dns_udp)}
+        positive_control(ipv4, ipv6, dns_udp)
+        ports = {"ipv4": port(ipv4), "ipv6": port(ipv6), "dns_udp": port(dns_udp)}
         result = subprocess.run(
             (
                 str(executable),
@@ -342,7 +421,7 @@ def _probe_bubblewrap(executable: Path) -> tuple[bool, tuple[str, ...]]:
                 "--",
                 sys.executable,
                 "-c",
-                _CHILD_PROBE,
+                CHILD_PROBE,
                 json.dumps(ports, sort_keys=True),
             ),
             check=False,
@@ -388,14 +467,14 @@ def discover_bubblewrap() -> tuple[BubblewrapLauncher | None, NetworkCapability]
     """Discover and prove the Linux Bubblewrap launcher, or fail closed."""
     os_name = platform.system().lower()
     if os_name != "linux":
-        return None, _unavailable(os_name, "Bubblewrap launcher is Linux-only")
+        return None, unavailable(os_name, "Bubblewrap launcher is Linux-only")
     found = shutil.which("bwrap")
     if found is None:
-        return None, _unavailable(os_name, "bwrap executable is absent")
+        return None, unavailable(os_name, "bwrap executable is absent")
     executable = Path(found).resolve()
     refusal = _system_path_refusal(executable)
     if refusal is not None:
-        return None, _unavailable(os_name, refusal)
+        return None, unavailable(os_name, refusal)
     try:
         version = subprocess.run(
             (str(executable), "--version"),
@@ -408,10 +487,10 @@ def discover_bubblewrap() -> tuple[BubblewrapLauncher | None, NetworkCapability]
         ).stdout.strip()
         digest = _digest(executable)
     except (OSError, subprocess.SubprocessError) as error:
-        return None, _unavailable(os_name, f"cannot identify bwrap: {error}")
+        return None, unavailable(os_name, f"cannot identify bwrap: {error}")
     passed, probe_evidence = _probe_bubblewrap(executable)
     if not passed:
-        return None, _unavailable(os_name, probe_evidence[0])
+        return None, unavailable(os_name, probe_evidence[0])
     capability = NetworkCapability(
         enforcement=NetworkEnforcement.ENFORCED,
         os_name=os_name,
