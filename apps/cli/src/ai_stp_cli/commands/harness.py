@@ -684,7 +684,27 @@ def _apply(
             if operation is protocol_v3.Operation.SOFTWARE_REMOVE
             else None
         ),
+        recovered=_recovered(answer),
     )
+
+
+def _recovered(answer: Mapping[str, JsonValue]) -> list[str]:
+    """What the provider resolved from an interrupted earlier operation.
+
+    Absent from every released provider at the time this was written, and that
+    is the normal answer rather than a problem: the key is new, and a prefix
+    nothing interrupted has nothing to report either way.
+
+    Read defensively for the same reason. A provider that sends something other
+    than a list of strings is not worth failing a completed operation over —
+    the effect has already landed — so anything unreadable is reported as
+    nothing recovered rather than raised. The operation's own outcome is
+    carried by `state`, and this field must not be able to change it.
+    """
+    raw = answer.get("recovered")
+    if not isinstance(raw, list):
+        return []
+    return [item for item in raw if isinstance(item, str) and item]
 
 
 def _object(value: JsonValue) -> dict[str, JsonValue]:

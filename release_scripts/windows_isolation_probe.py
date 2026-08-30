@@ -1,3 +1,15 @@
+# pyright: reportAttributeAccessIssue=false, reportArgumentType=false
+# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false
+#
+# Every suppression above is one name: `ctypes.WinDLL`, `ctypes.get_last_error`
+# and `ctypes.wintypes` do not exist for a type checker running on Linux, and
+# this file is guarded at runtime by `platform.system()`. Suppressing at the
+# file rather than the line because the alternative is thirty identical
+# comments saying the same thing.
+#
+# Learned the expensive way: this script broke `back-static` and six commits
+# went out behind it, because a probe felt like a measurement rather than
+# repository code. It is repository code and the gate covers it.
 """Measure what a Windows AppContainer actually enforces, on Windows.
 
 Not a design and not a launcher: the questions below decide whether a native

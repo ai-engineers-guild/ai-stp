@@ -902,6 +902,21 @@ class HarnessProgram(BaseModel):
     #: will never change anything.
     removed: bool | None = None
 
+    #: What an interrupted earlier operation left, resolved by the provider
+    #: under the lock before it read the prefix. Empty on every ordinary run.
+    #:
+    #: Declared rather than left to `extra="allow"`, which would accept the key
+    #: and then drop it: a prefix the provider had to recover would read
+    #: identically to a clean one, and the one moment the operator could have
+    #: learned an earlier run was interrupted would pass in silence.
+    #:
+    #: The provider resolves this itself because a consumer cannot ask for it.
+    #: `recover-operation` names a `--target`, and program work happens under a
+    #: `--prefix` — a different root with a different lifetime — so there is
+    #: nowhere in the request to name one. Surfacing what the provider did is
+    #: the whole of what this side can offer until that changes.
+    recovered: list[str] = []
+
 
 class HarnessProgramOperation(BaseModel):
     """One program operation this installation recorded against a prefix."""

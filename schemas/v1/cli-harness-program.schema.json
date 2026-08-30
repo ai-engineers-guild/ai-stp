@@ -102,6 +102,14 @@
       "title": "Prefix",
       "type": "string"
     },
+    "recovered": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Recovered",
+      "type": "array"
+    },
     "removed": {
       "anyOf": [
         {
@@ -140,6 +148,7 @@
     "operation_id",
     "plan_digest",
     "prefix",
+    "recovered",
     "removed",
     "schema_version",
     "state",

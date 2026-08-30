@@ -18,7 +18,7 @@ Both are about ordering, so both are checked by recording the order.
 from __future__ import annotations
 
 import sys
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +28,7 @@ from ai_stp_cli.commands import harness as harness_commands
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.provider import invocation, network_launcher, operation_v3, software_fetch
 from ai_stp_cli.provider import trust as provider_trust
+from ai_stp_foundation.canonical import JsonValue
 
 pytestmark = pytest.mark.cli
 
@@ -265,3 +266,43 @@ def test_resume_declares_the_same_trust_parameters_as_the_verbs() -> None:
     declared = next(item for item in DECLARATIONS if item.path == ["harness", "resume"])
     names = {option.name for option in declared.parameters}
     assert {"provider-manifest", "unverified-provider", "operation"} <= names, sorted(names)
+
+
+def test_what_a_provider_recovered_reaches_the_report() -> None:
+    """An interrupted earlier operation must not be resolved in silence.
+
+    The provider resolves it under the lock before it reads the prefix, and
+    that is the only moment the operator could learn an earlier run was
+    interrupted. Accepting the key through `extra="allow"` would have taken it
+    and dropped it: a recovered prefix would read exactly like a clean one.
+    """
+    answer: Mapping[str, JsonValue] = {
+        "recovered": ["quarantine 1.2.3 restored", "stale lock cleared"]
+    }
+    assert harness_commands._recovered(answer) == [  # pyright: ignore[reportPrivateUsage]
+        "quarantine 1.2.3 restored",
+        "stale lock cleared",
+    ]
+
+
+def test_an_unreadable_recovered_field_cannot_fail_a_landed_operation() -> None:
+    """The effect has already happened by the time this is read.
+
+    So a provider sending something other than a list of strings is reported as
+    nothing recovered rather than raised. The outcome of the operation is
+    carried by `state`, and a field describing what came *before* it must not
+    be able to change it — which is the failure mode of validating late.
+
+    Absent is the ordinary case, not an error: no released provider sends the
+    key yet, and a prefix nothing interrupted has nothing to report.
+    """
+    # Typed at the boundary the wire actually has: anything a provider can put
+    # in a JSON object, including the shapes this refuses.
+    hostiles: tuple[Mapping[str, JsonValue], ...] = (
+        {},
+        {"recovered": None},
+        {"recovered": "one"},
+        {"recovered": [1, "", None]},
+    )
+    for hostile in hostiles:
+        assert harness_commands._recovered(hostile) == []  # pyright: ignore[reportPrivateUsage]
