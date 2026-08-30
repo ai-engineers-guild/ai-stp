@@ -298,6 +298,26 @@ def _exposed_version(*, prefix: Path, entry_point: str) -> str:
     An empty answer means unknown, not absent: a prefix written before markers
     existed reads the same as one nothing installed into, and neither is a
     version. The caller decides what unknown is worth.
+
+    The existence filter does not catch every bad marker, and the reason it is
+    not asked to is worth keeping. The provider used to write the marker with a
+    plain, non-atomic write, so an interrupted install could truncate it.
+    Measured against a prefix holding both `1.18` and `1.18.23`: `1.18.2` and
+    an empty string are rejected, and `1.18` was *accepted* — truncation only
+    has to stop somewhere that is itself a real version directory, which a
+    prefix-sibling version provides for free.
+
+    Nothing here distinguishes that from a genuine `1.18` exposure; the filter
+    is true either way. The one reading-side mitigation available — distrusting
+    the marker where the journal disagrees — would fire exactly on the
+    hand-rollback case this reading exists to answer, and a guard that is wrong
+    where the mechanism is right is worse than the hole.
+
+    So it was fixed where it could be. The provider stages the marker to a
+    sibling and renames, which is atomic within a directory, so a reader meets
+    the old marker or the new one and never a third thing. The tag carrying
+    that is not out as this is written, and prefixes written by every provider
+    before it keep the truncated shape, so the filter stays.
     """
     command = PurePosixPath(entry_point).name
     stem = Path(command)
