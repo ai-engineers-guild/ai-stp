@@ -468,18 +468,31 @@ def test_a_kind_the_provider_cannot_project_is_refused_before_selection() -> Non
 
     The kinds are read from the projection table rather than spelled here, so
     the test states the rule instead of today's contents of the table.
-    """
-    from ai_stp_cli.local.composition import native_surface
 
-    projectable = [
-        kind
-        for kind in ("instruction", "skill", "mcp", "command", "agent")
-        if native_surface(kind, "claude-code")
-    ]
-    absent = [
-        kind for kind in ("setting", "hook", "plugin") if not native_surface(kind, "claude-code")
-    ]
+    Half of that was true and the untrue half let this narrow without a word.
+    The *filter* read the table; the two candidate lists were written by hand,
+    and `("setting", "hook", "plugin")` was the absent set when it was written.
+    Both `setting` and `plugin` gained claude-code routes since — the first
+    declared by a released provider, the second by `0.0.30` — so `absent`
+    quietly went from three members to one while `assert projectable and absent`
+    stayed green, because a non-empty list is all it ever asked for.
+
+    Every kind is partitioned now, and the sizes are asserted. A kind moving
+    between the two halves is a reviewed line rather than a silent narrowing.
+    """
+    from typing import get_args
+
+    from ai_stp_cli.local.composition import native_surface
+    from ai_stp_passports.versions import ComponentType
+
+    kinds = get_args(ComponentType.__value__)
+    projectable = [kind for kind in kinds if native_surface(kind, "claude-code")]
+    absent = [kind for kind in kinds if not native_surface(kind, "claude-code")]
+
+    assert len(projectable) + len(absent) == len(kinds) == 8
     assert projectable and absent, "the fixture harness must have both, or this proves nothing"
+    # Named, so the partition is the assertion rather than its precondition.
+    assert set(absent) == {"mcp", "hook"}, absent
 
     for kind in projectable:
         verdict = eligibility.assess(

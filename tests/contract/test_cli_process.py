@@ -630,12 +630,32 @@ def test_device_passport_and_toolchain_harnesses_share_one_detection_result(
     monkeypatch.setenv("PI_CODING_AGENT_DIR", str(home / "pi-home"))
     monkeypatch.setenv("OPENCODE_CONFIG_DIR", str(home / "opencode-home"))
     monkeypatch.setenv("GROK_HOME", str(home / "grok-home"))
+
+    # One harness is made detectable on the otherwise empty PATH, and the reason
+    # is that without it this test proved half of what it is named for. The
+    # isolation above is deliberate and correct, and it made **every** harness
+    # `available`: `installed` came out empty, the equality below compared two
+    # empty lists, and the branch asserting a version, a surface and a
+    # diagnostic never ran once.
+    #
+    # The agreement worth testing is that both sides report the *same* detection
+    # for something that is actually there.
+    binary = empty_path / ("claude.cmd" if os.name == "nt" else "claude")
+    if os.name == "nt":
+        binary.write_text("@echo off\necho 9.9.9\n", encoding="utf-8")
+    else:
+        binary.write_text('#!/bin/sh\necho "9.9.9"\n', encoding="utf-8")
+        binary.chmod(binary.stat().st_mode | stat.S_IXUSR)
+
     survey = json.loads(run("toolchain", "harnesses", "--json", home=home).stdout)["data"][
         "harnesses"
     ]
     refresh = json.loads(run("passport", "device", "refresh", "--json", home=home).stdout)["data"]
     installed = [item["harness_id"] for item in survey if item["state"] != "available"]
     available = [item["harness_id"] for item in survey if item["state"] == "available"]
+    # Both halves are populated, or the loops below examine nothing and say so.
+    assert installed, "no harness was detected; the fabricated one is not being found"
+    assert available, "every harness was detected; the isolation above is not holding"
     facts = refresh["facts"]
     assert facts["installed_harnesses"]["value"] == installed
     for harness_id in available:
