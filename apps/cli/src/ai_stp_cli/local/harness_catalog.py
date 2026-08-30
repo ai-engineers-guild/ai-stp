@@ -665,6 +665,13 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
                 "setting", "antigravity-cli/keybindings.json", "file", f"{ANTIGRAVITY}/settings", G
             ),
             _layout("plugin", "antigravity-cli/plugins", "directory", f"{ANTIGRAVITY}/plugins", G),
+            # `evidence="ran"` names an instrument, and the instrument is here
+            # rather than in the commit that set it: `antigravity plugin install`
+            # created `~/.gemini/config/plugins/` and created no
+            # `antigravity-cli/plugins` at all. An effect and its negative
+            # control, which is what separates this from a command that renders
+            # back what was written — such a command answers *was my file read*
+            # and can never contradict a claim about what the file does.
             _layout(
                 "plugin", "config/plugins", "directory", f"{ANTIGRAVITY}/plugins", G, evidence="ran"
             ),

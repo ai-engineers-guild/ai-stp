@@ -76,6 +76,7 @@ from ai_stp_contracts.machine_help import (
     ManagedPathChange,
     RecoveryView,
     RollbackTarget,
+    ShadowedSurface,
     TargetBackup,
     TargetBackups,
     TargetDiff,
@@ -1328,7 +1329,7 @@ def _verify(
 
 def _target_digest(invoke: conformance.Invoker) -> str:
     """What the provider says the target is right now."""
-    digest, _authorization = _provider_observation(invoke)
+    digest, _authorization, _shadowed = _provider_observation(invoke)
     if not digest:
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED",
@@ -1340,10 +1341,25 @@ def _target_digest(invoke: conformance.Invoker) -> str:
 
 def _provider_observation(
     invoke: conformance.Invoker,
-) -> tuple[str, provider_status.AuthorizationEvidence | None]:
-    """Read target identity and optional authorization evidence in one call."""
+) -> tuple[
+    str,
+    provider_status.AuthorizationEvidence | None,
+    tuple[provider_status.ShadowedSurface, ...],
+]:
+    """Read target identity, authorization evidence and shadows in one call.
+
+    The third one used to be discarded. `target_digest` says the bytes the
+    provider wrote are intact; it says nothing about which file the product
+    reads, and a `.jsonc` beside an owned `.json` is the one the product keeps.
+    Taking the digest and dropping the shadow list reported such a target as
+    clean, which is the answer somebody acts on.
+    """
     answer = _object(invoke("status", ()))
-    return str(answer.get("target_digest", "")), provider_status.authorization(answer)
+    return (
+        str(answer.get("target_digest", "")),
+        provider_status.authorization(answer),
+        provider_status.shadowed(answer) or (),
+    )
 
 
 def _speaks(info: dict[str, JsonValue], expected: int) -> None:
@@ -1935,7 +1951,11 @@ def _project_id(connection: sqlite3.Connection, given: str) -> str:
 
 def _observe_target(
     parameters: Mapping[str, object], project_id: str, harness: str
-) -> tuple[str, provider_status.AuthorizationEvidence | None]:
+) -> tuple[
+    str,
+    provider_status.AuthorizationEvidence | None,
+    tuple[provider_status.ShadowedSurface, ...],
+]:
     """Read one target through the provider the caller named, or read nothing.
 
     Both observers did this identically, which made the Windows decision below
@@ -1950,7 +1970,7 @@ def _observe_target(
     """
     invoke = _optional_invoker(parameters, project_id, harness)
     if invoke is None:
-        return "", None
+        return "", None, ()
     return _provider_observation(invoke)
 
 
@@ -1997,7 +2017,7 @@ def target_status(parameters: Mapping[str, object]) -> Answer[TargetSurvey]:
     registry = configured_path()
     if not registry.exists():
         return Answer(_survey(targets.Survey(project_id=project_id, harness_id=harness)))
-    observed, authorization_evidence = _observe_target(parameters, project_id, harness)
+    observed, authorization_evidence, shadowed = _observe_target(parameters, project_id, harness)
 
     with closing(open_readonly(registry)) as connection:
         found = targets.survey(
@@ -2010,7 +2030,7 @@ def target_status(parameters: Mapping[str, object]) -> Answer[TargetSurvey]:
             authorization_evidence=authorization_evidence,
             catalog_version=str(parameters.get("catalog-version") or ""),
         )
-        return Answer(_survey(found))
+        return Answer(_survey(found, shadowed=shadowed))
 
 
 def target_diff(parameters: Mapping[str, object]) -> Answer[TargetDiff]:
@@ -2033,7 +2053,10 @@ def target_diff(parameters: Mapping[str, object]) -> Answer[TargetDiff]:
                 managed_detail="not_applicable",
             )
         )
-    observed, authorization_evidence = _observe_target(parameters, project_id, harness)
+    # A shadow does not change what an install would write, only what the
+    # product reads afterwards, so it is `target status`'s answer and not
+    # this one's. Named rather than silently dropped so the choice is visible.
+    observed, authorization_evidence, _shadowed = _observe_target(parameters, project_id, harness)
 
     with closing(open_readonly(registry)) as connection:
         found = targets.survey(
@@ -2212,7 +2235,9 @@ def _hold_reason(
     return None if found is None else found.hold_reason
 
 
-def _survey(found: targets.Survey) -> TargetSurvey:
+def _survey(
+    found: targets.Survey, *, shadowed: tuple[provider_status.ShadowedSurface, ...] = ()
+) -> TargetSurvey:
     return TargetSurvey(
         project_id=found.project_id,
         harness_id=found.harness_id,  # pyright: ignore[reportArgumentType]
@@ -2226,6 +2251,9 @@ def _survey(found: targets.Survey) -> TargetSurvey:
         missing_env=list(found.missing_env),
         pending_authorization=found.pending_authorization,
         catalog_version=found.catalog_version,
+        shadowed_by=[
+            ShadowedSurface(name=item.name, over=item.over, effect=item.effect) for item in shadowed
+        ],
     )
 
 
