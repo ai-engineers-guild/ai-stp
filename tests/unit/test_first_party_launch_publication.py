@@ -698,3 +698,73 @@ def test_a_rejection_that_never_stops_being_retryable_still_fails() -> None:
     with pytest.raises(CliFailure, match="rate limit"):
         tool._retrying(_work, pause=waits.append)
     assert waits == list(tool.RETRY_PAUSES)
+
+
+def test_a_plan_lost_to_a_restart_can_be_given_a_fresh_attempt() -> None:
+    """Retrying a failed plan returns the same failed plan, by design.
+
+    `_plan_create` sends `create_idempotency_key`, so re-planning a record asks
+    the server for the plan it already has — including a failed one. The key is
+    working correctly: it binds one attempt. The consequence is that a plan lost
+    for a reason outside the object cannot be retried at all.
+
+    That situation is not hypothetical. A deploy rolled the service under a
+    running publication of the first-party corpus and four plans died in flight;
+    the objects were fine and unpublishable, and `review` moved nothing however
+    often it ran.
+
+    So recovery is a new attempt rather than a retry, and it is a flag because
+    `TERMINAL_FAILURES` also covers plans the platform refused on their merits —
+    re-planning those blindly turns a refusal into a loop.
+    """
+    state = tool.BatchState(
+        corpus_digest="sha256:" + "a" * 64,
+        account_id=OWNER_ID,
+        device_id="device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        objects=[
+            tool.ObjectRecord(
+                kind="component",
+                stable_id="component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                version="1.0",
+                content_digest="sha256:" + "b" * 64,
+                passport_digest="sha256:" + "c" * 64,
+                component_pins=[],
+                create_idempotency_key="key-one",
+                confirm_idempotency_key="key-two",
+                plan_id="plan_dead",
+                plan_hash="plan_hash_dead",
+                state="failed",
+                blocker="publication plan is failed",
+                refused_by=["structure"],
+            ),
+            tool.ObjectRecord(
+                kind="component",
+                stable_id="component_01JQZK7B8N4M6P2R9T5V0X3Y80",
+                version="1.0",
+                content_digest="sha256:" + "d" * 64,
+                passport_digest="sha256:" + "e" * 64,
+                component_pins=[],
+                create_idempotency_key="key-three",
+                confirm_idempotency_key="key-four",
+                plan_id="plan_done",
+                state=tool.PUBLISHED,
+            ),
+        ],
+    )
+
+    reset = tool._replan_terminal(state)  # pyright: ignore[reportPrivateUsage]
+
+    assert reset == ["component component_01JQZK7B8N4M6P2R9T5V0X3Y7Z 1.0"]
+    failed, published = state.objects
+    # A fresh attempt: new keys, no plan, and nothing left of the old verdict.
+    assert failed.create_idempotency_key != "key-one"
+    assert failed.confirm_idempotency_key != "key-two"
+    assert failed.plan_id is None
+    assert failed.plan_hash is None
+    assert failed.state == tool.PENDING
+    assert failed.blocker is None
+    assert failed.refused_by == []
+    # Published work is never touched: republishing it is what immutability forbids.
+    assert published.state == tool.PUBLISHED
+    assert published.create_idempotency_key == "key-three"
+    assert published.plan_id == "plan_done"

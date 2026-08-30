@@ -321,6 +321,38 @@ def _plan_create(
     _apply_plan(record, plan)
 
 
+def _replan_terminal(state: BatchState) -> list[str]:
+    """Give every terminally failed record a fresh attempt, and say which.
+
+    A plan is created under `create_idempotency_key`, so re-planning a record
+    returns the **same** plan the server already has — including a failed one.
+    That is the key working correctly: it binds one attempt. It also means a
+    plan that failed for a reason outside the object cannot be retried at all,
+    and the reason this exists is exactly such a case. A deploy rolled the
+    service under a running publication and four plans were lost in flight;
+    the objects were fine and unpublishable.
+
+    So the recovery is a new attempt, not a retry: a fresh key, no plan, back to
+    pending. It is an explicit flag rather than automatic because
+    `TERMINAL_FAILURES` also covers plans that failed on their merits, and
+    re-planning those blindly would turn a refusal into a loop. The operator
+    says which situation this is; the tool does not guess.
+    """
+    reset: list[str] = []
+    for record in state.objects:
+        if record.state not in TERMINAL_FAILURES:
+            continue
+        record.create_idempotency_key = login.new_idempotency_key()
+        record.confirm_idempotency_key = login.new_idempotency_key()
+        record.plan_id = None
+        record.plan_hash = None
+        record.state = PENDING
+        record.blocker = None
+        record.refused_by = []
+        reset.append(f"{record.kind} {record.stable_id} {record.version}")
+    return reset
+
+
 def review(
     *,
     state_path: Path,
@@ -328,6 +360,7 @@ def review(
     held: Session,
     objects: Sequence[LaunchObject] | None = None,
     pause: Callable[[float], None] = time.sleep,
+    replan_failed: bool = False,
 ) -> BatchState:
     """Create exact plans for the ordered corpus and persist resume coordinates."""
     _require_owner(held)
@@ -372,6 +405,9 @@ def review(
                 for item in ordered
             ],
         )
+    if replan_failed:
+        _replan_terminal(state)
+        _save_state(state_path, state)
     by_object = _index_objects(ordered)
     for record in state.objects:
         item = by_object[(record.stable_id, record.version, record.content_digest)]
@@ -674,6 +710,15 @@ def _parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
     review_cmd = sub.add_parser("review")
     review_cmd.add_argument("--state", required=True, type=Path)
+    review_cmd.add_argument(
+        "--replan-failed",
+        action="store_true",
+        help=(
+            "give every terminally failed record a fresh idempotency key and plan. "
+            "For a plan lost to something outside the object — a service restart "
+            "under a running publication — not for one the platform refused."
+        ),
+    )
     apply_cmd = sub.add_parser("apply")
     apply_cmd.add_argument("--state", required=True, type=Path)
     apply_cmd.add_argument("--corpus-digest", required=True)
@@ -690,7 +735,12 @@ def main(argv: list[str] | None = None) -> int:
         held = cloud_auth.required("first-party launch publication")
         endpoint = auth.endpoint()
         if args.command == "review":
-            state = review(state_path=args.state, endpoint=endpoint, held=held)
+            state = review(
+                state_path=args.state,
+                endpoint=endpoint,
+                held=held,
+                replan_failed=bool(args.replan_failed),
+            )
         elif args.command == "apply":
             state = apply(
                 state_path=args.state,
