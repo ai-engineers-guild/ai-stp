@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import ctypes
 import json
-import os
 import platform
 import socket
 import subprocess
@@ -95,7 +94,7 @@ def main() -> int:
     # 1. Is the process elevated? A launcher a consumer can use must not need it.
     try:
         report["is_admin"] = bool(ctypes.windll.shell32.IsUserAnAdmin())
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         report["is_admin"] = f"unknown:{type(exc).__name__}"
 
     # 2. Can a profile be created without elevation?
@@ -162,33 +161,50 @@ def main() -> int:
     report["positive_control_from_parent"] = control
 
     root = Path(tempfile.mkdtemp(prefix="ai-stp-probe-"))
-    granted, ungranted = root / "granted", root / "ungranted"
-    for place in (granted, ungranted):
+    granted, ungranted, workspace = root / "granted", root / "ungranted", root / "out"
+    for place in (granted, ungranted, workspace):
         place.mkdir(parents=True)
         (place / "marker.txt").write_text("x", encoding="utf-8")
 
-    # Grant only the leaf, and deliberately not its parents: `#51` says this is
-    # the step that does not reach. Bypass-traverse-checking is granted to
-    # Everyone by default, so the question is whether an AppContainer keeps it.
-    grant = subprocess.run(
-        ["icacls", str(granted), "/grant", f"*{report.get('package_sid')}:(OI)(CI)(RX)"],
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-    )
-    report["icacls_returncode"] = grant.returncode
-    report["icacls_output"] = (grant.stdout + grant.stderr).strip()[:300]
+    package = report.get("package_sid")
 
+    def icacls(target: Path, rights: str) -> dict[str, Any]:
+        done = subprocess.run(
+            ["icacls", str(target), "/grant", f"*{package}:(OI)(CI){rights}"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        return {"rc": done.returncode, "out": (done.stdout + done.stderr).strip()[:160]}
+
+    # The runtime the container must execute and a place it may write. `#51`
+    # asks for "the chosen target and the necessary runtime" and nothing else,
+    # and this is what that costs in ACEs. Measured rather than assumed: the
+    # first run launched successfully and returned an empty exit 1, which is
+    # what a container that cannot read its own interpreter looks like.
+    #
+    # Deliberately not granted: `ungranted`, and every parent of `granted`.
+    # Bypass-traverse-checking is granted to Everyone by default, so whether a
+    # full path reaches the leaf without rights on its parents is the question
+    # `#51`'s objection turns on.
     script = root / "child.py"
     script.write_text("import subprocess\n" + CHILD, encoding="utf-8")
-    argv = f'"{sys.executable}" "{script}" "{json.dumps(ports).replace(chr(34), chr(92) + chr(34))}" "{granted}" "{ungranted}"'
-    report["child"] = _launch_in_container(kernel, sid, argv, report)
+    report["grants"] = {
+        "granted_leaf": icacls(granted, "(RX)"),
+        "runtime": icacls(Path(sys.executable).parent, "(RX)"),
+        "workspace": icacls(workspace, "(M)"),
+        "script": icacls(script, "(RX)"),
+    }
+
+    quoted = json.dumps(ports).replace(chr(34), chr(92) + chr(34))
+    argv = f'"{sys.executable}" "{script}" "{quoted}" "{granted}" "{ungranted}"'
+    report["child"] = _launch_in_container(kernel, sid, argv, workspace / "result.json")
     print(json.dumps(report, indent=1, sort_keys=True))
     return 0
 
 
-def _launch_in_container(kernel: Any, sid: Any, argv: str, report: dict[str, Any]) -> Any:
+def _launch_in_container(kernel: Any, sid: Any, argv: str, result: Path) -> Any:
     """CreateProcessW with PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES."""
 
     class STARTUPINFOEXW(ctypes.Structure):
@@ -254,10 +270,10 @@ def _launch_in_container(kernel: Any, sid: Any, argv: str, report: dict[str, Any
     start.cb = ctypes.sizeof(STARTUPINFOEXW)
     start.lpAttributeList = ctypes.cast(buffer, ctypes.c_void_p)
     info = PROCESS_INFORMATION()
-    out = Path(tempfile.mkstemp(suffix=".json")[1])
-    # The container cannot inherit our handles usefully, so it writes a file it
-    # was granted instead. Simpler: run through cmd and redirect.
-    full = f'cmd.exe /c {argv} > "{out}" 2>&1'
+    # Redirected into a directory the container holds `(M)` on: it cannot
+    # usefully inherit our handles, and a container that cannot write its own
+    # output reports an empty exit 1 rather than a reason.
+    full = f'cmd.exe /c {argv} > "{result}" 2>&1'
     created = kernel.CreateProcessW(
         None,
         ctypes.create_unicode_buffer(full),
@@ -278,14 +294,13 @@ def _launch_in_container(kernel: Any, sid: Any, argv: str, report: dict[str, Any
     kernel.WaitForSingleObject(info.hProcess, 60000)
     code = wintypes.DWORD()
     kernel.GetExitCodeProcess(info.hProcess, ctypes.byref(code))
-    text = out.read_text(encoding="utf-8", errors="replace").strip()
     try:
-        os.unlink(out)
-    except OSError:
-        pass
+        text = result.read_text(encoding="utf-8", errors="replace").strip()
+    except OSError as error:
+        return {"exit_code": code.value, "unreadable_result": type(error).__name__}
     try:
         return {"exit_code": code.value, "result": json.loads(text.splitlines()[-1])}
-    except Exception:  # noqa: BLE001
+    except Exception:
         return {"exit_code": code.value, "raw": text[:1200]}
 
 
