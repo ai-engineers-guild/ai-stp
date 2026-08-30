@@ -98,6 +98,8 @@ def _probe_bwrap(executable: str) -> tuple[bool, str]:
             argv,
             capture_output=True,
             text=True,
+            # Decode by the contract, not by the ambient locale.
+            encoding="utf-8",
             timeout=3.0,
             check=False,
         )

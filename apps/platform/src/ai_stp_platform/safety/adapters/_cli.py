@@ -205,6 +205,8 @@ def _run(
             cwd=str(cwd),
             capture_output=True,
             text=True,
+            # Decode by the contract, not by the ambient locale.
+            encoding="utf-8",
             timeout=timeout,
             check=False,
             env=env,

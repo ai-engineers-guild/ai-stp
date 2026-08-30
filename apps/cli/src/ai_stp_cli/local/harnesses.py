@@ -226,6 +226,12 @@ def ask_version(executable: Path, arguments: tuple[str, ...]) -> tuple[str, str]
             [str(executable), *arguments],
             capture_output=True,
             text=True,
+            # A harness prints its own banner, and this runs on every platform
+            # the matrix covers. Without this the bytes are decoded by the
+            # ambient code page, which is UTF-8 on the CI Linux runners and the
+            # ANSI page on Windows — the same asymmetry that let a mangled em
+            # dash reach a golden comparison.
+            encoding="utf-8",
             timeout=VERSION_TIMEOUT_SECONDS,
             check=False,
             # A version query needs nothing from the environment, and passing

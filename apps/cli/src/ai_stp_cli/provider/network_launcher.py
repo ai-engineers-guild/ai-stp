@@ -348,6 +348,8 @@ def _probe_bubblewrap(executable: Path) -> tuple[bool, tuple[str, ...]]:
             check=False,
             capture_output=True,
             text=True,
+            # Decode by the contract, not by the ambient locale.
+            encoding="utf-8",
             timeout=_PROBE_TIMEOUT,
             env={"PATH": os.environ.get("PATH", "")},
         )
@@ -400,6 +402,8 @@ def discover_bubblewrap() -> tuple[BubblewrapLauncher | None, NetworkCapability]
             check=True,
             capture_output=True,
             text=True,
+            # Decode by the contract, not by the ambient locale.
+            encoding="utf-8",
             timeout=_PROBE_TIMEOUT,
         ).stdout.strip()
         digest = _digest(executable)

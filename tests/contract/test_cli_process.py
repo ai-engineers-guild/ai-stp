@@ -65,6 +65,14 @@ def run(*argv: str, home: Path) -> subprocess.CompletedProcess[str]:
         [sys.executable, "-m", "ai_stp_cli", *argv],
         capture_output=True,
         text=True,
+        # The CLI pins UTF-8 on its own streams (`app._use_utf8_streams`) and
+        # writes machine mode with `ensure_ascii=False`, so a reader that does
+        # not name an encoding decodes by the ambient locale. On Linux that is
+        # UTF-8 and the omission is invisible; on `windows-latest` it is the
+        # ANSI code page, and the em dash in one command summary came back as
+        # `\x97` — the golden registry compared unequal while the same fixture
+        # passed in process. Reading a UTF-8 contract has to say UTF-8.
+        encoding="utf-8",
         env=environment,
         check=False,
         timeout=INVOCATION_SECONDS,
@@ -345,6 +353,21 @@ def test_the_golden_fixture_matches_the_registry_in_process() -> None:
     # registry changed or the process wrapper did.
     live = _pinned(machine_help.registry({}).payload.model_dump(mode="json"))
     assert live == json.loads(GOLDEN.read_text(encoding="utf-8"))
+
+
+def test_machine_help_carries_non_ascii_through_a_subprocess(home: Path) -> None:
+    # The guard above only exercises decoding while some command summary still
+    # holds a non-ASCII character. That was true by accident — one em dash in
+    # the whole registry — and an editor who rewrote that summary would have
+    # removed the coverage without touching a test. So assert the property
+    # directly: the payload has such a character, and it survives the pipe.
+    result = run("help", "--agent", "--json", home=home)
+    summaries = "".join(
+        command["summary"] for command in json.loads(result.stdout)["data"]["commands"]
+    )
+    exotic = {character for character in summaries if ord(character) > 127}
+    assert exotic, "machine help no longer exercises non-ASCII decoding"
+    assert all(character.isprintable() for character in exotic)
 
 
 def test_report_preview_is_process_visible_and_confirm_still_requires_a_person(home: Path) -> None:
