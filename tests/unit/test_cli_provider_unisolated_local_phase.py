@@ -13,6 +13,7 @@ exactly as narrow as it was decided to be.
 
 from __future__ import annotations
 
+import os
 import stat
 from pathlib import Path
 
@@ -101,18 +102,23 @@ def test_windows_capability_still_reports_unavailable(monkeypatch: pytest.Monkey
 
 
 def _stub(tmp_path: Path) -> Path:
-    """A file that exists and is never run.
+    """A file that exists, resolves as runnable, and can never actually run.
 
-    The refusal under test happens before any spawn, so this only has to be
-    resolvable. It is deliberately not a shell script: a `#!/bin/sh` stub is
-    executable on two of the three systems this suite runs on, and writing one
-    here is how the Windows leg failed once already.
+    The refusal under test happens before any spawn, so this only has to pass
+    `resolve_executable`. It is deliberately not a shell script: a `#!/bin/sh`
+    stub is executable on two of the three systems this suite runs on, and
+    writing one here is how the Windows leg failed once already.
+
+    The name carries the platform. This helper used to say "the bit is a no-op
+    on Windows, where resolution is by existence" — true of a predicate that
+    answered `True` for every file, and false since one was written that asks
+    each platform its own question. Three call sites had inlined the same four
+    lines and all four failed together; they call this now.
     """
-    script = tmp_path / "provider-stub"
+    script = tmp_path / ("provider-stub.exe" if os.name == "nt" else "provider-stub")
     script.write_text("stub", encoding="utf-8")
-    # Executable because `resolve_executable` requires it on POSIX; the bit is a
-    # no-op on Windows, where resolution is by existence. Content is not a
-    # script, so nothing can accidentally run it on either.
+    # The mode bit is what POSIX asks; `.exe` is what Windows asks. Content is
+    # not a script under either, so nothing can accidentally run it.
     script.chmod(script.stat().st_mode | stat.S_IXUSR)
     return script
 
@@ -190,8 +196,7 @@ def test_windows_with_the_exception_reaches_the_spawn_unwrapped(
 
     target = tmp_path / "target"
     target.mkdir()
-    executable = tmp_path / "provider-stub"
-    executable.write_text("stub", encoding="utf-8")
+    executable = _stub(tmp_path)
 
     seen: list[tuple[str, ...]] = []
 
@@ -317,9 +322,7 @@ def test_conformance_asks_for_the_exception_only_when_the_operator_names_it(
 
     target = tmp_path / "target"
     target.mkdir()
-    executable = tmp_path / "provider-stub"
-    executable.write_text("stub", encoding="utf-8")
-    executable.chmod(0o755)
+    executable = _stub(tmp_path)
 
     base = {
         "harness": "claude-code",
@@ -360,9 +363,7 @@ def test_the_observers_ask_on_the_same_named_gate(
     """
     from ai_stp_cli.commands import install
 
-    executable = tmp_path / "provider-stub"
-    executable.write_text("stub", encoding="utf-8")
-    executable.chmod(0o755)
+    executable = _stub(tmp_path)
     target = tmp_path / "target"
     target.mkdir()
 
