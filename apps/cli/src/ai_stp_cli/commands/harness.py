@@ -731,7 +731,6 @@ _UNSETTLED: Final[frozenset[str]] = frozenset(
 
 #: Cleanup the provider says it still owes. Any of these is durable work, so
 #: `recover-operation` is the command that settles it, never a second apply.
-_PENDING_CLEANUP: Final[frozenset[str]] = frozenset({"pending", "required", "in_progress"})
 
 
 def resume(parameters: Mapping[str, object]) -> Answer[HarnessProgram]:
@@ -791,7 +790,7 @@ def resume(parameters: Mapping[str, object]) -> Answer[HarnessProgram]:
         answer = _object(invoke("status", ()))
         reported = str(answer.get("state", ""))
         cleanup = str(answer.get("cleanup_state", ""))
-        if reported == "recovery_required" or cleanup in _PENDING_CLEANUP:
+        if reported == "recovery_required" or cleanup in protocol_v3.CLEANUP_NEEDS_RECOVERY:
             invoke("recover-operation", ())
             answer = _object(invoke("status", ()))
             reported = str(answer.get("state", ""))

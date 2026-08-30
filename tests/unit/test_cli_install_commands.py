@@ -984,7 +984,10 @@ def test_v3_resume_drains_committed_cleanup_then_verifies_exact_provenance(
     )
     installation.applied(registry, planned.operation_id, at=MOMENT)
     state["installed"] = True
-    state["cleanup_state"] = "committed_pending"
+    # `protocol_v3.CLEANUP_PENDING`. This said `committed_pending`, a spelling
+    # invented in this file and matched by one of two readers that each held
+    # their own literal set, against a provider emitting neither.
+    state["cleanup_state"] = protocol_v3.CLEANUP_PENDING
     state["recovered_target"] = TARGET_AFTER
     cast(list[str], state["calls"]).clear()
 

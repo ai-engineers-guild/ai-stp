@@ -1025,10 +1025,10 @@ def resume(parameters: Mapping[str, object]) -> Answer[InstallationView]:
             status_answer = _object(invoke("status", ()))
             recovery_state = str(status_answer.get("state", ""))
             cleanup_state = str(status_answer.get("cleanup_state", ""))
-            if recovery_state == "recovery_required" or cleanup_state in {
-                "committed_pending",
-                "backup_staging_pending",
-            }:
+            if (
+                recovery_state == "recovery_required"
+                or cleanup_state in protocol_v3.CLEANUP_NEEDS_RECOVERY
+            ):
                 recovered = _object(invoke("recover-operation", ()))
                 recovered_digest = str(recovered.get("target_digest", ""))
                 if recovered_digest == str(provider_plan.artifact["expected_target_digest"]):

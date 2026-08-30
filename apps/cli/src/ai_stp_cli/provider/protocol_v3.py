@@ -83,6 +83,32 @@ PLAN_REQUEST_FIELDS: Final[frozenset[str]] = frozenset({"target_scope"})
 #: explain a motive, and a motive ages badly in a value that cannot change.
 PROJECTION_SCOPES: Final[frozenset[str]] = frozenset({"global", "project", "user_root"})
 
+#: What `status.cleanup_state` may say, and the only values that reach a
+#: recovery decision.
+#:
+#: Declared here because it was declared nowhere. Two functions read this key
+#: with two literal sets — `{"pending", "required", "in_progress"}` in one and
+#: `{"committed_pending", "backup_staging_pending"}` in the other — invented
+#: independently, while no provider emitted the key at all. So `recover-operation`
+#: was unreachable from the daily path against every provider, and nothing could
+#: have caught it: there was no third thing either side could be wrong against.
+#:
+#: `none` is said rather than omitted, because an omitted key is what a provider
+#: that does not speak this looks like, and that was exactly the state to end.
+#: Closed, so a fourth spelling is a conformance failure rather than a silent
+#: no-match — a value neither set contains is this defect in new clothes.
+CLEANUP_NONE: Final[str] = "none"
+CLEANUP_REQUIRED: Final[str] = "required"
+CLEANUP_PENDING: Final[str] = "pending"
+CLEANUP_STATES: Final[frozenset[str]] = frozenset({CLEANUP_NONE, CLEANUP_REQUIRED, CLEANUP_PENDING})
+
+#: The subset that owes a recovery before anything else reads the target.
+#: `required` means the effect may be partial and a restore is owed; `pending`
+#: means only the tail is left. Both are answered by running recovery; they
+#: differ in what it will find, not in whether to run it.
+CLEANUP_NEEDS_RECOVERY: Final[frozenset[str]] = frozenset({CLEANUP_REQUIRED, CLEANUP_PENDING})
+
+
 CORE_COMMANDS: Final[tuple[str, ...]] = (
     "provider-info",
     "validate-bundle",
