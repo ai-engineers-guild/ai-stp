@@ -27,15 +27,6 @@ PROJECTION_MISSING: Final[dict[tuple[str, str], str]] = {
         "row at all, so this cell read `unsupported` — which says the product "
         "cannot do it, and `#460` is right that it can."
     ),
-    ("codex", "agent"): (
-        "a standalone `<name>.toml` under the configuration home is a role, "
-        "measured on the pinned `codex-cli 0.151.0` binary and reproduced here. "
-        "This entry said the opposite — that a role is only an `agents.<name>` "
-        "table plus a layer — and so did the provider, which withdrew "
-        "`ComponentKind::Agent` on it. The rule waits for that declaration to "
-        "come back: a route the provider refuses composes a bundle that fails "
-        "late, which is why antigravity's `instruction` row waited a release."
-    ),
 }
 
 #: Routed by this compiler and absent from the catalogue at an owned scope. Each

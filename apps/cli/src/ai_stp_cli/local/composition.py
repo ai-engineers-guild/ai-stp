@@ -141,25 +141,35 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     # elimination would have got these two right. It got claude-code's `plugin`
     # wrong in the same pass, and a method that is right four times out of five
     # is not a method.
-    # No `agent` row, and the one that was here for a few hours is the sharpest
-    # instance of a rule I had already written down. Codex does not load an
-    # agent from a file in `~/.codex/agents/`: a role is an `agents.<name>`
-    # table in the settings file whose `config_file` points at a TOML layer,
-    # resolved relative to the declaring file. Measured against a temporary
-    # `CODEX_HOME` — a bad pointer is reported as a malformed role definition,
-    # while an `agents/<name>.md` sitting beside it is loaded by nothing and
-    # complained about by nothing.
+    # This row was absent twice, and the second absence outlived its reason.
     #
-    # It went in on the provider's declaration plus a vendor page listing the
-    # TOML fields, which is exactly the move I had argued against in the same
-    # week: **a declaration can refute a route and cannot confirm one.** The
-    # provider had declared the kind since it was written and its own builder
-    # setup had never run, so nothing on either side had exercised it.
+    # The argument for leaving it out was that a codex role needs two files —
+    # an `agents.<name>` table in the settings file plus a TOML layer it points
+    # at — and a component of one kind is one thing in one namespace. That came
+    # from a measurement against a temporary `CODEX_HOME` in which an
+    # `agents/<name>` file "sitting beside it is loaded by nothing and
+    # complained about by nothing".
     #
-    # The route would need two files written together — a settings table and a
-    # layer it points at — and a component of one kind is one thing in one
-    # namespace. There is no honest way to state it, so it is absent rather
-    # than approximated.
+    # The measurement planted a `.md`. `discovery.rs` admits only `*.toml`, so
+    # the negative control could not have failed, and the silence it recorded
+    # was the filter rather than the finding. Re-measured on the pinned
+    # `codex-cli 0.151.0` and reproduced independently of the side that found
+    # it, a standalone `<name>.toml` under the configuration home *is* a role:
+    # a missing `description` is rejected by name, an invented directory is
+    # silently unscanned. `harness_catalog` carries the full table.
+    #
+    # So the objection dissolves rather than being overridden: one `.toml` in
+    # `agents/` is one thing in one namespace, which is exactly what this table
+    # can state.
+    #
+    # A declaration still cannot confirm a route, and this one does not have to
+    # — it only had to stop refusing. `0.0.40` declares `agent` and `agents` in
+    # the **global** profile, `conforms: true` with no projection
+    # disagreements, and the provider's own tree ships the shape at
+    # `setups/nddev-builder/home/agents/nddev-builder.toml`. Global, not scoped,
+    # by this table's own rule: route a kind to a scope only where the global
+    # profile does not declare it.
+    Rule("agent", "agents", "directory", "codex"),
     Rule("hook", "hooks.json", "file", "codex"),
     Rule("command", "prompts", "directory", "codex"),
     # No `agent/` prefix: these are relative to the target, and Pi's target
