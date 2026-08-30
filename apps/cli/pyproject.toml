@@ -29,6 +29,17 @@ dependencies = [
     "keyring>=25.6",
     "pydantic>=2.9",
     "pyyaml>=6",
+    # Format-preserving TOML writing, for `ADR-0129`: a component whose landing
+    # is a key inside a host file the provider owns is compiled as a
+    # contribution to that file, and the consumer assembles the full bytes.
+    #
+    # `tomllib` in the standard library only reads. Writing values back would
+    # round-trip `config.toml` through parse-and-serialise and erase every
+    # comment its owner wrote — losing comments in a file we did not create is
+    # data damage, not cosmetics.
+    #
+    # Owner: `ADR-0129`. Removal path: it goes when that layout rule does.
+    "tomlkit>=0.13",
 ]
 
 [project.scripts]

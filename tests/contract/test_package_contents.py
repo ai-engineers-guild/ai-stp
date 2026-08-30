@@ -76,7 +76,10 @@ DISTRIBUTION_OF: Final[dict[str, str]] = {
 #: Reasons on the record: `click` by `ADR-0057`, `cryptography` and `keyring` by
 #: `ADR-0058`, `httpx` by `#75`, `pyyaml` for the configuration file, `pydantic`
 #: for the wire and report models, `ai-stp-passports` for the passport envelope,
-#: and `ai-stp-assurance` for the signed attestation boundary.
+#: `ai-stp-assurance` for the signed attestation boundary, and `tomlkit` by
+#: `ADR-0129` for format-preserving writes to a host file a component
+#: contributes one key to — `tomllib` in the standard library only reads, and
+#: writing values back would erase every comment the file's owner put there.
 #: A name reaching this set without a reason is the thing to argue about.
 ALLOWED_DEPENDENCIES: Final[frozenset[str]] = frozenset(
     {
@@ -90,6 +93,7 @@ ALLOWED_DEPENDENCIES: Final[frozenset[str]] = frozenset(
         "keyring",
         "pydantic",
         "pyyaml",
+        "tomlkit",
     }
 )
 
