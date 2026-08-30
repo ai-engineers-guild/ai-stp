@@ -198,8 +198,20 @@ def _common(
     }
 
 
-def _title(slug: str) -> str:
-    return " ".join(part.upper() if part in {"mcp"} else part.title() for part in slug.split("-"))
+def _component_name(slug: str, harness_id: str, posture: str) -> str:
+    """The file's own name, the harness, and the posture it belongs to.
+
+    The slug used to be title-cased on `-` boundaries, which produced
+    `Agents.Md for pi` and `Nddev Setup.Md for pi`. A slug is a **filename in
+    somebody else's tree**, not a phrase: `AGENTS.md` is what that ecosystem
+    calls the file, and title-casing it invents a name that exists in no source
+    — the same defect as `ADR-0130`'s invented role, one size smaller.
+
+    The posture is here because the same slug now appears in up to four setups
+    of one harness as four separate objects, and a catalogue of four identically
+    named cards is a list nobody can choose from.
+    """
+    return f"{slug} — {harness_id} {posture}"
 
 
 def _component(
@@ -232,13 +244,14 @@ def _component(
     body.update(
         {
             "name": (
-                component_source.name or f"{_title(component_source.slug)} for {source.harness_id}"
+                component_source.name
+                or _component_name(component_source.slug, source.harness_id, source.posture)
             ),
             "description": (
                 component_source.description
                 or (
-                    f"First-party {source.harness_id} {component_source.component_type} "
-                    "from the exact NDDev Builder provider release."
+                    f"First-party {source.harness_id} {component_source.component_type}, "
+                    f"exactly as the {source.posture} setup publishes it."
                 )
             ),
             "tags": ["code-review", "devops", "planning"],
