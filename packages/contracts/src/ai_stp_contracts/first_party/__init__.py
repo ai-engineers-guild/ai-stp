@@ -307,6 +307,16 @@ def _setup(source: _HarnessSource, components: tuple[FirstPartyVersion, ...]) ->
         artifact=artifact,
         version=source.setup_version,
     )
+    # The vendor pages the posture was read from, after the repository. They are
+    # what says this configuration is valid for this harness, which is what this
+    # field is for, and both setup pages render it — so `sources` reaching the
+    # catalogue means reaching a reader, not only the manifest. An empty list
+    # stays empty: five of the seven `minimal` setups set no product keys, so
+    # there is nothing to source, and that is a statement rather than a gap.
+    body["compatibility_evidence_refs"] = [
+        source.evidence_ref,
+        *(ref for ref in source.setup_sources if ref != source.evidence_ref),
+    ]
     body.update(
         cast(
             dict[str, JsonValue],
@@ -384,7 +394,7 @@ def family(harness_id: str, posture: str) -> tuple[FirstPartyVersion, ...]:
     is the posture directory the bytes came from — the same fact the setup's
     pins carry, taken from the side that cannot disagree with itself.
     """
-    return tuple(
+    found = tuple(
         item
         for item in versions()
         if item.passport.harness_id == harness_id
@@ -395,3 +405,15 @@ def family(harness_id: str, posture: str) -> tuple[FirstPartyVersion, ...]:
             and item.passport.source.path.split("/", 1)[0] == posture
         )
     )
+    # An empty family is refused rather than returned. Every caller is about to
+    # loop over this, and a filter that selects nothing produces output
+    # identical to one that selects correctly — the loop runs zero times and
+    # whatever it asserts is never asked. That exact defect shipped here: a test
+    # selecting setups by a role no setup carried looped over an empty list and
+    # stayed green for as long as it existed.
+    #
+    # Refusing at the boundary is stronger than asking each caller to check,
+    # because a caller that forgets is invisible and this is not.
+    if not found:
+        raise LookupError(f"the first-party corpus has no {harness_id} objects in {posture!r}")
+    return found
