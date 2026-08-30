@@ -226,8 +226,19 @@ def main() -> int:
     return 0
 
 
-def _launch_in_container(kernel: Any, sid: Any, argv: str, result: Path) -> Any:
-    """CreateProcessW with PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES."""
+def _launch_in_container(kernel: Any, sid: Any, argv: str, _unused: Path) -> Any:
+    """Run one command in an AppContainer and read its answer through a pipe.
+
+    The answer comes back on an inherited handle rather than through a file,
+    and that is the whole point. Three runs collected it from the filesystem —
+    a granted temp directory, then the container's own profile folder — and all
+    three returned exit 1 with no file and therefore no reason. A collection
+    channel that depends on the thing being measured cannot report that the
+    thing being measured failed.
+
+    A handle is already open when the child receives it, so no path is resolved
+    and no ACL is consulted on the child's side.
+    """
 
     class STARTUPINFOEXW(ctypes.Structure):
         _fields_ = [
@@ -268,6 +279,25 @@ def _launch_in_container(kernel: Any, sid: Any, argv: str, result: Path) -> Any:
             ("dwThreadId", wintypes.DWORD),
         ]
 
+    class SECURITY_ATTRIBUTES(ctypes.Structure):
+        _fields_ = [
+            ("nLength", wintypes.DWORD),
+            ("lpSecurityDescriptor", ctypes.c_void_p),
+            ("bInheritHandle", wintypes.BOOL),
+        ]
+
+    attributes = SECURITY_ATTRIBUTES()
+    attributes.nLength = ctypes.sizeof(SECURITY_ATTRIBUTES)
+    attributes.bInheritHandle = True
+    read_end, write_end = wintypes.HANDLE(), wintypes.HANDLE()
+    if not kernel.CreatePipe(
+        ctypes.byref(read_end), ctypes.byref(write_end), ctypes.byref(attributes), 0
+    ):
+        return {"error": f"CreatePipe {ctypes.get_last_error()}"}
+    # The read end must not travel to the child, or the parent's read never
+    # sees end-of-file when the child exits.
+    kernel.SetHandleInformation(read_end, 0x00000001, 0)
+
     size = ctypes.c_size_t(0)
     kernel.InitializeProcThreadAttributeList(None, 1, 0, ctypes.byref(size))
     buffer = ctypes.create_string_buffer(size.value)
@@ -290,18 +320,20 @@ def _launch_in_container(kernel: Any, sid: Any, argv: str, result: Path) -> Any:
 
     start = STARTUPINFOEXW()
     start.cb = ctypes.sizeof(STARTUPINFOEXW)
+
+    start.dwFlags = 0x00000100  # STARTF_USESTDHANDLES
+    start.hStdOutput = write_end
+    start.hStdError = write_end
+    start.hStdInput = None
     start.lpAttributeList = ctypes.cast(buffer, ctypes.c_void_p)
+
     info = PROCESS_INFORMATION()
-    # Redirected into a directory the container holds `(M)` on: it cannot
-    # usefully inherit our handles, and a container that cannot write its own
-    # output reports an empty exit 1 rather than a reason.
-    full = f'cmd.exe /c {argv} > "{result}" 2>&1'
     created = kernel.CreateProcessW(
         None,
-        ctypes.create_unicode_buffer(full),
+        ctypes.create_unicode_buffer(argv),
         None,
         None,
-        False,
+        True,
         0x00080000 | 0x08000000,
         None,
         None,
@@ -311,19 +343,27 @@ def _launch_in_container(kernel: Any, sid: Any, argv: str, result: Path) -> Any:
     if not created:
         return {
             "error": f"CreateProcessW {ctypes.get_last_error()}",
-            "note": "an AppContainer cannot be created this way on this host",
+            "note": "no AppContainer could be launched on this host",
         }
+    kernel.CloseHandle(write_end)
+
+    chunks: list[bytes] = []
+    piece = ctypes.create_string_buffer(4096)
+    read = wintypes.DWORD()
+    while kernel.ReadFile(read_end, piece, 4096, ctypes.byref(read), None) and read.value:
+        chunks.append(piece.raw[: read.value])
     kernel.WaitForSingleObject(info.hProcess, 60000)
     code = wintypes.DWORD()
     kernel.GetExitCodeProcess(info.hProcess, ctypes.byref(code))
-    try:
-        text = result.read_text(encoding="utf-8", errors="replace").strip()
-    except OSError as error:
-        return {"exit_code": code.value, "unreadable_result": type(error).__name__}
-    try:
-        return {"exit_code": code.value, "result": json.loads(text.splitlines()[-1])}
-    except Exception:
-        return {"exit_code": code.value, "raw": text[:1200]}
+    kernel.CloseHandle(read_end)
+
+    text = b"".join(chunks).decode("utf-8", errors="replace").strip()
+    for line in reversed(text.splitlines()):
+        try:
+            return {"exit_code": code.value, "result": json.loads(line)}
+        except ValueError:
+            continue
+    return {"exit_code": code.value, "raw": text[:1500] or "<the child wrote nothing>"}
 
 
 if __name__ == "__main__":
