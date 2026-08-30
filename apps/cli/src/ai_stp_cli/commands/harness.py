@@ -167,7 +167,9 @@ def status(parameters: Mapping[str, object]) -> Answer[HarnessProgramStatus]:
     executable = prefix / entry_point if entry_point else None
     on_disk = executable is not None and executable.exists()
 
-    state, reason = _standing(settled=settled, stopped=stopped, on_disk=on_disk, prefix=prefix)
+    state, reason = _standing(
+        settled=settled, stopped=stopped, on_disk=on_disk, prefix=prefix, history=history
+    )
     return Answer(
         HarnessProgramStatus(
             harness_id=harness_id,
@@ -200,6 +202,7 @@ def _standing(
     stopped: tuple[installation.ProgramRecord, ...],
     on_disk: bool,
     prefix: Path,
+    history: tuple[installation.ProgramRecord, ...],
 ) -> tuple[str, str]:
     """One of six answers, and the sentence that says why.
 
@@ -223,6 +226,14 @@ def _standing(
         return ("never_installed", "this installation has never put a program under this prefix")
     if settled.action == "software_remove":
         if on_disk:
+            standing = _survivor(settled=settled, history=history)
+            if standing is not None:
+                return (
+                    "present",
+                    f"{standing.version or 'a build'} exposed at {standing.entry_point}, "
+                    f"verified by {standing.operation_id}; {settled.version or 'another build'} "
+                    f"was taken off by {settled.operation_id} and did not hold the exposure",
+                )
             return (
                 "foreign",
                 "this installation removed what it owned and a program is still exposed here; "
@@ -241,6 +252,52 @@ def _standing(
         f"{settled.version or 'a build'} exposed at {settled.entry_point}, "
         f"verified by {settled.operation_id}",
     )
+
+
+def _survivor(
+    *,
+    settled: installation.ProgramRecord,
+    history: tuple[installation.ProgramRecord, ...],
+) -> installation.ProgramRecord | None:
+    """The version still exposed after a removal that did not name it.
+
+    A removal takes `bin/<command>` only when it names the version that holds
+    it. Removing a build that is merely present — the one a rollback stepped
+    off — leaves the running command alone, and that is the whole point of
+    being able to remove it.
+
+    This reading could not see the difference. `entry_point` is a command name
+    rather than a version, so it is the same string for every build under the
+    prefix; the file was still there and the branch above called it `foreign`,
+    which says *this installation did not put it there*. It did.
+
+    Reported by the side that owns the kernel, after it fixed a removal that
+    used to take the exposure unconditionally: install, update, roll back,
+    remove the bad one, and the command running the good build was deleted. So
+    the old `foreign` was accurate only because the state it described could
+    not occur.
+
+    The journal can tell them apart because a rollback is a `software_update`
+    to the earlier version — the operation vocabulary has three verbs and no
+    fourth — so the newest settled install or update before the removal names
+    the build that stands. A different version there is the survivor; the same
+    version is a genuine stranger, and keeps the old answer.
+    """
+    # By position rather than by timestamp: `program_history` orders on
+    # `created_at DESC, operation_id DESC`, so two operations recorded in the
+    # same second are separated by the second key and not by the first. A
+    # comparison on `at` alone would put them in either order.
+    try:
+        start = history.index(settled)
+    except ValueError:  # pragma: no cover - `settled` is taken from `history`
+        return None
+    for record in history[start + 1 :]:
+        if record.state != installation.STATE_VERIFIED:
+            continue
+        if record.action == "software_remove":
+            return None
+        return record if record.version and record.version != settled.version else None
+    return None
 
 
 def _occupied(prefix: Path) -> bool:

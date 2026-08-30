@@ -251,3 +251,48 @@ def test_status_creates_nothing_on_a_fresh_installation(tmp_path: Path) -> None:
     assert answer.payload.state == "never_installed"
     assert not registry.exists(), f"{registry} was created by a read"
     assert sorted(item.name for item in (home / "data").rglob("*")) == before
+
+
+def test_removing_a_build_that_did_not_hold_the_exposure_is_present_not_foreign(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """Install, update, roll back, remove the bad one: the good one still runs.
+
+    A removal takes `bin/<command>` only when it names the build holding it, so
+    this sequence deliberately leaves the command in place. `entry_point` is a
+    command name and not a version, so the file on disk looks identical either
+    way, and reading it alone said `foreign` — *this installation did not put
+    it there* — about a build this installation had put there and verified.
+
+    The journal separates them because a rollback is a `software_update` to the
+    earlier version; the operation vocabulary has three verbs and no fourth.
+    """
+    prefix = tmp_path / "prefix"
+    _record(registry, prefix, action="software_install", key="one", version="1.18.23")
+    _record(registry, prefix, action="software_update", key="two", version="1.19.0")
+    _record(registry, prefix, action="software_update", key="three", version="1.18.23")
+    _record(registry, prefix, action="software_remove", key="four", version="1.19.0")
+    _expose(prefix)
+
+    report = _status(prefix)
+    assert report.state == "present"  # type: ignore[attr-defined]
+    assert "1.18.23" in report.reason  # type: ignore[attr-defined]
+    assert "1.19.0" in report.reason  # type: ignore[attr-defined]
+
+
+def test_removing_the_build_that_held_the_exposure_still_reads_foreign(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """The negative control, without which the fix above would be untested.
+
+    Same shape, one difference: the removal names the version that was standing.
+    Nothing this installation owns should still be exposed, so a file that is
+    there anyway is a stranger and keeps the old answer.
+    """
+    prefix = tmp_path / "prefix"
+    _record(registry, prefix, action="software_install", key="one", version="1.18.23")
+    _record(registry, prefix, action="software_remove", key="two", version="1.18.23")
+    _expose(prefix)
+
+    report = _status(prefix)
+    assert report.state == "foreign"  # type: ignore[attr-defined]
