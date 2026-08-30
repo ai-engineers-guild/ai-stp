@@ -57,8 +57,31 @@ REPOSITORIES: dict[str, str] = {
 }
 
 ORGANISATION = "NDDev-OpenNetwork"
-SETUP_PATH = "setups/nddev-builder/setup.json"
-HOME_PREFIX = "setups/nddev-builder/home/"
+#: The product axis the setup-systems publish on, in the order a reader should
+#: meet them: least configured first. Each is a directory under `setups/` in
+#: every one of the seven repositories, and its `setup.json` carries `"id"` with
+#: exactly this string — measured across all 7x4 by the publishing side, which
+#: also warned that `id` is **not** unique across the estate. `baseline` names
+#: seven different setups, so the key is the pair.
+#:
+#: This was `nddev-builder` alone until 2026-08-30, so the catalogue carried 7
+#: of the 28 published setups — a quarter, and the one posture least applicable
+#: to an ordinary user, because it is the toolkit for building harness artifacts.
+POSTURES: tuple[str, ...] = ("minimal", "baseline", "full-auto", "nddev-builder")
+
+
+def setup_path(posture: str) -> str:
+    return f"setups/{posture}/setup.json"
+
+
+def home_prefix(posture: str) -> str:
+    return f"setups/{posture}/home/"
+
+
+def source_path(posture: str) -> str:
+    """The path whose history is one posture's provenance."""
+    return f"setups/{posture}"
+
 
 ARTIFACT_DIGEST_DOMAIN = "ai-stp:artifact:v1"
 COMPONENT_TREE = "ai-stp-component-tree/1"
@@ -81,27 +104,24 @@ def _blob(repository: str, sha: str) -> bytes:
     return base64.b64decode(raw)
 
 
-#: The path whose history is this corpus's provenance. A commit that did not
-#: touch it did not produce any byte recorded here.
-SOURCE_PATH = "setups/nddev-builder"
-
-
-def source_commit(repository: str) -> str:
-    """The last commit that touched the captured path.
+def source_commit(repository: str, posture: str) -> str:
+    """The last commit that touched one posture's captured path.
 
     Split out of `_tree` so the property can be exercised directly: the question
-    "which commit produced these bytes" has one answer, and it is not HEAD.
+    "which commit produced these bytes" has one answer, and it is not HEAD. It
+    is asked per posture rather than per repository, because the four move
+    independently and a shared answer would restore exactly the staleness the
+    docstring on `_tree` describes, one level up.
     """
-    commit = _gh(
-        f"repos/{ORGANISATION}/{repository}/commits?path={SOURCE_PATH}&per_page=1", ".[0].sha"
-    )
+    path = source_path(posture)
+    commit = _gh(f"repos/{ORGANISATION}/{repository}/commits?path={path}&per_page=1", ".[0].sha")
     if not commit:
-        raise RuntimeError(f"{repository}: no commit has touched {SOURCE_PATH}")
+        raise RuntimeError(f"{repository}: no commit has touched {path}")
     return commit
 
 
-def _tree(repository: str) -> tuple[str, list[dict[str, Any]]]:
-    """The captured tree, and the commit that actually produced it.
+def _tree(repository: str) -> list[dict[str, Any]]:
+    """Every entry of the repository at `main`, for all four postures at once.
 
     This asked for `commits/main` — the repository's HEAD — until 2026-08-29.
     HEAD moves on every provider release, and `source.commit` is inside a
@@ -121,7 +141,8 @@ def _tree(repository: str) -> tuple[str, list[dict[str, Any]]]:
     read at `main`: that is the state being captured.
     """
     raw = _gh(f"repos/{ORGANISATION}/{repository}/git/trees/main?recursive=1", ".tree")
-    return source_commit(repository), json.loads(raw)
+    entries: list[dict[str, Any]] = json.loads(raw)
+    return entries
 
 
 #: The asset every setup-system publishes for the platform this script runs on.
@@ -182,9 +203,9 @@ def _platform_support(repository: str) -> tuple[list[str], list[str]]:
 
 
 def _components(
-    harness_id: str, entries: list[dict[str, Any]]
+    harness_id: str, entries: list[dict[str, Any]], posture: str
 ) -> tuple[list[dict[str, Any]], list[str]]:
-    """Map each home path to a component, or report why it is not one."""
+    """Map one posture's home paths to components, or report why they are not."""
     from ai_stp_cli.local import composition
 
     rules = [rule for rule in composition.PROVIDER_RULES if rule.harness_id == harness_id]
@@ -192,12 +213,13 @@ def _components(
     blobs = {item["path"]: item for item in entries if item["type"] == "blob"}
     trees = {item["path"]: item for item in entries if item["type"] == "tree"}
 
+    prefix = home_prefix(posture)
     found: list[dict[str, Any]] = []
     unrouted: list[str] = []
     claimed: set[str] = set()
 
     for rule in sorted(rules, key=lambda item: -len(item.relative)):
-        base = f"{HOME_PREFIX}{rule.relative}"
+        base = f"{prefix}{rule.relative}"
         if rule.shape == "file":
             if base in blobs and base not in claimed:
                 claimed.add(base)
@@ -213,7 +235,7 @@ def _components(
                         # three had already drifted — cursor's plugin was
                         # `plugins/local` in one and `plugins` in another.
                         "native_path": rule.relative,
-                        "source_path": f"nddev-builder/home/{rule.relative}",
+                        "source_path": f"{posture}/home/{rule.relative}",
                         "source_tree": blobs[base]["sha"],
                         "artifact_format": COMPONENT_FILE,
                         "source_object_kind": "blob",
@@ -232,7 +254,7 @@ def _components(
                     "projection_kind": rule.projection_kind,
                     "slug": name,
                     "native_path": f"{rule.relative}/{name}",
-                    "source_path": f"nddev-builder/home/{rule.relative}/{name}",
+                    "source_path": f"{posture}/home/{rule.relative}/{name}",
                     "source_tree": item["sha"],
                     "artifact_format": (
                         COMPONENT_TREE if item["type"] == "tree" else COMPONENT_FILE
@@ -242,23 +264,24 @@ def _components(
             )
 
     for path in sorted(blobs):
-        if not path.startswith(HOME_PREFIX) or path in claimed:
+        if not path.startswith(prefix) or path in claimed:
             continue
-        relative = path[len(HOME_PREFIX) :]
-        if any(relative.startswith(f"{item}/") for item in claimed_relatives(claimed)):
+        relative = path[len(prefix) :]
+        if any(relative.startswith(f"{item}/") for item in claimed_relatives(claimed, posture)):
             continue
         if relative.split("/")[0] not in by_relative and relative not in by_relative:
             unrouted.append(relative)
     return found, sorted(set(unrouted))
 
 
-def claimed_relatives(claimed: set[str]) -> list[str]:
-    return [path[len(HOME_PREFIX) :] for path in claimed if path.startswith(HOME_PREFIX)]
+def claimed_relatives(claimed: set[str], posture: str) -> list[str]:
+    prefix = home_prefix(posture)
+    return [path[len(prefix) :] for path in claimed if path.startswith(prefix)]
 
 
 def _package(repository: str, entries: list[dict[str, Any]], component: dict[str, Any]) -> bytes:
     """The exact bytes of one component, as the corpus embeds them."""
-    prefix = f"{HOME_PREFIX}{component['source_path'].split('home/', 1)[1]}"
+    prefix = f"setups/{component['source_path']}"
     if component["source_object_kind"] == "blob":
         return _blob(repository, component["source_tree"])
     members = sorted(
@@ -310,7 +333,9 @@ def _package(repository: str, entries: list[dict[str, Any]], component: dict[str
     return held.getvalue()
 
 
-def held_identities(out: Path) -> tuple[dict[tuple[str, str, str], str], dict[str, str]]:
+def held_identities(
+    out: Path,
+) -> tuple[dict[tuple[str, str, str, str], str], dict[tuple[str, str], str]]:
     """The identifiers a previous build of this corpus already gave these objects.
 
     The docstring above says this builder does not reuse *the archived estate's*
@@ -324,23 +349,64 @@ def held_identities(out: Path) -> tuple[dict[tuple[str, str, str], str], dict[st
     provider change could only be published as forty *new* objects, orphaning
     the seeded set and growing the catalogue by forty on every rebuild.
 
-    Logical identity is `(harness, kind, slug)` for a component and the harness
-    for a setup — what the object *is*, not where its bytes currently hash to.
-    A path that no earlier build carried still gets a new id; that is a new
-    object and should say so.
+    Logical identity is `(harness, kind, slug, source_tree)` for a component and
+    `(harness, posture)` for a setup. Both keys gained a member on 2026-08-30,
+    when the build stopped reading one posture of four, and each addition
+    answers a measurement rather than a preference.
+
+    **The setup key.** `setup.json` publishes `"id"` with the posture in it, and
+    that id is not unique across the estate — `baseline` names seven different
+    setups. Keyed by harness alone, seven held identities would have smeared
+    across twenty-eight objects, every one of them looking stable while naming
+    something else.
+
+    **The component key.** Read across all four postures, the seven repositories
+    hold 152 files under `home/` and 130 distinct `(slug, content)` pairs: only
+    13 slugs of 116 carry more than one content, and they are exactly the
+    instruction and the setting file of each harness. A posture is expressed
+    through those two and nothing else; every skill, command and agent is
+    byte-identical wherever it appears.
+
+    That measurement argues for keying on the content SHA, and the first
+    version of this did. It is wrong, for the reason this docstring already
+    gives one paragraph up. **Content separates a variant from a variant and
+    cannot separate a variant from a version.** Under a content key, the day
+    upstream edits `baseline`'s `CLAUDE.md` that object stops existing and a
+    different one appears — no path from `1.0` to `1.1`, orphaning exactly what
+    reusing identifiers exists to prevent, and now on every upstream edit rather
+    than every rebuild. Measured on the live trees: ten components had already
+    moved, so ten of thirty-three would have been orphaned on the first run.
+
+    So the key is `(harness, kind, slug, posture)`. A component belongs to a
+    setup and a setup is a `(harness, posture)`; the same slug in two postures is
+    two objects that may happen to hold the same bytes today and may diverge
+    tomorrow, and each keeps its own version line through that. The cost is
+    named rather than hidden: an instruction identical across three postures is
+    three catalogue objects. That is a presentation question — a card can say
+    what it is identical to — and identity is not the place to solve it.
     """
     manifest_path = out / "corpus-sources.json"
     if not manifest_path.is_file():
         return {}, {}
     held = json.loads(manifest_path.read_text(encoding="utf-8"))
+    # A manifest built before 2026-08-30 has no `posture`, because one posture
+    # of four was read: it was `nddev-builder`. Reading it as that is what lets
+    # the 33 component and 7 setup identities already published stay attached to
+    # their objects; dropping the fallback would remint them and orphan the
+    # seeded corpus, which is the failure this whole function exists to avoid.
     components = {
-        (entry["harness_id"], item["component_type"], item["slug"]): item["stable_id"]
+        (
+            entry["harness_id"],
+            item["component_type"],
+            item["slug"],
+            entry.get("posture", "nddev-builder"),
+        ): item["stable_id"]
         for entry in held.get("harnesses", [])
         for item in entry.get("components", [])
         if item.get("stable_id")
     }
     setups = {
-        entry["harness_id"]: entry["setup_id"]
+        (entry["harness_id"], entry.get("posture", "nddev-builder")): entry["setup_id"]
         for entry in held.get("harnesses", [])
         if entry.get("setup_id")
     }
@@ -353,55 +419,94 @@ def build(harnesses: Sequence[str], *, out: Path) -> dict[str, Any]:
     known_components, known_setups = held_identities(out)
     report: dict[str, Any] = {"harnesses": {}, "unrouted": {}, "new_identities": []}
     manifest: list[dict[str, Any]] = []
+    written: dict[str, bytes] = {}
     for harness_id in harnesses:
         repository = REPOSITORIES[harness_id]
-        commit, entries = _tree(repository)
-        components, unrouted = _components(harness_id, entries)
+        entries = _tree(repository)
         systems, machines = _platform_support(repository)
-        setup = next((item for item in entries if item["path"] == SETUP_PATH), None)
-        if setup is None:
-            raise RuntimeError(f"{repository} has no {SETUP_PATH}")
-        setup_id = known_setups.get(harness_id)
-        if setup_id is None:
-            setup_id = new_id("setup")
-            report["new_identities"].append(f"setup {harness_id}")
-        for component in components:
-            # A file rule's slug is its relative path, which may carry a
-            # separator — antigravity's setting is `antigravity-cli/settings.json`.
-            # An artifact name is a filename, so the separator becomes a dash
-            # rather than a directory nobody created.
-            flat = component["slug"].replace("/", "-")
-            name = f"{harness_id}-{flat}-{component['component_type']}"
-            suffix = (
-                ".zip"
-                if component["source_object_kind"] == "tree"
-                else Path(component["slug"]).suffix or ".txt"
+        by_posture = {posture: _components(harness_id, entries, posture) for posture in POSTURES}
+        for posture in POSTURES:
+            components, unrouted = by_posture[posture]
+            path = setup_path(posture)
+            setup = next((item for item in entries if item["path"] == path), None)
+            if setup is None:
+                raise RuntimeError(f"{repository} has no {path}")
+            declared = json.loads(_blob(repository, setup["sha"]))
+            # The posture is a published field, not a path segment we recognised.
+            # Keying on the segment would work today and quietly disagree the
+            # first time a directory is renamed without its `id`.
+            if declared.get("id") != posture:
+                raise RuntimeError(
+                    f"{repository}: {path} declares id {declared.get('id')!r}, not {posture!r}"
+                )
+            setup_id = known_setups.get((harness_id, posture))
+            if setup_id is None:
+                setup_id = new_id("setup")
+                report["new_identities"].append(f"setup {harness_id}/{posture}")
+            for component in components:
+                # A file rule's slug is its relative path, which may carry a
+                # separator — antigravity's setting is
+                # `antigravity-cli/settings.json`. An artifact name is a
+                # filename, so the separator becomes a dash rather than a
+                # directory nobody created.
+                flat = component["slug"].replace("/", "-")
+                # The posture is in the name because it is in the identity: the
+                # same slug in two postures is two objects, and two objects may
+                # not share a filename. It is not a disambiguator applied only
+                # on collision — that would make one object's name depend on
+                # whether another exists.
+                name = f"{harness_id}-{posture}-{flat}-{component['component_type']}"
+                suffix = (
+                    ".zip"
+                    if component["source_object_kind"] == "tree"
+                    else Path(component["slug"]).suffix or ".txt"
+                )
+                component["artifact_name"] = f"{name}{suffix}"
+                identity = (harness_id, component["component_type"], component["slug"], posture)
+                held = known_components.get(identity)
+                if held is None:
+                    held = new_id("component")
+                    report["new_identities"].append(
+                        f"component {harness_id}/{posture}/{component['slug']}"
+                    )
+                component["stable_id"] = held
+                # Cached by content, not by name: postures sharing a blob share
+                # the packaging work, while each still writes its own artifact,
+                # because each is its own object.
+                packaged = written.get(component["source_tree"])
+                if packaged is None:
+                    packaged = _package(repository, entries, component)
+                    written[component["source_tree"]] = packaged
+                (out / component["artifact_name"]).write_bytes(packaged)
+            manifest.append(
+                {
+                    "commit": source_commit(repository, posture),
+                    "components": components,
+                    "evidence_ref": f"https://github.com/{ORGANISATION}/{repository}",
+                    "harness_id": harness_id,
+                    "posture": posture,
+                    # Published prose, never composed here. `full-auto` runs to
+                    # thousands of characters and is load-bearing safety context
+                    # — it names things like the sandbox key reaching nothing on
+                    # native Windows — so a browse card may clamp it and an
+                    # install surface may not.
+                    "setup_description": declared["description"],
+                    # A missing `sources` is a statement, not an omission: five
+                    # of the seven `minimal` setups set no product keys, so there
+                    # is nothing to source. Rendering that as "undocumented"
+                    # would be a third invented fact on the same page.
+                    "setup_sources": declared.get("sources", []),
+                    "repository": f"https://github.com/{ORGANISATION}/{repository}",
+                    "supported_os": systems,
+                    "supported_arch": machines,
+                    "setup_blob": setup["sha"],
+                    "setup_id": setup_id,
+                    "setup_path": path,
+                }
             )
-            component["artifact_name"] = f"{name}{suffix}"
-            identity = (harness_id, component["component_type"], component["slug"])
-            held = known_components.get(identity)
-            if held is None:
-                held = new_id("component")
-                report["new_identities"].append(f"component {harness_id}/{component['slug']}")
-            component["stable_id"] = held
-            (out / component["artifact_name"]).write_bytes(_package(repository, entries, component))
-        manifest.append(
-            {
-                "commit": commit,
-                "components": components,
-                "evidence_ref": f"https://github.com/{ORGANISATION}/{repository}",
-                "harness_id": harness_id,
-                "repository": f"https://github.com/{ORGANISATION}/{repository}",
-                "supported_os": systems,
-                "supported_arch": machines,
-                "setup_blob": setup["sha"],
-                "setup_id": setup_id,
-                "setup_path": SETUP_PATH,
-            }
-        )
-        report["harnesses"][harness_id] = len(components)
-        if unrouted:
-            report["unrouted"][harness_id] = unrouted
+            report["harnesses"][f"{harness_id}/{posture}"] = len(components)
+            if unrouted:
+                report["unrouted"][f"{harness_id}/{posture}"] = unrouted
     report["manifest"] = {"harnesses": manifest, "schema_version": 1}
     return report
 
@@ -429,22 +534,29 @@ def drift(manifest: dict[str, Any], harnesses: Sequence[str]) -> dict[str, Any]:
     measurement removes.
     """
     moved: dict[str, Any] = {"components": {}, "setups": [], "unchanged": 0, "changed": 0}
-    recorded = {item["harness_id"]: item for item in manifest["harnesses"]}
+    recorded: dict[str, list[dict[str, Any]]] = {}
+    for item in manifest["harnesses"]:
+        recorded.setdefault(item["harness_id"], []).append(item)
     for harness_id in harnesses:
-        entry = recorded.get(harness_id)
-        if entry is None:
+        entries_for = recorded.get(harness_id)
+        if not entries_for:
             continue
-        _, entries = _tree(REPOSITORIES[harness_id])
-        live = {item["path"]: item["sha"] for item in entries}
-        if live.get(SETUP_PATH) != entry.get("setup_blob"):
-            moved["setups"].append(harness_id)
-        for component in entry["components"]:
-            path = f"{HOME_PREFIX}{component['source_path'].split('home/', 1)[1]}"
-            if live.get(path) == component["source_tree"]:
-                moved["unchanged"] += 1
-                continue
-            moved["changed"] += 1
-            moved["components"].setdefault(harness_id, []).append(component["slug"])
+        live = {item["path"]: item["sha"] for item in _tree(REPOSITORIES[harness_id])}
+        for entry in entries_for:
+            # `posture` may be absent in a manifest built before 2026-08-30, when
+            # one posture of four was read. Reporting such an entry under its
+            # harness alone would be the honest answer for the shape it has.
+            posture = entry.get("posture")
+            where = f"{harness_id}/{posture}" if posture else harness_id
+            if live.get(entry["setup_path"]) != entry.get("setup_blob"):
+                moved["setups"].append(where)
+            for component in entry["components"]:
+                path = f"setups/{component['source_path']}"
+                if live.get(path) == component["source_tree"]:
+                    moved["unchanged"] += 1
+                    continue
+                moved["changed"] += 1
+                moved["components"].setdefault(where, []).append(component["slug"])
     return moved
 
 
