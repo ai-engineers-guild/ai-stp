@@ -76,6 +76,32 @@ def test_seed_passport_digest_matches_canonical_bytes() -> None:
         assert digest == expected
 
 
+def test_every_seed_passport_id_derives_from_its_own_body() -> None:
+    """The check the digest test only appears to be.
+
+    `test_seed_passport_digest_matches_canonical_bytes` recomputes the digest
+    from the body, so it heals whatever the body says and can never disagree
+    with it. `revision_id` is different: two seed passports carry a **pinned**
+    literal, because they back published contract examples and an example whose
+    id moves on every edit is not a fixed point. Pinned means it must be
+    recomputed by hand when the body changes, and nothing checked that it had
+    been.
+
+    Adding `posture` to the setup body moved the id and the whole suite stayed
+    green. That is the failure `seal_envelope`'s own docstring records: a
+    passport carrying an id that fails its own verification is invisible
+    locally, and surfaces at `sync pull`, which refuses the payload as not
+    matching its event coordinates.
+    """
+    from ai_stp_passports.envelope import derive_revision_id
+
+    checked = 0
+    for _kind, passport, _published_at, _digest in seed_corpus():
+        assert passport["revision_id"] == derive_revision_id(passport), passport["stable_id"]
+        checked += 1
+    assert checked > 0
+
+
 @pytest.mark.asyncio
 async def test_seed_loader_is_idempotent_in_session() -> None:
     session = RecordingSession()

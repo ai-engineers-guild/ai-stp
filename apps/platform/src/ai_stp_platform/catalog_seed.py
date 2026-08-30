@@ -246,6 +246,7 @@ def _setup_body(
     purpose: str,
     target_role: str,
     components: list[dict[str, Any]],
+    posture: str | None = None,
     owner_id: str = SEED_OWNER_ACCOUNT_ID,
     published_at: str = FIXTURE_PUBLISHED_AT,
     supported_tasks: list[str] | None = None,
@@ -279,7 +280,7 @@ def _setup_body(
         # Spelled out although optional. `seal_envelope` derives the id over the
         # *validated dump*, so a field left to its default hashes one document
         # while the sealed envelope is another — see its docstring.
-        "posture": None,
+        "posture": posture,
         "supported_tasks": supported_tasks or ["development"],
         "components": components,
         "ported_from": None,
@@ -320,11 +321,22 @@ _SETUP_V10: dict[str, Any] = _setup_body(
     harness_id="claude-code",
     purpose="fixture-purpose",
     target_role="fixture-role",
+    # A real value rather than `None`, because this seed backs the published
+    # contract example for `readSetup`: a field that is always null in the one
+    # example a client reads teaches nothing about its shape.
+    posture="baseline",
     components=[_component_ref(FIXTURE_COMPONENT_ID, "1.2")],
     supported_tasks=["fixture-task"],
 )
+# Pinned rather than derived because this passport backs a published contract
+# example, and an example whose id moves on every edit is not a fixed point a
+# client can test against. Pinned means it must be **recomputed** when the body
+# changes: adding `posture` moved it, and nothing caught that — the seed digest
+# test recomputes from the body and so heals itself, while `revision_id` was
+# checked by nothing. `test_every_seed_passport_id_derives_from_its_own_body`
+# is that missing check.
 _SETUP_V10["revision_id"] = (
-    "revision_17c0933d0091430a6750bddf86e03277cd06675b7520a340f75cd30a439c7045"
+    "revision_b4a9fa7b0fc3932a01407ce00ee801bd3fa0422d37fa2fb6a3438c031528845c"
 )
 _SETUP_V10["target_role"] = "fixture-role"
 
