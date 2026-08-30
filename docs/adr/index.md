@@ -129,6 +129,7 @@ last_verified: "2026-08-03"
 | [ADR-0128-in-process-dual-window-http-rate-limiter.md](ADR-0128-in-process-dual-window-http-rate-limiter.md) | Решение держать HTTP rate limit одного узла двумя скользящими окнами в процессе API, а не Redis, SlowAPI или Caddy. | 2026-08-28 |
 | [ADR-0129-a-component-landing-inside-an-owned-file-is-a-contribution-to-it.md](ADR-0129-a-component-landing-inside-an-owned-file-is-a-contribution-to-it.md) | Решение компилировать компонент, чьё место посадки — ключ внутри файла, которым владеет провайдер, как вклад в этот файл, реконструируемый потребителем. | 2026-08-30 |
 | [ADR-0130-a-posture-is-sourceable-a-role-is-not.md](ADR-0130-a-posture-is-sourceable-a-role-is-not.md) | Решение сделать target_role необязательным и ввести posture первоклассным полем паспорта сетапа, потому что позу можно сорсить, а роль нельзя. | 2026-08-30 |
+| [ADR-0131-appcontainer-keeps-bypass-traverse-checking.md](ADR-0131-appcontainer-keeps-bypass-traverse-checking.md) | Решение строить windows network-isolated launcher на AppContainer, потому что измерение опровергло возражение о правке DACL родителей. | 2026-08-30 |
 | [template.md](template.md) | Шаблон записи архитектурного решения. | 2026-08-03 |
 
 <!-- КОНЕЦ СОДЕРЖИМОГО -->
