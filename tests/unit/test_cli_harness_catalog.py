@@ -334,6 +334,11 @@ def test_every_exercised_row_is_one_somebody_actually_exercised() -> None:
         "if this stops being a minority the sentence above needs rewriting"
     )
     assert exercised == {
+        # Read from the shipped `2.1.251` bytes, with two invented key names as
+        # controls returning zero: "require hooks configured in settings.json —
+        # the harness executes these", "Change settings: hooks, permissions,
+        # environment variables", and `disableAllHooks` "in your user settings".
+        ("claude-code", "hook", "settings.json", "bytes"),
         # Planted under a temporary `CODEX_HOME` and read back through `codex
         # doctor` on the pinned `0.151.0` binary: a complete `<name>.toml` is
         # accepted silently, one missing `description` is refused by name, a

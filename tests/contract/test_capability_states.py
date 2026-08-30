@@ -51,6 +51,12 @@ PROJECTION_MISSING: Final[dict[tuple[str, str], str]] = {
     ("codex", "mcp"): "`mcp_servers` is a key inside the owned `config.toml`; ADR-0129, #456",
     ("grok-build", "mcp"): "`mcp_servers` inside the owned `config.toml`; ADR-0129, #456",
     ("opencode", "mcp"): "`mcp` inside the owned `opencode.json`; ADR-0129, #456",
+    ("claude-code", "hook"): (
+        "hooks are a `hooks` key inside the owned `settings.json`, the same "
+        "shape as codex's `mcp_servers`; ADR-0129, #460. There was no catalogue "
+        "row at all, so this cell read `unsupported` — which says the product "
+        "cannot do it, and `#460` is right that it can."
+    ),
     ("codex", "agent"): (
         "a standalone `<name>.toml` under the configuration home is a role, "
         "measured on the pinned `codex-cli 0.151.0` binary and reproduced here. "

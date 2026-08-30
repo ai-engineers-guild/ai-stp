@@ -200,6 +200,30 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
             _layout("agent", "agents", "directory", f"{CLAUDE}/sub-agents", G),
             _layout("command", "commands", "directory", f"{CLAUDE}/slash-commands", G),
             _layout("setting", "settings.json", "file", f"{CLAUDE}/settings", G),
+            # Hooks live inside the settings file the row above already names,
+            # under a `hooks` key — the same shape as codex's `mcp_servers`, and
+            # the reason `declared_key` exists: the file's presence proves the
+            # setting, never the hook.
+            #
+            # There was no `hook` row at all, so the capability model called
+            # claude-code's hooks `unsupported`, which says the product cannot do
+            # it. `#460` says the opposite and is right.
+            #
+            # Read from the shipped `2.1.251` bytes rather than a page, with
+            # controls: two invented key names return zero, and the product's own
+            # strings say "require hooks configured in settings.json — the
+            # harness executes these", "Change settings: hooks, permissions,
+            # environment variables", and `disableAllHooks` "in your user
+            # settings". So the surface is the user-scope settings file.
+            _layout(
+                "hook",
+                "settings.json",
+                "file",
+                f"{CLAUDE}/hooks",
+                G,
+                declared_key="hooks",
+                evidence="bytes",
+            ),
             # No global `mcp` row. The cited page lists three scopes and none of
             # them is a `.mcp.json` in the configuration home: `local` and `user`
             # both live in `~/.claude.json`, and `project` is `.mcp.json` at a

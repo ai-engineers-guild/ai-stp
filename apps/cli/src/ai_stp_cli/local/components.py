@@ -501,6 +501,23 @@ _ADDED_BOTH_SCOPES_SINCE_MIGRATION: Final[tuple[Rule, ...]] = (
 #: belongs to no single product, and a per-harness copy of it would report one
 #: file as several components.
 _ADDED_GLOBAL_SINCE_MIGRATION: Final[tuple[Rule, ...]] = (
+    # Claude Code hooks, a `hooks` key inside the settings file. The catalogue
+    # carried no `hook` row for claude-code at all, so the capability model read
+    # the cell as `unsupported` — a statement that the product cannot do it.
+    # Read from the shipped `2.1.251` bytes with invented-key controls at zero:
+    # "require hooks configured in settings.json — the harness executes these",
+    # and `disableAllHooks` "in your user settings".
+    #
+    # Discovered, not owned by a projection: the key sits in a file the provider
+    # owns as a `setting`, which is `ADR-0129`'s shape and `#456`'s work.
+    Rule(
+        "hook",
+        "settings.json",
+        "file",
+        "claude-code",
+        "code.claude.com/docs/en/hooks",
+        declared_key="hooks",
+    ),
     # A standalone role file under the configuration home. Both this estate and
     # the provider recorded that a codex role is only an `agents.<name>` table
     # in the settings file plus a layer it points at, and the provider withdrew
