@@ -197,12 +197,24 @@ class UnisolatedLocalPhase:
 def unisolated_local_phase(reason: str) -> UnisolatedLocalPhase:
     """Build the Windows exception, or refuse to.
 
-    Windows 11 has no network-denying launcher a plain CLI may use. Classic
-    AppContainer denies the network but reaching an arbitrary target needs DACL
-    traversal, and preparing a parent or a drive root is not an installer's to
-    do; `CreateProcessInSandbox` is absent on this OS version and Windows
-    Sandbox is a separate optional feature. So the provider refused before its
-    first spawn and nothing worked on Windows at all.
+    Windows 11 has no network-denying launcher a plain CLI may use — meaning
+    none is built and proved here. `CreateProcessInSandbox` is absent on this OS
+    version and Windows Sandbox is a separate optional feature. So the provider
+    refused before its first spawn and nothing worked on Windows at all.
+
+    **One half of the original reason was wrong, and it is the half that stopped
+    anyone looking.** This said reaching an arbitrary target needs DACL
+    traversal, so an installer would have to prepare a parent or a drive root.
+    Measured on `windows-latest` (`NDDev-OpenNetwork/claude-setup-system`, run
+    33302576898): an AppContainer read a target carrying **only its own ACE**,
+    with no ACE anywhere on the parent — bypass-traverse is granted broadly by
+    default. The probe enumerated the parent's DACL for that SID and printed
+    nothing, so the control fired rather than being assumed.
+
+    That does not lift the debt: a launcher still has to exist and be proved on
+    the platform, and an unproved one is a green guard over nothing. It does
+    remove the reason recorded for why one could not be built, which is why the
+    sentence is corrected here rather than left as harmless history.
 
     This is deliberate security debt, scoped by `#416`: a provider the operator
     chose can technically use the network during a local phase. It is not a
