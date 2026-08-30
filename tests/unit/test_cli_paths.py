@@ -227,3 +227,74 @@ def test_the_bootstrap_lock_can_be_re_entered_by_its_holder() -> None:
     # nesting counter.
     with paths.bootstrap_lock(timeout=0.1):
         pass
+
+
+# --- what "runnable" means on each platform -------------------------------
+
+
+def test_a_plain_file_is_not_runnable_on_either_platform(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The predicate `os.access(X_OK)` replaced answered `True` here on Windows.
+
+    Both branches are exercised on whichever platform runs this, because the
+    defect being fixed was invisible to the POSIX leg for seventeen commits: the
+    Windows leg is where the answer differs, so a test that only asks the local
+    platform proves the half that was already right.
+    """
+    plain = tmp_path / "notes.txt"
+    plain.write_text("read me\n", encoding="utf-8")
+
+    monkeypatch.setattr(paths, "POSIX", True)
+    assert paths.is_executable_file(plain) is False
+
+    monkeypatch.setattr(paths, "POSIX", False)
+    assert paths.is_executable_file(plain) is False
+
+
+def test_the_windows_answer_is_the_extension_and_the_posix_answer_is_the_bit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Each platform's real question, asked of a file that fails the other's."""
+    named = tmp_path / "provider.exe"
+    named.write_text("", encoding="utf-8")
+    named.chmod(0o600)
+
+    bit = tmp_path / "provider"
+    bit.write_text("", encoding="utf-8")
+    bit.chmod(0o700)
+
+    monkeypatch.setattr(paths, "POSIX", False)
+    assert paths.is_executable_file(named) is True
+    assert paths.is_executable_file(bit) is False
+
+    monkeypatch.setattr(paths, "POSIX", True)
+    assert paths.is_executable_file(bit) is True
+    # Skipped where the platform refuses to hand out a file without execute:
+    # the assertion is about the mode, and only POSIX has one to clear.
+    if paths.POSIX:
+        assert paths.is_executable_file(named) is False
+
+
+def test_a_directory_is_never_runnable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`os.access` says yes to a traversable directory, which is not the question."""
+    place = tmp_path / "provider.exe"
+    place.mkdir()
+    for posix in (True, False):
+        monkeypatch.setattr(paths, "POSIX", posix)
+        assert paths.is_executable_file(place) is False
+
+
+def test_the_machine_pathext_is_honoured_over_the_default(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`PATHEXT` is what the shell consults, so it is what decides here."""
+    place = tmp_path / "provider.psm"
+    place.write_text("", encoding="utf-8")
+    monkeypatch.setattr(paths, "POSIX", False)
+
+    monkeypatch.delenv("PATHEXT", raising=False)
+    assert paths.is_executable_file(place) is False
+
+    monkeypatch.setenv("PATHEXT", ".COM;.EXE;.PSM")
+    assert paths.is_executable_file(place) is True

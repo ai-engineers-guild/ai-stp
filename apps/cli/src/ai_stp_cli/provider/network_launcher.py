@@ -260,6 +260,13 @@ def _system_path_refusal(executable: Path) -> str | None:
         if metadata.st_mode & (stat.S_IWGRP | stat.S_IWOTH):
             return f"bwrap path is group/world writable: {candidate}"
         if candidate == executable:
+            # `os.access(X_OK)` rather than `paths.is_executable_file`, and the
+            # difference is the point: this is the only executable check in the
+            # CLI that is Linux-only by construction. `bwrap` exists nowhere
+            # else, `UNISOLATED_PLATFORMS` concedes Windows and macOS above, and
+            # the root-ownership test two lines up is already a POSIX question.
+            # The portable predicate would be a weaker answer here, not a safer
+            # one — it asks about a name where this asks about a permission.
             if not stat.S_ISREG(metadata.st_mode) or not os.access(candidate, os.X_OK):
                 return "bwrap is not an executable regular file"
         elif not stat.S_ISDIR(metadata.st_mode):

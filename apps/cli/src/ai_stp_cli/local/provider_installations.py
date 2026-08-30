@@ -13,14 +13,13 @@ executable indistinguishable from a chosen one.
 
 from __future__ import annotations
 
-import os
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
 
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.paths import data_dir
+from ai_stp_cli.paths import data_dir, is_executable_file
 
 #: How a path was arrived at, narrowest authority first. The order is the
 #: resolution order: an explicit argument beats the configuration file, which
@@ -107,7 +106,7 @@ def _runnable(place: Path) -> bool:
     at can change after it was inspected, and the inspection is what the trust
     verdict was attached to.
     """
-    return place.is_file() and not place.is_symlink() and os.access(place, os.X_OK)
+    return not place.is_symlink() and is_executable_file(place)
 
 
 def validated(path: str, *, harness_id: str) -> Path:
@@ -137,7 +136,7 @@ def validated(path: str, *, harness_id: str) -> Path:
             "no provider executable is at that path",
             details={"harness": harness_id, "path": path},
         )
-    if not os.access(place, os.X_OK):
+    if not is_executable_file(place):
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
             "that provider path is not executable",

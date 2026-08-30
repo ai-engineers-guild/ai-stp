@@ -168,9 +168,39 @@ def is_private(path: Path) -> bool:
     """Whether `path` exists with owner-only permissions."""
     if not path.exists():
         return False
-    if not POSIX:  # pragma: no cover - the CI platforms are POSIX
+    if not POSIX:  # pragma: no cover - asserted on the POSIX legs of the matrix
         return True
     return not stat.S_IMODE(path.stat().st_mode) & 0o077
+
+
+#: What Windows treats as directly runnable, lowercased, when `PATHEXT` is unset.
+#: The provider artifacts this CLI fetches are `.exe` on both Windows targets
+#: (`attested_bind.PLATFORM_TARGETS`), so `.exe` is the member that matters; the
+#: rest are here because the shell would run them and refusing them would be a
+#: statement about this program rather than about the platform.
+DEFAULT_PATHEXT: Final[str] = ".com;.exe;.bat;.cmd"
+
+
+def is_executable_file(path: Path) -> bool:
+    """Whether `path` is a file this user could run, on this operating system.
+
+    `os.access(path, os.X_OK)` is the POSIX answer and **not** a portable one:
+    Windows has no execute permission bit, so the call degrades to an existence
+    test and returns `True` for `notes.txt`, a `.dll`, or anything else that is
+    merely there. Every caller here is choosing or validating a provider binary,
+    where "returns True for every file" is not a weaker check but the wrong
+    question — discovery would adopt the first file in the directory.
+
+    What makes a file runnable on Windows is its extension being in `PATHEXT`,
+    which is what the shell itself consults, so that is what is asked.
+    """
+    if not path.is_file():
+        return False
+    if POSIX:
+        return os.access(path, os.X_OK)
+    suffixes = os.environ.get("PATHEXT") or DEFAULT_PATHEXT
+    runnable = {item.strip().lower() for item in suffixes.split(";") if item.strip()}
+    return path.suffix.lower() in runnable
 
 
 #: How long a process waits for another one's first-run work before giving up.

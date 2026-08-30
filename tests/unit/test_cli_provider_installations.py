@@ -1,14 +1,15 @@
 """Provider lifecycle: which one is here, which is newest, and replacing it (`#452`)."""
 
-import os
 import sqlite3
 import stat
 from collections.abc import Iterator
 from contextlib import closing
 from pathlib import Path
+from typing import Final
 
 import pytest
 
+from ai_stp_cli import paths
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import provider_installations as installations
 from ai_stp_cli.local.database import configured_path, open_registry
@@ -22,10 +23,19 @@ def registry() -> Iterator[sqlite3.Connection]:
         yield connection
 
 
+#: What "runnable" is spelled as on each platform. On POSIX it is a mode bit and
+#: the name is free; on Windows it is the name and the mode bit does not exist.
+#: Writing the fixtures either way keeps one test body honest on both legs of the
+#: matrix instead of two bodies that agree only until one is edited.
+_SUFFIX: Final[str] = "" if paths.POSIX else ".exe"
+
+
 def _executable(place: Path) -> Path:
+    place = place.with_name(place.name + _SUFFIX)
     place.parent.mkdir(parents=True, exist_ok=True)
     place.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
-    place.chmod(place.stat().st_mode | stat.S_IXUSR)
+    if paths.POSIX:
+        place.chmod(place.stat().st_mode | stat.S_IXUSR)
     return place
 
 
@@ -71,7 +81,14 @@ def test_a_relative_or_missing_or_linked_provider_path_is_refused(tmp_path: Path
 
 
 def test_a_file_that_is_not_executable_is_refused(tmp_path: Path) -> None:
-    plain = tmp_path / "provider"
+    """The refusal has to survive the platform that has no permission bit.
+
+    `os.access(path, X_OK)` answers `True` for every existing file on Windows,
+    so a check written as "not executable" once accepted anything that was
+    merely there. The fixture is a plain file by *name* as well as by mode, and
+    it is refused on both legs for the reason each platform actually has.
+    """
+    plain = tmp_path / "notes.txt"
     plain.write_text("not runnable\n", encoding="utf-8")
     plain.chmod(0o600)
     with pytest.raises(CliFailure, match="not executable"):
@@ -241,6 +258,6 @@ def test_discovery_ignores_a_symlink_and_a_plain_file(
     (root / "codex" / "0.0.32" / "linked").symlink_to(real)
     plain = root / "codex" / "0.0.32" / "notes.txt"
     plain.write_text("read me\n", encoding="utf-8")
-    assert not os.access(plain, os.X_OK)
+    assert not paths.is_executable_file(plain)
 
     assert installations.discover("codex") == (real,)

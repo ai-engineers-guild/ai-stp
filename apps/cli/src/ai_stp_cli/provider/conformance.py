@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Final, Protocol, cast
 
 from ai_stp_cli.errors import CliFailure
+from ai_stp_cli.paths import is_executable_file
 from ai_stp_cli.provider import bundle_corpus, bundle_protocol, protocol
 from ai_stp_foundation.canonical import JsonValue
 
@@ -117,7 +118,7 @@ def resolve_executable(executable: str) -> str:
     if not place.is_file():
         raise FileNotFoundError(executable)
     resolved = place.resolve()
-    if not os.access(resolved, os.X_OK):
+    if not is_executable_file(resolved):
         raise PermissionError(executable)
     return str(resolved)
 
