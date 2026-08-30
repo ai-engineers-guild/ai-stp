@@ -313,11 +313,14 @@ def _exposed_version(*, prefix: Path, entry_point: str) -> str:
     hand-rollback case this reading exists to answer, and a guard that is wrong
     where the mechanism is right is worse than the hole.
 
-    So it was fixed where it could be. The provider stages the marker to a
-    sibling and renames, which is atomic within a directory, so a reader meets
-    the old marker or the new one and never a third thing. The tag carrying
-    that is not out as this is written, and prefixes written by every provider
-    before it keep the truncated shape, so the filter stays.
+    So it was fixed where it could be. From provider `0.0.42` the marker is
+    staged to a sibling and renamed, which is atomic within a directory, so a
+    reader meets the old marker or the new one and never a third thing. Read
+    from the tag rather than taken on report: `setup-core/src/software.rs` at
+    `0.0.42` carries the staged write, and codex's tree for it is `71dc0c5a`.
+
+    The filter stays regardless. Every prefix written by a provider before
+    `0.0.42` keeps the shape above, and this reads prefixes it did not write.
     """
     command = PurePosixPath(entry_point).name
     stem = Path(command)

@@ -1,0 +1,29 @@
+# Measures what a Windows AppContainer actually enforces, so `#51` can be
+# designed from facts about the platform rather than from its documentation.
+#
+# Temporary and dispatch-only: it answers a fixed set of questions once, its
+# answers go into an ADR, and it is removed. It is not a gate and nothing
+# depends on its colour — a red run here is a measurement, not a failure.
+name: windows-isolation-probe
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    name: measure appcontainer enforcement
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.14"
+      - name: Probe
+        shell: pwsh
+        run: python release_scripts/windows_isolation_probe.py
