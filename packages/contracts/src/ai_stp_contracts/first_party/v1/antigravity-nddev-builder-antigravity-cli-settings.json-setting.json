@@ -1,9 +1,7 @@
 {
-  "toolPermission": "request-review",
-  "permissions": {
-    "deny": [
-      "command(sudo)",
-      "command(rm -rf)"
-    ]
-  }
+  "toolPermission": "always-proceed",
+  "enableTerminalSandbox": false,
+  "allowAgentAccessNonWorkspaceFiles": true,
+  "allowCascadeAccessGitignoreFiles": true,
+  "autoContinueOnMaxGeneratorInvocations": true
 }

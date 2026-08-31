@@ -90,14 +90,18 @@ release-candidate-install:
         dist/release-candidate \
         --expected-sha "$(git rev-parse HEAD)"
 
-#
-evidence-live origin="https://nddev.asia" commit="":
+# Verifies the anonymous slice against the deployed environment.
+evidence-live origin="https://ai-stp.aiguild.space" commit="":
     uv run --locked python -m release_scripts.verify_live_slice \
         --origin "{{origin}}" \
         {{ if commit == "" { "" } else { "--expected-commit " + commit } }}
 
-#
-evidence-sync home_a home_b origin="https://nddev.asia" skip="":
+# Different `HOME` values do not create two devices. The OS credential store
+# belongs to the OS user, not the home directory. Each login must use
+# `AI_STP_FORCE_FILE_CREDENTIAL_STORE=1` for the slice to prove what it claims.
+# `skip` is a space-separated list of exact event ids that do not apply to this
+# account history; it is named by the operator rather than guessed by the tool.
+evidence-sync home_a home_b origin="https://ai-stp.aiguild.space" skip="":
     uv run --locked python -m release_scripts.verify_sync_slice \
         --origin "{{origin}}" \
         --home-a "{{home_a}}" \
@@ -131,7 +135,9 @@ corpus-drift *args:
 evidence-citations:
     uv run --locked python -m release_scripts.verify_citation_slice
 
-evidence-publication home origin="https://nddev.asia" writes="":
+# Verifies publication, grants, reports and owner reads against the deployed
+# environment (#182). Read-only by default; writes require an explicit choice.
+evidence-publication home origin="https://ai-stp.aiguild.space" writes="":
     uv run --locked python -m release_scripts.verify_publication_slice \
         --origin "{{origin}}" \
         --home "{{home}}" \

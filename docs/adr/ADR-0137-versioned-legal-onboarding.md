@@ -3,7 +3,7 @@ description: "Decision to activate new accounts only after exact immutable servi
 last_verified: "2026-08-31"
 ---
 
-# ADR-0135: Versioned legal onboarding
+# ADR-0137: Versioned legal onboarding
 
 Status: accepted.
 

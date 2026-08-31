@@ -1737,11 +1737,37 @@ def _as_json(report: composition.CompositionReport) -> JsonValue:
 
 
 def _conversion_json(report: composition.ConversionReport) -> JsonValue:
+    """The conversion report as the **provider** reads it, not as a person does.
+
+    `component_type` here is the kind the provider is told, which is not always
+    the kind the object is. That is the whole of `#454`, and this document is
+    where the distinction has to land: the provider checks a bundle's kinds
+    against what it implements, and it reads them from exactly this field —
+    `harness-runtime/src/wire.rs::check_declared_kinds`. Its own comment says
+    so: the kind is not in the manifest and not in the setup passport, it is
+    stated once, here.
+
+    This used to emit the *logical* kind and put the told kind beside it in a
+    new `provider_kind` field. Nothing on the provider side has ever read that
+    name — it appears in no released binary and in no schema of the shared kit —
+    so every contribution component arrived as `mcp` at a provider that
+    implements `setting`, and was refused `unsupported_component_kind`. The
+    field was added on the belief that the other side would read it, which is a
+    statement about a mechanism rather than a measurement of one.
+
+    `provider_kind` stays, carrying the same value, because two readers here
+    already take `provider_kind or component_type` and a field that vanishes
+    silently is worse than one that agrees.
+
+    The person-facing report is a different rendering and keeps the logical
+    kind: `contracts.machine_help.ConversionEntry` is built elsewhere, and what
+    a component *is* belongs there.
+    """
     return {
         "entries": [
             {
                 "stable_id": item.stable_id,
-                "component_type": item.component_type,
+                "component_type": item.provider_kind or item.component_type,
                 "native_surface": item.native_surface,
                 "projection_kind": item.projection_kind,
                 "provider_kind": item.provider_kind or item.component_type,

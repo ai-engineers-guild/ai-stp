@@ -15,7 +15,7 @@ There is one configuration, and it belongs to the user. It contains no secrets a
 schema_version: 1
 catalog:
   enabled: true
-  url: "https://nddev.asia"
+  url: "https://ai-stp.aiguild.space"
 sync:
   enabled: false
 registry:
@@ -78,7 +78,7 @@ rejected; this is exactly the case for which the rule exists. Matching is exact:
 parser does not recognize (`2130706433`, `0177.0.0.1`, `127.1`), even if the
 resolver might route it to loopback.
 
-For the deployed environment, the address remains HTTPS through Caddy: the
+For the deployed environment, the address remains HTTPS through the host's nginx: the
 exception applies only to local development and introduces no flag that weakens
 the defaults.
 

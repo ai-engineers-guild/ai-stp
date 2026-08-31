@@ -11,7 +11,7 @@ Simplify the exact-version card: GitHub stars and archive status are read once
 when exact detail is opened, the archive badge appears only for an actually
 archived repository, blast radius remains a local CLI operation, and Web shows
 a reproducible estimate for the published setup without imitating local model
-usage. The local dev build serves browser-facing `/v1` media without Caddy.
+usage. The local dev build serves browser-facing `/v1` media without a host proxy.
 
 ## Scope
 
@@ -28,7 +28,7 @@ Included:
 
 Excluded: actual model usage telemetry, an external tokenizer/pricing API,
 automatic lifecycle changes, Web access to the local registry or installed
-targets, production/Caddy deployment, and import of a local CLI report into Web.
+targets, production deployment and its host routing, and import of a local CLI report into Web.
 
 This specification supersedes the server/Web delivery requirements of `SPEC-047`
 `REQ-4705`…`REQ-4712` with respect to periodic GitHub archive evidence and
@@ -47,7 +47,7 @@ only where they are not explicitly superseded by this specification.
 ## Requirements
 
 - `REQ-4901`: `docker-compose.dev.yml` runs `Dockerfile.dev`/`next dev` and
-  proxies `/v1/*` to `AI_STP_API_BASE_URL` without Caddy. Avatar and component
+  proxies `/v1/*` to `AI_STP_API_BASE_URL` without a host proxy. Avatar and component
   media are available through the Web origin; production routing is not
   duplicated in Next.
 

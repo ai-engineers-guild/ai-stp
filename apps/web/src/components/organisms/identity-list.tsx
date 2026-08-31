@@ -31,7 +31,7 @@ function providerLabel(provider: string, t: (key: string) => string): string {
 
 function linkHref(provider: "google" | "github", returnTo: string): string {
   const params = new URLSearchParams({ return_to: returnTo });
-  // Browser navigates via Caddy so the OAuth handshake cookie is set client-side.
+  // Browser navigates via the edge proxy so the OAuth handshake cookie is set client-side.
   return `/v1/auth/link/${provider}?${params.toString()}`;
 }
 

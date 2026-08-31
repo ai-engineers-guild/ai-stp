@@ -81,7 +81,7 @@ def declared_fields() -> tuple[Field, ...]:
         # `config set --set catalog.url=<origin>`.
         Field(
             "catalog.url",
-            "https://nddev.asia",
+            "https://ai-stp.aiguild.space",
             "Base address of the platform, without the /v1 prefix. HTTPS,"
             " or cleartext to a loopback host for local development.",
         ),

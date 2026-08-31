@@ -116,7 +116,7 @@ circuits and `schemas/**` (`#71`).
   token in a long-lived `HttpOnly; Secure; SameSite=Lax` cookie, checked by account and status;
   a missing, foreign or revoked identity is replaced with a new one.
 - `REQ-2314`: A browser device is labelled from its stored user agent with a safe
-  generic fallback. Caddy replaces the client-address header passed to the API,
+  generic fallback. The edge proxy replaces the client-address header passed to the API,
   which resolves approximate city and country against a local MMDB file. The
   platform stores neither the source IP nor precise coordinates and login remains
   available when the database is absent or unreadable. The web attributes the

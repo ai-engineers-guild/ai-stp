@@ -79,9 +79,9 @@ def test_deploy_scripts_always_rerun_content_import() -> None:
     for name in ("deploy/deploy.sh", "deploy/rollback.sh", "deploy/restore.sh"):
         text = _read(name)
         assert "compose rm -fs content-import" in text
-        assert "compose up -d api worker content-import web caddy" in text
+        assert "compose up -d api worker content-import web docs" in text
         assert text.find("compose rm -fs content-import") < text.find(
-            "compose up -d api worker content-import web caddy"
+            "compose up -d api worker content-import web docs"
         )
 
 
@@ -197,8 +197,8 @@ def test_no_compose_file_resolves_an_image_by_a_moving_tag() -> None:
             reference = stripped.removeprefix("image:").strip()
             if "${" in reference or "@sha256:" in reference:
                 continue
-            # A major tag is a pin in this repository's sense: `postgres:16` and
-            # `caddy:2` move within a major and keep their interface, which is
+            # A major tag is a pin in this repository's sense: `postgres:16`
+            # moves within a major and keeps its interface, which is
             # the same discipline `check.yml` uses. `:latest` is the one that
             # crosses majors and changed endpoints under us, and an untagged
             # reference is `:latest` spelled shorter.

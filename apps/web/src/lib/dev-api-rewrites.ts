@@ -1,8 +1,8 @@
 /**
- * Dev-only same-origin hop for browser paths that previously went through Caddy.
+ * Dev-only same-origin hop for browser paths that go through the host proxy in prod.
  * Without a reverse proxy, Next rewrites `/v1/*` (and API docs paths) to the
  * internal API so OAuth/login/link hrefs stay relative and cookies stay simple.
- * Staging/prod keep Caddy as the public edge (ADR-0044); this hop is not used there.
+ * Prod keeps the host's nginx as the public edge (ADR-0135); this hop is not used there.
  */
 
 export type RewriteRule = {
@@ -17,7 +17,7 @@ export function shouldEnableDevApiRewrites(nodeEnv: string | undefined): boolean
 
 /**
  * Build rewrite rules that proxy browser-facing API paths to AI_STP_API_BASE_URL.
- * Mirrors the path split formerly owned by deploy/caddy/Caddyfile.dev.
+ * Mirrors the path split deploy/nginx/ai-stp.conf.template owns in prod.
  */
 export function buildDevApiRewrites(apiBaseUrl: string): RewriteRule[] {
   const base = apiBaseUrl.replace(/\/$/, "");

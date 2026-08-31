@@ -64,5 +64,5 @@ tests
 # Deploy is host-side; not baked into api/worker images
 deploy
 !deploy/
-!deploy/caddy/
-!deploy/caddy/Caddyfile.user-docs
+!deploy/nginx/
+!deploy/nginx/user-docs.conf

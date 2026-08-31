@@ -32,9 +32,9 @@ deployment locks belong to `ADR-0044`; observability and readiness -
 ## Scope
 
 Includes: repository deployment topology for `api`, `worker`, `web`, `docs`,
-`PostgreSQL` and `RustFS` behind a single public point `Caddy` (**prod**);
-local **dev** compose without Caddy (published by `web`/`api`/`docs`,
-same-origin hop via Next rewrite);
+`PostgreSQL` and `RustFS` behind the deployment host's own `nginx` as the single
+public point (**prod**); local **dev** compose without a host proxy (published by
+`web`/`api`/`docs`, same-origin hop via Next rewrite);
 environment contract and `.env.example` with names without secret values and separation
 dev/prod, including web variables; separate dev and prod images of the frontend; order
 execution of migrations and seeding; production TLS, domain and proxy corresponding to the available
@@ -53,10 +53,11 @@ providers; secrets in GitHub or issue text; contents of domain handlers
 ## Terms
 
 - `Staging topology` — repository layout of services `api`, `worker`, `web`,
-  `PostgreSQL`, `RustFS` and `Caddy` for the deployed environment.
+  `PostgreSQL` and `RustFS` for the deployed environment; the proxy in front of
+  them is host state, not a service of this topology (`ADR-0135`).
 - `Web tier` - `apps/web` application container with separate dev and prod images;
-  in **prod** publicly available only through `Caddy` (`ADR-0044`); to local
-  **dev** publishes the `web` port directly, without Caddy.
+  in **prod** published on loopback and publicly available only through the host's
+  `nginx` (`ADR-0135`); to local **dev** publishes the `web` port directly.
 - `Docs tier` - container of public user documentation from `docs-user-facing/docs/`;
   in dev it is published on `localhost:8011`, in **prod** it is available through a separate
   host `AI_STP_DOCS_HOST`.
@@ -71,10 +72,11 @@ providers; secrets in GitHub or issue text; contents of domain handlers
 ## Requirements
 
 - `REQ-2401`: The deployed environment topology adds `web` and `docs` to `api`, `worker`,
-  `PostgreSQL`, `RustFS` and `Caddy`; prod compose reproducibly lifts the entire slice,
-  and `web` and `docs` in **prod** are publicly accessible only through `Caddy`.
-  **Dev-exception:** `docker-compose.dev.yml` lifts `web` and `docs` without Caddy
-  (ports per host); same-origin `/v1/*` provides dev-rewrite Next.js to `api`.
+  `PostgreSQL` and `RustFS`, and contains no proxy service; prod compose reproducibly
+  lifts the entire slice, publishes `api`, `web` and `docs` on loopback, and they are
+  publicly reachable only through the deployment host's `nginx`.
+  **Dev:** `docker-compose.dev.yml` lifts the same set with ports published to the
+  host; same-origin `/v1/*` provides dev-rewrite Next.js to `api`.
 - `REQ-2402`: The environment contract is specified by `.env.example` samples with names without
   secret values and dev/prod separation, including web variables
   (`AI_STP_API_BASE_URL`, `NEXT_PUBLIC_APP_URL`, `AI_STP_USER_DOCS_URL`,
@@ -87,19 +89,21 @@ providers; secrets in GitHub or issue text; contents of domain handlers
   (standalone Next.js output, minimal runtime, non-root), dev image suitable for
   local development; versions of base images are pinned and updated separately
   verifiable change.
-- `REQ-2404`: In **prod** the reverse proxy `Caddy` remains the only one
-  public entry point; the main host routes API requests to the `api`, and
-  the rest to `web`, docs host routes user documentation to `docs`.
-  **Dev exception:** Caddy is missing from dev compose; `web` and `api` publish ports
+- `REQ-2404`: In **prod** the deployment host's `nginx` is the only public entry
+  point; the main host routes API requests to the `api`, and the rest to `web`, docs
+  host routes user documentation to `docs`. The route split is owned by templates in
+  this repository, so it is reviewable here even though nginx itself is host state.
+  **Dev:** no host proxy; `web` and `api` publish ports
   to the host, `docs` publishes a port of user documentation; browser-relative
   `/v1/*` (and API docs paths) are rewritten Next in dev to `AI_STP_API_BASE_URL`.
   `PostgreSQL` and `RustFS` are not published outside; `web` refers to `api` by
   internal network, and not through a public address.
 - `REQ-2405`: Migrations and seeding are performed in a certain order before receiving traffic;
   readiness blocks traffic until dependencies and migrations are ready (`SPEC-017`).
-- `REQ-2406`: Production TLS and a domain corresponding to the available deployment host,
-  served by `Caddy` (automatic HTTPS) on the deployment host; local **dev**
-  works via plain HTTP on the published port `web` (without reverse proxy).
+- `REQ-2406`: Production TLS and a domain corresponding to the available deployment
+  host, terminated by the host's `nginx` with certbot-issued certificates and its own
+  renewal timer; local **dev** works via plain HTTP on the published port `web`
+  (without reverse proxy).
 - `REQ-2407`: Containers have `liveness` and `readiness`; deploy smoke covers
   the landing page, catalog, OAuth, and device listing and revocation on the deployed slice.
 - `REQ-2408`: Structural logs are collected with correlation between request and operation and
@@ -152,8 +156,8 @@ The absence of a mandatory secret results in a typed startup failure, rather tha
 
 Secrets are not included in the repository, GitHub and issue text: only samples are indexed
 no values (`REQ-2402`). `PostgreSQL` and `RustFS` are not accessible from the external network; on
-in **prod** only `Caddy` (`REQ-2404`) is open to the outside; in local dev - ports
-`web`/`api`/`docs`.
+in **prod** only the host's `nginx` (`REQ-2404`) is open to the outside and the
+stack's own ports stay on loopback; in local dev - ports `web`/`api`/`docs`.
 Structural logs, backups and secure diagnostics do not contain OAuth tokens,
 cookies, object bytes, private paths and environment values (`REQ-2408`, `REQ-2409`,
 `REQ-2411`, `SPEC-013`, `SPEC-017`). Long-lived storage credentials are not issued to the
@@ -174,12 +178,12 @@ are committed and updated with a separate verifiable change.
 
 | Requirement | Executable verification method |
 |---|---|
-| `REQ-2401` | Prod compose lifts `api`, `worker`, `web`, `docs`, `PostgreSQL`, `RustFS` and `Caddy` (`web` and `docs` via Caddy only). Dev compose picks up the same slice without `caddy`, with `web` and `docs` published. |
+| `REQ-2401` | Prod compose lifts `api`, `worker`, `web`, `docs`, `PostgreSQL` and `RustFS`, declares no proxy service, and binds the three published ports to loopback. Dev compose picks up the same slice with `web` and `docs` published to the host. |
 | `REQ-2402` | Checking the repository confirms dev/prod samples with web and user documentation names without secrets and the absence of real env files; the absence of a mandatory secret results in a typed startup failure. |
 | `REQ-2403` | The assembly of dev and prod images of the frontend is underway; The prod image is minimal, non-root and does not contain development tools. |
-| `REQ-2404` | Staging/prod: Caddy divides the main host `/v1` → api and the rest → web, and docs host → docs. Dev: no caddy; rewrite/proxy Next for `/v1`, docs published as a separate port. Postgres/RustFS are not accessible from the outside; web → api by internal URL. |
+| `REQ-2404` | Prod: the checked-in nginx template divides the main host `/v1` → api and the rest → web, and the docs host → docs. Dev: no host proxy; rewrite/proxy Next for `/v1`, docs published as a separate port. Postgres/RustFS are not accessible from the outside; web → api by internal URL. |
 | `REQ-2405` | We check the order of migration and seeding, and readiness blocks traffic until dependencies and migrations are ready. |
-| `REQ-2406` | Startup on the deployment host serves production TLS and the domain through `Caddy`; local dev uses plain HTTP on the `web` port without a reverse proxy. |
+| `REQ-2406` | The deployment host serves production TLS and the domain through `nginx` with a certbot certificate for the configured name; local dev uses plain HTTP on the `web` port without a reverse proxy. |
 | `REQ-2407` | Deploy smoke on the deployed slice covers the landing page, catalog, OAuth, and device listing and revocation. |
 | `REQ-2408` | Checking the logs confirms the request-operation correlation, limited storage, and the absence of tokens, cookies, object bytes, paths, and environment values. |
 | `REQ-2409` | Rehearsing a PostgreSQL and RustFS backup and restore on the restored copy confirms the recovery and the absence of secrets in the copy. |
@@ -190,5 +194,5 @@ are committed and updated with a separate verifiable change.
 | `REQ-2413` | PR job leaves marker/process; deployment runner does not see it, has a different name and is inventory on a different host/user; CI does not read secret and does not reach SSH endpoint. |
 | `REQ-2414` | Two pushes around an artificially long deployment do not cancel the first one; fault injection leaves a marker after transfer/migrate/start, and the replay ends deterministically. |
 | `REQ-2415` | The correct pinned host key passes; another key fails before the tree is transferred; The runbook describes the key overlap. |
-| `REQ-2416` | Failure of DNS, certificate chain, nginx/Caddy route, expected SHA or schema revision individually brings down the external probe. |
+| `REQ-2416` | Failure of DNS, certificate chain, nginx route, expected SHA or schema revision individually brings down the external probe. |
 | `REQ-2417` | Direct push, unauthorized or non-allowlisted actor/head, SHA without PR association and ambiguous association are rejected before reading deployment secrets. |

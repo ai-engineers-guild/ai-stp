@@ -28,7 +28,7 @@ function oauthLoginHref(provider: "google" | "github", returnTo: string): string
 
 /**
  * Login UX (SPEC-023, ADR-0041). Provider buttons always render.
- * Real OAuth uses same-origin /v1/auth/... (Next rewrite to API in dev; Caddy
+ * Real OAuth uses same-origin /v1/auth/... (Next rewrite to API in dev; the host proxy
  * path split in staging/prod). Offline e2e keeps mock forms when
  * AI_STP_USE_MOCKS is true. OAuth status=error|cancel|conflict is driven by
  * the callback query. Mock error/cancel simulators stay behind a test-only

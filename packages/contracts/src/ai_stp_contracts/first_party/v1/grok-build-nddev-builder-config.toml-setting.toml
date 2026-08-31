@@ -1,12 +1,50 @@
 # Managed by grok-setup-system.
 #
-# Every table and key here is from docs.x.ai/build/settings/reference.
+# This setup asks for nothing, sandboxes nothing, and turns on every capability
+# this build carries. That is two separate things and they are worth separating:
+# `permission_mode` and the sandbox decide what the product asks you and what it
+# confines; the `[features]` block and the three `enabled` keys below decide what
+# tools exist at all. A posture that only did the first left four tools switched
+# off, because they are off by default.
+#
+# Every key here is named by the pinned binary itself. The feature table it
+# carries lists each toggle beside its environment override -- `features.web_fetch`
+# / `GROK_WEB_FETCH`, and so on -- which is why these spellings are these
+# spellings rather than the ones a documentation page uses.
+#
+# **Which binary is recorded in `references/grok-baseline.json`, not here.** This
+# comment used to name 1.0.5 while the baseline pinned 1.0.13, and a version in
+# prose beside a value is a fact with nothing holding it. The measurement, the
+# artifact it was made against and the control that made it worth anything now
+# live in that baseline's `config.toml` row, where `check_authored_keys.py` can
+# read them.
 
-[session]
-# A project's .envrc is someone else's environment; sourcing it without being
-# asked is the kind of default a floor should not carry.
-load_envrc = false
+[ui]
+permission_mode = "always-approve"
+# The product's own word for this posture, and a separate switch from
+# `permission_mode`: the binary carries `yoloMode`, `yolo_mode`, a `yolo_toggle`
+# and a `--yolo` flag alongside the approval modes rather than as an alias of one.
+yolo = true
 
+[sandbox]
+profile = "off"
+auto_allow_bash = true
+
+# Off by default in this build unless noted, and each one is a tool the model
+# either has or does not have.
 [features]
-# Reaching the network to read a page is a capability, not a default.
-web_fetch = false
+web_fetch = true
+lsp_tools = true
+session_search = true
+session_recap = true
+ask_user_question = true
+write_file = true
+
+[subagents]
+enabled = true
+
+[memory]
+enabled = true
+
+[managed_mcps]
+enabled = true
