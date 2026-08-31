@@ -8,6 +8,7 @@
 - `manifest.json` фиксирует команды, operations, native vocabularies, provenance и
   network phases.
 - `provider-info.schema.json` является закрытой JSON Schema ответа `provider-info`.
+- `status-response.schema.json` является закрытой JSON Schema ответа `status`.
 - `conformance-cases.json` перечисляет обязательные fail-closed классы.
 - `SHA256SUMS` привязывает точные bytes остальных артефактов.
 - `KIT-IDENTITY.json` называет ровно одну ревизию комплекта: агрегатный digest
