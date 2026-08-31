@@ -16,10 +16,7 @@ def test_builtin_legal_policies_are_complete_and_versioned() -> None:
         )
     }
     assert all(policy.policy_version and policy.effective_at for policy in policies)
-    assert all(
-        policy.source_path.startswith("docs-user-facing/legal/")
-        for policy in policies
-    )
+    assert all(policy.source_path.startswith("docs-user-facing/legal/") for policy in policies)
     assert all(
         f"/{policy.slug}/{policy.policy_version}/document.md" in policy.source_path
         for policy in policies
