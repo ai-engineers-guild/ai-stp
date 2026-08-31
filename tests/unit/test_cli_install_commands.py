@@ -2081,7 +2081,7 @@ def test_v2_lifecycle_uses_the_phase_invoker_bound_into_the_plan(
 
     monkeypatch.setattr(
         network_launcher,
-        "discover_bubblewrap",
+        "discover_launcher",
         lambda: (launcher, capability),
     )
     monkeypatch.setattr(invocation_v2, "invoke", invoke)
@@ -2178,7 +2178,7 @@ def test_v2_lifecycle_fails_before_provider_spawn_when_isolation_is_unavailable(
         spawned = True
         return {}
 
-    monkeypatch.setattr(network_launcher, "discover_bubblewrap", lambda: (None, None))
+    monkeypatch.setattr(network_launcher, "discover_launcher", lambda: (None, None))
     monkeypatch.setattr(conformance, "invoke_argv", forbidden)
 
     with pytest.raises(CliFailure) as raised:

@@ -309,7 +309,7 @@ def test_cli_v3_conformance_fails_before_spawn_without_network_isolation(
         evidence=("no launcher",),
     )
     monkeypatch.setattr(
-        "ai_stp_cli.commands.select.network_launcher.discover_bubblewrap",
+        "ai_stp_cli.commands.select.network_launcher.discover_launcher",
         lambda: (None, unavailable),
     )
 

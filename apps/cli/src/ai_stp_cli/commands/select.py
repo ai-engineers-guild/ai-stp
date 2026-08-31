@@ -1849,7 +1849,7 @@ def provider_conformance(parameters: Mapping[str, object]) -> Answer[Conformance
                 )
             )
 
-        launcher, capability = network_launcher.discover_bubblewrap()
+        launcher, capability = network_launcher.discover_launcher()
 
         def invoke_v2(
             command: str,

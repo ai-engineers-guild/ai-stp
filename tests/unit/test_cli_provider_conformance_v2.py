@@ -160,7 +160,7 @@ def test_cli_v2_conformance_fails_before_provider_spawn_without_launcher(
         evidence=("no launcher",),
     )
     monkeypatch.setattr(
-        "ai_stp_cli.commands.select.network_launcher.discover_bubblewrap",
+        "ai_stp_cli.commands.select.network_launcher.discover_launcher",
         lambda: (None, unavailable),
     )
 
