@@ -44,6 +44,7 @@ evidence, and no capability is reported enforced without one.
 
 from __future__ import annotations
 
+import contextlib
 import ctypes
 import json
 import os
@@ -81,6 +82,18 @@ _STARTF_USESTDHANDLES: Final[int] = 0x00000100
 _HANDLE_FLAG_INHERIT: Final[int] = 0x00000001
 _ERROR_ALREADY_EXISTS: Final[int] = 0xB7
 
+#: The process starts suspended so it can be put in the job before it runs. A
+#: process assigned after it is already executing has had time to spawn a child
+#: outside the job, which is the whole thing the job is for.
+_CREATE_SUSPENDED: Final[int] = 0x00000004
+
+#: `JobObjectExtendedLimitInformation`, and the one limit that matters here:
+#: closing the last handle to the job terminates everything still in it. That is
+#: what makes the tree die with this process rather than with a call somebody
+#: has to remember to make.
+_JOB_OBJECT_EXTENDED_LIMIT_INFORMATION: Final[int] = 9
+_JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE: Final[int] = 0x00002000
+
 _PROBE_TIMEOUT: Final[float] = 20.0
 
 
@@ -102,6 +115,45 @@ class _SecurityAttributes(ctypes.Structure):
         ("nLength", ctypes.c_uint32),
         ("lpSecurityDescriptor", ctypes.c_void_p),
         ("bInheritHandle", ctypes.c_int32),
+    )
+
+
+class _IoCounters(ctypes.Structure):
+    _fields_ = tuple(
+        (name, ctypes.c_uint64)
+        for name in (
+            "ReadOperationCount",
+            "WriteOperationCount",
+            "OtherOperationCount",
+            "ReadTransferCount",
+            "WriteTransferCount",
+            "OtherTransferCount",
+        )
+    )
+
+
+class _JobObjectBasicLimitInformation(ctypes.Structure):
+    _fields_ = (
+        ("PerProcessUserTimeLimit", ctypes.c_int64),
+        ("PerJobUserTimeLimit", ctypes.c_int64),
+        ("LimitFlags", ctypes.c_uint32),
+        ("MinimumWorkingSetSize", ctypes.c_size_t),
+        ("MaximumWorkingSetSize", ctypes.c_size_t),
+        ("ActiveProcessLimit", ctypes.c_uint32),
+        ("Affinity", ctypes.POINTER(ctypes.c_ulong)),
+        ("PriorityClass", ctypes.c_uint32),
+        ("SchedulingClass", ctypes.c_uint32),
+    )
+
+
+class _JobObjectExtendedLimitInformation(ctypes.Structure):
+    _fields_ = (
+        ("BasicLimitInformation", _JobObjectBasicLimitInformation),
+        ("IoInfo", _IoCounters),
+        ("ProcessMemoryLimit", ctypes.c_size_t),
+        ("JobMemoryLimit", ctypes.c_size_t),
+        ("PeakProcessMemoryUsed", ctypes.c_size_t),
+        ("PeakJobMemoryUsed", ctypes.c_size_t),
     )
 
 
@@ -155,6 +207,32 @@ class _Api:
         )
 
 
+def _job(api: _Api) -> ctypes.c_void_p | None:
+    """A job object that kills what it holds when its last handle closes.
+
+    Anonymous on purpose: a named job could be opened by anything else running
+    as this user, and this one exists for exactly one invocation.
+
+    `None` when the job cannot be created or configured, and the caller treats
+    that as fatal rather than as a degraded mode. Containment that is sometimes
+    absent is reported as absent.
+    """
+    handle = api.kernel.CreateJobObjectW(None, None)
+    if not handle:
+        return None
+    limits = _JobObjectExtendedLimitInformation()
+    limits.BasicLimitInformation.LimitFlags = _JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+    if not api.kernel.SetInformationJobObject(
+        ctypes.c_void_p(handle),
+        _JOB_OBJECT_EXTENDED_LIMIT_INFORMATION,
+        ctypes.byref(limits),
+        ctypes.sizeof(limits),
+    ):
+        api.kernel.CloseHandle(ctypes.c_void_p(handle))
+        return None
+    return ctypes.c_void_p(handle)
+
+
 class AppContainerProcess:
     """A process inside an AppContainer, shaped like `subprocess.Popen`.
 
@@ -169,11 +247,22 @@ class AppContainerProcess:
     is consulted on the child's side; a container that cannot reach a path can
     still say so. Three earlier attempts collected the answer from disk and
     reported silence with two explanations and no way to tell them apart.
+
+    **The tree, not the process.** `kill` used to be `TerminateProcess` on the
+    one handle this held, so a provider that spawned a child and then exceeded
+    the timeout or the output limit lost its parent and kept the child — alive,
+    inside the container, holding whatever the container had been granted. The
+    job object owns the lifetime instead: the process is created suspended,
+    assigned, and only then resumed, so nothing can be spawned outside it, and
+    the job is set to kill everything in it when the last handle closes. That
+    covers the case no explicit call can, which is this process dying without
+    running any of its own cleanup.
     """
 
     def __init__(self, api: _Api, sid: ctypes.c_void_p, argv: list[str], env: dict[str, str]):
         self._api = api
         self._handle: ctypes.c_void_p | None = None
+        self._job: ctypes.c_void_p | None = _job(api)
         self.stdout: IO[bytes] | None = None
         attributes = _SecurityAttributes(
             nLength=ctypes.sizeof(_SecurityAttributes), lpSecurityDescriptor=None, bInheritHandle=1
@@ -226,7 +315,7 @@ class AppContainerProcess:
             None,
             None,
             True,
-            _EXTENDED_STARTUPINFO_PRESENT | _CREATE_NO_WINDOW | 0x00000400,
+            _EXTENDED_STARTUPINFO_PRESENT | _CREATE_NO_WINDOW | _CREATE_SUSPENDED | 0x00000400,
             ctypes.create_unicode_buffer(block),
             None,
             ctypes.byref(start),
@@ -235,16 +324,45 @@ class AppContainerProcess:
         api.kernel.CloseHandle(write_end)
         if not created:
             api.kernel.CloseHandle(read_end)
+            self._close_job()
             raise OSError(ctypes.get_last_error(), "the provider could not be started isolated")
-        api.kernel.CloseHandle(information.hThread)
         self._handle = ctypes.c_void_p(information.hProcess)
+        thread = ctypes.c_void_p(information.hThread)
+        # Assigned while suspended, so there is no interval in which the
+        # provider is running and outside the job. A failure here is fatal
+        # rather than a warning: an unowned tree is the condition this exists to
+        # prevent, and starting anyway would be reporting containment that is
+        # not there.
+        if self._job is not None and not api.kernel.AssignProcessToJobObject(
+            self._job, self._handle
+        ):
+            reason = ctypes.get_last_error()
+            api.kernel.TerminateProcess(self._handle, 1)
+            api.kernel.CloseHandle(thread)
+            api.kernel.CloseHandle(read_end)
+            self.__exit__()
+            raise OSError(reason, "the provider could not be placed under a job object")
+        api.kernel.ResumeThread(thread)
+        api.kernel.CloseHandle(thread)
         self.stdout = cast(
             "IO[bytes]", os.fdopen(msvcrt_open_osfhandle(read_end.value or 0), "rb", 0)
         )
 
     def kill(self) -> None:
+        """End the whole tree, not just the process this holds a handle to.
+
+        Closing the job is what kills descendants: the job carries
+        `KILL_ON_JOB_CLOSE`, so every process still in it goes with it. The
+        parent is terminated first so its exit code is the one this reports.
+        """
         if self._handle is not None:
             self._api.kernel.TerminateProcess(self._handle, 1)
+        self._close_job()
+
+    def _close_job(self) -> None:
+        if self._job is not None:
+            self._api.kernel.CloseHandle(self._job)
+            self._job = None
 
     def wait(self) -> int:
         if self._handle is None:
@@ -263,6 +381,9 @@ class AppContainerProcess:
         if self._handle is not None:
             self._api.kernel.CloseHandle(self._handle)
             self._handle = None
+        # Last, and unconditionally. A descendant the provider left behind is
+        # still in the job, and this is the handle whose closing ends it.
+        self._close_job()
 
 
 def msvcrt_open_osfhandle(handle: int) -> int:
@@ -324,6 +445,93 @@ def _profile(api: _Api) -> tuple[ctypes.c_void_p, str]:
     return sid, rendered
 
 
+#: Where a grant is written down before it is made, so a grant can be taken back
+#: by a process that is not the one that made it.
+#:
+#: `_revoke` in a `finally` covers success, refusal and timeout, and covers
+#: nothing at all when this process is killed: the ACE stays, the package SID is
+#: stable by design, and the next isolated phase inherits reach into a directory
+#: nobody selected for it. `ADR-0133` named this as a new obligation the moment
+#: it chose AppContainer, and this is it.
+#:
+#: One line per grant, written before `icacls` runs and removed after the revoke
+#: succeeds. Written first because the failure that matters is a grant with no
+#: record, never a record with no grant — sweeping a path that carries no ACE is
+#: a no-op, and `icacls /remove` on one is too.
+LEASE_NAME: Final[str] = "windows-appcontainer-grants"
+
+
+def _lease_path() -> Path:
+    from ai_stp_cli.paths import data_home
+
+    return data_home() / "ai-stp" / LEASE_NAME
+
+
+def _lease_write(package: str, target: Path) -> None:
+    """Record one grant. Best effort: an unwritable lease must not stop the work."""
+    try:
+        place = _lease_path()
+        place.parent.mkdir(parents=True, exist_ok=True)
+        with place.open("a", encoding="utf-8") as stream:
+            stream.write(json.dumps({"package": package, "path": str(target)}) + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+    except OSError:
+        return
+
+
+def _lease_clear(package: str, target: Path) -> None:
+    """Drop one grant's record once it has actually been taken back."""
+    try:
+        place = _lease_path()
+        held = place.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return
+    keep = [
+        line
+        for line in held
+        if line.strip() and json.loads(line) != {"package": package, "path": str(target)}
+    ]
+    try:
+        if keep:
+            place.write_text("\n".join(keep) + "\n", encoding="utf-8")
+        else:
+            place.unlink()
+    except (OSError, ValueError):
+        return
+
+
+def sweep_abandoned_grants() -> tuple[str, ...]:
+    """Take back every grant a previous run recorded and did not revoke.
+
+    Run at discovery, before any launcher is handed out, so an ACE left by a
+    process that was killed is gone before the next provider starts rather than
+    after somebody notices. Returns what it revoked, for the evidence line.
+
+    Safe to run when nothing was abandoned, and safe to run twice: `icacls
+    /remove` on a path carrying no matching ACE succeeds and changes nothing.
+    """
+    place = _lease_path()
+    try:
+        held = place.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return ()
+    revoked: list[str] = []
+    for line in held:
+        if not line.strip():
+            continue
+        try:
+            entry = cast("dict[str, str]", json.loads(line))
+            package, path = entry["package"], entry["path"]
+        except (ValueError, KeyError, TypeError):
+            continue
+        _revoke(package, Path(path))
+        revoked.append(path)
+    with contextlib.suppress(OSError):
+        place.unlink()
+    return tuple(revoked)
+
+
 def _icacls(package: str, target: Path, rights: str, *, inherit: bool) -> bool:
     """Grant the package SID one right on one path, and say whether it took.
 
@@ -333,6 +541,7 @@ def _icacls(package: str, target: Path, rights: str, *, inherit: bool) -> bool:
     very mechanism once granted the tree it was using as its negative control.
     """
     scope = "(OI)(CI)" if inherit else ""
+    _lease_write(package, target)
     done = subprocess.run(
         ["icacls", str(target), "/grant", f"*{package}:{scope}{rights}"],
         capture_output=True,
@@ -353,7 +562,7 @@ def _revoke(package: str, target: Path) -> None:
     provider call into an error: the effect has landed, and the caller learning
     about a cleanup problem as an operation failure is worse than the ACE.
     """
-    subprocess.run(
+    done = subprocess.run(
         ["icacls", str(target), "/remove:g", f"*{package}"],
         capture_output=True,
         text=True,
@@ -362,6 +571,8 @@ def _revoke(package: str, target: Path) -> None:
         check=False,
         timeout=_PROBE_TIMEOUT,
     )
+    if done.returncode == 0:
+        _lease_clear(package, target)
 
 
 @dataclass(frozen=True)
@@ -527,6 +738,12 @@ def discover_appcontainer() -> tuple[AppContainerLauncher | None, NetworkCapabil
     except OSError as error:
         return None, unavailable(os_name, f"no AppContainer profile: {error}")
 
+    # Before any launcher is handed out, and before the probe grants anything of
+    # its own. A grant that outlived the process which made it is reach into a
+    # directory this run never selected, and the package SID is stable, so it is
+    # this run that would inherit it.
+    abandoned = sweep_abandoned_grants()
+
     passed, evidence = _probe(api, sid, package)
     if not passed:
         return None, unavailable(os_name, evidence[0])
@@ -534,6 +751,14 @@ def discover_appcontainer() -> tuple[AppContainerLauncher | None, NetworkCapabil
         enforcement=NetworkEnforcement.ENFORCED,
         os_name=os_name,
         launcher_id=f"appcontainer:{package}",
-        evidence=evidence,
+        evidence=(
+            *evidence,
+            "the provider runs in a job object that kills its whole tree when closed",
+            *(
+                (f"took back {len(abandoned)} grant(s) an earlier run left behind",)
+                if abandoned
+                else ()
+            ),
+        ),
     )
     return AppContainerLauncher(package_sid=package, capability=capability), capability

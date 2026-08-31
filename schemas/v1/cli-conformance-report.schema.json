@@ -9,6 +9,11 @@
           "title": "Detail",
           "type": "string"
         },
+        "exercised": {
+          "default": true,
+          "title": "Exercised",
+          "type": "boolean"
+        },
         "name": {
           "minLength": 1,
           "title": "Name",
@@ -32,6 +37,7 @@
       },
       "required": [
         "detail",
+        "exercised",
         "name",
         "passed",
         "schema_version",

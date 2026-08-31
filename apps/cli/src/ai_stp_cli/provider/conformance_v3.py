@@ -200,11 +200,17 @@ def _populated_target(target: Path, state: str) -> conformance.Case:
     except OSError as error:  # pragma: no cover - the caller already checked it
         return conformance.Case("target_was_populated", False, str(error))
     if not entries:
+        # `passed=True` and `exercised=False`, which are different claims. The
+        # run has no verdict to report, so it must not fail — and it must not
+        # say it passed either. This carried the explanation in `detail` while
+        # the boolean said the coverage happened, and a machine reads the
+        # boolean. Release readiness asks for `not_exercised` separately.
         return conformance.Case(
             "target_was_populated",
             True,
             "target was empty, so nothing here exercises a provider against "
             "existing material; point at a disposable copy of a real home to cover that",
+            exercised=False,
         )
     unmanaged = state in {"unmanaged", "managed"}
     return conformance.Case(

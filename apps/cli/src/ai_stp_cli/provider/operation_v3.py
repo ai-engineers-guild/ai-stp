@@ -337,20 +337,67 @@ def require_applied(
     `apply-operation` echoes that plan, not the four validate-bundle fields.
     A typed refusal uses `state=refused` with `reason=stale` to mean no effect
     after the lock.
+
+    **Two echoes are absent from a program result, and requiring them broke the
+    whole program lifecycle.** Measured against the released `0.0.48` providers:
+    a configuration apply answers `plan_digest`, `expected_target_digest`,
+    `target_identity_digest`, `backup_ref` and `setup_id`; a software apply
+    answers `state`, `operation`, `command`, `version`, `entry_point`,
+    `executable`, `files` and `recovered` — and neither echo. So every
+    `harness install`, `harness update` and `harness remove` through `ai-stp`
+    refused *after the provider had already installed the program*, leaving the
+    operation `applied_unverified` over a prefix that held a working build.
+
+    No producer test could see it: the provider does exactly what its own suite
+    asserts. It took driving the released binary through the consumer path.
+
+    Absence is accepted here rather than the check being dropped, and the reason
+    is that the binding does not depend on the echo. `apply-operation` is handed
+    `--plan` and `--plan-digest`, and the provider's own `load_plan` hashes the
+    artifact and refuses `DigestMismatch` before any effect. A successful
+    software apply therefore already proves the provider acted on this exact
+    plan; the echo is a second statement of it. A *present* echo is still
+    required to match — a provider that names a different plan is refused
+    whatever the operation.
+
+    `docs/contracts/provider-protocol.md` says the program lifecycle carries the
+    same plan digest, so the provider is the side that is wrong and the fix
+    belongs there too. This is the consumer half of that wave, and it is the
+    half that has to come first: response-field evolution is tolerate-then-emit,
+    never the reverse.
     """
     state = _reported_operation_state(answer)
     if state not in protocol.STATE_MAP:
         raise _refused("the provider returned an unknown operation state", state=state)
     if state == "stale":
         return state
-    if answer.get("plan_digest") != plan.digest:
+    if "plan_digest" in answer and answer["plan_digest"] != plan.digest:
         raise _refused("the provider apply result names a different v3 plan")
-    if answer.get("expected_target_digest") != plan.artifact["expected_target_digest"]:
+    if (
+        "expected_target_digest" in answer
+        and answer["expected_target_digest"] != plan.artifact["expected_target_digest"]
+    ):
         raise _refused("the provider apply result names a different target snapshot")
+    if not _program(plan) and not {"plan_digest", "expected_target_digest"} <= set(answer):
+        # A configuration apply has always echoed both, and its subject is the
+        # target this consumer is about to record provenance for. Losing the
+        # echo there would be a real regression rather than a missing field.
+        raise _refused("the provider apply result does not name the plan it applied")
     echoed = ("bundle_format", "bundle_digest", "artifact_digest", "bundle_size")
     if bundle is not None and any(name in answer for name in echoed):
         bundle_protocol.require_validated({**answer, "valid": True}, bundle)
     return state
+
+
+def _program(plan: ProviderPlan) -> bool:
+    """Whether this plan's subject is the program under a prefix.
+
+    Read from the plan artifact rather than passed in: the artifact is the
+    immutable record of what was approved, and a caller-supplied flag here would
+    be a second source for the one thing that decides which echoes are owed.
+    """
+    operation = plan.artifact.get("operation")
+    return isinstance(operation, str) and operation.startswith("software_")
 
 
 def require_verified_status(

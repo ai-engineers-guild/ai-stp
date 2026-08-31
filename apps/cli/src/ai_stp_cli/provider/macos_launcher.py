@@ -26,8 +26,67 @@ from ai_stp_cli.provider.protocol_v2 import NetworkCapability, NetworkEnforcemen
 from ai_stp_foundation.canonical import JsonValue
 
 EXECUTABLE: Final[Path] = Path("/usr/bin/sandbox-exec")
-PROFILE: Final[str] = "(version 1)\n(allow default)\n(deny network*)\n"
+
+#: The profile the probe runs under, and the one a provider gets when nothing is
+#: writable. Network denied; every write denied after it.
+#:
+#: `(allow default)` first and narrowing after is deliberate, and it is not the
+#: same as leaving the default open. SBPL takes the **last** matching rule, so
+#: `(deny file-write*)` following it makes writing denied by default while
+#: leaving reads, `mach`, `sysctl` and process behaviour as they were. A full
+#: `(deny default)` would need every one of those enumerated for seven different
+#: providers, each of which loads its own runtime — a rule set that could only be
+#: completed by discovering what it broke.
+#:
+#: What this closes: `run` used to `del writable` and hand the provider this
+#: profile with nothing after `(deny network*)`, so a local phase could write
+#: anywhere the invoking user could. Linux binds the target and the named
+#: writable paths and mounts the rest read-only; Windows grants exactly those two
+#: places. macOS said `writable` and meant nothing by it, and a contract that
+#: means one thing on two systems and nothing on the third is not a contract.
+PROFILE: Final[str] = "(version 1)\n(allow default)\n(deny network*)\n(deny file-write*)\n"
+
+#: Character devices a program is entitled to write to whatever else it may not.
+#: Denying these breaks writing to a closed pipe, seeding a random generator and
+#: opening a terminal — none of which is filesystem access in the sense the
+#: writable contract is about.
+_DEVICE_WRITES: Final[tuple[str, ...]] = (
+    "/dev/null",
+    "/dev/zero",
+    "/dev/random",
+    "/dev/urandom",
+    "/dev/dtracehelper",
+    "/dev/tty",
+)
+
 _PROBE_TIMEOUT: Final[float] = 3.0
+
+
+def _quote(path: Path) -> str:
+    """One SBPL string literal. Refuses rather than escapes.
+
+    A path containing a quote or a backslash would end the literal early and the
+    rest would be read as policy — the one way a profile can be widened by a
+    filename. No such path can be a provider target here, so refusing is both
+    safe and free.
+    """
+    rendered = path.resolve().as_posix()
+    if '"' in rendered or "\\" in rendered:
+        raise ValueError(f"a sandbox path may not contain a quote or a backslash: {rendered}")
+    return f'"{rendered}"'
+
+
+def profile_for(target: Path, writable: tuple[Path, ...]) -> str:
+    """The profile for one invocation: network denied, writes only where named.
+
+    The order is the policy. `(deny file-write*)` closes writing, and every
+    `(allow file-write* ...)` after it reopens exactly one subtree — the target,
+    each path the caller named writable, and the character devices above.
+    """
+    places = (target, *writable)
+    allowed = " ".join(f"(subpath {_quote(place)})" for place in places)
+    devices = " ".join(f'(literal "{name}")' for name in _DEVICE_WRITES)
+    return f"{PROFILE}(allow file-write* {allowed} {devices})\n"
 
 
 def _digest(path: Path) -> str:
@@ -71,12 +130,14 @@ class SandboxExecLauncher:
         if self.capability.launcher_id != f"sandbox-exec:{self.executable.as_posix()}":
             raise ValueError("launcher identity does not match its executable")
 
-    def wrap(self, argv: tuple[str, ...], *, target: Path) -> tuple[str, ...]:
+    def wrap(
+        self, argv: tuple[str, ...], *, target: Path, writable: tuple[Path, ...] = ()
+    ) -> tuple[str, ...]:
         if not argv or not Path(argv[0]).is_absolute():
             raise ValueError("provider executable must be absolute")
         if target.is_symlink() or not target.is_absolute() or not target.is_dir():
             raise ValueError("provider target must be an existing absolute directory")
-        return (self.executable.as_posix(), "-p", PROFILE, *argv)
+        return (self.executable.as_posix(), "-p", profile_for(target, writable), *argv)
 
     def run(
         self,
@@ -86,11 +147,12 @@ class SandboxExecLauncher:
         writable: tuple[Path, ...] = (),
         command: str,
     ) -> JsonValue:
-        """Run with network denied; filesystem access remains the provider contract's."""
+        """Run with the network denied and writes bounded by target and `writable`."""
         from ai_stp_cli.provider import conformance
 
-        del writable
-        return conformance.invoke_argv(self.wrap(argv, target=target), command=command)
+        return conformance.invoke_argv(
+            self.wrap(argv, target=target, writable=writable), command=command
+        )
 
 
 def _probe(executable: Path) -> tuple[bool, tuple[str, ...]]:
@@ -182,7 +244,8 @@ def discover_sandbox_exec() -> tuple[SandboxExecLauncher | None, NetworkCapabili
         launcher_id=f"sandbox-exec:{executable.as_posix()}",
         evidence=(
             f"sha256={digest}",
-            "profile allows the existing filesystem/process surface and denies network*",
+            "profile denies network* and every write outside the target and "
+            "the paths the caller named writable",
             *evidence,
         ),
     )

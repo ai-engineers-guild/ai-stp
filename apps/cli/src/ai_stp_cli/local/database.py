@@ -789,6 +789,33 @@ MIGRATIONS: Final[tuple[Migration, ...]] = (
         ),
         down=("DROP TABLE provider_installation",),
     ),
+    Migration(
+        version=27,
+        summary="a program plan binds the harness, the provider bytes and the prefix it read",
+        # What a stopped program operation used to be: an action, a prefix in
+        # `target_id`, and a target in `provider_target`. Everything else that
+        # said *which* operation this was — the harness, the executable, the
+        # release that was trusted, what stood under the prefix when it was
+        # planned — arrived again from whoever ran `harness resume`, so a
+        # different provider pointed at a different prefix settled it.
+        #
+        # These four make the operation its own subject. `program_prefix_state`
+        # is the reading `provider/program_state.py` took at plan time: not a
+        # digest, because settling needs to know *what changed*, and a digest
+        # only says that something did.
+        up=(
+            "ALTER TABLE operation_plan ADD COLUMN program_harness_id TEXT",
+            "ALTER TABLE operation_plan ADD COLUMN program_entry_point_planned TEXT",
+            "ALTER TABLE operation_plan ADD COLUMN program_prefix_state TEXT",
+            "ALTER TABLE operation_plan ADD COLUMN provider_artifact_digest TEXT",
+        ),
+        down=(
+            "ALTER TABLE operation_plan DROP COLUMN provider_artifact_digest",
+            "ALTER TABLE operation_plan DROP COLUMN program_prefix_state",
+            "ALTER TABLE operation_plan DROP COLUMN program_entry_point_planned",
+            "ALTER TABLE operation_plan DROP COLUMN program_harness_id",
+        ),
+    ),
 )
 
 #: Names for nested savepoints. A counter rather than a fixed name: two nested

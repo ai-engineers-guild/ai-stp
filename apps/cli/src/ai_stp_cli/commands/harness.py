@@ -42,8 +42,10 @@ from ai_stp_cli.provider import (
     conformance,
     invocation,
     operation_v3,
+    program_state,
     protocol,
     protocol_v3,
+    release,
     software_fetch,
     trust,
 )
@@ -398,6 +400,66 @@ def _occupied(prefix: Path) -> bool:
     return exposed.is_dir() and any(exposed.iterdir())
 
 
+def _planned_entry_point(
+    artifacts: tuple[operation_v3.SoftwareArtifact, ...],
+    *,
+    prefix: Path,
+    connection: sqlite3.Connection,
+    operation: protocol_v3.Operation,
+) -> str:
+    """Which command this operation is about, relative to the prefix.
+
+    An install or an update states it in the plan, before any network is
+    touched. A removal fetches nothing and states nothing, so the command it is
+    about is the one this installation last put there — which the journal
+    knows, and which is why removal is the operation that needs the lookup.
+
+    An empty answer is possible and is not an error: removing from a prefix this
+    installation never wrote is idempotent, answers `removed: false`, and has no
+    entry point to name.
+    """
+    if artifacts:
+        return artifacts[0].entry_point
+    if operation is not protocol_v3.Operation.SOFTWARE_REMOVE:
+        return ""
+    for record in installation.program_history(connection, str(prefix)):
+        if record.state == installation.STATE_VERIFIED and record.entry_point:
+            return record.entry_point
+    return ""
+
+
+def _release_digest(
+    evidence: trust.ReleaseEvidence,
+    executable: str,
+    parameters: Mapping[str, object],
+) -> str:
+    """The release identity of the bytes about to run, derived from them.
+
+    Two sources and no third. A verified manifest already states which artifact
+    it covers, and `trusted_manifest` refused unless the executable hashed to
+    exactly that — so taking the value from the manifest is taking it from the
+    bytes. An explicitly unverified provider has no manifest, and the honest
+    identity of bytes nobody vouched for is their own digest.
+
+    `--provider-release-digest` remains accepted as an assertion for anyone who
+    scripted it, and a mismatch is refused rather than preferred. It is no
+    longer required, and no longer a source.
+    """
+    if evidence.manifest is not None:
+        derived = evidence.manifest.artifact_digest
+    else:
+        derived, _ = release.artifact_identity(Path(executable))
+    asserted = str(parameters.get("provider-release-digest") or "")
+    if asserted and asserted != derived:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the release digest given does not describe the provider that will run",
+            details={"asserted": asserted, "artifact": derived},
+            next_actions=["provider check --json"],
+        )
+    return derived
+
+
 def _perform(action: str, parameters: Mapping[str, object]) -> Answer[HarnessProgram]:
     operation = _OPERATIONS[action]
     harness_id = _required(parameters, "harness")
@@ -467,7 +529,16 @@ def _perform(action: str, parameters: Mapping[str, object]) -> Answer[HarnessPro
             .isoformat(timespec="milliseconds")
             .replace("+00:00", "Z")
         )
-        release_digest = _required(parameters, "provider-release-digest")
+        # Derived from what was verified, not authored by the caller.
+        #
+        # This was `--provider-release-digest`, a required free-text argument
+        # that the provider then echoed back in its plan. Both sides agreeing
+        # about a string the caller invented is not provenance: a digest copied
+        # from an unrelated real release bound cleanly and was recorded as this
+        # executable's release identity. Once the manifest is verified the value
+        # is a fact about these bytes, and for a deliberately unverified
+        # provider it is the digest of the bytes themselves.
+        release_digest = _release_digest(evidence, executable, parameters)
         arguments = operation_v3.plan_operation_arguments(
             operation=operation,
             release_digest=release_digest,
@@ -515,6 +586,19 @@ def _perform(action: str, parameters: Mapping[str, object]) -> Answer[HarnessPro
         effects = bound.effects
         artifacts = operation_v3.require_software_artifacts(dict(plan), operation=operation)
 
+        # The prefix as it stands, read before anything touches it. This is the
+        # program operation's own precondition, and it is deliberately not the
+        # target digest: a configuration edit between plan and apply must not
+        # invalidate a 167 MB download, while a *prefix* that moved underneath
+        # means the approved effects describe a state that is gone.
+        #
+        # Recorded rather than only hashed. Settling has to know which builds
+        # arrived or left, and a digest only says that something changed.
+        planned_entry_point = _planned_entry_point(
+            artifacts, prefix=prefix, connection=connection, operation=operation
+        )
+        before = program_state.observe(prefix, entry_point=planned_entry_point)
+
         held = installation.propose(
             connection,
             action=f"software_{action}",
@@ -530,6 +614,15 @@ def _perform(action: str, parameters: Mapping[str, object]) -> Answer[HarnessPro
             provider_protocol_version=protocol_v3.VERSION,
             provider_target=str(target),
             provider_plan_digest=plan_digest,
+            # Everything that says *which* operation this is, so a resume reads
+            # it here instead of taking it again from whoever is resuming.
+            provider_release_manifest=str(parameters.get("provider-manifest") or ""),
+            provider_release_trust=evidence.trust,
+            provider_release_evidence=evidence.evidence,
+            program_harness_id=harness_id,
+            program_entry_point_planned=planned_entry_point,
+            program_prefix_state=before.serialize(),
+            provider_artifact_digest=release_digest,
             operation_id=operation_id,
         )
         return Answer(
@@ -547,6 +640,8 @@ def _perform(action: str, parameters: Mapping[str, object]) -> Answer[HarnessPro
                 bound=bound,
                 effects=effects,
                 artifacts=artifacts,
+                before=before,
+                entry_point=planned_entry_point,
             )
         )
 
@@ -566,6 +661,8 @@ def _apply(
     bound: operation_v3.ProviderPlan,
     effects: tuple[str, ...],
     artifacts: tuple[operation_v3.SoftwareArtifact, ...],
+    before: program_state.PrefixState,
+    entry_point: str,
 ) -> HarnessProgram:
     """Fetch what the plan named, then let the provider apply it."""
     # The journal's own plan digest, not the provider's. They are different
@@ -650,21 +747,59 @@ def _apply(
             "the provider did not verify this program operation",
             details={"state": state, "harness": harness_id, "operation": operation.value},
         )
+    # The provider said it verified. That is testimony about the prefix, and
+    # the prefix is right here — so it is read before the journal records a
+    # success, rather than after somebody wonders.
+    #
+    # This mattered in a case that actually happened: a provider unpacked into
+    # the sandbox's own tmpfs, every check it could make was true, and it
+    # reported `verified` for files that died with the namespace. Its answer was
+    # structurally perfect and described nothing that survived. `harness status`
+    # already had to invent a `lost` state to describe the result; recording it
+    # as verified was the step that made `lost` reachable.
+    claimed = str(answer.get("version", ""))
+    after = program_state.observe(prefix, entry_point=entry_point)
+    settlement = program_state.settles(
+        before, after, operation=operation.value, claimed_version=claimed
+    )
+    if not settlement.met:
+        installation.interrupted(
+            connection,
+            held.operation_id,
+            at=moment(),
+            reason=f"the provider reported success and {settlement.reason}",
+        )
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the provider reported success and the prefix does not show it",
+            details={
+                "harness": harness_id,
+                "operation": operation.value,
+                "prefix": str(prefix),
+                "reported_version": claimed,
+                "observed": settlement.reason,
+            },
+            next_actions=[
+                f"harness status --harness {harness_id} --prefix {prefix} --json",
+                f"harness resume --operation {held.operation_id} --json",
+            ],
+        )
     installation.verify(
         connection,
         held.operation_id,
         postconditions_met=True,
         at=moment(),
-        evidence=str(answer.get("executable", "")),
+        evidence=settlement.reason,
     )
     # What this operation exposed, in columns rather than in the effect prose,
     # so `harness status` can name the exact build without parsing a sentence
-    # or running the program.
+    # or running the program. Taken from the observation rather than from the
+    # answer: the two agreed above, and the disk is the one that was measured.
     installation.record_program(
         connection,
         held.operation_id,
-        version=str(answer.get("version", "")),
-        entry_point=artifacts[0].entry_point if artifacts else "",
+        version=settlement.observed_version or claimed,
+        entry_point=entry_point,
     )
     return HarnessProgram(
         harness_id=harness_id,
@@ -752,9 +887,6 @@ def resume(parameters: Mapping[str, object]) -> Answer[HarnessProgram]:
     is in a position to make.
     """
     operation_id = _required(parameters, "operation")
-    executable = conformance.resolve_executable(_required(parameters, "provider"))
-    prefix = _directory(parameters, "prefix")
-    target = _directory(parameters, "target")
 
     with open_registry(configured_path()) as connection:
         current = journal.get(connection, operation_id)
@@ -766,9 +898,29 @@ def resume(parameters: Mapping[str, object]) -> Answer[HarnessProgram]:
                 details={"operation": operation_id, "state": state},
                 next_actions=["harness status --harness <id> --prefix <dir> --json"],
             )
+        # The durable plan is the operation's subject, and the only source for
+        # it. This used to take the provider, the prefix, the target and the
+        # harness from whoever ran the command — so an operation planned with
+        # one provider against one prefix could be settled by a different
+        # provider reporting on a different prefix, and it would be recorded as
+        # verified. Anything still passed is an assertion, checked below.
+        held = installation.plan(connection, operation_id)
+        if held.action not in installation.PROGRAM_ACTIONS:
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "that operation is a setup installation, not a program one",
+                details={"operation": operation_id, "action": held.action},
+                next_actions=[f"install resume --operation {operation_id} --json"],
+            )
+        harness_id = held.program_harness_id
+        prefix = Path(held.target_id)
+        target = Path(held.provider_target)
+        before = program_state.deserialize(held.program_prefix_state)
+        _assert_same(parameters, held, prefix=prefix, target=target, harness_id=harness_id)
 
+        executable = _resume_executable(parameters, held)
         evidence = trust.trusted_manifest(
-            connection, parameters, executable, recovery_requested=False
+            connection, _resume_trust(parameters, held), executable, recovery_requested=False
         )
         trusted_release = evidence.manifest
         trust.release_required(parameters, protocol_v3.VERSION, trusted_release)
@@ -777,7 +929,9 @@ def resume(parameters: Mapping[str, object]) -> Answer[HarnessProgram]:
             str(target),
             protocol_v3.VERSION,
             writable=(prefix,),
-            unisolated_reason=trust.unisolated_reason(trusted_release, parameters),
+            unisolated_reason=trust.unisolated_reason(
+                trusted_release, parameters, recorded_trust=held.provider_release_trust
+            ),
         )
 
         # `applying` means the provider was called and nobody has looked since.
@@ -787,42 +941,137 @@ def resume(parameters: Mapping[str, object]) -> Answer[HarnessProgram]:
         if state == installation.STATE_APPLYING:
             installation.applied(connection, operation_id, at=moment())
 
+        # The provider is asked whether it owes durable cleanup, and that is all
+        # it is asked. Its `status` describes the configuration target, so the
+        # answer to "did this program operation land" is not in it — reading
+        # `missing` there and calling a program installed was settling one
+        # subject with an observation of another.
         answer = _object(invoke("status", ()))
-        reported = str(answer.get("state", ""))
         cleanup = str(answer.get("cleanup_state", ""))
-        if reported == "recovery_required" or cleanup in protocol_v3.CLEANUP_NEEDS_RECOVERY:
+        recovered = False
+        if str(answer.get("state", "")) == "recovery_required" or (
+            cleanup in protocol_v3.CLEANUP_NEEDS_RECOVERY
+        ):
             invoke("recover-operation", ())
-            answer = _object(invoke("status", ()))
-            reported = str(answer.get("state", ""))
+            recovered = True
 
-        if reported in {"managed", "missing", "unmanaged"}:
+        after = program_state.observe(prefix, entry_point=held.program_entry_point_planned)
+        settlement = program_state.settles(before, after, operation=held.action)
+        if settlement.met:
             installation.verify(
                 connection,
                 operation_id,
                 postconditions_met=True,
                 at=moment(),
-                observed_target_digest=str(answer.get("target_digest", "")),
+                evidence=settlement.reason,
+            )
+            installation.record_program(
+                connection,
+                operation_id,
+                version=settlement.observed_version,
+                entry_point=held.program_entry_point_planned,
             )
         else:
+            # Still `partial` rather than `failed`. The provider was called, so
+            # "nothing was done" remains a claim nobody is in a position to make
+            # — and `recovery_owed` says the prefix carries staging the provider
+            # can still resolve, which is a different next action.
             installation.interrupted(
                 connection,
                 operation_id,
                 at=moment(),
-                reason=f"the provider still reports {reported!r} for this program operation",
+                reason=settlement.reason,
             )
         settled = journal.get(connection, operation_id)
-        # The durable plan, which is what recorded the action. `journal.get`
-        # answers where the operation stopped; it does not carry what it was.
-        held = installation._require(connection, operation_id)  # pyright: ignore[reportPrivateUsage]
         return Answer(
             HarnessProgram(
-                harness_id=_required(parameters, "harness"),  # pyright: ignore[reportArgumentType]
+                harness_id=harness_id,  # pyright: ignore[reportArgumentType]
                 operation=held.action.removeprefix("software_"),  # pyright: ignore[reportArgumentType]
                 state="" if settled is None else settled.state,
                 operation_id=operation_id,
                 prefix=str(prefix),
-                plan_digest=str(answer.get("provider_plan_digest", "")),
-                effects=[],
+                plan_digest=held.provider_plan_digest,
+                effects=list(held.effects),
                 artifacts=[],
+                version=settlement.observed_version,
+                recovered=["the provider resolved its own interrupted work"] if recovered else [],
             )
         )
+
+
+def _assert_same(
+    parameters: Mapping[str, object],
+    held: installation.Plan,
+    *,
+    prefix: Path,
+    target: Path,
+    harness_id: str,
+) -> None:
+    """Refuse a resume that describes a different operation than the one stored.
+
+    These arguments used to *be* the operation's subject; now they are optional
+    and, when given, are equality assertions. A different value is not a request
+    to settle something else — it is a caller who believes they are looking at
+    another operation, and answering about this one would confirm that belief.
+    """
+    asserted: tuple[tuple[str, str, str], ...] = (
+        ("harness", str(parameters.get("harness") or ""), harness_id),
+        ("prefix", str(parameters.get("prefix") or ""), str(prefix)),
+        ("target", str(parameters.get("target") or ""), str(target)),
+    )
+    for name, given, stored in asserted:
+        if given and Path(given).expanduser() != Path(stored) and given != stored:
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                f"this operation was planned against a different --{name}",
+                details={"operation": held.operation_id, "given": given, "planned": stored},
+                next_actions=[f"harness resume --operation {held.operation_id} --json"],
+            )
+
+
+def _resume_executable(parameters: Mapping[str, object], held: installation.Plan) -> str:
+    """The provider that planned this, found again and proved to be the same bytes.
+
+    A path may be given because a provider can legitimately have moved. What
+    cannot change is what it hashes to: the plan recorded the exact artifact
+    digest, so a relocated copy is accepted only when it is byte-identical, and
+    a different executable at the same path is refused rather than run.
+    """
+    given = str(parameters.get("provider") or "")
+    if not given:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "--provider is required until the resolved provider path is recorded in the plan",
+            details={"operation": held.operation_id},
+            next_actions=[f"harness resume --operation {held.operation_id} --provider <path>"],
+        )
+    executable = conformance.resolve_executable(given)
+    if not held.provider_artifact_digest:
+        return executable
+    observed, _ = release.artifact_identity(Path(executable))
+    if observed != held.provider_artifact_digest:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "that is not the provider this operation was planned with",
+            details={
+                "operation": held.operation_id,
+                "planned": held.provider_artifact_digest,
+                "given": observed,
+            },
+            next_actions=["provider check --json"],
+        )
+    return executable
+
+
+def _resume_trust(
+    parameters: Mapping[str, object], held: installation.Plan
+) -> Mapping[str, object]:
+    """The trust inputs, with the plan's own manifest standing in for a missing one.
+
+    The operator named the manifest at plan time and the plan recorded it.
+    Requiring it again would make a resume a second decision about trust, when
+    the decision was already made and durably written down.
+    """
+    if parameters.get("provider-manifest") or not held.provider_release_manifest:
+        return parameters
+    return {**parameters, "provider-manifest": held.provider_release_manifest}

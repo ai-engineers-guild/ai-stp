@@ -80,6 +80,11 @@ class Case:
     detail: str
     subject: str = SUBJECT_PROVIDER
 
+    #: Whether the conditions for asking this question were present. A case that
+    #: was not exercised carries `passed=True` so it does not fail a report it
+    #: has no verdict on, and this is the field that says the verdict is absent.
+    exercised: bool = True
+
 
 @dataclass(frozen=True)
 class Report:
@@ -110,6 +115,16 @@ class Report:
     @property
     def failures(self) -> tuple[Case, ...]:
         return tuple(case for case in self.cases if not case.passed)
+
+    @property
+    def not_exercised(self) -> tuple[Case, ...]:
+        """Cases the run could not put to the test, reported rather than counted.
+
+        Release readiness asks for these separately: a report that is green
+        because nothing exercised the hard half is green about less than it
+        appears to be.
+        """
+        return tuple(case for case in self.cases if not case.exercised)
 
 
 def resolve_executable(executable: str) -> str:

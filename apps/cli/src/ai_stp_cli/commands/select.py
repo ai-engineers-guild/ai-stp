@@ -1892,6 +1892,7 @@ def provider_conformance(parameters: Mapping[str, object]) -> Answer[Conformance
                     passed=item.passed,
                     detail=item.detail,
                     subject=item.subject,
+                    exercised=item.exercised,
                 )
                 for item in report.cases
             ],

@@ -1799,6 +1799,13 @@ class ConformanceCase(BaseModel):
     #: non-conformance names the wrong party in the one field people read.
     subject: str = "provider"
 
+    #: Whether the run actually put this case to the test. False is not a
+    #: failure and not a pass — it is "the conditions for asking were not there",
+    #: which is a third thing and used to be written as `passed: true` with the
+    #: explanation in prose. A machine reading the boolean saw coverage that did
+    #: not happen, and prose is not where a machine looks.
+    exercised: bool = True
+
 
 class ConformanceReport(BaseModel):
     """Whether one provider conforms to the frozen protocol (`SPEC-008` REQ-802).

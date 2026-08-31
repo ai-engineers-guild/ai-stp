@@ -140,7 +140,27 @@ class Plan:
     setup_stable_id: str = ""
     setup_version: str = ""
 
-    schema_version: int = 6
+    #: Which harness a program plan is about. A setup plan leaves it empty: its
+    #: subject is a setup, and the harness follows from that.
+    program_harness_id: str = ""
+
+    #: The entry point the plan said the provider would expose, relative to the
+    #: prefix. Recorded at plan time, unlike `program_entry_point`, which is the
+    #: provider's answer and only exists once an operation verified.
+    program_entry_point_planned: str = ""
+
+    #: What stood under the prefix when this was planned, serialized by
+    #: `provider.program_state`. Empty means a plan recorded before prefix state
+    #: was read — nothing may be concluded from it, and settling refuses rather
+    #: than treating it as an empty prefix.
+    program_prefix_state: str = ""
+
+    #: The exact bytes of the provider that planned this. A program operation
+    #: settled by a *different* executable is a different operation, and this is
+    #: what lets a resume say so instead of trusting the path it was handed.
+    provider_artifact_digest: str = ""
+
+    schema_version: int = 7
 
     @property
     def digest(self) -> str:
@@ -181,6 +201,11 @@ class Plan:
         if self.schema_version >= 6:
             value["provider_release_trust"] = self.provider_release_trust
             value["provider_release_evidence"] = self.provider_release_evidence
+        if self.schema_version >= 7:
+            value["program_harness_id"] = self.program_harness_id
+            value["program_entry_point_planned"] = self.program_entry_point_planned
+            value["program_prefix_state"] = self.program_prefix_state
+            value["provider_artifact_digest"] = self.provider_artifact_digest
         return digest_canonical(PLAN_DOMAIN, value)
 
 
@@ -239,6 +264,10 @@ def propose(
     provider_plan_digest: str = "",
     setup_stable_id: str = "",
     setup_version: str = "",
+    program_harness_id: str = "",
+    program_entry_point_planned: str = "",
+    program_prefix_state: str = "",
+    provider_artifact_digest: str = "",
     operation_id: str | None = None,
 ) -> Plan:
     """Record an immutable plan. Has no effect of its own (`REQ-805`).
@@ -310,6 +339,10 @@ def propose(
             created_at=at,
             setup_stable_id=setup_stable_id,
             setup_version=setup_version,
+            program_harness_id=program_harness_id,
+            program_entry_point_planned=program_entry_point_planned,
+            program_prefix_state=program_prefix_state,
+            provider_artifact_digest=provider_artifact_digest,
         )
         connection.execute(
             "INSERT INTO operation (operation_id, kind, state, started_at) VALUES (?, ?, ?, ?)",
@@ -325,9 +358,12 @@ def propose(
                 provider_target, plan_schema_version, provider_release_manifest,
                 provider_release_recovery, provider_release_trust,
                 provider_release_evidence, bundle_format, bundle_digest,
-                bundle_artifact_digest, bundle_size, provider_plan_digest
+                bundle_artifact_digest, bundle_size, provider_plan_digest,
+                program_harness_id, program_entry_point_planned,
+                program_prefix_state, provider_artifact_digest
             ) VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?
             )
             """,
             (
@@ -358,6 +394,10 @@ def propose(
                 bundle_artifact_digest,
                 bundle_size,
                 provider_plan_digest,
+                program_harness_id,
+                program_entry_point_planned,
+                program_prefix_state,
+                provider_artifact_digest,
             ),
         )
         _record(connection, operation_id, STATE_PLANNED, STATE_PLANNED, "planned", at)
@@ -936,6 +976,20 @@ def _decode(row: sqlite3.Row) -> Plan:
         created_at=str(row["created_at"]),
         setup_stable_id="" if row["setup_stable_id"] is None else str(row["setup_stable_id"]),
         setup_version="" if row["setup_version"] is None else str(row["setup_version"]),
+        program_harness_id=(
+            "" if row["program_harness_id"] is None else str(row["program_harness_id"])
+        ),
+        program_entry_point_planned=(
+            ""
+            if row["program_entry_point_planned"] is None
+            else str(row["program_entry_point_planned"])
+        ),
+        program_prefix_state=(
+            "" if row["program_prefix_state"] is None else str(row["program_prefix_state"])
+        ),
+        provider_artifact_digest=(
+            "" if row["provider_artifact_digest"] is None else str(row["provider_artifact_digest"])
+        ),
         schema_version=(
             1 if row["plan_schema_version"] is None else int(row["plan_schema_version"])
         ),

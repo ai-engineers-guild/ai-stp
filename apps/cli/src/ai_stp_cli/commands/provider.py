@@ -24,7 +24,7 @@ from ai_stp_cli.answer import Answer
 from ai_stp_cli.config import effective_config
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import provider_installations as installations
-from ai_stp_cli.local.database import configured_path, open_registry
+from ai_stp_cli.local.database import configured_path, open_readonly, open_registry
 from ai_stp_cli.local.passports import moment
 from ai_stp_cli.paths import redact_home
 from ai_stp_cli.provider import attested_bind, release
@@ -46,6 +46,12 @@ STATUS_UPDATE_AVAILABLE: Final[str] = "update_available"
 STATUS_UNKNOWN_VERSION: Final[str] = "unknown_version"
 STATUS_SOURCE_UNAVAILABLE: Final[str] = "source_unavailable"
 STATUS_MISSING: Final[str] = "missing"
+
+#: Bytes on disk that no release manifest here covers: a path someone configured
+#: by hand, a provider installed by other means, or a managed one that has been
+#: replaced since. Distinct from `unknown_version`, which used to absorb all
+#: three *after* running them to ask.
+STATUS_UNMANAGED: Final[str] = "unmanaged"
 STATUS_AMBIGUOUS: Final[str] = "ambiguous"
 
 
@@ -67,10 +73,15 @@ class Identity:
 def check(parameters: Mapping[str, object]) -> Answer[ProviderInstallationReport]:
     """Report each harness's provider installation against its pinned source.
 
-    Read-only in both directions: it runs `provider-info` on what is already
-    on disk and asks GitHub for the newest exact tag. It installs nothing, and
-    `--offline` stops it asking at all rather than letting a failed request
-    look like "no update".
+    Read-only in every direction, which is the whole of what it promises. It
+    hashes what is on disk and reads the release manifest beside it, asks GitHub
+    for the newest exact tag, and writes nothing anywhere — not the registry,
+    not the data directory, and not a remembered choice. `--offline` stops it
+    asking at all rather than letting a failed request look like "no update".
+
+    It runs no provider. `provider-info` is a program, and an executable whose
+    identity is in question is exactly the one not to start; the manifest
+    already carries the answer for every provider this installation placed.
     """
     named = parameters.get("harness")
     requested = _requested(named)
@@ -85,7 +96,17 @@ def check(parameters: Mapping[str, object]) -> Answer[ProviderInstallationReport
     checks: list[ProviderInstallationCheck] = []
     consulted = False
 
-    with closing(open_registry(registry, create=True)) as connection:
+    # Read-only in the literal sense, which this was not. It opened the registry
+    # with `create=True`, so a diagnostic created the database and its parent,
+    # switched it to WAL, ran pending migrations and set permissions — and then
+    # wrote an observation back as a remembered installation. A command declared
+    # `read` was answering its own question by writing, and failed outright on a
+    # read-only data directory it could simply have queried.
+    #
+    # A registry that does not exist is a history with nothing in it, and
+    # `resolve` already accepts `None` for exactly that.
+    connection = open_readonly(registry) if registry.exists() else None
+    try:
         client = attested_bind.GithubReleases()
         for harness_id in requested:
             found = installations.resolve(
@@ -96,27 +117,50 @@ def check(parameters: Mapping[str, object]) -> Answer[ProviderInstallationReport
             outcome, asked = _check_one(found, client, offline=offline, at=at)
             consulted = consulted or asked
             checks.append(outcome)
-            if outcome.path and outcome.provider_version:
-                installations.remember(
-                    connection,
-                    installations.Installation(
-                        harness_id=harness_id,
-                        path=outcome.path,
-                        # What actually found it. A read-only report records an
-                        # observation; it never promotes one into a decision.
-                        source=found.source,
-                        state=installations.STATE_INSTALLED,
-                        provider_id=outcome.provider_id,
-                        provider_version=outcome.provider_version,
-                        tag=outcome.latest_tag if outcome.status == STATUS_UP_TO_DATE else "",
-                        commit=outcome.latest_commit if outcome.status == STATUS_UP_TO_DATE else "",
-                        checked_at=at,
-                        source_checked_at=at if asked else "",
-                    ),
-                )
-        connection.commit()
+    finally:
+        if connection is not None:
+            connection.close()
 
     return Answer(ProviderInstallationReport(installations=checks, source_consulted=consulted))
+
+
+@dataclass(frozen=True)
+class _ManifestIdentity:
+    """A provider's identity taken from its manifest rather than from itself."""
+
+    provider_id: str
+    provider_version: str
+
+
+def _manifest_identity(executable: Path) -> _ManifestIdentity | None:
+    """Who this executable is, proved by bytes and read from disk. Runs nothing.
+
+    `provider fetch` writes `release.json` beside every provider it installs,
+    and that manifest names the exact artifact digest it covers. So the question
+    "are these the bytes we installed, and what are they" is answerable by
+    hashing the file and reading the file next to it — which is what a read-only
+    command is entitled to do.
+
+    `None` is the honest answer for everything else: a path with no manifest, a
+    manifest that does not parse, and — most importantly — a manifest whose
+    digest does not match the file. That last one is a managed provider that has
+    been replaced, and it is precisely the case where running the executable to
+    ask what it is would be running the substitute.
+    """
+    manifest_path = executable.parent / attested_bind.MANIFEST_NAME
+    try:
+        manifest = release.parse_manifest(manifest_path.read_text("utf-8"))
+    except (OSError, CliFailure):
+        return None
+    try:
+        observed, _ = release.artifact_identity(executable)
+    except CliFailure:
+        return None
+    if observed != manifest.artifact_digest:
+        return None
+    return _ManifestIdentity(
+        provider_id=manifest.provider_id, provider_version=manifest.provider_version
+    )
 
 
 def _check_one(
@@ -149,23 +193,35 @@ def _check_one(
             False,
         )
 
-    try:
-        capabilities = attested_bind.inspect_provider(Path(found.path))
-    except CliFailure as error:
-        # An executable that will not say what it is stays reported, with its
-        # path: `#452` asks for a clear recommendation of a manual action, and
-        # hiding the file the user has to look at is not one.
+    # Identity is read, never asked for. This ran the executable — `provider-info`
+    # is a program, and running it is running it — on bytes whose trust had not
+    # been established, outside the isolation boundary, from a command declared
+    # `read`. A configured path can name any file on the machine, and a
+    # discovered one is an ordinary file that may have been replaced since it was
+    # installed. The trusted fetch path verifies attestation *before* it inspects;
+    # this did the reverse.
+    #
+    # Nothing is lost by not asking. A provider this installation placed has its
+    # release manifest beside it, and the manifest states the provider id and
+    # version — so for every candidate whose bytes match what was installed, the
+    # answer this command needs is already on disk without a spawn.
+    identity = _manifest_identity(Path(found.path))
+    if identity is None:
         return (
             ProviderInstallationCheck(
                 harness_id=found.harness_id,
-                status=cast(Any, STATUS_UNKNOWN_VERSION),
+                status=cast(Any, STATUS_UNMANAGED),
                 path=found.path,
                 source=cast(Any, found.source),
-                reason=f"the provider did not report its identity: {error}",
+                reason=(
+                    "these bytes are not the ones any release manifest here covers, so "
+                    "their identity is unknown and they were not run to ask"
+                ),
                 checked_at=at,
             ),
             False,
         )
+    capabilities = identity
 
     def described(
         status: str,

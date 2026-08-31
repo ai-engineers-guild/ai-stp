@@ -68,15 +68,18 @@ def test_wrap_uses_the_closed_network_profile_and_exact_argv(tmp_path: Path) -> 
 
     wrapped = launcher.wrap((str(provider.resolve()), "status"), target=target.resolve())
 
+    # The profile is now built per invocation, because it names the target and
+    # every path the caller declared writable. It was a constant while writes
+    # were unbounded, and that is exactly what made `writable` mean nothing here.
     assert wrapped == (
         "/usr/bin/sandbox-exec",
         "-p",
-        macos_launcher.PROFILE,
+        macos_launcher.profile_for(target.resolve(), ()),
         str(provider.resolve()),
         "status",
     )
-    assert "(allow default)" in macos_launcher.PROFILE
-    assert "(deny network*)" in macos_launcher.PROFILE
+    assert "(deny network*)" in wrapped[2]
+    assert "(deny file-write*)" in wrapped[2]
 
 
 def test_probe_requires_all_three_transports_to_be_denied(

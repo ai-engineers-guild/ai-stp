@@ -1205,8 +1205,9 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "provider-release-digest",
                 "string",
-                "Exact release digest the provider binds itself to.",
-                required=True,
+                "Assert the release digest of the provider that will run. Derived "
+                "from the verified manifest, or from the executable's own bytes "
+                "when it is explicitly unverified; a different value is refused.",
             ),
             option(
                 "prefix",
@@ -1228,9 +1229,10 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "unverified-provider",
                 "boolean",
-                "Run a provider no signed release covers. On macOS and Windows this "
-                "is also what lets the call run at all, since no launcher there can "
-                "deny the network.",
+                "Run a provider no signed release covers, such as one you built "
+                "yourself. Every supported system has a launcher that denies the "
+                "network by the device: Bubblewrap on Linux, AppContainer on "
+                "Windows, sandbox-exec on macOS.",
             ),
         ),
         next_actions=("toolchain harnesses",),
@@ -1247,8 +1249,9 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "provider-release-digest",
                 "string",
-                "Exact release digest the provider binds itself to.",
-                required=True,
+                "Assert the release digest of the provider that will run. Derived "
+                "from the verified manifest, or from the executable's own bytes "
+                "when it is explicitly unverified; a different value is refused.",
             ),
             option(
                 "prefix",
@@ -1270,9 +1273,10 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "unverified-provider",
                 "boolean",
-                "Run a provider no signed release covers. On macOS and Windows this "
-                "is also what lets the call run at all, since no launcher there can "
-                "deny the network.",
+                "Run a provider no signed release covers, such as one you built "
+                "yourself. Every supported system has a launcher that denies the "
+                "network by the device: Bubblewrap on Linux, AppContainer on "
+                "Windows, sandbox-exec on macOS.",
             ),
         ),
         next_actions=("toolchain harnesses",),
@@ -1290,8 +1294,9 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "provider-release-digest",
                 "string",
-                "Exact release digest the provider binds itself to.",
-                required=True,
+                "Assert the release digest of the provider that will run. Derived "
+                "from the verified manifest, or from the executable's own bytes "
+                "when it is explicitly unverified; a different value is refused.",
             ),
             option(
                 "prefix",
@@ -1313,9 +1318,10 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "unverified-provider",
                 "boolean",
-                "Run a provider no signed release covers. On macOS and Windows this "
-                "is also what lets the call run at all, since no launcher there can "
-                "deny the network.",
+                "Run a provider no signed release covers, such as one you built "
+                "yourself. Every supported system has a launcher that denies the "
+                "network by the device: Bubblewrap on Linux, AppContainer on "
+                "Windows, sandbox-exec on macOS.",
             ),
             option(
                 "confirm",
@@ -1334,19 +1340,30 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         mutability="apply",
         parameters=(
             option("operation", "string", "The operation that stopped.", required=True),
-            option("harness", "string", "Harness whose program this is.", required=True),
             option("provider", "string", "Exact provider executable to invoke.", required=True),
+            option(
+                "harness",
+                "string",
+                "Assert which harness this operation was planned for. Taken from "
+                "the operation when omitted; a different value is refused.",
+            ),
             option(
                 "prefix",
                 "string",
-                "Absolute directory the program lives under. Not the target.",
-                required=True,
+                "Assert the prefix this operation was planned against. Taken from "
+                "the operation when omitted; a different value is refused.",
             ),
-            option("target", "string", "Absolute harness configuration target.", required=True),
+            option(
+                "target",
+                "string",
+                "Assert the target this operation was planned against. Taken from "
+                "the operation when omitted; a different value is refused.",
+            ),
             option(
                 "provider-manifest",
                 "string",
-                "Signed provider release manifest proving these exact bytes.",
+                "Signed provider release manifest proving these exact bytes. Taken "
+                "from the operation when omitted.",
             ),
             option(
                 "provider-build-attestation",
@@ -1356,9 +1373,10 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "unverified-provider",
                 "boolean",
-                "Run a provider no signed release covers. On macOS and Windows this "
-                "is also what lets the call run at all, since no launcher there can "
-                "deny the network.",
+                "Run a provider no signed release covers, such as one you built "
+                "yourself. Every supported system has a launcher that denies the "
+                "network by the device: Bubblewrap on Linux, AppContainer on "
+                "Windows, sandbox-exec on macOS.",
             ),
         ),
         next_actions=("harness status",),
@@ -1822,7 +1840,9 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "protocol-version",
                 "integer",
-                "Provider protocol selected before invocation. Defaults to frozen v1.",
+                "Provider protocol selected before invocation. A trusted "
+                "release manifest selects it; without one this defaults to "
+                "frozen v1.",
             ),
             option(
                 "target",
@@ -1915,20 +1935,21 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "protocol-version",
                 "integer",
-                "Provider protocol selected before invocation. Defaults to frozen v1.",
+                "Provider protocol selected before invocation. A trusted "
+                "release manifest selects it; without one this defaults to "
+                "frozen v1.",
             ),
             option(
                 "unverified-provider",
                 "boolean",
                 "Read the target through an executable no signed or attested "
-                "release covers. On Windows this is also what lets the read run "
-                "at all, since no launcher there can deny the network. "
-                "Elsewhere it changes nothing.",
+                "release covers. It does not relax isolation: the read still "
+                "runs under the launcher its system proved.",
             ),
             option(
                 "target",
                 "string",
-                "Existing absolute provider target directory. Required by protocol v2.",
+                "Existing absolute provider target directory. Required by protocol v2 and v3.",
             ),
             option(
                 "requires-env",
@@ -2020,20 +2041,21 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "protocol-version",
                 "integer",
-                "Provider protocol selected before invocation. Defaults to frozen v1.",
+                "Provider protocol selected before invocation. A trusted "
+                "release manifest selects it; without one this defaults to "
+                "frozen v1.",
             ),
             option(
                 "unverified-provider",
                 "boolean",
                 "Read the target through an executable no signed or attested "
-                "release covers. On Windows this is also what lets the read run "
-                "at all, since no launcher there can deny the network. "
-                "Elsewhere it changes nothing.",
+                "release covers. It does not relax isolation: the read still "
+                "runs under the launcher its system proved.",
             ),
             option(
                 "target",
                 "string",
-                "Existing absolute provider target directory. Required by protocol v2.",
+                "Existing absolute provider target directory. Required by protocol v2 and v3.",
             ),
             option(
                 "requires-env",
@@ -2094,7 +2116,9 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "protocol-version",
                 "integer",
-                "Provider protocol selected before invocation. Defaults to frozen v1.",
+                "Provider protocol selected before invocation. A trusted "
+                "release manifest selects it; without one this defaults to "
+                "frozen v1.",
             ),
             option(
                 "unverified-provider",
@@ -2106,7 +2130,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "target",
                 "string",
-                "Existing absolute provider target directory. Required by protocol v2.",
+                "Existing absolute provider target directory. Required by protocol v2 and v3.",
             ),
         ),
         next_actions=("install plan",),
@@ -2275,9 +2299,8 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "unverified-provider",
                 "boolean",
                 "Check an executable no signed or attested release covers, such "
-                "as one you built yourself. On Windows this is also what lets "
-                "the check run at all, since no launcher there can deny the "
-                "network. Elsewhere it changes nothing.",
+                "as one you built yourself. It does not relax isolation: the "
+                "check still runs under the launcher its system proved.",
             ),
         ),
         next_actions=("toolchain harnesses",),

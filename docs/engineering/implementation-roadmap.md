@@ -57,6 +57,29 @@ last_verified: "2026-08-31"
 
 ## Оставшаяся работа
 
+### P0. Provider release 0.0.49 закрывает эхо plan_digest
+
+`apply-operation` у выпущенных `0.0.48` не возвращает `plan_digest` для
+`software_*`, хотя конфигурационный apply его возвращает и
+`docs/contracts/provider-protocol.md` требует «те же журнал, backup и
+plan-digest». Consumer требовал эхо у всех операций, поэтому каждый
+`harness install/update/remove` через `ai-stp` отказывал **после** того, как
+программа уже установлена, оставляя операцию `applied_unverified` над рабочим
+префиксом.
+
+Ни один producer-тест этого не видел: провайдер делает ровно то, что утверждает
+его собственный набор. Нашёл потребительский срез, которого раньше не было.
+
+Порядок — tolerate-then-emit, и он уже начат: consumer принимает отсутствие эха
+для программных операций и по-прежнему отказывает на несовпадающем; провайдер
+выпускает `0.0.49` с эхом (владелец — `NDDev-it-com/setup-systems`), после чего
+эхо начинает проверяться реально.
+
+После `0.0.49` нужен переимпорт каталога: 15 из 28 опубликованных сетапов
+отстали от источника (все семь `nddev-builder` и все `full-auto`, кроме
+antigravity), поэтому `install plan` показывает описание постуры, которая ещё
+просит подтверждений.
+
 ### P1. Account-dependent live evidence
 
 1. Завершить настоящий browser device flow для двух отдельных file credential
@@ -66,6 +89,16 @@ last_verified: "2026-08-31"
 3. Проверить catalog install для семи harnesses/postures и записать content gaps
    без фиктивных объектов. Anonymous live, provider 0.0.48, citation и
    six-native release evidence уже выполнены.
+
+### P2. Native evidence для того, что уже реализовано, но не измерено
+
+1. `just evidence-software <tag>` ведёт семь выпущенных провайдеров через
+   потребительский путь (`harness install/status/update/remove`). Локально на
+   Linux `x86_64` он выполнен; на остальных пяти нативных строках — нет.
+2. Windows job object и sweep оставленных grant реализованы и покрыты тестами,
+   но не измерены на нативном раннере под настоящим kill родителя.
+3. macOS `(deny file-write*)` не прогонялся против семи реальных провайдеров на
+   обеих архитектурах.
 
 ### P4. Agent-first cleanup как постоянная практика
 
