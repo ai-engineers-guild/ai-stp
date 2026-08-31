@@ -249,6 +249,21 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 #: none, because it reads as fixed.
 COMPARE_URL = "https://api.github.com/repos/{repository}/compare/{base}...{head}"
 
+#: This one comparison gets its own bound, and it is measured rather than
+#: chosen. A run failed here with `response exceeded 65536 bytes` against a
+#: healthy target: the compare response carries every changed file between the
+#: two refs, so its size tracks how busy the repository was and nothing about
+#: the deployment.
+#:
+#: Measured on this repository: adjacent commits 28 KiB, and an afternoon
+#: spanning a 234-file sync **1.1 MiB**. `per_page=1` was tried first and moves
+#: it by 7% — it bounds the commit list, and the files are what is large, so
+#: there is no lighter question to ask this endpoint.
+#:
+#: Still a bound. It exists to stop an unbounded read, not to police an API
+#: whose response size nobody here controls.
+MAX_COMPARE_BYTES = 8 * 1024 * 1024
+
 
 def contains(
     expected: str,
@@ -270,7 +285,7 @@ def contains(
         return False
     url = COMPARE_URL.format(repository=repository, base=expected, head=deployed)
     try:
-        status, body = fetch(url, MAX_JSON_BYTES)
+        status, body = fetch(url, MAX_COMPARE_BYTES)
         if status != 200:
             return False
         answer = json.loads(body.decode("utf-8"))

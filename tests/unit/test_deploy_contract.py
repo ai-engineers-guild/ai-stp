@@ -549,3 +549,28 @@ def test_the_deploy_workflow_names_the_repository_ancestry_is_asked_of() -> None
     states at the top, in the same session spent removing exactly that.
     """
     assert "--repository" in _deploy_workflow()
+
+
+def test_the_overtake_comparison_is_bounded_for_a_busy_repository() -> None:
+    """The bound that failed a healthy deployment, sized by measurement.
+
+    `verify-public` asks GitHub whether a newer commit overtook the one it is
+    verifying. That response carries every changed file between the two refs,
+    so its size tracks how busy the repository was and nothing about the
+    deployment — and on a day with a 234-file sync it reached 1.1 MiB against
+    the shared 64 KiB bound, failing a run whose target was serving correctly.
+
+    Raising it is the fix rather than removing it: a comparison this side does
+    not control the size of still must not read without a limit. What is
+    asserted here is that the two bounds are separate and that the comparison's
+    is the larger, because a single shared number is what made a healthy deploy
+    look broken.
+    """
+    from deploy import verify_public
+
+    assert verify_public.MAX_COMPARE_BYTES > verify_public.MAX_JSON_BYTES
+    # Headroom over the largest response observed on this repository, not a
+    # round number chosen for looking generous.
+    assert verify_public.MAX_COMPARE_BYTES >= 4 * 1024 * 1024
+    # And still a bound: an unbounded read is what this whole limit exists for.
+    assert verify_public.MAX_COMPARE_BYTES < 64 * 1024 * 1024
