@@ -62,6 +62,11 @@ _DEVICE_WRITES: Final[tuple[str, ...]] = (
 _PROBE_TIMEOUT: Final[float] = 3.0
 
 
+def _forbidden(rendered: str) -> bool:
+    """Whether this spelling could end the SBPL literal it would sit inside."""
+    return '"' in rendered or "\\" in rendered
+
+
 def _quote(path: Path) -> str:
     """One SBPL string literal. Refuses rather than escapes.
 
@@ -69,9 +74,17 @@ def _quote(path: Path) -> str:
     rest would be read as policy — the one way a profile can be widened by a
     filename. No such path can be a provider target here, so refusing is both
     safe and free.
+
+    The given spelling is judged before `resolve` is called, not after. Refusing
+    the input is the rule; whether the filesystem can resolve such a name is a
+    separate question with a different answer on each platform, and a check that
+    reached the answer through `resolve` would be relying on the very system
+    call that a hostile name is most likely to break.
     """
+    if _forbidden(path.as_posix()):
+        raise ValueError(f"a sandbox path may not contain a quote or a backslash: {path}")
     rendered = path.resolve().as_posix()
-    if '"' in rendered or "\\" in rendered:
+    if _forbidden(rendered):
         raise ValueError(f"a sandbox path may not contain a quote or a backslash: {rendered}")
     return f'"{rendered}"'
 

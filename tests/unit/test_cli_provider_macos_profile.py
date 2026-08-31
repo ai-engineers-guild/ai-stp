@@ -14,6 +14,7 @@ of coverage `ADR-0133` was written about.
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pytest
@@ -40,8 +41,13 @@ def test_the_target_and_every_named_path_are_writable(tmp_path: Path) -> None:
 
     profile = macos_launcher.profile_for(target, (prefix,))
 
-    assert f'(subpath "{target}")' in profile
-    assert f'(subpath "{prefix}")' in profile
+    # POSIX rendering, not `str(path)`. SBPL is a macOS language and the
+    # launcher writes `as_posix()`; on a Windows runner `str()` gives
+    # backslashes and this compared the profile against a spelling nothing
+    # produces. The subject is macOS either way — what runs everywhere is the
+    # rule, and asserting it in the platform's own spelling is the point.
+    assert f'(subpath "{target.resolve().as_posix()}")' in profile
+    assert f'(subpath "{prefix.resolve().as_posix()}")' in profile
 
 
 def test_nothing_else_is_writable(tmp_path: Path) -> None:
@@ -53,7 +59,7 @@ def test_nothing_else_is_writable(tmp_path: Path) -> None:
 
     profile = macos_launcher.profile_for(target, ())
 
-    assert str(sibling) not in profile
+    assert sibling.resolve().as_posix() not in profile
 
 
 def test_the_writable_tuple_reaches_the_argv(tmp_path: Path) -> None:
@@ -67,15 +73,22 @@ def test_the_writable_tuple_reaches_the_argv(tmp_path: Path) -> None:
         capability=_enforced(),
     )
 
-    argv = launcher.wrap(("/bin/echo", "hi"), target=target, writable=(prefix,))
+    # `sys.executable` rather than `/bin/echo`: `wrap` requires an absolute
+    # provider path, and `/bin/echo` is not absolute on Windows, where this
+    # suite also runs. Nothing is executed — only the argv is read.
+    argv = launcher.wrap((sys.executable, "hi"), target=target, writable=(prefix,))
 
-    assert f'(subpath "{prefix}")' in argv[2]
+    assert f'(subpath "{prefix.resolve().as_posix()}")' in argv[2]
 
 
 def test_a_path_that_could_end_the_literal_is_refused(tmp_path: Path) -> None:
-    """A quote in a filename would close the string and leave the rest as policy."""
+    """A quote in a filename would close the string and leave the rest as policy.
+
+    Not created on disk: Windows refuses the name outright, and `profile_for`
+    resolves rather than opens, so the rule is asserted without needing a
+    filesystem that tolerates the character.
+    """
     hostile = tmp_path / 'a"b'
-    hostile.mkdir()
 
     with pytest.raises(ValueError, match="quote or a backslash"):
         macos_launcher.profile_for(hostile, ())

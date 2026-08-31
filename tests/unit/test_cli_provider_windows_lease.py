@@ -44,9 +44,18 @@ def test_a_revoked_grant_stops_being_recorded(data_dir: Path, tmp_path: Path) ->
 
     windows_launcher._lease_clear("S-1-15-2-1", tmp_path / "a")  # pyright: ignore[reportPrivateUsage]
 
-    held = windows_launcher._lease_path().read_text(encoding="utf-8")  # pyright: ignore[reportPrivateUsage]
-    assert str(tmp_path / "a") not in held
-    assert str(tmp_path / "b") in held
+    # Parsed, not searched. The lease is JSON, so a Windows path is stored with
+    # its backslashes escaped and a substring search for the raw path finds
+    # nothing — a test that would have failed on the one platform this file is
+    # about.
+    held = [
+        json.loads(line)
+        for line in windows_launcher._lease_path()  # pyright: ignore[reportPrivateUsage]
+        .read_text(encoding="utf-8")
+        .splitlines()
+        if line.strip()
+    ]
+    assert {entry["path"] for entry in held} == {str(tmp_path / "b")}
 
 
 def test_the_last_revoke_removes_the_lease(data_dir: Path, tmp_path: Path) -> None:
