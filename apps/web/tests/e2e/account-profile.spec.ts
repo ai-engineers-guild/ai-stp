@@ -62,7 +62,13 @@ test.describe("account profile (SPEC-028)", () => {
 
   test("uploads an avatar and includes its binding in the saved draft", async ({ page }) => {
     await page.goto("/en/account/profile");
+    const uploaded = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        new URL(response.url()).pathname === "/api/account/avatar",
+    );
     await page.locator('input[type="file"]').setInputFiles("public/brand/icon-32.png");
+    expect((await uploaded).status()).toBe(201);
     await expect(page.getByText(/Avatar ready|Avatar готов/i)).toBeVisible();
     await expect(page.locator("section img").first()).toHaveAttribute("src", /^data:image\/png/);
     await page.getByRole("button", { name: /^Save$|^Сохранить$/i }).click();
