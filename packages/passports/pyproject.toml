@@ -1,6 +1,6 @@
 [project]
 name = "ai-stp-passports"
-version = "0.0.12"
+version = "0.0.13"
 description = "Passport envelope, kinds, facts and their generated schemas."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -20,7 +20,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "ai-stp-foundation==0.0.12",
+    "ai-stp-foundation==0.0.13",
     "markdown-it-py>=4.0,<5",
     "pydantic>=2.9",
 ]
