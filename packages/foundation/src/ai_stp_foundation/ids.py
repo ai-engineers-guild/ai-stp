@@ -17,6 +17,7 @@ from ulid import ULID
 ID_PREFIXES: Final[Mapping[str, str]] = MappingProxyType(
     {
         "account": "platform account",
+        "acceptance": "legal policy acceptance",
         # A reference to bytes the provider holds (`REQ-814`). Typed and
         # never reused like the rest, and deliberately not part of any
         # setup's identity: deleting a backup must not delete a setup.

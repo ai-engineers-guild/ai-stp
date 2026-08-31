@@ -1,6 +1,6 @@
 # Root build context for Dockerfile (api/worker/migrate/seed).
 # Without this file Docker Desktop sent ~350MB+ (web node_modules, .next, .venv).
-# Web image uses context ./apps/web and apps/web/.dockerignore separately.
+# The production web image uses this root context to consume docs-user-facing/.
 
 # VCS / IDE
 .git
@@ -39,19 +39,15 @@ dist
 **/playwright-report
 **/*.tsbuildinfo
 apps/web
-# Hub markdown is the only web path the Python image needs (SPEC-054). Last
-# matching pattern wins, so these exceptions sit after `apps/web` and `*.md`.
-!apps/web/content/
-!apps/web/content/hub/
-!apps/web/content/hub/**
-!apps/web/content/hub/**/*.md
+# Dockerfile.prod.dockerignore gives the production web build its narrower
+# root-context view without adding the Node tree to Python image contexts.
 
 # Docs toolchain (mkdocs node deps)
 docs_scripts/node_modules
 docs
 !docs_scripts/user-mkdocs.yml
-!user-docs/
-!user-docs/**
+!docs-user-facing/
+!docs-user-facing/**
 
 # Research / plans / local env
 research_sources

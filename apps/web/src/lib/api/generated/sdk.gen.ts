@@ -9,6 +9,9 @@ import type {
   BindPublicationArtifactData,
   BindPublicationArtifactErrors,
   BindPublicationArtifactResponses,
+  CompleteLegalOnboardingData,
+  CompleteLegalOnboardingErrors,
+  CompleteLegalOnboardingResponses,
   ConfirmPublicationPlanData,
   ConfirmPublicationPlanErrors,
   ConfirmPublicationPlanResponses,
@@ -105,6 +108,9 @@ import type {
   ReadContentRepositoryStateErrors,
   ReadContentRepositoryStateResponses,
   ReadContentResponses,
+  ReadLegalOnboardingData,
+  ReadLegalOnboardingErrors,
+  ReadLegalOnboardingResponses,
   ReadOAuthCallbackResultData,
   ReadOAuthCallbackResultErrors,
   ReadOAuthCallbackResultResponses,
@@ -378,6 +384,42 @@ export const readAuthMe = <ThrowOnError extends boolean = false>(
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/auth/me",
     ...options,
+  });
+
+/**
+ * Read the exact current legal revisions required for account activation.
+ */
+export const readLegalOnboarding = <ThrowOnError extends boolean = false>(
+  options?: Options<ReadLegalOnboardingData, ThrowOnError>,
+): RequestResult<ReadLegalOnboardingResponses, ReadLegalOnboardingErrors, ThrowOnError> =>
+  (options?.client ?? client).get<
+    ReadLegalOnboardingResponses,
+    ReadLegalOnboardingErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/auth/onboarding",
+    ...options,
+  });
+
+/**
+ * Accept the current legal revisions and activate the account.
+ */
+export const completeLegalOnboarding = <ThrowOnError extends boolean = false>(
+  options: Options<CompleteLegalOnboardingData, ThrowOnError>,
+): RequestResult<CompleteLegalOnboardingResponses, CompleteLegalOnboardingErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    CompleteLegalOnboardingResponses,
+    CompleteLegalOnboardingErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/auth/onboarding/complete",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
   });
 
 /**

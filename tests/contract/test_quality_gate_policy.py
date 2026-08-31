@@ -18,7 +18,12 @@ QUICKSTART = ROOT / "QUICKSTART.md"
 #: the built tree the overlay is absent and the workflows are local, and the
 #: same assertions then describe the gate that really runs there.
 OVERLAY = ROOT / "release_scripts" / "public_overlay" / ".github" / "workflows"
-WORKFLOWS = OVERLAY if OVERLAY.is_dir() else ROOT / ".github" / "workflows"
+_REQUIRED_WORKFLOWS = {"check.yml", "platform-evidence.yml", "codeql.yml"}
+WORKFLOWS = (
+    OVERLAY
+    if OVERLAY.is_dir() and {path.name for path in OVERLAY.iterdir()} >= _REQUIRED_WORKFLOWS
+    else ROOT / ".github" / "workflows"
+)
 
 CHECK_WORKFLOW = WORKFLOWS / "check.yml"
 CODEQL_WORKFLOW = WORKFLOWS / "codeql.yml"

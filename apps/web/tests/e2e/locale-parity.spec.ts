@@ -7,9 +7,15 @@ test.describe("locale parity (REQ-2203, REQ-2311)", () => {
   test("Russian landing and catalog detail path mirrors English smoke", async ({ page }) => {
     await page.goto("/ru");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    await expect(page.locator('[data-ui="site-footer"]')).toContainText("Реестр ИИ-сетапов");
+    await expect(page.locator('[data-ui="site-footer"]')).toContainText(
+      "\u0420\u0435\u0435\u0441\u0442\u0440 \u0418\u0418-\u0441\u0435\u0442\u0430\u043f\u043e\u0432",
+    );
 
-    await page.getByRole("link", { name: /Browse catalog|Открыть каталог/i }).click();
+    await page
+      .getByRole("link", {
+        name: /Browse catalog|\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u043a\u0430\u0442\u0430\u043b\u043e\u0433/i,
+      })
+      .click();
     await expect(page).toHaveURL(/\/ru\/catalog/);
 
     const card = page.getByRole("link", {
@@ -53,7 +59,11 @@ test.describe("locale parity (REQ-2203, REQ-2311)", () => {
 
   test("Russian login + devices smoke", async ({ page }) => {
     await page.goto("/ru/login");
-    await page.getByRole("button", { name: /Continue with GitHub|Войти через GitHub/i }).click();
+    await page
+      .getByRole("button", {
+        name: /Continue with GitHub|\u0412\u043e\u0439\u0442\u0438 \u0447\u0435\u0440\u0435\u0437 GitHub/i,
+      })
+      .click();
     await expect(page).toHaveURL(/\/ru\/account/);
     await expect(page.getByText(/account_01JQZK7B8N4M6P2R9T5V0X3Y7Z/)).toBeVisible();
 

@@ -75,7 +75,7 @@ export const NarrowList: Story = {
     kind: "component",
     item: {
       ...componentSummaryFixture,
-      latest_name: "Очень длинное имя компонента для узкой колонки каталога",
+      latest_name: "A very long component name for a narrow catalog column",
     } as ComponentSummary,
     href: "/catalog/components/x",
     labels,

@@ -7,6 +7,5 @@ last_verified: "2026-08-08"
 
 | | |
 | --- | --- |
-| **RU** | Клуб из пяти — human in the loop |
 | **EN** | Five in the loop — a human crew group |
 | **Engineering** | Hand to hand harness engineering |

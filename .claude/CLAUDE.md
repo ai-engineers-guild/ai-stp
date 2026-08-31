@@ -1,7 +1,7 @@
-# Инструкции Claude Code
+# Claude Code instructions
 
 @../AGENTS.md
 
-`AGENTS.md` — канонический набор правил этого репозитория и импортируется выше
-целиком. Этот файл существует только как точка входа для Claude Code и правил не
-дублирует.
+`AGENTS.md` is the canonical rule set for this repository and is imported above
+in full. This file is only a Claude Code entry point and does not duplicate those
+rules.

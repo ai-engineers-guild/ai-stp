@@ -1,9 +1,9 @@
-# Единый перевод строки в репозитории. Без этого клон на Windows даёт CRLF,
-# и любой инструмент, читающий файлы построчно, начинает ругаться, а diff
-# показывает изменённым весь файл.
+# Use one line ending across the repository. Without this, a Windows clone
+# gets CRLF, line-oriented tools complain, and the diff shows the whole file
+# as changed.
 * text=auto eol=lf
 
-# Двоичные файлы не трогаем.
+# Do not alter binary files.
 *.png binary
 *.jpg binary
 *.pdf binary

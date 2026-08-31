@@ -16,13 +16,9 @@ work="$(mktemp -d)"
 tool="$(mktemp -d)"
 trap 'rm -rf "$work" "$tool"' EXIT
 
-# XDG не изолирует системное хранилище учётных данных: оно принадлежит
-# пользователю, а не домашнему каталогу. Без этой строки полоса писала ключ
-# в реальный keyring разработчика и однажды заменила там рабочую запись.
-# Адрес шины уводится в никуда, поэтому Secret Service не отвечает и CLI
-# уходит на файловый ярус. Явный продуктовый переключатель ниже нужен и на
-# macOS, где DBus не управляет Keychain, и не даёт release regression
-# открыть настоящий locker пользователя ни на одной поддерживаемой ОС.
+# XDG does not isolate the system credential store: it belongs to the OS user,
+# not the home directory. The explicit product switch below keeps release
+# regression from opening the developer's real credential locker on any supported OS.
 export DBUS_SESSION_BUS_ADDRESS="unix:path=$work/no-such-bus"
 # Windows Credential Manager is available even when DBus is absent. Keep
 # this disposable regression environment on the explicit file tier there.
@@ -44,7 +40,7 @@ uv pip install --python "$work/venv" -q \
     "$dist"/ai_stp_contracts-*.whl \
     "$dist"/ai_stp_cli-*.whl
 
-# venv раскладывается по-разному: bin/ на POSIX, Scripts/ и .exe на Windows.
+# The virtual environment layout differs: bin/ on POSIX, Scripts/ and .exe on Windows.
 if [ -d "$work/venv/Scripts" ]; then
     venv_bin="$work/venv/Scripts"; exe=".exe"
 else
@@ -61,13 +57,13 @@ if uv pip list --python "$work/venv" 2>/dev/null \
     echo "clean_install_regress: a model client is in the dependency closure (SPEC-011 REQ-1118)" >&2
     exit 1
 fi
-# Ровно те вызовы, которые критерии приёмки #72 требуют от установленного
-# колеса. Каждый обязан завершиться нулём, поэтому set -e здесь и работает.
+# These are exactly the calls required by acceptance criteria #72 from the
+# installed wheel. Each must exit zero, so set -e is sufficient here.
 for argv in "--help" "version" "doctor" "help --agent --json"; do
     XDG_CONFIG_HOME="$work/config" XDG_DATA_HOME="$work/data" \
         "$venv_bin/ai-stp$exe" $argv > /dev/null
 done
-echo "clean_install_regress: колесо устанавливается и запускается в чистом окружении"
+echo "clean_install_regress: wheel installs and runs in a clean environment"
 
 export UV_TOOL_DIR="$tool/tools" UV_TOOL_BIN_DIR="$tool/bin"
 export XDG_CONFIG_HOME="$tool/home/config" XDG_DATA_HOME="$tool/home/data" HOME="$tool/home"
@@ -83,33 +79,31 @@ cd "$tool"
 "$tool/bin/ai-stp$exe" doctor --json > /dev/null
 "$tool/bin/ai-stp$exe" help --agent --json > /dev/null
 "$tool/bin/ai-stp$exe" passport developer init --json > /dev/null
-# Изоляция проверяется, а не предполагается: если ярус вдруг окажется
-# системным, полоса упадёт здесь, вместо того чтобы молча загрязнить
-# хранилище разработчика.
+# Verify isolation rather than assuming it: if the tier is unexpectedly system
+# backed, fail here instead of silently polluting the developer's store.
 tier="$(AI_STP_FORCE_FILE_CREDENTIAL_STORE=1 "$tool/bin/ai-stp$exe" device show --json | python3 -c 'import json,sys; print(json.load(sys.stdin)["data"]["credential_store"])')"
 if [ "$tier" != "file" ]; then
-    echo "clean_install_regress: ожидался файловый ярус, получен $tier — изоляция не работает" >&2
+    echo "clean_install_regress: expected file tier, got $tier — isolation is broken" >&2
     exit 1
 fi
 test -f "$tool/home/data/ai-stp/registry.sqlite"
-# Находка ревью: колесо не несло канонический Agent Skill вовсе, поэтому
-# установленный продукт отдавал агенту двоичный файл и никакой процедуры.
-# Проверяется на установке вне дерева исходников — там, где репозиторную
-# копию взять неоткуда.
+# Review finding: the wheel carried no canonical Agent Skill, so the installed
+# product gave the agent a binary and no procedure. Check outside the source tree,
+# where a repository copy cannot mask the defect.
 mkdir -p "$tool/harness"
 "$tool/bin/ai-stp$exe" skill install --target "$tool/harness" --harness claude-code --json > /dev/null
 test -f "$tool/harness/SKILL.md"
 grep -q "ai-stp doctor --json" "$tool/harness/SKILL.md"
 owned="$("$tool/bin/ai-stp$exe" skill status --target "$tool/harness" --json | python3 -c 'import json,sys; print(json.load(sys.stdin)["data"]["state"])')"
 if [ "$owned" != "owned" ]; then
-    echo "clean_install_regress: установленный Skill не признан своим ($owned)" >&2
+    echo "clean_install_regress: installed Skill is not owned by the package ($owned)" >&2
     exit 1
 fi
 "$tool/bin/ai-stp$exe" skill remove --target "$tool/harness" --json > /dev/null
 test ! -e "$tool/harness/SKILL.md"
 uv tool uninstall -q ai-stp-cli
 test ! -e "$tool/bin/ai-stp$exe"
-# Удаление снимает только принадлежащие CLI файлы. Локальные данные — это
-# отдельное явное действие пользователя.
+# Removal deletes only CLI files owned by the package. Local data is a separate
+# explicit user action.
 test -f "$tool/home/data/ai-stp/registry.sqlite"
-echo "clean_install_regress: uv tool install и uninstall работают, данные пользователя сохраняются"
+echo "clean_install_regress: uv tool install and uninstall work; user data is preserved"

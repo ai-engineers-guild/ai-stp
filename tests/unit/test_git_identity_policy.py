@@ -10,7 +10,7 @@ def test_agents_requires_dynamic_global_identity_and_forbids_overrides() -> None
     assert "git config --global --get user.name" in AGENTS
     assert "git config --global --get user.email" in AGENTS
     assert "--author" in AGENTS
-    assert "не передаёт `--author`" in AGENTS or "does not pass `--author`" in AGENTS
+    assert "does not pass `--author`" in AGENTS
     assert "Co-authored-by" in AGENTS
     assert "does not change `user.name`" in AGENTS
 

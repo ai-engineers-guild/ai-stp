@@ -61,7 +61,7 @@
         "source_kind": "repository",
         "body": "Use exact versions.",
         "source_ref": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        "source_path": "en/article-safe-setup.md"
+        "source_path": "docs-user-facing/content/en/article-safe-setup.md"
       }
     },
     {
@@ -110,7 +110,7 @@
               "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
               "source_kind": "repository",
               "source_ref": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-              "source_path": "en/article-safe-setup.md"
+              "source_path": "docs-user-facing/content/en/article-safe-setup.md"
             },
             {
               "type": "article",
@@ -124,7 +124,7 @@
               "content_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
               "source_kind": "repository",
               "source_ref": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-              "source_path": "ru/article-safe-setup.md"
+              "source_path": "docs-user-facing/content/ru/article-safe-setup.md"
             }
           ]
         }

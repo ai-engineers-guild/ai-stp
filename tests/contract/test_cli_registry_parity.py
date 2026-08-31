@@ -247,7 +247,7 @@ def test_a_repeatable_option_says_so_where_the_parser_reads_it() -> None:
     `--tag a --tag b` searched for `b` alone and answered as if that were the
     question. A wrong answer, not an error.
     """
-    hinted = ("repeat", "повтор", "several", "multiple", "each")
+    hinted = ("repeat", "several", "multiple", "each")
     wrong = [
         f"{command.name} --{parameter.name}: {parameter.summary!r}"
         for command in COMMANDS

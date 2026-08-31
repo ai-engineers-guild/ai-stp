@@ -1,5 +1,5 @@
-# Генерируемые проекции
+# Generated projections
 
-Здесь будут храниться или собираться проекции канонических Skills для Claude Code, Codex, Pi, OpenCode и Grok Build.
+Canonical Skill projections for Claude Code, Codex, Pi, OpenCode, and Grok Build are stored or assembled here.
 
-Источник — `skills/canonical/`. Каждая проекция имеет версию генератора, digest источника и контрактный тест.
+The source is `skills/canonical/`. Each projection has a generator version, source digest, and contract test.

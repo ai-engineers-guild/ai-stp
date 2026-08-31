@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""Семантические регрессии: отменённые термины, ветки и покрытие политики проверок.
+"""Check semantic regressions, retired terms, branch policy, and validation coverage.
 
-Запускается через just, а не напрямую:
+Run through just rather than directly:
 
     just docs-static
 
-Обычный docs_lint проверяет форму документа. Здесь проверяется смысл: что решение,
-уже принятое в ADR, не вернулось в нормативный текст другим словом. Такая ошибка не
-ломает ссылки и не видна разметке, поэтому её ловит отдельный проход.
+The regular docs_lint checks document shape. This linter checks meaning: a decision
+accepted in an ADR must not return to normative text under another name. Such an
+error does not break links or markup, so it needs a separate pass.
 
-Историю в docs/adr/ проверки терминов не трогают: заменённое решение обязано уметь
-описать, что именно оно заменило.
+Term checks skip the history in docs/adr/: a superseded decision must be able to
+describe what it replaced.
 """
 
 from __future__ import annotations
@@ -23,12 +23,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-# Нормативные корни. docs/adr описывает историю решений и здесь не участвует.
+# Normative roots. docs/adr describes decision history and is excluded here.
 NORMATIVE_GLOBS = ("docs/**/*.md", "specs/**/*.md")
 HISTORY_DIR = "docs/adr"
 ROOT_DOCS = ("README.md", "AGENTS.md", "QUICKSTART.md", "SECURITY.md", "CONTRIBUTING.md")
 
-# Восемь видов компонентов по ADR-0015. Каждый обязан иметь строку в матрице.
+# Eight component types under ADR-0015. Each must have a matrix row.
 COMPONENT_TYPES = (
     "instruction",
     "skill",
@@ -40,13 +40,13 @@ COMPONENT_TYPES = (
     "setting",
 )
 
-# Классы транспорта MCP по validation-policy.md.
+# MCP transport classes from validation-policy.md.
 MCP_TRANSPORTS = ("local_exec", "package", "remote_https")
 
 VALIDATION_POLICY = Path("docs/contracts/validation-policy.md")
 PASSPORTS_DOC = Path("docs/contracts/component-setup-passports.md")
 
-# Канонические имена файлов-спутников: по ним CLI отличает описанный объект.
+# Canonical sidecar filenames used by the CLI to identify a described object.
 SIDECAR_NAMES = ("ai-stp.component.yaml", "ai-stp.setup.yaml")
 #: The gate whose push branches must match the documented branch model. Which
 #: file that is depends on the tree: the working copy runs no workflows of its
@@ -60,7 +60,7 @@ GIT_WORKFLOW_DOC = Path("docs/engineering/git-workflow.md")
 REPO_STRUCTURE_DOC = Path("docs/engineering/repository-structure.md")
 SERENA_IGNORE = Path(".serena/.gitignore")
 
-# Файлы состояния конкретного checkout: содержат SHA, ветку и абсолютный путь.
+# State files for a specific checkout: they contain a SHA, branch, and absolute path.
 SERENA_TRANSIENT = (
     ".serena/.auto_sync_head",
     ".serena/.flow_blocker_ack.json",
@@ -81,119 +81,116 @@ BANNED_TERMS = (
     BannedTerm(
         r"\binclude_unverified\b",
         "CT050",
-        "бессрочное глобальное согласие удалено: сеансовый признак и записи областей (ADR-0029)",
+        "indefinite global consent was removed: use the session flag and scope records (ADR-0029)",
     ),
     BannedTerm(
         r"\bmanifest_digest\b",
         "CT001",
-        "версия описывается паспортом: используйте passport_digest (ADR-0012, ADR-0014)",
+        "versions are described by passports: use passport_digest (ADR-0012, ADR-0014)",
     ),
     BannedTerm(
         r"ai-stp:manifest:v1",
         "CT002",
-        "области манифеста версии не существует: используйте ai-stp:passport:v1 (ADR-0014)",
+        "the version manifest namespace does not exist: use ai-stp:passport:v1 (ADR-0014)",
     ),
     BannedTerm(
         r"\bSetupVariant\b",
         "CT003",
-        "сетап принадлежит одному харнессу, отдельной сущности варианта нет (ADR-0014)",
+        "a setup belongs to one harness; there is no separate variant entity (ADR-0014)",
     ),
     BannedTerm(
         r"\binferred\b",
         "CT004",
-        "происхождение inferred удалено: используйте derived с записанным правилом (ADR-0021)",
+        "inferred provenance was removed: use derived with a recorded rule (ADR-0021)",
     ),
     BannedTerm(
         r"\bFitRun\b|\bno_verified_candidate\b",
         "CT008",
-        "продукт ищет и собирает, а не подбирает: SelectionRun и no_candidate",
+        "the product searches and composes rather than fitting: use SelectionRun and no_candidate",
     ),
     BannedTerm(
         r"`unsupported_apply`",
         "CT009",
-        "неподдерживаемое применение является кодом ошибки, а не состоянием оси готовности",
+        "unsupported application is an error code, not a readiness-axis state",
     ),
 )
 
-# `variant_id` допустим у компонента и запрещён у сетапа. Ловим только явную связку.
+# `variant_id` is valid for a component and forbidden for a setup. Catch only explicit pairings.
 SETUP_VARIANT_RE = re.compile(
-    r"(?:сетап[а-яё]*|setup)[^.\n]{0,60}`variant_id`|`variant_id`[^.\n]{0,60}(?:сетап[а-яё]*|setup)",
+    r"setup[^.\n]{0,60}`variant_id`|`variant_id`[^.\n]{0,60}setup",
     re.IGNORECASE,
 )
 
-# `marketplace` как вид компонента. Само слово законно: это projection_kind и
-# нативная витрина харнесса, поэтому проверяется только перечисление видов.
+# `marketplace` as a component type. The word itself is valid as a projection_kind
+# and native harness surface, so only the type enumeration is checked.
 MARKETPLACE_AS_TYPE_RE = re.compile(
     r"component_type[^.\n]{0,120}\bmarketplace\b"
-    r"|\bmarketplace\b[^.\n]{0,80}(?:вид[а-яё]* компонент|component_type)",
+    r"|\bmarketplace\b[^.\n]{0,80}component_type",
     re.IGNORECASE,
 )
 
-# `succeeded` как успех изменяющей операции. У задания worker своё состояние.
+# `succeeded` as the success state of a mutating operation. Worker jobs have their own state.
 OPERATION_SUCCEEDED_RE = re.compile(
-    r"(?:операц[а-яё]+|operation)[^.\n]{0,160}`succeeded`",
+    r"operation[^.\n]{0,160}`succeeded`",
     re.IGNORECASE,
 )
 
-# Возвраты закрытых решений видения (ADR-0025..0034). Эти проверки идут в обход
-# NEGATION_RE: часть запрещённых формулировок сама записана отрицанием
-# («не планируется расширять», «канала жалоб нет»), и общая льгота их спрятала бы.
-CEILING_RE = re.compile(r"целевое число продукта|не планируется расширять")
+# Returns of closed vision decisions (ADR-0025..0034). These checks bypass
+# NEGATION_RE because the forbidden formulations themselves can be negated.
+CEILING_RE = re.compile(r"product target number|not planned to expand")
 WEB_ONLY_RE = re.compile(
-    r"(?:[Сс]айт|[Вв]еб)[^\n]{0,60}?только для[^\n]{0,60}?(?:установк|вход|поиск)",
+    r"(?:site|web)[^\n]{0,60}?only for[^\n]{0,60}?(?:installation|sign-in|search)",
 )
 COUNTS_RE = re.compile(
-    r"\b\d{1,4} ADR\b|\b\d{1,4} активн[а-яё]+ спецификаци"
-    r"|\bсо \d{1,4} требовани|\b\d{1,4} требовани[а-яё]*\b",
+    r"\b\d{1,4} ADR\b|\b\d{1,4} active specifications"
+    r"|\bwith \d{1,4} requirements|\b\d{1,4} requirements\b",
 )
 #: A claim about which phase is finished or starting. `implementation-roadmap.md`
 #: owns that fact; anywhere else it is a copy that goes stale on the next phase.
 #: It did: `scope.md` said phase 1 was beginning while the roadmap had it done.
 PHASE_STATE_RE = re.compile(
-    r"[Фф]аза \d+[^\n]{0,40}(завершена|начина)|(начинается|завершена) фаза \d+"
+    r"phase \d+[^\n]{0,40}(finished|starting)|(starting|finished) phase \d+",
 )
 
-NOT_RUN_PUBLISH_RE = re.compile(r"не блокиру|публикуется")
-NOT_RUN_BLOCKING_RE = re.compile(r"блокиру[а-яё]*[^\n]{0,20}публ")
-DEV_PASSPORT_RE = re.compile(r"паспорт[а-яё]* разработчика|DeveloperPassport", re.IGNORECASE)
+NOT_RUN_PUBLISH_RE = re.compile(
+    r"does not block|not_run[^\n]{0,80}(?:is|gets?)\s+published",
+    re.IGNORECASE,
+)
+NOT_RUN_BLOCKING_RE = re.compile(r"blocks?[^\n]{0,30}(?:publish|publication)", re.IGNORECASE)
+DEV_PASSPORT_RE = re.compile(r"DeveloperPassport", re.IGNORECASE)
 ENV_FACT_RE = re.compile(
-    r"\bOS\b|\barchitecture\b|операционн[а-яё]+ систем|архитектур"
-    r"|установленн[а-яё]+ харнесс|верси[а-яё]+ инструмент",
+    r"\bOS\b|\barchitecture\b|operating system|architecture"
+    r"|installed harness|tool version",
 )
 #: The exemption for CT055: a line saying the environment does **not** belong to
 #: the developer passport. What matters is that the negation binds to the
 #: passport, not that a negation appears somewhere on the line.
 #:
-#: This was four bare phrases — `не содержит|а не паспорту разработчика|не
-#: записывается|не изменяет` — and it was wrong in both directions. A planted
-#: control, "Паспорт разработчика несёт операционную систему и архитектуру
-#: машины, и порядок записей **не изменяет** их смысл", passed silently: a real
-#: violation exempted because an unrelated clause carried one of the four.
-#: Meanwhile the phrasing the estate actually uses for this exemption —
-#: `ADR-0025`: "не входят в паспорт разработчика" — was in none of the four and
-#: would have been flagged.
+#: The skip pattern must bind negation to the passport, not merely find a
+#: negation somewhere on the line. This prevents unrelated clauses from hiding
+#: a real violation while allowing the documented exemption.
 #:
 #: Measured before changing it: the old regex exempted **zero** lines in the
 #: scanned tree. It had no members and cost the check its teeth.
 DEV_PASSPORT_SKIP_RE = re.compile(
-    r"не\s+(?:\S+\s+){0,3}(?:в\s+|у\s+)?(?:паспорт[а-яё]*\s+разработчика|DeveloperPassport)"
-    r"|(?:паспорт[а-яё]*\s+разработчика|DeveloperPassport)\s+(?:\S+\s+){0,2}не\s",
+    r"(?:does not|doesn't|not)\s+(?:\S+\s+){0,3}(?:in\s+|from\s+)?DeveloperPassport"
+    r"|DeveloperPassport\s+(?:\S+\s+){0,2}(?:does not|doesn't|not)\s",
     re.IGNORECASE,
 )
 REPORT_EXCLUDED_RE = re.compile(
-    r"канал[а-яё]* жалоб[^\n]{0,30}нет|пользовательск[а-яё]+ жалоб[а-яё]* на компонент",
+    r"no (?:user )?complaint channel[^\n]{0,30}|user complaint[^\n]{0,30}component",
 )
 PLATFORM_ONLY_RE = re.compile(
-    r"полн[а-яё]+ набор обязательных проверок[^\n]{0,60}"
-    r"(?:выполняется|запускается)[^\n]{0,40}на сервере",
+    r"full set of required checks[^\n]{0,60}"
+    r"(?:runs|executes)[^\n]{0,40}on (?:the )?(?:platform )?server",
     re.IGNORECASE,
 )
 BARE_ID_RE = re.compile(
     r"^\s*(?:\"id\"|id):\s*\"?(?:component_|setup_|developer_|device_|project_)",
 )
 
-# Канонические владельцы закрытых решений: файл и маркеры, без которых решение
-# считается потерянным. Удаление владельца или маркера — регрессия, а не чистка.
+# Canonical owners of closed decisions: the file and markers without which a
+# decision is lost. Removing an owner or marker is a regression, not cleanup.
 VISION_CONTRACTS = {
     Path("docs/contracts/device-passport.md"): ("not merged",),
     Path("docs/contracts/unverified-consent.md"): ("`publisher`", "`object_major`"),
@@ -206,14 +203,11 @@ ELIGIBILITY_MARKERS = ("Installation eligibility", "blocked for new installation
 ATTESTATION_MARKER = "Author attestation"
 
 
-# Канонический документ обязан уметь назвать отменённый термин, чтобы его запретить.
-# Строка с отрицанием — это формулировка правила, а не его нарушение. Возврат термина
-# так не выглядит: его вводят утвердительно, как поле или допустимое значение.
+# A canonical document must name a retired term so it can forbid it. A negated
+# sentence states the rule rather than violating it; a returned term is introduced
+# affirmatively as a field or allowed value.
 NEGATION_RE = re.compile(
-    r"\bне\s+(?:использ|являет|существу|содерж|входит|добавля|планиру|принима|создаёт|получа)"
-    r"|\bнет\b|\bбез\b|\bудал[её]н|\bудаляет|\bзапрещ|\bперестал|\bотменён|\bне\s+нужн"
-    r"|\bвместо\b|\bзаменён|\bсокращён"
-    r"|\b(?:no|not|never)\b|\b(?:is|are|was|were|has been) removed\b|\bdoes not\b|\bhas no\b",
+    r"\b(?:no|not|never)\b|\b(?:is|are|was|were|has been) removed\b|\bdoes not\b|\bhas no\b",
     re.IGNORECASE,
 )
 
@@ -258,24 +252,24 @@ class ContractLinter:
         self.check_vision_regressions()
         self.check_vision_owners()
 
-    # -- проверки --------------------------------------------------------
+    # -- checks -----------------------------------------------------------
 
     def check_banned_terms(self) -> None:
         contextual = (
             (
                 SETUP_VARIANT_RE,
                 "CT005",
-                "variant_id уровня сетапа удалён; вариант остаётся только у компонента (ADR-0014)",
+                "setup-level variant_id was removed; variants remain only on components (ADR-0014)",
             ),
             (
                 MARKETPLACE_AS_TYPE_RE,
                 "CT006",
-                "marketplace не является видом компонента: это projection_kind (ADR-0015)",
+                "marketplace is not a component type; it is a projection_kind (ADR-0015)",
             ),
             (
                 OPERATION_SUCCEEDED_RE,
                 "CT007",
-                "единственное имя успеха операции — verified (contracts/operation.md)",
+                "the only operation success name is verified (contracts/operation.md)",
             ),
         )
         for path in self.normative_files():
@@ -294,35 +288,35 @@ class ContractLinter:
                         self.error(f"{rel}:{number}", code, reason)
 
     def check_branch_parity(self) -> None:
-        """Ветки push в workflow обязаны совпадать с документированными."""
+        """Push branches in the workflow must match the documented branches."""
         overlay = self.root / _OVERLAY_WORKFLOW
         workflow = overlay if overlay.exists() else self.root / WORKFLOW
         doc = self.root / GIT_WORKFLOW_DOC
         if not workflow.exists() or not doc.exists():
-            self.error(WORKFLOW, "CT010", "нет workflow или документа о ветках")
+            self.error(WORKFLOW, "CT010", "workflow or branch documentation is missing")
             return
 
         match = re.search(
             r"push:\s*\n\s*branches:\s*\[([^\]]*)\]", workflow.read_text(encoding="utf-8")
         )
         if not match:
-            self.error(WORKFLOW, "CT011", "не найден список branches у push")
+            self.error(WORKFLOW, "CT011", "push branch list was not found")
             return
         actual = {item.strip().strip("\"'") for item in match.group(1).split(",") if item.strip()}
 
         text = doc.read_text(encoding="utf-8")
-        # Одна линия, а не пара «интеграционная плюс выпускная»: второй ветки
-        # больше нет, и раньше правило требовало ровно её. Сторож остаётся, но
-        # читает объявленную линию, а не предполагает её имя: расхождение
-        # workflow с документом должно падать здесь, а не обнаруживаться тем,
-        # что проверки перестали запускаться на ветке, куда идут PR.
+        # There is one line rather than an integration and release pair. Read the
+        # declared line instead of assuming its name so workflow/document drift
+        # fails here rather than silently disabling checks on pull-request branches.
         declared = re.search(
-            r"`(\w[\w./-]*)`(?: — единственная линия репозитория| is the repository's only line)",
+            r"`(\w[\w./-]*)`(?: is the repository's only line)",
             text,
             re.IGNORECASE,
         )
         if not declared:
-            self.error(GIT_WORKFLOW_DOC, "CT012", "документ не называет единственную линию")
+            self.error(
+                GIT_WORKFLOW_DOC, "CT012", "document does not name the repository's only line"
+            )
             return
         expected = {declared.group(1)}
 
@@ -330,14 +324,14 @@ class ContractLinter:
             self.error(
                 WORKFLOW,
                 "CT013",
-                f"push ветки {sorted(actual)} расходятся с документированными {sorted(expected)}",
+                f"push branches {sorted(actual)} differ from documented {sorted(expected)}",
             )
 
     def check_validation_matrix(self) -> None:
-        """Каждый вид компонента и класс транспорта MCP имеет строку матрицы."""
+        """Every component type and MCP transport class has a matrix row."""
         policy = self.root / VALIDATION_POLICY
         if not policy.exists():
-            self.error(VALIDATION_POLICY, "CT020", "нет канонической матрицы политики проверок")
+            self.error(VALIDATION_POLICY, "CT020", "canonical validation policy matrix is missing")
             return
         text = policy.read_text(encoding="utf-8")
         for component_type in COMPONENT_TYPES:
@@ -345,21 +339,21 @@ class ContractLinter:
                 self.error(
                     VALIDATION_POLICY,
                     "CT021",
-                    f"нет строки матрицы для вида компонента `{component_type}`",
+                    f"matrix row is missing for component type `{component_type}`",
                 )
         for transport in MCP_TRANSPORTS:
             if not re.search(rf"\|\s*`{re.escape(transport)}`\s*\|", text):
                 self.error(
                     VALIDATION_POLICY,
                     "CT022",
-                    f"нет строки матрицы для класса транспорта `{transport}`",
+                    f"matrix row is missing for transport class `{transport}`",
                 )
 
     def check_component_type_examples(self) -> None:
-        """У каждого вида компонента есть пример правила отнесения."""
+        """Every component type has an attribution-rule example."""
         doc = self.root / PASSPORTS_DOC
         if not doc.exists():
-            self.error(PASSPORTS_DOC, "CT023", "нет контракта паспортов компонентов и сетапов")
+            self.error(PASSPORTS_DOC, "CT023", "component and setup passport contract is missing")
             return
         text = doc.read_text(encoding="utf-8")
         for component_type in COMPONENT_TYPES:
@@ -367,11 +361,11 @@ class ContractLinter:
                 self.error(
                     PASSPORTS_DOC,
                     "CT024",
-                    f"нет примера отнесения для вида `{component_type}`",
+                    f"attribution example is missing for type `{component_type}`",
                 )
 
     def check_sidecar_names(self) -> None:
-        """Имя файла-спутника является машинной границей и объявлено явно."""
+        """The sidecar filename is an explicit machine boundary."""
         doc = self.root / PASSPORTS_DOC
         if not doc.exists():
             return
@@ -381,14 +375,14 @@ class ContractLinter:
                 self.error(
                     PASSPORTS_DOC,
                     "CT025",
-                    f"не объявлено каноническое имя файла-спутника {name}",
+                    f"canonical sidecar filename {name} is not declared",
                 )
 
     def check_tracked_runtime_state(self) -> None:
-        """Состояние конкретного checkout не отслеживается и объявлено в ignore.
+        """Specific checkout state is untracked and declared in ignore.
 
-        Обе половины независимы: объявление в ignore проверяется и там, где Git
-        недоступен, иначе проверка молча исчезает вместе с рабочим деревом.
+        Both halves are independent: the ignore declaration is checked even
+        without Git, or the check would silently disappear with the working tree.
         """
         try:
             tracked = subprocess.run(
@@ -399,7 +393,7 @@ class ContractLinter:
                 check=True,
             ).stdout.split("\0")
         except (OSError, subprocess.CalledProcessError):
-            tracked = []  # Вне рабочего дерева Git отслеживание проверить нечем.
+            tracked = []  # Outside a Git checkout there is no tracking to inspect.
 
         tracked_set = {item for item in tracked if item}
         for name in SERENA_TRANSIENT:
@@ -407,12 +401,12 @@ class ContractLinter:
                 self.error(
                     name,
                     "CT030",
-                    "состояние конкретного checkout снова отслеживается: SHA, ветка и путь машины",
+                    "specific checkout state is tracked again: SHA, branch, and machine path",
                 )
 
         ignore = self.root / SERENA_IGNORE
         if not ignore.exists():
-            self.error(SERENA_IGNORE, "CT031", "нет файла ignore для состояния сессии")
+            self.error(SERENA_IGNORE, "CT031", "session-state ignore file is missing")
             return
         declared = {
             line.strip().lstrip("/") for line in ignore.read_text(encoding="utf-8").splitlines()
@@ -420,10 +414,10 @@ class ContractLinter:
         for name in SERENA_TRANSIENT:
             basename = Path(name).name
             if basename not in declared:
-                self.error(SERENA_IGNORE, "CT032", f"в ignore не объявлен {basename}")
+                self.error(SERENA_IGNORE, "CT032", f"{basename} is not declared in ignore")
 
     def check_removed_work_dir(self) -> None:
-        """Удалённый каталог работ не возвращается через документацию структуры."""
+        """The removed work directory must not return through structure documentation."""
         doc = self.root / REPO_STRUCTURE_DOC
         if not doc.exists():
             return
@@ -432,54 +426,55 @@ class ContractLinter:
                 self.error(
                     f"{REPO_STRUCTURE_DOC}:{number}",
                     "CT040",
-                    "каталог .work удалён вместе с валидатором и не входит в целевую структуру",
+                    ".work was removed with its validator and is not part of the target structure",
                 )
 
     def check_vision_regressions(self) -> None:
-        """Закрытые решения видения не возвращаются другим словом.
+        """Closed vision decisions must not return under another name.
 
-        Проверки идут в обход NEGATION_RE: часть запрещённых формулировок сама
-        записана отрицанием, и общая льгота формулировок-запретов их скрыла бы.
+        These checks bypass NEGATION_RE because some forbidden formulations are
+        themselves written as negations, and a general negation exemption would hide them.
         """
         rules = (
             (
                 "CT051",
                 CEILING_RE,
                 None,
-                "семь харнессов — полный набор MVP по ADR-0120, продвижение по ADR-0033; "
-                "вечный потолок отменён",
+                "seven harnesses are the complete MVP set under ADR-0120, with promotion under "
+                "ADR-0033; "
+                "the permanent ceiling was removed",
             ),
             (
                 "CT053",
                 WEB_ONLY_RE,
                 None,
-                "веб владеет учётной записью и каталогом по ADR-0018, "
-                "а не только установкой и поиском",
+                "the web owns the account and catalog under ADR-0018, "
+                "not only installation and search",
             ),
             (
                 "CT054",
                 COUNTS_RE,
                 None,
-                "числа решений и требований живут в генерируемых индексах, а не в прозе",
+                "decision and requirement counts live in generated indexes, not prose",
             ),
             (
                 "CT056",
                 REPORT_EXCLUDED_RE,
                 None,
-                "жалобы входят в MVP: закрытый ReportCase по SPEC-016 (ADR-0031)",
+                "complaints are in the MVP: a closed ReportCase under SPEC-016 (ADR-0031)",
             ),
             (
                 "CT064",
                 PLATFORM_ONLY_RE,
                 None,
-                "принятый источник задаётся по каждой проверке: credential-зависимые "
-                "принимаются авторским подтверждением (ADR-0026)",
+                "the accepted source is set per check: credential-dependent checks "
+                "use author attestation (ADR-0026)",
             ),
             (
                 "CT066",
                 BARE_ID_RE,
                 None,
-                "идентичность объекта называется stable_id, а не id (SPEC-015 REQ-1501)",
+                "object identity is called stable_id, not id (SPEC-015 REQ-1501)",
             ),
         )
         for path in self.normative_files():
@@ -502,8 +497,8 @@ class ContractLinter:
                     self.error(
                         f"{rel}:{number}",
                         "CT057",
-                        "состояние фазы принадлежит implementation-roadmap.md, "
-                        "а копия расходится с ним на следующей же фазе",
+                        "phase state belongs to implementation-roadmap.md, "
+                        "and a copy drifts on the next phase",
                     )
                 if (
                     "CT052" not in seen
@@ -515,8 +510,8 @@ class ContractLinter:
                     self.error(
                         f"{rel}:{number}",
                         "CT052",
-                        "обязательный not_run блокирует публикацию; "
-                        "публикуемый not_run отменён (ADR-0026)",
+                        "required not_run blocks publication; "
+                        "published not_run was removed (ADR-0026)",
                     )
                 if (
                     "CT055" not in seen
@@ -528,16 +523,16 @@ class ContractLinter:
                     self.error(
                         f"{rel}:{number}",
                         "CT055",
-                        "наблюдаемое окружение принадлежит паспорту устройства, "
-                        "а не разработчика (ADR-0025)",
+                        "observed environment belongs to the device passport, "
+                        "not the developer passport (ADR-0025)",
                     )
 
     def check_vision_owners(self) -> None:
-        """Канонические владельцы закрытых решений существуют и несут маркеры."""
+        """Canonical owners of closed decisions exist and carry their markers."""
         for relative, markers in VISION_CONTRACTS.items():
             path = self.root / relative
             if not path.exists():
-                self.error(relative, "CT062", "нет канонического контракта закрытого решения")
+                self.error(relative, "CT062", "canonical closed-decision contract is missing")
                 continue
             text = path.read_text(encoding="utf-8")
             for marker in markers:
@@ -545,10 +540,10 @@ class ContractLinter:
                     self.error(
                         relative,
                         "CT063",
-                        f"в контракте нет обязательного маркера решения: {marker}",
+                        f"contract lacks required decision marker: {marker}",
                     )
         if not (self.root / REPORTS_SPEC).exists():
-            self.error(REPORTS_SPEC, "CT065", "нет спецификации жалоб и модерации")
+            self.error(REPORTS_SPEC, "CT065", "complaints and moderation specification is missing")
         policy = self.root / VALIDATION_POLICY
         if policy.exists():
             text = policy.read_text(encoding="utf-8")
@@ -557,16 +552,16 @@ class ContractLinter:
                     self.error(
                         VALIDATION_POLICY,
                         "CT060",
-                        f"в политике проверок нет маркера пригодности: {marker}",
+                        f"validation policy lacks readiness marker: {marker}",
                     )
             if ATTESTATION_MARKER not in text:
                 self.error(
                     VALIDATION_POLICY,
                     "CT061",
-                    "в политике проверок нет раздела авторского подтверждения",
+                    "validation policy lacks the author-attestation section",
                 )
 
-    # -- вывод -----------------------------------------------------------
+    # -- output -----------------------------------------------------------
 
     def report(self, fmt: str) -> int:
         if fmt == "github":
@@ -574,9 +569,9 @@ class ContractLinter:
                 print(f"::error file={issue.path},title={issue.code}::{issue.message}")
         else:
             for issue in sorted(self.issues, key=lambda item: (item.path, item.code)):
-                print(f"ОШИБКА {issue.path} [{issue.code}] {issue.message}")
+                print(f"ERROR {issue.path} [{issue.code}] {issue.message}")
         print()
-        print(f"Контрактных ошибок: {len(self.issues)}")
+        print(f"Contract errors: {len(self.issues)}")
         return 1 if self.issues else 0
 
 

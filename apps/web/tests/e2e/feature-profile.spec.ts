@@ -69,7 +69,9 @@ test("compiled content profile is consistent across every public projection", as
       "/en/ai/content/article/safe-setup",
     );
     await page.goto("/ru/content/article/safe-setup");
-    await expect(page.getByRole("heading", { level: 1 })).toContainText("Как собрать сетап");
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(
+      "\u041a\u0430\u043a \u0441\u043e\u0431\u0440\u0430\u0442\u044c \u0441\u0435\u0442\u0430\u043f",
+    );
   } else {
     const body = await human.text();
     expect(body).toMatch(/noindex/i);
@@ -89,6 +91,8 @@ test("compiled content profile is consistent across every public projection", as
     );
     await page.locator('[data-ui="projection-machine"]').click();
     await expect(page).toHaveURL(/\/en\/ai\/legal\/cookies$/);
-    await expect(page.locator('[data-ui="machine-page-projection"]')).toContainText("# Cookies");
+    await expect(page.locator('[data-ui="machine-page-projection"]')).toContainText(
+      "# Cookie Policy",
+    );
   }
 });

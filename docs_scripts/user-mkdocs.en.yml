@@ -1,18 +1,18 @@
-# Английская линия пользовательской документации. Собирается отдельным
-# прогоном в `/en/`; русская линия и её конфигурация — владелец структуры,
-# английская следует за ней. Расхождение состава страниц ловит тест.
+# English user-documentation line. It is built separately at `/en/`; the Russian
+# line and its configuration own the structure, and English follows it. A test
+# catches page-set drift.
 
 site_name: ai_stp user docs
 site_description: ai_stp user documentation for developers and agents.
 site_url: !ENV [AI_STP_USER_DOCS_EN_SITE_URL, "http://localhost:8011/en/"]
 repo_url: https://github.com/ai-engineers-guild/ai-stp
-edit_uri: edit/main/user-docs-en/
+edit_uri: edit/main/docs-user-facing/docs/en/
 
-# Обе линии собираются отдельными прогонами: русская в корень, английская в
-# `/en/`. Плагин `mkdocs-static-i18n` дал бы одну сборку с переключателем, но
-# его material-экстра закреплена `<9.7.2`, а здесь material 9.7.7 — брать
-# зависимость, которая просит откатить другую, дороже второго прогона.
-# `extra.alternate` — родной селектор Material и работает без плагина.
+# Both language lines are built separately: Russian at the root and English at
+# `/en/`. `mkdocs-static-i18n` would provide one build with a switch, but its
+# Material extra is pinned below 9.7.2 while this project uses Material 9.7.7;
+# adding a dependency that requires a downgrade costs more than a second build.
+# `extra.alternate` is Material's native selector and needs no plugin.
 extra:
   alternate:
     - name: Русский
@@ -22,7 +22,7 @@ extra:
       link: /en/
       lang: en
 
-docs_dir: ../user-docs-en
+docs_dir: ../docs-user-facing/docs/en
 site_dir: ../.site-user-docs/en
 
 theme:

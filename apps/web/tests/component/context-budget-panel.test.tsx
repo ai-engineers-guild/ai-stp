@@ -81,11 +81,17 @@ const budget: SetupContextBudget = {
 describe("ContextBudgetPanel", () => {
   it("keeps RU and EN distilled labels equivalent", () => {
     expect(en.catalog.contextBudgetCheckLocally).toBe("Check locally");
-    expect(ru.catalog.contextBudgetCheckLocally).toBe("Проверить локально");
+    expect(ru.catalog.contextBudgetCheckLocally).toBe(
+      "\u041f\u0440\u043e\u0432\u0435\u0440\u0438\u0442\u044c \u043b\u043e\u043a\u0430\u043b\u044c\u043d\u043e",
+    );
     expect(en.catalog.contextBudgetAlways).toBe("Always loaded");
-    expect(ru.catalog.contextBudgetAlways).toBe("Всегда загружается");
+    expect(ru.catalog.contextBudgetAlways).toBe(
+      "\u0412\u0441\u0435\u0433\u0434\u0430 \u0437\u0430\u0433\u0440\u0443\u0436\u0430\u0435\u0442\u0441\u044f",
+    );
     expect(en.catalog.contextBudgetConditional).toBe("Loaded when used");
-    expect(ru.catalog.contextBudgetConditional).toBe("Загружается при использовании");
+    expect(ru.catalog.contextBudgetConditional).toBe(
+      "\u0417\u0430\u0433\u0440\u0443\u0436\u0430\u0435\u0442\u0441\u044f \u043f\u0440\u0438 \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u043d\u0438\u0438",
+    );
   });
 
   it("keeps the collapsed surface to title, lead and potential total", () => {

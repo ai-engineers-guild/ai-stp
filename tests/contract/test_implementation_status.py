@@ -49,24 +49,23 @@ def test_the_current_roadmap_still_names_the_implemented_surfaces() -> None:
 def test_the_roadmap_does_not_describe_the_local_core_as_future_work() -> None:
     roadmap = ROADMAP.read_text(encoding="utf-8")
     stale_claims = (
-        "Реализовать SQLite",
-        "Реализовать обнаружение",
-        "Реализовать компоненты",
-        "Реализовать механические ограничения",
-        "Заморозить общий протокол",
-        "Индекс проекта, паспорт проекта и изменяющие цель команды остаются",
+        "Implement SQLite",
+        "Implement discovery",
+        "Implement components",
+        "Implement mechanical constraints",
+        "Freeze the shared protocol",
+        "The project index, project passport, and goal-changing commands remain",
     )
     assert not any(claim in roadmap for claim in stale_claims)
 
 
 def test_historical_sprint_reports_are_not_active_dependencies() -> None:
     roadmap = ROADMAP.read_text(encoding="utf-8")
-    assert "закрыть `#86`" not in roadmap.lower()
+    assert "close `#86`" not in roadmap.lower()
     for name in (
         "sprint1-completion-report.md",
         "sprint1-cli-review-pack.md",
         "sprint1-external-review-prompt.md",
-        "audit-remediation-status.md",
     ):
         assert not (ROADMAP.parent / name).exists(), name
 

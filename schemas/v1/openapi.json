@@ -461,6 +461,14 @@
           "account_id": {
             "$ref": "#/components/schemas/AccountId"
           },
+          "account_status": {
+            "enum": [
+              "onboarding_pending",
+              "active"
+            ],
+            "title": "Account Status",
+            "type": "string"
+          },
           "device_id": {
             "anyOf": [
               {
@@ -481,6 +489,7 @@
         },
         "required": [
           "account_id",
+          "account_status",
           "device_id",
           "schema_version"
         ],
@@ -3979,6 +3988,80 @@
         "type": "string"
       },
       "JsonValue": {},
+      "LegalOnboardingCompleteRequest": {
+        "additionalProperties": false,
+        "description": "Accept the exact two legal revisions required to activate an account.",
+        "properties": {
+          "personal_data_consent_revision_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Personal Data Consent Revision Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "service_rules_revision_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Service Rules Revision Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "service_rules_revision_id",
+          "personal_data_consent_revision_id"
+        ],
+        "title": "LegalOnboardingCompleteRequest",
+        "type": "object"
+      },
+      "LegalOnboardingStatus": {
+        "additionalProperties": true,
+        "description": "Exact current revisions an authenticated pending account must accept.",
+        "properties": {
+          "account_id": {
+            "$ref": "#/components/schemas/AccountId"
+          },
+          "account_status": {
+            "enum": [
+              "onboarding_pending",
+              "active"
+            ],
+            "title": "Account Status",
+            "type": "string"
+          },
+          "personal_data_consent_revision_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Personal Data Consent Revision Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "service_rules_revision_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Service Rules Revision Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_id",
+          "account_status",
+          "personal_data_consent_revision_id",
+          "schema_version",
+          "service_rules_revision_id"
+        ],
+        "title": "LegalOnboardingStatus",
+        "type": "object"
+      },
       "LicenseInfo": {
         "additionalProperties": false,
         "description": "License identity and the redistribution decision.",
@@ -10360,6 +10443,7 @@
                     "summary": "The session probe returns only the account and optional device ids: enough to answer who is signed in without replaying profile fields.",
                     "value": {
                       "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "account_status": "active",
                       "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "schema_version": 1
                     }
@@ -10502,6 +10586,366 @@
           }
         ],
         "summary": "Return the authenticated account id for the current session."
+      }
+    },
+    "/v1/auth/onboarding": {
+      "get": {
+        "operationId": "readLegalOnboarding",
+        "parameters": [
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readLegalOnboarding.pending": {
+                    "summary": "Pending accounts can read the exact current policy revisions before completing onboarding.",
+                    "value": {
+                      "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "account_status": "onboarding_pending",
+                      "personal_data_consent_revision_id": "drev_personal_data_fixture",
+                      "schema_version": 1,
+                      "service_rules_revision_id": "drev_service_rules_fixture"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/LegalOnboardingStatus"
+                }
+              }
+            },
+            "description": "Read the exact current legal revisions required for account activation.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Read the exact current legal revisions required for account activation."
+      }
+    },
+    "/v1/auth/onboarding/complete": {
+      "post": {
+        "operationId": "completeLegalOnboarding",
+        "parameters": [
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "completeLegalOnboarding.active": {
+                  "summary": "Accepting both current policy revisions activates a pending account.",
+                  "value": {
+                    "personal_data_consent_revision_id": "drev_personal_data_fixture",
+                    "schema_version": 1,
+                    "service_rules_revision_id": "drev_service_rules_fixture"
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/LegalOnboardingCompleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "completeLegalOnboarding.active": {
+                    "summary": "Accepting both current policy revisions activates a pending account.",
+                    "value": {
+                      "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "account_status": "active",
+                      "personal_data_consent_revision_id": "drev_personal_data_fixture",
+                      "schema_version": 1,
+                      "service_rules_revision_id": "drev_service_rules_fixture"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/LegalOnboardingStatus"
+                }
+              }
+            },
+            "description": "Accept the current legal revisions and activate the account.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Accept the current legal revisions and activate the account."
       }
     },
     "/v1/auth/{provider}/callback": {
@@ -13679,7 +14123,7 @@
                         "published_at": "2026-08-12",
                         "slug": "safe-setup",
                         "source_kind": "repository",
-                        "source_path": "en/article-safe-setup.md",
+                        "source_path": "docs-user-facing/content/en/article-safe-setup.md",
                         "source_ref": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                         "tags": [
                           "setup"
@@ -13695,7 +14139,7 @@
                         "published_at": "2026-08-12",
                         "slug": "safe-setup",
                         "source_kind": "repository",
-                        "source_path": "ru/article-safe-setup.md",
+                        "source_path": "docs-user-facing/content/ru/article-safe-setup.md",
                         "source_ref": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                         "tags": [
                           "setup"
@@ -14084,7 +14528,7 @@
                       "schema_version": 1,
                       "slug": "safe-setup",
                       "source_kind": "repository",
-                      "source_path": "en/article-safe-setup.md",
+                      "source_path": "docs-user-facing/content/en/article-safe-setup.md",
                       "source_ref": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                       "tags": [
                         "setup",

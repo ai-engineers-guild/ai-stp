@@ -153,12 +153,12 @@ export default [
           message: "Hard-coded hsl colors are forbidden. Use semantic theme tokens (REQ-2214).",
         },
         {
-          selector: "JSXText[value=/[A-Za-zА-Яа-я]/]",
+          selector: "JSXText[value=/[A-Za-z\\u0410-\\u042f\\u0430-\\u044f]/]",
           message: "User-facing JSX text must use next-intl (REQ-2203).",
         },
         {
           selector:
-            "JSXAttribute[name.name=/^(placeholder|alt|title|aria-label|aria-description)$/] > Literal[value=/[A-Za-zА-Яа-я]/]",
+            "JSXAttribute[name.name=/^(placeholder|alt|title|aria-label|aria-description)$/] > Literal[value=/[A-Za-z\\u0410-\\u042f\\u0430-\\u044f]/]",
           message: "User-facing attribute strings must use next-intl (REQ-2203).",
         },
       ],

@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Уязвимость безопасности
+  - name: Security vulnerability
     url: https://github.com/ai-engineers-guild/ai-stp/security/advisories/new
-    about: Приватный отчёт. Не публикуйте уязвимость в открытом issue.
+    about: Private report. Do not publish a vulnerability in a public issue.

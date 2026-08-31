@@ -180,6 +180,29 @@ class AuthMeResponse(BaseModel):
     schema_version: Literal[1] = 1
     account_id: AccountId
     device_id: DeviceId | None = None
+    account_status: Literal["onboarding_pending", "active"]
+
+
+class LegalOnboardingStatus(BaseModel):
+    """Exact current revisions an authenticated pending account must accept."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    account_id: AccountId
+    account_status: Literal["onboarding_pending", "active"]
+    service_rules_revision_id: Annotated[str, Field(min_length=1, max_length=64)]
+    personal_data_consent_revision_id: Annotated[str, Field(min_length=1, max_length=64)]
+
+
+class LegalOnboardingCompleteRequest(BaseModel):
+    """Accept the exact two legal revisions required to activate an account."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+
+    schema_version: Literal[1] = 1
+    service_rules_revision_id: Annotated[str, Field(min_length=1, max_length=64)]
+    personal_data_consent_revision_id: Annotated[str, Field(min_length=1, max_length=64)]
 
 
 class AuthLogoutResponse(BaseModel):

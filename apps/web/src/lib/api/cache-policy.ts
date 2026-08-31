@@ -29,6 +29,7 @@ const PUBLIC_GET_PATHS: readonly RegExp[] = [
   /^\/v1\/seo\/og\/[^/?]+$/,
   /^\/v1\/content$/,
   /^\/v1\/content\/(?:article|blog_post|changelog|release_notes)\/[^/?]+$/,
+  /^\/v1\/documents\/(?:privacy|cookies|service-rules|personal-data-consent|licensing)$/,
 ];
 
 const FORBIDDEN_PUBLIC_HEADER_NAMES = new Set(["cookie", "authorization", "x-csrf-token"]);

@@ -15,7 +15,7 @@ import { cn } from "@/lib/cn";
 
 type ComponentTypeDefinition = {
   icon: LucideIcon;
-  labels: { en: string; ru: string };
+  labelKey: string;
 };
 
 /**
@@ -23,14 +23,14 @@ type ComponentTypeDefinition = {
  * and localization together until ADR-0054 moves catalog media to metadata.
  */
 export const COMPONENT_TYPE_PRESENTATION: Record<ComponentType, ComponentTypeDefinition> = {
-  instruction: { icon: FileText, labels: { en: "Instruction", ru: "Инструкция" } },
-  skill: { icon: Sparkles, labels: { en: "Skill", ru: "Навык" } },
-  mcp: { icon: Cable, labels: { en: "MCP", ru: "MCP" } },
-  hook: { icon: Plug, labels: { en: "Hook", ru: "Хук" } },
-  command: { icon: Command, labels: { en: "Command", ru: "Команда" } },
-  agent: { icon: Bot, labels: { en: "Agent", ru: "Агент" } },
-  plugin: { icon: Braces, labels: { en: "Plugin", ru: "Плагин" } },
-  setting: { icon: Settings2, labels: { en: "Setting", ru: "Настройка" } },
+  instruction: { icon: FileText, labelKey: "componentTypes.instruction" },
+  skill: { icon: Sparkles, labelKey: "componentTypes.skill" },
+  mcp: { icon: Cable, labelKey: "componentTypes.mcp" },
+  hook: { icon: Plug, labelKey: "componentTypes.hook" },
+  command: { icon: Command, labelKey: "componentTypes.command" },
+  agent: { icon: Bot, labelKey: "componentTypes.agent" },
+  plugin: { icon: Braces, labelKey: "componentTypes.plugin" },
+  setting: { icon: Settings2, labelKey: "componentTypes.setting" },
 };
 
 export function ComponentTypeIcon({

@@ -12,13 +12,13 @@ from docs_scripts.contract_lint import (
 )
 
 GIT_WORKFLOW_DOC = """---
-description: "Ветки"
+description: "Branches"
 last_verified: "2026-08-04"
 ---
 
 # Git workflow
 
-`main` — единственная линия репозитория.
+`main` is the repository's only line.
 """
 
 WORKFLOW = """name: check
@@ -39,11 +39,11 @@ SERENA_IGNORE = """/cache
 """
 
 REPO_STRUCTURE = """---
-description: "Структура"
+description: "Structure"
 last_verified: "2026-08-04"
 ---
 
-# Структура репозитория
+# Repository structure
 
 ```text
 apps/
@@ -54,34 +54,34 @@ specs/
 
 
 def passports_doc() -> str:
-    rows = "\n".join(f"| `{name}` | пример | признак |" for name in COMPONENT_TYPES)
+    rows = "\n".join(f"| `{name}` | example | marker |" for name in COMPONENT_TYPES)
     sidecars = "\n".join(SIDECAR_NAMES)
     return (
-        '---\ndescription: "Паспорта"\nlast_verified: "2026-08-05"\n---\n\n'
-        "# Паспорта\n\n```text\n" + sidecars + "\n```\n\n"
-        "| Вид | Пример | Признак |\n|---|---|---|\n" + rows + "\n"
+        '---\ndescription: "Passports"\nlast_verified: "2026-08-05"\n---\n\n'
+        "# Passports\n\n```text\n" + sidecars + "\n```\n\n"
+        "| Type | Example | Marker |\n|---|---|---|\n" + rows + "\n"
     )
 
 
 def validation_policy() -> str:
-    rows = "\n".join(f"| `{name}` | обязательные проверки |" for name in COMPONENT_TYPES)
-    transports = "\n".join(f"| `{name}` | обязательные проверки |" for name in MCP_TRANSPORTS)
+    rows = "\n".join(f"| `{name}` | required checks |" for name in COMPONENT_TYPES)
+    transports = "\n".join(f"| `{name}` | required checks |" for name in MCP_TRANSPORTS)
     return (
-        '---\ndescription: "Политика"\nlast_verified: "2026-08-04"\n---\n\n'
-        "# Политика проверок\n\n"
-        "| Вид | Проверки |\n|---|---|\n" + rows + "\n\n"
-        "| Класс | Проверки |\n|---|---|\n" + transports + "\n\n"
+        '---\ndescription: "Policy"\nlast_verified: "2026-08-04"\n---\n\n'
+        "# Validation policy\n\n"
+        "| Type | Checks |\n|---|---|\n" + rows + "\n\n"
+        "| Class | Checks |\n|---|---|\n" + transports + "\n\n"
         "## Installation eligibility\n\n"
         "A version without current evidence is blocked for new installations and updates.\n\n"
         "## Author attestation\n\n"
-        "Запись привязана к точному хэшу и версии политики.\n"
+        "The record is bound to the exact digest and policy version.\n"
     )
 
 
 VISION_CONTRACT_FIXTURES = {
     "docs/contracts/device-passport.md": "Full device passports are not merged.",
     "docs/contracts/unverified-consent.md": (
-        "Области `publisher` и `object_major` выбирает пользователь."
+        "The user chooses the `publisher` and `object_major` scopes."
     ),
     "docs/contracts/access-grants-and-forks.md": (
         "An unchanged clone is not published under a new name."
@@ -105,7 +105,7 @@ class ContractLintTests(unittest.TestCase):
             self.write(relative, self.doc(marker))
         self.write(
             "specs/active/SPEC-016-reports-moderation.md",
-            self.doc("Жалобы создают закрытый случай модерации."),
+            self.doc("Complaints create a closed moderation case."),
         )
 
     def tearDown(self) -> None:
@@ -123,76 +123,66 @@ class ContractLintTests(unittest.TestCase):
 
     def doc(self, body: str) -> str:
         return (
-            '---\ndescription: "Проверка"\nlast_verified: "2026-08-04"\n---'
-            f"\n\n# Документ\n\n{body}\n"
+            f'---\ndescription: "Check"\nlast_verified: "2026-08-04"\n---\n\n# Document\n\n{body}\n'
         )
-
-    # -- базовое состояние ----------------------------------------------
 
     def test_clean_tree_passes(self) -> None:
         self.assertEqual(self.codes(), set())
 
-    # -- отменённые термины ---------------------------------------------
-
     def test_manifest_digest_fails(self) -> None:
-        self.write("docs/contracts/x.md", self.doc("Ссылка содержит `manifest_digest` версии."))
+        self.write("docs/contracts/x.md", self.doc("The version link contains `manifest_digest`."))
         self.assertIn("CT001", self.codes())
 
     def test_manifest_hash_domain_fails(self) -> None:
         self.write(
-            "docs/contracts/x.md", self.doc("Область ai-stp:manifest:v1 применяется к версии.")
+            "docs/contracts/x.md",
+            self.doc("The ai-stp:manifest:v1 namespace applies to the version."),
         )
         self.assertIn("CT002", self.codes())
 
     def test_setup_variant_entity_fails(self) -> None:
-        self.write(
-            "docs/contracts/x.md", self.doc("Каждый `SetupVariant` имеет собственные версии.")
-        )
+        self.write("docs/contracts/x.md", self.doc("Each `SetupVariant` has its own versions."))
         self.assertIn("CT003", self.codes())
 
     def test_inferred_origin_fails(self) -> None:
         self.write(
-            "docs/contracts/x.md", self.doc("Происхождение `inferred` допускается для оценки.")
+            "docs/contracts/x.md", self.doc("`inferred` provenance is allowed for evaluation.")
         )
         self.assertIn("CT004", self.codes())
 
     def test_setup_level_variant_id_fails(self) -> None:
-        self.write("docs/contracts/x.md", self.doc("Паспорт версии сетапа содержит `variant_id`."))
+        self.write(
+            "docs/contracts/x.md", self.doc("The setup version passport contains `variant_id`.")
+        )
         self.assertIn("CT005", self.codes())
 
     def test_marketplace_as_component_type_fails(self) -> None:
-        self.write(
-            "specs/active/x.md", self.doc("`component_type` принимает значение `marketplace`.")
-        )
+        self.write("specs/active/x.md", self.doc("`component_type` accepts `marketplace`."))
         self.assertIn("CT006", self.codes())
 
     def test_operation_succeeded_fails(self) -> None:
-        self.write(
-            "specs/active/x.md", self.doc("Операция имеет состояние `succeeded` при успехе.")
-        )
+        self.write("specs/active/x.md", self.doc("The operation has state `succeeded` on success."))
         self.assertIn("CT007", self.codes())
 
     def test_fit_terminology_fails(self) -> None:
-        self.write("specs/active/x.md", self.doc("`FitRun` проходит состояния подбора."))
+        self.write("specs/active/x.md", self.doc("`FitRun` passes through selection states."))
         self.assertIn("CT008", self.codes())
 
     def test_unsupported_apply_as_state_fails(self) -> None:
         self.write(
-            "specs/active/x.md", self.doc("Контур возвращает состояние `unsupported_apply` здесь.")
+            "specs/active/x.md", self.doc("The flow returns state `unsupported_apply` here.")
         )
         self.assertIn("CT009", self.codes())
-
-    # -- формулировка запрета не является нарушением ---------------------
 
     def test_prohibition_wording_passes(self) -> None:
         self.write(
             "docs/contracts/x.md",
             self.doc(
-                "Поля `variant_id` у сетапа нет.\n\n"
-                "Отдельной сущности `SetupVariant` не существует.\n\n"
-                "Происхождение `inferred` не используется.\n\n"
-                "`marketplace` не является видом компонента.\n\n"
-                "У операции нет состояния `succeeded`: успех называется `verified`."
+                "A setup has no `variant_id`.\n\n"
+                "There is no separate `SetupVariant` entity.\n\n"
+                "The `inferred` provenance is not used.\n\n"
+                "`marketplace` is not a component type.\n\n"
+                "The operation has no `succeeded` state: success is called `verified`."
             ),
         )
         self.assertEqual(self.codes(), set())
@@ -200,7 +190,7 @@ class ContractLintTests(unittest.TestCase):
     def test_component_level_variant_id_passes(self) -> None:
         self.write(
             "docs/contracts/x.md",
-            self.doc("Ссылка на версию компонента содержит необязательный `variant_id`."),
+            self.doc("The component version link contains an optional `variant_id`."),
         )
         self.assertEqual(self.codes(), set())
 
@@ -218,11 +208,9 @@ class ContractLintTests(unittest.TestCase):
     def test_adr_history_is_exempt(self) -> None:
         self.write(
             "docs/adr/ADR-0099-history.md",
-            self.doc("Прежняя модель использовала `manifest_digest` и `SetupVariant`."),
+            self.doc("The former model used `manifest_digest` and `SetupVariant`."),
         )
         self.assertEqual(self.codes(), set())
-
-    # -- ветки ------------------------------------------------------------
 
     def test_workflow_branch_mismatch_fails(self) -> None:
         self.write(".github/workflows/check.yml", WORKFLOW.replace("[main]", "[main, rldyourmnd]"))
@@ -231,32 +219,28 @@ class ContractLintTests(unittest.TestCase):
     def test_workflow_missing_declared_line_fails(self) -> None:
         self.write(
             "docs/engineering/git-workflow.md",
-            GIT_WORKFLOW_DOC.replace("`main` — единственная линия репозитория.", "Ветки бывают."),
+            GIT_WORKFLOW_DOC.replace("`main` is the repository's only line.", "Branches vary."),
         )
         self.assertIn("CT012", self.codes())
-
-    # -- матрица проверок --------------------------------------------------
 
     def test_missing_component_type_row_fails(self) -> None:
         self.write(
             "docs/contracts/validation-policy.md",
-            validation_policy().replace("| `hook` | обязательные проверки |\n", ""),
+            validation_policy().replace("| `hook` | required checks |\n", ""),
         )
         self.assertIn("CT021", self.codes())
 
     def test_missing_mcp_transport_row_fails(self) -> None:
         self.write(
             "docs/contracts/validation-policy.md",
-            validation_policy().replace("| `remote_https` | обязательные проверки |\n", ""),
+            validation_policy().replace("| `remote_https` | required checks |\n", ""),
         )
         self.assertIn("CT022", self.codes())
-
-    # -- примеры и имена файлов --------------------------------------------
 
     def test_missing_component_type_example_fails(self) -> None:
         self.write(
             "docs/contracts/component-setup-passports.md",
-            passports_doc().replace("| `plugin` | пример | признак |\n", ""),
+            passports_doc().replace("| `plugin` | example | marker |\n", ""),
         )
         self.assertIn("CT024", self.codes())
 
@@ -267,13 +251,9 @@ class ContractLintTests(unittest.TestCase):
         )
         self.assertIn("CT025", self.codes())
 
-    # -- состояние сессии --------------------------------------------------
-
     def test_missing_runtime_ignore_entry_fails(self) -> None:
         self.write(".serena/.gitignore", "/cache\n/project.local.yml\n")
         self.assertIn("CT032", self.codes())
-
-    # -- удалённый каталог работ -------------------------------------------
 
     def test_work_directory_in_structure_fails(self) -> None:
         self.write(
@@ -282,22 +262,24 @@ class ContractLintTests(unittest.TestCase):
         )
         self.assertIn("CT040", self.codes())
 
-    # -- возвраты закрытых решений видения ---------------------------------
-
     def test_include_unverified_fails(self) -> None:
-        self.write("docs/contracts/x.md", self.doc("Ключ `include_unverified` включает всё сразу."))
+        self.write(
+            "docs/contracts/x.md",
+            self.doc("The `include_unverified` key enables everything at once."),
+        )
         self.assertIn("CT050", self.codes())
 
     def test_include_unverified_removal_wording_passes(self) -> None:
         self.write(
-            "docs/contracts/x.md", self.doc("Ключ `search.include_unverified` удалён навсегда.")
+            "docs/contracts/x.md",
+            self.doc("The `search.include_unverified` key was removed permanently."),
         )
         self.assertNotIn("CT050", self.codes())
 
     def test_permanent_ceiling_fails(self) -> None:
         self.write(
             "docs/product/x.md",
-            self.doc("Пять — целевое число продукта, список не планируется расширять."),
+            self.doc("Five is the product target number; the list is not planned to expand."),
         )
         self.assertIn("CT051", self.codes())
 
@@ -305,7 +287,8 @@ class ContractLintTests(unittest.TestCase):
         self.write(
             "docs/contracts/x.md",
             self.doc(
-                "Проверка возвращает `not_run` с причиной, и такая версия публикуется без бейджа."
+                "The check returns `not_run` with a reason, and that version is published "
+                "without a badge."
             ),
         )
         self.assertIn("CT052", self.codes())
@@ -314,8 +297,8 @@ class ContractLintTests(unittest.TestCase):
         self.write(
             "docs/contracts/x.md",
             self.doc(
-                "Обязательная проверка `not_run` блокирует публичную публикацию, "
-                "а `warning` публикацию не блокирует."
+                "A required `not_run` check blocks public publication.\n\n"
+                "A warning does not block publication."
             ),
         )
         self.assertNotIn("CT052", self.codes())
@@ -323,21 +306,21 @@ class ContractLintTests(unittest.TestCase):
     def test_web_only_scope_fails(self) -> None:
         self.write(
             "docs/product/x.md",
-            self.doc("Сайт в MVP нужен только для установки, входа и публичного поиска."),
+            self.doc("The site in the MVP is only for installation, sign-in, and public search."),
         )
         self.assertIn("CT053", self.codes())
 
     def test_hardcoded_counts_fail(self) -> None:
         self.write(
             "docs/engineering/x.md",
-            self.doc("Приняты 13 ADR и 15 активных спецификаций со 147 требованиями."),
+            self.doc("13 ADR and 15 active specifications with 147 requirements were accepted."),
         )
         self.assertIn("CT054", self.codes())
 
     def test_developer_passport_env_fails(self) -> None:
         self.write(
             "specs/active/x.md",
-            self.doc("Паспорт разработчика хранит OS, архитектуру и версии инструментов."),
+            self.doc("The DeveloperPassport stores OS, architecture, and tool versions."),
         )
         self.assertIn("CT055", self.codes())
 
@@ -345,8 +328,8 @@ class ContractLintTests(unittest.TestCase):
         self.write(
             "specs/active/x.md",
             self.doc(
-                "Наблюдаемые OS и архитектура принадлежат ему, а не паспорту разработчика.\n\n"
-                "Паспорт разработчика не содержит наблюдаемую архитектуру."
+                "Observed OS and architecture belong to it, not the DeveloperPassport.\n\n"
+                "The DeveloperPassport does not contain observed architecture."
             ),
         )
         self.assertNotIn("CT055", self.codes())
@@ -355,7 +338,7 @@ class ContractLintTests(unittest.TestCase):
         """The planted control the old four-phrase skip let through.
 
         A real violation — the developer passport carrying OS and architecture —
-        with `не изменяет` in a clause about something else entirely. The
+        with `does not change` in a clause about something else entirely. The
         exemption is for a negation that binds to the passport; a negation
         anywhere on the line is not the same claim, and reading it as one is how
         a check keeps its green while admitting what it was written to catch.
@@ -363,8 +346,8 @@ class ContractLintTests(unittest.TestCase):
         self.write(
             "specs/active/x.md",
             self.doc(
-                "Паспорт разработчика несёт операционную систему и архитектуру "
-                "машины, и порядок записей не изменяет их смысл."
+                "The DeveloperPassport carries the operating system and architecture "
+                "of the machine, and record order does not change their meaning."
             ),
         )
         self.assertIn("CT055", self.codes())
@@ -374,20 +357,20 @@ class ContractLintTests(unittest.TestCase):
         self.write(
             "specs/active/x.md",
             self.doc(
-                "Наблюдаемые операционная система, архитектура и версии "
-                "инструментов не входят в паспорт разработчика."
+                "Observed operating system, architecture, and tool versions "
+                "are not part of DeveloperPassport."
             ),
         )
         self.assertNotIn("CT055", self.codes())
 
     def test_report_channel_excluded_fails(self) -> None:
-        self.write("specs/active/x.md", self.doc("Пользовательского канала жалоб в MVP нет."))
+        self.write("specs/active/x.md", self.doc("There is no user complaint channel in the MVP."))
         self.assertIn("CT056", self.codes())
 
     def test_platform_only_validation_fails(self) -> None:
         self.write(
             "docs/contracts/x.md",
-            self.doc("Полный набор обязательных проверок запускается на сервере платформы."),
+            self.doc("The full set of required checks runs on the platform server."),
         )
         self.assertIn("CT064", self.codes())
 
@@ -397,7 +380,8 @@ class ContractLintTests(unittest.TestCase):
 
     def test_missing_vision_marker_fails(self) -> None:
         self.write(
-            "docs/contracts/unverified-consent.md", self.doc("Записи согласия без областей.")
+            "docs/contracts/unverified-consent.md",
+            self.doc("Consent records without scopes."),
         )
         self.assertIn("CT063", self.codes())
 

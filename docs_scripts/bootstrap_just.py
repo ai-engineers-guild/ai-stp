@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Скачать pinned just binary для локальной машины без curl|bash installer.
+"""Download the pinned just binary without a curl|bash installer.
 
-CI `just` не вызывает: workflow исполняют команды напрямую. Скрипт нужен
-разработчику, у которого пакетного менеджера с just под рукой нет.
+CI does not call `just`: workflows execute commands directly. This script is for
+developers whose package manager does not provide just.
 """
 
 from __future__ import annotations
@@ -25,8 +25,8 @@ from pathlib import Path
 
 VERSION = "1.43.0"
 
-# SHA256 официальных архивов case-sensitive по имени asset из GitHub Releases.
-# Если версии меняются, сначала обновляется эта таблица, потом потребители.
+# SHA256 values for official archives, keyed case-sensitively by GitHub Release
+# asset name. Update this table before updating its consumers.
 SHA256 = {
     "just-1.43.0-x86_64-unknown-linux-musl.tar.gz": (
         "a1bc93654f31669fd964ea3011a5e5e9676b9b6f8adcd762606e5140632ea72d"
@@ -49,15 +49,12 @@ SHA256 = {
 }
 
 
-#: Платформа к части имени asset. macOS здесь не потому, что там гоняется CI —
-#: платный раннер снят по решению владельца, — а потому что без этого `just` не
-#: поднимется у разработчика на Mac, и он упрётся ровно в ту же стену.
+#: Platform suffixes in asset names. macOS is included because developers need
+#: `just` locally even though the paid CI runner was removed.
 #:
-#: Windows появился по той же причине и ещё по одной. Публичный кросс-платформенный
-#: job ставил `just` через `choco`, то есть через community-фид без закрепления
-#: контрольной суммы, и 2026-08-21 этот шаг упал, потратив сто пять секунд и не
-#: сказав ничего: вывод уходил в `/dev/null`. Здесь тот же закреплённый архив с
-#: тем же сравнением SHA256, что и на двух других системах.
+#: Windows is included for the same local-development reason. The public
+#: cross-platform job used `choco`, a community feed without a pinned checksum;
+#: this uses the same pinned archive and SHA256 comparison as the other systems.
 ASSET_FOR = {
     ("linux", "x86_64"): f"just-{VERSION}-x86_64-unknown-linux-musl.tar.gz",
     ("linux", "aarch64"): f"just-{VERSION}-aarch64-unknown-linux-musl.tar.gz",
@@ -67,8 +64,7 @@ ASSET_FOR = {
     ("windows", "arm64"): f"just-{VERSION}-aarch64-pc-windows-msvc.zip",
 }
 
-#: Одно и то же железо называется по-разному в зависимости от того, кто
-#: спрашивает.
+#: The same hardware is named differently depending on the caller.
 ALIASES = {"amd64": "x86_64", "aarch64": "aarch64", "arm64": "arm64"}
 
 DOWNLOAD_ATTEMPTS = 4

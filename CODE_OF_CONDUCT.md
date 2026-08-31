@@ -1,50 +1,50 @@
-# Кодекс поведения
+# Code of Conduct
 
-## Обязательство
+## Our Pledge
 
-Участники и сопровождающие этого проекта делают участие в нём свободным от
-притеснения для всех, независимо от возраста, телосложения, видимой или
-невидимой инвалидности, этнической принадлежности, половых признаков, гендерной
-идентичности и выражения, уровня опыта, образования, социального положения,
-национальности, внешности, расы, религии, а также сексуальной идентичности и
-ориентации.
+We as members, contributors, and maintainers pledge to make participation in our
+project and our community a harassment-free experience for everyone, regardless
+of age, body size, visible or invisible disability, ethnicity, sex
+characteristics, gender identity and expression, level of experience, education,
+social status, nationality, personal appearance, race, religion, or sexual
+identity and orientation.
 
-## Чего мы ждём
+## Expected Behavior
 
-Поведение, которое делает совместную работу возможной: уважение к чужому мнению
-и опыту, готовность принять обоснованную критику, извинение перед теми, кого
-задело наше поведение, и решение в пользу общего блага, а не собственной
-правоты.
+Examples of behavior that contributes to a positive work environment include
+respect for other people's opinions and experience, willingness to accept
+well-founded criticism, apologies to those affected by our behavior, and
+decisions made for the common good rather than personal pride.
 
-Поведение, которое неприемлемо: сексуализированные высказывания и внимание,
-оскорбления, уничижительные комментарии, травля публичная или личная,
-публикация чужих личных данных без явного разрешения, а также любое иное
-поведение, которое разумно счесть неуместным в профессиональной обстановке.
+Unacceptable behavior includes sexualized language or attention, insults,
+derogatory comments, public or private harassment, publishing another person's
+private information without explicit permission, and any other conduct that
+would reasonably be considered inappropriate in a professional setting.
 
-## Область действия
+## Scope
 
-Кодекс действует во всех пространствах проекта, а также там, где человек
-публично представляет проект: в официальных учётных записях, на мероприятиях,
-в переписке от имени проекта.
+This Code applies in all project spaces and in public spaces where an individual
+represents the project, including official accounts, events, and correspondence
+sent on behalf of the project.
 
-## Сообщение о нарушении
+## Reporting Guidelines
 
-Сообщайте сопровождающим репозитория напрямую через GitHub. Все жалобы
-рассматриваются в разумный срок; сопровождающие обязаны уважать приватность
-того, кто сообщил.
+Report violations directly to the repository maintainers through GitHub. All
+reports will be reviewed within a reasonable period, and maintainers must
+respect the privacy of the reporter.
 
-Сообщение о нарушении не то же самое, что сообщение об уязвимости: для второго
-есть `SECURITY.md` и приватные отчёты GitHub.
+A conduct report is different from a vulnerability report. Vulnerabilities must
+be reported through `SECURITY.md` and GitHub's private reporting channels.
 
-## Последствия
+## Enforcement Responsibilities
 
-Сопровождающие вправе удалять, редактировать и отклонять комментарии, коммиты,
-код, правки документации, issue и прочие вклады, не соответствующие кодексу, и
-объяснять причины решения. За поведение, которое сопровождающие сочли
-неуместным, угрожающим или оскорбительным, может последовать временное или
-постоянное отстранение от участия.
+Maintainers may remove, edit, or reject comments, commits, code, documentation
+changes, issues, and other contributions that violate this Code, and may explain
+the reasons for their decisions. Maintainers may temporarily or permanently
+remove participation privileges for behavior they consider inappropriate,
+threatening, or offensive.
 
-## Основа
+## Attribution
 
-Документ основан на [Contributor Covenant](https://www.contributor-covenant.org)
-версии 2.1.
+This document is adapted from the [Contributor Covenant](https://www.contributor-covenant.org),
+version 2.1.

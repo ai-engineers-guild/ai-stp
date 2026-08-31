@@ -50,7 +50,7 @@ def test_the_canonical_skill_starts_from_doctor_and_machine_help() -> None:
     # `#77` fixes the opening move: look at the installation, then read the
     # registry. Anything else would be the Skill guessing.
     text = CANONICAL.read_text(encoding="utf-8")
-    beginning = text.split("## Начало", 1)[1].split("##", 1)[0]
+    beginning = text.split("## Start here", 1)[1].split("##", 1)[0]
     assert "ai-stp doctor --json" in beginning
     assert "ai-stp help --agent --json" in beginning
     assert beginning.index("doctor") < beginning.index("help --agent")
@@ -77,37 +77,37 @@ def test_the_skill_carries_no_stale_capability_snapshot() -> None:
     # as capable of drifting as a copied command list: once the implementation
     # lands it teaches every installed agent that a real command is absent.
     text = CANONICAL.read_text(encoding="utf-8")
-    assert "## Чего пока нет" not in text
-    assert "ещё не реализованы" not in text
-    boundary = text.split("## Граница доступности", 1)[1]
-    assert "машинная справка" in boundary
-    assert "не изменяй target" in boundary
+    assert "## Missing capabilities" not in text
+    assert "not implemented yet" not in text
+    boundary = text.split("## Availability boundary", 1)[1]
+    assert "machine help" in boundary
+    assert "target directly" in boundary
 
 
 def test_the_skill_uses_machine_error_dispositions_instead_of_exit_class_guesses() -> None:
     text = CANONICAL.read_text(encoding="utf-8")
-    response = text.split("## Как читать ответ", 1)[1].split("##", 1)[0]
+    response = text.split("## Reading responses", 1)[1].split("##", 1)[0]
     assert "error_codes" in response
     assert "handling" in response
     assert "retryable: true" in response
-    assert "неподтверждённого timeout" in response
+    assert "unconfirmed timeout" in response
     assert "`2` —" not in response
-    assert "Класс `4`" not in response
+    assert "Class `4`" not in response
 
 
 def test_the_skill_distinguishes_effect_from_machine_confirmation() -> None:
     text = CANONICAL.read_text(encoding="utf-8")
-    policy = text.split("## Как принимать решение", 1)[1].split("##", 1)[0]
+    policy = text.split("## Making decisions", 1)[1].split("##", 1)[0]
 
     for value in ("read", "plan", "apply", "destructive"):
         assert f"`{value}`" in policy
     for value in ("confirmation: none", "explicit_flag", "plan_digest"):
         assert f"`{value}`" in policy
-    assert "не означает согласие пользователя" in policy
-    assert "вычисляй digest самостоятельно" in policy
-    assert "без нового вопроса, пока смысл и область эффекта не изменились" in policy
-    assert "Отдельное решение пользователя нужно только" in policy
-    assert "подсказка" in policy and "разрешение" in policy
+    assert "imply user consent" in policy
+    assert "not calculate the digest yourself" in policy
+    assert "without a new question" in policy
+    assert "A separate user decision is required only" in policy
+    assert "hint" in policy and "permission" in policy
 
 
 @pytest.mark.parametrize(
@@ -141,7 +141,7 @@ def test_a_projection_copies_no_command_and_no_procedure() -> None:
         for invocation in _invocations(text):
             command = _command_for(invocation)
             assert command.name in known, (projection.harness_id, invocation)
-        assert "## Правила" not in text
+        assert "## Rules" not in text
 
 
 def test_the_generator_reports_no_drift_and_no_orphan() -> None:

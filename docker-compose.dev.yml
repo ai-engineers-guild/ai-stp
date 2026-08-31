@@ -240,6 +240,7 @@ services:
       <<: *web-env
       # Keep compile cache off the Windows bind mount (major I/O win under Docker Desktop).
       NEXT_TELEMETRY_DISABLED: "1"
+      AI_STP_USER_FACING_ROOT: /docs-user-facing
     env_file:
       - path: .env.dev
         required: false
@@ -250,6 +251,7 @@ services:
       - web_node_modules:/app/node_modules
       # .next on a Linux volume: avoid 9p/virtiofs latency for webpack/turbopack output.
       - web_next:/app/.next
+      - ./docs-user-facing:/docs-user-facing:ro
     networks: [internal]
     depends_on:
       api:
@@ -278,7 +280,7 @@ services:
     ports:
       - "${AI_STP_USER_DOCS_PORT:-8011}:8000"
     volumes:
-      - ./user-docs:/app/user-docs:ro
+      - ./docs-user-facing/docs:/app/docs-user-facing/docs:ro
       - ./docs_scripts/user-mkdocs.yml:/app/docs_scripts/user-mkdocs.yml:ro
     networks: [internal]
     healthcheck:

@@ -35,6 +35,8 @@ from ai_stp_contracts.auth import (
     DeviceChallengeResponse,
     DeviceTokenRequest,
     DeviceTokenResponse,
+    LegalOnboardingCompleteRequest,
+    LegalOnboardingStatus,
     OAuthCallbackResult,
     SystemVersionResponse,
 )
@@ -447,6 +449,24 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         summary="Return the authenticated account id for the current session.",
         response=AuthMeResponse,
         authenticated=True,
+    ),
+    Operation(
+        method="get",
+        path="/auth/onboarding",
+        operation_id="readLegalOnboarding",
+        summary="Read the exact current legal revisions required for account activation.",
+        response=LegalOnboardingStatus,
+        authenticated=True,
+    ),
+    Operation(
+        method="post",
+        path="/auth/onboarding/complete",
+        operation_id="completeLegalOnboarding",
+        summary="Accept the current legal revisions and activate the account.",
+        response=LegalOnboardingStatus,
+        body=LegalOnboardingCompleteRequest,
+        authenticated=True,
+        errors=("AI_STP_VALIDATION_ERROR", "AI_STP_DEPENDENCY_UNAVAILABLE"),
     ),
     Operation(
         method="post",

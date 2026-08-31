@@ -48,7 +48,7 @@ transfer between sources without a separate migration operation.
   tags, Markdown body, a digest of the entire canonical revision, source
   kind/ref/path, creation time, and a private actor reference for staff
   publication; changing any public field creates a new revision.
-- `REQ-5403`: The web build validates `apps/web/content/hub` using the active
+- `REQ-5403`: The deploy build validates `docs-user-facing/content` using the active
   content rules and creates a complete snapshot of the exact commit without
   accessing the network, API, or DB; the snapshot and entries have canonical
   digests, and file ordering does not affect them.
@@ -138,7 +138,7 @@ change after the rollback window.
 | `REQ-5407` | A repository/staff conflict matrix rejects takeover in both directions without changing the owner or active revision. |
 | `REQ-5408` | An ASGI test publishes an RU/EN pair, rejects a stale expected digest, and unpublishes a staff article. |
 | `REQ-5409` | A public contract test combines repository/staff entries and proves redaction of unpublished content, history, and the private actor. |
-| `REQ-5410` | A web test builds index/detail/human/machine/Atom output from an API fixture and does not read `content/hub` on the request path. |
+| `REQ-5410` | A web test builds index/detail/human/machine/Atom output from an API fixture and does not read repository Markdown on the request path. |
 | `REQ-5411` | An E2E test publishes a staff article without a rebuild and sees it after the cache identity changes; a repository article appears only after import. |
 | `REQ-5412` | An integration test observes one SEO effect for a new active revision and preserves publication when the SEO worker fails. |
 | `REQ-5413`–`REQ-5414` | A security test verifies scoped credentials, limits, forbidden Markdown, redacted logs, and an AuditEvent without body/token data. |

@@ -27,6 +27,8 @@ from ai_stp_contracts.auth import (
     DeviceChallengeResponse,
     DeviceTokenRequest,
     DeviceTokenResponse,
+    LegalOnboardingCompleteRequest,
+    LegalOnboardingStatus,
     OAuthCallbackResult,
     SystemVersionResponse,
 )
@@ -263,6 +265,8 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
     "auth-device-token-response": DeviceTokenResponse,
     "auth-oauth-callback-result": OAuthCallbackResult,
     "auth-me-response": AuthMeResponse,
+    "legal-onboarding-complete-request": LegalOnboardingCompleteRequest,
+    "legal-onboarding-status": LegalOnboardingStatus,
     "auth-logout-response": AuthLogoutResponse,
     "auth-device-challenge-request": DeviceChallengeRequest,
     "auth-device-challenge-response": DeviceChallengeResponse,

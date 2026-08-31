@@ -17,7 +17,7 @@ from ai_stp_api.app import create_app
 from ai_stp_api.session import issue_session
 from ai_stp_api.settings import Settings
 from ai_stp_foundation.ids import new_id
-from ai_stp_platform.models import Account, AccountSession, Device
+from ai_stp_platform.models import Account, AccountSession, Device, OAuthIdentity
 
 pytestmark = pytest.mark.platform
 
@@ -182,6 +182,20 @@ async def test_oauth_callback_with_mocked_token_issues_session(
     }
 
     async with app.router.lifespan_context(app):
+        async with app.state.sessionmaker() as db:
+            account = Account(id=new_id("account"), status="active")
+            db.add(account)
+            db.add(
+                OAuthIdentity(
+                    account_id=account.id,
+                    provider="google",
+                    provider_subject="callback-sub-1",
+                    email="callback@example.com",
+                    email_verified=True,
+                    state="linked",
+                )
+            )
+            await db.commit()
         google = app.state.oauth.create_client("google")  # type: ignore[attr-defined]
         assert google is not None
         google.authorize_access_token = AsyncMock(return_value=token_payload)  # type: ignore[method-assign]
@@ -253,7 +267,10 @@ async def test_oauth_callback_web_client_redirects_with_session_cookies(
                 follow_redirects=False,
             )
             assert response.status_code == 303
-            expected = f"{settings.auth.public_base_url.rstrip('/')}/en/account"
+            expected = (
+                f"{settings.auth.public_base_url.rstrip('/')}/en/onboarding"
+                "?returnTo=%2Fen%2Faccount"
+            )
             assert response.headers["location"] == expected
             # Session and CSRF cookies must be set on the redirect response.
             cookie_blob = " ".join(
@@ -479,6 +496,9 @@ async def test_unlink_http_and_account_profile_returns_avatar(
                 display_name="G User",
             ),
         )
+        account = await db.get(Account, first.account_id)
+        assert account is not None
+        account.status = "active"
         await resolve_login_identity(
             db,
             ProviderProfile(
@@ -565,6 +585,9 @@ async def test_step_up_callback_links_second_provider_with_avatar(
                 email_verified=True,
             ),
         )
+        account = await db.get(Account, primary.account_id)
+        assert account is not None
+        account.status = "active"
         issued = await issue_session(
             db, account_id=primary.account_id, device_id=None, ttl_seconds=3600
         )

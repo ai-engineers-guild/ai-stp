@@ -34,6 +34,7 @@ COPY apps/api ./apps/api
 COPY apps/cli ./apps/cli
 COPY apps/platform ./apps/platform
 COPY apps/worker ./apps/worker
+COPY docs-user-facing/legal ./docs-user-facing/legal
 RUN uv sync --locked --no-dev --all-packages
 
 COPY migrations ./migrations
@@ -66,7 +67,7 @@ CMD ["python", "-m", "ai_stp_worker"]
 # unpublish every repository article) and on the zero SHA placeholder.
 FROM base AS content-snapshot
 USER root
-COPY apps/web/content/hub /hub
+COPY docs-user-facing/content /hub
 ARG AI_STP_GIT_COMMIT=0000000000000000000000000000000000000000
 RUN python -m ai_stp_platform.content.snapshot_cli \
       --hub /hub \

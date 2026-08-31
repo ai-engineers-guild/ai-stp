@@ -21,7 +21,6 @@ An almost-black machine canvas, ink surfaces, white primary and gray secondary t
 | Primary mark | Abstract **5-node loop** (club of five / human-in-the-loop). Diagonal gradient: soft orange `#f4793f` → signal `#fb631b` → plum `#b0486e` → violet `#62347a` → deep `#2d1c4e`. Ship-wheel only as metaphor — reads as tech ring / network, not a literal helm |
 | Background | **Transparent** always (no plate). Works on machine dark and human light |
 | Safe-zone | ~14% padding each side; `outer_r + node_r < size/2 − edge`. Nodes must never touch canvas edge |
-| Tagline RU | **Клуб из пяти — human in the loop** |
 | Tagline EN | **Five in the loop — a human crew group** (loop / group rhyme) |
 | Engineering line | **Hand to hand harness engineering** |
 | Favicon | `apps/web/src/app/icon.png` (32) + `icon.svg` + `apple-icon.png` (180); mirror `public/brand/favicon-32.png` |
@@ -53,7 +52,7 @@ In human mode: `#ffffff` canvas, `#181818` ink text, `#f9f8f4` sand surface, `#d
   They replaced Gerstner Programm and FT System Mono, whose own metadata prohibits
   storage on public servers and distribution — exactly what this repository does
   once it becomes public. The replacement was found through `just fonts-licence`; it also
-  fixed the Russian interface, which silently fell back to Arial with the previous pair.
+  fixed the Cyrillic interface, which silently fell back to Arial with the previous pair.
 
 ## Voice
 

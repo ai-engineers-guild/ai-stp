@@ -1,26 +1,28 @@
-# Секреты и конфигурация окружения
+# Secrets and environment configuration
 .env
 .env.*
 !.env.example
 !.env.dev.example
 !.env.prod.example
 
-# Локальная рабочая доска задач
+# Local task board
 .work/
 public/build/
+deploy/geoip/*.mmdb
 
-# Локальный scratch экспериментов. Не источник продукта.
+# Agent-local state and repository-local tooling
+.serena/
+.repo-safety/
+
+# Local experiment scratch space. Not product source.
 .tmp/
 
 # Agent/session local notes and check reports (not product docs)
 plans/
 
-# Рабочий каталог агентского инструмента ревью: скриншоты, отчёт Lighthouse и
-# логи запущенного dev-сервера. Он уже попадал в коммиты, потому что добавление
-# всего рабочего дерева одной командой затягивает служебные каталоги — ровно то,
-# что запрещает docs/engineering/git-workflow.md. Правило превентивное: уже
-# отслеживаемый файл оно не исключает. Каталоги других инструментов сюда
-# добавляются по факту появления, а не заранее.
+# Review-tool workspace: screenshots, Lighthouse reports, and dev-server logs.
+# The rule is preventive: it does not exclude files already tracked. Add other
+# tool directories when they appear rather than speculating in advance.
 .impeccable/
 
 # Deploy state and local backup artifacts (SPEC-024). Never commit.
@@ -41,7 +43,7 @@ apps/web/test-results/
 apps/web/playwright-report/
 apps/web/blob-report/
 
-# Зависимости
+# Dependencies
 node_modules/
 __pycache__/
 *.py[cod]
@@ -49,12 +51,12 @@ __pycache__/
 .venv-check/
 venv/
 
-# Сборка
+# Build output
 dist/
 build/
 *.egg-info/
 
-# Кэш инструментов
+# Tool caches
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
@@ -63,17 +65,17 @@ build/
 .serena/memories/current-work.md
 .serena.local-backup-before-ff/
 
-# Редакторы и ОС
+# Editors and operating systems
 .DS_Store
 Thumbs.db
 .idea/
 .vscode/
 
-# Собранный сайт документации
+# Built documentation sites
 .site/
 .site-user-docs/
 
-# Локальный корпус исследований и выгрузок диалога
+# Local research corpus and conversation exports
 research_sources/
 .coverage
 .coverage.*

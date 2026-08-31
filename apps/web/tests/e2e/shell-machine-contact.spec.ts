@@ -163,7 +163,11 @@ test("every route keeps a machine document and the dock stays pinned", async ({ 
 
 test("private machine routes render domain documents after sign in", async ({ page }) => {
   await page.goto("/en/login");
-  await page.getByRole("button", { name: /Continue with GitHub|Войти через GitHub/i }).click();
+  await page
+    .getByRole("button", {
+      name: /Continue with GitHub|\u0412\u043e\u0439\u0442\u0438 \u0447\u0435\u0440\u0435\u0437 GitHub/i,
+    })
+    .click();
   await expect(page).toHaveURL(/\/en\/account/);
 
   const expectations: ReadonlyArray<readonly [string, RegExp]> = [

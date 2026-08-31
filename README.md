@@ -4,6 +4,12 @@
 
 The primary product consumer is the user's agent operating through the CLI. Under `ADR-0018`, the web owns the account and public catalog: profile and privacy, devices and revocation, owned objects, publication, permissions, reports, and minimal administration. Passport creation, indexing, selection, assembly, validation, and installation remain with the CLI and agent; the web displays their results but does not perform them.
 
+## Strategic direction: Rust and a Pi-inspired plugin architecture
+
+**By 31 December 2026, `ai-stp` will be rewritten in Rust and migrated to a plugin-first architecture inspired by Pi.**
+
+The migration will preserve the public CLI and API contracts while separating a lightweight, deterministic core from versioned plugins for harnesses, components, projections, and provider-specific integrations.
+
 ## What is a setup
 
 A setup is the complete configuration of a specific harness:

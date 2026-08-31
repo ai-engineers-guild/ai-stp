@@ -58,7 +58,7 @@ providers; secrets in GitHub or issue text; contents of domain handlers
 - `Web tier` - `apps/web` application container with separate dev and prod images;
   in **prod** published on loopback and publicly available only through the host's
   `nginx` (`ADR-0135`); to local **dev** publishes the `web` port directly.
-- `Docs tier` - container of public user documentation from `user-docs/`;
+- `Docs tier` - container of public user documentation from `docs-user-facing/docs/`;
   in dev it is published on `localhost:8011`, in **prod** it is available through a separate
   host `AI_STP_DOCS_HOST`.
 - `Env contract` - a set of environment samples with names without values and separation

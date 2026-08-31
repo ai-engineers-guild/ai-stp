@@ -143,29 +143,30 @@ release-candidate-install:
         dist/release-candidate \
         --expected-sha "$(git rev-parse HEAD)"
 
-# Ничего не меняет и ничем не аутентифицируется: анонимный срез обязан
-# доказываться без учётных данных, а скрипт, который не может их держать, не
-# может их и раскрыть. Не входит в `just check` — гейт репозитория не вправе
-# зависеть от внешней среды, иначе её недоступность читается как красный код.
+# Verifies the anonymous slice (`#85`) against the deployed environment.
 #
-# Доказывает анонимный срез `#85` против развёрнутой среды.
+# Changes nothing and authenticates with nothing: an anonymous slice has to prove
+# itself without credentials, and a script that cannot hold one cannot leak one.
+# Not part of `just check` — the repository gate may not depend on an external
+# environment, or that environment being unreachable reads as a red build here.
 evidence-live origin="https://ai-stp.aiguild.space" commit="":
     uv run --locked python -m release_scripts.verify_live_slice \
         --origin "{{origin}}" \
         {{ if commit == "" { "" } else { "--expected-commit " + commit } }}
 
-# Доказывает срез синхронизации двух устройств против развёрнутой среды (#180).
-# Оба home должны быть уже авторизованы: device-code flow требует человека, и
-# скрипт, умеющий выпустить сессию, доказывал бы не тот путь.
+# Verifies the two-device synchronisation slice (#180) against the deployed
+# environment. Both homes must already be signed in: the device-code flow needs a
+# person, and a script able to mint a session would be proving the wrong path.
 #
-# Разный `HOME` НЕ делает два устройства. Хранилище учётных данных операционной
-# системы принадлежит пользователю ОС, а не домашнему каталогу: `HOME=… ai-stp
-# auth status` отвечает `authenticated` из общего keyring, и оба «устройства»
-# оказываются одним. Каждый вход должен выполняться с
-# `AI_STP_FORCE_FILE_CREDENTIAL_STORE=1`, иначе срез доказывает не то.
-# `skip` — пробел-разделённые точные id событий, которые в истории этого
-# аккаунта не применимы ни одним клиентом. Именует оператор: срез, угадывающий,
-# что пропустить, зеленел бы за счёт непрочитанного.
+# Different `HOME` values do NOT create two devices. The OS credential store
+# belongs to the OS user, not the home directory, so `HOME=… ai-stp auth status`
+# answers `authenticated` from the shared keyring and both "devices" turn out to
+# be one. Each login must use `AI_STP_FORCE_FILE_CREDENTIAL_STORE=1`, or the
+# slice proves something other than what it claims.
+#
+# `skip` is a space-separated list of exact event ids that no client can apply to
+# this account's history. The operator names them: a slice that guessed what to
+# skip would go green on the strength of what it never read.
 evidence-sync home_a home_b origin="https://ai-stp.aiguild.space" skip="":
     uv run --locked python -m release_scripts.verify_sync_slice \
         --origin "{{origin}}" \
@@ -241,9 +242,9 @@ corpus-drift *args:
 evidence-citations:
     uv run --locked python -m release_scripts.verify_citation_slice
 
-# Доказывает публикацию, гранты, отчёты и чтения владельца против развёрнутой
-# среды (#182). По умолчанию только читающая половина: публикация неизменяемой
-# версии и изменение чужого доступа требуют явного решения оператора.
+# Verifies publication, grants, reports and owner reads against the deployed
+# environment (#182). Read-only by default: publishing an immutable version and
+# changing somebody else's access both need an explicit decision by the operator.
 evidence-publication home origin="https://ai-stp.aiguild.space" writes="":
     uv run --locked python -m release_scripts.verify_publication_slice \
         --origin "{{origin}}" \
@@ -344,7 +345,7 @@ public-sync-verify tree:
 back-static:
     {{run}} ruff format --check .
     {{run}} ruff check .
-    {{run}} pyright
+    {{run}} python -m pyright
     {{run}} python -m release_scripts.public_export --report
     {{run}} python -m ai_stp_contracts.schemas --check schemas/v1
     {{run}} python -m ai_stp_contracts.web_projections --check

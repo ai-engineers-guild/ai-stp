@@ -1,6 +1,6 @@
 # Skills
 
-- [canonical/](canonical/index.md) — единственный ручной источник процедур.
-- [projections/](projections/index.md) — генерируемые нативные представления.
+- [canonical/](canonical/index.md) — the only manual source of procedures.
+- [projections/](projections/index.md) — generated native representations.
 
-Generated projections руками не редактируются.
+Do not edit generated projections by hand.

@@ -78,7 +78,12 @@ async def is_account_populated(db: AsyncSession, account_id: str) -> bool:
 
 
 async def _create_account(db: AsyncSession) -> Account:
-    account = Account(id=new_id("account"))
+    account = Account(
+        id=new_id("account"),
+        status="onboarding_pending",
+        show_profile_publicly=False,
+        allow_publisher_listing=False,
+    )
     db.add(account)
     await db.flush()
     return account

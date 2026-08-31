@@ -16,7 +16,7 @@ Article identity is the string `{type}:{slug}`. `type` accepts `article`,
 
 `source_kind` accepts `repository` or `staff` and is fixed when the Article is
 created. A repository revision contains an exact 40-hex `source_ref` and a
-relative `source_path` within `apps/web/content/hub`; a staff revision does not
+repository-relative `source_path` below `docs-user-facing/content`; a staff revision does not
 publish the actor ID.
 
 A localized revision has `revision_id` and `content_digest`. The canonical digest

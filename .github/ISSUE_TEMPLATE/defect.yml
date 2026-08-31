@@ -1,45 +1,47 @@
-name: Дефект
-description: Наблюдаемое поведение расходится с documented или ожидаемым
+name: Defect
+description: Observed behavior differs from documented or expected behavior
 labels: ["defect"]
 body:
   - type: markdown
     attributes:
       value: |
-        Не публикуйте здесь уязвимости, секреты, токены и содержимое `.env`.
-        Для уязвимости есть `SECURITY.md` и приватные отчёты GitHub.
+        Do not publish vulnerabilities, secrets, tokens, or `.env` contents here.
+        Use `SECURITY.md` and GitHub's private reporting channels for vulnerabilities.
   - type: textarea
     id: observed
     attributes:
-      label: Что произошло
-      description: Точная команда или запрос и то, что вернулось. Вывод `--json` полезнее пересказа.
+      label: What happened?
+      description: >
+        Give the exact command or request and its output. `--json` output is better
+        than a paraphrase.
       render: console
     validations:
       required: true
   - type: textarea
     id: expected
     attributes:
-      label: Что ожидалось
-      description: И почему — со ссылкой на документ или контракт, если он есть.
+      label: What was expected?
+      description: Explain why, with a document or contract link when available.
     validations:
       required: true
   - type: textarea
     id: reproduce
     attributes:
-      label: Воспроизведение
-      description: Наименьшая последовательность шагов, приводящая к наблюдаемому.
+      label: Reproduction
+      description: Give the smallest sequence of steps that produces the observation.
     validations:
       required: true
   - type: input
     id: version
     attributes:
-      label: Версия
-      description: Вывод `ai-stp version --json` или точный commit.
+      label: Version
+      description: Output of `ai-stp version --json` or the exact commit.
     validations:
       required: true
   - type: dropdown
     id: platform
     attributes:
-      label: Платформа
-      options: [Linux, macOS, Windows, другая]
+      label: Platform
+      options: [Linux, macOS, Windows, other]
     validations:
       required: true

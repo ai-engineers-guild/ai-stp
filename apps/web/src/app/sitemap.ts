@@ -12,6 +12,7 @@ const SAAS_PUBLIC_ROUTES = [
   "/legal/privacy",
   "/legal/cookies",
   "/legal/service-rules",
+  "/legal/personal-data-consent",
   "/legal/licensing",
 ] as const;
 

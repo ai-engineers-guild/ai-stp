@@ -3,7 +3,11 @@ import { expect, test, type Page } from "@playwright/test";
 test.describe("login + devices smoke (REQ-2311)", () => {
   test("sign in, open devices, revoke confirmation", async ({ page }) => {
     await page.goto("/en/login");
-    await page.getByRole("button", { name: /Continue with GitHub|Войти через GitHub/i }).click();
+    await page
+      .getByRole("button", {
+        name: /Continue with GitHub|\u0412\u043e\u0439\u0442\u0438 \u0447\u0435\u0440\u0435\u0437 GitHub/i,
+      })
+      .click();
     await expect(page).toHaveURL(/\/en\/account/);
     await expect(page.getByText(/account_01JQZK7B8N4M6P2R9T5V0X3Y7Z/)).toBeVisible();
 
@@ -22,12 +26,14 @@ test.describe("login + devices smoke (REQ-2311)", () => {
     await expect(page).toHaveURL(/\/en\/devices\?status=ok/);
     await expect(page.getByText("Device approved")).toBeVisible();
     await page
-      .getByRole("button", { name: /Revoke|Отозвать/i })
+      .getByRole("button", { name: /Revoke|\u041e\u0442\u043e\u0437\u0432\u0430\u0442\u044c/i })
       .first()
       .click();
     await expect(page.getByRole("dialog")).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: /Revoke this device|Отозвать это устройство/i }),
+      page.getByRole("heading", {
+        name: /Revoke this device|\u041e\u0442\u043e\u0437\u0432\u0430\u0442\u044c \u044d\u0442\u043e \u0443\u0441\u0442\u0440\u043e\u0439\u0441\u0442\u0432\u043e/i,
+      }),
     ).toBeVisible();
   });
 
@@ -56,7 +62,11 @@ test.describe("device approval says which refusal it is", () => {
   // carries `data-kind`, which is what it is for.
   async function signIn(page: Page) {
     await page.goto("/en/login");
-    await page.getByRole("button", { name: /Continue with GitHub|Войти через GitHub/i }).click();
+    await page
+      .getByRole("button", {
+        name: /Continue with GitHub|\u0412\u043e\u0439\u0442\u0438 \u0447\u0435\u0440\u0435\u0437 GitHub/i,
+      })
+      .click();
     await expect(page).toHaveURL(/\/en\/account/);
   }
 

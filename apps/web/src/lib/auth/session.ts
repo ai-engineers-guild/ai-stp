@@ -13,12 +13,14 @@ export type WebSession = {
   accountId: AccountId;
   /** Optional current device id for revoke-current distinction. */
   deviceId: DeviceId | null;
+  accountStatus: "onboarding_pending" | "active";
   expiresAt: number;
 };
 
 type SessionPayload = {
   accountId: string;
   deviceId: string | null;
+  accountStatus?: "onboarding_pending" | "active";
   expiresAt: number;
 };
 
@@ -62,6 +64,7 @@ function decodeSession(token: string, secret: string): WebSession | null {
     return {
       accountId: asAccountId(raw.accountId),
       deviceId: raw.deviceId ? asDeviceId(raw.deviceId) : null,
+      accountStatus: raw.accountStatus ?? "active",
       expiresAt: raw.expiresAt,
     };
   } catch {
@@ -77,6 +80,7 @@ export function createSessionToken(
   const session: WebSession = {
     accountId,
     deviceId,
+    accountStatus: "active",
     expiresAt: Date.now() + SESSION_TTL_MS,
   };
   return { token: encodeSession(session, secret), session };
@@ -124,6 +128,7 @@ export const readSession = cache(async (): Promise<WebSession | null> => {
     return {
       accountId: asAccountId(me.account_id),
       deviceId: me.device_id ? asDeviceId(me.device_id) : null,
+      accountStatus: me.account_status,
       expiresAt: Date.now() + SESSION_TTL_MS,
     };
   } catch {

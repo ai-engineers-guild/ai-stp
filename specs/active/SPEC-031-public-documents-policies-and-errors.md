@@ -11,7 +11,7 @@ The site provides a dedicated documentation section useful to people and agents,
 as well as localized legal and service documents. Texts have a version, language,
 provenance, and dedicated public API/pages; technical documentation is imported
 from a pinned repository source rather than copied manually into web. The public
-user-facing source lives in `user-docs/`; the internal `docs/` remains the
+user-facing source lives in `docs-user-facing/docs/`; the internal `docs/` remains the
 repository's normative boundary.
 
 ## Scope
@@ -39,8 +39,8 @@ acceptance workflow, or arbitrary remote Markdown.
 - `REQ-3102`: Technical docs obtain their source only from an allowlisted repository,
   path, and exact commit in the CI import scenario. Web/API does not fetch raw Git content
   from a user-supplied URL or during the request path.
-- `REQ-3103`: Policy kinds include `privacy`, `cookies`, `service_rules`, and
-  `author_content_and_license`. The latter clearly separates the platform license from
+- `REQ-3103`: Policy kinds include `privacy`, `cookies`, `service_rules`,
+  `personal_data_consent`, and `author_content_and_license`. The latter clearly separates the platform license from
   author content, prohibits illegal/harmful uploads, and does not promise platform
   security review of content.
 - `REQ-3104`: PublicDocument and DocumentRevision store slug, kind, locale,
@@ -77,11 +77,12 @@ Markdown is not added to the platform documentation corpus.
 
 ## Compatibility and migration
 
-Repository `user-docs/**` becomes the canonical public technical source;
+Repository `docs-user-facing/docs/**` becomes the canonical public technical source;
 `docs/**` remains the canonical internal normative source. An imported revision
 does not replace the source checkout. Policy tables and public APIs are added
 additively. No mandatory acceptance of a new policy is introduced without a
-separate ADR and product decision.
+separate ADR and product decision. `SPEC-055` and `ADR-0137` record that
+decision for new-account onboarding only.
 
 ## Acceptance criteria
 

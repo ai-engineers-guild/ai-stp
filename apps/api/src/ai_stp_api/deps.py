@@ -115,6 +115,30 @@ async def require_auth(
     )
 
 
+async def require_onboarding_auth(
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    auth: Annotated[AuthSettings, Depends(get_auth_settings)],
+) -> AuthContext:
+    """Authenticate the one restricted path that completes legal onboarding."""
+    bearer = _extract_bearer(request)
+    cookie = _extract_cookie_token(request, auth.cookie_name)
+    if bearer is not None:
+        raw, via_cookie = bearer, False
+    elif cookie is not None:
+        raw, via_cookie = cookie, True
+    else:
+        raise ApiError(ErrorCategory.AUTH_REQUIRED, "authentication required")
+    ensure_csrf(request, auth=auth, via_cookie=via_cookie)
+    return await verify_raw_token(
+        db,
+        raw,
+        admin_account_ids=auth.admin_ids(),
+        via_cookie=via_cookie,
+        allow_onboarding=True,
+    )
+
+
 def set_session_cookies(
     response: Response,
     *,

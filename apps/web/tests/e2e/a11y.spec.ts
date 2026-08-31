@@ -14,7 +14,9 @@ test.describe("accessibility budgets (REQ-2213)", () => {
       if (route === "/en/account" || route === "/en/devices") {
         await page.goto("/en/login");
         await page
-          .getByRole("button", { name: /Continue with GitHub|Войти через GitHub/i })
+          .getByRole("button", {
+            name: /Continue with GitHub|\u0412\u043e\u0439\u0442\u0438 \u0447\u0435\u0440\u0435\u0437 GitHub/i,
+          })
           .click();
         await expect(page).toHaveURL(/\/en\/account/);
       }

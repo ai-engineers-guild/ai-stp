@@ -1,0 +1,14 @@
+*
+!apps/
+!apps/web/
+!apps/web/**
+!docs-user-facing/
+!docs-user-facing/**
+apps/web/node_modules
+apps/web/.next*
+apps/web/test-results
+apps/web/playwright-report
+apps/web/coverage
+apps/web/*.tsbuildinfo
+apps/web/.env
+apps/web/.env.*

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Переносимая установка git hooks для Windows/Linux/macOS."""
+"""Portable installation of Git hooks for Windows, Linux, and macOS."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ import stat
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-# pre-push вызывает `just check` напрямую: отдельный рецепт-алиас существовал бы
-# только ради этой строки и был бы вторым именем одного поведения.
+# pre-push calls `just check` directly: a separate recipe alias would only give
+# this behavior a second name.
 HOOKS = {
     "pre-commit": "just pre-commit\n",
     "pre-push": "just check\n",
@@ -25,7 +25,7 @@ def main() -> int:
         current = path.stat().st_mode
         path.chmod(current | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
-    print("хуки установлены")
+    print("hooks installed")
     return 0
 
 

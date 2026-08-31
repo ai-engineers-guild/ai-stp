@@ -96,7 +96,7 @@ export const NarrowPhone: Story = {
       tags: ["python"],
       harnessIds: ["codex"],
     },
-    intro: "Публичные компоненты и сетапы для конкретного харнесса.",
+    intro: "Public components and setups for a specific harness.",
   },
   decorators: [
     (Story) => (

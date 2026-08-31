@@ -41,8 +41,8 @@ SETTLED: Final[frozenset[str]] = frozenset(
     {"verified", "failed", "cancelled", "rolled_back", "stale"}
 )
 
-#: Which move each state allows (`operation.md`: "переходы выполняются только по
-#: явно разрешённым событиям"). Declared here because this module already owns
+#: Which move each state allows (`operation.md`: "transitions use only explicitly
+#: allowed events"). Declared here because this module already owns
 #: the state names, and a second table beside them would drift.
 #:
 #: Terminal states allow nothing, `partial` included. Recovering from a partial

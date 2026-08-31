@@ -28,7 +28,7 @@ complex frontend application solely for documentation.
    with the application and requires more custom UI.
 2. Maintain public documents in `docs/`. This is simpler for tooling, but breaks
    the boundary of the internal normative corpus.
-3. Introduce `user-docs/` as a separate Markdown source and build it with a
+3. Introduce `docs-user-facing/docs/` as a separate Markdown source and build it with a
    second MkDocs Material configuration.
 4. Introduce Docusaurus, Fumadocs, or Astro Starlight. These stacks suit a richer
    docs portal, but add an unnecessary JavaScript/runtime layer and a new
@@ -36,7 +36,7 @@ complex frontend application solely for documentation.
 
 ## Decision
 
-Option 3 is accepted. Public user documentation lives in `user-docs/` and is
+Option 3 is accepted. Public user documentation lives in `docs-user-facing/docs/` and is
 built with the separate `docs_scripts/user-mkdocs.yml` configuration. Internal
 `docs/` remains the source of normative documents and does not become a help
 center.
@@ -47,14 +47,14 @@ runtime components, and an in-browser editor are outside this decision.
 
 ## Consequences
 
-- `user-docs/` becomes the source for public user guide pages: quick start,
+- `docs-user-facing/docs/` becomes the source for public user guide pages: quick start,
   concepts, CLI, catalog, components, setups, publication, trust, security, and
   troubleshooting.
 - Building public docs requires no new lock file and uses the already pinned
   dependencies of the docs group.
 - Production may serve the `user-docs` artifact as a static site through a
   separate container or Caddy route. The Web/API import revision from `SPEC-031`
-  may later read `user-docs/` specifically as its technical source.
+  reads `docs-user-facing/docs/` as its technical source.
 - Any future migration to Docusaurus, Fumadocs, or Starlight requires a new ADR
   because it changes the runtime and maintenance model of public documentation.
 

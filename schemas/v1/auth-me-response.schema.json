@@ -17,6 +17,14 @@
     "account_id": {
       "$ref": "#/$defs/AccountId"
     },
+    "account_status": {
+      "enum": [
+        "onboarding_pending",
+        "active"
+      ],
+      "title": "Account Status",
+      "type": "string"
+    },
     "device_id": {
       "anyOf": [
         {
@@ -37,6 +45,7 @@
   },
   "required": [
     "account_id",
+    "account_status",
     "device_id",
     "schema_version"
   ],

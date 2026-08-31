@@ -12,6 +12,8 @@ from ai_stp_contracts.auth import (
     DeviceAuthorizationResponse,
     DeviceTokenRequest,
     DeviceTokenResponse,
+    LegalOnboardingCompleteRequest,
+    LegalOnboardingStatus,
     OAuthCallbackResult,
     OAuthProvider,
 )
@@ -125,6 +127,8 @@ __all__ = [
     "DeviceTokenResponse",
     "GitHubMetadata",
     "IdempotencyKey",
+    "LegalOnboardingCompleteRequest",
+    "LegalOnboardingStatus",
     "LinkedIdentity",
     "LivenessResponse",
     "OAuthCallbackResult",

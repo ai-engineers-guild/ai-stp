@@ -118,6 +118,7 @@ review-mcp = "review_mcp.server:main"
         ],
         capture_output=True,
         text=True,
+        encoding="utf-8",
         env=environment,
         check=False,
     )
@@ -196,6 +197,7 @@ def test_project_instructions_are_found_at_both_claude_placements(tmp_path: Path
         ],
         capture_output=True,
         text=True,
+        encoding="utf-8",
         env={
             **os.environ,
             "HOME": str(home),
@@ -274,6 +276,7 @@ def test_every_declared_component_kind_is_discovered_in_one_project(tmp_path: Pa
         ],
         capture_output=True,
         text=True,
+        encoding="utf-8",
         env={
             **os.environ,
             "HOME": str(home),
@@ -318,6 +321,7 @@ def test_real_cli_discovers_the_opennetwork_cursor_plugin_tree(tmp_path: Path) -
         ],
         capture_output=True,
         text=True,
+        encoding="utf-8",
         env={
             **os.environ,
             "HOME": str(home),

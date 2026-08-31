@@ -62,17 +62,17 @@ def test_content_import_image_bakes_snapshot_then_drops_hub() -> None:
     ignore = _read(".dockerignore")
     snapshot, remainder = dockerfile.split("FROM base AS content-snapshot", 1)
     runtime = remainder.split("FROM base AS content-import", 1)[1]
-    assert "COPY apps/web/content/hub /hub" in remainder
-    assert "COPY apps/web/content/hub" not in snapshot
+    assert "COPY docs-user-facing/content /hub" in remainder
+    assert "COPY docs-user-facing/content" not in snapshot
     assert "rm -rf /hub" in remainder
     assert "COPY --from=content-snapshot /tmp/content-snapshot.json" in runtime
     assert "test -s /app/content-snapshot.json" in runtime
-    assert "COPY apps/web/content/hub" not in runtime
+    assert "COPY docs-user-facing/content" not in runtime
     assert "ARG AI_STP_GIT_COMMIT=" in remainder
     assert "ai_stp_platform.content.snapshot_cli" in remainder
     web_ignore = ignore.split("apps/web\n", 1)[1]
-    assert "!apps/web/content/hub/**/*.md" in web_ignore
-    assert ignore.find("apps/web\n") < ignore.find("!apps/web/content/hub/**/*.md")
+    assert "!docs-user-facing/**" in web_ignore
+    assert ignore.find("docs-user-facing") < ignore.find("!docs-user-facing/**")
 
 
 def test_deploy_scripts_always_rerun_content_import() -> None:
