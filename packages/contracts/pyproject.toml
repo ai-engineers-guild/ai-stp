@@ -10,6 +10,8 @@ authors = [{ name = "AI Engineers Guild" }]
 keywords = ["ai", "api", "contracts", "developer-tools", "setup"]
 classifiers = [
     "Development Status :: 3 - Alpha",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
