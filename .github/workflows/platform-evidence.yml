@@ -139,7 +139,7 @@ jobs:
               os.environ["EXPECTED_ARCH"],
           )
           PY
-      - name: Install pinned native uv and project dependencies
+      - name: Install pinned native uv
         run: |
           set -euo pipefail
           python_path="$(python -c 'import sys; print(sys.executable)')"
@@ -158,13 +158,13 @@ jobs:
       - name: Install, execute and remove the exact candidate
         run: |
           set -euo pipefail
-          uv sync --locked --group dev
           mkdir -p evidence
-          uv run --locked python -m release_scripts.verify_candidate_install \
+          python -m release_scripts.verify_candidate_install \
             dist/release-candidate \
             --expected-sha "${GITHUB_SHA}" \
             --expected-python "${EXPECTED_PYTHON}" \
             --python "${UV_PYTHON}" \
+            --network-report "evidence/network-${{ matrix.id }}.json" \
             > "evidence/candidate-${{ matrix.id }}.json"
       - name: Install Linux network launcher
         if: ${{ runner.os == 'Linux' }}
@@ -174,18 +174,16 @@ jobs:
             sudo apt-get update -q
             sudo apt-get install -y --no-install-recommends bubblewrap
           fi
-      - name: Record the real provider network boundary
+      - name: Verify the real provider network boundary
         run: |
           set -euo pipefail
-          uv run --locked ai-stp provider network --json \
-            > "evidence/network-${{ matrix.id }}.json"
-          uv run --locked python -m release_scripts.verify_network_evidence \
+          python -m release_scripts.verify_network_evidence \
             "evidence/network-${{ matrix.id }}.json" \
             --expected-os "${EXPECTED_OS}"
       - name: Record safe system and candidate identity
         run: |
           set -euo pipefail
-          uv run --locked python - <<'PY'
+          python - <<'PY'
           import hashlib
           import json
           import os

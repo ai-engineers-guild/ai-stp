@@ -38,3 +38,11 @@ def test_direct_provenance_refuses_an_ambiguous_environment(tmp_path: Path) -> N
         verify_candidate_install._direct_wheel_provenance(  # pyright: ignore[reportPrivateUsage]
             tmp_path, {}
         )
+
+
+def test_network_report_option_names_the_pre_removal_evidence_path() -> None:
+    options = verify_candidate_install._parser().parse_args(  # pyright: ignore[reportPrivateUsage]
+        ["candidate", "--network-report", "evidence/network.json"]
+    )
+
+    assert options.network_report == Path("evidence/network.json")

@@ -176,6 +176,7 @@ def verify_install(
     expected_sha: str | None,
     expected_python: str | None,
     python: str,
+    network_report: Path | None = None,
 ) -> dict[str, object]:
     """Verify evidence, install direct wheels, execute outside the checkout and uninstall."""
     if not python:
@@ -231,6 +232,16 @@ def verify_install(
         _require_python_version(python_version, expected_python)
         _machine_answer(executable, ("capabilities",), cwd=root, environment=environment)
         _machine_answer(executable, ("help", "--agent"), cwd=root, environment=environment)
+        if network_report is not None:
+            network_answer = _machine_answer(
+                executable, ("provider", "network"), cwd=root, environment=environment
+            )
+            network_report = network_report.resolve()
+            network_report.parent.mkdir(parents=True, exist_ok=True)
+            network_report.write_text(
+                json.dumps(network_answer, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
         provenance = _direct_wheel_provenance(tool_root, wheels)
 
         # Re-read every checksum after installation so a concurrent replacement
@@ -269,6 +280,11 @@ def _parser() -> argparse.ArgumentParser:
         help="Expected installed Python version or major.minor prefix.",
     )
     parser.add_argument("--python", default=sys.executable)
+    parser.add_argument(
+        "--network-report",
+        type=Path,
+        help="Write provider-network evidence from the exact installed candidate before removal.",
+    )
     return parser
 
 
@@ -281,6 +297,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
             expected_sha=options.expected_sha,
             expected_python=options.expected_python,
             python=options.python,
+            network_report=options.network_report,
         )
     except (build_candidate.CandidateError, InstallVerificationError, OSError) as error:
         print(f"candidate-install: {error}", file=sys.stderr)
