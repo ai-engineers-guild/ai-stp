@@ -95,7 +95,10 @@ def _candidate_wheels(
 
 
 def _direct_wheel_provenance(tool_root: Path, wheels: dict[str, Path]) -> dict[str, str]:
-    site_packages = list(tool_root.glob("ai-stp-cli/lib/python*/site-packages"))
+    site_packages = [
+        *tool_root.glob("ai-stp-cli/lib/python*/site-packages"),
+        *tool_root.glob("ai-stp-cli/Lib/site-packages"),
+    ]
     if len(site_packages) != 1:
         raise InstallVerificationError("installed tool has no unique site-packages directory")
     observed: dict[str, str] = {}

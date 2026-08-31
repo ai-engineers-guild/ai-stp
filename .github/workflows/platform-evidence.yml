@@ -128,8 +128,12 @@ jobs:
               "arm64": "arm64",
           }
           actual_os = platform.system().casefold()
-          actual_arch = aliases.get(platform.machine().casefold(), platform.machine().casefold())
-          assert actual_os == os.environ["EXPECTED_OS"], (actual_os, os.environ["EXPECTED_OS"])
+          machine = platform.machine().casefold()
+          actual_arch = aliases.get(machine, machine)
+          assert actual_os == os.environ["EXPECTED_OS"], (
+              actual_os,
+              os.environ["EXPECTED_OS"],
+          )
           assert actual_arch == os.environ["EXPECTED_ARCH"], (
               actual_arch,
               os.environ["EXPECTED_ARCH"],
@@ -141,7 +145,8 @@ jobs:
           python_path="$(python -c 'import sys; print(sys.executable)')"
           {
             echo "UV_PYTHON=${python_path}"
-            echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/platform-${{ matrix.id }}"
+            environment="${RUNNER_TEMP}/platform-${{ matrix.id }}"
+            echo "UV_PROJECT_ENVIRONMENT=${environment}"
             echo "UV_CACHE_DIR=${RUNNER_TEMP}/uv-cache"
           } >> "${GITHUB_ENV}"
           bash .github/scripts/install-uv.sh "${UV_VERSION}" "${RUNNER_TEMP}/uv"
@@ -154,13 +159,13 @@ jobs:
         run: |
           set -euo pipefail
           uv sync --locked --group dev
-          mkdir -p .evidence
+          mkdir -p evidence
           uv run --locked python -m release_scripts.verify_candidate_install \
             dist/release-candidate \
             --expected-sha "${GITHUB_SHA}" \
             --expected-python "${EXPECTED_PYTHON}" \
             --python "${UV_PYTHON}" \
-            > ".evidence/candidate-${{ matrix.id }}.json"
+            > "evidence/candidate-${{ matrix.id }}.json"
       - name: Install Linux network launcher
         if: ${{ runner.os == 'Linux' }}
         run: |
@@ -173,21 +178,24 @@ jobs:
         run: |
           set -euo pipefail
           uv run --locked ai-stp provider network --json \
-            > ".evidence/network-${{ matrix.id }}.json"
-          EVIDENCE_PATH=".evidence/network-${{ matrix.id }}.json" uv run --locked python - <<'PY'
+            > "evidence/network-${{ matrix.id }}.json"
+          export EVIDENCE_PATH="evidence/network-${{ matrix.id }}.json"
+          uv run --locked python - <<'PY'
           import json
           import os
           from pathlib import Path
 
-          report = json.loads(Path(os.environ["EVIDENCE_PATH"]).read_text(encoding="utf-8"))
+          report = json.loads(
+              Path(os.environ["EVIDENCE_PATH"]).read_text(encoding="utf-8")
+          )
           assert report["ok"] is True
           data = report["data"]
           assert data["os_name"] == os.environ["EXPECTED_OS"]
           enforcement = data["network_enforcement"]
-          if os.environ["EXPECTED_OS"] in {"linux", "windows"}:
-              assert enforcement == "enforced", data
-          else:
-              assert enforcement in {"enforced", "unavailable"}, data
+          assert enforcement in {"enforced", "unavailable"}, data
+          if enforcement == "unavailable":
+              assert data["local_actions_available"] is False, data
+              assert data["v3_local_phase"] == "refused", data
           PY
       - name: Record safe system and candidate identity
         run: |
@@ -200,7 +208,7 @@ jobs:
           from pathlib import Path
 
           candidate = Path("dist/release-candidate")
-          evidence = Path(".evidence")
+          evidence = Path("evidence")
           identity = {
               "schema_version": 1,
               "git_sha": os.environ["GITHUB_SHA"],
@@ -217,7 +225,8 @@ jobs:
               },
           }
           (evidence / "system.json").write_text(
-              json.dumps(identity, sort_keys=True, indent=2) + "\n", encoding="utf-8"
+              json.dumps(identity, sort_keys=True, indent=2) + "\n",
+              encoding="utf-8",
           )
           PY
           git diff --exit-code
@@ -226,6 +235,6 @@ jobs:
         if: ${{ always() }}
         with:
           name: platform-${{ matrix.id }}-${{ github.sha }}
-          path: .evidence/
+          path: evidence/
           if-no-files-found: warn
           retention-days: 30
