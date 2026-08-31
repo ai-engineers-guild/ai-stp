@@ -180,6 +180,51 @@ Reconstruction must be deterministic: identical input produces identical
 bytes, or `plan` and `apply` diverge in formatting and the target appears
 changed when it is not.
 
+## Removal takes the key, not the file
+
+Recorded, not built. `#54` tracks the implementation, and it is open on a
+question this record does not settle: protocol v3 carries one verb per apply, so
+a removal of a setup that holds both a contribution and its own files has to
+choose one, and what a released provider does with that choice is visible to
+every provider already shipped. The consumer half below is settled; the verb is
+not, and guessing it would change a contract seven vendored providers speak.
+
+The decision above says how a contribution lands and said nothing about how it
+goes. That silence had a shape: a contribution's passport declares
+`managed_paths: ['config.toml']`, the provider is told it owns that file, and it
+removes exactly what it was told. A user who installed one MCP server got back a
+target with no `config.toml` at all — their `model` and their `[sandbox]` gone
+with it.
+
+Measured before deciding, because the severity decided how much this is worth:
+the plan does warn, naming `config.toml` among the entries that go whole and
+saying the backup slot holds them; the removal is recoverable byte for byte
+through `restore`. So the failure is not silent destruction. It is a plan that
+tells the truth in the vocabulary of a different ownership model — "this file
+goes whole" is exact for a setup that owns the file and misleading for a
+component that owns one key of it.
+
+**Removing a contribution is a replace of the host file without that key.** The
+consumer already reconstructs on the way in; it reconstructs on the way out by
+the same route, and the provider receives a `replace` carrying the remaining
+bytes rather than a `remove` naming the file.
+
+Three consequences follow, and none of them needs the protocol to change.
+
+The provider stays bytes-in, bytes-out. It is not taught what a key is, which
+the objection list of `#450` forbids and which the reconsideration condition
+below still governs.
+
+A host file with nothing left in it after the key is taken is written empty
+rather than deleted. Deleting it would be the consumer deciding that a file the
+product reads should stop existing, which is a different act from removing what
+this component put there — and a product that reads a missing file differently
+from an empty one would notice.
+
+The last contribution to leave does not restore the file to what it was before
+the first one arrived. Nothing records that state, and inventing it would be a
+third source of truth about a file whose owner is the user.
+
 ## Reconsideration conditions
 
 The decision is reconsidered if the provider protocol begins expressing
