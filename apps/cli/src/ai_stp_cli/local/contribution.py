@@ -67,6 +67,43 @@ def assemble(*, host: str, current: bytes | None, key: str, value: JsonValue) ->
     return _json(host=host, current=current, key=key, value=value)
 
 
+def extract_value(*, host: str, content: bytes, key: str) -> bytes:
+    """One key's value, lifted out of a host file, as a contributing component's bytes.
+
+    The inverse of `assemble`, and the half that was missing. `assemble` replaces
+    one key of a host file with a component's content, and `parse_value` reads
+    that content as what the key holds — so a component contributing
+    `mcp_servers` must carry the servers. Adoption stored the whole
+    `config.toml` instead, and the two composed exactly as written: the document
+    became the value of its own key, and the target ended up with
+    `[mcp_servers.mcp_servers.mcp01]` beneath a copy of the source file's
+    unrelated settings. The install reported `verified`, because the provider
+    wrote precisely the bytes it was handed.
+
+    The key is required to be present. A file that does not carry it is not a
+    component of this kind, whatever discovery thought, and inventing an empty
+    value would install a key the product then reads as "configured, empty".
+    """
+    document = parse_value(host=host, content=content)
+    if not isinstance(document, dict) or key not in document:
+        raise _refused(
+            "the contributing component's host file does not carry the key it owns",
+            host=host,
+            detail=key,
+        )
+    held = cast("dict[str, JsonValue]", document)[key]
+    suffix = PurePosixPath(host).suffix.casefold()
+    if suffix == TOML:
+        if not isinstance(held, dict):
+            raise _refused(
+                "a TOML contribution's value must be a table",
+                host=host,
+                detail=type(held).__name__,
+            )
+        return tomlkit.dumps(cast("dict[str, JsonValue]", held)).encode("utf-8")
+    return (json.dumps(held, indent=2, sort_keys=True) + "\n").encode("utf-8")
+
+
 def parse_value(*, host: str, content: bytes) -> JsonValue:
     """What a contributing component's own bytes mean as the key's value.
 
