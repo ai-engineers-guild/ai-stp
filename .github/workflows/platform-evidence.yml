@@ -179,24 +179,9 @@ jobs:
           set -euo pipefail
           uv run --locked ai-stp provider network --json \
             > "evidence/network-${{ matrix.id }}.json"
-          export EVIDENCE_PATH="evidence/network-${{ matrix.id }}.json"
-          uv run --locked python - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          report = json.loads(
-              Path(os.environ["EVIDENCE_PATH"]).read_text(encoding="utf-8")
-          )
-          assert report["ok"] is True
-          data = report["data"]
-          assert data["os_name"] == os.environ["EXPECTED_OS"]
-          enforcement = data["network_enforcement"]
-          assert enforcement in {"enforced", "unavailable"}, data
-          if enforcement == "unavailable":
-              assert data["local_actions_available"] is False, data
-              assert data["v3_local_phase"] == "refused", data
-          PY
+          uv run --locked python -m release_scripts.verify_network_evidence \
+            "evidence/network-${{ matrix.id }}.json" \
+            --expected-os "${EXPECTED_OS}"
       - name: Record safe system and candidate identity
         run: |
           set -euo pipefail
