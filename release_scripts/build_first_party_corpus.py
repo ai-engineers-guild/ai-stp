@@ -5,13 +5,17 @@ were assembled outside this repository, which is why the corpus went on citing
 an estate that had been transferred to a personal account and archived — nothing
 here could rebuild it, so nothing here noticed.
 
-What it does. For each harness it reads the `setups/nddev-builder/` tree of that
-harness's setup-system at `main`, maps every path to a component using this
-repository's own projection rules, packages each one, and emits a manifest
-beside the artifacts. Git's own tree and blob SHAs are recorded as
-`source_tree`, so provenance is the repository's hash rather than ours, and
-`source.commit` names the last commit that touched the captured path rather
-than HEAD — see `_tree`.
+What it does. For each harness it reads all four posture trees under `setups/`
+of that harness's setup-system at `main`, maps every path to a component using
+this repository's own projection rules, packages each one, and emits a manifest
+beside the artifacts. This sentence said `setups/nddev-builder/` alone, which
+was true until 2026-08-30 and then went on describing a quarter of the work the
+constant below already did — a stale reason argues, and this one would have told
+a reader the catalogue holds seven setups when it holds twenty-eight.
+
+Git's own tree and blob SHAs are recorded as `source_tree`, so provenance is
+the repository's hash rather than ours, and `source.commit` names the last
+commit that touched the captured path rather than HEAD — see `_tree`.
 
 Two things it deliberately does not do.
 
