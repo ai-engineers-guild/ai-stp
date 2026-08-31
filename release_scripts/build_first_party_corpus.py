@@ -20,11 +20,16 @@ commit that touched the captured path rather than HEAD — see `_tree`.
 Two things it deliberately does not do.
 
 It does not invent a component for a path no rule routes. `composition.rule_for`
-decides, and a file under a namespace this compiler cannot place is reported
-rather than packaged — codex's `agents/nddev-builder.toml` is the live case: a
-codex role is an `agents.<name>` table in the settings file plus a layer it
-points at, so the file is a companion of the setting rather than a component,
-and there is no honest kind for it.
+decides, and a file under a namespace this compiler cannot place goes to the
+`unrouted` report rather than into a component — absent from what gets
+published, and visible only to whoever reads the report.
+
+There is no live case today: a full build over all 7x4 reports `unrouted`
+empty. `agents/nddev-builder.toml` was the example, and it stopped being one
+when codex declared the `agent` kind again (`Rule("agent", "agents",
+"directory", "codex")`). The example is kept because the mechanism is not
+hypothetical — it is the reason an unroutable path fails quietly, and a reader
+planning against the published set has to know the report is where it shows.
 
 It does not reuse the displaced estate's stable identifiers. Those objects came
 from a different repository, and wearing their ids would say a published version
