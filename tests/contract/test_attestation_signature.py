@@ -15,7 +15,7 @@ import json
 from typing import cast
 
 import pytest
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+from nacl.signing import VerifyKey
 
 from ai_stp_assurance import AuthorAttestation, attestation_digest
 from ai_stp_assurance.attestation import attestation_payload
@@ -35,7 +35,7 @@ def _record() -> AuthorAttestation:
     return AuthorAttestation.model_validate(vector["value"])
 
 
-def _sign(record: AuthorAttestation) -> tuple[bytes, Ed25519PublicKey]:
+def _sign(record: AuthorAttestation) -> tuple[bytes, VerifyKey]:
     """Sign the record's digest with a real device key."""
     current, _warning = identity.load_or_create()
     signed = attestation_digest(record).encode("utf-8")
