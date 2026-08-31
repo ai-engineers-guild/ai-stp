@@ -27,23 +27,32 @@ if [[ -f "${ENV_FILE}" ]]; then
 fi
 
 # Host names carry no scheme here: they name a server, not an origin.
-readonly MAIN_HOST="${AI_STP_PUBLIC_HOST#*://}"
-readonly DOCS_HOST="${AI_STP_DOCS_HOST#*://}"
+# Both are optional: a host may serve only the site, only the documentation, or
+# neither during a local rehearsal, and `set -u` must not turn that into a crash.
+readonly MAIN_HOST="${AI_STP_PUBLIC_HOST-}"
+readonly DOCS_HOST="${AI_STP_DOCS_HOST-}"
 # The first name identifies the site: it names the file and, unless overridden,
 # the certificate lineage. The rest are aliases nginx answers to.
-readonly MAIN_PRIMARY="${MAIN_HOST%% *}"
-readonly DOCS_PRIMARY="${DOCS_HOST%% *}"
+primary() { local first="${1%%[ ]*}"; printf '%s' "${first#*://}"; }
+readonly MAIN_PRIMARY="$(primary "${MAIN_HOST}")"
+readonly DOCS_PRIMARY="$(primary "${DOCS_HOST}")"
 readonly API_BIND="${AI_STP_API_BIND:-127.0.0.1:58082}"
 readonly WEB_BIND="${AI_STP_WEB_BIND:-127.0.0.1:58081}"
 readonly DOCS_BIND="${AI_STP_DOCS_BIND:-127.0.0.1:58083}"
 
 render() {
-  local template="$1" names="$2" lineage="$3" out="$4"
-  local host="${names%% *}"
-  if [[ -z "${names}" ]]; then
+  local template="$1" raw="$2" lineage="$3" out="$4"
+  if [[ -z "${raw}" ]]; then
     echo "skip ${template}: no host name configured"
     return 0
   fi
+  # An older .env.prod may still carry `http://` from when the proxy asked a CA
+  # for certificates; a server_name never takes one.
+  local names="" name
+  for name in ${raw}; do names+="${name#*://} "; done
+  names="${names% }"
+  local host
+  host="$(primary "${names}")"
   if [[ ! -s "/etc/letsencrypt/live/${lineage}/fullchain.pem" ]]; then
     echo "skip ${host}: no certificate under lineage '${lineage}'; run certbot first" >&2
     return 1
