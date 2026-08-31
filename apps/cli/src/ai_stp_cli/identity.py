@@ -22,10 +22,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Final, cast
 
-from cryptography.hazmat.primitives.asymmetric.ed25519 import (
-    Ed25519PrivateKey,
-    Ed25519PublicKey,
-)
+from nacl.exceptions import BadSignatureError
+from nacl.signing import SigningKey, VerifyKey
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.paths import bootstrap_lock, device_file, read_private, write_private
@@ -78,17 +76,17 @@ class Identity:
     """One device identity and the store its private half came from."""
 
     device_id: str
-    private_key: Ed25519PrivateKey
+    private_key: SigningKey
     created_at: str
     state: LocalDeviceState
     store: SecretStore
 
     @property
-    def public_key(self) -> Ed25519PublicKey:
-        return self.private_key.public_key()
+    def public_key(self) -> VerifyKey:
+        return self.private_key.verify_key
 
     def sign(self, payload: bytes) -> bytes:
-        return self.private_key.sign(payload)
+        return self.private_key.sign(payload).signature
 
     def report(self) -> DeviceIdentity:
         """The identity as a machine contract, with no private material in it."""
@@ -104,18 +102,16 @@ class Identity:
         )
 
 
-def encode_public_key(key: Ed25519PublicKey) -> str:
+def encode_public_key(key: VerifyKey) -> str:
     """Base64 of the 32 raw bytes, matching `auth.PUBLIC_KEY_PATTERN`."""
     return base64.b64encode(raw_public_bytes(key)).decode("ascii")
 
 
-def raw_public_bytes(key: Ed25519PublicKey) -> bytes:
-    from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
-
-    return key.public_bytes(Encoding.Raw, PublicFormat.Raw)
+def raw_public_bytes(key: VerifyKey) -> bytes:
+    return bytes(key)
 
 
-def fingerprint(key: Ed25519PublicKey) -> str:
+def fingerprint(key: VerifyKey) -> str:
     """A short colon-separated form a person can compare by eye.
 
     The device list in the web shows the same digest, so a user can tell which
@@ -125,13 +121,11 @@ def fingerprint(key: Ed25519PublicKey) -> str:
     return ":".join(f"{byte:02x}" for byte in digest)
 
 
-def verify(key: Ed25519PublicKey, payload: bytes, signature: bytes) -> bool:
+def verify(key: VerifyKey, payload: bytes, signature: bytes) -> bool:
     """Whether `signature` was produced for `payload` by the matching key."""
-    from cryptography.exceptions import InvalidSignature
-
     try:
-        key.verify(signature, payload)
-    except InvalidSignature:
+        key.verify(payload, signature)
+    except (BadSignatureError, TypeError, ValueError):
         return False
     return True
 
@@ -215,7 +209,7 @@ def _write_public_record(record: Record) -> None:
     write_private(device_file(), json.dumps(document, sort_keys=True, ensure_ascii=False) + "\n")
 
 
-def _load_private_key(store: SecretStore, entry: str) -> Ed25519PrivateKey | None:
+def _load_private_key(store: SecretStore, entry: str) -> SigningKey | None:
     # If this machine has gained a real credential store since the key was
     # written, move the file copy into it before reading (`ADR-0058`).
     promote(store, entry)
@@ -228,7 +222,7 @@ def _load_private_key(store: SecretStore, entry: str) -> Ed25519PrivateKey | Non
     if seed is None:
         raise _unreadable(ValueError("stored key material has no seed"))
     try:
-        return Ed25519PrivateKey.from_private_bytes(base64.b64decode(seed, validate=True))
+        return SigningKey(base64.b64decode(seed, validate=True))
     except Exception as error:
         raise _unreadable(error) from error
 
@@ -255,14 +249,8 @@ def _adopt_legacy_entry(store: SecretStore, entry: str) -> dict[str, str] | None
 
 def _mint(store: SecretStore, retired: tuple[Retired, ...] = ()) -> Identity:
     """Create a new identity. Never reuses an identifier or a key."""
-    from cryptography.hazmat.primitives.serialization import (
-        Encoding,
-        NoEncryption,
-        PrivateFormat,
-    )
-
-    private_key = Ed25519PrivateKey.generate()
-    seed = private_key.private_bytes(Encoding.Raw, PrivateFormat.Raw, NoEncryption())
+    private_key = SigningKey.generate()
+    seed = bytes(private_key)
     record = Record(
         device_id=new_id("device"),
         created_at=_moment(),

@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import pytest
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from ai_stp_cli import identity, paths, secrets
 from ai_stp_cli.errors import CliFailure
@@ -43,13 +44,7 @@ def test_the_private_key_is_not_representable_in_the_report() -> None:
     current, _ = identity.load_or_create()
     report = current.report()
     rendered = json.dumps(report.model_dump(mode="json"))
-    from cryptography.hazmat.primitives.serialization import (
-        Encoding,
-        NoEncryption,
-        PrivateFormat,
-    )
-
-    seed = current.private_key.private_bytes(Encoding.Raw, PrivateFormat.Raw, NoEncryption())
+    seed = bytes(current.private_key)
     assert seed.hex() not in rendered
     assert "private" not in rendered
 
@@ -65,6 +60,16 @@ def test_a_signature_verifies_with_the_public_half_and_not_with_another(
 
     other, _ = identity.reset()
     assert not identity.verify(other.public_key, payload, signature)
+
+
+def test_existing_ed25519_seed_and_signature_wire_forms_are_unchanged() -> None:
+    """PyNaCl remains byte-compatible with identities minted by cryptography."""
+    current, _ = identity.load_or_create()
+    payload = b"stable Ed25519 wire form"
+    legacy = Ed25519PrivateKey.from_private_bytes(bytes(current.private_key))
+
+    legacy.public_key().verify(current.sign(payload), payload)
+    assert legacy.sign(payload) == current.sign(payload)
 
 
 def test_the_public_key_and_fingerprint_match_the_frozen_wire_forms() -> None:

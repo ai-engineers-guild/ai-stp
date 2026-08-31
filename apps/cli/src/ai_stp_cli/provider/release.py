@@ -35,8 +35,8 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Final, Literal, NoReturn, cast
 
-from cryptography.exceptions import InvalidSignature
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+from nacl.exceptions import BadSignatureError
+from nacl.signing import VerifyKey
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_foundation.canonical import JsonValue, canonize
@@ -432,7 +432,7 @@ def _signature(manifest: ReleaseManifest, policy: TrustPolicy) -> list[Refusal]:
         return found
     try:
         public_bytes = base64.b64decode(material, validate=True)
-        public_key = Ed25519PublicKey.from_public_bytes(public_bytes)
+        public_key = VerifyKey(public_bytes)
     except (ValueError, binascii.Error):
         found.append(
             Refusal(
@@ -454,8 +454,8 @@ def _signature(manifest: ReleaseManifest, policy: TrustPolicy) -> list[Refusal]:
         )
         return found
     try:
-        public_key.verify(signature, signature_payload(manifest))
-    except (InvalidSignature, ValueError):
+        public_key.verify(signature_payload(manifest), signature)
+    except (BadSignatureError, TypeError, ValueError):
         found.append(
             Refusal(
                 "signature_invalid",
