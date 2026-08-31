@@ -10,10 +10,10 @@ last_verified: "2026-08-03"
 | Документ | О чём | Сверено |
 | -------- | ----- | ------- |
 | [runbooks/](runbooks/index.md) | Пошаговое восстановление критичных операций CLI и platform. | 2026-08-03 |
-| [ci-cd.md](ci-cd.md) | Проверки и развёртывание публичного репозитория: гейт, продвижение ref и забор его целевым хостом. | 2026-08-25 |
-| [configuration.md](configuration.md) | Конфигурация локального CLI и серверного контура. | 2026-08-29 |
+| [ci-cd.md](ci-cd.md) | Проверки и развёртывание публичного репозитория: гейт, продвижение ref и забор его целевым хостом. | 2026-08-31 |
+| [configuration.md](configuration.md) | Конфигурация локального CLI и серверного контура. | 2026-08-31 |
 | [observability.md](observability.md) | Минимальные сигналы для диагностики CLI, sync, публикации и providers. | 2026-08-29 |
 | [production-readiness.md](production-readiness.md) | Операторская процедура evidence-gated готовности production и опционального OpenObserve. | 2026-08-28 |
-| [provider-integration-state.md](provider-integration-state.md) | Заглушка: состояние интеграции провайдеров принадлежит приватной развёртке. | 2026-08-20 |
+| [provider-integration-state.md](provider-integration-state.md) | Публичный снимок совместимости семи provider systems и ai_stp. | 2026-08-31 |
 
 <!-- КОНЕЦ СОДЕРЖИМОГО -->

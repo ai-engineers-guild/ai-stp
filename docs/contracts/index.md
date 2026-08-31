@@ -24,7 +24,7 @@ last_verified: "2026-08-03"
 | [cli-publication.md](cli-publication.md) | Клиентская последовательность publication plan и граница передаваемых данных. | 2026-08-25 |
 | [cli-telemetry.md](cli-telemetry.md) | Закрытый перечень полей анонимного пинга телеметрии, условия отправки и то, что в него не попадает. | 2026-08-21 |
 | [complaint-intake.md](complaint-intake.md) | Публичный приём обращений: поля, отличие от закрытого report case и конфигурируемые лимиты. | 2026-08-22 |
-| [component-authoring-templates.md](component-authoring-templates.md) | Версионируемые scaffold-планы и безопасная проекция authoring templates компонентов. | 2026-08-29 |
+| [component-authoring-templates.md](component-authoring-templates.md) | Версионируемые scaffold-планы и безопасная проекция authoring templates компонентов. | 2026-08-31 |
 | [component-presentation.md](component-presentation.md) | Изменяемое представление компонента в каталоге без изменения паспорта версии. | 2026-08-10 |
 | [component-setup-passports.md](component-setup-passports.md) | Паспорта версий компонентов и сетапов, виды компонентов и зависимости. | 2026-08-22 |
 | [composition-reports.md](composition-reports.md) | Отчёты состава и преобразования: закрытый перечень классов конфликтов, разрешённые операции сборщика и состояния потерь. | 2026-08-28 |
@@ -48,10 +48,10 @@ last_verified: "2026-08-03"
 | [selection-impact.md](selection-impact.md) | Машинный контракт локального бюджета контекста, capability delta и blast radius. | 2026-08-15 |
 | [selection-proposal.md](selection-proposal.md) | Недолговечное предложение состава, его подтверждение и атомарная фиксация SetupVersion. | 2026-08-25 |
 | [seo-publication-projection.md](seo-publication-projection.md) | Машинная граница серверной SEO-ревизии, discovery документов и model-enrichment. | 2026-08-29 |
-| [setup-evaluation.md](setup-evaluation.md) | Машинный контракт профиля, плана и результата локальной оценки точного SetupVersion. | 2026-08-13 |
+| [setup-evaluation.md](setup-evaluation.md) | Машинный контракт профиля, плана и результата локальной оценки точного SetupVersion. | 2026-08-31 |
 | [setup-graph.md](setup-graph.md) | Точное замыкание зависимостей сетапа: узел, детерминированный порядок, закрытый перечень отказов и пределы ресурсов. | 2026-08-08 |
-| [setup-import.md](setup-import.md) | Машинная граница обнаружения и регистрации существующего нативного сетапа. | 2026-08-12 |
-| [setup-store-ports.md](setup-store-ports.md) | Контракт локального обнаружения, preview и импорта компонентов из SX и APM. | 2026-08-13 |
+| [setup-import.md](setup-import.md) | Машинная граница обнаружения и регистрации существующего нативного сетапа. | 2026-08-31 |
+| [setup-store-ports.md](setup-store-ports.md) | Контракт локального обнаружения, preview и импорта компонентов из SX и APM. | 2026-08-31 |
 | [skill-authoring.md](skill-authoring.md) | Структура skill package, обязательные и необязательные поля, коды отклонений. | 2026-08-29 |
 | [sync-event.md](sync-event.md) | Поля, ответы, повтор и конфликты события синхронизации. | 2026-08-15 |
 | [tag-vocabulary.md](tag-vocabulary.md) | Формат словаря тегов, нормализация, предел и поведение поиска. | 2026-08-04 |

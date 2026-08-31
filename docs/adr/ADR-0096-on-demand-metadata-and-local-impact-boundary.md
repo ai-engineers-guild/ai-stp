@@ -1,11 +1,11 @@
 ---
 description: "ADR-0096: On-demand GitHub metadata, локальный blast radius и shared context estimator."
-last_verified: "2026-08-15"
+last_verified: "2026-08-31"
 ---
 
 # ADR-0096: On-demand metadata and local impact boundary
 
-Статус: предложено.
+Статус: принято. Реализованы on-demand metadata, совместимость старой archive job и общий estimator.
 
 ## Контекст
 

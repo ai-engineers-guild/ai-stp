@@ -1,11 +1,11 @@
 ---
 description: "ADR-0095: Разделить public cacheable и private request-scoped web fetch policy."
-last_verified: "2026-08-15"
+last_verified: "2026-08-31"
 ---
 
 # ADR-0095: Split public and private web fetch policy
 
-Статус: предложено.
+Статус: принято. Реализовано отдельными public/private HTTP clients и cache tests.
 
 ## Контекст
 

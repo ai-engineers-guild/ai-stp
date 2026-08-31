@@ -1,6 +1,6 @@
 ---
 description: "Runbook: provider update."
-last_verified: "2026-08-28"
+last_verified: "2026-08-31"
 ---
 
 # Обновление провайдера
@@ -60,7 +60,8 @@ python apps/cli/tools/provider_release.py sign \
 3. Собрать воспроизводимый артефакт и манифест с хэшем, размером и последовательностью.
 4. Подписать выпуск разрешённым ключом или издателем по текущей политике доверия.
 5. Получить Linux x86_64 evidence для выбранной release line. macOS evidence нужно
-   только перед будущим добавлением macOS в support matrix по `ADR-0062`.
+   для каждой строки six-leg release matrix по `ADR-0113`; старый tag или
+   build-only результат не переносится на новый provider release.
 6. Для protocol v2 на каждой ОС выполнить capability probe. `enforced` принимается
    только вместе с launcher identity, SHA/version и положительным контролем
    DNS-UDP/IPv4/IPv6; `unavailable` блокирует локальную фазу до запуска provider.

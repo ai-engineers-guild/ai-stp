@@ -9,17 +9,17 @@ last_verified: "2026-08-03"
 
 | Документ | О чём | Сверено |
 | -------- | ----- | ------- |
-| [SPEC-001-product-contract.md](SPEC-001-product-contract.md) | SPEC-001: Продуктовый контракт MVP. | 2026-08-24 |
+| [SPEC-001-product-contract.md](SPEC-001-product-contract.md) | SPEC-001: Продуктовый контракт MVP. | 2026-08-31 |
 | [SPEC-002-identity-devices-access.md](SPEC-002-identity-devices-access.md) | SPEC-002: Аккаунты, OAuth, устройства и доступ. | 2026-08-13 |
 | [SPEC-003-developer-passport.md](SPEC-003-developer-passport.md) | SPEC-003: Паспорт разработчика и публичная проекция. | 2026-08-29 |
 | [SPEC-004-project-index-passport.md](SPEC-004-project-index-passport.md) | SPEC-004: Индекс и паспорт проекта. | 2026-08-03 |
 | [SPEC-005-registry-versioning.md](SPEC-005-registry-versioning.md) | SPEC-005: Реестр, варианты и версии объектов. | 2026-08-24 |
 | [SPEC-006-search-and-setup-compiler.md](SPEC-006-search-and-setup-compiler.md) | SPEC-006: Поиск, отбор кандидатов и сборщик сетапа. | 2026-08-26 |
 | [SPEC-007-validation-publishing.md](SPEC-007-validation-publishing.md) | SPEC-007: Проверки, доказательства и публикация. | 2026-08-13 |
-| [SPEC-008-provider-installation.md](SPEC-008-provider-installation.md) | SPEC-008: Провайдеры, установка и восстановление. | 2026-08-27 |
+| [SPEC-008-provider-installation.md](SPEC-008-provider-installation.md) | SPEC-008: Провайдеры, установка и восстановление. | 2026-08-31 |
 | [SPEC-009-local-registry-sync.md](SPEC-009-local-registry-sync.md) | SPEC-009: Локальный реестр и синхронизация. | 2026-08-04 |
 | [SPEC-010-platform-api.md](SPEC-010-platform-api.md) | SPEC-010: Серверная платформа и API. | 2026-08-28 |
-| [SPEC-011-cli-agent-skill.md](SPEC-011-cli-agent-skill.md) | SPEC-011: CLI, машинная справка и навык агента. | 2026-08-29 |
+| [SPEC-011-cli-agent-skill.md](SPEC-011-cli-agent-skill.md) | SPEC-011: CLI, машинная справка и навык агента. | 2026-08-31 |
 | [SPEC-012-uninstall-recovery.md](SPEC-012-uninstall-recovery.md) | SPEC-012: Удаление, полная очистка и восстановление. | 2026-08-03 |
 | [SPEC-013-data-governance.md](SPEC-013-data-governance.md) | SPEC-013: Управление пользовательскими данными. | 2026-08-16 |
 | [SPEC-014-toolchain-bootstrap.md](SPEC-014-toolchain-bootstrap.md) | SPEC-014: Управляемый набор инструментов и первичная настройка. | 2026-08-04 |
@@ -48,9 +48,9 @@ last_verified: "2026-08-03"
 | [SPEC-037-catalog-navigation-and-onboarding.md](SPEC-037-catalog-navigation-and-onboarding.md) | SPEC-037: Компактный каталог, owner/public navigation и CLI onboarding. | 2026-08-17 |
 | [SPEC-038-cli-publication-access-reports.md](SPEC-038-cli-publication-access-reports.md) | SPEC-038: CLI-клиент публикации, прав доступа и жалоб. | 2026-08-13 |
 | [SPEC-039-cli-private-sync.md](SPEC-039-cli-private-sync.md) | SPEC-039: CLI-синхронизация приватного реестра между устройствами. | 2026-08-13 |
-| [SPEC-040-setup-evaluation-profiles.md](SPEC-040-setup-evaluation-profiles.md) | SPEC-040: Локальные профили функциональной оценки точного сетапа. | 2026-08-13 |
-| [SPEC-041-component-scaffold-framework.md](SPEC-041-component-scaffold-framework.md) | SPEC-041: Версионируемые scaffold-планы полного authoring-каталога компонента. | 2026-08-29 |
-| [SPEC-042-local-setup-store-ports.md](SPEC-042-local-setup-store-ports.md) | SPEC-042: Локальные versioned ports для контролируемого импорта SX и APM. | 2026-08-13 |
+| [SPEC-040-setup-evaluation-profiles.md](SPEC-040-setup-evaluation-profiles.md) | SPEC-040: Локальные профили функциональной оценки точного сетапа. | 2026-08-31 |
+| [SPEC-041-component-scaffold-framework.md](SPEC-041-component-scaffold-framework.md) | SPEC-041: Версионируемые scaffold-планы полного authoring-каталога компонента. | 2026-08-31 |
+| [SPEC-042-local-setup-store-ports.md](SPEC-042-local-setup-store-ports.md) | SPEC-042: Локальные versioned ports для контролируемого импорта SX и APM. | 2026-08-31 |
 | [SPEC-043-selection-impact-reports.md](SPEC-043-selection-impact-reports.md) | SPEC-043: Локальные отчёты бюджета контекста, capability delta и blast radius. | 2026-08-15 |
 | [SPEC-044-github-archive-evidence.md](SPEC-044-github-archive-evidence.md) | SPEC-044: GitHub archived state как локальное evidence устаревания. | 2026-08-13 |
 | [SPEC-045-federated-source-boundaries.md](SPEC-045-federated-source-boundaries.md) | SPEC-045: Федеративные source descriptors и границы внешних наблюдений. | 2026-08-16 |

@@ -1,169 +1,125 @@
 ---
-description: "Зависимый порядок реализации MVP и межрепозиторных изменений."
-last_verified: "2026-08-27"
+description: "Текущее состояние ai_stp и единый порядок оставшихся работ."
+last_verified: "2026-08-31"
 ---
 
-# Порядок реализации
+# Текущее состояние и план
 
-## Фаза 0. Принять основание — завершена
+Это единственный владелец текущего плана. GitHub issues остаются backlog, ADR
+хранят решения, specs — требования, а review/сессионные планы не продолжаются
+буквально после изменения кода.
 
-Приняты продуктовые документы, решения ADR, активные спецификации с требованиями, канонические контракты, правила документации и выпускные барьеры. Словарь согласован, открытых противоречий между спецификациями нет. Точные числа решений и требований живут в генерируемом `docs/adr/index.md` и в выводе `just docs-static` и в прозе не дублируются.
+## Вижен, по которому принимаются решения
 
-## Фаза 1. Схемы и фундамент — завершена
+- семь setup systems владеют нативной записью своих харнессов и реальным
+  software install/update/remove; `ai-stp` вызывает тот же lifecycle машинно;
+- существующая конфигурация становится управляемой только через явный adopt с
+  exact plan, без молчаливого присвоения;
+- current component vocabulary содержит восемь видов и может быть расширен
+  новой спецификацией, когда появится доказанная нативная форма;
+- release target — Linux, Windows и macOS на обеих архитектурах с real-product
+  evidence; bundle переносим между ОС;
+- агент сам выбирает инженерный путь внутри задачи. Digest, rollback,
+  provenance и совместимость остаются механической целостностью, но не создают
+  дополнительный круг вопросов.
 
-Создано рабочее пространство `uv`, пакеты основания и каталог `schemas/`. Материализованы канонические идентификаторы, JSON, хэши, конверты ошибок и версионирование. Выход получен: эталонные векторы, схемы и проверки соответствия документации.
+## Что уже реализовано
 
-Спринт 1 добавил сверх этой фазы замороженную границу `/v1` в `packages/contracts` вместе с генерируемым документом OpenAPI, общим корпусом фикстур и набором проверки соответствия. Это не отдельная фаза: срез существует, чтобы обе поверхности — клиентская и серверная — строились против одного контракта, и его части попадают в фазы 2, 8 и 9 по мере реализации.
+| Область | Наблюдаемое состояние |
+|---|---|
+| Local-first CLI | SQLite registry, passports/revisions, discovery/adopt, selection, bundle, install/status/diff/update/rollback/recovery, machine help и canonical Skill |
+| Platform | `/v1`, PostgreSQL, object storage, queue, auth/devices, sync, publication, grants/reports, public catalog, article и SEO projections |
+| Web | landing, catalog/detail, account/device/owner surfaces, content hub, machine projections и три-ОС test matrix |
+| Providers | семь protocol-v3 systems, native configuration layouts, backup/recovery, software lifecycle capabilities и пять complete launch capabilities |
+| Release | все пять Python-пакетов опубликованы как `0.0.10`; public `check` и CodeQL зелёные на проверенном main; host тянет `deploy/prod` |
+| Catalog | опубликованы семь harness families и четыре postures; старые review-задачи `#408`, `#456`, `#460`, `#461` закрыты реализацией |
 
-Там же появился каркас `apps/cli`: устанавливаемый пакет, машинный конверт, реестр команд как единственное объявление и наблюдающие команды `version`, `doctor`, `capabilities`, `help --agent` и `config show`. Следом появились идентичность устройства, ярусное хранилище секретов и третий ярус приоритета конфигурации. Затем появился локальный реестр: SQLite с миграциями, ревизии с контентной адресацией, журнал операций и паспорта разработчика и устройства. Затем появился облачный слой: типизированный клиент `/v1`, двухфазный вход по device-code и перенос владения паспортами на аккаунт сервера. Следом — анонимный поиск по публичному каталогу с контентно-адресуемым кэшем и точной версией, проверяемой по опубликованному digest. Замыкает срез упаковка: CLI ставится опубликованной командой `uv tool install` и снимается ею же, не трогая данные пользователя, а канонический Agent Skill начинает с `doctor` и берёт перечень команд из машинной справки, порождая пять нативных проекций без собственных копий этого перечня. После Sprint 1 фазы 2–7 добавили project index/passport, локальные компоненты, selection/builder и изменяющий цель provider lifecycle; их актуальная готовность и оставшееся внешнее evidence перечислены ниже.
+## Проверенный снимок 2026-08-31
 
-## Текущий проверяемый статус
+- canonical development checkout: `ai-engineers-guild/ai-stp`; private
+  underscore tree импортирует его штатным `public-sync` и отдельно хранит
+  private deployment history;
+- активный выпуск провайдеров: `0.0.47`, семь выпусков по шесть нативных бинарников и
+  `SHA256SUMS`;
+- core provider surface/binaries: 7 × 6 OS/arch строк;
+- software lifecycle: 6 systems × 6/6, Antigravity × 4/6 (Linux/macOS; Windows
+  отказывает `unsupported_platform`);
+- exact-current provider operations: семь systems 6/6; у Pi общий workflow
+  verdict имеет четыре green legs и две Windows instrumentation-oracle failures,
+  PR232/corrected released run ещё впереди;
+- live deploy восстановлен после `AI_STP_CONTENT_IMPORT_FORBIDDEN`: внутренний
+  token задан owner-only, content-import завершён, API/web готовы. Deployer
+  теперь проверяет token до build/migrate/recreate, поэтому тот же пропуск не
+  останавливает работающий web.
 
-Статус ниже описывает механизм отдельно от внешнего доказательства. Наличие класса,
-команды или mock-теста не закрывает интеграционный, provider или cross-OS
-критерий. Точные SHA,
-счётчики тестов и состояние GitHub issues сюда не копируются: это снимки, а не
-долгоживущие факты.
+Точные SHA и run IDs намеренно остаются в Git/GitHub/evidence artifacts. Этот
+раздел датирован и заменяется целиком при следующем аудите, а не накапливает
+срезы.
 
-| Фаза | Реализовано в текущем дереве | Остаток до выхода фазы |
-| --- | --- | --- |
-| 2 | SQLite registry, migrations, revisions, journal, passports, config, auth и безопасный lifecycle соединений | поддерживать совместимость новых sync-схем |
-| 3 | `mvp-full`, discovery, project index/passport, safe-text и symbol adapters | подтверждать реальные tool manifests при выпусках |
-| 4 | локальные components, adoption, подтверждённое passport enrichment/validation, immutable `X.Y`, forks, consent, search и полный локальный first-party corpus; корпус опубликован обычным аутентифицированным конвейером, и живой каталог отдаёт его (`#162` закрыт) | корпус на один сетап и два компонента шире каталога: antigravity засеян локально и не опубликован; cloud drafts/publication относятся к фазе 8 |
-| 5 | eligibility, selection sessions, полный `SetupVersionPassport`, `SetupGraph`, impact/composition reports, evaluation profiles, deterministic `HarnessBundle` и literal golden oracle | повтор полного oracle на точном кандидате выпуска вместе с фазой 7 |
-| 6 | provider protocols v1/v2/v3, conformance kits, release trust, Linux/Bubblewrap boundary, семь аттестованных выпусков OpenNetwork и потребительский bind без подписанного манифеста, exact policy pins, key rotation и вредоносный corpus | trust/effect evidence снят на опубликованном `0.0.6` в обе стороны для claude-code и codex; повтор на финальном release candidate |
-| 7 | install/import/status/diff/update/rollback/recovery framework, prepared/composed convergence, offline closure и Linux lifecycle exact releases; real-catalog прогоны `#175`, `#176`, `#294` закрыты | повтор на семи системах сетапов: релизы `0.0.1` и `0.0.2` есть у всех семи, остаток — `#408` |
-| 8 | то же плюс доказательство против развёрнутой среды: `evidence-sync` даёт все пять сценариев, `evidence-publication` — читающую половину и две локальные записи, оба повторяемы; пишущие драйверы реализованы (`#405` закрыт) | прогнать пишущую половину против развёрнутой среды: сам прогон требует уже выполненного входа, а не кода |
-| 9 | landing, catalog, login/account/device surface, own objects, publication, grants, reports и admin projection | — |
-| 10 | то же плюс публикующий workflow с Trusted Publishing; PyPI настроен, и все пять пакетов опубликованы им (`#403` закрыт) | финальный RC `#408` |
-| 11 | provider implementations, lifecycle evidence и публичная beta read-model завершены; набор расширен до семи по `ADR-0120` | состав уровней принадлежит `SPEC-033` `REQ-3315`; `#294` закрывает support state Grok Build, а не его уровень |
+## Оставшаяся работа
 
-## Фаза 2. Локальное состояние и CLI — реализована
+### P0. Свести текущие public/private bytes
 
-SQLite, миграции, адресуемое хранилище, журнал операций, диагностика, паспорта и
-локальный реестр образуют автономный путь без аккаунта и без изменения харнесса.
-Соединения имеют явного владельца, а unraisable resource finalizer проваливает тесты.
+1. Status-response schema/provider-kit `0.2.7` уже опубликован и выборочно
+   импортирован без перезаписи active docs.
+2. После экспорта документации импортировать остальные точные public commits в private tree и повторить
+   `public-sync-verify` из правильного cwd.
+3. Доставить этот documentation patch обратно в public tree после завершения
+   параллельной schema/workflow работы; не оставлять новое требование только в
+   private copy.
 
-## Фаза 3. Набор инструментов и индекс проекта — реализована
+### P1. Exact current provider wave
 
-Обнаружение, plan/install профиля `mvp-full`, ограниченный safe-text index, symbol
-adapters и project passport работают автономно. Реальные версии инструментов остаются
-release facts и обновляются только по проверенным manifests.
+1. Provider-kit `0.2.7` vendored в released setup-systems `0.0.47`; 35 status
+   samples (семь × пять состояний) проходят Draft 2020-12.
+2. Включить отказ
+   consumer для malformed status отдельным compatible change.
+3. После consumer enforcement повторить cross-repository conformance; schema
+   publication и enforcement являются двумя последовательными окнами
+   совместимости, не одним коммитом.
 
-## Фаза 4. Реестр и черновики — локальное ядро реализовано
+### P2. Шесть native evidence legs
 
-Локальные компоненты, варианты variants, неизменяемые `X.Y`, forks, записи consent и
-структурный search реализованы. Adopted component draft обогащается закрытым
-подтверждённым patch относительно exact revision; публикационный профиль перечисляет
-все структурные blockers, не выдавая локальный verdict за cloud authorization.
-Общий локальный владелец first-party данных содержит настоящие байты и полные
-паспорта базовых сетапов всех семи харнессов. Выход `#162` ещё
-требует server-owned seed и одинаковой публичной проекции CLI/web; private drafts
-и publication state machine принадлежат фазе 8.
+1. Исполнить CLI candidate на Linux/Windows/macOS × `x86_64`/`arm64` без
+   эмуляции; provider operations уже прошли 6/6 для семи systems.
+2. На каждой строке различать binary availability, operation availability и
+   реальный lifecycle. Antigravity Windows проверяет ранний typed refusal.
+3. Влить Pi PR232 и повторить две Windows native legs исправленным oracle; не
+   переиздавать старые assets и не считать исправленный source evidence.
+4. После exact evidence обновить package classifiers; до него classifier не
+   опережает доказательство.
+5. macOS остаётся единственной платформой без network-denying launcher; trust
+   exception измеряется отдельно и не называется `enforced`.
 
-## Фаза 5. Подбор и сборщик — ядро реализовано
+### P3. Release-candidate и live evidence
 
-Механические ограничения, selection sessions, stale-proposal protection,
-`SetupGraph`, composition/conversion reports и полный canonical ZIP
-`ai-stp-bundle/1` с паспортом, отчётами, точными файлами, logical digest и literal
-artifact digest имеют исполняемые проверки. Для текущего Linux x86_64 release profile
-остаётся повторить byte-identical oracle с точным кандидатом выпуска внутри
-полного пути фазы 7; macOS не входит в текущую support matrix по `ADR-0062`.
+1. Собрать пять exact Python packages, SBOM/checksums/provenance и install smoke
+   вне checkout на шести строках.
+2. Прогнать repository-independent `evidence-*` против exact deployed SHA:
+   anonymous live, account sync, publication, providers и recovery.
+3. Проверить catalog install для семи harnesses/postures и записать content gaps
+   без фиктивных объектов.
 
-## Фаза 6. Провайдеры основной поддержки — consumer core реализован
+### P4. Agent-first cleanup как постоянная практика
 
-Протокол v1, проверка соответствия, доверие к выпускам Ed25519, доверенный план
-установки с повторной проверкой точного артефакта, долговечная история защиты от
-отката, exact-digest recovery без снижения минимальной последовательности и автомат состояний операции
-реализованы в `ai_stp`. Прежняя линия провайдеров с Ed25519-манифестами снята: семь
-репозиториев `NDDev-OpenNetwork/*-setup-system` выпускают неизменяемые артефакты
-протокола v3 с build attestation, и потребитель связывает их командой
-`provider fetch` (`signing_key=attested`, пустая подпись). Подписанный путь
-остаётся в контракте, но `releases` в поставляемой политике пуст, а пустой
-`releases` не ставит ничего. ADR-0047 фиксирует network
-boundary и versioned compatibility plan. Отдельные v2 models, закрытая action/phase
-схема, CLI capability report, явный v2 conformance и Linux/Bubblewrap launcher
-реализованы без изменения v1. Точные refs, blocker политики и gap matrix адаптера принадлежат
-`provider-policy.toml` и срезу `just evidence-providers <tag>`. Проверка Linux
-требует положительный контроль и наблюдаемый запрет DNS-UDP/IPv4/IPv6; до
-финального RC остаётся повтор exact Linux enforcement-or-refusal evidence;
-install plan/apply/resume уже используют phase invoker и связывают protocol/target
-одобряемым digest. `ADR-0050` также связывает literal `ai-stp-bundle/1`, оба его
-digest, размер и exact provider plan: validate/plan не создают operation без точных
-повторённых значений, apply повторно проверяет cache, а resume не повторяет effect.
+1. Любой handler, читающий скрытый `confirm`, должен ломать registry parity test.
+2. Local reversible operation использует exact expected value как
+   confirmation; новый boolean добавляется только для класса риска `ADR-0118`.
+3. Старый plan/review не копируется в активную документацию. Новая сессия читает
+   этот roadmap, specs и machine help, затем проверяет их против текущих bytes.
 
-## Фаза 7. Основной сквозной путь — framework реализован, evidence открыт
+## Что намеренно не входит в текущий проход
 
-Реализован полный повседневный цикл через команды install, import, status, diff,
-update и rollback, а также
-механизмы восстановления restart и автономного замыкания offline closure. Реальная
-установка и восстановление доказаны disposable-target прогоном на exact Linux
-releases всех семи систем сетапов (`ADR-0120`). Для `#175`, `#176` и `#294` остаётся полный real-catalog повтор на
-финальном CLI release-candidate SHA;
-unit/contract tests сами по себе его не заменяют. Будущая
-macOS line получает отдельное evidence до расширения support matrix.
+Открытые задачи дорожной карты — корпоративный hub, SSO/GitLab, защита от
+ботов, malware integrations, стандарты discovery, иллюстрации и возможные новые
+виды компонентов — остаются backlog. Они не являются дефектами текущего релиза и
+не закрываются ради пустого счётчика. Первым действием при их продвижении будет
+проверка против актуального продукта и формулировка новой active spec.
 
-## Фаза 8. Серверный контур — Sprint-1 slice реализован
+## Готовность
 
-FastAPI, PostgreSQL, RustFS, queue foundation, OAuth/device lifecycle, public catalog
-и развёрнутый контур работают как первый срез. CLI-клиенты публикации, подтверждений автора,
-прав, жалоб, чтения объектов владельца и приватной синхронизации реализованы против
-общего контракта и фикстур. Серверная проверка подписи, точные байты артефакта
-публикации, возобновляемый cursor синхронизации и `required_env` без секретов
-закрыты слиянием `#366` 2026-08-16 (`#300`, `#302`, `#303`, `#312`), поэтому
-проверка против развёрнутой среды ждёт только исполненного доказательства.
-Серверная реализация и миграции принадлежат platform track.
-
-## Фаза 9. Веб — Sprint-1 surface реализована
-
-Landing, публичный каталог, login/account и devices существуют. Own objects,
-Публикация и синхронизация, права grants, отчёты reports и административные действия
-реализуются только как
-projection стабильных API фазы 8. Создание паспортов, индексация, подбор, сборка,
-проверки и установка остаются за CLI и агентом по `ADR-0018`.
-
-## Фаза 10. Выпуск
-
-Завершить вредоносные проверки, тренировки восстановления, документацию оператора и финальные выпускные доказательства каталога запуска: содержимое корпуса создаётся поэтапно с фазы 4 (владельцы гильдии делят ролевые семейства между собой с обязательным взаимным ревью), а здесь остаётся только его итоговая инвентаризация и доказательства. Первый выпуск блокируется полнотой продуктовых требований, полным сквозным доказательством Claude Code и Codex и укомплектованным первопартийным каталогом запуска по `release-evidence.md`. Репозиторий уже публичный — `ai-engineers-guild/ai-stp` по `ADR-0108` и `ADR-0110`, и работа идёт там. Защита веток из этого пункта ушла целиком: `ADR-0115` решил вопрос в другую сторону — репозиторий не несёт защит на участников, потому что гейт проверяет изменение, а одобрение проверяло бы разрешение. Ждать здесь больше нечего.
-
-Барьеры deployment описаны здесь по состоянию после `ADR-0109`: развёртывание больше
-не толкается из CI по SSH, а забирается самим хостом — systemd-таймер тянет
-`refs/heads/deploy/prod` анонимным HTTPS из публичного репозитория. Поэтому
-закреплённой SSH identity, `run-scoped` каталога с credentials и отпечатков
-физических hosts в этом пути нет вовсе: удалять стало нечего, потому что и
-credential в гейте больше нет. Осталось то, что переживает смену транспорта, —
-запрет отмены `push-run`, только разрешённый `PR merge` и внешний
-`strict-TLS/SHA probe`. Это по-прежнему готовность workflow, а не доказательство
-настройки: protected environments и отрицательная репетиция изоляции остаются
-внешним gate repository operations.
-
-Финальный gate `#189` повторяет evidence на точном release-candidate SHA и закрывает
-оставшийся общий Sprint-1 E2E `#85`. Задача `#86` уже завершена историческим отчётом и
-не является будущей зависимостью или результатом `#189`; текст issue должен быть
-исправлен владельцем при следующем GitHub update.
-
-## Фаза 11. Дополнительные линии — provider evidence завершено
-
-Публичные провайдеры Pi, OpenCode и Grok Build работают по общему протоколу и
-имеют доказанный безопасный Linux lifecycle; соответствующие `#190`–`#193`
-закрыты. Pi и OpenCode сохраняют beta-уровень. Grok Build повышается до основной
-поддержки без промежуточной продуктовой beta после полного real-catalog gate
-`#294`; до этого заявленный уровень не превышает фактическое доказательство.
-
-## Намеренно ненаписанное
-
-Часть требований задаёт форму, но не содержание, и это не пробел. Их содержание зависит от внешних фактов, которые нельзя выбрать за столом: они проверяются против реальных харнессов и реальных проектов, иначе документация будет уверенно врать.
-
-| Что | Владелец формы | Когда появляется содержание |
-|---|---|---|
-| Детектор для каждого поддерживаемого харнесса: имя исполняемого файла, безопасный запрос версии, корни конфигурации | `SPEC-014` REQ-1414 | фаза 3, проверкой против установленных харнессов |
-| Одинаковые примеры результата индекса по пяти языковым группам | `SPEC-004` REQ-404 | фаза 3, фикстурами, где они исполнимы |
-| Числовые пределы файлов, символов и времени индексации | `SPEC-004` REQ-405 | фаза 3, замерами на реальных проектах |
-| Точные версии инструментов профиля `mvp-full` | `ADR-0019`, `SPEC-014` REQ-1403 | фаза 3, из поддерживаемых манифестов |
-| Содержимое объектов каталога запуска: байты компонентов и сетапов | `ADR-0034`, `release-evidence.md` | контентный этап фазы 10, против реальных харнессов |
-
-До этого момента требования верны по форме и неполны по содержанию. Заполнять их значениями по памяти запрещено: неверный детектор или выдуманный предел хуже отсутствующего, потому что выглядит проверенным.
-
-## Ограничения порядка
-
-Облачная публикация не начинается до неизменяемых локальных схем. Внешний пакет не применяется до вредоносных и восстановительных проверок провайдера. Серверный контур можно разрабатывать параллельно только после заморозки схем локального состояния и API.
+Работа считается завершённой, когда текущие public/private bytes синхронны,
+заявленные six-leg evidence исполнены на точных releases, live slices относятся
+к deployed SHA, документация сгенерирована из владельцев, а итоговый diff и Git
+state чисты. `not_verified` — честный оставшийся результат, а не повод добавить
+ручной approval или скрыть строку матрицы.

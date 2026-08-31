@@ -15,11 +15,11 @@ last_verified: "2026-08-03"
 | [first-party-launch-publication.md](first-party-launch-publication.md) | Runbook: публикация первопартийного корпуса запуска обычным конвейером. | 2026-08-25 |
 | [github-repository-metrics.md](github-repository-metrics.md) | Runbook: best-effort кэш GitHub stars для публичного каталога. | 2026-08-12 |
 | [installation-recovery.md](installation-recovery.md) | Runbook: installation recovery. | 2026-08-03 |
-| [macos-evidence.md](macos-evidence.md) | Получение CLI/package evidence на стандартном GitHub-hosted macOS runner. | 2026-08-18 |
+| [platform-evidence.md](platform-evidence.md) | Six-leg platform evidence точного CLI candidate без publish/deploy authority. | 2026-08-31 |
 | [provider-lifecycle.md](provider-lifecycle.md) | Обнаружение, проверка версии, обновление и переустановка setup-system provider. | 2026-08-29 |
-| [provider-update.md](provider-update.md) | Runbook: provider update. | 2026-08-28 |
+| [provider-update.md](provider-update.md) | Runbook: provider update. | 2026-08-31 |
 | [publish-recovery.md](publish-recovery.md) | Runbook: publish recovery. | 2026-08-03 |
-| [pypi-release.md](pypi-release.md) | Сборка, проверка, публикация, отзыв и восстановление Python-релиза. | 2026-08-29 |
+| [pypi-release.md](pypi-release.md) | Выпуск пяти exact Python-пакетов через Trusted Publishing. | 2026-08-31 |
 | [report-triage.md](report-triage.md) | Runbook: триаж случая жалобы. | 2026-08-04 |
 | [safety-scan.md](safety-scan.md) | Runbook: platform safety-scan для publication validate. | 2026-08-25 |
 | [security-incident.md](security-incident.md) | Runbook: security incident. | 2026-08-03 |

@@ -1,6 +1,6 @@
 ---
 description: "SPEC-008: Провайдеры, установка и восстановление."
-last_verified: "2026-08-27"
+last_verified: "2026-08-31"
 ---
 
 # SPEC-008: Провайдеры, установка и восстановление
@@ -28,7 +28,15 @@ last_verified: "2026-08-27"
 ## Требования
 
 - `REQ-801`: Провайдеры доставляются версионируемыми артефактами выпуска, а не рабочими подмодулями Git. Установка по протоколу v3 требует закрытого манифеста выпуска — подписанного Ed25519 либо связанного потребителем из attested-байтов и закреплённого правила `build_attestations`; провайдер без него устанавливается только по явному отдельному параметру, и план сообщает такую установку как непроверенную. Изменяющий путь ограничен этим правилом, наблюдающие вызовы провайдера — нет.
-- `REQ-802`: Все семь провайдеров закрытого набора реализуют общий версионируемый protocol core и машиночитаемый `provider-info`; product-specific software lifecycle и launch объявляются capabilities, а не фиктивными обязательными командами. Объявление отличается по продуктам и это не дефект: на `0.0.4`+ шесть объявляют `software_install` / `software_update` / `software_remove`, `pi` не объявляет ни одной, а antigravity объявляет три и не объявляет `launch`.
+- `REQ-802`: Все семь провайдеров закрытого набора реализуют общий
+  версионируемый protocol core и машиночитаемый `provider-info`; product-specific
+  software lifecycle и launch объявляются capabilities, а не фиктивными
+  обязательными командами. Software install/update/remove объявляют все семь,
+  но platform availability принадлежит точному software artifact: шесть систем
+  имеют 6/6 OS/arch строк, Antigravity — Linux/macOS 4/6 и честный Windows
+  `unsupported_platform`. Complete launch объявляют Claude Code, Codex, Grok
+  Build, OpenCode и Pi; Cursor Partial и Antigravity Undocumented launch не
+  объявляют.
 - `REQ-803`: Провайдер единолично владеет нативной projection, блокировками, подготовительным каталогом, изменением цели, резервной копией, состоянием и восстановлением; программой и запуском он владеет только при явно объявленной capability.
 - `REQ-804`: Проверка пакета запрещает абсолютные и родительские пути, выход из каталога, символические и жёсткие ссылки, специальные устройства, повтор нормализованного пути и превышение пределов.
 - `REQ-805`: План не имеет побочных эффектов и привязан к текущему хэшу цели, версиям провайдера и среды, а также сроку действия.
@@ -49,7 +57,11 @@ last_verified: "2026-08-27"
 - `REQ-820`: Установка объекта с объявленной потребностью в доступе объясняет пользователю каждую требуемую авторизацию и ведёт настройку; установка может завершиться, но готовность к запуску остаётся `needs_configuration`, пока exact provider не наблюдает совпадающий вид авторизации в состоянии `ready`; отсутствие evidence, несовпадение вида и неизвестная форма не считаются готовностью.
 - `REQ-821`: Замороженный protocol v1 не заявляет сетевую изоляцию; сетевая потребность вводится только отдельной версией протокола и принимает закрытые значения `none`, `artifact_download` или `runtime_external` для каждого действия.
 - `REQ-822`: Результат protocol v2 сообщает `network_enforcement` как `enforced`, `unavailable` или `not_requested`; значение `unavailable` не называется запретом сети.
-- `REQ-823`: Действие с `network_requirement=none` запускается только после доказанного capability результата `enforced`; отсутствие проверенного механизма на текущей или будущей OS возвращает типизированный отказ до запуска провайдера.
+- `REQ-823`: Действие с `network_requirement=none` предпочитает доказанный
+  capability `enforced`. Платформа без launcher может использовать только
+  явно наблюдаемый trust exception `trusted_release` или
+  `explicit_unverified_provider` по `ADR-0126`; он не называется `enforced`.
+  Любой другой случай возвращает типизированный отказ до запуска провайдера.
 - `REQ-824`: Разрешение `artifact_download` принадлежит отдельной download-фазе и не расширяет локальную проверку, изменение цели или последующие действия; `runtime_external` разрешается только явному запуску.
 - `REQ-825`: `install plan` передаёт один полный content-addressed HarnessBundle в `validate-bundle` и `plan-bundle`; provider подтверждает формат, logical digest, raw artifact digest, размер и текущий target digest до создания изменяющей операции.
 - `REQ-826`: Подтверждаемый неизменяемый plan связывает обе идентичности HarnessBundle, размер и точный provider plan digest; внутренний digest плана `ai_stp` не подменяет provider plan digest.
@@ -62,8 +74,15 @@ last_verified: "2026-08-27"
 - `REQ-833`: Точный профиль проекции provider объявляет виды компонентов и проекций, пространства native identifiers, форматы bundle, пределы, OS/architecture и digest; compiler и provider независимо отклоняют неподдержанный компонент, поверхность, collision или изменившийся профиль.
 - `REQ-834`: `plan-operation` является чистым и связывает operation, provider build, проверенный consumer release digest/protocol, снимок цели, optional exact bundle/BackupRef, permission profile, platform/runtime identity, срок и эффекты; `apply-operation` требует точный plan artifact/digest и повторную проверку после блокировки.
 - `REQ-835`: Permission/execution profile не является setup identity и не меняет SetupDefinition/component graph digest; standalone legacy identities мигрируют только в подтверждённой mutation после резервной копии.
-- `REQ-836`: Состояние provider и метаданные backup связывают exact SetupVersion, SetupDefinition, components, bundle, projection profile, provider plan/release, цель и native ownership; `status` не мигрирует состояние, а секретные значения не сохраняются.
-- `REQ-837`: Provider v3 conformance распространяется как неизменяемый public artifact без зависимости во время исполнения от закрытых `ai_stp` или контура авторинга и включает схемы, canonical examples, hostile corpus и expected digests.
+- `REQ-836`: Ответ `status` проходит закрытую
+  `provider-kit/v3/status-response.schema.json`: always-поля описывают identity,
+  цель, cleanup/journal/backups/provider state/shadowing, а полный flat
+  provenance обязателен только для readable clean managed state. Состояние не
+  мигрируется чтением, секретные значения не сохраняются.
+- `REQ-837`: Provider v3 conformance распространяется как неизменяемый public
+  artifact без runtime-зависимости от закрытых `ai_stp`/authoring и включает
+  provider-info/status schemas, canonical examples, hostile corpus и expected
+  digests. Новая схема producer публикуется до включения проверки в consumer.
 - `REQ-838`: Software download разрешается только отдельной phase; последующая local apply снова требует доказанной network isolation, а launch использует только явно объявленную `runtime_external` capability.
 - `REQ-839`: Provider durable journal имеет закрытые фазы `prepared` и `committed`, связывает exact plan/operation/target-bound BackupRef и блокирует новый plan до recovery; prepared восстанавливает exact pre-operation target, committed только проверяет result и дренирует cleanup.
 - `REQ-840`: Отчёт преобразования связывает вид компонента, нативную поверхность и вид проекции; каждый точный компонент владеет непустым содержимым, а принадлежащие provider нативный синтаксис и обязательные маркеры дерева проверяются до плана без изменения цели.
@@ -114,7 +133,7 @@ last_verified: "2026-08-27"
 | `REQ-820` | Exact SetupVersion показывает требование в install plan; фикстура provider status проверяет `missing → pending`, совпадающий `ready → installed`, отзыв `ready → pending`, а неизвестная форма и несовпадающий вид закрываются отказом без утечки значений. |
 | `REQ-821` | Контрактная проверка сохраняет wire shape и default conformance v1 без сетевых полей; явный v2 conformance закрывает команды, фазы и словарь требований и отвергает неизвестную версию. |
 | `REQ-822` | Матрица решений запрещает выдавать `unavailable` за `enforced`, требует launcher identity и evidence для enforced claim и сохраняет наблюдаемое доказательство. |
-| `REQ-823` | `provider network --json` сообщает observed capability; v2/v3 lifecycle на текущем Linux x86_64 release profile пытается DNS-, IPv4- и IPv6-соединения, а действие `none` либо доказуемо блокирует их, либо не запускается; любая другая OS без доказанного launcher закрыто отказывает. |
+| `REQ-823` | Шестистрочная native platform matrix запускает контрольные DNS/IPv4/IPv6 probes; результат различает enforced launcher, macOS trust exception и ранний отказ, не называя исключение изоляцией. |
 | `REQ-824` | Conformance fixture доказывает, что разрешённая download-фаза запускается отдельно, а apply того же действия снова проходит только через доказанный launcher. |
 | `REQ-825` | Сквозная CLI-фикстура проверяет literal ZIP path и точный argv validate/plan; изменение любого echo блокирует создание operation plan. |
 | `REQ-826` | Изменение каждого bundle/provider-plan поля меняет user-approved plan digest, а повтор идентичных read-only provider answers возвращает ту же operation. |
@@ -127,11 +146,11 @@ last_verified: "2026-08-27"
 | `REQ-833` | Изменение profile digest, неизвестный component/native surface, duplicate normalized path/native ID и ownership collision отклоняются до provider plan и не изменяют target. |
 | `REQ-834` | Изменение каждого plan-bound поля, expiry или target после lock даёт отказ без эффекта; timeout после возможного эффекта сохраняется как `partial` без blind retry. |
 | `REQ-835` | Profile-only switch сохраняет setup/component digests; Codex legacy safe/full-auto stamps мигрируют детерминированно после backup и status показывает setup/profile отдельно. |
-| `REQ-836` | Install/no-op/replace/backup/restore/remove E2E сохраняет и сверяет exact provenance; read-only status оставляет legacy fixture byte-identical, secret-pattern fixture отклоняется. |
-| `REQ-837` | Чистая public-provider checkout проверяет immutable kit digest и conformance без доступа к private repositories; private root повторяет exact release E2E. |
+| `REQ-836` | Missing/unmanaged/managed status samples проходят kit schema; clean readable sample обязан нести полный provenance, local drift не обязан его придумывать, secret-pattern fixture отклоняется. |
+| `REQ-837` | Чистая public-provider checkout проверяет immutable kit digest и обе schemas без доступа к private repositories; enforcement включается отдельным consumer change после producer release. |
 | `REQ-838` | Network trace разрешает download только точной software phase, требует enforced local apply и допускает runtime external только объявленному launch. |
 | `REQ-839` | Fault-injection прерывает prepared и committed phases; status сообщает recovery state, новый plan остаётся чистым отказом, exact restore/cleanup завершаются одной recover-командой. |
-| `REQ-840` | Пять provider fixtures отклоняют неверный projection kind, malformed JSON/TOML, пустой component и деревья без `SKILL.md`, `plugin.json` или `package.json` до mutation. |
+| `REQ-840` | Семь provider fixtures отклоняют неверный projection kind, malformed JSON/TOML, пустой component и деревья без обязательного нативного marker до mutation. |
 | `REQ-841` | Повтор одного inspection даёт тот же plan digest; изменение файла меняет inspection и plan digest; skill tree группируется одним компонентом, нечитаемый файл блокирует регистрацию, файл сверх границы размера исключается и регистрацию не блокирует, а план не пишет ни registry, ни target. |
 | `REQ-842` | Тест приобретает публичный setup с пустыми `facts`, отказывает без `--project`, затем связывает его с зарегистрированным project root и получает snapshot, меняющийся при новой project revision. |
 | `REQ-843` | Фикстура verified operation меняет, добавляет и удаляет файлы внутри managed roots; `target diff` возвращает относительные пути и точные digest evidence, игнорирует неуправляемые корни и ссылки, оставляет target byte-identical, а потерянный bundle сообщает `unavailable`. |

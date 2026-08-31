@@ -1,6 +1,6 @@
 ---
 description: "Правила Python, Node, external tools и provider dependencies."
-last_verified: "2026-08-15"
+last_verified: "2026-08-31"
 ---
 
 # Политика зависимостей
@@ -10,6 +10,26 @@ last_verified: "2026-08-15"
 Внешний LSP, scanner или tool устанавливается в изолированный набор инструментов и запускается по точному пути. Сценарии установки пакета отключаются, если их необходимость не доказана.
 
 Источник Git закрепляется точным commit. Зависимость из реестра пакетов имеет точную версию и проверку целостности. Произвольный URL запрещён.
+
+## Одобренные зависимости installed CLI
+
+### PyNaCl
+
+| Поле | Значение |
+|---|---|
+| Capability gap | Ed25519 seed/public/sign/verify в installed CLI на шести native OS/arch строках. Новые security-fixed `cryptography` releases не имеют безопасного Windows/arm64 wheel. |
+| Источник | PyPI `PyNaCl`, upstream <https://github.com/pyca/pynacl>; закреплённый libsodium wheel. |
+| Версия | `1.6.2`, exact lock. |
+| Лицензия / security | Apache-2.0. Advisory PyNaCl/libsodium требует внеочередного bump и повторной six-leg evidence. |
+| Платформы | Linux, Windows, macOS на `x86_64`/`arm64`, включая native Windows/arm64. |
+| Failure | Неверный seed/key/signature получает типизированный validation отказ; key material не попадает в лог. |
+| Тест | Raw 32-byte seed/public и 64-byte signature проверяются в обе стороны против `cryptography`; candidate install/sign/verify проходит на six-leg workflow. |
+| Владелец обновлений | CLI identity/attestation runtime. |
+| План удаления | Вернуться к одному backend только после появления безопасных wheels на всей заявленной matrix и сохранения exact wire interoperability. |
+
+`cryptography` остаётся в API/platform и repository/provider tooling. Эта
+граница не заменяет серверную verify implementation и не переносит PyNaCl в
+server runtime.
 
 ## Одобренные зависимости `apps/api` (issue #80, ADR-0041)
 

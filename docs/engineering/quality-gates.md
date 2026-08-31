@@ -1,6 +1,6 @@
 ---
 description: "Обязательные проверки и release evidence."
-last_verified: "2026-08-29"
+last_verified: "2026-08-31"
 ---
 
 # Quality gates
@@ -145,7 +145,8 @@ Platform-тесты с PostgreSQL (`tests/api/platform`, `tests/integration/plat
 ## Release
 
 - Linux x86_64 evidence обязательно;
-- macOS evidence создаётся вручную только перед будущим расширением support matrix;
+- release evidence запускается отдельно на шести native OS/arch legs и не
+  подменяется обычной трёх-ОС unit/contract matrix;
 - возраст evidence ограничен;
 - первый выпуск блокируют основная поддержка, полнота продуктовых требований и укомплектованный каталог запуска по `release-evidence.md`;
 - бета-линии продвигаются независимо и выпуск не блокируют;

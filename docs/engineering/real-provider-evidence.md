@@ -1,108 +1,65 @@
 ---
-description: "Как прогнать полный жизненный цикл против выпущенных провайдеров и что при этом проверяется."
-last_verified: "2026-08-29"
+description: "Как отличать provider build/conformance от exact real-product lifecycle."
+last_verified: "2026-08-31"
 ---
 
-# Доказательство против выпущенных провайдеров
+# Evidence выпущенных provider systems
 
-Владелец требований — `#408`. `just evidence-providers <tag>` проверяет
-метаданные релиза и согласие проекций, и сам называет то, чего проверить не
-может:
+Нормативные требования принадлежат `SPEC-008`, форма release gate —
+`release-evidence.md`. Этот runbook не закрепляет текущий tag.
 
-```json
-"not_verified": {
-  "install_update_backup_remove_rollback": "the cross-repository tests in
-   tests/unit/test_cli_install_commands.py; they need AI_STP_<HARNESS>_PROVIDER_V3
-   and _MANIFEST pointed at a fetched artifact and its release.json"
-}
-```
+## Два последовательных среза
 
-Это та половина, которую закрывает прогон ниже.
+`just evidence-providers <tag>` загружает exact release assets семи systems,
+проверяет attestation/policy, provider-info, vendored provider-kit schemas,
+conformance и достижимость projection routes. Это доказательство контракта и
+байтов, но не mutation target.
 
-## Как прогнать
-
-```bash
-for h in claude-code codex grok-build opencode pi; do
-  uv run ai-stp provider fetch --harness "$h" --json >/dev/null
-done
-
-export GH_TOKEN="$(gh auth token)"
-for pair in CLAUDE:claude-code CODEX:codex GROK_BUILD:grok-build \
-            OPENCODE:opencode PI:pi; do
-  v=${pair%%:*}; h=${pair##*:}; d=~/.local/share/ai-stp/providers/$h/<tag>
-  export AI_STP_${v}_PROVIDER_V3="$(find "$d" -maxdepth 1 -type f -perm -u+x | head -1)"
-  export AI_STP_${v}_PROVIDER_V3_MANIFEST="$d/release.json"
-done
-export AI_STP_PROVIDER_V3_READONLY="$AI_STP_CLAUDE_PROVIDER_V3"
-
-uv run pytest tests/unit/test_cli_install_commands.py -k "real_ or backups_reaches"
-```
-
-`GH_TOKEN` обязателен, и причина не косметическая: тесты подменяют `HOME`, а
-`gh` держит учётные данные там. Без токена проверка аттестации отказывает —
-раньше она отказывала словами «у артефакта нет приемлемой аттестации», то есть
-обвиняла байты за то, что на машине нет входа. Теперь неаутентифицированный
-`gh` (код выхода 4) отличается от настоящего вердикта (код 1) и сообщается как
-недоступная зависимость.
-
-## Что проверено против `0.0.33`
+Real-product lifecycle выполняется отдельно через установленный `ai-stp` и
+exact fetched manifests:
 
 ```text
-базовый сетап, полный цикл бандла     claude-code codex grok-build opencode pi
-полный цикл v3 одним точным бандлом   claude-code codex grok-build opencode pi
-чтение резервных копий у провайдера   claude-code
+provider fetch
+→ plan
+→ apply
+→ status/backups
+→ replace/update
+→ recovery/rollback/remove
 ```
 
-Одиннадцать прогонов, все зелёные. Каждый берёт выпущенный подписанный артефакт,
-проверяет аттестацию GitHub против закреплённой политики, собирает бандл,
-планирует, применяет, читает состояние и откатывается.
+Каждый вызов использует одноразовый target, точные CLI/provider release digests и
+сохраняет typed outcomes. Direct provider invocation может диагностировать
+producer, но не заменяет consumer path.
 
-## Корпус несёт седьмую часть опубликованного
+## Platform matrix
 
-Это выяснилось при разборе того же прогона и к аттестации отношения не имеет.
+Matrix содержит Linux, Windows и macOS на `x86_64` и `arm64`. На каждой строке
+отдельно записываются:
 
-Setup-системы публикуют **28 сетапов: по четыре на каждый из семи харнессов**, и
-ось — **продуктовая поза**, а не роль:
+- provider binary availability;
+- availability конкретной operation;
+- network launcher evidence/refusal;
+- фактически выполненные lifecycle stages.
 
-```text
-minimal        только инструкции; продукт держит свои умолчания
-baseline       рабочий пол: инструкции плюс консервативное правило разрешений
-full-auto      ничего не спрашивается, ничего не песочится
-nddev-builder  рабочий пол плюс авторский набор NDDev
-```
+Software lifecycle у Antigravity не объявлен на Windows без vendor artifact, и
+правильное evidence там — `unsupported_platform` до эффекта. Cursor и
+Antigravity не объявляют complete launch; launch проверяется у остальных пяти.
 
-Наш сборщик корпуса читает `SOURCE_PATH = "setups/nddev-builder"` — **одну** из
-четырёх поз — и подписывает её `target_role: ai-harness-engineer`. Отсюда семь
-сетапов в каталоге вместо двадцати восьми, и имя, которого нет ни в одном
-источнике: его ставит здешний сборщик.
+Evidence предыдущего tag не переносится. Текущий снимок незакрытых строк живёт
+в `implementation-roadmap.md`, а не в этом runbook.
 
-Позы сорсятся к страницам вендоров, и каждая несёт `sources`. Роль сорсить не к
-чему, поэтому та сторона их и не публикует — сетап, чья идентичность держится на
-чьём-то вкусе, был бы там первым.
+## Postures и corpus
 
-Ролевого E2E больше нет. Он спрашивал шесть ролей, которых никто не планировал,
-и мог упасть только при подключённом настоящем провайдере — то есть ровно в том
-единственном прогоне, где его читают. Если три остальные позы будут
-импортированы, писать надо тест по **позам**, и это другой тест.
+Provider sources публикуют четыре postures каждого харнесса: `minimal`,
+`baseline`, `full-auto`, `nddev-builder`. Corpus/evidence выбирает posture явно;
+одинаковые bytes разных posture не сливаются в одну identity, а изменение
+HEAD репозитория provider вне payload не меняет неизменяемый passport.
 
-## Соседние срезы, которые тоже надо знать по имени
+`just corpus-drift` и `just evidence-citations` читают внешнее состояние и
+поэтому не входят в repository gate. Их `inconclusive` не выдаётся за clean.
 
-`just evidence-citations` фетчит каждую ссылку, на которой стоит строка каталога
-харнессов, и называет мёртвые. Ничто в репозитории ссылку не открывает, поэтому
-протухшую находит человек и больше никто; 2026-08-28 таких оказалось четыре.
-403, 405 и 429 считаются недоказанными, а не мёртвыми — часть хостов отказывает
-скрипту на HEAD.
+## Credentials
 
-`just corpus-drift` спрашивает у источника, отстал ли корпус первого лица по
-содержимому (`docs/engineering/first-party-corpus.md`).
-
-Оба названы здесь потому, что до 2026-08-29 они не были названы нигде, куда
-приходит читатель, — а проверку, которую нельзя найти, стоит ровно столько же,
-сколько ту, которую никто не гоняет. В `just check` ни один не входит, и по
-одной причине: гейт репозитория не вправе зависеть ни от чужого сайта, ни от
-чужой сети.
-
-## Что этим не доказывается
-
-Чистая установка с сайта — отдельный срез, здесь его нет. И три из четырёх поз
-не проверены, потому что в каталоге их нет.
+GitHub attestation read использует текущий authenticated `gh` account или
+job-scoped token. Значение token не пишется в команды evidence, logs или
+artifacts. Отсутствие auth — недоступная зависимость, а не вердикт о байтах.

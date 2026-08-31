@@ -105,7 +105,8 @@ def test_the_skill_distinguishes_effect_from_machine_confirmation() -> None:
         assert f"`{value}`" in policy
     assert "не означает согласие пользователя" in policy
     assert "вычисляй digest самостоятельно" in policy
-    assert "запроси новое решение" in policy
+    assert "без нового вопроса, пока смысл и область эффекта не изменились" in policy
+    assert "Отдельное решение пользователя нужно только" in policy
     assert "подсказка" in policy and "разрешение" in policy
 
 

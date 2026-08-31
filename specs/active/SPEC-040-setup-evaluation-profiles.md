@@ -1,6 +1,6 @@
 ---
 description: "SPEC-040: Локальные профили функциональной оценки точного сетапа."
-last_verified: "2026-08-13"
+last_verified: "2026-08-31"
 ---
 
 # SPEC-040: Профили оценки сетапа
@@ -30,7 +30,9 @@ runner. Проверка при публикации с credentials и пока�
 - `REQ-4001`: `SetupEvalProfile` версии `setup-eval/1` задаёт область, виды компонентов, предусловия, проверки, утверждения, явные допуски, бюджеты, требования изоляции и отдельные eval permissions.
 - `REQ-4002`: Reference profile содержит base check и type-specific направления для всех восьми видов компонентов и разделяет методы `deterministic`, `model_assisted`, `human_review` с совместимым runner.
 - `REQ-4003`: Evaluation plan связывает профиль с точными setup/component версиями, passport и artifact digest, harness/provider/runner versions и временем планирования; подмножество может содержать только компоненты названного setup graph.
-- `REQ-4004`: `eval run` требует exact plan digest и явного подтверждения, повтор не создаёт второе evidence, а изменившийся digest закрывается отказом.
+- `REQ-4004`: `eval run` требует exact plan digest как подтверждение точного
+  локального запуска, повтор не создаёт второе evidence, а изменившийся digest
+  закрывается отказом.
 - `REQ-4005`: Core выполняет только локальные deterministic checks; отсутствующий model, human или isolated runner получает `not_run`, никогда `passed`, а агрегат с `not_run` получает `degraded`.
 - `REQ-4006`: Результат связывается с полным планом, exact runner coordinates, result digest и timestamp и явно сообщает, что published bytes не изменены и provider permissions не использованы.
 
@@ -64,6 +66,6 @@ runner или профиля; новый запуск создаётся отн�
 | `REQ-4001` | Schema corpus отклоняет неизвестные поля, неверные budgets и неполный профиль. |
 | `REQ-4002` | Параметризованный тест требует reference profile для всех восьми типов и три разделённых метода. |
 | `REQ-4003` | Process fixture строит plan из exact first-party setup и отклоняет component ID вне графа. |
-| `REQ-4004` | Запуск без подтверждения и со stale digest отказан; повтор возвращает тот же run и одну строку evidence. |
+| `REQ-4004` | Запуск без exact digest и со stale digest отказан; повтор возвращает тот же run и одну строку evidence. |
 | `REQ-4005` | Local-static checks проходят, model/human получают `not_run`, общий статус — `degraded`. |
 | `REQ-4006` | Machine result проходит схему и содержит exact coordinates, result digest и два явных отрицательных признака мутации/полномочий. |

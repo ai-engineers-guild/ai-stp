@@ -1,6 +1,6 @@
 ---
 description: "Версионируемые scaffold-планы и безопасная проекция authoring templates компонентов."
-last_verified: "2026-08-29"
+last_verified: "2026-08-31"
 ---
 
 # Authoring templates компонентов
@@ -18,8 +18,8 @@ last_verified: "2026-08-29"
 в домене `ai-stp:scaffold-plan:v1`; `plan_id` выводится из первых 24 hex-символов
 plan digest.
 
-`component scaffold apply` принимает те же входы, exact
-`--expected-plan-digest` и `--confirm`. CLI повторно строит план, резервирует
+`component scaffold apply` принимает те же входы и exact
+`--expected-plan-digest`, который подтверждает локальный эффект. CLI повторно строит план, резервирует
 новый каталог без перезаписи и создаёт файлы `0600`, откатывая собственный
 неполный результат при отказе. Существующий target — даже пустой — symlink и
 отсутствующий parent отклоняются; скрытой перезаписи или merge нет.
@@ -51,13 +51,13 @@ settings-файлом. Codex agent как standalone component не сущест
 
 1. Выполнить `component scaffold plan`, просмотреть descriptor, каждый файл и
    digest, затем передать неизменившиеся входы в `component scaffold apply` с
-   exact plan digest и `--confirm`.
+   exact plan digest.
 2. Реализовать поведение и заполнить только подтверждённые факты patch. Для
    `required_env` записываются имена и назначение, но не значения. Source
    добавляется только после фиксации публичного GitHub commit.
 3. Поместить компонент в поддержанный native layout, выполнить
    `component discover` и `component adopt`, затем применить patch через
-   `component passport update --expected-revision ... --from ... --confirm`.
+   `component passport update --expected-revision ... --from ...`.
 4. Выполнить `component passport validate` и evaluation lifecycle. Сохранённый
    профиль заранее показывает, что core выполнит local-static checks, а
    model/human checks без соответствующего runner честно останутся `not_run`.

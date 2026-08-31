@@ -1,6 +1,6 @@
 ---
 description: "Целевой стек MVP и правила выбора зависимостей."
-last_verified: "2026-08-05"
+last_verified: "2026-08-31"
 ---
 
 # Стек
@@ -12,7 +12,7 @@ last_verified: "2026-08-05"
 | Язык | Python 3.12 и 3.14 — обе проверяются в CI |
 | Управление зависимостями | uv и один корневой `uv.lock` после bootstrap кода |
 | CLI | Click по `ADR-0057`; machine JSON обязателен |
-| Ключ устройства и секреты | Ed25519 через `cryptography`; `keyring` с закрытым перечнем доверенных backend'ов по `ADR-0058` |
+| Ключ устройства и секреты | Ed25519 в установленном CLI через `PyNaCl 1.6.2`; `keyring` с закрытым перечнем доверенных backend'ов по `ADR-0058` |
 | Локальный реестр | стандартный `sqlite3` с WAL и собственным раннером миграций по `ADR-0059`; Alembic и SQLAlchemy не используются в CLI |
 | Облачный клиент CLI | `httpx` с ограниченными таймаутами и повторами; транспорт — часть `Endpoint`, поэтому мок из #71 и реальный сервер идут одним путём |
 | Схемы | Pydantic 2; JSON Schema и OpenAPI 3.1 генерируются из моделей |
@@ -30,7 +30,13 @@ last_verified: "2026-08-05"
 | Tests | pytest, Hypothesis, contract/golden/integration |
 | Docs | MkDocs, Markdownlint, Mermaid |
 
-`keyring` и `cryptography` входят в зависимости `apps/cli` по `ADR-0058`. `keyring` импортируется лениво: его импорт стоит около 100 мс — втрое дороже Click, — а большинство вызовов не открывает хранилище. Выбранный им backend принимается только из закрытого перечня: измерено, что с установленным `keyrings.alt` побеждает `PlaintextKeyring`, запись молча проходит, и секрет ложится на диск в base64, пока библиотека сообщает об успехе.
+`keyring` и `PyNaCl` входят в runtime-зависимости `apps/cli`. PyNaCl хранит те же
+raw Ed25519 формы: 32-byte seed/public key и 64-byte signature; двусторонние
+interop tests сравнивают их с `cryptography`. API/platform и repository/provider
+tooling продолжают использовать `cryptography`; он не тянется installed CLI на
+Windows/arm64. `keyring` импортируется лениво, а выбранный backend принимается
+только из закрытого перечня: `PlaintextKeyring` не становится защищённым
+хранилищем только потому, что запись прошла.
 
 Схемы и документ OpenAPI не пишутся руками: единственным источником являются модели `packages/contracts`, а `just back-gen` порождает из них оба артефакта. Рукописный OpenAPI рядом с генерируемыми схемами был бы вторым источником истины, что запрещает `SPEC-015` REQ-1508. Валидация документа выполняется `openapi-spec-validator` в группе `dev`; `httpx` нужен только клиентской стороне и вынесен в необязательную зависимость `ai-stp-contracts[mock]`.
 

@@ -1,12 +1,12 @@
 ---
-description: "Linux x86_64 как текущий обязательный release-evidence profile без неподтверждённой macOS support claim."
-last_verified: "2026-08-09"
+description: "Историческое Linux-first решение, заменённое трёх-ОС release matrix из ADR-0113."
+last_verified: "2026-08-31"
 ---
 
 # ADR-0062: Linux-first release evidence
 
-Статус: принято.
-Уточнено `ADR-0113` в части того, на скольких ОС доказывается поверхность CLI.
+Статус: заменено `ADR-0113` в части текущего release profile. Требование не
+выдавать fixture/build за real provider evidence сохраняется.
 
 ## Контекст
 
@@ -64,3 +64,7 @@ macOS не входит в текущую support matrix, не блокируе�
 Решение пересматривается, когда владелец выделит macOS как поддерживаемую платформу,
 появится owned runner и будет доказан полный wheel/Skill/bundle/provider lifecycle
 вместе с honest network enforcement-or-refusal report.
+
+Условие выполнено решением владельца от 2026-08-27 и публичной runner-матрицей.
+Текущая норма находится в поправке к `ADR-0113`; исходный текст выше сохраняет
+контекст, почему unit fixture никогда не считалась provider evidence.

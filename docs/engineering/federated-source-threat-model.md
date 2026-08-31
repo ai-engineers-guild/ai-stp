@@ -1,6 +1,6 @@
 ---
 description: "Модель угроз федеративных local ports и metadata adapters."
-last_verified: "2026-08-16"
+last_verified: "2026-08-31"
 ---
 
 # Модель угроз федеративных источников
@@ -21,7 +21,7 @@ registry и итоговый target не принадлежат внешнему
 | Source takeover | immutable external id закрепляется первым наблюдением; смена identity закрывается conflict |
 | Stale либо outage | датированный snapshot помечается stale/unavailable и не удаляет паспорт или другой reference |
 | Подмена доверия популярностью | descriptor механически фиксирует обе verification-оси false и authority external observation |
-| Запись чужого состояния | target write всегда false; local import требует отдельный digest и confirm и создаёт только private draft |
+| Запись чужого состояния | target write всегда false; local import требует exact digest как подтверждение и создаёт только private draft |
 | Утечка локальных данных | descriptor исключает path, secret, environment value, content и device identity |
 | Dependency capture | SX, APM и remote catalogs остаются optional adapters, а не runtime dependencies core |
 

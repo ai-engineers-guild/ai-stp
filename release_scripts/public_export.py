@@ -209,7 +209,7 @@ def write_tree(files: tuple[str, ...], destination: Path, root: Path = ROOT) -> 
         shutil.copy2(OVERLAY / name, target)
     _initialise_repository(destination)
     _regenerate_indexes(destination)
-    _stage_tree(destination, files, root)
+    stage_tree(destination, files, root)
     return len(files) + len(overlay_files())
 
 
@@ -219,7 +219,7 @@ def _remove_readonly(function: Callable[[str], object], path: str, _error: BaseE
     function(path)
 
 
-def _stage_tree(destination: Path, files: tuple[str, ...], root: Path) -> None:
+def stage_tree(destination: Path, files: tuple[str, ...], root: Path) -> None:
     """Stage the publishable tree while preserving Git modes on every OS."""
     overlay_prefix = "release_scripts/public_overlay/"
     executable = set(files) & executable_files(root)

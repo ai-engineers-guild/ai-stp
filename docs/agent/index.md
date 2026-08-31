@@ -10,8 +10,8 @@ last_verified: "2026-08-03"
 | Документ | О чём | Сверено |
 | -------- | ----- | ------- |
 | [harness-projections.md](harness-projections.md) | Различия native Agent Skill projections семи харнессов. | 2026-08-25 |
-| [integration-skill.md](integration-skill.md) | Назначение и защита канонического ai_stp Skill. | 2026-08-09 |
-| [interaction-policy.md](interaction-policy.md) | Подтверждения и вопросы в configuration workflow. | 2026-08-09 |
-| [machine-help.md](machine-help.md) | Machine help CLI как источник доступных команд и схем. | 2026-08-09 |
+| [integration-skill.md](integration-skill.md) | Назначение и защита канонического ai_stp Skill. | 2026-08-31 |
+| [interaction-policy.md](interaction-policy.md) | Standing authority агента, machine confirmations и граница отдельного решения. | 2026-08-31 |
+| [machine-help.md](machine-help.md) | Machine help CLI как источник доступных команд и схем. | 2026-08-31 |
 
 <!-- КОНЕЦ СОДЕРЖИМОГО -->

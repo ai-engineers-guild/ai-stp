@@ -1,6 +1,6 @@
 ---
 description: "Проверки и развёртывание публичного репозитория: гейт, продвижение ref и забор его целевым хостом."
-last_verified: "2026-08-25"
+last_verified: "2026-08-31"
 ---
 
 # CI и развёртывание
@@ -29,6 +29,13 @@ identity открыты, поэтому утверждение «развёрн�
 не умеющей закодировать UTF-8, и обращение к системному хранилищу ключей на
 headless-машине, которое не возвращалось.
 
+Обычная матрица не является доказательством provider lifecycle. Ручной
+`platform-evidence.yml` строит один exact five-wheel candidate и устанавливает
+его на шести native строках Linux/Windows/macOS × `x86_64`/`arm64`, проверяя
+consumer network boundary. Workflow не получает publish/deploy authority;
+provider plan/apply/status/recovery остаётся отдельной evidence семи setup
+systems.
+
 `codeql.yml` анализирует Python, JavaScript/TypeScript и сами Actions.
 
 Ручной запуск отвечает на вопрос «зелёное ли дерево» и ничего не выкатывает:
@@ -50,6 +57,14 @@ headless-машине, которое не возвращалось.
 публичный, поэтому на хосте нет ключа развёртывания, который можно потерять или
 который нужно ротировать (`ADR-0109`).
 
+До build/migrate/recreate host deploy проверяет непустой
+`AI_STP_CONTENT_IMPORT_TOKEN` в owner-only `.env.prod`, не выполняя env-файл и
+не печатая значение. Web зависит от успешного repository content-import,
+поэтому поздний отказ оставил бы новый web в `Created`. Ранний preflight
+сохраняет текущий web работающим. Recovery после уже случившегося отказа:
+выпустить новый внутренний scoped token, повторить идемпотентный deploy и проверить
+content-import exit 0, API readiness, web и exact current SHA.
+
 `verify-public` затем доказывает результат снаружи — с раннера, а не с хоста:
 проверка, выполняемая там же, где работает сервис, не отличает «поднято» от
 «поднято для меня». Она ждёт, пока цель развернёт продвинутый коммит, и
@@ -64,6 +79,8 @@ headless-машине, которое не возвращалось.
 `publish-pypi.yml` — отдельный ручной workflow: один пакет за прогон, без
 checkout, Trusted Publisher на environment `pypi` или `pypi-{package}`.
 Контракт принадлежит `docs/operations/runbooks/pypi-release.md`.
+Порученный выпуск позволяет агенту выполнить environment approval текущим
+authenticated account без повторного вопроса владельцу.
 
 ## Секреты
 

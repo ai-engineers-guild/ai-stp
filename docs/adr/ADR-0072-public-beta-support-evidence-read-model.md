@@ -1,11 +1,11 @@
 ---
 description: "Решение о публичной read-model для beta-поддержки, evidence и freshness."
-last_verified: "2026-08-09"
+last_verified: "2026-08-31"
 ---
 
 # ADR-0072: Публичная read-model beta-поддержки, evidence и freshness
 
-Статус: предложено.
+Статус: принято. Реализовано в серверной support projection, фильтрах API и вебе.
 
 ## Контекст
 

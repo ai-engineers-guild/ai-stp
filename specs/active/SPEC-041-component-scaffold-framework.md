@@ -1,6 +1,6 @@
 ---
 description: "SPEC-041: Версионируемые scaffold-планы полного authoring-каталога компонента."
-last_verified: "2026-08-29"
+last_verified: "2026-08-31"
 ---
 
 # SPEC-041: Scaffold framework компонентов
@@ -44,8 +44,9 @@ Framework создаёт локальный authoring-каталог и закр
   пустые минимальные permissions и capabilities и честно сохраняет
   `NOASSERTION`/запрет распространения до решения автора. Portable descriptor не
   выдаётся за паспорт конкретного харнесса.
-- `REQ-4106`: Apply повторно строит plan из тех же явных входов, требует его
-  exact digest и `--confirm`, создаёт owner-only файлы с откатом своего неполного результата и закрывается
+- `REQ-4106`: Apply повторно строит plan из тех же явных входов и требует его
+  exact digest как подтверждение локального обратимого эффекта, создаёт
+  owner-only файлы с откатом своего неполного результата и закрывается
   отказом для существующего target, symlink или отсутствующего parent.
 - `REQ-4107`: Eval skeleton содержит локальную deterministic проверку, а
   недоступные model/human проверки при выполнении получают `not_run` по
@@ -93,7 +94,7 @@ version. Старые descriptors остаются валидируемыми с
 | `REQ-4103` | Повторный preview совпадает, а каждый digest пересчитывается из фактических bytes. |
 | `REQ-4104` | Для каждой строки матрицы паспорт и eval profile проходят свои схемы, а обязательные файлы присутствуют. |
 | `REQ-4105` | Fixtures не содержат secret values, public source claim и разрешение распространения. |
-| `REQ-4106` | Без confirm, со stale digest, существующим target, symlink и отсутствующим parent операция отказана без изменения файлов. |
+| `REQ-4106` | Без exact digest, со stale digest, существующим target, symlink и отсутствующим parent операция отказана без изменения файлов. |
 | `REQ-4107` | Eval profile содержит deterministic и model-assisted checks; общий runner подтверждает честный `not_run`. |
 | `REQ-4108` | Fixtures нативных instruction/command/agent/setting совпадают с реестром; неподдерживаемый Codex agent отказан без записи. |
 | `REQ-4109` | Hook fixtures сохраняют событие, порядок, failure policy и команду; malformed source отклоняется строгой схемой. |

@@ -1,6 +1,6 @@
 ---
 description: "Безопасное обогащение локального component draft через подтверждённые content-addressed ревизии."
-last_verified: "2026-08-10"
+last_verified: "2026-08-31"
 ---
 
 # ADR-0066: Локальное обогащение component draft
@@ -27,7 +27,8 @@ CLI получает три команды из единого command registry:
 validate с явным профилем `--for-publication`. Update принимает только bounded
 обычный JSON-файл, не следует символическим ссылкам, использует закрытую типизированную схему,
 отклоняет secret-bearing keys до отражения значений и требует одновременно
-`--expected-revision` и `--confirm`.
+`--expected-revision`; точная ожидаемая ревизия является подтверждением
+локального обратимого изменения по `ADR-0118`, отдельного `--confirm` нет.
 
 Read-only `passport suggest` работает до update и только над сохранёнными exact
 bytes. Он копирует предложения из закрытого блока `ai-stp.component` в

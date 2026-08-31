@@ -1,6 +1,6 @@
 ---
 description: "Тестовая стратегия для паспортов, сборки, sync, providers и platform."
-last_verified: "2026-08-27"
+last_verified: "2026-08-31"
 ---
 
 # Тестирование
@@ -48,7 +48,8 @@ last_verified: "2026-08-27"
 - Linux x86_64 E2E для всех пяти release lines;
 - переносимые Windows fixtures для `.exe`, `.cmd`, npm/Scoop metadata и Codex
   Desktop `WindowsApps`, с обязательным `version_source` и диагностикой;
-- ручной macOS portability evidence до будущего расширения support matrix.
+- exact-candidate platform evidence на шести native OS/arch legs; обычный
+  трёх-ОС gate доказывает CLI/web поверхность, но не provider lifecycle.
 
 ## Разделение платформы и CLI
 

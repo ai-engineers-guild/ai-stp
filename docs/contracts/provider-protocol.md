@@ -173,23 +173,18 @@ launcher. `install plan` выбирает версию до первого вы�
 provider target в неизменяемом плане, а `apply` и `resume` используют только эту
 одобренную версию. Поэтому v2 lifecycle проходит через тот же phase invoker и не
 может быть понижен аргументом после подтверждения. Реальные provider releases
-остаются release blockers. По `ADR-0062` текущий обязательный profile — Linux
-x86_64; macOS без отдельного launcher/run имеет `not_verified`, закрыто отказывает
-для `none` и текущий выпуск не блокирует.
+остаются отдельным release evidence. Текущая цель — six-leg matrix по
+`ADR-0113`; старый Linux-only профиль заменён.
 
-**Протокол v3 на платформе без launcher'а.** Windows и macOS не дают обычному
-CLI механизма, отрицающего сеть: bubblewrap только под Linux, AppContainer
-запрещает сеть, но до произвольной цели не дотягивается без правки ACL
-родителей, а `CreateProcessInSandbox` и Windows Sandbox недоступны или являются
-отдельным компонентом. Поэтому v3 local phase там исполняется **без изоляции** —
-сознательный долг по `ADR-0126`, разрешённый ровно двумя причинами: доверенный
-выпуск либо явный `--unverified-provider`. Ни одна другая поверхность
-исключения не получает: v2, `target status`, `diff` и любой spawn вне install
-plan отказывают до вызова.
+**Protocol v3 на трёх ОС.** Linux использует Bubblewrap. Windows использует
+native AppContainer launcher, который запрещает сеть дочернему process tree и
+доказывает доступ к выбранному target runtime probes; невозможность построить
+его даёт ранний fail-closed. macOS пока не имеет network-denying launcher.
 
-`network_enforcement` при этом **никогда** не становится `enforced` — иначе
-единственный вывод, по которому долг находят, его бы и скрыл. Сам долг
-`provider network --json` называет отдельным полем `v3_local_phase`:
+На macOS unisolated local phase разрешается ровно двумя наблюдаемыми причинами:
+доверенный выпуск либо явный `--unverified-provider`. Исключение не становится
+`enforced` и не переносится на неизвестный executable. `provider network
+--json` сообщает отдельный `v3_local_phase`:
 
 - `network_denied` — launcher доказан, фаза идёт внутри него;
 - `unisolated_by_trust` — launcher'а на этой платформе нет, фаза идёт с
@@ -197,19 +192,10 @@ plan отказывают до вызова.
   которых обязан предъявить вызывающий;
 - `refused` — launcher здесь возможен и отсутствует, поэтому не идёт ничего.
 
-Последние два не сливаются намеренно: отсутствие `bwrap` на Linux — недостающая
-зависимость, отсутствие механизма на Windows — недостающая способность
-операционной системы, и `unisolated_local_phase` отказывается строиться на
-платформе, которая изолировать умеет.
-
-Граница действия долга измерима и измерена. Все семь выпущенных провайдеров
-`0.0.6` не импортируют ни одного сетевого символа (`socket`, `connect`,
-`getaddrinfo`, `inet_*` и прочие отсутствуют), связаны только с `libc` и
-`libgcc_s`, а прогон локальной фазы под трассировкой даёт ноль `socket` и ноль
-`connect` у каждого. Это свойство артефакта, а не изоляция: `syscall` и `execvp`
-импортированы, и процесс, не слинкованный с сетью, всё ещё способен породить
-потомка, который слинкован. Namespace покрывает всё дерево процессов, проверка
-импортов — один процесс. Поэтому она долг уменьшает и не снимает.
+Последние два не сливаются намеренно: отсутствие установленного launcher на
+Linux/Windows — недостающая зависимость или runtime capability; отсутствие
+механизма на macOS — известная граница платформы. Проверка импортов provider
+binary является дополнительным evidence и не заменяет изоляцию process tree.
 
 ## Capability-negotiated protocol v3
 
@@ -230,6 +216,21 @@ JSON Schema 2020-12 это **идентификатор**, задающий ба
 пойдёт, получает схему, а не 404. Реализации по-прежнему сверяют комплект
 локально по `SHA256SUMS`; сетевой ответ не заменяет `KIT-IDENTITY.json`.
 
+`provider-kit/v3/status-response.schema.json` объявляет закрытую форму ответа
+`status`. Всегда обязательны protocol/provider/harness identity, canonical
+target, `state`, оба target digests, `cleanup_state`, `journal`, `backups`,
+`provider_state` и `shadowed_by`. Когда вложенный `provider_state` одновременно
+`present=true`, `readable=true` и `drift_state=clean`, схема дополнительно
+требует полный flat provenance: state/provider/release/setup/bundle/plan,
+operation/precondition, native ownership, written paths, backup и previous
+verified identity. Для missing, foreign-schema и local-drift ответ не обязан
+придумывать clean provenance.
+
+Схема, checksum и conformance cases публикуются раньше enforcement. До выпуска
+provider systems, которые вендорят эту ревизию kit, consumer продолжает читать
+совместимый status прежних релизов; наличие schema в kit само по себе не означает,
+что runtime уже отклоняет старый ответ.
+
 Ниже — только то, чего машинный файл не выражает: смысл делений.
 
 Команды делятся на общий setup/bundle core и optional. `launch` является optional
@@ -240,9 +241,10 @@ Operations делятся так же. Core покрывают материал�
 восстановление и удаление provider-owned setup projection; optional покрывают
 жизненный цикл provider-owned программы и запуск runtime через нативную границу.
 
-Claude Code корректно соответствует core без software/launch ownership. Codex и Pi
-могут объявить software install/update и launch без software remove. Consumer не
-вызывает необъявленную operation. Unknown operation/component/native surface,
+Все семь текущих systems объявляют software install/update/remove, но availability
+проверяется по platform artifact. Complete launch объявляют пять; Cursor и
+Antigravity launch не объявляют. Consumer не вызывает необъявленную operation.
+Unknown operation/component/native surface,
 формат, protocol, projection profile, OS или architecture отклоняются со стабильным
 reason code до plan и изменения цели. Профиль разрешений, которого нет в закрытом
 `permission_profiles`, это не `unsupported_operation` и не

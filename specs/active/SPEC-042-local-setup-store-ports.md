@@ -1,6 +1,6 @@
 ---
 description: "SPEC-042: Локальные versioned ports для контролируемого импорта SX и APM."
-last_verified: "2026-08-13"
+last_verified: "2026-08-31"
 ---
 
 # SPEC-042: Local setup-store ports
@@ -31,7 +31,7 @@ provider-плана.
 ## Требования
 
 - `REQ-4201`: Vendor-neutral `setup-store-port/1` разделяет discovery, inspect,
-  content-addressed plan и confirmed import; vendor schema не протекает в
+  content-addressed plan и digest-confirmed import; vendor schema не протекает в
   командный контракт.
 - `REQ-4202`: Discovery и inspect не открывают local registry для записи, не
   исполняют vendor CLI и ограничивают manifest размером, количеством записей,
@@ -50,8 +50,8 @@ provider-плана.
   доверия. Digest связывает весь inspect report, content digest каждого
   доступного local path и отсутствие external/target writes с точными байтами
   manifest.
-- `REQ-4207`: Import повторно строит plan, требует exact digest и `--confirm`,
-  атомарно принимает фактические локальные bytes через component adoption и
+- `REQ-4207`: Import повторно строит plan и требует exact digest как
+  подтверждение локальной записи, атомарно принимает фактические локальные bytes через component adoption и
   сохраняет ключ идемпотентности. Повтор одного snapshot возвращает прежние
   identifiers без новой ревизии.
 - `REQ-4208`: Imported passports остаются private, local/imported и не получают

@@ -85,16 +85,10 @@ roots = [
 "docs/adr/ADR-0107-a-class-is-chosen-by-measurement-not-by-capability.md" = "private fleet decision"
 
 # Status of one team against one internal plan, on one private infrastructure.
-"docs/engineering/audit-remediation-status.md" = "internal status report"
-"docs/engineering/mvp-completion-plan.md" = "internal status report"
-"docs/engineering/runner-separation-readiness.md" = "internal status report"
-"docs/engineering/sprint1-completion-report.md" = "internal status report"
 
 # How this deployment is operated, which is specific to one host and one fleet.
 "docs/operations/ci-cd.md" = "operates the private fleet"
-"docs/operations/infrastructure.md" = "describes the private host"
 "docs/operations/provider-integration-state.md" = "internal integration status"
-"docs/operations/runbooks/deploy.md" = "operates the private host"
 "docs/operations/runbooks/pypi-release.md" = "operates the private fleet"
 
 # These assert what *this* working copy's workflows say. Published unchanged
@@ -108,6 +102,5 @@ roots = [
 # These read artefacts only this working copy has: the audit status document
 # withheld above, this repository's branch protections, and the export's own
 # private half. Published unchanged they would fail rather than inform.
-"tests/contract/test_audit_remediation_status.py" = "reads a withheld document"
 "tests/contract/test_public_export.py" = "asserts the export's private half"
 "tests/contract/test_public_import.py" = "asserts the overlay, which only this copy has"

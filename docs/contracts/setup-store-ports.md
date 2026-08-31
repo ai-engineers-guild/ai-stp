@@ -1,6 +1,6 @@
 ---
 description: "Контракт локального обнаружения, preview и импорта компонентов из SX и APM."
-last_verified: "2026-08-13"
+last_verified: "2026-08-31"
 ---
 
 # Local setup-store ports
@@ -10,8 +10,9 @@ last_verified: "2026-08-13"
 `registry port discover --root <path>` находит поддерживаемые manifests.
 `registry port inspect --adapter sx|apm --root <path>` показывает conversion
 report. `registry port plan` добавляет exact digest и последствия операции.
-`registry port import` требует тот же root/adapter, `--expected-plan-digest` и
-`--confirm`; его единственный эффект — local registry write.
+`registry port import` требует тот же root/adapter и
+`--expected-plan-digest`; exact digest подтверждает local registry write и
+отдельного boolean-confirm нет.
 
 Флаги и result schemas принадлежат генерируемому `help --agent`, поэтому здесь
 не дублируются. Внешний store и harness target остаются byte-identical. Port не

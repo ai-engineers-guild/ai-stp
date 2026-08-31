@@ -1,6 +1,6 @@
 ---
 description: "Машинный контракт профиля, плана и результата локальной оценки точного SetupVersion."
-last_verified: "2026-08-13"
+last_verified: "2026-08-31"
 ---
 
 # Оценка точного сетапа
@@ -29,7 +29,8 @@ component обязан входить в названный setup graph.
 
 - `eval profile [--type <type>]` — показать reference profile без записи;
 - `eval plan --setup-id ... --setup-version ... --harness-version ... --provider-version ... --runner-version ...` — сохранить content-addressed plan; повторяемый `--component-id` ограничивает scope;
-- `eval run --plan-id ... --expected-plan-digest ... --confirm` — выполнить доступный локальный deterministic subset;
+- `eval run --plan-id ... --expected-plan-digest ...` — выполнить доступный
+  локальный deterministic subset; exact digest является подтверждением;
 - `eval status --run-id ...` и `eval show --run-id ...` — прочитать immutable evidence без повторного исполнения.
 
 ## Честное отсутствие runner
