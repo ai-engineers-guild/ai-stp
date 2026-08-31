@@ -5,7 +5,9 @@ last_verified: "2026-08-30"
 
 # ADR-0126: Conformance получает windows-исключение по тому же признаку
 
-Статус: принято. Уточняет область `#416`.
+Статус: принято для Windows fallback. В части macOS заменено
+`ADR-0134-macos-sandbox-exec-is-probed-fail-closed.md`; основной Windows
+launcher принят в `ADR-0133-appcontainer-keeps-bypass-traverse-checking.md`.
 
 ## Контекст
 

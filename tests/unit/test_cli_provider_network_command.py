@@ -17,7 +17,7 @@ def test_unavailable_network_capability_remains_unavailable(
         launcher_id=None,
         evidence=("no verified macOS launcher",),
     )
-    monkeypatch.setattr(network_launcher, "discover_bubblewrap", lambda: (None, capability))
+    monkeypatch.setattr(network_launcher, "discover_launcher", lambda: (None, capability))
 
     report = select.provider_network({}).payload
 
@@ -38,7 +38,7 @@ def test_enforced_capability_names_the_exact_launcher(
         evidence=("sha256=" + "a" * 64, "IPv4/IPv6/DNS-UDP denied"),
     )
     launcher = network_launcher.BubblewrapLauncher(executable, capability)
-    monkeypatch.setattr(network_launcher, "discover_bubblewrap", lambda: (launcher, capability))
+    monkeypatch.setattr(network_launcher, "discover_launcher", lambda: (launcher, capability))
 
     report = select.provider_network({}).payload
 
@@ -58,10 +58,10 @@ def test_the_report_answers_for_the_protocol_that_is_actually_run(
     allows a local phase to run **unisolated** on a platform with no launcher,
     gated on a trusted release or an explicit `--unverified-provider`.
 
-    So on Windows and macOS the report read `unavailable` / local actions
-    `false`, which is true of v2 and the opposite of what a v3 install then
-    does. A debt whose only visible marker describes a different protocol is a
-    debt nobody finds.
+    On Windows without a proved AppContainer the report read `unavailable` /
+    local actions `false`, which is true of v2 and the opposite of what a trusted
+    v3 install then does. A debt whose only visible marker describes a different
+    protocol is a debt nobody finds.
 
     What must not change, and does not: v2 enforcement is still `unavailable`
     and is never called `enforced`. The v3 terms are added beside it, named,
@@ -73,7 +73,7 @@ def test_the_report_answers_for_the_protocol_that_is_actually_run(
         launcher_id=None,
         evidence=("Bubblewrap launcher is Linux-only",),
     )
-    monkeypatch.setattr(network_launcher, "discover_bubblewrap", lambda: (None, capability))
+    monkeypatch.setattr(network_launcher, "discover_launcher", lambda: (None, capability))
 
     report = select.provider_network({}).payload
 
@@ -101,7 +101,7 @@ def test_a_platform_that_can_deny_the_network_says_so_for_v3_too(
         evidence=("sha256=" + "a" * 64, "IPv4/IPv6/DNS-UDP denied"),
     )
     launcher = network_launcher.BubblewrapLauncher(executable, capability)
-    monkeypatch.setattr(network_launcher, "discover_bubblewrap", lambda: (launcher, capability))
+    monkeypatch.setattr(network_launcher, "discover_launcher", lambda: (launcher, capability))
 
     report = select.provider_network({}).payload
 
@@ -125,7 +125,7 @@ def test_linux_without_the_launcher_is_a_refusal_and_not_an_exception(
         launcher_id=None,
         evidence=("bwrap executable is absent",),
     )
-    monkeypatch.setattr(network_launcher, "discover_bubblewrap", lambda: (None, capability))
+    monkeypatch.setattr(network_launcher, "discover_launcher", lambda: (None, capability))
 
     report = select.provider_network({}).payload
 

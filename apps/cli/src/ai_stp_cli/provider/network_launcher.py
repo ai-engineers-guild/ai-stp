@@ -193,20 +193,16 @@ UNISOLATED_REASONS: Final[frozenset[str]] = frozenset(
 )
 
 
-#: Systems where no launcher a plain CLI may use can deny the network, so the
-#: exception above is the only way a local phase runs at all. Closed, and it is
-#: a statement about the platform rather than about this machine.
+#: Systems that retain an explicitly named fallback when their native launcher
+#: is unavailable. Closed, and deliberately narrower than launcher discovery.
 #:
 #: Linux is deliberately absent: there the absence of `bwrap` is a missing
 #: dependency, not a missing capability of the operating system, and skipping a
 #: capability that exists is a different act from conceding one that does not.
 #:
-#: macOS is here because it was missing, not because anything decided it should
-#: be. `windows` was written into the name and the check, so on macOS
-#: `discover_bubblewrap` returned nothing and the exception refused to be built
-#: — every v3 provider call refused, on a platform whose providers we fetch and
-#: attest. `sandbox-exec` may yet give macOS a real launcher; until something
-#: proves one on the platform itself, it carries the same debt as Windows.
+#: macOS is deliberately absent. Its deprecated system sandbox-exec is accepted
+#: only after a native denial probe; absence or probe failure refuses instead of
+#: becoming standing permission to run unisolated.
 class NetworkLauncher(Protocol):
     """One proved launcher, and the two shapes a denial can take.
 
@@ -239,7 +235,8 @@ def discover_launcher() -> tuple[NetworkLauncher | None, NetworkCapability]:
 
     One place decides, because the alternative is three call sites each holding
     a platform test and drifting apart. Linux proves Bubblewrap, Windows proves
-    an AppContainer (`ADR-0133`), and anything else has no launcher to prove.
+    an AppContainer (`ADR-0133`), and macOS proves a fail-closed sandbox-exec
+    profile on the machine where it will run.
 
     Imported inside the call rather than at module scope: the Windows module
     binds `WinDLL` and `msvcrt` names, and this one is imported on every
@@ -252,10 +249,14 @@ def discover_launcher() -> tuple[NetworkLauncher | None, NetworkCapability]:
         return windows_launcher.discover_appcontainer()
     if system == "linux":
         return discover_bubblewrap()
+    if system == "darwin":
+        from ai_stp_cli.provider import macos_launcher
+
+        return macos_launcher.discover_sandbox_exec()
     return None, unavailable(system, f"no network-denying launcher exists for {system}")
 
 
-UNISOLATED_PLATFORMS: Final[frozenset[str]] = frozenset({"windows", "darwin"})
+UNISOLATED_PLATFORMS: Final[frozenset[str]] = frozenset({"windows"})
 
 
 @dataclass(frozen=True)
@@ -271,12 +272,11 @@ class UnisolatedLocalPhase:
 
 
 def unisolated_local_phase(reason: str) -> UnisolatedLocalPhase:
-    """Build the Windows exception, or refuse to.
+    """Build the remaining Windows exception, or refuse to.
 
-    Windows 11 has no network-denying launcher a plain CLI may use — meaning
-    none is built and proved here. `CreateProcessInSandbox` is absent on this OS
-    version and Windows Sandbox is a separate optional feature. So the provider
-    refused before its first spawn and nothing worked on Windows at all.
+    Windows retains a narrowly named fallback when its AppContainer probe is
+    unavailable. macOS no longer shares it: a system sandbox-exec must pass the
+    native denial probe, otherwise the local phase refuses.
 
     **One half of the original reason was wrong, and it is the half that stopped
     anyone looking.** This said reaching an arbitrary target needs DACL
@@ -351,7 +351,7 @@ def _system_path_refusal(executable: Path) -> str | None:
             # `os.access(X_OK)` rather than `paths.is_executable_file`, and the
             # difference is the point: this is the only executable check in the
             # CLI that is Linux-only by construction. `bwrap` exists nowhere
-            # else, `UNISOLATED_PLATFORMS` concedes Windows and macOS above, and
+            # else, `UNISOLATED_PLATFORMS` concedes only Windows above, and
             # the root-ownership test two lines up is already a POSIX question.
             # The portable predicate would be a weaker answer here, not a safer
             # one — it asks about a name where this asks about a permission.

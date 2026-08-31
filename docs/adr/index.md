@@ -132,6 +132,7 @@ last_verified: "2026-08-03"
 | [ADR-0131-server-owned-seo-projections-with-optional-model-enrichment.md](ADR-0131-server-owned-seo-projections-with-optional-model-enrichment.md) | Решение материализовать SEO как серверную проекцию опубликованных фактов и разрешить необязательное model-enrichment только после детерминированной публикации. | 2026-08-31 |
 | [ADR-0132-one-server-owned-article-publication-stream.md](ADR-0132-one-server-owned-article-publication-stream.md) | Решение свести repository import и staff API к одному серверному потоку публикации статей. | 2026-08-29 |
 | [ADR-0133-appcontainer-keeps-bypass-traverse-checking.md](ADR-0133-appcontainer-keeps-bypass-traverse-checking.md) | Решение строить windows network-isolated launcher на AppContainer, потому что измерение опровергло возражение о правке DACL родителей. | 2026-08-30 |
+| [ADR-0134-macos-sandbox-exec-is-probed-fail-closed.md](ADR-0134-macos-sandbox-exec-is-probed-fail-closed.md) | Решение использовать системный sandbox-exec на macOS только после нативной пробы запрета сети и без fallback на trust exception. | 2026-08-31 |
 | [template.md](template.md) | Шаблон записи архитектурного решения. | 2026-08-03 |
 
 <!-- КОНЕЦ СОДЕРЖИМОГО -->

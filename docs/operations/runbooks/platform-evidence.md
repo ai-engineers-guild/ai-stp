@@ -32,8 +32,9 @@ ARM не засчитывается.
 - `provider network` и runtime probes consumer boundary.
 
 Linux должен доказать Bubblewrap или ранний отказ. Windows — AppContainer с
-runtime proof/fail-closed. macOS отдельно записывает допустимый trust exception;
-он не называется `enforced`.
+runtime proof/fail-closed. macOS доказывает системный `sandbox-exec` той же
+transport probe; отсутствие executable или proof является ранним отказом, а не
+основанием для unisolated запуска.
 
 ## Отдельная producer evidence
 

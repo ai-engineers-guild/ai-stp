@@ -1,14 +1,10 @@
-"""Windows runs a local phase without a network-denying launcher, and says so.
+"""Only the remaining Windows fallback may run without network denial.
 
 Linux proves network denial with Bubblewrap: a network namespace blocks the
 socket and a bind mount hands over the target without touching host ACLs.
-Windows 11 has no equivalent a plain CLI may use — AppContainer blocks the
-network but reaching an arbitrary target needs DACL traversal, and preparing a
-parent or a drive root is not something an installer gets to do.
-
-So the provider refused before its first spawn, and nothing worked on Windows at
-all. This is the deliberate exception, and everything here is about keeping it
-exactly as narrow as it was decided to be.
+AppContainer is the primary Windows path. The explicit exception remains only
+for a trusted release or a deliberately unverified provider when its native
+probe is unavailable. macOS must now prove sandbox-exec or refuse.
 """
 
 from __future__ import annotations
@@ -50,30 +46,10 @@ def test_the_exception_cannot_be_made_on_linux(monkeypatch: pytest.MonkeyPatch) 
     assert "can deny the network" in raised.value.message
 
 
-def test_every_launcherless_platform_can_build_the_exception(
+def test_macos_cannot_build_the_windows_exception(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """macOS was missing, and nothing had decided it should be.
-
-    `windows` was written into the name and into the platform check, so on macOS
-    `discover_bubblewrap` returned nothing *and* the exception refused to be
-    built — every v3 provider call refused, on a platform whose providers this
-    CLI fetches and attests and whose jobs run in the gate matrix.
-
-    The rule is about the platform, not about the name: a system that cannot
-    deny the network gets the exception, a system that can does not. Linux is
-    excluded because its missing `bwrap` is a missing dependency rather than a
-    missing capability, and skipping a capability that exists is a different act
-    from conceding one that does not.
-    """
-    for system in ("Windows", "Darwin"):
-        _on(monkeypatch, system)
-        held = network_launcher.unisolated_local_phase(network_launcher.TRUSTED_RELEASE)
-        assert held.reason == network_launcher.TRUSTED_RELEASE, system
-        _, capability = network_launcher.discover_bubblewrap()
-        assert capability.enforcement is protocol_v2.NetworkEnforcement.UNAVAILABLE, system
-
-    _on(monkeypatch, "Linux")
+    _on(monkeypatch, "Darwin")
     with pytest.raises(CliFailure):
         network_launcher.unisolated_local_phase(network_launcher.TRUSTED_RELEASE)
 

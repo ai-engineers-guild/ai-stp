@@ -179,23 +179,22 @@ provider target в неизменяемом плане, а `apply` и `resume` �
 **Protocol v3 на трёх ОС.** Linux использует Bubblewrap. Windows использует
 native AppContainer launcher, который запрещает сеть дочернему process tree и
 доказывает доступ к выбранному target runtime probes; невозможность построить
-его даёт ранний fail-closed. macOS пока не имеет network-denying launcher.
-
-На macOS unisolated local phase разрешается ровно двумя наблюдаемыми причинами:
-доверенный выпуск либо явный `--unverified-provider`. Исключение не становится
-`enforced` и не переносится на неизвестный executable. `provider network
+его оставляет явно названный trust fallback. macOS использует системный
+`/usr/bin/sandbox-exec` с `(deny network*)` только после проверки root-owned
+пути, SHA-256 и нативной positive/negative transport probe. При отсутствии или
+ошибке пробы macOS закрывается отказом без trust fallback. `provider network
 --json` сообщает отдельный `v3_local_phase`:
 
 - `network_denied` — launcher доказан, фаза идёт внутри него;
-- `unisolated_by_trust` — launcher'а на этой платформе нет, фаза идёт с
-  достижимой сетью, и `v3_local_phase_reasons` перечисляет причины, одну из
-  которых обязан предъявить вызывающий;
+- `unisolated_by_trust` — Windows launcher недоступен, фаза идёт с достижимой
+  сетью, и `v3_local_phase_reasons` перечисляет причины, одну из которых обязан
+  предъявить вызывающий;
 - `refused` — launcher здесь возможен и отсутствует, поэтому не идёт ничего.
 
 Последние два не сливаются намеренно: отсутствие установленного launcher на
-Linux/Windows — недостающая зависимость или runtime capability; отсутствие
-механизма на macOS — известная граница платформы. Проверка импортов provider
-binary является дополнительным evidence и не заменяет изоляцию process tree.
+Linux/macOS закрывается отказом, а Windows сохраняет отдельно видимую уступку.
+Проверка импортов provider binary является дополнительным evidence и не
+заменяет изоляцию process tree.
 
 ## Capability-negotiated protocol v3
 

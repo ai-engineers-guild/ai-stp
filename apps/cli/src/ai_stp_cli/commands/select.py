@@ -1901,7 +1901,7 @@ def provider_conformance(parameters: Mapping[str, object]) -> Answer[Conformance
 
 def provider_network(_parameters: Mapping[str, object]) -> Answer[ProviderNetworkCapability]:
     """Report observed v2 network enforcement without launching a provider."""
-    launcher, capability = network_launcher.discover_bubblewrap()
+    launcher, capability = network_launcher.discover_launcher()
     decision = protocol_v2.decide(
         "provider-info",
         protocol_v2.ActionPhase.EXECUTE,

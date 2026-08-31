@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from typing import cast
 
-TRUSTED_UNISOLATED_PLATFORMS = frozenset({"darwin", "windows"})
+TRUSTED_UNISOLATED_PLATFORMS = frozenset({"windows"})
 TRUST_REASONS = frozenset({"explicit_unverified_provider", "trusted_release"})
 
 

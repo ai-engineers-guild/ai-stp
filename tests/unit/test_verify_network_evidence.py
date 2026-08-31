@@ -39,17 +39,22 @@ def test_missing_linux_launcher_refuses_instead_of_weakening_isolation() -> None
     )
 
 
-@pytest.mark.parametrize("os_name", ("darwin", "windows"))
-def test_platform_without_a_launcher_names_both_trust_paths(os_name: str) -> None:
+def test_windows_without_a_launcher_names_both_trust_paths() -> None:
     verify_network_evidence(
         _report(
-            os_name,
+            "windows",
             "unavailable",
             "unisolated_by_trust",
             ["explicit_unverified_provider", "trusted_release"],
             available=False,
         ),
-        os_name,
+        "windows",
+    )
+
+
+def test_macos_without_a_proved_launcher_refuses() -> None:
+    verify_network_evidence(
+        _report("darwin", "unavailable", "refused", [], available=False), "darwin"
     )
 
 
@@ -57,13 +62,13 @@ def test_unisolated_phase_without_every_trust_reason_is_refused() -> None:
     with pytest.raises(NetworkEvidenceError, match="exact trust reasons"):
         verify_network_evidence(
             _report(
-                "darwin",
+                "windows",
                 "unavailable",
                 "unisolated_by_trust",
                 ["trusted_release"],
                 available=False,
             ),
-            "darwin",
+            "windows",
         )
 
 

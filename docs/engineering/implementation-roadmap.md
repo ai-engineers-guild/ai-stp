@@ -88,8 +88,9 @@ last_verified: "2026-08-31"
    переиздавать старые assets и не считать исправленный source evidence.
 4. После exact evidence обновить package classifiers; до него classifier не
    опережает доказательство.
-5. macOS остаётся единственной платформой без network-denying launcher; trust
-   exception измеряется отдельно и не называется `enforced`.
+5. macOS использует consumer-controlled `sandbox-exec` только после нативной
+   transport probe; отсутствие executable/proof закрывается отказом без trust
+   exception.
 
 ### P3. Release-candidate и live evidence
 

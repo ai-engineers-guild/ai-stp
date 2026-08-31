@@ -58,8 +58,8 @@ last_verified: "2026-08-31"
 - `REQ-821`: Замороженный protocol v1 не заявляет сетевую изоляцию; сетевая потребность вводится только отдельной версией протокола и принимает закрытые значения `none`, `artifact_download` или `runtime_external` для каждого действия.
 - `REQ-822`: Результат protocol v2 сообщает `network_enforcement` как `enforced`, `unavailable` или `not_requested`; значение `unavailable` не называется запретом сети.
 - `REQ-823`: Действие с `network_requirement=none` предпочитает доказанный
-  capability `enforced`. Платформа без launcher может использовать только
-  явно наблюдаемый trust exception `trusted_release` или
+  capability `enforced`. Только оставшийся Windows runtime fallback может
+  использовать явно наблюдаемый trust exception `trusted_release` или
   `explicit_unverified_provider` по `ADR-0126`; он не называется `enforced`.
   Любой другой случай возвращает типизированный отказ до запуска провайдера.
 - `REQ-824`: Разрешение `artifact_download` принадлежит отдельной download-фазе и не расширяет локальную проверку, изменение цели или последующие действия; `runtime_external` разрешается только явному запуску.
@@ -94,6 +94,7 @@ last_verified: "2026-08-31"
 - `REQ-846`: Уровень доверия, идентичность attestation и digest использованного bundle входят в неизменяемый install plan, повторно проверяются перед apply и сохраняются в локальной истории. Повторная проверка подаёт в `gh attestation verify --bundle` Sigstore bundle, извлечённый из сохранённого JSON ответа GitHub CLI, а не обёртку `attestation` с `bundle_url`. Совместимое поле `provider_release_trusted` выводится как `level != unverified`, но не является источником уровня.
 - `REQ-847`: Потребитель материализует закрытый манифест выпуска из attested-артефакта, exact tag, source commit и `provider-info` этих байт, когда издатель не приложил JSON. Sequence кодируется из exact semver-тега. Это не второй trust anchor и не заносит байты в `releases`. Исполняемый файл не запускается до успешной проверки attestation.
 - `REQ-848`: План установки называет выбранный сетап — его имя и его собственное описание — вместе с перечнем эффектов. Перечень эффектов точен относительно файлов, которые запишет провайдер, и ничего не говорит о том, что означает их изменить; для сетапа, чьё содержание и есть отключаемое, это разные вопросы. Описание берётся из точного паспорта SetupVersion, который план и так разрешает, и не сокращается.
+- `REQ-849`: На macOS consumer использует только root-owned системный `/usr/bin/sandbox-exec` с закрытым профилем `(allow default)`/`(deny network*)` и объявляет `enforced` лишь после положительного контроля IPv4/IPv6/DNS-like UDP снаружи и запрета тех же transports внутри. Отсутствие executable, недоверенный путь или ошибка пробы дают `unavailable` и ранний отказ без trust exception.
 
 ## Состояния и ошибки
 
@@ -159,3 +160,4 @@ last_verified: "2026-08-31"
 | `REQ-846` | Изменение уровня, attestation identity или bundle digest меняет plan digest; apply повторяет проверку exact bytes и evidence, а history и machine output сохраняют уровень без секретов. Отдельный тест подтверждает, что `verify_stored` извлекает Sigstore bundle из JSON GitHub CLI и отказывает, если в `--bundle` остаётся обёртка без `dsseEnvelope`. |
 | `REQ-847` | Фикстура `provider fetch` после успешной GitHub attestation записывает закрытый JSON, который `verify_attested` принимает; `provider-info` вызывается только после attestation; тег `latest` и открытый pre-release отклоняются; байты не попадают в `releases`. |
 | `REQ-848` | План выбранного сетапа несёт его имя и полное описание; описание с оговоркой сохраняет оговорку, а не только первую фразу. |
+| `REQ-849` | Нативная macOS проба принимает только root-owned `/usr/bin/sandbox-exec`, доказывает positive control и запрет IPv4/IPv6/DNS-like UDP; отсутствие executable, writable ancestor, malformed/failed profile или достижимый transport оставляют capability `unavailable` и не запускают provider. |

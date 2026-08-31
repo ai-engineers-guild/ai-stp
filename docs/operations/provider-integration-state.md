@@ -36,8 +36,8 @@ Windows instrumentation-oracle failures: оба exact vendor releases отвеч
 released run ещё pending.
 
 Linux использует доказанный Bubblewrap, Windows — AppContainer runtime proof.
-macOS пока имеет только ограниченный trust exception для trusted release или
-explicit unverified provider; он не называется `enforced`.
+macOS использует системный `sandbox-exec` только после нативной transport probe;
+без executable или proof локальная фаза отказывается и trust exception нет.
 
 Provider implementation/release и consumer enforcement — отдельные commits и
 границы изменений. Порядок schema ответа `status` уже дошёл до выпуска producer;
