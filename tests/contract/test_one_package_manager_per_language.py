@@ -134,6 +134,25 @@ def test_both_managers_are_installed_from_a_pinned_verified_archive() -> None:
         assert '"${1:?' in script or "version=" in commands, f"{name} takes no pinned version"
 
 
+def test_windows_arm_bootstraps_the_native_uv_binary() -> None:
+    """The six-platform evidence matrix must not prove x64 emulation on ARM.
+
+    uv publishes an ``aarch64-pc-windows-msvc`` asset for the pinned version.
+    The bootstrap used to overwrite the architecture detected by ``uname``
+    with ``x86_64`` for every Windows runner, so a green Windows ARM job would
+    still have executed the x64 toolchain. The archive suffix differs by OS;
+    the machine selected above it must survive unchanged.
+    """
+    script = (ROOT / ".github" / "scripts" / "install-uv.sh").read_text(encoding="utf-8")
+    assert 'machine_name="${RUNNER_ARCH:-$(uname -m)}"' in script
+    assert "ARM64 | arm64 | aarch64" in script
+    windows = script.split('if [ "${system}" = "pc-windows-msvc" ]; then', maxsplit=1)[1].split(
+        "else", maxsplit=1
+    )[0]
+    assert 'machine="x86_64"' not in windows
+    assert 'archive="uv-${machine}-${system}.zip"' in windows
+
+
 def test_every_bun_lockfile_is_readable_by_the_pinned_bun() -> None:
     """A lockfile written by a newer bun is unreadable by the pinned one.
 

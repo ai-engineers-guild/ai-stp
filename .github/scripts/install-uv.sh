@@ -24,18 +24,17 @@ case "$(uname -s)" in
     ;;
 esac
 
-case "$(uname -m)" in
-  x86_64 | amd64) machine="x86_64" ;;
-  arm64 | aarch64) machine="aarch64" ;;
+machine_name="${RUNNER_ARCH:-$(uname -m)}"
+case "${machine_name}" in
+  X64 | x64 | x86_64 | amd64) machine="x86_64" ;;
+  ARM64 | arm64 | aarch64) machine="aarch64" ;;
   *)
-    echo "install-uv: unknown machine $(uname -m)" >&2
+    echo "install-uv: unknown machine ${machine_name}" >&2
     exit 1
     ;;
 esac
 
-# There is no aarch64 Windows build; the runner is x86_64 either way.
 if [ "${system}" = "pc-windows-msvc" ]; then
-  machine="x86_64"
   archive="uv-${machine}-${system}.zip"
 else
   archive="uv-${machine}-${system}.tar.gz"
