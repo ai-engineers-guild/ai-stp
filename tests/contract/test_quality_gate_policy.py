@@ -208,7 +208,11 @@ def test_primary_quality_gates_do_not_require_bash_on_windows() -> None:
 def test_platform_matrix_installs_one_exact_candidate_on_six_native_targets() -> None:
     text = PLATFORM_WORKFLOW.read_text(encoding="utf-8")
     workflow = yaml.safe_load(text)
-    rows = workflow["jobs"]["verify"]["strategy"]["matrix"]["include"]
+    verify_job = workflow["jobs"]["verify"]
+    rows = verify_job["strategy"]["matrix"]["include"]
+    verify_scripts = "\n".join(
+        step["run"] for step in verify_job["steps"] if isinstance(step.get("run"), str)
+    )
     observed = {(row["os"], row["arch"], row["runner"]) for row in rows}
     expected = {
         ("linux", "x86_64", "ubuntu-24.04"),
@@ -225,7 +229,10 @@ def test_platform_matrix_installs_one_exact_candidate_on_six_native_targets() ->
     assert "release_scripts.verify_candidate_install" in text
     assert '--expected-python "${EXPECTED_PYTHON}"' in text
     assert "RUNNER_ARCH" in text
-    assert "ai-stp provider network --json" in text
+    assert "--network-report" in verify_scripts
+    assert "release_scripts.verify_network_evidence" in verify_scripts
+    assert "uv sync" not in verify_scripts
+    assert "ai-stp provider network --json" not in verify_scripts
     assert not (WORKFLOWS / "macos-evidence.yml").exists()
 
 
