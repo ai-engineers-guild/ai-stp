@@ -1,172 +1,179 @@
 ---
-description: "SPEC-023: Веб-вход, профиль аккаунта и управление устройствами."
+description: "SPEC-023: Web login, account profile and device management."
 last_verified: "2026-08-17"
 ---
 
-# SPEC-023: Веб-вход, профиль аккаунта и устройства
+# SPEC-023: Web login, account and device profile
 
-## Цель
+## Purpose
 
-`apps/web` отдаёт аутентифицированную поверхность вертикального среза Sprint-1: вход и
-выход через Google и GitHub поверх общего OAuth API; просмотр профиля аккаунта и
-редактирование минимальных полей публичного профиля и приватности, разрешённых
-каноническим контрактом; список устройств только с разрешённой сводкой; отзыв
-устройства с явным подтверждением, обработкой устаревшего состояния и безопасной
-обратной связью; различение текущей сессии и устройства; защита аутентифицированных
-маршрутов и обработка истечения сессии. Публикация, синхронизация, права, жалобы и
-администрирование в этот срез не входят.
+`apps/web` provides the authenticated Sprint-1 vertical slice: login and
+logout via Google and GitHub on top of the shared OAuth API; viewing the account profile and
+editing the minimum public profile and privacy fields allowed
+canonical contract; a device list containing only the permitted summary; revoking
+devices with explicit acknowledgment, stale state handling, and secure
+feedback; distinguish between current session and device; protection of authenticated
+routes and session expiration processing. Publication, synchronization, rights, complaints and
+administration is not included in this section.
 
-Wire-контракт заморожен `#71`; механизм OAuth, форма серверной сессии и
-аутентификация устройства принадлежат `ADR-0041`; стек и порождение клиента —
-`ADR-0043`; владение интерфейсами и запрет второй бизнес-логики — `ADR-0018`,
-`SPEC-010` `REQ-1011`, `REQ-1012`; разрешённая сводка устройства —
-`SPEC-010` `REQ-1013` и `docs/contracts/device-passport.md`; поля публичного профиля —
-`docs/contracts/public-profile.md`; доменные требования аккаунта, устройства и
-доступа — `SPEC-002`; правила заголовков, идемпотентности и конкуренции —
-`docs/contracts/http-api.md`. Эта спецификация описывает поведение веба позади
-контракта и владеет требованиями `REQ-23xx`.
+Wire contract frozen `#71`; OAuth mechanism, server session form and
+device authentication belong to `ADR-0041`; stack and client spawning -
+`ADR-0043`; ownership of interfaces and prohibition of second business logic - `ADR-0018`,
+`SPEC-010` `REQ-1011`, `REQ-1012`; allowed device summary -
+`SPEC-010` `REQ-1013` and `docs/contracts/device-passport.md`; public profile fields -
+`docs/contracts/public-profile.md`; domain requirements of the account, device and
+access - `SPEC-002`; header, idempotency and competition rules -
+`docs/contracts/http-api.md`. This specification describes the behavior of the web behind
+contract and owns the requirements of `REQ-23xx`.
 
-## Границы
+## Scope
 
-Входят: UX входа и выхода через Google и GitHub поверх общего OAuth API `#80`;
-просмотр профиля аккаунта и редактирование разрешённых полей публичного профиля и
-приватности; список устройств только с разрешённой сводкой; подтверждение нового
-CLI-устройства по одноразовому коду без отзыва уже активных устройств; отзыв устройства с
-подтверждением, обработкой устаревшего `ETag`/ревизии и безопасной обратной связью;
-различение текущей сессии и устройства; защита аутентифицированных маршрутов и
-обработка истечения сессии; отображение идентификаторов результата действия там, где
-их выдаёт API; паритет `ru`/`en` и доступные формы и диалоги.
+Includes: Google and GitHub login and logout UX on top of the shared OAuth API `#80`;
+viewing your account profile and editing allowed public profile fields and
+privacy; list of devices only with allowed summary; confirmation of new
+CLI devices using a one-time code without revoking already active devices; device revocation with
+confirmation, processing of obsolete `ETag`/revisions and secure feedback;
+distinguish between current session and device; protecting authenticated routes and
+session expiration processing; displaying action result identifiers where
+they are issued by the API; parity `ru`/`en` and accessible forms and dialogs.
 
-Не входят: черновики, публикация, состояние синхронизации, права и приглашения,
-жалобы и модерация; полный показ паспорта устройства; создание и редактирование
-паспорта, индексация проекта и сборка состава в браузере; механизм OAuth и сессии
-(`ADR-0041`); связывание личности и решения о полномочиях (сервер, `SPEC-002`); wire-
-схемы и `schemas/**` (`#71`).
+Not included: drafts, publishing, sync status, rights and invitations,
+complaints and moderation; full display of the device passport; creation and editing
+passports, project indexing and composition assembly in the browser; OAuth mechanism and sessions
+(`ADR-0041`); linking identity and authority decisions (server, `SPEC-002`); wire-
+circuits and `schemas/**` (`#71`).
 
-## Термины
+## Terms
 
-- `Login UX` — двусторонний поток входа Google и GitHub поверх OAuth API `#80` с
-  эквивалентным поведением после входа; сам механизм — `ADR-0041`.
-- `Account profile view` — просмотр аккаунта и редактирование только тех полей
-  публичного профиля и приватности, что разрешены каноническим контрактом.
-- `Device summary` — закрытая разрешённая сводка устройства из
-  `docs/contracts/device-passport.md`: имя, ОС и архитектура, харнессы с версиями,
-  версия профиля инструментов, время последнего обновления; полный паспорт не
-  показывается.
-- `Revoke` — отзыв устройства с явным подтверждением, `If-Match` по `ETag`/ревизии и
-  обновлением вида от серверной истины.
-- `Current device/session` — устройство и сессия текущего запроса; их отзыв даёт явное
-  состояние выхода.
-- `Protected route` — аутентифицированный маршрут, который перенаправляет без утечки
-  защищённых данных для неаутентифицированного пользователя.
+- `Login UX` - Google and GitHub two-way login flow on top of the `#80` OAuth API with
+  equivalent behavior after login; the mechanism itself is `ADR-0041`.
+- `Account profile view` - view the account and edit only those fields
+  public profile and privacy, as permitted by the canonical contract.
+- `Device summary` - closed resolved device summary from
+  `docs/contracts/device-passport.md`: name, OS and architecture, harnesses with versions,
+  tool profile version, last update time; full passport not
+  is shown.
+- `Revoke` - device revocation with explicit confirmation, `If-Match` according to `ETag`/revision and
+  updating the view from server truth.
+- `Current device/session` — device and session of the current request; revoking either
+  produces an explicit logged-out state.
+- `Protected route` is an authenticated route that redirects without leaking
+  protected data for an unauthenticated user.
 
-## Требования
+## Requirements
 
-- `REQ-2301`: Неаутентифицированный пользователь на защищённом маршруте
-  перенаправляется без раскрытия защищённых данных; защита читает серверную сессию, а
-  не только клиентское состояние; предположение о полномочиях на клиенте не
-  предоставляет доступ.
-- `REQ-2302`: Вход через Google и GitHub имеет эквивалентное поведение после входа;
-  поток обрабатывает успех, ошибку и отмену провайдера наблюдаемыми состояниями;
-  механизм OAuth, `state`, PKCE и сессия принадлежат `ADR-0041` и не реализуются вебом
-  заново.
-- `REQ-2303`: Поля профиля аккаунта, публичного профиля и приватности в вебе точно
-  соответствуют контракту (`docs/contracts/public-profile.md` и
-  `identity-account-profile` в `/v1`). Страница приватности показывает текущие
-  `show_profile_publicly` и `allow_publisher_listing`, сохраняет их только явной
-  кнопкой через `PUT /v1/account/privacy` с double-submit CSRF и после успеха
-  отображает подтверждённое сервером состояние. Публичный профиль редактируется
-  через аддитивные маршруты `SPEC-028`; ссылки принимаются только по HTTPS.
-- `REQ-2304`: Страница устройства показывает только разрешённую сводку из
-  `docs/contracts/device-passport.md` (`REQ-1013`); полный паспорт устройства,
-  абсолютные пути, значения окружения и приватные ключи не рендерятся и не
-  запрашиваются.
-- `REQ-2305`: Отзыв устройства требует явного подтверждения, использует `If-Match` по
-  `ETag`/ревизии и обновляет вид от серверной истины, а не оптимистично; устаревшее
-  предусловие и конкурентное изменение различаются (`AI_STP_PRECONDITION_FAILED` и
-  `AI_STP_CONFLICT`) и обрабатываются повторным чтением или явным решением.
-- `REQ-2306`: Отзыв текущего устройства или сессии даёт явное состояние выхода;
-  веб различает текущее устройство и сессию от прочих и не показывает
-  действующим отозванный текущий контекст.
-- `REQ-2307`: Браузерное хранилище не содержит долгоживущих токенов провайдера;
-  сессия веба переносится `HttpOnly; Secure; SameSite=Lax` cookie, а небезопасные
-  методы несут double-submit CSRF-токен по `ADR-0041`; значения токенов и сессии не
-  попадают в клиентский код, логи браузера и видимые ошибки.
-- `REQ-2308`: Истечение или отзыв сессии обрабатывается наблюдаемым переходом в
-  состояние выхода при следующем защищённом запросе; веб не продолжает показывать
-  защищённые данные по устаревшей клиентской сессии.
-- `REQ-2309`: Идентификатор результата действия (`operation_id`/`X-Operation-Id`)
-  отображается там, где его выдаёт API, для аудита пользователем; веб не выдумывает
-  идентификатор и не показывает секретов в обратной связи.
-- `REQ-2310`: Аутентифицированные маршруты и компоненты `apps/web` не реализуют вторую
-  бизнес-логику: связывание личности, решения о полномочиях и запись остаются за API
-  через общий сценарий (`ADR-0018`, `REQ-1011`, `REQ-1012`); отдельный веб-маршрут
-  допускается только при записанной причине безопасности (транспорт `ADR-0041`).
-- `REQ-2311`: Русская и английская локали дают эквивалентную информацию и поведение на
-  аутентифицированной поверхности; формы и диалоги доступны с клавиатуры, имеют видимый
-  фокус, корректные роли и подписи и объявляют ошибки ассистивным технологиям.
-- `REQ-2312`: Один аккаунт поддерживает несколько одновременно активных устройств.
-  Страница `/devices` показывает все привязанные устройства и форму подтверждения
-  очередного одноразового CLI-кода; успешная привязка нового устройства не отзывает и
-  не заменяет уже активные устройства. Подтверждение использует серверный сценарий
-  `POST /v1/auth/device/approve`, а веб не реализует собственную логику связывания.
-- `REQ-2313`: Повторный OAuth-вход из того же браузерного профиля переиспользует
-  его активную browser-device identity и создаёт новую сессию, а не новую строку
-  устройства. Идентификатор браузерного устройства хранится отдельно от session
-  token в `HttpOnly; Secure; SameSite=Lax` cookie, проверяется по account и состоянию;
-  отсутствующая, чужая или отозванная identity заменяется новой.
+- `REQ-2301`: Unauthenticated user on a secure route
+  redirected without disclosing protected data; protection reads the server session, and
+  not just the client state; the assumption of permissions on the client is not
+  provides access.
+- `REQ-2302`: Login via Google and GitHub have equivalent behavior after login;
+  the thread handles success, error, and provider cancellation with observable states;
+  OAuth mechanism, `state`, PKCE and session belong to `ADR-0041` and are not implemented by the web
+  again.
+- `REQ-2303`: Account profile, public profile and web privacy fields exactly
+  comply with the contract (`docs/contracts/public-profile.md` and
+  `identity-account-profile` to `/v1`). The privacy page shows current
+  `show_profile_publicly` and `allow_publisher_listing`, saves them only explicitly
+  button via `PUT /v1/account/privacy` with double-submit CSRF and after success
+  displays the status confirmed by the server. Public profile is edited
+  via additive routes `SPEC-028`; Links are accepted only over HTTPS.
+- `REQ-2304`: Device page shows only allowed summary from
+  `docs/contracts/device-passport.md` (`REQ-1013`); full device passport,
+  absolute paths, environment values, and private keys are neither rendered nor
+  requested.
+- `REQ-2305`: Device revocation requires explicit confirmation, uses `If-Match` by
+  `ETag`/revision and updates the view from the server truth, not optimistically; outdated
+  precondition and competitive change are different (`AI_STP_PRECONDITION_FAILED` and
+  `AI_STP_CONFLICT`) and are processed by re-reading or explicit decision.
+- `REQ-2306`: Revoking the current device or session gives an explicit logged-out state;
+  the web distinguishes the current device and session from others and does not show
+  valid revoked current context.
+- `REQ-2307`: Browser storage does not contain long-lived provider tokens;
+  web session is transferred `HttpOnly; Secure; SameSite=Lax` cookie, and insecure
+  methods carry double-submit CSRF token by `ADR-0041`; token and session values are not
+  end up in client code, browser logs and visible errors.
+- `REQ-2308`: Session expiration or withdrawal is handled by an observable transition to
+  exit status on next protected request; web doesn't continue to show
+  Protected data from an outdated client session.
+- `REQ-2309`: Action result identifier (`operation_id`/`X-Operation-Id`)
+  displayed where the API issues it for user audit; the web doesn't make things up
+  ID and does not show secrets in feedback.
+- `REQ-2310`: Authenticated routes and `apps/web` components do not implement the second
+  business logic: identity binding, permission decisions and recording are left to the API
+  through the general script (`ADR-0018`, `REQ-1011`, `REQ-1012`); separate web route
+  permitted only with a recorded safety reason (transport `ADR-0041`).
+- `REQ-2311`: Russian and English locales provide equivalent information and behavior on
+  authenticated surface; forms and dialogs are accessible from the keyboard and have a visible
+  focus, correct roles and signatures and declare errors to assistive technologies.
+- `REQ-2312`: One account supports several simultaneously active devices.
+  The `/devices` page shows all linked devices and a confirmation form
+  another one-time CLI code; successful pairing of a new device does not revoke and
+  does not replace already active devices. Confirmation uses server script
+  `POST /v1/auth/device/approve`, and the web does not implement its own linking logic.
+- `REQ-2313`: Repeated OAuth login from the same browser profile reuses
+  its active browser-device identity and creates a new session, not a new line
+  devices. The browser device ID is stored separately from the session
+  token in a long-lived `HttpOnly; Secure; SameSite=Lax` cookie, checked by account and status;
+  a missing, foreign or revoked identity is replaced with a new one.
+- `REQ-2314`: A browser device is labelled from its stored user agent with a safe
+  generic fallback. Caddy replaces the client-address header passed to the API,
+  which resolves approximate city and country against a local MMDB file. The
+  platform stores neither the source IP nor precise coordinates and login remains
+  available when the database is absent or unreadable. The web attributes the
+  installed data source wherever it displays a resolved location.
 
-## Состояния и ошибки
+## States and errors
 
-Аутентифицированное чтение завершается успехом с телом ресурса, состоянием
-`AI_STP_AUTH_REQUIRED` при отсутствующей или истёкшей сессии (наблюдаемый переход в
-выход), состоянием `AI_STP_PERMISSION_DENIED` при недостатке прав,
-`AI_STP_PRECONDITION_FAILED` при устаревшем `ETag` при отзыве и `AI_STP_CONFLICT` при
-конкурентном изменении. Отзыв различает эти два исхода и ведёт себя по-разному:
-устаревшее предусловие требует перечитать и повторить, конфликт требует явного
-решения. `AI_STP_DEVICE_REVOKED` для отозванного устройства даёт `403`. Каждый ответ
-несёт `X-Request-Id`; изменяющая операция — `operation_id`. Секреты и значения токенов
-в ошибки не попадают.
+Authenticated read succeeds with resource body, state
+`AI_STP_AUTH_REQUIRED` for a missing or expired session (observed transition to
+exit), state `AI_STP_PERMISSION_DENIED` with insufficient rights,
+`AI_STP_PRECONDITION_FAILED` for a stale revocation `ETag` and `AI_STP_CONFLICT` for
+competitive change. Feedback distinguishes between these two outcomes and behaves differently:
+an obsolete precondition requires re-reading and repeating, a conflict requires an explicit
+resolution. `AI_STP_DEVICE_REVOKED` for the revoked device returns `403`. Every response
+carries `X-Request-Id`; changing operation - `operation_id`. Secrets and meanings of tokens
+there are no errors.
 
-## Безопасность и приватность
+## Security and privacy
 
-Веб не рендерит полный паспорт устройства: приватная сводка ограничена закрытым
-перечнем `docs/contracts/device-passport.md`; абсолютные пути, значения окружения и
-приватные ключи не выдаются ни API, ни вебом (`REQ-1013`). Долгоживущие токены
-провайдера в браузерном хранилище не сохраняются; сессия переносится защищённой cookie
-по `ADR-0041`. Никакое клиентское предположение о полномочиях не предоставляет доступ:
-конечное правило проверяет сервер по объекту и действию (`REQ-1003`). Защищённые
-данные не рендерятся неаутентифицированному пользователю и не остаются видимыми по
-устаревшей сессии. Значения OAuth-токенов, сессии и `nonce` не попадают в клиентский
-код, логи браузера, трассы и видимые ошибки (`ADR-0041`).
+Web does not render full device passport: private summary is limited to private
+list `docs/contracts/device-passport.md`; absolute paths, environment values and
+private keys are not issued by either the API or the web (`REQ-1013`). Long-lived tokens
+providers are not saved in browser storage; the session is transferred by a protected cookie
+by `ADR-0041`. No client permission assumption grants access:
+the final rule checks the server by object and action (`REQ-1003`). Protected
+data is not rendered to an unauthenticated user and does not remain visible to
+outdated session. The values of OAuth tokens, sessions and `nonce` are not included in the client
+code, browser logs, traces and visible errors (`ADR-0041`).
 
-## Совместимость и миграция
+## Compatibility and migration
 
-Контракт `#71` меняется только аддитивно и только самим `#71`; поля профиля,
-приватности и сводки устройства берутся из контракта, а расхождение прозы и контракта
-решается в пользу контракта. Транспорт сессии и CSRF наследуются из `ADR-0041` без
-изменения. Разрешённая сводка устройства меняется только вместе с
-`docs/contracts/device-passport.md` и `SPEC-002`. Порождённый клиент пересобирается
-при аддитивном изменении контракта; ручной DTO-набор не вводится.
+The `#71` contract is changed only additively and only by `#71` itself; profile fields,
+privacy and device summaries are taken from the contract, and the discrepancy between prose and contract
+is decided in favor of the contract. Session transport and CSRF are inherited from `ADR-0041` without
+changes. The device's allowed summary only changes with
+`docs/contracts/device-passport.md` and `SPEC-002`. The generated client is rebuilt
+in case of additive change of the contract; manual DTO dialing is not entered.
 
-## Критерии приёмки
+## Acceptance criteria
 
-| Требование | Исполнимый способ проверки |
-|---|---|
-| `REQ-2301` | Тест подтверждает перенаправление неаутентифицированного пользователя без утечки защищённых данных и чтение серверной сессии. |
-| `REQ-2302` | Тесты входа покрывают успех, ошибку и отмену Google и GitHub и эквивалентное поведение после входа. |
-| `REQ-2303` | Тест подтверждает точное соответствие полей профиля, публичного профиля и приватности контракту и приём ссылок только по HTTPS. |
-| `REQ-2304` | Golden-тест ответа устройства подтверждает только поля разрешённой сводки и отсутствие полного паспорта, путей, значений окружения и ключей. |
-| `REQ-2305` | Тесты отзыва покрывают подтверждение, устаревший `ETag` (`412`) и конфликт (`409`) и обновление вида от серверной истины. |
-| `REQ-2306` | Тест подтверждает явное состояние выхода при отзыве текущего устройства или сессии и различение текущего контекста. |
-| `REQ-2307` | Тест инспекции хранилища подтверждает отсутствие долгоживущих токенов провайдера и перенос сессии защищённой cookie. |
-| `REQ-2308` | Тест подтверждает переход в состояние выхода при истёкшей или отозванной сессии и отсутствие показа защищённых данных по устаревшей сессии. |
-| `REQ-2309` | Тест подтверждает отображение `operation_id` там, где его выдаёт API, и отсутствие секретов в обратной связи. |
-| `REQ-2310` | Контрактная и отрицательная проверки подтверждают отсутствие второй бизнес-логики и записи через недоступный CLI веб-обработчик. |
-| `REQ-2311` | Проверки паритета локалей и доступности форм и диалогов проходят; browser smoke входа и отзыва проходит; `mobile-public-smoke.spec.ts` проходит login и account basics на 360 и 430 px в `ru` и `en` без document-level overflow, если фикстуры это позволяют. |
-| `REQ-2312` | Browser-сценарий показывает два активных устройства, подтверждает новый CLI-код на `/devices` и не скрывает уже привязанные устройства; API-сценарий подтверждает независимость нескольких устройств аккаунта. |
-| `REQ-2313` | API-сценарий выполняет два browser OAuth callback с одной device cookie, получает две разные сессии и ровно одну активную browser-device строку. |
+| Requirement | Executable verification method                                                                                                                                                                                                                                                  |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `REQ-2301`  | The test confirms redirecting an unauthenticated user without leaking protected data and reading the server session.                                                                                                                                                            |
+| `REQ-2302`  | Login tests cover Google and GitHub success, error, and cancellation and equivalent post-login behavior.                                                                                                                                                                        |
+| `REQ-2303`  | The test confirms the exact compliance of the profile, public profile and privacy fields with the contract and the acceptance of links only via HTTPS.                                                                                                                          |
+| `REQ-2304`  | The Golden test of the device response confirms only the allowed summary fields and the absence of the full passport, paths, environment values ​​and keys.                                                                                                                     |
+| `REQ-2305`  | The revocation tests cover confirmation, obsolete `ETag` (`412`) and conflict (`409`) and view update from server truth.                                                                                                                                                        |
+| `REQ-2306`  | The test confirms the explicit logged-out state when revoking the current device or session and distinguishes the current context.                                                                                                                                              |
+| `REQ-2307`  | The storage inspection test confirms the absence of long-lived provider tokens and the transfer of the protected cookie session.                                                                                                                                                |
+| `REQ-2308`  | The test confirms the transition to the exit state for an expired or revoked session and the lack of display of protected data for an expired session.                                                                                                                          |
+| `REQ-2309`  | The test confirms that the `operation_id` displays where the API outputs it and that there are no secrets in the feedback.                                                                                                                                                      |
+| `REQ-2310`  | Contract and negative checks confirm the absence of second business logic and recording through an inaccessible CLI web handler.                                                                                                                                                |
+| `REQ-2311`  | Checks for locale parity and accessibility of forms and dialogs pass; browser smoke of login and revocation passes; `mobile-public-smoke.spec.ts` passes login and account basics at 360 and 430 px in `ru` and `en` without document-level overflow, if the fixtures allow it. |
+| `REQ-2312`  | The Browser script shows two active devices, confirms the new CLI code on `/devices` and does not hide already linked devices; The API script confirms the independence of multiple account devices.                                                                            |
+| `REQ-2313`  | The API script executes two browser OAuth callbacks with one device cookie, receives two different sessions and exactly one active browser-device line.                                                                                                                         |
+| `REQ-2314`  | Unit and API tests cover browser/device labelling, edge-provided city and country, the generic fallback, and absence of an IP field.                                                                                                                                            |
 
-Browser-сценарии `apps/web/tests/e2e/` закрывают исполнимый слой для `REQ-2303` /
-`REQ-2309` (`account-profile.spec.ts`) и `REQ-2311` / `REQ-2312`
+Browser scripts `apps/web/tests/e2e/` close the executable layer for `REQ-2303` /
+`REQ-2309` (`account-profile.spec.ts`) and `REQ-2311` / `REQ-2312`
 (`locale-parity.spec.ts`, `login-devices.spec.ts`, `mobile-public-smoke.spec.ts`).

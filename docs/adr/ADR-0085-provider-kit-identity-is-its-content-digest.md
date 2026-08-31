@@ -1,90 +1,94 @@
 ---
-description: "Решение дать публичному комплекту provider protocol v3 адресуемую содержимым личность и правило поднятия версии."
-last_verified: "2026-08-31"
+description: "Decision to give the public provider protocol v3 kit a content-addressed identity and a version-bump rule."
+last_verified: "2026-08-15"
 ---
 
-# ADR-0085: Личность комплекта провайдера — его агрегатный digest
+# ADR-0085: The provider kit's identity is its aggregate digest
 
-Статус: принято. Дополняет `ADR-0061`, не заменяя его: набор команд и модель
-возможностей остаются за той записью.
+Status: accepted. Supplements `ADR-0061` without replacing it: that record
+continues to own the command set and capability model.
 
-## Контекст
+## Context
 
-`ADR-0061` ввёл `provider-kit/v3` как неизменяемый переносимый контракт, который
-публичный провайдер читает без доступа к закрытым репозиториям. Комплект несёт
-`kit_version` и `SHA256SUMS`, привязывающий точные байты трёх машинных файлов.
+`ADR-0061` introduced `provider-kit/v3` as an immutable portable contract that
+a public provider reads without access to private repositories. The kit carries
+`kit_version` and `SHA256SUMS`, which binds the exact bytes of three machine
+files.
 
-`kit_version` не идентифицирует контракт. Коммит `851e3984`, вводивший протокол
-v3, и следующий за ним `797698b3` оба опубликовали `0.1.0`, но второй изменил
-машинные байты: `recover-operation` добавлен в `commands`, `core_commands` и
-`apply_commands`, в провенанс добавлены `setup_stable_id` и `setup_version`, а в
-схеме `provider-info` границы массива команд сдвинулись с 5/6 на 6/7. Агрегаты
-этих двух ревизий различаются:
+`kit_version` does not identify the contract. Commit `851e3984`, which
+introduced protocol v3, and its successor `797698b3` both published `0.1.0`,
+but the latter changed the machine bytes: `recover-operation` was added to
+`commands`, `core_commands`, and `apply_commands`; `setup_stable_id` and
+`setup_version` were added to provenance; and the command-array bounds in the
+`provider-info` schema moved from 5/6 to 6/7. The aggregates of these two
+revisions differ:
 
-| Ревизия | SHA-256 от `SHA256SUMS` |
+| Revision | SHA-256 of `SHA256SUMS` |
 | --- | --- |
 | `851e3984` | `103d2e5e28990f42940a0ea8bb90e57bbd9406cbcb5f2a0ec58c23af731c23bc` |
 | `797698b3` | `b220c3994b2219161d46b8db881c68e987b95998c4bf4111e88d0c94de964378` |
 
-То есть строка `kit_version: 0.1.0` обозначает и шестикомандное, и семикомандное
-ядро протокола. Провайдер, заявляющий соответствие «комплекту 0.1.0», не может
-сказать, какому из двух.
+Thus, the string `kit_version: 0.1.0` denotes both the six-command and the
+seven-command protocol core. A provider claiming conformance to "kit 0.1.0"
+cannot say which of the two it conforms to.
 
-При этом ни один из пяти публичных провайдеров не ссылается на комплект вообще:
-поиск по `provider-kit`, `kit_version` и `SHA256SUMS` во всех пяти репозиториях
-не даёт совпадений. Каждый несёт собственную копию `provider_protocol_v3.py` —
-один и тот же blob `10a9879b6cecdd1e9bb8cbfe4acd0638cc287687`, размноженный
-пятикратно и не связанный с источником.
+At the same time, none of the five public providers references the kit at all:
+searching all five repositories for `provider-kit`, `kit_version`, and
+`SHA256SUMS` produces no matches. Each carries its own copy of
+`provider_protocol_v3.py`—the same blob
+`10a9879b6cecdd1e9bb8cbfe4acd0638cc287687`, duplicated five times and not
+linked to its source.
 
-Текущего расхождения по проводу это не создаёт: на осмотренных HEAD все пять
-реализуют одинаковый набор команд. Отсутствует не совместимость, а способ её
-доказать.
+This creates no current wire-level divergence: at the inspected HEAD revisions,
+all five implement the same command set. What is missing is not compatibility,
+but a way to prove it.
 
-## Решение
+## Decision
 
-Личностью комплекта становится **агрегатный digest** — SHA-256 канонических
-байт `SHA256SUMS`, который уже покрывает три машинных файла. Он записывается в
-новый порождаемый файл `KIT-IDENTITY.json` вместе с `kit_version` и версией
-протокола.
+The kit's identity becomes the **aggregate digest**: the SHA-256 of the
+canonical bytes of `SHA256SUMS`, which already covers the three machine files.
+It is written to a new generated file, `KIT-IDENTITY.json`, together with
+`kit_version` and the protocol version.
 
-Агрегат намеренно **не** кладётся внутрь `manifest.json`: манифест сам покрыт
-`SHA256SUMS`, и запись агрегата внутрь него сделала бы digest входом самому
-себе.
+The aggregate is intentionally **not** placed inside `manifest.json`: the
+manifest is itself covered by `SHA256SUMS`, and writing the aggregate into it
+would make the digest an input to itself.
 
-`kit_version` поднимается до `0.2.0` один раз, как исправление. `0.1.0`
-объявляется неоднозначной и не должна использоваться как ссылка нигде.
+`kit_version` is bumped to `0.2.0` once as a correction. `0.1.0` is declared
+ambiguous and must not be used as a reference anywhere.
 
-Разделение ролей:
+The roles are separated as follows:
 
-- **агрегатный digest** — то, что провайдер закрепляет. Он неподделываем и не
-  зависит от чьей-либо дисциплины;
-- **`kit_version`** — читаемая метка. Она обязана меняться вместе с байтами, и
-  это правило проверяется реестром.
+- **aggregate digest** is what the provider pins. It is tamper-evident and does
+  not depend on anyone's discipline;
+- **`kit_version`** is the human-readable label. It must change together with
+  the bytes, and the registry verifies this rule.
 
-Реестр `tests/golden/provider-kit/identity-ledger.json` перечисляет выпущенные
-пары `kit_version` + агрегат. Тест требует, чтобы пара текущего рендера в нём
-присутствовала и чтобы ни одна версия и ни один агрегат не повторялись.
+The `tests/golden/provider-kit/identity-ledger.json` registry lists released
+`kit_version` + aggregate pairs. A test requires the current render's pair to
+be present in it and requires that no version and no aggregate be repeated.
 
-## Последствия
+## Consequences
 
-Изменение машинных байт без поднятия версии падает: новая пара сталкивается с
-записанной. Это ровно та ошибка, которая уже произошла.
+Changing machine bytes without bumping the version fails: the new pair
+conflicts with the recorded one. This is exactly the error that already
+occurred.
 
-Реестр **не** останавливает переписывание существующей записи вместо добавления
-новой. Это видимая строка в diff, и её место — ревью: тест не отличает
-намеренное исправление от прикрытой ошибки, и притворяться, что отличает, было
-бы хуже, чем сказать об этом здесь.
+The registry **does not** prevent rewriting an existing entry instead of adding
+a new one. This is a visible line in the diff and belongs in review: the test
+cannot distinguish an intentional correction from a concealed error, and
+pretending that it can would be worse than stating that here.
 
-Провенанс — какой коммит породил комплект — намеренно не попадает в порождаемый
-файл. Генератору пришлось бы читать Git, значение менялось бы на каждом коммите,
-и порождённый артефакт перестал бы воспроизводиться из своих входов. Провенанс
-принадлежит выпуску, который публикует комплект, а не байтам, которые он
-публикует.
+Provenance—which commit produced the kit—is intentionally excluded from the
+generated file. The generator would have to read Git, the value would change
+with every commit, and the generated artifact would cease to be reproducible
+from its inputs. Provenance belongs to the release that publishes the kit, not
+to the bytes it publishes.
 
-Семь провайдеров должны закрепить точную личность и сверять с ней свою копию.
-Это работа в их репозиториях, и она передана туда задачами; до неё соответствие
-остаётся утверждением, а не доказательством.
+The five providers must pin the exact identity and verify their copy against
+it. This work belongs in their repositories and has been assigned there as
+tasks; until it is done, conformance remains a claim rather than proof.
 
-Публикация комплекта наружу как неизменяемого артефакта этой записью не
-решается. Решение о публикации отдельное; здесь создаётся то, что можно
-публиковать.
+This record does not decide whether to publish the kit externally as an
+immutable artifact. Publication is a separate decision; this record creates
+the object that can be published.

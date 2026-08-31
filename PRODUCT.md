@@ -8,48 +8,48 @@ web
 
 ## Users
 
-Первичный пользователь — разработчик, который настраивает coding agent и хочет подобрать, проверить и безопасно установить полный сетап для конкретного AI-харнесса. С вебом также работают авторы компонентов и сетапов, а машинные клиенты читают публичные сведения о каталоге.
+The primary user is a developer configuring a coding agent who wants to select, validate, and safely install a complete setup for a specific AI harness. Component and setup authors also use the web, while machine clients read public catalog information.
 
 ## Product Purpose
 
-`ai_stp` объединяет паспорта, каталог, линии доверия, проверку совместимости и безопасный жизненный цикл конфигураций AI-харнессов. Успех означает, что человек быстро понимает происхождение и ограничения объекта, а агент получает те же публичные факты в предсказуемом машиночитаемом виде без отдельной бизнес-логики.
+`ai_stp` unifies passports, the catalog, trust lines, compatibility validation, and the secure lifecycle of AI harness configurations. Success means that a person quickly understands an object's origin and constraints, while an agent receives the same public facts in a predictable machine-readable form without separate business logic.
 
 ## Positioning
 
-Продукт не является очередным каталогом сниппетов: он детерминированно собирает полные сетапы из точно закреплённых версий компонентов, применяет механические ограничения до agent reasoning и передаёт запись итогового состояния только публичному провайдеру конкретного харнесса.
+The product is not another snippet catalog: it deterministically assembles complete setups from exactly pinned component versions, applies mechanical constraints before agent reasoning, and delegates writing the final state exclusively to the public provider for the specific harness.
 
 ## Operating Context
 
-Основной цикл проходит между CLI, coding agent, локальным реестром, публичным веб-каталогом и провайдером харнесса. Анонимный посетитель читает каталог и профили; после входа пользователь управляет аккаунтом, устройствами, приватностью и публикациями. Русская и английская локали равноправны.
+The primary flow spans the CLI, coding agent, local registry, public web catalog, and harness provider. An anonymous visitor reads the catalog and profiles; after signing in, a user manages the account, devices, privacy, and publications. The Russian and English locales are equal.
 
 ## Capabilities and Constraints
 
-- Основная поддержка: Claude Code, Codex и Grok Build; Pi, OpenCode, Cursor и Antigravity находятся в beta; неизвестный харнесс доступен в ограниченном режиме `undefined`.
-- Веб показывает результаты и управляет аккаунтом и публичным каталогом, но не собирает и не устанавливает сетапы.
-- Публичные данные должны быть доступны людям, поисковым системам и LLM-клиентам без раскрытия приватных записей.
-- Human/Machine — две равноценные проекции одной информации: Human оптимизирована для чтения человеком, Machine предоставляет техническую подачу и явные ссылки на машиночитаемые ресурсы. Проекция не зависит от светлой или тёмной цветовой темы; переключение не меняет серверную истину и не создаёт отдельную доменную модель.
-- Контактный email пока является явной конфигурационной заглушкой и должен заменяться окружением перед production-запуском.
-- Все внешние записи требуют плана, digest, повторной проверки предусловий и явного подтверждения; UI не обходит эти ограничения.
+- Primary support: Claude Code, Codex, and Grok Build; Pi, OpenCode, Cursor, and Antigravity are in beta; an unknown harness is available in limited `undefined` mode.
+- The web displays results and manages the account and public catalog, but does not assemble or install setups.
+- Public data must be available to people, search engines, and LLM clients without exposing private records.
+- Human/Machine are two equal projections of the same information: Human is optimized for human reading, while Machine provides technical presentation and explicit links to machine-readable resources. The projection is independent of the light or dark color theme; switching it does not change server truth or create a separate domain model.
+- The contact email is currently an explicit configuration placeholder and must be replaced by the environment before production launch.
+- All external writes require a plan, digest, precondition revalidation, and explicit confirmation; the UI does not bypass these constraints.
 
 ## Brand Commitments
 
-Сохраняются имя `ai_stp`, знак с пятиузловым loop, сигнальный оранжевый акцент, Gerstner Programm и FT System Mono, точный инженерный голос и существующая семантика human/machine. Parallel и Nace задают уровень композиции, переключатель режимов, клавиатурную навигацию и плотность footer, но их бренд, тексты и визуальные активы не копируются.
+The `ai_stp` name, five-node loop mark, signal-orange accent, Gerstner Programm and FT System Mono, precise engineering voice, and existing human/machine semantics are preserved. Parallel and Nace set the level of composition, mode switch, keyboard navigation, and footer density, but their brands, copy, and visual assets are not reproduced.
 
 ## Evidence on Hand
 
-- Нормативные продуктовые и архитектурные документы находятся в `docs/`, активные требования — в `specs/active/`.
-- Дизайн-система и бренд описаны в `docs/product/DESIGN.md` и `docs/product/BRAND.md`.
-- Реализация Next.js находится в `apps/web`; portable tokens — в `apps/web/src/theme/tokens.json`.
-- Пользователь предоставил screenshots переключателя и footer Parallel/Nace. Реальных отзывов, коммерческих метрик и production contact email нет; их нельзя выдумывать.
+- Normative product and architecture documents are in `docs/`; active requirements are in `specs/active/`.
+- The design system and brand are described in `docs/product/DESIGN.md` and `docs/product/BRAND.md`.
+- The Next.js implementation is in `apps/web`; portable tokens are in `apps/web/src/theme/tokens.json`.
+- The user provided screenshots of the Parallel/Nace switch and footer. There is no real feedback, commercial metrics, or production contact email; they must not be invented.
 
 ## Product Principles
 
-- Один факт имеет одного владельца и одну доменную интерпретацию.
-- Origin, verification, support status и ограничения видны, а не спрятаны.
-- Human confirmation остаётся обязательной для неизвестного и рискованного.
-- Машиночитаемая поверхность является первым классом продукта, а не SEO-декорацией.
-- Приватные данные не попадают в публичный HTML, клиентский bundle, логи или метаданные.
+- Each fact has one owner and one domain interpretation.
+- Origin, verification, support status, and constraints are visible, not hidden.
+- Human confirmation remains mandatory for unknown and risky actions.
+- The machine-readable surface is a first-class part of the product, not SEO decoration.
+- Private data does not enter public HTML, the client bundle, logs, or metadata.
 
 ## Accessibility & Inclusion
 
-Интерфейс должен поддерживать клавиатуру, видимый focus, reduced motion, mobile layout, семантические роли и WCAG 2.2 AA. Русская и английская версии несут эквивалентный смысл и поведение.
+The interface must support keyboard use, visible focus, reduced motion, mobile layout, semantic roles, and WCAG 2.2 AA. The Russian and English versions carry equivalent meaning and behavior.

@@ -1,9 +1,9 @@
 ---
-description: "Варианты слогана и инженерной строки знака ai_stp."
+description: "Tagline and engineering-line options for the ai_stp mark."
 last_verified: "2026-08-08"
 ---
 
-# Слоганы знака ai_stp
+# ai_stp mark taglines
 
 | | |
 | --- | --- |

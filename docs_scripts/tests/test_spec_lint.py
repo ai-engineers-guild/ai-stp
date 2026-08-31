@@ -7,45 +7,45 @@ from pathlib import Path
 from docs_scripts.spec_lint import SpecLinter
 
 GOOD_SPEC = """---
-description: \"Проверка\"
+description: \"Check\"
 last_verified: \"2026-08-03\"
 ---
 
-# SPEC-001: Проверка
+# SPEC-001: Check
 
-## Цель
+## Purpose
 
-Наблюдаемый результат.
+Observable outcome.
 
-## Границы
+## Scope
 
-Входит одно поведение; другое не входит.
+One behavior is in scope; another is not.
 
-## Термины
+## Terms
 
-`Object` — проверяемый объект.
+`Object` is the object under test.
 
-## Требования
+## Requirements
 
-- `REQ-001`: Объект имеет стабильный идентификатор.
+- `REQ-001`: The object has a stable identifier.
 
-## Состояния и ошибки
+## States and errors
 
-`ready` и `failed` различаются.
+`ready` and `failed` are distinct.
 
-## Безопасность и приватность
+## Security and privacy
 
-Секреты не обрабатываются.
+Secrets are not processed.
 
-## Совместимость и миграция
+## Compatibility and migration
 
-Версия схемы обязательна.
+The schema version is required.
 
-## Критерии приёмки
+## Acceptance criteria
 
-| Требование | Исполнимый oracle |
+| Requirement | Executable oracle |
 |---|---|
-| `REQ-001` | Unit test проверяет стабильность. |
+| `REQ-001` | A unit test verifies stability. |
 """
 
 
@@ -66,7 +66,7 @@ class SpecLintTests(unittest.TestCase):
 
     def test_missing_acceptance_mapping_fails(self) -> None:
         broken = GOOD_SPEC.replace(
-            "| `REQ-001` | Unit test проверяет стабильность. |", "| - | Нет связи. |"
+            "| `REQ-001` | A unit test verifies stability. |", "| - | No mapping. |"
         )
         linter = SpecLinter(self.make_root(broken))
         linter.run()
@@ -74,7 +74,7 @@ class SpecLintTests(unittest.TestCase):
 
     def test_missing_required_section_fails(self) -> None:
         broken = GOOD_SPEC.replace(
-            "## Совместимость и миграция\n\nВерсия схемы обязательна.\n\n", ""
+            "## Compatibility and migration\n\nThe schema version is required.\n\n", ""
         )
         linter = SpecLinter(self.make_root(broken))
         linter.run()

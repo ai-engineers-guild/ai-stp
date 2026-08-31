@@ -367,7 +367,7 @@ def test_network_policy_does_not_silently_widen_frozen_v1() -> None:
 
     contract = CONTRACT.read_text(encoding="utf-8")
     decision = NETWORK_ADR.read_text(encoding="utf-8")
-    assert "protocol v1 не объявляет сетевую потребность" in contract
+    assert "protocol v1 declares no network requirement" in contract
     for value in ("none", "artifact_download", "runtime_external"):
         assert f"`network_requirement = {value}`" in decision
     for value in ("enforced", "unavailable", "not_requested"):

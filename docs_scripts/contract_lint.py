@@ -195,15 +195,15 @@ BARE_ID_RE = re.compile(
 # Канонические владельцы закрытых решений: файл и маркеры, без которых решение
 # считается потерянным. Удаление владельца или маркера — регрессия, а не чистка.
 VISION_CONTRACTS = {
-    Path("docs/contracts/device-passport.md"): ("не объединяются",),
+    Path("docs/contracts/device-passport.md"): ("not merged",),
     Path("docs/contracts/unverified-consent.md"): ("`publisher`", "`object_major`"),
-    Path("docs/contracts/access-grants-and-forks.md"): ("Неизменённый клон",),
-    Path("docs/contracts/report-case.md"): ("не создаётся автоматически",),
-    Path("docs/contracts/selection-proposal.md"): ("атомарно",),
+    Path("docs/contracts/access-grants-and-forks.md"): ("An unchanged clone",),
+    Path("docs/contracts/report-case.md"): ("is not created automatically",),
+    Path("docs/contracts/selection-proposal.md"): ("is atomic",),
 }
 REPORTS_SPEC = Path("specs/active/SPEC-016-reports-moderation.md")
-ELIGIBILITY_MARKERS = ("Пригодность к установке", "блокируется для новых установок и обновлений")
-ATTESTATION_MARKER = "Авторское подтверждение"
+ELIGIBILITY_MARKERS = ("Installation eligibility", "blocked for new installations and updates")
+ATTESTATION_MARKER = "Author attestation"
 
 
 # Канонический документ обязан уметь назвать отменённый термин, чтобы его запретить.
@@ -212,7 +212,8 @@ ATTESTATION_MARKER = "Авторское подтверждение"
 NEGATION_RE = re.compile(
     r"\bне\s+(?:использ|являет|существу|содерж|входит|добавля|планиру|принима|создаёт|получа)"
     r"|\bнет\b|\bбез\b|\bудал[её]н|\bудаляет|\bзапрещ|\bперестал|\bотменён|\bне\s+нужн"
-    r"|\bвместо\b|\bзаменён|\bсокращён",
+    r"|\bвместо\b|\bзаменён|\bсокращён"
+    r"|\b(?:no|not|never)\b|\b(?:is|are|was|were|has been) removed\b|\bdoes not\b|\bhas no\b",
     re.IGNORECASE,
 )
 
@@ -315,7 +316,11 @@ class ContractLinter:
         # читает объявленную линию, а не предполагает её имя: расхождение
         # workflow с документом должно падать здесь, а не обнаруживаться тем,
         # что проверки перестали запускаться на ветке, куда идут PR.
-        declared = re.search(r"`(\w[\w./-]*)` — единственная линия репозитория", text)
+        declared = re.search(
+            r"`(\w[\w./-]*)`(?: — единственная линия репозитория| is the repository's only line)",
+            text,
+            re.IGNORECASE,
+        )
         if not declared:
             self.error(GIT_WORKFLOW_DOC, "CT012", "документ не называет единственную линию")
             return

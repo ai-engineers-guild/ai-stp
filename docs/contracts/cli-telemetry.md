@@ -1,66 +1,67 @@
 ---
-description: "Закрытый перечень полей анонимного пинга телеметрии, условия отправки и то, что в него не попадает."
+description: "Closed list of anonymous telemetry ping fields, sending conditions, and excluded data."
 last_verified: "2026-08-21"
 ---
 
-# Пинг телеметрии CLI
+# CLI telemetry ping
 
-Владелец требований — `SPEC-013` (`REQ-1316`–`REQ-1319`), решение — `ADR-0112`.
-Здесь зафиксирована машинная граница: перечень полей, их источники и правила
-отправки.
+The requirements owner is `SPEC-013` (`REQ-1316`–`REQ-1319`); the decision is
+`ADR-0112`. This document defines the machine boundary: the list of fields,
+their sources, and sending rules.
 
-Весь клиентский egress телеметрии — это один неаутентифицированный HTTPS `GET`.
-Без тела, без cookie, без токена каталога, без авторизации GitHub. Перечень
-полей закрыт: поле вне таблицы означает изменение этого документа, `SPEC-013` и
-`ADR-0112`, а не расширение запроса.
+All client telemetry egress consists of one unauthenticated HTTPS `GET`. It has
+no body, cookie, catalog token, or GitHub authorization. The field list is
+closed: a field outside the table requires changing this document, `SPEC-013`,
+and `ADR-0112`, rather than merely extending the request.
 
-## Поля запроса
+## Request fields
 
-| Поле | Пример | Источник |
+| Field | Example | Source |
 | --- | --- | --- |
-| `os` | `windows`, `linux`, `darwin` | платформа устройства |
-| `harness` | `codex` | харнесс, на который ставили |
-| `harness_version` | `0.140.1` | версия харнесса, как её сообщает toolchain |
-| `ai_stp_version` | `0.1.0` | версия CLI |
-| `component_type` | `mcp` | вид компонента из восьми объявленных |
-| `name` | `serena` | публичное имя компонента |
-| `source` | `platform`, `github` | где объект публично назван |
-| `id` | stable id платформы **или** `https://github.com/org/repo` | паспорт компонента |
-| `version` | `1.2` | точная версия компонента |
-| `anon` | случайный локальный UUID | локальный каталог данных |
+| `os` | `windows`, `linux`, `darwin` | device platform |
+| `harness` | `codex` | harness where the component was installed |
+| `harness_version` | `0.140.1` | harness version as reported by the toolchain |
+| `ai_stp_version` | `0.1.0` | CLI version |
+| `component_type` | `mcp` | component kind from the eight declared kinds |
+| `name` | `serena` | public component name |
+| `source` | `platform`, `github` | where the object is publicly identified |
+| `id` | platform stable id **or** `https://github.com/org/repo` | component passport |
+| `version` | `1.2` | exact component version |
+| `anon` | random local UUID | local data directory |
 
-`source` равен `platform`, когда объект зарегистрирован на платформе. Иначе —
-публичный GitHub из паспорта. Если публично назвать нечего — нет имени или вида
-— запрос не отправляется вовсе.
+`source` is `platform` when the object is registered on the platform. Otherwise,
+it is the public GitHub source from the passport. If there is nothing to identify
+publicly—no name or kind—the request is not sent at all.
 
-## Что не попадает никогда
+## Data never included
 
-Локальные пути, приватные репозитории, идентификатор аккаунта, ключ устройства,
-почта, имя проекта, путь цели, имена и значения переменных окружения, содержимое
-файлов, заголовки и аргументы MCP-серверов.
+Local paths, private repositories, account identifiers, device keys, email,
+project names, target paths, environment-variable names and values, file
+contents, and MCP server headers and arguments.
 
-`anon` отличает одну установку CLI от другой и ничего больше. Он не равен
-`device_id`, не связан с аккаунтом, живёт в локальном каталоге данных, а не в
-конфигурации, и не объединяется с публичными счётчиками использования каталога
+`anon` distinguishes one CLI installation from another and nothing more. It is
+not equal to `device_id`, is not associated with an account, resides in the
+local data directory rather than configuration, and is not combined with public
+catalog usage counters
 (`REQ-1315`).
 
-## Когда отправляется
+## When it is sent
 
-После `verified` применения с действием `install` или `update` — по одному
-запросу на фактически установленный компонент. Сетап из трёх компонентов даёт
-три запроса.
+After a `verified` application with the `install` or `update` action—one request
+per component actually installed. A setup with three components produces three
+requests.
 
-Не отправляется на `backup`, `rollback`, `remove` и на любые чтения; не
-отправляется в автономном режиме и в тестах.
+It is not sent for `backup`, `rollback`, `remove`, or any reads; it is not sent
+in offline mode or in tests.
 
-## Отказы
+## Failures
 
-Сетевая ошибка, timeout и любой ответ вне 2xx проглатываются молча. Установка
-остаётся `verified`: её результат — свойство цели, а не коллектора. Повтор
-пачкой не выполняется.
+A network error, timeout, or any non-2xx response is silently ignored. The
+installation remains `verified`: its result is a property of the target, not of
+the collector. No batch retry is performed.
 
-## Настройка
+## Configuration
 
-Поля живут в `cli-config.md`: `telemetry.enabled` со значением по умолчанию
-`false` и `telemetry.url`. Запись `telemetry.enabled=true` в обход команды
-согласия отклоняется — согласие является событием, а не значением.
+The fields belong to `cli-config.md`: `telemetry.enabled`, which defaults to
+`false`, and `telemetry.url`. Setting `telemetry.enabled=true` without using the
+consent command is rejected—consent is an event, not a value.

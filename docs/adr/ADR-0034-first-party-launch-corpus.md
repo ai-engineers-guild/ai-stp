@@ -1,80 +1,62 @@
 ---
-description: "Решение сделать первопартийный каталог запуска измеримым выпускным барьером с подтверждённым пространством имён гильдии."
+description: "Decision to make the first-party launch catalog a measurable release barrier with a verified Guild namespace."
 last_verified: "2026-08-28"
 ---
 
-# ADR-0034: Первопартийный каталог запуска
+# ADR-0034: First-party launch catalog
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-Каталог до сих пор описывался как наполняемый «собственными компонентами владельцев платформы и публикациями пользователей», без измеримой границы. Одновременно продукт сознательно отказался оформлять чужие open-source компоненты силами платформы: чужая работа попадает в каталог только публикацией её автора. Это правильное решение усиливает зависимость запуска от первопартийного содержимого — а его состав нигде не был выпускным требованием.
+The catalog had been described as populated by "the platform owners' own components and user publications," without a measurable boundary. At the same time, the product deliberately declined to package third-party open-source components on their authors' behalf: third-party work enters the catalog only through author publication. This correct decision increases launch dependence on first-party content, whose composition was nowhere defined as a release requirement.
 
-Без границы возможен запуск технически готовой платформы с пустым или нерепрезентативным каталогом: поиск и рекомендация вернут ничего, и проверить главную ценность продукта будет нечем.
+Without a boundary, a technically ready platform may launch with an empty or unrepresentative catalog: search and recommendation return nothing, leaving no way to validate the product's main value.
 
-## Варианты
+## Options
 
-1. Положиться на органические публикации. Ноль работы сейчас, но холодный старт с пустой выдачей.
-2. Зашить количество объектов в схемы и доменные инварианты. Гарантирует состав, но превращает содержимое запуска в вечную константу продукта.
-3. Определить состав каталога запуска как измеримый выпускной барьер в доказательствах выпуска, не трогая схемы.
+1. Rely on organic publications. No work now, but a cold start with empty results.
+2. Encode object counts in schemas and domain invariants. Guarantees composition but turns launch content into a permanent product constant.
+3. Define launch catalog composition as a measurable release barrier in release evidence without changing schemas.
 
-## Решение
+## Decision
 
-Принимается вариант 3.
+Option 3 is accepted.
 
-**Каталог запуска первопартийный.** Он публикуется из подтверждённого платформенного пространства имён AI Engineers Guild; провайдеры остаются продуктами NDDev, если у конкретного объекта явно не указан другой издатель. Публикации пользователей дополняют каталог, но запуск от них не зависит.
+**The launch catalog is first-party.** It is published from the verified AI Engineers Guild platform namespace; providers remain NDDev products unless a specific object explicitly names another publisher. User publications supplement the catalog, but launch does not depend on them.
 
-**Состав запуска измерим:**
+**Launch composition is measurable:**
 
 ```text
-базовые сетапы — по одному для каждого поддержанного харнесса
+baseline setups — one for each supported harness
 
-переиспользуемые первопартийные компоненты,
-достаточные для сборки этих сетапов
+reusable first-party components
+sufficient to build those setups
 ```
 
-**Поправка 2026-08-28: ролевые семейства сняты из состава запуска.**
+**Amendment dated 2026-08-28: role families are removed from launch composition.**
 
-Здесь стояло «ролевые семейства для Claude Code и Codex — шесть на каждый,
-отдельными харнесс-специфичными сетапами: backend, frontend, full-stack, code
-review, security, research», и они были выпущены: 60 компонентов и 12 сетапов.
-Их источник — `rldyour-claudecode` и `rldyour-codex` — переведён на личный
-аккаунт и заархивирован 2026-08-25. `source` и commit входят в адресуемый
-содержимым паспорт, а опубликованная `X.Y` неизменяема (`REQ-2606`), поэтому
-починить провенанс правкой нельзя: это выпуск других объектов. Живого
-репозитория, из которого их можно пересобрать, нет.
+This section previously required "role families for Claude Code and Codex—six for each, as separate harness-specific setups: backend, frontend, full-stack, code review, security, research," and they were released: 60 components and 12 setups. Their sources—`rldyour-claudecode` and `rldyour-codex`—were moved to a personal account and archived on 2026-08-25. `source` and commit are part of the content-addressed passport, and a published `X.Y` is immutable (`REQ-2606`), so provenance cannot be repaired by editing: that would release different objects. There is no live repository from which to rebuild them.
 
-Снято требование, а не запись: выпущенные объекты остаются опубликованными и
-читаемыми. Барьер запуска теперь — базовые сетапы всех поддержанных харнессов
-(`ADR-0120`: их семь, а не пять) плюс достаточный набор компонентов; корпус,
-пересобранный сборщиком из живого эстейта, даёт 33 компонента и 7 сетапов.
+The requirement, not the record, is removed: released objects remain published and readable. The launch barrier is now baseline setups for all supported harnesses (`ADR-0120`: seven, not five) plus a sufficient component set; the corpus rebuilt by the setup compiler from the live estate contains 33 components and 7 setups.
 
-Если ролевые семейства вернутся, им нужен живой источник, и они войдут сюда
-новой поправкой с ним, а не восстановлением этого абзаца.
+If role families return, they need a live source and will enter here through a new amendment naming it, not by restoring this paragraph.
 
-**Каждый объект запуска доказан.** Полный паспорт, происхождение, актуальные обязательные доказательства по политике проверок и доказательства совместимости и установки — те же требования, что и для любой публикации; каталог запуска не получает послаблений.
+**Every launch object is evidenced.** A complete passport, provenance, current mandatory evidence under validation policy, and compatibility and installation evidence—the same requirements as any publication; the launch catalog receives no exemptions.
 
-**Корпус запуска публикуется обычным путём.** Полный снимок
-`ai_stp_contracts.first_party` проходит существующую последовательность
-`publication plan` → привязка точных байтов → подтверждение точного hash →
-серверная валидация → публикация, сначала компоненты, затем зависимые сетапы.
-Операторский batch только возобновляет эту последовательность и собирает итоговый
-отчёт; он не пишет каталог напрямую и не вводит отдельную политику. Experimental
-seed из `SPEC-021` остаётся fixture/demo-механизмом и не является способом выпуска
-каталога запуска.
+**The launch corpus is published through the normal path.** A complete `ai_stp_contracts.first_party` snapshot follows the existing sequence `publication plan` → bind exact bytes → confirm exact hash → server validation → publication, components first and dependent setups second. The operator batch only resumes this sequence and collects the final report; it neither writes the catalog directly nor introduces a separate policy. The experimental seed from `SPEC-021` remains a fixture/demo mechanism and is not a launch-catalog release path.
 
-**Числа не попадают в схемы.** Состав каталога — выпускной и контентный барьер в `docs/engineering/release-evidence.md`, а не инвариант доменной модели: схемы не знают, сколько сетапов обязано существовать.
+**Counts do not enter schemas.** Catalog composition is a release and content barrier in `docs/engineering/release-evidence.md`, not a domain-model invariant: schemas do not know how many setups must exist.
 
-**Содержимое не выдумывается в документации.** Эта запись определяет форму и барьер; конкретные байты компонентов и сетапов создаются отдельным контентным этапом против реальных харнессов и проверяются как обычные публикации.
+**Content is not invented in documentation.** This record defines the form and barrier; concrete component and setup bytes are created in a separate content stage against real harnesses and validated as ordinary publications.
 
-## Последствия
+## Consequences
 
-- `docs/engineering/release-evidence.md` получает раздел каталога запуска с чек-листом;
-- `SPEC-001` блокирует первый выпуск неукомплектованным каталогом;
-- roadmap получает контентный этап и строку в перечне намеренно ненаписанного;
-- выпускные барьеры качества ссылаются на инвентаризацию каталога.
+- `docs/engineering/release-evidence.md` receives a launch-catalog section with a checklist;
+- `SPEC-001` blocks the first release when the catalog is incomplete;
+- the roadmap receives a content stage and an entry in the intentionally-unwritten list;
+- release quality barriers reference the catalog inventory.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается по результатам проверки запуска: если состав окажется недостаточным для демонстрации ценности или избыточным по стоимости содержания, форма корректируется новым решением — по-прежнему как выпускной барьер, а не как константа схем.
+This decision will be reconsidered after launch validation: if the composition proves insufficient to demonstrate value or excessive in maintenance cost, its form will be adjusted by a new decision—still as a release barrier, not a schema constant.

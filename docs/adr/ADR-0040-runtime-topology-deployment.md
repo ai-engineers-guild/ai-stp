@@ -1,45 +1,45 @@
 ---
-description: "Решение о топологии среды выполнения: multi-stage образы, обратный прокси Caddy, compose dev и prod, сетевая изоляция, healthcheck и watchdog."
+description: "Decision on runtime topology: multi-stage images, Caddy reverse proxy, dev and prod compose, network isolation, health checks, and watchdog."
 last_verified: "2026-08-07"
 ---
 
-# ADR-0040: Топология среды выполнения и развёртывание
+# ADR-0040: Runtime topology and deployment
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-Платформа нуждается в воспроизводимой упаковке `api` и `worker` для локальной разработки и для боевой среды. `ADR-0009` выбрал PostgreSQL и RustFS, `SPEC-010` требует, чтобы PostgreSQL и RustFS не публиковались в интернет, а `SPEC-017` требует независимые проверки жизни и готовности. Нужно зафиксировать топологию: как собираются образы, как проходит трафик снаружи, как изолируется сеть, как проверяется здоровье и как возвращается нездоровый контейнер. Боевое усиление стейджа с реальным TLS, резервными копиями и откатом относится к `#84`; здесь фиксируется каркас.
+The platform needs reproducible packaging of `api` and `worker` for local development and production. `ADR-0009` selected PostgreSQL and RustFS, `SPEC-010` requires that PostgreSQL and RustFS not be exposed to the internet, and `SPEC-017` requires separate liveness and readiness checks. The topology must define how images are built, how external traffic enters, how the network is isolated, how health is checked, and how an unhealthy container is restored. Production hardening of staging with real TLS, backups, and rollback belongs to `#84`; this record establishes the skeleton.
 
-## Варианты
+## Options
 
-1. Один образ на всё приложение и прямой проброс портов сервисов. Просто, но публикует базу и хранилище наружу и смешивает `api` и `worker` в одном процессе.
-2. Оркестратор уровня Kubernetes с первого дня. Мощно, но избыточно для MVP и добавляет эксплуатационную стоимость раньше потребности.
-3. Multi-stage образы `api` и `worker`, обратный прокси `Caddy` как единственная публичная точка, `docker-compose` для dev и prod, внутренняя сеть для базы и хранилища, healthcheck и политика перезапуска.
+1. One image for the entire application and direct port exposure for services. Simple, but exposes the database and storage externally and mixes `api` and `worker` in one process.
+2. A Kubernetes-class orchestrator from day one. Powerful, but excessive for the MVP and adds operational cost before it is needed.
+3. Multi-stage `api` and `worker` images, `Caddy` reverse proxy as the only public endpoint, `docker-compose` for dev and prod, an internal network for database and storage, health checks, and restart policy.
 
-## Решение
+## Decision
 
-Принимается вариант 3.
+Option 3 is accepted.
 
-- `api` и `worker` собираются multi-stage образами: dev-образ пригоден для разработки, prod-образ минимален;
-- обратный прокси `Caddy` обслуживает **prod/staging** и является единственной публично доступной точкой там; реальный ACME и домен относятся к `#84` / `SPEC-024`;
-- **Dev-исключение:** `docker-compose.dev.yml` не поднимает Caddy; на хост публикуются `web` и `api`, same-origin `/v1/*` обеспечивает dev-rewrite Next.js;
-- `docker-compose` **prod** поднимает `api`, `worker`, `PostgreSQL`, `RustFS` и `Caddy` (плюс `web` по `ADR-0044`); **dev** — `api`, `worker`, `web`, `PostgreSQL`, `RustFS` без Caddy;
-- `PostgreSQL` и `RustFS` доступны только по внутренней сети и не публикуются наружу;
-- контейнеры имеют healthcheck на `liveness` и `readiness`, а зависимые сервисы стартуют по условию готовности зависимости;
-- политика перезапуска возвращает нездоровый контейнер в рабочее состояние;
-- дневные файловые логи пишутся на смонтированный том по `SPEC-019` и `ADR-0039`.
+- `api` and `worker` use multi-stage images: the dev image supports development, while the prod image is minimal;
+- the `Caddy` reverse proxy serves **prod/staging** and is the only publicly accessible endpoint there; real ACME and the domain belong to `#84` / `SPEC-024`;
+- **Dev exception:** `docker-compose.dev.yml` does not start Caddy; `web` and `api` are exposed on the host, and Next.js dev rewrite provides same-origin `/v1/*`;
+- **prod** `docker-compose` starts `api`, `worker`, `PostgreSQL`, `RustFS`, and `Caddy` (plus `web` under `ADR-0044`); **dev** starts `api`, `worker`, `web`, `PostgreSQL`, and `RustFS` without Caddy;
+- `PostgreSQL` and `RustFS` are available only on the internal network and are not externally exposed;
+- containers have health checks for `liveness` and `readiness`, and dependent services start when dependency readiness conditions are met;
+- restart policy returns an unhealthy container to service;
+- daily file logs are written to a mounted volume under `SPEC-019` and `ADR-0039`.
 
-Конфигурация подаётся через раздельные env-файлы окружений; в репозиторий попадают только образцы без секретов.
+Configuration is supplied through separate environment env files; only secret-free examples enter the repository.
 
-## Последствия
+## Consequences
 
-- `SPEC-019` получает требования упаковки и эксплуатации, а `#84` добивает боевое усиление стейджа;
-- сетевая изоляция удовлетворяет запрет публикации базы и хранилища `SPEC-010`;
-- healthcheck опирается на `readiness` из `SPEC-017`, поэтому зависимый сервис не стартует раньше готовности зависимости;
-- версии базовых образов закрепляются и обновляются отдельным проверяемым изменением;
-- добавляется обратный прокси как компонент эксплуатации без бизнес-логики.
+- `SPEC-019` receives packaging and operational requirements, while `#84` completes production hardening of staging;
+- network isolation satisfies the `SPEC-010` prohibition on exposing database and storage;
+- health checks rely on `readiness` from `SPEC-017`, so a dependent service does not start before its dependency is ready;
+- base-image versions are pinned and updated in a separate verified change;
+- a reverse proxy is added as an operational component without business logic.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается, если нагрузка или требования доступности потребуют оркестратора уровня Kubernetes, либо если модель развёртывания staging/prod потребует иной публичной точки входа, чем обратный прокси `Caddy`. Local dev без Caddy зафиксирован как исключение и не отменяет Caddy на staging/prod.
+This decision will be reconsidered if load or availability requirements demand a Kubernetes-class orchestrator, or if the staging/prod deployment model requires a public entry point other than the `Caddy` reverse proxy. Local dev without Caddy is an established exception and does not remove Caddy from staging/prod.

@@ -380,8 +380,8 @@ def test_the_refusal_registry_matches_the_contract() -> None:
 
 def test_the_declared_bounds_match_the_contract() -> None:
     text = CONTRACT.read_text("utf-8")
-    assert f"максимальная глубина: {graph.MAX_DEPTH}" in text
-    assert f"максимальное число узлов: {graph.MAX_NODES}" in text
+    assert f"maximum depth: {graph.MAX_DEPTH}" in text
+    assert f"maximum node count: {graph.MAX_NODES}" in text
 
 
 def test_every_test_identifier_is_a_valid_stable_id() -> None:

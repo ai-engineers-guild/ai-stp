@@ -1,184 +1,181 @@
 ---
-description: "SPEC-036: Адресуемая machine-проекция web и машинные документы страниц."
+description: "SPEC-036: Addressable machine projection web and page machine documents."
 last_verified: "2026-08-16"
 ---
 
-# SPEC-036: Machine-проекция и машинные документы
+# SPEC-036: Machine projection and machine documents
 
-## Цель
+## Purpose
 
-Web отдаёт машинное представление любой страницы как отдельный серверный
-документ по собственному URL, поэтому агент получает содержимое проекции без
-JavaScript, а человек может дать на него ссылку.
+Web provides a machine representation of any page as a separate server
+document at its own URL, so the agent receives the contents of the projection without
+JavaScript, and a person can provide a link to it.
 
-## Границы
+## Scope
 
-Входят маршрут machine-проекции, определение режима на сервере, переключатель
-проекции, машинные презентеры всех маршрутов, включая приватные разделы, машинный
-документ объекта, источник `/llms-full.txt`, удаление клиентского провайдера
-проекции и CSS-фильтра.
+Includes machine projection route, server mode definition, switch
+projections, machine presenters of all routes, including private sections, machine
+  object document, `/llms-full.txt` source, removal of the client projection
+  provider and CSS filter.
 
-Не входят CLI, паспорта, доменные API, правила доступа и цветовая тема
-`light`/`dark` как независимая ось.
+Does not include CLI, passports, domain APIs, access rules and color theme
+`light`/`dark` as an independent axis.
 
-## Термины
+## Terms
 
-- `Projection` - проекция страницы: `human` или `machine`. Является осью
-  представления и не является правом доступа.
-- `Machine route` - собственный сегмент маршрута `/{locale}/ai/{path}` со своим
-  layout, отдающий машинный документ страницы `/{locale}/{path}`.
-- `Machine document` - структура машинного представления страницы: заголовки с
-  Markdown-маркерами, Markdown-ссылки и поля состояния текстом.
-- `Markdown-ссылка` - ссылка, текст которой содержит и подпись, и адрес:
+- `Projection` - page projection: `human` or `machine`. Is the axis
+  of representation and is not an access right.
+- `Machine route` - own route segment `/{locale}/ai/{path}` with its own
+  layout, returning the machine document of the page `/{locale}/{path}`.
+- `Machine document` - structure of the machine representation of the page: headers with
+  Markdown markers, Markdown links and text status fields.
+- `Markdown link` - a link whose text contains both a label and an address:
 
   ```text
   [Catalog](/en/ai/catalog)
   ```
 
-- `Presenter` - функция страницы, строящая `Machine document` из тех же данных,
-  что и человеческое представление.
-- `Paired URL` - пара канонического и машинного URL одной страницы и локали.
+- `Presenter` - a page function that builds a `Machine document` from the same data,
+  as the human representation.
+- `Paired URL` - a pair of canonical and machine URLs for one page and locale.
 
-## Требования
+## Requirements
 
-- `REQ-3601`: Machine-проекция адресуется маршрутом `/{locale}/ai/{path}`.
-  Ответ сервера на этот URL содержит машинный документ целиком, без выполнения
+- `REQ-3601`: The machine projection is addressed by the route `/{locale}/ai/{path}`.
+  The server response to this URL contains the entire machine document, without execution
   JavaScript.
-- `REQ-3602`: `Machine route` является отдельным сегментом маршрута с собственным
-  layout и не переписывается на человеческий путь. Проекции не делят сегменты,
-  поэтому оболочка одной проекции не может быть показана с содержимым другой.
-- `REQ-3603`: Проекция определяется исключительно URL. Она не хранится в
-  `localStorage`, не выставляется клиентским эффектом, не задаётся заголовком
-  запроса от клиента и не управляет `style.display` из скрипта.
-- `REQ-3604`: Переключатель проекции является ссылкой на `Paired URL`, сохраняет
-  текущий path, query и локаль, помечает активный вариант `aria-current` и
-  работает при отключённом JavaScript. Он закреплён внизу по центру viewport и
-  не входит в поток документа.
-- `REQ-3605`: Markdown в машинном документе является узлами DOM. Заголовки,
-  ссылки и служебные маркеры не создаются через CSS generated content и
-  присутствуют в `textContent`.
-- `REQ-3606`: Для каждой страницы текст машинного представления отличается от
-  человеческого и содержит хотя бы одну `Markdown-ссылка`.
-- `REQ-3607`: Ссылки внутри машинного документа ведут на машинные URL той же
-  локали, поэтому проекция сохраняется при навигации без клиентского состояния.
-- `REQ-3608`: Машинное представление страницы, `/llms-full.txt` и
-  `.md`-представление объекта строятся одним презентером и не содержат
-  независимо написанных описаний одного объекта.
-- `REQ-3609`: Доменные презентеры существуют для landing, каталога, страницы
-  компонента каждого из восьми видов, страницы сетапа, страницы точной версии,
-  публичного профиля, документации, публичных правовых документов, regional
-  services, country и owner-workspace страниц. Формы входа и остальные
-  статические маршруты используют общий презентер страницы.
-- `REQ-3610`: Машинный документ объекта содержит стабильный идентификатор,
-  точную версию, digest, харнесс, линию доверия, раздельные `author_verified` и
-  `component_verified` и команду установки CLI. Иконки и декоративные медиа в
-  него не входят.
-- `REQ-3611`: Машинное представление имеет каждый маршрут. Проекция не меняет
-  доступность страницы: приватные разделы проходят ту же проверку сессии и дают
-  тот же редирект, что и в человеческой проекции. Переключатель проекции
-  отображается на всех страницах.
-- `REQ-3612`: Страница в машинной проекции никогда не рендерит человеческое
-  дерево, а человеческая страница не содержит машинных веток. Машинное дерево
-  сопоставляет путь презентеру через реестр маршрутов: доменный презентер, если
-  он есть, иначе общий документ из заголовка, полей, записей и ссылок.
-- `REQ-3617`: Навигация обеих проекций строится из одной модели: состав пунктов
-  и их адреса совпадают, различается только подача.
-- `REQ-3618`: Внутри машинного документа в проекцию переписываются только
-  локализованные страницы. Эндпоинты API, статические машинные поверхности и
-  внешние URL остаются неизменными.
-- `REQ-3613`: Стилизация human-дерева глобальными правилами по тегам для нужд
-  проекции запрещена. Правила `.machine [data-machine-projection]`, перехват
-  события `copy` и клиентский провайдер проекции удаляются.
-- `REQ-3614`: Переключение проекции не смещает содержимое: верхняя координата
-  `main` совпадает в обоих представлениях одной страницы.
-- `REQ-3615`: Машинные страницы имеют полный паритет `ru` и `en` для видимых
-  строк, состояний и accessible names.
-- `REQ-3616`: Каноническая и машинная страницы ссылаются друг на друга
-  `link rel="alternate"`, а машинный URL объявляет каноническим человеческий
-  URL той же страницы.
-- `REQ-3619`: Deploy-wide feature gate не меняет паритет проекций: выключенная
-  human-поверхность и её machine pair обе отвечают 404 и отсутствуют в общей
+- `REQ-3602`: `Machine route` is a separate route segment with its own
+  layout and does not rewrite the human path. Projections do not share route segments,
+  therefore the shell of one projection cannot be shown with the content of another.
+- `REQ-3603`: The projection is determined solely by the URL. It is not stored in
+  `localStorage`, not set by client effect, not set by header
+  request from the client and does not control `style.display` from the script.
+- `REQ-3604`: Projection switch is a link to `Paired URL`, saves
+  current path, query and locale, marks the active variant `aria-current` and
+  works with JavaScript disabled. It is anchored at the bottom center of the viewport andis not included in the document flow.
+- `REQ-3605`: Markdown in a machine document is DOM nodes. Headings,
+  links and service markers are not created via CSS generated content and
+  are present in `textContent`.
+- `REQ-3606`: For each page, the machine representation text is different from
+  human and contains at least one `Markdown link`.
+- `REQ-3607`: Links within a machine document point to machine URLs of the same
+  locale, so the projection is preserved across navigation without client state.
+- `REQ-3608`: Machine page rendering, `/llms-full.txt` and
+  `.md`-object representations are built by one presenter and do not contain
+  independently written descriptions of a single object.
+- `REQ-3609`: Domain presenters exist for landing, directory, page
+  component of each of the eight types, setup page, exact version page,
+  public profile, documentation, public legal documents, regional
+  services, country and owner-workspace pages. Login forms and others
+  static routes use a common page presenter.
+- `REQ-3610`: The object's machine document contains a stable identifier,
+  exact version, digest, harness, trust line, separate `author_verified` and
+  `component_verified` and the CLI install command. Icons and decorative media in
+  it is not included.
+- `REQ-3611`: Machine representation has each route. Projection doesn't change
+  page accessibility: private sections undergo the same session check and give
+  the same redirect as in the human projection. Projection switch
+  appears on all pages.
+- `REQ-3612`: Machine-projected page never renders human
+  tree, and the human page does not contain machine branches. Machine tree
+  matches the path to the presenter via the route registry: domain presenter if
+  it is there, otherwise the general document consists of the title, fields, records and links.
+- `REQ-3617`: Navigation of both projections is built from one model: composition of points
+  and their addresses are the same, only the presentation is different.
+- `REQ-3618`: Within a machine document, only
+  localized pages are rewritten into the projection. API endpoints, static machine surfaces and
+  external URLs remain unchanged.
+- `REQ-3613`: Styling the human tree with global rules for tags for needs
+  of the projection is prohibited. Rules `.machine [data-machine-projection]`, interception
+  of the `copy` event, and the client projection provider are removed.
+- `REQ-3614`: Switching projection does not shift content: top coordinate
+  `main` matches in both views of the same page.
+- `REQ-3615`: Machine pages have full `ru` and `en` parity for visible ones
+  strings, states and accessible names.
+- `REQ-3616`: Canonical and machine pages link to each other
+  `link rel="alternate"`, and the machine URL declares the human URL canonical
+  URL of the same page.
+- `REQ-3619`: Deploy-wide feature gate does not change projection parity: disabled
+  The human surface and its machine pair both respond with 404 and are missing from the total
   navigation model (`SPEC-038`).
-- `REQ-3620`: Content, contact и legal pages сохраняют видимый Human/Machine switch.
-  Он переводит между `/{locale}/...` и `/{locale}/ai/...`, сохраняя locale, текущий
-  route и query string; обе проекции строятся из одного источника фактов.
-- `REQ-3621`: Машинный документ компонента строится одним презентером для всех
-  восьми `component_type`: `instruction`, `skill`, `mcp`, `hook`, `command`,
-  `agent`, `plugin`, `setting`. Поле вида обязательно и принимает только эти
-  значения; иконки и декоративные медиа в документ не входят.
-- `REQ-3622`: Реестр машинных маршрутов покрывает каждую человеческую страницу
-  `app` router. Пара задаётся `pattern`, режимом доступа и feature/env gate;
-  страница без пары является дефектом.
-- `REQ-3623`: Презентер читает те же публичные факты и загрузчики, что
-  человеческая страница. Независимо написанное описание того же объекта
-  запрещено.
-- `REQ-3624`: Query string парного URL сохраняется переключателем и задаёт
-  те же фильтры списка, что человеческий интерфейс: каталог применяет те же
-  параметры, включая `component_type`.
-- `REQ-3625`: Машинный документ не содержит адреса медиа, `avatar`, `CSRF`,
-  токен сессии, секрет и внутренний идентификатор операции, а также
-  декоративных полей, которых нет в человеческих фактах той же страницы.
-- `REQ-3626`: Неизвестный путь, выключенная feature-поверхность и отсутствующий
-  объект дают одинаковый 404 в обеих проекциях. Приватные пары, включая
-  `publications`, `invitations`, объекты владельца и `staff`, сохраняют один
-  редирект на вход.
+- `REQ-3620`: Content, contact and legal pages retain visible Human/Machine switch.
+  It translates between `/{locale}/...` and `/{locale}/ai/...`, preserving the current locale
+  route and query string; both projections are constructed from the same source of facts.
+- `REQ-3621`: The machine document of a component is built by one presenter for all
+  eight `component_type`: `instruction`, `skill`, `mcp`, `hook`, `command`,
+  `agent`, `plugin`, `setting`. The `component_type` field is required and only accepts these
+  values; icons and decorative media are not included in the document.
+- `REQ-3622`: Machine route registry covers every human page
+  `app` router. The pair is specified by `pattern`, access mode and feature/env gate;
+  a page without a pair is a defect.
+- `REQ-3623`: Presenter reads the same public facts and loaders as
+  human page. Independently written description of the same object
+  prohibited.
+- `REQ-3624`: Query string of the paired URL is saved by the switch and sets
+  the same list filters as the human interface: the directory applies the same
+  parameters including `component_type`.
+- `REQ-3625`: The machine document does not contain media address, `avatar`, `CSRF`,
+  session token, secret and internal operation identifier, as well as
+  decorative fields that are not found in the human facts of the same page.
+- `REQ-3626`: Unknown path, disabled feature surface and missing
+  object give the same 404 in both projections. Private pairs, including
+  `publications`, `invitations`, owner and `staff` objects, keep one
+  redirect to login.
 
-## Состояния и ошибки
+## States and errors
 
-`Machine route` для несуществующего пути отвечает `404` так же, как канонический
-путь. `Machine route` приватного раздела без сессии даёт тот же редирект на
-вход, что и человеческий маршрут, и не раскрывает содержимое. Неизвестное
-значение `x-projection` трактуется как `human`. Отказ построения машинного
-документа не деградирует до человеческой страницы, а возвращает ошибку страницы
-с сохранением кода состояния.
+`Machine route` for a nonexistent path responds with `404`, just like the canonical
+path. `Machine route` for a private section without a session gives the same login
+redirect as the human route and does not reveal content. An unknown `x-projection`
+value is interpreted as `human`. Failure to build the machine document does not
+degrade to a human page, but returns the page error while preserving the status code.
 
-## Безопасность и приватность
+## Security and privacy
 
-Машинный документ страницы содержит ровно те данные, которые эта же страница
-показывает в человеческой проекции тому же субъекту. Публичная страница строится
-только из публичной проекции. Секреты, токены, чужие приватные записи, ключи
-объектного хранилища и внутренние идентификаторы операций в документ не
-попадают. Заголовок `x-projection` является внутренним: значение, пришедшее от
-клиента, не доверяется и перезаписывается middleware. Машинное представление не
-расширяет права чтения и не обходит проверки доступа.
+The page's machine document contains exactly the data that the same page shows in
+human projection to the same subject. A public page is built only from the public
+projection. Secrets, tokens, other users' private records, object-storage keys, and
+internal operation identifiers do not enter the document. The `x-projection` header
+is internal: a client-supplied value is not trusted and is overwritten by middleware.
+Machine representation does not expand read permissions or bypass access checks.
 
-## Совместимость и миграция
+## Compatibility and migration
 
-Канонические URL страниц не меняются. Существующие статические машинные
-поверхности `/llms.txt` и `/agents.md` сохраняют свои адреса; `/llms-full.txt`
-меняет источник на презентеры без изменения адреса и типа содержимого. Ранее
-сохранённый в браузере выбор проекции перестаёт учитываться и не мигрируется:
-источником истины становится URL. Rollback снимает машинные маршруты и
-переключатель, оставляя канонические страницы без изменений; паспорта, API и
-миграции данных не затрагиваются.
+Canonical page URLs do not change. Existing static machine
+surfaces `/llms.txt` and `/agents.md` retain their addresses; `/llms-full.txt`
+changes the source to presenters without changing the address or content type. The
+The projection selection saved in the browser is no longer considered or migrated:
+the URL becomes the source of truth. Rollback removes machine routes and the
+switch, leaving canonical pages unchanged; passports, APIs, and data migrations are
+not affected.
 
-## Критерии приёмки
+## Acceptance criteria
 
-| Требование | Исполнимый oracle |
+| Requirement | Executable oracle |
 |---|---|
-| `REQ-3601` | Запрос без JavaScript к `/{locale}/ai/catalog` возвращает `200` и машинный текст в теле ответа. |
-| `REQ-3602` | Проверка структуры маршрутов подтверждает отдельный layout машинного сегмента; браузерная проверка переходит между проекциями без hydration warnings. |
-| `REQ-3603` | Проверка ответа сервера находит `data-mode`, соответствующий URL; поиск по бандлу не находит записи проекции в `localStorage`. |
-| `REQ-3604` | Браузерная проверка с отключённым JavaScript переходит по переключателю и подтверждает `aria-current` и закреплённое положение. |
-| `REQ-3605` | Проверка находит `](` в `textContent` машинной страницы и не находит соответствующих правил `content` в CSS. |
-| `REQ-3606` | Браузерная проверка сравнивает `innerText` пары URL для каждой страницы из `REQ-3609`. |
-| `REQ-3607` | Браузерная проверка переходит по ссылке машинного документа и остаётся на машинном URL. |
-| `REQ-3608` | Тест сравнивает документ страницы и соответствующий фрагмент `/llms-full.txt` от общего презентера. |
-| `REQ-3609` | Параметризованный тест проходит по списку страниц и требует наличие презентера. |
-| `REQ-3610` | Тест машинного документа объекта проверяет наличие всех перечисленных полей и отсутствие медиа. |
-| `REQ-3611` | Браузерная проверка обходит список маршрутов и требует машинный документ и закреплённый переключатель на каждом; приватные пары URL дают одинаковый редирект. |
-| `REQ-3612` | Тест реестра проверяет наличие маршрута для каждого пути и отсутствие `readProjection` в человеческих страницах. |
-| `REQ-3617` | Тест сравнивает набор пунктов навигации в обеих проекциях. |
-| `REQ-3618` | Unit-тест проверяет, что адреса API и статические поверхности не переписываются. |
-| `REQ-3613` | Статическая проверка подтверждает отсутствие правил `.machine [data-machine-projection]`, файла перехвата `copy` и клиентского провайдера. |
-| `REQ-3614` | Браузерная проверка сравнивает верхнюю координату `main` на паре URL. |
-| `REQ-3615` | Проверка паритета локалей проходит для машинных страниц. |
-| `REQ-3616` | Проверка ответа сервера находит `alternate` и `canonical` на обеих страницах пары. |
-| `REQ-3619` | Scenario двух compiled profiles проверяет одинаковые 200/404 human и machine routes. |
-| `REQ-3620` | Playwright проверяет парные URL и переключатель на content, contact и legal pages. |
-| `REQ-3621` | Параметризованный unit-тест строит документ объекта для каждого из восьми `component_type` и требует поле вида без медиа. |
-| `REQ-3622` | Unit-тест сравнивает inventory с каждым `page.tsx` human-дерева и с `MACHINE_ROUTE_PATTERNS`. |
-| `REQ-3623` | Unit-тест проверяет, что catalog/object/country/service presenters принимают факты тех же загрузчиков, что human pages. |
-| `REQ-3624` | Unit-тест применяет catalog query к machine presenter; Playwright сохраняет query в Human/Machine switch. |
-| `REQ-3625` | Unit-тест отклоняет media, avatar, CSRF, secret и internal identifiers в сериализованном документе. |
-| `REQ-3626` | Playwright требует одинаковый 404 на неизвестном пути и одинаковый login redirect на приватных парах; feature-profile scenario сохраняет 200/404 паритет. |
+| `REQ-3601` | A non-JavaScript request to `/{locale}/ai/catalog` returns `200` and machine text in the response body. |
+| `REQ-3602` | Checking the route structure confirms the separate layout of the machine segment; browser check moves between projections without hydration warnings. |
+| `REQ-3603` | Checking the server response finds `data-mode` matching the URL; Bundle search does not find projection entries in `localStorage`. |
+| `REQ-3604` | The browser check with JavaScript disabled goes through the switch and confirms `aria-current` and the fixed position. |
+| `REQ-3605` | The check finds `](` in the `textContent` of the machine page and does not find any matching `content` rules in the CSS. |
+| `REQ-3606` | The browser check compares the `innerText` URL pairs for each page from `REQ-3609`. |
+| `REQ-3607` | The browser check follows the machine document link and stays at the machine URL. |
+| `REQ-3608` | The test compares the page document and the corresponding `/llms-full.txt` fragment from the common presenter. |
+| `REQ-3609` | A parameterized test runs through a list of pages and requires a presenter. |
+| `REQ-3610` | The object's machine document test checks for the presence of all listed fields and the absence of media. |
+| `REQ-3611` | The browser check bypasses the list of routes and requires a machine document and a pinned switch on each; private URL pairs give the same redirect. |
+| `REQ-3612` | The registry test checks for the presence of a route for each path and the absence of `readProjection` in human pages. |
+| `REQ-3617` | The test compares a set of navigation items in both projections. |
+| `REQ-3618` | The unit test verifies that API addresses and static surfaces are not rewritten. |
+| `REQ-3613` | The static check confirms the absence of the `.machine [data-machine-projection]` rules, the `copy` hook file and the client provider. |
+| `REQ-3614` | The browser check compares the top `main` coordinate on a pair of URLs. |
+| `REQ-3615` | Locale parity checks occur for machine pages. |
+| `REQ-3616` | Checking the server response finds `alternate` and `canonical` on both pages of the pair. |
+| `REQ-3619` | Scenario of two compiled profiles checks the same 200/404 human and machine routes. |
+| `REQ-3620` | Playwright verifies paired URLs and the switch on content, contact and legal pages. |
+| `REQ-3621` | The parameterized unit test builds an object document for each of the eight `component_type` and requires a `component_type` field without media. |
+| `REQ-3622` | The unit test compares inventory with each `page.tsx` of the human tree and with `MACHINE_ROUTE_PATTERNS`. |
+| `REQ-3623` | The unit test checks that catalog/object/country/service presenters accept facts from the same loaders as human pages. |
+| `REQ-3624` | The unit test applies the catalog query to the machine presenter; Playwright saves the query in the Human/Machine switch. |
+| `REQ-3625` | The unit test rejects media, avatar, CSRF, secret and internal identifiers in the serialized document. |
+| `REQ-3626` | Playwright requires the same 404 on an unknown path and the same login redirect on private pairs; feature-profile scenario preserves 200/404 parity. |

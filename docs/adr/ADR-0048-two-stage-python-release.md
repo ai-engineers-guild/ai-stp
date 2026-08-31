@@ -1,83 +1,83 @@
 ---
-description: "Разделение воспроизводимой сборки Python candidate и ручной OIDC-публикации."
+description: "Separation of reproducible Python candidate builds from manual OIDC publication."
 last_verified: "2026-08-29"
 ---
 
-# ADR-0048: Двухступенчатый выпуск Python-пакетов
+# ADR-0048: Two-Stage Python Package Release
 
-Статус: принято в части разделения полномочий, заменено в части исполнителя.
-Требование — build без OIDC, attest без checkout и только с байтами предыдущей
-job — действует без изменений; изменилось лишь то, чем это разделение
-обеспечивается. Запись о смене исполнителя принадлежит приватной инфраструктуре
-и здесь не публикуется.
+Status: accepted for the separation of authority, superseded for the executor.
+The requirement—build without OIDC, attest without checkout and only with bytes from
+the preceding job—remains unchanged; only the mechanism enforcing this separation
+changed. The record of the executor change belongs to private infrastructure and is
+not published here.
 
-Что действует в этом дереве: обе job исполняются на раннерах, размещённых
-GitHub, и разделение обеспечивается границей job, а не машиной. Названные ниже
-постоянные роли `guild-ai-stp-release-build` и `guild-ai-stp-release-attest`
-никогда не были зарегистрированы, поэтому workflow не мог быть размещён ни на
-одной машине — это и есть причина, по которой исполнитель сменился.
+What applies in this tree: both jobs run on GitHub-hosted runners, and separation is
+enforced by the job boundary rather than the machine. The persistent roles named
+below, `guild-ai-stp-release-build` and `guild-ai-stp-release-attest`, were never
+registered, so the workflow could not be placed on any machine—which is why the
+executor changed.
 
-## Контекст
+## Context
 
-Пять публичных Python-пакетов образуют одно устанавливаемое CLI-замыкание:
-`ai-stp-foundation`, `ai-stp-passports`, `ai-stp-assurance`, `ai-stp-contracts` и
-`ai-stp-cli`. Публикация каждого пакета отдельной локальной командой оставляет окно,
-в котором PyPI содержит несовместимую половину набора. API, platform и worker не
-являются пользовательскими PyPI-пакетами и в этот выпуск не входят.
+Five public Python packages form one installable CLI closure:
+`ai-stp-foundation`, `ai-stp-passports`, `ai-stp-assurance`, `ai-stp-contracts`, and
+`ai-stp-cli`. Publishing each package with a separate local command leaves a window
+in which PyPI contains an incompatible partial set. API, platform, and worker are not
+user-facing PyPI packages and are not included in this release.
 
-Доступ к PyPI не должен находиться в обычном CI, persistent PR runner или локальном
-токене. Аттестация артефакта GitHub также требует OIDC и для private repository на
-текущем плане недоступна. По продуктовому плану репозиторий становится публичным
-только при первом MVP-релизе.
+PyPI access must not be present in ordinary CI, a persistent PR runner, or a local
+token. GitHub artifact attestation also requires OIDC and is unavailable to a private
+repository on the current plan. Under the product plan, the repository becomes
+public only for the first MVP release.
 
-## Решение
+## Decision
 
-Выпуск разделён на две доверительные ступени.
+The release is divided into two trust stages.
 
-1. `release-candidate` на отдельном self-hosted runner без PyPI credentials дважды
-   собирает пять wheel и пять sdist с одинаковым `SOURCE_DATE_EPOCH`, сравнивает их
-   побайтово, проверяет metadata, LICENSE и безопасные члены архивов, создаёт
-   детерминированный CycloneDX SBOM, `release-manifest.json` и `SHA256SUMS`.
-   После сборки отдельная проверка устанавливает CLI вне исходного дерева и передаёт
-   все пять внутренних колёс как прямые точные источники. Запись происхождения по
-   PEP 610 для каждого установленного `ai-stp-*` обязана указывать на проверенные
-   байты кандидата; одного `--find-links` недостаточно, потому что разрешитель может
-   выбрать одноимённую версию из публичного индекса.
-2. В публичном репозитории отдельная attestation job получает **ровно** artifact
-   первой job и выпускает GitHub/Sigstore provenance. Обычный build job не получает
-   `id-token: write`.
-3. PyPI publication не входит в candidate workflow. Она добавляется и включается
-   только после создания защищённого environment `pypi`, настройки PyPI Trusted
-   Publisher на точные repository/workflow/environment и отдельного разрешения
-   владельца выпуска. Единственным полномочием publish job становится краткоживущий
-   OIDC token; API token и пароль не хранятся.
+1. `release-candidate`, on a separate self-hosted runner without PyPI credentials,
+   builds five wheels and five sdists twice with the same `SOURCE_DATE_EPOCH`,
+   compares them byte for byte, validates metadata, LICENSE, and safe archive members,
+   and creates a deterministic CycloneDX SBOM, `release-manifest.json`, and
+   `SHA256SUMS`. After the build, a separate check installs the CLI outside the source
+   tree and supplies all five internal wheels as direct exact sources. The PEP 610
+   provenance record for every installed `ai-stp-*` package must point to the verified
+   candidate bytes; `--find-links` alone is insufficient because the resolver may
+   select the same version from the public index.
+2. In the public repository, a separate attestation job receives **exactly** the
+   artifact from the first job and issues GitHub/Sigstore provenance. The ordinary
+   build job does not receive `id-token: write`.
+3. PyPI publication is not part of the candidate workflow. It is added and enabled
+   only after creating the protected `pypi` environment, configuring PyPI Trusted
+   Publisher for the exact repository/workflow/environment, and obtaining separate
+   authorization from the release owner. The publish job's only authority is a
+   short-lived OIDC token; no API token or password is stored.
 
-Все пять package versions обязаны совпадать, а зависимости внутри этого замыкания
-закрепляются на точную общую версию. Финальный tagged candidate требует чистое дерево
-и exact tag `v<version>`. Dirty-сборка разрешена только явным локальным
-флагом для характеризации и записывает `dirty: true`; release evidence ею не
-создаётся.
+All five package versions must match, and dependencies within this closure are pinned
+to the exact shared version. A final tagged candidate requires a clean tree and an
+exact `v<version>` tag. A dirty build is allowed only through an explicit local flag
+for characterization and records `dirty: true`; it does not create release evidence.
 
-Release path имеет две отдельные физические роли. `guild-ai-stp-release-build`
-исполняет repository build code без OIDC authority. `guild-ai-stp-release-attest`
-получает только неизменяемый artifact предыдущей job, не делает checkout и единственный
-получает `id-token: write` и `attestations: write`. Эти роли не делят host,
-пользователя или файловую систему друг с другом и с CI/deploy runners. Новые labels
-на одной машине не создают разделения доверия.
+The release path has two separate physical roles. `guild-ai-stp-release-build` runs
+repository build code without OIDC authority. `guild-ai-stp-release-attest` receives
+only the immutable artifact from the previous job, performs no checkout, and alone
+receives `id-token: write` and `attestations: write`. These roles share neither host,
+user, nor filesystem with each other or with CI/deploy runners. New labels on one
+machine do not create trust separation.
 
-## Последствия
+## Consequences
 
-Текущий workflow умеет строить и, после публичности репозитория, attested candidate,
-но намеренно не умеет публиковать. Поэтому подготовка `#185` продвинута, а сам issue
-не закрывается до защищённого environment, Trusted Publisher, macOS clean install и
-отдельно разрешённой публикации.
+The current workflow can build and, once the repository is public, attest a candidate,
+but intentionally cannot publish. Preparation for `#185` is therefore advanced, but
+the issue is not closed until there is a protected environment, Trusted Publisher,
+a macOS clean install, and separately authorized publication.
 
-Порядок публикации пяти файловых пар должен учитывать зависимости: foundation,
-passports, assurance, contracts, CLI. После частичного отказа уже загруженная версия
-не перезаписывается; исправление получает новую версию. Yank применяется только как
-операторский сигнал и не удаляет исторические bytes.
+The publication order of the five file pairs must account for dependencies:
+foundation, passports, assurance, contracts, CLI. After a partial failure, an already
+uploaded version is not overwritten; the fix receives a new version. Yank is used
+only as an operator signal and does not delete historical bytes.
 
-## Условия пересмотра
+## Reconsideration Conditions
 
-Решение пересматривается при переходе на единый Python distribution artifact либо на
-внешний release controller с эквивалентной краткоживущей identity и provenance.
+The decision will be reconsidered upon moving to a single Python distribution
+artifact or to an external release controller with equivalent short-lived identity
+and provenance.

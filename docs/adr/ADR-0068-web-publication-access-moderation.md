@@ -1,131 +1,144 @@
 ---
-description: "Решение о web owner-read models и безопасных потоках публикации, прав и модерации."
+description: "Decision on web owner-read models and secure publication, permissions, and moderation flows."
 last_verified: "2026-08-08"
 ---
 
-# ADR-0068: Веб собственных объектов, публикации, прав и модерации
+# ADR-0068: Web for owned objects, publication, permissions, and moderation
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-`ADR-0018` отдал вебу управление аккаунтом и публикацией, но оставил создание
-паспортов, индексирование, сборку, проверки и установку за CLI и агентом.
-`ADR-0043` выбрал RSC, Server Actions и generated OpenAPI client, а `ADR-0041`
-зафиксировал server session и double-submit CSRF. `#181` материализовал серверные
-сценарии publication, grants, reports и staff actions по `ADR-0067`.
+`ADR-0018` assigned account management and publication to the web, but left passport
+creation, indexing, building, checks, and installation to the CLI and agent.
+`ADR-0043` selected RSC, Server Actions, and the generated OpenAPI client, while
+`ADR-0041` established server sessions and double-submit CSRF. `#181` materialized
+the server scenarios for publication, grants, reports, and staff actions according
+to `ADR-0067`.
 
-После этого в `apps/web` уже есть landing, публичный каталог, вход, аккаунт и
-устройства, но нет owner workspace. Кроме того, существующие API write-paths не
-составляют достаточной и безопасной read-поверхности: анонимный catalog намеренно
-не видит закрытые объекты, `sync` — журнал ревизий для клиента CLI, а маршруты
-staff не дают рабочего списка. Попытка собрать экран в браузере из этих источников
-дублировала бы политику видимости, раскрывала бы закрытые метаданные и превращала Zustand в
-неверный источник истины.
+After that, `apps/web` already has a landing page, public catalog, sign-in, account,
+and devices, but no owner workspace. In addition, the existing API write paths do
+not form a sufficient and secure read surface: the anonymous catalog intentionally
+does not expose private objects, `sync` is a revision ledger for the CLI client,
+and the staff routes do not provide a work queue. Attempting to assemble a screen
+in the browser from these sources would duplicate the visibility policy, expose
+private metadata, and turn Zustand into an incorrect source of truth.
 
-Есть отдельная угроза invitation accept: wire-контракт требует одноразовый token,
-но query/path, server-rendered page, referrer, browser history и telemetry не
-должны получить его. Обычная Server Action принимает form data на сервере, поэтому
-она не подходит как безусловный транспорт для сырого invitation token.
+Invitation acceptance poses a separate threat: the wire contract requires a
+single-use token, but the query/path, server-rendered page, referrer, browser
+history, and telemetry must not receive it. A regular Server Action accepts form
+data on the server, so it is not suitable as an unconditional transport for the
+raw invitation token.
 
-## Варианты
+## Alternatives
 
-1. Построить экраны на публичном catalog, локальном `sync` ledger и уже имеющихся
-   write-маршрутах. Быстро, но private owner data неполна, policy дублируется на
-   клиенте, а sync получает не принадлежащую ему роль web read model.
-2. Добавить в `apps/web` отдельный BFF/GraphQL, который агрегирует database и API.
-   Даёт удобные экраны, но вводит вторую авторизацию, второй DTO-contract и второй
-   application layer вопреки `ADR-0018` и `ADR-0043`.
-3. Расширить `/v1` минимальными account-scoped owner/staff read-моделями в
-   `packages/contracts`, использовать RSC и Server Actions для обычных мутаций, а
-   invitation token передавать только fragment-to-same-origin POST.
+1. Build the screens on the public catalog, local `sync` ledger, and existing
+   write routes. This is fast, but private owner data is incomplete, policy is
+   duplicated on the client, and sync takes on the role of a web read model that
+   does not belong to it.
+2. Add a separate BFF/GraphQL layer to `apps/web` that aggregates the database and
+   API. This provides convenient screens, but introduces a second authorization
+   mechanism, a second DTO contract, and a second application layer contrary to
+   `ADR-0018` and `ADR-0043`.
+3. Extend `/v1` with minimal account-scoped owner/staff read models in
+   `packages/contracts`, use RSC and Server Actions for regular mutations, and
+   transmit the invitation token only via fragment-to-same-origin POST.
 
-## Решение
+## Decision
 
-Принимается вариант 3.
+Alternative 3 is accepted.
 
-### 1. Owner workspace читает отдельные server read-модели
+### 1. The owner workspace reads dedicated server read models
 
-`#183` вводит web owner workspace для собственных объектов и точных версий,
-publication plan, invitations/grants, своих reports и минимальных staff cases.
-Нужные owner/staff read-модели проектируются сначала в `packages/contracts`,
-fixtures и OpenAPI, затем реализуются вертикальными API-слайсами `ADR-0037` и
-только после этого попадают в generated client `apps/web`.
+`#183` introduces a web owner workspace for owned objects and exact versions,
+publication plans, invitations/grants, the owner's reports, and minimal staff
+cases. The required owner/staff read models are designed first in
+`packages/contracts`, fixtures, and OpenAPI, then implemented as vertical API
+slices according to `ADR-0037`, and only then included in the generated client
+for `apps/web`.
 
-Каждая server read-модель проверяет владельца, действующий grant или staff allowlist
-на сервере. Она возвращает только сведения, нужные экрану, а не полный паспорт,
-журнал ревизий, ключ хранилища, исходное attestation или закрытые bytes. Публичный
-catalog, grant и owner views могут указывать на одну точную версию, но не
-взаимозаменяемы и не сливаются клиентом.
+Each server read model checks the owner, an active grant, or the staff allowlist
+on the server. It returns only the information required by the screen, not the
+complete passport, revision ledger, storage key, original attestation, or private
+bytes. Public catalog, grant, and owner views may refer to the same exact version,
+but they are not interchangeable and are not merged by the client.
 
-Точные маршруты, поля, cursor и ошибки не фиксируются этой записью: ими владеют
-`packages/contracts`, `schemas/v1/openapi.json` и `docs/contracts/http-api.md`.
-Изменение остаётся аддитивным внутри поддерживаемой основной версии API.
+The exact routes, fields, cursor, and errors are not established by this record:
+they are owned by `packages/contracts`, `schemas/v1/openapi.json`, and
+`docs/contracts/http-api.md`. The change remains additive within the supported
+major API version.
 
-### 2. Один API и server truth
+### 2. One API and server truth
 
-RSC читает owner/staff data на сервере после проверки server session. Обычные
-мутации — создание и подтверждение publication plan, выдача и отзыв приглашения,
-жалоба и staff action — идут через тонкие Next Server Actions с существующим CSRF
-transport; после ответа они invalidируют и перечитывают server view. Zustand хранит
-только короткое UI-состояние, не permission, lifecycle, grant или публикационную
-истину.
+RSC reads owner/staff data on the server after checking the server session. Regular
+mutations—creating and confirming a publication plan, issuing and revoking an
+invitation, submitting a report, and performing a staff action—go through thin
+Next Server Actions using the existing CSRF transport; after the response, they
+invalidate and reread the server view. Zustand stores only short-lived UI state,
+not permission, lifecycle, grant, or publication truth.
 
-Клиент не вычисляет пригодность к установке, линию доверия, переход жизненного
-цикла, доступ к закрытому object или разрешение staff. Он показывает типизированный
-результат общего `/v1` scenario, который также доступен CLI, и отображает
-возвращённые request/operation IDs. Это сохраняет запрет второй бизнес-логики
-`ADR-0018`.
+The client does not calculate installation eligibility, the trust line, lifecycle
+transitions, access to a private object, or staff authorization. It displays the
+typed result of the shared `/v1` scenario, which is also available to the CLI, and
+shows the returned request/operation IDs. This preserves the prohibition against
+a second business-logic implementation from `ADR-0018`.
 
-### 3. Invitation token: fragment и прямой POST
+### 3. Invitation token: fragment and direct POST
 
-Письмо ведёт на локализованную invitation page с идентификатором invitation и raw
-token только в URL fragment. Fragment не отправляется HTTP-серверу, не попадает в
-referrer и не сохраняется в history как query/path. Точечный client component
-считывает fragment, держит token только в памяти и отправляет его прямым
-same-origin `POST /v1` с credentials и double-submit CSRF header. После отправки
-он удаляет fragment через `history.replaceState` и показывает server outcome.
+The email links to a localized invitation page with the invitation identifier and
+the raw token only in the URL fragment. The fragment is not sent to the HTTP
+server, is not included in the referrer, and is not stored in history as a
+query/path. A focused client component reads the fragment, keeps the token only
+in memory, and sends it in a direct same-origin `POST /v1` with credentials and a
+double-submit CSRF header. After sending it, the component removes the fragment
+using `history.replaceState` and displays the server outcome.
 
-Это исключение из предпочтения Server Actions является записанной transport-причиной
-безопасности по `SPEC-010` `REQ-1011`. Компонент не проверяет token, email, expiry
-или grant; это остаётся единым API scenario. Token никогда не передаётся в RSC props,
-Server Action, путь, параметры запроса, журналы, аналитику, уведомление, audit или
-постоянное хранилище браузера.
+This exception to the preference for Server Actions is a documented transport
+security reason under `SPEC-010` `REQ-1011`. The component does not validate the
+token, email, expiry, or grant; these remain part of the single API scenario. The
+token is never passed into RSC props, a Server Action, the path, query parameters,
+logs, analytics, a notification, audit, or persistent browser storage.
 
-### 4. Минимальная модерация не является клиентской ролью
+### 4. Minimal moderation is not a client-side role
 
-Staff navigation допустима как удобство, но не является границей доступа. Staff
-рабочий список, карточку и mutations возвращает API только account из server allowlist
-`SPEC-026`; web не держит список staff и не пытается различить отсутствие case от
-закрытого case для не-staff. Рабочий список ограничен триажем, lifecycle actions и
-`author_verified`; полный RBAC, поиск всех аккаунтов, организация и универсальный
-audit explorer не вводятся.
+Staff navigation is permitted as a convenience, but it is not an access boundary.
+The API returns the staff work queue, case card, and mutations only to an account
+on the server allowlist from `SPEC-026`; the web does not maintain a staff list
+and does not attempt to distinguish a nonexistent case from a private case for a
+non-staff user. The work queue is limited to triage, lifecycle actions, and
+`author_verified`; full RBAC, search across all accounts, organizations, and a
+universal audit explorer are not introduced.
 
-Каждое staff-действие требует явного подтверждения и reason, а сервер пишет
-append-only audit. UI показывает безопасную корреляцию действия, но не копирует
-audit в самостоятельное клиентское хранилище. Личность репортёра и security details
-остаются в границах `SPEC-016` / `ADR-0031`.
+Every staff action requires explicit confirmation and a reason, and the server
+writes append-only audit records. The UI displays a safe action correlation, but
+does not copy audit data into independent client-side storage. Reporter identity
+and security details remain within the boundaries of `SPEC-016` / `ADR-0031`.
 
-## Последствия
+## Consequences
 
-- Появляется `SPEC-027` с требованиями веб-слоя и исполнимыми критериями;
-  продуктовые правила `SPEC-002`, `SPEC-007`, `SPEC-016` и server materialization
-  `SPEC-026` не переписываются.
-- До экранов добавляются аддитивные owner/staff read-модели, fixtures, OpenAPI и
-  generated client; `apps/web` не получает ручные DTO, BFF или доступ к database.
-- Новые страницы располагаются в существующем locale-aware App Router и наследуют
-  `ru`/`en`, RSC privacy boundary, Server Actions и UI-kit `ADR-0043`.
-- Приглашение получает отдельный fragment-only web transport; требуется browser
-  test на отсутствие token в URL, referrer, HTML, истории, хранилище и trace.
-- Требуются matrix-тесты owner/grantee/outsider/staff, redaction, publication
-  states, idempotency, locale/a11y и отсутствие второй бизнес-логики.
-- Если API read-модель отсутствует, экран не строит её из sync или public catalog:
-  функция остаётся явно недоступной до contract-first реализации.
+- `SPEC-027` is introduced with web-layer requirements and executable criteria;
+  the product rules in `SPEC-002`, `SPEC-007`, and `SPEC-016`, and the server
+  materialization in `SPEC-026`, are not rewritten.
+- Additive owner/staff read models, fixtures, OpenAPI, and the generated client are
+  added before the screens; `apps/web` does not gain manual DTOs, a BFF, or
+  database access.
+- New pages are placed in the existing locale-aware App Router and inherit
+  `ru`/`en`, the RSC privacy boundary, Server Actions, and the UI kit from
+  `ADR-0043`.
+- Invitations receive a dedicated fragment-only web transport; a browser test is
+  required to verify the absence of the token from the URL, referrer, HTML,
+  history, storage, and trace.
+- Matrix tests are required for owner/grantee/outsider/staff, redaction,
+  publication states, idempotency, locale/a11y, and the absence of a second
+  business-logic implementation.
+- If an API read model is absent, the screen does not construct it from sync or
+  the public catalog: the feature remains explicitly unavailable until a
+  contract-first implementation is provided.
 
-## Условия пересмотра
+## Reconsideration Conditions
 
-Решение пересматривается, если появится доказанная необходимость browser editor,
-если необходимая owner read-модель не выражается аддитивным `/v1` контрактом, если
-приём invitation нельзя безопасно выполнить same-origin fragment POST, либо если
-staff allowlist перерастёт минимальную поверхность и потребует полноценной модели
-ролей и делегирования.
+The decision is reconsidered if a demonstrated need for a browser editor emerges,
+if the required owner read model cannot be expressed through an additive `/v1`
+contract, if invitation acceptance cannot be performed securely through a
+same-origin fragment POST, or if the staff allowlist outgrows the minimal surface
+and requires a full-fledged role and delegation model.

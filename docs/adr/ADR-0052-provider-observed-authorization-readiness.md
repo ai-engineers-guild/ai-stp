@@ -1,36 +1,36 @@
 ---
-description: "Решение выводить readiness авторизации из exact SetupVersion и наблюдаемого статуса provider target."
+description: "Decision to derive authorization readiness from the exact SetupVersion and the observed status of the provider target."
 last_verified: "2026-08-09"
 ---
 
-# ADR-0052: Наблюдаемая готовность внешней авторизации
+# ADR-0052: Observable Readiness of External Authorization
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-`SPEC-008` REQ-819 и REQ-820 требуют объявить потребность в авторизации до установки и сохранять `needs_configuration`, пока пользователь не завершил настройку. Exact `SetupVersionPassport` уже агрегирует `requires_authorization`, но target readiness использовал только переданный вручную параметр и не читал это поле. Поэтому обычный `target status` мог назвать установленным сетап, который сам объявляет незавершённую внешнюю авторизацию.
+`SPEC-008` REQ-819 and REQ-820 require declaring the need for authorization before installation and retaining `needs_configuration` until the user has completed setup. The exact `SetupVersionPassport` already aggregates `requires_authorization`, but target readiness used only a manually supplied parameter and did not read this field. Therefore, an ordinary `target status` could call a setup installed even though the setup itself declares incomplete external authorization.
 
-CLI не может доказать вход наличием переменной окружения, локальным флагом «готово» или чтением секретов. Provider единолично владеет нативным target по REQ-803 и является единственным слоем, который может безопасно наблюдать, завершена ли настройка принадлежащего ему харнесса. При этом protocol v1 заморожен, а старые providers не возвращают такого evidence.
+The CLI cannot prove sign-in by the presence of an environment variable, a local "ready" flag, or by reading secrets. The provider exclusively owns the native target under REQ-803 and is the only layer that can safely observe whether setup of the harness it owns has been completed. At the same time, protocol v1 is frozen, and older providers do not return such evidence.
 
-## Варианты
+## Alternatives
 
-1. Сохранять локальную отметку пользователя. Она переживает отзыв, смену target и удаление нативной сессии и поэтому способна объявить готовность, которой больше нет.
-2. Всегда считать объявленную авторизацию незавершённой. Это безопасно, но состояние никогда не сможет стать `installed` даже после успешной настройки.
-3. Сделать поле обязательным для protocol v1. Это ломает уже выпущенный provider contract.
-4. Оставить требование владельцу exact паспорта, а готовность получать необязательным additive evidence из `status`; отсутствие evidence трактовать как незавершённость.
+1. Retain a local user marker. It outlives revocation, target changes, and deletion of the native session, and therefore can declare readiness that no longer exists.
+2. Always consider declared authorization incomplete. This is safe, but the state can never become `installed` even after successful setup.
+3. Make the field mandatory for protocol v1. This breaks the already released provider contract.
+4. Leave the requirement with the owner of the exact passport, while obtaining readiness as optional additive evidence from `status`; treat the absence of evidence as incompleteness.
 
-## Решение
+## Decision
 
-Принимается вариант 4.
+Alternative 4 is accepted.
 
-Exact выбранный `SetupVersionPassport` является единственным источником требуемого вида:
+The exact selected `SetupVersionPassport` is the sole source of the required kind:
 
 ```text
 none | user_account | external_service
 ```
 
-Provider `status` может дополнительно вернуть:
+Provider `status` may additionally return:
 
 ```json
 {
@@ -41,29 +41,29 @@ Provider `status` может дополнительно вернуть:
 }
 ```
 
-Закрытые состояния — `pending` и `ready`. Поле не содержит токен, адрес входа, имя аккаунта или иной секрет. Его отсутствие остаётся допустимым ответом старого provider, но для сетапа с требованием означает `pending`, а не готовность.
+The closed set of states is `pending` and `ready`. The field contains no token, sign-in address, account name, or other secret. Its absence remains a valid response from an older provider, but for a setup with a requirement it means `pending`, not readiness.
 
-Consumer действует fail closed:
+The consumer acts fail closed:
 
-- `requires_authorization: none` и отсутствие evidence означают отсутствие требования;
-- объявленное требование без provider evidence остаётся в `needs_configuration`;
-- только точное совпадение `kind` и `state: ready` снимает ожидание;
-- `state: pending` сохраняет ожидание;
-- неизвестная форма, неизвестное состояние или несовпадающий `kind` возвращают типизированную ошибку provider schema и не называются готовностью;
-- `target status` без вызова provider не может подтвердить завершение и остаётся pending.
+- `requires_authorization: none` and the absence of evidence mean that there is no requirement;
+- a declared requirement without provider evidence remains in `needs_configuration`;
+- only an exact match of `kind` and `state: ready` clears the pending requirement;
+- `state: pending` preserves the pending requirement;
+- an unknown shape, unknown state, or mismatched `kind` returns a typed provider schema error and is not called ready;
+- `target status` without a provider call cannot confirm completion and remains pending.
 
-`install plan` показывает `required_authorization`, чтобы агент объяснил требование до применения. Установка и provider verification могут завершиться независимо: readiness является последующим наблюдением, а не причиной переписать честный результат эффекта.
+`install plan` displays `required_authorization` so that the agent can explain the requirement before applying. Installation and provider verification may complete independently: readiness is a subsequent observation, not a reason to rewrite the truthful result of the effect.
 
-Поле является необязательным command-specific расширением открытого JSON-ответа и не меняет обязательную форму protocol v1. Добавление обязательного поля, нового вида или другого смысла потребует следующей версии протокола. Provider repositories добавляют evidence после обновления consumer contract; старые releases продолжают работать, но не могут подтвердить готовность авторизации.
+The field is an optional command-specific extension of the open JSON response and does not change the mandatory shape of protocol v1. Adding a mandatory field, a new kind, or a different meaning will require the next protocol version. Provider repositories add evidence after updating the consumer contract; older releases continue to work but cannot confirm authorization readiness.
 
-## Последствия
+## Consequences
 
-- readiness больше нельзя сделать ложноположительным пропуском CLI-флага;
-- отзыв или потеря нативной авторизации наблюдаются следующим `status`, а не спорят с долговечной локальной отметкой;
-- provider не получает секретов и не сообщает их обратно;
-- реальное закрытие REQ-820 требует E2E каждого основного provider с переходом `pending → ready → pending` после отзыва;
-- отсутствие provider executable является честным неполным evidence, а не основанием считать target готовым.
+- readiness can no longer be made falsely positive by omitting a CLI flag;
+- revocation or loss of native authorization is observed by the next `status`, rather than conflicting with a long-lived local marker;
+- the provider neither receives secrets nor reports them back;
+- actual closure of REQ-820 requires E2E testing of each primary provider with the transition `pending → ready → pending` after revocation;
+- the absence of the provider executable is honest incomplete evidence, not grounds for considering the target ready.
 
-## Условия пересмотра
+## Reconsideration Conditions
 
-Решение пересматривается, если один SetupVersion должен объявлять несколько независимо завершаемых авторизаций. Тогда единичный enum заменяется версионированным списком требований в паспорте и новым совместимым status contract, а не строкой со свободным текстом.
+The decision will be reconsidered if a single SetupVersion must declare multiple independently completable authorizations. In that case, the single enum will be replaced with a versioned list of requirements in the passport and a new compatible status contract, rather than a free-text string.

@@ -1,17 +1,17 @@
 ---
-description: "Правила index.md и генерируемых таблиц содержимого."
+description: "Rules for index.md files and generated content tables."
 last_verified: "2026-08-03"
 ---
 
-# Индексы
+# Indexes
 
-Каждый долгоживущий каталог документации имеет `index.md`.
+Every long-lived documentation directory has an `index.md`.
 
-Индекс содержит:
+An index contains:
 
 1. frontmatter;
-2. один заголовок;
-3. краткое назначение;
-4. генерируемую таблицу детей между служебными маркерами.
+2. one heading;
+3. a brief purpose;
+4. a generated table of child documents between service markers.
 
-Таблица создаётся `just docs-gen`. Ручное редактирование генерируемого блока запрещено. Файл вне индекса считается недоступным для маршрутизации и должен быть добавлен или удалён осознанно.
+The table is created by `just docs-gen`. Manual editing of the generated block is forbidden. A file absent from the index is considered unavailable for routing and must be added or removed deliberately.

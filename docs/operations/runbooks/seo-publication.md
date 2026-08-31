@@ -1,60 +1,60 @@
 ---
-description: "Runbook: серверные SEO-ревизии, sitemap и необязательное LiteLLM enrichment."
+description: "Runbook: server SEO revisions, sitemap, and optional LiteLLM enrichment."
 last_verified: "2026-08-29"
 ---
 
 # SEO publication
 
-## Когда применять
+## When to use
 
-После публикации компонента или сетапа, импорта статей, изменения сервиса
-или страны страница должна получить активную base SEO-ревизию без модели.
-Обогащение через LiteLLM включается отдельно и не блокирует публикацию.
+After a component or setup is published, articles are imported, or a service or
+country changes, the page must receive an active base SEO revision without a
+model. LiteLLM enrichment is enabled separately and does not block publication.
 
-## Проверить
+## Verify
 
-1. Worker обработал `seo_build` и указатель `seo_active_revision` ссылается
-   на `state=active`.
-2. `GET /v1/seo/subjects/{kind}/{id}?locale=en` отдаёт профиль с
+1. The worker processed `seo_build`, and `seo_active_revision` points to
+   `state=active`.
+2. `GET /v1/seo/subjects/{kind}/{id}?locale=en` returns a profile with
    `Cache-Control: public`.
-3. `/sitemap.xml` и `/sitemaps/{kind}-{locale}-{page}.xml` содержат только
-   `index_eligible` URL.
-4. `/llms.txt` остаётся компактным и ссылается на `/llms/catalog.ndjson`.
-5. `/og/{revision_id}.png` отвечает 1200×630 с `immutable` cache.
+3. `/sitemap.xml` and `/sitemaps/{kind}-{locale}-{page}.xml` contain only
+   `index_eligible` URLs.
+4. `/llms.txt` remains compact and links to `/llms/catalog.ndjson`.
+5. `/og/{revision_id}.png` returns a 1200×630 image with an `immutable` cache.
 
 ## Enrichment
 
-Профиль compose `seo_enrichment` поднимает LiteLLM (`seo-writer`) и CLIPROXY
-(официальный образ `eceasy/cli-proxy-api`) в одной сети `internal`. LiteLLM
-ходит в `http://cliproxy:8317/v1`. Порт 8317 на хост не публикуется. Worker
-читает только `AI_STP_SEO_ENRICHMENT_URL`, credential процесса и alias;
-`AI_STP_CLIPROXY_*` попадают только в контейнер LiteLLM.
+Compose profile `seo_enrichment` starts LiteLLM (`seo-writer`) and CLIPROXY
+(official image `eceasy/cli-proxy-api`) on one `internal` network. LiteLLM uses
+`http://cliproxy:8317/v1`. Port 8317 is not published to the host. The worker
+reads only `AI_STP_SEO_ENRICHMENT_URL`, the process credential, and the alias;
+`AI_STP_CLIPROXY_*` enters only the LiteLLM container.
 
-Переносимая сессия — JSON в `deploy/cliproxy/auths/` (это `auth-dir`
-CLIProxyAPI, внутри контейнера `/root/.cli-proxy-api`). Это не вход `agy` и
-не `~/.gemini`. Файлы `antigravity-*.json` копируются между машинами; CLIPROXY
-подхватывает каталог без перезапуска (hot reload).
+The portable session is JSON under `deploy/cliproxy/auths/` (the CLIProxyAPI
+`auth-dir`, mounted at `/root/.cli-proxy-api` in the container). It is neither
+an `agy` login nor `~/.gemini`. Files `antigravity-*.json` are copied between
+machines; CLIPROXY reloads the directory without restart.
 
-Локально, если CLIPROXY уже логинился на этой машине:
+Locally, if CLIPROXY has already logged in on this machine:
 
 ```sh
 cp "$HOME/.cli-proxy-api"/antigravity*.json deploy/cliproxy/auths/
 ```
 
-На Windows PowerShell:
+On Windows PowerShell:
 
 ```powershell
 Copy-Item "$env:USERPROFILE\.cli-proxy-api\antigravity*.json" deploy\cliproxy\auths\
 ```
 
-На сервер уходит тот же каталог, не cookie браузера:
+Copy the same directory—not browser cookies—to the server:
 
 ```sh
 scp -r deploy/cliproxy/auths/ user@server:ai_stp/deploy/cliproxy/auths/
 ```
 
-Первый вход или просроченный refresh — логин внутри контейнера. Callback
-Antigravity слушает `127.0.0.1:51121`.
+For the first login or an expired refresh, log in inside the container. The
+Antigravity callback listens on `127.0.0.1:51121`.
 
 ```sh
 docker compose -f docker-compose.dev.yml \
@@ -62,10 +62,10 @@ docker compose -f docker-compose.dev.yml \
   exec cliproxy /CLIProxyAPI/CLIProxyAPI -no-browser -antigravity-login
 ```
 
-На сервере без браузера сначала туннель с рабочей машины
-(`ssh -L 51121:127.0.0.1:51121 user@server`), затем та же команда `exec`.
-Google вернёт код на `localhost:51121`, SSH донесёт его до контейнера.
-Не открывайте 8317 и 51121 в интернет.
+On a browserless server, first create a tunnel from the workstation
+(`ssh -L 51121:127.0.0.1:51121 user@server`), then run the same `exec` command.
+Google returns the code to `localhost:51121`, and SSH carries it to the
+container. Do not expose ports 8317 or 51121 to the internet.
 
 ```sh
 docker compose -f docker-compose.dev.yml \
@@ -75,24 +75,24 @@ docker compose -f docker-compose.dev.yml \
   exec worker python -m ai_stp_platform.seo.enqueue_pending
 ```
 
-Команда сначала ставит `seo_build` для профилей со старой версией шаблона,
-а уже актуальные профили отправляет в `seo_enrich`. После сборки worker сам
-поставит обогащение. Канонический origin сервер берёт из
-`AI_STP_SEO_PUBLIC_ORIGIN`, а при его отсутствии — из `NEXT_PUBLIC_APP_URL`;
-на production это должен быть внешний HTTPS URL сайта, не адрес из запроса.
+The command first queues `seo_build` for profiles using an old template version
+and sends current profiles to `seo_enrich`. After building, the worker queues
+enrichment itself. The server reads the canonical origin from
+`AI_STP_SEO_PUBLIC_ORIGIN`, falling back to `NEXT_PUBLIC_APP_URL`; in production
+this must be the site's external HTTPS URL, not an address from the request.
 
-`enqueue_pending` не переставит job, который уже `dead_letter` с тем же
-idempotency key: такие задания retry/reset отдельно, после живого CLIPROXY.
+`enqueue_pending` does not requeue a job already in `dead_letter` with the same
+idempotency key. Retry or reset such jobs separately after CLIPROXY is healthy.
 
-Worker отклоняет водяной или неполный ответ до публикации и делает до пяти
-попыток исправления с безопасной причиной отказа. Если все попытки не прошли
-quality gate, активной остаётся детерминированная base revision.
+The worker rejects vague or incomplete responses before publication and makes
+up to five repair attempts with a safe failure reason. If every attempt fails
+the quality gate, the deterministic base revision remains active.
 
-Выключение флага оставляет base-ревизию активной. Откат:
+Disabling the flag leaves the base revision active. Rollback:
 `POST /v1/seo/subjects/{kind}/{id}/rollback`.
 
-## Откат схемы
+## Schema rollback
 
-Таблицы additive. Downgrade `0031_seo_projections` удаляет SEO-таблицы и
-nullable поля `external_product.description`/`source_url`. Web при отсутствии
-active revision использует текущий presenter и `noindex`.
+The tables are additive. Downgrade `0031_seo_projections` removes the SEO tables
+and nullable fields `external_product.description`/`source_url`. Without an
+active revision, the web uses the current presenter and `noindex`.

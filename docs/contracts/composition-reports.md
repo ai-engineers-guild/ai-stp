@@ -1,53 +1,52 @@
 ---
-description: "Отчёты состава и преобразования: закрытый перечень классов конфликтов, разрешённые операции сборщика и состояния потерь."
+description: "Composition and conversion reports: closed conflict classes, permitted compiler operations, and loss states."
 last_verified: "2026-08-28"
 ---
 
-# Отчёты состава и преобразования
+# Composition and conversion reports
 
-Владелец требований — `SPEC-006` REQ-606, REQ-609, REQ-625 и REQ-626; решение о
-границе сборщика MVP — `ADR-0028`. Замыкание зависимостей принадлежит
-`setup-graph.md`, пакет — `harness-bundle.md`. Здесь зафиксирована машинная
-граница двух отчётов: какие конфликты существуют, какие операции сборщику
-разрешены и как описывается неполное преобразование.
+The requirements owner is `SPEC-006` REQ-606, REQ-609, REQ-625, and REQ-626;
+`ADR-0028` defines the MVP compiler boundary. Dependency closure belongs to
+`setup-graph.md`, and the package belongs to `harness-bundle.md`. This document
+defines the machine boundary of the two reports: which conflicts exist, which compiler
+operations are permitted, and how incomplete conversion is described.
 
-Отчёты объясняют и не изменяют. Они не механизм рассуждения и состав не
-правят: `REQ-609` требует их наличия, а `SPEC-006` прямо говорит, что они
-остаются детерминированными объяснениями.
+Reports explain and do not modify. They are not a reasoning mechanism and do not edit
+the composition: `REQ-609` requires them, while `SPEC-006` explicitly states that they
+remain deterministic explanations.
 
-## Классы конфликтов
+## Conflict classes
 
-Перечень закрыт и покрывает то, что `SPEC-006` перечисляет для сборщика.
-Четыре класса замыкания — цикл, отсутствующая ссылка, несовпадение хэша и
-несовместимые версии — принадлежат `setup-graph.md` и здесь не повторяются:
-состав не собирается, пока замыкание не разрешено.
+The list is closed and covers what `SPEC-006` enumerates for the compiler. The four
+closure classes—cycle, missing reference, hash mismatch, and incompatible versions—
+belong to `setup-graph.md` and are not repeated here: the composition is not assembled
+until closure is resolved.
 
-| Код | Когда возникает |
+| Code | When it occurs |
 |---|---|
-| `managed_path_owned_twice` | один управляемый путь заявлен двумя компонентами, включая вложенный путь под чужим корнем |
-| `native_id_collision` | одинаковый нативный идентификатор команды, агента, MCP или плагина |
-| `instruction_precedence_conflict` | две инструкции требуют одного уровня precedence |
-| `hook_order_conflict` | два хука требуют одного порядка на одном событии |
-| `native_surface_lost` | обязательная нативная поверхность отсутствует у целевого харнесса |
-| `path_escapes_bundle` | путь абсолютный, родительский или выходит за пределы пакета |
-| `managed_path_outside_projection` | управляемый путь не лежит под корнем проекции своего вида |
-| `undeclared_environment` | требуется переменная окружения или внешняя точка, не объявленная составом |
-| `permission_escalation` | состав требует полномочие сверх разрешённого целью |
-| `redistribution_forbidden` | состав предназначен к распространению, а компонент его запрещает |
-| `entitlement_missing` | требуемое полномочие не выдано |
-| `unverified_without_consent` | в составе кандидат линии `experimental` без согласия |
-| `unsupported_platform` | пара система, архитектура и харнесс не поддерживается |
+| `managed_path_owned_twice` | one managed path is claimed by two components, including a nested path under another owner's root |
+| `native_id_collision` | the same native command, agent, MCP, or plugin identifier |
+| `instruction_precedence_conflict` | two instructions require the same precedence level |
+| `hook_order_conflict` | two hooks require the same order for the same event |
+| `native_surface_lost` | a required native surface is absent from the target harness |
+| `path_escapes_bundle` | a path is absolute, parent-relative, or escapes the package |
+| `managed_path_outside_projection` | a managed path is not under the projection root for its type |
+| `undeclared_environment` | an environment variable or external endpoint is required but not declared by the composition |
+| `permission_escalation` | the composition requires permission beyond what the target allows |
+| `redistribution_forbidden` | the composition is intended for redistribution but a component prohibits it |
+| `entitlement_missing` | a required entitlement has not been granted |
+| `unverified_without_consent` | the composition contains an `experimental` trust-line candidate without consent |
+| `unsupported_platform` | the system, architecture, and harness combination is unsupported |
 
-Смысловой конфликт блокирует пакет и не сливается автоматически. `REQ-626`
-запрещает автоматическое смысловое слияние, выбор эквивалента и оптимизацию
-состава; разрешение принадлежит пользователю через другой компонент, явную
-производную версию или накладку, и производный объект проходит проверки как
-отдельная точная версия.
+A semantic conflict blocks the package and is not merged automatically. `REQ-626`
+prohibits automatic semantic merging, equivalent selection, and composition optimization;
+resolution belongs to the user through another component, an explicit derived version,
+or an overlay, and the derived object passes checks as a separate exact version.
 
-## Разрешённые операции
+## Permitted operations
 
-`REQ-625` ограничивает сборщик MVP детерминированными операциями. Перечень
-закрыт, и отчёт состава перечисляет только применённые из него:
+`REQ-625` restricts the MVP compiler to deterministic operations. The list is closed,
+and the composition report lists only operations applied from it:
 
 ```text
 canonical_ordering
@@ -57,50 +56,49 @@ disjoint_managed_path_union
 deterministic_report_generation
 ```
 
-Операции вне перечня не существует. Объединение управляемых путей выполняется
-только для непересекающихся путей: пересечение — конфликт выше, а не операция.
-Точная повторная ссылка схлопывается: вторая копия одного `stable_id` и `X.Y`
-отклоняется с устойчивой причиной, а не выбирается дважды. Объявленный путь —
-корень, а не точная строка файла: `skills/foo` покрывает `skills/foo/SKILL.md`,
-и два таких claim принадлежат одному владельцу. Манифест `hooks.json`
-дополнительно владеет соседним каталогом `hooks/`: обработчики рядом с файлом
-— та же поверхность, а не второй владелец.
+No operation outside the list exists. Managed paths are combined only when disjoint:
+an overlap is the conflict above, not an operation. An exact repeated reference is
+collapsed: the second copy of one `stable_id` and `X.Y` is rejected with a stable reason
+rather than selected twice. A declared path is a root, not an exact file string:
+`skills/foo` covers `skills/foo/SKILL.md`, and two such claims belong to one owner.
+The `hooks.json` manifest additionally owns the adjacent `hooks/` directory: handlers
+next to the file are the same surface, not a second owner.
 
-## Отчёт состава
+## Composition report
 
-Отчёт состава называет выбранное, отклонённое и причину каждого решения:
+The composition report names what was selected, what was rejected, and the reason for
+each decision:
 
-- выбранный компонент — точная ссылка, линия доверия и причина попадания;
-- отклонённый кандидат — точная ссылка и устойчивая причина отказа;
-- применённые операции — только из перечня выше;
-- обнаруженные конфликты — по кодам выше.
+- a selected component—exact reference, trust line, and reason for inclusion;
+- a rejected candidate—exact reference and stable rejection reason;
+- applied operations—only from the list above;
+- detected conflicts—using the codes above.
 
-Отчёт стабилен: одинаковый канонический вход даёт одинаковый порядок записей.
-Порядок задаётся возрастанием идентификатора, поэтому равенство никогда не
-остаётся неразрешённым.
+The report is stable: identical canonical input produces the same entry order. Ascending
+identifier defines the order, so ties are never left unresolved.
 
-## Отчёт преобразования
+## Conversion report
 
-Отчёт преобразования отвечает, во что каждый компонент превращается у целевого
-харнесса и что при этом теряется. Состояние записи:
+The conversion report states what each component becomes in the target harness and
+what is lost. Entry state:
 
-| Состояние | Значение |
+| State | Meaning |
 |---|---|
-| `complete` | у целевого харнесса есть нативная поверхность для этого вида |
-| `partial` | поверхность есть, но часть объявленного не переносится |
-| `unsupported` | нативной поверхности для этого вида у харнесса нет |
+| `complete` | the target harness has a native surface for this type |
+| `partial` | a surface exists, but some declared content is not transferred |
+| `unsupported` | the harness has no native surface for this type |
 
-`unsupported` не является ошибкой сам по себе: компонент может быть
-необязательным. Обязательный компонент без поверхности даёт
-`native_surface_lost` и блокирует пакет по `REQ-608`.
+`unsupported` is not itself an error: the component may be optional. A required
+component without a surface produces `native_surface_lost` and blocks the package under
+`REQ-608`.
 
-Потери называются поимённо. Отчёт с полем «есть потери» и без перечня не
-объясняет ничего, а `REQ-609` требует именно учитывающий потери отчёт.
+Losses are named individually. A report with a "losses exist" field but no list explains
+nothing, while `REQ-609` specifically requires a loss-aware report.
 
-## Пустой состав
+## Empty composition
 
-Состав без компонентов существует по явному признаку пустоты (`REQ-630`,
-`ADR-0124`). Отчёт состава тогда называет нуль выбранных и нуль конфликтов:
-это управляемая пустота, а не отсутствие отчёта. Подтверждённая пустая
-`SetupVersion` неизменяема и устанавливается штатным планом провайдера.
-Появившийся в цели файл — дрейф, а не то же самое, что снятие установки.
+A composition without components exists through an explicit emptiness indicator
+(`REQ-630`, `ADR-0124`). Its composition report names zero selected components and zero
+conflicts: this is managed emptiness, not a missing report. A confirmed empty
+`SetupVersion` is immutable and installed through the provider's normal plan. A file
+appearing in the target is drift, not the same thing as uninstalling.

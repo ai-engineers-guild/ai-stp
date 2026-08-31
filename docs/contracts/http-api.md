@@ -1,80 +1,79 @@
 ---
-description: "Версионирование HTTP API, полномочия, идемпотентность и конкуренция."
+description: "HTTP API versioning, authorization, idempotency, and concurrency."
 last_verified: "2026-08-29"
 ---
 
 # HTTP API
 
-## Владелец полей
+## Field ownership
 
-Точные поля запросов и ответов принадлежат генерируемым схемам в `schemas/v1` и моделям `packages/contracts`, которые их порождают. Перечень маршрутов, их параметров и кодов ответов принадлежит генерируемому документу `schemas/v1/openapi.json` — он собирается из тех же моделей той же командой и проверяется тем же гейтом, поэтому две опубликованные половины контракта не могут разойтись.
+Exact request and response fields belong to the generated schemas in `schemas/v1` and the `packages/contracts` models that produce them. The route list, parameters, and response codes belong to the generated `schemas/v1/openapi.json`; it is built from the same models by the same command and checked by the same gate, so the two published halves of the contract cannot diverge.
 
-Этот документ владеет тем, чего ни схема, ни OpenAPI выразить не могут: смыслом заголовков, правилами непрозрачных значений, поведением при конкуренции и тем, что API намеренно не обещает. Дублировать здесь поля или маршруты запрещено — копия уедет от источника.
+This document owns what neither schemas nor OpenAPI can express: header semantics, rules for opaque values, concurrency behavior, and what the API intentionally does not promise. Fields and routes must not be duplicated here, because the copy would drift from its source.
 
-## Общие правила
+## General rules
 
-Базовый путь MVP — `/v1`. Клиент отправляет и получает JSON в UTF-8. Каждый ответ содержит идентификатор запроса; изменяющая операция также возвращает `operation_id`.
+The MVP base path is `/v1`. The client sends and receives UTF-8 JSON. Every response contains a request identifier; a mutating operation also returns `operation_id`.
 
-## Заголовки
+## Headers
 
-| Заголовок | Назначение |
+| Header | Purpose |
 |---|---|
-| `X-Request-Id` | Идентификатор запроса вида `request_<ULID>`. Чеканит клиент, сервер возвращает эхом; при отсутствии или неверной форме сервер чеканит свой. |
-| `X-Operation-Id` | Идентификатор изменяющей операции вида `operation_<ULID>`. Только в ответах на изменение. |
-| `X-AI-STP-Schema-Version` | Основная версия проводной схемы. Неизвестная основная версия отклоняется кодом `AI_STP_SCHEMA_UNSUPPORTED`, а не приводится к умолчанию. |
-| `Idempotency-Key` | Обязателен для создания и изменения. Форма: от 16 до 128 символов из `A-Za-z0-9._~-`. Значение выбирает клиент, для сервера оно непрозрачно. |
-| `If-Match` | Предусловие обновления и отзыва по `ETag` либо ожидаемой ревизии. |
-| `ETag` | Текущая версия ресурса для последующего `If-Match`. |
+| `X-Request-Id` | Request identifier of the form `request_<ULID>`. Minted by the client and echoed by the server; if absent or malformed, the server mints its own. |
+| `X-Operation-Id` | Mutating-operation identifier of the form `operation_<ULID>`. Present only in mutation responses. |
+| `X-AI-STP-Schema-Version` | Major wire-schema version. An unknown major version is rejected with `AI_STP_SCHEMA_UNSUPPORTED`, not defaulted. |
+| `Idempotency-Key` | Required for creation and mutation. Form: 16 to 128 characters from `A-Za-z0-9._~-`. The client selects the value; it is opaque to the server. |
+| `If-Match` | Update and revocation precondition using an `ETag` or expected revision. |
+| `ETag` | Current resource version for a subsequent `If-Match`. |
 
-## Страница и курсор
+## Page and cursor
 
-Курсор непрозрачен: это позиция в порядке, а не смещение и не идентификатор. Форма — от 1 до 512 символов из `A-Za-z0-9_-`. Клиент возвращает его дословно и не разбирает.
+A cursor is opaque: it is a position in an ordering, not an offset or identifier. Its form is 1 to 512 characters from `A-Za-z0-9_-`. The client returns it verbatim and does not parse it.
 
-Курсорная последовательность идёт в серверном keyset-порядке и перечисляет набор
-целиком: объект появляется ровно на одной странице, и разбиение на страницы не
-меняет итогового множества. Отсюда следует граница, которую легко прочитать
-неверно: `sort` относится к постраничному режиму (`page`), где сервер упорядочивает
-весь набор до нарезки. Сортировать одну страницу курсорной последовательности
-означало бы упорядочить двадцать строк между собой и назвать это порядком каталога,
-а курсор, снятый с такой страницы, указывал бы в другой порядок, чем тот, из
-которого продолжается чтение. Именно это и происходило: обход терял и повторял
-строки, а итог зависел от размера страницы (`REQ-2105`).
+The cursor sequence follows the server's keyset order and enumerates the complete
+set: an object appears on exactly one page, and pagination does not change the
+resulting set. This implies an easily misread boundary: `sort` applies to page
+mode (`page`), where the server orders the entire set before slicing it. Sorting
+one page of a cursor sequence would order twenty rows among themselves and call
+that catalog order, while a cursor taken from that page would point into a
+different order from the one being continued. That exact behavior lost and
+repeated rows and made the result depend on page size (`REQ-2105`).
 
-Размер страницы по умолчанию `20`, максимум `100`; запрос выше максимума обрезается, а не отвергается. Тем же максимумом ограничено и число объектов в ответе, а не только объявленный размер: иначе одна «страница» могла бы принести весь каталог.
+The default page size is `20`, with a maximum of `100`; a request above the maximum is clamped rather than rejected. The same maximum limits the number of objects in the response, not merely the declared size, or one “page” could return the entire catalog.
 
-`next_cursor` присутствует всегда и равен `null` на последней странице. Это правило страниц каталога и прочих списков объектов. Страница pull приватного server outbox принадлежит `sync-event.md`: непустая страница возвращает курсор последней выданной последовательности, даже когда в этом чтении больше строк нет. Общее число объектов не возвращается ни в каком виде: счётчик позволил бы обнаружить объекты, читать которые вызывающий не вправе.
+`next_cursor` is always present and is `null` on the last page. This applies to catalog pages and other object lists. A private server-outbox pull page belongs to `sync-event.md`: a nonempty page returns the cursor of the last sequence emitted even when no more rows exist in that read. The total object count is never returned, because it would reveal objects the caller is not authorized to read.
 
-Поиск каталога принимает необязательное окно `updated_from` / `updated_to` как календарные даты `YYYY-MM-DD`. Семантика включительная по UTC: нижняя граница — `updated_at >=` начало указанного дня UTC, верхняя — `updated_at <` начало следующего дня UTC. Одна граница допустима. Если обе заданы и `from > to`, запрос отклоняется кодом `AI_STP_VALIDATION_ERROR`. Существующие курсоры без этого фильтра остаются действительными: пустые границы не входят в подпись фильтра.
+Catalog search accepts an optional `updated_from` / `updated_to` window as `YYYY-MM-DD` calendar dates. Semantics are inclusive in UTC: the lower bound is `updated_at >=` the start of the specified UTC day, and the upper bound is `updated_at <` the start of the following UTC day. One bound is allowed. If both are set and `from > to`, the request is rejected with `AI_STP_VALIDATION_ERROR`. Existing cursors without this filter remain valid: empty bounds are not included in the filter signature.
 
-Направление сортировки является частью серверного порядка и подписи фильтра.
-Сервер применяет `asc` или `desc` до вычисления page boundary; клиент не
-имеет права имитировать направление разворотом одной полученной страницы.
+Sort direction is part of the server ordering and filter signature. The server
+applies `asc` or `desc` before computing the page boundary; the client must not
+simulate direction by reversing a single received page.
 
-Сентинел `unspecified` в фильтрах связи не один смысл на оба поля. В грани сервиса он выбирает объект без связанного сервиса. В грани страны — объект, связанный с сервисом, у которого нет кода страны. Объект без сервиса сам по себе в фильтр страны не попадает. Грани соединяются через AND, значения внутри одной грани — через OR. Одиночные `service_domain` и `country_code` принимаются и объединяются со списками. Подпись курсора включает оба набора и окно дат: курсор одной выборки недействителен для другой.
+The `unspecified` sentinel does not mean the same thing for both relationship filters. In the service facet it selects an object with no associated service. In the country facet it selects an object associated with a service that has no country code. An object without a service does not by itself match the country filter. Facets combine with AND; values within a facet combine with OR. Singular `service_domain` and `country_code` are accepted and merged with the lists. The cursor signature includes both sets and the date window, so a cursor from one selection is invalid for another.
 
-Выдача разделена на секции, а не перемешана: кандидаты линии `experimental` возвращаются отдельным массивом ответа и только по признаку согласия в запросе по `SPEC-006` REQ-603. Обе секции идут одной последовательностью курсоров, поэтому обход по-прежнему не повторяет и не пропускает объект, а предел страницы считается по сумме секций, а не по каждой отдельно.
+Results are separated into sections rather than mixed: `experimental` lane candidates are returned in a separate response array and only when the request carries consent under `SPEC-006` REQ-603. Both sections share one cursor sequence, so traversal still neither repeats nor skips an object, and the page limit applies to the sum of both sections rather than each separately.
 
-## Что API намеренно не обещает
+## What the API intentionally does not promise
 
-Байты точной версии выдаются отдельным маршрутом артефакта, который отвечает потоком `application/octet-stream`, а не JSON. Ключ объекта в хранилище клиенту не выдаётся и полномочием не является по `SPEC-020` REQ-2004: маршрут — единственный вход. Presigned URL отложены до измеренной необходимости и отдельного ADR.
+Exact-version bytes are served by a separate artifact route as an `application/octet-stream`, not JSON. The storage object key is not given to the client and is not authorization under `SPEC-020` REQ-2004: the route is the sole entry point. Presigned URLs are deferred until measured need and a separate ADR.
 
-Привязка байт к плану публикации - отдельный аутентифицированный upload на сам план, не съём с Git и не публичная запись в store. Confirm без долговечных байт, чей digest совпал с планом, отклоняется (`ADR-0093`).
+Binding bytes to a publication plan is a separate authenticated upload to the plan itself, not a Git read or a public store write. Confirm is rejected without durable bytes whose digest matches the plan (`ADR-0093`).
 
-Клиент проверяет полученные байты против **паспорта** версии, а не против ответа: заголовки того же сервера, что прислал байты, засвидетельствовать их не могут, а паспорт — это версионированное описание с контентной адресацией, которое клиент уже держит. Паспорт объявляет digest и размер, и это единственное независимое ожидание в этой цепочке. Без него публичный каталог остаётся демонстрацией, а не источником установки.
+The client validates received bytes against the version **passport**, not the response: headers from the server that supplied the bytes cannot attest to them, while the passport is a versioned content-addressed description the client already holds. The passport declares the digest and size and is the only independent expectation in this chain. Without it, the public catalog remains a showcase rather than an installation source.
 
-Ответ читается потоком и обрывается, как только пришло больше объявленного размера. Артефакт — единственная полезная нагрузка здесь без смоделированной верхней границы, поэтому иначе сервер или что угодно между ним и клиентом могли бы отдать сколько угодно, а клиент держал бы это целиком.
+The response is streamed and aborted as soon as more than the declared size arrives. The artifact is the only payload here without a modeled upper bound; otherwise the server or anything between it and the client could send unlimited data that the client would retain in full.
 
-Номера публичных версий не являются сплошными. Скрытие версии не освобождает её номер: по `SPEC-005` меняется только состояние, байты остаются. Поэтому ответ `1.0, 1.2` допустим, а разрыв на `1.1` ничего не доказывает и не является основанием для действия. Пагинация этого не закрывает, а отказ от времени публикации стоил бы полезной информации ради одного бита, поэтому контракт объявляет отсутствие сплошности вместо того, чтобы притворяться, что перечисляет плотный ряд.
+Public version numbers are not contiguous. Hiding a version does not free its number: under `SPEC-005`, only state changes and bytes remain. Thus `1.0, 1.2` is a valid response; the gap at `1.1` proves nothing and is not grounds for action. Pagination does not conceal this, and omitting publication time would sacrifice useful information for one bit, so the contract declares non-contiguity instead of pretending to enumerate a dense sequence.
 
-## Ошибки
+## Errors
 
-Ошибка имеет устойчивый код, безопасное сообщение, признак допустимости повтора, идентификатор запроса и ограниченные подробности. Различаются проверка, вход, полномочия, конфликт, ограничение частоты, недоступная зависимость и внутренняя ошибка.
+An error has a stable code, safe message, retryability marker, request identifier, and bounded details. Validation, authentication, authorization, conflict, rate limiting, unavailable dependency, and internal errors are distinct.
 
-Тело ошибки совпадает с конвертом ошибки CLI по `cli-json.md`: один читатель разбирает и облачный, и локальный отказ. Успешный ответ несёт сам ресурс — успех уже передан кодом состояния.
+The error body matches the CLI error envelope in `cli-json.md`: one reader parses both cloud and local failures. A successful response carries the resource itself; success is already conveyed by the status code.
 
-Соответствие устойчивого кода и кода состояния закрыто и выводится из класса завершения; исключения перечислены явно:
+The stable-code-to-status-code mapping is closed and derived from the completion class; exceptions are listed explicitly:
 
-| Код состояния | Устойчивые коды |
+| Status code | Stable codes |
 |---|---|
 | `400` | `AI_STP_VALIDATION_ERROR`, `AI_STP_UNSUPPORTED_APPLY`, `AI_STP_SCHEMA_UNSUPPORTED`, `AI_STP_AUTHORIZATION_PENDING`, `AI_STP_AUTHORIZATION_EXPIRED`, `AI_STP_AUTHORIZATION_DECLINED`, `AI_STP_SEO_FACTS_INVALID`, `AI_STP_SEO_OUTPUT_INVALID` |
 | `401` | `AI_STP_AUTH_REQUIRED` |
@@ -87,40 +86,40 @@ last_verified: "2026-08-29"
 | `503` | `AI_STP_DEPENDENCY_UNAVAILABLE`, `AI_STP_SEO_ENRICHMENT_UNAVAILABLE` |
 | `504` | `AI_STP_TIMEOUT_UNCONFIRMED` |
 
-Три состояния потока устройства держат общий `400` по RFC 8628, но каждое сохраняет свой устойчивый код: общий код состояния не склеивает разные исходы, машинным идентификатором остаётся `code`.
+The three device-flow states share `400` under RFC 8628, but each retains its own stable code: a shared status code does not collapse distinct outcomes; `code` remains the machine identifier.
 
-`AI_STP_CATALOG_INTEGRITY` отвечает на достижимую опубликованную запись, не прошедшую собственную проверку целостности по `SPEC-021` `REQ-2108`. Он не является `AI_STP_NOT_FOUND`: объект существует и публичен, и ответ о его отсутствии отправил бы клиента искать в другом месте то, что лежит на месте. Он не является и `AI_STP_INTERNAL`: условие диагностируемо, имеет путь восстановления и требует отдельного оповещения оператора. Повтор запроса не меняет исход — сохранённые байты не станут действительными между попытками, поэтому клиент не повторяет этот код, несмотря на `500`.
+`AI_STP_CATALOG_INTEGRITY` applies to a reachable published record that fails its own integrity validation under `SPEC-021` `REQ-2108`. It is not `AI_STP_NOT_FOUND`: the object exists and is public, and claiming it is absent would send the client elsewhere to find something already present. It is not `AI_STP_INTERNAL` either: the condition is diagnosable, has a recovery path, and requires separate operator alerting. Retrying does not change the outcome—the stored bytes will not become valid between attempts—so the client does not retry this code despite `500`.
 
-Поле `passport` ответа точной версии — сохранённый опубликованный документ, по которому посчитан `passport_digest`. Повторная сериализация через текущую модель, подставляющая поля, появившиеся позже со значениями по умолчанию, меняет байты и ломает проверку. Это не нарушает правило «все объявленные поля ответа»: оболочка ответа полная, а паспорт — неизменяемый снимок.
+The `passport` field in an exact-version response is the stored published document from which `passport_digest` was computed. Reserializing it through the current model, which inserts later-added fields with default values, changes the bytes and breaks validation. This does not violate the “all declared response fields” rule: the response envelope is complete, while the passport is an immutable snapshot.
 
-Группы API охватывают вход, устройства, профили, реестр, закрытые черновики, синхронизацию, публикацию, права, жалобы и минимальные административные действия. Веб-интерфейс не использует скрытые маршруты, недоступные CLI без отдельной причины безопасности.
+API groups cover authentication, devices, profiles, the registry, private drafts, synchronization, publication, grants, reports, and minimal administrative actions. The web interface does not use hidden routes unavailable to the CLI without a separate security reason.
 
-## Ограничение частоты
+## Rate limiting
 
-Один узел держит два независимых скользящих окна на каждый HTTP-запрос до обработчика маршрута: общий бюджет процесса (по умолчанию 100 запросов за 60 секунд) и бюджет одного транспортного адреса клиента (по умолчанию 1000 запросов за 3600 секунд). Метод и шаблон маршрута в ключ не входят. Адрес — `request.client.host` транспортного пира; `X-Forwarded-For` и `Forwarded` им не являются. Ключ, у которого окно уже пусто, освобождает слот. Новые посетители не сходятся в одну общую overflow-корзину. Отказ одного окна не расходует другое. Превышение отвечает `AI_STP_RATE_LIMITED` и ставит `Retry-After`. Отсутствие переменных окружения оставляет эти значения, а не безлимит; явное `0` отключает только это измерение. Распределённый лимитер, Redis, SlowAPI и `rate_limit` Caddy не обещаются (`ADR-0128`).
+One node maintains two independent sliding windows for every HTTP request before the route handler: a process-wide budget (default 100 requests per 60 seconds) and a budget per client transport address (default 1000 requests per 3600 seconds). Method and route template are not part of the key. The address is the transport peer's `request.client.host`; `X-Forwarded-For` and `Forwarded` are not. A key whose window is empty releases its slot. New visitors do not converge into one shared overflow bucket. Rejection by one window does not consume the other. Exceeding a limit returns `AI_STP_RATE_LIMITED` and sets `Retry-After`. Missing environment variables retain these values rather than making limits unlimited; explicit `0` disables only that dimension. A distributed limiter, Redis, SlowAPI, and Caddy `rate_limit` are not promised (`ADR-0128`).
 
-## Авторизация
+## Authorization
 
-Сессия или токен подтверждает аккаунт, но каждое действие дополнительно проверяет владельца, действующее право и административное полномочие. Идентификатор объекта, адрес или ключ хранилища не предоставляет доступ.
+A session or token authenticates the account, but every action additionally checks ownership, an active grant, and administrative authority. An object identifier, address, or storage key does not grant access.
 
-## Изменения
+## Mutations
 
-Создание и изменение требуют `Idempotency-Key`. Начало авторизации устройства несёт этот ключ полем тела `idempotency_key`, как и отзыв устройства: маршрут создаёт, а клиент обязан уметь повторить попытку, не получив вторую авторизацию. Значение выбирает клиент один раз на одно логическое начало и повторяет при каждой транспортной попытке; сервер обязан хранить отпечаток запроса вместе с результатом и на повтор с тем же ключом отвечать тем же `device_code`, не создавая вторую запись. Тот же ключ с другим телом является конфликтом. Обновление существующей сущности использует `If-Match` с ETag либо ожидаемую ревизию. Конфликт возвращает текущее значение версии без молчаливой перезаписи.
+Creation and mutation require `Idempotency-Key`. Device authorization initiation carries this key in the `idempotency_key` body field, as does device revocation: the route creates state, and the client must be able to retry without receiving a second authorization. The client selects the value once per logical initiation and repeats it on every transport attempt; the server must store the request fingerprint with the result and answer a retry using the same key with the same `device_code`, without creating a second record. The same key with a different body is a conflict. Updating an existing entity uses `If-Match` with an ETag or expected revision. A conflict returns the current version value without silent overwrite.
 
-Несовпавшее предусловие и конкурентное изменение различаются: первое даёт `AI_STP_PRECONDITION_FAILED` с кодом `412`, второе — `AI_STP_CONFLICT` с кодом `409`. Общий код состояния сделал бы их неотличимыми, а действия клиента в этих случаях разные: в первом достаточно перечитать объект и повторить, во втором нужно решение.
+A failed precondition and a concurrent change are distinct: the former yields `AI_STP_PRECONDITION_FAILED` with `412`, the latter `AI_STP_CONFLICT` with `409`. A shared status code would make them indistinguishable, while the required client actions differ: rereading and retrying is sufficient for the first, while the second requires a decision.
 
-## Списки
+## Lists
 
-Списки используют непрозрачный курсор и устойчивый порядок. Порядок полон и устойчив внутри одной последовательности курсоров: обход не повторяет и не пропускает объект. Удалённый или скрытый объект не утечёт через счётчик, поиск или прямой курсор.
+Lists use an opaque cursor and stable ordering. Ordering is complete and stable within one cursor sequence: traversal neither repeats nor skips an object. A deleted or hidden object is not leaked through a count, search, or direct cursor.
 
-## Хранилище объектов
+## Object storage
 
-Клиент не получает постоянные полномочия RustFS/S3. Выдача или загрузка артефакта происходит через проверенный серверный процесс либо краткоживущую ограниченную ссылку после проверки объекта и действия.
+The client receives no persistent RustFS/S3 authority. Artifact download or upload occurs through a validated server process or a short-lived restricted link after the object and action are checked.
 
-## Совместимость
+## Compatibility
 
-Ломающее изменение получает новую версию API или схемы. Добавляемое поле сначала необязательно. Поддерживаемое окно старых CLI объявляется и проверяется смешанными контрактными тестами до удаления старого поведения.
+A breaking change receives a new API or schema version. An added field is optional at first. The supported window of older CLI versions is declared and tested with mixed contract tests before old behavior is removed.
 
-Проводной объект несёт все объявленные поля — отсутствующего ключа не бывает, необязательное значение передаётся как `null`, — и при этом допускает добавленные необязательные поля внутри поддерживаемой основной версии. Читатель их сохраняет, а не отбрасывает: иначе установленный CLI ломался бы ровно на том пути развития, который предписывает `schema-evolution.md`, и спасал бы его только принудительный апгрейд.
+A wire object carries all declared fields—keys are never absent and an optional value is sent as `null`—while allowing added optional fields within the supported major version. The reader preserves rather than discards them; otherwise an installed CLI would break on exactly the evolution path prescribed by `schema-evolution.md`, recoverable only through a forced upgrade.
 
-Правило действует на ответы и **не действует на запросы**: неизвестный параметр запроса отклоняется. Ответ является описанием, запрос — указанием. Молча проигнорированный фильтр не является совместимостью: вызывающий просил сузить выдачу, сервер этого не сделал, а ответ выглядит полным. Опечатка в имени фильтра обязана дать типизированную ошибку, а не весь каталог. Расхождение версий переносится заголовком `X-AI-STP-Schema-Version`, который отказывает явно, а не притворством, что указание понято.
+The rule applies to responses and **does not apply to requests**: an unknown request parameter is rejected. A response is a description; a request is an instruction. A silently ignored filter is not compatibility: the caller asked to narrow results, the server did not, and the response appears complete. A typo in a filter name must produce a typed error, not the entire catalog. Version mismatch is carried by `X-AI-STP-Schema-Version`, which rejects explicitly rather than pretending the instruction was understood.

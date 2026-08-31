@@ -1,71 +1,72 @@
 ---
-description: "Правила ошибок, I/O, безопасности и предсказуемого поведения."
+description: "Rules for errors, I/O, security, and predictable behavior."
 last_verified: "2026-08-03"
 ---
 
-# Правила реализации
+# Implementation rules
 
-## Машинный вывод
+## Machine output
 
-Машинный вывод использует версионируемый JSON envelope, стабильный код ошибки и operation ID, не содержит ANSI/Rich и секретов, а неизвестные поля обрабатывает по политике версии.
+Machine output uses a versioned JSON envelope, a stable error code, and an operation ID; it contains no ANSI/Rich formatting or secrets, and handles unknown fields according to the version policy.
 
-## Файлы и пути
+## Files and paths
 
-Используются `pathlib`, абсолютные target для изменяющих операций, проверки без перехода по ссылкам, отклонение выхода из каталога, символических и жёстких ссылок и специальных устройств, ограниченное чтение и атомарная замена с `fsync` там, где нужна долговечность.
+Use `pathlib`, absolute targets for mutating operations, checks that do not follow links, rejection of directory traversal, symbolic and hard links, and special devices, bounded reads, and atomic replacement with `fsync` where durability is required.
 
-## Запуск процессов
+## Process execution
 
-Используются `shell=False`, массив аргументов, точный путь executable, отфильтрованное окружение, ограничение времени и объёма stdout/stderr, завершение группы процессов и проверка схемы результата.
+Use `shell=False`, an argument array, the exact executable path, a filtered environment, time and stdout/stderr size limits, process-group termination, and result-schema validation.
 
-## Ошибки
+## Errors
 
-Ошибки типизированы по причине и не логируются дважды. Повтор разрешён только для явно временных и идемпотентных операций. Частичный результат сохраняет последнее подтверждённое состояние, а запасной путь не меняет смысл молча.
+Errors are typed by cause and are not logged twice. Retries are allowed only for explicitly transient and idempotent operations. A partial result preserves the last confirmed state, and a fallback must not silently change semantics.
 
-## Конфигурация
+## Configuration
 
-Запуск работает с отказом при неопределённости, значения по умолчанию явные, неизвестный чувствительный ключ является ошибкой, секреты маскируются, полное окружение не выводится.
+Startup fails closed on uncertainty, defaults are explicit, an unknown sensitive key is an error, secrets are redacted, and the complete environment is never printed.
 
-## Детерминизм
+## Determinism
 
-Digest считается по каноническим байтам, нормализованным путям и версии схемы. Нельзя хешировать представление, зависящее от версии интерпретатора.
+The digest is computed from canonical bytes, normalized paths, and the schema version. A representation that depends on the interpreter version must not be hashed.
 
-## Фронтенд (apps/web)
+## Frontend (apps/web)
 
-Правила ниже принадлежат `apps/web` и проверяются его гейтами по `ADR-0043`; стек и его
-выбор принадлежат `ADR-0043`, а не этому разделу.
+The rules below belong to `apps/web` and are enforced by its gates under `ADR-0043`;
+the stack and its selection belong to `ADR-0043`, not this section.
 
-### Организация компонентов
+### Component organization
 
-Компоненты организованы по atomic design: `atoms` (примитивы без бизнес-смысла),
-`molecules` (сочетания атомов), `organisms` (составные блоки с поведением) и `layouts`
-(каркасы страниц); страницы собираются маршрутами App Router. Импорт идёт только вниз
-по слоям: `atoms` не импортируют `molecules`, `molecules` не импортируют `organisms`, и
-так далее; нарушение границы отклоняется линтом импортных границ.
+Components follow atomic design: `atoms` (primitives without business meaning),
+`molecules` (combinations of atoms), `organisms` (composite blocks with behavior), and
+`layouts` (page shells); pages are assembled by App Router routes. Imports flow only
+downward through the layers: `atoms` do not import `molecules`, `molecules` do not
+import `organisms`, and so on; the import-boundary lint rejects violations.
 
-### Типовая дисциплина
+### Type discipline
 
-- Полный запрет `any`: неявный `any` ловит strict TypeScript 7, явный `any` и
-  небезопасный структурный доступ (`no-unsafe-*`) ловит type-aware `typescript-eslint`.
-- Запрет duck-typing: идентификаторы, ключи и токены выражаются номинально (branded
-  types), а не голой строкой; внешние данные (ответы API, окружение, ввод формы)
-  принимаются только через порождённые из `#71` типы и `zod`-схемы; структурный каст в
-  обход проверки запрещён.
-- Запрет god-объектов: модуль ограничен одной ответственностью и размером; общий
-  свалочный `utils`, единый глобальный контекст и единый глобальный стор запрещены; стор
-  разбит на тонкие слайсы по границе ответственности.
+- Complete prohibition of `any`: strict TypeScript 7 catches implicit `any`; explicit
+  `any` and unsafe structural access (`no-unsafe-*`) are caught by type-aware
+  `typescript-eslint`.
+- No duck typing: identifiers, keys, and tokens are expressed nominally (branded
+  types), not as bare strings; external data (API responses, environment, form input)
+  is accepted only through types generated from `#71` and `zod` schemas; structural
+  casts that bypass validation are prohibited.
+- No god objects: a module is constrained to one responsibility and limited in size;
+  a generic dumping-ground `utils`, a single global context, and a single global store
+  are prohibited; the store is split into narrow slices along responsibility boundaries.
 
-### Тема, цвет и строки
+### Theme, color, and strings
 
-- Цвет берётся только из семантических токенов темы (CSS-переменные); захардкоженное
-  значение цвета в компоненте запрещено и отклоняется линтом (`REQ-2214`).
-- Светлая и тёмная темы поддерживаются с запуска; компонент не завязывается на одну
-  тему.
-- Пользовательские строки локализованы через `next-intl`; литерал пользовательского
-  текста в разметке запрещён (`ADR-0035`, `REQ-2203`).
+- Colors come only from semantic theme tokens (CSS variables); a hard-coded color
+  value in a component is prohibited and rejected by lint (`REQ-2214`).
+- Light and dark themes are supported from launch; a component must not depend on a
+  single theme.
+- User-facing strings are localized through `next-intl`; literal user-facing text in
+  markup is prohibited (`ADR-0035`, `REQ-2203`).
 
-### Граница сервера и клиента
+### Server-client boundary
 
-Приватные данные и секреты читаются на сервере и не попадают в клиентский бандл;
-`"use client"` добавляется точечно. Решение о полномочиях на клиенте не принимается:
-защита маршрута читает серверную сессию, конечное правило остаётся за API (`ADR-0018`,
-`REQ-1003`, `REQ-1011`).
+Private data and secrets are read on the server and do not enter the client bundle;
+`"use client"` is added only where needed. Authorization decisions are not made on the
+client: route protection reads the server session, while the final rule remains with
+the API (`ADR-0018`, `REQ-1003`, `REQ-1011`).

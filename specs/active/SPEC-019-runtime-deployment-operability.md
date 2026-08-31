@@ -1,56 +1,56 @@
 ---
-description: "SPEC-019: Развёртывание среды выполнения и эксплуатация."
+description: "SPEC-019: Runtime deployment and operation."
 last_verified: "2026-08-10"
 ---
 
-# SPEC-019: Развёртывание среды выполнения и эксплуатация
+# SPEC-019: Runtime deployment and operation
 
-## Цель
+## Purpose
 
-Серверная среда выполнения получает воспроизводимую упаковку и эксплуатацию для dev и prod: раскладку конфигурации по окружениям без секретов в репозитории, контейнеры `api`, `worker` и публичной пользовательской документации, обратный прокси, сетевая изоляция, проверки здоровья, перезапуск нездоровых контейнеров и дневные файловые логи. Боевое усиление стейджа с реальным TLS, резервными копиями и восстановлением остаётся за `#84`; здесь фиксируется каркас и его требования.
+The server runtime gets reproducible packaging and operations for dev and prod: per-environment configuration without secrets in the repository, containers for `api`, `worker`, and public user documentation, a reverse proxy, network isolation, health checks, unhealthy-container restarts, and daily file logs. Production hardening with real TLS, backups, and recovery remains in `#84`; this specification defines the foundation and its requirements.
 
-## Границы
+## Scope
 
-Входят раскладка env для dev и prod с образцами, multi-stage образы `api`, `worker` и пользовательской документации, обратный прокси `Caddy` для **prod**, прямой host-publish `web`/`api`/`docs` для **dev** (без Caddy), `docker-compose` для dev и prod, сетевая изоляция, healthcheck на `liveness` и `readiness`, политика перезапуска и файловые логи на смонтированном томе. Не входят: реальный ACME и домен, боевые резервные копии и процедура отката (`#84`), содержимое доменных обработчиков (`SPEC-018`, `#79`, `#81`) и правила приложения (`SPEC-017`).
+Includes the env layout for dev and prod with samples, multi-stage images for `api`, `worker`, and user documentation, the `Caddy` reverse proxy for **prod**, direct host-publishing of `web`/`api`/`docs` for **dev** (without Caddy), `docker-compose` for dev and prod, network isolation, healthchecks for `liveness` and `readiness`, a restart policy, and file logs on a mounted volume. Excludes real ACME and a domain, production backups and the rollback procedure (`#84`), domain-handler contents (`SPEC-018`, `#79`, `#81`), and application rules (`SPEC-017`).
 
-## Термины
+## Terms
 
-- `Env layout` — набор файлов конфигурации по окружениям, где в репозиторий попадают только образцы без секретов.
-- `Reverse proxy` — `Caddy`, единственная публично доступная точка входа **prod** стека. В **dev** публичные точки — опубликованные порты `web`, `api` и пользовательской документации; same-origin `/v1/*` обеспечивает dev-rewrite Next.js.
-- `Healthcheck` — контейнерная проверка `liveness` и `readiness`, управляющая готовностью зависимостей и перезапуском нездорового контейнера.
+- `Env layout` - a set of configuration files for environments, where only samples without secrets are included in the repository.
+- `Reverse proxy` - `Caddy`, the only publicly accessible entry point of the **prod** stack. In **dev** public points are published ports of `web`, `api` and user documentation; same-origin `/v1/*` provides dev-rewrite Next.js.
+- `Healthcheck` - `liveness` and `readiness` container check that controls dependency readiness and restart of unhealthy container.
 
-## Требования
+## Requirements
 
-- `REQ-1901`: Конфигурация dev и prod задаётся отдельными env-файлами, в репозиторий попадают только образцы без секретов, а реальные `.env.dev` и `.env.prod` исключены из индекса.
-- `REQ-1902`: `api`, `worker` и пользовательская документация собираются multi-stage образами, где dev-образ пригоден для локальной разработки, а prod-образ минимален или статический.
-- `REQ-1903`: Обратный прокси `Caddy` обслуживает **prod** (ACME/домен — `#84` / `SPEC-024`). **Dev-исключение:** локальный `docker-compose.dev.yml` не поднимает Caddy; браузер ходит на опубликованный `web`, same-origin `/v1/*` — через dev-rewrite Next к `api`.
-- `REQ-1904`: `docker-compose` **prod** поднимает `api`, `worker`, `docs`, `PostgreSQL`, `RustFS` и `Caddy`. `docker-compose` **dev** поднимает `api`, `worker`, `docs`, `PostgreSQL`, `RustFS` и `web` (без Caddy), с публикацией портов `web`, `api` и `docs` на хост.
-- `REQ-1905`: `PostgreSQL` и `RustFS` не публикуются в интернет и доступны только по внутренней сети. В **prod** наружу открыт только обратный прокси; в **dev** наружу открыты `web`, `api` и `docs` (не база и не хранилище).
-- `REQ-1906`: Контейнеры имеют healthcheck на `liveness` и `readiness`, зависимые сервисы стартуют по условию готовности зависимости, а нездоровый контейнер перезапускается политикой перезапуска.
-- `REQ-1908`: Дневные файловые логи пишутся на смонтированный том с ежедневной ротацией.
-- `REQ-1909`: Чистый подъём `compose up` воспроизводимо доводит стек до истинной готовности.
+- `REQ-1901`: The dev and prod configurations are specified by separate env files, only samples without secrets are included in the repository, and the real `.env.dev` and `.env.prod` are excluded from the index.
+- `REQ-1902`: `api`, `worker`, and user documentation are built as multi-stage images, where the dev image is suitable for local development and the prod image is minimal or static.
+- `REQ-1903`: The `Caddy` reverse proxy serves **prod** (ACME/domain — `#84` / `SPEC-024`). **Dev exception:** local `docker-compose.dev.yml` does not start Caddy; the browser accesses the published `web`, with same-origin `/v1/*` reaching `api` through a Next.js dev rewrite.
+- `REQ-1904`: `docker-compose` **prod** starts `api`, `worker`, `docs`, `PostgreSQL`, `RustFS`, and `Caddy`. `docker-compose` **dev** starts `api`, `worker`, `docs`, `PostgreSQL`, `RustFS`, and `web` (without Caddy), publishing the `web`, `api`, and `docs` ports to the host.
+- `REQ-1905`: `PostgreSQL` and `RustFS` are not published on the Internet and are only available via the internal network. In **prod** only the reverse proxy is exposed to the outside; in **dev** `web`, `api` and `docs` are open to the outside (not the database or object storage).
+- `REQ-1906`: Containers have a healthcheck on `liveness` and `readiness`, dependent services start when the dependency is ready, and an unhealthy container is restarted by the restart policy.
+- `REQ-1908`: Daily file logs are written to a mounted volume with daily rotation.
+- `REQ-1909`: A clean `compose up` reproducibly brings the stack to actual readiness.
 
-## Состояния и ошибки
+## States and errors
 
-Сервис контейнера проходит состояния `starting`, `healthy` и `unhealthy` по результату healthcheck. Зависимый сервис не считается доступным до истинной готовности зависимости. Нездоровый сервис перезапускается политикой перезапуска. Отсутствие обязательного секрета в env-файле приводит к типизированному отказу старта приложения по `SPEC-017`, а не к запуску с тихим значением по умолчанию.
+Based on its healthcheck result, a containerized service transitions through `starting`, `healthy`, and `unhealthy`. A dependent service is not considered available until its dependency is actually ready. The restart policy restarts an unhealthy service. A missing required secret in the env file causes a typed application startup failure under `SPEC-017`, rather than startup with a silent default.
 
-## Безопасность и приватность
+## Security and privacy
 
-Секреты не попадают в репозиторий: индексируются только образцы без значений. `PostgreSQL` и `RustFS` недоступны из внешней сети. Обратный прокси не логирует тела запросов и секреты. Файловые логи подчиняются закрытому набору полей и запрету на токены и персональные данные по `SPEC-017` и `SPEC-013`.
+Secrets are not included in the repository: only samples without values are indexed. `PostgreSQL` and `RustFS` are not accessible from the external network. The reverse proxy does not log request bodies or secrets. File logs are subject to a closed set of fields and a ban on tokens and personal data for `SPEC-017` and `SPEC-013`.
 
-## Совместимость и миграция
+## Compatibility and migration
 
-Раскладка env расширяется добавлением необязательных ключей с обновлением образцов. Изменение топологии сети или политики перезапуска отражается в `ADR-0040` или новом ADR для добавленного яруса. Переход к боевому TLS и домену выполняется в `#84` без изменения границ этой спецификации. Версии базовых образов закрепляются и обновляются отдельным проверяемым изменением.
+The env layout is extended by adding optional keys and updating the samples. A change in network topology or restart policy is reflected in `ADR-0040` or a new ADR for the added tier. The transition to production TLS and a domain is performed in `#84` without changing the boundaries of this specification. Base image versions are pinned and updated in a separate verifiable change.
 
-## Критерии приёмки
+## Acceptance criteria
 
-| Требование | Исполнимый способ проверки |
+| Requirement | Executable verification method |
 |---|---|
-| `REQ-1901` | Проверка репозитория подтверждает наличие образцов без секретов и отсутствие реальных env-файлов в индексе. |
-| `REQ-1902` | Сборка образов `api`, `worker` и `docs` проходит для dev и prod, а prod-образ не содержит лишних инструментов разработки. |
-| `REQ-1903` | Prod поднимается с `Caddy`; dev compose не содержит сервис `caddy`, а `/v1/*` с origin веба доходит до API (rewrite/proxy). |
-| `REQ-1904` | `docker-compose` prod поднимает api/worker/docs/postgres/rustfs/caddy (+ web по SPEC-024); dev — api/worker/web/docs/postgres/rustfs без caddy. |
-| `REQ-1905` | Сетевой тест подтверждает недоступность `PostgreSQL` и `RustFS` снаружи; prod — только через прокси, dev — через опубликованные web/api/docs. |
-| `REQ-1906` | Healthcheck отражает `liveness` и `readiness`, зависимый сервис ждёт готовности зависимости, а нездоровый контейнер перезапускается. |
-| `REQ-1908` | Проверка тома подтверждает дневной файловый лог с ротацией. |
-| `REQ-1909` | Чистый `compose up` воспроизводимо доводит стек до истинной готовности. |
+| `REQ-1901` | Checking the repository confirms the presence of samples without secrets and the absence of real env files in the index. |
+| `REQ-1902` | The `api`, `worker` and `docs` images are built for dev and prod, and the prod image does not contain unnecessary development tools. |
+| `REQ-1903` | Prod rises from `Caddy`; dev compose does not contain the `caddy` service, and `/v1/*` from the origin of the web reaches the API (rewrite/proxy). |
+| `REQ-1904` | `docker-compose` prod raises api/worker/docs/postgres/rustfs/caddy (+ web by SPEC-024); dev - api/worker/web/docs/postgres/rustfs without caddy. |
+| `REQ-1905` | Network test confirms that `PostgreSQL` and `RustFS` are not accessible from the outside; prod - only through a proxy, dev - through published web/api/docs. |
+| `REQ-1906` | Healthcheck reflects `liveness` and `readiness`, the dependent service waits for the dependency to be ready, and the unhealthy container is restarted. |
+| `REQ-1908` | Checking the volume confirms the daily file log with rotation. |
+| `REQ-1909` | A clean `compose up` reproducibly brings the stack to actual readiness. |

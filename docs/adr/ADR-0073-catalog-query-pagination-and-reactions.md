@@ -1,50 +1,32 @@
 ---
-description: "Catalog QL, два режима пагинации и изолированные реакции."
+description: "Catalog QL, two pagination modes, and isolated reactions."
 last_verified: "2026-08-09"
 ---
 
-# ADR-0073: Catalog query, pagination и reactions
+# ADR-0073: Catalog query, pagination, and reactions
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-Cursor-only каталог безопасен и подходит CLI, но web должен показывать число
-результатов и страниц. Простая подстрока не выражает логические ограничения, а
-клиентская-only валидация не защищает API. Сортировка по likes вводит социальное
-состояние, ранее исключённое из MVP, и не должна смешиваться с trust evidence.
+A cursor-only catalog is safe and suitable for the CLI, but the web must display the number of results and pages. A simple substring does not express logical constraints, and client-only validation does not protect the API. Sorting by likes introduces social state, which was previously excluded from the MVP, and must not be mixed with trust evidence.
 
-## Варианты
+## Alternatives
 
-1. Заменить cursor offset/page пагинацией. Это ломает CLI и ухудшает стабильность.
-2. Оставить cursor-only и вычислять страницы на клиенте. Точный total получить
-   нельзя, а обход всех страниц дорог и нестабилен.
-3. Поддержать взаимоисключающие cursor и page modes, единый AST и отдельный
-   агрегат reactions.
+1. Replace cursor pagination with offset/page pagination. This breaks the CLI and reduces stability.
+2. Keep cursor-only pagination and calculate pages on the client. An exact total cannot be obtained, and traversing all pages is expensive and unstable.
+3. Support mutually exclusive cursor and page modes, a unified AST, and a separate reactions aggregate.
 
-## Решение
+## Decision
 
-Выбран вариант 3. Catalog QL разбирается собственным bounded lexer/parser в
-типизированный allowlisted AST. Структурные filters объединяются с AST через
-`AND`. Обычная строка остаётся full-text term. Cursor mode сохраняет opaque
-keyset semantics; page mode возвращает total только для уже разрешённой
-публичной выборки. `cursor` и `page` несовместимы.
+Alternative 3 was selected. Catalog QL is parsed by a custom bounded lexer/parser into a typed, allowlisted AST. Structural filters are combined with the AST using `AND`. A plain string remains a full-text term. Cursor mode retains opaque keyset semantics; page mode returns a total only for the already authorized public result set. `cursor` and `page` are incompatible.
 
-Публичная проекция хранит только неотрицательный агрегат `likes_count`, отдельно
-от паспортов, verification, trust и support. Источник изменения individual
-reactions не входит в это решение и не раскрывается через catalog API. `likes`
-sorting имеет стабильный tie-breaker `updated_at, stable_id`.
+The public projection stores only the non-negative `likes_count` aggregate, separately from passports, verification, trust, and support. The source of changes to individual reactions is outside the scope of this decision and is not exposed through the catalog API. `likes` sorting has the stable tie-breaker `updated_at, stable_id`.
 
-## Последствия
+## Consequences
 
-OpenAPI и fixtures получают additive поля/parameters. Нужны индексы для
-публичной проекции, фильтров, full-text/trigram search и reaction aggregate.
-Count не должен включать hidden/private строки. Frontend parser является UX
-помощью, но backend повторяет всю проверку. Любое расширение grammar требует
-версии и golden corpus.
+OpenAPI and fixtures receive additive fields/parameters. Indexes are required for the public projection, filters, full-text/trigram search, and the reaction aggregate. Count must not include hidden/private rows. The frontend parser is a UX aid, but the backend repeats all validation. Any grammar extension requires a version and a golden corpus.
 
-## Условия пересмотра
+## Reconsideration Criteria
 
-Решение пересматривается, если точный count не укладывается в performance budget,
-если каталог переходит на внешний search engine либо социальная механика снова
-исключается продуктовым решением.
+This decision will be reconsidered if exact count does not fit within the performance budget, if the catalog moves to an external search engine, or if social functionality is again excluded by a product decision.

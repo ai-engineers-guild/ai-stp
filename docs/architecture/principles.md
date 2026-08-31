@@ -1,59 +1,59 @@
 ---
-description: "Неизменяемые архитектурные правила ai_stp."
+description: "Immutable architectural rules of ai_stp."
 last_verified: "2026-08-03"
 ---
 
-# Архитектурные принципы
+# Architectural Principles
 
-## Один продукт, модульные границы
+## One Product, Modular Boundaries
 
-CLI, API, worker и web — части одного продукта. Доменная модель общая, но entrypoints и зависимости разделены.
+CLI, API, worker, and web are parts of one product. They share a domain model, while entrypoints and dependencies remain separate.
 
-## Владение по функции
+## Ownership by Function
 
-Каждый модуль владеет своим поведением, схемами и ports. Общий `domain` или `common` пакет, знающий обо всём, запрещён.
+Each module owns its behavior, schemas, and ports. A shared `domain` or `common` package that knows about everything is forbidden.
 
-## Локальный режим полноценен
+## Local Mode Is Complete
 
-Базовые паспорта, индекс, registry, подбор, сборка и установка не требуют аккаунта. Облако расширяет, а не заменяет локальный продукт.
+Basic passports, the index, registry, selection, compilation, and installation do not require an account. The cloud extends rather than replaces the local product.
 
-## Неизменяемые версии
+## Immutable Versions
 
-Опубликованные версии и применяемые bundles адресуются digest. Mutable lifecycle state хранится отдельно.
+Published versions and applied bundles are addressed by digest. Mutable lifecycle state is stored separately.
 
-## Один writer target
+## One Target Writer
 
-Только provider конкретного харнесса изменяет его target. `ai_stp`, Agent, внешние resolver'ы и server не пишут target параллельно.
+Only the provider for a specific harness changes its target. `ai_stp`, the Agent, external resolvers, and the server do not write to the target concurrently.
 
-## План до записи
+## Plan Before Writing
 
-Любая изменяющая операция проходит осмотр, построение плана, решение пользователя, блокировку, повторную проверку, применение, проверку результата и завершение журнала.
+Every mutating operation goes through inspection, plan construction, user decision, locking, revalidation, application, result verification, and journal completion.
 
-## Агент не является механизмом политики
+## The Agent Is Not a Policy Mechanism
 
-Агент задаёт вопросы и предлагает состав. Жёсткие ограничения, доступ, digest, schema, conflicts и предусловия провайдера проверяются детерминированно.
+The Agent asks questions and proposes a composition. Hard constraints, access, digest, schema, conflicts, and provider preconditions are checked deterministically.
 
-## Честные неизвестные состояния
+## Honest Unknown States
 
-`unknown`, `not_run`, `degraded`, `not_verified` и `partial` являются полноценными состояниями. Их нельзя преобразовывать в успешный результат.
+`unknown`, `not_run`, `degraded`, `not_verified`, and `partial` are first-class states. They must not be converted into a successful result.
 
-## Четыре независимые оси состояний
+## Four Independent State Axes
 
-Состояния не смешиваются между осями, и одинаковое слово в разных осях означает разное:
+States are not mixed across axes, and the same word means different things on different axes:
 
-| Ось | Значения | Владелец |
+| Axis | Values | Owner |
 |---|---|---|
-| Готовность локального контура | `ready`, `needs_input`, `degraded`, `unsupported`, `failed` | `SPEC-001` |
-| Результат отдельной проверки | `passed`, `warning`, `failed`, `degraded`, `not_run` | `SPEC-007` |
-| Изменяющая операция | `planned`, `approved`, `applying`, `applied_unverified`, `verified`, `partial`, `failed`, `stale`, `cancelled`, `rolled_back` | `contracts/operation.md` |
-| Доказательство линии выпуска | `verified`, `not_verified` | `engineering/release-evidence.md` |
+| Local environment readiness | `ready`, `needs_input`, `degraded`, `unsupported`, `failed` | `SPEC-001` |
+| Individual check result | `passed`, `warning`, `failed`, `degraded`, `not_run` | `SPEC-007` |
+| Mutating operation | `planned`, `approved`, `applying`, `applied_unverified`, `verified`, `partial`, `failed`, `stale`, `cancelled`, `rolled_back` | `contracts/operation.md` |
+| Release-line evidence | `verified`, `not_verified` | `engineering/release-evidence.md` |
 
-`degraded` в первой оси описывает контур, во второй — конкретную проверку. `failed` проверки не делает операцию `failed`. `verified` операции не является доказательством выпуска: линия, которую не запускали, получает `not_verified` независимо от того, сколько операций завершилось успешно.
+`degraded` describes the environment on the first axis and a specific check on the second. A `failed` check does not make an operation `failed`. An operation's `verified` state is not release evidence: a line that was not run receives `not_verified`, regardless of how many operations completed successfully.
 
-## Минимальные права
+## Least Privilege
 
-Core устанавливается в user-owned directories. `sudo` не является обычным механизмом. Пароль никогда не передаётся агенту.
+Core is installed in user-owned directories. `sudo` is not a normal mechanism. A password is never passed to the Agent.
 
-## Совместимость по контракту
+## Compatibility by Contract
 
-Схемы, provider protocol, API и sync versioned. Не предполагается одновременное обновление всех клиентов и репозиториев.
+Schemas, the provider protocol, API, and sync are versioned. Simultaneous updates of all clients and repositories are not assumed.

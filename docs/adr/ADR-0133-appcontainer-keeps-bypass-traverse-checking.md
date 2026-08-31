@@ -1,136 +1,138 @@
 ---
-description: "Решение строить windows network-isolated launcher на AppContainer, потому что измерение опровергло возражение о правке DACL родителей."
+description: "Decision to build the Windows network-isolated launcher on AppContainer because measurement disproved the objection that parent DACLs must be modified."
 last_verified: "2026-08-30"
 ---
 
-# ADR-0133: AppContainer сохраняет обход traverse-проверок
+# ADR-0133: AppContainer retains traverse-check bypass
 
-Статус: принято. Снимает долг `ADR-0126` в части, названной `#51`.
+Status: accepted. Resolves the part of the `ADR-0126` debt identified as `#51`.
 
-## Контекст
+## Context
 
-На Linux локальная фаза провайдера идёт через Bubblewrap, и `enforced`
-выставляется только после положительного контроля. На Windows изоляции нет —
-сознательный долг `ADR-0126`. `#51` просит native launcher и называет
-AppContainer кандидатом с одним возражением:
+On Linux, the provider's local phase runs through Bubblewrap, and `enforced` is
+set only after a positive control. Windows has no isolation—a deliberate debt
+under `ADR-0126`. `#51` requests a native launcher and names AppContainer as a
+candidate with one objection:
 
-> AppContainer сеть запрещает, но до произвольного target не дотягивается без
-> правки DACL родителей.
+> AppContainer blocks the network, but cannot reach an arbitrary target without
+> modifying the DACLs of its parents.
 
-Возражение решает архитектуру. Если оно верно, цена — ACE на каждого предка
-выбранного target, то есть изменение прав в чужих каталогах вверх по дереву.
-Если неверно — цена одна ACE на сам target.
+The objection determines the architecture. If it is correct, the cost is one
+ACE for every ancestor of the selected target, meaning permissions must be
+changed in other directories up the tree. If it is incorrect, the cost is one
+ACE on the target itself.
 
-Это утверждение о токене, а не аргумент, поэтому оно измерено.
+This is a claim about a token, not an argument, so it was measured.
 
-**И оно уже было измерено.** `network_launcher.unisolated_local_phase` несёт
-в docstring результат прогона 33302576898
-(`NDDev-OpenNetwork/claude-setup-system`): AppContainer прочитал target,
-несущий **только собственный ACE**, без ACE где-либо на родителе. Та запись
-прямо говорит, что «одна половина исходной причины была неверна, и именно она
-мешала кому-либо посмотреть».
+**And it had already been measured.** The docstring of
+`network_launcher.unisolated_local_phase` carries the result of run 33302576898
+(`NDDev-OpenNetwork/claude-setup-system`): AppContainer read a target carrying
+**only its own ACE**, with no ACE anywhere on a parent. That record states
+directly that “one half of the original rationale was incorrect, and it was the
+half that prevented anyone from looking.”
 
-Здешнее измерение сделано, не заглянув в этот docstring: `#51` продолжал
-нести опровергнутое возражение, и работа пошла от текста ишьюса, а не от кода.
-Шесть прогонов ушло на переоткрытие факта, лежавшего в тридцати строках от
-правки. Это стоит записать, потому что защита от такого — не аккуратность, а
-привычка: **прежде чем мерить утверждение из ишьюса, спросить, что о нём
-говорит модуль.**
+The measurement here was performed without looking at that docstring: `#51`
+continued to carry the disproven objection, and the work proceeded from the
+issue text rather than the code. Six runs were spent rediscovering a fact that
+lay thirty lines from the edit. This is worth recording because the defense
+against it is not diligence but habit: **before measuring a claim from an issue,
+ask what the module says about it.**
 
-Что здешние измерения добавляют сверх той записи: независимое воспроизведение
-на другой сборке ОС и другой пробой — и сетевая половина, которой там нет
-вовсе.
+What the measurements here add beyond that record is independent reproduction
+on a different OS build and with a different probe—and the network half, which
+is entirely absent there.
 
-## Измерения
+## Measurements
 
 `release_scripts/windows_isolation_probe.py`, `windows-latest`
-(Windows Server 2025), Python 3.14.7. Форма пробы взята с Linux намеренно:
-loopback-слушатели, положительный контроль из родителя, затем то же соединение
-изнутри — `#51` требует доказательства **тем же классом** пробы.
+(Windows Server 2025), Python 3.14.7. The probe deliberately follows the Linux
+form: loopback listeners, a positive control from the parent, then the same
+connection from inside—`#51` requires proof by **the same class** of probe.
 
-| Вопрос | Ответ |
+| Question | Answer |
 |---|---|
-| `CreateAppContainerProfile` | `0x0`, Package SID выдан |
+| `CreateAppContainerProfile` | `0x0`, Package SID issued |
 | `GetAppContainerFolderPath` | `0x0` |
-| `CreateProcessW` + `PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES`, ноль capabilities | процесс создан |
-| TCP к loopback родителя, IPv4 и IPv6 | `denied` |
-| Внук, порождённый внутри | `denied` — ограничение наследуется |
-| UDP-датаграмма, посланная изнутри | **не пришла** на сокет родителя |
-| Каталог с ACE на Package SID, **родители без прав** | **прочитан** |
-| Каталог без единого ACE | `PermissionError`, winerror 5 |
+| `CreateProcessW` + `PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES`, zero capabilities | process created |
+| TCP to the parent's loopback, IPv4 and IPv6 | `denied` |
+| Grandchild spawned inside | `denied` — restriction is inherited |
+| UDP datagram sent from inside | **did not arrive** at the parent's socket |
+| Directory with an ACE for the Package SID, **parents without permissions** | **read** |
+| Directory without any ACE | `PermissionError`, winerror 5 |
 
-Последние две строки и есть ответ на `#51`: обход traverse-проверок
-(`SeChangeNotifyPrivilege`, по умолчанию выданный Everyone) доживает до токена
-AppContainer, поэтому полный путь достаёт лист без прав на предков.
-**Возражение неверно** — и было опровергнуто раньше, здесь оно лишь
-воспроизведено независимо.
+The last two rows answer `#51`: traverse-check bypass
+(`SeChangeNotifyPrivilege`, granted to Everyone by default) survives in the
+AppContainer token, so the full path reaches the leaf without permissions on
+its ancestors. **The objection is incorrect**—and was disproved earlier; here
+it was merely reproduced independently.
 
-Новыми являются четыре сетевые строки. Прежняя запись мерила достижимость
-target и о запрете сети не говорила ничего; без неё `enforced` на Windows не
-имел бы доказательства своего класса.
+The four network rows are new. The earlier record measured target reachability
+and said nothing about blocking the network; without these rows, `enforced` on
+Windows would have no proof of its class.
 
-## Решение
+## Decision
 
-Строить launcher на AppContainer без capabilities. Права выдаются ровно двум
-местам: выбранному target и каталогу рантайма. Предки не трогаются, host
-firewall и глобальные ACL не трогаются.
+Build the launcher on AppContainer without capabilities. Permissions are
+granted in exactly two places: the selected target and the runtime directory.
+Ancestors, the host firewall, and global ACLs are not touched.
 
-Запрет сети обеспечивает WFP по условию `FWPM_CONDITION_ALE_PACKAGE_ID`, то
-есть устройством, а не договорённостью, — это то, чего требует `#51`.
+WFP enforces the network block through the `FWPM_CONDITION_ALE_PACKAGE_ID`
+condition—that is, by mechanism rather than convention—which is what `#51`
+requires.
 
-## Чего измерение не говорит
+## What the measurement does not say
 
-Не переносить эти строки на утверждения шире измеренных.
+Do not extend these results to claims broader than what was measured.
 
-- **Права администратора.** Раннер элевирован (`is_admin: true`), поэтому
-  вопрос «создаёт ли профиль обычный пользователь» **не измерен**.
-  Документация говорит, что элевация не нужна; до собственной проверки это
-  остаётся заимствованным утверждением, а launcher обязан отказывать закрыто,
-  если профиль не создался.
-- **Таймаут вместо отказа.** На Linux запрет виден мгновенным `ECONNREFUSED`;
-  здесь и TCP, и UDP дают таймаут, потому что AppContainer блокируется на
-  слое приёма. Таймаут слабее отказа: он совместим и с медленным слушателем.
-  Именно положительный контроль превращает его в доказательство, и потому
-  `enforced` не выставляется, если контроль не прошёл.
-- **Одна версия ОС.** Измерено на Windows Server 2025. Другие сборки не
-  проверялись.
+- **Administrator privileges.** The runner is elevated (`is_admin: true`), so
+  whether an ordinary user can create a profile was **not measured**. The
+  documentation says elevation is unnecessary; until independently verified,
+  this remains a borrowed claim, and the launcher must fail closed if profile
+  creation fails.
+- **Timeout rather than refusal.** On Linux, the block appears immediately as
+  `ECONNREFUSED`; here both TCP and UDP time out because AppContainer blocks at
+  the receive layer. A timeout is weaker than a refusal: it is also consistent
+  with a slow listener. The positive control is precisely what turns it into
+  evidence, so `enforced` is not set if the control fails.
+- **One OS version.** Measured on Windows Server 2025. Other builds were not
+  tested.
 
-## Как это измерялось, и почему это часть решения
+## How this was measured, and why that is part of the decision
 
-Из шести прогонов **четыре мерили пробу, а не платформу**, и каждый выглядел
-как результат:
+Of six runs, **four measured the probe rather than the platform**, and each
+looked like a result:
 
-1. ответ собирался в файл, который контейнер не мог создать, — молчание с
-   двумя объяснениями и без способа их различить;
-2. то же через собственную папку контейнера — снова молчание;
-3. отрицательный контроль был отравлен: корню выдали ACE с `(OI)(CI)`, оно
-   унаследовалось во все потомки, и «неразрешённый» каталог прочитался вместе
-   с остальными — контроль, который не мог провалиться;
-4. UDP судился по возвращаемому значению `sendto`, которое успешно и на
-   отброшенной датаграмме, то есть утверждение о вызове, а не о сети.
+1. the response was collected in a file the container could not create—silence
+   with two explanations and no way to distinguish them;
+2. the same through the container's own folder—silence again;
+3. the negative control was contaminated: the root received an ACE with
+   `(OI)(CI)`, which propagated to every descendant, and the “unauthorized”
+   directory was read with the rest—a control incapable of failing;
+4. UDP was judged by the return value of `sendto`, which succeeds even for a
+   dropped datagram, making it a claim about the call rather than the network.
 
-Пятый, и он предшествует всем: работа началась от текста `#51`, а не от кода,
-который его уже опроверг. Устаревшее обоснование в ишьюсе продолжает спорить и
-оплачивается чужим временем — здесь шестью прогонами.
+The fifth predates all of them: work began from the text of `#51`, not from the
+code that had already disproved it. The stale rationale in the issue continues
+to argue and consumes other people's time—six runs here.
 
-Общая форма у остальных четырёх одна: утверждение, которому нечем возразить,
-неотличимо от подтверждённого. Отсюда правило, которое эта запись оставляет
-дальше: **канал сбора результата не должен зависеть от измеряемого** — ответ
-приходит по унаследованному дескриптору, открытому до запуска, — и **у каждого
-отрицательного результата должно быть названо изменение, которое сделало бы его
-положительным**.
+The other four share one general form: a claim that nothing can contradict is
+indistinguishable from one that has been confirmed. Hence the rule this record
+leaves behind: **the result-collection channel must not depend on what is being
+measured**—the response arrives through an inherited descriptor opened before
+launch—and **every negative result must name a change that would make it
+positive**.
 
-## Последствия
+## Consequences
 
-- `#51` реализуем; `ADR-0126` перестаёт быть постоянным долгом.
-- `provider network --json` сможет отдавать `enforced` на Windows, но только
-  после положительного контроля, как на Linux.
-- Появляется новая обязанность: снимать ACE и профиль после успеха, отказа,
-  таймаута и краха.
-- Проба остаётся в `release_scripts/`, её workflow — нет. `.github` удержан
-  манифестом (`ADR-0108`): публичные workflow приходят из оверлея, поэтому
-  разовый dispatch-only job ломал круговую проверку синка. Это к лучшему по
-  устройству: проверки launcher'а должны стоять постоянным заданием в
-  существующей windows-матрице `check`, а не отдельным workflow, который никто
-  не запускает. Запустить пробу можно вручную на Windows или временным job.
-- Эта запись — то, что от пробы остаётся, если её никогда больше не запустят.
+- `#51` is implementable; `ADR-0126` ceases to be permanent debt.
+- `provider network --json` will be able to return `enforced` on Windows, but
+  only after a positive control, as on Linux.
+- A new obligation appears: remove the ACE and profile after success, failure,
+  timeout, and crash.
+- The probe remains in `release_scripts/`; its workflow does not. `.github` is
+  constrained by the manifest (`ADR-0108`): public workflows come from the
+  overlay, so a one-off dispatch-only job broke the circular sync check. This is
+  architecturally preferable: launcher checks should be a permanent job in the
+  existing Windows `check` matrix, not a separate workflow nobody runs. The
+  probe can be run manually on Windows or through a temporary job.
+- This record is what remains of the probe if it is never run again.

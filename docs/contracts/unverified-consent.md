@@ -1,60 +1,61 @@
 ---
-description: "Сеансовый признак согласия на непроверенное и долговечные записи исключений по издателю и основной линии."
+description: "Session-scoped consent marker for unverified objects and durable exception records by publisher and major line."
 last_verified: "2026-08-29"
 ---
 
-# Согласие на непроверенное
+# Consent to unverified objects
 
-Владелец требований — `SPEC-006`; решение — `ADR-0029`, линии доверия — `ADR-0016`. Здесь зафиксирована машинная граница: формы согласия, поля записи и события, отменяющие её действие.
+The requirements owner is `SPEC-006`; the decision is `ADR-0029`, and trust lanes are defined by `ADR-0016`. This document defines the machine boundary: consent forms, record fields, and events that invalidate consent.
 
-Ключ `search.include_unverified` из конфига CLI удалён: бессрочное глобальное согласие на всё непроверенное не поддерживается ни в конфиге, ни в профиле.
+The `search.include_unverified` key has been removed from CLI configuration: indefinite global consent to all unverified objects is supported neither in configuration nor in the profile.
 
-## Формы согласия
+## Forms of consent
 
-| Форма | Область | Срок действия |
+| Form | Scope | Duration |
 |---|---|---|
-| признак запроса | текущая команда или сеанс | до конца команды или сеанса |
-| запись `publisher` | все объекты конкретного издателя | до отмены или отменяющего события |
-| запись `object_major` | основная линия `X` конкретного объекта | до отмены или отменяющего события |
+| request marker | current command or session | until the command or session ends |
+| `publisher` record | all objects from a specific publisher | until revocation or an invalidating event |
+| `object_major` record | major line `X` of a specific object | until revocation or an invalidating event |
 
-Область долговечной записи выбирает пользователь явно; форма «всё непроверенное навсегда» не существует. Любая форма лишь допускает кандидатов в выдачу отдельным разделом линии `experimental`: она не переносит объект в `authoritative`, не создаёт платформенное подтверждение и не отменяет обязательные проверки установки.
+The user explicitly selects the scope of a durable record; there is no “all unverified objects forever” form. Every form merely admits candidates into a separate `experimental` lane section of results: it does not move an object to `authoritative`, create platform verification, or waive mandatory installation checks.
 
-## Запись согласия
+## Consent record
 
-Долговечная запись хранит:
+A durable record stores:
 
-- цель: идентификатор издателя либо устойчивый идентификатор объекта и номер основной линии;
-- область: `publisher` или `object_major`;
-- автора решения и время создания;
-- источник: команда, сеанс или экран, где согласие дано;
-- отпечаток полномочий и возможностей кандидата на момент согласия: файловые, сетевые и процессные полномочия, требования учётных данных и внешние точки подключения;
-- перечень объектов, с которых отпечаток снят.
+- target: publisher identifier, or stable object identifier and major line number;
+- scope: `publisher` or `object_major`;
+- decision author and creation time;
+- source: the command, session, or screen where consent was given;
+- fingerprint of the candidate's permissions and capabilities at consent time: filesystem, network, and process permissions, credential requirements, and external connection points;
+- list of objects from which the fingerprint was taken.
 
-Последнее поле отличает два разных факта, которые иначе выглядят одинаково:
-отпечаток объектов, которым ничего не нужно, и отсутствие наблюдения вообще.
-Первый — настоящий потолок, второй не покрывает ничего. Запись области
-`publisher` снимает отпечаток как объединение того, что цель требует на момент
-согласия: пользователь соглашается с тем, что ему показано, а всё сверх этого и
-есть отменяющее событие.
+The last field distinguishes two facts that would otherwise look identical: a
+fingerprint of objects that require nothing, and no observation at all. The
+first is a real ceiling; the second covers nothing. A `publisher`-scoped record
+takes the fingerprint as the union of what the target requires at consent time:
+the user consents to what is shown, and anything beyond it is an invalidating
+event.
 
-Цель, под которую в реестре нет ни одного объекта, согласовать нельзя: у формы
-«отпечаток кандидата» без кандидата нет значения, а сохранённая пустота потом
-читается как согласие и ведёт себя как отказ.
+A target with no objects in the registry cannot be approved: a “candidate
+fingerprint” has no meaning without a candidate, while stored emptiness would
+later be read as consent and behave like a denial.
 
-Записи принадлежат пользователю, хранятся в локальном реестре и синхронизируются как обычные сущности с ревизиями. Секретов и значений окружения запись не содержит.
+Records belong to the user, are stored in the local registry, and synchronize as ordinary revisioned entities. A record contains no secrets or environment values.
 
-## Отменяющие события
+## Invalidating events
 
-Запись перестаёт покрывать версию, если по сравнению с зафиксированным отпечатком версия требует нового: полномочия, процессы, сеть, учётные данные, внешние точки подключения, управляемые пути или нативные поверхности. Новая основная линия объекта не покрывается записью области `object_major` предыдущей линии.
+A record stops covering a version if, compared with the stored fingerprint, that version requires new permissions, processes, network access, credentials, external connection points, managed paths, or native surfaces. A new major line is not covered by the previous line's `object_major` record.
 
-Отменяющее событие не удаляет запись молча: пользователю показывается точная причина, и продолжение требует нового явного решения. Отмена записи пользователем действует немедленно для будущих запросов.
+An invalidating event does not silently delete the record: the user is shown the exact reason, and continuing requires a new explicit decision. User revocation takes effect immediately for future requests.
 
-## Использование
+## Usage
 
-Выдача помечает каждого кандидата линии `experimental` источником согласия: признак запроса либо конкретная запись. След рекомендации и план установки записывают источник согласия и отпечаток полномочий, по которым согласие признано действующим.
+Results label every `experimental` candidate with the consent source: the request marker or a specific record. The recommendation trace and installation plan record the consent source and permission fingerprint under which consent was considered valid.
 
-Записи читают и выдача, и подбор. Обе области консультируются от узкой к
-широкой: запись `object_major` этого объекта отвечает раньше записи `publisher`
-его издателя, иначе более точную запись нельзя было бы написать. Признак
-запроса принадлежит `select eligibility`; у `select propose` его нет, потому что
-предложение — шаг к установке, и нести его вправе только долговечное решение.
+Both search and selection read the records. Both scopes are consulted from
+narrowest to broadest: the object's `object_major` record takes precedence over
+its publisher's `publisher` record, otherwise a more specific record could not
+override the broader one. The request marker belongs to `select eligibility`;
+`select propose` does not have it because a proposal is a step toward
+installation and may rely only on a durable decision.

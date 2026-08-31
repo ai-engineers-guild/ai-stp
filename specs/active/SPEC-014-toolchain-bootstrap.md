@@ -1,83 +1,83 @@
 ---
-description: "SPEC-014: Управляемый набор инструментов и первичная настройка."
+description: "SPEC-014: Managed toolchain and bootstrap."
 last_verified: "2026-08-04"
 ---
 
-# SPEC-014: Управляемый набор инструментов и первичная настройка
+# SPEC-014: Managed toolchain and bootstrap
 
-## Цель
+## Purpose
 
-После установки `ai-stp` пользователь получает воспроизводимый набор инструментов для диагностики, индексации, проверок и генерации сетапов. Инструменты устанавливаются в пользовательские каталоги без ручной настройки системных пакетов и без обязательного `sudo`.
+After installing `ai-stp`, the user receives a reproducible toolchain for diagnostics, indexing, checks, and setup generation. Tools are installed in user directories without manual system-package configuration or mandatory `sudo`.
 
-## Границы
+## Scope
 
-Входят обнаружение системы, архитектуры, харнессов и инструментов, полный профиль набора `mvp-full`, изолированная установка, LSP и проверки Python, TypeScript/JavaScript, Rust, Go и Dart/Flutter, анализаторы информационных форматов и обобщённого безопасного текста, граница автономной работы, диагностика, обновление, кэш и владение при удалении. Установка системных наборов с правами администратора и скрытое исполнение сценариев пакетов не входят. Обнаружение харнессов на Windows входит и описано `REQ-1419`; вне границ остаётся установка самого набора инструментов на Windows.
+Includes detecting the system, architecture, harnesses, and tools; the complete `mvp-full` toolchain profile; isolated installation; LSP and checks for Python, TypeScript/JavaScript, Rust, Go, and Dart/Flutter; analyzers for information formats and generalized safe text; the offline-operation boundary; diagnostics; updates; cache; and ownership during removal. Installation of system toolchains with administrator privileges and hidden execution of package scripts are out of scope. Harness detection on Windows is in scope and described by `REQ-1419`; installation of the toolchain itself on Windows remains out of scope.
 
-Перечень автономных и сетевых операций принадлежит `docs/contracts/offline-capability.md` и здесь не повторяется. Конкретные версии инструментов профиля выбираются на этапе реализации из поддерживаемых манифестов.
+The list of offline and network operations is owned by `docs/contracts/offline-capability.md` and is not repeated here. Specific profile tool versions are selected during implementation from supported manifests.
 
-## Термины
+## Terms
 
-- `ToolchainManifest` — точный список инструментов, версий, источников, доказательств целостности, платформ и точек входа.
-- `mvp-full` — единственный профиль набора инструментов MVP, устанавливаемый целиком при первичной настройке.
-- `detector` — объявленный способ обнаружить харнесс или инструмент без изменения системы.
-- `ToolchainTarget` — версионируемый пользовательский каталог, не системный путь поиска.
-- `ToolAdapter` — ограниченная обёртка со временем выполнения, разрешённым окружением и версионируемым выводом.
-- `needs_user_action` — невозможность безопасно продолжить без прямого действия человека.
+- `ToolchainManifest` — the exact list of tools, versions, sources, integrity evidence, platforms, and entry points.
+- `mvp-full` — the sole MVP toolchain profile, installed in full during bootstrap.
+- `detector` — a declared way to detect a harness or tool without changing the system.
+- `ToolchainTarget` — a versioned user directory, not a system search path.
+- `ToolAdapter` — a bounded wrapper with a timeout, allowed environment, and versioned output.
+- `needs_user_action` — the inability to continue safely without direct human action.
 
-## Требования
+## Requirements
 
-- `REQ-1401`: Первичная настройка сначала обнаруживает систему, архитектуру, доступные харнессы, среды и совместимые инструменты без изменения системы.
-- `REQ-1402`: Первичная настройка устанавливает один полный версионируемый профиль `mvp-full` целиком; состав задаётся политикой, а не текущим содержимым выбранного проекта.
-- `REQ-1403`: Каждая зависимость имеет точную версию и источник, доказательство целостности, лицензию и матрицу поддерживаемых систем.
-- `REQ-1404`: Инструменты устанавливаются в версионируемый пользовательский каталог и вызываются по точному пути; окружающий `PATH` не является источником истины.
-- `REQ-1405`: Установка и обновление используют план, подготовительный каталог, проверку целостности, атомарный текущий указатель и возврат на прошлую версию.
-- `REQ-1406`: Сценарии установки пакетов и произвольные сценарии первичной настройки отключены по умолчанию и разрешаются только отдельной проверенной политикой.
-- `REQ-1407`: Профиль `mvp-full` содержит серверы языка, линтеры, проверяющие типы, анализаторы и сканеры для Python, TypeScript/JavaScript, Rust, Go и Dart/Flutter; неустановленный адаптер даёт честное `not_available` с причиной.
-- `REQ-1408`: Анализаторы информационных форматов и обобщённый разбор ограниченного безопасного текста входят в профиль и имеют ограничения ресурсов.
-- `REQ-1409`: Запуск инструмента использует массив аргументов, `shell=false`, отфильтрованное окружение, время, предел вывода и отмену.
-- `REQ-1410`: Обычная установка не требует `sudo`; необходимость системного действия возвращает `needs_user_action` и точный план без получения пароля агентом.
-- `REQ-1411`: Манифест владения перечисляет все созданные пути и позволяет обычному удалению очистить набор инструментов, не затронув пользовательские данные, цели и резервные копии.
-- `REQ-1412`: Автономный режим использует только ранее проверенные кэшированные артефакты и не ослабляет требования целостности и версий.
-- `REQ-1413`: После успешной первичной настройки объявленные автономные операции выполняются без сети, а операции, которым сеть необходима, перечислены отдельно и возвращают типизированную причину.
-- `REQ-1414`: Обнаружение харнессов и инструментов использует ограниченный набор детекторов: известные имена исполняемых файлов с проверенным абсолютным путём, безопасный запрос версии, известные пользовательские корни конфигурации и манифесты выбранного проекта.
-- `REQ-1415`: Результат обнаружения по каждому объекту различает `installed`, `configured`, `available` и `unknown_version`, содержит точную версию или `unknown`, путь источника и причину.
-- `REQ-1416`: Обнаружение не изменяет систему, не сканирует рекурсивно домашний каталог и диск целиком и принимает явный путь от пользователя.
-- `REQ-1417`: Несколько установок одного харнесса возвращаются списком; явно указанный путь имеет приоритет над найденными.
-- `REQ-1418`: Результат обнаружения окружения записывается в паспорт текущего устройства по `ADR-0025`; паспорт разработчика при обнаружении не изменяется.
-- `REQ-1419`: На Windows детектор различает CLI и Desktop surfaces, а после неуспешного безопасного запроса версии читает только объявленные bounded package manifests; источник версии и структурированная причина остаются в результате.
+- `REQ-1401`: Bootstrap first detects the system, architecture, available harnesses, environments, and compatible tools without changing the system.
+- `REQ-1402`: Bootstrap installs one complete versioned `mvp-full` profile in full; policy defines its contents, not the current contents of the selected project.
+- `REQ-1403`: Every dependency has an exact version and source, integrity evidence, a license, and a supported-system matrix.
+- `REQ-1404`: Tools are installed in a versioned user directory and invoked by exact path; the ambient `PATH` is not the source of truth.
+- `REQ-1405`: Installation and update use a plan, staging directory, integrity verification, an atomic current pointer, and rollback to the previous version.
+- `REQ-1406`: Package installation scripts and arbitrary bootstrap scripts are disabled by default and permitted only by a separate verified policy.
+- `REQ-1407`: The `mvp-full` profile contains language servers, linters, type checkers, analyzers, and scanners for Python, TypeScript/JavaScript, Rust, Go, and Dart/Flutter; an uninstalled adapter honestly returns `not_available` with a reason.
+- `REQ-1408`: Analyzers for information formats and generalized parsing of bounded safe text are included in the profile and have resource limits.
+- `REQ-1409`: Tool execution uses an argument array, `shell=false`, a filtered environment, timeout, output limit, and cancellation.
+- `REQ-1410`: Normal installation does not require `sudo`; a required system action returns `needs_user_action` and an exact plan without the agent obtaining a password.
+- `REQ-1411`: An ownership manifest lists every created path and allows normal removal to delete the toolchain without affecting user data, targets, or backups.
+- `REQ-1412`: Offline mode uses only previously verified cached artifacts and does not weaken integrity or version requirements.
+- `REQ-1413`: After successful bootstrap, declared offline operations work without a network, while operations that require a network are listed separately and return a typed reason.
+- `REQ-1414`: Harness and tool detection uses a bounded detector set: known executable names with a verified absolute path, a safe version query, known user configuration roots, and manifests of the selected project.
+- `REQ-1415`: Each detected object's result distinguishes `installed`, `configured`, `available`, and `unknown_version`, and contains the exact version or `unknown`, source path, and reason.
+- `REQ-1416`: Detection does not change the system, does not recursively scan the home directory or entire disk, and accepts an explicit path from the user.
+- `REQ-1417`: Multiple installations of one harness are returned as a list; an explicitly provided path takes precedence over detected paths.
+- `REQ-1418`: The environment detection result is recorded in the current device passport under `ADR-0025`; detection does not change the developer passport.
+- `REQ-1419`: On Windows, the detector distinguishes CLI and Desktop surfaces and, after an unsuccessful safe version query, reads only declared bounded package manifests; the version source and structured reason remain in the result.
 
-## Состояния и ошибки
+## States and errors
 
-Первичная настройка имеет состояния `discovered`, `planned`, `needs_user_action`, `installing`, `ready`, `degraded`, `partial` и `failed`. Отсутствующий необязательный адаптер даёт ухудшенное состояние; несовпадение целостности, неподдерживаемая система или неизвестный эффект после сбоя блокируют продолжение и требуют восстановления.
+Bootstrap has `discovered`, `planned`, `needs_user_action`, `installing`, `ready`, `degraded`, `partial`, and `failed` states. A missing optional adapter produces a degraded state; an integrity mismatch, unsupported system, or unknown effect after failure blocks continuation and requires recovery.
 
-## Безопасность и приватность
+## Security and privacy
 
-Установщик не читает секреты и не отправляет инвентаризацию в облако без входа и согласия. Перенаправления загрузки и архивы проходят проверку источника, размера и путей. Вывод инструмента считается недоверенным и очищается до журнала и контекста агента. Системная среда допускается только после проверки канонического пути и невозможности изменения другими пользователями.
+The installer does not read secrets or send inventory to the cloud without sign-in and consent. Download redirects and archives are checked for source, size, and paths. Tool output is considered untrusted and sanitized before entering logs or agent context. A system environment is allowed only after verifying its canonical path and that other users cannot modify it.
 
-## Совместимость и миграция
+## Compatibility and migration
 
-Политика набора, манифест и вывод адаптера имеют версии. Новый набор устанавливается рядом со старым; индекс проекта сохраняет версии инструментов. Удаление старой версии допускается после отсутствия активных операций и явной политики очистки.
+The toolchain policy, manifest, and adapter output are versioned. A new toolchain is installed alongside the old one; the project index retains tool versions. Removing an old version is permitted after there are no active operations and under an explicit cleanup policy.
 
-## Критерии приёмки
+## Acceptance criteria
 
-| Требование | Исполнимый способ проверки |
+| Requirement | Executable verification method |
 |---|---|
-| `REQ-1401` | Чистая Linux x86_64 фикстура подтверждает обнаружение без созданных файлов; переносимые macOS fixtures остаются non-release regression evidence. |
-| `REQ-1402` | Первичная настройка в пустом и в документационном проекте даёт одинаковый полный профиль. |
-| `REQ-1403` | Проверка манифеста отклоняет плавающий источник, отсутствующую целостность и неподдерживаемую систему. |
-| `REQ-1404` | Проверка процесса использует точный двоичный файл цели при подменённом `PATH`. |
-| `REQ-1405` | Проверки отказов покрывают подготовку, переключение указателя и возврат. |
-| `REQ-1406` | Вредоносная фикстура пакета не исполняет сценарий установки. |
-| `REQ-1407` | Опись установленного профиля содержит адаптеры пяти экосистем, а отсутствующий даёт `not_available` с причиной. |
-| `REQ-1408` | Фикстуры анализаторов покрывают информационные форматы и обобщённый безопасный текст в пределах ресурсов. |
-| `REQ-1409` | Проверки времени, вывода и окружения проверяют границу исполнения. |
-| `REQ-1410` | Фикстура повышения прав не передаёт пароль и возвращает действие пользователя. |
-| `REQ-1411` | Проверка удаления очищает только пути из манифеста владения. |
-| `REQ-1412` | Автономная проверка принимает проверенный кэш и отклоняет неизвестный артефакт. |
-| `REQ-1413` | После отключения сети объявленные автономные операции проходят, а сетевые возвращают типизированную причину. |
-| `REQ-1414` | Для каждого поддерживаемого харнесса объявлен детектор, и проверка отклоняет обнаружение вне этого набора. |
-| `REQ-1415` | Фикстуры покрывают все четыре состояния и обязательно содержат путь источника и причину. |
-| `REQ-1416` | Снимок файловой системы до и после обнаружения совпадает, а рекурсивный обход домашнего каталога отсутствует. |
-| `REQ-1417` | Фикстура двух установок возвращает обе, а явный путь побеждает найденные. |
-| `REQ-1418` | После обнаружения меняется только паспорт устройства; снимок паспорта разработчика до и после совпадает. |
-| `REQ-1419` | Windows fixtures покрывают `.exe`, `.cmd`, npm package metadata, Scoop manifest и Codex WindowsApps package; link, oversized и invalid metadata не принимаются. |
+| `REQ-1401` | A clean Linux x86_64 fixture confirms detection without created files; portable macOS fixtures remain non-release regression evidence. |
+| `REQ-1402` | Bootstrap in an empty project and a documentation project produces the same complete profile. |
+| `REQ-1403` | Manifest validation rejects a floating source, missing integrity evidence, and an unsupported system. |
+| `REQ-1404` | A process check uses the target's exact binary when `PATH` is replaced. |
+| `REQ-1405` | Failure checks cover staging, pointer switching, and rollback. |
+| `REQ-1406` | A malicious package fixture does not execute an installation script. |
+| `REQ-1407` | The installed-profile inventory contains adapters for five ecosystems, and a missing one returns `not_available` with a reason. |
+| `REQ-1408` | Analyzer fixtures cover information formats and generalized safe text within resource limits. |
+| `REQ-1409` | Timeout, output, and environment checks verify the execution boundary. |
+| `REQ-1410` | A privilege-escalation fixture does not pass a password and returns a user action. |
+| `REQ-1411` | A removal check deletes only paths in the ownership manifest. |
+| `REQ-1412` | An offline check accepts a verified cache and rejects an unknown artifact. |
+| `REQ-1413` | After network disconnection, declared offline operations pass and network operations return a typed reason. |
+| `REQ-1414` | A detector is declared for every supported harness, and a check rejects detection outside this set. |
+| `REQ-1415` | Fixtures cover all four states and always contain a source path and reason. |
+| `REQ-1416` | The filesystem snapshot is identical before and after detection, and there is no recursive traversal of the home directory. |
+| `REQ-1417` | A two-installation fixture returns both, and the explicit path wins over detected paths. |
+| `REQ-1418` | After detection, only the device passport changes; the before-and-after developer-passport snapshots are identical. |
+| `REQ-1419` | Windows fixtures cover `.exe`, `.cmd`, npm package metadata, a Scoop manifest, and a Codex WindowsApps package; link, oversized, and invalid metadata are not accepted. |

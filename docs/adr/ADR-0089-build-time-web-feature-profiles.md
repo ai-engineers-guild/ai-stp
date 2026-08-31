@@ -1,59 +1,64 @@
 ---
-description: "Решение: web deploy-поверхности управляются build-time Git/YAML profiles."
+description: "Decision: web deployment surfaces are controlled by build-time Git/YAML profiles."
 last_verified: "2026-08-12"
 ---
 
 # ADR-0089: Build-time web feature profiles
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-Issues `#267` и `#284` требуют отключать целые web-поверхности из routes,
-навигации, карте сайта, машинной проекции и по возможности клиентских пакетах. Веб-приложение уже
-использует Next.js App Router, standalone image и отдельные human/machine route trees.
-Runtime-флаг не может одновременно изменить уже собранный client bundle, сохранить
-static generation и гарантировать одну идентичность artifact.
+Issues `#267` and `#284` require entire web surfaces to be disabled in routes,
+navigation, the sitemap, the machine projection, and, where possible, client
+bundles. The web application already uses the Next.js App Router, a standalone
+image, and separate human/machine route trees. A runtime flag cannot
+simultaneously change an already-built client bundle, preserve static
+generation, and guarantee a single artifact identity.
 
-## Варианты
+## Options
 
-1. Внешняя платформа флагов. Даёт выбор аудитории и аудит, но добавляет сервис, SDK,
-   failure modes и dependency без потребности MVP.
-2. Runtime env/config endpoint. Позволяет менять флаг без build, но оставляет код в
-   артефакт, создаёт расхождение гидратации и кеша и переводит статические страницы в
-   dynamic rendering.
-3. Versioned YAML profiles, разрешаемые при build. Просты, Git-native, проверяемы,
-   совместимы с standalone artifact и дают bundler literal constants.
+1. An external flag platform. It provides audience selection and auditing, but
+   adds a service, SDK, failure modes, and dependency without an MVP need.
+2. A runtime env/config endpoint. It permits changing a flag without a build,
+   but leaves code in the artifact, creates hydration/cache divergence, and
+   turns static pages into dynamic rendering.
+3. Versioned YAML profiles resolved at build time. They are simple, Git-native,
+   verifiable, compatible with a standalone artifact, and provide bundler
+   literal constants.
 
-## Решение
+## Decision
 
-Принимается вариант 3. TypeScript registry владеет ключами и metadata; YAML владеет
-полными значениями профиля. Профиль и булевы переопределения читаются только при сборке.
-Неизвестная или неполная конфигурация немедленно отклоняется. Результат встраивается как константы и
-является частью идентичности image.
+Option 3 is accepted. The TypeScript registry owns keys and metadata; YAML owns
+complete profile values. The profile and Boolean overrides are read only during
+the build. Unknown or incomplete configuration is rejected immediately. The
+result is embedded as constants and forms part of the image identity.
 
-Флаг функции не является проверкой полномочий. Человеческие и машинные маршруты проверяют один собранный
-set; navigation, SEO и machine discovery являются проекциями тех же route/feature
-annotations. Профили `public_saas` и `self_hosted` являются полными продуктовыми
-наборами. Ключи `content_hub` и `saas_public_pages` управляют материалами и
-SaaS-служебными страницами; новые keys добавляются только вместе с реальным consumer
-и тестом.
+A feature flag is not an authorization check. Human and machine routes check one
+built set; navigation, SEO, and machine discovery are projections of the same
+route/feature annotations. The `public_saas` and `self_hosted` profiles are
+complete product sets. The `content_hub` and `saas_public_pages` keys control
+content and SaaS service pages; new keys are added only with a real consumer and
+a test.
 
-Content hub использует repository Markdown и существующий Fumadocs local source,
-без внешней CMS. Locale fallback отсутствует: RU/EN entries образуют строгие пары.
+The content hub uses repository Markdown and the existing Fumadocs local source,
+without an external CMS. There is no locale fallback: RU/EN entries form strict
+pairs.
 
-## Последствия
+## Consequences
 
-- Для разных profiles собираются разные точные web images.
-- Изменение profile требует rebuild/redeploy, зато artifact детерминирован.
-- Оперативное аварийное выключение, группы пользователей и удалённый провайдер откладываются до доказанной нужды и
-  потребуют нового ADR.
-- Every new route обязан аннотировать feature в human/machine/discovery projections.
-- Build matrix и scenario tests становятся release evidence.
+- Different exact web images are built for different profiles.
+- Changing a profile requires rebuild/redeploy, while keeping the artifact
+  deterministic.
+- Operational emergency shutdown, user cohorts, and a remote provider are
+  deferred until a demonstrated need and will require a new ADR.
+- Every new route must annotate its feature in human/machine/discovery
+  projections.
+- The build matrix and scenario tests become release evidence.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается, если доказана операционная потребность выключать поверхность
-без rebuild быстрее допустимого rollback либо появляются per-request cohorts. Тогда
-структурные флаги сборки сохраняются, а оперативные флаги вводятся отдельной
-категорией, не обещающей bundle exclusion.
+The decision is reconsidered if an operational need is demonstrated to disable a
+surface without a rebuild faster than the permitted rollback, or if per-request
+cohorts appear. Structural build flags then remain, while operational flags are
+introduced as a separate category that does not promise bundle exclusion.

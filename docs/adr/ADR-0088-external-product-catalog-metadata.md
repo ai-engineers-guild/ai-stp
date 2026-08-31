@@ -1,43 +1,44 @@
 ---
-description: "Решение хранить внешний сервис и страны как изменяемые catalog metadata вне passport."
+description: "Decision to store the external service and countries as mutable catalog metadata outside the passport."
 last_verified: "2026-08-12"
 ---
 
-# ADR-0088: Внешние продукты как catalog metadata
+# ADR-0088: External products as catalog metadata
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-Компонент или сетап может автоматизировать Kaspi, 1C, Notion и другие внешние
-сервисы. Эта связь нужна для discovery по сервису и стране, но не меняет bytes,
-provenance или digest опубликованной версии.
+A component or setup may automate Kaspi, 1C, Notion, and other external
+services. This relationship is needed for discovery by service and country, but
+does not change the bytes, provenance, or digest of the published version.
 
-## Решение
+## Decision
 
-`ExternalProduct` хранится отдельно от passport и дедуплицируется уникальным
-registrable domain. Основной URL допускает только `HTTPS`, публичное DNS-имя и
-не более одного сегмента path; userinfo, credentials и IP literals запрещены,
-параметры запроса и фрагмент отбрасываются. Для распространённых составных
-публичных суффиксов используется малый закреплённый список без зависимости от
-PSL во время выполнения.
+`ExternalProduct` is stored separately from the passport and deduplicated by a
+unique registrable domain. The primary URL allows only `HTTPS`, a public DNS
+name, and no more than one path segment; userinfo, credentials, and IP literals
+are prohibited, while query parameters and fragments are discarded. A small
+pinned list is used for common compound public suffixes, with no runtime PSL
+dependency.
 
-Страны представлены M:N-таблицей и проверяются по закреплённому в коде списку
-ISO 3166-1 alpha-2. Локализованные названия стран строит Web через
-`Intl.DisplayNames`. Связь с `CatalogMetadata` изменяет owner только через Web
-API; CLI и passport не получают соответствующих полей. Публичные service и
-country pages читают только active/public/published objects. Section можно
-скрыть `NEXT_PUBLIC_EXTERNAL_CATALOG_ENABLED=false`, сохранив данные.
+Countries are represented by an M:N table and validated against the ISO 3166-1
+alpha-2 list pinned in code. Web builds localized country names through
+`Intl.DisplayNames`. Only the owner may change the relationship with
+`CatalogMetadata`, and only through the Web API; the CLI and passport do not
+gain corresponding fields. Public service and country pages read only
+active/public/published objects. The section can be hidden with
+`NEXT_PUBLIC_EXTERNAL_CATALOG_ENABLED=false` while preserving the data.
 
-## Последствия
+## Consequences
 
-Решение не требует Flagsmith, LaunchDarkly, PSL-пакета или country API. Малый
-suffix allowlist консервативен: новый региональный suffix добавляется вместе с
-тестом. Создание продуктов остаётся аутентифицированным и возвращает conflict
-для занятого домена или нормализованного совпадения имени.
+The decision requires neither Flagsmith, LaunchDarkly, a PSL package, nor a
+country API. The small suffix allowlist is conservative: a new regional suffix
+is added together with a test. Product creation remains authenticated and
+returns a conflict for an occupied domain or a normalized name match.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается, если каталог потребует полный PSL, moderation queue,
-загрузку логотипов или независимые object-level relations вместо проекции всех
-версий одного stable object.
+The decision is reconsidered if the catalog requires the full PSL, a moderation
+queue, logo uploads, or independent object-level relations instead of a
+projection of all versions of one stable object.

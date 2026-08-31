@@ -1,11 +1,11 @@
 ---
-description: "Конверт JSON, классы ошибок и правила машинного вывода CLI."
+description: "JSON envelope, error classes, and CLI machine-output rules."
 last_verified: "2026-08-13"
 ---
 
 # JSON CLI
 
-## Успех
+## Success
 
 ```json
 {
@@ -19,7 +19,7 @@ last_verified: "2026-08-13"
 }
 ```
 
-## Ошибка
+## Error
 
 ```json
 {
@@ -29,7 +29,7 @@ last_verified: "2026-08-13"
   "operation_id": null,
   "error": {
     "code": "AI_STP_VALIDATION_ERROR",
-    "message": "Безопасное сообщение",
+    "message": "Safe message",
     "retryable": false,
     "details": {}
   },
@@ -37,62 +37,71 @@ last_verified: "2026-08-13"
 }
 ```
 
-## Вывод
+## Output
 
-В машинном режиме стандартный вывод содержит ровно один объект JSON и завершающий перевод строки. Цвет, управляющие последовательности и дополнительный текст запрещены. Поток ошибок используется только при аварии до построения конверта и не содержит секреты.
+In machine mode, standard output contains exactly one JSON object followed by a
+newline. Colors, control sequences, and additional text are prohibited. The
+error stream is used only for a failure before the envelope is constructed and
+contains no secrets.
 
-Предупреждение не меняет `ok`, если запрошенный результат получен полностью. Частичная изменяющая операция возвращает ошибку и `operation_id`, а не маскируется предупреждением.
+A warning does not change `ok` when the requested result was obtained in full.
+A partially completed mutating operation returns an error and `operation_id`
+rather than being masked as a warning.
 
-## Коды завершения
+## Exit codes
 
-| Код | Класс |
+| Code | Class |
 |---:|---|
-| 0 | Успех. |
-| 2 | Неверный ввод или схема. |
-| 3 | Вход, право или отзыв устройства. |
-| 4 | Конфликт, устаревший план или необходимое решение пользователя. |
-| 5 | Недоступная зависимость или истечение времени без подтверждённого эффекта. |
-| 6 | Частичная операция, требующая восстановления. |
-| 70 | Неожиданная внутренняя ошибка. |
+| 0 | Success. |
+| 2 | Invalid input or schema. |
+| 3 | Authentication, authorization, or device revocation. |
+| 4 | Conflict, stale plan, or required user decision. |
+| 5 | Unavailable dependency or timeout without a confirmed effect. |
+| 6 | Partial operation requiring recovery. |
+| 70 | Unexpected internal error. |
 
-Класс нужен оболочке процесса, но не определяет единственное действие агента.
-Точный `handling` каждого устойчивого `AI_STP_*` кода публикуется в
-`help --agent --json`. Конфликт и запрос пользовательского решения могут иметь
-один exit class и разные действия. Повтор разрешён только когда конкретный
-конверт сообщает `retryable: true`; timeout без подтверждённого эффекта требует
-сначала проверить status или recovery path из `next_actions`.
+The class is useful to the process wrapper but does not determine the agent's
+sole action. The exact `handling` for each stable `AI_STP_*` code is published
+in `help --agent --json`. A conflict and a request for a user decision may have
+the same exit class and different actions. A retry is allowed only when the
+specific envelope reports `retryable: true`; a timeout without a confirmed
+effect requires first checking the status or recovery path from `next_actions`.
 
-## Совместимость
+## Compatibility
 
-Неизвестные необязательные поля допускаются внутри поддерживаемой основной версии. Неизвестная основная версия отклоняется. Поле `code` является устойчивым машинным идентификатором; человекочитаемое сообщение может уточняться без изменения поведения.
+Unknown optional fields are allowed within a supported major version. An
+unknown major version is rejected. The `code` field is a stable machine
+identifier; the human-readable message may be refined without changing behavior.
 
-## Интеграция без разбора текста
+## Integration without parsing text
 
-Интеграция сначала читает `help --agent --json`, выбирает команду по точному
-`commands[].path` и строит argv из `parameters`: `required` задаёт обязательность,
-`value_type` — форму значения, `repeatable` — повторяемость, `choices` — закрытый
-словарь, а `parameter_rules` — связи `exactly_one` и `required_when` между
-параметрами. Специальное значение `present` в `when_values` означает наличие
-параметра независимо от его значения. Поля `summary` не разбираются как контракт. Payload успешного ответа
-проверяется по `result_schema`, а отказ — по общей схеме error envelope и точному
-`error.code` из `error_codes`.
+An integration first reads `help --agent --json`, selects a command by its exact
+`commands[].path`, and builds argv from `parameters`: `required` defines whether
+a parameter is mandatory, `value_type` defines the value form, `repeatable`
+defines repeatability, `choices` is a closed vocabulary, and `parameter_rules`
+defines the `exactly_one` and `required_when` relationships between parameters.
+The special `present` value in `when_values` means that the parameter is present
+regardless of its value. `summary` fields are not parsed as a contract. A
+successful response payload is validated against `result_schema`; a failure is
+validated against the common error-envelope schema and the exact `error.code`
+from `error_codes`.
 
-Основные пользовательские намерения уже имеют однозначные пути: поиск —
-`registry search`, обнаружение и принятие — `component discover` и
-`component adopt`, ежедневное состояние и расхождение — `target status` и
-`target diff`, выбор предыдущей verified версии — `target rollback`. Обновление
-не является скрытой отдельной командой: агент выбирает новую точную версию,
-получает `install plan` с `action=update` и применяет только подтверждённый digest.
+Primary user intents already have unambiguous paths: search is
+`registry search`; discovery and adoption are `component discover` and
+`component adopt`; daily state and drift are `target status` and
+`target diff`; selecting the previous verified version is `target rollback`.
+Update is not a hidden separate command: the agent selects a new exact version,
+obtains an `install plan` with `action=update`, and applies only the confirmed digest.
 
-`target rollback` и `target backups` отвечают на разные вопросы, и различие
-нормативно. Первая называет предыдущую verified **версию** и ничего не
-восстанавливает. Вторая перечисляет провайдерские **копии**, из которых можно
-восстановиться, — ссылка на копию не является идентичностью сетапа (`REQ-814`),
-и объединение их в один ответ стёрло бы именно ту границу, ради которой оба
-требования существуют. Восстановление остаётся обычной последовательностью
-`install plan --action rollback --backup-ref` → `install approve` по точному
-`plan_digest` → `install apply`; для `backup` и `rollback` называть `--setup`
-или `--proposal` не требуется, поскольку эти операции связываются с целью и
-копией, а не с графом сетапа.
-Таким образом, web/desktop/agent consumer не извлекает флаги, enum или порядок
-действий из русского либо английского prose.
+`target rollback` and `target backups` answer different questions, and the
+distinction is normative. The former names the previous verified **version**
+and restores nothing. The latter lists provider **backups** from which recovery
+is possible: a backup reference is not setup identity (`REQ-814`), and combining
+them in one response would erase the very boundary for which both requirements
+exist. Recovery remains the standard sequence
+`install plan --action rollback --backup-ref` → `install approve` with the exact
+`plan_digest` → `install apply`; for `backup` and `rollback`, specifying
+`--setup` or `--proposal` is unnecessary because these operations are bound to
+the target and backup, not to the setup graph.
+Thus, a web/desktop/agent consumer does not extract flags, enums, or action order
+from Russian or English prose.

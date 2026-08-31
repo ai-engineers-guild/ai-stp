@@ -1,67 +1,63 @@
 ---
-description: "Решение отдавать публичную пользовательскую документацию отдельным контейнером и subdomain-route."
+description: "Decision to serve public user documentation through a separate container and subdomain route."
 last_verified: "2026-08-10"
 ---
 
-# ADR-0078: Контейнер и поддомен пользовательской документации
+# ADR-0078: User documentation container and subdomain
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-`ADR-0077` отделил публичную пользовательскую документацию от внутреннего
-`docs/` и выбрал MkDocs Material. После этого осталась эксплуатационная
-граница: как отдавать собранный сайт в dev и staging/prod, не ломая уже
-занятый API path `/docs`.
+`ADR-0077` separated public user documentation from internal `docs/` and chose
+MkDocs Material. This left an operational boundary: how to serve the built site
+in dev and staging/prod without breaking the already occupied API path `/docs`.
 
-В текущей топологии dev работает без Caddy: `web` публикуется на
-`localhost:3000`, а `api` на `localhost:8000`. Staging/prod идут через Caddy
-как public edge. FastAPI продолжает владеть `/docs`, `/redoc` и
-`/openapi.json`, поэтому пользовательскую документацию нельзя безопасно
-посадить на тот же path.
+In the current topology, dev runs without Caddy: `web` is published at
+`localhost:3000`, and `api` at `localhost:8000`. Staging/prod use Caddy as the
+public edge. FastAPI continues to own `/docs`, `/redoc`, and `/openapi.json`, so
+user documentation cannot safely occupy the same path.
 
-## Варианты
+## Options
 
-1. Отдавать пользовательскую документацию из `apps/web`. Это смешивает help
-   center с приложением и оставляет лишний Next.js/Fumadocs слой.
-2. Повесить пользовательскую документацию на `/docs`. Это конфликтует с API
-   docs и dev rewrite.
-3. Ввести отдельный `docs` service: в dev публиковать его на `localhost:8011`,
-   а в staging/prod вести отдельный host `AI_STP_DOCS_HOST` через Caddy.
+1. Serve user documentation from `apps/web`. This mixes the help center with
+   the application and retains an unnecessary Next.js/Fumadocs layer.
+2. Mount user documentation at `/docs`. This conflicts with the API docs and
+   dev rewrite.
+3. Introduce a separate `docs` service: publish it at `localhost:8011` in dev,
+   and route a separate `AI_STP_DOCS_HOST` host through Caddy in staging/prod.
 
-## Решение
+## Decision
 
-Принимается вариант 3. Появляется `Dockerfile.user-docs` с двумя целями:
+Option 3 is accepted. `Dockerfile.user-docs` is introduced with two targets:
 
-- `dev` запускает `mkdocs serve` на внутреннем порту `8000`; compose публикует
-  его как `http://localhost:8011`;
-- `prod` собирает статический MkDocs site и отдаёт `/srv` через Caddy на
-  внутреннем порту `8080`.
+- `dev` runs `mkdocs serve` on internal port `8000`; compose publishes it as
+  `http://localhost:8011`;
+- `prod` builds the static MkDocs site and serves `/srv` through Caddy on
+  internal port `8080`.
 
-Web-ссылки на публичную пользовательскую документацию берутся из
-`AI_STP_USER_DOCS_URL`. В dev значение по умолчанию —
-`http://localhost:8011`; в staging/prod — HTTPS URL поддомена документации.
+Web links to public user documentation come from `AI_STP_USER_DOCS_URL`. In
+dev, the default value is `http://localhost:8011`; in staging/prod, it is the
+HTTPS URL of the documentation subdomain.
 
-Prod Caddy получает второй host `AI_STP_DOCS_HOST` и проксирует его в `docs`.
-Основной host продолжает маршрутизировать `/v1`, `/docs`, `/redoc` и
-`/openapi.json` к `api`, а остальные запросы к `web`.
+Prod Caddy receives a second host, `AI_STP_DOCS_HOST`, and proxies it to `docs`.
+The primary host continues routing `/v1`, `/docs`, `/redoc`, and
+`/openapi.json` to `api`, and all other requests to `web`.
 
-## Последствия
+## Consequences
 
-- В dev compose появляется третий опубликованный порт: `8011` для
-  пользовательской документации. Это dev-исключение наравне с прямыми `web` и
-  `api` портами.
-- В prod compose появляется внутренний service `docs`; публично он доступен
-  только через Caddy host `AI_STP_DOCS_HOST`.
-- Для staging/prod нужно задавать согласованную пару:
-  `AI_STP_DOCS_HOST=docs.example.com` и
+- Dev compose gains a third published port: `8011` for user documentation. This
+  is a dev exception alongside the direct `web` and `api` ports.
+- Prod compose gains an internal `docs` service; publicly it is accessible only
+  through the Caddy host `AI_STP_DOCS_HOST`.
+- Staging/prod must define the matching pair:
+  `AI_STP_DOCS_HOST=docs.example.com` and
   `AI_STP_USER_DOCS_URL=https://docs.example.com`.
-- API docs route `/docs` сохраняется и не используется для пользовательской
-  документации.
+- The API docs route `/docs` remains and is not used for user documentation.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается, если Caddy перестанет быть public edge, если
-пользовательская документация потребует server-side runtime, либо если API docs
-переедут с `/docs` и появится проверяемая возможность безопасно занять этот
-path help center.
+The decision is reconsidered if Caddy ceases to be the public edge, if user
+documentation requires a server-side runtime, or if the API docs move away
+from `/docs` and a verifiable opportunity arises to safely occupy that path
+with the help center.

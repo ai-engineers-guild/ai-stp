@@ -1,62 +1,63 @@
 ---
-description: "ADR-0095: Разделить public cacheable и private request-scoped web fetch policy."
-last_verified: "2026-08-31"
+description: "ADR-0095: Split public cacheable and private request-scoped web fetch policy."
+last_verified: "2026-08-15"
 ---
 
 # ADR-0095: Split public and private web fetch policy
 
-Статус: принято. Реализовано отдельными public/private HTTP clients и cache tests.
+Status: proposed.
 
-## Контекст
+## Context
 
-Locale layout принудительно делает всё дерево dynamic. Одновременно общий
-`apiRequest` читает `cookies()` и ставит `cache: "no-store"` даже для анонимного
-каталога. Это не позволяет Next.js безопасно кэшировать публичные RSC reads,
-создаёт лишнюю server work на navigation и смешивает две разные trust boundaries.
-Catalog page дополнительно содержит последовательные независимые загрузки, а
-явный prefetch запускает дорогие RSC routes до намерения пользователя.
+The locale layout forces the entire tree to be dynamic. At the same time, the
+shared `apiRequest` reads `cookies()` and sets `cache: "no-store"` even for the
+anonymous catalog. This prevents Next.js from safely caching public RSC reads,
+creates unnecessary server work during navigation, and mixes two distinct trust
+boundaries. The catalog page also performs independent loads sequentially, while
+explicit prefetch starts expensive RSC routes before the user expresses intent.
 
-## Варианты
+## Options
 
-1. Оставить единый helper и добавить флаг `public/cache`. Изменение компактно,
-   но default легко выбрать неверно, а credential-bearing options остаются рядом
-   с shared cache и делают ошибку приватности слишком дешёвой.
-2. Кэшировать весь locale tree. Это даёт высокий hit rate, но несовместимо с
-   request-dependent projection и private routes.
-3. Разделить типизированные точки входа и кэшировать только подтверждённые публичные GET-вызовы,
-   оставив dynamic state в минимальных boundaries. Больше явного кода, зато
-   cacheability и credential boundary становятся проверяемыми.
+1. Keep one helper and add a `public/cache` flag. The change is compact, but the
+   default is easy to choose incorrectly, while credential-bearing options stay
+   next to the shared cache and make a privacy mistake too easy.
+2. Cache the entire locale tree. This provides a high hit rate but is
+   incompatible with request-dependent projection and private routes.
+3. Split typed entry points and cache only confirmed public GET calls, leaving
+   dynamic state in minimal boundaries. This adds explicit code, but makes
+   cacheability and the credential boundary verifiable.
 
-## Решение
+## Decision
 
-Выбран вариант 3.
+Option 3 is selected.
 
-- Ввести отдельный public GET helper без доступа к cookies/session и отдельный
-  private request helper с `no-store`.
-- Public helper использует одну короткую именованную `revalidate` policy только
-  для подтверждённых anonymous catalog/public-profile callers. Не применять
-  cache к private, mutation, binary и operation-meta paths.
-- Удалить общий `force-dynamic`; projection/canonical request state оставить в
-  минимальной динамической границе, не заражающей caching policy data pages.
-- Параллелить независимые catalog reads; fan-out publisher profiles ограничить
-  уникальными IDs и контролируемым параллелизмом/дедупликацией.
-- Не форсировать prefetch тяжёлых, приватных и высококардинальных routes. Явный
-  prefetch разрешён только для небольшого стабильного navigation allowlist.
+- Introduce a separate public GET helper without cookies/session access and a
+  separate private request helper with `no-store`.
+- The public helper uses one short named `revalidate` policy only for confirmed
+  anonymous catalog/public-profile callers. Do not apply the cache to private,
+  mutation, binary, or operation-meta paths.
+- Remove the shared `force-dynamic`; keep projection/canonical request state in
+  the smallest dynamic boundary so it does not contaminate data-page caching
+  policy.
+- Parallelize independent catalog reads; constrain publisher-profile fan-out to
+  unique IDs and controlled concurrency/deduplication.
+- Do not force prefetch for heavy, private, or high-cardinality routes. Explicit
+  prefetch is allowed only for a small stable navigation allowlist.
 
-## Последствия
+## Consequences
 
-Публичный каталог может быть устаревшим не дольше принятого короткого TTL;
-`revalidatePath` после public mutations остаётся ускоренным convergence path.
-Private UI остаётся request-scoped. Новые public endpoints должны явно пройти
-проверку приватности перед использованием public helper. Тесты обязаны фиксировать
-список разрешённых путей, TTL, отсутствие учётных данных, параллелизм и вывод гидратации.
+The public catalog may be stale for no longer than the accepted short TTL;
+`revalidatePath` after public mutations remains an accelerated convergence path.
+Private UI remains request-scoped. New public endpoints must explicitly pass a
+privacy review before using the public helper. Tests must pin the allowed-path
+list, TTL, absence of credentials, concurrency, and hydration output.
 
-Миграция данных не требуется. Rollback состоит в возврате public callers на
-private/no-store helper и dynamic override; wire contracts не меняются.
+No data migration is required. Rollback consists of returning public callers to
+the private/no-store helper and dynamic override; wire contracts do not change.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается, если API добавит персонализированный catalog response,
-Next.js изменит cache/dynamic semantics используемой runtime baseline, появится
-tag-based invalidation contract либо измерения покажут, что выбранный TTL нарушает
-product freshness SLO.
+The decision is reconsidered if the API adds a personalized catalog response,
+Next.js changes the cache/dynamic semantics of the runtime baseline in use, a
+tag-based invalidation contract appears, or measurements show that the selected
+TTL violates the product freshness SLO.

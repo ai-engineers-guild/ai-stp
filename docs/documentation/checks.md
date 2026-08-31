@@ -1,21 +1,21 @@
 ---
-description: "Автоматические проверки документации и рабочих пакетов."
+description: "Automated checks for documentation and work packages."
 last_verified: "2026-08-03"
 ---
 
-# Проверки документации
+# Documentation Checks
 
-Проверяются:
+The checks cover:
 
-- корректный frontmatter;
-- отсутствие незаполненных placeholders;
-- ссылки и anchors;
-- полнота и паритет индексов;
-- синтаксис Markdown/YAML/Mermaid;
-- русский язык вне кода и идентификаторов;
-- отсутствие task-state в `docs/`;
-- обязательные разделы active specs, уникальность требований и связь с acceptance oracle;
-- unit tests самих валидаторов;
-- строгая сборка MkDocs.
+- valid frontmatter;
+- absence of unfilled placeholders;
+- links and anchors;
+- index completeness and parity;
+- Markdown/YAML/Mermaid syntax;
+- English prose outside code and identifiers;
+- absence of task state in `docs/`;
+- required sections in active specs, requirement uniqueness, and linkage to an acceptance oracle;
+- unit tests for the validators themselves;
+- strict MkDocs build.
 
-Проверка не исправляется отключением правила. Допустимы исправление источника, исправление воспроизводимо ошибочного валидатора или временный tech-debt с владельцем и наблюдаемым условием погашения.
+A failing check is not fixed by disabling the rule. Valid remedies are fixing the source, fixing a reproducibly incorrect validator, or recording temporary technical debt with an owner and an observable retirement condition.

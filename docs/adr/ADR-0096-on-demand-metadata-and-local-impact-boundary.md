@@ -1,67 +1,74 @@
 ---
-description: "ADR-0096: On-demand GitHub metadata, локальный blast radius и shared context estimator."
-last_verified: "2026-08-31"
+description: "ADR-0096: On-demand GitHub metadata, local blast radius, and shared context estimator."
+last_verified: "2026-08-15"
 ---
 
 # ADR-0096: On-demand metadata and local impact boundary
 
-Статус: принято. Реализованы on-demand metadata, совместимость старой archive job и общий estimator.
+Status: proposed. Partially supersedes `ADR-0094` for the GitHub archive
+read-model and account blast-radius delivery.
 
-## Контекст
+## Context
 
-`ADR-0094` ввёл server-owned archive history и account blast radius для Web.
-Реализация оказалась шире нужного продукта: archive panel виден при active/
-unavailable repository, worker постоянно поддерживает производный cache, а Web
-показывает все active devices аккаунта без доказанной связи с installation.
-Одновременно CLI уже владеет точным local blast radius и context/cost report.
-Локальный SaaS standalone image был ошибочно подставлен вместо dev runtime и
-потерял dev-only `/v1` rewrite, хотя media bytes остались доступны в API.
+`ADR-0094` introduced server-owned archive history and account blast radius for
+Web. The implementation proved broader than the product needed: the archive
+panel is visible for an active/unavailable repository, the worker continuously
+maintains a derived cache, and Web shows all active devices in the account
+without a proven relationship to the installation. At the same time, the CLI
+already owns the exact local blast radius and context/cost report. The local
+SaaS standalone image was mistakenly substituted for the dev runtime and lost
+the dev-only `/v1` rewrite, even though media bytes remained available through
+the API.
 
-## Варианты
+## Options
 
-1. Доработать periodic archive и account blast модели. Сохраняет текущий код,
-   но поддерживает ненужные jobs/storage и не исправляет ownership boundary.
-2. Перенести GitHub вызов прямо в browser и оставить server impact. Меньше кода,
-   но произвольный external fetch/CORS/rate-limit оказываются на клиенте.
-3. Читать ограниченную server metadata по exact coordinate по запросу, вернуть
-   blast radius в границу только CLI и вынести общий чистый context estimator
-   для честной public setup projection.
+1. Extend the periodic archive and account blast models. This preserves the
+   current code but maintains unnecessary jobs/storage and does not correct the
+   ownership boundary.
+2. Move the GitHub call directly into the browser and retain server impact.
+   This is less code, but places arbitrary external fetch/CORS/rate limits on
+   the client.
+3. Read limited server metadata for an exact coordinate on demand, return blast
+   radius to the CLI-only boundary, and extract a shared pure context estimator
+   for an honest public setup projection.
 
-## Решение
+## Decision
 
-Выбран вариант 3.
+Option 3 is selected.
 
-- GitHub stars/archive читаются одним best-effort request при открытии detail;
-  source разрешается сервером из exact passport. UI показывает только stars и
-  условный `Archived` badge рядом с GitHub link.
-- Periodic archive observation/history и отдельный evidence panel прекращаются.
-- Blast radius остаётся исключительно локальным CLI report. Server/Web surfaces
-  удаляются; Web не перечисляет devices, projects или installations.
-- Детерминированный context estimator становится shared domain implementation
-  для CLI и server. Web получает только абсолютный budget видимой exact setup;
-  local baseline/delta остаётся CLI.
-- Cost в Web считается client-only из явно введённой ставки и не называется
-  actual usage.
-- Локальная среда использует dev compose/Next rewrite без Caddy. Production path
-  split остаётся обязанностью Caddy и этим решением не меняется.
+- GitHub stars/archive are read with one best-effort request when detail is
+  opened; the server resolves the source from the exact passport. The UI shows
+  only stars and a conditional `Archived` badge next to the GitHub link.
+- Periodic archive observation/history and the separate evidence panel are
+  discontinued.
+- Blast radius remains exclusively in the local CLI report. Server/Web surfaces
+  are removed; Web does not enumerate devices, projects, or installations.
+- The deterministic context estimator becomes a shared domain implementation
+  for the CLI and server. Web receives only the absolute budget of the visible
+  exact setup; the local baseline/delta remains in the CLI.
+- Cost in Web is calculated client-side only from an explicitly entered rate
+  and is not called actual usage.
+- The local environment uses dev compose/Next rewrite without Caddy. The
+  production path split remains Caddy's responsibility and is not changed by
+  this decision.
 
-## Последствия
+## Consequences
 
-Удаляются лишние задания, хранилища и поверхности API и интерфейса, но нужен
-путь совместимости для уже поставленных в очередь заданий архива и прямой
-миграции только производных таблиц. Метаданные GitHub
-могут отсутствовать из-за ограничения частоты или сбоя транспорта и при этом
-не ломают карточку. Карточка создаёт один внешний запрос, список каталога —
-ни одного. Общий estimator требует переноса реальной логики, а не третьей
-копии. Оценка в Web воспроизводима для видимых серверу артефактов, но
-намеренно не знает локальную установленную основу.
+Unnecessary jobs, storage, and API and interface surfaces are removed, but a
+compatibility path is required for archive jobs already queued and a direct
+migration only for derived tables. GitHub metadata may be absent because of a
+rate limit or transport failure without breaking the card. The card makes one
+external request; the catalog list makes none. The shared estimator requires
+moving the actual logic, not creating a third copy. The Web estimate is
+reproducible for artifacts visible to the server but intentionally does not
+know the local installed baseline.
 
-`ADR-0094` заменён этим решением в частях GitHub archive read model и account
-blast-radius delivery. Его canonical copy/deep-link и другие consumer решения
-продолжают действовать.
+`ADR-0094` is superseded by this decision for the GitHub archive read model and
+account blast-radius delivery. Its canonical copy/deep-link and other consumer
+decisions remain in force.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается при появлении доказанного server-owned installation
-graph, обязательного GitHub SLA/credentialed quota, actual model usage telemetry
-или безопасного local-agent bridge с отдельным контрактом согласия пользователя.
+Reconsider this decision when there is a proven server-owned installation
+graph, a mandatory GitHub SLA/credentialed quota, actual model usage telemetry,
+or a safe local-agent bridge with a separate user-consent contract.

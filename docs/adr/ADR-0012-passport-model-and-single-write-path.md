@@ -1,60 +1,60 @@
 ---
-description: "Решение сделать паспорт единственным описанием объекта и оставить один путь записи в харнесс."
+description: "Decision to make the passport the sole description of an object and retain a single write path into a harness."
 last_verified: "2026-08-04"
 ---
 
-# ADR-0012: Паспорт как единственное описание и один путь записи
+# ADR-0012: Passport as the sole description and a single write path
 
-Статус: принято.
-Уточнено `ADR-0021`: происхождение факта и его подтверждение разведены на две оси.
+Status: accepted.
+Refined by `ADR-0021`: fact origin and confirmation are separated into two axes.
 
-## Контекст
+## Context
 
-Продуктовая цель — чтобы агент легко понимал и определял любой объект: разработчика, проект, компонент и сетап. Это требует машиночитаемого описания у каждого из них.
+The product goal is for an agent to easily understand and identify any object: a developer, project, component, or setup. This requires each of them to have a machine-readable description.
 
-Сложились две проблемы. Во-первых, компонент и сетап описывались дважды: паспортом и манифестом версии, с пересекающимися полями и без правила, кто из них главный. Во-вторых, модель происхождения факта выросла до пяти источников, отдельной сущности доказательства, массива ссылок и графа ревизий на каждый паспорт — для локального знания об окружении это дороже приносимой пользы.
+Two problems emerged. First, a component and a setup were each described twice: by a passport and by a version manifest, with overlapping fields and no rule establishing which one was authoritative. Second, the fact-origin model grew to five sources, a separate evidence entity, an array of references, and a revision graph for every passport—more costly than beneficial for local knowledge about an environment.
 
-Одновременно безопасный путь записи определён только для `HarnessBundle`, который обязан ссылаться на `SetupVersion`. Поэтому сценарий «поставь мне один MCP» не имеет нормативной семантики, и каждая часть системы может истолковать его по-своему.
+At the same time, a safe write path is defined only for `HarnessBundle`, which must reference a `SetupVersion`. Therefore, the “install one MCP for me” scenario has no normative semantics, and each part of the system may interpret it differently.
 
-Наконец, перечень видов компонентов открыт и в разных документах различается, что гарантирует расхождение между CLI, реестром, сборщиком и провайдерами.
+Finally, the list of component kinds is open and differs across documents, guaranteeing divergence among the CLI, registry, setup compiler, and providers.
 
-## Варианты
+## Options
 
-1. Убрать паспорта у компонентов и сетапов, оставив только манифесты. Снимает дублирование, но лишает агента единой точки понимания объекта и противоречит продуктовой цели.
-2. Оставить обе сущности и описать их разграничение. Дублирование сохраняется, а разграничение придётся поддерживать в каждом изменении.
-3. Объединить их: паспорт становится единственным описанием объекта и включает поля идентичности неизменяемой версии.
-4. Добавить второй контракт провайдера для установки одиночного компонента мимо сетапа. Удваивает поверхность безопасности ради удобства.
+1. Remove passports from components and setups, retaining only manifests. This eliminates duplication but deprives the agent of a single point for understanding an object and contradicts the product goal.
+2. Retain both entities and define their boundaries. Duplication remains, and the boundary must be maintained with every change.
+3. Combine them: the passport becomes the sole description of an object and includes the identity fields of an immutable version.
+4. Add a second provider contract for installing a single component outside a setup. This doubles the security surface for convenience.
 
-## Решение
+## Decision
 
-Принимается вариант 3 для описания и единственный путь записи для установки.
+Option 3 is accepted for description, together with a single write path for installation.
 
-**Паспорт — единственное описание объекта.** Паспорта имеют разработчик, проект, компонент и сетап. Для компонента и сетапа паспорт неизменяемой версии включает поля идентичности: точный источник, хэш артефакта, зависимости, конфликты, управляемые пути, полномочия, лицензию и ссылки на доказательства. Отдельной сущности «манифест версии» не существует.
+**The passport is the sole description of an object.** Developers, projects, components, and setups have passports. For a component and a setup, the immutable-version passport includes identity fields: the exact source, artifact hash, dependencies, conflicts, managed paths, permissions, license, and evidence references. There is no separate “version manifest” entity.
 
-**Происхождение факта упрощается.** Факт хранит значение, источник, ссылку на источник и время наблюдения. Источник `inferred` удаляется как неразличимый на практике. Отдельная сущность доказательства и массив `evidence_refs` в паспорте не используются.
+**Fact origin is simplified.** A fact stores a value, source, source reference, and observation time. The `inferred` source is removed because it is indistinguishable in practice. A separate evidence entity and the `evidence_refs` array in the passport are not used.
 
-Перечень источников этой записи уточнён в `ADR-0021-fact-origin-and-confirmation.md`: `confirmed` оказалось не источником, поэтому происхождение и подтверждение разведены на две независимые оси. Остальные решения этой записи сохраняют силу.
+The list of sources in this record is refined in `ADR-0021-fact-origin-and-confirmation.md`: `confirmed` proved not to be a source, so origin and confirmation are separated into two independent axes. The other decisions in this record remain in force.
 
-Точный хэш, развёрнутые отчёты проверок и подписанные подтверждения остаются обязательными для версии компонента, версии сетапа, пакета, отчёта проверки и плана установки. Упрощение касается только локального знания об окружении, а не доказательств целостности.
+An exact hash, detailed verification reports, and signed attestations remain mandatory for a component version, setup version, bundle, verification report, and installation plan. The simplification concerns only local knowledge about an environment, not integrity evidence.
 
-**Перечень видов компонентов закрывается.** Значения и правило отнесения принадлежат `contracts/component-setup-passports.md`; изменение перечня требует нового ADR. Первым таким изменением стало `ADR-0015-marketplace-as-provider-projection.md`, убравшее `marketplace` из таксономии.
+**The list of component kinds is closed.** The values and classification rule belong to `contracts/component-setup-passports.md`; changing the list requires a new ADR. The first such change was `ADR-0015-marketplace-as-provider-projection.md`, which removed `marketplace` from the taxonomy.
 
-**Зависимости компонента разделяются** на `requires_components` — точные ссылки на версии компонентов — и `requires_capabilities` — требования к окружению и проекту из закрытого словаря.
+**Component dependencies are divided** into `requires_components`—exact references to component versions—and `requires_capabilities`—environment and project requirements from a closed vocabulary.
 
-**Единственный путь записи.** Любое изменение цели харнесса материализуется в версию сетапа, затем в пакет, затем в план и применение провайдером. Установка компонента мимо сетапа не поддерживается: команда добавления выбирает существующий сетап или явно создаёт личный, добавляет точную версию компонента в граф, выполняет проверки конфликтов, полномочий и преобразования, создаёт новую версию сетапа и показывает план до применения.
+**Single write path.** Every change to a harness target materializes into a setup version, then into a bundle, then into a plan and provider application. Installing a component outside a setup is unsupported: the add command selects an existing setup or explicitly creates a personal one, adds the exact component version to the graph, performs conflict, permission, and transformation checks, creates a new setup version, and shows the plan before application.
 
-**Подтверждения остаются в пакете.** Каталог `attestations/` сохраняется: на нём стоит разделение источников доказательств по `ADR-0007`.
+**Attestations remain in the bundle.** The `attestations/` directory is retained: the separation of evidence sources under `ADR-0007` depends on it.
 
-## Последствия
+## Consequences
 
-- `contracts/passport-envelope.md` описывает конверт для четырёх видов паспортов, а не только для изменяемых локальных;
-- описание паспортов версий переезжает в `docs/contracts/component-setup-passports.md`; отдельного документа о манифестах не остаётся, потому что отдельной сущности манифеста версии не существует;
-- из структуры пакета уходит отдельный `setup-passport.json` только в случае, если паспорт версии передаётся внутри `bundle.json`; иначе имя файла сохраняется;
-- схема получает закрытые перечисления вида компонента и словаря возможностей, а также контрактный тест на их полноту;
-- машинная справка CLI объявляет действия чтения, черновика, добавления, удаления, обновления и установки компонента с указанием, что каждое из них проходит через версию сетапа;
-- существующая нативная конфигурация без зарегистрированного сетапа сначала оформляется в личный сетап, и это отдельный явный шаг;
-- `SPEC-003`, `SPEC-005`, `SPEC-006`, `SPEC-008` и `SPEC-011` приводятся к этой модели вместе с контрактами и пользовательскими путями.
+- `contracts/passport-envelope.md` describes the envelope for four passport kinds, not only for mutable local passports;
+- the description of version passports moves to `docs/contracts/component-setup-passports.md`; no separate document about manifests remains because there is no separate version-manifest entity;
+- a separate `setup-passport.json` is removed from the bundle structure only if the version passport is transmitted inside `bundle.json`; otherwise, the filename is retained;
+- the schema gains closed enumerations for component kinds and the capability vocabulary, as well as a contract test for their completeness;
+- the machine-readable CLI help declares actions for reading, drafting, adding, removing, updating, and installing a component, indicating that each passes through a setup version;
+- an existing native configuration without a registered setup is first formalized as a personal setup, and this is a separate explicit step;
+- `SPEC-003`, `SPEC-005`, `SPEC-006`, `SPEC-008`, and `SPEC-011` are aligned with this model together with the contracts and user flows.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается, если появится доказанный сценарий, где материализация в сетап делает установку невозможной или небезопасной, либо если закрытый перечень видов компонентов начнёт систематически не покрывать нативные поверхности поддерживаемых харнессов.
+The decision shall be reconsidered if a proven scenario emerges in which materialization into a setup makes installation impossible or unsafe, or if the closed list of component kinds systematically fails to cover the native surfaces of supported harnesses.

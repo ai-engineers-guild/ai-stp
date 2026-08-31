@@ -1,249 +1,259 @@
 ---
-description: "SPEC-027: Веб собственных объектов, публикации, прав, жалоб и минимальной модерации."
+description: "SPEC-027: Web UI for owned objects, publication, rights, reports, and minimal moderation."
 last_verified: "2026-08-08"
 ---
 
-# SPEC-027: Веб собственных объектов, публикации, прав, жалоб и модерации
+# SPEC-027: Web UI for owned objects, publication, rights, reports, and moderation
 
-## Цель
+## Purpose
 
-`apps/web` даёт владельцу аккаунта безопасную авторизованную поверхность для
-просмотра синхронизированных собственных объектов и их версий, подтверждения
-серверного плана публикации, управления приглашениями и правами, создания и
-отслеживания собственных жалоб, а platform staff — для минимального триажа и
-аудируемых действий. Веб показывает серверную истину и вызывает единые сценарии
-`/v1`; он не создаёт паспорт, не индексирует проект, не собирает сетап, не
-исполняет проверку и не устанавливает объект.
+`apps/web` gives an account owner a safe authenticated surface for viewing
+synchronized owned objects and their versions, confirming a server publication
+plan, managing invitations and rights, and creating and tracking their own
+reports; it gives platform staff a surface for minimal triage and audited
+actions. Web displays server truth and invokes shared `/v1` scenarios; it does
+not create a passport, index a project, compile a setup, run a check, or install
+an object.
 
-Серверные правила публикации, grants, жалоб и staff принадлежат `SPEC-002`,
-`SPEC-007`, `SPEC-016`, `SPEC-026` и их контрактам. Эта спецификация владеет
-поведением веб-клиента и требованиями `REQ-27xx`.
+Server rules for publication, grants, reports, and staff belong to `SPEC-002`,
+`SPEC-007`, `SPEC-016`, `SPEC-026`, and their contracts. This specification owns
+web-client behavior and the `REQ-27xx` requirements.
 
-## Границы
+## Scope
 
-Входят: защищённые страницы собственных объектов и точных версий; отображение
-состояния publication plan и подтверждение точного плана; owned invitations и
-grants, их создание, принятие и отзыв; создание жалобы с предпросмотром и список
-собственных случаев; минимальный staff worklist, триаж, lifecycle-действия и
-выдача или отзыв `author_verified`; двуязычие, доступность, обработка типизированных
-ошибок, защита приватных данных и отображение идентификаторов операций.
+Included are protected pages for owned objects and exact versions; display of
+publication-plan state and confirmation of the exact plan; owned invitations
+and grants, including creation, acceptance, and revocation; report creation with
+preview and a list of the user's own cases; a minimal staff worklist, triage,
+lifecycle actions, and granting or revoking `author_verified`; bilingual UI,
+accessibility, typed-error handling, protection of private data, and display of
+operation identifiers.
 
-Не входят: браузерное создание или изменение паспортов, загрузка произвольных
-артефактов, индексирование, подбор, сборка, проверки, установка, форк, синхронизация
-как клиентский процесс, полный RBAC, организации, платежи, публичные обсуждения,
-автоматическая блокировка по числу жалоб, удалённое отключение target, редактор
-сетапов, отдельный BFF и ручные DTO. Веб не показывает полный паспорт устройства,
-секреты, raw token приглашения, сырые attestations, закрытые байты или личность
-репортёра за пределами разрешённой staff-поверхности.
+Excluded are browser creation or modification of passports, arbitrary artifact
+uploads, indexing, matching, compilation, checks, installation, forking,
+synchronization as a client process, full RBAC, organizations, payments, public
+discussion, automatic blocking based on report count, remote disabling of a
+target, a setup editor, a separate BFF, and handwritten DTOs. Web does not show
+a full device passport, secrets, a raw invitation token, raw attestations,
+private bytes, or the reporter's identity outside the authorized staff surface.
 
-Точные поля, параметры, маршруты и коды ответов принадлежат `packages/contracts`
-и сгенерированному `schemas/v1/openapi.json`; смысл заголовков, cursor,
-идемпотентности и конкуренции — `docs/contracts/http-api.md`. Дополнительные
-авторизованные owner/staff read-модели, нужные этой поверхности, сначала вводятся
-аддитивно в контракт и API, затем клиент генерируется заново. Веб не получает их,
-собирая приватное состояние из `sync`-событий, публичного каталога или client store.
+Exact fields, parameters, routes, and response codes belong to
+`packages/contracts` and generated `schemas/v1/openapi.json`; header, cursor,
+idempotency, and concurrency semantics belong to `docs/contracts/http-api.md`.
+Additional authenticated owner/staff read models required by this surface are
+first introduced additively in the contract and API, after which the client is
+regenerated. Web does not obtain them by assembling private state from `sync`
+events, the public catalog, or a client store.
 
-## Термины
+## Terms
 
-- **Owner workspace** — авторизованная веб-поверхность текущего аккаунта, а не
-  публичная проекция каталога.
-- **Owner read model** — ограниченная server-side проекция собственных объектов,
-  версий и их доступных действий; она не является паспортом и не даёт записи в
-  объект.
-- **Publication review** — показ неизменяемого `PublicationPlan`, его digest,
-  effects, evidence, срока и состояния до отдельного подтверждения.
-- **Grant inbox** — список invitations и grants, доступных текущему аккаунту по
-  серверной авторизации; он не раскрывает существование других аккаунтов.
-- **Staff worklist** — минимальная разрешённая проекция ожидающих cases и их
-  контекста для account из server-side allowlist; это не клиентская роль.
+- **Owner workspace** — the authenticated web surface for the current account,
+  not the public catalog projection.
+- **Owner read model** — a bounded server-side projection of owned objects,
+  versions, and their available actions; it is not a passport and does not grant
+  write access to an object.
+- **Publication review** — display of an immutable `PublicationPlan`, its digest,
+  effects, evidence, expiry, and state before separate confirmation.
+- **Grant inbox** — the list of invitations and grants available to the current
+  account under server authorization; it does not disclose the existence of
+  other accounts.
+- **Staff worklist** — the minimal authorized projection of pending cases and
+  their context for an account in the server-side allowlist; it is not a client
+  role.
 
-## Требования
+## Requirements
 
-### Доступ и чтение собственных объектов
+### Access and reading owned objects
 
-- `REQ-2701`: Каждый маршрут owner workspace и staff worklist читает серверную
-  сессию до рендеринга. Неаутентифицированный пользователь перенаправляется без
-  включения закрытых данных в HTML, RSC payload или клиентский bundle; клиентское
-  состояние не является доказательством полномочия.
-- `REQ-2702`: Owner workspace показывает только server-authorized owner read model
-  текущего account: собственные private/public drafts, объекты и точные версии;
-  полученный grant не превращает пользователя во владельца и не даёт запись в
-  оригинал. Пагинация и порядок следуют непрозрачному cursor API.
-- `REQ-2703`: Карточка собственной точной версии показывает доступные серверные
-  факты о lifecycle, точном digest, публикации, двух независимых осях
-  `author_verified` / `component_verified`, пригодности к новым установкам и
-  evidence. Она различает platform execution и `author_attested`, не называет
-  warning успехом и не выводит безопасность из author verification.
-- `REQ-2704`: При отсутствии, сокрытии, отзыве права или недостатке полномочия веб
-  показывает единый безопасный результат `not found` / permission denied,
-  определённый API, без существования чужого private object, случая или staff
-  worklist. Он не подменяет отказ данными из старого client cache.
+- `REQ-2701`: Every owner-workspace and staff-worklist route reads the server
+  session before rendering. An unauthenticated user is redirected without
+  including private data in HTML, the RSC payload, or the client bundle; client
+  state is not proof of authority.
+- `REQ-2702`: The owner workspace displays only the server-authorized owner read
+  model for the current account: its own private/public drafts, objects, and
+  exact versions. Receiving a grant does not make a user the owner or permit
+  writing to the original. Pagination and ordering follow the opaque cursor API.
+- `REQ-2703`: The card for an owned exact version displays available server facts
+  about lifecycle, exact digest, publication, the two independent
+  `author_verified` / `component_verified` axes, eligibility for new
+  installations, and evidence. It distinguishes platform execution from
+  `author_attested`, does not call a warning success, and does not infer safety
+  from author verification.
+- `REQ-2704`: For absence, hiding, grant revocation, or insufficient authority,
+  web displays the single safe `not found` / permission denied result defined by
+  the API, without disclosing the existence of another user's private object,
+  case, or staff worklist. It does not replace the denial with data from an old
+  client cache.
 
-### Публикация и её состояние
+### Publication and its state
 
-- `REQ-2705`: Начать publication review можно только для точной server-authorized
-  версии, подготовленной CLI и доступной owner read model. Веб передаёт в единый
-  publication scenario только контрактный intent и не формирует, не исправляет и
-  не подписывает паспорт, digest, evidence или attestation.
-- `REQ-2706`: Перед confirm веб показывает `plan_hash`, точные object/version/digest,
-  policy version, effects, срок действия, состояние и доступные evidence
-  `PublicationPlan`. Подтверждение требует явного действия пользователя; скрытая
-  отправка при переходе страницы, повторном рендеринге или автоматическом retry
-  запрещена.
-- `REQ-2707`: Confirm отправляет новый idempotency key для одного логического
-  пользовательского действия и повторяет его только после неопределённого
-  транспортного результата. Веб показывает server-returned `operation_id` там, где
-  он выдан, но не генерирует и не имитирует успешный результат.
-- `REQ-2708`: После confirm публикация остаётся в наблюдаемом серверном состоянии.
-  Веб перечитывает plan через ограниченное ожидание или явное обновление и честно
-  показывает `validating`, `publish_planned`, `published`, `failed`, `stale`,
-  истечение и отмену. Клиент не объявляет published до server response и не
-  запускает validation/publish job сам.
-- `REQ-2709`: `stale`, истёкший plan, изменённый digest, недействительное evidence
-  и конфликт идемпотентности требуют нового либо перечитанного server plan. Веб
-  сохраняет безопасный контекст выбора для повторного просмотра, но не переносит
-  прежнее согласие на другой `plan_hash`.
-- `REQ-2710`: Веб явно объясняет последствия lifecycle и evidence: потеря
-  install eligibility блокирует только новые установки и обновления, а не удалённо
-  отключает установленный target. Только server action staff может изменить
-  `blocked` / `hidden` / restore; кнопка публикации не является таким действием.
-- `REQ-2711`: Публичная и owner-карточки используют один порождённый типизированный
-  клиент и server read models. Страница не добавляет отдельную политику видимости,
-  доверия или расчёта пригодности и не читает ключ object store.
+- `REQ-2705`: Publication review may begin only for an exact server-authorized
+  version prepared by the CLI and available through the owner read model. Web
+  sends only the contractual intent to the shared publication scenario and does
+  not create, repair, or sign a passport, digest, evidence, or attestation.
+- `REQ-2706`: Before confirm, web displays the `PublicationPlan`'s `plan_hash`,
+  exact object/version/digest, policy version, effects, expiry, state, and
+  available evidence. Confirmation requires an explicit user action; hidden
+  submission during navigation, re-rendering, or automatic retry is prohibited.
+- `REQ-2707`: Confirm sends a new idempotency key for one logical user action and
+  reuses it only after an indeterminate transport result. Web displays the
+  server-returned `operation_id` where provided but does not generate or
+  simulate a successful result.
+- `REQ-2708`: After confirm, publication remains in observable server state. Web
+  rereads the plan through bounded waiting or explicit refresh and accurately
+  displays `validating`, `publish_planned`, `published`, `failed`, `stale`,
+  expiry, and cancellation. The client does not declare published before the
+  server response or start a validation/publish job itself.
+- `REQ-2709`: A `stale` or expired plan, changed digest, invalid evidence, or
+  idempotency conflict requires a new or reread server plan. Web retains safe
+  selection context for another review but does not carry prior consent to a
+  different `plan_hash`.
+- `REQ-2710`: Web clearly explains lifecycle and evidence consequences: loss of
+  install eligibility blocks only new installations and updates and does not
+  remotely disable an installed target. Only a server-side staff action may
+  change `blocked` / `hidden` / restore; the publication button is not such an
+  action.
+- `REQ-2711`: Public and owner cards use one generated typed client and server
+  read models. A page does not add separate visibility, trust, or eligibility
+  policy and does not read an object-store key.
 
-### Приглашения и права
+### Invitations and rights
 
-- `REQ-2712`: Owner видит свои invitations и grants в server-authorized списке с
-  объектом, major-линией, состоянием и допустимыми действиями. Создание invitation
-  использует нормализованный email только как ввод API; одинаковый успех для
-  зарегистрированного и незарегистрированного адреса не дополняется вебом
-  диагностикой, подсказкой или различающим timing.
-- `REQ-2713`: Создание, отзыв invitation и отзыв grant требуют явного подтверждения,
-  reason только в разрешённой форме и idempotency key. Перед отзывом веб сообщает,
-  что уже полученные байты, локальные форки и установленные targets не удаляются;
-  после успеха он обновляет view серверным ответом, а не оптимистичной догадкой.
-- `REQ-2714`: Принятие invitation доступно только авторизованному получателю.
-  `Raw token` живёт кратко в памяти страницы и передаётся только в защищённом POST
-  к общему API; он не помещается в путь, параметры запроса, серверный HTML,
-  `referrer`, журналы, аналитику, уведомления, `audit payload`, хранилище браузера
-  или историю. До `accept` invitation не показывается как grant и не открывает object.
-- `REQ-2715`: Web UI не позволяет получателю изменять original object, выдавать
-  право третьему лицу или считать grant доступом к следующей major-линии. Принятие,
-  истечение, отзыв, неподтверждённый email и чужой token показываются только через
-  типизированный безопасный ответ API.
+- `REQ-2712`: An owner sees their invitations and grants in a server-authorized
+  list with the object, major line, state, and permitted actions. Invitation
+  creation uses a normalized email only as API input; the web UI does not add
+  diagnostics, hints, or distinguishing timing to the identical success for a
+  registered and unregistered address.
+- `REQ-2713`: Creating and revoking an invitation and revoking a grant require
+  explicit confirmation, a reason only in the permitted form, and an
+  idempotency key. Before revocation, web states that bytes already obtained,
+  local forks, and installed targets are not deleted; after success it updates
+  the view from the server response, not an optimistic guess.
+- `REQ-2714`: Invitation acceptance is available only to the authenticated
+  recipient. The `Raw token` lives briefly in page memory and is sent only in a
+  protected POST to the shared API; it is not placed in the path, query
+  parameters, server HTML, `referrer`, logs, analytics, notifications,
+  `audit payload`, browser storage, or history. Before `accept`, the invitation
+  is not displayed as a grant and does not open the object.
+- `REQ-2715`: The Web UI does not allow the recipient to modify the original
+  object, grant a right to a third party, or treat a grant as access to the next
+  major line. Acceptance, expiry, revocation, an unverified email, and a foreign
+  token are displayed only through a typed safe API response.
 
-### Жалобы и минимальная модерация
+### Reports and minimal moderation
 
-- `REQ-2716`: Жалоба из public или owner version page создаёт тот же `ReportCase`
-  scenario, что и CLI. Точная object/version/digest берутся из показанной server
-  версии; веб не принимает произвольный object id как доказательство доступа и не
-  создаёт public GitHub issue.
-- `REQ-2717`: Если пользователь добавляет diagnostics, форма ограничивает их
-  контрактным размером, очищает доступные пути до относительных, показывает полный
-  отправляемый preview и требует отдельное согласие после preview. Секреты,
-  `.env`, исходный код, закрытые bytes, OAuth/session/invitation tokens и полные
-  домашние пути не подставляются автоматически; текст не сохраняется в persistent
-  browser storage.
-- `REQ-2718`: После submit веб показывает только собственный `ReportCase` и его
-  разрешённое состояние. Повтор с тем же idempotency key отображает тот же case;
-  rate limit, недоступность и неопределённый transport result не создают ложный
-  success. Подготовленная, но неотправленная форма остаётся доступной в памяти
-  текущего экрана до явной отмены или ухода пользователя.
-- `REQ-2719`: Staff worklist и case detail рендерятся только после server-side
-  allowlist authorization. Наличие или отсутствие staff navigation не является
-  полномочием: `403` не заменяется client-side ролью, а не-staff не получает число,
-  идентификаторы или содержание cases.
-- `REQ-2720`: Staff triage, lifecycle action (`block`, `hide`, `restore`) и выдача
-  или отзыв `author_verified` требуют явное подтверждение, непустое reason и новый
-  idempotency key. Экран показывает server-returned result и `operation_id` /
-  request id для проверки аудита; количество жалоб никогда не предлагает и не
-  запускает автоматическую блокировку.
-- `REQ-2721`: Staff view не раскрывает автору объекта личность, email, diagnostics
-  или окружение репортёра. `security_escalated` не попадает в обычные списки и не
-  раскрывает детали уязвимости; веб направляет пользователя в безопасный
-  server-defined outcome, не создавая публичное обсуждение.
+- `REQ-2716`: A report from a public or owner version page creates the same
+  `ReportCase` scenario as the CLI. The exact object/version/digest comes from
+  the displayed server version; web does not accept an arbitrary object id as
+  proof of access and does not create a public GitHub issue.
+- `REQ-2717`: If the user adds diagnostics, the form limits them to the
+  contractual size, redacts available paths to relative paths, displays a full
+  preview of what will be sent, and requires separate consent after preview.
+  Secrets, `.env`, source code, private bytes, OAuth/session/invitation tokens,
+  and full home paths are not inserted automatically; the text is not stored in
+  persistent browser storage.
+- `REQ-2718`: After submit, web displays only the user's own `ReportCase` and its
+  permitted state. A retry with the same idempotency key displays the same case;
+  rate limiting, unavailability, and an indeterminate transport result do not
+  create false success. A prepared but unsent form remains available in memory
+  on the current screen until explicit cancellation or navigation away.
+- `REQ-2719`: The staff worklist and case detail render only after server-side
+  allowlist authorization. Presence or absence of staff navigation is not
+  authority: `403` is not replaced by a client-side role, and non-staff receive
+  no case count, identifiers, or contents.
+- `REQ-2720`: Staff triage, lifecycle action (`block`, `hide`, `restore`), and
+  granting or revoking `author_verified` require explicit confirmation, a
+  non-empty reason, and a new idempotency key. The screen displays the
+  server-returned result and `operation_id` / request id for audit verification;
+  report count never suggests or initiates automatic blocking.
+- `REQ-2721`: The staff view does not disclose the reporter's identity, email,
+  diagnostics, or environment to the object author. `security_escalated` does
+  not enter ordinary lists or disclose vulnerability details; web directs the
+  user to a safe server-defined outcome without creating a public discussion.
 
-### Качество веб-клиента и совместимость
+### Web-client quality and compatibility
 
-- `REQ-2722`: Все новые пользовательские строки имеют эквивалентные `ru` и `en`
-  сообщения. Формы, tabs, dialogs, статусы ожидания и ошибки доступны с клавиатуры,
-  имеют видимый focus, корректные labels/roles и объявляют изменение состояния
-  ассистивным технологиям.
-- `REQ-2723`: Мутации реализуются Server Actions с CSRF-транспортом `ADR-0041` и
-  обновляют RSC view через server truth. Единственное транспортное исключение —
-  `accept` invitation по `REQ-2714`: клиентский компонент считывает token из URL
-  fragment и отправляет его прямым same-origin POST с double-submit CSRF, не
-  реализуя бизнес-правило в браузере.
-- `REQ-2724`: Клиент использует только код, сгенерированный из актуального OpenAPI,
-  и тонкие boundary adapters без ручных DTO. Новое поле сначала добавляется
-  необязательным; unsupported schema, unknown response field и API/version mismatch
-  обрабатываются по контракту без unsafe cast и без скрытого fallback.
-- `REQ-2725`: Модульные, компонентные, контрактные и браузерные тесты покрывают
-  матрицу owner/grantee/outsider/staff, все состояния publication plan, invitation
-  fragment, очистку данных, предпросмотр жалобы, staff confirmation, паритет
-  локалей и a11y. Тесты не используют реальные OAuth, Resend, object storage или
-  browser secrets и не фиксируют токены, email или приватные bytes в снимках,
-  трассах и fixtures.
+- `REQ-2722`: All new user-facing strings have equivalent `ru` and `en`
+  messages. Forms, tabs, dialogs, waiting states, and errors are keyboard
+  accessible, have visible focus and correct labels/roles, and announce state
+  changes to assistive technologies.
+- `REQ-2723`: Mutations are implemented as Server Actions with the CSRF
+  transport from `ADR-0041` and update the RSC view from server truth. The sole
+  transport exception is invitation `accept` under `REQ-2714`: a client
+  component reads the token from the URL fragment and sends it in a direct
+  same-origin POST with double-submit CSRF, without implementing a business rule
+  in the browser.
+- `REQ-2724`: The client uses only code generated from the current OpenAPI and
+  thin boundary adapters without handwritten DTOs. A new field is first added
+  as optional; an unsupported schema, unknown response field, and API/version
+  mismatch are handled under the contract without an unsafe cast or hidden
+  fallback.
+- `REQ-2725`: Unit, component, contract, and browser tests cover the
+  owner/grantee/outsider/staff matrix, all publication-plan states, the
+  invitation fragment, data redaction, report preview, staff confirmation,
+  locale parity, and a11y. Tests use no real OAuth, Resend, object storage, or
+  browser secrets and record no tokens, emails, or private bytes in snapshots,
+  traces, or fixtures.
 
-## Состояния и ошибки
+## States and errors
 
-Состояния `publication plan`, `validation`, `invitation`, `grant`, `case` и
-`lifecycle`
-принадлежат `packages/contracts`, `SPEC-002`, `SPEC-007`, `SPEC-016` и `SPEC-026`.
-Веб отображает их как server-provided values и не изобретает локальных переходов.
-`AI_STP_AUTH_REQUIRED` переводит защищённый экран в logout; `AI_STP_DEVICE_REVOKED`
-не даёт мутировать publication paths; `AI_STP_PERMISSION_DENIED` и
-`AI_STP_NOT_FOUND` не раскрывают private resource; `AI_STP_PLAN_STALE`,
-`AI_STP_PRECONDITION_FAILED`, `AI_STP_CONFLICT`, `AI_STP_RATE_LIMITED` и
-`AI_STP_DEPENDENCY_UNAVAILABLE` имеют разные наблюдаемые сообщения и действия
-повтора. Секретные значения не попадают в отображаемую ошибку.
+The `publication plan`, `validation`, `invitation`, `grant`, `case`, and
+`lifecycle` states belong to `packages/contracts`, `SPEC-002`, `SPEC-007`,
+`SPEC-016`, and `SPEC-026`. Web displays them as server-provided values and does
+not invent local transitions. `AI_STP_AUTH_REQUIRED` moves a protected screen to
+logout; `AI_STP_DEVICE_REVOKED` prevents mutation of publication paths;
+`AI_STP_PERMISSION_DENIED` and `AI_STP_NOT_FOUND` do not disclose a private
+resource; `AI_STP_PLAN_STALE`, `AI_STP_PRECONDITION_FAILED`, `AI_STP_CONFLICT`,
+`AI_STP_RATE_LIMITED`, and `AI_STP_DEPENDENCY_UNAVAILABLE` have distinct
+observable messages and retry actions. Secret values do not enter the displayed
+error.
 
-## Безопасность и приватность
+## Security and privacy
 
-`Server session`, API authorization, CSRF и `transport cookie` наследуются из
-`ADR-0041`; веб не хранит provider token или session token. Приватные RSC данные
-не сериализуются в client props без необходимости, и после logout, revoke или
-отказа в полномочии защищённое представление invalidируется. Действия с publication, grant,
-report и staff используют server-issued IDs и idempotency; raw invitation token,
-attestation signature, секреты, emails за разрешённой формой и закрытые bytes не
-попадают в URL, хранилище браузера, телеметрию, журналы, audit или локализованные
-сообщения.
+`Server session`, API authorization, CSRF, and `transport cookie` are inherited
+from `ADR-0041`; web stores no provider token or session token. Private RSC data
+is not serialized into client props unless needed, and the protected view is
+invalidated after logout, revocation, or an authority denial. Publication,
+grant, report, and staff actions use server-issued IDs and idempotency; a raw
+invitation token, attestation signature, secrets, emails outside the permitted
+form, and private bytes do not enter URLs, browser storage, telemetry, logs,
+audit, or localized messages.
 
-## Совместимость и миграция
+## Compatibility and migration
 
-Перед реализацией owner/staff экранов контракт получает аддитивные read-модели и
-соответствующие fixtures/OpenAPI. Существующие public catalog и CLI clients остаются
-совместимыми; private fields не добавляются в анонимные responses. После обновления
-контракта выполняется `api:generate`; generated client не правится вручную. Если
-сервер ещё не поддерживает требуемую read model, веб показывает только явную
-недоступность функции и не подменяет её sync-данными.
+Before owner/staff screens are implemented, the contract receives additive read
+models and corresponding fixtures/OpenAPI. Existing public-catalog and CLI
+clients remain compatible; private fields are not added to anonymous responses.
+After the contract is updated, `api:generate` is run; the generated client is not
+edited manually. If the server does not yet support the required read model, web
+shows only explicit feature unavailability and does not substitute sync data.
 
-## Критерии приёмки
+## Acceptance criteria
 
-| Требование | Исполнимый способ проверки |
+| Requirement | Executable verification |
 | --- | --- |
-| `REQ-2701` | RSC/browser test проверяет redirect без protected HTML и client payload. |
-| `REQ-2702` | Contract/API/browser matrix отделяет owner, grantee и outsider в list/detail. |
-| `REQ-2703` | Component golden различает обе оси verification, evidence source и eligibility. |
-| `REQ-2704` | Negative test не раскрывает private object/case через route, cursor или cache. |
-| `REQ-2705` | Contract test отвергает publication intent, сформированный не из owner version. |
-| `REQ-2706` | Browser test требует явный confirm после отображения digest, effects и expiry. |
-| `REQ-2707` | Lost-response test повторяет один key и показывает один server operation. |
-| `REQ-2708` | Mock/API scenario покрывает каждый terminal и transitional plan state. |
-| `REQ-2709` | Stale plan test требует fresh plan и не переносит prior consent. |
-| `REQ-2710` | UI test отличает eligibility warning от staff lifecycle action. |
-| `REQ-2711` | Static/contract test исключает ручной trust policy и storage-key access. |
-| `REQ-2712` | Known/unknown email tests имеют неотличимые web-visible result и timing budget. |
-| `REQ-2713` | Dialog and API test подтверждают warning и server-truth refresh после revoke. |
-| `REQ-2714` | Browser trace/history/source test не находит token вне fragment и POST body. |
-| `REQ-2715` | Authz matrix запрещает re-grant, original write и next-major access. |
-| `REQ-2716` | Contract test доказывает общий web/CLI report scenario без GitHub issue. |
-| `REQ-2717` | Form test требует preview/consent и не находит sensitive fixture text в storage. |
-| `REQ-2718` | Retry/rate-limit test сохраняет draft in-memory и не показывает false success. |
-| `REQ-2719` | Non-staff browser/API test не получает staff route data, count или case ID. |
-| `REQ-2720` | Staff scenario требует reason/confirm и проверяет audit correlation identifier. |
-| `REQ-2721` | Redaction test скрывает reporter data and security case details from author/list. |
-| `REQ-2722` | Locale and axe tests покрывают все routes, forms and dialogs in `ru` and `en`. |
-| `REQ-2723` | Architecture test проверяет Server Actions и fragment-only accept exception. |
-| `REQ-2724` | Generated-client gate and typecheck reject manual DTO/unsafe cast drift. |
-| `REQ-2725` | CI inventory links every requirement to deterministic web/API test evidence. |
+| `REQ-2701` | An RSC/browser test verifies redirect without protected HTML or client payload. |
+| `REQ-2702` | A contract/API/browser matrix separates owner, grantee, and outsider in list/detail. |
+| `REQ-2703` | A component golden distinguishes both verification axes, evidence source, and eligibility. |
+| `REQ-2704` | A negative test does not disclose a private object/case through a route, cursor, or cache. |
+| `REQ-2705` | A contract test rejects publication intent not formed from an owner version. |
+| `REQ-2706` | A browser test requires explicit confirm after displaying digest, effects, and expiry. |
+| `REQ-2707` | A lost-response test repeats one key and displays one server operation. |
+| `REQ-2708` | A mock/API scenario covers every terminal and transitional plan state. |
+| `REQ-2709` | A stale-plan test requires a fresh plan and does not carry prior consent. |
+| `REQ-2710` | A UI test distinguishes an eligibility warning from a staff lifecycle action. |
+| `REQ-2711` | A static/contract test excludes handwritten trust policy and storage-key access. |
+| `REQ-2712` | Known/unknown email tests have indistinguishable web-visible results and timing budgets. |
+| `REQ-2713` | Dialog and API tests verify the warning and server-truth refresh after revoke. |
+| `REQ-2714` | A browser trace/history/source test finds the token nowhere outside the fragment and POST body. |
+| `REQ-2715` | The authz matrix prohibits re-granting, writing to the original, and next-major access. |
+| `REQ-2716` | A contract test proves the shared web/CLI report scenario without a GitHub issue. |
+| `REQ-2717` | A form test requires preview/consent and finds no sensitive fixture text in storage. |
+| `REQ-2718` | A retry/rate-limit test retains the draft in memory and does not display false success. |
+| `REQ-2719` | A non-staff browser/API test receives no staff-route data, count, or case ID. |
+| `REQ-2720` | The staff scenario requires reason/confirm and checks the audit correlation identifier. |
+| `REQ-2721` | A redaction test hides reporter data and security-case details from the author/list. |
+| `REQ-2722` | Locale and axe tests cover every route, form, and dialog in `ru` and `en`. |
+| `REQ-2723` | An architecture test verifies Server Actions and the fragment-only accept exception. |
+| `REQ-2724` | The generated-client gate and typecheck reject manual DTO/unsafe-cast drift. |
+| `REQ-2725` | The CI inventory links every requirement to deterministic web/API test evidence. |

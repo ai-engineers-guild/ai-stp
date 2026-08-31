@@ -1,67 +1,66 @@
 ---
-description: "Контракт локального обнаружения, preview и импорта компонентов из SX и APM."
-last_verified: "2026-08-31"
+description: "Contract for local discovery, preview, and component import from SX and APM."
+last_verified: "2026-08-13"
 ---
 
 # Local setup-store ports
 
-## Команды
+## Commands
 
-`registry port discover --root <path>` находит поддерживаемые manifests.
-`registry port inspect --adapter sx|apm --root <path>` показывает conversion
-report. `registry port plan` добавляет exact digest и последствия операции.
-`registry port import` требует тот же root/adapter и
-`--expected-plan-digest`; exact digest подтверждает local registry write и
-отдельного boolean-confirm нет.
+`registry port discover --root <path>` finds supported manifests.
+`registry port inspect --adapter sx|apm --root <path>` displays the conversion
+report. `registry port plan` adds the exact digest and operation consequences.
+`registry port import` requires the same root/adapter, `--expected-plan-digest`, and
+`--confirm`; its only effect is a local registry write.
 
-Флаги и result schemas принадлежат генерируемому `help --agent`, поэтому здесь
-не дублируются. Внешний store и harness target остаются byte-identical. Port не
-вызывает vendor CLI, package manager, Git или сеть.
+Flags and result schemas belong to generated `help --agent`, so they are not duplicated
+here. The external store and harness target remain byte-identical. The port does not
+invoke a vendor CLI, package manager, Git, or the network.
 
-## Общая модель
+## Shared model
 
-Descriptor фиксирует `setup-store-port/1`, адаптер, прочитанную версию контракта,
-manifest, доменно-разделённый snapshot digest и наличие необязательного vendor CLI.
-Каждая mapping-запись сохраняет внешние identity/type/version, source coordinate,
-доступный digest источника, канонический вид компонента, локальный путь, пропуски и
-ограниченные metadata. Неизвестные поля перечисляются JSON-path-подобными указателями;
-они не влияют на паспорт скрытым образом.
-Для доступного local path inspection дополнительно строит content digest теми же
-bounded правилами, которыми последующий import прочитает artifact. Поэтому plan
-меняется не только вместе с manifest, но и при изменении фактических bytes.
+The descriptor records `setup-store-port/1`, the adapter, contract version read,
+manifest, domain-separated snapshot digest, and presence of the optional vendor CLI.
+Each mapping entry preserves external identity/type/version, source coordinate,
+available source digest, canonical component type, local path, omissions, and bounded
+metadata. Unknown fields are listed as JSON-path-like pointers; they do not affect the
+passport implicitly.
+For an available local path, inspection additionally builds a content digest under the
+same bounded rules that the subsequent import uses to read the artifact. The plan
+therefore changes not only with the manifest but also when the actual bytes change.
 
-Plan содержит весь inspection, conflicts и пять явных trust consequences:
-объект остаётся local-only, обе verified-оси ложны, внешний store и target не
-изменяются. Collision external identities закрывает apply. Повторный import
-одного adapter/snapshot/external identity возвращает ранее созданные stable и
+The plan contains the entire inspection, conflicts, and five explicit trust consequences:
+the object remains local-only, both verified axes are false, and the external store and
+target remain unchanged. An external identity collision fails apply closed. Re-importing
+the same adapter/snapshot/external identity returns the previously created stable and
 revision identifiers.
 
 ## SX schema 2
 
-Источник структуры — закреплённый
+The structure source is the pinned
 [manifest spec](https://github.com/sleuth-io/sx/blob/a74798be061fb125b0748f083f0418e058978a13/docs/manifest-spec.md).
-Port принимает только локальный `source-path`, остающийся внутри root. `source-http`
-и `source-git` показываются с координатой/digest, но offline import их не скачивает.
-`rule` становится `instruction`, а `claude-code-plugin` и `app-plugin` — `plugin`;
-остальные шесть общих названий совпадают. Collection сохраняется в report как
-omission: одно имя участника не является exact Component version/digest, поэтому
-из него нельзя честно построить Setup passport.
+The port accepts only a local `source-path` that remains within the root. `source-http`
+and `source-git` are shown with their coordinate/digest, but offline import does not
+download them. `rule` becomes `instruction`, while `claude-code-plugin` and `app-plugin`
+become `plugin`; the other six shared names match. A collection is retained in the
+report as an omission: one member name is not an exact Component version/digest, so it
+cannot honestly produce a Setup passport.
 
 ## APM lock 1/2
 
-Источник структуры — закреплённая
+The structure source is the pinned
 [lockfile implementation](https://github.com/microsoft/apm/blob/3aa0365540e3d9ef4685740cea6a09094ff35377/src/apm_cli/deps/lockfile.py).
-Port группирует только declared `deployed_files` по известным границам `skills`,
-`agents`, `prompts`/`commands`, `hooks`, `plugins`, `instructions`/`rules` и
-`mcp`. `prompt` соответствует каноническому `command`. Нераспознанный deployed
-path не создаёт компонент; package type сам по себе не используется для
-угадывания содержимого.
+The port groups only declared `deployed_files` by the known `skills`, `agents`,
+`prompts`/`commands`, `hooks`, `plugins`, `instructions`/`rules`, and `mcp` boundaries.
+`prompt` maps to canonical `command`. An unrecognized deployed path creates no component;
+package type alone is not used to guess content.
 
-## Ограничения и отказ
+## Limits and failure
 
-Manifest — один regular non-linked UTF-8 файл не больше 4 MiB; максимум 1000
-records и 100 показанных unknown-field указателей; при превышении report явно
-показывает исходное и отображённое количество. YAML duplicate keys запрещены. Root не
-может быть home, относительный source не может быть абсолютным, содержать `..`
-или выйти из root после разрешения пути. Несовместимая schema получает отдельный
-отказ, а отсутствие vendor CLI не мешает offline inspection/import.
+A manifest is one regular non-linked UTF-8 file no larger than 4 MiB; at most 1000
+records and 100 displayed unknown-field pointers are allowed; when a limit is exceeded,
+the report explicitly shows the original and displayed counts. YAML duplicate keys are
+prohibited. The root cannot be home, and a relative source cannot be absolute, contain
+`..`, or escape the root after path resolution. An incompatible schema receives a
+distinct failure, while the absence of a vendor CLI does not prevent offline
+inspection/import.

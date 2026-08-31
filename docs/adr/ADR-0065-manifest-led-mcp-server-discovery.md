@@ -1,52 +1,52 @@
 ---
-description: "Bounded обнаружение MCP server packages только по согласованной цепочке package manifest и entry point."
+description: "Bounded discovery of MCP server packages only through an agreed chain of package manifest and entry point."
 last_verified: "2026-08-10"
 ---
 
-# ADR-0065: Manifest-led обнаружение MCP server packages
+# ADR-0065: Manifest-led discovery of MCP server packages
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-Файл клиентской конфигурации MCP и реализация сервера имеют один product type
-`mcp`, но разные native roles. Точный `.mcp.json` уже обнаруживался как client
-config, тогда как source packages серверов были невидимы. Поиск по подстроке
-`mcp`, `server.py`, `hooks` или Dockerfile дал бы много application, test и docs
-false positives и потребовал бы произвольного чтения проекта.
+The MCP client configuration file and the server implementation have the same product type
+`mcp`, but different native roles. An exact `.mcp.json` was already discovered as a client
+config, while server source packages were invisible. Searching for the substring
+`mcp`, `server.py`, `hooks`, or Dockerfile would produce many application, test, and docs
+false positives and would require arbitrary reading of the project.
 
-## Решение
+## Decision
 
-В явно выбранном project root CLI выполняет bounded manifest-led traversal. Он
-не переходит по символическим ссылкам, исключает деревья зависимостей, кэша,
-сборки, документации, фикстур и тестов и ограничивает глубину, число каталогов,
-число записей и размер каждого прочитанного файла метаданных или исходников.
+Within an explicitly selected project root, the CLI performs bounded manifest-led traversal. It
+does not follow symbolic links, excludes dependency, cache, build, documentation, fixture,
+and test trees, and limits depth, the number of directories, the number of entries, and the
+size of each metadata or source file read.
 
-Python candidate требует одновременно `pyproject.toml`, dependency `mcp` или
-`fastmcp`, объявленный `project.scripts` entry point, существующий точный module
-source и импорт MCP SDK в этом source. TypeScript candidate требует
-`package.json`, официальный SDK dependency, объявленный `bin` или script source
-и SDK import в точном entry file. Ничего не исполняется.
+A Python candidate requires all of the following: `pyproject.toml`, an `mcp` or
+`fastmcp` dependency, a declared `project.scripts` entry point, existing exact module
+source, and an MCP SDK import in that source. A TypeScript candidate requires
+`package.json`, an official SDK dependency, a declared `bin` or script source,
+and an SDK import in the exact entry file. Nothing is executed.
 
-Candidate получает `component_type=mcp`, `native_role=mcp_server`, собственный
-source root, entry points, доказанные `stdio`/`http` transport capabilities и
-относительные evidence refs. Точный `.mcp.json` получает
-`native_role=mcp_client_config`. Launcher manifest становится дополнительным
-evidence только когда bounded content ссылается на уже доказанный entry point;
-сам launcher не создаёт candidate.
+The candidate receives `component_type=mcp`, `native_role=mcp_server`, its own
+source root, entry points, proven `stdio`/`http` transport capabilities, and
+relative evidence refs. An exact `.mcp.json` receives
+`native_role=mcp_client_config`. A launcher manifest becomes additional
+evidence only when bounded content references an already proven entry point;
+the launcher itself does not create a candidate.
 
-## Последствия
+## Consequences
 
-- nested Python и TypeScript packages в monorepo становятся explainable;
-- docs, tests, frontend hooks, Dockerfile и имя с `mcp` сами по себе не являются
-  доказательством сервера;
-- неизвестный transport остаётся пустым списком, а не угадывается;
-- принятие пакета исходников сохраняет роль, точку входа, транспорты и ссылки
-  доказательств в content-addressed локальной ревизии;
-- новый ecosystem или manifest format требует отдельной fixture и обновления
-  этого adapter.
+- nested Python and TypeScript packages in a monorepo become explainable;
+- docs, tests, frontend hooks, Dockerfile, and a name containing `mcp` are not by
+  themselves evidence of a server;
+- an unknown transport remains an empty list rather than being guessed;
+- acceptance of a source package preserves the role, entry point, transports, and evidence
+  refs in a content-addressed local revision;
+- a new ecosystem or manifest format requires a separate fixture and an update to
+  this adapter.
 
-## Условия пересмотра
+## Reconsideration Conditions
 
-Решение пересматривается при появлении универсального подписанного MCP package
-manifest или официального cross-language discovery protocol.
+The decision will be reconsidered if a universal signed MCP package
+manifest or an official cross-language discovery protocol emerges.

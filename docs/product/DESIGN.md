@@ -1,18 +1,18 @@
 ---
-description: "Визуальная дизайн-система web MVP: токены, типографика, компоненты, режимы."
+description: "The visual design system for the web MVP: tokens, typography, components, and modes."
 last_verified: "2026-08-22"
 ---
 
-# ai_stp — дизайн-система
+# ai_stp — design system
 
 > Surface: web (`apps/web`)  
 > Source of truth: `apps/web/src/theme/tokens.json`  
 > Runtime CSS: `apps/web/src/app/globals.css`  
 > Brand voice: [BRAND.md](BRAND.md)
 
-Плотный product UI для каталога, аккаунта, устройств и путей установки. Два режима: светлый **human** и тёмный **machine**.
+A dense product UI for the catalog, account, devices, and installation paths. Two modes: light **human** and dark **machine**.
 
-## Цветовая палитра
+## Color palette
 
 | Role | Name | Hex | Usage |
 | --- | --- | --- | --- |
@@ -24,26 +24,26 @@ last_verified: "2026-08-22"
 | accent | Signal orange | `#fb631b` | CTA, links, focus, active markers |
 | accent-secondary | Signal orange hover | `#f4793f` | Primary hover |
 
-Human режим: белый холст `#ffffff`, чернильный `#181818`, песочный `#f9f8f4`, светлая граница `#d4d2cb`.
+Human mode: white `#ffffff` canvas, ink `#181818`, sand `#f9f8f4`, light `#d4d2cb` border.
 
-Семантические HSL-каналы находятся в `tokens.json` под `color.*` для светлой и тёмной темы. Код продукта использует роли (`primary`, `muted-foreground`, `border`), а не raw hex.
+Semantic HSL channels are in `tokens.json` under `color.*` for the light and dark themes. Product code uses roles (`primary`, `muted-foreground`, `border`), not raw hex.
 
-Цвета состояний (`error`/`success`/`warning`) находятся в том же файле токенов для форм и trust feedback.
+State colors (`error`/`success`/`warning`) are in the same token file for forms and trust feedback.
 
-## Типографика
+## Typography
 
 | Role | Family | Weights | Use |
 | --- | --- | --- | --- |
 | Display / UI | plexSans | 400, 500 | Headings, body, controls |
 | Mono | plexMono | 400, 500 | Stable ids, versions, install code, technical meta |
 
-Шкала размеров: 12 · 14 · 16 · 18 · 20 · 24 · 30 (токены в CSS).
+Size scale: 12 · 14 · 16 · 18 · 20 · 24 · 30 (tokens in CSS).
 
-Обе гарнитуры — IBM Plex под SIL OFL 1.1, разбиты по `unicode-range`, поэтому латинская
-страница не тянет кириллические начертания. Причина замены и её проверка — в
-[BRAND.md](BRAND.md) и в комментарии `apps/web/src/app/globals.css`.
+Both typefaces are IBM Plex under SIL OFL 1.1, split by `unicode-range`, so a Latin
+page does not load Cyrillic font files. The reason for the replacement and its verification are in
+[BRAND.md](BRAND.md) and the comment in `apps/web/src/app/globals.css`.
 
-## Компоновка
+## Layout
 
 | Token | Value | Use |
 | --- | --- | --- |
@@ -55,25 +55,25 @@ Human режим: белый холст `#ffffff`, чернильный `#181818
 | Space baseline | 8px | 2 / 4 / 8 / 12 / 16 / 24 / 32 / 40 / 48… |
 | Content width | `max-w-6xl` | App shell main |
 | Horizontal pad | 16–24px | Header and main |
-| Узкий публичный экран | 360–430 px | лендинг, каталог, карточка объекта, вход, аккаунт |
+| Narrow public screen | 360–430 px | landing, catalog, object card, sign-in, account |
 
-На 360–430 px документ не даёт горизонтальный выход за край; действие
-установки и просмотра исходников остаётся видимым; основные действия на
-странице объекта и в оболочке имеют цель 44px. Мобильная навигация и
-уточнение выдачи сохраняют клавиатуру и видимый фокус. Исполнимые критерии —
+At 360–430 px, the document does not overflow horizontally; the actions for
+installation and viewing sources remain visible; primary actions on the
+object page and in the shell have a 44px target. Mobile navigation and
+result refinement retain keyboard access and visible focus. Executable criteria are in
 `SPEC-022`, `SPEC-023`, `SPEC-034`, `SPEC-037`.
 
-### Правила подачи
+### Presentation rules
 
-1. Две независимые оси отображения: проекция `human`/`machine` и цветовая тема `light`/`dark`. Кнопка темы меняет только цвета. Проекция является адресуемым маршрутом и отдельным серверным документом по `ADR-0076` и `SPEC-036`, а не стилизацией человеческого дерева: закреплённый внизу переключатель ведёт на парный URL. Machine использует моноширинную подачу и текстовый документ, где Markdown-маркеры заголовков и ссылки являются содержимым, а декоративные медиа отсутствуют.
-2. Accent orange применяется только для сильного сигнала: CTAs, focus rings, брендовой полосы и key active dots. Полноэкранные заливки запрещены.
-3. На viewport для одного действия остаётся одна сплошная primary button.
-4. Hover не делает primary text серым: меняется fill/border, foreground contrast остаётся не ниже default.
+1. There are two independent display axes: the `human`/`machine` projection and the `light`/`dark` color theme. The theme button changes colors only. Under `ADR-0076` and `SPEC-036`, the projection is an addressable route and a separate server document, not styling applied to the human tree: the switch pinned at the bottom leads to the paired URL. Machine uses monospaced presentation and a text document in which Markdown heading markers and links are content, with no decorative media.
+2. Accent orange is used only for a strong signal: CTAs, focus rings, the brand stripe, and key active dots. Full-screen fills are prohibited.
+3. One solid primary button remains per action in a viewport.
+4. Hover does not turn primary text gray: fill/border changes, while foreground contrast remains no lower than the default.
 5. Every focusable control has a visible `:focus-visible` ring using `--ring` (accent).
-6. Mono применяется для machine labels; декоративные emoji не используются как functional icons.
+6. Mono is used for machine labels; decorative emoji are not used as functional icons.
 7. Icons only from `src/theme/icons.tsx` registry.
 
-## Набор компонентов React
+## React component set
 
 Path root: `apps/web/src/components/`
 
@@ -111,7 +111,7 @@ bun run build-storybook
 
 Groups: Foundations · UI Kit / Atoms · Molecules · Organisms · Layouts. Toolbar switches light/dark.
 
-## Изменение темы
+## Changing the theme
 
 1. Edit `apps/web/src/theme/tokens.json`.
 2. Mirror channels into `globals.css` (`:root` / `.dark` and `@theme inline`).

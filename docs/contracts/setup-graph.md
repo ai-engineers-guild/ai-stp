@@ -1,91 +1,92 @@
 ---
-description: "Точное замыкание зависимостей сетапа: узел, детерминированный порядок, закрытый перечень отказов и пределы ресурсов."
+description: "Exact setup dependency closure: node, deterministic order, closed failure list, and resource limits."
 last_verified: "2026-08-08"
 ---
 
-# Замыкание зависимостей сетапа
+# Setup dependency closure
 
-Владелец требований — `SPEC-006` REQ-605, REQ-607 и REQ-608; форма точной ссылки
-принадлежит `canonical-data.md`, паспорт зависимости — `component-setup-passports.md`.
-Здесь зафиксирована машинная граница замыкания: что является узлом, в каком
-порядке узлы возвращаются, какие отказы существуют и какими пределами ограничен
-размер графа.
+The requirements owner is `SPEC-006` REQ-605, REQ-607, and REQ-608; the exact
+reference form belongs to `canonical-data.md`, and the dependency passport belongs to
+`component-setup-passports.md`. This document defines the closure's machine boundary:
+what constitutes a node, the order in which nodes are returned, the available failures,
+and the limits on graph size.
 
-Замыкание ничего не собирает и ничего не пишет. Оно отвечает на один вопрос:
-какие точные версии нужны, чтобы состав был полным, и почему ответа нет, когда
-его нет. Сборка пакета принадлежит `harness-bundle.md`.
+Closure builds and writes nothing. It answers one question: which exact versions are
+required for the composition to be complete, and why no answer exists when it does not.
+Package assembly belongs to `harness-bundle.md`.
 
-## Узел
+## Node
 
-Узел — одна точная версия одного объекта:
+A node is one exact version of one object:
 
 ```text
 stable_id + version + passport_digest
 ```
 
-Все три обязательны. Ссылка без точной версии или без дайджеста плавающая и
-отклоняется до любых других проверок: две машины, разрешившие такую ссылку в
-разное время, собрали бы разный состав из одного входа, и `REQ-607` перестал бы
-быть достижимым.
+All three are required. A reference without an exact version or digest is floating and
+is rejected before any other checks: two machines resolving such a reference at
+different times would assemble different compositions from one input, making `REQ-607`
+unachievable.
 
-Узел дополнительно несёт `revision_id` удерживаемой ревизии и глубину —
-кратчайшее расстояние от корня. Глубина описательна и на порядок не влияет.
+A node also carries the held revision's `revision_id` and its depth—the shortest
+distance from the root. Depth is descriptive and does not affect ordering.
 
-## Порядок
+## Ordering
 
-Порядок топологический: зависимость идёт раньше того, что её требует. Внутри
-одного слоя порядок задаётся возрастанием `stable_id`, поэтому он полон и
-одинаков на любой машине. Порядок, оставляющий равенство неразрешённым, зависел
-бы от того, в каком порядке заполнился словарь.
+The order is topological: a dependency precedes the object that requires it. Within
+one layer, ascending `stable_id` defines the order, making it total and identical on
+every machine. An order leaving ties unresolved would depend on dictionary insertion
+order.
 
-Корни упорядочиваются по тому же правилу до обхода, поэтому перестановка корней
-на входе не меняет ни порядок, ни дайджест результата.
+Roots are sorted by the same rule before traversal, so permuting input roots changes
+neither the order nor the result digest.
 
-## Отказы
+## Failures
 
-Перечень закрыт. Каждый отказ имеет устойчивый код, не меняющийся вместе с
-текстом сообщения, и называет участвующие объекты.
+The list is closed. Each failure has a stable code that does not change with message
+text and names the participating objects.
 
-| Код | Когда возникает |
+| Code | When it occurs |
 |---|---|
-| `reference_floating` | ссылка не называет точную версию или дайджест |
-| `dependency_missing` | точной версии из ссылки на этой машине нет |
-| `digest_mismatch` | удерживаемая версия стоит за другим содержимым |
-| `version_conflict` | два пути требуют разные версии одного объекта |
-| `dependency_cycle` | цикл обязательных зависимостей |
-| `dependency_not_registrable` | в замыкание попал черновик или удалённый объект |
-| `dependency_unreadable` | паспорт зависимости не читается как паспорт версии |
-| `closure_too_deep` | цепочка длиннее предела ресурсов |
-| `closure_too_large` | узлов больше предела ресурсов |
+| `reference_floating` | the reference does not name an exact version or digest |
+| `dependency_missing` | the exact version in the reference is absent on this machine |
+| `digest_mismatch` | the held version points to different content |
+| `version_conflict` | two paths require different versions of one object |
+| `dependency_cycle` | a cycle of required dependencies |
+| `dependency_not_registrable` | the closure contains a draft or deleted object |
+| `dependency_unreadable` | the dependency passport cannot be read as a version passport |
+| `closure_too_deep` | a chain exceeds the resource limit |
+| `closure_too_large` | the number of nodes exceeds the resource limit |
 
-`dependency_missing` и `digest_mismatch` разделены намеренно. Первое означает,
-что объекта нет и его нужно получить; второе — что объект есть, но не тот, и
-это признак подмены или переиздания номера. Общий код скрыл бы второе за первым.
+`dependency_missing` and `digest_mismatch` are intentionally distinct. The first means
+the object is absent and must be obtained; the second means an object is present but is
+not the expected one, indicating substitution or version-number republication. A shared
+code would hide the second behind the first.
 
-`version_conflict` не разрешается выбором «более новой»: `REQ-626` запрещает
-автоматическое разрешение смыслового конфликта, а выбор версии за пользователя
-является именно им. Конфликт блокирует замыкание, и решение принимает человек
-через другой состав или явную производную версию.
+`version_conflict` is not resolved by selecting the "newer" version: `REQ-626`
+prohibits automatic resolution of a semantic conflict, and selecting a version for the
+user is exactly that. The conflict blocks closure, and a human decides through another
+composition or an explicit derived version.
 
-Отказ является данными ответа, а не ошибкой выполнения. Неразрешимое замыкание —
-нормальный результат, который объясняет, чего не хватает.
+A failure is response data, not an execution error. An unresolvable closure is a normal
+result explaining what is missing.
 
-## Пределы ресурсов
+## Resource limits
 
-`SPEC-006` требует сдерживать размер графа. Пределы объявлены и возвращаются в
-ответе, поэтому упёршийся в предел результат отличим от полного:
+`SPEC-006` requires bounding graph size. Limits are declared and returned in the
+response, so a result that reaches a limit is distinguishable from a complete result:
 
 ```text
-максимальная глубина: 32
-максимальное число узлов: 512
+maximum depth: 32
+maximum node count: 512
 ```
 
-Предел не является предпочтением: замыкание, упёршееся в него, отклоняется, а не
-усекается. Усечённое замыкание, выданное за полное, — худший отказ из возможных,
-потому что снаружи выглядит успехом.
+A limit is not a preference: a closure that reaches it is rejected, not truncated.
+A truncated closure presented as complete is the worst possible failure because it
+looks like success from the outside.
 
-## Частичного ответа нет
+## No partial response
 
-Замыкание либо разрешено целиком, либо не разрешено. Ответ с частью узлов и
-списком отказов рядом читался бы как «почти собрано», а состав, которому не
-хватает зависимости, не собран вовсе.
+A closure is either fully resolved or unresolved. A response containing some nodes
+alongside failures would read as "almost assembled," while a composition missing a
+dependency is not assembled at all.

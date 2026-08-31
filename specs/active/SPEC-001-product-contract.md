@@ -1,101 +1,84 @@
 ---
-description: "SPEC-001: Продуктовый контракт MVP."
-last_verified: "2026-08-31"
+description: "SPEC-001: MVP product contract."
+last_verified: "2026-08-24"
 ---
 
-# SPEC-001: Продуктовый контракт MVP
+# SPEC-001: MVP Product Contract
 
-## Цель
+## Purpose
 
-Пользователь устанавливает `ai-stp`, работает с ним через своего агента и проходит полный локальный путь от паспорта и индекса проекта до проверенного сетапа, установки и восстановления без обязательного веб-интерфейса.
+The user installs `ai-stp`, works with it through their agent, and completes the full local path from a passport and project index to a verified setup, installation, and recovery without requiring a web interface.
 
-## Границы
+## Scope
 
-В MVP входят локальный реестр, анонимное чтение публичного реестра, приватная синхронизация после входа, публикация, семь поддерживаемых харнессов и ограниченный режим `undefined`.
+The MVP includes a local registry, anonymous reads from the public registry, private synchronization after sign-in, publication, seven supported harnesses, and a limited `undefined` mode.
 
-Не входят реальные платежи, корпоративный ландшафт, сложный веб-редактор и утверждение об абсолютной безопасности объекта.
+Real payments, the enterprise landscape, a sophisticated web editor, and claims of an object's absolute safety are out of scope.
 
-Целевая release matrix — Linux, Windows и macOS на `x86_64` и `arm64` по
-поправке к `ADR-0113`. Публичный gate уже доказывает CLI/web поверхность на
-трёх ОС; release claim дополнительно требует real-product provider lifecycle на
-точном текущем кандидате. Сборка бинарника или evidence прошлого provider tag
-получает `not_verified`, а не переносится на новый выпуск.
+Windows is supported and implemented (`SPEC-014` `REQ-1419`), but its evidence is deferred: the mandatory release-evidence profile is Linux x86_64 under `ADR-0062`, while a Windows run requires free GitHub-hosted runners, which become available after the repository is made public (`#188`). The evidence, not support, is deferred.
 
-## Термины
+The current mandatory release-evidence profile is Linux x86_64 under `ADR-0062`.
+macOS remains a future portability line and is not described as supported without real-host
+evidence.
 
-- **Основная поддержка** — полный сквозной сценарий и release evidence для харнессов с `primary` в `SUPPORT_TIERS`; блокирует первый выпуск MVP.
-- **Бета-поддержка** — тот же безопасный жизненный цикл, но возможна неполная поддержка нативных поверхностей харнессов с `beta`; линия продвигается независимо и первый выпуск не блокирует.
-- **`undefined`** — неизвестный харнесс. Он и его нативные конфигурации фиксируются как наблюдение, чтобы пользователь видел, что у него есть; управляемые объекты для него не создаются и применение невозможно.
+## Terms
 
-## Требования
+- **Primary support** — the complete end-to-end scenario and release evidence for harnesses marked `primary` in `SUPPORT_TIERS`; blocks the first MVP release.
+- **Beta support** — the same safe lifecycle, but native harness surfaces marked `beta` may have incomplete support; the line advances independently and does not block the first release.
+- **`undefined`** — an unknown harness. It and its native configurations are recorded as an observation so the user can see what they have; managed objects are not created for it, and application is impossible.
 
-- `REQ-101`: Основным машинным клиентом является агент, работающий через строгий JSON CLI.
-- `REQ-102`: Полный локальный путь не требует аккаунта и server mode.
-- `REQ-103`: Чтение публичного реестра доступно без авторизации.
-- `REQ-104`: Приватная синхронизация, выдача доступа и публикация требуют авторизации.
-- `REQ-105`: Поддерживаются Claude Code, Codex, Pi, OpenCode, Grok Build, Cursor, Antigravity и ограниченный идентификатор `undefined`.
-- `REQ-106`: Харнессы уровня `primary` проходят основной сквозной сценарий;
-  харнессы уровня `beta` проходят бета-сценарий без ослабления plan, backup и
-  restore. `launch` проверяется только у провайдера, который объявляет эту
-  capability; отсутствие optional capability не подменяется фиктивным успехом.
-  Членство уровней принадлежит `SUPPORT_TIERS` и `SPEC-033`.
-- `REQ-107`: Основной путь создания, сборки и установки не требует перехода в веб-интерфейс.
-- `REQ-108`: Платежи и корпоративный ландшафт исключены из MVP. Ни одна из трёх
-  ОС не исключена; отсутствие exact candidate evidence не отменяет цель, но не
-  повышает заявленный уровень поддержки по `REQ-110`.
-- `REQ-109`: Первый выпуск MVP блокируется полнотой продуктовых требований и полным сквозным доказательством Claude Code и Codex по заявленной матрице; неполнота бета-линий выпуск не блокирует.
-- `REQ-110`: Заявленный уровень поддержки не превышает наблюдаемые доказательства; линия без запуска получает `not_verified`.
-- `REQ-111`: Отсутствие обязательной переменной окружения не блокирует установку, но переводит готовность к запуску в `needs_configuration` до её появления.
-- `REQ-112`: После успешной первичной настройки локальный путь работает без сети, а операции, которым сеть необходима, объявлены отдельно и возвращают типизированную причину.
-- `REQ-113`: Семь харнессов являются полным набором поддержки MVP (`ADR-0120`); новый официальный `harness_id` появляется только через платформенный процесс продвижения по `ADR-0033`, а пользовательские адаптеры не публикуются как официальная поддержка.
-- `REQ-114`: Первый выпуск дополнительно блокируется неукомплектованным первопартийным каталогом запуска по `docs/engineering/release-evidence.md`; состав каталога является выпускным барьером, а не инвариантом схем.
-- `REQ-115`: Публичный CLI-релиз состоит из согласованных версий foundation, passports, assurance, contracts и CLI; wheel и sdist воспроизводимы, несут metadata/LICENSE и сопровождаются SBOM, checksums и provenance точного SHA; install smoke привязывает все пять внутренних пакетов к exact candidate wheels и выполняется вне checkout.
-- `REQ-116`: PyPI publication выполняется отдельной агент-управляемой операцией
-  через защищённый environment и Trusted Publishing OIDC после зелёного
-  кандидата; обычные CI/deploy jobs и локальные машины не имеют PyPI token или
-  publish authority. Environment review не является поводом заново спрашивать
-  владельца, если выпуск уже входит в задачу.
-- `REQ-117`: Первый выпуск имеет exact candidate evidence на Linux, Windows и
-  macOS для обеих архитектур. Для каждой provider operation проверяется её
-  объявленная platform matrix: доступная строка проходит real lifecycle,
-  недоступная — типизированный отказ до эффекта.
+## Requirements
 
-## Состояния и ошибки
+- `REQ-101`: The primary machine client is an agent operating through a strict JSON CLI.
+- `REQ-102`: The complete local path does not require an account or server mode.
+- `REQ-103`: The public registry can be read without authorization.
+- `REQ-104`: Private synchronization, granting access, and publication require authorization.
+- `REQ-105`: Claude Code, Codex, Pi, OpenCode, Grok Build, Cursor, Antigravity, and the limited `undefined` identifier are supported.
+- `REQ-106`: Harnesses at the `primary` tier complete the primary end-to-end scenario; harnesses at the `beta` tier complete the beta scenario without weakening plan, backup, or restore. Tier membership belongs to `SUPPORT_TIERS` and `SPEC-033`, not to this requirement.
+- `REQ-107`: The primary creation, compilation, and installation path does not require switching to the web interface.
+- `REQ-108`: Payments and the enterprise landscape are excluded from the MVP. Windows is not excluded: it is implemented and declared as a requirement by `SPEC-014` `REQ-1419`; what is missing is recorded run evidence, not support, and its absence does not raise the claimed support level under `REQ-110`.
+- `REQ-109`: The first MVP release is blocked by incomplete product requirements and by the absence of complete end-to-end evidence for Claude Code and Codex across the declared matrix; incomplete beta lines do not block the release.
+- `REQ-110`: The claimed support level does not exceed the observed evidence; a line without a run receives `not_verified`.
+- `REQ-111`: A missing required environment variable does not block installation, but changes launch readiness to `needs_configuration` until it is provided.
+- `REQ-112`: After successful initial setup, the local path works without a network connection, while operations that require a network are declared separately and return a typed reason.
+- `REQ-113`: The seven harnesses are the complete MVP support set (`ADR-0120`); a new official `harness_id` appears only through the platform promotion process under `ADR-0033`, and user-defined adapters are not published as official support.
+- `REQ-114`: The first release is additionally blocked by an incomplete first-party launch catalog under `docs/engineering/release-evidence.md`; catalog completeness is a release barrier, not a schema invariant.
+- `REQ-115`: The public CLI release consists of aligned versions of foundation, passports, assurance, contracts, and CLI; wheel and sdist artifacts are reproducible, include metadata/LICENSE, and are accompanied by an SBOM, checksums, and provenance for the exact SHA; the install smoke pins all five internal packages to exact candidate wheels and runs outside the checkout.
+- `REQ-116`: PyPI publication is performed only manually through a protected environment and Trusted Publishing OIDC after separate authorization; ordinary CI/deploy jobs and local machines have no PyPI token or publish authority.
+- `REQ-117`: The first release is proven on Linux x86_64; macOS is not part of the current support matrix, does not block the release, and receives `not_verified` until separate real-host evidence exists.
 
-Локальный контур различает `ready`, `needs_input`, `degraded`, `unsupported` и `failed`. Недоступный сервер не блокирует локальное чтение и уже сохранённые объекты.
+## States and errors
 
-Неизвестный харнесс даёт готовность `unsupported` на этой оси и отдельный код ошибки `AI_STP_UNSUPPORTED_APPLY` при попытке применения. Состояние оси и код ошибки принадлежат разным осям по `architecture/principles.md` и не смешиваются.
+The local path distinguishes `ready`, `needs_input`, `degraded`, `unsupported`, and `failed`. An unavailable server does not block local reads or access to already saved objects.
 
-## Безопасность и приватность
+An unknown harness produces `unsupported` readiness on this axis and the separate `AI_STP_UNSUPPORTED_APPLY` error code when application is attempted. The axis state and error code belong to different axes under `architecture/principles.md` and are not conflated.
 
-Непроверенный объект не входит в автоматическую композицию. Секреты, исходные
-диалоги и значения окружения не записываются в паспорта. Изменяющая операция
-использует план, точный digest и идемпотентность. Отдельный boolean-confirm
-остаётся только по классам необратимости и расширения доступа из `ADR-0118`;
-для локальной обратимой операции exact digest сам является подтверждением.
+## Security and privacy
 
-## Совместимость и миграция
+An unverified object is excluded from automatic composition. Secrets, source conversations, and environment values are not written to passports. Every mutating operation uses a plan, an exact digest, and separate confirmation according to the risk rules.
 
-CLI, API, схемы и provider protocol имеют независимые версии. Поддерживаемые версии клиента публикуются до включения server mode. Изменение списка харнессов, основного пути или границы MVP требует нового ADR и обновления всех связанных спецификаций.
+## Compatibility and migration
 
-## Критерии приёмки
+The CLI, API, schemas, and provider protocol have independent versions. Supported client versions are published before server mode is enabled. Changing the harness list, primary path, or MVP boundary requires a new ADR and updates to all related specifications.
 
-| Требование | Исполнимый oracle |
+## Acceptance criteria
+
+| Requirement | Executable oracle |
 |---|---|
-| `REQ-101` | Контрактный тест проверяет machine JSON и работу канонического Agent Skill. |
-| `REQ-102` | E2E в отключённой сети создаёт паспорт, индекс, композицию и локальную запись. |
-| `REQ-103` | API/CLI-тест выполняет поиск и получение публичного объекта без токена. |
-| `REQ-104` | Negative auth tests отклоняют приватную синхронизацию и публикацию без сессии. |
-| `REQ-105` | Enum/schema test принимает ровно семь идентификаторов и `undefined`. |
-| `REQ-106` | Записанные E2E проходят install, status и restore по матрице поддержки, а launch — только для провайдеров, которые объявляют complete launch capability. |
-| `REQ-107` | Основной E2E создания, сборки и установки запускается только через CLI и provider, без browser automation. |
-| `REQ-108` | Scope check подтверждает отсутствие billing и enterprise runtime paths; platform paths трёх ОС ожидаются и проверяются. |
-| `REQ-109` | Выпускной чек-лист блокируется отсутствием доказательств Claude Code и Codex и не блокируется отсутствием бета-доказательств. |
-| `REQ-110` | Генератор статуса поддержки не выдаёт бета-линии подтверждённый уровень без записанного запуска. |
-| `REQ-111` | Фикстура с отсутствующим именем переменной допускает установку и даёт `needs_configuration` при запуске. |
-| `REQ-112` | Проверка в отключённой сети проходит объявленные автономные операции и даёт типизированную причину для сетевых. |
-| `REQ-113` | Проверка перечисления отклоняет восьмое значение без нового ADR и версии схемы, а инвентаризация не находит пути публикации пользовательского адаптера как официальной поддержки. |
-| `REQ-114` | Выпускной чек-лист содержит инвентаризацию каталога запуска, и отсутствие или истечение доказательств любого объекта из неё блокирует выпуск. |
-| `REQ-115` | Candidate builder дважды собирает пять wheel/sdist, сравнивает bytes, проверяет metadata и создаёт детерминированные SBOM, manifest и checksums; отдельный smoke проверяет PEP 610 provenance всех пяти exact wheels, machine commands и uninstall вне checkout; public workflow выпускает provenance. |
-| `REQ-116` | Настройки environment/Trusted Publisher и negative workflow audit доказывают отсутствие publish authority у PR, CI и deploy jobs; агент может одобрить защищённую операцию текущим authenticated account в рамках порученного выпуска. |
-| `REQ-117` | Exact-candidate workflow исполняет шесть native OS/arch legs, различает build и real lifecycle и записывает типизированные unavailable outcomes. |
+| `REQ-101` | A contract test verifies machine JSON and operation of the canonical Agent Skill. |
+| `REQ-102` | An E2E test with the network disabled creates a passport, index, composition, and local record. |
+| `REQ-103` | An API/CLI test searches for and retrieves a public object without a token. |
+| `REQ-104` | Negative auth tests reject private synchronization and publication without a session. |
+| `REQ-105` | An enum/schema test accepts exactly seven identifiers and `undefined`. |
+| `REQ-106` | Recorded E2E tests complete install, launch, status, and restore across the support matrix. |
+| `REQ-107` | The primary E2E test for creation, compilation, and installation runs only through the CLI and provider, without browser automation. |
+| `REQ-108` | A scope check and dependency search confirm the absence of billing and enterprise runtime paths; Windows paths are expected, and their presence is not a defect. |
+| `REQ-109` | The release checklist is blocked by missing Claude Code and Codex evidence and is not blocked by missing beta evidence. |
+| `REQ-110` | The support status generator does not assign a verified level to a beta line without a recorded run. |
+| `REQ-111` | A fixture with a missing named variable permits installation and produces `needs_configuration` at launch. |
+| `REQ-112` | A check with the network disabled completes declared offline operations and produces a typed reason for networked operations. |
+| `REQ-113` | An enumeration check rejects an eighth value without a new ADR and schema version, while an inventory finds no path for publishing a user-defined adapter as official support. |
+| `REQ-114` | The release checklist includes a launch catalog inventory, and missing or expired evidence for any object in it blocks the release. |
+| `REQ-115` | The candidate builder builds the five wheel/sdist artifacts twice, compares bytes, verifies metadata, and creates deterministic SBOM, manifest, and checksums; a separate smoke verifies PEP 610 provenance for all five exact wheels, machine commands, and uninstall outside the checkout; the public workflow publishes provenance. |
+| `REQ-116` | Environment/Trusted Publisher settings and a negative workflow audit prove that PR, CI, and deploy jobs have no publish authority; an actual upload requires manual approval. |
+| `REQ-117` | The release matrix contains a mandatory Linux x86_64 row, contains no mandatory macOS row, and does not publish a macOS classifier without separate evidence. |

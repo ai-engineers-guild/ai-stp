@@ -1,89 +1,95 @@
 ---
-description: "SPEC-030: Канонические двунаправленные ссылки между CLI и web."
+description: "SPEC-030: Canonical bidirectional links between CLI and web."
 last_verified: "2026-08-09"
 ---
 
-# SPEC-030: Канонические двунаправленные ссылки между CLI и web
+# SPEC-030: Canonical bidirectional links between CLI and web
 
-## Цель
+## Purpose
 
-Дать агенту и web одну версионированную форму перехода к компоненту, сетапу,
-точной версии, издателю и действию жалобы без сетевого поиска, скрытого запуска
-браузера и передачи секретов в URL или командной строке.
+Give the agent and web one versioned form for navigating to a component, setup,
+exact version, publisher, or report action without a network lookup, hidden
+browser launch, or passing secrets in a URL or command line.
 
-## Границы
+## Scope
 
-Входят публичная грамматика `deep_link_v1`, локали `ru` и `en`, канонический URL,
-структурированный CLI `argv`, обратный разбор и общий корпус. Запуск браузера,
-короткие ссылки, сервис перенаправлений, private capability URL и идентификатор закрытого
-случая жалобы не входят.
+Included are the public `deep_link_v1` grammar, the `ru` and `en` locales, a
+canonical URL, structured CLI `argv`, reverse parsing, and a shared corpus.
+Browser launching, short links, a redirect service, private capability URLs,
+and the identifier of a closed report case are excluded.
 
-## Термины
+## Terms
 
-- `target` — типизированный stable ID компонента, сетапа или аккаунта издателя;
-- `intent` — `view` либо `report`; жалоба всегда адресует точную версию объекта;
-- `cli_argv` — массив аргументов без экранирования оболочки, пригодный для агента;
-- `canonical URL` — абсолютный URL платформы с явной локалью и без данных сессии.
+- `target` — a typed stable ID of a component, setup, or publisher account;
+- `intent` — either `view` or `report`; a report always addresses an exact
+  object version;
+- `cli_argv` — an array of arguments without shell escaping, suitable for an
+  agent;
+- `canonical URL` — an absolute platform URL with an explicit locale and no
+  session data.
 
-## Требования
+## Requirements
 
-- `REQ-3001`: `deep_link_v1` поддерживает объект component/setup, его точную версию
-  `X.Y`, аккаунт издателя и намерение `report` для точной версии component/setup.
-- `REQ-3002`: URL всегда содержит локаль `ru` или `en`; если вызывающий её не
-  указал, используется каноническая локаль по умолчанию `ru` из web routing.
-- `REQ-3003`: Component и setup используют существующие маршруты каталога, publisher
-  — существующий маршрут публичного профиля, а намерение `report` — URL точной версии
-  с фиксированным фрагментом `#report`; новый серверный маршрут не создаётся.
-- `REQ-3004`: Ссылка строится только из проверенного источника платформы, вида,
-  канонического stable ID, необязательной точной версии, локали и намерения. Query,
-  credentials, token, device ID, локальный путь и произвольный фрагмент невозможны.
-- `REQ-3005`: Для каждого target возвращаются URL, нормализованная ссылка и
-  `cli_argv`; человекочитаемая команда является детерминированной проекцией того
-  же массива, а не вторым источником истины.
-- `REQ-3006`: Обратный цикл `target → URL → target` и
-  `target → cli_argv → target` побайтово сохраняет вид, stable ID, точную версию,
-  локаль и намерение.
-- `REQ-3007`: Генерация и разбор не обращаются к catalog/API и не проверяют
-  существование объекта. Доступность и запрет перечисления остаются за существующей
-  границей авторизации web/API.
-- `REQ-3008`: CLI печатает ссылку, но не открывает браузер автоматически; одинаковая
-  команда должна работать локально, по SSH и в машинном режиме.
-- `REQ-3009`: CLI, contracts и web используют один версионированный положительный и
-  вредоносный корпус; несовпадение URL, argv либо разбора является ошибкой контракта.
-- `REQ-3010`: Неизвестные версия грамматики, локаль, вид и префикс ID, неканоническая
-  версия, лишний сегмент пути, query, credentials или fragment дают типизированный
-  отказ валидации без нормализации опасного ввода.
+- `REQ-3001`: `deep_link_v1` supports a component/setup object, its exact `X.Y`
+  version, a publisher account, and the `report` intent for an exact
+  component/setup version.
+- `REQ-3002`: A URL always contains the `ru` or `en` locale; if the caller does
+  not specify it, the canonical default locale `ru` from web routing is used.
+- `REQ-3003`: Components and setups use the existing catalog routes, publishers
+  use the existing public-profile route, and the `report` intent uses the exact
+  version URL with the fixed `#report` fragment; no new server route is created.
+- `REQ-3004`: A link is built only from the validated platform origin, kind,
+  canonical stable ID, optional exact version, locale, and intent. Query,
+  credentials, token, device ID, local path, and arbitrary fragment are
+  impossible.
+- `REQ-3005`: Each target returns a URL, normalized link, and `cli_argv`; the
+  human-readable command is a deterministic projection of the same array, not a
+  second source of truth.
+- `REQ-3006`: The `target → URL → target` and
+  `target → cli_argv → target` round trips preserve kind, stable ID, exact
+  version, locale, and intent byte for byte.
+- `REQ-3007`: Generation and parsing do not access the catalog/API or verify
+  object existence. Availability and enumeration prevention remain at the
+  existing web/API authorization boundary.
+- `REQ-3008`: The CLI prints the link but does not open a browser automatically;
+  the same command must work locally, over SSH, and in machine mode.
+- `REQ-3009`: CLI, contracts, and web use one versioned positive and malicious
+  corpus; any difference in URL, argv, or parsing is a contract error.
+- `REQ-3010`: Unknown grammar version, locale, kind, or ID prefix, a
+  non-canonical version, an extra path segment, query, credentials, or fragment
+  produces a typed validation rejection without normalizing dangerous input.
 
-## Состояния и ошибки
+## States and errors
 
-Команда либо возвращает один полный `DeepLinkView`, либо типизированную ошибку
-валидации. Отсутствие target в каталоге не является ошибкой построения ссылки и не
-превращает чистую команду в источник перечисления объектов.
+The command either returns one complete `DeepLinkView` or a typed validation
+error. A target's absence from the catalog is not a link-construction error and
+does not turn a pure command into an object-enumeration source.
 
-## Безопасность и приватность
+## Security and privacy
 
-Ни URL, ни `cli_argv` не содержат состояния auth/session. Stable IDs и версия проходят
-закрытую проверку до кодирования URL. Разбор доверяет только настроенному источнику
-платформы и канонической грамматике; внешняя ссылка не преобразуется в CLI-команду.
+Neither the URL nor `cli_argv` contains auth/session state. Stable IDs and the
+version pass closed validation before URL encoding. Parsing trusts only the
+configured platform origin and canonical grammar; an external link is not
+converted into a CLI command.
 
-## Совместимость и миграция
+## Compatibility and migration
 
-`deep_link_v1` неизменяем. Новые вид, локаль, форма маршрута или намерение требуют
-новой версии грамматики и периода совместимого разбора. Web может сохранять
-перенаправления со старой грамматики, но канонический вывод всегда использует одну
-текущую форму.
+`deep_link_v1` is immutable. A new kind, locale, route form, or intent requires
+a new grammar version and a period of compatible parsing. Web may preserve
+redirects from the old grammar, but canonical output always uses one current
+form.
 
-## Критерии приёмки
+## Acceptance criteria
 
-| Требование | Исполнимый способ проверки |
+| Requirement | Executable verification |
 |---|---|
-| `REQ-3001` | Эталонный корпус покрывает component/setup, точные версии, publisher и намерение жалобы. |
-| `REQ-3002` | Проверка default и обеих явных локалей фиксирует `ru` и `en` в URL и `cli_argv`. |
-| `REQ-3003` | Golden URL использует только существующие object/version/publisher paths и `#report`. |
-| `REQ-3004` | Негативный корпус отклоняет credentials, query, лишние секретоподобные поля, неверный префикс ID и произвольный fragment. |
-| `REQ-3005` | Schema golden фиксирует нормализованный target, URL, `cli_argv` и производную команду. |
-| `REQ-3006` | Проверки свойств и обратного цикла сравнивают target, URL, `cli_argv` и результат разбора. |
-| `REQ-3007` | Проверка генерации запрещает catalog/API lookup и принимает синтаксически корректный неизвестный ID. |
-| `REQ-3008` | Проверка CLI запрещает browser-вызовы и работает по SSH-модели при отключённом catalog. |
-| `REQ-3009` | Контрактная проверка Python читает упакованный корпус; владелец web подключает тот же файл без копии. |
-| `REQ-3010` | Граничные проверки покрывают каждое закрытое перечисление и структурное ограничение. |
+| `REQ-3001` | The golden corpus covers component/setup, exact versions, publisher, and report intent. |
+| `REQ-3002` | Verification of the default and both explicit locales fixes `ru` and `en` in the URL and `cli_argv`. |
+| `REQ-3003` | Golden URLs use only existing object/version/publisher paths and `#report`. |
+| `REQ-3004` | The negative corpus rejects credentials, query, extra secret-like fields, an invalid ID prefix, and an arbitrary fragment. |
+| `REQ-3005` | The schema golden fixes the normalized target, URL, `cli_argv`, and derived command. |
+| `REQ-3006` | Property and round-trip checks compare the target, URL, `cli_argv`, and parsing result. |
+| `REQ-3007` | A generation check prohibits catalog/API lookup and accepts a syntactically valid unknown ID. |
+| `REQ-3008` | A CLI check prohibits browser calls and works under an SSH model with the catalog disabled. |
+| `REQ-3009` | A Python contract check reads the packaged corpus; the web owner consumes the same file without a copy. |
+| `REQ-3010` | Boundary checks cover every closed enumeration and structural constraint. |

@@ -1,49 +1,49 @@
 ---
-description: "SPEC-052: Публичный приём обращений о авторе, объекте каталога или произвольной цели."
+description: "SPEC-052: Public intake of complaints about an author, catalog object, or arbitrary target."
 last_verified: "2026-08-22"
 ---
 
-# SPEC-052: Публичный приём обращений
+# SPEC-052: Public complaint intake
 
-## Цель
+## Purpose
 
-Принять обращение о авторе, компоненте, сетапе или произвольной цели без почтового клиента и без требования закрытого `ReportCase`. Сохранить кто отправил, о ком/чём, тему, текст, email для ответа и id аккаунта, если вход выполнен.
+Accept a complaint about an author, component, setup, or arbitrary target without requiring an email client or a private `ReportCase`. Store who submitted it, whom/what it concerns, the subject, text, reply email, and account id if the submitter is signed in.
 
-## Границы
+## Scope
 
-Staff triage, машина состояний report case и CLI `report` не входят. Точный контракт полей принадлежит `docs/contracts/complaint-intake.md`. Закрытый аутентифицированный случай остаётся `docs/contracts/report-case.md`.
+Staff triage, the report case state machine, and the CLI `report` command are out of scope. The exact field contract belongs to `docs/contracts/complaint-intake.md`. The private authenticated case remains defined in `docs/contracts/report-case.md`.
 
-## Термины
+## Terms
 
-- **Обращение** — запись intake, не report case.
-- **Отправитель** — вошедший аккаунт либо аноним с reply email.
+- **Complaint** — an intake record, not a report case.
+- **Submitter** — either a signed-in account or an anonymous user with a reply email.
 
-## Требования
+## Requirements
 
-- `REQ-5201`: `POST /v1/complaints` принимает обращение без обязательной сессии и сохраняет перечисленные поля.
-- `REQ-5202`: Вошедший вызывающий записывается как `submitter_account_id`; без сессии поле пусто.
-- `REQ-5203`: Форма не зависит от настроенного mailto и не блокируется предупреждением о почте.
-- `REQ-5204`: Лимиты читаются из конфигурации: один отправитель за окно и не более заданного числа в минуту против одной цели-компонента и одной цели-пользователя.
-- `REQ-5205`: Превышение лимита отвечает `AI_STP_RATE_LIMITED`. Тесты читают те же настройки, что и обработчик.
+- `REQ-5201`: `POST /v1/complaints` accepts a complaint without requiring a session and stores the listed fields.
+- `REQ-5202`: A signed-in caller is recorded as `submitter_account_id`; without a session, the field is empty.
+- `REQ-5203`: The form does not depend on a configured mailto address and is not blocked by an email warning.
+- `REQ-5204`: Limits are read from configuration: one submission per submitter per window and no more than the configured number per minute against a single component target and a single user target.
+- `REQ-5205`: Exceeding a limit returns `AI_STP_RATE_LIMITED`. Tests read the same settings as the handler.
 
-## Состояния и ошибки
+## States and errors
 
-Успех — `201` с `complaint_id` без эха текста. Валидация — `AI_STP_VALIDATION_ERROR`. Лимит — `AI_STP_RATE_LIMITED`.
+Success is `201` with `complaint_id` and without echoing the text. Validation errors use `AI_STP_VALIDATION_ERROR`. Rate limiting uses `AI_STP_RATE_LIMITED`.
 
-## Безопасность и приватность
+## Security and privacy
 
-Текст сканируется на запрещённые маркеры секретов. Аноним идентифицируется для лимита только нормализованным reply email, не адресом сети.
+The text is scanned for prohibited secret markers. For rate limiting, an anonymous submitter is identified only by the normalized reply email, not by the network address.
 
-## Совместимость и миграция
+## Compatibility and migration
 
-Additive таблица и маршрут. Откат удаляет приём; закрытый `POST /v1/reports` не меняется.
+An additive table and route. Rollback removes the intake endpoint; the private `POST /v1/reports` remains unchanged.
 
-## Критерии приёмки
+## Acceptance criteria
 
-| Требование | Исполнимое доказательство |
+| Requirement | Executable evidence |
 |---|---|
-| `REQ-5201` | API-тест создаёт обращение author/component/other и читает сохранённые поля. |
-| `REQ-5202` | Тот же тест различает анонима и вошедшего. |
-| `REQ-5203` | Веб-форма отправляет API и не показывает предупреждение о ненастроенной почте. |
-| `REQ-5204` | Лимиты в тесте берутся из settings объекта обработчика. |
-| `REQ-5205` | Лишний вызов получает `AI_STP_RATE_LIMITED`. |
+| `REQ-5201` | An API test creates author/component/other complaints and reads the stored fields. |
+| `REQ-5202` | The same test distinguishes an anonymous submitter from a signed-in submitter. |
+| `REQ-5203` | The web form submits to the API and does not display a warning about unconfigured email. |
+| `REQ-5204` | The test obtains limits from the handler's settings object. |
+| `REQ-5205` | An excess request receives `AI_STP_RATE_LIMITED`. |

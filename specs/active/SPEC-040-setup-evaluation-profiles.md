@@ -1,71 +1,54 @@
 ---
-description: "SPEC-040: Локальные профили функциональной оценки точного сетапа."
-last_verified: "2026-08-31"
+description: "SPEC-040: Local functional evaluation profiles for an exact setup."
+last_verified: "2026-08-13"
 ---
 
-# SPEC-040: Профили оценки сетапа
+# SPEC-040: Setup Evaluation Profiles
 
-## Цель
+## Purpose
 
-Автор и агент могут составить воспроизводимый план оценки компонента, подмножества
-или полного `SetupVersion`, выполнить доступные локальные механические проверки и
-получить неизменяемое evidence без изменения опубликованных байтов и без
-использования полномочий провайдера.
+An author and an agent can create a reproducible evaluation plan for a component, a subset, or a complete `SetupVersion`, run the available local mechanical checks, and obtain immutable evidence without changing published bytes or using provider permissions.
 
-## Границы
+## Scope
 
-Входят версионируемый профиль, точные координаты, бюджеты, требования изоляции,
-локальный детерминированный runner и честные состояния недоступных model/human
-runner. Проверка при публикации с credentials и показ evidence в web реализуются как
-отдельные потребители общего контракта.
+This specification covers a versioned profile, exact coordinates, budgets, isolation requirements, a local deterministic runner, and truthful states for unavailable model/human runners. Credentialed checks at publication time and displaying evidence on the web are implemented as separate consumers of the shared contract.
 
-## Термины
+## Terms
 
-- **Профиль** — переносимое намерение оценки без координат конкретной версии.
-- **План** — профиль, связанный с точным `SetupVersion` и окружением runner.
-- **Результат** — неизменяемое локальное evidence одного подтверждённого плана.
+- **Profile** — portable evaluation intent without coordinates of a specific version.
+- **Plan** — a profile bound to an exact `SetupVersion` and runner environment.
+- **Result** — immutable local evidence for one confirmed plan.
 
-## Требования
+## Requirements
 
-- `REQ-4001`: `SetupEvalProfile` версии `setup-eval/1` задаёт область, виды компонентов, предусловия, проверки, утверждения, явные допуски, бюджеты, требования изоляции и отдельные eval permissions.
-- `REQ-4002`: Reference profile содержит base check и type-specific направления для всех восьми видов компонентов и разделяет методы `deterministic`, `model_assisted`, `human_review` с совместимым runner.
-- `REQ-4003`: Evaluation plan связывает профиль с точными setup/component версиями, passport и artifact digest, harness/provider/runner versions и временем планирования; подмножество может содержать только компоненты названного setup graph.
-- `REQ-4004`: `eval run` требует exact plan digest как подтверждение точного
-  локального запуска, повтор не создаёт второе evidence, а изменившийся digest
-  закрывается отказом.
-- `REQ-4005`: Core выполняет только локальные deterministic checks; отсутствующий model, human или isolated runner получает `not_run`, никогда `passed`, а агрегат с `not_run` получает `degraded`.
-- `REQ-4006`: Результат связывается с полным планом, exact runner coordinates, result digest и timestamp и явно сообщает, что published bytes не изменены и provider permissions не использованы.
+- `REQ-4001`: `SetupEvalProfile` version `setup-eval/1` defines the scope, component kinds, preconditions, checks, assertions, explicit tolerances, budgets, isolation requirements, and separate eval permissions.
+- `REQ-4002`: The reference profile contains a base check and type-specific tracks for all eight component kinds and separates the `deterministic`, `model_assisted`, and `human_review` methods, each with a compatible runner.
+- `REQ-4003`: An evaluation plan binds the profile to exact setup/component versions, passport and artifact digests, harness/provider/runner versions, and the planning time; a subset may contain only components from the specified setup graph.
+- `REQ-4004`: `eval run` requires the exact plan digest and explicit confirmation; rerunning does not create a second evidence record, and a changed digest results in a fail-closed refusal.
+- `REQ-4005`: Core runs only local deterministic checks; an unavailable model, human, or isolated runner receives `not_run`, never `passed`, and an aggregate containing `not_run` receives `degraded`.
+- `REQ-4006`: The result is bound to the complete plan, exact runner coordinates, result digest, and timestamp, and explicitly states that published bytes were not changed and provider permissions were not used.
 
-## Состояния и ошибки
+## States and errors
 
-Check принимает `passed`, `failed`, `not_run`, `degraded`. Результат равен
-`failed`, если провалена хотя бы одна проверка; иначе `degraded`, если что-либо
-не запускалось или деградировало; только полностью выполненный набор получает
-`passed`.
+A check accepts `passed`, `failed`, `not_run`, or `degraded`. The result is `failed` if at least one check fails; otherwise, it is `degraded` if anything was not run or was degraded; only a fully executed set receives `passed`.
 
-Отсутствующая версия, изменившийся passport/artifact digest, компонент вне setup
-graph, несовместимый method/runner и stale plan digest дают типизированный отказ.
+A missing version, a changed passport/artifact digest, a component outside the setup graph, an incompatible method/runner combination, and a stale plan digest result in a typed refusal.
 
-## Безопасность и приватность
+## Security and privacy
 
-Eval permissions не наследуются от provider permissions. Core runner не вызывает
-модель, не открывает сеть и не исполняет component artifact. Профиль содержит
-имена требуемых credentials, но не значения. Evidence не меняет immutable
-published bytes и не повышает trust или publication readiness само по себе.
+Eval permissions are not inherited from provider permissions. The core runner does not invoke a model, access the network, or execute a component artifact. The profile contains the names of required credentials, but not their values. Evidence does not change immutable published bytes and does not by itself increase trust or publication readiness.
 
-## Совместимость и миграция
+## Compatibility and migration
 
-Версия профиля независима от версии JSON Schema. Неизвестная основная версия
-профиля закрывается отказом. Старый результат не переписывается при обновлении
-runner или профиля; новый запуск создаётся относительно нового точного плана.
+The profile version is independent of the JSON Schema version. An unknown major profile version results in a fail-closed refusal. An existing result is not rewritten when the runner or profile is updated; a new run is created against a new exact plan.
 
-## Критерии приёмки
+## Acceptance criteria
 
-| Требование | Исполнимый способ проверки |
+| Requirement | Executable Verification Method |
 |---|---|
-| `REQ-4001` | Schema corpus отклоняет неизвестные поля, неверные budgets и неполный профиль. |
-| `REQ-4002` | Параметризованный тест требует reference profile для всех восьми типов и три разделённых метода. |
-| `REQ-4003` | Process fixture строит plan из exact first-party setup и отклоняет component ID вне графа. |
-| `REQ-4004` | Запуск без exact digest и со stale digest отказан; повтор возвращает тот же run и одну строку evidence. |
-| `REQ-4005` | Local-static checks проходят, model/human получают `not_run`, общий статус — `degraded`. |
-| `REQ-4006` | Machine result проходит схему и содержит exact coordinates, result digest и два явных отрицательных признака мутации/полномочий. |
+| `REQ-4001` | The schema corpus rejects unknown fields, invalid budgets, and an incomplete profile. |
+| `REQ-4002` | A parameterized test requires a reference profile for all eight component kinds and three separate methods. |
+| `REQ-4003` | A process fixture builds a plan from an exact first-party setup and rejects a component ID outside the graph. |
+| `REQ-4004` | A run without confirmation or with a stale digest is refused; a rerun returns the same run and a single evidence row. |
+| `REQ-4005` | Local-static checks pass, model/human checks receive `not_run`, and the overall status is `degraded`. |
+| `REQ-4006` | The machine-readable result passes schema validation and contains exact coordinates, a result digest, and two explicit negative indicators for mutation and permission use. |

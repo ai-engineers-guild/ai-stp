@@ -1,20 +1,20 @@
 ---
-description: "Операторская процедура evidence-gated готовности production и опционального OpenObserve."
+description: "Operator procedure for evidence-gated production readiness and optional OpenObserve."
 last_verified: "2026-08-28"
 ---
 
-# Готовность production
+# Production readiness
 
-Нормативные требования принадлежат `SPEC-032` и `ADR-0071`. Эта процедура
-собирает evidence и ничего не выкатывает: выкатку выполняет конвейер
-`ADR-0109` — зелёный `check` продвигает `deploy/prod`. Решение выпустить
-принимает агент на действующем наборе evidence (`ADR-0118`).
+Normative requirements belong to `SPEC-032` and `ADR-0071`. This procedure
+collects evidence and deploys nothing: deployment is performed by the
+`ADR-0109` pipeline—a green `check` advances `deploy/prod`. The decision to release
+is made by the agent based on a current evidence set (`ADR-0118`).
 
 ## Optional OpenObserve profile
 
-OpenObserve — диагностический single-node profile. Он не является dependency
-`/v1/health/ready`, audit store или backup source. Запускать его только вместе с
-base stack и только с секретами в gitignored runtime environment:
+OpenObserve is a diagnostic single-node profile. It is not a dependency of
+`/v1/health/ready`, an audit store, or a backup source. Run it only together with the
+base stack and only with secrets in a gitignored runtime environment:
 
 ```bash
 docker compose -f docker-compose.prod.yml \
@@ -22,49 +22,49 @@ docker compose -f docker-compose.prod.yml \
   --env-file .env.prod up -d openobserve
 ```
 
-UI привязан к loopback host. Для доступа использовать SSH tunnel или уже
-утверждённую административную границу; не публиковать UI или OTLP наружу. API
-использует отдельную учётную запись ingestion через runtime header. Initial root
-account не передаётся приложению. Остановка profile не удаляет его named volume;
-удаление данных является отдельной destructive operation с owner confirmation.
+The UI is bound to the loopback host. Use an SSH tunnel or an already
+approved administrative boundary for access; do not expose the UI or OTLP externally. The API
+uses a separate ingestion account through a runtime header. The initial root
+account is not passed to the application. Stopping the profile does not delete its named volume;
+data deletion is a separate destructive operation requiring owner confirmation.
 
-`AI_STP_OPENOBSERVE_IMAGE` обязателен и содержит owner-approved immutable image
-digest. Compose намеренно откажется запускать profile без него: floating tag не
-является release identity.
+`AI_STP_OPENOBSERVE_IMAGE` is required and contains an owner-approved immutable image
+digest. Compose deliberately refuses to start the profile without it: a floating tag is not
+a release identity.
 
-При недоступном exporter приложение продолжает работать, но выпускное evidence
-должно зафиксировать failed telemetry/alert check и не может быть `complete`.
+When the exporter is unavailable, the application continues to operate, but release evidence
+must record a failed telemetry/alert check and cannot be `complete`.
 
 ## Evidence checklist
 
-Перед выпуском записать exact commit, schema/config/policy revisions,
-timestamp/expiry, safe outcomes и остаточные риски. Нельзя включать значения env,
-учётные данные, tokens, raw logs, персональные данные или object bytes.
+Before release, record the exact commit, schema/config/policy revisions,
+timestamp/expiry, safe outcomes, and residual risks. Env values,
+credentials, tokens, raw logs, personal data, or object bytes must not be included.
 
-| Проверка | Команда / наблюдение | Ожидаемый результат |
+| Check | Command / observation | Expected result |
 | --- | --- | --- |
-| Base topology | `docker compose -f docker-compose.prod.yml config` | В выводе нет OpenObserve и public OTLP port. |
-| Profile isolation | compose config с override | Только loopback UI; OTLP не опубликован. |
-| Health | `curl -fsS "$ORIGIN/v1/health/ready"` | `200` без зависимости от exporter. |
-| Telemetry failure | развёрнутая среда с недоступным endpoint | API остаётся доступным; evidence records failure. |
-| Recovery | `deploy/backup.sh` → isolated `restore.sh --yes` | PostgreSQL/RustFS integrity и readiness. |
-| Rollback | `deploy/rollback.sh --yes` на развёрнутой среде | Previous exact artifact under lock; no downgrade. |
-| Abuse | deterministic API test | `429` и `Retry-After`; signal не меняет lifecycle. |
+| Base topology | `docker compose -f docker-compose.prod.yml config` | Output contains no OpenObserve or public OTLP port. |
+| Profile isolation | compose config with override | Loopback UI only; OTLP is not exposed. |
+| Health | `curl -fsS "$ORIGIN/v1/health/ready"` | `200` without depending on the exporter. |
+| Telemetry failure | deployed environment with an unavailable endpoint | API remains available; evidence records failure. |
+| Recovery | `deploy/backup.sh` → isolated `restore.sh --yes` | PostgreSQL/RustFS integrity and readiness. |
+| Rollback | `deploy/rollback.sh --yes` in the deployed environment | Previous exact artifact under lock; no downgrade. |
+| Abuse | deterministic API test | `429` and `Retry-After`; the signal does not change the lifecycle. |
 
-## Принятая policy single-node MVP
+## Adopted single-node MVP policy
 
-До отдельного пересмотра действуют следующие значения: доступность API —
-`99.5%` за 30 дней; p95 задержки public API — не более `750 ms`; бюджет ошибок —
-`0.5%`. Telemetry OpenObserve хранится `14 days`, а оператор оставляет не менее
-`20%` свободного места на файловой системе тома. Evidence действует `24 hours`.
+Until a separate review, the following values apply: API availability is
+`99.5%` over 30 days; p95 public API latency is no more than `750 ms`; the error budget is
+`0.5%`. OpenObserve telemetry is retained for `14 days`, and the operator leaves at least
+`20%` free space on the volume filesystem. Evidence is valid for `24 hours`.
 
-Rate limit — `100` запросов за `60 seconds` на весь процесс и `1000` запросов
-за `3600 seconds` с одного транспортного адреса, с не более `2048` ключами в
-таблице адресов (`ADR-0128`). Это намеренно базовая single-node защита: browser
-state и forwarded headers не становятся источником полномочия. Для входа, жалоб и
-чувствительных изменений до production approval требуется отдельный класс policy
-и проверка на server boundary.
+The rate limit is `100` requests per `60 seconds` for the entire process and `1000` requests
+per `3600 seconds` from a single transport address, with no more than `2048` keys in the
+address table (`ADR-0128`). This is deliberately basic single-node protection: browser
+state and forwarded headers do not become a source of authority. Login, reports, and
+sensitive changes require a separate policy class and a check at the server boundary
+before production approval.
 
-Alert routes остаются local/test receiver до явного выбора owner внешнего
-канала. Отсутствие реального receiver или recovery rehearsal делает evidence
-`incomplete`, а не неявно успешным.
+Alert routes remain on a local/test receiver until the owner explicitly selects an external
+channel. The absence of a real receiver or recovery rehearsal makes evidence
+`incomplete`, not implicitly successful.

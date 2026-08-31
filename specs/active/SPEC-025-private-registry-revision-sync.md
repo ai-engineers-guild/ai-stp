@@ -1,123 +1,125 @@
 ---
-description: "SPEC-025: Приватный реестр и серверная синхронизация ревизий."
+description: "SPEC-025: Private registry and server-side revision synchronization."
 last_verified: "2026-08-15"
 ---
 
-# SPEC-025: Приватный реестр и серверная синхронизация ревизий
+# SPEC-025: Private registry and server-side revision synchronization
 
-## Цель
+## Purpose
 
-Серверный контур даёт авторизованному устройству минимальный приватный реестр:
-он принимает адресуемые по содержимому ревизии, хранит голову сущности и
-возвращает упорядоченный поток принятых событий. Это исполняет серверную часть
-`SPEC-009`, не перенося в API логику локального реестра, слияния или установки.
+The server layer provides an authorized device with a minimal private registry:
+it accepts content-addressed revisions, stores the entity head, and returns an
+ordered stream of accepted events. This implements the server side of
+`SPEC-009` without moving local registry, merge, or installation logic into the
+API.
 
-## Границы
+## Scope
 
-Входят аутентифицированные отправка и получение ограниченных пакетов событий,
-долговечные ревизии и головы, идемпотентные receipts, account-scoped курсор,
-fast-forward, явный ответ конфликта, tombstone и отзыв устройства. Таблицы и
-миграции принадлежат этому срезу, но живут в едином дереве Alembic по
-`SPEC-020`; поля события и их форматы принадлежат
-`docs/contracts/sync-event.md`, а проводные модели позже становятся источником
-OpenAPI по `SPEC-010`.
+Included are authenticated sending and receiving of bounded event batches,
+durable revisions and heads, idempotent receipts, an account-scoped cursor,
+fast-forward, an explicit conflict response, tombstones, and device revocation.
+Tables and migrations belong to this slice but live in the shared Alembic tree
+under `SPEC-020`; event fields and their formats belong to
+`docs/contracts/sync-event.md`, and the wire models later become the OpenAPI
+source under `SPEC-010`.
 
-Не входят реализация CLI-синхронизации (`#180`), автоматическое или серверное
-слияние, CRDT, брокер сообщений, выдача байтов артефактов, публикация, grants,
-web-экран состояния синхронизации и физическая очистка данных.
+Excluded are CLI synchronization implementation (`#180`), automatic or
+server-side merging, CRDTs, a message broker, serving artifact bytes,
+publication, grants, a web synchronization-status screen, and physical data
+deletion.
 
-## Термины
+## Terms
 
-- `Revision ledger` — неизменяемые принятые ревизии и их родители в пределах
-  одного account.
-- `Head` — единственная принятая сервером текущая ревизия сущности.
-- `Receipt` — долговечный результат обработки одного события; повтор возвращает
-  его, а не создаёт второй эффект.
-- `Server outbox` — упорядоченный поток принятых событий, из которого устройства
-  читают изменения; отдельный брокер для него не нужен.
+- `Revision ledger` — immutable accepted revisions and their parents within one
+  account.
+- `Head` — the single current entity revision accepted by the server.
+- `Receipt` — the durable result of processing one event; a retry returns it
+  rather than creating a second effect.
+- `Server outbox` — an ordered stream of accepted events from which devices read
+  changes; it does not need a separate broker.
 
-## Требования
+## Requirements
 
-- `REQ-2501`: В первой форме server ledger принимает и выдаёт только
-  межустройственный паспорт разработчика, разрешённую сводку конкретного
-  устройства, приватные ревизии компонента или сетапа, scoped consent и их
-  tombstone для текущего account. Байты артефактов, резервных копий, полный
-  паспорт или индекс проекта, абсолютные пути, секреты и значения окружения не
-  сохраняются в этом срезе.
-- `REQ-2502`: Каждое событие имеет account-scoped идемпотентный receipt. Повтор
-  того же события или потерянный ответ возвращает первоначальный результат,
-  голову и курсор без второй ревизии, записи outbox или аудита.
-- `REQ-2503`: Принятие ревизии, переход головы, append в server outbox и receipt
-  фиксируются одной транзакцией PostgreSQL. До commit получатель не видит
-  событие; rollback не оставляет частичного результата.
-- `REQ-2504`: Получение работает от непрозрачного account-bound курсора
-  упорядоченного server outbox, ограничивает размер пакета и не хранит на сервере
-  состояние курсора конкретного клиента. Курсор не является offset, ID сущности
-  или полномочием на другой account. Непустая страница возвращает курсор
-  последней выданной последовательности независимо от того, есть ли ещё строки
-  в момент ответа. Пустая страница не продвигает позицию и не заставляет
-  клиента, уже потребившего события, начинать поток с нуля.
-- `REQ-2505`: Сервер принимает только начальную ревизию либо fast-forward от
-  ожидаемой текущей головы. При расходящейся истории он возвращает явный
-  `conflict` с достаточными ревизиями для общего предка, не применяет правило
-  последней записи и не меняет голову.
-- `REQ-2506`: Tombstone является обычной принятой ревизией и виден в server
-  outbox. Он закрывает обычное чтение по правилам `SPEC-013`, но не удаляет
-  историю, требуемую для recovery или трёхстороннего объединения.
-- `REQ-2507`: Слияние строится клиентом из общего предка по `SPEC-009`.
-  Сервер принимает только явно созданную результирующую ревизию с нужными
-  родителями; он не объединяет поля, не выбирает победителя и не меняет
-  установленный target харнесса.
-- `REQ-2508`: Запрос разрешён только активному устройству, привязанному к текущей
-  серверной сессии; событие не может объявить другое устройство. Отозванное
-  устройство получает постоянный отказ до записи revision, head, outbox или
-  receipt.
-- `REQ-2509`: Приватные события изолированы по account, а успешное принятие,
-  конфликт и отказ по отзыву дают безопасные структурные сигналы и append-only
-  аудит без документа ревизии, токенов, подписей или секретов.
-- `REQ-2510`: Срез использует PostgreSQL и существующий минимальный worker только
-  там, где появится реальный асинхронный эффект. Сам server outbox читается
-  синхронно из durable ledger и не создаёт фиктивное job или новую внешнюю
-  зависимость.
+- `REQ-2501`: In its initial form, the server ledger accepts and serves only the
+  cross-device developer passport, the permitted summary of a specific device,
+  private component or setup revisions, scoped consent, and their tombstones for
+  the current account. This slice does not store artifact bytes, backups, a full
+  passport or project index, absolute paths, secrets, or environment values.
+- `REQ-2502`: Every event has an account-scoped idempotent receipt. Retrying the
+  same event, or retrying after a lost response, returns the original result,
+  head, and cursor without a second revision, outbox record, or audit record.
+- `REQ-2503`: Revision acceptance, the head transition, append to the server
+  outbox, and the receipt are committed in one PostgreSQL transaction. Before
+  commit, a receiver cannot see the event; rollback leaves no partial result.
+- `REQ-2504`: Retrieval starts from an opaque account-bound cursor over the
+  ordered server outbox, limits the batch size, and stores no per-client cursor
+  state on the server. The cursor is not an offset, entity ID, or authority over
+  another account. A non-empty page returns the cursor of the last sequence
+  served regardless of whether more rows exist when the response is produced.
+  An empty page does not advance the position or force a client that has already
+  consumed events to restart the stream from zero.
+- `REQ-2505`: The server accepts only an initial revision or a fast-forward from
+  the expected current head. For diverging history, it returns an explicit
+  `conflict` with enough revisions to find a common ancestor, applies no
+  last-write-wins rule, and does not change the head.
+- `REQ-2506`: A tombstone is an ordinary accepted revision and is visible in the
+  server outbox. It closes ordinary reads under `SPEC-013` but does not delete
+  history required for recovery or a three-way merge.
+- `REQ-2507`: The client constructs a merge from the common ancestor under
+  `SPEC-009`. The server accepts only an explicitly created resulting revision
+  with the required parents; it does not merge fields, choose a winner, or
+  change the installed harness target.
+- `REQ-2508`: A request is permitted only for an active device bound to the
+  current server session; an event cannot declare another device. A revoked
+  device receives a permanent rejection before any revision, head, outbox, or
+  receipt is written.
+- `REQ-2509`: Private events are isolated by account, while successful
+  acceptance, conflict, and rejection due to revocation produce safe structural
+  signals and append-only audit records without the revision document, tokens,
+  signatures, or secrets.
+- `REQ-2510`: The slice uses PostgreSQL and the existing minimal worker only
+  where a real asynchronous effect arises. The server outbox itself is read
+  synchronously from the durable ledger and creates neither a fictitious job nor
+  a new external dependency.
 
-## Безопасность и приватность
+## Security and privacy
 
-Авторизация всегда определяет account и активное устройство на сервере; поля
-события не могут расширить эти полномочия. Cursor только продолжает чтение уже
-разрешённого account-потока и проверяется на целостность. Документ ревизии
-сохраняется и выдаётся исключительно по allowlist сущностей, а audit, логи и
-метрики несут только безопасные идентификаторы, результат и correlation data по
-`SPEC-013` и `SPEC-017`.
+Authorization always determines the account and active device on the server;
+event fields cannot expand that authority. A cursor only continues reading an
+already authorized account stream and is integrity-checked. The revision
+document is stored and served exclusively for the entity allowlist, while
+audit, logs, and metrics carry only safe identifiers, the result, and
+correlation data under `SPEC-013` and `SPEC-017`.
 
-## Состояния и ошибки
+## States and errors
 
-Receipt имеет состояния `accepted`, `rejected`, `conflict` и `superseded` из
-`SPEC-009`. Сеанс клиента остаётся `offline`, `pushing`, `pulling`, `conflict`,
-`partial`, `failed` или `up_to_date`; сервер не объявляет его успешным за
-клиента. Недействительная схема, неверная ревизия, чужая сущность и нарушение
-предусловия получают устойчивые типизированные ошибки; отозванное устройство
-возвращает `AI_STP_DEVICE_REVOKED`.
+A receipt has the `accepted`, `rejected`, `conflict`, and `superseded` states
+from `SPEC-009`. The client session remains `offline`, `pushing`, `pulling`,
+`conflict`, `partial`, `failed`, or `up_to_date`; the server does not declare it
+successful on the client's behalf. An invalid schema, invalid revision,
+foreign entity, and precondition violation receive stable typed errors; a
+revoked device returns `AI_STP_DEVICE_REVOKED`.
 
-## Совместимость и миграция
+## Compatibility and migration
 
-Новые таблицы добавляются аддитивной Alembic-миграцией с внешними ключами,
-уникальностью receipt и индексом упорядоченного outbox. Формы событий сначала
-проходят через `packages/contracts`, фикстуры и сгенерированный OpenAPI; старый
-поддерживаемый клиент получает только совместимые поля. Уплотнение, удаление
-ревизий и истечение курсоров не входят в #179 и не могут удалить предка,
-доступный поддерживаемому устройству.
+New tables are added through an additive Alembic migration with foreign keys,
+receipt uniqueness, and an index on the ordered outbox. Event forms first pass
+through `packages/contracts`, fixtures, and generated OpenAPI; an older
+supported client receives only compatible fields. Compaction, revision
+deletion, and cursor expiry are outside #179 and cannot delete an ancestor
+available to a supported device.
 
-## Критерии приёмки
+## Acceptance criteria
 
-| Требование | Исполнимый способ проверки |
+| Requirement | Executable verification |
 |---|---|
-| `REQ-2501` | Contract/API-тесты отклоняют байты артефактов, секретные и запрещённые поля; другой account не читает события. |
-| `REQ-2502` | Повтор одного события после имитации потерянного ответа возвращает идентичный receipt, одну ревизию и один курсор. |
-| `REQ-2503` | Инъекция ошибки до commit не оставляет ни головы, ни event; успешный commit делает видимыми все четыре части вместе. |
-| `REQ-2504` | Два pull-пакета обходят поток без пропусков и повторов; непустая страница, в том числе последняя, возвращает курсор; повторный pull этого курсора даёт пустую страницу; новое событие после сохранённого курсора приходит одно; поддельный или чужой cursor отклоняется. |
-| `REQ-2505` | Два устройства последовательно fast-forward, а расходящиеся изменения возвращают conflict и сохраняют старую голову. |
-| `REQ-2506` | Tombstone приходит второму устройству как ревизия, закрывает обычное чтение и сохраняет граф для recovery. |
-| `REQ-2507` | Явная merge-ревизия с двумя родителями принимается, но сервер никогда не создаёт её сам. |
-| `REQ-2508` | Отзыв устройства запрещает push и pull без побочного эффекта, при этом локальное чтение не проверяется сервером. |
-| `REQ-2509` | Audit/log-тесты фиксируют безопасные идентификаторы и не содержат документа, токена, подписи или секрета. |
-| `REQ-2510` | Интеграционный тест доказывает, что sync работает без брокера и без job, когда нет асинхронной проекции. |
+| `REQ-2501` | Contract/API tests reject artifact bytes and secret or prohibited fields; another account cannot read the events. |
+| `REQ-2502` | Retrying one event after simulating a lost response returns an identical receipt, one revision, and one cursor. |
+| `REQ-2503` | Fault injection before commit leaves neither a head nor an event; a successful commit makes all four parts visible together. |
+| `REQ-2504` | Two pull batches traverse the stream without gaps or duplicates; a non-empty page, including the last one, returns a cursor; another pull with that cursor returns an empty page; one new event after the saved cursor arrives by itself; a forged or foreign cursor is rejected. |
+| `REQ-2505` | Two devices fast-forward sequentially, while diverging changes return conflict and preserve the old head. |
+| `REQ-2506` | A tombstone reaches the second device as a revision, closes ordinary reads, and preserves the graph for recovery. |
+| `REQ-2507` | An explicit merge revision with two parents is accepted, but the server never creates it itself. |
+| `REQ-2508` | Device revocation prohibits push and pull without a side effect, while local reads are not checked by the server. |
+| `REQ-2509` | Audit/log tests record safe identifiers and contain no document, token, signature, or secret. |
+| `REQ-2510` | An integration test proves that sync works without a broker and without a job when there is no asynchronous projection. |

@@ -1,20 +1,20 @@
 ---
-description: "Решение: использовать postgresql и rustfs."
+description: "Decision to use PostgreSQL and RustFS."
 last_verified: "2026-08-03"
 ---
 
-# ADR-0009: Использовать PostgreSQL и RustFS
+# ADR-0009: Use PostgreSQL and RustFS
 
-Принято 2026-08-03.
+Accepted on 2026-08-03.
 
-## Контекст
+## Context
 
-Серверу нужны транзакционные связи аккаунтов, версий, ревизий, grants, проверок и аудита, а также отдельное хранилище больших неизменяемых артефактов.
+The server needs transactional relationships among accounts, versions, revisions, grants, verification results, and audits, plus separate storage for large immutable artifacts.
 
-## Решение
+## Decision
 
-PostgreSQL хранит серверные метаданные, ревизии, права доступа, результаты проверок и аудит. RustFS с S3-совместимым интерфейсом хранит неизменяемые байты артефактов. FastAPI и worker образуют модульный монолит, а Next.js остаётся тонким веб-интерфейсом.
+PostgreSQL stores server metadata, revisions, access rights, verification results, and audit records. RustFS with an S3-compatible interface stores immutable artifact bytes. FastAPI and the worker form a modular monolith, while Next.js remains a thin web interface.
 
-## Последствия
+## Consequences
 
-Нужны миграции PostgreSQL, транзакционный исходящий журнал, проверяемые резервные копии, объектная авторизация и согласованное удаление metadata/object bytes.
+PostgreSQL migrations, a transactional outbox, verifiable backups, object-level authorization, and coordinated deletion of metadata/object bytes are required.

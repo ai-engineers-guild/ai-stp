@@ -1,56 +1,56 @@
 ---
-description: "Общий корпус фикстур /v1: виды случаев, инварианты и порядок использования обеими сторонами."
+description: "Shared /v1 fixture corpus: case kinds, invariants, and usage by both sides."
 last_verified: "2026-08-05"
 ---
 
-# Корпус фикстур
+# Fixture corpus
 
-Владелец полей случая — модели `ai_stp_contracts.fixtures`; здесь зафиксировано, что такое случай, какие бывают виды и какие правила корпус обязан выдерживать.
+The case field owners are the `ai_stp_contracts.fixtures` models; this document defines what a case is, which kinds exist, and which rules the corpus must satisfy.
 
-Корпус один и общий. Клиент проверяется моком, собранным из этих случаев; реализация API проверяется тем же корпусом через `ai_stp_contracts.conformance`. Два независимо написанных набора примеров совпали бы только случайно, и первое расхождение проявилось бы живой ошибкой, а не красным тестом.
+There is one shared corpus. The client is tested against a mock built from these cases; the API implementation is tested against the same corpus through `ai_stp_contracts.conformance`. Two independently written example sets would agree only by chance, and the first divergence would surface as a production error rather than a failing test.
 
-Поэтому корпус поставляется **внутри пакета**, а не в каталоге тестов: серверный трек импортирует `ai_stp_contracts.fixtures`, а корпус, который нельзя импортировать, общим не является.
+The corpus is therefore shipped **inside the package**, not in the test directory: the server track imports `ai_stp_contracts.fixtures`, and a corpus that cannot be imported is not shared.
 
-## Виды случаев
+## Case kinds
 
-Слова «негативный» недостаточно: оно скрывает, на чьей стороне ошибка.
+The word “negative” is insufficient: it hides which side is at fault.
 
-| Вид | Смысл | Обслуживается моком | Воспроизводится набором |
+| Kind | Meaning | Served by the mock | Replayed by the suite |
 |---|---|---|---|
-| `positive` | Запрос, на который соответствующий сервер отвечает ровно этим телом. | да | да |
-| `example` | Допустимое тело, которое **не выбирается запросом**: оно зависит от состояния сервера. | нет | нет |
-| `rejected_request` | Запрос, который сервер обязан отклонить, с устойчивым кодом ошибки. | да | да |
-| `invalid_response` | Тело, которое обязан отклонить **клиент**. | нет | нет |
+| `positive` | A request to which a conforming server responds with exactly this body. | yes | yes |
+| `example` | A valid body that is **not selected by the request**: it depends on server state. | no | no |
+| `rejected_request` | A request the server must reject, with a stable error code. | yes | yes |
+| `invalid_response` | A body the **client** must reject. | no | no |
 
-Вид `example` существует потому, что часть ответов выбирается состоянием, а не вызовом: одна и та же проба готовности отвечает `ready` или `not_ready` в зависимости от развёртывания. Назвать такое тело позитивным значит сделать мок неоднозначным и зависящим от порядка.
+The `example` kind exists because some responses are selected by state rather than by the call: the same readiness probe responds with `ready` or `not_ready` depending on the deployment. Calling such a body positive would make the mock ambiguous and order-dependent.
 
-Вид `invalid_response` не имеет аналога в корпусе, состоящем только из запросов. Именно он доказывает, что клиент не принимает молча сломанный сервер.
+The `invalid_response` kind has no equivalent in a request-only corpus. It proves that the client does not silently accept a broken server.
 
-Отказ без устойчивого кода не допускается: две реализации отказали бы по-разному и обе выглядели бы правильными.
+A rejection without a stable code is not allowed: two implementations could reject differently and both appear correct.
 
-## Инварианты
+## Invariants
 
-Корпус обязан выдерживать их все, и каждый закреплён проверкой:
+The corpus must satisfy all of them, and each is enforced by a check:
 
-- никакие два воспроизводимых случая не отвечают на один и тот же запрос — иначе мок зависит от порядка;
-- у каждой операции есть хотя бы один позитивный случай;
-- случай для операции с телом отправляет тело, а для операции без тела — не отправляет;
-- каждый паспорт внутри корпуса запечатан по собственному содержимому: скопированный `revision_id` совпал бы с шаблоном, и не поймал бы никто;
-- каждый отказ называет зарегистрированный код, статус которого совпадает с закрытым реестром, и адресует операцию, которая этот код объявляет;
-- данные случая содержат только ASCII: фикстура, читающаяся как проза, приглашает себя перевести, а переведённая фикстура больше не закрепляет те байты, ради которых написана.
+- no two replayable cases respond to the same request—otherwise the mock is order-dependent;
+- every operation has at least one positive case;
+- a case for an operation with a body sends a body, while one for an operation without a body does not;
+- every passport in the corpus is sealed from its own content: a copied `revision_id` would match the template and no one would catch it;
+- every rejection names a registered code whose status matches the closed registry and targets an operation that declares that code;
+- case data contains ASCII only: a fixture readable as prose invites translation, and a translated fixture no longer fixes the bytes it was written to protect.
 
-## Соответствие модели и схемы
+## Model and schema conformance
 
-Инвариант различия — не равенство. Часть правил в JSON Schema невыразима: линия `authoritative` требует обоих признаков подтверждения, готовность `ready` требует здоровых проверок, публичный маршрут требует опубликованного паспорта, отметка времени обязана быть существующим моментом. Модель намеренно строже.
+The invariant is difference, not equality. Some rules cannot be expressed in JSON Schema: the `authoritative` lane requires both verification markers, `ready` requires healthy checks, a public route requires a published passport, and a timestamp must denote a real instant. The model is intentionally stricter.
 
-Недопустимо обратное: если модель принимает тело, которое отвергает опубликованная схема, шлюз, проверяющий по схеме, откажет в полезной нагрузке, которую наш собственный код считает верной. Корпус обязан задействовать обе половины асимметрии, иначе она превратится в оправдание непроверенных правил.
+The reverse is unacceptable: if the model accepts a body rejected by the published schema, a schema-validating gateway will reject a payload our own code considers valid. The corpus must exercise both sides of the asymmetry, or it becomes an excuse for untested rules.
 
-## Использование
+## Usage
 
-Клиентская сторона берёт `ai_stp_contracts.mock`: транспорт отвечает только корпусом, а на непредусмотренный запрос выбрасывает исключение, а не выдумывает ответ. Придуманный ответ научил бы клиента поведению, о котором никто не договаривался.
+The client side uses `ai_stp_contracts.mock`: the transport responds only from the corpus and raises an exception for an unexpected request instead of inventing a response. An invented response would teach the client behavior no one agreed upon.
 
-Серверная сторона берёт `ai_stp_contracts.conformance`: набор принимает клиент `httpx`, поэтому мок-транспорт, ASGI-транспорт и адрес стенда для него неразличимы. Результатом являются находки, а не исключение: набор, останавливающийся на первой проблеме, скрыл бы остальные.
+The server side uses `ai_stp_contracts.conformance`: the suite accepts an `httpx` client, so mock transport, ASGI transport, and a deployment URL are indistinguishable to it. The result is a set of findings, not an exception: a suite that stopped at the first problem would hide the rest.
 
-## Внутренняя согласованность случая
+## Internal case consistency
 
-Случай, несущий одновременно паспорт и его `passport_digest`, обязан быть согласован сам с собой: digest вычисляется от опубликованного паспорта в домене `ai-stp:passport:v1`. Заглушка вместо настоящего значения учит клиента, что проверка целостности падает на корректных данных, — и именно так три случая корпуса прожили до первой попытки сверить digest.
+A case carrying both a passport and its `passport_digest` must be internally consistent: the digest is computed from the published passport in the `ai-stp:passport:v1` domain. A placeholder instead of the real value teaches the client that integrity validation fails on correct data—and that is exactly how three corpus cases survived until the first attempt to verify the digest.

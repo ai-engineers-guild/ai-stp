@@ -1,64 +1,66 @@
 ---
-description: "Решение возвращать подписанный курсор на каждой непустой странице sync pull."
+description: "Decision to return a signed cursor on every non-empty sync pull page."
 last_verified: "2026-08-15"
 ---
 
-# ADR-0091: Курсор последней непустой страницы sync pull
+# ADR-0091: Cursor on the last non-empty sync pull page
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-`ADR-0045` и `SPEC-025` уже требуют непрозрачный account-bound курсор упорядоченного
-server outbox. Сервер не хранит отдельную строку курсора клиента: клиент обязан
-сохранить выданный токен и вернуть его дословно.
+`ADR-0045` and `SPEC-025` already require an opaque account-bound cursor for the
+ordered server outbox. The server does not store a separate client cursor
+string: the client must retain the issued token and return it verbatim.
 
-Реализация pull и прежний текст контракта обращались с `next_cursor` как со
-страницей каталога: поле равно `null`, когда `has_more` ложно. Последняя непустая
-страница поэтому не оставляла позиции. Клиент не может изготовить токен сам -
-он подписан и привязан к account. Следующий опрос без курсора читает поток с
-нуля. Со временем это неограниченный повтор истории и прямое противоречие
-`SPEC-025` `REQ-2504`.
+The pull implementation and the previous contract text treated `next_cursor`
+like a catalog page: the field is `null` when `has_more` is false. The last
+non-empty page therefore left no position. The client cannot manufacture the
+token itself: it is signed and bound to the account. The next poll without a
+cursor reads the stream from the beginning. Over time, this causes unbounded
+history replay and directly contradicts `SPEC-025` `REQ-2504`.
 
-Правило каталога в `docs/contracts/http-api.md` другое: список объектов не является
-долговечным resume-потоком, и `next_cursor: null` на последней странице каталога
-остаётся. Смешивать две поверхности нельзя.
+The catalog rule in `docs/contracts/http-api.md` is different: an object list is
+not a durable resume stream, and `next_cursor: null` remains on the last catalog
+page. The two surfaces must not be conflated.
 
-## Варианты
+## Options
 
-1. Оставить `null` на последней странице. Клиент каждый раз читает поток с нуля.
-   Это сохраняет форму каталога, но делает устойчивый sync невозможным и раздувает
-   чтение с ростом outbox.
-2. Хранить на сервере курсор каждого клиента. Даёт resume без смены ответа, но
-   вводит серверное состояние сессии и противоречит `REQ-2504`.
-3. Непустая страница всегда возвращает курсор последней выданной последовательности.
-   Пустая страница не продвигает позицию и не заставляет уже прочитавшего клиента
-   начинать с нуля.
+1. Leave `null` on the last page. The client reads the stream from the beginning
+   each time. This preserves the catalog shape but makes durable sync impossible
+   and expands reads as the outbox grows.
+2. Store each client's cursor on the server. This provides resume without
+   changing the response, but introduces server-side session state and
+   contradicts `REQ-2504`.
+3. A non-empty page always returns a cursor for the last emitted sequence. An
+   empty page does not advance the position or force a client that has already
+   read the stream to start over.
 
-## Решение
+## Decision
 
-Принимается вариант 3.
+Option 3 is accepted.
 
-Курсор остаётся непрозрачным, подписанным и account-bound. Он несёт только
-позицию в outbox текущего account. Пустой поток без входного курсора по-прежнему
-может вернуть `next_cursor: null`: клиент ещё не потребил ни одного события.
+The cursor remains opaque, signed, and account-bound. It carries only the
+position in the current account's outbox. An empty stream without an input
+cursor may still return `next_cursor: null`: the client has not consumed any
+events yet.
 
-Страницы каталога и прочих списков объектов не меняются.
+Catalog pages and other object-list pages do not change.
 
-## Последствия
+## Consequences
 
-- проводная модель `PageInfo` уже допускает и строку, и `null`; меняется правило
-  заполнения для sync pull, а не схема;
-- фикстуры и примеры OpenAPI для `pullSyncEvents` обязаны показывать ненулевой
-  курсор на однособытийной последней странице;
-- CLI только сохраняет и возвращает токен; изготовление курсора на клиенте
-  запрещено;
-- поддельный и чужой курсор по-прежнему отклоняются;
-- откат к last-page `null` на sync pull снова ломает устойчивый опрос.
+- the `PageInfo` wire model already allows both a string and `null`; the
+  population rule for sync pull changes, not the schema;
+- fixtures and OpenAPI examples for `pullSyncEvents` must show a non-null cursor
+  on a one-event final page;
+- the CLI only stores and returns the token; client-side cursor construction is
+  prohibited;
+- forged and foreign cursors continue to be rejected;
+- reverting to last-page `null` for sync pull breaks durable polling again.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается, если sync перестаёт быть синхронным чтением PostgreSQL
-outbox и становится отдельным брокером, либо если курсор становится долговечной
-серверной сессией. Тогда нужен новый ADR. Правило каталога этим решением не
-открывается.
+The decision is reconsidered if sync stops being a synchronous read from the
+PostgreSQL outbox and becomes a separate broker, or if the cursor becomes a
+durable server-side session. A new ADR is then required. This decision does not
+reopen the catalog rule.

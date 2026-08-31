@@ -1,24 +1,24 @@
 ---
-description: "Общий поток данных и границы локального и серверного контуров."
+description: "Overall data flow and the boundaries of the local and server environments."
 last_verified: "2026-08-04"
 ---
 
-# Обзор архитектуры
+# Architecture Overview
 
-## Один продукт, два контура
+## One Product, Two Environments
 
-### Локальный контур
+### Local Environment
 
 - CLI;
 - Agent Skill;
-- локальный registry;
+- local registry;
 - project index;
-- сборщик сетапа;
+- setup compiler;
 - validation runner;
 - provider client;
 - operation journal.
 
-### Серверный контур
+### Server Environment
 
 - FastAPI;
 - PostgreSQL;
@@ -28,25 +28,25 @@ last_verified: "2026-08-04"
 - Next.js;
 - Resend.
 
-Оба контура используют одни схемы и термины, но не обязаны иметь общий runtime package.
+Both environments use the same schemas and terms, but do not have to share a runtime package.
 
-## Основной поток
+## Main Flow
 
 ```text
 Developer Passport
 + Project Passport
-+ выбранный харнесс
-+ локальные и облачные candidates
++ selected harness
++ local and cloud candidates
         ↓
 hard filters
         ↓
-Agent задаёт вопросы и формирует предложения состава
+Agent asks questions and creates composition proposals
         ↓
-подтверждение пользователя фиксирует приватную SetupVersion
+user confirmation records a private SetupVersion
         ↓
 Setup Graph
         ↓
-детерминированный Setup Compiler
+deterministic Setup Compiler
         ↓
 Harness Bundle
         ↓
@@ -55,37 +55,37 @@ provider plan
 backup / apply / launch / status / restore
 ```
 
-## Цепочка владения
+## Ownership Chain
 
 ```text
 Agent
-  интерпретирует находки, задаёт вопросы, формирует предложения состава
+  interprets findings, asks questions, and creates composition proposals
 
-CLI и ядро
-  обнаруживают факты, проверяют машинные данные, хранят локальный реестр,
-  фильтруют кандидатов, детерминированно строят и проверяют пакеты,
-  вызывают провайдер
+CLI and core
+  discover facts, validate machine data, store the local registry,
+  filter candidates, deterministically build and validate packages,
+  and invoke the provider
 
-Провайдер
-  владеет программой харнесса, нативной целью, блокировками, резервными
-  копиями, применением, запуском, состоянием и восстановлением
+Provider
+  owns the harness program, native target, locks, backups,
+  application, launch, state, and restoration
 
-Сервер и каталог
-  владеют аккаунтами, публичными и приватными метаданными, публикацией,
-  политикой проверок, жизненным циклом объектов, синхронизацией,
-  правами, жалобами, модерацией и аудитом
+Server and catalog
+  own accounts, public and private metadata, publication,
+  validation policy, object lifecycle, synchronization,
+  permissions, reports, moderation, and audit
 ```
 
-Каждый уровень принимает результат предыдущего и не выполняет его работу заново. Agent не является ни механизмом политики, ни писателем состояния; сервер не пишет локальную цель.
+Each layer accepts the result of the previous one and does not redo its work. The Agent is neither a policy mechanism nor a state writer; the server does not write the local target.
 
-## Владелец итогового состояния
+## Final-State Owner
 
-`ai_stp` не пишет нативные файлы харнесса напрямую. Единственный writer — public provider конкретного харнесса.
+`ai_stp` does not write native harness files directly. The only writer is the public provider for that harness.
 
-## Доверие
+## Trust
 
-Agent принимает интеллектуальные решения только после механических ограничений. Подпись устройства подтверждает происхождение отчёта, но не превращает локальное выполнение в platform-executed проверку.
+The Agent makes judgment-based decisions only after mechanical constraints have been applied. A device signature confirms a report's provenance but does not turn local execution into platform-executed validation.
 
-## Активный target
+## Active Target
 
-Новый сетап применяется в отдельный target. Текущая сессия продолжает работать на старом. Переключение выполняется только после проверки нового target.
+A new setup is applied to a separate target. The current session continues to use the old one. Switching occurs only after the new target has been verified.

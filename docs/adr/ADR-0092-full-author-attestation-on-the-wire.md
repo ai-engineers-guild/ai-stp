@@ -1,67 +1,67 @@
 ---
-description: "Решение передавать на /v1 полную signed-запись авторского подтверждения и проверять её Ed25519-подпись."
+description: "Decision to transmit the complete signed author-attestation record over /v1 and verify its Ed25519 signature."
 last_verified: "2026-08-15"
 ---
 
-# ADR-0092: Полная запись авторского подтверждения на проводе
+# ADR-0092: Complete author-attestation record on the wire
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-`ADR-0026` уже требует подписанное ключом устройства подтверждение, привязанное
-к точным координатам публикации. Каноническая закрытая запись и домен
-`ai-stp:attestation:v1` принадлежат `ai_stp_assurance.AuthorAttestation`. CLI
-подписывает именно её.
+`ADR-0026` already requires an attestation signed by the device key and bound to
+the exact publication coordinates. The canonical closed record and the
+`ai-stp:attestation:v1` domain belong to
+`ai_stp_assurance.AuthorAttestation`. The CLI signs that exact record.
 
-Проводная модель `/v1` несла урезанную проекцию: без digest, subject, политики,
-харнесса, провайдера и аккаунта. Сервер принимал любую строку `signature` длиной
-от 16 и выбрасывал `content_digest`. Строка из шестнадцати `s` проходила как
-доказательство. Два определения payload существовали одновременно, и серверная
-половина не проверяла ни ключ устройства, ни координаты.
+The `/v1` wire model carried a truncated projection: without the digest,
+subject, policy, harness, provider, or account. The server accepted any
+`signature` string of length 16 or more and discarded `content_digest`. A string
+of sixteen `s` characters passed as evidence. Two payload definitions existed
+at the same time, and the server side verified neither the device key nor the
+coordinates.
 
-Восстановить отсутствующие поля из плана нельзя без потери привязки: версии
-харнесса и провайдера задаются при подписании и не обязаны совпасть с любым
-полем паспорта, если клиент их не прислал.
+The missing fields cannot be reconstructed from the plan without losing the
+binding: harness and provider versions are specified when signing and need not
+match any passport field if the client did not send them.
 
-## Варианты
+## Options
 
-1. Оставить проекцию и принимать форму строки. Это текущий дефект: покрытие
-   тестом есть, криптографической привязки нет.
-2. Восстанавливать каноническую запись на сервере из плана и паспорта. Одно
-   определение на бумаге, но второе на практике: сервер угадывает поля, которых
-   не видел, и подпись расходится с тем, что подписал клиент.
-3. Провод `/v1` несёт ту же закрытую запись, что и assurance. Сервер проверяет
-   Ed25519 активным ключом устройства над `attestation_digest` и сравнивает
-   каждую координату с планом и сессией.
+1. Keep the projection and accept the string form. This is the current defect:
+   it has test coverage but no cryptographic binding.
+2. Reconstruct the canonical record on the server from the plan and passport.
+   There is one definition on paper but a second in practice: the server guesses
+   fields it never saw, and the signature differs from what the client signed.
+3. The `/v1` wire carries the same closed record as assurance. The server
+   verifies Ed25519 with the active device key over `attestation_digest` and
+   compares every coordinate with the plan and session.
 
-## Решение
+## Decision
 
-Принимается вариант 3.
+Option 3 is accepted.
 
-Единственное определение payload - `ai_stp_assurance.AuthorAttestation`.
-Проводная модель в `packages/contracts` изоморфна этой записи. Сервер не
-восстанавливает отсутствующие координаты и не доверяет длине строки подписи.
+The sole payload definition is `ai_stp_assurance.AuthorAttestation`. The wire
+model in `packages/contracts` is isomorphic to this record. The server does not
+reconstruct missing coordinates and does not trust the signature string length.
 
-Проверка отклоняет отозванное или чужое устройство, несовпавший digest, версию,
-политику, инструменты, харнесс, провайдер, тест-кейсы, аккаунт, устройство,
-время в форме, отличной от канонической метки, и подпись, которая не
-проверяется ключом.
+Verification rejects a revoked or foreign device, a mismatched digest, version,
+policy, tools, harness, provider, test cases, account, device, a time not in the
+canonical timestamp form, and a signature that the key does not verify.
 
-## Последствия
+## Consequences
 
-- схема `/v1` AuthorAttestation меняется: вместо `created_at` и короткой
-  подписи приходят поля канонической записи и форма Ed25519;
-- клиент, который слал проекцию, получает типизированный отказ до появления
-  полного тела; CLI уже хранит полную запись и передаёт её без новой логики
-  подписания;
-- тесты, где `"s" * 16` считалось принятым доказательством, становятся
-  отрицательными;
-- откат к проекции снова развязывает подпись и координаты.
+- the `/v1` AuthorAttestation schema changes: the canonical record fields and
+  Ed25519 form arrive instead of `created_at` and a short signature;
+- a client that sent the projection receives a typed rejection until it supplies
+  the complete body; the CLI already stores the complete record and transmits it
+  without new signing logic;
+- tests in which `"s" * 16` counted as accepted evidence become negative tests;
+- reverting to the projection decouples the signature from the coordinates
+  again.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается, если появится второй законный подписант кроме ключа
-устройства, либо если провод вынужден будет нести вложение больше закрытой
-записи. Тогда нужен новый ADR; второе определение payload в том же major
-не вводится.
+The decision is reconsidered if a second legitimate signer besides the device
+key appears, or if the wire must carry an attachment larger than the closed
+record. A new ADR is then required; a second payload definition is not
+introduced in the same major version.

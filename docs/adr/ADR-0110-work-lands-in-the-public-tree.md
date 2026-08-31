@@ -1,95 +1,95 @@
 ---
-description: "Решение вести работу в публичном дереве и синхронизировать приватную копию из него, оставляя ей только неопубликованное."
+description: "Decision to work in the public tree and synchronize the private copy from it, retaining only unpublished content there."
 last_verified: "2026-08-21"
 ---
 
-# ADR-0110: Работа идёт в публичном дереве
+# ADR-0110: Work lands in the public tree
 
-Статус: принято. Меняет направление сборки из `ADR-0108`, не отменяя его правил.
+Status: accepted. Changes the build direction from `ADR-0108` without
+superseding its rules.
 
-## Контекст
+## Context
 
-`ADR-0108` описал публичное дерево как порождаемое: манифест называет, что
-публикуется, `just public-build` собирает, `public_publish.py` отправляет.
-Направление одно — приватная копия является источником.
+`ADR-0108` described the public tree as generated: the manifest names what is
+published, `just public-build` assembles it, and `public_publish.py` sends it.
+The direction is one-way—the private copy is the source.
 
-`ADR-0109` сделал публичный репозиторий источником развёртывания. С этого
-момента дерево, которое разворачивает продакшн и проходит собственный гейт на
-стандартных раннерах GitHub, перестало быть производным артефактом. Владелец
-поставил задачу прямо: работа ведётся в публичном репозитории, приватная копия
-синхронизируется из него.
+`ADR-0109` made the public repository the deployment source. From that point,
+the tree that deploys production and passes its own gate on standard GitHub
+runners ceased to be a derivative artifact. The owner stated the task
+directly: work occurs in the public repository, and the private copy is
+synchronized from it.
 
-Сохранять при этом прежнее направление нельзя. Правка, сделанная в публичном
-репозитории, откатывается следующим `just public-build`, и откатывается молча:
-сборка не знает, что перезаписывает чужое изменение. Ровно это уже произошло с
-pull request'ами Dependabot — их пришлось проводить через приватное дерево, а не
-вливать там, где они были открыты.
+The former direction cannot be retained under that rule. An edit made in the
+public repository is silently reverted by the next `just public-build`: the
+build does not know that it is overwriting another change. This already
+happened with Dependabot pull requests—they had to be carried through the
+private tree instead of merged where they were opened.
 
-## Варианты
+## Options
 
-**Оставить одно направление и запретить правки в публичном.** Дёшево, но
-противоречит задаче и обесценивает публичный tracker: contributor, открывший
-pull request, получает отказ по причине, которой не видно из репозитория.
+**Keep one direction and prohibit edits in public.** This is cheap but
+contradicts the task and devalues the public tracker: a contributor who opens a
+pull request is rejected for a reason invisible in the repository.
 
-**Два независимых дерева и ручное сведение.** Отказ от манифеста. Расхождение
-становится вопросом внимательности, а не проверки.
+**Two independent trees with manual reconciliation.** This abandons the
+manifest. Divergence becomes a matter of attention rather than verification.
 
-**Инвертировать направление, оставив манифест владельцем границы.** Публичное
-дерево — источник опубликованного; приватная копия — источник того, что
-манифест удерживает.
+**Reverse the direction while retaining the manifest as boundary owner.** The
+public tree is the source of published content; the private copy is the source
+of what the manifest withholds.
 
-## Решение
+## Decision
 
-Работа идёт в `ai-engineers-guild/ai-stp`. Приватная копия синхронизируется из
-него через `just public-sync`.
+Work takes place in `ai-engineers-guild/ai-stp`. The private copy is
+synchronized from it through `just public-sync`.
 
-Ничего нового для этого объявлять не потребовалось, и это главный аргумент за
-такую форму. Набор путей, которые синк не перезаписывает, уже описан дважды:
-`[withheld]` в манифесте называет неопубликованное, а
-`release_scripts/public_overlay/` называет файлы, которые публичное дерево несёт
-**вместо** здешних. Всё остальное публикуется, значит всё остальное
-импортируется.
+Nothing new had to be declared for this, which is the main argument for this
+form. The set of paths that synchronization does not overwrite is already
+described twice: `[withheld]` in the manifest names unpublished content, and
+`release_scripts/public_overlay/` names files the public tree carries
+**instead of** those here. Everything else is published, so everything else is
+imported.
 
-Симметрии между экспортом и импортом нет намеренно. Экспорт отказывается при
-сомнении: его ошибка публикует приватное, и чинится она ротацией утёкшего.
-Импорт перезаписывает локальный файл, что Git делает обратимым, поэтому он
-громко сообщает и пишет.
+Export and import are intentionally asymmetric. Export rejects uncertainty:
+its error publishes private content, and fixing it requires rotating what
+leaked. Import overwrites a local file, which Git makes reversible, so it
+reports and writes loudly.
 
-Удаление входит в контракт синка. Файл, удалённый в публичном репозитории, иначе
-остаётся здесь навсегда, и следующий экспорт возвращает его обратно — расхождение
-в направлении, которое обнаруживается только как файл, появления которого никто
-не помнит.
+Deletion is part of the synchronization contract. Otherwise, a file deleted in
+the public repository remains here forever, and the next export restores it—a
+directional divergence detected only as a file nobody remembers adding.
 
-Порождённые индексы не импортируются как данные. Они перечисляют документы того
-дерева, в котором собраны, а здесь документов больше, поэтому `just public-sync`
-вызывает генераторы следом. Расхождение, если генераторы не вызвали, ловят
-`just docs-check` и `just back-static`, которые сверяют порождённое с
-источником.
+Generated indexes are not imported as data. They enumerate documents in the
+tree where they are built, and this tree has more documents, so
+`just public-sync` invokes the generators afterward. If generators were not
+invoked, `just docs-check` and `just back-static` detect the drift by comparing
+generated output with its source.
 
-Проверка синка — круговая: опубликованная половина этой копии обязана совпадать
-с публичным репозиторием байт в байт, кроме файлов оверлея и кроме
-порождённых индексов, которые опознаются по маркеру генератора, а не по списку.
-`just public-sync-verify` отвечает на этот вопрос.
+Synchronization verification is circular: the published half of this copy
+must match the public repository byte for byte except overlay files and
+generated indexes, which are identified by a generator marker rather than a
+list. `just public-sync-verify` answers this question.
 
-## Последствия
+## Consequences
 
-Публичный tracker становится настоящим: pull request вливается там, где открыт.
-Приватная копия перестаёт быть источником кода и остаётся источником того, чего в
-публичном дереве нет — workflow приватного флота, внутренних отчётов, памяти
-агента и решений об инфраструктуре, которой располагает только она.
+The public tracker becomes real: a pull request is merged where it is opened.
+The private copy ceases to be the source of code and remains the source of what
+the public tree lacks—private-fleet workflows, internal reports, agent memory,
+and decisions about infrastructure available only to it.
 
-Защита от утечки при этом слабеет, и это надо назвать, а не обойти молчанием.
-Раньше сканирование содержимого отказывало **до** публикации. Теперь изменение
-попадает в публичный репозиторий раньше, чем эта копия его увидит, поэтому тот
-же отчёт становится детектором, а не запретом. Компенсируется тремя вещами:
-secret scanning с push protection включены в публичном репозитории; список
-запрещённых имён остаётся в неопубликованном файле; `just back-static` здесь
-по-прежнему гоняет отчёт и ломает гейт на находке.
+Leak protection is weakened, and this must be stated rather than silently
+avoided. Previously, content scanning rejected a change **before** publication.
+Now a change reaches the public repository before this copy sees it, so the
+same report becomes a detector rather than a prohibition. Three things
+compensate for this: secret scanning with push protection is enabled in the
+public repository; the forbidden-name list remains in an unpublished file;
+`just back-static` here still runs the report and breaks the gate on a finding.
 
-`ADR-0108` продолжает владеть тем, **что** публикуется. Меняется только то, в
-какую сторону движутся байты.
+`ADR-0108` continues to own **what** is published. Only the direction in which
+bytes move changes.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Пересмотреть, если приватная копия снова станет источником опубликованного кода,
-или если появится третье дерево, которому нужна своя граница.
+Reconsider if the private copy again becomes the source of published code, or
+if a third tree appears that needs its own boundary.

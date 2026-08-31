@@ -1,16 +1,16 @@
 ---
-description: "Runbook: best-effort кэш GitHub stars для публичного каталога."
+description: "Runbook: best-effort GitHub stars cache for the public catalog."
 last_verified: "2026-08-12"
 ---
 
 # GitHub repository metrics
 
-Worker обновляет `github_stars` из канонического публичного provenance repository
-после публикации. Успешное значение считается свежим 12 часов; ошибки сохраняют
-предыдущее значение и используют ограниченный backoff до 24 часов. Недоступный
-или private repository не отображается как ноль, а метрика не влияет на trust.
+The worker updates `github_stars` from the canonical public provenance repository
+after publication. A successful value is considered fresh for 12 hours; errors preserve
+the previous value and use bounded backoff up to 24 hours. An unavailable
+or private repository is not shown as zero, and the metric does not affect trust.
 
-Для повышенного rate limit задаётся необязательный
-`AI_STP_WORKER_GITHUB_TOKEN`. Fine-grained token должен иметь только публичный
-доступ к metadata; права записи и доступ к private repositories не требуются.
-Значение токена не пишется в БД, логи, ответы API или fixtures.
+For a higher rate limit, the optional
+`AI_STP_WORKER_GITHUB_TOKEN` is set. The fine-grained token must have only public
+metadata access; write permissions and access to private repositories are not required.
+The token value is not written to the database, logs, API responses, or fixtures.

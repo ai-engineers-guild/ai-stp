@@ -1,70 +1,100 @@
 ---
-description: "Недолговечное предложение состава, его подтверждение и атомарная фиксация SetupVersion."
+description: "Ephemeral composition proposal, its confirmation, and atomic persistence of a SetupVersion."
 last_verified: "2026-08-25"
 ---
 
-# Предложение состава и подтверждение
+# Composition proposal and confirmation
 
-Владелец требований — `SPEC-006`; действия машинной справки принадлежат `SPEC-011`, решение — `ADR-0027`. Здесь зафиксирована машинная граница: что содержит предложение, чем оно не является и что именно происходит в момент подтверждения.
+The requirements owner is `SPEC-006`; machine-help actions belong to `SPEC-011`,
+and the decision is `ADR-0027`. This document defines the machine boundary: what
+a proposal contains, what it is not, and exactly what happens at confirmation.
 
-## Сеанс рекомендации
+## Recommendation session
 
-Прямой поиск остаётся обычной операцией реестра и предложений не создаёт. Сеанс рекомендации — отдельный поток поверх `SelectionRun`:
+Direct search remains an ordinary registry operation and does not create
+proposals. A recommendation session is a separate flow over `SelectionRun`:
 
 ```text
-снимок контекста: ревизии паспортов, выбранный харнесс
-→ допустимые кандидаты после механических ограничений и линий доверия
-→ агент формирует одно или несколько предложений
-→ пользователь подтверждает ровно одно предложение
-→ атомарная фиксация приватной SetupVersion
+context snapshot: passport revisions, selected harness
+→ eligible candidates after mechanical constraints and trust lines
+→ the agent authors one or more proposals
+→ the user confirms exactly one proposal
+→ atomic persistence of a private SetupVersion
 ```
 
-Сколько предложений показать, решает агент пользователя; предел размера выдачи остаётся пределом политики. `ai_stp` не вызывает интерфейсы моделей: предложения авторит агент через машинные команды.
+The user's agent decides how many proposals to show; the result-size limit
+remains a policy limit. `ai_stp` does not call model interfaces: the agent
+authors proposals through machine commands.
 
-## Предложение
+## Proposal
 
-Предложение — производный недолговечный объект внутри сеанса. Оно содержит:
+A proposal is a derived, ephemeral object within a session. It contains:
 
-- идентификатор предложения, действительный только внутри сеанса;
-- точный граф состава: ссылки на версии компонентов по `canonical-data.md` и явные накладки;
-- снимок входа: ревизии паспортов контекста, хэши кандидатов и версию политики;
-- линии доверия, источники согласия и причины по каждому кандидату;
-- сводные полномочия, обязательное окружение и внешние точки подключения состава.
+- a proposal identifier valid only within the session;
+- an exact composition graph: component version references according to
+  `canonical-data.md` and explicit overlays;
+- an input snapshot: context passport revisions, candidate hashes, and the
+  policy version;
+- trust lines, consent sources, and reasons for each candidate;
+- aggregate permissions, required environment, and external connection points
+  of the composition.
 
-Точный граф может быть пустым: это явный полный сетап без компонентов. Он
-отличается от отсутствующего предложения, проходит то же подтверждение и
-устанавливается тем же provider lifecycle.
+The exact graph may be empty: this is an explicit complete setup without
+components. It differs from an absent proposal, goes through the same
+confirmation, and is installed through the same provider lifecycle.
 
-Показ предложений не создаёт версии, цели, `entity`, ревизии или синхронизируемого объекта реестра. Точный снимок живёт в локальной строке сеанса, чтобы следующий процесс CLI мог подтвердить именно показанный состав и проверить его устаревание. Отмена сохраняет только идемпотентный терминальный исход строки и не меняет доменное или целевое состояние.
+Displaying proposals does not create a version, target, `entity`, revision, or
+synchronized registry object. The exact snapshot lives in the local session row
+so that the next CLI process can confirm exactly the displayed composition and
+check it for staleness. Cancellation preserves only the idempotent terminal
+outcome of the row and does not change domain or target state.
 
-## Подтверждение
+## Confirmation
 
-Явное подтверждение одного предложения выполняется атомарно и делает ровно три вещи:
+Explicit confirmation of one proposal is atomic and does exactly three things:
 
-1. замораживает точный граф предложения как новую приватную `SetupVersion` выбранного харнесса;
-2. записывает `RecommendationTrace` с линиями, источниками согласия и причинами;
-3. закрепляет новую версию как выбранную для пары проект и харнесс и переводит пару в состояние ожидающей установки `pending_install`.
+1. freezes the proposal's exact graph as a new private `SetupVersion` of the
+   selected harness;
+2. records a `RecommendationTrace` with trust lines, consent sources, and
+   reasons;
+3. pins the new version as selected for the project and harness pair and moves
+   the pair to the pending installation state `pending_install`.
 
-Выбранная и установленная версии — разные факты. Установленной версия становится только после `verified` провайдера по отдельному плану установки; до этого пара остаётся в `pending_install`, и это нормальное состояние, а не расхождение. Сравнивается пара stable ID + version: другой Setup с тем же номером `X.Y` также ожидает установки. `local_drift` означает изменение цели вне жизненного цикла провайдера, а не ожидание установки выбранной версии.
+Selected and installed versions are separate facts. A version becomes installed
+only after provider `verified` under a separate installation plan; until then,
+the pair remains in `pending_install`, which is a normal state rather than
+drift. The stable ID + version pair is compared: another Setup with the same
+`X.Y` number also awaits installation. `local_drift` means that the target was
+changed outside the provider lifecycle, not that installation of the selected
+version is pending.
 
-`catalog_drift` существует только когда доступная canonical версия `X.Y`
-численно больше выбранной; простое неравенство строк недостаточно. Поэтому
-`1.10` новее `1.9`, а отстающий каталог `1.9` при выбранной `2.0` не является
-призывом откатываться.
+`catalog_drift` exists only when the available canonical version `X.Y` is
+numerically greater than the selected version; mere string inequality is
+insufficient. Thus `1.10` is newer than `1.9`, while a lagging catalog at `1.9`
+with `2.0` selected is not a call to roll back.
 
-Подтверждение возвращает точную ссылку на созданную версию. Другого пути создать `SetupVersion` из предложения не существует; применение состава мимо версии, пакета и плана провайдера запрещено `SPEC-011`.
+Confirmation returns an exact reference to the created version. There is no
+other way to create a `SetupVersion` from a proposal; applying the composition
+without a version, package, and provider plan is prohibited by `SPEC-011`.
 
-## Устаревание и повтор
+## Staleness and retry
 
-Предложение привязано к своему снимку входа. Изменение хэша любого кандидата, ревизий паспортов контекста или версии политики делает предложение устаревшим; подтверждение устаревшего предложения отклоняется типизированной ошибкой и требует нового сеанса.
+A proposal is bound to its input snapshot. A change to any candidate hash,
+context passport revisions, or the policy version makes the proposal stale;
+confirmation of a stale proposal is rejected with a typed error and requires a
+new session.
 
-Exact versions, допустимость участников и единственные heads паспортов разработчика,
-устройства и проекта проверяются до открытия транзакции и повторно под
-`BEGIN IMMEDIATE`. Их удаление или смена между первой проверкой и write lock
-отклоняет подтверждение и не оставляет частичную SetupVersion.
+Exact versions, participant eligibility, and the sole heads of developer,
+device, and project passports are checked before opening the transaction and
+again under `BEGIN IMMEDIATE`. Their removal or change between the first check
+and the write lock rejects confirmation and leaves no partial SetupVersion.
 
-Повтор подтверждения одного и того же предложения идемпотентен: возвращается уже созданная версия, второй объект не возникает.
+Repeated confirmation of the same proposal is idempotent: it returns the
+already created version and does not create a second object.
 
-## Ошибки
+## Errors
 
-Различаются: устаревшее предложение, неизвестное предложение, недопустимый кандидат внутри предложения, конфликт закрепления активной версии и отказ фиксации. Частичная фиксация невозможна: либо создаются версия, след и закрепление вместе, либо не создаётся ничего.
+The following are distinguished: stale proposal, unknown proposal, ineligible
+candidate within the proposal, active-version pin conflict, and persistence
+failure. Partial persistence is impossible: either the version, trace, and pin
+are created together, or nothing is created.

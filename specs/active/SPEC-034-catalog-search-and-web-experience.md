@@ -1,221 +1,221 @@
 ---
-description: "SPEC-034: Сильный поиск каталога, компактный web UX и медиа профиля."
+description: "SPEC-034: Powerful catalog search, compact web UX and media profile."
 last_verified: "2026-08-17"
 ---
 
-# SPEC-034: Поиск каталога и web experience
+# SPEC-034: Catalog search and web experience
 
-## Цель
+## Purpose
 
-Публичный каталог даёт компактный двуязычный интерфейс, строгий структурный
-поиск и предсказуемую пагинацию, а landing, страницы объектов и профиль
-используют одну доступную дизайн-систему и надёжный media flow.
+The public catalog provides a compact bilingual interface, strict structural
+search and predictable pagination, and landing, object pages and profile
+use one accessible design system and reliable media flow.
 
-## Границы
+## Scope
 
-Входят landing и shell, каталог компонентов и сетапов, язык запросов, фильтры,
-сортировка, card/list presentation, счётчики web-пагинации, страницы объекта,
-публичный профиль, загрузка аватара и безопасный Markdown. CLI сохраняет режим cursor.
-Browser editor сетапов и произвольный HTML не входят.
+Includes landing and shell, catalog of components and setups, query language, filters,
+sorting, card/list presentation, web pagination counters, object pages,
+public profile, avatar upload and secure Markdown. The CLI retains cursor mode.
+Browser editor setups and arbitrary HTML are not included.
 
-## Термины
+## Terms
 
-- `Catalog QL` — ограниченный язык логических выражений над разрешёнными полями.
-- `Page mode` — web-пагинация с номером страницы и точным total для текущего
-  публичного среза.
-- `Cursor mode` — стабильная keyset-пагинация без раскрытия total.
-- `Refinement surface` — responsive оболочка поиска, фильтров, сортировки и
-  выбора представления; спецификация задаёт поведение и доступность, а не
-  конкретный виджет.
-- `Verified only` — одновременно `author_verified=true` и
-  `component_verified=true`; одна ось не заменяет другую.
+- `Catalog QL` - a limited language of logical expressions over allowed fields.
+- `Page mode` — web pagination with page number and exact total for the current one
+  public cut.
+- `Cursor mode` - stable keyset pagination without total expansion.
+- `Refinement surface` - responsive shell for search, filters, sorting and
+  selecting a view; the specification defines behavior and accessibility, not a
+  specific widget.
+- `Verified only` - both `author_verified=true` and
+  `component_verified=true`; one axis does not replace the other.
 
-## Требования
+## Requirements
 
-- `REQ-3401`: Авторизованный landing не показывает `Sign in`; header не
-  показывает sign-out action и использует icon profile menu. Навигация имеет
-  локализованные keyboard-доступные tooltips.
-- `REQ-3402`: Landing hero использует большой brand mark, канонический слоган и
-  autoplay-muted-loop preview с poster/fallback и reduced-motion режимом.
-- `REQ-3403`: App shell удерживает footer у нижнего края короткой страницы и не
-  перекрывает содержимое длинной страницы.
-- `REQ-3404`: Search toolbar по умолчанию свёрнут до одной кнопки; состояние
-  раскрывается без потери URL query и не занимает постоянную крупную область.
-- `REQ-3405`: Resource, tags, harnesses, component types и authors являются
-  searchable multiselect filters. `Verified only` и последний
-  `Include experimental` являются checkbox. Каждый фильтр имеет отдельную
-  доступную справку.
-- `REQ-3406`: Structured refinement открывается по запросу в responsive
-  refinement surface. На desktop допустимы inline/docked/attached panel, если
-  результаты остаются доступны без перезагрузки. На узком экране surface
-  является ограниченной модальной поверхностью с явным `Close`, закрытием по
-  `Escape` и backdrop, удержанием фокуса и возвратом фокуса. Surface использует
-  те же searchable multiselect, диапазон дат, сортировку и выбор представления,
-  показывает `Reset all`, `Apply`, chips активных значений, validation errors и
+- `REQ-3401`: The authenticated landing page does not show `Sign in`; the header does not
+  show a sign-out action and uses an icon profile menu. Navigation has
+  localized keyboard-accessible tooltips.
+- `REQ-3402`: Landing hero uses a large brand mark, a canonical slogan and
+  autoplay-muted-loop preview with poster/fallback and reduced-motion mode.
+- `REQ-3403`: App shell keeps footer at the bottom edge of a short page and does not
+  overlaps the contents of a long page.
+- `REQ-3404`: Search toolbar is minimized to one button by default; condition
+  expands without losing the query URL and does not occupy a permanent large area.
+- `REQ-3405`: Resource, tags, harnesses, component types and authors are
+  searchable multiselect filters. `Verified only` and the last one
+  `Include experimental` are checkboxes. Each filter has a separate
+  accessible help.
+- `REQ-3406`: Structured refinement opens upon request in responsive
+  refinement surface. On desktop, inline/docked/attached panels are acceptable if
+  results remain available without a reload. On a narrow screen, the surface
+  is a bounded modal surface with an explicit `Close`, closing via
+  `Escape` and backdrop, holding focus and returning focus. Surface uses
+  the same searchable multiselect, date range, sorting and view selection,
+  shows `Reset all`, `Apply`, chips of active values, validation errors and
   help.
-- `REQ-3407`: Сортировка отделена от filters и поддерживает `relevance`,
-  `updated_at` и `likes`, а направление `asc` / `desc` применяется сервером до
-  page boundary. Направление входит в подпись cursor-запроса, чтобы продолжение
-  нельзя было применить к другой сортировке. Каждая сортировка имеет стабильный tie-breaker;
-  разворот только текущей страницы на клиенте запрещён.
-- `REQ-3408`: Catalog QL поддерживает обычный текст, поля `NAME`, `TAGS`,
-  `HARNESS`, `TYPE`, `AUTHOR`, `VERIFIED`, операторы `AND`, `OR`, `NOT`, `IN`,
-  `NOT IN`, `:` и скобки. Backend является окончательной границей валидации;
-  frontend возвращает совместимую раннюю ошибку с позицией. Autocomplete и
-  простая correction являются opt-in/contextual assist и не переписывают
-  plain-text query в reserved keywords без явного выбора пользователя.
-- `REQ-3409`: Parser строит bounded typed AST и никогда не интерполирует input в
-  SQL. Ограничены длина, число токенов, глубина и размер `IN`.
-- `REQ-3410`: Web page mode возвращает `total_items`, `total_pages`, текущую
-  страницу и bounded navigation: края, текущую окрестность и gaps, а не все
-  страницы как отдельные controls. Cursor mode остаётся opaque и не смешивается
-  с page mode.
-- `REQ-3411`: Результаты имеют card/list view. Вся запись кликабельна, автор имеет
-  отдельную ссылку, информация не дублируется, изображение зависит от object/type.
-- `REQ-3412`: Страница объекта имеет компактную шапку, кнопку назад и иконку типа,
-  локализованные даты и responsive metadata layout без чрезмерных отступов.
-- `REQ-3413`: Account показывает `Edit profile` и `View public profile`; avatar
-  проходит загрузку, проверку, объектное хранилище, привязку к черновику, публикацию и
-  refresh, а оригинал не становится публичным.
-- `REQ-3414`: Safe Markdown поддерживает headings, GFM tables, Unicode emoji и
-  annotated inline links, запрещая raw HTML и опасные URL schemes.
-- `REQ-3415`: Все видимые строки, состояния, tooltips, accessible names, даты и
-  ошибки landing/catalog/detail/account имеют полный паритет `ru`/`en`.
-- `REQ-3416`: Интерактивные элементы имеют semantic selectors; `data-testid`
-  используется только когда role/name недостаточны.
-- `REQ-3417`: Anonymous catalog читает только неотрицательный агрегат
-  `likes_count`; сортировка по нему стабильна. Запись отдельных reactions и
-  раскрытие account IDs не входят в эту спецификацию.
-- `REQ-3418`: Web хранит исчерпывающий presentation registry видов компонентов:
-  стабильный идентификатор, простую различимую иконку и локализованное имя.
-  Registry не является доменным источником истины. При появлении управляемых
-  типов метаданные переносятся в PostgreSQL, а версии изображений — в S3-compatible
-  object storage по `ADR-0074`.
-- `REQ-3419`: Страница объекта и точной версии показывает `View Source` только для
-  допустимого GitHub origin и ведёт на закреплённые `commit + subpath`, а не на
-  подвижную ветку или непроверенный внешний URL.
-- `REQ-3420`: Кнопка share на странице объекта передаёт native Web Share API
-  канонический URL точной версии и копирует тот же URL в clipboard, если API
-  недоступен или завершился технической ошибкой.
-- `REQ-3421`: Detail page структурированно показывает требования точной версии:
-  имена и назначение env без значений, необходимость credentials/authorization,
-  заявленные permissions и external endpoints; setup показывает агрегат паспорта.
-- `REQ-3422`: Catalog read использует текущее account-level `author_verified`, а
-  карточка показывает его кольцом avatar и check marker независимо от проверки content.
-- `REQ-3423`: GitHub stars читаются из отдельного mutable cache по provenance
-  repository, обновляются worker через ETag и bounded backoff, скрываются при
-  отсутствии значения и никогда не влияют на trust.
-- `REQ-3424`: Web получает явный consent `accept/reject/manage` для analytics и
-  marketing, хранит выбор first-party cookie, а optional integrations остаются
-  выключены до согласия; necessary cookies не отключаются.
-- `REQ-3425`: Внешние продукты и сервисы являются изменяемыми метаданными
-  представления, дедуплицируются по регистрируемому домену, имеют основной URL
-  `HTTPS` глубиной не более одного сегмента, список стран `ISO 3166-1 alpha-2`
-  из закреплённого в коде справочника и связь многие-ко-многим с версиями
-  каталога. IP literals, userinfo и credentials запрещены; query и fragment
-  удаляются. Создание сервиса и attach/detach доступны только owner Web API,
-  CLI passport их не принимает. Public Web предоставляет `/services/{domain}`
-  и `/countries/{code}`; весь раздел отключается feature flag без удаления данных.
-  Публичный обзор стран и сервисов отличает выбранное состояние, показывает
-  страну не только кодом ISO и даёт переход в каталог с уже применёнными
-  фильтрами. Сентинел `unspecified` зависит от facet: service facet означает
-  объект без связанного сервиса, country facet — объект со связанным сервисом
-  без страны; между service/country facets действует `AND`, внутри facet — `OR`.
-- `REQ-3426`: Карточка компонента и сетапа в list и cards сохраняет читаемый
-  заголовок и область действий: профиль автора не вытесняет название и меню.
-  Автор остаётся отдельной ссылкой с avatar и `author_verified`, если он есть.
-  `likes_count` виден в обоих представлениях; GitHub stars только если значение
-  доступно. Отсутствующая метрика не показывается как ноль. В центре —
-  относительный итог security checks; `warning`, `failed` и `not-run` остаются
-  видимыми. Если есть данные о риске, карточка добавляет короткую причину
-  открыть запись и не смешивает метку автора с безопасностью содержимого.
-- `REQ-3427`: `VerifiedAvatar` — единственный компонент метки автора: тонкая
-  круглая обводка, маленькая галочка у нижнего края, без перекрытия фото или
-  запасного знака, без изменения высоты строки, без сдвига имени и без
-  локальных отрицательных смещений. Каталог, страница объекта и публичный
-  профиль используют тот же компонент для фото и запасного знака.
-- `REQ-3428`: Вертикальное меню трёх точек карточки содержит Copy URL, Copy ID,
-  Copy CLI command, разделитель и Report component либо Report setup. Есть
-  clipboard feedback, клавиатурное управление, закрытие по Escape и возврат
-  фокуса. Основные действия карточки не дублируются. Report открывает
-  существующий поток жалобы.
-- `REQ-3429`: Поиск каталога принимает необязательные `updated_from` и
-  `updated_to` как календарные даты `YYYY-MM-DD`. Допустимы один или оба края,
-  очистка диапазона, chip каждого активного края, Reset all, сохранение в URL и
-  client navigation без полной перезагрузки. Семантика UTC принадлежит
-  `docs/contracts/http-api.md`: нижняя граница — начало указанного дня, верхняя —
-  начало следующего дня; обратный диапазон — `AI_STP_VALIDATION_ERROR`. Подпись
-  курсора включает заданные даты; пустые границы не входят в подпись, поэтому
-  старые URL остаются действительными. Component и setup используют один
-  контракт.
-- `REQ-3430`: Каталог имеет явный режим Both/All наряду с `components` и
-  `setups`. В Both используется один непрерывный список без отдельных секций:
-  сначала идут setups, затем components; внутри каждого типа сохраняется
-  выбранная сортировка. Тип различается внутри самой строки. Старые значения
-  `resource=components` и `resource=setups` не ломаются. Web запрашивает две
-  независимые проекции и сохраняет их page-границы в URL, но не превращает их в
-  две визуально независимые выдачи. Пока остаются setup-страницы, component rows
-  не опережают их; первая component page присоединяется к последней setup page,
-  последующие component pages продолжают тот же список без повтора setups.
-  Фильтры применяются только к
-  соответствующему типу объекта.
+- `REQ-3407`: Sorting is separated from filters and supports `relevance`,
+  `updated_at` and `likes`, and the `asc` / `desc` direction is applied by the server before
+  page boundary. The direction is included in the signature of the cursor request to continue
+  could not be applied to another sort. Each sort has a stable tie-breaker;
+  Flipping only the current page on the client is prohibited.
+- `REQ-3408`: Catalog QL supports plain text, `NAME`, `TAGS` fields,
+  `HARNESS`, `TYPE`, `AUTHOR`, `VERIFIED`, operators `AND`, `OR`, `NOT`, `IN`,
+  `NOT IN`, `:` and parentheses. Backend is the final validation boundary;
+  frontend returns a compatible early error with position. Autocomplete and
+  simple correction are opt-in/contextual assist and do not rewrite
+  plain-text query in reserved keywords without explicit user selection.
+- `REQ-3409`: Parser builds bounded typed AST and never interpolates input into
+  SQL. The length, number of tokens, depth and size of `IN` are limited.
+- `REQ-3410`: Web page mode returns `total_items`, `total_pages`, current
+  page and bounded navigation: edges, current neighborhood and gaps, not all
+  pages as separate controls. Cursor mode remains opaque and does not mix
+  with page mode.
+- `REQ-3411`: Results have card/list view. The entire entry is clickable, the author has
+  separate link, information is not duplicated, image depends on object/type.
+- `REQ-3412`: The object page has a compact header, a back button and a type icon,
+  localized dates and responsive metadata layout without excessive indentation.
+- `REQ-3413`: Account shows `Edit profile` and `View public profile`; avatar
+  goes through upload, validation, object storage, linking to draft, publishing, and
+  refresh, but the original does not become public.
+- `REQ-3414`: Safe Markdown supports headings, GFM tables, Unicode emoji and
+  annotated inline links, prohibiting raw HTML and dangerous URL schemes.
+- `REQ-3415`: All visible lines, states, tooltips, accessible names, dates and
+  landing/catalog/detail/account errors have full `ru`/`en` parity.
+- `REQ-3416`: Interactive elements have semantic selectors; `data-testid`
+  only used when role/name is insufficient.
+- `REQ-3417`: Anonymous catalog reads only non-negative aggregate
+  `likes_count`; sorting by it is stable. Recording individual reactions and
+  expansion of account IDs is not included in this specification.
+- `REQ-3418`: Web stores a comprehensive presentation registry of component types:
+  a stable identifier, a simple distinguishable icon, and a localized name.
+  The registry is not a domain source of truth. When managed types appear,
+  metadata moves to PostgreSQL and image versions to S3-compatible object
+  storage per `ADR-0074`.
+- `REQ-3419`: The object and exact version page shows `View Source` only for
+  valid GitHub origin and leads to pinned `commit + subpath`, not to
+  moving branch or unverified external URL.
+- `REQ-3420`: The share button on the object page passes the native Web Share API
+  canonical URL of the exact version and copies the same URL to the clipboard if the API
+  unavailable or ended with a technical error.
+- `REQ-3421`: Detail page shows the requirements of the exact version in a structured way:
+  names and purpose of env without values, need for credentials/authorization,
+  declared permissions and external endpoints; setup shows the passport aggregate.
+- `REQ-3422`: Catalog read uses the current account-level `author_verified`, and
+  the card shows it with an avatar ring and a check marker regardless of the content check.
+- `REQ-3423`: GitHub stars are read from a separate mutable cache by provenance
+  repository, is updated by a worker using ETag and bounded backoff, hidden when
+  no value and never affect trust.
+- `REQ-3424`: Web receives explicit consent `accept/reject/manage` for analytics and
+  marketing, stores the choice in a first-party cookie, and optional integrations remain
+  turned off until consent; necessary cookies are not disabled.
+- `REQ-3425`: External products and services are mutable metadata
+  views, deduplicated by registered domain, have a main URL
+  `HTTPS` no more than one segment deep, list of countries `ISO 3166-1 alpha-2`
+  from a reference book fixed in the code and a many-to-many relationship with versions
+  catalogue. IP literals, userinfo and credentials are prohibited; query and fragment
+  are removed. Service creation and attach/detach are available only through the owner Web API;
+  CLI passports do not accept them. Public Web provides `/services/{domain}`
+  and `/countries/{code}`; the entire section is disabled by the feature flag without deleting the data.
+  A public overview of countries and services distinguishes the selected state, shows
+  country not only by ISO code and gives a transition to a directory with already applied
+  filters. Sentinel `unspecified` depends on facet: service facet means
+  an object without an associated service, country facet is an object with an associated service
+  no country; between service/country facets `AND` is valid, inside facets - `OR`.
+- `REQ-3426`: Component and setup card in list and cards keeps readable
+  title and action area: the author profile does not displace the title and menu.
+  The author remains a separate link with an avatar and `author_verified`, if any.
+  `likes_count` is visible in both views; GitHub stars only if the value
+  available. A missing metric is not shown as zero. In the center -
+  relative total security checks; `warning`, `failed` and `not-run` remain
+  visible. If there is risk data, the card adds a short reason
+  open the post and does not confuse author attribution with content security.
+- `REQ-3427`: `VerifiedAvatar` is the only author tag component: thin
+  round outline, small checkmark at the bottom edge, no overlapping photo or
+  reserve character, no line height change, no name shift and no
+  local negative displacements. Catalog, object page and public
+  profile use the same component for the photo and the spare sign.
+- `REQ-3428`: The vertical menu of the three points of the card contains Copy URL, Copy ID,
+  Copy CLI command, separator and Report component or Report setup. Clipboard feedback,
+  keyboard control, Escape closing, and focus return are provided. The main card actions
+  are not duplicated. Report opens
+  existing complaint flow.
+- `REQ-3429`: Directory lookup accepts optional `updated_from` and
+  `updated_to` as calendar dates `YYYY-MM-DD`. One or both edges are acceptable,
+  clear range, chip each active edge, Reset all, save to URL and
+  client navigation without a full reboot. UTC semantics belongs to
+  `docs/contracts/http-api.md`: the lower limit is the beginning of the specified day, the upper limit is
+  the beginning of the next day; the reverse range is `AI_STP_VALIDATION_ERROR`. Signature
+  the cursor includes the specified dates; empty bounds are omitted from the signature, so
+  old URLs remain valid. Component and setup use one
+  contract.
+- `REQ-3430`: The directory has an explicit Both/All mode along with `components` and
+  `setups`. Both uses one contiguous list with no separate sections:
+  setups come first, then components; the selected sorting is preserved within each type.
+  The type is distinguished within the row itself. Old values
+  `resource=components` and `resource=setups` don't break. Web requests two
+  independent projections and preserves their page boundaries in the URL, but does not turn them into
+  two visually independent outputs. While setup pages remain, component rows do not
+  precede them; the first component page is appended to the last setup page,
+  subsequent component pages continue the same list without repeating setups.
+  Filters only apply to
+  the corresponding object type.
 
-## Состояния и ошибки
+## States and errors
 
-Ошибки QL содержат стабильный код, позицию и ожидаемый класс токена. Недопустимый
-filter/sort/page отклоняется, а не игнорируется. Несовместимые `cursor` и `page`
-дают ошибку проверки. Загрузка различает неподдерживаемый формат, превышение размера,
-обработку, отказ хранилища и готовность. UI сохраняет применённый URL при сетевой ошибке.
+QL errors contain the stable code, position and expected token class. Invalid
+filter/sort/page is rejected rather than ignored. Incompatible `cursor` and `page`
+produce a validation error. Upload distinguishes unsupported format, excessive size,
+processing, storage failure, and readiness. The UI preserves the applied URL on a network error.
 
-## Безопасность и приватность
+## Security and privacy
 
-Search работает только по публичной проекции и не раскрывает hidden/private
-count. `total_items` относится только к уже разрешённому публичному срезу.
-QL компилируется только из allowlisted AST. Avatar проверяется по MIME и bytes;
-оригинал приватен. Markdown sanitization запрещает raw HTML, scriptable URL и
-event handlers. Like не раскрывает список account IDs.
+Search works only on the public projection and does not reveal hidden/private
+count. `total_items` only refers to an already resolved public slice.
+QL is compiled only from allowlisted AST. Avatar is checked by MIME and bytes;
+the original is private. Markdown sanitization prohibits raw HTML, scriptable URLs and
+event handlers. Like does not expand the list of account IDs.
 
-## Совместимость и миграция
+## Compatibility and migration
 
-Существующие маршруты компонента и сетапа, а также параметры курсора
-сохраняются. Режим страницы добавляется явно и не меняет семантику ответа
-курсора. Старые одиночные фильтры принимаются как список из одного значения и
-нормализуются вместе с list-параметрами до поиска и подписи курсора. Значение
-`resource=both` принимается как общий режим. URL без `updated_from` и
-`updated_to` сохраняют прежнюю выдачу. Откат отключает режим страницы, язык
-запросов и флаги лайков без изменения опубликованных паспортов.
+Existing component and setup routes, as well as cursor parameters
+are saved. The page mode is added explicitly and does not change the semantics of the response
+cursor. Old single filters are accepted as a list of one value and
+are normalized along with the list parameters to the search and cursor signature. Meaning
+`resource=both` is accepted as a general mode. URL without `updated_from` and
+`updated_to` keep the previous output. Rollback disables page mode, language
+requests and like flags without changing published passports.
 
-## Критерии приёмки
+## Acceptance criteria
 
-| Требование | Исполнимый oracle                                                                                |
-| ---------- | ------------------------------------------------------------------------------------------------ |
-| `REQ-3401` | Компонентная проверка различает анонимную и авторизованную шапку.                                |
-| `REQ-3402` | Браузерная проверка видит логотип, слоган и autoplay preview.                                    |
-| `REQ-3403` | Проверка двух высот viewport подтверждает положение footer.                                      |
-| `REQ-3404` | Компонентная проверка подтверждает свёрнутый поиск и раскрытие кнопкой.                          |
-| `REQ-3405` | Компонентная проверка покрывает все типы фильтров и справку.                                     |
-| `REQ-3406` | Component/a11y tests подтверждают responsive refinement surface, одинаковые controls, reset/apply, close, focus containment на narrow и сохранение URL без full reload; `mobile-public-smoke.spec.ts` подтверждает keyboard/focus refinement на 360 и 430 px в `ru` и `en`. |
-| `REQ-3407` | API unit test подтверждает стабильную сортировку трёх режимов.                                   |
-| `REQ-3408` | Parser tests покрывают все поля, операторы и позиции ошибок; component tests — opt-in autocomplete/correction без переписывания plain text. |
-| `REQ-3409` | Property tests проверяют границы длины, токенов, глубины и IN.                                   |
-| `REQ-3410` | API tests проверяют totals и несовместимость page с cursor; component tests — bounded page window и отсутствие unbounded DOM controls. |
-| `REQ-3411` | Компонентные проверки покрывают card/list и ссылки автора.                                       |
-| `REQ-3412` | Браузерная проверка подтверждает компактную responsive detail page; `mobile-public-smoke.spec.ts` подтверждает 360/430 px в `ru`/`en` без document-level overflow и с видимыми install/view CTA. |
-| `REQ-3413` | Сценарий выполняет upload → draft → publish → public read.                                       |
-| `REQ-3414` | Golden/XSS tests покрывают таблицы, заголовки, emoji и ссылки.                                   |
-| `REQ-3415` | i18n parity и locale E2E проходят для изменённых страниц.                                        |
-| `REQ-3416` | Проверка доступности находит controls по role и name.                                            |
-| `REQ-3417` | Projection/API tests доказывают публичный агрегат и стабильную сортировку.                       |
-| `REQ-3418` | Component test проходит по всем contract component types и находит icon и локализации `ru`/`en`. |
-| `REQ-3419` | Unit tests проверяют exact commit/subpath и отклоняют подвижные или подменённые URL.             |
-| `REQ-3420` | Component test проверяет native share точного version-scoped URL и clipboard fallback.           |
-| `REQ-3421` | Component test проверяет структурированные требования и отсутствие значений секретов.            |
-| `REQ-3422` | Platform unit test проверяет current-state overlay, component test — независимый avatar marker.  |
-| `REQ-3423` | Worker unit tests проверяют URL, ETag/cache; card test отделяет stars от trust.                  |
-| `REQ-3424` | Unit/component tests проверяют persistence, reject и отсутствие optional consent по умолчанию.   |
-| `REQ-3425` | Unit/API tests проверяют URL policy, domain conflict, owner-only mutation, country roof с objects, два значения `unspecified`, `AND` между facets и `OR` внутри facet; migration tests — M:N schema; component test — выбранное состояние, отличие страны от голого кода и catalog CTA с фильтрами. |
-| `REQ-3426` | Component tests покрывают card/list, author вне title/action, likes в обоих видах, доступные stars, отсутствие ложного нуля, why-open и видимые warning/failed/not-run. |
-| `REQ-3427` | Component test проверяет обводку, галочку у края, фото и placeholder, неизменный размер строки и отсутствие отрицательных offsets. |
-| `REQ-3428` | Component test проверяет состав меню, clipboard, Escape, клавиатуру, возврат фокуса и раздельные названия Report. |
-| `REQ-3429` | Parser/API tests покрывают один край, полный диапазон, обратный диапазон, UTC-границы и подпись курсора; web test — chip, reset и URL. |
-| `REQ-3430` | Component/unit tests подтверждают один список, порядок setups затем components, отсутствие групповых секций, независимую сортировку типов, старые resource values и bounded page-границы. |
+| Requirement | Executable oracle |
+| ---------- | -------------------------------------------------------------------------------- |
+| `REQ-3401` | Component verification distinguishes between anonymous and authenticated headers.                                |
+| `REQ-3402` | Browser check sees the logo, slogan and autoplay preview.                                    |
+| `REQ-3403` | Checking the two viewport heights confirms the position of the footer.                                      |
+| `REQ-3404` | Component verification confirms the collapsed search and expansion with a button.                          |
+| `REQ-3405` | Component checking covers all types of filters and help.                                     |
+| `REQ-3406` | Component/a11y tests confirm responsive refinement surface, identical controls, reset/apply, close, focus containment to narrow and saving URL without full reload; `mobile-public-smoke.spec.ts` confirms keyboard/focus refinement at 360 and 430 px in `ru` and `en`. |
+| `REQ-3407` | The API unit test confirms the stable sorting of the three modes.                                   |
+| `REQ-3408` | Parser tests cover all fields, statements and error positions; component tests - opt-in autocomplete/correction without rewriting plain text. |
+| `REQ-3409` | Property tests check length, token, depth, and IN bounds.                                   |
+| `REQ-3410` | API tests check totals and page incompatibility with cursor; component tests - bounded page window and lack of unbounded DOM controls. |
+| `REQ-3411` | Component checks cover card/list and author links.                                       |
+| `REQ-3412` | Browser check confirms compact responsive detail page; `mobile-public-smoke.spec.ts` confirms 360/430 px in `ru`/`en` without document-level overflow and with visible install/view CTA. |
+| `REQ-3413` | The script executes upload → draft → publish → public read.                                       |
+| `REQ-3414` | Golden/XSS tests cover tables, headers, emoji and links.                                   |
+| `REQ-3415` | i18n parity and locale E2E pass for modified pages.                                        |
+| `REQ-3416` | The availability check finds controls by role and name.                                            |
+| `REQ-3417` | Projection/API tests prove public aggregate and stable sorting.                       |
+| `REQ-3418` | Component test goes through all contract component types and finds icon and localizations `ru`/`en`. |
+| `REQ-3419` | Unit tests check exact commit/subpath and reject moving or spoofed URLs.             |
+| `REQ-3420` | Component test checks the native share of the exact version-scoped URL and clipboard fallback.           |
+| `REQ-3421` | Component test checks for structured requirements and absence of secret values.            |
+| `REQ-3422` | Platform unit test checks the current-state overlay, component test checks an independent avatar marker.  |
+| `REQ-3423` | Worker unit tests check URL, ETag/cache; card test separates stars from trust.                  |
+| `REQ-3424` | Unit/component tests check persistence, reject and the absence of optional consent by default.   |
+| `REQ-3425` | Unit/API tests check URL policy, domain conflict, owner-only mutation, country roof with objects, two `unspecified` values, `AND` between facets and `OR` inside facet; migration tests - M:N schema; component test - the selected state, the difference between the country and the bare code and catalog CTA with filters. |
+| `REQ-3426` | Component tests cover card/list, author outside title/action, likes in both types, available stars, no false zero, why-open and visible warning/failed/not-run. |
+| `REQ-3427` | Component test checks the stroke, check mark at the edge, photo and placeholder, constant line size and the absence of negative offsets. |
+| `REQ-3428` | Component test checks menu composition, clipboard, Escape, keyboard, focus return and separate Report titles. |
+| `REQ-3429` | Parser/API tests cover single edge, full range, reverse range, UTC bounds and cursor signature; web test - chip, reset and URL. |
+| `REQ-3430` | Component/unit tests confirm one list, setups then components order, no group sections, independent type sorting, old resource values ​​and bounded page boundaries. |

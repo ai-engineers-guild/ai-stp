@@ -1,66 +1,67 @@
 ---
-description: "Клиентская последовательность publication plan и граница передаваемых данных."
+description: "Client-side publication plan sequence and the boundary of transmitted data."
 last_verified: "2026-08-25"
 ---
 
-# CLI-публикация
+# CLI publication
 
-`publication plan --id <stable_id> --version <X.Y>` строит серверный план для
-точной локально выпущенной версии компонента. Команда читает ревизию, записанную
-вместе с этой версией, а не текущую голову draft. Из неё получается публичный
-immutable version passport; проводная форма и серверные состояния принадлежат
-схемам `publication-*` в `packages/contracts`.
+`publication plan --id <stable_id> --version <X.Y>` builds a server-side plan for
+an exact locally released component version. The command reads the revision stored
+with that version, not the current draft head. It produces a public immutable
+version passport; the wire format and server states belong to the `publication-*`
+schemas in `packages/contracts`.
 
-Создание плана само по себе не публикует объект. Полученные `plan_id`,
-`plan_hash`, `expires_at` и effects нужно проверить, после чего отдельная
-команда `publication confirm --plan-id <id> --plan-hash <hash> --confirm`
-подтверждает именно этот снимок. `publication status --plan-id <id>` является
-read-only путём проверки и восстановления, если ответ confirm потерян.
+Creating a plan does not itself publish the object. The resulting `plan_id`,
+`plan_hash`, `expires_at`, and effects must be reviewed, after which a separate
+`publication confirm --plan-id <id> --plan-hash <hash> --confirm` command confirms
+that exact snapshot. `publication status --plan-id <id>` is the read-only path for
+verification and recovery if the confirm response is lost.
 
-В запрос создания входят паспорт и digest артефакта. Исходные байты компонента,
-локальные пути, токены сессии и значения требуемых credentials в
-паспорт или машинный вывод не добавляются. Токен сессии существует только в
-заголовке защищённого HTTP-вызова.
+The creation request includes the passport and artifact digest. Source component
+bytes, local paths, session tokens, and values of required credentials are not
+added to the passport or machine output. The session token exists only in the
+header of the authenticated HTTP call.
 
-Каждый вызов plan или confirm создаёт ключ идемпотентности один раз до первого
-сетевого запроса. Внутренние транспортные повторы используют тот же request.
-Повтор команды confirm после неопределённого результата не является способом
-узнать итог: сначала читается status ранее известного plan.
+Each plan or confirm invocation creates an idempotency key once before the first
+network request. Internal transport retries use the same request. Repeating the
+confirm command after an indeterminate result is not a way to discover the
+outcome: first read the status of the previously known plan.
 
-## Публикация сетапа
+## Setup publication
 
-Сетап не может стать публичным раньше своих точных пинов, поэтому он публикуется
-не отдельным планом, а **набором**. Команда
-`setup publish plan --id <setup> --version <X.Y>` создаёт по плану на каждый
-закреплённый компонент, который ещё не публичен, и на сам сетап. Уже публичный участник перечисляется и не
-перепланируется. Решение — `ADR-0114`, требования — `SPEC-038`
+A setup cannot become public before its exact pins, so it is published not as a
+separate plan but as a **set**. The
+`setup publish plan --id <setup> --version <X.Y>` command creates one plan for
+each pinned component that is not yet public and one for the setup itself. An
+already public participant is listed and is not replanned. The decision is
+`ADR-0114`; the requirements are `SPEC-038`
 `REQ-3810`–`REQ-3812`.
 
-Набор возвращает `set_digest` над упорядоченным списком участников: роль, вид,
-`stable_id`, версия, `plan_hash` и признак «уже опубликован». Состояние
-участника в digest не входит: план, перешедший из `draft` в `ready`, пока
-оператор читает набор, — это не другое решение.
+The set returns a `set_digest` over the ordered list of participants: role, kind,
+`stable_id`, version, `plan_hash`, and an “already published” marker. Participant
+state is not included in the digest: a plan that moves from `draft` to `ready`
+while the operator reads the set does not represent a different decision.
 
-`setup publish confirm --set-digest <digest> --confirm` подтверждает участников
-в порядке набора: компоненты, затем сетап. Порядок принадлежит команде, а не
-человеку: сетап, подтверждённый раньше пинов, отклоняется серверным
-`setup_pin_aggregate`, и отказ читается как дефект сетапа.
+`setup publish confirm --set-digest <digest> --confirm` confirms participants in
+set order: components first, then the setup. The command, not the person, owns
+the order: a setup confirmed before its pins is rejected by the server-side
+`setup_pin_aggregate`, and the rejection is treated as a setup defect.
 
-Отказ участника останавливает подтверждение, а набор переходит в `partial`.
-Это возобновляемое состояние: опубликованное остаётся опубликованным, и
-повторный `plan` перечислит его как `already_published`.
+A participant rejection stops confirmation and moves the set to `partial`.
+This state is resumable: published objects remain published, and a repeated
+`plan` lists them as `already_published`.
 
-Набор хранится локально между двумя командами, потому что `plan_id` расчётом не
-восстанавливается — он существует только потому, что план был создан. Второй
-`plan` для той же версии сетапа заменяет открытый набор.
+The set is stored locally between the two commands because a `plan_id` cannot be
+reconstructed by calculation—it exists only because the plan was created. A
+second `plan` for the same setup version replaces the open set.
 
-`publication plan` остаётся командой про компонент и не меняется.
+`publication plan` remains a component command and does not change.
 
-Первопартийный корпус запуска публикуется тем же аутентифицированным
-конвейером, а не отдельной командой каталога и не seed-путём. Операторский
-batch `apps/cli/tools/first_party_launch_publication.py` только создаёт точные
-планы, привязывает байты и подтверждает сохранённые hash. Уже опубликованная
-`X.Y` с тем же digest пропускается чтением каталога, без seed и без прямой
-записи. Порядок, resume и fail-closed принадлежат
+The first-party launch corpus is published through the same authenticated
+pipeline, not through a separate catalog command or seed path. The operator
+batch `apps/cli/tools/first_party_launch_publication.py` only creates exact
+plans, binds bytes, and confirms stored hashes. An already published `X.Y` with
+the same digest is skipped by reading the catalog, without seeding or direct
+writes. Ordering, resume behavior, and fail-closed behavior belong to
 [first-party-launch-publication.md](../operations/runbooks/first-party-launch-publication.md)
-и `SPEC-026` `REQ-2628`.
+and `SPEC-026` `REQ-2628`.

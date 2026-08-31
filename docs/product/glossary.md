@@ -1,46 +1,46 @@
 ---
-description: "Единый словарь предметной области."
+description: "Canonical domain glossary."
 last_verified: "2026-08-24"
 ---
 
-# Термины
+# Terms
 
-| Термин | Значение |
+| Term | Meaning |
 |---|---|
-| Харнесс | CLI-среда coding agent: Claude Code, Codex, Pi, OpenCode, Grok Build, Cursor или Antigravity. |
-| Сетап | Полная конфигурация конкретного харнесса; принадлежит одному харнессу с момента создания. |
-| Компонент | Отдельная часть сетапа. |
-| Вариант компонента | Нативная реализация компонента для конкретного харнесса. |
-| Родство сетапов | Ссылка происхождения между сетапами разных харнессов без общей версии и общего доступа. |
-| Нативная упаковка | Форма поставки объекта: витрина, плагин, нативные файлы или пакет. |
-| Паспорт | Версионируемое машиночитаемое описание объекта. |
-| Паспорт устройства | Приватный ревизионируемый паспорт окружения одного устройства; между устройствами не объединяется. |
-| Находка | Обнаруженный факт с происхождением `observed` и подтверждением `none`, ещё не внесённый в паспорт. Не отдельная сущность. |
-| Словарь тегов | Закрытый версионируемый перечень допустимых тегов публикации. |
-| `local_drift` | Цель изменена вне жизненного цикла провайдера и не соответствует паспорту установленной версии. |
-| `catalog_drift` | Для закреплённого объекта доступна более новая версия. |
-| Выбранная версия | Версия, закреплённая подтверждением за парой проект и харнесс; установленной становится после `verified` провайдера. |
-| `pending_install` | Нормальное окно между подтверждением выбранной версии и `verified` установкой; не расхождение. |
-| Draft | Изменяемая приватная рабочая версия. |
-| Версия | Неизменяемый объект `X.Y` с exact digest. |
-| Major-линия | Все версии с одинаковым `X`, например `1.0–1.n`. |
-| Локальный реестр | Пользовательское состояние одного устройства. |
-| Облачный реестр | Серверные metadata и artifacts платформы. |
-| Коробка | Разговорное название реестра — локального или облачного. Не является отдельной сущностью и не означает сетап. |
-| Провайдер | Публичный setup-manager конкретного харнесса. |
-| Сборщик сетапа | Детерминированный слой, который проверяет composition и строит bundle. |
-| Отбор | Проход от поиска к составу: ограничения, линия доверия, порядок, выбор агента. Продукт не «подбирает» за пользователя. |
-| Предложение состава | Недолговечный вариант состава в сеансе рекомендации; версией становится только после явного подтверждения пользователя. |
-| HarnessBundle | Ограниченный пакет файлов и `bundle.json` для провайдера. |
-| Attestation | Подписанный отчёт устройства о локальной проверке exact digest. |
-| Verified author | Автор, чью личность или владение пространством имён подтвердила платформа. |
-| Verified component | Конкретная версия объекта, прошедшая обязательные платформенные проверки. |
-| Линия доверия | Правило попадания кандидата в выдачу: основная, экспериментальная или собственная. |
-| Согласие на непроверенное | Признак запроса на команду или сеанс либо долговечная запись по издателю или основной линии объекта; результат всегда остаётся экспериментальным. |
-| Assurance | Набор независимых доказательств целостности, проверок и совместимости. |
-| Target | Изолированный каталог конкретной установки харнесса. |
-| Snapshot | Неизменяемая запись состояния или операции. |
-| Grant | Явное право account ID на объект и его основную линию: чтение, установка и форк без редактирования оригинала. |
-| Форк | Новый приватный объект получателя того же вида, созданный из доступного объекта; неизменённый клон не переиздаётся. |
-| Приглашение | Предложение доступа на подтверждённую почту, которое становится правом только после входа. |
-| Жалоба | Закрытый случай модерации о точной версии объекта; не публичный issue и не автоматическая блокировка. |
+| Harness | A coding agent CLI environment: Claude Code, Codex, Pi, OpenCode, Grok Build, Cursor, or Antigravity. |
+| Setup | The complete configuration of a specific harness; it belongs to one harness from the moment it is created. |
+| Component | An individual part of a setup. |
+| Component variant | A native implementation of a component for a specific harness. |
+| Setup lineage | A provenance link between setups for different harnesses, without a shared version or shared access. |
+| Native packaging | An object's delivery form: marketplace, plugin, native files, or package. |
+| Passport | A versioned, machine-readable description of an object. |
+| Device passport | A private, revisioned passport of one device's environment; it is not merged across devices. |
+| Finding | An observed fact with `observed` provenance and `none` verification that has not yet been entered into a passport. It is not a separate entity. |
+| Tag vocabulary | A closed, versioned list of tags allowed for publication. |
+| `local_drift` | The target was changed outside the provider lifecycle and no longer matches the installed version's passport. |
+| `catalog_drift` | A newer version is available for a pinned object. |
+| Selected version | A version pinned by confirmation for a project-and-harness pair; it becomes installed after the provider reports `verified`. |
+| `pending_install` | The normal window between confirmation of the selected version and a `verified` installation; it is not drift. |
+| Draft | A mutable private working version. |
+| Version | An immutable `X.Y` object with an exact digest. |
+| Major line | All versions with the same `X`, for example `1.0–1.n`. |
+| Local registry | One device's user-owned state. |
+| Cloud registry | The platform's server-side metadata and artifacts. |
+| Box | A colloquial name for a registry, local or cloud. It is not a separate entity and does not mean a setup. |
+| Provider | A public setup manager for a specific harness. |
+| Setup builder | The deterministic layer that validates composition and builds a bundle. |
+| Selection | The path from search to composition: constraints, trust lane, ordering, and agent choice. The product does not choose on the user's behalf. |
+| Composition proposal | A short-lived composition candidate in a recommendation session; it becomes a version only after explicit user confirmation. |
+| HarnessBundle | A bounded package of files and `bundle.json` for a provider. |
+| Attestation | A signed device report of local verification for an exact digest. |
+| Verified author | An author whose identity or namespace ownership the platform has verified. |
+| Verified component | A specific object version that has passed mandatory platform checks. |
+| Trust lane | The rule governing a candidate's inclusion in results: authoritative, experimental, or `local_owner_or_pinned`. |
+| Unverified consent | A request flag for a command or session, or a durable record for a publisher or an object's major line; the result always remains experimental. |
+| Assurance | A set of independent integrity, validation, and compatibility evidence. |
+| Target | An isolated directory for a specific harness installation. |
+| Snapshot | An immutable record of state or an operation. |
+| Grant | An explicit right for an account ID to an object and its major line: read, install, and fork without editing the original. |
+| Fork | A new private object of the same kind for the recipient, created from an accessible object; an unchanged clone is not republished. |
+| Invitation | An access offer sent to a verified email address that becomes a right only after sign-in. |
+| Report | A private moderation case about an exact object version; it is neither a public issue nor an automatic block. |

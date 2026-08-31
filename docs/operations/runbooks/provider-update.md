@@ -1,29 +1,29 @@
 ---
 description: "Runbook: provider update."
-last_verified: "2026-08-31"
+last_verified: "2026-08-28"
 ---
 
-# Обновление провайдера
+# Provider update
 
-## Подготовка подписанного выпуска
+## Preparing a signed release
 
-После получения byte-identical candidate от закрытого release harness ключ
-издателя создаётся и хранится только вне checkout. Команда выводит public key и
-детерминированный `key_id`, которые затем отдельно закрепляются в consumer policy:
+After receiving a byte-identical candidate from the closed release harness, the publisher
+key is created and stored only outside the checkout. The command prints the public key and
+deterministic `key_id`, which are then pinned separately in consumer policy:
 
 ```bash
 python apps/cli/tools/provider_release.py keygen \
   --private-key /secure/ai-stp/provider-release-ed25519.pem
 ```
 
-Манифест подписывает точный executable, commit, URL, platform profile и
-монотонную sequence. Для текущего release profile указываются только фактически
-доказанные `linux` и `x86_64`; переносимые code paths не являются macOS evidence:
+The manifest signs the exact executable, commit, URL, platform profile, and
+monotonic sequence. For the current release profile, specify only the actually
+proven `linux` and `x86_64`; portable code paths are not macOS evidence:
 
-`--publisher` обязателен и не имеет умолчания. Раньше инструмент подставлял
-издателя, которому поставляемая `provider-policy.toml` уже не
-доверяет, — то есть подписывал релизы от имени организации, с которой эстейт
-съехал.
+`--publisher` is required and has no default. Previously, the tool substituted
+a publisher that the distributed `provider-policy.toml` no longer
+trusts—in other words, it signed releases on behalf of an organization from which the estate
+had migrated.
 
 ```bash
 python apps/cli/tools/provider_release.py sign \
@@ -44,45 +44,44 @@ python apps/cli/tools/provider_release.py sign \
   --output /secure/candidates/claude-setup-system-0.0.16.manifest.json
 ```
 
-`--provider-id` — то, чем провайдер называет себя в `provider-info`, и это
-`<name>-setup-system`, а не имя прежнего репозитория. Проверено на выпущенных
-`0.0.16`: `claude-setup-system`, `codex-setup-system`, `pi-setup-system`.
+`--provider-id` is what the provider calls itself in `provider-info`, and it is
+`<name>-setup-system`, not the former repository name. Verified against released
+`0.0.16` versions: `claude-setup-system`, `codex-setup-system`, `pi-setup-system`.
 
-Перед публикацией `verify` повторно читает точные байты артефакта и применяет
-тот же договор доверия потребителя. Закрытый ключ, байты кандидата и
-промежуточные манифесты не коммитятся; в репозиторий попадают только открытый
-ключ и точные дайджесты опубликованных артефактов после неизменяемой публикации.
+Before publication, `verify` rereads the exact artifact bytes and applies
+the same consumer trust contract. The private key, candidate bytes, and
+intermediate manifests are not committed; only the public key and exact digests
+of published artifacts enter the repository after immutable publication.
 
-## Подготовка выпуска
+## Release preparation
 
-1. Зафиксировать публичный репозиторий, коммит, версию протокола и связанный issue.
-2. Выполнить публичные проверки и закрытый барьер контура авторинга.
-3. Собрать воспроизводимый артефакт и манифест с хэшем, размером и последовательностью.
-4. Подписать выпуск разрешённым ключом или издателем по текущей политике доверия.
-5. Получить Linux x86_64 evidence для выбранной release line. macOS evidence нужно
-   для каждой строки six-leg release matrix по `ADR-0113`; старый tag или
-   build-only результат не переносится на новый provider release.
-6. Для protocol v2 на каждой ОС выполнить capability probe. `enforced` принимается
-   только вместе с launcher identity, SHA/version и положительным контролем
-   DNS-UDP/IPv4/IPv6; `unavailable` блокирует локальную фазу до запуска provider.
+1. Record the public repository, commit, protocol version, and related issue.
+2. Run the public checks and the closed authoring-environment barrier.
+3. Build a reproducible artifact and manifest with its hash, size, and sequence.
+4. Sign the release with a permitted key or publisher under the current trust policy.
+5. Obtain Linux x86_64 evidence for the selected release line. macOS evidence is
+   required only before macOS is added to the support matrix in the future under `ADR-0062`.
+6. For protocol v2, run the capability probe on each OS. `enforced` is accepted
+   only with launcher identity, SHA/version, and positive control of
+   DNS-UDP/IPv4/IPv6; `unavailable` blocks the local phase before the provider runs.
 
-## Продвижение
+## Promotion
 
-1. Отдельно продвинуть закреплённую версию в закрытом контуре авторинга.
-2. Отдельным PR обновить манифест потребителя в `ai_stp`.
-3. Проверить источник, подпись, хэш, защиту от отката, платформу и `provider-info`.
-4. Установить новую версию рядом со старой и выполнить диагностику и контрактные проверки.
-5. Атомарно переключить текущий указатель. Пользовательские цели не обновляются автоматически.
+1. Separately promote the pinned version in the closed authoring environment.
+2. Update the consumer manifest in `ai_stp` in a separate PR.
+3. Verify the source, signature, hash, rollback protection, platform, and `provider-info`.
+4. Install the new version beside the old one and run diagnostics and contract checks.
+5. Atomically switch the current pointer. User targets are not updated automatically.
 
-## Проверка после переключения
+## Post-switch verification
 
-1. Повторно получить `provider-info`, проверить действия и версию.
-2. Выполнить безопасный план на тестовой цели, затем состояние и восстановление.
-3. Записать точный артефакт, команды, результаты и пропущенные платформы.
-4. Записать `network_requirement`, фактический `network_enforcement` и evidence для
-   каждой выполненной фазы. Linux/Bubblewrap evidence не доказывает macOS; без
-   отдельного real-host evidence macOS остаётся `not_verified`.
+1. Fetch `provider-info` again and verify the actions and version.
+2. Run a safe plan against a test target, then state and recovery.
+3. Record the exact artifact, commands, results, and skipped platforms.
+4. Record `network_requirement`, the actual `network_enforcement`, and evidence for
+   every completed phase. Linux/Bubblewrap evidence does not prove macOS; without
+   separate real-host evidence, macOS remains `not_verified`.
 
-## Возврат
+## Rollback
 
-При ошибке вернуть указатель на прошлую установленную проверенную версию. Не использовать `latest` и не загружать новый артефакт во время возврата. Если выпуск отозван, заблокировать новые установки и опубликовать список затронутых версий и инструкцию восстановления.
+On error, point back to the previous installed, verified version. Do not use `latest` or download a new artifact during rollback. If the release has been revoked, block new installations and publish the list of affected versions and recovery instructions.

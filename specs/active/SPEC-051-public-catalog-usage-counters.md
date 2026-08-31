@@ -1,86 +1,81 @@
 ---
-description: "SPEC-051: Приватные события и публичные счётчики просмотров и загрузок каталога."
+description: "SPEC-051: Private events and public catalog view and download counters."
 last_verified: "2026-08-16"
 ---
 
-# SPEC-051: Публичные счётчики использования каталога
+# SPEC-051: Public catalog usage counters
 
-## Цель
+## Purpose
 
-Показать на card и detail сопоставимые агрегаты просмотров публичной detail-страницы
-и успешных выдач artifact download, не создавая пользовательскую историю и не
-выдавая download за успешную установку.
+Show comparable aggregates on the card and detail views for views of the public detail page and successful artifact downloads, without creating user history or presenting a download as a successful installation.
 
-## Границы
+## Scope
 
-Считаются только разрешённый public detail read и завершённая сервером выдача
-байтов артефакта. `CLI install success`, телеметрия харнесса, аналитика аккаунта,
-уникальные пользователи и публичные сырые события не входят. Точный контракт
-принадлежит `docs/contracts/catalog-usage-metrics.md`.
+Only an authorized public detail read and the server's completed delivery of artifact bytes are counted. `CLI install success`, harness telemetry, account analytics, unique users, and public raw events are out of scope. The exact contract is owned by `docs/contracts/catalog-usage-metrics.md`.
 
-## Термины
+## Terms
 
-- **Detail view** — успешный публичный ответ detail-страницы.
-- **Artifact download** — успешная серверная выдача bytes артефакта; не
+- **Detail view** — a successful public response from the detail page.
+- **Artifact download** — successful server delivery of artifact bytes; not
   install success.
-- **Keyed digest** — краткоживущий HMAC-признак окна; raw IP, user-agent,
-  account и device не хранятся.
+- **Keyed digest** — a short-lived HMAC attribute for a window; raw IP, user-agent,
+  account, and device are not stored.
 
-Проводная семантика принадлежит `docs/contracts/catalog-usage-metrics.md`;
-архитектурное решение — `ADR-0097`.
+Wire semantics are owned by `docs/contracts/catalog-usage-metrics.md`;
+the architectural decision is `ADR-0097`.
 
-## Требования
+## Requirements
 
-- `REQ-5101`: Public projection содержит `detail_views_count` и
-  `artifact_downloads_count`; card, detail и API используют один server aggregate.
-- `REQ-5102`: View засчитывается после успешного public detail response. Download
-  засчитывается после успешной передачи bytes; попытка, redirect, preflight, ошибка
-  и metadata request не увеличивают счётчик.
-- `REQ-5103`: Download означает выдачу bytes, отличается от install success и не
-  меняет install eligibility, verification или trust.
-- `REQ-5104`: Anti-abuse использует краткоживущий keyed digest от минимального
-  сетевого признака, object/action и окна. Raw IP, user-agent, account/device
-  identity и стабильный cross-window identifier не сохраняются; secret ротируется.
-- `REQ-5105`: Dedup rows удаляются по короткому документированному retention;
-  агрегаты не позволяют восстановить посетителя, event rows не публичны.
-- `REQ-5106`: Necessary server-side fraud prevention не требует analytics consent
-  и не загружает tracker; optional analytics остаётся consent-gated.
-- `REQ-5107`: Feature flag отключает запись и показ обоих counters; выключенное
-  состояние сохраняет старые поверхности без ложных нулей.
-- `REQ-5108`: Конкурентные повторы в одном окне дают один atomic increment;
-  разные окна и действия независимы.
-- `REQ-5109`: Compact responsive UI показывает два подписанных значения; RU/EN,
-  screen-reader labels и card/detail parity покрыты tests.
+- `REQ-5101`: The public projection contains `detail_views_count` and
+  `artifact_downloads_count`; card, detail, and API use the same server aggregate.
+- `REQ-5102`: A view is counted after a successful public detail response. A download
+  is counted after successful delivery of bytes; an attempt, redirect, preflight, error,
+  or metadata request does not increment the counter.
+- `REQ-5103`: Download means delivery of bytes, differs from install success, and does
+  not change install eligibility, verification, or trust.
+- `REQ-5104`: Anti-abuse uses a short-lived keyed digest derived from a minimal
+  network attribute, object/action, and window. Raw IP, user-agent, account/device
+  identity, and a stable cross-window identifier are not stored; the secret is rotated.
+- `REQ-5105`: Dedup rows are deleted according to a short documented retention period;
+  aggregates do not allow reconstruction of a visitor, and event rows are not public.
+- `REQ-5106`: Necessary server-side fraud prevention does not require analytics consent
+  and does not load a tracker; optional analytics remains consent-gated.
+- `REQ-5107`: A feature flag disables recording and display of both counters; the disabled
+  state preserves the existing surfaces without false zeros.
+- `REQ-5108`: Concurrent repeats within the same window produce one atomic increment;
+  different windows and actions are independent.
+- `REQ-5109`: The compact responsive UI shows two labeled values; RU/EN,
+  screen-reader labels, and card/detail parity are covered by tests.
 
-## Состояния и ошибки
+## States and errors
 
-Выключенный флаг оставляет поле `usage_metrics` пустым; отсутствие значения
-не равно нулю. Попытка, перенаправление, предварительный запрос, ошибка и
-запрос только метаданных не увеличивают счётчик загрузки. Повторы в одном
-окне дают одно атомарное увеличение.
+When the flag is disabled, the `usage_metrics` field remains empty; an absent value
+is not equal to zero. An attempt, redirect, preflight request, error, or
+metadata-only request does not increment the download counter. Repeats within the
+same window produce one atomic increment.
 
-## Безопасность и приватность
+## Security and privacy
 
-Защита от злоупотреблений не сохраняет исходный адрес, строку клиента, учётную
-запись, устройство или стабильный межоконный идентификатор. Строки дедупликации
-живут короткий срок. Необходимая серверная защита не требует согласия на
-аналитику и не загружает внешний наблюдатель.
+Anti-abuse protection does not store the source address, client string, account,
+device, or a stable cross-window identifier. Deduplication rows have a short
+lifetime. Necessary server-side protection does not require analytics consent
+and does not load an external tracker.
 
-## Совместимость и миграция
+## Compatibility and migration
 
-Поля additive и nullable при выключенном feature. Откат выключает запись/показ и
-сохраняет агрегаты до отдельного управляемого удаления.
+The fields are additive and nullable when the feature is disabled. Rollback disables
+recording/display and preserves aggregates until a separate managed deletion.
 
-## Критерии приёмки
+## Acceptance criteria
 
-| Требование | Исполнимое доказательство |
+| Requirement | Executable evidence |
 |---|---|
-| `REQ-5101` | API и component tests подтверждают card/detail/API parity одного aggregate. |
-| `REQ-5102` | Tests подтверждают increment только после успешного detail response и выдачи bytes. |
-| `REQ-5103` | Tests подтверждают отличие download от install success и неизменность eligibility. |
-| `REQ-5104` | Privacy tests не находят raw identifiers и стабильный cross-window identifier. |
-| `REQ-5105` | Tests подтверждают короткий retention dedup rows и отсутствие публичных event rows. |
-| `REQ-5106` | Tests подтверждают no-consent и no-tracker behavior necessary anti-abuse. |
-| `REQ-5107` | Feature-profile tests подтверждают отсутствие записи и полей при выключении. |
-| `REQ-5108` | PostgreSQL concurrency test подтверждает один increment на окно. |
-| `REQ-5109` | RU/EN component tests подтверждают compact accessible UI. |
+| `REQ-5101` | API and component tests confirm card/detail/API parity for the same aggregate. |
+| `REQ-5102` | Tests confirm an increment only after a successful detail response and delivery of bytes. |
+| `REQ-5103` | Tests confirm that download differs from install success and that eligibility remains unchanged. |
+| `REQ-5104` | Privacy tests find no raw identifiers or stable cross-window identifier. |
+| `REQ-5105` | Tests confirm short retention for dedup rows and the absence of public event rows. |
+| `REQ-5106` | Tests confirm no-consent and no-tracker behavior for necessary anti-abuse protection. |
+| `REQ-5107` | Feature-profile tests confirm the absence of recording and fields when disabled. |
+| `REQ-5108` | A PostgreSQL concurrency test confirms one increment per window. |
+| `REQ-5109` | RU/EN component tests confirm a compact accessible UI. |

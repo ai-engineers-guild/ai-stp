@@ -1,73 +1,66 @@
 ---
-description: "Независимый definition artifact и полный паспорт подтверждённой SetupVersion."
+description: "Independent definition artifact and complete passport of a confirmed SetupVersion."
 last_verified: "2026-08-09"
 ---
 
-# ADR-0051: Артефакт определения SetupVersion
+# ADR-0051: SetupVersion Definition Artifact
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-Подтверждение предложения создавало общий `PassportEnvelope` только с `facts`, хотя
-`SetupVersion` по публичной схеме обязана иметь `SetupVersionPassport`: точные ссылки
-на компоненты, версию, назначение, агрегированные требования, лицензию и
-`ArtifactRef`. Bundle принимал общий envelope как паспорт, поэтому локальная версия
-не соответствовала собственной generated schema.
+Confirmation of a proposal created a generic `PassportEnvelope` containing only `facts`, although, according to the public schema, `SetupVersion` must have a `SetupVersionPassport`: exact references to components, version, purpose, aggregated requirements, license, and `ArtifactRef`. The bundle accepted the generic envelope as a passport, so the local version did not conform to its own generated schema.
 
-Использовать HarnessBundle как `artifact` паспорта нельзя. ZIP содержит
-`setup-passport.json`; если паспорт содержит digest этого ZIP, digest зависит от
-самого себя и не вычисляется без фиксированной точки. Подстановка `bundle_digest`
-также смешала бы домены `artifact` и `bundle`.
+HarnessBundle cannot be used as the passport's `artifact`. The ZIP contains `setup-passport.json`; if the passport contains the digest of that ZIP, the digest depends on itself and cannot be computed without a fixed point. Substituting `bundle_digest` would also conflate the `artifact` and `bundle` domains.
 
-## Решение
+## Decision
 
-Явное confirmation создаёт отдельные канонические bytes формата
-`ai-stp-setup-definition/1`. Определение содержит:
+Explicit confirmation creates separate canonical bytes in the
+`ai-stp-setup-definition/1` format. The definition contains:
 
-- stable ID и `X.Y` SetupVersion;
-- один `harness_id`;
+- stable ID and `X.Y` SetupVersion;
+- one `harness_id`;
 - selection input digest;
-- отсортированные exact component refs с passport digest.
+- sorted exact component refs with passport digest.
 
-Bytes сериализуются RFC 8785, получают доменно разделённый digest
-`ai-stp:artifact:v1` и сохраняются в immutable SQLite content store в той же
-транзакции, что entity, revision, version, RecommendationTrace и pin. Полный
-`SetupVersionPassport.artifact` указывает на эти bytes и размер. В паспорт также
-входит `artifact_format=ai-stp-setup-definition/1`.
+The bytes are serialized using RFC 8785, receive the domain-separated digest
+`ai-stp:artifact:v1`, and are stored in an immutable SQLite content store in the same
+transaction as the entity, revision, version, RecommendationTrace, and pin. The full
+`SetupVersionPassport.artifact` points to these bytes and their size. The passport
+also includes `artifact_format=ai-stp-setup-definition/1`.
 
-HarnessBundle является последующей нативной компиляцией. Он включает неизменяемый
-паспорт, отчёты и managed files, имеет собственный logical `bundle_digest` и raw
-SHA-256 ZIP bytes. Ни один из его digest не подменяет `ArtifactRef` SetupVersion.
+HarnessBundle is a subsequent native compilation. It includes the immutable
+passport, reports, and managed files, and has its own logical `bundle_digest` and raw
+SHA-256 ZIP bytes. None of its digests replaces the SetupVersion `ArtifactRef`.
 
-## Полнота метаданных
+## Metadata Completeness
 
-Если каждая ссылка на компонент разрешается в полный `ComponentVersionPassport`,
-версия сетапа агрегирует обязательные переменные окружения, учётные данные,
-авторизацию, разрешения, внешние точки доступа и лицензию. Порядок и дедупликация
-детерминированы.
+If every component reference resolves to a complete `ComponentVersionPassport`,
+the setup version aggregates required environment variables, credentials,
+authorization, permissions, external access points, and the license. Ordering and
+deduplication are deterministic.
 
-Исторические локальные компоненты могут иметь только общий envelope. Такая частная
-SetupVersion сохраняется с `member_metadata_complete=false`, консервативной частной
-составной лицензией и `redistribution_allowed=false`. Этот признак является
-обязательным блокером публикации; локальные composition/provider checks продолжают
-читать точные component revisions и не считают неполный aggregate разрешением.
+Historical local components may have only a generic envelope. Such a partial
+SetupVersion is stored with `member_metadata_complete=false`, a conservative private
+composite license, and `redistribution_allowed=false`. This flag is a mandatory
+publication blocker; local composition/provider checks continue to read exact
+component revisions and do not treat an incomplete aggregate as permission.
 
-## Атомарность и совместимость
+## Atomicity and Compatibility
 
-Definition bytes записываются внутри `BEGIN IMMEDIATE`. Сбой после записи content
-row откатывает её вместе с revision/version/trace/pin; авторитетного осиротевшего
-artifact не остаётся. Повтор confirmation возвращает уже созданную неизменяемую
-версию и не строит новый definition.
+Definition bytes are written within `BEGIN IMMEDIATE`. A failure after writing the
+content row rolls it back together with the revision/version/trace/pin; no
+authoritative orphaned artifact remains. Repeated confirmation returns the already
+created immutable version and does not build a new definition.
 
-Ранее созданные локальные SetupVersion не переписываются: изменение immutable
-passport задним числом нарушило бы точные ссылки. Новый confirmation всегда создаёт
-полный паспорт. Публичная публикация старой общей формы требует явного нового
-version/fork, а не скрытой миграции digest.
+Previously created local SetupVersions are not rewritten: retroactively changing an
+immutable passport would violate exact references. A new confirmation always creates
+a complete passport. Public publication of the old generic form requires an
+explicit new version/fork rather than a hidden digest migration.
 
-## Последствия
+## Consequences
 
-SetupVersion и HarnessBundle больше не образуют цикл хэшей, локальный объект проходит
-формальную passport schema, а artifact можно синхронизировать независимо от
-конкретного provider conversion. Цена — отдельная небольшая content row и явный
-publication blocker для legacy metadata.
+SetupVersion and HarnessBundle no longer form a hash cycle, the local object passes
+the formal passport schema, and the artifact can be synchronized independently of
+a specific provider conversion. The cost is a separate small content row and an
+explicit publication blocker for legacy metadata.

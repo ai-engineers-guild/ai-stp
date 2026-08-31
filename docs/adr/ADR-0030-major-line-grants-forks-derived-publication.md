@@ -1,46 +1,46 @@
 ---
-description: "Решение определить право на основную линию, форк получателя, производную публикацию и последствия отзыва."
+description: "Decision to define rights to a major line, recipient forks, derived publication, and revocation consequences."
 last_verified: "2026-08-04"
 ---
 
-# ADR-0030: Права на основную линию, форки и производная публикация
+# ADR-0030: Rights to a major line, forks, and derived publication
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-`ADR-0004` сделал основную линию `X` границей доступа, `ADR-0020` определил транспорт приглашения, а `SPEC-002` — базовый жизненный цикл права. Но что именно получает получатель, определено не было: получает ли он будущие младшие версии, может ли редактировать оригинал, что происходит при форке, можно ли переиздать полученное под своим именем и что остаётся после отзыва.
+`ADR-0004` made major line `X` the access boundary, `ADR-0020` defined invitation transport, and `SPEC-002` defined the basic grant lifecycle. But what a recipient actually receives remained undefined: whether they receive future minor versions, may edit the original, what happens upon a fork, whether received work may be republished under their name, and what remains after revocation.
 
-Без этих правил реализация неизбежно выберет сама: чтение превратится в соавторство, полученный объект — в переиздание чужой работы, а отзыв — либо в удалённое разрушение локальных установок, либо в ничего не значащее действие.
+Without these rules, the implementation will inevitably decide for itself: reading will become co-authorship, a received object will become republication of someone else's work, and revocation will become either remote destruction of local installations or a meaningless action.
 
-## Варианты
+## Options
 
-1. Право на точную версию. Просто, но каждый младший выпуск требует нового права, и совместное использование выродится в ручную рассылку версий.
-2. Право на объект целиком, без границы линий. Удобно, но новая основная линия — по `ADR-0004` осознанная граница совместимости и доступа — открывалась бы автоматически.
-3. Право на основную линию: младшие версии внутри `X` следуют праву, новая линия требует нового решения владельца; чтение, установка и форк — да, редактирование оригинала — нет.
+1. A grant to an exact version. Simple, but every minor release requires a new grant and sharing degenerates into manual version distribution.
+2. A grant to the entire object without line boundaries. Convenient, but a new major line—an intentional compatibility and access boundary under `ADR-0004`—would open automatically.
+3. A grant to a major line: minor versions within `X` follow the grant; a new line requires a new owner decision; reading, installation, and forking are allowed, but editing the original is not.
 
-## Решение
+## Decision
 
-Принимается вариант 3.
+Option 3 is accepted.
 
-**Цель права — точный объект и его основная линия.** Право на `X.Y` действует на всю линию `X.*`: получатель читает и устанавливает существующие и будущие младшие версии внутри `X`. Новая основная линия `X+1` правом не покрывается и требует нового права.
+**The grant target is an exact object and its major line.** A grant to `X.Y` applies to the entire `X.*` line: the recipient can read and install existing and future minor versions within `X`. A new major line `X+1` is not covered and requires a new grant.
 
-**Право даёт чтение, установку и форк.** Редактирование оригинала остаётся только у владельца: запись получателя в чужой объект отклоняется. Форк создаёт новый приватный сетап с новым устойчивым идентификатором и получателем как владельцем; он может синхронизироваться в приватный облачный реестр получателя.
+**A grant permits reading, installation, and forking.** Only the owner may edit the original: a recipient's write to another owner's object is rejected. A fork creates a new private setup with a new stable identifier and the recipient as owner; it may synchronize to the recipient's private cloud registry.
 
-**Неизменённый клон не переиздаётся.** Публикация производного сетапа требует содержательного изменения состава, паспорта или байтов включённого компонента и полной проверки. Производный компонент публикуется только с изменёнными байтами или паспортом и с новой идентичностью и версией в пространстве имён получателя.
+**An unchanged clone cannot be republished.** Publication of a derived setup requires a substantive change to the composition, passport, or bytes of an included component and complete validation. A derived component is published only with changed bytes or passport and with a new identity and version in the recipient's namespace.
 
-**Публичная производная публикация ограничена происхождением.** Она допустима, только когда каждый включённый байт и ссылка публичны или принадлежат получателю, а применимые лицензии разрешают распространение. Закрытые чужие байты не публикуются в неизменном виде ни при каком составе.
+**Public derived publication is constrained by provenance.** It is allowed only when every included byte and reference is public or belongs to the recipient and applicable licenses permit distribution. Private third-party bytes are never published unchanged in any composition.
 
-**Отзыв прекращает будущее, не разрушая прошлое.** Отзыв права останавливает будущие облачные чтения и получение младших версий. Уже полученные байты, локальные форки и установленные цели не удаляются. Пересборка, которой нужна ставшая недоступной приватная зависимость, завершается точной типизированной ошибкой доступа, а не молчаливой заменой.
+**Revocation stops the future without destroying the past.** Revocation stops future cloud reads and receipt of minor versions. Already received bytes, local forks, and installed targets are not deleted. A rebuild requiring a now-inaccessible private dependency ends with an exact typed access error, not silent substitution.
 
-## Последствия
+## Consequences
 
-- машинная граница прав, форков и производной публикации принадлежит `docs/contracts/access-grants-and-forks.md`;
-- `SPEC-002` получает требования цели права, действий получателя и последствий отзыва;
-- `SPEC-005` получает требования форка, запрета переиздания неизменённого клона и правил производной публикации;
-- пользовательские пути показывают выдачу, форк и отзыв как один сценарий;
-- проверка лицензий и происхождения при производной публикации закрывается отказом при неизвестных правах распространения.
+- the machine boundary for grants, forks, and derived publication belongs to `docs/contracts/access-grants-and-forks.md`;
+- `SPEC-002` receives requirements for the grant target, recipient actions, and revocation consequences;
+- `SPEC-005` receives requirements for forks, the prohibition on republishing an unchanged clone, and derived-publication rules;
+- user journeys show granting, forking, and revocation as one scenario;
+- license and provenance validation for derived publication fails closed when distribution rights are unknown.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается, если появится доказанная потребность в праве уровня точной версии или в совместном редактировании одного объекта — второе потребует собственной модели владения и разрешения конфликтов между людьми, а не ослабления этого правила.
+This decision will be reconsidered if a demonstrated need appears for exact-version grants or collaborative editing of one object. The latter requires its own ownership model and conflict resolution between people, not relaxation of this rule.

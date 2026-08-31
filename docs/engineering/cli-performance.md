@@ -1,35 +1,35 @@
 ---
-description: "Измеренная стоимость команд CLI, устранённые узкие места и бюджеты."
+description: "Measured CLI command costs, resolved bottlenecks, and budgets."
 last_verified: "2026-08-29"
 ---
 
-# Производительность CLI
+# CLI Performance
 
-Владелец требований — `#453`. Здесь фиксируется, что измерено, чем это
-подтверждено и какие бюджеты из этого следуют. Числа — не цель сами по себе:
-ни одно из изменений ниже не убрало проверку.
+The requirements owner is `#453`. This document records what was measured, the
+evidence for it, and the resulting budgets. The numbers are not a goal in
+themselves: none of the changes below removed a check.
 
-## Как мерить
+## How to measure
 
 ```bash
-uv run ai-stp <команда>   # 7 повторов, min / p50 / max
+uv run ai-stp <command>   # 7 repetitions, min / p50 / max
 ```
 
-Отдельно от команды профилируется её внутренность:
+Profile the command internals separately:
 
 ```bash
 uv run python -c "import cProfile, runpy, sys; sys.argv=['ai-stp', ...]; \
   cProfile.run('runpy.run_module(\"ai_stp_cli\", run_name=\"__main__\")', sort='cumulative')"
 ```
 
-Сеть и провайдера мерить отдельно от локального запуска: медленный внешний
-сервис маскирует регрессию самого CLI, а не показывает её.
+Measure the network and provider separately from local startup: a slow external
+service masks a regression in the CLI itself rather than revealing it.
 
-## Замер
+## Measurement
 
-Linux, Python 3.14.6, `uv run`, репозиторий из 4359 файлов, p50 из 7 повторов.
+Linux, Python 3.14.6, `uv run`, a repository of 4,359 files, p50 from 7 repetitions.
 
-| команда | было | стало |
+| command | before | after |
 |---|---|---|
 | `version` | 0.870 | 0.545 |
 | `help --agent --json` | — | 0.578 |
@@ -41,86 +41,87 @@ Linux, Python 3.14.6, `uv run`, репозиторий из 4359 файлов, p
 | `select eligibility --json` | 2.616 | **1.379** |
 | `target status --json` | — | 0.557 |
 
-Пол — около 0.545s: `uv run` плюс импорт. Всё, что рядом с ним, упирается в
-запуск интерпретатора, а не в работу команды.
+The floor is about 0.545s: `uv run` plus imports. Anything close to it is bound
+by interpreter startup, not command execution.
 
-## Найденные причины
+## Identified causes
 
-### Импорт всего реестра команд
+### Importing the entire command registry
 
-Три четверти запуска уходило на импорт: `handler=version.run` требует импорта
-`version`, поэтому тридцать командных модулей грузились, какую бы команду ни
-набрали. Дескрипторы теперь несут `"модуль:функция"`, и модуль импортируется в
-момент вызова. `version` 0.870 → 0.545.
+Three quarters of startup was spent on imports: `handler=version.run` requires
+importing `version`, so thirty command modules loaded regardless of the command
+entered. Descriptors now carry `"module:function"`, and the module is imported
+at invocation time. `version` 0.870 → 0.545.
 
-### Семь подпроцессов подряд
+### Seven sequential subprocesses
 
-`detect_all` спрашивал `--version` у семи харнессов последовательно: 1.74s из
-2.29s процесс стоял в `poll`. Запросы независимы и читающие, поэтому задаются
-одновременно. `ThreadPoolExecutor.map` отдаёт результаты в порядке **входа**, а
-не завершения, поэтому ответ тот же кортеж, что и раньше.
+`detect_all` queried `--version` from seven harnesses sequentially: for 1.74s of
+2.29s the process was in `poll`. The requests are independent and read-only, so
+they now run concurrently. `ThreadPoolExecutor.map` returns results in **input**
+order, not completion order, so the response remains the same tuple as before.
 
-Измерено по харнессам: `cursor` 0.633s, `opencode` 0.610s, `pi` 0.295s,
+Measured by harness: `cursor` 0.633s, `opencode` 0.610s, `pi` 0.295s,
 `antigravity` 0.103s, `grok-build` 0.030s, `codex` 0.008s, `claude-code`
-0.009s. Сумма 1.688s, одновременно 0.700s. Остаток — загрузка чужой программы,
-и ускорить его отсюда нельзя, только перестать выстраивать в очередь.
+0.009s. Total 1.688s, concurrent 0.700s. The remainder is another program's
+startup time; it cannot be accelerated here, only stopped from queuing.
 
-### Обзор символов, отвечавший на уже отвеченный вопрос
+### A symbol survey answering an already answered question
 
-`select eligibility` строил `symbols.survey` — 1.16s из 2.9s — чтобы получить
-список языков проекта. Обзору **передаётся** `(path, language)` из индекса, а
-`_summarised` группирует всё, что получил, читаемое или нет; значит языки,
-которые он возвращает, — это языки, которые ему дали.
+`select eligibility` built `symbols.survey`—1.16s of 2.9s—to obtain the list of
+project languages. The survey is **given** `(path, language)` from the index, and
+`_summarised` groups everything it receives, readable or not; therefore, the
+languages it returns are the languages it was given.
 
-Не совсем, и это второй дефект: обзор останавливается на `MAX_OUTLINED_FILES`
-(2000) и сообщает только языки до отсечки. Проект, у которого все файлы Go
-сортируются после двухтысячного, терял `project.language.go` из возможностей, и
-компоненты для Go отклонялись за отсутствие возможности, которая есть. Чтение
-индекса напрямую и дешевле, и полнее.
+Not quite, which exposes a second defect: the survey stops at
+`MAX_OUTLINED_FILES` (2000) and reports only languages before the cutoff. A
+project whose Go files all sort after the first two thousand lost
+`project.language.go` from its capabilities, and Go components were rejected for
+lacking a capability that existed. Reading the index directly is both cheaper
+and complete.
 
-### Хеширование файлов, которых никто не читает
+### Hashing files that nobody reads
 
-`project_index.build` читает и хеширует каждый файл. Измерено на 4080 файлах:
-чтение 0.29s, SHA-256 0.91s — хеш составляет три четверти обхода.
-`select eligibility` не читает ни одного digest: ему нужны имена, языки и
-наличие `.git`.
+`project_index.build` reads and hashes every file. Measured on 4,080 files:
+reading 0.29s, SHA-256 0.91s—the hash accounts for three quarters of the scan.
+`select eligibility` reads no digest: it needs names, languages, and the presence
+of `.git`.
 
-Появился `build(root, digests=False)`: тот же обход, та же классификация, те же
-исключения, та же проверка на бинарность — пропускается только хеш.
-`Index.digested` говорит, какой из двух случаев перед читателем, чтобы
-`digest is None` не значило одновременно «слишком большой» и «не просили».
+`build(root, digests=False)` was added: the same scan, classification,
+exclusions, and binary check, with only hashing skipped. `Index.digested` tells
+the reader which case applies, so `digest is None` does not mean both "too
+large" and "not requested."
 
-## Рассмотрено и не сделано
+## Considered and not implemented
 
-`projects.contains(base, place)` резолвит **обе** стороны на каждый файл, хотя
-`base` в обходе постоянен: 8711 вызовов `realpath` на 4359 файлов, 0.267s.
-Половина из них лишняя.
+`projects.contains(base, place)` resolves **both** sides for every file even
+though `base` is constant during the scan: 8,711 `realpath` calls for 4,359
+files, 0.267s. Half are redundant.
 
-Не тронуто намеренно. Это проверка, отказывающая симлинку наружу дерева, а
-выигрыш — около 0.13s, десятая часть команды. Правило `#453` здесь прямое:
-не снижать проверки ради цифры. Запись оставлена, чтобы следующий читатель
-не измерял это заново.
+Intentionally left unchanged. This check rejects a symlink outside the tree, and
+the gain is about 0.13s, one tenth of the command. Rule `#453` is explicit here:
+do not weaken checks for a number. This record prevents the next reader from
+measuring it again.
 
-## Бюджеты
+## Budgets
 
-Из замера, а не из желания:
+Derived from measurement, not preference:
 
-- локальная read-only команда без обхода дерева — **до 0.8s** p50;
-- команда, обходящая проект, — **до 1.6s** p50 на дереве порядка 4000 файлов;
-- команда, спрашивающая внешние программы, — **до 1.5s** p50, из которых
-  собственно CLI отвечает за разницу с временем самой медленной программы.
+- local read-only command without a tree scan: **up to 0.8s** p50;
+- command scanning a project: **up to 1.6s** p50 on a tree of about 4,000 files;
+- command querying external programs: **up to 1.5s** p50, where the CLI itself
+  is responsible for the difference from the slowest program's time.
 
-Сеть и провайдер под эти бюджеты не попадают и меряются отдельно.
+The network and provider are outside these budgets and are measured separately.
 
-## Регрессионные проверки
+## Regression checks
 
-`tests/unit/test_cli_performance_regressions.py` — три штуки, и только одна из
-них про время, потому что «выполняется одновременно» есть утверждение о времени.
-Запас взят такой, какой не пересекает ни одна правдоподобная машина: семь
-детекций по 0.1s это 0.7s подряд, граница 0.35s.
+`tests/unit/test_cli_performance_regressions.py` contains three checks, and only
+one concerns timing, because "runs concurrently" is a timing assertion. The
+margin cannot overlap on any plausible machine: seven 0.1s detections take 0.7s
+sequentially, while the boundary is 0.35s.
 
-Две остальные проверяют свойство, а не длительность: индекс без digest говорит
-об этом отдельным полем, и `select eligibility` не вызывает `sha256` ни разу.
-Бюджет в секундах краснеет на загруженном раннере и зеленеет на быстром, который
-регрессировал, — такой проверке перестают верить на третий раз, а проверка,
-которую никто не гоняет, ничего не защищает.
+The other two check a property rather than duration: an index without digests
+states that in a separate field, and `select eligibility` never calls `sha256`.
+A budget in seconds fails on a busy runner and passes on a fast runner that has
+regressed; such a check loses credibility by the third occurrence, and a check
+that nobody runs protects nothing.

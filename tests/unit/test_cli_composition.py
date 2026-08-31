@@ -48,8 +48,8 @@ def test_an_empty_composition_is_a_composition_not_an_absence() -> None:
     assert "deterministic_report_generation" in report.operations
     assert composition.convert((), CLAUDE).complete
     contract = CONTRACT.read_text(encoding="utf-8")
-    assert "Пустой состав" in contract
-    assert "Пустого состава не бывает" not in contract
+    assert "Empty composition" in contract
+    assert "An empty composition does not exist" not in contract
 
 
 def test_a_nested_managed_path_is_the_same_claim_as_its_root() -> None:

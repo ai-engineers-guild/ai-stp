@@ -1,94 +1,57 @@
 ---
-description: "SPEC-043: Локальные отчёты бюджета контекста, capability delta и blast radius."
+description: "SPEC-043: Local reports for context budget, capability delta, and blast radius."
 last_verified: "2026-08-15"
 ---
 
 # SPEC-043: Selection impact reports
 
-## Цель
+## Purpose
 
-До выбора или обновления точного `SetupVersion` агент может механически показать
-изменение контекста и доступов, а для точного `ComponentVersion` — локальные
-объекты, которых касается update или lifecycle-событие. Отчёт ничего не выбирает,
-не меняет eligibility и не выполняет установку, обновление либо удаление.
+Before selecting or updating an exact `SetupVersion`, the agent can mechanically show changes in context and access, and, for an exact `ComponentVersion`, the local objects affected by an update or lifecycle event. The report selects nothing, does not change eligibility, and does not perform installation, update, or removal.
 
-## Границы
+## Scope
 
-Первая реализация — локальный machine CLI и общий контракт. Персональный
-baseline/delta и blast radius остаются локальными: Web не проецирует account
-blast radius и не выводит установленную основу, угаданную сервером (`SPEC-049`).
-Детерминированный estimator — одна shared-реализация для CLI и server; Web
-получает только абсолютный budget видимой exact setup. Локальный ответ не
-изображает полноту аккаунта. Отчёт не является проверкой eligibility, не
-выбирает сетап и не пишет target.
+The first implementation covers the local machine CLI and the shared contract. The personal baseline/delta and blast radius remain local: Web does not project account blast radius or display an installed baseline derived by the server (`SPEC-049`). The deterministic estimator is a single shared implementation for CLI and server; Web receives only the absolute budget of the visible exact setup. The local response does not represent itself as complete for the account. The report is not an eligibility check, does not select a setup, and does not write the target.
 
-## Термины
+## Terms
 
-- **Estimator profile** — версия единицы и детерминированного метода подсчёта.
-- **Price profile** — явно предоставленный снимок цены с источником и сроком.
-- **Blast radius** — точные обратные ссылки в названной границе полномочий.
-- **Freshness** — происхождение и момент снимка, а не обещание глобальной полноты.
+- **Estimator profile** — version of the unit and deterministic counting method.
+- **Price profile** — an explicitly provided price snapshot with a source and validity period.
+- **Blast radius** — exact reverse references within the named authorization boundary.
+- **Freshness** — the origin and timestamp of the snapshot, not a promise of global completeness.
 
-## Требования
+## Requirements
 
-- `REQ-4301`: Versioned estimator работает только над проверенными локальными
-  artifact bytes. Профиль `ai-stp:utf8-bytes/1` точно считает UTF-8 bytes как
-  собственные единицы; `ai-stp:unicode-chars-div4/1` детерминированно оценивает
-  tokens как округлённое вверх число Unicode codepoints, делённое на четыре.
-- `REQ-4302`: В бюджет входят текстовые `instruction`, `skill`, `agent` и
-  `command`. `instruction` считается always-loaded, остальные три вида —
-  conditionally-loaded. Нечитаемый UTF-8 помечается `unavailable`, а не нулём.
-- `REQ-4303`: Отчёт выбора содержит абсолютный бюджет и снимок возможностей
-  кандидата; при точной основе — её абсолютные значения и знаковую разницу.
-  Поверхность возможностей перечисляет tools, MCP servers, hooks, внешние точки,
-  требования учётных данных и три категории permissions без общего risk score.
-  Основа задаётся явно либо выводится для проекта сначала из последней проверенной
-  установки, затем из текущего выбора; источник остаётся видимым в ответе.
-- `REQ-4304`: Цена появляется только из явно переданного строгого price profile с
-  model, source, `fetched_at` и `expires_at`. Просроченный профиль помечается
-  `stale` и не выдаёт amount; отсутствие цены не влияет на eligibility.
-- `REQ-4305`: Запрос blast radius ищет точные обратные ссылки только внутри
-  локального registry: версии сетапов, выбранные проекты, проверенные установленные
-  цели и локальное устройство. Граница полномочий и freshness возвращаются явно.
-- `REQ-4306`: Сценарии `update`, `deprecation`, `blocked`, `expired_evidence` и
-  `advisory` имеют одно read-only поведение. `action=none` запрещает трактовать
-  отчёт как автоматическое обновление или удаление.
-- `REQ-4307`: Missing component, неверный passport digest, повреждённые bytes или
-  неполный exact setup graph закрывают весь отчёт типизированным отказом.
-- `REQ-4308`: Machine CLI и другие потребители используют одни строгие shared
-  schemas `SelectionImpactReport` и `BlastRadiusReport`; private bytes никогда не
-  отправляются во внешний tokenizer или API. Server/Web не публикуют
-  `BlastRadiusReport` и account blast-radius resource.
+- `REQ-4301`: The versioned estimator operates only on verified local artifact bytes. The `ai-stp:utf8-bytes/1` profile counts UTF-8 bytes exactly as its native units; `ai-stp:unicode-chars-div4/1` deterministically estimates tokens as the number of Unicode codepoints divided by four and rounded up.
+- `REQ-4302`: The budget includes textual `instruction`, `skill`, `agent`, and `command` components. `instruction` is counted as always-loaded; the other three kinds are conditionally-loaded. Invalid UTF-8 is marked `unavailable`, not counted as zero.
+- `REQ-4303`: The selection report contains the candidate's absolute budget and capability snapshot; when an exact baseline is available, it also contains its absolute values and the signed difference. The capability surface lists tools, MCP servers, hooks, external endpoints, credential requirements, and three permission categories without an aggregate risk score. The baseline is specified explicitly or derived for the project, first from the most recent verified installation and then from the current selection; the source remains visible in the response.
+- `REQ-4304`: A price appears only from an explicitly supplied strict price profile containing model, source, `fetched_at`, and `expires_at`. An expired profile is marked `stale` and does not provide an amount; the absence of a price does not affect eligibility.
+- `REQ-4305`: A blast radius request searches for exact reverse references only within the local registry: setup versions, selected projects, verified installed targets, and the local device. The authorization boundary and freshness are returned explicitly.
+- `REQ-4306`: The `update`, `deprecation`, `blocked`, `expired_evidence`, and `advisory` scenarios have identical read-only behavior. `action=none` prohibits interpreting the report as an automatic update or removal.
+- `REQ-4307`: A missing component, invalid passport digest, corrupted bytes, or an incomplete exact setup graph closes the entire report with a typed failure.
+- `REQ-4308`: The machine CLI and other consumers use the same strict shared `SelectionImpactReport` and `BlastRadiusReport` schemas; private bytes are never sent to an external tokenizer or API. Server/Web do not publish `BlastRadiusReport` or an account blast-radius resource.
 
-## Состояния и ошибки
+## States and errors
 
-Измерение имеет состояние `exact`, `estimated` или `unavailable`; цена —
-`available`, `stale` или `unavailable`. Неподдерживаемый профиль и неполная пара
-основы дают ошибку проверки. Несовпадение точного digest, отсутствующая ссылка
-или повреждённый artifact дают conflict до формирования ответа.
+A measurement has the state `exact`, `estimated`, or `unavailable`; a price has the state `available`, `stale`, or `unavailable`. An unsupported profile and an incomplete baseline pair produce a validation error. An exact digest mismatch, a missing reference, or a corrupted artifact produces a conflict before the response is formed.
 
-## Безопасность и приватность
+## Security and privacy
 
-Estimator не имеет сетевого транспорта. Price profile содержит только публичную
-ставку и ссылку на источник, но не ключ API. Blast radius не читает иной registry,
-не раскрывает content bytes и сообщает только локальные identifiers, уже доступные
-владельцу файла registry.
+The estimator has no network transport. A price profile contains only a public rate and a source link, but no API key. Blast radius does not read another registry, does not disclose content bytes, and reports only local identifiers already accessible to the owner of the registry file.
 
-## Совместимость и миграция
+## Compatibility and migration
 
-Добавление estimator, валюты, состояния или поля отчёта требует новой версии
-контракта и обновления shared schema. Таблицы SQLite не меняются: обратные ссылки
-вычисляются из существующих неизменяемых версий, выборов и журнала операций.
+Adding an estimator, currency, state, or report field requires a new contract version and an updated shared schema. The SQLite tables do not change: reverse references are computed from existing immutable versions, selections, and the operation log.
 
-## Критерии приёмки
+## Acceptance criteria
 
-| Требование | Исполнимое доказательство |
+| Requirement | Executable evidence |
 |---|---|
-| `REQ-4301` | Unit tests фиксируют оба estimator profile и повторяемый результат. |
-| `REQ-4302` | Текстовый и нечитаемый artifact различаются как measured и unavailable. |
-| `REQ-4303` | Shared-component fixtures проверяют absolute values и signed delta. |
-| `REQ-4304` | Отсутствующий и stale price profile не возвращают amount. |
-| `REQ-4305` | Reverse-reference test возвращает несколько setup и не выходит за local registry. |
-| `REQ-4306` | Machine help объявляет read-only команды, а schema фиксирует `action=none`. |
-| `REQ-4307` | Изменённый exact digest отказывает без частичного отчёта. |
-| `REQ-4308` | Schema generation и command registry ссылаются на одни модели contracts. |
+| `REQ-4301` | Unit tests pin both estimator profiles and a reproducible result. |
+| `REQ-4302` | A textual artifact and an invalid artifact are distinguished as measured and unavailable. |
+| `REQ-4303` | Shared-component fixtures verify absolute values and signed delta. |
+| `REQ-4304` | Missing and stale price profiles do not return an amount. |
+| `REQ-4305` | The reverse-reference test returns multiple setups and does not go beyond the local registry. |
+| `REQ-4306` | Machine help declares read-only commands, and the schema fixes `action=none`. |
+| `REQ-4307` | A changed exact digest fails without a partial report. |
+| `REQ-4308` | Schema generation and the command registry reference the same contract models. |

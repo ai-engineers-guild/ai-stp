@@ -1,53 +1,53 @@
 ---
-description: "Решение убрать бессрочное глобальное согласие на непроверенное и ввести исключения по издателю и основной линии объекта."
+description: "Decision to remove indefinite global consent to unverified content and introduce exceptions scoped to a publisher and an object's major line."
 last_verified: "2026-08-04"
 ---
 
-# ADR-0029: Сеансовое согласие и долговечные исключения по области
+# ADR-0029: Session consent and durable scoped exceptions
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-`ADR-0016` закрепил: согласие на линию `experimental` явное и действует в пределах команды или сеанса, а не хранится бессрочно в профиле. Одновременно глобальный конфиг CLI содержал ключ `search.include_unverified`, который делал ровно обратное — включал всё непроверенное для каждого будущего запроса без срока и без области.
+`ADR-0016` established that consent to the `experimental` trust line is explicit and lasts for a command or session rather than being stored indefinitely in a profile. At the same time, the global CLI config contained `search.include_unverified`, which did exactly the opposite: it enabled all unverified content for every future query without expiration or scope.
 
-Противоречие не только формальное. Бессрочное согласие «на всё» означает, что любой будущий непроверенный объект любого автора попадает в выдачу навсегда, а версия с расширенными полномочиями наследует согласие, данное совсем другому содержимому. При этом у пользователя есть законная потребность в долговечном решении узкой формы: «я доверяю этому издателю» или «я осознанно использую эту линию этого объекта» — переспрашивать такое на каждом запросе значит приучать отвечать не глядя.
+The contradiction is substantive, not merely formal. Indefinite consent "to everything" means any future unverified object by any author enters results forever, while a version with expanded authority inherits consent given to entirely different content. Yet users legitimately need a narrow durable decision: "I trust this publisher" or "I knowingly use this line of this object." Asking again on every query trains users to answer without looking.
 
-## Варианты
+## Options
 
-1. Оставить глобальный ключ. Удобно, но противоречит `ADR-0016` и превращает разовое решение в вечное правило без области.
-2. Разрешить только сеансовое согласие. Чисто, но узкие повторяющиеся решения будут переспрашиваться до автоматизма, и явность согласия выродится.
-3. Убрать глобальный ключ, оставить сеансовый признак запроса и добавить долговечные исключения ровно двух областей: издатель и основная линия точного объекта.
+1. Retain the global key. Convenient, but contradicts `ADR-0016` and turns a one-time decision into a permanent unscoped rule.
+2. Permit session consent only. Clean, but narrow recurring decisions will be asked until responses become automatic and explicit consent loses meaning.
+3. Remove the global key, retain the session request flag, and add durable exceptions with exactly two scopes: publisher and the major line of an exact object.
 
-## Решение
+## Decision
 
-Принимается вариант 3.
+Option 3 is accepted.
 
-**Глобального бессрочного согласия не существует.** Ключ `search.include_unverified` удалён из конфига CLI; поля с таким смыслом не появляются ни в конфиге, ни в профиле.
+**There is no indefinite global consent.** The `search.include_unverified` key is removed from CLI config; no field with that meaning appears in config or profile.
 
-**Сеансовый признак остаётся.** Явный признак запроса временно открывает линию `experimental` в пределах команды или сеанса, как и раньше.
+**The session flag remains.** An explicit request flag temporarily opens the `experimental` trust line for the command or session, as before.
 
-**Долговечные исключения имеют ровно две области:**
+**Durable exceptions have exactly two scopes:**
 
 ```text
-publisher      — все объекты конкретного издателя
-object_major   — основная линия X конкретного объекта
+publisher      — all objects from a specific publisher
+object_major   — major line X of a specific object
 ```
 
-Область выбирает пользователь явно. Запись согласия хранит цель, область, автора решения, время, источник и отпечаток полномочий и возможностей кандидата.
+The user explicitly chooses the scope. A consent record stores the target, scope, decision author, time, source, and fingerprint of the candidate's authority and capabilities.
 
-**Расширение требований отменяет согласие.** Новая основная линия не покрывается прежней записью. Новое требование полномочий, процессов, сети, учётных данных, внешних точек подключения, управляемых путей или нативных поверхностей делает прежнюю запись недействительной для этой версии и требует нового явного решения.
+**Expanded requirements invalidate consent.** A new major line is not covered by the previous record. A new requirement for authority, processes, network, credentials, external endpoints, managed paths, or native surfaces invalidates the previous record for that version and requires a new explicit decision.
 
-**Исключение не повышает доверие.** Каждый результат остаётся в линии `experimental` с отдельной пометкой; запись согласия никогда не создаёт платформенное подтверждение и не переносит объект в `authoritative`. Источник согласия и отпечаток полномочий записываются в след рекомендации и план установки.
+**An exception does not increase trust.** Every result remains in the `experimental` trust line with a separate marker; a consent record never creates platform verification or moves an object into `authoritative`. The consent source and authority fingerprint are recorded in the recommendation trace and installation plan.
 
-## Последствия
+## Consequences
 
-- машинная граница записей согласия принадлежит `docs/contracts/unverified-consent.md`;
-- `docs/contracts/cli-config.md` теряет ключ `search.include_unverified`;
-- `SPEC-006` заменяет требование о бессрочном хранении и получает требования областей и отмены согласия;
-- политика взаимодействия и канонический навык переспрашивают согласие при новой основной линии и расширении требований;
-- записи согласия синхронизируются как обычные сущности пользователя.
+- the machine boundary for consent records belongs to `docs/contracts/unverified-consent.md`;
+- `docs/contracts/cli-config.md` loses the `search.include_unverified` key;
+- `SPEC-006` replaces the indefinite-storage requirement and receives requirements for scopes and consent invalidation;
+- interaction policy and the canonical skill ask for consent again for a new major line or expanded requirements;
+- consent records synchronize as ordinary user entities.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается, если две области окажутся систематически недостаточными для реальных сценариев либо если записи согласия начнут использоваться как обход проверок — тогда области сужаются, а не расширяются.
+This decision will be reconsidered if the two scopes prove systematically insufficient for real scenarios or if consent records begin to serve as a validation bypass; in that case scopes will be narrowed, not expanded.

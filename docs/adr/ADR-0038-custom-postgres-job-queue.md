@@ -1,47 +1,47 @@
 ---
-description: "Решение реализовать собственную минимальную очередь заданий на PostgreSQL вместо внешней библиотеки или брокера."
+description: "Decision to implement a minimal custom PostgreSQL job queue instead of an external library or broker."
 last_verified: "2026-08-05"
 ---
 
-# ADR-0038: Собственная очередь заданий на PostgreSQL
+# ADR-0038: Custom PostgreSQL job queue
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-`docs/engineering/tech-stack.md` фиксирует worker на очереди поверх PostgreSQL, но не задаёт механизм. `ADR-0009` уже выбрал PostgreSQL и RustFS как платформу, а `SPEC-010` REQ-1006 требует доставку не менее одного раза, транзакционный исходящий журнал, ограниченный повтор и идемпотентные обработчики. Набор фоновых заданий MVP мал и крупнозернист: загрузка объекта с признаком публичности и постановка обновления, где подпись ссылки является шагом внутри задания. Стек уже включает SQLAlchemy 2, Alembic и asyncpg. Нужно зафиксировать, реализуется ли очередь своей минимальной логикой или внешней библиотекой, и какая семантика доставки принимается.
+`docs/engineering/tech-stack.md` establishes a worker using a PostgreSQL-backed queue but does not define the mechanism. `ADR-0009` already selected PostgreSQL and RustFS as the platform, while `SPEC-010` REQ-1006 requires at-least-once delivery, a transactional outbox, bounded retries, and idempotent handlers. The MVP background-job set is small and coarse-grained: uploading an object with its publicity flag and scheduling an update, where signing the reference is a step within the job. The stack already includes SQLAlchemy 2, Alembic, and asyncpg. We must decide whether the queue uses minimal custom logic or an external library, and which delivery semantics apply.
 
-## Варианты
+## Options
 
-1. Внешняя библиотека `procrastinate`. Зрелая, async, использует `LISTEN`/`NOTIFY` и `FOR UPDATE SKIP LOCKED`, даёт повтор и периодические задания из коробки, но везёт собственную схему и собственные миграции, что создаёт вторую систему миграций рядом с Alembic `#79`.
-2. Внешняя библиотека `pgqueuer`. Легче, но моложе и с меньшим набором готовых гарантий повтора и dead-letter, а вторую миграционную поверхность всё равно вносит.
-3. Внешний брокер, например Redis с очередью задач. Даёт готовую экосистему, но добавляет отдельный сервис и состояние вне основной базы ради двух редких заданий, что противоречит принципу минимальных зависимостей.
-4. Собственная минимальная очередь на существующем PostgreSQL: одна таблица, выборка через `FOR UPDATE SKIP LOCKED`, транзакционная постановка, ограниченный backoff, dead-letter и advisory-lock для сериализации.
+1. The external `procrastinate` library. Mature and async, uses `LISTEN`/`NOTIFY` and `FOR UPDATE SKIP LOCKED`, and provides retries and scheduled jobs, but brings its own schema and migrations, creating a second migration system beside Alembic `#79`.
+2. The external `pgqueuer` library. Lighter, but younger with fewer ready-made retry and dead-letter guarantees, while still adding a second migration surface.
+3. An external broker, such as Redis with a task queue. Provides a mature ecosystem but adds a service and state outside the primary database for two infrequent jobs, contrary to the minimal-dependencies principle.
+4. A minimal custom queue on existing PostgreSQL: one table, selection with `FOR UPDATE SKIP LOCKED`, transactional enqueueing, bounded backoff, dead-letter, and advisory locks for serialization.
 
-## Решение
+## Decision
 
-Принимается вариант 4.
+Option 4 is accepted.
 
-Очередь реализуется своей минимальной логикой на существующем PostgreSQL:
+The queue uses minimal custom logic on existing PostgreSQL:
 
-- одна таблица `job` хранит тип, полезную нагрузку, состояние, попытки, время запуска, уникальный ключ идемпотентности и приоритет;
-- worker берёт задания через `SELECT ... FOR UPDATE SKIP LOCKED`, поэтому конкурентные worker не берут одну строку;
-- постановка выполняется в той же транзакции, что и доменная запись, поэтому таблица заданий является исходящим журналом без отдельного релея, а уникальный ключ идемпотентности исключает дубли;
-- неуспех даёт ограниченный экспоненциальный backoff, а исчерпание попыток переводит в `dead_letter` без автоповтора;
-- базовая доставка опирается на bounded polling.
+- one `job` table stores type, payload, state, attempts, run time, unique idempotency key, and priority;
+- workers take jobs through `SELECT ... FOR UPDATE SKIP LOCKED`, preventing concurrent workers from taking the same row;
+- enqueueing occurs in the same transaction as the domain record, making the job table an outbox without a separate relay, while the unique idempotency key prevents duplicates;
+- failure applies bounded exponential backoff, and exhausted attempts move to `dead_letter` without automatic retry;
+- basic delivery relies on bounded polling.
 
-Тот же PostgreSQL при доказанной потребности даёт расширения без новой зависимости: сериализацию неконкурентных заданий через `pg_advisory_xact_lock` и снижение задержки через `LISTEN`/`NOTIFY`. Для MVP они не требуются и не входят в нормативные требования `SPEC-018`.
+When demonstrated need arises, the same PostgreSQL provides extensions without a new dependency: serialization of non-concurrent jobs via `pg_advisory_xact_lock` and lower latency via `LISTEN`/`NOTIFY`. They are unnecessary for the MVP and are not normative `SPEC-018` requirements.
 
-Долговечность обеспечивает сам PostgreSQL через журнал предзаписи и транзакции. Расширения PostgreSQL для очереди не требуются. Нормативные состояния и требования очереди живут в `SPEC-018`.
+Durability is provided by PostgreSQL itself through write-ahead logging and transactions. No PostgreSQL queue extensions are required. Normative queue states and requirements live in `SPEC-018`.
 
-## Последствия
+## Consequences
 
-- нет второй системы миграций: схема очереди живёт в общем дереве Alembic, владение которым закреплено за `#79`, а модель и миграцию авторствует `#78`;
-- принимается семантика доставки не менее одного раза, поэтому обработчики обязаны быть идемпотентными;
-- отсутствует внешний брокер и его эксплуатация;
-- собственная логика выборки, повтора и дренажа покрывается интеграционными тестами конкуренции, повтора и остановки;
-- новая зависимость на очередь не добавляется, что удовлетворяет правилу минимальных зависимостей `tech-stack.md`.
+- there is no second migration system: the queue schema lives in the shared Alembic tree owned by `#79`, while `#78` authors the model and migration;
+- at-least-once delivery is accepted, so handlers must be idempotent;
+- there is no external broker or its operational burden;
+- custom selection, retry, and drain logic is covered by concurrency, retry, and shutdown integration tests;
+- no queue dependency is added, satisfying the minimal-dependencies rule in `tech-stack.md`.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается, если число типов заданий и их частота вырастут настолько, что собственная выборка и повтор станут узким местом или потребуют возможностей зрелой библиотеки, либо если появится доказанная потребность в отдельном брокере для нагрузки вне PostgreSQL.
+This decision will be reconsidered if job types and frequency grow until custom selection and retries become a bottleneck or require mature-library capabilities, or if a demonstrated need arises for a separate broker for load outside PostgreSQL.

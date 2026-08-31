@@ -1,69 +1,39 @@
 ---
-description: "Версионированные agent-first deep links между CLI и web без сетевого поиска и скрытого запуска браузера."
+description: "Versioned agent-first deep links between CLI and web without network lookup or implicit browser launch."
 last_verified: "2026-08-09"
 ---
 
-# ADR-0064: Канонические CLI/web deep links
+# ADR-0064: Canonical CLI/web deep links
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-CLI и web уже называют одни stable IDs и exact versions, но переходы между ними
-не имеют общего контракта. Простая конкатенация строк в каждом consumer создаст
-разные plural routes, локали, quoting и report URLs. Команда `open`, в свою очередь,
-непригодна как основной agent contract: по SSH browser отсутствует, а скрытый launch
-является side effect у команды, которая должна только ориентировать агента.
+CLI and web already refer to the same stable IDs and exact versions, but navigation between them has no shared contract. Simple string concatenation in each consumer would create differing plural routes, locales, quoting, and report URLs. The `open` command, in turn, is unsuitable as the primary agent contract: a browser is unavailable over SSH, and an implicit launch is a side effect in a command that should only orient the agent.
 
-Маршруты component/setup exact version и publisher уже существуют в web. Маршрут
-создания report принадлежит будущей platform/web работе и ещё не заморожен; CLI не
-должен изобретать его за владельца платформы.
+Routes for component/setup exact versions and publishers already exist in web. The report creation route belongs to future platform/web work and has not yet been frozen; CLI must not invent it on behalf of the platform owner.
 
-## Решение
+## Decision
 
-Принимается grammar `deep_link_v1` и pure CLI command, которая печатает
-`DeepLinkView`: нормализованный target, абсолютный canonical URL, структурированный
-`cli_argv` и его детерминированную human projection. Browser автоматически не
-открывается.
+The `deep_link_v1` grammar and a pure CLI command are adopted. The command prints `DeepLinkView`: a normalized target, an absolute canonical URL, structured `cli_argv`, and its deterministic human projection. The browser is not opened automatically.
 
-Component/setup object и exact version используют существующую route hierarchy.
-Publisher использует public profile route по `account_` stable ID. Report intent
-адресует exact version и добавляет единственный разрешённый fragment `#report`.
-Так intent можно сохранить до появления UI действия, не создавая API/server route и
-не меняя правила non-enumeration.
+Component/setup objects and exact versions use the existing route hierarchy. Publisher uses the public profile route by `account_` stable ID. Report intent addresses an exact version and adds the only permitted fragment, `#report`. This allows the intent to be preserved until the UI action appears, without creating an API/server route or changing non-enumeration rules.
 
-Default locale — `ru`, как в web routing. Обе канонические локали всегда присутствуют
-в URL явно. Platform base берётся из действующей конфигурации и проходит существующую
-проверку scheme/authority; deep-link parser дополнительно требует exact configured
-origin и base path.
+The default locale is `ru`, as in web routing. Both canonical locales are always explicitly present in the URL. The platform base is taken from the active configuration and passes the existing scheme/authority validation; the deep-link parser additionally requires an exact match with the configured origin and base path.
 
-Grammar реализуется в shared contracts package и сопровождается одним packaged JSON
-corpus. CLI использует Python implementation; web owner реализует route/parser и
-проверяет его тем же corpus. Генерация не делает lookup: иначе команда одновременно
-стала бы сеть-зависимой, offline-непригодной и oracle существования private target.
+The grammar is implemented in the shared contracts package and accompanied by a single packaged JSON corpus. CLI uses the Python implementation; the web owner implements the route/parser and validates it against the same corpus. Generation performs no lookup: otherwise, the command would simultaneously become network-dependent, unsuitable for offline use, and an oracle for the existence of a private target.
 
-## Рассмотренные варианты
+## Considered Alternatives
 
-1. Автоматически открывать browser. Отвергнуто как недетерминированный side effect,
-   который не работает одинаково локально и по SSH.
-2. Добавлять URL в ответы каждой catalog command. Отложено: это дублирует grammar во
-   многих моделях и не покрывает publisher/report единым действием.
-3. Создать `/reports/new` из CLI. Отвергнуто: route и authorization принадлежат
-   platform/web owner и ещё не заморожены.
-4. Использовать query string для идентичности. Отвергнуто: существующие ресурсные
-   маршруты уже выражают идентичность в пути, а query проще случайно расширить
-   данными сессии.
+1. Automatically open the browser. Rejected as a nondeterministic side effect that does not work consistently locally and over SSH.
+2. Add a URL to the responses of every catalog command. Deferred: this duplicates the grammar across many models and does not cover publisher/report with a single action.
+3. Create `/reports/new` from CLI. Rejected: the route and authorization belong to the platform/web owner and have not yet been frozen.
+4. Use the query string for identity. Rejected: existing resource routes already express identity in the path, while a query is easier to accidentally extend with session data.
 
-## Последствия
+## Consequences
 
-Агент получает точный URL и безопасный `argv` без shell quoting и без сети. Web может
-показывать копируемую команду, не поддерживая второй словарь routes. Наличие ссылки не
-утверждает наличие или доступность объекта; окончательный ответ остаётся за web/API.
-Report intent требует anchor с именем `report` на exact-version surface, когда
-platform/web slice будет реализован.
+The agent receives an exact URL and safe `argv` without shell quoting and without network access. Web can display a copyable command without maintaining a second route dictionary. The presence of a link does not assert the existence or availability of the object; the final answer remains with web/API. Report intent requires an anchor named `report` on the exact-version surface when the platform/web slice is implemented.
 
-## Условия пересмотра
+## Reconsideration Conditions
 
-Решение пересматривается при появлении третьей локали, отдельного неизменяемого
-report target, сервиса коротких ссылок или несовместимой иерархии маршрутов. Каждое
-такое изменение получает новую версию грамматики, а не меняет `deep_link_v1` по месту.
+The decision will be reconsidered when a third locale, a separate immutable report target, a short-link service, or an incompatible route hierarchy appears. Each such change receives a new grammar version rather than modifying `deep_link_v1` in place.

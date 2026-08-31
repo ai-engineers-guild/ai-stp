@@ -5,119 +5,119 @@ last_verified: "2026-08-09"
 
 # ADR-0061: Capability-negotiated provider protocol v3
 
-Статус: принято; machine model и contract tests реализуются этим решением,
-public provider releases и cross-repository E2E остаются обязательными условиями
-ввода в эксплуатацию.
-Дополнено `ADR-0085`: личность комплекта провайдера — его агрегатный digest.
+Status: accepted; the machine model and contract tests are implemented by this decision,
+while public provider releases and cross-repository E2E remain mandatory conditions
+for production rollout.
+Supplemented by `ADR-0085`: the identity of a provider kit is its aggregate digest.
 
-## Контекст
+## Context
 
-Замороженные protocol v1 и v2 требуют один универсальный набор из двенадцати
-команд. Эта форма противоречит нативным границам пяти провайдеров: Claude Code не
-владеет программой и запуском, Codex и Pi намеренно не удаляют программу, а
-`software-plan` не является общей реализованной возможностью. Формальное
-соответствие вынуждало бы провайдер объявлять фиктивные действия или присваивать
-себе чужое состояние.
+The frozen protocol v1 and v2 require a single universal set of twelve
+commands. This form conflicts with the native boundaries of five providers: Claude Code
+does not own software or launch, Codex and Pi intentionally do not remove software, and
+`software-plan` is not a commonly implemented capability. Formal
+conformance would force a provider to declare fictitious actions or claim
+ownership of state owned by another party.
 
-Кроме того, v1/v2 разделяют изменение сетапа, восстановление и software lifecycle
-на разные wire-команды. Для подготовленного и составленного сетапа нужен один
-проверяемый путь: immutable `SetupDefinition` → `HarnessBundle` → чистый plan →
-подтверждение exact digest → apply под блокировкой. Резервная копия, восстановление,
-замена и удаление должны иметь ту же привязку плана, а permission profile не должен
-становиться идентичностью сетапа.
+In addition, v1/v2 split setup changes, recovery, and the software lifecycle
+across separate wire commands. A prepared and composed setup requires one
+verifiable path: immutable `SetupDefinition` → `HarnessBundle` → pure plan →
+confirmation of the exact digest → apply under lock. Backup, recovery,
+replacement, and removal must have the same plan binding, while the permission profile
+must not become the setup identity.
 
-## Варианты
+## Alternatives
 
-1. Расширить v2 необязательными полями. Отвергнуто: v2 объявлен замороженным, а
-   старый consumer не знает новых семантических ограничений.
-2. Сохранить двенадцать команд и разрешить им возвращать `unsupported`. Отвергнуто:
-   это оставляет универсальную поверхность нормативной и позволяет узнать об
-   отсутствии возможности только после выбора неверной операции.
-3. Ввести v3 с малым обязательным command core и capability-negotiated operations.
-   Выбрано: provider сообщает правдивую закрытую модель до plan, а все изменения
-   проходят через один plan/apply protocol.
+1. Extend v2 with optional fields. Rejected: v2 has been declared frozen, and
+   an old consumer does not know the new semantic constraints.
+2. Retain the twelve commands and allow them to return `unsupported`. Rejected:
+   this leaves the universal surface normative and allows the absence of a
+   capability to be discovered only after the wrong operation has been selected.
+3. Introduce v3 with a small mandatory command core and capability-negotiated operations.
+   Chosen: the provider reports a truthful closed-world model before plan, and all changes
+   pass through a single plan/apply protocol.
 
-## Решение
+## Decision
 
-Protocol v1 и v2 остаются без изменений. Protocol v3 делит поверхность на
-обязательную setup/bundle boundary и объявляемые возможности.
+Protocol v1 and v2 remain unchanged. Protocol v3 divides the surface into
+a mandatory setup/bundle boundary and declared capabilities.
 
-Состав команд и operations принадлежит `provider-kit/v3/manifest.json` и
-перечислен там, а не здесь: запись решения фиксирует, почему граница проведена
-именно так, а не что находится внутри неё на сегодня. Перечень в ADR устаревал бы
-молча, потому что его никто не порождает.
+The set of commands and operations belongs in `provider-kit/v3/manifest.json` and
+is enumerated there, not here: this decision record establishes why the boundary is drawn
+this way, not what is currently inside it. A list in the ADR would become
+silently outdated because nothing generates it.
 
-Обязательная часть — команды setup/bundle core и operations материализации,
-замены, копии, восстановления и удаления. Optional command вызывается только при
-объявленной возможности; возможности жизненного цикла provider-owned программы и
-запуска runtime перечисляются в `provider-info`, и consumer не вызывает
-необъявленную операцию. Отказ имеет стабильный reason code и происходит до plan и
-изменения цели.
+The mandatory part consists of the setup/bundle core commands and the operations for materialization,
+replacement, copying, recovery, and removal. An optional command is invoked only when
+its capability is declared; capabilities for the lifecycle of provider-owned software and
+runtime launch are listed in `provider-info`, and the consumer does not invoke
+an undeclared operation. Refusal has a stable reason code and occurs before plan
+and before any change to the target.
 
-`plan-operation` чистый и возвращает canonical provider plan artifact. План
-связывает protocol/provider release, operation, canonical target и snapshot digest,
-optional exact HarnessBundle, optional `BackupRef`, отдельный permission profile,
-platform/runtime identity, expiry и ожидаемые эффекты. `apply-operation` принимает
-сам план и его exact digest, получает canonical target lock и повторно проверяет
-все preconditions после блокировки. Timeout или malformed response после возможного
-эффекта означает `partial`, а не разрешение на blind retry.
+`plan-operation` is pure and returns a canonical provider plan artifact. The plan
+binds the protocol/provider release, operation, canonical target and snapshot digest,
+an optional exact HarnessBundle, an optional `BackupRef`, a separate permission profile,
+platform/runtime identity, expiry, and expected effects. `apply-operation` accepts
+the plan itself and its exact digest, acquires the canonical target lock, and rechecks
+all preconditions after locking. A timeout or malformed response after a possible
+effect means `partial`, not permission for a blind retry.
 
-Перед mutation provider публикует durable target-local journal `prepared`,
-связанный с exact plan и target-bound `BackupRef`; после проверки результата он
-публикует `committed`. Любой незавершённый journal/transaction/backup staging
-блокирует чистый plan. `recover-operation` — отдельная подтверждённая mutation
-граница: фаза `prepared` восстанавливается из точной копии, а `committed` лишь
-проверяет результат и завершает cleanup. Consumer `resume` сначала читает status,
-может дренировать этот журнал, но не повторяет apply вслепую.
+Before mutation, the provider publishes a durable target-local `prepared` journal
+bound to the exact plan and a target-bound `BackupRef`; after verifying the result, it
+publishes `committed`. Any incomplete journal/transaction/backup staging
+blocks a clean plan. `recover-operation` is a separate confirmed mutation
+boundary: the `prepared` phase is restored from the exact backup, while `committed` only
+verifies the result and completes cleanup. Consumer `resume` reads status first
+and may drain this journal, but does not blindly repeat apply.
 
-Prepared и composed setup различаются только происхождением finalized immutable
-`SetupDefinition`. После finalization они используют одинаковые HarnessBundle,
-пути проверки, плана, подтверждения, применения, состояния, копии, восстановления и удаления.
+Prepared and composed setups differ only in the origin of the finalized immutable
+`SetupDefinition`. After finalization, they use the same HarnessBundle,
+verification, plan, confirmation, application, state, backup, recovery, and removal paths.
 
-`provider-info` содержит хэш build manifest и адресуемый содержимым профиль проекции: поддержанные компоненты
-kinds, projection kinds, native identifier namespaces, collision/ownership rules,
-bundle formats, limits, OS/architecture и digest профиля. Compiler строит native
-operations только по exact профилю, а provider независимо повторяет проверку.
-Неизвестный компонент, поверхность, операция, протокол или digest профиля закрывается
-отказом; silent drop и best-effort conversion запрещены.
-Conversion report также связывает projection kind, а каждый component обязан
-владеть непустым exact native content. Provider-owned validators проверяют
-синтаксис нативных JSON/TOML и обязательные маркеры деревьев до plan.
+`provider-info` contains the build manifest hash and a content-addressed projection profile:
+supported component kinds, projection kinds, native identifier namespaces,
+collision/ownership rules, bundle formats, limits, OS/architecture, and the profile digest.
+The setup compiler builds native operations only from the exact profile, and the provider
+independently repeats the validation. An unknown component, surface, operation, protocol,
+or profile digest results in closed refusal; silent drop and best-effort conversion are prohibited.
+The conversion report also binds the projection kind, and every component must
+own non-empty exact native content. Provider-owned validators check
+the syntax of native JSON/TOML and required tree markers before plan.
 
-Provider state и BackupRef сохраняют как минимум protocol/provider build и release,
-harness/target identity, SetupVersion passport digest, ordered exact component refs
-и хэши содержимого, хэш SetupDefinition, логический bundle и хэш raw artifact,
-хэш provider plan, идентичность операции, предусловие цели и native ownership
-manifest, предыдущую verified identity и состояние drift. Секретные значения не
-сохраняются. Read-only `status` никогда не мигрирует старый stamp: migration
-происходит только в подтверждённой mutation после резервной копии.
+Provider state and BackupRef preserve at least the protocol/provider build and release,
+harness/target identity, SetupVersion passport digest, ordered exact component references
+and content hashes, SetupDefinition hash, logical bundle and raw artifact hash,
+provider plan hash, operation identity, target precondition and native ownership
+manifest, previous verified identity, and drift state. Secret values are not
+preserved. Read-only `status` never migrates an old stamp: migration
+occurs only in a confirmed mutation after a backup.
 
-Network policy остаётся честной моделью ADR-0047. Local validation/plan/status и
-локальные apply phases требуют доказанного `none` enforcement. Software download
-имеет отдельную `artifact_download` phase, последующий apply снова локален. Launch
-объявляет `runtime_external`.
+Network policy remains the truthful model from ADR-0047. Local validation/plan/status and
+local apply phases require proven `none` enforcement. Software download
+has a separate `artifact_download` phase; the subsequent apply is local again. Launch
+declares `runtime_external`.
 
-## Последствия
+## Consequences
 
-Public provider может соответствовать общему protocol, не присваивая себе
-host-owned software. Claude Code корректно объявляет отсутствие software/launch;
-Codex и Pi — отсутствие software removal. Grok Build и OpenCode могут объявить
-полный software lifecycle только при реальной реализации.
+A public provider can conform to the common protocol without claiming ownership of
+host-owned software. Claude Code correctly declares the absence of software/launch;
+Codex and Pi declare the absence of software removal. Grok Build and OpenCode may declare
+the full software lifecycle only when it is actually implemented.
 
-Появляется новый неизменяемый публичный артефакт соответствия: схемы и эталонные примеры,
-hostile corpus и expected digests. Public providers не зависят во время исполнения
-от закрытого контура авторинга или private `ai_stp`; они проверяются против exact
-точной опубликованной версии набора, а закрытый control plane повторяет E2E и проверки promotion.
+A new immutable public conformance artifact is introduced: schemas and reference examples,
+a hostile corpus, and expected digests. Public providers do not depend at runtime
+on the closed authoring environment or private `ai_stp`; they are validated against the exact
+published version of the suite, while the closed control plane repeats E2E and promotion checks.
 
-Миграция выполняется provider-first. Старые standalone stamps читаются без
-изменения, затем первая подтверждённая v3 mutation создаёт backup и атомарно пишет
-новую схему происхождения. Версия protocol и release digest выбираются по проверенному
-provider release manifest до запуска и не повышаются ответом неизвестного процесса.
-Provider не заявляет digest архива, внутрь которого сам входит: consumer связывает
-его отдельно с независимым build digest.
+Migration is provider-first. Old standalone stamps are read without
+modification; the first confirmed v3 mutation then creates a backup and atomically writes
+the new provenance schema. The protocol version and release digest are selected from the verified
+provider release manifest before launch and are not upgraded based on a response from an unknown process.
+A provider does not declare the digest of an archive that contains the provider itself: the consumer binds
+it separately to an independent build digest.
 
-## Условия пересмотра
+## Reconsideration Conditions
 
-Решение пересматривается, если все поддерживаемые продукты получают одинаковое
-нативное ownership software/launch либо provider process заменяется единым trusted
-runtime с эквивалентной capability и isolation model.
+This decision is reconsidered if all supported products acquire identical
+native ownership of software/launch, or if the provider process is replaced by a single trusted
+runtime with an equivalent capability and isolation model.

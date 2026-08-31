@@ -1,65 +1,65 @@
 ---
-description: "SPEC-009: Локальный реестр и синхронизация."
+description: "SPEC-009: Local registry and synchronization."
 last_verified: "2026-08-04"
 ---
 
-# SPEC-009: Локальный реестр и синхронизация
+# SPEC-009: Local registry and synchronization
 
-## Цель
+## Purpose
 
-Локальный реестр остаётся полноценным автономным источником для устройства, а необязательная облачная синхронизация сохраняет историю, не теряет параллельные изменения и не изменяет установленный харнесс.
+The local registry remains a fully functional offline source for the device, while optional cloud synchronization preserves history, does not lose concurrent changes, and does not modify the installed harness.
 
-## Границы
+## Scope
 
-Входят SQLite, локальное адресуемое по содержимому хранилище, ревизии, головы устройств, исходящий и входящий журналы, курсоры, быстрое продвижение, трёхстороннее объединение, конфликты и метки удаления. Синхронизация байтов резервных копий и молчаливое правило последней записи не входят.
+This includes SQLite, local content-addressed storage, revisions, device heads, outbound and inbound journals, cursors, fast-forwarding, three-way merging, conflicts, and deletion markers. Synchronization of backup bytes and a silent last-write-wins rule are out of scope.
 
-## Термины
+## Terms
 
-- `EntityRevision` — адресуемое по содержимому значение с родительскими ревизиями.
-- `DeviceHead` — локальная голова сущности.
-- `SyncEvent` — идемпотентное изменение между устройством и сервером.
-- `ConflictRecord` — явное параллельное изменение, требующее объединения или решения.
+- `EntityRevision` — a content-addressed value with parent revisions.
+- `DeviceHead` — the local head of an entity.
+- `SyncEvent` — an idempotent change between a device and the server.
+- `ConflictRecord` — an explicit concurrent change requiring a merge or decision.
 
-## Требования
+## Requirements
 
-- `REQ-901`: SQLite использует миграции, журнал упреждающей записи, внешние ключи, транзакции и закрытые права файловой системы.
-- `REQ-902`: Обычное чтение и проверка состояния не создают данные и не меняют время содержимого.
-- `REQ-903`: Ревизии адресуются каноническим хэшем содержимого и содержат родителей, версию схемы, автора, устройство и операцию.
-- `REQ-904`: Если одна голова является предком другой, обмен выполняется быстрым продвижением.
-- `REQ-905`: Разошедшаяся история использует трёхстороннее объединение по полям от общего предка.
-- `REQ-906`: Параллельное несовместимое изменение одного поля создаёт явный конфликт без молчаливой перезаписи.
-- `REQ-907`: Удаление выражается меткой удаления и распространяется как ревизия.
-- `REQ-908`: Исходящий и входящий журналы, а также обработчики сервера идемпотентны по ключу события и безопасны при повторе.
-- `REQ-909`: Синхронизация никогда не применяет сетап и не меняет целевой каталог харнесса без отдельного плана установки.
-- `REQ-910`: Частичная синхронизация сохраняет журнал и курсор и не объявляется успешной.
-- `REQ-911`: Полный паспорт устройства не покидает устройство; синхронизируется только его разрешённая сводка по `docs/contracts/device-passport.md` как отдельная сущность этого устройства, трёхстороннее объединение между сводками разных устройств не выполняется, а межустройственно объединяется только паспорт разработчика.
-- `REQ-912`: Одновременное автономное создание версий одного объекта на двух устройствах разрешается при синхронизации без переписывания неизменяемого: если один номер `X.Y` занят разными хэшами, номер сохраняет первая принятая сервером ревизия, проигравшая неопубликованная версия автоматически перевыпускается следующим свободным младшим номером с тем же содержимым и новым паспортом, создаётся `ConflictRecord`, а опубликованный номер так не перемещается никогда.
+- `REQ-901`: SQLite uses migrations, write-ahead logging, foreign keys, transactions, and restrictive filesystem permissions.
+- `REQ-902`: Ordinary reads and state checks do not create data or change content timestamps.
+- `REQ-903`: Revisions are addressed by a canonical content hash and contain parents, schema version, author, device, and operation.
+- `REQ-904`: If one head is an ancestor of the other, synchronization uses a fast-forward.
+- `REQ-905`: Divergent history uses a field-level three-way merge from a common ancestor.
+- `REQ-906`: Concurrent incompatible changes to the same field create an explicit conflict without silent overwriting.
+- `REQ-907`: Deletion is represented by a deletion marker and propagated as a revision.
+- `REQ-908`: Outbound and inbound journals, as well as server handlers, are idempotent by event key and safe to retry.
+- `REQ-909`: Synchronization never applies a setup or changes the harness target directory without a separate installation plan.
+- `REQ-910`: Partial synchronization retains the journal and cursor and is not reported as successful.
+- `REQ-911`: The full device passport never leaves the device; only its permitted summary from `docs/contracts/device-passport.md` is synchronized as a separate entity for that device, no three-way merge is performed between summaries from different devices, and only the developer passport is merged across devices.
+- `REQ-912`: Concurrent offline creation of versions of the same object on two devices is reconciled during synchronization without rewriting immutable data: if one `X.Y` number is occupied by different hashes, the first revision accepted by the server retains the number, the losing unpublished version is automatically reissued under the next available minor number with the same content and a new passport, a `ConflictRecord` is created, and a published number is never moved this way.
 
-## Состояния и ошибки
+## States and errors
 
-Сеанс синхронизации имеет состояния `offline`, `up_to_date`, `pushing`, `pulling`, `conflict`, `partial` и `failed`. Ответ сервера имеет состояния `accepted`, `rejected`, `conflict` и `superseded`. Отозванное устройство получает постоянную ошибку полномочий; сетевое истечение времени допускает повтор с тем же ключом идемпотентности.
+A synchronization session has the states `offline`, `up_to_date`, `pushing`, `pulling`, `conflict`, `partial`, and `failed`. A server response has the states `accepted`, `rejected`, `conflict`, and `superseded`. A revoked device receives a permanent authorization error; a network timeout permits a retry with the same idempotency key.
 
-## Безопасность и приватность
+## Security and privacy
 
-Сервер проверяет устройство, аккаунт, право, схему и ожидаемую голову для каждого события. Индекс проекта принадлежит локальному устройству. Опубликованные версии, подтверждение автора, публичность и права принадлежат серверу и не объединяются клиентом.
+For every event, the server verifies the device, account, permission, schema, and expected head. The project index belongs to the local device. Published versions, author verification, visibility, and permissions belong to the server and are not merged by the client.
 
-## Совместимость и миграция
+## Compatibility and migration
 
-Старые и новые клиенты обмениваются только поддерживаемой основной версией схемы. Миграция сохраняет идентификаторы ревизий либо создаёт явную производную ревизию. Уплотнение не удаляет общего предка, нужного поддерживаемым устройствам, до прохождения правила хранения.
+Old and new clients exchange only a supported major schema version. Migration preserves revision identifiers or creates an explicit derived revision. Compaction does not delete a common ancestor needed by supported devices until the retention rule has been satisfied.
 
-## Критерии приёмки
+## Acceptance criteria
 
-| Требование | Исполнимый способ проверки |
+| Requirement | Executable verification method |
 |---|---|
-| `REQ-901` | Интеграционная проверка SQLite проверяет журнал, внешние ключи, миграции, откат транзакции и режим файла. |
-| `REQ-902` | Проверка чтения сравнивает состояние базы и файловой системы до и после. |
-| `REQ-903` | Проверки свойств подтверждают канонический хэш и граф родителей. |
-| `REQ-904` | Фикстура двух устройств выполняет отправку и получение быстрым продвижением. |
-| `REQ-905` | Независимые изменения полей объединяются с двумя родителями. |
-| `REQ-906` | Расхождение одного поля создаёт `ConflictRecord`. |
-| `REQ-907` | Повтор метки удаления скрывает объект без потери истории аудита. |
-| `REQ-908` | Повтор одного события не создаёт вторую ревизию или второй эффект. |
-| `REQ-909` | Сквозная проверка синхронизации сравнивает хэш цели до и после. |
-| `REQ-910` | Внедрение отказа после каждой точки сохранения подтверждает возобновляемое частичное состояние. |
-| `REQ-911` | Фикстура двух устройств синхронизирует две раздельные сводки без попытки объединения, а полный паспорт устройства и абсолютные пути в событиях синхронизации отсутствуют. |
-| `REQ-912` | Фикстура двух автономных устройств с одинаковым номером и разными хэшами оставляет номер первой принятой ревизии, перевыпускает вторую следующим номером с `ConflictRecord` и не изменяет ни один опубликованный снимок. |
+| `REQ-901` | A SQLite integration test checks the journal, foreign keys, migrations, transaction rollback, and file mode. |
+| `REQ-902` | A read test compares database and filesystem state before and after. |
+| `REQ-903` | Property tests confirm the canonical hash and parent graph. |
+| `REQ-904` | A two-device fixture pushes and pulls using a fast-forward. |
+| `REQ-905` | Independent field changes are merged with two parents. |
+| `REQ-906` | Divergence in one field creates a `ConflictRecord`. |
+| `REQ-907` | Replaying a deletion marker hides the object without losing audit history. |
+| `REQ-908` | Replaying one event does not create a second revision or effect. |
+| `REQ-909` | An end-to-end synchronization test compares the target hash before and after. |
+| `REQ-910` | Fault injection after every persistence point confirms a resumable partial state. |
+| `REQ-911` | A two-device fixture synchronizes two separate summaries without attempting to merge them, and synchronization events contain neither the full device passport nor absolute paths. |
+| `REQ-912` | A fixture with two offline devices using the same number and different hashes retains the number of the first accepted revision, reissues the second under the next number with a `ConflictRecord`, and does not change any published snapshot. |

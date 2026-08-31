@@ -3,32 +3,32 @@ description: "Runbook: database migration."
 last_verified: "2026-08-05"
 ---
 
-# Миграция базы
+# Database migration
 
-1. Зафиксировать версии кода и схемы.
-2. Остановить несовместимые процессы записи.
-3. Создать согласованную резервную копию и проверить восстановление и целостность.
-4. Построить план миграции с digest исходной и целевой схемы.
-5. Применить миграции транзакционно или возобновляемыми шагами.
-6. Проверить constraints, indexes и количество данных.
-7. Запустить тесты совместимости старой и новой версии.
-8. Только после этого продвигать код.
-9. При ошибке не объявлять rollback, пока не проверена совместимость записанных данных.
+1. Record the code and schema versions.
+2. Stop incompatible write processes.
+3. Create a consistent backup and verify restoration and integrity.
+4. Build a migration plan with the source and target schema digests.
+5. Apply migrations transactionally or in resumable steps.
+6. Check constraints, indexes, and data counts.
+7. Run compatibility tests for the old and new versions.
+8. Only then advance the code.
+9. In case of an error, do not declare a rollback until the compatibility of written data has been verified.
 
-## Политика восстановления (forward-fix по умолчанию)
+## Recovery policy (forward-fix by default)
 
-Нормативные требования владеет `SPEC-020` (`REQ-2002`); здесь описан порядок
-исполнения.
+Normative requirements belong to `SPEC-020` (`REQ-2002`); this section describes the
+execution procedure.
 
-- Дерево миграций `Alembic` единое и линейное: одна голова истории вне окна
-  слияния. Параллельные головы устраняются до продвижения кода.
-- Дефект уже применённой миграции устраняется forward-fix: новой миграцией вперёд,
-  а не откатом продвинутой схемы. Так восстановление не зависит от совместимости
-  старого пути с данными, записанными новой версией.
-- `downgrade` допускается только в окне совместимости, пока продвинутый код
-  корректно читает и пишет данные новой версии, и только после проверки шага 9.
-- Каждая миграция определяет прямую операцию и обратную операцию либо явную пометку
-  необратимости с обоснованием.
-- Обратно несовместимое изменение проходит расширение, перенос, переключение и
-  удаление по `docs/engineering/schema-evolution.md`; старый путь удаляется только
-  после окна двойного чтения.
+- The `Alembic` migration tree is single and linear: one history head outside the
+  merge window. Parallel heads are resolved before the code is advanced.
+- A defect in an already applied migration is corrected with a forward-fix: a new forward migration,
+  not a rollback of the advanced schema. This keeps recovery independent of the compatibility of
+  the old path with data written by the new version.
+- `downgrade` is allowed only within the compatibility window, while the advanced code
+  correctly reads and writes data in the new version, and only after step 9 has been verified.
+- Each migration defines a forward operation and a reverse operation, or an explicit
+  irreversibility marker with rationale.
+- A backward-incompatible change proceeds through expand, migrate, switch, and
+  contract under `docs/engineering/schema-evolution.md`; the old path is removed only
+  after the dual-read window.

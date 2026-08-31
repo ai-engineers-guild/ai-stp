@@ -1,120 +1,120 @@
 ---
-description: "Поля, ответы, повтор и конфликты события синхронизации."
+description: "Synchronization event fields, responses, retries, and conflicts."
 last_verified: "2026-08-15"
 ---
 
-# Событие синхронизации
+# Synchronization event
 
-## Поля
+## Fields
 
-Событие содержит `event_id`, `entity_id`, `revision_id`, `parent_revision_ids`, `device_id`, `actor_id`, версию схемы, операцию `upsert` или `tombstone`, хэш содержимого, время создания, ключ идемпотентности и ожидаемую облачную голову.
+An event contains `event_id`, `entity_id`, `revision_id`, `parent_revision_ids`, `device_id`, `actor_id`, the schema version, the `upsert` or `tombstone` operation, content hash, creation time, idempotency key, and expected cloud head.
 
-Содержимое передаётся отдельно либо внутри события по схеме сущности. Хэш вычисляется по каноническим правилам. Событие не содержит секреты, полный индекс проекта или байты резервной копии.
+Content is transmitted separately or within the event according to the entity schema. The hash is computed under canonical rules. An event contains no secrets, complete project index, or backup bytes.
 
-## Проверка сервером
+## Server validation
 
-Сервер проверяет аккаунт, устройство, отзыв, право на сущность, схему, хэш, родителей и ожидаемую голову. Повтор одного ключа идемпотентности возвращает прежний результат.
+The server validates the account, device, revocation, entity permission, schema, hash, parents, and expected head. Reusing an idempotency key returns the previous result.
 
-## Разрешённые сущности MVP
+## Entities allowed in MVP
 
-Серверный поток #179 принимает только `DeveloperPassport`, разрешённую сводку
-текущего `Device`, приватную ревизию `Component` или `Setup`, запись
-`UnverifiedConsent` и их `tombstone`. Полный `DevicePassport`, `ProjectPassport`,
-`ProjectIndex`, bytes артефакта и резервной копии, абсолютные пути, секреты и
-значения окружения не являются допустимым содержимым события. Расширение этого
-перечня меняет проводной контракт и проходит через его владельца.
+Server flow #179 accepts only `DeveloperPassport`, the allowed summary of the
+current `Device`, a private `Component` or `Setup` revision, an
+`UnverifiedConsent` record, and their `tombstone`. A full `DevicePassport`,
+`ProjectPassport`, `ProjectIndex`, artifact or backup bytes, absolute paths,
+secrets, and environment values are not valid event content. Extending this list
+changes the wire contract and must go through its owner.
 
-## Ответ
+## Response
 
-Ответ имеет состояние `accepted`, `rejected`, `conflict` или `superseded`. Принятый ответ возвращает облачную голову и курсор. Отказ содержит устойчивый код. Конфликт содержит общего предка, локальную и облачную головы и затронутые поля, но не выполняет молчаливое объединение.
+The response state is `accepted`, `rejected`, `conflict`, or `superseded`. An accepted response returns the cloud head and cursor. A rejection contains a stable code. A conflict contains the common ancestor, local and cloud heads, and affected fields, but performs no silent merge.
 
-## Порядок и повтор
+## Ordering and retry
 
-Пакет событий обрабатывается в заявленном порядке для одного устройства, но клиент не предполагает глобальный порядок между устройствами. Истечение сети после приёма безопасно повторяется с тем же ключом. Обработчик не создаёт вторую ревизию или второй побочный эффект.
+An event batch is processed in declared order for one device, but the client assumes no global ordering across devices. A network timeout after acceptance is safely retried with the same key. The handler does not create a second revision or side effect.
 
-## Серверная доставка MVP
+## MVP server delivery
 
-Для #179 сервер хранит durable receipt каждого обработанного события и
-append-only поток только принятых событий. Принятие ревизии, переход server head,
-создание receipt и добавление в поток происходят в одной транзакции. Receipt
-возвращается при повторе независимо от того, потерял ли клиент предыдущий ответ.
+For #179, the server stores a durable receipt for every processed event and an
+append-only stream containing only accepted events. Revision acceptance, the
+server-head transition, receipt creation, and stream append occur in one
+transaction. The receipt is returned on retry regardless of whether the client
+lost the previous response.
 
-Pull использует непрозрачный подписанный cursor, привязанный к account и позиции в
-этом потоке. Он не является offset, стабильным ID сущности или полномочием; сервер
-не хранит отдельную строку cursor для клиента. Пакет ограничен. Непустая страница
-всегда возвращает курсор на последнюю выданную последовательность, даже когда в
-этом чтении больше строк нет. Пустая страница не продвигает позицию: она может
-повторить входной курсор или вернуть `null`, если входного курсора не было. Это
-не означает, что будущих событий не будет, и не заставляет уже прочитавшего
-клиента начинать поток с нуля.
+Pull uses an opaque signed cursor bound to the account and a position in this
+stream. It is not an offset, stable entity ID, or authorization; the server does
+not store a separate cursor row for the client. The batch is bounded. A nonempty
+page always returns a cursor for the last sequence emitted, even when no more
+rows exist in that read. An empty page does not advance the position: it may
+repeat the input cursor or return `null` if none was supplied. This neither means
+there will be no future events nor forces a client that has already read events
+to restart the stream.
 
-Если ожидаемая cloud head не является предком новой revision, сервер возвращает
-`conflict`, не меняет head и не добавляет событие в поток. Валидная конфликтная
-revision остаётся в ledger только как родитель для последующей явной
-merge-revision, но не становится server head и не видна через pull. Явная
-merge-revision с двумя родителями проходит обычную проверку и может быть принята
-позднее. Tombstone
-также является revision и появляется в потоке; он не удаляет историю, нужную для
-общего предка.
+If the expected cloud head is not an ancestor of the new revision, the server
+returns `conflict`, does not change the head, and does not append an event. A
+valid conflicting revision remains in the ledger only as a parent for a later
+explicit merge revision; it does not become the server head and is not visible
+through pull. An explicit merge revision with two parents undergoes normal
+validation and may be accepted later. A tombstone is also a revision and appears
+in the stream; it does not delete history needed to find a common ancestor.
 
-Устройство берётся из активной серверной сессии и должно совпадать с событием.
-Отозванное устройство отклоняется до записи receipt, revision, head или потока.
-Точные HTTP-модели, маршруты и коды источником имеют `packages/contracts` и
-сгенерированный OpenAPI, когда они появятся; этот документ не создаёт им второй
-перечень.
+The device comes from the active server session and must match the event. A
+revoked device is rejected before any receipt, revision, head, or stream write.
+Exact HTTP models, routes, and codes are owned by `packages/contracts` and the
+generated OpenAPI when they appear; this document does not create a second list.
 
-## Конфликт
+## Conflict
 
-Клиент строит трёхстороннее объединение от общего предка. Независимые поля объединяются автоматически. Несовместимое изменение одного поля требует решения пользователя и создаёт ревизию с двумя родителями.
+The client builds a three-way merge from the common ancestor. Independent fields merge automatically. An incompatible change to one field requires a user decision and creates a revision with two parents.
 
-Локальная команда `sync preview --id <stable-id>` только классифицирует головы и
-вычисляет content-addressed идентификатор возможной merge-ревизии. Она не двигает
-голову, не записывает ревизию, не обращается к серверу и не меняет target. В generic
-CLI envelope попадают только идентификаторы и JSON Pointer конфликтных полей;
-значения остаются в owner-only registry. Автоматическое field merge разрешено только
-для межустройственного паспорта разработчика. Device summary не объединяется между
-устройствами, а immutable component/setup требуют отдельного version-conflict path.
+The local `sync preview --id <stable-id>` command only classifies heads and
+computes the content-addressed identifier of a possible merge revision. It does
+not move a head, write a revision, contact the server, or change the target. The
+generic CLI envelope contains only identifiers and JSON Pointers for conflicting
+fields; values remain in the owner-only registry. Automatic field merge is
+allowed only for the cross-device developer passport. Device summaries are not
+merged across devices, while immutable component/setup objects require a
+separate version-conflict path.
 
-Клиентские `sync push` и `sync pull` требуют явного подтверждения и включённого
-`sync.enabled`. До первого сетевого вызова push сохраняет exact event и ключ
-идемпотентности; потеря ответа поэтому повторяет тот же запрос. Pull проверяет
-обе content-addressed границы и применяет всю страницу вместе с непрозрачным
-cursor одной локальной транзакцией. `sync merge` записывает только механически
-чистое объединение developer passport с двумя родителями; конфликтующие значения
-остаётся разрешить явной редакцией паспорта.
+Client `sync push` and `sync pull` require explicit confirmation and enabled
+`sync.enabled`. Before the first network call, push stores the exact event and
+idempotency key, so a lost response causes the same request to be retried. Pull
+validates both content-addressed boundaries and applies the entire page with its
+opaque cursor in one local transaction. `sync merge` writes only a mechanically
+clean developer-passport merge with two parents; conflicting values must still
+be resolved by explicitly editing the passport.
 
-Для приватных component/setup payload дополнительно несёт ограниченный список
-метаданных выпущенных версий без байтов артефакта. Коллизия одного `X.Y` с другим
-passport digest откатывает страницу целиком. Устойчивое продолжение после
-последней непустой серверной страницы использует курсор этой позиции. Клиент не
-изготавливает подписанный курсор самостоятельно.
+For private component/setup objects, the payload additionally carries a bounded
+list of released-version metadata without artifact bytes. A collision between
+one `X.Y` and another passport digest rolls back the entire page. Durable
+continuation after the last nonempty server page uses that position's cursor.
+The client does not manufacture a signed cursor itself.
 
-## Что payload может нести
+## What the payload may carry
 
-Правило одно, и применяют его обе стороны: клиент отказывает до открытия сокета,
-потому что секрет, покинувший машину, её уже покинул; сервер отказывает снова,
-потому что клиент не является инстанцией, решающей о собственном payload.
+There is one rule and both sides apply it: the client rejects before opening a
+socket because a secret that leaves the machine has already left it; the server
+rejects again because the client is not the authority deciding what its payload
+may contain.
 
-Владелец правила один — `ai_stp_contracts.sync_payload`. Перечень запрещённых
-фрагментов имени, допущенные исключения и правило абсолютного пути живут там и
-здесь не повторяются: правило, записанное дважды, расходится, и однажды уже
-разошлось — только клиент получил исключение для `required_env`, поэтому полный
-канонический паспорт проходил ту половину, которая была необязательной, и
-отвергался той, которая решает.
+The rule has one owner: `ai_stp_contracts.sync_payload`. The prohibited name
+fragments, allowed exceptions, and absolute-path rule live there and are not
+repeated here: a rule written twice diverges, and once already did—only the
+client received the `required_env` exception, so a complete canonical passport
+passed the optional half and was rejected by the authoritative half.
 
-Форма правила такова. Ключ запрещён, если содержит запрещённый фрагмент в любом
-месте: так `github_token`, `oauth_secret` и `api_key_value` ловятся без
-перечисления. Отсюда следует и ограничение: чёрный список имён поверх
-типизированного документа отвергает поля, безопасность которых обеспечена их
-типом. Каждое такое столкновение допускается явно и проверяется по форме, а не
-по имени — `required_env` несёт только `name` и `purpose` и не может представить
-значение, `requires_authorization` является закрытым перечислением. Список
-допущенных столкновений короткий и видимый; замена чёрного списка проверкой по
-схеме — отдельное решение с владельцем.
+The rule works as follows. A key is prohibited if it contains a prohibited
+fragment anywhere, catching `github_token`, `oauth_secret`, and `api_key_value`
+without enumeration. This also creates a limitation: a name blacklist over a
+typed document rejects fields whose safety is guaranteed by their type. Each
+such collision is explicitly allowed and shape-validated rather than accepted
+by name—`required_env` carries only `name` and `purpose` and cannot represent a
+value; `requires_authorization` is a closed enum. The allowed-collision list is
+short and visible; replacing the blacklist with schema-based validation is a
+separate decision with an owner.
 
-Отказ называет путь поля и никогда не выводит значение: значение — ровно то, что
-не должно путешествовать.
+A rejection names the field path and never outputs the value: the value is
+exactly what must not travel.
 
-## Полномочия сервера
+## Server authority
 
-Подтверждение автора, публичность, права и блокировка принадлежат серверу и не объединяются клиентом. Синхронизация никогда не изменяет установленный целевой каталог харнесса.
+Author verification, public visibility, grants, and blocking belong to the server and are not merged by the client. Synchronization never changes the harness's installed target directory.

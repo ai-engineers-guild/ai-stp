@@ -1,15 +1,15 @@
 ---
-description: "Поля глобального конфига CLI, значения по умолчанию и приоритет источников."
+description: "Global CLI configuration fields, defaults, and source precedence."
 last_verified: "2026-08-29"
 ---
 
-# Глобальный конфиг CLI
+# Global CLI configuration
 
-Владелец требований — `SPEC-011`. Здесь зафиксирована машинная граница: перечень полей, значения по умолчанию, приоритет источников и правила ошибок.
+The requirements owner is `SPEC-011`. This document defines the machine boundary: the field set, default values, source precedence, and error rules.
 
-Конфиг один и принадлежит пользователю. Он не содержит секретов и не заменяет паспорта: паспорт описывает объект, конфиг — поведение CLI на этом устройстве.
+There is one configuration, and it belongs to the user. It contains no secrets and does not replace passports: a passport describes an object; the configuration describes CLI behavior on this device.
 
-## Поля
+## Fields
 
 ```yaml
 schema_version: 1
@@ -38,81 +38,83 @@ provider:
     antigravity: ""
 ```
 
-| Поле | По умолчанию | Смысл |
+| Field | Default | Meaning |
 |---|---|---|
-| `catalog.enabled` | `true` | Обращаться ли к публичному каталогу. |
-| `catalog.url` | адрес платформы | Базовый адрес платформы **без префикса `/v1`**; принимается HTTPS, а также HTTP для петлевого адреса. |
-| `sync.enabled` | `false` | Включена ли облачная синхронизация; требует входа. |
-| `registry.path` | путь в пользовательском каталоге данных | Расположение локального реестра. |
-| `search.result_limit` | `20` | Предел числа кандидатов в ответе. |
-| `projects.discovery_roots` | пустой список | Явные корни, внутри которых ищутся кандидаты проектов. |
-| `telemetry.enabled` | `false` | Отправлять ли анонимный пинг установки. `true` принимается только после явного согласия; прямая запись отклоняется. |
-| `telemetry.url` | адрес коллектора | Адрес, куда уходит пинг; принимается HTTPS, а также HTTP для петлевого адреса — как у `catalog.url`. |
-| `provider.paths.antigravity` | пустая строка | Абсолютный путь к setup-system provider для `antigravity`. Пустое значение передаёт выбор реестру, а затем обнаружению. |
-| `provider.paths.claude-code` | пустая строка | Абсолютный путь к setup-system provider для `claude-code`. Пустое значение передаёт выбор реестру, а затем обнаружению. |
-| `provider.paths.codex` | пустая строка | Абсолютный путь к setup-system provider для `codex`. Пустое значение передаёт выбор реестру, а затем обнаружению. |
-| `provider.paths.cursor` | пустая строка | Абсолютный путь к setup-system provider для `cursor`. Пустое значение передаёт выбор реестру, а затем обнаружению. |
-| `provider.paths.grok-build` | пустая строка | Абсолютный путь к setup-system provider для `grok-build`. Пустое значение передаёт выбор реестру, а затем обнаружению. |
-| `provider.paths.opencode` | пустая строка | Абсолютный путь к setup-system provider для `opencode`. Пустое значение передаёт выбор реестру, а затем обнаружению. |
-| `provider.paths.pi` | пустая строка | Абсолютный путь к setup-system provider для `pi`. Пустое значение передаёт выбор реестру, а затем обнаружению. |
+| `catalog.enabled` | `true` | Whether to access the public catalog. |
+| `catalog.url` | platform address | Base platform address **without the `/v1` prefix**; HTTPS is accepted, as is HTTP for a loopback address. |
+| `sync.enabled` | `false` | Whether cloud synchronization is enabled; requires login. |
+| `registry.path` | path in the user data directory | Location of the local registry. |
+| `search.result_limit` | `20` | Maximum number of candidates in a response. |
+| `projects.discovery_roots` | empty list | Explicit roots within which project candidates are searched for. |
+| `telemetry.enabled` | `false` | Whether to send the anonymous installation ping. `true` is accepted only after explicit consent; writing it directly is rejected. |
+| `telemetry.url` | collector address | Address to which the ping is sent; HTTPS is accepted, as is HTTP for a loopback address, as with `catalog.url`. |
+| `provider.paths.antigravity` | empty string | Absolute path to the setup-system provider for `antigravity`. An empty value delegates selection to the registry, then to discovery. |
+| `provider.paths.claude-code` | empty string | Absolute path to the setup-system provider for `claude-code`. An empty value delegates selection to the registry, then to discovery. |
+| `provider.paths.codex` | empty string | Absolute path to the setup-system provider for `codex`. An empty value delegates selection to the registry, then to discovery. |
+| `provider.paths.cursor` | empty string | Absolute path to the setup-system provider for `cursor`. An empty value delegates selection to the registry, then to discovery. |
+| `provider.paths.grok-build` | empty string | Absolute path to the setup-system provider for `grok-build`. An empty value delegates selection to the registry, then to discovery. |
+| `provider.paths.opencode` | empty string | Absolute path to the setup-system provider for `opencode`. An empty value delegates selection to the registry, then to discovery. |
+| `provider.paths.pi` | empty string | Absolute path to the setup-system provider for `pi`. An empty value delegates selection to the registry, then to discovery. |
 
-Полей `provider.paths` ровно семь — по одному на поддерживаемый харнесс, а не
-отображение с произвольным ключом. Отображение, ключом которого может быть что
-угодно, не является закрытой схемой: неизвестный харнесс принимался бы,
-сохранялся и никогда никем не читался. Ключ пишется так же, как везде
-(`claude-code`, а не `claude_code`): второе написание одного идентификатора
-дёшево сейчас и дорого при каждом следующем использовании.
+There are exactly seven `provider.paths` fields, one for each supported harness,
+rather than a mapping with an arbitrary key. A mapping whose key can be anything
+is not a closed schema: an unknown harness would be accepted, stored, and never
+read by anyone. The key is spelled exactly as it is everywhere else
+(`claude-code`, not `claude_code`): a second spelling of one identifier is cheap
+now and expensive at every subsequent use.
 
-Значение проверяется в момент записи, а не в момент запуска: относительный путь,
-symlink вместо исполняемого файла и неисполняемый файл отклоняются сразу.
-Значение, которое сохраняется чисто и падает позже внутри установки, хуже
-отказа, потому что файл конфига при этом выглядит правильным. Очистка поля
-разрешена всегда — сделать удаление значения труднее его установки значит
-оставить машину привязанной к исчезнувшему пути.
+The value is validated when written, not when launched: a relative path, a
+symlink in place of an executable file, and a non-executable file are rejected
+immediately. A value that is stored cleanly and fails later during installation
+is worse than a rejection because the configuration file then appears correct.
+Clearing the field is always allowed: making a value harder to remove than to
+set would leave the machine bound to a vanished path.
 
-Cleartext допускается только для петлевого адреса: `localhost`, `127.0.0.0/8` и
-`::1`. Пакеты в этом случае не покидают машину, поэтому перехватывать их негде.
-Адрес в локальной сети или публичное имя по `http` по-прежнему отклоняются —
-именно ради этого случая правило и существует. Совпадение точное: `localhost.example`
-петлевым адресом не является, как и числовая запись, которую разбор не признаёт
-(`2130706433`, `0177.0.0.1`, `127.1`), хотя резолвер и мог бы отправить её на петлю.
+Cleartext is allowed only for a loopback address: `localhost`, `127.0.0.0/8`,
+and `::1`. Packets do not leave the machine in this case, so there is nowhere to
+intercept them. A local-network address or public name over `http` is still
+rejected; this is exactly the case for which the rule exists. Matching is exact:
+`localhost.example` is not a loopback address, nor is a numeric notation the
+parser does not recognize (`2130706433`, `0177.0.0.1`, `127.1`), even if the
+resolver might route it to loopback.
 
-Для развёрнутой среды адрес остаётся HTTPS через Caddy: исключение относится
-только к локальной разработке и никакого флага, ослабляющего умолчания, не
-вводит.
+For the deployed environment, the address remains HTTPS through Caddy: the
+exception applies only to local development and introduces no flag that weakens
+the defaults.
 
-Перечень закрыт. Неизвестный ключ возвращает типизированную ошибку с путём до него и перечнем допустимых соседей; молчаливое игнорирование запрещено.
+The set is closed. An unknown key returns a typed error containing its path and
+the set of allowed sibling keys; silently ignoring it is prohibited.
 
-## Приоритет источников
+## Source precedence
 
 ```text
-значение по умолчанию
+default value
     ↓
-глобальный конфиг
+global configuration
     ↓
-явный аргумент команды
+explicit command argument
 ```
 
-Аргумент команды действует только на этот вызов и не переписывает файл. Команда показа действующей конфигурации выводит итоговое значение и его источник по каждому полю; источник принимает ровно три значения: `default`, `config_file`, `command_argument`.
+A command argument applies only to that invocation and does not rewrite the file. The command showing the effective configuration outputs the final value and its source for every field; the source has exactly three values: `default`, `config_file`, `command_argument`.
 
-Запись и переопределение — разные вещи, и они разведены по разным командам. Третий ярус приоритета остаётся переопределением на один вызов и файл не трогает; переопределение задаётся как `path=value`, разбирается по объявленному типу поля и отвергается, если значение этому типу не соответствует: молчаливое падение обратно к умолчанию выглядело бы как применённое переопределение.
+Writing and overriding are different operations and use different commands. The third precedence tier remains a single-invocation override and does not touch the file; an override is specified as `path=value`, parsed according to the field's declared type, and rejected if the value does not match that type: silently falling back to the default would appear as an applied override.
 
-Записывающие команды объявлены отдельно: создание файла, запись объявленного поля, снятие поля и проверка файла. Первичный потребитель — агент, поэтому файл правится машиной чаще, чем человеком, и одного «файл правится пользователем» недостаточно. Все они идемпотентны, пишут атомарно и отвечают действующей конфигурацией с источником каждого значения, поэтому вызывающий видит и новое значение, и то, что оно теперь приходит из файла. Создание никогда не перезаписывает существующий файл: у каждого поля есть умолчание, ни одно чтение не требует существования файла, а перезапись отбросила бы настройки, на которые кто-то опирается.
+Writing commands are declared separately: create the file, write a declared field, unset a field, and validate the file. The primary consumer is an agent, so the file is edited by a machine more often than by a person, and saying only that "the user edits the file" is insufficient. All these commands are idempotent, write atomically, and return the effective configuration with the source of every value, so the caller sees both the new value and that it now comes from the file. Creation never overwrites an existing file: every field has a default, no read requires the file to exist, and overwriting would discard settings on which someone may rely.
 
-Файл переписывается канонической формой: отсортированные ключи, объявленная версия схемы, без сохранения комментариев и порядка. Это осознанная цена. Редактор, сохраняющий разметку, сохраняет и то, что в ней было не так, а детерминированный вывод означает, что две одинаково настроенные установки имеют побайтово одинаковый файл — и тогда различие между ними стоит того, чтобы на него посмотреть.
+The file is rewritten in canonical form: sorted keys, the declared schema version, without preserving comments or ordering. This is a deliberate cost. An editor that preserves formatting also preserves what was wrong with it, while deterministic output means that two identically configured installations have byte-for-byte identical files, making any difference between them worth investigating.
 
-Документ проверяется целиком, а не по верхнему уровню. Неизвестный вложенный ключ, секция, оказавшаяся скаляром, вложенность глубже объявленной и чужая версия схемы отвергаются с точным путём. Проверка только внешних ключей пропускала `catalog.urll`: секция объявлена, ключ внутри неё — нет, значение отбрасывалось, и в ответе стояло умолчание, как будто файл его и просил. Для агента это успешно выглядящая запись, которая ничего не сделала.
+The document is validated in full, not only at the top level. An unknown nested key, a section that is a scalar, nesting deeper than declared, and a foreign schema version are rejected with the exact path. Validating only outer keys allowed `catalog.urll`: the section was declared, the key within it was not, the value was discarded, and the response contained the default as though the file had requested it. To an agent, this looks like a successful write that did nothing.
 
-Значение пути и его отображение — разные вещи. Поле, объявленное как путь, хранится и читается абсолютным, а при выводе домашний каталог сворачивается до `~`, чтобы имя учётной записи не попадало в вывод. Сворачивать значение до его использования нельзя: `~/...` не открывается и разрешается относительно текущего каталога.
+A path value and its display are different things. A field declared as a path is stored and read as an absolute path, while output contracts the home directory to `~` so the account name does not appear in output. The value must not be contracted before use: `~/...` cannot be opened and is resolved relative to the current directory.
 
-## Секреты
+## Secrets
 
-Конфиг не содержит токенов, паролей и ключей. Облачные учётные данные хранятся в системном защищённом хранилище. Вывод действующей конфигурации не печатает значения окружения и не раскрывает содержимое хранилища.
+The configuration contains no tokens, passwords, or keys. Cloud credentials are stored in the system secure store. Effective-configuration output does not print environment values or expose store contents.
 
-## Автономный режим
+## Offline mode
 
-Автономный режим получается отключением `catalog.enabled` и `sync.enabled` и не требует других изменений. Перечень операций, которые остаются доступными, принадлежит `offline-capability.md`.
+Offline mode is obtained by disabling `catalog.enabled` and `sync.enabled` and requires no other changes. The set of operations that remain available is owned by `offline-capability.md`.
 
-## Согласие на непроверенное
+## Consent to unverified content
 
-Поля согласия на линию `experimental` в конфиге нет: ключ `search.include_unverified` удалён по `ADR-0029`, и бессрочное глобальное согласие на всё непроверенное не поддерживается. Согласие является признаком запроса на команду или сеанс, а долговечные исключения по издателю или основной линии объекта хранятся отдельными записями по `unverified-consent.md`, а не полем конфига.
+The configuration has no consent field for the `experimental` trust line: the `search.include_unverified` key was removed by `ADR-0029`, and indefinite global consent to all unverified content is not supported. Consent is an attribute of a command request or session, while durable exceptions by publisher or object mainline are stored as separate records under `unverified-consent.md`, not as a configuration field.

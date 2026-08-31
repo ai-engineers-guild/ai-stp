@@ -1,17 +1,17 @@
 ---
-description: "Правила регистрации временных компромиссов."
+description: "Rules for registering temporary compromises."
 last_verified: "2026-08-03"
 ---
 
-# Технический долг
+# Technical Debt
 
-Запись нужна, если временно:
+A record is needed if temporarily:
 
-- отключена обязательная проверка;
-- оставлен старый contract path;
-- сужена platform coverage;
-- принято `not_verified` в release path;
-- отложена migration/cleanup;
-- добавлен небезопасный fallback.
+- mandatory verification is disabled;
+- an old contract path is left;
+- platform coverage is reduced;
+- `not_verified` is accepted in the release path;
+- migration/cleanup is postponed;
+- an unsafe fallback is added.
 
-Запись содержит owner, причину, стоимость, условие удаления, крайний срок и проверку возврата. «Позже улучшить» без наблюдаемого условия не является записью.
+The record includes owner, reason, cost, removal condition, deadline, and return verification. "Improve later" without an observable condition is not a record.

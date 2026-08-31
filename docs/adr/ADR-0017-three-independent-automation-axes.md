@@ -1,65 +1,65 @@
 ---
-description: "Решение развести профиль выполнения, изоляцию проверок и целостность изменения."
+description: "Decision to separate the execution profile, validation isolation, and mutation integrity."
 last_verified: "2026-08-04"
 ---
 
-# ADR-0017: Три независимые оси автоматизации
+# ADR-0017: Three independent automation axes
 
-Статус: принято. Заменяет `ADR-0006`.
+Status: accepted. Supersedes `ADR-0006`.
 
-## Контекст
+## Context
 
-`ADR-0006` зафиксировал, что все управляемые цели MVP используют профиль полного автоматического доступа, а чувствительные действия требуют явного решения пользователя. Решение верное, но его формулировка допускает два противоположных неверных прочтения.
+`ADR-0006` established that all managed MVP targets use the full automatic-access profile and that sensitive actions require an explicit user decision. The decision is correct, but its wording permits two opposite misreadings.
 
-Первое: «полный автоматический доступ» читается как обещание убрать подтверждения везде, включая план, резервную копию и проверку целостности артефакта. Второе: слова о безопасной установке, ограниченном локальном окружении проверок и большом числе подтверждений читаются как требование вернуть песочницу и запросы разрешений в сам харнесс.
+The first is that “full automatic access” is read as a promise to remove confirmations everywhere, including the plan, backup, and artifact-integrity verification. The second is that statements about safe installation, the restricted local environment for checks, and numerous confirmations are read as a requirement to restore sandboxing and permission prompts within the harness itself.
 
-Причина в том, что три разные вещи описывались одним словарём: как работает агент внутри харнесса, как запускаются инструменты проверок и как выполняется изменяющая операция контрольного слоя.
+The reason is that three different things were described with one vocabulary: how the agent operates inside the harness, how validation tools are run, and how a mutating control-plane operation is performed.
 
-## Варианты
+## Options
 
-1. Оставить одну формулировку и уточнять её в каждом документе. Дёшево, но расхождение вернётся при первой правке.
-2. Отказаться от профиля полного автоматического доступа. Противоречит выбранному продуктовому поведению и не решает смешение осей.
-3. Явно развести три независимые оси и дать каждой собственное имя и владельца.
+1. Retain one formulation and refine it in every document. This is inexpensive, but divergence will return with the first edit.
+2. Abandon the full automatic-access profile. This contradicts the selected product behavior and does not resolve the mixing of axes.
+3. Explicitly separate three independent axes and give each its own name and owner.
 
-## Решение
+## Decision
 
-Принимается вариант 3. Определяются три независимые оси; одинаковое слово в разных осях означает разное.
+Option 3 is accepted. Three independent axes are defined; the same word means different things on different axes.
 
 ```text
 runtime_profile          full-auto
-  как агент работает внутри харнесса
-  в MVP единственный профиль
-  сопоставляется с нативной настройкой провайдера
+  how the agent operates inside the harness
+  the only profile in the MVP
+  mapped to the provider's native setting
 
 validation_isolation
-  как ai_stp запускает внешние инструменты проверок
-  внутренняя граница исполнения, а не режим пользователя
-  массив аргументов, shell=false, окружение, время, предел вывода
+  how ai_stp runs external validation tools
+  an internal execution boundary, not a user mode
+  argument array, shell=false, environment, time, output limit
 
 mutation_integrity
-  как выполняется изменяющая операция
-  осмотр, план, точный хэш, блокировка, резервная копия,
-  повторная проверка, применение, проверка результата, журнал, возврат
+  how a mutating operation is performed
+  inspection, plan, exact hash, lock, backup,
+  revalidation, application, result verification, journal, rollback
 ```
 
-**Профиль выполнения не отменяет целостность.** Значение `full-auto` относится только к первой оси. Оно не отменяет проверку прав, проверку артефакта, план, подтверждение чувствительного действия, резервную копию, атомарность и восстановление.
+**The execution profile does not waive integrity.** The `full-auto` value applies only to the first axis. It does not waive permission checking, artifact verification, the plan, confirmation of a sensitive action, backup, atomicity, or recovery.
 
-**Изоляция проверок не является режимом пользователя.** Ограниченное окружение запуска инструментов — деталь реализации `ai_stp`, а не песочница, которую пользователь включает или отключает.
+**Validation isolation is not a user mode.** The restricted environment for running tools is an `ai_stp` implementation detail, not a sandbox that the user enables or disables.
 
-**Список чувствительных действий сохраняется.** Публичная публикация, новая основная линия версий, установка объекта непроверенного автора, повышение системных привилегий, полная очистка данных, удаление цели или резервных копий и внешние действия Git и развёртывания требуют явного решения пользователя.
+**The list of sensitive actions is retained.** Public publication, a new major version line, installation of an object from an unverified author, system-privilege escalation, complete data erasure, deletion of a target or backups, and external Git and deployment actions require an explicit user decision.
 
-**Нативные настройки описываются как возможности провайдера.** Соответствие профиля конкретным нативным флагам харнесса принадлежит `provider-info` и матрице возможностей, а не перечислению в ядре. Имена вендорских флагов меняются и не становятся частью идентичности.
+**Native settings are described as provider capabilities.** The mapping of a profile to specific native harness flags belongs to `provider-info` and the capability matrix, not to an enumeration in the core. Vendor flag names change and do not become part of identity.
 
-**Будущие профили остаются расширяемой возможностью.** В MVP реализован только `full-auto`; согласование других профилей возможно позднее без изменения второй и третьей осей.
+**Future profiles remain an extensibility option.** Only `full-auto` is implemented in the MVP; other profiles may be agreed later without changing the second and third axes.
 
-## Последствия
+## Consequences
 
-- `ADR-0006` получает статус заменённого и ссылается сюда;
-- `docs/product/scope.md`, `SPEC-011`, `SPEC-014` и `SECURITY.md` используют имена осей вместо общего слова о безопасности;
-- `contracts/provider-protocol.md` описывает сопоставление профиля с нативными возможностями через `provider-info`;
-- проверка документации отклоняет утверждение, что полный автоматический режим отменяет план, права или проверку артефакта;
-- контрактная фикстура сопоставляет каждый поддерживаемый харнесс с его нативной настройкой профиля.
+- `ADR-0006` gains superseded status and links here;
+- `docs/product/scope.md`, `SPEC-011`, `SPEC-014`, and `SECURITY.md` use the axis names instead of a general statement about security;
+- `contracts/provider-protocol.md` describes mapping the profile to native capabilities through `provider-info`;
+- documentation validation rejects a claim that full automatic mode waives the plan, permissions, or artifact verification;
+- a contract fixture maps each supported harness to its native profile setting.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается, если появится поддерживаемый харнесс без нативного эквивалента профиля полного автоматического доступа, либо если пользователи начнут требовать второй профиль выполнения до завершения MVP.
+The decision shall be reconsidered if a supported harness emerges without a native equivalent of the full automatic-access profile, or if users begin demanding a second execution profile before completion of the MVP.

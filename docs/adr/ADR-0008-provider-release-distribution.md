@@ -1,20 +1,20 @@
 ---
-description: "Решение: доставлять providers release artifacts."
+description: "Decision to distribute providers as release artifacts."
 last_verified: "2026-08-03"
 ---
 
-# ADR-0008: Доставлять провайдеры как артефакты выпуска
+# ADR-0008: Distribute providers as release artifacts
 
-Принято 2026-08-03.
+Accepted on 2026-08-03.
 
-## Контекст
+## Context
 
-Git-подмодуль удобен для разработки, но требует checkout, смешивает жизненный цикл приложения и провайдера и не даёт пользователю отдельного проверяемого обновления или возврата версии.
+A Git submodule is convenient for development, but requires a checkout, mixes application and provider lifecycles, and does not give the user a separate verifiable update or version rollback.
 
-## Решение
+## Decision
 
-Публичные провайдеры доставляются как версионируемые артефакты с source repository/commit, contract version, размером, SHA-256 и подписью либо attestation. CLI устанавливает новую версию рядом со старой и атомарно меняет указатель после проверки.
+Public providers are distributed as versioned artifacts with a source repository/commit, contract version, size, SHA-256, and a signature or attestation. The CLI installs a new version alongside the old one and atomically switches the pointer after verification.
 
-## Последствия
+## Consequences
 
-Обновление провайдера не изменяет target автоматически. Нужны release manifests, anti-rollback state, отдельная проверка source-to-artifact и путь возврата на прошлую версию.
+Updating a provider does not automatically change the target. Release manifests, anti-rollback state, separate source-to-artifact verification, and a path to return to the previous version are required.

@@ -1,28 +1,27 @@
 ---
-description: "Клиентская последовательность выдачи, принятия и отзыва прав доступа."
+description: "Client sequence for issuing, accepting, and revoking access grants."
 last_verified: "2026-08-13"
 ---
 
-# CLI-сценарий прав доступа
+# CLI access-grant flow
 
-Команды `grant` являются тонким авторизованным клиентом проводных моделей из
-`packages/contracts`. Область права и последствия отзыва принадлежат
-[access-grants-and-forks.md](access-grants-and-forks.md); CLI не вычисляет
-полномочия и не подменяет серверный ответ локальной догадкой.
+The `grant` commands are a thin authorized client for the wire models from
+`packages/contracts`. Grant scope and revocation consequences belong to
+[access-grants-and-forks.md](access-grants-and-forks.md); the CLI does not
+calculate permissions or replace the server response with a local guess.
 
-`grant invite` и `grant direct` адресуют точный `component` либо `setup`, его
-устойчивый идентификатор и основную линию. `grant list` повторно читает
-серверное состояние после создания, принятия или отзыва. Каждая изменяющая
-команда требует `--confirm` и предоставленный вызывающей стороной стабильный
-`--idempotency-key`: один и тот же ключ обозначает один и тот же намеренный
-эффект и сохраняется при транспортных повторах.
+`grant invite` and `grant direct` address an exact `component` or `setup`, its
+stable identifier, and its major line. `grant list` rereads server state after
+creation, acceptance, or revocation. Every mutating command requires `--confirm`
+and a stable caller-supplied `--idempotency-key`: the same key denotes the same
+intended effect and is preserved across transport retries.
 
-`grant accept` получает секрет приглашения только из переменной окружения,
-названной через `--token-env`. Значение токена не является аргументом процесса,
-не входит в URL, машинную справку, результат или сообщение об ошибке. Ответы
-создания и списка также не содержат raw invitation token.
+`grant accept` obtains the invitation secret only from the environment variable
+named by `--token-env`. The token value is not a process argument and does not
+appear in a URL, machine help, output, or error message. Creation and list
+responses also do not contain the raw invitation token.
 
-Отзыв приглашения и отзыв действующего права — разные команды. Они не удаляют
-уже полученные локальные байты; актуальное состояние подтверждается через
-`grant list`. Все команды требуют действующую cloud session и используют общую
-проверку HTTPS endpoint без перенаправления bearer token другому authority.
+Revoking an invitation and revoking an active grant are separate commands. They
+do not delete already obtained local bytes; current state is confirmed through
+`grant list`. All commands require an active cloud session and use the common
+HTTPS endpoint check without redirecting the bearer token to another authority.

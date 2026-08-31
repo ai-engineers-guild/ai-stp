@@ -87,6 +87,6 @@ def test_release_platform_claim_matches_the_current_product_decision() -> None:
     if macos in classifier_sets[0] or windows in classifier_sets[0]:
         assert {macos, windows} <= classifier_sets[0]
     else:
-        assert "После exact evidence обновить package classifiers" in roadmap
-    assert "Linux, Windows и macOS" in roadmap
+        assert "update them after the evidence is complete" in roadmap
+    assert "Linux, Windows, and macOS" in roadmap
     assert "`x86_64`/`arm64`" in roadmap

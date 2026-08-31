@@ -1,92 +1,92 @@
 ---
-description: "Решение разделить постоянные CI- и deployment-раннеры, закрепить SSH identity и проверять публичный staging-маршрут."
+description: "Decision to separate persistent CI and deployment runners, pin the SSH identity, and verify the public staging route."
 last_verified: "2026-08-29"
 ---
 
-# ADR-0046: Раздельные домены доверия CI и staging deployment
+# ADR-0046: Separate CI and Staging Deployment Trust Domains
 
-Статус: принято; разделение trust domains действует полностью и от яруса
-staging никогда не зависело — цель развёртывания переименована в `ADR-0084`.
-Механизм роли CI пересмотрен после перехода на полностью эфемерные проверки;
-эта запись принадлежит приватной инфраструктуре и здесь не публикуется.
-Разделение доменов доверия и вся часть о развёртывании действуют без изменений.
+Status: accepted; the separation of trust domains remains fully applicable and
+never depended on the staging tier—the deployment target was renamed in `ADR-0084`.
+The CI role mechanism was revised after the move to fully ephemeral checks;
+that record belongs to private infrastructure and is not published here.
+The separation of trust domains and the entire deployment portion remain unchanged.
 
-Что действует в этом дереве: проверки исполняются на раннерах, размещённых
-GitHub, а не на постоянных self-hosted. Класс раннера ниже описан как контекст
-исходного выбора.
+What applies in this tree: checks run on GitHub-hosted runners, not persistent
+self-hosted ones. The runner class below is described as context for the original
+choice.
 
-## Контекст
+## Context
 
-Проверки pull request и автоматическое staging-развёртывание исполнялись на одном
-классе постоянных self-hosted runners. Код из pull request мог оставить на машине
-файл, процесс или изменение окружения, а следующий push в `dev` на той же машине
-получал SSH-ключ и сетевой доступ к staging. Ограничение `GITHUB_TOKEN` не устраняет
-состояние, пережившее job.
+Pull-request checks and automated staging deployment ran on the same class of
+persistent self-hosted runners. Code from a pull request could leave a file, process,
+or environment modification on the machine, and the next push to `dev` on that same
+machine would gain the SSH key and network access to staging. Restricting
+`GITHUB_TOKEN` does not eliminate state that survives a job.
 
-Тот же workflow отменял предыдущий run при новом push, хотя внутри deployment job
-была отдельная сериализация. Идентичность SSH-хоста принималась из текущего ответа
-`ssh-keyscan`, а post-deploy probe выполнялся на самом сервере через loopback и с
-отключённой проверкой TLS. Такой набор доказывал внутреннюю готовность контейнеров,
-но не пользовательский DNS/TLS-маршрут и не точный развёрнутый SHA.
+The same workflow canceled the previous run on a new push even though the deployment
+job had separate serialization. The SSH host identity was accepted from the current
+`ssh-keyscan` response, while the post-deploy probe ran on the server itself through
+loopback with TLS validation disabled. This combination proved internal container
+readiness, but not the user-facing DNS/TLS route or the exact deployed SHA.
 
-## Решение
+## Decision
 
-- CI использует только runners с ролью `guild-ai-stp-ci`; deployment — только
-  `guild-ai-stp-deploy`. Один runner, пользователь, filesystem или host не несёт обе
-  роли. CI-домен не получает deployment secrets и не имеет маршрута SSH к staging.
-- Deployment secrets принадлежат GitHub environment `staging`. Перед использованием
-  секретов job проверяет, что runner отличается от обоих runners проверки, а SHA
-  является ровно одним merge-коммитом разрешённого pull request в `dev`, actor и
-  исходная личная ветка входят в явные allowlists.
-- Отмена остаётся включённой только для pull request. Push-run не отменяется новым
-  push; задания deployment дополнительно сериализуются общей concurrency group и
-  host-side `flock`.
-- SSH доверяет только заранее закреплённому содержимому `known_hosts` из environment.
-  Сетевой ответ не создаёт корень доверия. Ротация ключа выполняется явным периодом
-  перекрытия старого и нового ключей.
-- До передачи дерева на сервер записывается durable marker точного SHA. Каждый
-  host-side этап атомарно обновляет marker; после прерывания следующий run
-  детерминированно повторяет идемпотентный forward path. Текущий и предыдущий
-  артефакты меняются только после успешной readiness.
-- Внутренняя проверка на хосте сохраняется. После неё deployment runner обращается к
-  обычному публичному HTTPS origin: без подмены DNS и без отключения TLS проверяет
-  публичные ответы проверки жизни, готовности и web, а также значения commit,
-  environment и единственную
-  head-ревизию схемы.
+- CI uses only runners with the `guild-ai-stp-ci` role; deployment uses only
+  `guild-ai-stp-deploy`. No single runner, user, filesystem, or host carries both
+  roles. The CI domain receives no deployment secrets and has no SSH route to staging.
+- Deployment secrets belong to the GitHub `staging` environment. Before using
+  secrets, the job verifies that its runner differs from both check runners, that the
+  SHA is exactly one merge commit of an allowed pull request into `dev`, and that the
+  actor and source personal branch are in explicit allowlists.
+- Cancellation remains enabled only for pull requests. A push run is not canceled by
+  a new push; deployment jobs are additionally serialized by a shared concurrency
+  group and host-side `flock`.
+- SSH trusts only the pre-pinned `known_hosts` content from the environment. A network
+  response does not create a root of trust. Key rotation uses an explicit overlap
+  period for the old and new keys.
+- Before the tree is transferred to the server, a durable marker for the exact SHA is
+  written. Every host-side stage atomically updates the marker; after interruption,
+  the next run deterministically repeats the idempotent forward path. The current and
+  previous artifacts change only after successful readiness.
+- The internal host check remains. After it, the deployment runner accesses the
+  ordinary public HTTPS origin: without DNS substitution or disabled TLS, it checks
+  public liveness, readiness, and web responses, as well as the commit, environment,
+  and single schema-head revision values.
 
-Self-hosted модель сохраняется: GitHub-hosted минуты для этих jobs не требуются.
+The self-hosted model remains: GitHub-hosted minutes are not required for these jobs.
 
-## Последствия
+## Consequences
 
-До включения workflow должны существовать физически раздельные runners и GitHub
-environment `staging`. Одной смены label недостаточно; конфигурация доказывается
-отрицательной проверкой общей машины и документированной инвентаризацией владельцев.
-Если обязательная переменная, pinned key, PR association или внешний probe недоступны,
-deployment закрывается отказом.
+Physically separate runners and the GitHub `staging` environment must exist before
+the workflow is enabled. Changing only the label is insufficient; configuration is
+proven by a negative shared-machine check and a documented owner inventory. If a
+required variable, pinned key, PR association, or external probe is unavailable,
+deployment fails closed.
 
-Развёртывание получает доступ к GitHub API только на чтение pull requests. Публичная
-диагностика уже принадлежит `SPEC-024` и не расширяется секретными полями. `.backups`,
-`.deploy-state` и host-only env исключаются из синхронизации дерева и не удаляются
-`rsync --delete`.
+Deployment receives read-only access to pull requests through the GitHub API. Public
+diagnostics already belong to `SPEC-024` and are not expanded with secret fields.
+`.backups`, `.deploy-state`, and host-only environment files are excluded from tree
+synchronization and are not deleted by `rsync --delete`.
 
-Порядок ввода: создать отдельные runner users/hosts и labels; создать environment и
-перенести туда secrets/variables; выполнить отрицательную isolation probe; только
-затем включать изменённый workflow. До этого patch не является готовым к merge.
+Rollout order: create separate runner users/hosts and labels; create the environment
+and move secrets/variables into it; run a negative isolation probe; only then enable
+the changed workflow. Until then, the patch is not ready to merge.
 
-## Условия пересмотра
+## Reconsideration Conditions
 
-Решение пересматривается при переходе на полностью ephemeral CI, отдельный deployment
-controller или оркестратор, который выдаёт краткоживущую identity вместо SSH-ключа.
+The decision will be reconsidered upon a move to fully ephemeral CI, a separate
+deployment controller, or an orchestrator that issues a short-lived identity instead
+of an SSH key.
 
-Обе половины этого условия наступили, и вторая — позже, чем здесь было записано.
+Both parts of this condition occurred, the second later than recorded here.
 
-Проверки ушли с постоянных self-hosted машин на эфемерные, а затем на раннеры,
-размещённые GitHub; решение о классе принадлежит приватной инфраструктуре и
-здесь не публикуется.
+Checks moved from persistent self-hosted machines to ephemeral ones, and then to
+GitHub-hosted runners; the runner-class decision belongs to private infrastructure
+and is not published here.
 
-Развёртывание перестало держать долгоживущий SSH-ключ: по `ADR-0103` цель сама
-забирает монотонный ref, а CI не получает ключа и не входит на сервер. Проверено
-в `.github/workflows/deploy.yml` — ни `ssh`, ни `scp`, ни `known_hosts`, ни
-приватного ключа; workflow продвигает ref и подтверждает, что хост доехал.
-Прежняя формулировка «по-прежнему держит долгоживущий SSH-ключ» была верна на
-момент записи и перестала быть верной, не будучи переписанной.
+Deployment stopped holding a long-lived SSH key: under `ADR-0103`, the target pulls
+a monotonic ref itself, while CI receives no key and does not log in to the server.
+Verified in `.github/workflows/deploy.yml`: there is no `ssh`, `scp`, `known_hosts`,
+or private key; the workflow advances the ref and confirms that the host caught up.
+The previous statement that it "still holds a long-lived SSH key" was true when
+written and later ceased to be true without being rewritten.

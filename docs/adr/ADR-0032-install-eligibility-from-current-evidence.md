@@ -1,43 +1,43 @@
 ---
-description: "Решение выводить пригодность версии к установке из актуальности обязательных доказательств без удалённого отключения целей."
+description: "Decision to derive version installation eligibility from the freshness of mandatory evidence without remotely disabling targets."
 last_verified: "2026-08-04"
 ---
 
-# ADR-0032: Пригодность к установке из актуальных доказательств
+# ADR-0032: Installation eligibility from current evidence
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-Правила уже описывали части жизненного цикла: бейдж `component_verified` снимается при истечении доказательства или ужесточении политики, состояние `blocked` запрещает новые установки, автономный клиент использует последнее известное состояние. Но единого правила, связывающего актуальность доказательств с правом на новую установку, не было: формулировка «может заблокировать новые установки» оставляла решение реализации.
+The rules already described parts of the lifecycle: the `component_verified` badge is removed when evidence expires or policy tightens, the `blocked` state prohibits new installations, and an offline client uses the last known state. But no single rule connected evidence freshness to permission for a new installation: the phrase "may block new installations" left the decision to the implementation.
 
-Из этого следуют два симметричных отказа. Либо новый пользователь ставит версию, у которой обязательные доказательства давно истекли или провалились, и бейдж честно снят, а установка почему-то разрешена. Либо клиент, перестраховавшись, отключает уже установленные цели — удалённое разрушение рабочих окружений, которого продукт обещал не делать.
+This creates two symmetric failures. Either a new user installs a version whose mandatory evidence expired long ago or failed, with the badge honestly removed but installation somehow allowed; or an overcautious client disables already installed targets—remote destruction of working environments that the product promised not to perform.
 
-## Варианты
+## Options
 
-1. Оставить блокировку ручным действием владельцев на каждый случай. Предсказуемо, но между истечением доказательства и ручным действием каталог раздаёт версию, которую сам не подтверждает.
-2. Автоматически отключать и установленные цели тоже. Последовательно, но это удалённое разрушение рабочих окружений — прямо запрещённое поведение.
-3. Вывести пригодность к установке из актуальности обязательных доказательств: будущие установки и обновления блокируются автоматически, установленные цели продолжают работать с предупреждением.
+1. Leave blocking as a manual owner action in every case. Predictable, but between evidence expiry and manual action the catalog distributes a version it no longer verifies.
+2. Automatically disable installed targets as well. Consistent, but this is remote destruction of working environments—explicitly prohibited behavior.
+3. Derive installation eligibility from mandatory-evidence freshness: automatically block future installations and updates while installed targets continue working with a warning.
 
-## Решение
+## Decision
 
-Принимается вариант 3.
+Option 3 is accepted.
 
-**Пригодность выводится, а не назначается.** Как только у версии нет актуального принятого доказательства `passed` по любой обязательной проверке — истечение, провал при перепроверке или ужесточение политики, — версия одновременно теряет `component_verified`, покидает линию `authoritative` и блокируется для новых установок и обновлений. Отдельного ручного шага для этого не требуется; ручное `blocked` остаётся отдельным действием модератора поверх этого правила.
+**Eligibility is derived, not assigned.** As soon as a version lacks current accepted `passed` evidence for any mandatory check—through expiry, revalidation failure, or policy tightening—the version simultaneously loses `component_verified`, leaves the `authoritative` trust line, and is blocked for new installations and updates. No separate manual step is required; manual `blocked` remains a separate moderator action layered over this rule.
 
-**Установленное продолжает работать.** Уже установленная цель не отключается и не удаляется удалённо; пользователь получает заметное предупреждение с причиной. Продукт не имеет удалённого выключателя целей.
+**Installed targets keep working.** An already installed target is neither disabled nor remotely deleted; the user receives a prominent warning with the reason. The product has no remote kill switch for targets.
 
-**Восстановление — новыми доказательствами, изменение — новой версией.** Автор восстанавливает пригодность, получив новый проходящий `ValidationSnapshot` для тех же неизменных байтов. Изменённые байты требуют новой версии; переиздание под старым номером остаётся запрещённым.
+**Restoration uses new evidence; change uses a new version.** The author restores eligibility by obtaining a new passing `ValidationSnapshot` for the same unchanged bytes. Changed bytes require a new version; republishing under the old version number remains prohibited.
 
-**Автономный клиент честен о давности.** Без сети используется последнее известное состояние пригодности со временем его проверки; первое обновление при появлении сети применяет текущее состояние. Устаревшее сведение не выдаётся за актуальное.
+**The offline client is honest about age.** Without network access, it uses the last known eligibility state together with its validation time; the first update after connectivity returns applies current state. Stale information is not presented as current.
 
-## Последствия
+## Consequences
 
-- `docs/contracts/validation-policy.md` получает раздел пригодности к установке;
-- `SPEC-007` получает требование единого вывода пригодности; `SPEC-005` связывает состояния жизненного цикла с этим правилом;
-- пользовательские пути описывают потерю доказательств как блокировку новых установок с работающей целью;
-- провайдеры не получают команд удалённого отключения: они лишь исполняют планы, которые `ai_stp` не создаст для непригодной версии.
+- `docs/contracts/validation-policy.md` receives an installation-eligibility section;
+- `SPEC-007` receives the requirement for a single eligibility derivation; `SPEC-005` binds lifecycle states to this rule;
+- user journeys describe loss of evidence as blocking new installations while the installed target keeps working;
+- providers receive no remote-disable command: they only execute plans, and `ai_stp` will not create a plan for an ineligible version.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается, если появится класс уязвимостей, при котором работающая установленная цель недопустима даже с предупреждением, — тогда обсуждается отдельный явный механизм с собственным решением, а не расширение этого правила.
+This decision will be reconsidered if a vulnerability class appears for which a running installed target is unacceptable even with a warning. That case requires a separate explicit mechanism and decision, not expansion of this rule.

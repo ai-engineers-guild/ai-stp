@@ -1,20 +1,20 @@
 ---
-description: "Решение: использовать версии x.y и major-line access."
+description: "Decision to use X.Y versions and major-line access."
 last_verified: "2026-08-03"
 ---
 
-# ADR-0004: Использовать версии X.Y и major-line access
+# ADR-0004: Use X.Y versions and major-line access
 
-Принято 2026-08-03.
+Accepted on 2026-08-03.
 
-## Контекст
+## Context
 
-Сетап закрепляет точные версии компонентов, а установка адресуется по digest. Плавающая версия или переиспользование номера сделали бы установку невоспроизводимой и лишили бы смысла доказательства проверок, привязанные к точному хэшу. Одновременно нужна граница будущего платного доступа, которая не ломает уже установленные сетапы.
+A setup pins exact component versions, while installation is addressed by digest. A floating version or reused number would make installation irreproducible and invalidate verification evidence tied to an exact hash. At the same time, a future paid-access boundary is needed that does not break already installed setups.
 
-## Решение
+## Decision
 
-Setup/Component version имеет формат `X.Y` и immutable content. Minor входит в ту же major-линию. Любое изменение exact component refs создаёт новую setup version. Major создаётся только после явного решения пользователя и является будущей access boundary.
+A Setup/Component version has the `X.Y` format and immutable content. A minor belongs to the same major line. Any change to exact component refs creates a new setup version. A major is created only after an explicit user decision and is a future access boundary.
 
-## Последствия
+## Consequences
 
-Версия хранится строкой, но сравнивается как два неотрицательных целых числа. Младшее увеличение вычисляется автоматически, основная линия — только по решению пользователя. Номер опубликованной версии не переиспользуется ни при каких обстоятельствах, а исправление выпускается новой версией. Major-линия становится единицей будущего платного доступа.
+The version is stored as a string but compared as two non-negative integers. A minor increment is computed automatically; a major line is created only by user decision. A published version number is never reused under any circumstances, and a correction is released as a new version. The major line becomes the unit of future paid access.

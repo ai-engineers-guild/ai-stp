@@ -1,71 +1,71 @@
 ---
-description: "SPEC-004: Индекс и паспорт проекта."
+description: "SPEC-004: Project index and passport."
 last_verified: "2026-08-03"
 ---
 
-# SPEC-004: Индекс и паспорт проекта
+# SPEC-004: Project Index and Passport
 
-## Цель
+## Purpose
 
-CLI детерминированно извлекает структуру выбранного проекта, достаточную для подбора и сборки сетапа. Обычная индексация не передаёт исходный код в облако и не превращает MVP в универсальную систему анализа программ.
+The CLI deterministically extracts enough structure from the selected project to select and compile a setup. Normal indexing does not send source code to the cloud or turn the MVP into a universal program-analysis system.
 
-## Границы
+## Scope
 
-Второй уровень охватывает идентификатор Git, манифесты, файлы блокировок, версии, фреймворки, команды, зависимости, границы рабочих областей, поверхности для агента и любой ограниченный безопасный текстовый файл внутри корня. Ограниченный третий уровень охватывает символы и связи Python, TypeScript/JavaScript, Rust, Go и Dart/Flutter. Граф вызовов, векторные представления и полный семантический граф не входят в MVP.
+Level two covers the Git identifier, manifests, lockfiles, versions, frameworks, commands, dependencies, workspace boundaries, agent-facing surfaces, and any bounded safe text file within the root. The limited third level covers symbols and relationships for Python, TypeScript/JavaScript, Rust, Go, and Dart/Flutter. Call graphs, vector representations, and a complete semantic graph are outside the MVP.
 
-## Термины
+## Terms
 
-- `Project` — устойчивый локальный идентификатор выбранного корня.
-- `discovery root` — каталог, внутри которого CLI ограниченно ищет кандидатов проектов и предлагает их пользователю.
-- `ProjectPassport` — структурированные факты и требования проекта.
-- `ProjectIndex` — ограниченные данные второго и необязательного третьего уровня на устройстве.
+- `Project` — a stable local identifier for the selected root.
+- `discovery root` — a directory within which the CLI performs a bounded search for project candidates and presents them to the user.
+- `ProjectPassport` — structured project facts and requirements.
+- `ProjectIndex` — bounded level-two and optional level-three data on the device.
 
-## Требования
+## Requirements
 
-- `REQ-401`: Пользователь явно выбирает точный корень проекта либо каталог обнаружения, внутри которого CLI предлагает кандидатов; весь домашний каталог не сканируется.
-- `REQ-402`: Пустая папка, пустой репозиторий Git или папка только с документацией классифицируется как новый проект.
-- `REQ-403`: Второй уровень извлекает манифесты, файлы блокировок, версии сред и инструментов, фреймворки, команды, зависимости, структуру рабочих областей и поверхности для агента.
-- `REQ-404`: Символьный индекс ограничен Python, TypeScript/JavaScript, Rust, Go и Dart/Flutter и возвращает модули и пакеты, публичные символы, точки входа, тестовые файлы со связью с исходником и импорты между локальными модулями.
-- `REQ-405`: Индексируется любой ограниченный безопасный текстовый файл внутри корня; структурный разбор применяется к известным форматам, для прочих сохраняются ограниченные метаданные, а ограничения размера, глубины и времени обязательны.
-- `REQ-406`: Файлы секретов, двоичное содержимое, внутренние каталоги системы контроля версий, каталоги поставщиков, кэша и генерируемых результатов, а также пути вне корня не индексируются.
-- `REQ-407`: Полный индекс принадлежит локальному устройству; облако получает только явно разрешённую сводку паспорта.
-- `REQ-408`: Повторное сканирование сохраняет устойчивый идентификатор проекта и создаёт новую ревизию.
-- `REQ-409`: Монорепозиторий является одним проектом с одним корнем; пакеты не создают проекты автоматически.
-- `REQ-410`: Вложенный репозиторий Git показывается отдельно и регистрируется только по явному выбору пользователя.
-- `REQ-411`: Граф вызовов, векторные представления, тела приватных символов, глобальный семантический граф и глубокий анализ потока данных в индекс не входят.
-- `REQ-412`: Неподдерживаемый язык возвращает `not_available` с причиной, а не частичный вымышленный индекс.
-- `REQ-413`: Внутри явно выбранного discovery root каждый Git repository обнаруживается независимо от глубины; `.git`-каталог и `.git`-файл worktree равноправны, resolved aliases не создают дублей.
-- `REQ-414`: Discovery сообщает исключения, symlink, ошибки доступа и достижение предела записей закрытыми diagnostics; access error или предел делают результат `complete=false`, а не пустым полным ответом.
-- `REQ-415`: Кандидаты и diagnostics имеют детерминированный порядок, редактированные пути, markers и причину происхождения; обнаружение ничего не регистрирует.
+- `REQ-401`: The user explicitly selects either the exact project root or a discovery directory within which the CLI presents candidates; the entire home directory is not scanned.
+- `REQ-402`: An empty directory, an empty Git repository, or a documentation-only directory is classified as a new project.
+- `REQ-403`: Level two extracts manifests, lockfiles, environment and tool versions, frameworks, commands, dependencies, workspace structure, and agent-facing surfaces.
+- `REQ-404`: The symbol index is limited to Python, TypeScript/JavaScript, Rust, Go, and Dart/Flutter and returns modules and packages, public symbols, entry points, test files linked to their source, and imports between local modules.
+- `REQ-405`: Any bounded safe text file within the root is indexed; structured parsing is applied to known formats, bounded metadata is retained for others, and limits on size, depth, and time are mandatory.
+- `REQ-406`: Secret files, binary content, internal version-control-system directories, vendor, cache, and generated-output directories, and paths outside the root are not indexed.
+- `REQ-407`: The full index belongs to the local device; the cloud receives only an explicitly allowed passport summary.
+- `REQ-408`: Rescanning preserves the stable project identifier and creates a new revision.
+- `REQ-409`: A monorepository is one project with one root; packages do not automatically create projects.
+- `REQ-410`: A nested Git repository is shown separately and registered only when explicitly selected by the user.
+- `REQ-411`: Call graphs, vector representations, private symbol bodies, a global semantic graph, and deep data-flow analysis are not included in the index.
+- `REQ-412`: An unsupported language returns `not_available` with a reason, rather than a partial fabricated index.
+- `REQ-413`: Within an explicitly selected discovery root, every Git repository is discovered regardless of depth; `.git` directories and `.git` worktree files are treated equally, and resolved aliases do not create duplicates.
+- `REQ-414`: Discovery reports exclusions, symlinks, access errors, and reaching the entry limit as closed diagnostics; an access error or limit makes the result `complete=false`, rather than an empty complete response.
+- `REQ-415`: Candidates and diagnostics have deterministic order, redacted paths, markers, and a provenance reason; discovery registers nothing.
 
-## Состояния и ошибки
+## States and errors
 
-Сканирование различает `new_project`, `indexed`, `partial`, `unsupported_language`, `resource_limited` и `failed`. Ошибка одного анализатора не уничтожает доказанные результаты других анализаторов, но итог не называется полным. Отмена и истечение времени сохраняют частичный отчёт без загрузки в облако.
+Scanning distinguishes `new_project`, `indexed`, `partial`, `unsupported_language`, `resource_limited`, and `failed`. The failure of one analyzer does not destroy proven results from other analyzers, but the overall result is not called complete. Cancellation and timeout preserve a partial report without uploading it to the cloud.
 
-## Безопасность и приватность
+## Security and privacy
 
-Нормализация путей выполняется до чтения. Выход через символическую ссылку, архивная бомба и чрезмерно большой файл блокируются. Закрытый исходный код не отправляется на сервер при обычной индексации. Сообщения об ошибках скрывают домашние пути и секретные значения.
+Paths are normalized before reading. Symlink escape, archive bombs, and excessively large files are blocked. Private source code is not sent to the server during normal indexing. Error messages redact home paths and secret values.
 
-## Совместимость и миграция
+## Compatibility and migration
 
-Каждый извлекатель и адаптер LSP имеет версию. Новый извлекатель не меняет смысл прежнего поля без повышения версии схемы. Сброс кэша и индекса привязан к ревизии источника, версии инструмента и хэшу конфигурации.
+Each extractor and LSP adapter has a version. A new extractor does not change the meaning of an existing field without a schema version increase. Cache and index invalidation is tied to the source revision, tool version, and configuration hash.
 
-## Критерии приёмки
+## Acceptance criteria
 
-| Требование | Исполнимый способ проверки |
+| Requirement | Executable verification method |
 |---|---|
-| `REQ-401` | Отрицательный тест доказывает отсутствие чтения соседних и домашних путей за пределами выбранного корня. |
-| `REQ-402` | Фикстуры пустой, только Git и только документации получают `new_project`. |
-| `REQ-403` | Фикстуры нескольких экосистем подтверждают версии, команды и поверхности для агента. |
-| `REQ-404` | Контрактные фикстуры пяти экосистем дают одинаковую форму результата по каждому виду записи. |
-| `REQ-405` | Смешанное дерево расширений индексируется целиком, а пределы размера, глубины и времени соблюдаются. |
-| `REQ-406` | Фикстуры секретов, двоичных файлов, поставщиков, кэша, генерируемых результатов и ссылок отсутствуют в индексе. |
-| `REQ-407` | Проверка синхронизации передаёт только разрешённую сводку и не передаёт исходный код. |
-| `REQ-408` | Повторное сканирование сохраняет идентификатор проекта и меняет хэш ревизии. |
-| `REQ-409` | Фикстура монорепозитория даёт один проект и не создаёт проект на каждый пакет. |
-| `REQ-410` | Фикстура вложенного репозитория не регистрируется без явного выбора. |
-| `REQ-411` | Проверка формы результата отклоняет поля графа вызовов, векторов и тел приватных символов. |
-| `REQ-412` | Фикстура неподдерживаемого языка возвращает `not_available` с причиной. |
-| `REQ-413` | Фикстура глубже прежнего предела содержит обычный repository, worktree и вложенный repository; каждый появляется один раз с правильным kind. |
-| `REQ-414` | Фикстуры excluded, symlink, unreadable и entry limit показывают diagnostics; последние две дают `complete=false`. |
-| `REQ-415` | Перестановка порядка создания дерева не меняет machine output; снимок файловой системы и registry до и после совпадает. |
+| `REQ-401` | A negative test proves that neighboring and home paths outside the selected root are not read. |
+| `REQ-402` | Empty, Git-only, and documentation-only fixtures receive `new_project`. |
+| `REQ-403` | Multi-ecosystem fixtures confirm versions, commands, and agent-facing surfaces. |
+| `REQ-404` | Contract fixtures for five ecosystems produce the same result shape for each record kind. |
+| `REQ-405` | A mixed extension tree is indexed in full while size, depth, and time limits are enforced. |
+| `REQ-406` | Secret, binary, vendor, cache, generated-output, and symlink fixtures are absent from the index. |
+| `REQ-407` | A synchronization check transmits only the allowed summary and does not transmit source code. |
+| `REQ-408` | Rescanning preserves the project identifier and changes the revision hash. |
+| `REQ-409` | A monorepository fixture produces one project and does not create a project for each package. |
+| `REQ-410` | A nested-repository fixture is not registered without explicit selection. |
+| `REQ-411` | A result-shape check rejects fields for call graphs, vectors, and private symbol bodies. |
+| `REQ-412` | An unsupported-language fixture returns `not_available` with a reason. |
+| `REQ-413` | A fixture deeper than the former limit contains a regular repository, a worktree, and a nested repository; each appears once with the correct kind. |
+| `REQ-414` | Fixtures for excluded, symlink, unreadable, and entry limit show diagnostics; the last two produce `complete=false`. |
+| `REQ-415` | Changing the tree creation order does not change machine output; filesystem and registry snapshots match before and after. |

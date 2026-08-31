@@ -1,190 +1,214 @@
 ---
-description: "Манифест, доверие, проверка и защита от отката выпуска провайдера."
+description: "Provider release manifest, trust, verification, and rollback protection."
 last_verified: "2026-08-25"
 ---
 
-# Выпуск провайдера
+# Provider release
 
-## Манифест
+## Manifest
 
-Манифест выпуска содержит:
+The release manifest contains:
 
-- `provider_id`, версию провайдера и версию протокола;
-- точный публичный репозиторий, коммит и лицензию;
-- адрес, размер и SHA-256 артефакта;
-- точку входа и поддерживаемые системы и архитектуры;
-- требования среды;
-- монотонный номер последовательности;
-- идентификатор политики доверия;
-- `signing_key`, предмет подписи и Ed25519-подпись канонического манифеста.
+- `provider_id`, the provider version, and the protocol version;
+- the exact public repository, commit, and license;
+- the artifact address, size, and SHA-256;
+- the entry point and supported systems and architectures;
+- environment requirements;
+- a monotonic sequence number;
+- the trust policy identifier;
+- `signing_key`, the signature subject, and the Ed25519 signature of the
+  canonical manifest.
 
-## Уровень доверия
+## Trust level
 
-Machine output сообщает `provider_release_trust` одним из четырёх значений:
+Machine output reports `provider_release_trust` as one of four values:
 
-- `verified_publisher` — exact bytes проверены подписью или build attestation, а издатель закреплён локальной политикой как verified;
-- `signed` — exact bytes и manifest проверены разрешённым Ed25519 key;
-- `build_attested` — точные байты связаны GitHub/Sigstore attestation с разрешёнными репозиторием, исходным commit и выпускающим workflow;
-- `unverified` — ни один доверенный путь не завершён.
+- `verified_publisher` — exact bytes are verified by a signature or build
+  attestation, and the publisher is pinned as verified by local policy;
+- `signed` — exact bytes and manifest are verified by an allowed Ed25519 key;
+- `build_attested` — exact bytes are bound by a GitHub/Sigstore attestation to
+  an allowed repository, source commit, and release workflow;
+- `unverified` — no trusted path has completed.
 
-Удалённый badge, имя издателя и управляемые workflow поля не повышают уровень без криптографической проверки exact bytes. Совместимое `provider_release_trusted` равно `provider_release_trust != unverified`.
+A remote badge, publisher name, and managed workflow fields do not raise the
+level without cryptographic verification of exact bytes. The compatibility
+value `provider_release_trusted` equals
+`provider_release_trust != unverified`.
 
-Поставляемая политика помечает правила `build_attestations` для
-`NDDev-OpenNetwork/*-setup-system` как `verified_publisher`. После успешной
-проверки GitHub attestation уровень становится `verified_publisher`, а не
-`build_attested`. Манифест, чей `repository` входит в эти правила, проверяется
-attestation-путём; `provider-build-attestation` остаётся явной формой того же
-выбора. Пустой перечень `releases` по-прежнему ничего не устанавливает по
-Ed25519-пути: байты OpenNetwork туда не заносятся.
+The shipped policy marks `build_attestations` rules for
+`NDDev-OpenNetwork/*-setup-system` as `verified_publisher`. After successful
+GitHub attestation verification, the level becomes `verified_publisher`, not
+`build_attested`. A manifest whose `repository` matches these rules is verified
+through the attestation path; `provider-build-attestation` remains an explicit
+form of the same choice. An empty `releases` list still installs nothing through
+the Ed25519 path: OpenNetwork bytes are not added there.
 
-## Политика доверия
+## Trust policy
 
-Клиент принимает выпуск только по локально закреплённой политике. Политика определяет допустимый издатель или ключ, репозиторий, процесс выпуска, предмет подписи, версию схемы, минимальную последовательность и точный перечень одобренных выпусков. Значение из загруженного манифеста не расширяет этот список.
+The client accepts a release only under locally pinned policy. The policy
+defines the allowed publisher or key, repository, release process, signature
+subject, schema version, minimum sequence, and exact list of approved releases.
+A value from the downloaded manifest does not expand this list.
 
-Текущая схема v2 использует Ed25519 public key, закреплённый локальной политикой по
-идентификатору `signing_key`. Подписываются RFC 8785 bytes всех полей манифеста,
-кроме самой подписи, внутри домена `signature_subject`. Простое наличие строки
-подписи, key id или корректной подписи неизвестным ключом недостаточно. Безключевая
-attestation требует отдельной версионированной схемы и не интерпретируется как v2.
+The current v2 schema uses an Ed25519 public key pinned by local policy under
+the `signing_key` identifier. RFC 8785 bytes of all manifest fields except the
+signature itself are signed within the `signature_subject` domain. The mere
+presence of a signature string, key id, or a valid signature by an unknown key
+is insufficient. Keyless attestation requires a separate versioned schema and
+is not interpreted as v2.
 
-TOML политики также является закрытым входом: все поля схемы v2 обязательны,
-неизвестные поля, нестроковые имена/значения, boolean вместо integer, отрицательный
-floor, повторы и разрешённый key id без закреплённого public material отклоняются.
+Policy TOML is also a closed input: all v2 schema fields are required; unknown
+fields, non-string names/values, a boolean in place of an integer, a negative
+floor, duplicates, and an allowed key id without pinned public material are
+rejected.
 
-`releases` перечисляет одобренные выпуски. Каждая запись содержит ровно
-`provider_id`, `repository` и exact SHA-256 `artifact_digest`; плавающее или
-недотипизированное значение не становится trust anchor из-за преобразования типа.
-Digest закрепляется вместе с тем, кто вправе его предъявить: одни и те же
-одобренные байты под чужим `provider_id` установили бы провайдера одного харнесса
-под именем другого, а манифест с таким утверждением может быть безупречно подписан.
-Один digest не может принадлежать двум записям, а `repository` записи обязан входить
-в `allowed_repositories`.
+`releases` lists approved releases. Each entry contains exactly `provider_id`,
+`repository`, and an exact SHA-256 `artifact_digest`; a floating or incorrectly
+typed value does not become a trust anchor through type conversion. The digest
+is pinned together with who may present it: the same approved bytes under
+another `provider_id` would install one harness's provider under another's name,
+and a manifest making that assertion may be impeccably signed. One digest cannot
+belong to two entries, and an entry's `repository` MUST be included in
+`allowed_repositories`.
 
-Схема v1 закрепляла digests без этой привязки. Сборка, применяющая привязку, не
-читает такую политику: ей пришлось бы додумать, какому провайдеру принадлежит
-каждый digest, а придуманный trust anchor — ровно тот отказ, который эта схема
-предотвращает.
+Schema v1 pinned digests without this binding. A build that enforces the binding
+does not read such a policy: it would have to invent which provider owns each
+digest, and an invented trust anchor is exactly the failure this schema
+prevents.
 
-JSON манифеста является закрытым: корень обязан быть объектом, все поля обязательны,
-неизвестные и повторные имена запрещены, строки не подменяются числами, boolean не
-принимается как integer, а массивы платформ содержат только уникальные непустые
-строки. Структурный отказ происходит до проверки подписи и запуска провайдера.
+Manifest JSON is closed: the root MUST be an object, all fields are required,
+unknown and duplicate names are prohibited, strings are not replaced by
+numbers, a boolean is not accepted as an integer, and platform arrays contain
+only unique, non-empty strings. Structural rejection occurs before signature
+verification and provider execution.
 
-## Проверка
+## Verification
 
-До установки клиент проверяет канонизацию манифеста, подпись, источник, хэш, размер, принадлежность закреплённому перечню выпусков, платформу, протокол, последовательность и отзыв. Затем артефакт распаковывается в новый каталог с ограничениями путей и размеров и проходит `provider-info` и диагностику.
+Before installation, the client verifies manifest canonicalization, signature,
+source, hash, size, membership in the pinned release list, platform, protocol,
+sequence, and revocation. The artifact is then unpacked into a new directory
+under path and size limits and passes `provider-info` and diagnostics.
 
-Принадлежность — отдельная проверка, и её не делает подпись. Подпись доказывает,
-что манифест исходит от держателя разрешённого ключа и не изменён после;
-она ничего не говорит о том, решал ли кто-нибудь установить именно этот выпуск.
-Ошибочная публикация и подписывающий ключ в чужих руках дают выпуск, проходящий
-издателя, репозиторий, ключ, байты, платформу и последовательность. Пустой перечень
-означает, что устанавливать нечего: список одобренных байт, который при пустоте
-одобряет всё, не является ограничением.
+Membership is a separate check and is not established by the signature. A
+signature proves that the manifest came from the holder of an allowed key and
+has not changed since; it says nothing about whether anyone decided to install
+this particular release. An erroneous publication and a signing key in another
+party's hands produce a release that passes publisher, repository, key, bytes,
+platform, and sequence checks. An empty list means there is nothing to install:
+a list of approved bytes that approves everything when empty is not a
+constraint.
 
-## Провайдер без подписанного выпуска
+## Provider without a signed release
 
-Протокол v3 устанавливается из выпуска с манифестом: подписанного Ed25519 либо
-attested для репозитория из `build_attestations`. `install plan` с
-`protocol-version = 3` без `provider-manifest` отклоняется, если вызывающий не
-указал `unverified-provider` явно. Следующие действия называют `provider fetch`
-как способ получить закрытый манифест, когда издатель его не приложил.
+Protocol v3 is installed from a release with a manifest: either Ed25519-signed
+or attested for a repository in `build_attestations`. An `install plan` with
+`protocol-version = 3` and no `provider-manifest` is rejected unless the caller
+explicitly specifies `unverified-provider`. Subsequent actions name
+`provider fetch` as the way to obtain a closed manifest when the publisher did
+not supply one.
 
-`provider fetch` материализует этот JSON из attested-байтов, exact tag,
-source commit и `provider-info` исполняемого файла. Sequence кодируется из
-exact semver-тега `X.Y.Z` как `1_000_000 * X + 1_000 * Y + Z`; необязательный
-префикс `v` отбрасывается, тег `latest` и pre-release отклоняются.
-`signing_key` равен `attested`, подпись пустая: такой манифест не проходит
-Ed25519-путь и принимается только `verify_attested`. Это не второй trust
-anchor и не заносит байты в `releases`. Исполняемый файл не запускается до
-успешной проверки GitHub attestation.
+`provider fetch` materializes this JSON from attested bytes, the exact tag,
+source commit, and executable `provider-info`. Sequence is encoded from the
+exact semver tag `X.Y.Z` as `1_000_000 * X + 1_000 * Y + Z`; an optional `v`
+prefix is removed, while the `latest` tag and prereleases are rejected.
+`signing_key` equals `attested`, and the signature is empty: such a manifest
+does not pass the Ed25519 path and is accepted only by `verify_attested`. This is
+not a second trust anchor and does not add bytes to `releases`. The executable
+is not run before successful GitHub attestation verification.
 
-Установка непроверенным провайдером остаётся возможной. Запрет не убрал бы это
-действие, а вынес бы его за пределы инструмента, где его никто не записывает, и
-человек, запускающий только что собранный им провайдер, не является той угрозой,
-ради которой существует закреплённая политика. Меняется другое: это перестаёт
-происходить по умолчанию. План при этом сообщает `provider_release_trusted`
-равным `false`, и одобрение даётся против дайджеста плана, который это говорит.
+Installation with an unverified provider remains possible. Prohibiting it would
+not remove the action, but would move it outside the tool where nobody records
+it, and a person running a provider they have just built is not the threat for
+which pinned policy exists. What changes is that this no longer happens by
+default. The plan reports `provider_release_trusted` as `false`, and approval is
+given against the plan digest that states this.
 
-Правило относится к изменяющему пути. `install target-status` и `diff`
-запускают исполняемый файл, названный вызывающим, чтобы наблюдать, и ничего не
-устанавливают; граница доверия выпуска охраняет то, что записывается в харнесс.
+The rule applies to the mutating path. `install target-status` and `diff` run the
+caller-named executable to observe and install nothing; the release trust
+boundary protects what is written into the harness.
 
-Протоколы v1 и v2 предшествуют линии подписанных выпусков и правилом не
-затрагиваются.
+Protocols v1 and v2 predate the signed-release line and are unaffected by the
+rule.
 
-## Защита от отката
+## Rollback protection
 
-Клиент хранит в локальном registry монотонный floor и append-only историю точных
-`provider_id + sequence + artifact_digest`. Значение не принимается от CLI caller.
-Более старый выпуск отклоняется, если пользователь не выбрал отдельную подтверждённую
-операцию восстановления на exact digest, который эта машина уже проверяла. Новый
-digest на старой последовательности не становится recovery, а одна последовательность
-не может быть повторно связана с другими байтами.
+The client stores a monotonic floor and append-only history of exact
+`provider_id + sequence + artifact_digest` in the local registry. The value is
+not accepted from the CLI caller. An older release is rejected unless the user
+chooses a separate confirmed recovery operation for an exact digest already
+verified by this machine. A new digest at an old sequence does not become
+recovery, and one sequence cannot be rebound to different bytes.
 
-Такое восстановление задаётся только флагом `--provider-release-recovery` вместе с
-точным `--provider-manifest`. Решение, канонический манифест и его подпись входят в
-неизменяемый дайджест плана; обычный `action=rollback` относится к целевому сетапу и
-не ослабляет anti-rollback политику провайдера.
+Such recovery is specified only by `--provider-release-recovery` together with
+an exact `--provider-manifest`. The decision, canonical manifest, and its
+signature are included in the immutable plan digest; ordinary `action=rollback`
+applies to the target setup and does not relax the provider anti-rollback policy.
 
-Доверенный путь установки перед первым запуском провайдера проверяет подпись,
-идентификатор политики, принадлежность закреплённому перечню, платформу и точные
-байты исполняемого файла, сохраняет
-канонический манифест внутри дайджеста плана и повторяет проверку политики и байтов
-перед `apply`. Для attested-выпуска сохранённый JSON ответа
-`gh attestation verify --format=json` повторно проверяется через `gh --bundle`
-по извлечённому Sigstore bundle, а не по обёртке GitHub CLI. История продвигается
-атомарно только вместе с состоянием операции
-`verified`. Сбой записи истории откатывает `verified`, оставляя
-операцию в `applied_unverified`. Команда диагностической проверки манифеста читает
-минимальную допустимую последовательность, но не записывает её: одно чтение манифеста
-не является установкой.
+Before the provider's first execution, the trusted installation path verifies
+the signature, policy identifier, membership in the pinned list, platform, and
+exact executable bytes, preserves the canonical manifest within the plan
+digest, and repeats policy and byte verification before `apply`. For an attested
+release, the stored JSON response from
+`gh attestation verify --format=json` is reverified with `gh --bundle` against
+the extracted Sigstore bundle rather than against the GitHub CLI wrapper.
+History advances atomically only together with operation state `verified`. A
+history write failure rolls back `verified`, leaving the operation in
+`applied_unverified`. The diagnostic manifest-verification command reads the
+minimum permitted sequence but does not write it: merely reading a manifest is
+not installation.
 
-## Смена и отзыв ключей
+## Key rotation and revocation
 
-Смена ключа использует период перекрытия, в котором новая политика доверяет старому и новому ключу. Отзыв блокирует новые установки и обновления, но не удаляет действующие цели автоматически. Компрометация требует новой политики, списка затронутых выпусков и инструкции восстановления.
+Key rotation uses an overlap period in which the new policy trusts both the old
+and new keys. Revocation blocks new installations and updates but does not
+automatically remove active targets. Compromise requires a new policy, a list of
+affected releases, and recovery instructions.
 
-## Автономная работа
+## Offline operation
 
-Автономно разрешён только ранее проверенный артефакт из локального кэша, который удовлетворяет текущей политике и не отозван. Значение `latest` и плавающий адрес не используются.
+Offline operation permits only a previously verified artifact from the local
+cache that satisfies current policy and has not been revoked. The value `latest`
+and a floating address are not used.
 
-## Отказы
+## Failures
 
-Перечень закрыт. Каждый отказ имеет устойчивый код, не меняющийся вместе с
-текстом сообщения:
+The list is closed. Each failure has a stable code that does not change with the
+message text:
 
-| Код | Когда возникает |
+| Code | When it occurs |
 |---|---|
-| `policy_schema_unsupported` | версия схемы политики не читается этой сборкой |
-| `policy_id_mismatch` | манифест ссылается не на локально закреплённую policy line |
-| `publisher_not_allowed` | издатель не входит в закреплённую политику |
-| `key_unknown` | ключ подписи не входит в закреплённую политику |
-| `key_revoked` | ключ отозван |
-| `repository_not_allowed` | репозиторий не входит в закреплённую политику |
-| `signature_missing` | выпуск не несёт предмета подписи |
-| `signature_subject_mismatch` | подпись покрывает не то, что требует политика |
-| `signature_invalid` | подпись не декодируется или не проверяется над каноническим манифестом |
-| `key_material_invalid` | закреплённый public key не является корректным Ed25519 material |
-| `artifact_reference_floating` | адрес или хэш артефакта не называют точные байты |
-| `release_not_pinned` | выпуск не входит в закреплённый перечень для этого провайдера и репозитория |
-| `digest_mismatch` | загруженный артефакт не тот, что назван манифестом |
-| `size_mismatch` | размер загруженного артефакта не совпадает с манифестом |
-| `platform_unsupported` | выпуск не поддерживает эту систему или архитектуру |
-| `protocol_unsupported` | версия протокола вне разрешённых политикой |
-| `sequence_rollback` | последовательность ниже уже установленной |
-| `recovery_artifact_unverified` | восстановление называет exact digest, которого нет в локальной verified history |
-| `sequence_below_minimum` | последовательность ниже минимума политики |
+| `policy_schema_unsupported` | the policy schema version cannot be read by this build |
+| `policy_id_mismatch` | the manifest refers to a policy line other than the locally pinned one |
+| `publisher_not_allowed` | the publisher is not included in the pinned policy |
+| `key_unknown` | the signing key is not included in the pinned policy |
+| `key_revoked` | the key has been revoked |
+| `repository_not_allowed` | the repository is not included in the pinned policy |
+| `signature_missing` | the release does not carry a signature subject |
+| `signature_subject_mismatch` | the signature covers something other than what the policy requires |
+| `signature_invalid` | the signature cannot be decoded or does not verify over the canonical manifest |
+| `key_material_invalid` | the pinned public key is not valid Ed25519 material |
+| `artifact_reference_floating` | the artifact address or hash does not identify exact bytes |
+| `release_not_pinned` | the release is not in the pinned list for this provider and repository |
+| `digest_mismatch` | the downloaded artifact is not the artifact named by the manifest |
+| `size_mismatch` | the downloaded artifact size does not match the manifest |
+| `platform_unsupported` | the release does not support this system or architecture |
+| `protocol_unsupported` | the protocol version is outside the range allowed by policy |
+| `sequence_rollback` | the sequence is lower than the one already installed |
+| `recovery_artifact_unverified` | recovery names an exact digest absent from local verified history |
+| `sequence_below_minimum` | the sequence is below the policy minimum |
 
-Проверяются все, а не до первого отказа: выпуск, проваливший четыре проверки и
-прошедший одну, не является доверенным на четыре пятых.
+All checks are performed, not only until the first failure: a release that fails
+four checks and passes one is not four-fifths trusted.
 
-Нечитаемая схема политики останавливает остальные проверки: правило доверия,
-применённое наполовину, выглядит как чьё-то решение.
+An unreadable policy schema stops the remaining checks: a trust rule applied
+only halfway looks like someone's decision.
 
-Отклонённый выпуск не двигает счётчик последовательности. Иначе каждый отказ
-облегчал бы следующий откат.
+A rejected release does not advance the sequence counter. Otherwise, every
+rejection would make the next rollback easier.
 
-Восстановление не опускается ниже минимума политики. Минимум, поднятый после
-компрометации, отдельной машине переступать нечем.
+Recovery cannot go below the policy minimum. A separate machine has no way to
+cross a minimum raised after a compromise.
 
-Обновление провайдера не обновляет пользовательские цели и сетапы. Новая версия устанавливается рядом со старой; текущий указатель меняется после диагностики, а прошлая версия сохраняется для возврата.
+Updating the provider does not update user targets or setups. The new version is
+installed alongside the old one; the current pointer changes after diagnostics,
+and the previous version is preserved for rollback.

@@ -1,39 +1,39 @@
 ---
-description: "Решение закрепить версионируемую политику доверия к выпускам провайдеров."
+description: "Decision to establish a versioned trust policy for provider releases."
 last_verified: "2026-08-03"
 ---
 
-# ADR-0011: Политика доверия к выпускам провайдеров
+# ADR-0011: Provider release trust policy
 
-Статус: принято.
-Расширено `ADR-0121`: доверие к выпуску провайдера получает четыре уровня вместо двоичного.
+Status: accepted.
+Extended by `ADR-0121`: provider release trust has four levels instead of a binary value.
 
-## Контекст
+## Context
 
-Провайдеры распространяются отдельно от `ai_stp` и получают право изменять исполнимую среду и целевой каталог харнесса. Хэш подтверждает целостность только относительно уже полученного манифеста. Произвольная подпись также не доказывает разрешённого издателя без закреплённой политики.
+Providers are distributed separately from `ai_stp` and gain authority to modify a harness's executable environment and target directory. A hash confirms integrity only relative to a manifest that has already been obtained. An arbitrary signature also does not prove an authorized publisher without an established policy.
 
-## Варианты
+## Options
 
-1. Проверять только SHA-256. Подмена манифеста остаётся неразличимой.
-2. Доверять ключу, указанному в манифесте. Недоверенный артефакт сам назначает себе доверие.
-3. Закрепить один постоянный ключ без процедуры смены. Простая проверка создаёт хрупкую точку компрометации.
-4. Использовать версионируемую политику, которая заранее задаёт разрешённый ключ или издателя, источник, контекст выпуска, смену, отзыв и защиту от отката.
+1. Verify only SHA-256. Manifest substitution remains indistinguishable.
+2. Trust the key specified in the manifest. An untrusted artifact assigns trust to itself.
+3. Pin one permanent key without a rotation procedure. Simple verification creates a fragile point of compromise.
+4. Use a versioned policy that defines the authorized key or publisher, source, release context, rotation, revocation, and rollback protection in advance.
 
-## Решение
+## Decision
 
-Используется четвёртый вариант. Каждый выпуск проверяется по локально закреплённой политике доверия. Политика задаёт разрешённый ключ либо проверяемого издателя, репозиторий, процесс выпуска, предмет подписи, допустимые версии схемы и минимальную последовательность.
+The fourth option is used. Every release is verified against a locally pinned trust policy. The policy defines an authorized key or verifiable publisher, repository, release process, signature subject, allowed schema versions, and minimum sequence.
 
-Клиент принимает ключевую или безключевую подпись только если проверяющий подтверждает все ограничения политики. Манифест не может расширить доверенный список. Более старая последовательность блокируется, кроме отдельного подтверждённого возврата на ранее установленную проверенную версию.
+The client accepts a key-based or keyless signature only when the verifier confirms every policy constraint. A manifest cannot expand the trusted list. An older sequence is blocked except for a separately confirmed rollback to a previously installed verified version.
 
-## Последствия
+## Consequences
 
-- требуется версионируемый контракт политики и манифеста выпуска;
-- смена ключа использует период перекрытия;
-- отзыв блокирует новые установки, но не удаляет цели автоматически;
-- компрометация требует публикации новой политики и списка затронутых выпусков;
-- `ai_stp`, публичные провайдеры и закрытый контур проверок используют одни эталонные векторы;
-- автономный режим принимает только ранее проверенный кэш.
+- a versioned policy and release-manifest contract is required;
+- key rotation uses an overlap period;
+- revocation blocks new installations but does not automatically delete targets;
+- compromise requires publication of a new policy and a list of affected releases;
+- `ai_stp`, public providers, and the closed verification circuit use the same reference vectors;
+- offline mode accepts only a previously verified cache.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается при смене системы выпуска, появлении аппаратного корня доверия, изменении модели распространения или доказанной невозможности безопасной смены и отзыва выбранного механизма.
+The decision is reconsidered if the release system changes, a hardware root of trust appears, the distribution model changes, or safe rotation and revocation of the chosen mechanism proves impossible.

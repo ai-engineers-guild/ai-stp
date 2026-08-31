@@ -1,43 +1,44 @@
 ---
-description: "Публичный снимок совместимости семи provider systems и ai_stp."
+description: "Public compatibility snapshot for seven provider systems and ai_stp."
 last_verified: "2026-08-31"
 ---
 
-# Состояние интеграции provider systems
+# Provider integration state
 
-Pins принадлежат provider policy/manifests, нормативная wire boundary —
-`docs/contracts/provider-protocol.md`. Здесь перечислены только публично
-проверяемые release/capability/evidence facts.
+Pins belong to provider policy/manifests; the normative wire boundary is
+`docs/contracts/provider-protocol.md`. This page lists publicly verifiable
+release, capability, and evidence facts.
 
 ## Active release
 
-Active public tag семи `NDDev-OpenNetwork/*-setup-system` — `0.0.48`. Каждый
-release содержит шесть native binaries и `SHA256SUMS`, прочитанные обратно из
-GitHub.
+The active public tag for the seven `NDDev-OpenNetwork/*-setup-system`
+repositories is `0.0.48`. Each release contains six native binaries and
+`SHA256SUMS`, read back from GitHub.
 
 ## Capabilities
 
-- core configuration binary/provider-info существует на шести OS/arch строках
-  у всех семи;
-- software install/update/remove доступен 6/6 у всех семи систем;
-- complete launch объявляют Claude Code, Codex, Grok Build, OpenCode и Pi;
-  Cursor/Antigravity launch не объявляют;
-- provider-kit `0.2.7` публикует closed status-response schema; consumer
-  валидирует весь envelope против неё на единственной границе вызова.
+- Core configuration binary/provider-info exists on six OS/architecture lines
+  for all seven systems.
+- Software install/update/remove is available 6/6 for all seven systems.
+- Claude Code, Codex, Grok Build, OpenCode, and Pi declare complete launch;
+  Cursor and Antigravity do not.
+- Provider-kit `0.2.7` publishes a closed status-response schema; the consumer
+  validates the complete envelope at the single invocation boundary.
 
 ## Evidence
 
-Exact-current provider plan/digest/apply/update/rollback операции прошли 6/6 у
-всех семи systems. Pi oracle сравнивает pre/post launch output, потому что оба
-exact vendor releases на Windows отвечают `0.0.0` на `--version`.
+Exact-current provider plan/digest/apply/update/rollback operations passed 6/6
+for all seven systems. The Pi oracle compares pre/post launch output because
+both exact vendor releases return `0.0.0` for `--version` on Windows.
 
-Все три ОС запрещают сеть устройством: Linux — Bubblewrap, Windows —
-AppContainer, macOS — системный `sandbox-exec` после нативной transport probe.
-Без executable или proof локальная фаза отказывается и trust exception нет.
+All three operating systems deny network access by device: Linux uses
+Bubblewrap, Windows AppContainer, and macOS the system `sandbox-exec` after a
+native transport probe. Without an executable or proof, the local phase fails
+closed; there is no trust exception.
 
-Filesystem boundary одинакова на всех трёх: writable только target и явно
-названные вызывающим пути.
+The filesystem boundary is the same on all three: writable only at the target
+and explicitly named caller paths.
 
-Provider implementation/release и consumer enforcement — отдельные commits и
-границы изменений. Consumer enforcement schema ответа `status` выполнен;
-следующий шаг — cross-repository evidence на consumer path.
+Provider implementation/release and consumer enforcement are separate commits
+and change boundaries. The consumer status-response enforcement schema is
+complete; the next step is cross-repository evidence on the consumer path.

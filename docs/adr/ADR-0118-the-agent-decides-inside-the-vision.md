@@ -1,183 +1,183 @@
 ---
-description: "Решение считать выбор варианта, публикацию и продвижение кода частью полномочий агента, оставив отдельным решением только необратимое и внешнее."
+description: "Decision to treat option selection, publication, and code promotion as part of the agent's authority, reserving a separate decision only for irreversible and external actions."
 last_verified: "2026-08-30"
 ---
 
-# ADR-0118: Агент решает внутри вижена
+# ADR-0118: The agent decides within the vision
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-`ADR-0115` снял защиты с людей, работающих в репозитории: гейт проверяет
-изменение, а одобрение проверяло бы разрешение. Та же линия не была проведена
-в разделе «Полномочия агента» в `AGENTS.md`, и он остался списком из восьми
-поводов остановиться и спросить.
+`ADR-0115` removed protections from people working in the repository: the gate
+checks the change, while approval would check permission. The same line was not
+carried through the "Agent authority" section of `AGENTS.md`, which remained a
+list of eight reasons to stop and ask.
 
-Два повода из восьми оказались дорогими:
+Two of the eight reasons proved costly:
 
-- **«невыбранный вариант, который меняет результат»** — под это подходит почти
-  любая инженерная развилка;
-- **«Git push, PR, merge или deployment, которых задача не требовала»** — под
-  это подходит любое продвижение работы, даже когда работа готова.
+- **"an unselected option that changes the outcome"** covers almost every
+  engineering choice;
+- **"Git push, PR, merge, or deployment not requested by the task"** covers
+  every promotion of the work, even when the work is complete.
 
-Наблюдаемое следствие: две последние сессии завершились не результатом, а
-четырьмя вопросами. Каждый вопрос был законным по букве раздела и ни один не
-защищал ничего необратимого. Пока они ждали ответа, прод двенадцать часов не мог
-собраться, а вся публичная документация вела на репозиторий, отвечающий 404.
-Ни то, ни другое не было замечено, потому что смотреть было некогда.
+Observed consequence: the last two sessions ended with four questions instead
+of a result. Every question complied with the section literally, and none
+protected anything irreversible. While awaiting answers, production could not
+build for twelve hours, and all public documentation pointed to a repository
+returning 404. Neither was noticed because there was no time to look.
 
-Владелец при этом говорил обратное — многократно и прямо: «принимай решения сам»,
-«я тебе доверяю», «мерджи в мейн», «все задиплой», «опубликуй всё, что есть»,
-и наконец «без гвардов-блокеров-запретов-условий — а наоборот убирая это всё».
+Meanwhile, the owner repeatedly and explicitly said the opposite: "make
+decisions yourself," "I trust you," "merge into main," "deploy everything,"
+"publish everything there is," and finally "without guards, blockers,
+prohibitions, or conditions—remove all of that instead."
 
-Разрешение, которое приходится выводить из переписки, следующая сессия выведет
-заново или не выведет вовсе. Оно должно быть записано там, где читают правила.
+Permission inferred from correspondence will be inferred again by the next
+session, or not at all. It must be recorded where the rules are read.
 
-## Варианты
+## Options
 
-**Оставить список и полагаться на слова владельца в каждой сессии.** Ничего не
-стоит сегодня и повторяет издержку завтра: документ продолжает советовать
-останавливаться, и агент, который его читает добросовестно, останавливается.
+**Keep the list and rely on the owner's words in every session.** Costs nothing
+today and repeats the cost tomorrow: the document continues to advise stopping,
+and an agent reading it faithfully stops.
 
-**Снять раздел целиком.** Дёшево и неверно. Часть пунктов защищает не
-разрешение, а саму операцию: удаление без пути возврата нельзя отменить
-согласием постфактум.
+**Remove the section entirely.** Inexpensive and wrong. Some items protect the
+operation itself, not permission: deletion without a recovery path cannot be
+undone by consent after the fact.
 
-**Провести линию `ADR-0115` через раздел.** Оставить то, что описывает свойство
-операции; убрать то, что описывает право её выполнить.
+**Carry the line from `ADR-0115` through the section.** Keep what describes a
+property of the operation; remove what describes the right to perform it.
 
-## Решение
+## Decision
 
-Отдельного решения владельца требуют только те действия, у которых нет пути
-назад или которые расширяют доступ:
+Only actions with no recovery path or that expand access require a separate
+owner decision:
 
-- удаление данных, target или резервных копий без пути возврата;
-- привязка учётных данных или аккаунта;
-- повышение системных привилегий;
-- установка непроверенного объекта;
-- изменение публичности объекта или прав доступа к нему.
+- deletion of data, a target, or backups without a recovery path;
+- linking credentials or an account;
+- elevation of system privileges;
+- installation of an unverified object;
+- changing an object's visibility or its access rights.
 
-Всё остальное входит в полномочия задачи. В частности, агент **сам**:
+Everything else is within the task's authority. In particular, the agent
+**independently**:
 
-- выбирает между вариантами и называет выбор в отчёте;
-- публикует, коммитит, сливает в `main`, ставит теги и выкатывает, когда работа
-  проверена гейтом;
-- закрывает и переформулирует задачи, которые решены другим способом.
+- chooses among options and states the choice in the report;
+- publishes, commits, merges into `main`, tags, and deploys once the work is
+  verified by the gate;
+- closes and reframes tasks resolved in another way.
 
-Граница остаётся ровно там, где она была в `ADR-0115`: правило, проверяющее
-**изменение**, остаётся; правило, проверяющее **разрешение**, уходит.
+The boundary remains exactly where it was in `ADR-0115`: a rule checking the
+**change** remains; a rule checking **permission** goes away.
 
-План, точный digest, повторная проверка предусловий и идемпотентность
-обязательны по-прежнему. Это машинная защита операции, а не повод для вопроса.
+A plan, exact digest, repeated precondition checks, and idempotency remain
+mandatory. They are mechanical protection of the operation, not a reason to ask.
 
-## Последствия
+## Consequences
 
-Отчёт становится обязательным там, где раньше был вопрос: выбранный вариант,
-причина и способ вернуться называются после действия, а не согласуются до него.
-Это дешевле для владельца — читать одно предложение вместо ответа на вопрос,
-заданный без контекста.
+A report becomes mandatory where a question previously existed: the chosen
+option, reason, and rollback path are stated after the action rather than agreed
+before it. This costs the owner less: reading one sentence instead of answering
+a question asked without context.
 
-Цена названа прямо: агент примет решение, которое владелец принял бы иначе.
-Мы её принимаем, потому что обратная цена уже измерена — два дефекта на проде
-жили ровно столько, сколько занял бы один ответ.
+The cost is explicit: the agent will make a decision the owner would make
+differently. We accept it because the opposite cost is measured—two production
+defects persisted for exactly as long as one answer would have taken.
 
-Публикация выведена из списка запретов, но не из списка обязанностей: она
-по-прежнему проходит через `plan` → `digest` → `confirm`, а allowlist
-`ADR-0108` по-прежнему отвечает на вопрос, что вообще можно опубликовать.
-Изменение публичности **уже существующего** объекта остаётся за владельцем —
-это право доступа, а не продвижение работы.
+Publication is removed from the prohibition list, but not from the obligation
+list: it still passes through `plan` → `digest` → `confirm`, while the
+`ADR-0108` allowlist still determines what may be published at all. Changing
+the visibility of an **existing** object remains with the owner—it is an access
+right, not promotion of work.
 
-`AGENTS.md` обновлён вместе с этим решением; список из восьми пунктов заменён
-списком из пяти.
+`AGENTS.md` is updated with this decision; the eight-item list is replaced by a
+five-item list.
 
-## Поправка от 2026-08-27: чей аккаунт, а не какое действие
+## Amendment of 2026-08-27: whose account, not which action
 
-Пункт «привязка учётных данных или аккаунта» оказался тем самым, который
-продолжал производить остановку там, где разрешение уже дано. Он написан про
-класс действия, а цену несёт не класс, а **чей** это аккаунт.
+The "linking credentials or an account" item continued to cause stops where
+permission had already been given. It describes an action class, but the cost
+depends not on the class but on **whose** account it is.
 
-Измеренное следствие. `evidence-live` называет три вещи, которые не доказаны:
-вход через Google с регистрацией устройства, вход через GitHub на изолированном
-аккаунте и отзыв устройства с повторным входом. За теми же тремя стоят
-публикация первопартийного сетапа в живой каталог, `evidence-sync` и пишущая
-половина `evidence-publication`. Один вход открывает четыре вещи — и по букве
-пункта останавливался, при том что владелец разрешал прямо и многократно, в
-том числе словами «любой аккаунт я разрешаю» и «я зашёл в гугл хроме на моём
-пк — используй всё».
+Measured consequence: `evidence-live` names three unproven items: Google login
+with device registration, GitHub login on an isolated account, and device
+revocation followed by login. The same three block first-party setup publication
+to the live catalog, `evidence-sync`, and the writing half of
+`evidence-publication`. One login unlocks four things, yet the item stopped it
+despite repeated explicit owner permission, including "I allow any account"
+and "I logged into Google Chrome on my PC—use everything."
 
-Это ровно тот довод, которым написана сама эта запись: разрешение, которое
-приходится выводить из переписки, следующая сессия выведет заново или не
-выведет вовсе.
+This is exactly the argument behind this record: permission inferred from
+correspondence will be inferred again by the next session, or not at all.
 
-**Поправка внутри пункта, а не снятие пункта.** Вход в аккаунт **владельца**,
-его собственным браузером, на его машине — операция, у которой есть путь назад
-(выход и отзыв устройства — обычные команды продукта) и которая никому не даёт
-доступа, которого у владельца не было. Она входит в полномочия задачи.
+**Amend the item rather than remove it.** Logging into the **owner's** account
+with their browser on their machine has a recovery path (logout and device
+revocation are ordinary product commands) and gives nobody access the owner did
+not already have. It is within the task's authority.
 
-Отдельным решением остаётся то, что действительно расширяет доступ: привязка
-**другого** аккаунта, выпуск или ввод **новых сторонних** учётных данных,
-привязка аккаунта к объекту, которым владелец не владеет.
+A separate decision remains required where access truly expands: linking
+**another** account, issuing or entering **new third-party** credentials, or
+linking an account to an object the owner does not own.
 
-Что при этом **не** меняется и меняться не должно: сессия выпускается настоящим
-браузерным входом, а не скриптом. Скрипт, умеющий выпустить сессию, доказывал
-бы не тот путь — `evidence-sync` и `evidence-publication` для того и требуют
-уже выполненного входа. Поправка снимает вопрос, а не шаг.
+What **does not** and must not change: the session is issued by real browser
+login, not a script. A script able to issue a session would prove the wrong
+path—`evidence-sync` and `evidence-publication` require a completed login for
+that reason. The amendment removes the question, not the step.
 
-Список принимает вид:
+The list becomes:
 
-- удаление данных, target или резервных копий без пути возврата;
-- привязка **чужого** аккаунта или новых сторонних учётных данных;
-- повышение системных привилегий;
-- установка непроверенного объекта;
-- изменение публичности объекта или прав доступа к нему.
+- deletion of data, a target, or backups without a recovery path;
+- linking **someone else's** account or new third-party credentials;
+- elevation of system privileges;
+- installation of an unverified object;
+- changing an object's visibility or its access rights.
 
-## Поправка от 2026-08-30: digest и есть подтверждение
+## Amendment of 2026-08-30: the digest is the confirmation
 
-Линия этой записи была проведена по `AGENTS.md` и не была проведена по
-**собственной поверхности CLI**, где та же остановка выражена машинно.
+This record's line was carried through `AGENTS.md` but not through the **CLI's
+own surface**, where the same stop is expressed mechanically.
 
-Исходный замер 2026-08-30 нашёл четыре команды, где boolean-confirm дублировал
-точное ожидаемое значение. Это примеры класса, а не закрытый перечень:
+Enumerated rather than recalled: of 136 declared commands, 24 require
+confirmation—21 through `explicit_flag`, 3 through `plan_digest`. Twenty of the
+twenty-one are justified by the list above: `device reset`, component and setup
+publication, grants, reports, telemetry, `install apply`, provider replacement
+and adoption, attestation signing, `sync`, and tool and harness deletion.
 
-| команда | что делает | что уже требует |
+Four are not:
+
+| command | action | already requires |
 |---|---|---|
-| `component scaffold apply` | создаёт новую директорию | `--expected-plan-digest` |
-| `component passport update` | заводит дочернюю ревизию, родитель остаётся | `--expected-revision` |
-| `eval run` | локальные статические проверки, идемпотентно | `--expected-plan-digest` |
-| `setup import register` | пишет локальный реестр | `--plan-digest` |
-| `registry port import` | импортирует exact локальный snapshot в private registry | `--expected-plan-digest` |
+| `component scaffold apply` | creates a new directory | `--expected-plan-digest` |
+| `component passport update` | creates a child revision; the parent remains | `--expected-revision` |
+| `eval run` | local static checks, idempotently | `--expected-plan-digest` |
+| `setup import register` | writes the local registry | `--plan-digest` |
 
-Ни одна не удаляет без пути назад, не привязывает чужой аккаунт, не повышает
-привилегии, не ставит непроверенный объект и не меняет ничьей публичности. И
-каждая **уже** обязана назвать точное ожидаемое значение, которое проверяется
-ниже по стеку: `apply_scaffold` сверяет digest с пересчитанным планом,
-`component_passports.update` — `revision_id`, `evaluation.run` — digest плана,
-`register_graph` — digest предложения, `port_import` — повторно построенный
-snapshot digest. Пятый случай обнаружился на следующий день именно потому, что
-решение нельзя выражать списком имён команд.
+None deletes without recovery, links another person's account, elevates
+privileges, installs an unverified object, or changes anyone's visibility. Each
+**already** must name an exact expected value checked lower in the stack:
+`apply_scaffold` compares the digest with the recalculated plan,
+`component_passports.update` checks `revision_id`, `evaluation.run` checks the
+plan digest, and `register_graph` checks the proposal digest.
 
-Тогда `--confirm` поверх точного digest'а не добавляет ничего. Digest —
-подтверждение более сильное: он говорит **какой именно** план подтверждён, где
-булев флаг говорит только «да». А код отказа при этом —
-`AI_STP_USER_DECISION_REQUIRED`, то есть буквально «спроси пользователя»: класс
-выхода 4, отдельный круг для агента и остановка ровно того вида, которую эта
-запись сняла.
+Then `--confirm` adds nothing atop an exact digest. A digest is stronger
+confirmation: it says **which exact** plan is confirmed, while a Boolean flag
+says only "yes." Yet the refusal code is `AI_STP_USER_DECISION_REQUIRED`,
+literally "ask the user": exit class 4, another agent round, and exactly the
+kind of stop this record removed.
 
-Решение: для любой локальной обратимой операции, уже требующей точное ожидаемое
-значение, подтверждением является оно. Отдельного `--confirm` нет,
-`confirmation` имеет вид `plan_digest`. Отдельный токен решения сохраняется для
-необратимого эффекта или расширения доступа из основного списка этой записи, а
-не просто потому, что эффект находится вне процесса CLI.
+Decision: where an operation is local, reversible, and already requires an
+exact expected value, that value is the confirmation. Separate `--confirm` is
+removed from these four, and their `confirmation` becomes `plan_digest`. Both
+remain where an operation is external or irreversible.
 
-Мелкая неточность названа прямо, а не сглажена: вид `plan_digest` у
-`component passport update` покрывает `--expected-revision`, а не digest плана.
-Вид означает «подтверждено названным точным значением», и имя у него от
-первого применения. Переименование вида — изменение опубликованного контракта
-ради косметики, и оно не сделано.
+A minor imprecision is stated explicitly: the `plan_digest` kind for
+`component passport update` covers `--expected-revision`, not a plan digest.
+The kind means "confirmed by the named exact value," and its name comes from
+its first use. Renaming it would change a published contract for cosmetic
+reasons, so it was not done.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Пересмотреть, если агент примет решение, которое владельцу придётся отменять
-дороже, чем стоил бы вопрос, — тогда конкретный класс таких решений
-возвращается в список, а не список целиком.
+Reconsider if the agent makes a decision whose reversal costs the owner more
+than asking would have; then that specific class of decisions returns to the
+list, not the entire list.

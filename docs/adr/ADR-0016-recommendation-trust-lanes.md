@@ -1,68 +1,68 @@
 ---
-description: "Решение ввести три линии доверия и явное согласие на непроверенные объекты."
+description: "Decision to introduce three trust lanes and explicit consent for unverified objects."
 last_verified: "2026-08-04"
 ---
 
-# ADR-0016: Линии доверия и явное согласие на непроверенное
+# ADR-0016: Trust lanes and explicit consent for unverified objects
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-Прежнее правило говорило, что объекты неподтверждённых авторов показываются отдельным экспериментальным блоком только при нехватке подтверждённых вариантов. Это описывало оформление выдачи, но не политику доверия.
+The previous rule stated that objects from unverified authors were shown in a separate experimental block only when there were not enough verified alternatives. This described result presentation, not a trust policy.
 
-Из формулировки следовали два неверных вывода. Во-первых, непроверенный объект появлялся как неявный запасной вариант: его показ зависел от того, закончились ли проверенные кандидаты, а не от решения пользователя. Во-вторых, собственный локальный или импортированный объект пользователя вообще не имел места в модели: он не является публикацией подтверждённого автора, но пользователь владеет им и должен иметь возможность выбрать его напрямую, в том числе без сети.
+The wording led to two incorrect conclusions. First, an unverified object appeared as an implicit fallback: whether it was shown depended on verified candidates running out, not on the user's decision. Second, the user's own local or imported object had no place in the model at all: it is not a publication by a verified author, but the user owns it and must be able to select it directly, including offline.
 
-Ни один документ не определял, где хранится согласие на непроверенное, как долго оно действует и что мешает агенту перенести непроверенную ссылку в автоматический состав через свободный текст.
+No document defined where consent for unverified content was stored, how long it remained valid, or what prevented an agent from carrying an unverified reference into an automatic composition through free-form text.
 
-## Варианты
+## Options
 
-1. Оставить запасной блок при нехватке подтверждённых кандидатов. Не требует изменений, но оставляет неявное повышение доверия и не описывает собственные объекты.
-2. Полностью запретить непроверенные объекты в MVP. Безопасно, но делает невозможной работу с собственными и импортированными объектами и с холодным каталогом.
-3. Ввести три явные линии доверия с раздельными правилами попадания в выдачу.
+1. Retain the fallback block when verified candidates are insufficient. This requires no changes but leaves implicit trust elevation and does not describe owned objects.
+2. Completely prohibit unverified objects in the MVP. This is safe but makes it impossible to work with owned and imported objects or with a cold catalog.
+3. Introduce three explicit trust lanes with separate inclusion rules for results.
 
-## Решение
+## Decision
 
-Принимается вариант 3.
+Option 3 is accepted.
 
-**Определяются три линии.**
+**Three lanes are defined.**
 
 ```text
 authoritative
-  подтверждённый автор
-  полный паспорт
-  обязательные проверки актуальны
-  доказательства совместимости с целью
+  verified author
+  complete passport
+  required checks are current
+  evidence of compatibility with the target
 
 experimental
-  сторонний неподтверждённый автор
-  попадает в выдачу только при явном согласии
-  отдельный раздел ответа, отдельная пометка
+  unverified third-party author
+  included in results only with explicit consent
+  separate response section, separate label
 
 local_owner_or_pinned
-  собственный, импортированный или точно закреплённый объект
-  локальные проверки пройдены
-  выбирается напрямую, в том числе автономно
+  owned, imported, or exactly pinned object
+  local checks have passed
+  selected directly, including offline
 ```
 
-**Согласие явное и ограниченное.** Непроверенные объекты попадают в выдачу только при явном признаке запроса, например `include_unverified`. По умолчанию согласие действует в пределах одной команды или сеанса, а не хранится бессрочно в профиле.
+**Consent is explicit and limited.** Unverified objects are included in results only when the request has an explicit flag such as `include_unverified`. By default, consent applies within a single command or session and is not stored indefinitely in the profile.
 
-**Молчаливое повышение запрещено.** Объект из `experimental` не переносится в `authoritative` ни автоматически, ни решением агента. Отсутствие подтверждённых кандидатов является нормальным состоянием и не включает запасную линию само по себе.
+**Silent elevation is prohibited.** An object from `experimental` is not moved into `authoritative`, either automatically or by an agent's decision. The absence of verified candidates is a normal state and does not enable the fallback lane by itself.
 
-**Собственный объект не становится проверенным платформой.** Линия `local_owner_or_pinned` разрешает установку после локальных проверок, но не выдаёт статус платформенной проверки и не отображается как подтверждённый объект.
+**An owned object does not become platform-verified.** The `local_owner_or_pinned` lane permits installation after local checks, but does not grant platform-verification status and is not displayed as a verified object.
 
-**След решения фиксирует линию.** Запись о рекомендации хранит линию каждого кандидата, состояние автора, источник согласия, результаты обязательных проверок и доказательства совместимости.
+**The decision trace records the lane.** A recommendation record stores each candidate's lane, author state, consent source, required-check results, and compatibility evidence.
 
-**Две оси подтверждения различаются.** `author_verified` относится к автору или пространству имён, `component_verified` — к конкретной версии объекта. Подтверждённый автор не делает версию подтверждённой, и наоборот. Линия `authoritative` требует обеих осей; фильтры поиска поддерживают их раздельно.
+**The two verification axes are distinct.** `author_verified` applies to an author or namespace, while `component_verified` applies to a specific object version. A verified author does not make a version verified, and vice versa. The `authoritative` lane requires both axes; search filters support them separately.
 
-## Последствия
+## Consequences
 
-- `SPEC-006` заменяет требование о запасном блоке требованиями о линиях, согласии и запрете повышения;
-- `SPEC-007` и карточка объекта показывают обе оси подтверждения раздельно;
-- `AGENTS.md`, канонический навык и политика взаимодействия описывают согласие как отдельное решение пользователя;
-- поиск получает фильтры по линии, по `author_verified` и по `component_verified`;
-- отрицательные проверки доказывают, что агент не может вернуть непроверенную ссылку в автоматический состав.
+- `SPEC-006` replaces the fallback-block requirement with requirements for lanes, consent, and prohibition of elevation;
+- `SPEC-007` and the object card display both verification axes separately;
+- `AGENTS.md`, the canonical skill, and the interaction policy describe consent as a separate user decision;
+- search gains filters by lane, `author_verified`, and `component_verified`;
+- negative checks prove that an agent cannot return an unverified reference in an automatic composition.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается, если появится проверяемый механизм, дающий стороннему объекту доказательства уровня `authoritative` без подтверждения автора, либо если раздельное согласие окажется неотличимым от подтверждения по поведению пользователей.
+The decision shall be reconsidered if a verifiable mechanism emerges that gives a third-party object `authoritative`-level evidence without author verification, or if separate consent proves behaviorally indistinguishable from verification to users.

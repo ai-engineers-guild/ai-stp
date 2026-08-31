@@ -1,85 +1,86 @@
 ---
-description: "Решение переименовать projection_capabilities в native_authoring, чтобы каталог харнессов не выглядел закрытым набором provider-kit."
+description: "Decision to rename projection_capabilities to native_authoring so the harness catalog does not look like a closed provider-kit set."
 last_verified: "2026-08-26"
 ---
 
-# ADR-0123: Каталог не занимает словарь кита
+# ADR-0123: The catalog does not borrow the kit vocabulary
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-`HarnessDefinition.projection_capabilities` в
-`apps/cli/src/ai_stp_cli/local/harness_catalog.py` и `projection_kinds` из
-закрытого набора `provider-kit/v3` совпадают ровно в одном значении и расходятся
-во всех остальных.
+`HarnessDefinition.projection_capabilities` in
+`apps/cli/src/ai_stp_cli/local/harness_catalog.py` and `projection_kinds` from
+the closed `provider-kit/v3` set share exactly one value and differ in all
+others.
 
-Набор кита: `marketplace`, `plugin`, `native_files`, `package`.
+The kit set: `marketplace`, `plugin`, `native_files`, `package`.
 
-Каталог объявляет: `native_files`, `plugin_manifest`, `hooks_directory`.
+The catalog declares: `native_files`, `plugin_manifest`, `hooks_directory`.
 
-`plugin_manifest` и `hooks_directory` в наборе кита отсутствуют, поэтому это
-явно разные словари. Но общий `native_files` — ровно то количество сходства,
-которого хватает, чтобы прочесть одно как другое. Автор провайдера так и
-прочёл: по его словам, только отсутствующие значения остановили его от правки
-семи объявлений под поле, которое протокол затем отверг бы (`#415`).
+`plugin_manifest` and `hooks_directory` are absent from the kit set, so these
+are clearly different vocabularies. But the shared `native_files` is exactly
+enough similarity to make one look like the other. A provider author read it
+that way: according to the author, only the missing values stopped them from
+editing seven declarations to match a field that the protocol would then have
+rejected (`#415`).
 
-Измерено против кода, а не по описанию:
+Measured against the code rather than its description:
 
-- `projection_capabilities` читается **ровно в одном месте** — вывод
+- `projection_capabilities` is read in **exactly one place**—the output of
   `toolchain harness-capabilities`;
-- **ничто не сравнивает** его с `projection_kinds`;
-- `validate_profile_for_projections` сверяет запрошенные `projection_kinds` с
-  профилем провайдера, и `projection_capabilities` в эту проверку не входит.
+- **nothing compares** it with `projection_kinds`;
+- `validate_profile_for_projections` compares requested `projection_kinds`
+  with the provider profile, and `projection_capabilities` is not part of that
+  check.
 
-Следовательно провайдер, объявляющий `package` там, где каталог называет только
-`native_files`, сегодня ничему не противоречит. Опасность не в текущем
-поведении, а в имени: оно приглашает использовать поле как ограничение,
-которым оно не является.
+Therefore, a provider declaring `package` where the catalog names only
+`native_files` contradicts nothing today. The danger is not current behavior
+but the name: it invites use of the field as a restriction when it is not one.
 
-## Варианты
+## Options
 
-**Оставить и добавить комментарий.** Дёшево и не работает: комментарий читает
-тот, кто уже открыл файл, а подмена происходит у того, кто увидел имя в выводе
-команды.
+**Keep it and add a comment.** Cheap and ineffective: the comment is read by
+someone who has already opened the file, while the substitution happens to
+someone who saw the name in command output.
 
-**Свести словари в один.** Неверно по существу. Значения каталога описывают,
-какие нативные формы умеет писать **наш компилятор** для этого харнесса; набор
-кита описывает семейство пакетов, которое объявляет **провайдер**. Это разные
-утверждения о разных сторонах, и слияние потеряло бы обе.
+**Unify the vocabularies.** Substantively wrong. Catalog values describe which
+native forms **our compiler** can write for this harness; the kit set describes
+the package family declared by the **provider**. These are different claims
+about different parties, and merging them would lose both.
 
-**Переименовать поле каталога.** Убирает общий префикс `projection`, из-за
-которого и происходит подмена, ничего не меняя в поведении.
+**Rename the catalog field.** Removes the shared `projection` prefix that
+causes the substitution without changing behavior.
 
-## Решение
+## Decision
 
 `projection_capabilities` → **`native_authoring`**.
 
-Имя выбрано после проверки на занятость, потому что переименование в уже занятый
-термин повторило бы ровно тот дефект, который эта запись закрывает.
-`native_surface` занят и означает относительный путь в target'е; `native_surfaces`
-— ключ в `local/consent.py`. `native_authoring` не встречался в дереве ни разу и
-не делит ни одного слова с `projection_kinds`.
+The name was selected after checking that it was unused, because renaming it to
+an existing term would reproduce the exact defect this record closes.
+`native_surface` is taken and means a relative path within the target;
+`native_surfaces` is a key in `local/consent.py`. `native_authoring` did not
+appear anywhere in the tree and shares no words with `projection_kinds`.
 
-Поле остаётся тем, чем было: перечнем нативных форм, в которых компонент может
-быть записан для этого харнесса. Ограничением на объявления провайдера оно не
-становится — если такая проверка когда-нибудь понадобится, она будет отдельным
-решением с собственным обоснованием, а не побочным эффектом имени.
+The field remains what it was: a list of native forms in which a component can
+be written for this harness. It does not become a restriction on provider
+declarations—if such a check is ever needed, it will be a separate decision
+with its own rationale, not a side effect of a name.
 
-## Последствия
+## Consequences
 
-- Переименование в шести местах: определение, команда, модель `machine_help`,
-  порождаемая `schemas/v1/cli-harness-capability-table.schema.json`, два теста.
-- Это изменение машинной границы: имя поля видно в выводе
-  `toolchain harness-capabilities`, который читают проекции Skill.
-- Ни один bundle не рискует: поле не участвует ни в одной проверке
-  совместимости.
-- Rollback — обратное переименование той же механики.
+- The rename occurs in six places: definition, command, `machine_help` model,
+  generated `schemas/v1/cli-harness-capability-table.schema.json`, and two
+  tests.
+- This changes a machine boundary: the field name is visible in the
+  `toolchain harness-capabilities` output read by Skill projections.
+- No bundle is at risk: the field participates in no compatibility check.
+- Rollback is the reverse rename of the same mechanics.
 
-## Условия пересмотра
+## Review conditions
 
-- Если появится настоящая необходимость ограничивать объявления провайдера
-  каталогом, это отдельное решение: понадобится сопоставление двух словарей,
-  которого сегодня нет ни в одну сторону.
-- Если набор кита пополнится значением, совпадающим с одним из наших, ловушка
-  вернётся под другим именем, и проверять придётся снова.
+- If a real need arises to restrict provider declarations through the catalog,
+  that is a separate decision: it will require a mapping between the two
+  vocabularies, which does not exist in either direction today.
+- If the kit set gains a value matching one of ours, the trap will return under
+  another name and must be checked again.

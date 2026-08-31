@@ -50,7 +50,7 @@ def test_web_regression_never_installs_system_packages_with_sudo() -> None:
         assert not re.search(r"(^|[\s;&|(])sudo\s", commands), f"{name} invokes sudo"
     assert "playwright install chrome" in sources["ensure-chrome.sh"]
     assert "ensure-chrome.sh" in sources["justfile"]
-    assert "никогда не вызывает `sudo`" in quickstart
+    assert "never invokes `sudo`" in quickstart
 
 
 def test_python_ci_jobs_do_not_reuse_a_persistent_checkout_venv() -> None:

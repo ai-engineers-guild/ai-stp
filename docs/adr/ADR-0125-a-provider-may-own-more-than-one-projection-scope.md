@@ -1,44 +1,44 @@
 ---
-description: "Решение разрешить провайдеру объявлять проекцию для project-области отдельным необязательным списком, не трогая существующий profile и его digest."
+description: "Decision to allow a provider to declare a projection for project scope in a separate optional list without changing the existing profile or its digest."
 last_verified: "2026-08-26"
 ---
 
-# ADR-0125: Провайдер вправе владеть более чем одной областью проекции
+# ADR-0125: A provider may own more than one projection scope
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-`#424` и `#425` не могут быть закрыты, потому что Antigravity документирует
-команды и инструкции в области рабочего пространства, под `.agents/`, а
-провайдер владеет только глобальным домом `~/.gemini`. Провайдер отказывается
-объявлять `command` и `instruction`, и отказ верный: объявленный вид — это
-обещание отката, а маршрута для него нет.
+`#424` and `#425` cannot be closed because Antigravity documents commands and
+instructions at workspace scope, under `.agents/`, while the provider owns only
+the global home `~/.gemini`. The provider refuses to declare `command` and
+`instruction`, and that refusal is correct: a declared type is a rollback
+promise, and there is no route for it.
 
-Три факта, измеренные до решения.
+Three facts were measured before the decision.
 
-**`--target` не привязан к дому продукта.** Он инжектируется инвокером
-(`provider/invocation_v3.py`), обязателен для каждой команды и называет
-каталог, который выбрал вызывающий. `--target <проект>` — законный вызов уже
-сегодня. Протокол здесь ничего не запрещает.
+**`--target` is not bound to the product home.** It is injected by the invoker
+(`provider/invocation_v3.py`), is required for every command, and names the
+directory selected by the caller. `--target <project>` is already a valid call
+today. The protocol prohibits nothing here.
 
-**Единственная команда, которая `--target` не получает, — `provider-info`.** Она
-описывает **релиз**, а не цель. Поэтому её `projection_profile` — единственного
-числа не по недосмотру: у объявления нет цели, относительно которой можно было
-бы выбрать одно из двух.
+**The only command that does not receive `--target` is `provider-info`.** It
+describes a **release**, not a target. Therefore its singular
+`projection_profile` is not an oversight: the declaration has no target against
+which one of two profiles could be selected.
 
-**Наш собственный каталог уже утверждает две области.**
-`local/harness_catalog.py` описывает раскладку типом `Layout`, и у него есть
-поле `scope` со значениями `global` и `project` (`G` и `P`, строки 100-101).
-`opencode` объявлен в обеих — одни и те же виды компонентов с префиксом
-`.opencode/` и без. `codex` объявляет `hooks.json` только в project-области.
+**Our own catalog already asserts two scopes.** `local/harness_catalog.py`
+describes layout with the `Layout` type, which has a `scope` field with values
+`global` and `project` (`G` and `P`, lines 100-101). `opencode` is declared
+in both: the same component types with and without the `.opencode/` prefix.
+`codex` declares `hooks.json` only in project scope.
 
-Отсюда следует то, что решает вопрос: **один харнесс уже владеет двумя
-областями** на нашей стороне. Отстаёт объявление провайдера, а не каталог.
+This yields the fact that resolves the question: **one harness already owns two
+scopes** on our side. The provider declaration, not the catalog, is behind.
 
-## Порядок релизов, который нельзя переставить
+## Release order that must not be rearranged
 
-`parse_capabilities` сверяет множество полей на **точное равенство**:
+`parse_capabilities` compares the field set for **exact equality**:
 
 ```python
 required = frozenset(INFO_FIELDS)
@@ -46,134 +46,141 @@ if frozenset(value) != required:
     raise ValueError("provider-info fields differ from the closed v3 schema")
 ```
 
-То же ниже для самого профиля. Значит провайдер, добавивший поле, отвергается
-**целиком** — не «профиль не понят», а `provider-info` не парсится, и вместе с
-ним недоступны `fetch`, `conformance`, `plan`, `apply` и `status`. Для
-пользователя на уже установленном CLI такой релиз выглядит полностью сломанным
-провайдером, а сообщение говорит про схему, а не про область.
+The same happens below for the profile itself. Therefore a provider that adds a
+field is rejected **in full**: this is not merely an unrecognized profile;
+`provider-info` does not parse, making `fetch`, `conformance`, `plan`,
+`apply`, and `status` unavailable with it. To a user on an already installed
+CLI, such a release looks like a completely broken provider, and the message
+refers to the schema rather than the scope.
 
-Старый CLI нельзя научить терпимости задним числом. Поэтому:
+An old CLI cannot be made tolerant retroactively. Therefore:
 
 ```text
-1. CLI принимает новое поле
-2. CLI выпущен
-3. только теперь провайдер вправе его объявлять
+1. CLI accepts the new field
+2. CLI is released
+3. only then may the provider declare it
 ```
 
-Обратный порядок ломает всех, кто не обновился, и релизом провайдера не
-чинится.
+The reverse order breaks everyone who has not upgraded, and a provider release
+cannot fix it.
 
-## Варианты
+## Options
 
-**Восьмой `harness_id` для project-области.** Новый бинарь, новая личность,
-изменений протокола ноль. Отвергнуто: это противоречило бы тому, что каталог
-уже говорит про седьмой продукт. Antigravity в проекте и Antigravity в
-`~/.gemini` — один продукт с двумя областями ровно в том смысле, в каком
-`opencode` им уже является. Набор бы не вырос, он бы разошёлся сам с собой.
+**An eighth `harness_id` for project scope.** A new binary, a new identity, and
+zero protocol changes. Rejected: this would contradict what the catalog already
+says about the seventh product. Antigravity in a project and Antigravity in
+`~/.gemini` are one product with two scopes in exactly the sense in which
+`opencode` already is. The set would not grow; it would become inconsistent
+with itself.
 
-**Пространства имён, годные в обеих областях.** Отвергнуто: одно имя означало бы
-разные пути в зависимости от переданной цели, и `provider-info` перестал бы быть
-проверяемым утверждением.
+**Namespaces valid in both scopes.** Rejected: one name would mean different
+paths depending on the supplied target, and `provider-info` would cease to be a
+verifiable assertion.
 
-**Изменить форму `projection_profile`, добавив область внутрь.** Отвергнуто по
-причине, которая дороже вкуса: `digest` профиля связывает точную декларацию
-через `digest_canonical(PROJECTION_DOMAIN, digest_input)`. Любое новое поле
-внутри меняет digest **каждого существующего** профиля, а значит даёт
-`projection_profile_mismatch` каждому бандлу, собранному против старого. Это
-ровно та цена, из-за которой `#415` просил не трогать декларации наугад.
+**Change the shape of `projection_profile` by adding scope inside it.** Rejected
+for a reason more important than preference: the profile `digest` binds the
+exact declaration through `digest_canonical(PROJECTION_DOMAIN, digest_input)`.
+Any new field inside changes the digest of **every existing** profile and thus
+causes `projection_profile_mismatch` for every bundle built against the old
+profile. That is exactly the cost for which `#415` asked us not to alter
+declarations speculatively.
 
-**Необязательный список рядом.** Принято.
+**An optional adjacent list.** Accepted.
 
-## Решение
+## Decision
 
-`provider-info` получает необязательное поле `scoped_projection_profiles` —
-список профилей, каждый из которых **называет свою область**.
+`provider-info` receives an optional `scoped_projection_profiles` field: a
+list of profiles, each of which **names its own scope**.
 
-`projection_profile` не меняется вовсе, ни одним полем. Он остаётся объявлением
-глобальной области, и его digest остаётся прежним байт в байт. Провайдер, не
-объявляющий вторую область, валиден для любой версии CLI, включая установленные.
+`projection_profile` does not change at all, not by a single field. It remains
+the declaration of global scope, and its digest remains byte-for-byte unchanged.
+A provider that does not declare a second scope is valid for every CLI version,
+including installed versions.
 
-Правила, делающие список проверяемым утверждением, а не свободным текстом:
+Rules that make the list a verifiable assertion rather than free-form text:
 
-- область берётся из уже существующего словаря каталога: `global` и `project`.
-  Новых значений эта запись не заводит;
-- запись со значением `global` **отвергается**: глобальную область уже
-  описывает `projection_profile`, и два утверждения об одном факте — это
-  дефект, даже когда они пока совпадают;
-- область в списке уникальна;
-- каждая запись несёт собственный `digest`, связывающий её собственную
-  декларацию, включая область;
-- отсутствие поля означает, что провайдер владеет только глобальной областью.
-  Это не деградация и не предупреждение.
+- the scope comes from the catalog's existing vocabulary: `global` and
+  `project`. This record introduces no new values;
+- an entry with the value `global` is **rejected**: global scope is already
+  described by `projection_profile`, and two assertions about one fact are a
+  defect even while they agree;
+- scope is unique within the list;
+- each entry carries its own `digest`, binding its own declaration, including
+  the scope;
+- absence of the field means that the provider owns only global scope. This is
+  neither degradation nor a warning.
 
-**Разрешение происходит один раз, на границе.** Цель известна к планированию;
-какой она области — решает совпадение с раскладками каталога, а не догадка. Ниже
-по течению идёт по-прежнему **один** `ProjectionProfile`.
+**Resolution happens once, at the boundary.** The target is known by planning;
+its scope is determined by matching catalog layouts, not by guessing. Downstream
+there is still **one** `ProjectionProfile`.
 
-Артефакт плана не меняется. `projection_profile_digest` в нём уже есть и просто
-начинает нести digest разрешённого профиля; статус сверяется с тем же. Провайдер,
-эхнувший глобальный digest там, где план разрешил проектный, ловится
-существующей сверкой, без новой проверки.
+The plan artifact does not change. It already contains
+`projection_profile_digest` and simply begins carrying the digest of the
+resolved profile; status is checked against the same value. A provider that
+echoes the global digest where the plan resolved the project digest is caught by
+the existing check, without a new one.
 
-## Последствия
+## Consequences
 
-- Одиннадцать мест, читающих `capabilities.projection`, **не меняются**: все
-  берут один профиль. Множественным становится объявление, не применение.
-- `PROVIDER_RULES` в `local/composition.py` обязан узнать область: его ключ —
-  `(component_type, harness_id)`, и один вид компонента в разных областях живёт
-  по разным относительным путям. Это долг, который уже существовал: таблица
-  дублирует `Layout`, у которого область есть, и читается более бедная из двух
-  записей. Правильная развязка — вывести `PROVIDER_RULES` из каталога, а не
-  дописать в неё третий ключ.
-- Отказ обязан называть область. «Провайдер не объявляет `command`» и «провайдер
-  не объявляет проекцию для project-цели» — разные причины, и первая отправляет
-  читателя не туда.
-- Провайдер не вправе объявить вид компонента в области, для которой у него нет
-  транзакционных install, status и restore. Объявленный вид — обещание отката.
-- Цена, названная прямо: `provider-info` перестаёт быть плоским объявлением. У
-  релиза теперь может быть несколько владений, и вопрос «чем владеет этот
-  провайдер» больше не имеет ответа без указания цели.
+- The eleven places that read `capabilities.projection` **do not change**: all
+  take one profile. The declaration, not application, becomes multiple.
+- `PROVIDER_RULES` in `local/composition.py` must learn the scope: its key is
+  `(component_type, harness_id)`, and the same component type in different
+  scopes lives at different relative paths. This debt already existed: the table
+  duplicates `Layout`, which has scope, and the poorer of the two records is
+  being read. The correct separation is to derive `PROVIDER_RULES` from the
+  catalog rather than add a third key to it.
+- A refusal must name the scope. “The provider does not declare `command`” and
+  “The provider does not declare a projection for a project target” are
+  different causes, and the first sends the reader in the wrong direction.
+- A provider may not declare a component type in a scope for which it lacks
+  transactional install, status, and restore. A declared type is a rollback
+  promise.
+- The cost, stated explicitly: `provider-info` ceases to be a flat declaration.
+  A release may now have multiple ownerships, and the question “what does this
+  provider own?” no longer has an answer without specifying the target.
 
-## Поправка от 2026-08-26: вывести `PROVIDER_RULES` из каталога нельзя
+## Amendment of 2026-08-26: `PROVIDER_RULES` cannot be derived from the catalog
 
-Запись выше говорит, что `PROVIDER_RULES` дублирует `Layout` и правильная
-развязка — вывести первое из второго. Попытка это сделать опровергла
-утверждение, и оно исправляется здесь, а не остаётся ждать следующего, кто
-поверит написанному.
+The record above says that `PROVIDER_RULES` duplicates `Layout` and that the
+correct separation is to derive the former from the latter. An attempt to do so
+disproved the assertion, and it is corrected here rather than left for the next
+person to trust what was written.
 
-**Таблицы отвечают на разные вопросы.** `PROVIDER_RULES` отвечает «куда
-провайдер пишет компонент этого вида». `Layout` отвечает «где человек мог это
-написать» — и каталог **намеренно неполон**, о чём говорит его собственный
-комментарий: импортировать только объявленное значило бы молча терять чужую
-конфигурацию. Поэтому отсутствие строки в каталоге не является доводом против
-правила, а вывод из неполной таблицы дал бы неполную проекцию.
+**The tables answer different questions.** `PROVIDER_RULES` answers “where does
+the provider write a component of this type?” `Layout` answers “where might a
+person have written it?”—and the catalog is **intentionally incomplete**, as its
+own comment states: importing only what is declared would silently lose foreign
+configuration. Therefore the absence of a catalog row is not evidence against a
+rule, and deriving from an incomplete table would yield an incomplete projection.
 
-Измерено: таблицы расходятся в тринадцати местах. Двенадцать — это одна таблица
-знает поверхность, о которой другая молчит, и все двенадцать отказывают закрыто.
-Ни одно из **пятнадцати** сочетаний харнесса и вида, реально опубликованных в
-живом каталоге, не осталось без маршрута проекции.
+Measured: the tables differ in thirteen places. In twelve, one table knows a
+surface about which the other is silent, and all twelve fail closed. Not one of
+the **fifteen** harness-and-type combinations actually published in the live
+catalog was left without a projection route.
 
-Тринадцатое было противоречием — `grok-build` / `mcp`, где правило называло
-`.mcp.json` против `config.toml` каталога с указанным источником. Оно
-единственное не отказывало закрыто и исправлено отдельно.
+The thirteenth was a contradiction: `grok-build` / `mcp`, where the rule named
+`.mcp.json` against the catalog's sourced `config.toml`. It alone did not fail
+closed and was fixed separately.
 
-**Что остаётся верным и проверяемым.** Там, где обе таблицы называют один вид
-для одного харнесса в глобальной области, они обязаны совпадать. Это и есть та
-единственная общая запись, которая однажды разошлась, и её стережёт тест. От
-полноты какой-либо из таблиц он не зависит.
+**What remains true and verifiable.** Where both tables name the same type for
+the same harness in global scope, they must agree. This is the sole shared entry
+that once diverged, and a test guards it. The test does not depend on either
+table being complete.
 
-Следствие для области проекции: `PROVIDER_RULES` придётся научить области
-**самой**, а не унаследовать её выводом. Это дороже, чем сказано выше, и знать
-это лучше до начала работы. Подробности измерения — `#432`.
+Consequence for projection scope: `PROVIDER_RULES` must learn scope **itself**
+rather than inherit it through derivation. This costs more than stated above,
+and it is better to know that before work begins. Measurement details are in
+`#432`.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-- Если появится харнесс с третьей областью — не `global` и не `project`, —
-  словарь придётся расширить, и расширять его нужно в каталоге, где он живёт, а
-  не здесь.
-- Если `provider-info` когда-нибудь начнёт получать `--target`, весь этот список
-  становится лишним: объявление сможет отвечать про названную цель напрямую, и
-  единственное число вернётся честным образом.
-- Если два профиля одного провайдера начнут пересекаться по управляемым путям,
-  предположение о непересекающихся владениях перестанет держаться, и разделение
-  областей потребует отдельного разбора.
+- If a harness with a third scope—not `global` or `project`—appears, the
+  vocabulary must be extended, and it must be extended in the catalog where it
+  lives, not here.
+- If `provider-info` ever starts receiving `--target`, this entire list
+  becomes unnecessary: the declaration can answer directly for the named target,
+  and a singular value will become honest again.
+- If two profiles of one provider begin to overlap in managed paths, the
+  assumption of non-overlapping ownership will cease to hold, and scope
+  separation will require separate analysis.

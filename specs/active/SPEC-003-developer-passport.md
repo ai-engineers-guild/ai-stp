@@ -1,64 +1,64 @@
 ---
-description: "SPEC-003: Паспорт разработчика и публичная проекция."
+description: "SPEC-003: Developer passport and public projection."
 last_verified: "2026-08-29"
 ---
 
-# SPEC-003: Паспорт разработчика и публичная проекция
+# SPEC-003: Developer Passport and Public Projection
 
-## Цель
+## Purpose
 
-Система хранит приватный, версионируемый и объяснимый профиль работы пользователя с агентами, автоматически собирает безопасно наблюдаемые факты и спрашивает только недостающие обязательные решения.
+The system stores a private, versioned, and explainable profile of how the user works with agents, automatically collects safely observable facts, and asks only for missing mandatory decisions.
 
-## Границы
+## Scope
 
-Входят роль, типовые задачи, предпочтения, предпочитаемые языки и харнессы, полномочия и история решений — межустройственные факты пользователя. Не входят исходные диалоги, secret values, полная shell history и автоматическая публичность. Наблюдаемые факты окружения устройства принадлежат паспорту устройства по `ADR-0025` и `SPEC-002`.
+The scope includes the role, typical tasks, preferences, preferred languages and harnesses, permissions, and decision history—the user's cross-device facts. Source conversations, secret values, full shell history, and automatic publication are out of scope. Observable facts about a device's environment belong to the device passport under `ADR-0025` and `SPEC-002`.
 
-## Термины
+## Terms
 
-- `DeveloperPassport` — приватный канонический объект.
-- `Fact` — значение с происхождением, подтверждением и ссылками на источник.
-- `PublicProfile` — отдельный объект, который пользователь заполняет самостоятельно.
+- `DeveloperPassport` — the private canonical object.
+- `Fact` — a value with provenance, confirmation, and source links.
+- `PublicProfile` — a separate object that the user fills in themselves.
 
-## Требования
+## Requirements
 
-- `REQ-301`: Паспорт закрыт по умолчанию и доступен только владельцу и разрешённым административным операциям.
-- `REQ-302`: Паспорт имеет stable ID, версию схемы и неизменяемые ревизии с родителями.
-- `REQ-303`: Факт хранит происхождение `declared`, `observed`, `derived` или `imported` и подтверждение `none` или `user_confirmed` как две независимые оси, а также ограниченные ссылки на источник и времена наблюдения и подтверждения.
-- `REQ-304`: Паспорт хранит роль, типовые задачи, приоритеты, предпочитаемые языки и харнессы как заявленные предпочтения, полномочия и историю принятых и отклонённых решений; наблюдаемые OS/architecture, установленные харнессы и версии инструментов он не содержит.
-- `REQ-305`: CLI детерминированно обнаруживает безопасные факты и находки, агент интерпретирует их и дособирает паспорт, а пользователь подтверждает неизвестные обязательные значения и рисковые предпочтения.
-- `REQ-306`: Публичный профиль является отдельным объектом, заполняется явным действием и не получает поля паспорта автоматически; пустой профиль означает отсутствие публичного профиля.
-- `REQ-307`: Исходные диалоги, secret values, полная shell history и необязательный source content не собираются.
-- `REQ-308`: CLI, паспорта, локальный core и обязательные серверные операции не вызывают интерфейсы моделей и не требуют ключа модели; optional server presentation enrichment ограничен `SPEC-053`, а его отсутствие не ухудшает ни одну функцию паспорта.
-- `REQ-309`: Существенно изменившееся повторное наблюдение возвращает подтверждение в `none` и показывает расхождение вместо молчаливого переноса подтверждения.
-- `REQ-310`: Публичный профиль имеет закрытый перечень полей по `docs/contracts/public-profile.md`; произвольные метаданные и поля «на будущее» не допускаются.
-- `REQ-311`: Находка является наблюдением с происхождением `observed` и подтверждением `none`, ещё не внесённым в паспорт; отдельной сущности находки не существует.
-- `REQ-312`: Наблюдаемый факт окружения записывается в паспорт текущего устройства; повторное сканирование на любом устройстве не изменяет паспорт разработчика и не создаёт в нём конфликт ревизий.
+- `REQ-301`: The passport is private by default and accessible only to its owner and authorized administrative operations.
+- `REQ-302`: The passport has a stable ID, a schema version, and immutable revisions with parents.
+- `REQ-303`: A fact stores provenance as `declared`, `observed`, `derived`, or `imported` and confirmation as `none` or `user_confirmed` as two independent axes, as well as limited source links and observation and confirmation timestamps.
+- `REQ-304`: The passport stores the role, typical tasks, priorities, preferred languages and harnesses as declared preferences, permissions, and the history of accepted and rejected decisions; it does not contain the observed OS/architecture, installed harnesses, or tool versions.
+- `REQ-305`: The CLI deterministically discovers safe facts and findings, the agent interprets them and completes the passport, and the user confirms unknown mandatory values and risky preferences.
+- `REQ-306`: The public profile is a separate object, is populated by an explicit action, and does not receive passport fields automatically; an empty profile means that no public profile exists.
+- `REQ-307`: Source conversations, secret values, full shell history, and optional source content are not collected.
+- `REQ-308`: The CLI, passports, local core, and mandatory server operations do not invoke model interfaces and do not require a model key; optional server presentation enrichment is limited to `SPEC-053`, and its absence does not degrade any passport function.
+- `REQ-309`: A materially changed repeated observation resets confirmation to `none` and exposes the discrepancy instead of silently carrying confirmation forward.
+- `REQ-310`: The public profile has a closed list of fields defined by `docs/contracts/public-profile.md`; arbitrary metadata and fields "for the future" are not allowed.
+- `REQ-311`: A finding is an observation with provenance `observed` and confirmation `none` that has not yet been recorded in the passport; there is no separate finding entity.
+- `REQ-312`: An observed environment fact is recorded in the current device's passport; rescanning on any device does not change the developer passport or create a revision conflict in it.
 
-## Состояния и ошибки
+## States and errors
 
-Паспорт имеет `draft`, `complete`, `conflict` и `tombstoned`. Неизвестный факт не заменяется guessed value. Конфликт параллельных ревизий возвращает обе головы и общий предок. Неподдерживаемая schema major version блокирует запись, сохраняя чтение raw payload для recovery.
+The passport has `draft`, `complete`, `conflict`, and `tombstoned` states. An unknown fact is not replaced with a guessed value. A conflict between concurrent revisions returns both heads and their common ancestor. An unsupported schema major version blocks writes while preserving access to the raw payload for recovery.
 
-## Безопасность и приватность
+## Security and privacy
 
-Автоматическое обнаружение ограничено allowlist полей. Значения environment, token stores и credential files не читаются. Публичный профиль по умолчанию отсутствует: его содержимое появляется только из явного действия пользователя, а не из раскрытия разделов паспорта.
+Automatic discovery is limited by a field allowlist. Values from the environment, token stores, and credential files are not read. By default, no public profile exists: its content appears only through an explicit user action, not through disclosure of passport sections.
 
-## Совместимость и миграция
+## Compatibility and migration
 
-Добавление optional field совместимо вперёд. Переименование или изменение смысла поля требует schema migration с provenance preservation. Старый клиент не должен удалять неизвестные поля при round-trip.
+Adding an optional field is forward-compatible. Renaming a field or changing its meaning requires a schema migration that preserves provenance. An old client must not delete unknown fields during a round-trip.
 
-## Критерии приёмки
+## Acceptance criteria
 
-| Требование | Исполнимый oracle |
+| Requirement | Executable oracle |
 |---|---|
-| `REQ-301` | Authorization tests отклоняют чтение паспорта посторонним аккаунтом. |
-| `REQ-302` | Round-trip/property tests проверяют stable ID, revision parents и canonical digest. |
-| `REQ-303` | Schema tests принимают только разрешённые значения обеих осей и сохраняют ссылки на источник. |
-| `REQ-304` | Golden fixture содержит только личные разделы, а схема отклоняет поле наблюдаемой OS, architecture или версии установленного харнесса. |
-| `REQ-305` | CLI test отделяет обнаруженные факты и находки от вопросов агента и подтверждений пользователя. |
-| `REQ-306` | Изменение паспорта не меняет ни одно поле публичного профиля, а незаполненный профиль не отдаётся как публичная страница. |
-| `REQ-307` | Negative fixtures с `.env`, shell history и transcripts не попадают в output. |
-| `REQ-308` | Проверка dependency closure CLI и passport/server-core конфигурации отклоняет клиент модели и требование ключа модели; отдельная проверка `SPEC-053` не позволяет optional worker enrichment стать их зависимостью. |
-| `REQ-309` | Фикстура повторного сканирования переводит подтверждение в `none` и сохраняет происхождение. |
-| `REQ-310` | Схема профиля отклоняет неизвестное поле, а профиль без содержательных полей не отдаётся как публичная страница. |
-| `REQ-311` | Находка и записанный факт различаются только двумя осями и не имеют отдельной схемы. |
-| `REQ-312` | Фикстура двух устройств с разными окружениями не создаёт ни изменения, ни конфликта в паспорте разработчика. |
+| `REQ-301` | Authorization tests reject passport reads by an unrelated account. |
+| `REQ-302` | Round-trip/property tests verify the stable ID, revision parents, and canonical digest. |
+| `REQ-303` | Schema tests accept only the allowed values for both axes and preserve source links. |
+| `REQ-304` | The golden fixture contains only personal sections, and the schema rejects an observed OS, architecture, or installed harness version field. |
+| `REQ-305` | A CLI test separates discovered facts and findings from agent questions and user confirmations. |
+| `REQ-306` | Changing the passport does not change any public profile field, and an unpopulated profile is not served as a public page. |
+| `REQ-307` | Negative fixtures containing `.env`, shell history, and transcripts do not appear in output. |
+| `REQ-308` | A dependency-closure check for the CLI and passport/server-core configuration rejects a model client and a model-key requirement; a separate `SPEC-053` check prevents optional worker enrichment from becoming their dependency. |
+| `REQ-309` | A rescan fixture resets confirmation to `none` and preserves provenance. |
+| `REQ-310` | The profile schema rejects an unknown field, and a profile without substantive fields is not served as a public page. |
+| `REQ-311` | A finding and a recorded fact differ only on the two axes and do not have separate schemas. |
+| `REQ-312` | A fixture with two devices in different environments creates neither a change nor a conflict in the developer passport. |

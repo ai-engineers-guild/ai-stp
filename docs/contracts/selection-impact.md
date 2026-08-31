@@ -1,63 +1,68 @@
 ---
-description: "Машинный контракт локального бюджета контекста, capability delta и blast radius."
+description: "Machine contract for the local context budget, capability delta, and blast radius."
 last_verified: "2026-08-15"
 ---
 
 # Selection impact
 
-## Команды и граница
+## Commands and boundary
 
-`select impact` читает точный сетап-кандидат и необязательную точную основу из
-локального registry. `select blast-radius` читает обратные ссылки на exact
-component. Обе команды имеют mutability `read`, возвращают
-`freshness=local_snapshot`, не используют сеть и не меняют selection, lifecycle,
-operation или target.
+`select impact` reads an exact candidate setup and an optional exact baseline
+from the local registry. `select blast-radius` reads reverse references to an
+exact component. Both commands have mutability `read`, return
+`freshness=local_snapshot`, do not use the network, and do not change selection,
+lifecycle, operation, or target.
 
-Параметры команд принадлежат генерируемому `help --agent`, а поля ответов —
-схемам `cli-selection-impact-report` и `cli-blast-radius-report`; здесь они не
-дублируются.
+Command parameters belong to the generated `help --agent`, and response fields
+belong to the `cli-selection-impact-report` and `cli-blast-radius-report`
+schemas; they are not duplicated here.
 
-Основа может быть названа точной парой идентификатора и версии. Если вместо неё
-назван проект, CLI сначала использует последний проверенный установленный сетап
-этого проекта и харнесса, а при его отсутствии — текущий выбранный сетап. Поле
-`baseline_source` различает эти случаи; отсутствие обоих источников оставляет
-разницу недоступной, не выдумывая нулевую основу.
+The baseline may be named by an exact identifier and version pair. If a project
+is named instead, the CLI first uses the last verified installed setup for that
+project and harness, and, if none exists, the currently selected setup. The
+`baseline_source` field distinguishes these cases; the absence of both sources
+leaves the delta unavailable instead of inventing a zero baseline.
 
-## Измерение контекста
+## Context measurement
 
-Estimator — отдельный версионированный контракт. Точный byte-профиль полезен для
-воспроизводимой верхней границы собственной единицы, но не заявляет совпадение с
-tokenizer модели. Профиль codepoints/4 всегда называется оценкой. Оба работают
-локально и не передают private content наружу.
+The estimator is a separate versioned contract. An exact byte profile is useful
+as a reproducible upper bound for its own unit, but does not claim to match a
+model tokenizer. The codepoints/4 profile is always called an estimate. Both
+operate locally and do not transmit private content externally.
 
-В отчёте always-loaded и conditionally-loaded разделены. Для baseline возвращается
-signed delta: отрицательное число означает уменьшение. Binary/не-UTF-8 содержимое
-имеет статус `unavailable`; отсутствие измерения не подменяется нулевой оценкой.
+Always-loaded and conditionally-loaded content are separated in the report. A
+signed delta is returned for the baseline: a negative number means a reduction.
+Binary/non-UTF-8 content has status `unavailable`; a missing measurement is not
+replaced with a zero estimate.
 
-## Цена и capabilities
+## Cost and capabilities
 
-Price profile передаётся отдельным JSON-файлом и связывается с estimator profile.
-Он содержит цену input tokens за миллион, валюту USD, model, HTTPS source,
-`fetched_at` и `expires_at`. Без файла стоимость недоступна; после `expires_at`
-она stale и amount отсутствует. Price profile не является входом eligibility.
+The price profile is supplied as a separate JSON file and is bound to the
+estimator profile. It contains the price of one million input tokens, currency
+USD, model, HTTPS source, `fetched_at`, and `expires_at`. Without the file, cost
+is unavailable; after `expires_at`, it is stale and amount is absent. The price
+profile is not an eligibility input.
 
-Capability snapshot и delta сохраняют конкретные добавленные и удалённые native
-IDs, endpoints, component coordinates с credential requirements и permissions.
-Единого score нет: разные последствия нельзя скрывать одним числом.
+The capability snapshot and delta preserve the specific added and removed
+native IDs, endpoints, component coordinates with credential requirements, and
+permissions. There is no single score: distinct consequences cannot be hidden
+behind one number.
 
 ## Blast radius
 
-Обратный индекс вычисляется из проверенных локальных setup passports, active
-активного выбора и журнала проверенных операций. Он не утверждает полноту аккаунта или организации:
-`authority_boundary=local_registry` ограничивает смысл ответа текущим файлом
-registry и его device. Все lifecycle-сценарии только называют затронутые ссылки;
-`action=none` исключает автоматический update/uninstall.
+The reverse index is computed from verified local setup passports, the active
+selection, and the verified operation log. It does not claim account-wide or
+organization-wide completeness: `authority_boundary=local_registry` limits the
+meaning of the response to the current registry file and its device. All
+lifecycle scenarios only name affected references; `action=none` excludes any
+automatic update/uninstall.
 
 ## Server account projection
 
-Локальный v1 контракт не меняется. `GET /v1/selection/blast-radius` снят:
-blast radius остаётся CLI-only (`SPEC-049`). Web показывает абсолютный
-context budget видимой exact setup в правом рельсе карточки после Author и
-перед установкой CLI и Version history: свёрнутый итог и вложенную команду
-`select impact` отдельно от блока установки CLI. Web не
-показывает account blast radius и не установленную основу, угаданную сервером.
+The local v1 contract does not change. `GET /v1/selection/blast-radius` has been
+removed: blast radius remains CLI-only (`SPEC-049`). Web displays the absolute
+context budget of the visible exact setup in the card's right rail after Author
+and before CLI installation and Version history: a collapsed summary and a
+nested `select impact` command separate from the CLI installation block. Web
+does not display account blast radius or an installed baseline guessed by the
+server.

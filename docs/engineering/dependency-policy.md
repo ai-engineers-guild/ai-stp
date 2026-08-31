@@ -1,142 +1,108 @@
 ---
-description: "Правила Python, Node, external tools и provider dependencies."
-last_verified: "2026-08-31"
+description: "Rules of Python, Node, external tools, and provider dependencies."
+last_verified: "2026-08-15"
 ---
 
-# Политика зависимостей
+# Dependency Policy
 
-Новая dependency требует конкретный capability gap, основной источник и владельца выпуска, закреплённую версию и lock, проверку лицензии и безопасности, поддержку платформ, модель timeout и failure, тест, владельца обновлений и план удаления или замены.
+A new dependency requires a specific capability gap, a primary source and release owner, a fixed version and lock, license and security checks, platform support, a timeout and failure model, a test, an update owner, and a plan for removal or replacement.
 
-Внешний LSP, scanner или tool устанавливается в изолированный набор инструментов и запускается по точному пути. Сценарии установки пакета отключаются, если их необходимость не доказана.
+The external LSP, scanner, or tool is installed in an isolated set of tools and runs by exact path. Package installation scripts are disabled if their necessity is not proven.
 
-Источник Git закрепляется точным commit. Зависимость из реестра пакетов имеет точную версию и проверку целостности. Произвольный URL запрещён.
+A Git source is pinned to a specific commit. A dependency from the package registry has an exact version and integrity check. Arbitrary URLs are prohibited.
 
-## Одобренные зависимости installed CLI
+## Approved dependencies `apps/api` (issue #80, ADR-0041)
 
-### PyNaCl
-
-| Поле | Значение |
-|---|---|
-| Capability gap | Ed25519 seed/public/sign/verify в installed CLI на шести native OS/arch строках. Новые security-fixed `cryptography` releases не имеют безопасного Windows/arm64 wheel. |
-| Источник | PyPI `PyNaCl`, upstream <https://github.com/pyca/pynacl>; закреплённый libsodium wheel. |
-| Версия | `1.6.2`, exact lock. |
-| Лицензия / security | Apache-2.0. Advisory PyNaCl/libsodium требует внеочередного bump и повторной six-leg evidence. |
-| Платформы | Linux, Windows, macOS на `x86_64`/`arm64`, включая native Windows/arm64. |
-| Failure | Неверный seed/key/signature получает типизированный validation отказ; key material не попадает в лог. |
-| Тест | Raw 32-byte seed/public и 64-byte signature проверяются в обе стороны против `cryptography`; candidate install/sign/verify проходит на six-leg workflow. |
-| Владелец обновлений | CLI identity/attestation runtime. |
-| План удаления | Вернуться к одному backend только после появления безопасных wheels на всей заявленной matrix и сохранения exact wire interoperability. |
-
-`cryptography` остаётся в API/platform и repository/provider tooling. Эта
-граница не заменяет серверную verify implementation и не переносит PyNaCl в
-server runtime.
-
-### jsonschema
-
-| Поле | Значение |
-|---|---|
-| Capability gap | Проверка полного Draft 2020-12 `status-response.schema.json` до чтения install/recovery/status полей. Частичный ручной parser не доказывает closed wire boundary. |
-| Источник | PyPI `jsonschema`, upstream <https://github.com/python-jsonschema/jsonschema>. |
-| Версия | `>=4.26`, exact lock. |
-| Лицензия / security | MIT. Advisory frontend или `rpds-py` требует bump и повторной six-leg evidence. |
-| Платформы | Linux, Windows, macOS на `x86_64`/`arm64`; `rpds-py` имеет native wheels для всей матрицы. |
-| Failure | Первое несовпадение даёт `AI_STP_SCHEMA_UNSUPPORTED`, имя поля и автономные update/conformance actions; частичный ответ не используется. |
-| Тест | 35 producer samples, hostile schema cases, invocation-boundary negative и six-leg candidate install. |
-| Владелец обновлений | CLI provider protocol boundary. |
-| План удаления | Только вместе с эквивалентным полным Draft 2020-12 validator и повторным cross-repository conformance. |
-
-## Одобренные зависимости `apps/api` (issue #80, ADR-0041)
-
-Каждая запись ниже является sign-off на добавление в `apps/api/pyproject.toml` и корневой `uv.lock`. Точная версия закрепляется lock-файлом при `uv lock` / `uv sync`.
+Each entry below is a sign-off for adding to `apps/api/pyproject.toml` and the root `uv.lock`. The exact version is fixed by the lock file during `uv lock` / `uv sync`.
 
 ### authlib
 
-| Поле | Значение |
+| Field | Value |
 |---|---|
-| Capability gap | OAuth 2.0 / OIDC client для Google и GitHub: authorize redirect, token exchange, PKCE `S256`, привязка `state` к инициировавшей сессии (`RFC 6749 §10.12`). Без библиотеки пришлось бы вручную реализовать CSRF/`state`/PKCE. |
-| Источник | PyPI `authlib`; основной upstream — <https://github.com/authlib/authlib>. Владелец выпуска — maintainers Authlib. |
-| Версия | `>=1.6.6` (CSRF-фикс для state в кэше); pin в lock на актуальную 1.7.x при добавлении. |
-| Лицензия / security | BSD-3-Clause. Следить за advisory GitHub/PyPI; минимальная 1.6.6 обязательна. |
-| Платформы | Pure Python; Python 3.10–3.14; Windows / Linux / macOS. |
-| Timeout / failure | HTTP к провайдеру через httpx с таймаутом клиента; сбой обмена токена → типизированная `AI_STP_AUTH_REQUIRED` / `AI_STP_DEPENDENCY_UNAVAILABLE` без утечки секретов. |
-| Тест | OAuth callback/link/conflict/replay; state/PKCE negatives (`SPEC-002` REQ-202/203). |
-| Владелец обновлений | platform / `apps/api`. |
-| План удаления | Заменить на другой OAuth client только новым ADR; удалить `slices/auth` OAuth-адаптер и зависимость после миграции. |
+| Capability gap | OAuth 2.0 / OIDC client for Google and GitHub: authorize redirect, token exchange, PKCE `S256`, binding `state` to the initiating session (`RFC 6749 §10.12`). Without a library, it would be necessary to manually implement CSRF/`state`/PKCE. |
+| Source | PyPI `authlib`; main upstream — <https://github.com/authlib/authlib>. Release owner — Authlib maintainers. |
+| Version | `>=1.6.6` (CSRF fix for state in cache); pin in lock to the current 1.7.x when adding. |
+| License / security | BSD-3-Clause. Monitor GitHub/PyPI advisories; minimum 1.6.6 required. |
+| Platforms | Pure Python; Python 3.10–3.14; Windows / Linux / macOS. |
+| Timeout / failure | HTTP to provider via httpx with client timeout; token exchange failure → typed `AI_STP_AUTH_REQUIRED` / `AI_STP_DEPENDENCY_UNAVAILABLE` without secret leakage. |
+| Test | OAuth callback/link/conflict/replay; state/PKCE negatives (`SPEC-002` REQ-202/203). |
+| Updates Owner | platform / `apps/api`. |
+| Removal Plan | Replace with another OAuth client only with the new ADR; delete the `slices/auth` OAuth adapter and dependency after migration. |
 
 ### cryptography
 
-| Поле | Значение |
+| Field | Value |
 |---|---|
-| Capability gap | Проверка Ed25519-подписи устройства на сервере (`Ed25519PublicKey.verify`), включая авторское подтверждение публикации. Собственная реализация криптопримитивов запрещена. |
-| Источник | PyPI `cryptography`; upstream <https://github.com/pyca/cryptography>. Владелец выпуска — Python Cryptographic Authority. |
-| Версия | Актуальная стабильная (50.x) закрепляется в lock. |
-| Лицензия / security | Apache-2.0 OR BSD-3-Clause. Критичные advisory закрываются внеочередным bump. |
-| Платформы | Колёса для win/linux/macos x86_64 и arm64; Python 3.10+. |
-| Timeout / failure | Локальная verify-only операция; неверная подпись → `AI_STP_VALIDATION_ERROR` / отказ регистрации без исключения с ключом в логе. |
-| Тест | Регистрация устройства: valid/invalid signature, idempotency, attach-to-other denied (`SPEC-002` REQ-204). Bind attestation: настоящая подпись принимается, `"s" * 16` и чужой ключ отклоняются (`SPEC-026` REQ-2605). |
-| Владелец обновлений | platform / `apps/api`. |
-| План удаления | Только вместе со сменой схемы device key (параллельное чтение старого/нового формата по SPEC-002); иначе зависимость остаётся. |
+| Capability gap | Verification of the device's Ed25519 signature on the server (`Ed25519PublicKey.verify`), including authorship confirmation of the publication. Custom implementation of cryptographic primitives is prohibited. |
+| Source | PyPI `cryptography`; upstream <https://github.com/pyca/cryptography>. Release owner — Python Cryptographic Authority. |
+| Version | The current stable (50.x) is fixed in the lock. |
+| License / security | Apache-2.0 OR BSD-3-Clause. Critical advisories are closed by an out-of-turn bump. |
+| Platforms | Wheels for win/linux/macos x86_64 and arm64; Python 3.10+. |
+| Timeout / failure | Local verify-only operation; invalid signature → `AI_STP_VALIDATION_ERROR` / registration refusal without exception with the key in the log. |
+| Test | Device registration: valid/invalid signature, idempotency, attach-to-other denied (`SPEC-002` REQ-204). Bind attestation: a real signature is accepted, while `"s" * 16` and a foreign key are rejected (`SPEC-026` REQ-2605). |
+| Updates Owner | platform / `apps/api`. |
+| Removal plan | Only together with changing the device key scheme (parallel reading of old/new format according to SPEC-002); otherwise the dependency remains. |
 
 ### itsdangerous
 
-| Поле | Значение |
+| Field | Value |
 |---|---|
-| Capability gap | (1) Подпись cookie `SessionMiddleware` Starlette для транзиентного OAuth state; (2) stateless signed nonce challenge устройства с TTL. Без неё SessionMiddleware Starlette всё равно требует пакет, а challenge нуждался бы в таблице и cleanup. |
-| Источник | PyPI `itsdangerous`; upstream <https://github.com/pallets/itsdangerous> (Pallets). |
-| Версия | 2.2.x закрепляется в lock. |
-| Лицензия / security | BSD (OSI Approved). |
-| Платформы | Pure Python; все целевые ОС MVP. |
-| Timeout / failure | Истёкший или подделанный nonce → отказ регистрации; без side-channel по содержимому секрета. |
-| Тест | Challenge freshness, replay of stale nonce, device register path. |
-| Владелец обновлений | platform / `apps/api`. |
-| План удаления | При отказе от SessionMiddleware и stateless challenge — новый ADR и удаление прямого import; транзитивная нужда Starlette рассматривается отдельно. |
+| Capability gap | (1) Cookie signature `SessionMiddleware` of Starlette for transient OAuth state; (2) stateless signed nonce challenge of the device with TTL. Without it, Starlette's SessionMiddleware still requires a package, and the challenge would need a table and cleanup. |
+| Source | PyPI `itsdangerous`; upstream <https://github.com/pallets/itsdangerous> (Pallets). |
+| Version | 2.2.x is fixed in the lock. |
+| License / security | BSD (OSI Approved). |
+| Platforms | Pure Python; all target OS MVP. |
+| Timeout / failure | Expired or forged nonce → registration denied; no side-channel on secret content. |
+| Test | Challenge freshness, replay of stale nonce, device register path. |
+| Update Owner | platform / `apps/api`. |
+| Deletion plan | When abandoning SessionMiddleware and stateless challenge — a new ADR and removal of direct import; the transitive need for Starlette is considered separately. |
 
-## Одобренные зависимости `apps/web` (issue #82/#83, ADR-0043)
+## Approved dependencies `apps/web` (issue #82/#83, ADR-0043)
 
-`apps/web` — первое Node-приложение репозитория и отдельное Node-workspace со своим
-`package.json` и `bun.lock`, изолированное от корневого `uv.lock`. Менеджер пакетов —
-`bun`; точная версия каждого пакета закрепляется `bun.lock` при добавлении. Источник —
-npm-реестр с проверкой целостности lock; произвольный URL и Git-источник без точного
-commit запрещены (общее правило выше). Каждая строка ниже — sign-off на добавление в
-`apps/web/package.json` и `bun.lock` по `ADR-0043`. Владелец обновлений всех строк —
-platform / `apps/web`; план удаления любой библиотеки — только новым ADR с заменой,
-без правки по месту.
+`apps/web` — the first Node application of the repository and a separate Node workspace with its own
+`package.json` and `bun.lock`, isolated from the root `uv.lock`. Package manager —
+`bun`; the exact version of each package is fixed in `bun.lock` when added. Source —
+npm registry with lock integrity check; arbitrary URL and Git source without exact
+commits are prohibited (general rule above). Each line below is a sign-off for addition to
+`apps/web/package.json` and `bun.lock` according to `ADR-0043`. The owner of updates for all lines is
+platform / `apps/web`; the plan to remove any library is only with a new ADR with replacement,
+without local editing.
 
 ### Runtime
 
-| Пакет | Capability gap | Версия / lock | Лицензия |
+| Package | Capability gap | Version / lock | License |
 |---|---|---|---|
-| `next` | App Router, RSC, Server Actions, серверная граница и маршрутизация по `ADR-0043`; фронтенд закреплён `tech-stack.md`. | Актуальная стабильная major; pin в `bun.lock`. | MIT |
-| `react`, `react-dom` | Рантайм UI, требуемый Next.js. | Совместимая с выбранным Next.js; pin в lock. | MIT |
-| `next-intl` | Двуязычие `ru`/`en` с первого маршрута для App Router/RSC по `ADR-0035` (`REQ-2203`, `REQ-2311`); без неё пришлось бы вручную решать локализованную маршрутизацию и серверные переводы. | Актуальная стабильная; pin в lock. | MIT |
-| `@hey-api/openapi-ts` (+ `@hey-api/client-fetch`) | Порождение типов и типизированного клиента из `schemas/v1/openapi.json` (`REQ-2211`); запрещает второй DTO-набор рядом с `#71`. | Как проверено в `jira_timesheet`; pin в lock. | MIT |
-| `zustand` | Клиентский стор тонкими слайсами по `ADR-0043` (замена глобального кэша запросов); серверная истина не дублируется на клиенте. | Актуальная стабильная; pin в lock. | MIT |
-| `tailwindcss` (4.x) | Стили и токенизированная тема на CSS-переменных по `ADR-0043` (`REQ-2214`); совместим со стандартным `shadcn/ui`. | 4.x; pin в lock. | MIT |
-| `class-variance-authority`, `clsx`, `tailwind-merge` | Утилиты вариантов и слияния классов для `shadcn/ui`. | Актуальные стабильные; pin в lock. | MIT |
-| `shadcn` (CLI/реестр) + примитивы `radix-ui` | Стандартные доступные компоненты по `ADR-0043`, организованные по atomic design; код компонентов версионируется в `apps/web`, а не тянется как runtime-зависимость. Дополнительные реестры анимаций не добавляются. | Актуальные стабильные; pin в lock. | MIT |
-| `react-hook-form`, `@hookform/resolvers`, `zod` | Формы, валидация полей профиля, переменных окружения и внешних данных на границе (`REQ-2201`, `REQ-2303`). | Актуальные стабильные; pin в lock. | MIT |
-| `js-yaml`, `@types/js-yaml` | Bounded parsing repository-owned `features.yaml` и Markdown frontmatter по `SPEC-038`; JSON schema отключает implicit timestamps, Zod остаётся окончательной границей. | `js-yaml` 4.3.1, types 4.0.9; exact pin в manifest и lock. | MIT |
-| `lucide-react`, `sonner` | Иконки и уведомления безопасной обратной связи (`REQ-2309`). | Актуальные стабильные; pin в lock. | ISC / MIT |
+| `next` | App Router, RSC, Server Actions, server boundary and routing according to `ADR-0043`; frontend is attached in `tech-stack.md`. | Current stable major; pinned in `bun.lock`. | MIT |
+| `react`, `react-dom` | Runtime UI required by Next.js. | Compatible with the chosen Next.js; pin in lock. | MIT |
+| `next-intl` | Bilingual `ru`/`en` from the first route for App Router/RSC according to `ADR-0035` (`REQ-2203`, `REQ-2311`); without it, we would have had to manually handle localized routing and server translations. | Current stable; pin in lock. | MIT |
+| `@hey-api/openapi-ts` (+ `@hey-api/client-fetch`) | Generation of types and typed client from `schemas/v1/openapi.json` (`REQ-2211`); prohibits a second DTO set alongside `#71`. | Verified in `jira_timesheet`; pin in lock. | MIT |
+| `zustand` | Client-side store with thin slices according to `ADR-0043` (replacement of the global query cache); server truth is not duplicated on the client. | Current stable; pinned in lock. | MIT |
+| `tailwindcss` (4.x) | Styles and tokenized theme on CSS variables according to `ADR-0043` (`REQ-2214`); compatible with standard `shadcn/ui`. | 4.x; pin in lock. | MIT |
+| `class-variance-authority`, `clsx`, `tailwind-merge` | Utilities for variants and class merging for `shadcn/ui`. | Current stable; pin in lock. | MIT |
+| `shadcn` (CLI/registry) + `radix-ui` primitives | Standard available components according to `ADR-0043`, organized by atomic design; component code is versioned in `apps/web`, and not pulled as a runtime dependency. Additional animation registries are not added. | Current stable; pin in lock. | MIT |
+| `react-hook-form`, `@hookform/resolvers`, `zod` | Forms, validation of profile fields, environment variables, and external data at the boundary (`REQ-2201`, `REQ-2303`). | Current stable; pin in lock. | MIT |
+| `js-yaml`, `@types/js-yaml` | Bounded parsing of repository-owned `features.yaml` and Markdown frontmatter according to `SPEC-038`; JSON schema disables implicit timestamps, Zod remains the ultimate boundary. | `js-yaml` 4.3.1, types 4.0.9; exact pin in manifest and lock. | MIT |
+| `lucide-react`, `sonner` | Icons and safe feedback notifications (`REQ-2309`). | Current stable; pin in lock. | ISC / MIT |
 
-Timeout / failure для runtime-набора: сетевые вызовы идут через порождённый клиент с
-ограниченным таймаутом; недоступный API даёт наблюдаемое состояние ошибки
-(`REQ-2205`), а не пустую или частичную страницу; секреты и значения токенов в
-клиентский код, логи браузера и видимые ошибки не попадают (`ADR-0041`, `ADR-0043`).
+Timeout / failure for runtime set: network calls go through a spawned client with
+with a limited timeout; an unavailable API gives an observable error state
+(`REQ-2205`), and not an empty or partial page; secrets and meanings of tokens in
+client code, browser logs, and visible errors do not get captured (`ADR-0041`, `ADR-0043`).
 
-### Dev и тесты
+### Dev and tests
 
-| Пакет | Capability gap | Версия / lock | Лицензия |
+| Package | Capability gap | Version / lock | License |
 |---|---|---|---|
-| `typescript` (7.x) | Основной typecheck-гейт `apps/web` нативным компилятором в strict-режиме по `ADR-0043`. | 7.x; pin в lock. | Apache-2.0 |
-| `typescript` (6.x, боковой) + `typescript-eslint` | Type-aware линт (полный запрет `any`, запрет небезопасного структурного доступа): `typescript-eslint` не работает на TS7 до стабильного API, поэтому TS6 стоит рядом только для линта и удаляется при выходе TS7.1 (`ADR-0043`). | TS6 `>=6.0 <6.1`; pin в lock. | Apache-2.0 / MIT |
-| `eslint` (flat config) + `eslint-plugin-react`, `eslint-plugin-react-hooks`, `eslint-plugin-jsx-a11y`, `eslint-plugin-import` | Линт как гейт: правила React/hooks, доступности, импортных границ atomic-слоёв и запрета god-объектов (`coding-rules.md`, `REQ-2213`). | Актуальные стабильные; pin в lock. | MIT |
-| `vitest`, `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`, `jsdom` | Unit и компонентные тесты состояний, темы и доступности (`REQ-2202`, `REQ-2213`, `REQ-2214`). | Актуальные стабильные; pin в lock. | MIT |
-| `@playwright/test` | Browser smoke `landing → search → detail` и потоков входа/отзыва (`REQ-2213`, `REQ-2311`). | Актуальная стабильная; pin в lock. | Apache-2.0 |
-| `msw` | Mock-first разработка и тесты против фикстур `#71` до готовности `#80`/`#81`. | Актуальная стабильная; pin в lock. | MIT |
-| `prettier` | Форматирование фронтенд-кода. | Актуальная стабильная; pin в lock. | MIT |
-| `storybook` + `@storybook/react-vite` + `@storybook/addon-essentials` + `@storybook/addon-a11y` + `@storybook/addon-themes` + `vite` + `@vitejs/plugin-react` + `@tailwindcss/vite` | UI kit / design-token Storybook для foundations и atomic компонентов; dev-only, не runtime. Позволяет менять тему (токены) без смешения с product routes. | Storybook 8.x; pin в `bun.lock`. | MIT |
+| `typescript` (7.x) | Main typecheck gate `apps/web` with the native compiler in strict mode according to `ADR-0043`. | 7.x; pinned in lock. | Apache-2.0 |
+| `typescript` (6.x, side-by-side) + `typescript-eslint` | Type-aware lint (complete ban on `any`, ban on unsafe structural access): `typescript-eslint` does not work on TS7 until a stable API, so TS6 is installed alongside only for linting and removed upon the release of TS7.1 (`ADR-0043`). | TS6 `>=6.0 <6.1`; pin in lock. | Apache-2.0 / MIT |
+| `eslint` (flat config) + `eslint-plugin-react`, `eslint-plugin-react-hooks`, `eslint-plugin-jsx-a11y`, `eslint-plugin-import` | Lint as a gate: rules for React/hooks, accessibility, import boundaries of atomic layers, and prohibition of god objects (`coding-rules.md`, `REQ-2213`). | Current stable; pin in lock. | MIT |
+| `vitest`, `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`, `jsdom` | Unit and component tests of states, themes, and accessibility (`REQ-2202`, `REQ-2213`, `REQ-2214`). | Current stable; pinned in lock. | MIT |
+| `@playwright/test` | Browser smoke `landing → search → detail` and login/review flows (`REQ-2213`, `REQ-2311`). | Current stable; pin in lock. | Apache-2.0 |
+| `msw` | Mock-first development and tests against fixtures `#71` until ready `#80`/`#81`. | Current stable; pin in lock. | MIT |
+| `prettier` | Frontend code formatting. | Current stable; pin in lock. | MIT |
+| `storybook` + `@storybook/react-vite` + `@storybook/addon-essentials` + `@storybook/addon-a11y` + `@storybook/addon-themes` + `vite` + `@vitejs/plugin-react` + `@tailwindcss/vite` | UI kit / design-token Storybook for foundations and atomic components; dev-only, not runtime. Allows changing theme (tokens) without mixing with product routes. | Storybook 8.x; pin in `bun.lock`. | MIT |
 
-Платформы всего набора: Node LTS на Windows / Linux / macOS через `bun`; тест
-`run_conformance`-аналога на стороне веба — контрактный тест происхождения типов из
-`schemas/v1/openapi.json`. Тест каждой библиотеки покрыт критериями приёмки `SPEC-022`
-и `SPEC-023`.
+Platforms of the entire set: Node LTS on Windows / Linux / macOS via `bun`; test
+`run_conformance`-analogue on the web side — a contract test for type origin from
+`schemas/v1/openapi.json`. The test of each library is covered by the acceptance criteria `SPEC-022`
+and `SPEC-023`.

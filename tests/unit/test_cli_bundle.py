@@ -443,8 +443,8 @@ def test_the_refusal_registry_matches_the_contract() -> None:
 
 def test_the_declared_limits_match_the_contract() -> None:
     text = CONTRACT.read_text("utf-8")
-    assert f"максимум файлов: {bundle.MAX_FILES}" in text
-    assert "0644 и 0755" in text
+    assert f"maximum files: {bundle.MAX_FILES}" in text
+    assert "0644 and 0755" in text
 
 
 @pytest.mark.parametrize(

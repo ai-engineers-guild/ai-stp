@@ -1,143 +1,150 @@
 ---
-description: "Решение о модели анонимного чтения публичного каталога: непрозрачный курсор, недоступность для перечисления и механизм выдачи байтов объекта."
-last_verified: "2026-08-31"
+description: "Decision on the anonymous public catalog read model: opaque cursor, resistance to enumeration, and the object-byte delivery mechanism."
+last_verified: "2026-08-06"
 ---
 
-# ADR-0042: Модель анонимного чтения каталога и выдача байтов объекта
+# ADR-0042: Anonymous Catalog Read Model and Object-Byte Delivery
 
-Статус: принято. Реализовано в анонимном catalog API, кэше CLI и contract tests.
+Status: proposed.
 
-## Контекст
+## Context
 
-`#81` (`SPEC-021`) реализует первый анонимный публичный каталог: поиск, листинг и
-точное чтение объекта и версии для веба и CLI без пользовательской публикации.
-Wire-контракт заморожен `#71` в `schemas/v1/openapi.json` и моделях
-`ai_stp_contracts.catalog`: шесть `GET`-маршрутов `/v1/catalog/components` и
-`/v1/catalog/setups`, непрозрачный `Cursor` с шаблоном и границей страницы, секции
-`authoritative` и `experimental`, запрет представлять скрытый объект и требование
-опубликованного паспорта. Схема хранения `catalog_metadata` и `object_location`
-создана `#79` (`SPEC-020`); адаптер неизменяемого объектного хранилища с проверкой
-digest и размера уже существует; линии доверия приняты `ADR-0016`; честность
-верификации - `ADR-0026` и `ADR-0032`.
+`#81` (`SPEC-021`) implements the first anonymous public catalog: search, listing,
+and exact object and version reads for the web and CLI without user publication.
+The wire contract was frozen by `#71` in `schemas/v1/openapi.json` and the
+`ai_stp_contracts.catalog` models: six `GET` routes under `/v1/catalog/components`
+and `/v1/catalog/setups`, an opaque `Cursor` with a pattern and page boundary,
+`authoritative` and `experimental` sections, a prohibition on revealing a hidden
+object, and a published-passport requirement. The `catalog_metadata` and
+`object_location` storage schema was created by `#79` (`SPEC-020`); the immutable
+object-storage adapter with digest and size validation already exists; trust lanes
+were accepted by `ADR-0016`; verification integrity is governed by `ADR-0026` and
+`ADR-0032`.
 
-Контракт фиксирует форму ответа, но не механизм. Три решения не выбраны ни одним
-принятым ADR и без них слайс каталога разошёлся бы в несовместимых реализациях, а
-часть из них к тому же нельзя откатить без смены wire-поведения:
+The contract establishes the response shape but not the mechanism. Three decisions
+are not selected by any accepted ADR; without them, the catalog slice would diverge
+into incompatible implementations, and some cannot be rolled back without changing
+wire behavior:
 
-1. как устроен непрозрачный курсор, чтобы порядок был полным, стабильным и
-   устойчивым к подделке, а страница из одной курсорной последовательности
-   покрывала обе линии доверия без дублей и пропусков;
-2. как гарантировать недоступность скрытых, приватных и черновых записей для
-   перечисления сразу по нескольким независимым каналам, а не одним флагом;
-3. как выдавать байты артефакта после проверки объекта и действия - API-опосредованным
-   потоком или кратко живущим ограниченным URL.
+1. how to construct the opaque cursor so that ordering is total, stable, and
+   tamper-resistant, while a page from one cursor sequence covers both trust lanes
+   without duplicates or omissions;
+2. how to guarantee that hidden, private, and draft records cannot be enumerated
+   through several independent channels, rather than through a single flag;
+3. how to deliver artifact bytes after object and action validation: an API-mediated
+   stream or a short-lived restricted URL.
 
-Схема хранения при этом не несёт `published_at`, линии доверия и осей верификации:
-`#79` намеренно оставил колонки минимальными. Проекции карточки замороженного
-контракта требуют этих значений, поэтому решение затрагивает и малое аддитивное
-расширение схемы.
+The storage schema does not contain `published_at`, the trust lane, or verification
+axes: `#79` intentionally kept the columns minimal. The frozen contract's card
+projections require these values, so the decision also affects a small additive
+schema extension.
 
-## Варианты
+## Options
 
-Непрозрачный курсор:
+Opaque cursor:
 
-1. Подписанный HMAC токен, кодирующий сигнатуру фильтра и сортировки и
-   исключающий последний ключ `(sort_key..., stable_id)`. Keyset-пагинация по
-   сравнению кортежей строк (`tuple_(...) > (...)` в `SQLAlchemy 2`) даёт полный
-   стабильный порядок с `stable_id` как разрешителем ничьей; подпись ловит подделку;
-   привязка к сигнатуре фильтра ловит перенос курсора в другой фильтр; страница
-   ограничивается суммарно по обеим линиям. Стоимость - секрет подписи в окружении и
-   инвалидция курсора при смене фильтра, что и есть корректное поведение.
-2. Offset-пагинация с кодированием смещения. Проще, но неустойчива к вставкам между
-   страницами (дубли и пропуски), а «непрозрачное смещение» декодируемо и позволяет
-   выбрать произвольный срез. Не удовлетворяет `REQ-2105`.
-3. Хранимый серверный курсор (строка состояния на выдачу). Убирает подпись, но
-   вводит состояние, срок жизни и уборку на анонимный маршрут и открывает канал
-   перечисления по идентификатору курсора. Стоимость выше выгоды.
+1. A signed HMAC token that encodes the filter and sort signature and the exclusive
+   last key `(sort_key..., stable_id)`. Keyset pagination using row-tuple comparison
+   (`tuple_(...) > (...)` in `SQLAlchemy 2`) provides a total stable order with
+   `stable_id` as the tie-breaker; the signature detects tampering; binding to the
+   filter signature detects moving a cursor to a different filter; the page limit
+   applies across both lanes in total. The cost is a signing secret in the
+   environment and cursor invalidation when the filter changes, which is the correct
+   behavior.
+2. Offset pagination with an encoded offset. Simpler, but unstable under insertions
+   between pages (duplicates and omissions), while an "opaque offset" can be decoded
+   and allows selecting an arbitrary slice. Does not satisfy `REQ-2105`.
+3. A stored server-side cursor (one state row per listing). Eliminates the signature,
+   but introduces state, lifetime, and cleanup for an anonymous route and opens an
+   enumeration channel through the cursor identifier. The cost exceeds the benefit.
 
-Недоступность для перечисления:
+Resistance to enumeration:
 
-1. Набор независимых защит на каждый канал: один и тот же `AI_STP_NOT_FOUND` для
-   отсутствующей и непубличной записи; отсутствие счётчика набора на wire (уже в
-   контракте); проекция и путь ошибки одинаковой формы независимо от того,
-   существует ли скрытая запись; непрозрачный ключ объекта без полномочия (уже в
-   `#79`). Каждый канал закрыт отдельно и закреплён тестом.
-2. Один флаг видимости в запросе строки. Дёшево, но оставляет открытыми каналы
-   счётчика, времени и ключа; единый флаг скрыл бы, что каналы независимы.
+1. A set of independent protections for every channel: the same `AI_STP_NOT_FOUND`
+   for a missing and a non-public record; no collection count on the wire (already in
+   the contract); a projection and error path of the same shape regardless of whether
+   a hidden record exists; an opaque object key without authority (already in `#79`).
+   Every channel is closed separately and secured by a test.
+2. A single visibility flag in the row query. Cheap, but leaves count, timing, and key
+   channels open; a single flag would conceal the fact that the channels are
+   independent.
 
-Выдача байтов объекта:
+Object-byte delivery:
 
-1. API-опосредованный поток (`StreamingResponse`): сервер - и точка авторизации, и
-   путь данных; проверка объекта и действия выполняется на каждый запрос, клиент
-   никогда не обращается к хранилищу напрямую, ключ объекта не покидает сервер.
-   Стоимость - трафик через приложение.
-2. Кратко живущий ограниченный presigned URL: сервер авторизует один раз и выдаёт
-   подписанный URL с коротким TTL и наименьшими правами; хранилище отдаёт байты
-   напрямую. Presigned URL - предъявительский артефакт: любой держатель URL
-   использует его до истечения, и `RustFS`/`S3` по `SPEC-019` не опубликованы в
-   интернет, поэтому прямой доступ клиента к хранилищу извне недоступен.
+1. API-mediated streaming (`StreamingResponse`): the server is both the authorization
+   point and the data path; object and action validation runs on every request, the
+   client never accesses storage directly, and the object key never leaves the
+   server. The cost is traffic through the application.
+2. A short-lived restricted presigned URL: the server authorizes once and issues a
+   signed URL with a short TTL and least privilege; storage serves the bytes directly.
+   A presigned URL is a bearer artifact: any holder can use it until expiration, and
+   `RustFS`/`S3` are not exposed to the internet under `SPEC-019`, so direct external
+   client access to storage is unavailable.
 
-## Решение
+## Decision
 
-Принимается подписанный HMAC keyset-курсор, набор независимых защит от
-перечисления и API-опосредованная выдача байтов объекта на Sprint-1.
+A signed HMAC keyset cursor, a set of independent enumeration protections, and
+API-mediated object-byte delivery are accepted for Sprint 1.
 
-Курсор:
+Cursor:
 
-- Токен кодирует версию схемы курсора, сигнатуру активного фильтра и сортировки и
-  исключающий последний ключ `(sort_key..., stable_id)`; сериализуется компактно и
-  соответствует замороженному `CURSOR_PATTERN` контракта `#71` (`^[A-Za-z0-9_-]{1,512}$`).
-- Порядок задаётся серверной сортировкой с `stable_id` как финальным разрешителем
-  ничьей; продвижение страницы - keyset-сравнение кортежа строк, а не `OFFSET`.
-- Подпись HMAC вычисляется секретом из окружения (не секрет в коде, как `secret_key`
-  в `ADR-0041`); неверная подпись и несовпадение сигнатуры фильтра дают
-  типизированную ошибку неверного запроса.
-- Обе линии доверия делят одну курсорную последовательность; страница ограничена
-  суммарно по обеим линиям значением `PAGE_SIZE_MAX`.
+- The token encodes the cursor-schema version, the active filter and sort signature,
+  and the exclusive last key `(sort_key..., stable_id)`; it is serialized compactly
+  and conforms to the frozen `CURSOR_PATTERN` from contract `#71`
+  (`^[A-Za-z0-9_-]{1,512}$`).
+- Ordering is defined by server-side sorting with `stable_id` as the final tie-breaker;
+  page advancement uses keyset comparison of the row tuple, not `OFFSET`.
+- The HMAC signature is computed with a secret from the environment (not a secret in
+  code, like `secret_key` in `ADR-0041`); an invalid signature or filter-signature
+  mismatch produces a typed invalid-request error.
+- Both trust lanes share one cursor sequence; the page is limited across both lanes
+  in total by `PAGE_SIZE_MAX`.
 
-Недоступность для перечисления - набор защит на канал: единый `AI_STP_NOT_FOUND`,
-отсутствие счётчиков на wire, форма ответа и ошибки, не зависящая от существования
-скрытой записи, непрозрачный неполномочный ключ объекта; каждая закреплена тестом.
+Resistance to enumeration is a set of per-channel protections: one
+`AI_STP_NOT_FOUND`, no counts on the wire, a response and error shape independent of
+whether a hidden record exists, and an opaque object key without authority; each is
+secured by a test.
 
-Выдача байтов - API-опосредованный поток: проверка объекта и действия на каждый
-запрос, затем `StreamingResponse` из адаптера объектного хранилища с проверкой
-digest и размера до отдачи. Presigned URL в Sprint-1 не применяется, поскольку
-хранилище не опубликовано и предъявительская семантика URL требует отдельного
-обоснования.
+Bytes are delivered through an API-mediated stream: object and action validation run
+on every request, followed by a `StreamingResponse` from the object-storage adapter
+with digest and size validation before delivery. Presigned URLs are not used in
+Sprint 1 because storage is not exposed and the URL's bearer semantics require
+separate justification.
 
-Состояние публикации: `published_at`, линия доверия и оси верификации добавляются
-малым аддитивным расширением схемы хранения (миграция вперёд по `SPEC-020`),
-необязательным-сначала; владение слоем хранения остаётся у `SPEC-020`, семантика
-значений - у `SPEC-021` и `ADR-0016`/`ADR-0026`.
+Publication state: `published_at`, the trust lane, and verification axes are added by
+a small additive storage-schema extension (a forward migration under `SPEC-020`),
+optional-first; ownership of the storage layer remains with `SPEC-020`, while value
+semantics remain with `SPEC-021` and `ADR-0016`/`ADR-0026`.
 
-## Последствия
+## Consequences
 
-- Слайс `catalog` в `apps/api` следует `ADR-0037`; общее ядро получает зависимость
-  разбора и выпуска курсора и зависимость проверки публичности, разделяемые
-  маршрутами листинга и чтения.
-- Требуется секрет подписи курсора из окружения; он не является секретом в коде и
-  документируется в примерах окружения без значения.
-- Требуется малая аддитивная миграция схемы для состояния публикации; она проходит
-  правила `SPEC-020` и не переопределяет его владение и не трогает общие wire-схемы
-  `#71`.
-- Проекция карточки читает поля `latest_*` из паспорта последней предложенной
-  версии; отсутствие поля издателя в замороженной карточке `#71` фиксируется как
-  расхождение с прозой issue и при необходимости оформляется аддитивной заявкой к
-  `#71`, а не локальным полем.
-- В Sprint-1 без конвейера валидации ни один объект не несёт `component_verified`,
-  поэтому посев целиком экспериментален, а линия `authoritative` законно пуста; это
-  прямое следствие `ADR-0016`/`ADR-0026`, а не дефект.
-- Требуются тесты: property-тест порядка и курсора, отклонение подделанного и чужого
-  курсора, недоступность для перечисления по каждому каналу, проверка digest и
-  размера при выдаче, идемпотентность посева и прогон `run_conformance`.
-- Rollback: механизм курсора и путь выдачи инкапсулированы в слайсе и общем ядре;
-  переход на presigned URL потребует нового ADR из-за смены модели доступа и не
-  выполняется по месту.
+- The `catalog` slice in `apps/api` follows `ADR-0037`; the shared core gains a
+  cursor parsing and issuance dependency and a public-visibility validation
+  dependency shared by listing and read routes.
+- A cursor-signing secret from the environment is required; it is not a secret in
+  code and is documented without a value in environment examples.
+- A small additive schema migration for publication state is required; it follows
+  the rules of `SPEC-020`, does not redefine its ownership, and does not modify the
+  shared wire schemas from `#71`.
+- The card projection reads `latest_*` fields from the passport of the latest
+  proposed version; the absence of a publisher field in the frozen `#71` card is
+  recorded as a discrepancy with the issue prose and, if necessary, addressed by an
+  additive request to `#71`, not by a local field.
+- In Sprint 1, without a validation pipeline, no object carries
+  `component_verified`, so the entire seed is experimental and the `authoritative`
+  lane is legitimately empty; this is a direct consequence of
+  `ADR-0016`/`ADR-0026`, not a defect.
+- Required tests: a property test for ordering and the cursor; rejection of tampered
+  and foreign cursors; resistance to enumeration through every channel; digest and
+  size validation during delivery; seed idempotency; and a `run_conformance` run.
+- Rollback: the cursor mechanism and delivery path are encapsulated in the slice and
+  shared core; switching to a presigned URL requires a new ADR because it changes the
+  access model and is not performed in place.
 
-## Условия пересмотра
+## Reconsideration Conditions
 
-Решение пересматривается, если объём трафика байтов сделает API-опосредованный путь
-узким местом и появится готовность принять предъявительскую семантику presigned URL
-с коротким TTL и наименьшими правами; либо если появится маршрут выдачи байтов в
-контракте `#71`, требующий иной формы; либо если многорегиональное чтение без общего
-секрета подписи потребует иной схемы курсора.
+The decision will be reconsidered if byte-traffic volume makes the API-mediated path
+a bottleneck and there is readiness to accept the bearer semantics of a presigned URL
+with a short TTL and least privilege; if a byte-delivery route appears in contract
+`#71` that requires a different form; or if multi-region reads without a shared
+signing secret require a different cursor scheme.

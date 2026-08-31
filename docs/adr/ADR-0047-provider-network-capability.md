@@ -1,136 +1,140 @@
 ---
-description: "Версионированная сетевая граница провайдера и честное доказательство её исполнения."
+description: "Versioned provider network boundary and honest evidence of its enforcement."
 last_verified: "2026-08-09"
 ---
 
-# ADR-0047: Сетевая способность провайдера
+# ADR-0047: Provider Network Capability
 
-Статус: принято; v2-модели, закрытая wire schema, phase invoker и доказуемый
-Linux/Bubblewrap launcher реализованы; macOS launcher ещё не реализован; protocol v1
-не изменён.
+Status: accepted; v2 models, the closed wire schema, phase invoker, and verifiable
+Linux/Bubblewrap launcher are implemented; the macOS launcher is not yet implemented;
+protocol v1 is unchanged.
 
-## Контекст
+## Context
 
-Замороженный provider protocol v1 ограничивает массив аргументов, shell,
-исполняемый файл, целевой каталог, окружение, время и объём вывода. Он не объявляет
-сетевую потребность действия и не изолирует сеть процесса. Поэтому успешный запуск
-через текущую границу не является доказательством отсутствия сетевого доступа, а
-protocol v1 не закрывает сетевой класс вредоносного корпуса `#184`.
+The frozen provider protocol v1 restricts the argument array, shell, executable,
+target directory, environment, time, and output size. It does not declare an action's
+network requirement or isolate the process network. Therefore, a successful launch
+through the current boundary is not evidence that network access was absent, and
+protocol v1 does not address the network class of the `#184` malicious corpus.
 
-Часть действий должна быть полностью локальной. Другие действия действительно могут
-скачивать программу харнесса или запускать среду, чья штатная работа обращается к
-внешним сервисам. Единый неявный режим либо ломает допустимые действия, либо создаёт
-ложное обещание песочницы. Переносимый способ запретить сеть процессу также различается
-между Linux и macOS; наличие ОС само по себе не доказывает наличие такого механизма.
+Some actions must be entirely local. Other actions may legitimately download the
+harness program or launch an environment whose normal operation accesses external
+services. One implicit mode either breaks valid actions or creates a false sandbox
+promise. A portable way to deny network access to a process also differs between
+Linux and macOS; the presence of the OS alone does not prove that such a mechanism
+exists.
 
-## Решение
+## Decision
 
-Protocol v1 остаётся замороженным. В нём сеть имеет состояние «не специфицирована и
-не доказана»; в текущий `Boundary`, `provider-info` и результат действия сетевые поля
-не добавляются.
+Protocol v1 remains frozen. In it, the network state is "unspecified and unproven";
+no network fields are added to the current `Boundary`, `provider-info`, or action
+result.
 
-Provider protocol v2 вводит обязательное объявление каждого действия:
+Provider protocol v2 introduces a mandatory declaration for every action:
 
-- `network_requirement = none` — действие обязано выполняться без сети;
-- `network_requirement = artifact_download` — действию явно разрешено получение
-  артефакта в отдельной фазе установки или обновления;
-- `network_requirement = runtime_external` — внешний runtime является частью
-  запрошенного запуска.
+- `network_requirement = none` — the action must run without network access;
+- `network_requirement = artifact_download` — the action is explicitly allowed to
+  fetch an artifact in a separate installation or update phase;
+- `network_requirement = runtime_external` — an external runtime is part of the
+  requested launch.
 
-Результат запуска содержит одно из состояний:
+The launch result contains one of these states:
 
-- `network_enforcement = enforced` — требуемая изоляция действительно установлена и
-  проверена выбранным launcher;
-- `network_enforcement = unavailable` — среда не может доказуемо установить
-  требуемую изоляцию;
-- `network_enforcement = not_requested` — политика явно разрешила требуемую сеть и
-  запрет не запрашивался.
+- `network_enforcement = enforced` — the required isolation was actually installed
+  and verified by the selected launcher;
+- `network_enforcement = unavailable` — the environment cannot verifiably install
+  the required isolation;
+- `network_enforcement = not_requested` — policy explicitly allowed the required
+  network and no prohibition was requested.
 
-`none` исполняется только при результате `enforced`. Если capability discovery не
-находит проверенный launcher, CLI возвращает типизированный отказ **до запуска**
-провайдера. `unavailable` никогда не преобразуется в `enforced` и не описывается как
-«сеть запрещена». `artifact_download` и `runtime_external` не дают провайдеру новые
-секреты: действуют существующий allowlist окружения и отдельные правила credentials.
+`none` runs only with an `enforced` result. If capability discovery does not find a
+verified launcher, the CLI returns a typed refusal **before launching** the provider.
+`unavailable` is never converted into `enforced` or described as "network denied."
+`artifact_download` and `runtime_external` grant the provider no new secrets: the
+existing environment allowlist and separate credential rules remain in effect.
 
-Набор действий и их требования являются закрытой частью v2. Предварительное
-распределение, которое должно быть закреплено conformance fixtures до реализации:
+The action set and its requirements are a closed part of v2. The preliminary mapping
+that must be fixed in conformance fixtures before implementation is:
 
-| Действия | Требование |
+| Actions | Requirement |
 |---|---|
 | `provider-info`, `software-status`, `validate-bundle`, `plan-bundle`, `apply-bundle`, `status`, `restore` | `none` |
 | `software-plan` | `none` |
-| `software-install`, `software-update` | `artifact_download` только для явной download-фазы; локальные проверки и изменение цели остаются `none` |
+| `software-install`, `software-update` | `artifact_download` only for the explicit download phase; local checks and target modification remain `none` |
 | `software-remove` | `none` |
 | `launch` | `runtime_external` |
 
-Разделение download-фазы обязательно: разрешение сети для скачивания не расширяет
-всю последующую операцию применения.
+Separating the download phase is mandatory: allowing network access for the download
+does not extend it to the entire subsequent apply operation.
 
-Wire-вызов v2 всегда содержит `--phase <phase>` перед обязательным
-`--target <absolute-directory>`. Consumer выбирает v2 по уже проверенному release
-manifest или явному conformance-режиму до первого запуска процесса. Он не доверяет
-`protocol_version` из ответа неизвестного provider для выбора более привилегированной
-границы. `network_enforcement` является наблюдением consumer и хранится рядом с
-provider payload, а не принимается из него как доказательство.
+A v2 wire invocation always contains `--phase <phase>` before the mandatory
+`--target <absolute-directory>`. The consumer selects v2 from an already verified
+release manifest or an explicit conformance mode before the first process launch. It
+does not trust `protocol_version` from an unknown provider's response when selecting
+a more privileged boundary. `network_enforcement` is an observation by the consumer
+and is stored alongside the provider payload, rather than accepted from it as proof.
 
-## Capability и доказательства
+## Capability and Evidence
 
-Linux и macOS имеют отдельные capability probes и отрицательные тесты. Название
-механизма или наличие бинарного файла недостаточно: тест запускает процесс, который
-пытается обратиться к контролируемому адресу, и наблюдает отказ внутри той же границы,
-которая затем запускает провайдера.
+Linux and macOS have separate capability probes and negative tests. The mechanism's
+name or the presence of a binary is insufficient: the test launches a process that
+attempts to access a controlled address and observes failure inside the same boundary
+that will subsequently launch the provider.
 
-Linux использует Bubblewrap network namespace только после положительного контроля и
-проверки IPv4, IPv6 и DNS-UDP. Для macOS остаётся выбрать отдельный системный sandbox
-или виртуализированную границу. Ни один вариант не считается доступным без проверки
-версии ОС, полномочий и наблюдаемого сетевого поведения. Если проверенного механизма
-нет, capability равна `unavailable` и действие с `none` не запускается.
+Linux uses a Bubblewrap network namespace only after a positive control and checks
+for IPv4, IPv6, and DNS over UDP. A separate system sandbox or virtualized boundary
+still needs to be selected for macOS. Neither option is considered available without
+checking the OS version, authority, and observable network behavior. If no verified
+mechanism exists, the capability is `unavailable` and an action with `none` does not
+run.
 
-Executable Bubblewrap и вся цепочка его каталогов до корня обязаны принадлежать
-`root` и не быть group/world-writable. Launcher из пользовательского `PATH` не
-получает статус `enforced`, даже если воспроизводит ожидаемый вывод probe: тот же
-пользователь мог бы заменить его между проверкой и provider invocation.
+The Bubblewrap executable and its entire directory chain to the root must be owned by
+`root` and not be group/world-writable. A launcher from the user's `PATH` does not
+receive `enforced` status even if it reproduces the expected probe output: the same
+user could replace it between the probe and provider invocation.
 
-## Совместимость и порядок миграции
+## Compatibility and Migration Order
 
-1. Добавить v2-модели, схемы и типизированный pre-invocation отказ в `ai_stp`, не
-   меняя `VERSION = 1` и v1 wire shape. Этот шаг реализован в
-   `ai_stp_cli.provider.protocol_v2`; сетевые probes к нему намеренно не приписаны.
-2. Реализовать capability probes и launchers на Linux и macOS; доказать fail-closed,
-   DNS, IPv4 и IPv6 отрицательными тестами. Linux/Bubblewrap путь реализован с
-   положительным контролем и внешним наблюдением DNS-UDP пакета; macOS остаётся.
-3. Научить consumer явно выбирать v1 или v2. `provider conformance` принимает только
-   явную версию 1 или 2; phase invoker применяет выбранную v2-политику к реальному
-   процессу, а v2 runner сверяет полное объявление фаз и решения consumer. Сам runner
-   исполняет только no-effect фазы на literal ZIP corpus; изменяющие фазы проверяются
-   в provider E2E на одноразовой цели. Этот шаг
-   реализован и для install lifecycle: версия и абсолютный provider target входят в
-   plan digest, а apply/resume не принимают новый выбор версии. v1 остаётся
-   legacy-совместимостью, но не удовлетворяет release gate `#184` и не используется
-   для его закрытия.
-4. Выпустить Claude Code и Codex providers с protocol v2 и conformance evidence;
-   затем закрепить подписанные releases и anti-rollback.
-5. Переключить release policy основных провайдеров на обязательный v2. Удаление v1
-   выполняется только отдельным решением после заявленного окна совместимости.
+1. Add v2 models, schemas, and a typed pre-invocation refusal to `ai_stp` without
+   changing `VERSION = 1` or the v1 wire shape. This step is implemented in
+   `ai_stp_cli.provider.protocol_v2`; network probes are intentionally not attributed
+   to it.
+2. Implement capability probes and launchers on Linux and macOS; prove fail-closed,
+   DNS, IPv4, and IPv6 behavior with negative tests. The Linux/Bubblewrap path is
+   implemented with a positive control and external observation of a DNS-over-UDP
+   packet; macOS remains outstanding.
+3. Teach the consumer to select v1 or v2 explicitly. `provider conformance` accepts
+   only explicit version 1 or 2; the phase invoker applies the selected v2 policy to
+   the real process, while the v2 runner checks the complete phase declaration and
+   consumer decisions. The runner itself executes only no-effect phases on the
+   literal ZIP corpus; mutating phases are checked in provider E2E against a
+   disposable target. This step is also implemented for the install lifecycle: the
+   version and absolute provider target enter the plan digest, while apply/resume do
+   not accept a new version selection. v1 remains for legacy compatibility, but does
+   not satisfy the `#184` release gate and is not used to close it.
+4. Release Claude Code and Codex providers with protocol v2 and conformance evidence;
+   then pin signed releases and anti-rollback.
+5. Switch the release policy for primary providers to mandatory v2. Removal of v1 is
+   performed only by a separate decision after a declared compatibility window.
 
-Ни consumer, ни provider не угадывают неизвестную версию. Dual-stack означает две
-явные схемы и два набора conformance fixtures, а не расширенный разбор v1.
+Neither the consumer nor the provider guesses an unknown version. Dual-stack means
+two explicit schemas and two sets of conformance fixtures, not extended v1 parsing.
 
-## Последствия
+## Consequences
 
-До реализации и доказательства launcher на конкретной ОС документация и интерфейс не
-могут обещать запрет сети провайдера. Наличие v2-модели само по себе не является
-enforcement. Linux evidence не переносится на macOS.
-Наличие подписанного first-party provider уменьшает риск подмены, но не заменяет
-изоляцию и не закрывает сетевой класс `#184`.
+Until a launcher is implemented and proven on a specific OS, documentation and the
+interface cannot promise provider network denial. The presence of the v2 model alone
+is not enforcement. Linux evidence does not transfer to macOS.
+Having a signed first-party provider reduces substitution risk, but does not replace
+isolation or address the network class of `#184`.
 
-Fail-closed может временно сделать локальные provider actions недоступными на системе
-без проверенного launcher. Это намеренное свойство: честный отказ безопаснее ложного
-результата `enforced`. Реальные provider releases и macOS evidence зависят от этой
-реализации.
+Fail-closed behavior may temporarily make local provider actions unavailable on a
+system without a verified launcher. This is intentional: an honest refusal is safer
+than a false `enforced` result. Real provider releases and macOS evidence depend on
+this implementation.
 
-## Условия пересмотра
+## Reconsideration Conditions
 
-Решение пересматривается, если provider protocol перестаёт запускать внешний процесс,
-или если единый доверенный runtime предоставляет одинаково доказуемую сетевую
-изоляцию на всех поддерживаемых системах.
+The decision will be reconsidered if the provider protocol stops launching an
+external process, or if one trusted runtime provides equally verifiable network
+isolation on all supported systems.

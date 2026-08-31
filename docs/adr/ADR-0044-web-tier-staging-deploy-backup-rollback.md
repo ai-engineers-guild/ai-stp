@@ -1,139 +1,147 @@
 ---
-description: "Решение о web-ярусе staging, маршрутизации Caddy, резервных копиях, откате и блокировке развёртывания для #84."
+description: "Decision on the staging web tier, Caddy routing, backups, rollback, and deployment locking for #84."
 last_verified: "2026-08-07"
 ---
 
-# ADR-0044: Веб-ярус staging, резервные копии и откат
+# ADR-0044: Staging Web Tier, Backups, and Rollback
 
-Статус: принято. Ярус staging заменён `ADR-0084-single-deployed-environment.md`: развёрнутая среда одна и обновляется напрямую. Резервные копии, откат и блокировка одновременных развёртываний из этой записи действуют полностью и становятся важнее, потому что ошибку больше не ловит отдельный ярус. Читать здесь эти механизмы и контекст исходного выбора.
+Status: accepted. The staging tier was superseded by `ADR-0084-single-deployed-environment.md`: there is one deployed environment, updated directly. The backup, rollback, and concurrent-deployment locking mechanisms in this record remain fully applicable and become more important because errors are no longer caught by a separate tier. Read this record for those mechanisms and the context of the original choice.
 
-## Контекст
+## Context
 
-`ADR-0040` зафиксировал топологию среды выполнения для `api` и `worker`: multi-stage
-образы Python, обратный прокси `Caddy` как единственная публичная точка, `compose` для
-dev и prod, сетевая изоляция, healthcheck и политика перезапуска. Оно же явно оставило
-боевое усиление staging за `#84`. `SPEC-019` повторил эту границу, а `SPEC-024` теперь
-владеет требованиями staging.
+`ADR-0040` established the runtime topology for `api` and `worker`: multi-stage
+Python images, the `Caddy` reverse proxy as the only public endpoint, `compose` for
+dev and prod, network isolation, healthchecks, and a restart policy. It also
+explicitly left production hardening of staging to `#84`. `SPEC-019` repeated this
+boundary, and `SPEC-024` now owns the staging requirements.
 
-С появлением `apps/web` (`#82`, `#83`) топологии не хватает трёх вещей, которых
-`ADR-0040` не решал. Первое: у веба своя сборка — `bun`, Next.js и Node-runtime, а не
-Python-образ `ADR-0040`, поэтому его упаковка требует отдельного решения. Второе:
-единая публичная точка теперь обслуживает два разных бэкенда одного домена — статику и
-серверный рендеринг веба и API, — и правило маршрутизации нужно зафиксировать. Третье:
-`#84` требует боевого TLS и домена, репетируемых резервных копий и восстановления
-PostgreSQL и RustFS, сериализации развёртывания и документированного отката к точному
-предыдущему артефакту — механизмы, которых в `ADR-0040` нет.
+With the introduction of `apps/web` (`#82`, `#83`), the topology lacks three things
+that `ADR-0040` did not address. First, the web has its own build—`bun`, Next.js, and
+a Node runtime rather than the Python image from `ADR-0040`—so its packaging requires
+a separate decision. Second, the single public endpoint now serves two different
+backends on one domain—static content and server-side web rendering, and the API—so
+the routing rule must be established. Third, `#84` requires production TLS and a
+domain, rehearsable PostgreSQL and RustFS backups and recovery, deployment
+serialization, and documented rollback to the exact previous artifact—mechanisms
+absent from `ADR-0040`.
 
-`ADR-0040` держит каркас топологии; наблюдаемость и готовность — `SPEC-017` и
-`ADR-0039`; хранилище — `SPEC-020`; веб-стек — `ADR-0043`. Эта запись владеет только
-web-ярусом staging, маршрутизацией прокси, резервными копиями, откатом и блокировкой
-развёртывания.
+`ADR-0040` owns the topology skeleton; observability and readiness belong to
+`SPEC-017` and `ADR-0039`; storage to `SPEC-020`; and the web stack to `ADR-0043`.
+This record owns only the staging web tier, proxy routing, backups, rollback, and
+deployment locking.
 
-## Варианты
+## Options
 
-Образ фронтенда:
+Frontend image:
 
-1. Отдельная сборка веба: `bun install` и `bun run build` со standalone-выводом
-   Next.js, затем минимальный Node-runtime, non-root, отдельные dev- и prod-образы.
-   Малый prod-образ и ясная граница с Python-образом. Стоимость — второй toolchain
-   образа.
-2. Единый образ с Python и Node. Меньше файлов, но смешивает два runtime, раздувает
-   образ и связывает несвязанные обновления.
+1. A separate web build: `bun install` and `bun run build` with Next.js standalone
+   output, followed by a minimal non-root Node runtime, with separate dev and prod
+   images. A small prod image and a clear boundary from the Python image. The cost is
+   a second image toolchain.
+2. One image with Python and Node. Fewer files, but mixes two runtimes, bloats the
+   image, and couples unrelated updates.
 
-Маршрутизация публичной точки:
+Public-endpoint routing:
 
-1. `Caddy` остаётся единственной публичной точкой и по пути делит трафик: API к `api`,
-   остальное к `web`; `web` ходит к `api` по внутренней сети. Один домен, одна точка
-   входа, база и хранилище закрыты. Согласуется с `ADR-0040`.
-2. Отдельная публичная точка для веба. Проще правило, но вторая внешняя поверхность и
-   расхождение с `ADR-0040`, где `Caddy` — единственная публичная точка.
+1. `Caddy` remains the only public endpoint and splits traffic by path: API traffic
+   goes to `api`, everything else to `web`; `web` reaches `api` over the internal
+   network. One domain, one entry point, with the database and storage closed.
+   Consistent with `ADR-0040`.
+2. A separate public endpoint for the web. A simpler rule, but a second external
+   surface and a departure from `ADR-0040`, where `Caddy` is the only public endpoint.
 
-Резервные копии и восстановление:
+Backup and recovery:
 
-1. Логический дамп PostgreSQL и копия объектов RustFS по расписанию и по требованию с
-   ограниченным хранением и репетируемым восстановлением. Просто, воспроизводимо, без
-   секретов в копии.
-2. Только снапшот тома. Быстро, но привязано к хосту и хуже проверяется восстановлением
-   на чистом хосте.
+1. A logical PostgreSQL dump and RustFS object copy on a schedule and on demand, with
+   limited retention and rehearsable recovery. Simple and reproducible, with no
+   secrets in the backup.
+2. A volume snapshot only. Fast, but tied to the host and harder to validate through
+   recovery on a clean host.
 
-Откат и блокировка развёртывания:
+Rollback and deployment locking:
 
-1. Откат переразвёртыванием предыдущего точного артефакта образа и коммита без
-   разрушающей обратной миграции; блокировка сериализует развёртывания; критерий
-   прерывания не переводит трафик на нездоровый артефакт. Совместимо с текущей схемой.
-2. Откат обратной миграцией схемы. Возвращает данные назад разрушающе и опасен при
-   уже принятых записях; отклоняется как способ отката приложения. `ADR-0081`
-   пересмотрел вторую половину: понижение ревизии осталось запрещённым внутри
-   отката и стало отдельной явной операцией с резервной копией.
+1. Rollback by redeploying the exact previous image artifact and commit without a
+   destructive reverse migration; a lock serializes deployments; an abort criterion
+   prevents switching traffic to an unhealthy artifact. Compatible with the current
+   schema.
+2. Rollback by reversing the schema migration. Destructively moves data backward and
+   is dangerous after records have already been accepted; rejected as an application
+   rollback method. `ADR-0081` revised the second half: revision downgrade remains
+   prohibited within rollback and became a separate explicit operation with a backup.
 
-## Решение
+## Decision
 
-Принимаются отдельный образ фронтенда, деление трафика на `Caddy`, логические резервные
-копии и откат переразвёртыванием под блокировкой.
+A separate frontend image, traffic splitting at `Caddy`, logical backups, and
+rollback by redeployment under a lock are accepted.
 
-Образ фронтенда:
+Frontend image:
 
-- Веб собирается отдельно от Python-образа `ADR-0040`: prod-образ строит standalone-вывод
-  Next.js через `bun` и запускает его на минимальном Node-runtime под non-root
-  пользователем; dev-образ пригоден для локальной разработки с исходниками. Отдельные
-  dev- и prod-файлы образа. Версии базовых образов закреплены.
-- Для standalone-вывода `apps/web` включает соответствующий режим сборки Next.js; это
-  требование к `#82`/`#83` артефакту, а не к контракту.
+- The web is built separately from the `ADR-0040` Python image: the prod image builds
+  Next.js standalone output through `bun` and runs it on a minimal Node runtime as a
+  non-root user; the dev image supports local development with source files. Dev and
+  prod use separate image files. Base-image versions are pinned.
+- For standalone output, `apps/web` enables the corresponding Next.js build mode;
+  this is a requirement for the `#82`/`#83` artifact, not for the contract.
 
-Маршрутизация:
+Routing:
 
-- На **staging/prod** `Caddy` остаётся единственной публичной точкой (`ADR-0040`) и
-  делит трафик по пути: префикс API и связанные служебные пути идут к `api`,
-  остальное — к `web`. `web` обращается к `api` по внутренней сети, а не через
-  публичный адрес. `PostgreSQL` и `RustFS` не публикуются.
-- На staging-хосте `Caddy` обслуживает боевой TLS и домен автоматическим HTTPS.
-- **Dev-исключение:** `docker-compose.dev.yml` не включает Caddy. Браузерный origin —
-  опубликованный порт `web`; same-origin `/v1/*` (и docs paths) переписывает Next.js
-  dev-server на `AI_STP_API_BASE_URL`. Это не меняет staging/prod edge.
+- In **staging/prod**, `Caddy` remains the only public endpoint (`ADR-0040`) and
+  splits traffic by path: the API prefix and related service paths go to `api`, and
+  everything else to `web`. `web` reaches `api` over the internal network, not
+  through the public address. `PostgreSQL` and `RustFS` are not exposed.
+- On the staging host, `Caddy` serves production TLS and the domain using automatic
+  HTTPS.
+- **Dev exception:** `docker-compose.dev.yml` does not include Caddy. The browser
+  origin is the exposed `web` port; the Next.js dev server rewrites same-origin
+  `/v1/*` (and docs paths) to `AI_STP_API_BASE_URL`. This does not change the
+  staging/prod edge.
 
-Резервные копии и восстановление:
+Backup and recovery:
 
-- Резервная копия staging — логический дамп PostgreSQL и копия объектов RustFS по
-  расписанию и по требованию, с ограниченным хранением; восстановление репетируется на
-  staging-данных и проверяется. Копия и её лог не содержат секретов и байтов объекта
-  сверх самих данных резервной копии.
+- A staging backup consists of a logical PostgreSQL dump and a RustFS object copy on
+  a schedule and on demand, with limited retention; recovery is rehearsed against
+  staging data and verified. The backup and its log contain neither secrets nor
+  object bytes beyond the backup data itself.
 
-Откат и блокировка:
+Rollback and locking:
 
-- Развёртывание сериализуется блокировкой; повтор идемпотентен; при невыполнении
-  критерия готовности развёртывание прерывается и не переводит трафик на нездоровый
-  артефакт. Откат переразвёртывает предыдущий точный артефакт образа и коммита и
-  остаётся совместимым с текущей схемой; разрушающая обратная миграция при откате не
-  выполняется. Несовместимое изменение схемы получает отдельную процедуру по
+- A lock serializes deployment; retries are idempotent; if the readiness criterion is
+  not met, deployment aborts without switching traffic to the unhealthy artifact.
+  Rollback redeploys the exact previous image artifact and commit and remains
+  compatible with the current schema; no destructive reverse migration runs during
+  rollback. An incompatible schema change receives a separate procedure under
   `docs/engineering/schema-evolution.md`.
 
-Идентичность версии, коммита и схемы выдаётся безопасной диагностикой `SPEC-017` без
-секретов и значений окружения. Процедуры развёртывания, резервной копии, восстановления
-и отката документируются runbook в `docs/operations/runbooks/`.
+Version, commit, and schema identity are exposed through the safe diagnostics of
+`SPEC-017`, without secrets or environment values. Deployment, backup, recovery, and
+rollback procedures are documented as runbooks in `docs/operations/runbooks/`.
 
-## Последствия
+## Consequences
 
-- Появляется второй тип образа (веб) и отдельные dev- и prod-файлы образа фронтенда;
-  `SPEC-024` получает требования web-яруса, маршрутизации, резервных копий, отката и
-  блокировки; `docs/operations/runbooks/` получает runbook staging-развёртывания.
-- `docker-compose` prod добавляет сервис `web` и правило маршрутизации `Caddy`;
-  `docker-compose` dev добавляет `web` с host port и без Caddy (rewrite на Next);
-  контракт окружения расширяется переменными веба с разделением dev/prod (`SPEC-024`
+- A second image type (web) and separate dev and prod frontend image files are
+  introduced; `SPEC-024` gains requirements for the web tier, routing, backups,
+  rollback, and locking; `docs/operations/runbooks/` gains a staging deployment
+  runbook.
+- Prod `docker-compose` adds a `web` service and a `Caddy` routing rule; dev
+  `docker-compose` adds `web` with a host port and without Caddy (rewrite to Next);
+  the environment contract gains web variables separated by dev/prod (`SPEC-024`
   `REQ-2402`).
-- Резервная копия и откат репетируются на staging и дают записанные доказательства
-  `#84`; откат не разрушает данные обратной миграцией.
-- Безопасность: на staging/prod единственной публичной точкой остаётся `Caddy`; в
-  local dev — опубликованные `web`/`api`; база и хранилище закрыты; логи, копии и
-  диагностика не несут секретов (`SPEC-013`, `SPEC-017`).
-- Требуются проверки: маршрутизация и сетевая изоляция, сборка dev/prod образов веба,
-  порядок миграции и посева, deploy smoke, репетиция резервной копии и восстановления,
-  репетиция отката и сериализация развёртывания.
-- Rollback самого решения: образ, маршрутизация, копии и процедура отката
-  инкапсулированы в `compose`, образах и runbook; смена любого требует нового ADR.
+- Backup and rollback are rehearsed on staging and produce recorded evidence for
+  `#84`; rollback does not destroy data through a reverse migration.
+- Security: in staging/prod, `Caddy` remains the only public endpoint; local dev
+  exposes `web`/`api`; the database and storage remain closed; logs, backups, and
+  diagnostics contain no secrets (`SPEC-013`, `SPEC-017`).
+- Required checks: routing and network isolation, web dev/prod image builds,
+  migration and seed ordering, deployment smoke, backup and recovery rehearsal,
+  rollback rehearsal, and deployment serialization.
+- Rollback of the decision itself: the image, routing, backups, and rollback procedure
+  are encapsulated in `compose`, images, and the runbook; changing any of them
+  requires a new ADR.
 
-## Условия пересмотра
+## Reconsideration Conditions
 
-Решение пересматривается, если нагрузка или доступность потребуют оркестратора уровня
-Kubernetes (общее с `ADR-0040`); если публичной точкой перестанет быть `Caddy`; если
-staging-хост потребует иной модели TLS, чем автоматический HTTPS; либо если появится
-доказанная потребность в откате с миграцией схемы, а не переразвёртыванием артефакта.
+The decision will be reconsidered if load or availability requires an orchestrator
+such as Kubernetes (shared with `ADR-0040`); if `Caddy` ceases to be the public
+endpoint; if the staging host requires a TLS model other than automatic HTTPS; or if
+there is a demonstrated need for rollback with a schema migration rather than
+artifact redeployment.

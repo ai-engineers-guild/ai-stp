@@ -1,62 +1,58 @@
 ---
-description: "Machine help CLI как источник доступных команд и схем."
-last_verified: "2026-08-31"
+description: "CLI machine help as the source of available commands and schemas."
+last_verified: "2026-08-09"
 ---
 
 # Machine help
 
-Машинная справка — это то, откуда агент узнаёт, какие команды существуют и как их вызывать. Skill не переписывает перечень флагов руками и не угадывает их: `SPEC-011` REQ-1106 прямо это запрещает.
+Machine help is how the Agent learns which commands exist and how to invoke them. The Skill neither rewrites nor guesses the flag list: `SPEC-011` REQ-1106 explicitly forbids this.
 
-## Две точки входа
+## Two Entry Points
 
 ```text
 ai-stp capabilities --json
 ai-stp help --agent --json
 ```
 
-Они отвечают на разные вопросы и намеренно не заменяют друг друга.
+They answer different questions and intentionally do not replace each other.
 
-`capabilities` отвечает, **что эта установка умеет прямо сейчас**: версии, поддерживаемые харнессы, включены ли каталог и синхронизация, и перечень путей команд как указатель. Это дешёвый первый вызов.
+`capabilities` answers **what this installation can do right now**: versions, supported harnesses, whether catalog and synchronization are enabled, and a command-path list as a pointer. It is an inexpensive first call.
 
-`help --agent` отвечает, **какие команды, поля и ошибки существуют**. Это полный
-реестр: для каждой команды путь, назначение, класс изменения, правило
-подтверждения, параметры, схема результата и разумные следующие действия; для
-каждого error code — exit class, краткий смысл и начальный `handling` агента.
-Ответ заметно больше.
+`help --agent` answers **which commands, fields, and errors exist**. It is the full
+registry: for each command, it provides the path, purpose, mutability class,
+confirmation rule, parameters, result schema, and reasonable next actions; for
+each error code, it provides the exit class, a brief meaning, and initial Agent
+`handling`. The response is considerably larger.
 
-Оба ответа собираются из одного реестра внутри `apps/cli`, поэтому разойтись в том, какие команды существуют, они не могут.
+Both responses are assembled from the same registry in `apps/cli`, so they cannot disagree about which commands exist.
 
-## Владельцы
+## Owners
 
-| Факт | Владелец |
+| Fact | Owner |
 |---|---|
-| Форма машинной справки: поля, перечисления, схемы | `packages/contracts` и `schemas/v1` |
-| Перечень существующих команд и их параметров | реестр в `apps/cli` |
-| Конверт, коды ошибок, `handling` и коды завершения | закрытый реестр `packages/foundation` и `docs/contracts/cli-json.md` |
-| Требования и критерии приёмки | `SPEC-011` |
+| Machine-help shape: fields, enumerations, schemas | `packages/contracts` and `schemas/v1` |
+| List of existing commands and their parameters | registry in `apps/cli` |
+| Envelope, error codes, `handling`, and exit codes | closed registry in `packages/foundation` and `docs/contracts/cli-json.md` |
+| Requirements and acceptance criteria | `SPEC-011` |
 
-Форма машинной справки объявлена вместе с проводными моделями, а не внутри приложения, которое её печатает: от неё зависят пять проекций харнессов, поэтому это машинная граница того же рода, что и `/v1`. Каждая команда с payload публикует его точный schema URN в `result_schema`; соответствующие файлы порождаются в `schemas/v1`, поэтому ручной перечень схем здесь не поддерживается.
+The machine-help shape is declared with the wire models rather than inside the application that prints it: five harness projections depend on it, so it is a machine boundary of the same kind as `/v1`. Each command with a payload publishes its exact schema URN in `result_schema`; the corresponding files are generated in `schemas/v1`, so no manual schema list is maintained here.
 
-Перечень команд принадлежит реестру и растёт вместе с задачами. Здесь он не дублируется: копия перечня в документе разошлась бы с реализацией на первом же изменении, а Skill читает реализацию.
+The command list belongs to the registry and grows with implemented tasks. It is not duplicated here: a copy in this document would diverge from the implementation on the first change, while the Skill reads the implementation.
 
-## Что попадает в реестр
+## What Enters the Registry
 
-Команда появляется в машинной справке только тогда, когда она работает. Объявленная, но нереализованная команда хуже отсутствующей: Skill спланировал бы вокруг неё шаг, который невозможно выполнить.
+A command appears in machine help only when it works. A declared but unimplemented command is worse than an absent one: the Skill would plan around a step that cannot be performed.
 
-Класс изменения (`read`, `plan`, `apply`, `destructive`) и правило
-подтверждения (`none`, `explicit_flag`, `plan_digest`) объявляются на команде.
-Первое описывает эффект, второе — машинную привязку решения. Ни одно поле само по
-себе не требует нового вопроса: область полномочий принадлежит текущей задаче и
-`interaction-policy.md`, словарь значений — `packages/contracts`.
+The mutability class (`read`, `plan`, `apply`, `destructive`) and confirmation rule (`none`, `explicit_flag`, `plan_digest`) are declared on each command and determine whether the Agent must ask the user before invocation. Behavioral rules belong to `interaction-policy.md`; the value vocabulary belongs to `packages/contracts`.
 
-CLI не спрашивает в терминале. Решение приходит явным флагом или точным digest сохранённого плана, а его отсутствие даёт `needs_user_action`, а не приглашение ко вводу: так путь исполнения одинаков для человека и для агента и ничего не зависает в CI или в контейнере.
+The CLI does not prompt in the terminal. A decision arrives through an explicit flag or the exact digest of a stored plan; its absence yields `needs_user_action`, not an input prompt. This keeps the execution path identical for people and agents and prevents hangs in CI or containers.
 
-Process exit class не является действием агента. Например, class `4` объединяет
-конфликт, устаревший план и запрос решения. Агент сопоставляет точный
-`error.code` с `error_codes`, затем учитывает `handling`, `retryable` и
-`next_actions` конкретного ответа. При timeout без подтверждённого эффекта он
-сначала проверяет status/recovery surface и не повторяет изменяющий вызов вслепую.
+A process exit class is not an Agent action. For example, class `4` groups a
+conflict, a stale plan, and a request for a decision. The Agent matches the exact
+`error.code` to `error_codes`, then considers the specific response's `handling`,
+`retryable`, and `next_actions`. After a timeout with no confirmed effect, it first
+checks the status/recovery surface and does not blindly repeat a mutating call.
 
-## Зачем это так
+## Why It Works This Way
 
-Skill использует этот контракт, поэтому обновление CLI не требует ручного переписывания пяти больших инструкций.
+The Skill uses this contract, so updating the CLI does not require manually rewriting five large instructions.

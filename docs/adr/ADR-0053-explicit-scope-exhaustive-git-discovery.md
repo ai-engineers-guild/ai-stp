@@ -1,54 +1,34 @@
 ---
-description: "Решение полностью обходить явно названную область Git-discovery и честно сообщать неполноту."
+description: "Decision to fully traverse an explicitly named Git discovery scope and honestly report incompleteness."
 last_verified: "2026-08-09"
 ---
 
-# ADR-0053: Полное Git-discovery в явной области
+# ADR-0053: Complete Git Discovery Within an Explicit Scope
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-`SPEC-004` запрещает сканировать home или диск без явной области, но прежняя
-реализация дополнительно обрезала поиск глубиной два. Поэтому валидный repository
-ниже workspace group или portfolio терялся. Ошибка доступа и предел записей также
-превращались в пустой результат, неотличимый от полного обхода без находок.
+`SPEC-004` prohibits scanning the home directory or disk without an explicit scope, but the previous implementation additionally truncated the search at a depth of two. As a result, a valid repository below a workspace group or portfolio was missed. An access error and an entry limit were also converted into an empty result indistinguishable from a complete traversal with no findings.
 
-Git worktree хранит `.git` обычным файлом, а вложенный repository может находиться
-внутри другого проекта. Manifest-only каталог и Git repository при этом остаются
-разными основаниями кандидата: package внутри monorepo не становится проектом,
-тогда как отдельный `.git` обязан быть видим пользователю.
+A Git worktree stores `.git` as a regular file, and a nested repository may be located inside another project. A manifest-only directory and a Git repository remain distinct grounds for candidacy: a package inside a monorepo does not become a project, whereas a separate `.git` must be visible to the user.
 
-## Решение
+## Decision
 
-CLI рекурсивно обходит только root, явно переданный `project discover`. Home целиком
-по-прежнему запрещён. Обход не следует symlink, не входит в закрытый список vendor,
-VCS, cache и build каталогов и ограничивает число записей одного каталога.
+The CLI recursively traverses only the root explicitly passed to `project discover`. Traversing the entire home directory remains prohibited. The traversal does not follow symlinks, does not enter the closed list of vendor, VCS, cache, and build directories, and limits the number of entries in a single directory.
 
-Внутри разрешённой области каждый `.git`, являющийся каталогом или worktree-файлом,
-создаёт ровно одного кандидата. Первый repository внутри workspace имеет kind
-`project`; repository внутри уже найденного project имеет `nested_repository` и не
-регистрируется автоматически. Результат сортируется по resolved локальному пути и
-сохраняет markers и причину происхождения.
+Within the permitted scope, every `.git` that is a directory or a worktree file creates exactly one candidate. The first repository within a workspace has kind `project`; a repository inside an already discovered project has `nested_repository` and is not registered automatically. The result is sorted by resolved local path and preserves markers and the reason for origin.
 
-Каждый пропуск получает закрытый diagnostic code: `excluded`, `symlink`,
-`entry_limit` или `unreadable`. `entry_limit` и `unreadable` делают `complete=false`;
-CLI не называет такой ответ полным. Текст системной ошибки не отражается: diagnostic
-содержит только класс ошибки и отредактированный путь.
+Every skip receives a closed diagnostic code: `excluded`, `symlink`, `entry_limit`, or `unreadable`. `entry_limit` and `unreadable` set `complete=false`; the CLI does not describe such a response as complete. System error text is not exposed: the diagnostic contains only the error class and a redacted path.
 
-## Последствия
+## Consequences
 
-- глубина явно выбранного portfolio не скрывает repositories;
-- полный обход большой области может стоить дороже, поэтому пользователь выбирает
-  scope, а исключения и per-directory limit остаются механическими;
-- agent обязан показать неполноту и причины, а не выбирать из частичного списка как
-  из исчерпывающего;
-- обнаружение остаётся read-only и не создаёт Project, паспорт или registry;
-- глобальные native components принадлежат отдельной таблице harness layouts и не
-  смешиваются с Git project traversal.
+- the depth of an explicitly selected portfolio does not hide repositories;
+- a complete traversal of a large scope may be more expensive, so the user selects the scope, while exclusions and the per-directory limit remain mechanical;
+- the agent must show incompleteness and its reasons rather than selecting from a partial list as though it were exhaustive;
+- discovery remains read-only and does not create a Project, passport, or registry;
+- global native components belong to a separate harness layouts table and are not mixed with Git project traversal.
 
-## Условия пересмотра
+## Reconsideration Conditions
 
-Решение пересматривается, если поддерживаемый Git API даст content-neutral индекс
-worktree без обхода или если появится явная многокорневая команда. Каждый root всё
-равно должен сохранять отдельную completeness и diagnostics.
+The decision will be reconsidered if a supported Git API provides a content-neutral worktree index without traversal, or if an explicit multi-root command is introduced. Each root must still preserve separate completeness and diagnostics.

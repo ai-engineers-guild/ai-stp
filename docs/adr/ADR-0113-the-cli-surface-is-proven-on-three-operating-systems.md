@@ -1,88 +1,71 @@
 ---
-description: "Решение считать поверхность CLI доказанной на трёх ОС публичной матрицей и снять запрет windows из словаря паспорта, оставив provider evidence там, где оно есть."
-last_verified: "2026-08-31"
+description: "Decision to prove the CLI surface on three operating systems and remove the Windows prohibition from passport vocabulary while retaining provider evidence."
+last_verified: "2026-08-21"
 ---
 
-# ADR-0113: Поверхность CLI доказана на трёх ОС
+# ADR-0113: The CLI surface is proven on three operating systems
 
-Статус: принято. С 2026-08-31 заменяет release-profile часть `ADR-0062`.
-Уточнено `ADR-0116` в части того, какие job на каких ОС исполняются и сколько
-их запускается сразу.
+Status: accepted. Clarifies `ADR-0062` without revoking its provider half.
+Clarified by `ADR-0116` regarding which jobs run on which operating systems and
+how many run concurrently.
 
-## Контекст
+## Context
 
-`ADR-0062` описывал состояние, в котором macOS-раннера не существовало:
-«owned macOS runner не активирован». Поэтому macOS называлась `not_verified`, а
-`supported_os` в `SetupVersionPassport` был закрытым словарём `linux | macos` —
-Windows нельзя было даже назвать.
+`ADR-0062` described a state in which no macOS runner existed: "the owned macOS
+runner is not active." Therefore macOS was called `not_verified`, while
+`supported_os` in `SetupVersionPassport` was the closed vocabulary
+`linux | macos`—Windows could not even be named.
 
-Оба факта изменились, и по-разному.
+Both facts changed, in different ways.
 
-Публичное дерево гоняет матрицу из трёх ОС на стандартных раннерах GitHub при
-каждом push. Матрица не декоративна: она нашла два настоящих дефекта, которых
-линуксовый прогон увидеть не мог — падение машинного вывода на кодовой странице,
-не умеющей закодировать UTF-8, и обращение к системному хранилищу ключей на
-headless-машине, которое не возвращалось. Оба исправлены, оба закреплены тестами.
+The public tree runs a three-operating-system matrix on standard GitHub runners
+for every push. The matrix is not decorative: it found two real defects that a
+Linux run could not see—a machine-output crash on a code page unable to encode
+UTF-8, and a call to the system credential store on a headless machine that
+never returned. Both are fixed and covered by tests.
 
-Запрет Windows в словаре при этом делал не то, что от него ожидали. Он не мешал
-установить сетап на Windows — он мешал сетапу **сказать**, что он это
-поддерживает. А отказ на установке уже существует и стоит в правильном месте:
-`install` сравнивает ОС этой машины с `supported_os`, объявленным возможностями
-провайдера, и отказывает там, называя причиной провайдера.
+Meanwhile, the Windows prohibition in the vocabulary did not do what was
+expected. It did not prevent installing a setup on Windows—it prevented a
+setup from **saying** that it supported Windows. Installation refusal already
+exists in the right place: `install` compares this machine's operating system
+with `supported_os` declared by provider capabilities and refuses there,
+naming the provider as the reason.
 
-## Решение
+## Decision
 
-Поверхность CLI считается доказанной на Linux, macOS и Windows: обнаружение,
-паспорта, подбор, машинный вывод, toolchain и процессная граница исполняются
-матрицей публичного гейта на каждом push, и её зелёный статус является
-доказательством, а не предположением.
+The CLI surface is considered proven on Linux, macOS, and Windows: discovery,
+passports, selection, machine output, toolchain, and the process boundary run
+in the public gate matrix on every push, and its green status is evidence, not
+an assumption.
 
-`supported_os` принимает `windows` наряду с `linux` и `macos`. Словарь перестаёт
-судить заранее; судит провайдер, во время установки, по своим объявленным
-возможностям.
+`supported_os` accepts `windows` alongside `linux` and `macos`. The vocabulary
+stops judging in advance; the provider judges during installation according to
+its declared capabilities.
 
-Provider lifecycle evidence остаётся ровно тем, чем было. Матрица гоняет
-`tests/unit` и `tests/contract`, то есть поверхность CLI, а не установку на живой
-target через подписанный релиз провайдера. Утверждать по её зелёному статусу, что
-провайдер умеет писать macOS- или Windows-target, было бы ровно той подменой,
-которую `ADR-0062` отвергал вариантом 2: fixture не является install evidence.
+Provider lifecycle evidence remains exactly what it was. The matrix runs
+`tests/unit` and `tests/contract`: the CLI surface, not installation on a live
+target through a signed provider release. Claiming from its green status that a
+provider can write a macOS or Windows target would be precisely the substitution
+that `ADR-0062` rejected in option 2: a fixture is not install evidence.
 
-Что из `ADR-0062` продолжает действовать без изменений: обязательные release
-records фиксируют платформу выпуска; добавление ОС в **provider** support matrix
-требует отдельного evidence, а не переписывания прошлого результата; отсутствие
-network enforcement на не-Linux закрыто отказывает действию, которому нужен
-`network_requirement=none`.
+The following from `ADR-0062` remains unchanged: mandatory release records
+record the release platform; adding an operating system to the **provider**
+support matrix requires separate evidence rather than rewriting a past result;
+and absence of network enforcement on non-Linux systems fails closed for an
+action requiring `network_requirement=none`.
 
-## Последствия
+## Consequences
 
-Пользователь на Windows больше не упирается в отказ типа. Он упирается — если
-упирается — в провайдера, который скажет об этом сам и назовёт себя причиной.
-Это разные сообщения, и второе можно починить, не меняя модель.
+A Windows user no longer encounters a type refusal. If refused, the user
+encounters a provider that says so itself and names itself as the reason. These
+are different messages, and the latter can be fixed without changing the model.
 
-CI обязан оставаться трёхплатформенным: снятие ноги матрицы возвращает
-`not_verified`, но уже молча, а молчащий регресс здесь стоил бы ровно тех двух
-дефектов, ради которых матрица и заводилась.
+CI must remain three-platform: removing a matrix leg returns it to
+`not_verified`, but silently, and a silent regression here would cost exactly
+the two defects for which the matrix was introduced.
 
-## Поправка от 2026-08-31: provider evidence следует за трёх-ОС целью
+## Reconsideration conditions
 
-Владелец выбрал не только переносимую CLI-поверхность, а «три ОС с реальными
-доказательствами» и глобально портируемый bundle. Linux-first был полезным
-этапом, но больше не является release target.
-
-Обязательная матрица кандидата содержит Linux, Windows и macOS на `x86_64` и
-`arm64`. Она различает три утверждения:
-
-- core provider surface и опубликованный provider binary существуют;
-- конкретная optional operation объявлена доступной на этой строке;
-- real-product lifecycle выполнен на exact provider/CLI bytes.
-
-Недоступность optional operation — допустимый честный результат, если provider
-объявил её до эффекта; например software lifecycle Antigravity не обещается на
-Windows без vendor artifact. `launch` также проверяется только там, где объявлен.
-Старая evidence-волна и простая сборка не закрывают exact candidate.
-
-## Условия пересмотра
-
-Пересмотреть, если официальный runner перестанет давать native строку матрицы
-или продукт сознательно снимет ОС/архитектуру отдельным решением. Временная
-недоступность runner даёт `not_verified`, а не молчаливое сужение поддержки.
+Reconsider if provider evidence appears for macOS or Windows—in which case the
+provider support matrix also changes as a separate decision—or if the matrix
+ceases to run on every push.

@@ -1,25 +1,25 @@
-# Участие в разработке
+# Contributing
 
-## До начала
+## Before you begin
 
-Прочитайте:
+Read:
 
 1. `AGENTS.md`;
-2. применимую активную спецификацию;
-3. архитектурные документы области;
-4. соответствующие ADR;
+2. the applicable active specification;
+3. the architecture documents for the relevant area;
+4. the relevant ADRs;
 5. `docs/engineering/git-workflow.md`.
 
-## Правило изменения
+## Change rule
 
-Заметное поведение не начинается с кода. Сначала фиксируются цель, границы, требования, ошибки и частичные состояния, безопасность, совместимость и критерии приёмки.
+Observable behavior does not begin with code. First record the objective, boundaries, requirements, errors and partial states, security, compatibility, and acceptance criteria.
 
 ## Pull request
 
-PR должен быть узким по основной причине и содержать точный base/head, затронутые спецификации и ADR, изменения контрактов и схем, выполненные команды и результаты, не выполненные проверки, миграцию, rollback, межрепозиторный порядок и остаточные риски.
+A PR must be narrow in its primary purpose and include the exact base/head, affected specifications and ADRs, contract and schema changes, commands run and their results, checks not run, migration, rollback, cross-repository order, and residual risks.
 
-Не ослабляйте проверки и не обновляйте эталонный вывод без смыслового анализа.
+Do not weaken checks or update golden output without semantic analysis.
 
-## Внешние действия
+## External actions
 
-Push, PR, release, продвижение provider, deployment, удаление данных и изменение credentials выполняются только после явной авторизации.
+Push, PR, release, provider promotion, deployment, data deletion, and credential changes are performed only after explicit authorization.

@@ -1,130 +1,135 @@
 ---
-description: "Решение: machine-проекция web является адресуемым серверным маршрутом и отдельным документом."
+description: "Decision: the web machine projection is an addressable server route and a separate document."
 last_verified: "2026-08-10"
 ---
 
-# ADR-0076: Machine-проекция как адресуемый маршрут
+# ADR-0076: Machine projection as an addressable route
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-Публичный web имеет две проекции: `human` и `machine`. Действующее правило
-записано в `docs/product/DESIGN.md` и описывает machine как изменение формата
-одного React-дерева. Реализация следует этому правилу: клиентский провайдер
-ставит класс `.machine` на `<html>`, хранит выбор в `localStorage` и
-императивно скрывает шапки, а машинная подача целиком собирается из CSS
-generated content в `apps/web/src/app/globals.css`.
+The public web has two projections: `human` and `machine`. The current rule is
+recorded in `docs/product/DESIGN.md` and describes machine as a format change
+within a single React tree. The implementation follows this rule: a client-side
+provider adds the `.machine` class to `<html>`, stores the selection in
+`localStorage`, and imperatively hides headers, while the machine presentation
+is assembled entirely from CSS generated content in
+`apps/web/src/app/globals.css`.
 
-Измерения на работающем стенде показывают, что такая проекция не даёт машинного
-результата:
+Measurements on the running environment show that this projection does not
+produce a machine-readable result:
 
-- текст `main` на `/en/catalog` до и после переключения совпадает побайтово
-  (1620 символов), то есть содержимое не меняется;
-- ответ сервера не содержит ни класса `.machine`, ни `data-projection`, ни
-  машинного текста, поэтому первый кадр всегда human, а `curl` и краулер
-  machine-проекцию не видят никогда;
-- Markdown-подача ссылок и заголовков существует только как `::before` и
-  `::after`, а generated content отсутствует в DOM, `textContent`,
-  `innerText`, view-source и любом сетевом ответе;
-- вариант `machine:` используется в приложении шесть раз, и все шесть - в
-  оболочке, поэтому содержательных решений о проекции у страниц нет;
-- глобальные правила по тегам конфликтуют с продакшн-вёрсткой: правило
-  `a[href]::after` занимает тот же псевдоэлемент, что и stretched link
-  `after:absolute after:inset-0` в карточке каталога, и печатает URL поверх
-  карточки.
+- the `main` text on `/en/catalog` is byte-for-byte identical before and after
+  switching (1620 characters), so the content does not change;
+- the server response contains neither the `.machine` class nor
+  `data-projection` nor machine text, so the first frame is always human, while
+  `curl` and crawlers never see the machine projection;
+- the Markdown presentation of links and headings exists only as `::before`
+  and `::after`, while generated content is absent from the DOM, `textContent`,
+  `innerText`, view-source, and every network response;
+- the `machine:` variant is used six times in the application, all six in the
+  shell, so pages make no substantive projection decisions;
+- global tag-based rules conflict with the production layout: the
+  `a[href]::after` rule occupies the same pseudo-element as the stretched link
+  `after:absolute after:inset-0` in a catalog card and prints the URL over the
+  card.
 
-Прямым следствием отсутствия машинного текста в DOM является перехват события
-`copy`, который подделывает Markdown в буфере обмена. Это признак того, что
-данных для машины в дереве нет.
+A direct consequence of machine text being absent from the DOM is the `copy`
+event interception that fabricates Markdown in the clipboard. This indicates
+that the tree contains no data for a machine.
 
-Эталонные реализации подтверждают другой подход. `parallel.ai` отдаёт machine
-отдельным маршрутом `/ai`, держит режим в `data-mode` на обёртке, хранит оба
-представления в DOM и принимает около 223 решений о видимости через варианты
-`machine:` и `not-machine:`. `nace.ai` заменяет дерево страницы на отдельный
-машинный документ, где Markdown является настоящими узлами DOM, а объём текста
-растёт с 1595 до 4318 символов за счёт индекса сайта и плотных технических
-строк.
+Reference implementations confirm a different approach. `parallel.ai` serves
+machine through a separate `/ai` route, keeps the mode in `data-mode` on the
+wrapper, stores both representations in the DOM, and makes about 223 visibility
+decisions through the `machine:` and `not-machine:` variants. `nace.ai`
+replaces the page tree with a separate machine document in which Markdown is
+represented by actual DOM nodes, and the text volume grows from 1595 to 4318
+characters due to a site index and dense technical lines.
 
-## Варианты
+## Options
 
-1. Оставить CSS-фильтр и чинить конфликты точечно. Дёшево, но не устраняет
-   причину: содержимое не меняется, режим не адресуем и не виден агенту, а
-   каждый новый utility-класс создаёт новый конфликт.
-2. Второе дерево на клиенте без маршрута. Даёт настоящий машинный текст, но
-   сохраняет `localStorage` как источник истины, оставляет вспышку human при
-   загрузке и не даёт ни ссылки, ни SSR, ни индексации.
-3. Адресуемый маршрут и серверное второе представление. Дороже по объёму
-   работ и переводит часть страниц в динамический рендеринг, но даёт SSR,
-   ссылку, индексируемость, проверяемость через `curl` и снимает клиентское
-   состояние.
+1. Keep the CSS filter and fix conflicts individually. This is inexpensive but
+   does not eliminate the cause: the content does not change, the mode is not
+   addressable or visible to the agent, and each new utility class creates a
+   new conflict.
+2. A second client-side tree without a route. This provides real machine text
+   but retains `localStorage` as the source of truth, leaves a flash of human
+   content during loading, and provides neither a link, SSR, nor indexing.
+3. An addressable route and a second server-side representation. This requires
+   more work and moves some pages to dynamic rendering, but provides SSR, a
+   link, indexability, verification through `curl`, and removes client-side
+   state.
 
-## Решение
+## Decision
 
-Machine-проекция является отдельным серверным представлением публичной
-страницы, адресуемым собственным URL.
+The machine projection is a separate server-side representation of a public
+page, addressable through its own URL.
 
-Режим определяется собственным сегментом маршрута `/{locale}/ai/{path}`.
-Это настоящий сегмент App Router, а не переписывание человеческого пути:
-человеческое дерево живёт в route group `(site)`, машинное - в `ai`, и у
-каждого свой layout. Переписывания в middleware нет. Клиентский провайдер
-проекции, `localStorage` и императивное управление `style.display` удаляются.
+The mode is determined by its own `/{locale}/ai/{path}` route segment. This is
+a real App Router segment, not a rewrite of the human path: the human tree
+lives in the `(site)` route group, the machine tree in `ai`, and each has its
+own layout. There is no middleware rewrite. The client-side projection
+provider, `localStorage`, and imperative `style.display` management are
+removed.
 
-Переписывание было отвергнуто по механической причине. При rewrite обе проекции
-резолвятся в одни и те же сегменты, а Next.js переиспользует закешированный
-layout сегмента при клиентской навигации и оставляет canonical URL исходным.
-Это давало оболочку одной проекции с содержимым другой, hydration mismatch и
-падение на `parentNode` null. Разные сегменты снимают причину, а не симптом.
+The rewrite was rejected for a mechanical reason. With a rewrite, both
+projections resolve to the same segments, while Next.js reuses the segment's
+cached layout during client-side navigation and leaves the canonical URL
+unchanged. This produced the shell of one projection with the content of the
+other, a hydration mismatch, and a crash on a null `parentNode`. Separate
+segments eliminate the cause, not the symptom.
 
-Машинное дерево владеет своим содержимым. Реестр маршрутов сопоставляет путь
-страницы презентеру, который возвращает машинный документ из тех же доменных
-загрузчиков, что и человеческая страница. Один презентер обслуживает трёх
-потребителей: машинную страницу, `/llms-full.txt` и `.md`-представление объекта.
-Markdown является настоящими узлами DOM. Человеческие страницы не содержат
-машинных веток: проекция не ветвится внутри страницы, она живёт в своём дереве.
+The machine tree owns its content. A route registry maps a page path to a
+presenter that returns a machine document from the same domain loaders as the
+human page. One presenter serves three consumers: the machine page,
+`/llms-full.txt`, and an object's `.md` representation. Markdown is represented
+by actual DOM nodes. Human pages contain no machine branches: the projection
+does not branch within a page; it lives in its own tree.
 
-Навигация обеих проекций строится из одной модели: человеческая шапка рендерит
-её ссылками, машинная - Markdown-ссылками, поэтому состав пунктов не расходится.
-Ссылки машинного документа ведут на машинные URL, а нестраничные адреса -
-эндпоинты API, статические файлы, внешние URL - не переписываются никогда.
+Navigation for both projections is built from one model: the human header
+renders it as links and the machine header as Markdown links, so their item
+sets do not diverge. Links in the machine document lead to machine URLs, while
+non-page addresses—API endpoints, static files, and external URLs—are never
+rewritten.
 
-Переключатель проекции является ссылкой на парный URL и работает без
-JavaScript. Machine-ссылки внутри машинного документа ведут на машинные URL,
-поэтому режим переживает навигацию без клиентского состояния.
+The projection switch is a link to the paired URL and works without JavaScript.
+Machine links inside the machine document lead to machine URLs, so the mode
+persists across navigation without client-side state.
 
-Глобальная стилизация human-дерева по тегам запрещена. Блок
-`.machine [data-machine-projection]` и перехват `copy` удаляются.
+Global tag-based styling of the human tree is prohibited. The
+`.machine [data-machine-projection]` block and `copy` interception are removed.
 
-Машинное представление имеет каждый маршрут. Проекция меняет только форму
-подачи и никогда не меняет доступность страницы: приватные разделы проходят ту
-же проверку сессии, что и в человеческой проекции, и при её отсутствии дают тот
-же редирект. Переключатель присутствует на всех страницах и не исчезает под
-пользователем при навигации.
+Every route has a machine representation. The projection changes only the
+presentation form and never changes page availability: private sections
+undergo the same session check as in the human projection and produce the same
+redirect when it is absent. The switch is present on every page and does not
+disappear beneath the user during navigation.
 
-## Последствия
+## Consequences
 
-Машинное дерево рендерится динамически; человеческое сохраняет свои прежние
-режимы кэширования, потому что больше не читает проекцию. Появляется обязанность:
-новая страница получает машинный презентер в том же изменении. Страница без
-презентера является дефектом, а не допустимым состоянием: машинный маршрут не
-подменяется человеческой копией и не исчезает из навигации.
+The machine tree is rendered dynamically; the human tree retains its previous
+caching modes because it no longer reads the projection. This creates an
+obligation: a new page receives a machine presenter in the same change. A page
+without a presenter is a defect, not an allowed state: the machine route is not
+replaced with a human copy and does not disappear from navigation.
 
-`/llms-full.txt` перестаёт быть отдельным захардкоженным текстом и собирается
-тем же презентером, что убирает расхождение между тем, что видит агент, и тем,
-что опубликовано.
+`/llms-full.txt` ceases to be a separate hard-coded text and is assembled by
+the same presenter, eliminating divergence between what the agent sees and
+what is published.
 
-Rollback удаляет сегмент `ai` целиком: машинные URL перестают существовать,
-переключатель скрывается, человеческое дерево не затрагивается, паспорта, API и
-данные не меняются.
+Rollback removes the entire `ai` segment: machine URLs cease to exist, the
+switch is hidden, the human tree is unaffected, and passports, API, and data do
+not change.
 
-Проверки перестают быть косметическими: требуется доказательство содержательной
-разницы представлений, наличие машинного текста в ответе сервера без JavaScript
-и отсутствие смещения layout при переключении.
+Checks cease to be cosmetic: they require proof of a substantive difference
+between representations, the presence of machine text in the server response
+without JavaScript, and the absence of layout shift when switching.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается, если появится нормативный внешний формат машинного
-представления страницы, который сделает собственный презентер избыточным, либо
-если доля публичных страниц с машинным документом окажется ниже половины через
-два релиза после внедрения, либо если динамический рендеринг публичного каталога
-перестанет удовлетворять требованиям времени ответа.
+The decision is reconsidered if a normative external format for the machine
+representation of a page emerges and makes a dedicated presenter redundant; if
+the share of public pages with a machine document is below one half two releases
+after implementation; or if dynamic rendering of the public catalog ceases to
+meet response-time requirements.

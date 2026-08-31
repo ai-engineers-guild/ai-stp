@@ -770,7 +770,7 @@ def test_every_offline_row_of_the_contract_has_a_check_here() -> None:
     the situation `#178` exists to end, and it would otherwise be invisible.
     """
     contract = Path("docs/contracts/offline-capability.md").read_text(encoding="utf-8")
-    _heading, _, rest = contract.partition("## Автономные операции")
+    _heading, _, rest = contract.partition("## Offline operations")
     table, _, _remainder = rest.partition("\n## ")
     rows = [
         line.split("|")[1].strip()
@@ -778,13 +778,13 @@ def test_every_offline_row_of_the_contract_has_a_check_here() -> None:
         if line.startswith("|") and "---" not in line
     ][1:]  # drop the header cell
     assert rows == [
-        "Паспорта разработчика и проекта",
-        "Индекс проекта",
-        "Локальный реестр",
-        "Импортированные и собственные объекты",
-        "Поиск",
-        "Подбор и сборка",
-        "Проверки",
-        "Пакет и план",
-        "Установка и запуск",
+        "Developer and project passports",
+        "Project index",
+        "Local registry",
+        "Imported and owned objects",
+        "Search",
+        "Selection and compilation",
+        "Checks",
+        "Package and plan",
+        "Installation and launch",
     ], "the contract's offline rows moved; the checks above are named after them"

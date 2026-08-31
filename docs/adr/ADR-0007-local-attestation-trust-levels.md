@@ -1,20 +1,20 @@
 ---
-description: "Решение: не считать подпись устройства platform execution."
+description: "Decision not to treat a device signature as platform execution."
 last_verified: "2026-08-03"
 ---
 
-# ADR-0007: Не считать подпись устройства независимым исполнением платформы
+# ADR-0007: Do not treat a device signature as independent platform execution
 
-Принято 2026-08-03.
+Accepted on 2026-08-03.
 
-## Контекст
+## Context
 
-Автор контролирует собственное устройство и способен изменить локальный инструмент или его окружение до формирования отчёта. Криптографическая подпись защищает происхождение и целостность отчёта, но не доказывает честность выполнения.
+An author controls their own device and can modify the local tool or its environment before a report is produced. A cryptographic signature protects the report's provenance and integrity but does not prove honest execution.
 
-## Решение
+## Decision
 
-Подписанный устройством локальный отчёт хранится как подтверждение автора. Сервер отдельно проверяет device/account status, подпись, digest, схему и неисполняемые структурные правила. Установочные и runtime-проверки являются отдельными уровнями доказательств.
+A device-signed local report is stored as author confirmation. The server separately verifies device/account status, the signature, digest, schema, and non-executable structural rules. Installation and runtime checks are separate evidence levels.
 
-## Последствия
+## Consequences
 
-Карточки и API не объединяют разные источники доказательств в одно поле `verified`. Автоматическая рекомендация требует явно определённого минимального набора уровней.
+Cards and the API do not combine different evidence sources into a single `verified` field. An automatic recommendation requires an explicitly defined minimum set of levels.

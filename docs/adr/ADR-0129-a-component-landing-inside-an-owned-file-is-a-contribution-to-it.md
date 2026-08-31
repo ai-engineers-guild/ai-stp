@@ -1,207 +1,186 @@
 ---
-description: "Решение компилировать компонент, чьё место посадки — ключ внутри файла, которым владеет провайдер, как вклад в этот файл, реконструируемый потребителем."
+description: "Decision to compile a component whose landing place is a key inside a provider-owned file as a contribution to that file, reconstructed by the consumer."
 last_verified: "2026-08-30"
 ---
 
-# ADR-0129: Компонент, садящийся внутрь чужого файла, есть вклад в этот файл
+# ADR-0129: A component landing inside another party's file is a contribution to that file
 
-Статус: принято. Реализовано 2026-08-31.
+Status: proposed.
 
-## Контекст
+## Context
 
-У семи харнессов вид `mcp` имеет три разные нативные формы, и измерение брало
-их у самих провайдеров `0.0.33`, а не со страниц продуктов:
+Across seven harnesses, the `mcp` type has three different native forms. The
+measurement came from providers `0.0.33` themselves, not product pages:
 
 ```text
-харнесс      component_kinds содержат mcp?   native_namespaces
-codex        нет                             AGENTS.md, config.toml, hooks.json, prompts, agents
-grok-build   нет                             AGENTS.md, config.toml, sandbox.toml, skills, …
-opencode     нет                             AGENTS.md, opencode.json, tui.json, skills, …
-cursor       —                               отдельный owned файл mcp.json
-antigravity  —                               отдельный owned файл config/mcp_config.json
-pi           вида нет вовсе                  пакет расширения под extensions
-claude-code  нет                             .mcp.json проектный, user-scope в ~/.claude.json
+harness      component_kinds include mcp?   native_namespaces
+codex        no                             AGENTS.md, config.toml, hooks.json, prompts, agents
+grok-build   no                             AGENTS.md, config.toml, sandbox.toml, skills, …
+opencode     no                             AGENTS.md, opencode.json, tui.json, skills, …
+cursor       —                              separate owned file mcp.json
+antigravity  —                              separate owned file config/mcp_config.json
+pi           no such type                   extension package under extensions
+claude-code  no                             project .mcp.json, user scope in ~/.claude.json
 ```
 
-Три первых харнесса объявляют владение `config.toml` или `opencode.json` и **не**
-объявляют вид `mcp`. Сервер MCP у них — ключ внутри этого файла: `mcp_servers` у
-codex и grok-build, `mcp` у opencode.
+The first three harnesses declare ownership of `config.toml` or
+`opencode.json` and **do not** declare the `mcp` type. Their MCP server is a
+key inside that file: `mcp_servers` for codex and grok-build, `mcp` for
+opencode.
 
-Отсюда следует то, что до сих пор не было выражено: у трёх из семи харнессов
-компонент существует, а вида, которым его можно передать провайдеру, нет.
-Сегодня они получают `native_surface_lost` — отказ, верный по механике и
-неверный по существу, потому что поверхность есть, просто она внутри чужого
-файла.
+This reveals something previously unexpressed: for three of seven harnesses the
+component exists, but no type exists by which it can be given to the provider.
+Today they receive `native_surface_lost`—a mechanically correct refusal that is
+substantively wrong, because the surface exists inside another party's file.
 
-## Рассмотренные варианты
+## Considered options
 
-**Объявить провайдеру вид `mcp`.** Отвергнуто: провайдер его не объявляет, и
-объявление со стороны потребителя было бы утверждением о чужом контракте.
-Проверка `component_kinds` тогда обязана либо отказать, либо перестать быть
-проверкой.
+**Declare the `mcp` type to the provider.** Rejected: the provider does not
+declare it, and a consumer-side declaration would assert another party's
+contract. The `component_kinds` check would then have to refuse or cease to be
+a check.
 
-**Вернуть `mcp → .mcp.json`.** Отвергнуто: это имя файла claude-code, и оно уже
-было скопировано в grok-build (`ADR-0127`). Повтор той же ошибки.
+**Restore `mcp → .mcp.json`.** Rejected: that is the claude-code filename and
+was already copied into grok-build (`ADR-0127`). This would repeat the same
+error.
 
-**Добавить владение ключом в протокол.** Отвергнуто: протокол v3 —
-bytes-in/bytes-out. Провайдер, разбирающий TOML, чтобы понять, чей ключ он
-пишет, перестаёт быть тем, чем является, и приобретает парсер на каждый формат
-настроек каждого харнесса.
+**Add key ownership to the protocol.** Rejected: protocol v3 is
+bytes-in/bytes-out. A provider that parses TOML to determine whose key it writes
+ceases to be what it is and gains a parser for every settings format of every
+harness.
 
-**Класть в бандл только новый `config.toml`.** Отвергнуто: это не сборка полной
-owned-проекции, а перезапись файла содержимым одного компонента. Всё, чего
-компонент не знает, исчезает.
+**Put only a new `config.toml` in the bundle.** Rejected: that is not assembly
+of the full owned projection but overwriting a file with one component's
+contents. Everything the component does not know disappears.
 
-## Решение
+## Decision
 
-Правило раскладки вправе назвать **файл-хозяин** и **ключ** внутри него. Такой
-компонент компилируется не в собственную поверхность, а во **вклад** в
-поверхность файла-хозяина.
+A layout rule may name a **host file** and a **key** inside it. Such a component
+is compiled not into its own surface but into a **contribution** to the host
+file's surface.
 
-- Провайдер получает `replace` поверхности `setting` — вида, который он
-  объявляет, — и целиком те байты, которые должен записать.
-- Паспорт компонента сохраняет логический вид `mcp`. Он описывает объект, а не
-  способ его доставки.
-- Полную проекцию собирает **потребитель**: текущие байты цели плюс ключи этого
-  компонента. Это сборка, а не merge двух сетапов: побеждает не «более новый»,
-  а объявленное владение — ключ принадлежит компоненту, всё остальное остаётся
-  как было.
-- Формат файла-хозяина разбирает потребитель, потому что он и так знает каждый
-  из них: `config.toml` — TOML, `opencode.json` — JSON.
+- The provider receives `replace` for the `setting` surface—a type it
+  declares—and all bytes it must write.
+- The component passport retains logical type `mcp`. It describes the object,
+  not its delivery method.
+- The **consumer** builds the full projection: the target's current bytes plus
+  this component's keys. This is assembly, not a merge of two setups: the
+  “newer” value does not win; declared ownership does—the key belongs to the
+  component and everything else remains unchanged.
+- The consumer parses the host-file format because it already knows each one:
+  `config.toml` is TOML and `opencode.json` is JSON.
 
-Отказ остаётся там, где поверхности нет по существу. У claude-code `.mcp.json`
-проектный, а user-scope живёт в `~/.claude.json`, который провайдер держит в
-`never_touch`; там `native_surface_lost` — правильный ответ, и он должен
-наступать рано.
+Refusal remains where no surface exists in substance. For claude-code,
+`.mcp.json` is project-scoped while user scope lives in `~/.claude.json`,
+which the provider keeps in `never_touch`; there `native_surface_lost` is
+correct and must occur early.
 
-## Где происходит реконструкция
+## Where reconstruction happens
 
-Не при сборке бандла. Бандл переносим и цели не имеет, а «текущие байты цели»
-существуют только на машине, где идёт установка: один бандл, поставленный на две
-машины с разными `config.toml`, не может нести заранее слитый файл — он нёс бы
-чужой.
+Not during bundle assembly. A bundle is portable and has no target; “the
+target's current bytes” exist only on the installation machine. One bundle
+installed on two machines with different `config.toml` files cannot carry a
+premerged file—it would carry someone else's.
 
-Значит реконструкция принадлежит `install plan`, где цель уже названа и её
-текущее состояние читается. Бандл несёт вклад — ключ и его содержимое; полные
-байты собираются в плане и предъявляются на подтверждение вместе с diff.
+Reconstruction therefore belongs to `install plan`, where the target is known
+and its current state is read. The bundle carries the contribution—the key and
+its content; the full bytes are assembled in the plan and presented for
+approval together with the diff.
 
-**Откуда берутся текущие байты — и это не протокол.** Запись выше говорила
-«текущее состояние цели читается» и не говорила чем; очевидное прочтение —
-через провайдера — неверно, и проверка заняла десять минут, которые следующий
-читатель тратить не должен.
+**Where current bytes come from—and this is not protocol.** The record above
+said “the target's current state is read” without saying how. The obvious
+interpretation—through the provider—is wrong, and checking took ten minutes
+that the next reader should not spend.
 
-Измерено: у протокола v3 шесть основных команд — `provider-info`,
-`validate-bundle`, `plan-operation`, `apply-operation`, `recover-operation`,
-`status` — и ни одна не возвращает содержимое. `status` доказывает
-`state=managed`, `target_digest` и drift, то есть digest, а не байты.
+Measured: protocol v3 has six main commands—`provider-info`,
+`validate-bundle`, `plan-operation`, `apply-operation`,
+`recover-operation`, and `status`—and none returns content. `status`
+proves `state=managed`, `target_digest`, and drift: a digest, not bytes.
 
-Читает потребитель, с файловой системы, и это уже делается:
-`local/managed_diff.compare(target: Path, manifest)` обходит корни цели и
-инспектирует пути. Монополия провайдера — на **запись** итогового состояния
-(`AGENTS.md`), и чтение её не касается. Значит добавлять команду в протокол не
-нужно, и предлагать её было бы расширением чужого контракта ради того, что уже
-есть на этой стороне.
+The consumer reads from the filesystem, as it already does:
+`local/managed_diff.compare(target: Path, manifest)` walks target roots and
+inspects paths. The provider monopoly concerns **writing** final state
+(`AGENTS.md`), not reading it. No protocol command is needed; proposing one
+would extend another party's contract for something already available here.
 
-Из этого следует и требование к записи: писать обязан формат-сохраняющий
-инструмент. `config.toml` — файл, который пользователь ведёт сам, и
-круговой проход через разбор значений и обратную сериализацию стирает каждый
-его комментарий. Потеря комментариев в чужом файле — не косметика, а порча
-данных, которых мы не создавали. `tomllib` в стандартной библиотеке только
-читает; писать значениями недостаточно.
+This also yields a writing requirement: the writer must preserve formatting.
+`config.toml` is maintained by the user, and a round trip through value parsing
+and serialization erases every comment. Losing comments in another party's file
+is not cosmetic but corruption of data we did not create. Standard-library
+`tomllib` only reads; writing values is insufficient.
 
-Проверено в замыкании: `tomlkit`, `tomli_w` и `toml` отсутствуют — записи TOML
-в проекте нет вообще. Это named зависимость с владельцем и путём удаления в
-смысле `AGENTS.md`: нужна ровно для формат-сохраняющей записи файла-хозяина,
-владелец — этот ADR, удаляется вместе с правилом раскладки, если оно будет
-отозвано.
+Dependency closure was checked: `tomlkit`, `tomli_w`, and `toml` are absent;
+the project has no TOML writing at all. This is a named dependency with an owner
+and removal path in the sense of `AGENTS.md`: it is needed exactly for
+format-preserving writing of a host file, is owned by this ADR, and is removed
+with the layout rule if that rule is revoked.
 
-## Порядок, в котором это вводится
+## Introduction order
 
-Правило раскладки добавляется **последним**, а не первым.
+The layout rule is added **last**, not first.
 
-Сегодняшний отказ `native_surface_lost` у codex, grok-build и opencode
-мешает установке — и это его работа. Правило, объявляющее поверхность раньше,
-чем существует реконструкция, не чинит отказ, а заменяет его на **молчаливый
-пропуск**: сборка проходит, установка отвечает `verified`, и сервера MCP на
-машине нет. Отказ, который видно, строго лучше успеха, которого не было.
+Today's `native_surface_lost` refusal for codex, grok-build, and opencode blocks
+installation, which is its job. A rule declaring the surface before
+reconstruction exists does not fix refusal; it replaces it with a **silent
+skip**: assembly succeeds, installation reports `verified`, and no MCP server
+exists on the machine. A visible refusal is strictly better than success that
+did not happen.
 
-Поэтому порядок такой: чтение текущего состояния цели, формат-сохраняющая
-запись, сборка полных байтов в плане, наблюдаемый diff — и только затем правило,
-после которого отказ перестаёт наступать. Обратный порядок был бы обменом
-верного отказа на неверный успех.
+The order is therefore: read current target state, preserve formatting while
+writing, assemble full bytes in the plan, expose a diff—and only then add the
+rule after which refusal stops. The reverse exchanges a correct refusal for an
+incorrect success.
 
-Это записано здесь, потому что уже однажды было решено правильно и без записи:
-поверхность не объявляли именно из-за отсутствия реконструкции, а причина
-жила в комментарии одного теста.
+This is recorded because it was once decided correctly without being written
+down: the surface was not declared precisely because reconstruction was absent,
+while the reason lived in one test comment.
 
-## Порядок — внутри одного изменения, а не последовательность изменений
+## Order within one change, not a sequence of changes
 
-Порядок выше описывает, **что доходит до провайдера**, и был прочитан как
-последовательность коммитов. Так его провести нельзя, и это проверено попыткой,
-а не рассуждением: писатель форматов был написан, покрыт тестами против
-настоящих опубликованных `config.toml` и `opencode.json`, и не прошёл два
-контрактных гейта этого дерева.
+The order above describes **what reaches the provider** and was read as a commit
+sequence. It cannot be implemented that way, as an attempt—not speculation—
+demonstrated: the format writer was written, tested against actual published
+`config.toml` and `opencode.json`, and failed two contract gates in this tree.
 
 ```text
 test_every_module_level_function_has_a_caller
   → "these exist and nothing calls them; wire them in or remove them"
 test_no_dependency_arrives_without_a_recorded_reason
-  → tomlkit не в ALLOWED_DEPENDENCIES
+  → tomlkit is not in ALLOWED_DEPENDENCIES
 ```
 
-Оба гейта правы, и оба говорят одно: способность не приезжает раньше своего
-применения. А единственный законный вызывающий у реконструкции — правило
-раскладки, которое эта запись велит вводить последним. Круг замкнут.
+Both gates are right and say the same thing: a capability does not arrive before
+its use. The only lawful caller of reconstruction is the layout rule that this
+record says to introduce last. The circle closes.
 
-Отсюда уточнение, которое стоило одного отката: **правило вводится последним
-внутри одного изменения.** Оно означает, что `native_surface_lost` не снимается
-раньше, чем реконструкция работает от начала до конца, — а не что чтение цели,
-запись, сборка байтов и diff приезжают отдельными коммитами. Приезжают они
-вместе, вместе с правилом и вместе с зависимостью, у которой к тому моменту есть
-записанная причина.
+Hence the clarification that cost one rollback: **the rule is introduced last
+within one change.** This means `native_surface_lost` is not removed until
+reconstruction works end to end—not that target reading, writing, byte assembly,
+and diff arrive in separate commits. They arrive together with the rule and the
+dependency whose reason is then recorded.
 
-## Последствия
+## Consequences
 
-Один вид получает три способа доставки, и это не три вида: `provider_kind`
-(`#454`) уже отделяет сообщаемый провайдеру вид от логического, а
-`hosted_in`/`hosted_key` добавляют третий случай — посадку внутрь чужого файла.
+One type gains three delivery methods, not three types: `provider_kind`
+(`#454`) already separates the provider-facing type from the logical type,
+while `hosted_in` / `hosted_key` add the third case—landing inside another
+party's file.
 
-Правило распространяется шире `mcp`. Регистрация marketplace у claude-code —
-`extraKnownMarketplaces` и `enabledPlugins` в `settings.json` — по этому же
-правилу является вкладом в `setting`, а не распаковкой пакета (`#458`).
+The rule applies beyond `mcp`. Marketplace registration for claude-code—
+`extraKnownMarketplaces` and `enabledPlugins` in `settings.json`—is likewise
+a contribution to `setting`, not package extraction (`#458`).
 
-Два компонента, претендующих на одну запись одного ключа, — конфликт, а не
-слияние, и он обязан наблюдаться при сборке. Отдельного кода для этого не
-заводится: `native_id_collision` уже говорит, что один нативный идентификатор
-принадлежит одному компоненту, и два сервера с одним именем под `mcp_servers`
-попадают под него точно.
+Two components claiming the same entry of the same key conflict rather than
+merge, and this must be observed during assembly. No separate code is added:
+`native_id_collision` already says one native identifier belongs to one
+component, and two servers with the same name under `mcp_servers` fit it
+exactly.
 
-Реконструкция обязана быть детерминированной: одинаковый вход даёт одинаковые
-байты, иначе `plan` и `apply` расходятся на форматировании и цель считается
-изменённой, когда она не изменилась.
+Reconstruction must be deterministic: identical input produces identical
+bytes, or `plan` and `apply` diverge in formatting and the target appears
+changed when it is not.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается, если протокол провайдера начнёт выражать владение
-ключом внутри файла, — тогда реконструкция уходит на сторону, которая пишет.
-
-## Чего запись не предусмотрела, и что нашло тестирование
-
-Два пробела, оба найдены проверкой взаимодействия, а не счастливого пути.
-
-**Вклад и владелец остального файла сосуществуют.** `setting`-компонент codex
-владеет `config.toml` целиком, `mcp`-компонент владеет ключом внутри него.
-Заявка на путь делала их конфликтом `managed_path_owned_twice`, то есть любой
-сетап с обоими блокировался — а это каждый настоящий сетап, как только кто-то
-создаст `mcp`-компонент. Вклад заявляет `path#key`.
-
-Правило перекрытия при этом менять не пришлось: `config.toml` и
-`config.toml#mcp_servers` не пересекаются, потому что ни одно не является
-`/`-корневым префиксом другого, а два компонента, вносящих один ключ, заявляют
-одинаковую строку и конфликтуют по-прежнему.
-
-**База сборки — то, что кладёт сам сетап, а не цель.** Если сетап несёт и
-`setting`, и вклад в тот же файл, сборка против байтов цели дала бы два
-источника на один путь; бандл такое отвергает и разрешить не может. Вклад
-накладывается на байты соседа, если тот есть, и только иначе — на текущие байты
-цели.
+The decision is reconsidered if the provider protocol begins expressing
+ownership of a key inside a file; reconstruction then moves to the writing side.

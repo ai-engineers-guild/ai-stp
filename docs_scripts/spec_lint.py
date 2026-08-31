@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Проверка структуры, идентификаторов и трассируемости active specs."""
+"""Check active-spec structure, identifiers, and traceability."""
 
 from __future__ import annotations
 
@@ -15,14 +15,14 @@ REQ_LINE_RE = re.compile(r"^- `(?P<id>REQ-\d{3,4})`: (?P<text>\S.*)$", re.M)
 REQ_REF_RE = re.compile(r"`(REQ-\d{3,4})`")
 FRONTMATTER_RE = re.compile(r"\A---\n.*?\n---\n", re.S)
 REQUIRED_HEADINGS = (
-    "## Цель",
-    "## Границы",
-    "## Термины",
-    "## Требования",
-    "## Состояния и ошибки",
-    "## Безопасность и приватность",
-    "## Совместимость и миграция",
-    "## Критерии приёмки",
+    "## Purpose",
+    "## Scope",
+    "## Terms",
+    "## Requirements",
+    "## States and errors",
+    "## Security and privacy",
+    "## Compatibility and migration",
+    "## Acceptance criteria",
 )
 
 
@@ -84,7 +84,7 @@ class SpecLinter:
             if not section:
                 self.error(path, "SP06", f"нет непустого раздела {heading}")
 
-        requirements_section = self.section(text, "## Требования")
+        requirements_section = self.section(text, "## Requirements")
         requirements = list(REQ_LINE_RE.finditer(requirements_section))
         if not requirements:
             self.error(path, "SP07", "нет требований формата `REQ-NNN`")
@@ -102,7 +102,7 @@ class SpecLinter:
             else:
                 self.seen_requirements[req_id] = path
 
-        acceptance = self.section(text, "## Критерии приёмки")
+        acceptance = self.section(text, "## Acceptance criteria")
         accepted_ids = set(REQ_REF_RE.findall(acceptance))
         for req_id in ids:
             if req_id not in accepted_ids:

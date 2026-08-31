@@ -1,13 +1,15 @@
 ---
-description: "Формат словаря тегов, нормализация, предел и поведение поиска."
+description: "Tag vocabulary format, normalization, limit, and search behavior."
 last_verified: "2026-08-04"
 ---
 
-# Словарь тегов
+# Tag vocabulary
 
-Владелец решения — `ADR-0024`, владелец требований — `SPEC-005` и `SPEC-007`. Здесь зафиксирована машинная граница: форма записи словаря, правила нормализации, предел и то, что попадает в паспорт.
+The decision owner is `ADR-0024`, and the requirements owners are `SPEC-005` and
+`SPEC-007`. This document defines the machine boundary: vocabulary entry form,
+normalization rules, the limit, and what enters a passport.
 
-## Запись словаря
+## Vocabulary entry
 
 ```yaml
 schema_version: 1
@@ -15,7 +17,7 @@ vocabulary_version: "1.0"
 tags:
   - id: "python"
     name: "Python"
-    description: "Проекты и компоненты для Python."
+    description: "Projects and components for Python."
     aliases: ["py", "python3"]
     status: active
   - id: "code-review"
@@ -24,36 +26,50 @@ tags:
     status: active
 ```
 
-Поле `id` является каноническим значением: именно оно сохраняется в паспорте и по нему выполняется фильтрация. `name` предназначено для показа и может меняться без смены `id`. `aliases` участвуют только в поиске.
+The `id` field is the canonical value: it is stored in the passport and used for
+filtering. `name` is for display and may change without changing `id`. `aliases`
+participate only in search.
 
-Поле `status` принимает `active` и `deprecated`. Устаревшая запись не предлагается при публикации, но остаётся допустимой в уже опубликованных версиях и находится поиском. Удаление записи запрещено.
+The `status` field accepts `active` and `deprecated`. A deprecated entry is not offered
+during publication but remains valid in already published versions and remains
+searchable. Deleting an entry is prohibited.
 
-## Нормализация
+## Normalization
 
-Идентификатор тега:
+A tag identifier:
 
-- нормализуется по Unicode NFC;
-- приводится к нижнему регистру;
-- состоит из букв, цифр и дефиса;
-- не начинается и не заканчивается дефисом и не содержит двух дефисов подряд;
-- имеет длину от двух до тридцати двух символов.
+- is normalized to Unicode NFC;
+- is converted to lowercase;
+- consists of letters, digits, and hyphens;
+- neither starts nor ends with a hyphen and contains no two consecutive hyphens;
+- is from two to thirty-two characters long.
 
-Значение, не проходящее нормализацию, отклоняется до сравнения со словарём: неверная форма и неизвестное значение являются разными ошибками.
+A value that fails normalization is rejected before comparison with the vocabulary:
+invalid form and unknown value are distinct errors.
 
-## Предел
+## Limit
 
-Одна версия объекта объявляет не менее одного и не более восьми тегов. Повтор одного идентификатора в списке отклоняется. Порядок тегов не значим и приводится к возрастанию идентификатора при канонизации.
+One object version declares at least one and at most eight tags. A repeated identifier
+in the list is rejected. Tag order is insignificant and is canonicalized into ascending
+identifier order.
 
-## Публикация
+## Publication
 
-Публикация отклоняется, если список тегов пуст, содержит значение вне словаря, содержит устаревшую запись, впервые вводимую этой версией, или превышает предел. Ошибка называет неизвестное значение и ближайшие допустимые записи словаря.
+Publication is rejected if the tag list is empty, contains a value outside the
+vocabulary, contains a deprecated entry newly introduced by this version, or exceeds
+the limit. The error names the unknown value and the nearest permitted vocabulary entries.
 
-Локальная регистрация без публикации словарём не ограничена: она не попадает в общий каталог и не участвует в чужом поиске.
+Local registration without publication is not constrained by the vocabulary: it does
+not enter the shared catalog or participate in another user's search.
 
-## Поиск
+## Search
 
-Фильтр по тегу работает по каноническому идентификатору. Поисковый запрос дополнительно сопоставляется с `name` и `aliases`, но результат всегда описывается идентификаторами.
+The tag filter operates on the canonical identifier. A search query is additionally
+matched against `name` and `aliases`, but the result is always described by identifiers.
 
-## Версионирование и распространение
+## Versioning and distribution
 
-Словарь версионируется отдельно от схемы паспорта: добавление записи совместимо и не требует новой версии схемы. CLI и API отдают действующий словарь машиночитаемо, поэтому агент выбирает теги из перечня. Автономно используется последний полученный словарь с указанием времени получения.
+The vocabulary is versioned separately from the passport schema: adding an entry is
+compatible and does not require a new schema version. The CLI and API expose the active
+vocabulary in machine-readable form, so the agent selects tags from the list. Offline
+operation uses the last obtained vocabulary and shows its retrieval time.

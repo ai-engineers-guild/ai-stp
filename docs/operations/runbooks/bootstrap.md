@@ -3,35 +3,35 @@ description: "Runbook: bootstrap."
 last_verified: "2026-08-03"
 ---
 
-# Первичная установка
+# Initial installation
 
-## Предварительная проверка
+## Preliminary check
 
-1. Зафиксировать систему, архитектуру, пользователя, домашние каталоги по правилам ОС и существующие установки.
-2. Проверить доступность опубликованной команды `uv`, свободное место, сеть и ограничения организации.
-3. Выполнить обнаружение без записи и сохранить диагностический отчёт.
+1. Record the system, architecture, user, home directories according to OS rules, and existing installations.
+2. Check the availability of the published `uv` command, free space, network, and organizational restrictions.
+3. Perform read-only discovery and save the diagnostic report.
 
-## План
+## Plan
 
-1. Построить план каталогов, CLI, провайдеров, набора инструментов, управляющего навыка и возможных действий пользователя.
-2. Показать каждый создаваемый путь, источник и хэш артефакта.
-3. При необходимости системного действия остановиться с `needs_user_action`; пароль агент не получает.
+1. Build a plan for directories, the CLI, providers, the toolset, the control skill, and possible user actions.
+2. Show every path to be created, source, and artifact hash.
+3. If a system action is required, stop with `needs_user_action`; the agent does not receive the password.
 
-## Применение
+## Application
 
-1. Установить CLI в пользовательское окружение.
-2. Создать каталоги данных, состояния и кэша с закрытыми правами.
-3. Установить проверенные выпуски провайдеров и полный набор инструментов профиля `mvp-full` в новые версионированные каталоги.
-4. Установить нативную проекцию управляющего навыка вне заменяемого сетапа.
-5. Создать идентификатор и ключ устройства; вход остаётся необязательным для локального режима.
+1. Install the CLI in the user environment.
+2. Create data, state, and cache directories with restrictive permissions.
+3. Install verified provider releases and the full `mvp-full` profile toolset in new versioned directories.
+4. Install the native projection of the control skill outside the replaceable setup.
+5. Create a device identifier and key; login remains optional for local mode.
 
-## Проверка
+## Verification
 
-1. Запустить диагностику CLI, каждого установленного провайдера и адаптера инструмента.
-2. Собрать паспорт разработчика силами агента по обнаруженным фактам или импортировать существующий.
-3. Отключить сеть и подтвердить, что объявленные автономные операции по `docs/contracts/offline-capability.md` продолжают работать.
-4. Построить план обычного удаления и проверить, что пользовательские данные и цели не входят.
+1. Run diagnostics for the CLI, each installed provider, and each tool adapter.
+2. Have the agent assemble a developer passport from discovered facts, or import an existing one.
+3. Disconnect the network and confirm that the declared offline operations under `docs/contracts/offline-capability.md` continue to work.
+4. Build a regular uninstall plan and verify that user data and targets are not included.
 
-## Частичный результат
+## Partial result
 
-Если сбой произошёл после записи, не запускать установку заново вслепую. Использовать журнал операции, последнее подтверждённое состояние и действие восстановления. Неактивный неполный каталог удаляется только после проверки, что на него не указывает текущий указатель.
+If a failure occurs after a write, do not blindly rerun the installation. Use the operation log, the last confirmed state, and the recovery action. An inactive incomplete directory is deleted only after verifying that the current pointer does not reference it.

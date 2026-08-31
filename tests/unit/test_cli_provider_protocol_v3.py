@@ -358,7 +358,7 @@ def test_provider_info_parser_fails_closed_for_malformed_wire_fields(
 def test_contract_and_adr_name_v3_without_redefining_old_versions() -> None:
     contract = CONTRACT.read_text(encoding="utf-8")
     adr = ADR.read_text(encoding="utf-8")
-    assert "Protocol v1 и v2 остаются без изменений" in adr
+    assert "Protocol v1 and v2 remain unchanged" in adr
     assert "protocol v3" in contract.lower()
 
 

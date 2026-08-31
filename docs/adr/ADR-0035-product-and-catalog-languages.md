@@ -1,41 +1,41 @@
 ---
-description: "Решение о языках продукта: веб и навык двуязычные, содержимое каталога запуска — английское."
+description: "Decision on product languages: web and the skill are bilingual, while launch catalog content is English."
 last_verified: "2026-08-04"
 ---
 
-# ADR-0035: Языки продукта и каталога запуска
+# ADR-0035: Product and launch catalog languages
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-Документация репозитория ведётся на русском, и это правило зафиксировано в `AGENTS.md`. Но язык самого продукта нигде не был решён: на каком языке веб, канонический Agent Skill и — главное — содержимое объектов каталога запуска. Для продукта, чей первичный потребитель — coding agent, язык инструкций и описаний компонентов напрямую влияет на качество работы: современные агенты устойчивее следуют англоязычным инструкциям и точнее сопоставляют англоязычные описания с запросами.
+Repository documentation is written in Russian, as established by `AGENTS.md`. But the language of the product itself was never decided: the language of the web, canonical Agent Skill, and—most importantly—launch catalog object content. For a product whose primary consumer is a coding agent, the language of component instructions and descriptions directly affects work quality: modern agents follow English instructions more reliably and match English descriptions to requests more accurately.
 
-## Варианты
+## Options
 
-1. Русский всюду. Последовательно с документацией, но снижает качество работы агентов с первопартийными объектами и сужает аудиторию каталога.
-2. Английский всюду. Максимум качества для агентов, но пользовательские поверхности теряют родной язык гильдии.
-3. Разделить по потребителю: человеческие поверхности двуязычные, агентское содержимое — английское.
+1. Russian everywhere. Consistent with documentation, but reduces agent quality with first-party objects and narrows the catalog audience.
+2. English everywhere. Maximum agent quality, but user-facing surfaces lose the Guild's native language.
+3. Split by consumer: human-facing surfaces are bilingual; agent content is English.
 
-## Решение
+## Decision
 
-Принимается вариант 3.
+Option 3 is accepted.
 
-**Веб и канонический Agent Skill доступны на русском и английском с запуска.** Обе локали равноправны; проекции навыка для пяти харнессов создаются из одного канонического источника в обеих локалях.
+**Web and the canonical Agent Skill are available in Russian and English from launch.** Both locales have equal standing; skill projections for five harnesses are generated in both locales from one canonical source.
 
-**Содержимое объектов каталога запуска — английское.** Инструкции, описания, тексты навыков и прочее содержимое первопартийных компонентов и сетапов из `ADR-0034` пишутся на английском: их читает и исполняет агент, и английский даёт лучшее качество следования.
+**Launch catalog object content is English.** Instructions, descriptions, skill texts, and other content of first-party components and setups from `ADR-0034` are written in English: an agent reads and executes them, and English provides better instruction-following quality.
 
-**Пользовательские публикации остаются на языке автора.** Платформа не требует язык от чужих объектов; язык — свойство содержимого, а не условие публикации.
+**User publications remain in the author's language.** The platform imposes no language requirement on third-party objects; language is a content property, not a publication condition.
 
-**Документация репозитория не меняется.** Прозаические документы `ai_stp` остаются русскими по `AGENTS.md`; это правило о репозитории, а не о продукте.
+**Repository documentation does not change.** Prose documents in `ai_stp` remain Russian under `AGENTS.md`; that is a repository rule, not a product rule.
 
-## Последствия
+## Consequences
 
-- граница MVP называет Agent Skill двуязычным, а не русским;
-- веб получает требование двух локалей с запуска;
-- выпускной барьер каталога запуска фиксирует английский язык содержимого объектов;
-- машинные контракты не затрагиваются: идентификаторы, состояния и коды остаются латиницей по действующим правилам.
+- the MVP boundary describes the Agent Skill as bilingual rather than Russian;
+- web receives a two-locales-from-launch requirement;
+- the launch catalog release barrier establishes English for object content;
+- machine contracts are unaffected: identifiers, states, and codes remain Latin-script under existing rules.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается, если появятся измеренные доказательства, что двуязычное содержимое объектов не ухудшает работу агентов, либо если аудитория каталога потребует третью локаль поверхностей.
+This decision will be reconsidered if measured evidence shows that bilingual object content does not degrade agent performance, or if the catalog audience requires a third surface locale.

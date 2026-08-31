@@ -1,89 +1,93 @@
 ---
-description: "SPEC-029: Неизменяемые безопасные Markdown-описания версий."
+description: "SPEC-029: Immutable safe Markdown descriptions for versions."
 last_verified: "2026-08-09"
 ---
 
-# SPEC-029: Неизменяемые безопасные Markdown-описания версий
+# SPEC-029: Immutable safe Markdown descriptions for versions
 
-## Цель
+## Purpose
 
-Дать компонентам и сетапам выразительное описание без второй изменяемой
-документации, расхождения между CLI, API и web и возможности исполнить или скрыто
-загрузить недоверенное содержимое.
+Give components and setups expressive descriptions without a second mutable
+documentation source, divergence between CLI, API, and web, or the ability to
+execute or covertly load untrusted content.
 
-## Границы
+## Scope
 
-Входит поле `description` точного паспорта версии, формат `commonmark_v1`,
-валидация, безопасный HTML, текстовый excerpt и общий malicious corpus. Отдельный
-объектный текст, WYSIWYG-редактор, произвольный HTML, remote images и загрузка
-вложений не входят.
+Included are the `description` field of an exact version passport, the
+`commonmark_v1` format, validation, safe HTML, a text excerpt, and a shared
+malicious corpus. A separate object-level text, a WYSIWYG editor, arbitrary
+HTML, remote images, and attachment uploads are excluded.
 
-## Термины
+## Terms
 
-- `commonmark_v1` — закрытый профиль CommonMark с версионированными пределами и
-  запрещёнными конструкциями;
-- `safe_markdown_v1` — версия валидатора и renderer;
-- excerpt — детерминированная однострочная текстовая проекция карточки.
+- `commonmark_v1` — a closed CommonMark profile with versioned limits and
+  prohibited constructs;
+- `safe_markdown_v1` — the validator and renderer version;
+- excerpt — a deterministic single-line text projection for a card.
 
-## Требования
+## Requirements
 
-- `REQ-2901`: Единственное содержательное поле описания версии — `description` в
-  неизменяемом `ComponentVersionPassport` или `SetupVersionPassport`; отдельного
-  mutable documentation field нет.
-- `REQ-2902`: Для passport schema v1 поле `description` всегда означает
-  `commonmark_v1`; render projection явно объявляет format и renderer version, а
-  exact source входит в канонические байты и digest паспорта.
-- `REQ-2903`: Вход обязан быть непустым UTF-8, Unicode NFC, использовать только
-  LF, занимать не больше 16 KiB и содержать не больше 256 строк.
-- `REQ-2904`: Профиль разрешает абзацы, заголовки, выделение, inline code,
-  ограждённые блоки кода, цитаты, разделитель, упорядоченные и неупорядоченные списки
-  и ссылки только `https` либо локальные fragment links.
-- `REQ-2905`: Raw HTML, images, небезопасные или неоднозначные URL, control
-  characters и неизвестные token types закрываются отказом до сохранения версии.
-- `REQ-2906`: `safe_markdown_v1` выдаёт deterministic sanitized HTML без raw
-  source HTML; внешняя ссылка получает `rel="nofollow noopener noreferrer"`.
-- `REQ-2907`: Excerpt извлекается из текстовых и code tokens, схлопывает
-  whitespace, ограничивается 240 Unicode code points и завершает усечённый текст
-  символом `…`.
-- `REQ-2908`: API, CLI и web используют один versioned positive/malicious corpus;
-  несовпадение accepted/rejected, HTML или excerpt является contract failure.
-- `REQ-2909`: Изменение описания опубликованной версии не переписывает паспорт и
-  создаёт новую версию `X.Y` по общим правилам registry.
-- `REQ-2910`: Неподдерживаемый `description_format` или renderer version не
-  понижается молча и возвращает typed incompatibility.
+- `REQ-2901`: The only substantive version-description field is `description`
+  in the immutable `ComponentVersionPassport` or `SetupVersionPassport`; there
+  is no separate mutable documentation field.
+- `REQ-2902`: For passport schema v1, `description` always means
+  `commonmark_v1`; the render projection explicitly declares the format and
+  renderer version, while the exact source is included in the canonical bytes
+  and passport digest.
+- `REQ-2903`: Input must be non-empty UTF-8 in Unicode NFC, use LF only, occupy
+  no more than 16 KiB, and contain no more than 256 lines.
+- `REQ-2904`: The profile permits paragraphs, headings, emphasis, inline code,
+  fenced code blocks, block quotes, thematic breaks, ordered and unordered
+  lists, and links using only `https` or local fragment links.
+- `REQ-2905`: Raw HTML, images, unsafe or ambiguous URLs, control characters,
+  and unknown token types fail closed before the version is stored.
+- `REQ-2906`: `safe_markdown_v1` produces deterministic sanitized HTML without
+  raw source HTML; an external link receives
+  `rel="nofollow noopener noreferrer"`.
+- `REQ-2907`: The excerpt is extracted from text and code tokens, collapses
+  whitespace, is limited to 240 Unicode code points, and ends truncated text
+  with `…`.
+- `REQ-2908`: API, CLI, and web use one versioned positive/malicious corpus; any
+  difference in accepted/rejected results, HTML, or excerpt is a contract
+  failure.
+- `REQ-2909`: Changing the description of a published version does not rewrite
+  the passport and creates a new `X.Y` version under the general registry rules.
+- `REQ-2910`: An unsupported `description_format` or renderer version is not
+  silently downgraded and returns a typed incompatibility.
 
-## Состояния и ошибки
+## States and errors
 
-Описание либо принято целиком, либо версия не создаётся. Частично очищенный input
-не сохраняется. Нарушение профиля является неверным паспортом; неизвестная версия
-формата или renderer является несовместимостью, а не пустым описанием.
+A description is either accepted in full or the version is not created.
+Partially sanitized input is not stored. A profile violation is an invalid
+passport; an unknown format or renderer version is an incompatibility, not an
+empty description.
 
-## Безопасность и приватность
+## Security and privacy
 
-Renderer не выполняет код, не разрешает HTML и не загружает ресурсы. URL
-проверяется после CommonMark parsing; percent-encoding, entity decoding и Unicode
-не должны превращать запрещённую схему в разрешённую. Лимиты применяются до
-дорогого parsing.
+The renderer does not execute code, permit HTML, or load resources. URLs are
+checked after CommonMark parsing; percent-encoding, entity decoding, and Unicode
+must not turn a prohibited scheme into an allowed one. Limits are applied before
+expensive parsing.
 
-## Совместимость и миграция
+## Compatibility and migration
 
-До публичного выпуска старые паспорта без `description_format` читаются как
-`commonmark_v1`, только если их `description` проходит текущий профиль; следующая
-сериализация включает поле явно. Опубликованные байты после выпуска не
-переписываются. Изменение grammar, лимитов, HTML или excerpt создаёт новый format
-или renderer version.
+Before the public release, old passports without `description_format` are read
+as `commonmark_v1` only if their `description` passes the current profile; the
+next serialization includes the field explicitly. Published bytes are not
+rewritten after release. A change to grammar, limits, HTML, or excerpt creates a
+new format or renderer version.
 
-## Критерии приёмки
+## Acceptance criteria
 
-| Требование | Исполнимый способ проверки |
+| Requirement | Executable verification |
 |---|---|
-| `REQ-2901` | Contract test доказывает отсутствие второго поля описания у паспорта и local object. |
-| `REQ-2902` | Изменение description меняет canonical passport digest, а projection содержит exact format и renderer version. |
-| `REQ-2903` | Boundary corpus покрывает bytes, lines, NFC, CR и control characters. |
-| `REQ-2904` | Positive corpus сравнивает exact HTML и excerpt всех разрешённых конструкций. |
-| `REQ-2905` | Malicious corpus отклоняет HTML, images, unsafe URL, controls и неизвестный token. |
-| `REQ-2906` | Golden HTML не содержит source HTML и фиксирует безопасные link attributes. |
-| `REQ-2907` | Golden excerpt покрывает whitespace, Unicode и точную границу 240 code points. |
-| `REQ-2908` | Python contract test валидирует каждую запись общего JSON corpus; web owner подключает тот же файл без копии. |
-| `REQ-2909` | Registry test отклоняет замену bytes известной версии и принимает новую minor version. |
-| `REQ-2910` | Неизвестные format и renderer version дают typed incompatibility. |
+| `REQ-2901` | A contract test proves that the passport and local object have no second description field. |
+| `REQ-2902` | Changing description changes the canonical passport digest, while the projection contains the exact format and renderer version. |
+| `REQ-2903` | The boundary corpus covers bytes, lines, NFC, CR, and control characters. |
+| `REQ-2904` | The positive corpus compares exact HTML and excerpts for every permitted construct. |
+| `REQ-2905` | The malicious corpus rejects HTML, images, unsafe URLs, controls, and an unknown token. |
+| `REQ-2906` | Golden HTML contains no source HTML and fixes the safe link attributes. |
+| `REQ-2907` | Golden excerpts cover whitespace, Unicode, and the exact 240-code-point boundary. |
+| `REQ-2908` | A Python contract test validates every record in the shared JSON corpus; the web owner consumes the same file without a copy. |
+| `REQ-2909` | A registry test rejects replacing the bytes of a known version and accepts a new minor version. |
+| `REQ-2910` | Unknown format and renderer versions produce a typed incompatibility. |

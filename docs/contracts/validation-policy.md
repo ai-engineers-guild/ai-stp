@@ -1,90 +1,102 @@
 ---
-description: "Обязательные проверки по видам компонентов, классам MCP и сетапу."
+description: "Mandatory checks by component type, MCP class, and setup."
 last_verified: "2026-08-23"
 ---
 
-# Политика проверок
+# Validation policy
 
-Владелец требований — `SPEC-007`. Здесь зафиксирована машинная граница: какие проверки обязательны для каждого вида объекта, что означает их результат и когда объект допускается к публикации и к линии `authoritative`.
+The requirements owner is `SPEC-007`. This document defines the machine
+boundary: which checks are mandatory for each object type, what their results
+mean, and when an object is eligible for publication and for the
+`authoritative` trust line.
 
-Каждая проверка возвращает состояние из `SPEC-007` и хранит источник доказательства, версию инструмента, версию политики и время. Недоступность инструмента даёт `not_run` или `degraded` и никогда не превращается в `passed`.
+Each check returns a state from `SPEC-007` and stores the evidence source, tool
+version, policy version, and time. Tool unavailability produces `not_run` or
+`degraded` and never becomes `passed`.
 
-Публичная проекция результата содержит ограниченный очищенный `reason` для неуспешной или незавершённой проверки. Сырые сообщения сканера, секреты и локальные пути в каталог не передаются.
+The public result projection contains a bounded, sanitized `reason` for an
+unsuccessful or incomplete check. Raw scanner messages, secrets, and local paths
+are not sent to the catalog.
 
-## Операционная evidence safety-scan
+## Operational evidence for safety-scan
 
-Для `platform_safety_scan` worker сохраняет только bounded in-process telemetry;
-она не является заменой `SafetyScanRun` и не содержит payload, idempotency key,
-полных путей или raw output инструмента. Обязательные группы сигналов:
+For `platform_safety_scan`, the worker stores only bounded in-process telemetry;
+it is not a replacement for `SafetyScanRun` and contains no payload, idempotency
+key, full paths, or raw tool output. Mandatory signal groups are:
 
-- queue: claim/empty-poll/claimed/requeue counters, queue wait buckets и handler
-  duration/result;
-- suite: total/cache-hit, sum/avg/max и fixed p50/p95/p99 duration buckets;
-- check: total/result by `check_id`, sum/avg/max duration и fixed duration buckets;
-- external execution: timeout/missing counters и sandbox mode counts.
+- queue: claim/empty-poll/claimed/requeue counters, queue wait buckets, and
+  handler duration/result;
+- suite: total/cache-hit, sum/avg/max, and fixed p50/p95/p99 duration buckets;
+- check: total/result by `check_id`, sum/avg/max duration, and fixed duration
+  buckets;
+- external execution: timeout/missing counters and sandbox mode counts.
 
-Фиксированные buckets ограничивают cardinality; `+Inf` означает превышение
-верхней границы bucket, а `null` quantile означает, что соответствующий rank
-попал в `+Inf`. Снимок process-local допустим для диагностики, но production
-readiness обязан иметь воспроизводимое offline evidence через
-`just safety-benchmark`: benchmark принудительно выключает external CLI и сеть,
-использует фиксированный corpus/order и отдельно помечает machine-dependent
+Fixed buckets bound cardinality; `+Inf` means the upper bucket boundary was
+exceeded, while a `null` quantile means that the corresponding rank fell into
+`+Inf`. A process-local snapshot is acceptable for diagnostics, but production
+readiness MUST have reproducible offline evidence through
+`just safety-benchmark`: the benchmark forcibly disables external CLI and the
+network, uses a fixed corpus/order, and separately marks machine-dependent
 wall-clock measurements.
 
-Доказательство на атакующем корпусе принадлежит версионируемому манифесту в
-`tests/fixtures/safety-corpus/`: каждый вид компонента и сетап имеют от 10 до 20
-релевантных вредоносных примеров и не менее двух чистых контрольных примеров.
-Последовательный серверный прогон
-отказывает при пропущенном ожидаемом `check_id`/`rule_id` или любой находке на
-чистом контрольном примере; внешние CLI и сеть для этого доказательства отключены.
+Evidence on the adversarial corpus belongs to the versioned manifest in
+`tests/fixtures/safety-corpus/`: every component type and setup has 10 to 20
+relevant malicious examples and at least two clean control examples. The
+sequential server run fails on a missing expected `check_id`/`rule_id` or any
+finding in a clean control example; external CLI and the network are disabled
+for this evidence.
 
-## Классы результата
+## Result classes
 
-| Класс | Смысл |
+| Class | Meaning |
 |---|---|
-| blocking | Отказ запрещает публикацию и исключает версию из линии `authoritative`. |
-| warning | Отказ не блокирует, но виден в карточке, поиске и отчёте. |
-| not_applicable | Проверка не имеет смысла для этого вида; отсутствие результата законно. |
-| not_run | Проверка обязательна, но не выполнялась; версия не считается подтверждённой. |
-| expired | Доказательство было получено, но вышло за срок годности политики. |
+| blocking | Failure prohibits publication and excludes the version from the `authoritative` line. |
+| warning | Failure does not block, but is visible in the card, search, and report. |
+| not_applicable | The check is not meaningful for this type; absence of a result is valid. |
+| not_run | The check is mandatory but was not run; the version is not considered verified. |
+| expired | Evidence was obtained but has exceeded the policy lifetime. |
 
-Неизвестный вид компонента и неизвестный класс транспорта закрываются отказом. Пропуск неизвестного значения запрещён.
+An unknown component type and an unknown transport class fail closed. Skipping
+an unknown value is prohibited.
 
-## Общие проверки
+## Common checks
 
-Обязательны для любой публикуемой версии:
+The following are mandatory for every published version:
 
-- схема и каноническая сериализация паспорта;
-- точный публичный репозиторий, коммит и подпуть либо хэш локального артефакта для закрытой версии;
-- хэш, размер и перечень файлов артефакта;
-- лицензия и право распространения;
-- ограниченные безопасные пути и только обычные файлы;
-- поиск секретов;
-- точные зависимости и требуемые возможности;
-- совместимость с харнессом, его версией, системой и архитектурой;
-- непустые нормализованные теги;
-- состояние автора и версии по двум осям подтверждения;
-- версии инструментов и политики, срок годности доказательства;
-- независимый серверный пересчёт хэша и неисполняющая структурная проверка для публичной версии.
+- passport schema and canonical serialization;
+- exact public repository, commit, and subpath, or the local artifact hash for
+  a private version;
+- artifact hash, size, and file list;
+- license and redistribution rights;
+- bounded safe paths and regular files only;
+- secret scanning;
+- exact dependencies and required capabilities;
+- compatibility with the harness, its version, system, and architecture;
+- non-empty normalized tags;
+- author and version state on both verification axes;
+- tool and policy versions and evidence lifetime;
+- independent server-side hash recomputation and non-executing structural
+  validation for a public version.
 
-## Серверный safety-scan (platform_safety_scan)
+## Server safety-scan (platform_safety_scan)
 
-При `validate` после паспортных проверок worker/platform исполняет staged safety suite
-(`policy_version` вида `safety-2`, реестр в `ai_stp_platform.safety.policy`).
+During `validate`, after passport checks, worker/platform executes the staged
+safety suite (`policy_version` of the form `safety-2`, registry in
+`ai_stp_platform.safety.policy`).
 
-| Семейство | check_id (primary) | Источник | Mandatory (public component) |
+| Family | check_id (primary) | Source | Mandatory (public component) |
 |---|---|---|---|
 | unpack | `artifact_unpack` | workdir + digest re-verify | yes |
 | path | `path_denylist` | in-proc | yes |
 | secrets | `secrets_heuristic` (+ optional `secrets_gitleaks`) | in-proc / CLI | heuristic yes; gitleaks findings force-block |
 | prompt_injection / stego | `pi_content_pack`, `content_hidden` | in-proc | warning-class by default |
-| network intent | `network_intent` | offline in-proc, без DNS/reputation lookup | warning-class by default |
+| network intent | `network_intent` | offline in-proc, without DNS/reputation lookup | warning-class by default |
 | agentic behavior | `agentic_behavior` | bounded offline in-proc patterns | yes |
 | sast | `sast_opengrep` (+ shellcheck/bandit by language) | owned rules / CLI | policy |
 | mcp | `mcp_config_static` | in-proc | yes when MCP present |
 | hook | `hook_schema_static`, `hook_command_argv` | in-proc | yes when hooks present |
-| skill | `skill_static_gate` (Cisco static + behavioral data-flow + независимые правила платформы) | CLI + owned | yes for skill/agent |
-| obfuscation | `shell_obfuscation` | bounded in-proc decoding, не более двух слоёв | warning-class by default |
+| skill | `skill_static_gate` (Cisco static + behavioral data-flow + independent platform rules) | CLI + owned | yes for skill/agent |
+| obfuscation | `shell_obfuscation` | bounded in-proc decoding, no more than two layers | warning-class by default |
 | sca | `sca_osv` | CLI offline preferred | warning-class |
 | malware | `malware_clamav`, `malware_yara` | local marker + clam/yara | strict profile |
 | sca lang | `sca_pip_audit`, `sca_govulncheck`, `sca_cargo_audit`, `sca_cargo_deny`, `sca_npm_audit` | CLI when manifests/lang | policy |
@@ -92,137 +104,184 @@ wall-clock measurements.
 | document | `document_pdf` | PDF JS/OpenAction/PI strings | policy when pdf |
 | setup | `setup_pin_aggregate` | catalog pin `checks_summary` join, no tree re-scan | yes for setup |
 
-`agentic_behavior` закрывает только механически доказуемые декларации: рекурсивную
-делегацию, доверие к результату сабагента, подмену полномочий, чтение соседних
-агентов, самоизменение, закрепление, маскировку полномочий, подмену аргументов,
-расширение области, передачу результата в shell, небезопасную десериализацию,
-плавающие зависимости, отравление памяти, удалённые инструкции и выход за корень.
-Он не пытается семантически оценить добросовестность компонента.
-`mcp_config_static` отдельно разбирает метаданные tool/schema/resource/prompt/output,
-коллизии и затенение имён, опасную цепочку возможностей и изменение канонического
-определения tool между одобренным и текущим снимками.
+`agentic_behavior` covers only mechanically provable declarations: recursive
+delegation, trust in a subagent's result, permission substitution, reading
+adjacent agents, self-modification, persistence, permission masking, argument
+substitution, scope expansion, passing results to the shell, unsafe
+deserialization, floating dependencies, memory poisoning, remote instructions,
+and escaping the root. It does not attempt to semantically assess whether a
+component acts in good faith. `mcp_config_static` separately parses
+tool/schema/resource/prompt/output metadata, name collisions and shadowing,
+dangerous capability chains, and changes to the canonical tool definition
+between approved and current snapshots.
 
-Публичный audit: `GET /v1/catalog/{components|setups}/{id}/versions/{version}/checks`.
+Public audit: `GET /v1/catalog/{components|setups}/{id}/versions/{version}/checks`.
 
-Каждая непройденная строка audit может нести `finding_summary`: bounded-количество,
-максимальную серьёзность, отсортированные канонические `rule_ids`, безопасные
-относительные `paths` и `truncated`. Это проекция идентификаторов, а не находок:
-payload, исходные строки, stdout/stderr, абсолютные пути, secret values и
-произвольные сообщения scanner в неё не входят. Небезопасный rule ID заменяется
-идентификатором инструмента, небезопасный путь не публикуется.
+Each unsuccessful audit row may carry `finding_summary`: a bounded count,
+maximum severity, sorted canonical `rule_ids`, safe relative `paths`, and
+`truncated`. This is a projection of identifiers, not findings: payload, source
+lines, stdout/stderr, absolute paths, secret values, and arbitrary scanner
+messages are excluded. An unsafe rule ID is replaced by the tool identifier; an
+unsafe path is not published.
 
-Правила результата: `not_run` / `degraded` для обязательных проверок **не** становятся
-`passed`. Внешние CLI включаются только при `AI_STP_SAFETY_EXTERNAL_CLI=1`.
+Result rules: `not_run` / `degraded` for mandatory checks do **not** become
+`passed`. External CLIs are enabled only when `AI_STP_SAFETY_EXTERNAL_CLI=1`.
 
-У `skill_static_gate` собственный ключевой набор regex является запасным путём, а не
-вторым мнением. Когда `skill-scanner` загрузил пакет скилла и дошёл до вердикта,
-находки этого набора записываются как `medium` и сами по себе не отказывают; когда
-движка нет или он не дочитал — таймаут и отказ запуска сюда входят, — набор
-сохраняет исходную серьёзность и отказывает. Причина в границе метода: keyword-скан не
-отличает скилл, который выгружает учётные данные, от скилла, который ищет такую
-выгрузку в чужом коде, и объявлять второй `critical` поверх чистого чтения движка —
-это фолбэк, перебивающий то, что он замещает.
-Процент для карточки: `passed / (passed+failed+warning)`; статусы
-`not_applicable` и `skipped` не входят в знаменатель. Статус `pending`, если среди
-applicable обязательных проверок есть `not_run`, `degraded` или `running`.
+The regex keyword set owned by `skill_static_gate` is a fallback path, not a
+second opinion. When `skill-scanner` loaded the skill package and reached a
+verdict, findings from this set are recorded as `medium` and do not fail by
+themselves; when the engine is absent or did not finish reading—including
+timeout and launch failure—the set retains its original severity and fails. The
+reason lies at the method boundary: a keyword scan cannot distinguish a skill
+that exfiltrates credentials from a skill that searches other code for such
+exfiltration, and declaring the latter `critical` on top of a clean engine read
+would make the fallback override what it replaces.
+Card percentage: `passed / (passed+failed+warning)`; statuses `not_applicable`
+and `skipped` are excluded from the denominator. Status is `pending` when any
+applicable mandatory check is `not_run`, `degraded`, or `running`.
 
-## Проверки по видам компонентов
+## Checks by component type
 
-| Вид | Обязательные проверки сверх общих |
+| Type | Mandatory checks in addition to common checks |
 |---|---|
-| `instruction` | нативный формат и frontmatter; предел объёма и включений; анализ precedence и конфликтов; запрет необъявленного удалённого источника инструкции |
-| `skill` | форма и метаданные `SKILL.md`; перечень ресурсов, вложений и сценариев; объявленные инструменты и полномочия; статические проверки и проверка типов сценариев; ограниченный дымовой запуск, если он применим |
-| `mcp` | зависит от класса транспорта, см. ниже |
-| `hook` | схема события и сопоставителя; исполнение только массивом аргументов без небезопасной подстановки; семантика времени, кода возврата и блокировки; статические проверки сценариев; фикстуры событий |
-| `command` | метаданные и аргументы; класс эффекта; проверка упоминаемых сценариев и файлов; полномочия и класс подтверждения; фикстура вызова |
-| `agent` | объявление роли, модели, инструментов и делегирования; нативная схема; запрет скрытых удалённых подсказок; сведение конфликтов и полномочий |
-| `plugin` | нативный манифест; перечень вложенных компонентов; точный граф зависимостей; дымовая установка и загрузка провайдером; конфликты нативных идентификаторов |
-| `setting` | типизированная схема ключа и значения; политика слияния, приоритета и конфликтов; запрет секретов в значении; нативная проверка целью |
+| `instruction` | native format and frontmatter; size and inclusion limits; precedence and conflict analysis; undeclared remote instruction sources prohibited |
+| `skill` | `SKILL.md` form and metadata; list of resources, attachments, and scenarios; declared tools and permissions; static checks and scenario type checks; bounded smoke run where applicable |
+| `mcp` | depends on the transport class; see below |
+| `hook` | event and matcher schema; execution only as an argument array without unsafe substitution; time, exit-code, and blocking semantics; static scenario checks; event fixtures |
+| `command` | metadata and arguments; effect class; validation of referenced scenarios and files; permissions and confirmation class; invocation fixture |
+| `agent` | role, model, tools, and delegation declaration; native schema; hidden remote prompts prohibited; conflict and permission resolution |
+| `plugin` | native manifest; list of nested components; exact dependency graph; smoke installation and loading by the provider; native identifier conflicts |
+| `setting` | typed key and value schema; merge, precedence, and conflict policy; secrets prohibited in the value; native validation by the target |
 
-## Классы транспорта MCP
+## MCP transport classes
 
-| Класс | Обязательные проверки |
+| Class | Mandatory checks |
 |---|---|
-| `local_exec` | точный источник и целостность; сценарии установки пакета отключены по умолчанию; объявленные аргументы, имена переменных окружения, требования секретов и транспорт; проверки зависимостей, статики и секретов; рукопожатие протокола и дымовая проверка схем инструментов, ресурсов и подсказок в изолированном временном домашнем каталоге без настоящих учётных данных |
-| `package` | то же, что `local_exec`, плюс точная версия пакета, файл блокировки и доказательство целостности источника пакета |
-| `remote_https` | канонический адрес HTTPS и классификация аутентификации; доказательства владения точкой подключения, если они доступны; снимок схемы; ограниченная проверка со стороны платформы; защита от подделки серверных запросов, включая приватные, локальные и связочные адреса и повторное разрешение имён; срок годности доказательства; запрет утверждать безопасность недоступного исходного кода реализации |
+| `local_exec` | exact source and integrity; package installation scripts disabled by default; declared arguments, environment-variable names, secret requirements, and transport; dependency, static, and secret checks; protocol handshake and smoke validation of tool, resource, and prompt schemas in an isolated temporary home directory without real credentials |
+| `package` | same as `local_exec`, plus an exact package version, lock file, and package-source integrity evidence |
+| `remote_https` | canonical HTTPS address and authentication classification; endpoint-ownership evidence where available; schema snapshot; bounded platform-side validation; server-side request forgery protection, including private, local, and link-local addresses and repeated name resolution; evidence lifetime; prohibited from claiming security of unavailable implementation source code |
 
-Класс транспорта объявляется в паспорте и проверяется до выбора политики. Удалённая точка подключения не наследует допущения локального пакета.
+The transport class is declared in the passport and checked before policy
+selection. A remote endpoint does not inherit assumptions of a local package.
 
-Если объект объявил потребность в учётных данных, рукопожатие и дымовая проверка выполняются без них везде, где это возможно: платформа не запрашивает и не хранит чужие ключи. Обязательную проверку, исполнимую только с настоящими учётными данными, автор выполняет локально своими учётными данными через обычный ограниченный путь инструментов, а CLI выпускает подписанное авторское подтверждение по `ADR-0026`. Пока такого подтверждения нет, проверка остаётся `not_run` с причиной `missing_required_credentials`, и публичная публикация заблокирована: обязательная проверка без принятого доказательства не пропускается.
+If an object declares a need for credentials, handshake and smoke validation are
+performed without them wherever possible: the platform does not request or store
+someone else's keys. A mandatory check executable only with real credentials is
+run locally by the author with their own credentials through the ordinary
+bounded tool path, and the CLI issues a signed author attestation under
+`ADR-0026`. Until that attestation exists, the check remains `not_run` with
+reason `missing_required_credentials`, and public publication is blocked: a
+mandatory check without accepted evidence is not skipped.
 
-## Проверки сетапа
+## Setup checks
 
-Сверх общих проверок сетап обязан пройти:
+In addition to common checks, a setup MUST pass:
 
-- точные ссылки на версии компонентов;
-- построение графа и разрешение циклов;
-- сведение конфликтов, лицензий, доступа и полномочий;
-- сопоставление профиля выполнения `full-auto` с нативными возможностями провайдера;
-- детерминированный состав и отчёты состава и преобразования;
-- детерминированный `HarnessBundle`;
-- `validate-bundle` и `plan-bundle` провайдера без изменения цели;
-- дымовую установку для заявленной совместимости;
-- доказательство запуска только для тех уровней поддержки, которые его заявляют.
+- exact component version references;
+- graph construction and cycle resolution;
+- resolution of conflicts, licenses, access, and permissions;
+- mapping of execution profile `full-auto` to native provider capabilities;
+- deterministic composition and composition/transformation reports;
+- deterministic `HarnessBundle`;
+- provider `validate-bundle` and `plan-bundle` without changing the target;
+- smoke installation for claimed compatibility;
+- launch evidence only for support levels that claim it.
 
-## Допуск к публикации и к линии доверия
+## Eligibility for publication and a trust line
 
-Публикация требует, чтобы каждая обязательная проверка имела актуальное принятое политикой доказательство с результатом `passed`. Обязательная проверка в состоянии `failed`, `degraded`, `not_run` или `expired` блокирует публичную публикацию. Завершённая проверка класса `warning` публикацию не блокирует.
+Publication requires every mandatory check to have current, policy-accepted
+evidence with result `passed`. A mandatory check in state `failed`, `degraded`,
+`not_run`, or `expired` blocks public publication. A completed `warning`-class
+check does not block publication.
 
-Принятый источник доказательства задаётся по каждой проверке:
+The accepted evidence source is defined for each check:
 
-| Класс проверки | Принятое доказательство |
+| Check class | Accepted evidence |
 |---|---|
-| исполнима без учётных данных | серверное исполнение: `platform_digest_verified`, `platform_structure_verified` и повторный запуск проверки платформой |
-| требует учётных данных или внешней авторизации автора | подписанное авторское подтверждение точного хэша: `author_attested` по `ADR-0026` |
-| доказательство установки | `provider_installation_tested` |
-| доказательство запуска | `runtime_tested` |
+| executable without credentials | server execution: `platform_digest_verified`, `platform_structure_verified`, and re-execution of the check by the platform |
+| requires credentials or external author authorization | signed author attestation of the exact hash: `author_attested` under `ADR-0026` |
+| installation evidence | `provider_installation_tested` |
+| launch evidence | `runtime_tested` |
 
-Проверку, которую платформа может исполнить сама, отчёт устройства не заменяет. При публикации сервер всегда независимо пересчитывает хэш и структуру, повторяет все credential-свободные обязательные проверки, проверяет подпись, привязку, актуальность и версии авторского подтверждения, состояние устройства и аккаунта и оценивает политику.
+A device report does not replace a check the platform can execute itself. On
+publication, the server always independently recomputes the hash and structure,
+reruns all credential-free mandatory checks, validates the signature, binding,
+freshness, and versions of the author attestation and the device and account
+states, and evaluates policy.
 
-`component_verified` означает, что все обязательные проверки версии имеют актуальные принятые доказательства `passed`. Признак говорит о полноте доказательств и их принятии политикой, а не о том, что каждую проверку исполнила платформа: карточка и машинный вывод показывают источник доказательства по каждой проверке и его ограничения. Признак не является вечным: он снимается, когда доказательство переходит в `expired` или когда ужесточённая версия политики добавляет обязательную проверку, которой у версии нет. Поэтому опубликованная версия и подтверждённая версия — разные множества, и второе меняется со временем без изменения байтов.
+`component_verified` means that all mandatory checks for the version have
+current accepted `passed` evidence. The flag describes evidence completeness and
+policy acceptance, not that the platform executed every check: the card and
+machine output show each check's evidence source and its limitations. The flag
+is not permanent: it is removed when evidence becomes `expired` or when a
+stricter policy version adds a mandatory check the version lacks. Therefore,
+published versions and verified versions are distinct sets, and the latter
+changes over time without changing bytes.
 
-Признак не выводится из авторства и не выдаётся вручную. Версия с `warning` публикуется, но подтверждения не получает.
+The flag does not follow from authorship and is not granted manually. A version
+with `warning` is published but does not become verified.
 
-## Пригодность к установке
+## Installation eligibility
 
-Пригодность версии к новым установкам выводится из актуальности обязательных доказательств по `ADR-0032`. Как только любое обязательное доказательство перестаёт быть актуальным `passed` — истечение срока, провал при перепроверке или ужесточение политики, — версия одновременно:
+Eligibility of a version for new installations is derived from the freshness of
+mandatory evidence under `ADR-0032`. As soon as any mandatory evidence ceases to
+be a current `passed`—because it expires, fails revalidation, or policy is
+tightened—the version simultaneously:
 
-- теряет `component_verified`;
-- покидает линию `authoritative`;
-- блокируется для новых установок и обновлений без отдельного ручного шага.
+- loses `component_verified`;
+- leaves the `authoritative` line;
+- is blocked for new installations and updates without a separate manual step.
 
-Уже установленная цель продолжает работать и получает заметное предупреждение с причиной; удалённое отключение и удаление целей не выполняются. Ручное состояние `blocked` по `SPEC-005` остаётся отдельным действием модератора поверх этого правила.
+An already installed target continues to operate and receives a prominent
+warning with the reason; remote disabling and target removal are not performed.
+Manual state `blocked` under `SPEC-005` remains a separate moderator action on
+top of this rule.
 
-Автор восстанавливает пригодность новым проходящим `ValidationSnapshot` для тех же неизменных байтов. Изменённые байты требуют новой версии. Автономный клиент использует последнее известное состояние пригодности со временем его проверки и применяет текущее состояние при первом обновлении.
+The author restores eligibility with a new passing `ValidationSnapshot` for the
+same immutable bytes. Changed bytes require a new version. An offline client uses
+the last known eligibility state with its check time and applies the current
+state on the first update.
 
-Линия `authoritative` по `ADR-0016` дополнительно требует `author_verified`, `component_verified` и отсутствия `expired` среди обязательных доказательств. Линии `experimental` и `local_owner_or_pinned` не смягчают запреты безопасности: они меняют условия попадания в выдачу, а не набор обязательных проверок для установки.
+The `authoritative` line under `ADR-0016` additionally requires
+`author_verified`, `component_verified`, and no `expired` mandatory evidence.
+The `experimental` and `local_owner_or_pinned` lines do not relax safety
+prohibitions: they change inclusion conditions, not the set of mandatory checks
+for installation.
 
-## Авторское подтверждение
+## Author attestation
 
-Авторское подтверждение — подписанная ключом устройства запись о локальном исполнении credential-зависимой проверки. Оно привязано к:
+An author attestation is a device-key-signed record of local execution of a
+credential-dependent check. It is bound to:
 
-- точному хэшу объекта и версии компонента или сетапа;
-- версии политики проверок и версиям инструментов;
-- версии харнесса и провайдера, против которых шла проверка;
-- идентификаторам исполненных тест-кейсов и результату;
-- аккаунту автора, устройству и времени исполнения.
+- the exact object hash and component or setup version;
+- the validation-policy version and tool versions;
+- the harness and provider versions against which validation ran;
+- identifiers of the executed test cases and the result;
+- the author account, device, and execution time.
 
-Значения секретов, токены, учётные данные, адреса выдачи учётных данных и чувствительная диагностика в подтверждение не входят и не сериализуются. Хэш записи считается в области `ai-stp:attestation:v1` по `canonical-data.md`.
+Secret values, tokens, credentials, credential-issuance addresses, and sensitive
+diagnostics are not included in the attestation and are not serialized. The
+record hash is computed in the `ai-stp:attestation:v1` domain according to
+`canonical-data.md`.
 
-CLI создаёт такую запись командой `attestation sign` только для точной локально
-выпущенной версии и сохраняет её новым owner-only JSON-файлом без
-перезаписи. Подписание требует активных cloud session и локального ключа одного
-устройства и явного подтверждения перед записью. `publication plan` принимает
-файл через повторяемый `--attestation-file` и до сетевого вызова проверяет
-закрытую модель, подпись, отсутствие дублей и совпадение всех координат с
-публикуемой версией. Проводной запрос `/v1` несёт ту же закрытую запись, а не
-урезанную проекцию: одно определение payload, проверка Ed25519 и координат
-принадлежат серверу по `ADR-0092`. Форма строки подписи сама по себе не
-является доказательством.
+The CLI creates such a record with `attestation sign` only for an exact locally
+released version and saves it as a new owner-only JSON file without overwriting.
+Signing requires an active cloud session and a local key from one device, plus
+explicit confirmation before writing. `publication plan` accepts files through
+repeatable `--attestation-file` and, before a network call, checks the closed
+model, signature, absence of duplicates, and equality of all coordinates with
+the version being published. The `/v1` wire request carries the same closed
+record, not a reduced projection: the server owns the single payload definition,
+Ed25519 verification, and coordinate checks under `ADR-0092`. The shape of a
+signature string is not evidence by itself.
 
-Подтверждение недействительно, если изменился хэш объекта, версия политики, версии инструментов или набор тест-кейсов, а также после отзыва устройства. Недействительное подтверждение возвращает проверку в `not_run` и закрывает публикацию до появления нового.
+An attestation is invalid if the object hash, policy version, tool versions, or
+test-case set changes, and also after device revocation. An invalid attestation
+returns the check to `not_run` and closes publication until a new one exists.
 
-## Версионирование
+## Versioning
 
-Матрица версионируется вместе со схемой. Ужесточение политики не переписывает исторические снимки; его действие на старые версии определяется разделом пригодности к установке: недостающее обязательное доказательство блокирует новые установки и обновления, не трогая установленные цели.
+The matrix is versioned with the schema. Policy tightening does not rewrite
+historical snapshots; its effect on old versions is defined by the installation
+eligibility section: missing mandatory evidence blocks new installations and
+updates without affecting installed targets.

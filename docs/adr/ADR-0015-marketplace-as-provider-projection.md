@@ -1,31 +1,31 @@
 ---
-description: "Решение считать marketplace проекцией провайдера, а не видом компонента."
+description: "Decision to treat a marketplace as a provider projection rather than a component kind."
 last_verified: "2026-08-04"
 ---
 
-# ADR-0015: Marketplace — проекция провайдера, а не вид компонента
+# ADR-0015: Marketplace is a provider projection, not a component kind
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-`ADR-0012` закрыл перечень видов компонентов девятью значениями, среди которых оказался `marketplace`. Остальные восемь значений отвечают на вопрос «что это за часть сетапа»: инструкция, навык, MCP, хук, команда, агент, плагин, настройка. Значение `marketplace` отвечает на другой вопрос — «в какой нативной упаковке это поставляется в конкретный харнесс».
+`ADR-0012` closed the list of component kinds with nine values, including `marketplace`. The other eight values answer “what part of a setup is this?”: instruction, skill, MCP, hook, command, agent, plugin, or setting. The `marketplace` value answers a different question: “in which native packaging is this delivered to a specific harness?”
 
-Из-за этого один и тот же объект получал два несравнимых описания. Плагин, распространяемый через нативный marketplace Grok Build, мог быть записан и как `plugin`, и как `marketplace`, а поиск по виду компонента переставал быть осмысленным фильтром. `AGENTS.md` уже фиксировал запрет использовать `marketplace` как общее название сетапа, что подтверждает: термин занимал чужое место в таксономии.
+As a result, the same object received two incomparable descriptions. A plugin distributed through the native Grok Build marketplace could be recorded as either `plugin` or `marketplace`, making search by component kind meaningless as a filter. `AGENTS.md` already prohibited using `marketplace` as a general name for a setup, confirming that the term occupied the wrong place in the taxonomy.
 
-Перечень закрыт, и `ADR-0012` требует нового решения для его изменения. Сужение перечня меняет публичную схему так же, как расширение, поэтому оно оформляется отдельной записью.
+The list is closed, and `ADR-0012` requires a new decision to change it. Narrowing the list changes the public schema just as extending it does, so it is recorded separately.
 
-## Варианты
+## Options
 
-1. Оставить `marketplace` видом компонента и описать правило отнесения. Сохраняет схему, но оставляет две пересекающиеся оси в одном закрытом перечне и делает фильтр по виду неоднозначным.
-2. Удалить `marketplace` и не заменять его ничем. Убирает двусмысленность, но теряет способность описать, что объект поставляется нативной витриной харнесса.
-3. Удалить `marketplace` из таксономии и выразить упаковку отдельным полем проекции.
+1. Retain `marketplace` as a component kind and define a classification rule. This preserves the schema but leaves two overlapping axes in one closed list and makes filtering by kind ambiguous.
+2. Remove `marketplace` without replacing it. This eliminates the ambiguity but loses the ability to describe that an object is delivered through a harness's native marketplace.
+3. Remove `marketplace` from the taxonomy and express packaging through a separate projection field.
 
-## Решение
+## Decision
 
-Принимается вариант 3.
+Option 3 is accepted.
 
-**Перечень видов компонентов содержит ровно восемь значений.**
+**The list of component kinds contains exactly eight values.**
 
 ```text
 instruction
@@ -38,24 +38,24 @@ plugin
 setting
 ```
 
-**Упаковка описывается отдельно.** Нативная форма поставки выражается полем проекции со своим закрытым словарём:
+**Packaging is described separately.** The native delivery form is expressed by a projection field with its own closed vocabulary:
 
 ```text
 projection_kind: marketplace | plugin | native_files | package
 ```
 
-Поле принадлежит метаданным провайдера и варианта компонента, а не виду компонента. Витрина харнесса может содержать плагины и компоненты; она описывает канал доставки, а не сущность каталога.
+The field belongs to provider and component-variant metadata, not to the component kind. A harness marketplace may contain plugins and components; it describes the delivery channel, not a catalog entity.
 
-**Поиск использует две независимые оси.** Фильтр по `component_type` отвечает на вопрос о роли объекта в сетапе, фильтр по `projection_kind` — о нативной упаковке. Смешивать их в одном перечне запрещено.
+**Search uses two independent axes.** The `component_type` filter answers the question about an object's role in a setup; the `projection_kind` filter answers the question about native packaging. Combining them in one list is prohibited.
 
-## Последствия
+## Consequences
 
-- `contracts/component-setup-passports.md` перечисляет восемь видов и вводит `projection_kind`;
-- `SPEC-005` меняет требование к перечислению с девяти значений на восемь и получает отдельное требование к словарю проекции;
-- `docs/agent/harness-projections.md` продолжает описывать нативный marketplace Grok Build, но как проекцию, а не как вид компонента;
-- контрактная проверка перечисления отклоняет `marketplace` в `component_type`;
-- уже написанные примеры и фикстуры, использующие девять значений, обновляются вместе со схемой.
+- `contracts/component-setup-passports.md` lists eight kinds and introduces `projection_kind`;
+- `SPEC-005` changes the enumeration requirement from nine values to eight and gains a separate requirement for the projection vocabulary;
+- `docs/agent/harness-projections.md` continues to describe the native Grok Build marketplace, but as a projection rather than a component kind;
+- the contract check for the enumeration rejects `marketplace` in `component_type`;
+- existing examples and fixtures that use nine values are updated together with the schema.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается, если появится поддерживаемый харнесс, у которого витрина является самостоятельной устанавливаемой единицей со своим паспортом, зависимостями и версиями, а не каналом доставки других компонентов.
+The decision shall be reconsidered if a supported harness emerges whose marketplace is an independently installable unit with its own passport, dependencies, and versions rather than a delivery channel for other components.

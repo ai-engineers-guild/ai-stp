@@ -1,62 +1,62 @@
 ---
-description: "SPEC-015: Канонические данные, идентификаторы и хэши."
+description: "SPEC-015: Canonical data, identifiers, and hashes."
 last_verified: "2026-08-03"
 ---
 
-# SPEC-015: Канонические данные, идентификаторы и хэши
+# SPEC-015: Canonical data, identifiers, and hashes
 
-## Цель
+## Purpose
 
-Все локальные, серверные и провайдерские реализации вычисляют одинаковые идентификаторы, байты, хэши и подписи для одного логического объекта и не создают несовместимые дублирующие схемы.
+All local, server, and provider implementations compute identical identifiers, bytes, hashes, and signatures for the same logical object and do not create incompatible duplicate schemas.
 
-## Границы
+## Scope
 
-Входят устойчивые и адресуемые по содержимому идентификаторы, представление версий и ссылок, канонический JSON, правила Unicode, времени и путей, области хэширования, подписываемые данные и владение схемами. Выбор таблиц и шифрование пользовательских данных в хранилище не входят.
+Includes stable and content-addressed identifiers, representation of versions and references, canonical JSON, Unicode, time, and path rules, hash domains, signed data, and schema ownership. Table selection and encryption of user data at rest are out of scope.
 
-## Термины
+## Terms
 
-- `stable ID` — непрозрачный идентификатор логического объекта.
-- `content ID` — разделённый по области хэш точных байтов.
-- `passport digest` — content ID паспорта неизменяемой версии; заменяет прежний хэш манифеста.
-- `canonical JSON` — единственные байты структурированных данных для хэша и подписи.
-- `schema owner` — версионируемая JSON Schema, OpenAPI или схема провайдера, относительно которой проверяются документы и примеры.
+- `stable ID` — an opaque identifier of a logical object.
+- `content ID` — a domain-separated hash of exact bytes.
+- `passport digest` — the content ID of an immutable-version passport; replaces the former manifest hash.
+- `canonical JSON` — the sole structured-data byte representation used for hashes and signatures.
+- `schema owner` — the versioned JSON Schema, OpenAPI, or provider schema against which documents and examples are validated.
 
-## Требования
+## Requirements
 
-- `REQ-1501`: Устойчивые идентификаторы имеют префикс типа, непрозрачны, не зависят от пути и отображаемого имени и не переиспользуются.
-- `REQ-1502`: Артефакт, паспорт, ревизия, план и пакет используют отдельные области SHA-256; область манифеста версии не существует.
-- `REQ-1503`: Структурированные контракты сериализуются по RFC 8785 после нормализации UTF-8, NFC и схемы.
-- `REQ-1504`: Повторяющиеся ключи, нечисловые значения, неоднозначные десятичные числа, метка порядка байтов и ненормализованные пути отклоняются до хэширования.
-- `REQ-1505`: Время имеет единый формат UTC с миллисекундами, а версия `X.Y` сравнивается как два числа.
-- `REQ-1506`: Сохраняемая ссылка на объект является структурированной точной ссылкой с устойчивым идентификатором, версией и хэшем паспорта; необязательная нативная реализация допускается только в ссылке на компонент.
-- `REQ-1507`: Подпись покрывает канонический хэш паспорта или артефакта с областью и не включает собственный конверт подписи.
-- `REQ-1508`: Один машинный контракт имеет одного владельца схемы; архитектурный текст и примеры не создают альтернативные имена полей.
-- `REQ-1509`: Вывод генератора схем детерминирован и проверяется в CI на соответствие источнику.
-- `REQ-1510`: Изменение канонизации, области хэша или несовместимой схемы использует новую версию, окно миграции и двойного чтения и эталонные векторы.
+- `REQ-1501`: Stable identifiers have a type prefix, are opaque, do not depend on a path or display name, and are never reused.
+- `REQ-1502`: An artifact, passport, revision, plan, and package use separate SHA-256 domains; no version-manifest domain exists.
+- `REQ-1503`: Structured contracts are serialized according to RFC 8785 after UTF-8, NFC, and schema normalization.
+- `REQ-1504`: Duplicate keys, non-numeric values, ambiguous decimal numbers, a byte order mark, and non-normalized paths are rejected before hashing.
+- `REQ-1505`: Time has one UTC format with milliseconds, and version `X.Y` is compared as two numbers.
+- `REQ-1506`: A stored object reference is a structured exact reference containing a stable identifier, version, and passport hash; an optional native implementation is permitted only in a component reference.
+- `REQ-1507`: A signature covers the domain-separated canonical hash of a passport or artifact and does not include its own signature envelope.
+- `REQ-1508`: One machine contract has one schema owner; architectural prose and examples do not introduce alternative field names.
+- `REQ-1509`: Schema-generator output is deterministic and checked in CI against its source.
+- `REQ-1510`: A change to canonicalization, a hash domain, or an incompatible schema uses a new version, a migration and dual-read window, and reference vectors.
 
-## Состояния и ошибки
+## States and errors
 
-Проверка различает неверный ввод, неподдерживаемую схему, неканоническое представление, несовпадение хэша, подписи и ссылки. Канонизатор не исправляет подписанные данные молча; он возвращает типизированную ошибку либо создаёт отдельный нормализованный черновик до подписания.
+Validation distinguishes invalid input, an unsupported schema, a non-canonical representation, and hash, signature, and reference mismatches. The canonicalizer does not silently repair signed data; it returns a typed error or creates a separate normalized draft before signing.
 
-## Безопасность и приватность
+## Security and privacy
 
-Разделение областей предотвращает подмену типа. Хэш не является секретом и не предоставляет доступ. Ошибка канонизации не включает закрытые данные. Проверяющий подпись использует разрешённую политику ключей, а не ключ из недоверенного манифеста.
+Domain separation prevents type substitution. A hash is not a secret and does not grant access. A canonicalization error does not include private data. A signature verifier uses an allowed key policy, not a key from an untrusted manifest.
 
-## Совместимость и миграция
+## Compatibility and migration
 
-Старые хэши и опубликованные снимки не пересчитываются. Новый читатель поддерживает объявленные старые версии до конца окна совместимости. Миграция создаёт новую ревизию или версию и сохраняет исходный хэш и происхождение.
+Old hashes and published snapshots are not recomputed. A new reader supports declared older versions until the end of the compatibility window. Migration creates a new revision or version and preserves the original hash and provenance.
 
-## Критерии приёмки
+## Acceptance criteria
 
-| Требование | Исполнимый способ проверки |
+| Requirement | Executable verification method |
 |---|---|
-| `REQ-1501` | Проверки свойств подтверждают устойчивость при переименовании и переносе и запрет повторного использования. |
-| `REQ-1502` | Эталонные векторы показывают разные хэши одинаковых данных в разных областях. |
-| `REQ-1503` | Фикстуры разных языков дают одинаковые канонические байты. |
-| `REQ-1504` | Отрицательные фикстуры отклоняют повтор ключей, NaN, метку порядка байтов и неоднозначный путь. |
-| `REQ-1505` | Проверки времени и версий проверяют канонический формат и числовой порядок. |
-| `REQ-1506` | Проверка схемы отклоняет плавающую ссылку, ссылку без хэша и вариант в ссылке на сетап. |
-| `REQ-1507` | Проверки мутации подписи покрывают данные и конверт подписи. |
-| `REQ-1508` | Проверка соответствия документации и схемы обнаруживает переименование поля. |
-| `REQ-1509` | Повтор генератора даёт чистый diff и одинаковый хэш. |
-| `REQ-1510` | Фикстуры смешанных версий проверяют миграцию, двойное чтение и сохранение старого снимка. |
+| `REQ-1501` | Property tests confirm stability under renaming and moving and prohibit reuse. |
+| `REQ-1502` | Reference vectors produce different digests for identical bytes in different domains. |
+| `REQ-1503` | Fixtures from different languages produce identical canonical bytes. |
+| `REQ-1504` | Negative fixtures reject duplicate keys, NaN, a byte order mark, and an ambiguous path. |
+| `REQ-1505` | Time and version checks verify the canonical format and numeric ordering. |
+| `REQ-1506` | Schema validation rejects a floating reference, a reference without a hash, and a variant in a setup reference. |
+| `REQ-1507` | Signature mutation checks cover the data and signature envelope. |
+| `REQ-1508` | A documentation-to-schema consistency check detects a renamed field. |
+| `REQ-1509` | Repeating generation produces a clean diff and the same hash. |
+| `REQ-1510` | Mixed-version fixtures verify migration, dual reads, and preservation of the old snapshot. |

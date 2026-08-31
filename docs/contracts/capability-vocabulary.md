@@ -1,21 +1,21 @@
 ---
-description: "Закрытый словарь требуемых возможностей, правило его роста и разница между неизвестной и отсутствующей возможностью."
+description: "Closed vocabulary of required capabilities, its growth rule, and the distinction between unknown and missing capabilities."
 last_verified: "2026-08-08"
 ---
 
-# Словарь возможностей
+# Capability vocabulary
 
-Владелец требований — `SPEC-005` REQ-511 и `SPEC-006` REQ-601; поле паспорта
-объявлено в `component-setup-passports.md`. Здесь зафиксирована машинная
-граница: какие значения `requires_capabilities` существуют, как они
-нормализуются и что происходит со значением вне словаря.
+The requirements owners are `SPEC-005` REQ-511 and `SPEC-006` REQ-601; the passport
+field is declared in `component-setup-passports.md`. This document defines the machine
+boundary: which `requires_capabilities` values exist, how they are normalized, and what
+happens to a value outside the vocabulary.
 
-Словарь описывает только требования к окружению и проекту. Харнесс, система,
-архитектура, лицензия, полномочия и режим доступа проверяются собственными
-ограничениями по `eligibility-constraints.md` и возможностями не выражаются:
-один факт имеет ровно одно место проверки.
+The vocabulary describes only environment and project requirements. Harness, system,
+architecture, license, permissions, and access mode are checked by their own constraints
+under `eligibility-constraints.md` and are not expressed as capabilities: each fact has
+exactly one validation location.
 
-## Запись словаря
+## Vocabulary entry
 
 ```yaml
 schema_version: 1
@@ -23,83 +23,80 @@ vocabulary_version: "1.0"
 capabilities:
   - id: "project.language.python"
     name: "Python"
-    description: "В индексе проекта есть файлы Python."
+    description: "The project index contains Python files."
     status: active
 ```
 
-Поле `id` является каноническим значением: именно оно сохраняется в паспорте и
-по нему выполняется сравнение. `name` предназначено для показа и может меняться
-без смены `id`. Поле `status` принимает `active` и `deprecated`; устаревшая
-запись не предлагается при публикации, остаётся допустимой в уже опубликованных
-версиях и продолжает проверяться. Удаление записи запрещено.
+The `id` field is the canonical value: it is stored in the passport and used for
+comparison. `name` is for display and may change without changing `id`. The `status`
+field accepts `active` and `deprecated`; a deprecated entry is not offered during
+publication, remains valid in already published versions, and continues to be checked.
+Deleting an entry is prohibited.
 
-## Нормализация
+## Normalization
 
-Идентификатор возможности:
+A capability identifier:
 
-- нормализуется по Unicode NFC;
-- приводится к нижнему регистру;
-- состоит из сегментов, разделённых точкой;
-- содержит от двух до четырёх сегментов;
-- в сегменте допускает буквы, цифры, дефис и подчёркивание;
-- не начинает и не заканчивает сегмент разделителем и не содержит пустой
-  сегмент;
-- имеет длину не более шестидесяти четырёх символов.
+- is normalized to Unicode NFC;
+- is converted to lowercase;
+- consists of dot-separated segments;
+- contains from two to four segments;
+- permits letters, digits, hyphens, and underscores within a segment;
+- neither starts nor ends a segment with a separator and contains no empty segment;
+- is no longer than sixty-four characters.
 
-Значение, не проходящее нормализацию, отклоняется до сравнения со словарём.
-Неверная форма и неизвестное значение являются разными отказами и различаются
-по коду.
+A value that fails normalization is rejected before comparison with the vocabulary.
+Invalid form and unknown value are distinct failures with distinct codes.
 
-## Действующие записи
+## Active entries
 
-| Возможность | Чем решается |
+| Capability | How it is resolved |
 |---|---|
-| `project.language.python` | индекс проекта содержит файлы `python` |
-| `project.language.typescript` | индекс проекта содержит файлы `typescript` |
-| `project.language.javascript` | индекс проекта содержит файлы `javascript` |
-| `project.language.rust` | индекс проекта содержит файлы `rust` |
-| `project.language.go` | индекс проекта содержит файлы `go` |
-| `project.language.dart` | индекс проекта содержит файлы `dart` |
-| `project.vcs.git` | в корне проекта есть каталог `.git` |
-| `project.surface.agents_md` | индекс проекта содержит `AGENTS.md` |
-| `project.surface.claude_md` | индекс проекта содержит `CLAUDE.md` |
-| `project.surface.skill_md` | индекс проекта содержит `SKILL.md` |
-| `project.surface.mcp_json` | индекс проекта содержит `.mcp.json` |
-| `toolchain.ruff` | инструмент `ruff` закреплённого профиля установлен и текущий |
+| `project.language.python` | the project index contains `python` files |
+| `project.language.typescript` | the project index contains `typescript` files |
+| `project.language.javascript` | the project index contains `javascript` files |
+| `project.language.rust` | the project index contains `rust` files |
+| `project.language.go` | the project index contains `go` files |
+| `project.language.dart` | the project index contains `dart` files |
+| `project.vcs.git` | the project root contains a `.git` directory |
+| `project.surface.agents_md` | the project index contains `AGENTS.md` |
+| `project.surface.claude_md` | the project index contains `CLAUDE.md` |
+| `project.surface.skill_md` | the project index contains `SKILL.md` |
+| `project.surface.mcp_json` | the project index contains `.mcp.json` |
+| `toolchain.ruff` | the pinned-profile `ruff` tool is installed and current |
 
-## Правило роста
+## Growth rule
 
-Запись добавляется только вместе с наблюдением, которое её решает. Возможность,
-значение которой ни одна сторона вычислить не может, в словарь не входит: она
-превратилась бы в отказ, который пользователю нечем исправить, и внешне не
-отличалась бы от честного отсутствия зависимости.
+An entry is added only together with an observation that resolves it. A capability whose
+value no party can compute does not enter the vocabulary: it would become a failure that
+the user cannot remedy and would be externally indistinguishable from an honestly missing
+dependency.
 
-Из этого следует граница текущей версии: перечень описывает факты проекта и
-закреплённого набора инструментов, потому что именно их читает индекс проекта и
-установщик профиля. Сторонний инструмент, который CLI не наблюдает, требованием
-не выражается — его место в обязательном окружении `required_env` или в
-объявленной потребности в доступе.
+This defines the current version boundary: the list describes project and pinned-toolset
+facts because those are what the project index and profile installer read. A third-party
+tool that the CLI does not observe is not expressed as a requirement—its place is in
+the required environment `required_env` or a declared access need.
 
-Добавление записи совместимо и не требует новой версии схемы паспорта: словарь
-версионируется полем `vocabulary_version` отдельно.
+Adding an entry is compatible and does not require a new passport schema version: the
+vocabulary is versioned separately by `vocabulary_version`.
 
-## Неизвестное и отсутствующее
+## Unknown and missing
 
-Это разные состояния, и различие обязательно:
+These states are distinct, and the distinction is mandatory:
 
-- **неизвестная возможность** — значение вне словаря. Значение по умолчанию не
-  подставляется; проверка возвращает типизированную несовместимость по
-  `SPEC-005` REQ-511. Такой паспорт неверен, и исправляет его автор.
-- **отсутствующая возможность** — известное значение, которого у цели нет.
-  Проверка возвращает несовместимость с этой целью; исправляет её пользователь,
-  изменив проект или выбрав другую цель.
+- **unknown capability** — a value outside the vocabulary. No default is substituted;
+  validation returns a typed incompatibility under `SPEC-005` REQ-511. Such a passport
+  is invalid and must be corrected by its author.
+- **missing capability** — a known value absent from the target. Validation returns an
+  incompatibility with that target; the user remedies it by changing the project or
+  selecting another target.
 
-Отказ называет идентификатор и, для неизвестного значения, ближайшие допустимые
-записи словаря.
+The failure names the identifier and, for an unknown value, the nearest permitted
+vocabulary entries.
 
-## Распространение
+## Distribution
 
-CLI и API отдают действующий словарь машиночитаемо, поэтому агент выбирает
-значения из перечня, а не сочиняет их. Автономно используется последний
-полученный словарь с указанием времени получения; отсутствие сети словарь не
-опустошает.
+The CLI and API expose the active vocabulary in machine-readable form, so the agent
+selects values from the list rather than inventing them. Offline operation uses the last
+obtained vocabulary and shows its retrieval time; network absence does not empty the
+vocabulary.

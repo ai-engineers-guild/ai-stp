@@ -1,20 +1,20 @@
 ---
-description: "Решение: синхронизировать через revision graph."
+description: "Decision to synchronize through a revision graph."
 last_verified: "2026-08-03"
 ---
 
-# ADR-0005: Синхронизировать через граф ревизий
+# ADR-0005: Synchronize through a revision graph
 
-Принято 2026-08-03.
+Accepted on 2026-08-03.
 
-## Контекст
+## Context
 
-Одни и те же паспорта и черновики могут независимо изменяться на нескольких устройствах. Простое правило последней записи способно молча потерять подтверждённые данные.
+The same passports and drafts may be changed independently on multiple devices. A simple last-write rule can silently lose confirmed data.
 
-## Решение
+## Decision
 
-Локальное и облачное состояние использует адресуемые по содержимому ревизии, связи с родителями, быстрое продвижение неразошедшейся истории, трёхстороннее объединение по полям, явные конфликты и метки удаления. Молчаливое правило «последняя запись побеждает» запрещено.
+Local and cloud state uses content-addressed revisions, parent links, fast-forwarding of non-divergent history, three-way field-level merges, explicit conflicts, and deletion markers. A silent "last write wins" rule is prohibited.
 
-## Последствия
+## Consequences
 
-Нужны локальные и серверные головы сущностей, журнал исходящих и входящих событий, общий предок, идемпотентность, явная модель конфликта и тесты параллельных изменений.
+Local and server entity heads, an outgoing and incoming event log, a common ancestor, idempotency, an explicit conflict model, and concurrent-change tests are required.

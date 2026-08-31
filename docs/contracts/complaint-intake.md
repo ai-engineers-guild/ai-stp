@@ -1,35 +1,44 @@
 ---
-description: "Публичный приём обращений: поля, отличие от закрытого report case и конфигурируемые лимиты."
+description: "Public complaint intake: fields, distinction from a private report case, and configurable limits."
 last_verified: "2026-08-22"
 ---
 
-# Приём обращений
+# Complaint intake
 
-Отличается от закрытого `report-case.md`: это не аутентифицированный случай с digest версии и машиной состояний. Обращение принимает веб-форма о авторе, объекте каталога или произвольной цели и сохраняется как есть.
+This differs from the private `report-case.md`: it is not an authenticated case
+with a version digest and state machine. A web form accepts a complaint about an
+author, catalog object, or arbitrary target and stores it as submitted.
 
-## Поля записи
+## Record fields
 
-| Поле | Смысл |
+| Field | Meaning |
 |---|---|
 | `complaint_id` | Typed `complaint_<ULID>`. |
 | `target_kind` | `author` \| `component` \| `setup` \| `other`. |
-| `target` | Кого или что касается обращение: account id, `stable_id@version` или свободная метка. |
-| `sender_name` | Кто отправил. |
-| `reply_email` | Адрес для ответа. |
-| `subject` | Тема. |
-| `message` | Текст. |
-| `submitter_account_id` | Id вошедшего аккаунта либо отсутствие значения для анонима. |
-| `created_at` | Время приёма. |
+| `target` | Who or what the complaint concerns: account ID, `stable_id@version`, or a free-form label. |
+| `sender_name` | Sender. |
+| `reply_email` | Reply address. |
+| `subject` | Subject. |
+| `message` | Message body. |
+| `submitter_account_id` | Signed-in account ID, or absent for an anonymous submitter. |
+| `created_at` | Intake time. |
 
-Секреты, токены, ключи и содержимое `.env` в теме, тексте и цели запрещены.
+Secrets, tokens, keys, and `.env` contents are prohibited in the subject, body,
+and target.
 
-Проводные модели принадлежат `packages/contracts`; маршрут — генерируемому OpenAPI. Здесь владеет смысл полей и отличие от report case.
+Wire models belong to `packages/contracts`; the route belongs to generated
+OpenAPI. This document owns field meaning and the distinction from a report case.
 
-## Лимиты
+## Limits
 
-Числа берутся из конфигурации процесса с префиксом `AI_STP_COMPLAINT_`, не из литералов обработчика:
+Values come from process configuration with the `AI_STP_COMPLAINT_` prefix, not
+from handler literals:
 
-- на отправителя: `SUBMITTER_LIMIT` за `SUBMITTER_WINDOW_SECONDS` (по умолчанию 1 за 300 с). Ключ — `account_id` вошедшего либо `email:` и нормализованный `reply_email`;
-- на цель: `TARGET_LIMIT` за `TARGET_WINDOW_SECONDS` (по умолчанию 50 за 60 с) отдельно для одной пары `(target_kind, target)`.
+- per submitter: `SUBMITTER_LIMIT` per `SUBMITTER_WINDOW_SECONDS` (default: 1 per
+  300 s). The key is the signed-in `account_id`, or `email:` plus normalized
+  `reply_email`;
+- per target: `TARGET_LIMIT` per `TARGET_WINDOW_SECONDS` (default: 50 per 60 s),
+  separately for each `(target_kind, target)` pair.
 
-Превышение отвечает `AI_STP_RATE_LIMITED`. Staff triage UI в этот контракт не входит.
+Exceeding a limit responds with `AI_STP_RATE_LIMITED`. The staff triage UI is
+outside this contract.

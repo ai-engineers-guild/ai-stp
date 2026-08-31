@@ -1,49 +1,49 @@
 ---
-description: "Решение сделать публичный профиль отдельно заполняемым объектом, а не проекцией паспорта."
+description: "Decision to make the public profile a separately authored object rather than a passport projection."
 last_verified: "2026-08-04"
 ---
 
-# ADR-0023: Публичный профиль — отдельно заполняемый объект
+# ADR-0023: The public profile is a separately authored object
 
-Статус: принято. Заменяет `ADR-0010`.
+Status: accepted. Supersedes `ADR-0010`.
 
-## Контекст
+## Context
 
-`ADR-0010` верно отделил публичный профиль от паспорта разработчика и запретил флаг публичности внутри паспорта. Механизмом была выбрана проекция: пользователь отмечает, какие поля паспорта показывать.
+`ADR-0010` correctly separated the public profile from the developer passport and prohibited a public-visibility flag inside the passport. Projection was selected as the mechanism: the user marks which passport fields to display.
 
-У проекции обнаружился системный дефект. Паспорт описывает рабочее окружение: установленные харнессы и их версии, инструменты, привычки, историю выбора. Ни одно из этих полей не является тем, что человек хочет написать о себе публично. Выбор полей паспорта поэтому даёт либо пустой профиль, либо публикацию рабочих деталей, которые пользователь не собирался раскрывать.
+The projection has a systemic defect. A passport describes the working environment: installed harnesses and their versions, tools, habits, and selection history. None of these fields is what a person wants to write publicly about themselves. Selecting passport fields therefore yields either an empty profile or publication of work details that the user did not intend to disclose.
 
-Есть и вторая проблема: связь остаётся живой. При проекции изменение паспорта меняет публичный профиль. Пользователь обновил версию инструмента локально — и, не приняв никакого решения о публичности, изменил публичную страницу.
+There is a second problem: the relationship remains live. With a projection, changing the passport changes the public profile. The user updates a tool version locally and, without making any decision about public visibility, changes the public page.
 
-## Варианты
+## Options
 
-1. Оставить проекцию с выбором полей. Не требует изменений, но связывает локальное рабочее состояние с публичной страницей и плохо отвечает задаче профиля.
-2. Оставить проекцию, но заморозить значения на момент выбора. Убирает живую связь, но сохраняет неподходящий набор полей и добавляет вопрос об обновлении снимка.
-3. Сделать публичный профиль самостоятельным объектом, который пользователь или его агент заполняет отдельно.
+1. Retain projection with field selection. This requires no changes but binds local working state to the public page and poorly serves the profile's purpose.
+2. Retain projection but freeze values at selection time. This removes the live relationship but retains an unsuitable field set and adds the question of updating the snapshot.
+3. Make the public profile an independent object that the user or their agent authors separately.
 
-## Решение
+## Decision
 
-Принимается вариант 3.
+Option 3 is accepted.
 
-**Публичный профиль — отдельный объект.** Он не является проекцией паспорта разработчика. Поля не копируются из паспорта и не обновляются из него автоматически.
+**The public profile is a separate object.** It is not a projection of the developer passport. Fields are not copied from the passport and are not updated from it automatically.
 
-**Заполнение всегда явное.** Профиль создаётся и изменяется отдельным действием пользователя или его агента. Изменение паспорта не изменяет профиль, изменение профиля не изменяет паспорт.
+**Authoring is always explicit.** The profile is created and changed by a separate action of the user or their agent. Changing the passport does not change the profile; changing the profile does not change the passport.
 
-**Пустой профиль означает отсутствие публичного профиля.** Пока пользователь ничего не заполнил, публичной страницы нет; это не пустая карточка и не частичное раскрытие.
+**An empty profile means there is no public profile.** Until the user has authored anything, there is no public page; this is not an empty card or partial disclosure.
 
-**Паспорт остаётся закрытым.** `DeveloperPassport` по-прежнему приватный канонический источник рабочего контекста, и у него нет флага публичности. Запрет утечки приватных полей сохраняется как обязательная отрицательная проверка.
+**The passport remains private.** `DeveloperPassport` remains the private canonical source of working context and has no public-visibility flag. Preventing leakage of private fields remains a mandatory negative check.
 
-**Профиль остаётся связанным с авторством.** Опубликованные объекты ссылаются на аккаунт автора; профиль даёт этому аккаунту публичное представление, но не является доказательством подтверждения автора.
+**The profile remains linked to authorship.** Published objects reference the author's account; the profile gives that account a public representation but is not evidence of author verification.
 
-## Последствия
+## Consequences
 
-- `ADR-0010` получает статус заменённого и ссылается сюда;
-- `SPEC-003` заменяет требование о политике проекции требованием об отдельном объекте и явном заполнении;
-- `SPEC-013` описывает публичный профиль как самостоятельный объект управления данными;
-- `architecture/domain-model.md` перестаёт называть `PublicProfile` проекцией;
-- веб и CLI редактируют профиль через один сценарий приложения по `ADR-0018`;
-- отрицательная проверка подтверждает, что изменение паспорта не меняет публичный профиль ни одного поля.
+- `ADR-0010` gains superseded status and links here;
+- `SPEC-003` replaces the projection-policy requirement with a requirement for a separate object and explicit authoring;
+- `SPEC-013` describes the public profile as an independent data-management object;
+- `architecture/domain-model.md` no longer calls `PublicProfile` a projection;
+- the web and CLI edit the profile through one application scenario under `ADR-0018`;
+- a negative check confirms that changing the passport does not alter any field of the public profile.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается, если пользователи начнут вручную дублировать в профиль те же данные, что уже есть в паспорте, и это дублирование окажется устойчивым и массовым.
+The decision shall be reconsidered if users begin manually duplicating in the profile the same data already present in the passport, and that duplication proves persistent and widespread.

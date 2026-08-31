@@ -1,38 +1,38 @@
 ---
-description: "Runbook: выдача и отзыв author_verified."
+description: "Runbook: granting and revoking author_verified."
 last_verified: "2026-08-22"
 ---
 
-# Верификация автора
+# Author verification
 
-## Чем признак выдаётся
+## How the attribute is granted
 
-Выдача идёт через `POST /v1/staff/author-verified`, и право на неё даёт единственная
-переменная окружения — `AI_STP_AUTH_ADMIN_ACCOUNT_IDS`, список идентификаторов
-аккаунтов через запятую.
+The attribute is granted through `POST /v1/staff/author-verified`, and a single
+environment variable authorizes it: `AI_STP_AUTH_ADMIN_ACCOUNT_IDS`, a comma-separated list of
+account identifiers.
 
-Пустое значение — это **не** «по умолчанию все владельцы». Это никто: staff-поверхность
-целиком, включая заявки, lifecycle версий и выдачу признака, отвечает отказом любому
-аккаунту, в том числе аккаунту оператора. Значение по умолчанию именно пустое, поэтому
-на новом развёртывании шаги ниже физически невыполнимы, пока переменная не задана.
+An empty value does **not** mean “all owners by default.” It means no one: the entire staff surface,
+including applications, version lifecycle, and granting the attribute, denies access to every
+account, including the operator's account. The default value is empty, so
+on a new deployment the steps below are physically impossible until the variable is set.
 
-Отсюда следствие, которое стоит держать в голове при разборе каталога: линия
-`authoritative` требует `author_verified`, выдать его может только эта поверхность,
-и при незаданной переменной каждый опубликованный объект остаётся в `experimental`
-независимо от того, кто его опубликовал. Пустой `authoritative` при живой публикации —
-сначала повод проверить переменную, и только потом сам объект.
+This has an important consequence when investigating the catalog: the
+`authoritative` trust line requires `author_verified`, only this surface can grant it,
+and when the variable is unset every published object remains in `experimental`
+regardless of who published it. If publishing works but `authoritative` is empty,
+check the variable first and the object itself only afterward.
 
-Значение относится к развёртыванию, а не к репозиторию: оно приходит из `.env.prod`
-на хосте, шаблон — `.env.prod.example`.
+The value belongs to the deployment, not the repository: it comes from `.env.prod`
+on the host; the template is `.env.prod.example`.
 
-## Порядок выдачи
+## Grant procedure
 
-Признак выдаётся вручную владельцами платформы по `SPEC-007` REQ-715 двумя путями: по заявке автора и по личному приглашению владельцев.
+The attribute is granted manually by platform owners under `SPEC-007` REQ-715 through two paths: an author application or a personal invitation from the owners.
 
-1. Для заявки установить, чем владеет автор: аккаунт GitHub, организация или пространство имён.
-2. Проверить владение доказуемо: вход через OAuth тем же аккаунтом либо размещение согласованного маркера в репозитории или профиле владельца.
-3. Для личного приглашения зафиксировать, кто из владельцев платформы ручается и за какое пространство имён.
-4. Выдать `author_verified` на идентификатор аккаунта или подтверждённую почту; автоматических путей выдачи нет.
-5. Создать `AuditEvent` с автором решения, основанием и временем по REQ-716.
-6. Помнить границу признака: verified подтверждает происхождение, а не безопасность содержимого, и не выдаёт `component_verified` ни одной версии.
-7. Отзыв действует вперёд по REQ-717: объекты автора покидают `authoritative`, исторические снимки и установленные цели не переписываются.
+1. For an application, establish what the author owns: a GitHub account, organization, or namespace.
+2. Verify ownership with evidence: log in via OAuth using the same account, or place an agreed marker in the owner's repository or profile.
+3. For a personal invitation, record which platform owner vouches for the author and for which namespace.
+4. Grant `author_verified` to an account identifier or verified email; there are no automated grant paths.
+5. Create an `AuditEvent` with the decision-maker, rationale, and time under REQ-716.
+6. Remember the attribute's boundary: verified confirms provenance, not content safety, and does not grant `component_verified` to any version.
+7. Revocation applies prospectively under REQ-717: the author's objects leave `authoritative`; historical snapshots and installed targets are not rewritten.

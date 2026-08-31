@@ -1,38 +1,38 @@
 ---
-description: "Обязательная актуализация документации вместе с поведением, схемами и эксплуатацией."
+description: "Required documentation updates alongside behavior, schemas, and operations."
 last_verified: "2026-08-03"
 ---
 
-# Актуализация документации
+# Documentation Maintenance
 
-Документация является частью изменения, а не последующей задачей. PR, который меняет поведение, контракт, схему, конфигурацию, зависимость, команду, provider, migration, deployment или recovery, одновременно обновляет всех канонических владельцев затронутой информации.
+Documentation is part of a change, not a follow-up task. A PR that changes behavior, a contract, schema, configuration, dependency, command, provider, migration, deployment, or recovery must update every canonical owner of the affected information at the same time.
 
-## Матрица обновления
+## Update Matrix
 
-| Изменение | Обязательные владельцы |
+| Change | Required Owners |
 |---|---|
-| Пользовательское поведение или scope | `docs/product/`, active spec, README при необходимости |
-| Доменный объект или invariant | `docs/architecture/domain-model.md`, contract/schema, active spec |
-| CLI/API/wire format | `docs/contracts/`, schema/OpenAPI, compatibility и tests |
-| Хранилище или migration | `SPEC-009`, migration plan, rollback и runbook |
-| Provider contract или pin | `docs/contracts/provider-protocol.md`, `docs/operations/provider-integration-state.md`, release evidence и cross-repo issue |
-| Security/privacy | `SECURITY.md`, `SPEC-013` и negative tests |
-| Команда разработки или dependency | QUICKSTART, engineering docs, lock и CI |
-| Failure/recovery path | operation contract, observability и runbook |
+| User-facing behavior or scope | `docs/product/`, active spec, and README when needed |
+| Domain object or invariant | `docs/architecture/domain-model.md`, contract/schema, active spec |
+| CLI/API/wire format | `docs/contracts/`, schema/OpenAPI, compatibility, and tests |
+| Storage or migration | `SPEC-009`, migration plan, rollback, and runbook |
+| Provider contract or pin | `docs/contracts/provider-protocol.md`, `docs/operations/provider-integration-state.md`, release evidence, and cross-repo issue |
+| Security/privacy | `SECURITY.md`, `SPEC-013`, and negative tests |
+| Development command or dependency | QUICKSTART, engineering docs, lock, and CI |
+| Failure/recovery path | operation contract, observability, and runbook |
 
-## Правила
+## Rules
 
-- один нормативный факт имеет одного канонического владельца;
-- остальные документы ссылаются на владельца, а не копируют большой блок;
-- `index.md` сохраняется в каждом долгоживущем разделе и обновляется генератором;
-- `last_verified` меняется только после фактической проверки содержимого;
-- `last_verified` берётся по UTC, а не по локальному времени: восточнее нулевого меридиана локальная дата опережает UTC на несколько часов в сутки, и такая дата проходит локально, но отклоняется в CI как будущая;
-- активная спецификация обновляется до реализации либо заменяется новой версией;
-- принятое архитектурное решение не переписывается задним числом: создаётся новый ADR;
-- устаревшая команда удаляется из всех примеров в том же PR;
-- generated output не правится отдельно от source;
-- `just gen` и `just check` запускаются после последней правки документации.
+- one normative fact has one canonical owner;
+- other documents link to the owner rather than copying a large block;
+- `index.md` is retained in every long-lived section and updated by the generator;
+- `last_verified` changes only after the content has actually been verified;
+- `last_verified` uses UTC rather than local time: east of the prime meridian, the local date leads UTC for several hours each day, so such a date can pass locally but be rejected by CI as a future date;
+- an active specification is updated before implementation or replaced by a new version;
+- an accepted architectural decision is not rewritten retroactively; a new ADR is created;
+- an obsolete command is removed from every example in the same PR;
+- generated output is not edited independently of its source;
+- `just gen` and `just check` are run after the final documentation edit.
 
 ## Completion gate
 
-PR не готов, пока итоговый diff не подтверждает согласованность кода, tests, schemas, документации, runbooks, generated indexes и release notes по затронутому поведению. Если документ не нужно менять, PR body кратко объясняет почему.
+A PR is not ready until the final diff confirms consistency across code, tests, schemas, documentation, runbooks, generated indexes, and release notes for the affected behavior. If a document does not need to change, the PR body briefly explains why.

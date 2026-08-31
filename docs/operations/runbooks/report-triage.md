@@ -1,17 +1,17 @@
 ---
-description: "Runbook: триаж случая жалобы."
+description: "Runbook: report case triage."
 last_verified: "2026-08-04"
 ---
 
-# Триаж жалобы
+# Report triage
 
-Триаж выполняют владельцы гильдии. Публичного SLA нет: случаи разбираются в разумный срок, случаи с признаками уязвимости — приоритетно.
+Guild owners perform triage. There is no public SLA: cases are reviewed within a reasonable time, with priority given to cases showing signs of a vulnerability.
 
-1. Открыть случай в состоянии `submitted` и проверить группировку дубликатов.
-2. Сверить объект, версию и хэш из жалобы с реестром; несуществующая версия закрывается как `dismissed`.
-3. Классифицировать: сбой операции, несовместимость, вредное поведение или подозрение на уязвимость.
-4. Подозрение на уязвимость немедленно перевести в `security_escalated` и продолжить по runbook инцидента безопасности.
-5. Для остальных классов сверить снимки проверок и типизированный код ошибки с наблюдаемостью.
-6. При необходимости отправить автору очищенное уведомление и перевести случай в `awaiting_author`.
-7. Решение о скрытии или блокировке версии принимать отдельным аудируемым действием по `SPEC-005` и `SPEC-007`; число жалоб основанием не является.
-8. Закрыть случай как `resolved` или `dismissed` с указанием результата.
+1. Open the case in the `submitted` state and check duplicate grouping.
+2. Compare the object, version, and hash from the report with the registry; close a nonexistent version as `dismissed`.
+3. Classify the case as an operation failure, incompatibility, harmful behavior, or suspected vulnerability.
+4. Immediately move a suspected vulnerability to `security_escalated` and continue with the security incident runbook.
+5. For the other classes, compare check snapshots and the typed error code with observability data.
+6. If necessary, send the author a sanitized notification and move the case to `awaiting_author`.
+7. Make any decision to hide or block a version through a separate auditable action under `SPEC-005` and `SPEC-007`; the number of reports is not grounds for doing so.
+8. Close the case as `resolved` or `dismissed`, recording the outcome.

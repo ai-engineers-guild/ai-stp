@@ -1,44 +1,44 @@
 ---
-description: "Решение строить серверные приложения вертикальными слайсами с общим ядром и разделять DTO, доменную сущность и ORM."
+description: "Decision to structure server applications as vertical slices with a shared core and separate DTO, domain, and ORM entities."
 last_verified: "2026-08-05"
 ---
 
-# ADR-0037: Feature-slice архитектура серверных приложений
+# ADR-0037: Feature-slice architecture for server applications
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-Приложения `apps/api` и `apps/worker` начинают материализоваться в фазе платформы. `docs/engineering/repository-structure.md` уже задаёт границу: `apps/*` держит точки входа и сборку зависимостей, а функциональный пакет владеет моделями, сценариями и портами области. Нужен внутренний принцип организации кода приложения, который не даст разрастись слою `service`/`manager` и не смешает форму передачи данных с доменной моделью и с таблицей хранения. `SPEC-010` требует, чтобы веб и CLI вызывали один сценарий приложения, а `SPEC-017` требует единый конверт и единый маршрут для общей операции. Без явного решения вертикальные области легко расплываются в горизонтальные слои с общими правилами.
+The `apps/api` and `apps/worker` applications begin materializing in the platform phase. `docs/engineering/repository-structure.md` already sets the boundary: `apps/*` holds entry points and dependency assembly, while a feature package owns its area's models, scenarios, and ports. An internal application-code organization principle is needed to prevent a `service`/`manager` layer from spreading and to avoid mixing transfer shape, domain model, and storage table. `SPEC-010` requires web and CLI to invoke the same application scenario, while `SPEC-017` requires one envelope and one route for a shared operation. Without an explicit decision, vertical areas readily dissolve into horizontal layers with shared rules.
 
-## Варианты
+## Options
 
-1. Горизонтальные слои `routers`/`services`/`models`. Привычно, но разносит одну область по трём каталогам, поощряет общий `service` без предметной ответственности и смешивает уровни.
-2. Единая доменная модель на Pydantic, которая одновременно является DTO, доменной сущностью и строкой ORM. Меньше классов, но связывает форму передачи, инварианты домена и схему хранения; изменение одного ломает остальные.
-3. Вертикальные слайсы по областям с общим ядром и явным разделением DTO, доменной сущности и ORM-сущности. Больше типов, но каждая область автономна, а границы уровней проверяемы.
+1. Horizontal `routers`/`services`/`models` layers. Familiar, but distributes one area across three directories, encourages a generic `service` without domain responsibility, and mixes levels.
+2. One Pydantic domain model serving simultaneously as DTO, domain entity, and ORM row. Fewer classes, but couples transfer shape, domain invariants, and storage schema; changing one breaks the others.
+3. Vertical slices by area with a shared core and explicit separation of DTO, domain entity, and ORM entity. More types, but each area is autonomous and level boundaries are verifiable.
 
-## Решение
+## Decision
 
-Принимается вариант 3.
+Option 3 is accepted.
 
-`apps/api` и `apps/worker` организуются вертикальными слайсами по областям, например `health` и `system`. Каждый слайс держит свой маршрут или обработчик, сценарий приложения, DTO и адаптеры хранения области. Общее сквозное содержимое живёт в общем ядре приложения: конверт и корреляция, обработчики ошибок с маппингом на реестр кодов, провайдер наблюдаемости, настройки и логирование.
+`apps/api` and `apps/worker` are organized as vertical slices by area, such as `health` and `system`. Each slice holds its route or handler, application scenario, DTO, and area storage adapters. Shared cross-cutting content lives in the application's shared core: envelope and correlation, error handlers mapping to the code registry, observability provider, settings, and logging.
 
-Форма данных разделяется на три независимых уровня:
+Data shape is separated into three independent levels:
 
-- DTO на Pydantic описывает вход и выход границы и участвует в OpenAPI;
-- доменная сущность выражает инварианты области и не зависит от транспорта и хранения;
-- ORM-сущность на SQLAlchemy описывает таблицу и не покидает слой хранения.
+- a Pydantic DTO describes boundary input and output and participates in OpenAPI;
+- a domain entity expresses area invariants and does not depend on transport or storage;
+- a SQLAlchemy ORM entity describes a table and does not leave the storage layer.
 
-Преобразования между уровнями явные. OpenAPI считается проекцией кода, а истина контракта живёт в фикстурах `#71`; расхождение проваливает проверку эквивалентности.
+Conversions between levels are explicit. OpenAPI is treated as a code projection, while contract truth lives in fixtures `#71`; drift fails the equivalence check.
 
-## Последствия
+## Consequences
 
-- `SPEC-017` получает требования каркаса, а `SPEC-018` наследует тот же принцип для worker;
-- запрещён общий `service`/`manager` без узкой предметной ответственности по `repository-structure.md`;
-- разделение уровней даёт больше типов и явные преобразования, что покрывается unit-тестами области;
-- проверка эквивалентности OpenAPI и фикстур `#71` становится обязательным контрактным тестом;
-- пустые каталоги не создаются, структура вводится с первым поведением области.
+- `SPEC-017` receives skeleton requirements, and `SPEC-018` inherits the same principle for the worker;
+- a generic `service`/`manager` without narrow domain responsibility is prohibited by `repository-structure.md`;
+- level separation creates more types and explicit conversions, covered by area unit tests;
+- OpenAPI-to-fixtures `#71` equivalence becomes a mandatory contract test;
+- no empty directories are created; structure arrives with the area's first behavior.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается, если разделение DTO, доменной сущности и ORM начнёт создавать преобразования без предметной ценности на большинстве областей, либо если появится доказанная потребность вести контракт в OpenAPI, а не в фикстурах `#71`.
+This decision will be reconsidered if separating DTO, domain, and ORM creates conversions without domain value in most areas, or if a demonstrated need arises to make OpenAPI, rather than fixtures `#71`, the contract source.

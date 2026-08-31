@@ -1,51 +1,51 @@
 ---
-description: "Решение принимать авторское подписанное доказательство для credential-зависимых проверок и запретить публикацию с невыполненной обязательной проверкой."
+description: "Decision to accept signed author evidence for credential-dependent checks and prohibit publication with an incomplete mandatory check."
 last_verified: "2026-08-04"
 ---
 
-# ADR-0026: Авторское доказательство для credential-зависимых проверок и полная публикация
+# ADR-0026: Author evidence for credential-dependent checks and complete publication
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-Политика проверок содержала два несовместимых правила. Одно говорило, что обязательная проверка, требующая настоящих учётных данных, возвращает `not_run` и публикацию не блокирует. Другое требовало для публикации отсутствия обязательных проверок в состоянии `not_run`. `SPEC-007` дополнительно требовал, чтобы весь обязательный набор исполняла платформа на сервере, а отчёт устройства ничего не заменял.
+The validation policy contained two incompatible rules. One said that a mandatory check requiring real credentials returns `not_run` and does not block publication. The other required publication to have no mandatory checks in the `not_run` state. `SPEC-007` additionally required the platform to execute the entire mandatory set on the server and prohibited a device report from substituting for anything.
 
-Из этих правил нельзя реализовать одну систему. Реализация первого пускает в публичный каталог версии с невыполненной обязательной проверкой. Реализация второго вместе с серверным исполнением делает публикацию любой интеграции, которой нужны учётные данные пользователя, невозможной: платформа сознательно не принимает и не хранит чужие ключи, значит, сама такую проверку исполнить не может никогда.
+These rules cannot produce a single implementable system. The first allows versions with an incomplete mandatory check into the public catalog. The second, combined with server-side execution, makes publication impossible for any integration that requires user credentials: the platform deliberately does not accept or store third-party keys, so it can never execute such a check itself.
 
-Серверное правило появилось как защита от избыточного доверия к отчёту устройства и само по себе верно. Ошибкой было распространить его на проверки, которые законно исполнимы только с учётными данными автора.
+The server-side rule was introduced to protect against excessive trust in device reports and is correct in itself. The mistake was extending it to checks that can legitimately be executed only with the author's credentials.
 
-## Варианты
+## Options
 
-1. Платформа исполняет все обязательные проверки. Честно для credential-свободных проверок, но credential-зависимые объекты либо непубликуемы, либо платформа начинает принимать чужие ключи, что запрещено моделью безопасности.
-2. Обязательная credential-зависимая проверка остаётся `not_run` и не блокирует публикацию. Каталог наполняется публичными версиями с невыполненными обязательными проверками, а бейдж и линия доверия перестают что-либо гарантировать.
-3. Автор исполняет credential-зависимые проверки локально своими учётными данными, CLI выпускает подписанное подтверждение точного хэша, сервер принимает его по политике и сам повторяет все credential-свободные обязательные проверки. Публикация требует полного набора актуальных принятых доказательств.
+1. The platform executes all mandatory checks. Honest for credential-free checks, but credential-dependent objects are either unpublishable or the platform begins accepting third-party keys, which the security model prohibits.
+2. A mandatory credential-dependent check remains `not_run` and does not block publication. The catalog fills with public versions whose mandatory checks are incomplete, and the badge and trust line cease to guarantee anything.
+3. The author executes credential-dependent checks locally with their own credentials, the CLI issues a signed attestation for the exact hash, the server accepts it according to policy, and the server repeats all credential-free mandatory checks itself. Publication requires a complete set of current accepted evidence.
 
-## Решение
+## Decision
 
-Принимается вариант 3.
+Option 3 is accepted.
 
-**Публикация полная или её нет.** Каждая обязательная блокирующая проверка обязана иметь актуальное принятое политикой доказательство с результатом `passed`. Обязательная проверка в состоянии `failed`, `degraded`, `not_run` или `expired` блокирует публичную публикацию. Завершённая необязательная проверка с `warning` публикацию не блокирует, но версия не получает `component_verified` и не входит в `authoritative`.
+**Publication is complete or absent.** Every mandatory blocking check must have current evidence accepted by policy with the result `passed`. A mandatory check in the `failed`, `degraded`, `not_run`, or `expired` state blocks public publication. A completed optional check with a `warning` does not block publication, but the version does not receive `component_verified` and does not enter `authoritative`.
 
-**Источник принятого доказательства задаётся по каждой проверке.** Проверку, исполнимую без учётных данных, сервер выполняет сам, и отчёт устройства её не заменяет. Проверку, требующую учётных данных или внешней авторизации, автор выполняет локально своими учётными данными через обычный ограниченный путь инструментов, а принятым доказательством является его подписанное подтверждение.
+**The accepted evidence source is defined per check.** The server executes a check that can run without credentials, and a device report does not replace it. The author executes a check requiring credentials or external authorization locally with their own credentials through the normal constrained tool path, and the accepted evidence is the author's signed attestation.
 
-**Подтверждение привязано к точным координатам.** Оно подписано ключом устройства и привязано к хэшу объекта, версии компонента или сетапа, версии политики, версиям инструментов, версии харнесса и провайдера, идентификаторам тест-кейсов, результату, аккаунту автора, устройству и времени. Значения секретов, токены, учётные данные, адреса выдачи и чувствительная диагностика в подтверждение не входят. Изменение хэша, политики, инструментов или набора тест-кейсов, как и отзыв устройства, делает подтверждение недействительным.
+**The attestation is bound to exact coordinates.** It is signed by the device key and bound to the object hash, component or setup version, policy version, tool versions, harness and provider version, test case identifiers, result, author account, device, and time. Secret values, tokens, credentials, issuance addresses, and sensitive diagnostics are not included. A change to the hash, policy, tools, or test case set, as well as device revocation, invalidates the attestation.
 
-**Сервер проверяет всё, что может проверить.** При публикации сервер независимо пересчитывает хэш и структуру, повторяет credential-свободные обязательные проверки, проверяет подпись, привязку и актуальность подтверждения, состояние устройства и аккаунта и оценивает политику.
+**The server verifies everything it can.** During publication, the server independently recomputes the hash and structure, repeats credential-free mandatory checks, verifies the attestation signature, binding, and freshness, verifies device and account state, and evaluates policy.
 
-**`component_verified` означает полноту доказательств, а не место исполнения.** Признак говорит, что все обязательные проверки версии имеют актуальные принятые доказательства. Карточка и машинный вывод показывают источник доказательства по каждой проверке и его ограничения, чтобы авторское подтверждение нельзя было прочитать как исполнение платформой.
+**`component_verified` means evidence completeness, not execution location.** The flag states that every mandatory check for the version has current accepted evidence. The card and machine output show the evidence source and its limitations for every check so that an author attestation cannot be mistaken for platform execution.
 
-**Невозможность доказать блокирует.** Если автор не может получить проходящее credential-зависимое подтверждение, публичная публикация невозможна. Установка такого требования у пользователя ведёт себя по `SPEC-008`: агент объясняет каждую требуемую авторизацию, установка может завершиться, а готовность к запуску остаётся `needs_configuration` до настройки.
+**Inability to prove blocks.** If the author cannot obtain a passing credential-dependent attestation, public publication is impossible. Installing such a requirement for a user behaves according to `SPEC-008`: the agent explains every required authorization, installation may complete, and launch readiness remains `needs_configuration` until configuration is complete.
 
-## Последствия
+## Consequences
 
-- `docs/contracts/validation-policy.md` получает единый барьер публикации, матрицу принятых источников доказательств и запись авторского подтверждения;
-- `SPEC-007` меняет требования серверного исполнения и смысла `component_verified` и получает требования барьера и привязки подтверждения;
-- `docs/contracts/component-setup-passports.md` перестаёт называть обязательный `not_run` публикуемым;
-- `SPEC-008` получает требование объяснённой авторизации при установке;
-- карточка, API и CLI показывают источник доказательства по каждой проверке;
-- будущие интеграции сканеров и провайдерские доказательства обязаны выпускать совместимые подтверждения точного хэша.
+- `docs/contracts/validation-policy.md` receives a single publication barrier, a matrix of accepted evidence sources, and the author attestation record;
+- `SPEC-007` changes the requirements for server-side execution and the meaning of `component_verified`, and receives requirements for the barrier and attestation binding;
+- `docs/contracts/component-setup-passports.md` stops describing a mandatory `not_run` as publishable;
+- `SPEC-008` receives a requirement for explained authorization during installation;
+- the card, API, and CLI show the evidence source for every check;
+- future scanner integrations and provider evidence must issue compatible attestations for the exact hash.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается, если появится проверяемый способ исполнять такие проверки без учётных данных автора, либо если подписанные авторские подтверждения станут источником систематических злоупотреблений, которые не ловит привязка к хэшу, политике и устройству.
+This decision will be reconsidered if a verifiable way appears to execute such checks without the author's credentials, or if signed author attestations become a source of systematic abuse not caught by binding to the hash, policy, and device.

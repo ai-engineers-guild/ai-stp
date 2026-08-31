@@ -1,17 +1,17 @@
 ---
-description: "Сборка MkDocs и правила навигации."
+description: "MkDocs build and navigation rules."
 last_verified: "2026-08-03"
 ---
 
-# Сайт документации
+# Documentation Site
 
-MkDocs собирает только опубликованную базу знаний репозитория.
+MkDocs builds only the repository's published knowledge base.
 
-Правила:
+Rules:
 
 - strict build;
-- navigation выводится из `index.md`;
-- Mermaid проверяется отдельно реальным renderer;
-- `.site/` не коммитится;
-- site build не заменяет проверку ссылок и frontmatter;
-- секреты и private runtime data в документацию не включаются.
+- navigation is derived from `index.md`;
+- Mermaid is checked separately with a real renderer;
+- `.site/` is not committed;
+- the site build does not replace link and frontmatter checks;
+- secrets and private runtime data are not included in documentation.

@@ -1,26 +1,28 @@
 ---
-description: "Приватные reactions аккаунта на публичные компоненты и сетапы каталога."
+description: "Private account reactions to public catalog components and setups."
 last_verified: "2026-08-17"
 ---
 
 # Catalog reactions
 
-Reaction — приватная idempotent связь текущего аккаунта с публичным `component`
-или `setup`. Публичные catalog projections возвращают только неотрицательный
-aggregate `likes_count`; account IDs и список отреагировавших не публикуются.
+A reaction is a private idempotent association between the current account and a
+public `component` or `setup`. Public catalog projections return only the
+non-negative aggregate `likes_count`; account IDs and the list of reacting
+accounts are not published.
 
-Аутентифицированная HTTP-поверхность:
+The authenticated HTTP surface:
 
-- `GET /v1/account/catalog-reactions` возвращает `CatalogReactionList`;
-- `PUT /v1/account/catalog-reactions/{object_kind}/{stable_id}` создаёт reaction;
-- `DELETE /v1/account/catalog-reactions/{object_kind}/{stable_id}` удаляет reaction.
+- `GET /v1/account/catalog-reactions` returns `CatalogReactionList`;
+- `PUT /v1/account/catalog-reactions/{object_kind}/{stable_id}` creates a reaction;
+- `DELETE /v1/account/catalog-reactions/{object_kind}/{stable_id}` removes a reaction.
 
-`object_kind` принимает только `component` или `setup`, а `stable_id` обязан
-соответствовать выбранному виду. Невидимый или отсутствующий объект отвечает
-`AI_STP_NOT_FOUND`; отсутствие сессии — `AI_STP_AUTH_REQUIRED`. Повторный `PUT`
-и повторный `DELETE` не меняют результат сверх требуемого состояния.
+`object_kind` accepts only `component` or `setup`, and `stable_id` must match the
+selected kind. An invisible or absent object responds with `AI_STP_NOT_FOUND`;
+an absent session responds with `AI_STP_AUTH_REQUIRED`. Repeated `PUT` and
+`DELETE` calls do not change the result beyond the requested state.
 
-`CatalogReactionState` содержит `schema_version`, `liked` и `likes_count`.
-`CatalogReactionList` содержит `schema_version` и `items`; каждый item содержит
-`object_kind` и соответствующий публичный `ComponentSummary` или `SetupSummary`.
-Список принадлежит только текущему аккаунту и не раскрывает чужие reactions.
+`CatalogReactionState` contains `schema_version`, `liked`, and `likes_count`.
+`CatalogReactionList` contains `schema_version` and `items`; each item contains
+`object_kind` and the corresponding public `ComponentSummary` or `SetupSummary`.
+The list belongs only to the current account and does not disclose other
+accounts' reactions.

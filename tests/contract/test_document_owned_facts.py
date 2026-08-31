@@ -25,7 +25,7 @@ SUCCESS = 0
 
 def _documented_exit_codes() -> set[int]:
     text = (CONTRACTS / "cli-json.md").read_text(encoding="utf-8")
-    section = text.split("## Коды завершения", 1)[1].split("\n## ", 1)[0]
+    section = text.split("## Exit codes", 1)[1].split("\n## ", 1)[0]
     return {int(found) for found in re.findall(r"^\|\s*(\d+)\s*\|", section, re.MULTILINE)}
 
 
@@ -54,7 +54,7 @@ def test_the_document_lists_success_and_the_registry_does_not() -> None:
 #: bullets numbered five, and both were green — the five counted bullets, the
 #: six counted fields, and the bullet naming two was what reconciled them.
 #:
-#: The bullets are Russian prose, so the pairing cannot be derived and has to be
+#: The bullets are prose, so the pairing cannot be derived and has to be
 #: written. What it must not be is written *twice*: adding a field now forces
 #: the editor to say which bullet carries it, and the count follows.
 DOCUMENTED_BULLETS: tuple[frozenset[str], ...] = (
@@ -83,7 +83,7 @@ def test_the_document_still_closes_the_summary_to_the_bullets_it_is_paired_with(
     # The length comes from `DOCUMENTED_BULLETS` rather than a literal, so a
     # sixth bullet cannot be reconciled by editing one character.
     text = (CONTRACTS / "device-passport.md").read_text(encoding="utf-8")
-    section = text.split("Разрешённая сводка устройства закрыта по составу:", 1)[1]
+    section = text.split("The permitted device summary has a closed field set:", 1)[1]
     bullets: list[str] = []
     for line in section.splitlines():
         if line.startswith("- "):

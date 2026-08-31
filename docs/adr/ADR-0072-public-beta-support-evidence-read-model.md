@@ -1,144 +1,118 @@
 ---
-description: "Решение о публичной read-model для beta-поддержки, evidence и freshness."
-last_verified: "2026-08-31"
+description: "Decision on the public read-model for beta support, evidence, and freshness."
+last_verified: "2026-08-09"
 ---
 
-# ADR-0072: Публичная read-model beta-поддержки, evidence и freshness
+# ADR-0072: Public read-model for beta support, evidence, and freshness
 
-Статус: принято. Реализовано в серверной support projection, фильтрах API и вебе.
+Status: proposed.
 
-## Контекст
+## Context
 
-Issue #193 требует показать в API и web beta-статус, текущие доказательства и их
-свежесть после выполнения P11-01, P11-02 и P11-03 для Pi, OpenCode и Grok Build.
+Issue #193 requires displaying in the API and web the beta status, current evidence, and its freshness after completion of P11-01, P11-02, and P11-03 for Pi, OpenCode, and Grok Build.
 
-В проекте уже существуют независимые понятия:
+The project already has independent concepts:
 
-- `primary`/`beta` как уровень поддержки харнесса;
-- `trust_lane` как линия доверия опубликованного объекта;
-- `author_verified` и `component_verified`;
-- publication evidence с результатом и `expires_at`.
+- `primary`/`beta` as the harness support tier;
+- `trust_lane` as the trust line of the published object;
+- `author_verified` and `component_verified`;
+- publication evidence with a result and `expires_at`.
 
-Смешивание этих понятий приведёт к ложному выводу, что beta provider является
-experimental object, либо что проверенный паспорт доказывает сквозную поддержку
-харнесса. Нужна отдельная публичная read-model, не создающая второй policy engine
-в web.
+Mixing these concepts would lead to the false conclusion that a beta provider is an experimental object, or that a verified passport proves end-to-end harness support. A separate public read-model is needed that does not create a second policy engine in web.
 
-## Варианты
+## Alternatives
 
-### 1. Вычислять beta-статус в web
+### 1. Compute beta status in web
 
-Просто реализовать, но нарушает `ADR-0018` и `SPEC-022`: web станет вторым
-источником бизнес-логики, а API, CLI и разные локали могут показать разные
-результаты.
+Simple to implement, but violates `ADR-0018` and `SPEC-022`: web would become a second source of business logic, and the API, CLI, and different locales could display different results.
 
-### 2. Выводить статус из `trust_lane` или `component_verified`
+### 2. Derive status from `trust_lane` or `component_verified`
 
-Не требует новых данных, но семантически неверно. Эти поля отвечают за доверие к
-конкретной версии объекта и полноту publication checks, а не за provider support.
+Requires no new data, but is semantically incorrect. These fields represent trust in a specific object version and completeness of publication checks, not provider support.
 
-### 3. Хранить support evidence отдельно и отдавать безопасную server projection
+### 3. Store support evidence separately and expose a safe server projection
 
-Требует нового read-model и аддитивного wire-контракта, зато сохраняет независимые
-оси, exact provenance, единый расчёт freshness и безопасную публичную границу.
+Requires a new read-model and an additive wire contract, but preserves independent axes, exact provenance, consistent freshness calculation, and a safe public boundary.
 
-### 4. Публиковать сырые provider reports
+### 4. Publish raw provider reports
 
-Даёт больше деталей, но раскрывает внутренние логи, topology, credentials или
-непроверенные ссылки и делает формат внешних репозиториев частью API.
+Provides more detail, but exposes internal logs, topology, credentials, or unverified links and makes the format of external repositories part of the API.
 
-## Решение
+## Decision
 
-Принимается вариант 3.
+Alternative 3 is accepted.
 
-### Отдельная support evidence projection
+### Separate support evidence projection
 
-Платформа хранит или импортирует нормализованную запись support evidence отдельно
-от паспорта объекта и publication evidence. Она привязана к:
+The platform stores or imports a normalized support evidence record separately from the object passport and publication evidence. It is associated with:
 
 - `harness_id`;
 - provider release identity;
-- exact commit или digest;
-- operating system и architecture;
+- exact commit or digest;
+- operating system and architecture;
 - policy version;
-- check id и результату;
-- `observed_at` и `expires_at`.
+- check id and result;
+- `observed_at` and `expires_at`.
 
-В публичный API выходит только безопасная projection. Сырые отчёты, подписи,
-storage keys, credentials и внутренние логи не выходят.
+Only a safe projection is exposed through the public API. Raw reports, signatures, storage keys, credentials, and internal logs are not exposed.
 
-### Канонический расчёт состояния
+### Canonical state calculation
 
-Сервер вычисляет support state по текущей policy:
+The server computes the support state according to the current policy:
 
 ```text
-verified      все обязательные checks passed и evidence не истекло
-stale         обязательное evidence истекло
-missing       обязательное evidence отсутствует
-not_verified  evidence не удовлетворяет policy
+verified      all required checks passed and evidence has not expired
+stale         required evidence has expired
+missing       required evidence is absent
+not_verified  evidence does not satisfy policy
 ```
 
-Freshness вычисляется по server time и сохранённым timestamps, а не во время
-рендера web. Web получает готовое состояние и только отображает его.
+Freshness is calculated using server time and stored timestamps, not during web rendering. Web receives the computed state and only displays it.
 
-### Независимые оси
+### Independent axes
 
-Support tier/state не меняют:
+Support tier/state do not change:
 
 - `trust_lane`;
 - `author_verified`;
 - `component_verified`;
-- eligibility к установке.
+- installation eligibility.
 
-`beta` означает продуктовый уровень поддержки. `experimental` означает линию
-доверия объекта. Объект может быть beta и authoritative либо beta и experimental,
-если остальные правила это допускают.
+`beta` denotes the product support tier. `experimental` denotes the object's trust line. An object may be beta and authoritative, or beta and experimental, if the other rules permit it.
 
 ### Public catalog API
 
-Поля support projection добавляются аддитивно к catalog summary/detail/version
-ответам. Фильтры support tier/state являются request parameters API и не изменяют
-request-scoped consent для `experimental`.
+Support projection fields are added additively to catalog summary/detail/version responses. Support tier/state filters are API request parameters and do not change request-scoped consent for `experimental`.
 
-Старый клиент, не знающий новых полей, продолжает работать в пределах текущей
-major-версии. Значение отсутствующего evidence — `missing`, а не `verified`.
+An old client that does not know about the new fields continues to work within the current major version. The value for absent evidence is `missing`, not `verified`.
 
-### Источник provider evidence
+### Source of provider evidence
 
-P11-01, P11-02 и P11-03 поставляют evidence из публичных provider repositories.
-Платформа принимает только evidence, связанное с exact release и проверенное по
-действующей release policy. Наличие issue, README или произвольного текста не
-является evidence.
+P11-01, P11-02, and P11-03 supply evidence from public provider repositories. The platform accepts only evidence associated with an exact release and verified against the current release policy. The existence of an issue, README, or arbitrary text does not constitute evidence.
 
-## Последствия
+## Consequences
 
-- `packages/contracts` получает новые модели support projection и фильтров;
-- `schemas/v1/openapi.json` и generated web client обновляются из моделей;
-- API/platform получают единый расчёт support state и freshness;
-- web показывает только server projection;
-- появляется миграция или отдельный storage/read-model для support evidence;
-- фикстуры покрывают `fresh`, `stale`, `missing`, `failed` и conflicting evidence;
-- release evidence связывается с exact provider SHA;
-- существующие catalog rows не переписываются и получают `missing` до импорта
-  support evidence;
-- beta evidence не блокирует первый MVP release;
-- rollback может отключить projection и фильтры без удаления исторических данных.
+- `packages/contracts` receives new models for the support projection and filters;
+- `schemas/v1/openapi.json` and the generated web client are updated from the models;
+- API/platform receive a single calculation for support state and freshness;
+- web displays only the server projection;
+- a migration or separate storage/read-model for support evidence is introduced;
+- fixtures cover `fresh`, `stale`, `missing`, `failed`, and conflicting evidence;
+- release evidence is associated with the exact provider SHA;
+- existing catalog rows are not rewritten and receive `missing` until support evidence is imported;
+- beta evidence does not block the first MVP release;
+- rollback can disable the projection and filters without deleting historical data.
 
-## Безопасность
+## Security
 
-Public projection не является bearer credential и не содержит адресов, по которым
-можно получить private artifact. Неизвестный, повреждённый или противоречивый
-evidence не повышает статус. Ошибка parsing или provenance не должна быть
-замаскирована под свежую проверку.
+The public projection is not a bearer credential and does not contain addresses through which a private artifact can be obtained. Unknown, corrupted, or conflicting evidence does not raise the status. A parsing or provenance error must not be masked as a fresh verification.
 
-## Условия пересмотра
+## Reconsideration Conditions
 
-ADR пересматривается, если:
+The ADR is reconsidered if:
 
-- provider evidence станет credentialed/private и потребует отдельной модели
-  доступа;
-- появится необходимость показывать сырые отчёты или интерактивные артефакты;
-- support policy перестанет быть общей для provider releases;
-- API потребует breaking change вместо аддитивной проекции;
-- объём evidence потребует отдельного аналитического read-store, а не
-  transactional projection.
+- provider evidence becomes credentialed/private and requires a separate access model;
+- raw reports or interactive artifacts need to be displayed;
+- support policy ceases to be shared across provider releases;
+- the API requires a breaking change instead of an additive projection;
+- the volume of evidence requires a separate analytical read-store rather than a transactional projection.

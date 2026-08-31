@@ -1,43 +1,43 @@
 ---
-description: "Решение о наблюдаемости: провайдер OpenTelemetry, корреляция трассы в конверте и дневные структурные файловые логи."
+description: "Decision on observability: an OpenTelemetry provider, trace correlation in the envelope, and daily structured file logs."
 last_verified: "2026-08-05"
 ---
 
-# ADR-0039: Наблюдаемость через OpenTelemetry и структурные файловые логи
+# ADR-0039: Observability through OpenTelemetry and structured file logs
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-Серверные приложения `api` и `worker` нуждаются в наблюдаемости с первого дня, но `docs/engineering/tech-stack.md` фиксирует, что APM и SX не являются обязательными зависимостями ядра, а `AGENTS.md` запрещает секреты и персональные данные в логах. `SPEC-017` требует корреляцию запроса и связь `trace_id` со спаном, а также структурный лог с закрытым набором полей. Нужно решение, которое даёт трассировку и структурный лог без привязки к конкретному вендору и без утечки чувствительных данных.
+The `api` and `worker` server applications need observability from day one, but `docs/engineering/tech-stack.md` establishes that APM and SX are not mandatory core dependencies, while `AGENTS.md` prohibits secrets and personal data in logs. `SPEC-017` requires request correlation, binding `trace_id` to a span, and a structured log with a closed field set. A solution is needed that provides tracing and structured logging without vendor lock-in or sensitive-data leakage.
 
-## Варианты
+## Options
 
-1. Конкретный APM-вендор с его агентом. Быстрый старт, но привязка к вендору и обязательная внешняя зависимость ядра, что противоречит `tech-stack.md`.
-2. Только неструктурный лог в stdout. Просто, но не даёт трассировку между запросом и заданием и плохо разбирается машинно.
-3. Провайдер OpenTelemetry с конфигурируемым экспортёром и структурный лог в дневной файл и stdout, без выбора бэкенда в MVP.
+1. A specific APM vendor and its agent. Fast to start, but creates vendor lock-in and a mandatory external core dependency, contrary to `tech-stack.md`.
+2. Unstructured stdout logging only. Simple, but provides no tracing between a request and job and is difficult to parse mechanically.
+3. An OpenTelemetry provider with a configurable exporter and structured logging to a daily file and stdout, without selecting a backend in the MVP.
 
-## Решение
+## Decision
 
-Принимается вариант 3.
+Option 3 is accepted.
 
-Наблюдаемость строится как сквозной слой общего ядра приложения:
+Observability is a cross-cutting layer of the application's shared core:
 
-- провайдер OpenTelemetry инициализируется фабрикой приложения и инструментирует границы `api` и `worker`;
-- экспортёр задаётся конфигурацией: stdout или коллектор в dev и OTLP в prod, а конкретный бэкенд в MVP не выбирается;
-- недоступный экспортёр не роняет приложение;
-- `trace_id` связывается со спаном и попадает в конверт ответа рядом с `request_id`, что даёт корреляцию между запросом API и фоновым заданием;
-- структурный лог пишется в дневной файл с ротацией в полночь и в stdout, поля ограничены закрытым набором, а токены и персональные данные не логируются.
+- the OpenTelemetry provider is initialized by the application factory and instruments the `api` and `worker` boundaries;
+- the exporter is configured: stdout or a collector in dev and OTLP in prod, while the MVP selects no specific backend;
+- an unavailable exporter does not crash the application;
+- `trace_id` is bound to the span and included in the response envelope beside `request_id`, providing correlation between an API request and background job;
+- structured logs are written to a daily file rotated at midnight and to stdout, fields are limited to a closed set, and tokens and personal data are not logged.
 
-Правило запрета токенов и персональных данных в логах принадлежит `SPEC-013`; это решение его применяет, но не переопределяет.
+The prohibition on tokens and personal data in logs belongs to `SPEC-013`; this decision applies but does not redefine it.
 
-## Последствия
+## Consequences
 
-- добавляются зависимости `opentelemetry-sdk`, инструментирование FastAPI, SQLAlchemy и asyncpg и экспортёр OTLP, каждая под конкретный gap наблюдаемости;
-- добавляется зависимость структурного лога, пишущего в дневной файл на смонтированный том по `SPEC-019`;
-- отсутствует привязка к вендору APM, а бэкенд выбирается позже без изменения кода приложения;
-- тесты подтверждают старт при недоступном экспортёре, связь `trace_id` со спаном и отсутствие токенов и персональных данных в логе.
+- dependencies are added for `opentelemetry-sdk`, FastAPI, SQLAlchemy, and asyncpg instrumentation, and the OTLP exporter, each addressing a concrete observability gap;
+- a structured-logging dependency writes a daily file on a mounted volume under `SPEC-019`;
+- there is no APM vendor lock-in, and a backend can be selected later without application-code changes;
+- tests confirm startup with an unavailable exporter, `trace_id` binding to a span, and absence of tokens and personal data from logs.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается, если появится доказанная потребность в конкретном бэкенде наблюдаемости с его особыми требованиями к формату, либо если стоимость инструментирования OpenTelemetry превысит ценность трассировки на наблюдаемом объёме.
+This decision will be reconsidered if a demonstrated need arises for a specific observability backend with special format requirements, or if OpenTelemetry instrumentation costs exceed the value of tracing at observed volume.

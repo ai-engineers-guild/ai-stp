@@ -1,95 +1,95 @@
 ---
-description: "Функциональные области MVP и их наблюдаемый результат."
+description: "MVP functional areas and their observable outcomes."
 last_verified: "2026-08-04"
 ---
 
-# Функции MVP
+# MVP capabilities
 
-## Установка и окружение
+## Installation and environment
 
-- установка `ai_stp` через `uv`;
-- пользовательские каталоги без обязательного `sudo`;
-- установка и обновление versioned provider releases;
-- установка полного набора инструментов профиля `mvp-full` при первичной настройке;
-- обнаружение OS, architecture, харнессов и версий по объявленным детекторам;
-- безопасный uninstall и отдельный purge.
+- installation of `ai_stp` through `uv`;
+- user directories without mandatory `sudo`;
+- installation and updating of versioned provider releases;
+- installation of the complete `mvp-full` profile toolset during initial setup;
+- detection of OS, architecture, harnesses, and versions through declared detectors;
+- safe uninstall and a separate purge.
 
-## Паспорта и индекс
+## Passports and index
 
-- обнаружение безопасных фактов и находок средствами CLI;
-- паспорт устройства с наблюдаемым окружением и раздельной сводкой по каждому устройству;
-- сборка паспорта разработчика агентом пользователя без вызова модели из `ai_stp`;
-- вопросы только для неизвестных обязательных полей и рисковых решений;
-- регистрация выбранных Git-проектов и ограниченный discovery root;
-- извлечение стека, версий, команд и AI-компонентов;
-- индекс ограниченных безопасных текстовых файлов и ограниченный symbol index;
-- происхождение и подтверждение каждого значимого факта как две оси.
+- discovery of safe facts and findings by the CLI;
+- a device passport with the observed environment and a separate summary for each device;
+- assembly of the developer passport by the user's agent without a model call from `ai_stp`;
+- questions only for unknown required fields and risky decisions;
+- registration of selected Git projects and a limited discovery root;
+- extraction of the stack, versions, commands, and AI components;
+- an index of limited safe text files and a limited symbol index;
+- provenance and verification of each significant fact as two axes.
 
-## Каталог
+## Catalog
 
-- локальный registry;
-- публичный cloud registry в режиме чтения без аккаунта;
-- первопартийный каталог запуска гильдии как выпускной барьер;
-- private drafts и objects после auth;
-- обязательные нормализованные теги у публикуемой версии;
-- Git provenance с точным коммитом и подпутём для public version;
+- local registry;
+- public cloud registry readable without an account;
+- the guild's first-party launch catalog as a release barrier;
+- private drafts and objects after auth;
+- mandatory normalized tags on a published version;
+- Git provenance with an exact commit and subpath for a public version;
 - exact digest;
-- отдельно заполняемый публичный профиль;
-- grants по account ID и приглашения по подтверждённой почте;
-- права на основную линию: чтение, установка и форк без редактирования оригинала;
-- производная публикация только с содержательным изменением и полной проверкой.
+- a separately maintained public profile;
+- grants by account ID and invitations by verified email;
+- permissions on the major line: read, install, and fork without editing the original;
+- derivative publication only with a substantive change and complete verification.
 
-## Поиск, подбор и сборка
+## Search, selection, and assembly
 
-- поиск по имени, описанию, тегам и синонимам с префиксным и фразовым запросом;
-- структурные фильтры по виду, харнессу, совместимости, источнику, линии доверия и двум осям подтверждения;
-- hard filters до любого ранжирования;
-- линия `authoritative` по умолчанию;
-- линия `experimental` только по явному согласию и отдельным разделом;
-- долговечные исключения согласия только по издателю или основной линии объекта с повторным решением при расширении полномочий;
-- прямой выбор собственного, импортированного или точно закреплённого объекта;
+- search by name, description, tags, and synonyms with prefix and phrase queries;
+- structural filters by kind, harness, compatibility, source, trust line, and the two verification axes;
+- hard filters before any ranking;
+- the `authoritative` line by default;
+- the `experimental` line only with explicit consent and in a separate section;
+- durable consent exceptions only by publisher or object major line, with a new decision when permissions expand;
+- direct selection of an owned, imported, or exactly pinned object;
 - arbitrary component graph;
-- адаптация через overlays;
-- конфликт- и conversion-report;
-- след решения с линией, согласием и причинами;
-- недолговечные предложения состава и подтверждение, фиксирующее приватную версию сетапа;
-- простой детерминированный сборщик MVP: смысловой конфликт блокирует пакет, а не сливается автоматически;
-- детерминированный нативный bundle.
+- adaptation through overlays;
+- conflict and conversion reports;
+- a decision trace with the line, consent, and reasons;
+- short-lived composition proposals and confirmation that fixes a private setup version;
+- a simple deterministic MVP assembler: a semantic conflict blocks the package rather than being merged automatically;
+- a deterministic native bundle.
 
-## Установка и повседневная работа
+## Installation and daily work
 
-- профиль выполнения `full-auto`;
-- isolated target по умолчанию;
-- live target только как явно выбранный режим;
+- the `full-auto` execution profile;
+- isolated target by default;
+- live target only as an explicitly selected mode;
 - side-effect-free plan;
-- backup, apply, launch, status и restore;
-- импорт существующей нативной конфигурации в личный сетап;
-- сигнал об отсутствующих обязательных переменных окружения без чтения значений;
-- ежедневный цикл `status`, `rescan`, `search`, `diff`, `update` и `rollback` только по решению пользователя.
+- backup, apply, launch, status, and restore;
+- importing an existing native configuration into a personal setup;
+- notification of missing required environment variables without reading their values;
+- the daily `status`, `rescan`, `search`, `diff`, `update`, and `rollback` cycle only by user decision.
 
-## Синхронизация
+## Synchronization
 
-- device ID и ключ;
+- device ID and key;
 - revision graph;
 - fast-forward push/pull;
 - field-aware three-way merge;
 - explicit conflicts;
 - tombstones;
-- offline local data после revoke.
+- offline local data after revoke.
 
 ## Web
 
-- landing и команда установки;
-- вход через Google и GitHub;
-- публичный поиск, карточки, паспорта, совместимость и сводка проверок;
-- публичные профили;
-- профиль аккаунта, публичный профиль и настройки приватности;
-- устройства и их отзыв;
-- собственные черновики, объекты и версии;
-- публикация и её состояние;
-- состояние синхронизации;
-- выдача и отзыв прав и приглашений;
-- жалоба на объект и состояние собственных жалоб;
-- минимальные административные действия с аудитом, включая разбор жалоб.
+- landing and installation command;
+- sign-in through Google and GitHub;
+- public search, cards, passports, compatibility, and verification summary;
+- public profiles;
+- account profile, public profile, and privacy settings;
+- devices and their revocation;
+- the user's own drafts, objects, and versions;
+- publication and its state;
+- synchronization state;
+- granting and revoking access and invitations;
+- reporting an object and the state of the user's own reports;
+- minimal administrative actions with auditing, including report triage.
 
-Создание и изменение паспортов, индексация проекта, подбор, сборка, проверки и установка остаются за CLI и агентом. Границу владения задаёт `ADR-0018`.
+Creating and changing passports, project indexing, selection, assembly, verification, and installation remain with the CLI and agent. `ADR-0018` defines the ownership boundary.

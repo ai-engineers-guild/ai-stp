@@ -1,27 +1,27 @@
 ---
-description: "Канонический конверт паспорта и происхождение фактов."
+description: "Canonical passport envelope and fact provenance."
 last_verified: "2026-08-04"
 ---
 
-# Конверт паспорта
+# Passport envelope
 
-Паспорт — единственное машиночитаемое описание объекта. Отдельной сущности «манифест версии» не существует: поля идентичности неизменяемой версии входят в её паспорт по `ADR-0012`.
+A passport is the only machine-readable description of an object. There is no separate "version manifest" entity: immutable-version identity fields are part of its passport under `ADR-0012`.
 
-## Виды
+## Kinds
 
-`kind` принимает ровно пять значений:
+`kind` has exactly five values:
 
-| `kind` | Объект | Изменяемость |
+| `kind` | Object | Mutability |
 |---|---|---|
-| `developer` | разработчик | изменяемый, ревизии |
-| `device` | устройство | изменяемый, ревизии |
-| `project` | проект | изменяемый, ревизии |
-| `component` | версия компонента | неизменяемый снимок |
-| `setup` | версия сетапа | неизменяемый снимок |
+| `developer` | developer | mutable, revisioned |
+| `device` | device | mutable, revisioned |
+| `project` | project | mutable, revisioned |
+| `component` | component version | immutable snapshot |
+| `setup` | setup version | immutable snapshot |
 
-Разделение владения между паспортами разработчика, устройства и проекта принадлежит `ADR-0025`; закрытый перечень полей паспорта устройства — `device-passport.md`.
+Ownership separation among developer, device, and project passports belongs to `ADR-0025`; the closed field set of the device passport is defined in `device-passport.md`.
 
-## Обязательные поля
+## Required fields
 
 ```json
 {
@@ -37,20 +37,20 @@ last_verified: "2026-08-04"
 }
 ```
 
-`visibility` описывает сам объект и не заменяет проверку полномочий. Паспорт разработчика остаётся закрытым; публичный профиль создаётся отдельной проекцией.
+`visibility` describes the object itself and does not replace authorization checks. The developer passport remains private; the public profile is created as a separate projection.
 
-Паспорт версии компонента и сетапа дополнительно содержит поля идентичности: `harness_id`, `version`, теги, точный источник и коммит, хэш и размер артефакта, предоставляемые и требуемые возможности, `requires_components`, `requires_capabilities`, `required_env`, конфликты, управляемые пути и нативные идентификаторы, полномочия и внешние точки подключения, лицензию и возможность распространения, ссылки на отчёты проверок. Паспорт версии компонента дополнительно содержит необязательный `variant_id`; у сетапа такого поля нет по `ADR-0014`.
+A component-version or setup-version passport additionally contains identity fields: `harness_id`, `version`, tags, exact source and commit, artifact hash and size, provided and required capabilities, `requires_components`, `requires_capabilities`, `required_env`, conflicts, managed paths and native identifiers, permissions and external connection points, license and redistribution capability, and links to verification reports. A component-version passport additionally contains the optional `variant_id`; a setup has no such field under `ADR-0014`.
 
-## Минимальный вид
+## Minimal form
 
-Один файл рядом с объектом совмещает паспорт и описание версии; его имя фиксировано в `component-setup-passports.md`. Отдельной дублирующей сущности манифеста нет. Идентичность объекта во всех формах носит одно имя `stable_id` по `SPEC-015`; поля `id` у паспорта не существует. Общие обязательные поля:
+One file next to the object combines the passport and version description; its name is fixed in `component-setup-passports.md`. There is no separate duplicate manifest entity. Object identity has the single name `stable_id` in every form under `SPEC-015`; a passport has no `id` field. The common required fields are:
 
 ```yaml
 schema_version: 1
 kind: component
 stable_id: component_01JQZK7B8N4M6P2R9T5V0X3Y7Z
 name: "pytest-runner"
-description: "Запускает pytest и разбирает отчёт."
+description: "Runs pytest and parses the report."
 version: "1.0"
 tags: ["python", "tests"]
 source:
@@ -59,11 +59,11 @@ source:
   path: "components/pytest-runner"
 ```
 
-Для компонента добавляются `component_type`, `projection_kind`, нативные реализации, `requires_components`, `requires_capabilities`, `required_env`, полномочия и внешние точки подключения. Для сетапа добавляются назначение, один `harness_id` и точные ссылки на версии компонентов.
+For a component, `component_type`, `projection_kind`, native implementations, `requires_components`, `requires_capabilities`, `required_env`, permissions, and external connection points are added. For a setup, the purpose, one `harness_id`, and exact component-version references are added.
 
-Произвольные наборы метаданных, обобщённый граф доказательств и поля «на будущее» не добавляются. Неизвестное обязательное поле и плавающая ссылка отклоняются схемой.
+Arbitrary metadata sets, a generalized evidence graph, and fields "for the future" are not added. An unknown required field and a floating reference are rejected by the schema.
 
-## Факт
+## Fact
 
 ```json
 {
@@ -76,22 +76,22 @@ source:
 }
 ```
 
-Происхождение и подтверждение являются двумя независимыми осями по `ADR-0021`.
+Origin and confirmation are two independent axes under `ADR-0021`.
 
-Ось `origin` принимает значения `declared` — заявил пользователь, `observed` — увидел анализатор, `derived` — вычислено из других фактов записанным детерминированным правилом, `imported` — перенесено из другого паспорта или внешнего источника.
+The `origin` axis has the values `declared` — stated by the user, `observed` — seen by an analyzer, `derived` — computed from other facts by a recorded deterministic rule, and `imported` — transferred from another passport or external source.
 
-Ось `confirmation` принимает значения `none` и `user_confirmed`. Подтверждение не стирает происхождение. Если повторное наблюдение даёт другое значение, `confirmation` возвращается в `none`, а расхождение показывается пользователю; молчаливый перенос подтверждения на новое значение запрещён.
+The `confirmation` axis has the values `none` and `user_confirmed`. Confirmation does not erase origin. If a repeated observation produces a different value, `confirmation` returns to `none` and the drift is shown to the user; silently carrying confirmation to the new value is prohibited.
 
-Список `source_refs` ограничен по длине. Необязательное поле `confidence` допускается для наблюдения. Происхождение `inferred` не используется: на практике оно неотличимо от `observed` с иной уверенностью и создаёт ложную точность. Отдельная сущность доказательства и массив `evidence_refs` в паспорте не хранятся.
+The length of `source_refs` is bounded. The optional `confidence` field is allowed for an observation. The `inferred` origin is not used: in practice it is indistinguishable from `observed` with a different confidence and creates false precision. A separate evidence entity and an `evidence_refs` array are not stored in the passport.
 
-Упрощение касается только описания окружения. Точный хэш, отчёты проверок, подписанные подтверждения и план установки остаются обязательными и неизменяемыми.
+The simplification applies only to the environment description. The exact hash, verification reports, signed attestations, and installation plan remain required and immutable.
 
-## Ревизии
+## Revisions
 
-Изменение любого факта изменяемого паспорта создаёт новую `revision_id` и указывает родительские ревизии. Повторное сканирование не меняет `stable_id`.
+Changing any fact in a mutable passport creates a new `revision_id` and identifies the parent revisions. Rescanning does not change `stable_id`.
 
-Паспорт неизменяемой версии не редактируется: исправление выпускается новой версией. Повторная проверка создаёт новый отчёт и не переписывает старый результат.
+An immutable-version passport is not edited: a correction is released as a new version. Reverification creates a new report and does not rewrite the old result.
 
-## Канонизация и совместимость
+## Canonicalization and compatibility
 
-Поля, байты и хэши подчиняются `canonical-data.md`. Неизвестные необязательные поля сохраняются в совместимой основной версии. Неизвестная основная версия схемы отклоняется типизированной ошибкой.
+Fields, bytes, and hashes follow `canonical-data.md`. Unknown optional fields are preserved within a compatible major version. An unknown schema major version is rejected with a typed error.
