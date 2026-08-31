@@ -31,6 +31,17 @@ require_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "required command missing: $1"
 }
 
+require_env_value() {
+  # Check presence without sourcing or printing the environment file. A deploy
+  # secret may contain shell metacharacters and is data, never executable
+  # configuration. Refuse before any service is recreated so a missing
+  # precondition leaves the currently healthy release serving traffic.
+  local name="$1"
+  local path="${AI_STP_ROOT}/${AI_STP_ENV_FILE}"
+  [[ -f "${path}" ]] || die "required deploy environment file missing: ${AI_STP_ENV_FILE}"
+  LC_ALL=C grep -Eq "^${name}=.+$" "${path}" || die "required deploy environment value missing: ${name}"
+}
+
 compose() {
   # Compose invocation with the configured file. Env file is optional.
   local -a args=(-f "${AI_STP_ROOT}/${AI_STP_COMPOSE_FILE}")

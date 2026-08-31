@@ -184,6 +184,27 @@ def test_target_side_deployer_preserves_the_host_state_and_monotonicity() -> Non
         assert directive in service, directive
 
 
+def test_required_content_import_secret_is_checked_before_any_deploy_effect() -> None:
+    """A missing importer token must leave the currently healthy web running.
+
+    The importer itself fails closed without the token, but web waits for that
+    one-shot. Discovering the missing value after ``compose up`` left web in
+    ``Created`` and production on 502 while the next minute-timer rebuilt every
+    image. The deployer owns the ordering: validate the precondition before it
+    records progress, builds, migrates or recreates anything.
+    """
+    deploy = Path("deploy/deploy.sh").read_text(encoding="utf-8")
+    preflight = 'require_env_value "AI_STP_CONTENT_IMPORT_TOKEN"'
+    assert preflight in deploy
+    assert deploy.index(preflight) < deploy.index('record_deploy_stage "${COMMIT}" "started"')
+    assert deploy.index(preflight) < deploy.index("compose build")
+
+    library = Path("deploy/lib.sh").read_text(encoding="utf-8")
+    helper = library.split("require_env_value()", maxsplit=1)[1].split("\n}\n", maxsplit=1)[0]
+    assert "source " not in helper
+    assert "grep -Eq" in helper
+
+
 def test_deployment_verification_observes_the_service_that_gates_publication() -> None:
     """A green deploy has to mean the worker is current, not only reachable.
 
