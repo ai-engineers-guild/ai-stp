@@ -22,30 +22,20 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from typing import cast
 
 import pytest
+
+from ai_stp_cli.provider import protocol_v3
 
 #: Keys a v3 provider may put in a `status` answer. Not every one needs a
 #: reader — but a key nobody names is a decision, and this is where it gets
 #: made rather than noticed a release later.
-#:
-#: **Provisional, and by construction the weakest part of this test.** It is a
-#: list typed here from what the providers were observed to answer, which is the
-#: same object as the two literal cleanup vocabularies this test exists because
-#: of: true when written, with nothing to notice when it stops being. Six of a
-#: known thirty-three. The publishing estate is landing a measured
-#: `references/status-response.json`, recorded by running all seven against a
-#: missing, an unmanaged and a verified target and gated in both directions;
-#: this pins to that file when it is vendored, and the hand-typed set goes.
+#: Derived from the closed kit schema. The former six-key hand-written set was
+#: the exact class this test exists to prevent: current providers answer 33
+#: keys, and nothing failed when the other 27 stopped arriving.
 STATUS_KEYS: frozenset[str] = frozenset(
-    {
-        "state",
-        "target_digest",
-        "cleanup_state",
-        "shadowed_by",
-        "backups",
-        "authorization",
-    }
+    cast(dict[str, object], protocol_v3.STATUS_WIRE_SCHEMA["properties"])
 )
 
 #: Named and deliberately unread, with the reason. Emptying this list is not the

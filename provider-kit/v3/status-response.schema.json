@@ -1,0 +1,540 @@
+{
+  "$defs": {
+    "digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    }
+  },
+  "$id": "https://nddev.asia/schemas/provider-protocol/v3/status-response.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "provider_state": {
+            "properties": {
+              "drift_state": {
+                "const": "clean"
+              },
+              "present": {
+                "const": true
+              },
+              "readable": {
+                "const": true
+              }
+            },
+            "required": [
+              "present",
+              "readable",
+              "drift_state"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "provider_state"
+        ]
+      },
+      "then": {
+        "required": [
+          "state_schema",
+          "provider_version",
+          "provider_build_digest",
+          "provider_release_digest",
+          "setup_stable_id",
+          "setup_version",
+          "setup_version_passport_digest",
+          "setup_definition_digest",
+          "component_refs",
+          "bundle_format",
+          "bundle_digest",
+          "artifact_digest",
+          "projection_profile_digest",
+          "provider_plan_digest",
+          "operation_id",
+          "target_precondition_digest",
+          "native_ownership",
+          "written_paths",
+          "backup_ref",
+          "previous_verified_identity",
+          "drift_state"
+        ]
+      }
+    }
+  ],
+  "properties": {
+    "artifact_digest": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/digest"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "backup_ref": {
+      "oneOf": [
+        {
+          "pattern": "^slot-[0-9]{12}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "backups": {
+      "items": {
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "else": {
+              "properties": {
+                "hold_reason": {
+                  "type": "null"
+                }
+              }
+            },
+            "if": {
+              "properties": {
+                "held": {
+                  "const": true
+                }
+              },
+              "required": [
+                "held"
+              ]
+            },
+            "then": {
+              "properties": {
+                "hold_reason": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              }
+            }
+          }
+        ],
+        "properties": {
+          "backup_ref": {
+            "pattern": "^slot-[0-9]{12}$",
+            "type": "string"
+          },
+          "held": {
+            "type": "boolean"
+          },
+          "hold_reason": {
+            "oneOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "operation": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "setup_id": {
+            "oneOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "backup_ref",
+          "operation",
+          "setup_id",
+          "held",
+          "hold_reason"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "bundle_digest": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/digest"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "bundle_format": {
+      "oneOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "canonical_target": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "cleanup_state": {
+      "enum": [
+        "none",
+        "pending",
+        "required"
+      ],
+      "type": "string"
+    },
+    "component_refs": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "drift_state": {
+      "enum": [
+        "clean",
+        "local_drift",
+        "unknown"
+      ],
+      "type": "string"
+    },
+    "harness_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "journal": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "operation": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "operation_id": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "phase": {
+              "enum": [
+                "prepared",
+                "committed"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "phase",
+            "operation",
+            "operation_id"
+          ],
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "native_ownership": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "operation_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "previous_verified_identity": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/digest"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "projection_profile_digest": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/digest"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "protocol_version": {
+      "const": 3
+    },
+    "provider_build_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "provider_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "provider_plan_digest": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/digest"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "provider_release_digest": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/digest"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "provider_state": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "present": {
+              "const": false
+            }
+          },
+          "required": [
+            "present"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "detail": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "found_schema": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "present": {
+              "const": true
+            },
+            "readable": {
+              "const": false
+            }
+          },
+          "required": [
+            "present",
+            "readable",
+            "found_schema",
+            "detail"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "backup_ref": {
+              "oneOf": [
+                {
+                  "pattern": "^slot-[0-9]{12}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "drift_state": {
+              "enum": [
+                "clean",
+                "local_drift",
+                "unknown"
+              ],
+              "type": "string"
+            },
+            "operation_id": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "present": {
+              "const": true
+            },
+            "readable": {
+              "const": true
+            },
+            "recorded_identity": {
+              "$ref": "#/$defs/digest"
+            },
+            "setup_stable_id": {
+              "oneOf": [
+                {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "setup_version": {
+              "oneOf": [
+                {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "present",
+            "readable",
+            "setup_stable_id",
+            "setup_version",
+            "operation_id",
+            "backup_ref",
+            "recorded_identity",
+            "drift_state"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "provider_version": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "setup_definition_digest": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/digest"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "setup_stable_id": {
+      "oneOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "setup_version": {
+      "oneOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "setup_version_passport_digest": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/digest"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "shadowed_by": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "effect": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "over": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "over",
+          "effect"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "state": {
+      "enum": [
+        "managed",
+        "unmanaged",
+        "missing"
+      ],
+      "type": "string"
+    },
+    "state_schema": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "target_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "target_identity_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "target_precondition_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "written_paths": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "backups",
+    "canonical_target",
+    "cleanup_state",
+    "harness_id",
+    "journal",
+    "protocol_version",
+    "provider_id",
+    "provider_state",
+    "shadowed_by",
+    "state",
+    "target_digest",
+    "target_identity_digest"
+  ],
+  "type": "object"
+}

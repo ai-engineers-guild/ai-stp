@@ -225,6 +225,39 @@ PROVENANCE_FIELDS: Final[tuple[str, ...]] = (
     "drift_state",
 )
 
+#: Fields every current provider emits from ``status``, regardless of whether
+#: the target is missing, unmanaged, drifted or clean-and-managed. Measured by
+#: running all seven providers against those states; the schema below is the
+#: third artifact both estates were missing while independently maintaining a
+#: key ledger and a Rust response shape.
+STATUS_ALWAYS_FIELDS: Final[tuple[str, ...]] = (
+    "backups",
+    "canonical_target",
+    "cleanup_state",
+    "harness_id",
+    "journal",
+    "protocol_version",
+    "provider_id",
+    "provider_state",
+    "shadowed_by",
+    "state",
+    "target_digest",
+    "target_identity_digest",
+)
+
+#: The clean managed projection is exactly the persisted provenance minus the
+#: identity fields already carried by every status answer. Derived so adding a
+#: state field cannot update the provider-info kit and leave status behind.
+_STATUS_ALWAYS_PROVENANCE: Final[frozenset[str]] = frozenset(
+    {"canonical_target", "harness_id", "protocol_version", "provider_id", "target_identity_digest"}
+)
+STATUS_VERIFIED_FIELDS: Final[tuple[str, ...]] = tuple(
+    field for field in PROVENANCE_FIELDS if field not in _STATUS_ALWAYS_PROVENANCE
+)
+
+STATUS_STATES: Final[tuple[str, ...]] = ("managed", "unmanaged", "missing")
+DRIFT_STATES: Final[tuple[str, ...]] = ("clean", "local_drift", "unknown")
+
 BUNDLE_REJECTIONS: Final[frozenset[str]] = frozenset(
     {
         "unsupported_protocol_version",
@@ -764,3 +797,185 @@ def _build_wire_schema() -> dict[str, object]:
 
 
 WIRE_SCHEMA: Final[dict[str, object]] = _build_wire_schema()
+
+
+def _nullable(value: dict[str, object]) -> dict[str, object]:
+    """One exact schema or JSON null, without widening either branch."""
+    return {"oneOf": [value, {"type": "null"}]}
+
+
+def _status_provider_state_schema() -> dict[str, object]:
+    """The three mutually exclusive readings of the provider-owned state file."""
+    absent = {
+        "type": "object",
+        "properties": {"present": {"const": False}},
+        "required": ["present"],
+        "additionalProperties": False,
+    }
+    foreign = {
+        "type": "object",
+        "properties": {
+            "present": {"const": True},
+            "readable": {"const": False},
+            "found_schema": {"type": "integer", "minimum": 0},
+            "detail": {"type": "string", "minLength": 1},
+        },
+        "required": ["present", "readable", "found_schema", "detail"],
+        "additionalProperties": False,
+    }
+    current = {
+        "type": "object",
+        "properties": {
+            "present": {"const": True},
+            "readable": {"const": True},
+            "setup_stable_id": _nullable({"type": "string", "minLength": 1}),
+            "setup_version": _nullable({"type": "string", "minLength": 1}),
+            "operation_id": {"type": "string", "minLength": 1},
+            "backup_ref": _nullable({"type": "string", "pattern": r"^slot-[0-9]{12}$"}),
+            "recorded_identity": {"$ref": "#/$defs/digest"},
+            "drift_state": {"type": "string", "enum": list(DRIFT_STATES)},
+        },
+        "required": [
+            "present",
+            "readable",
+            "setup_stable_id",
+            "setup_version",
+            "operation_id",
+            "backup_ref",
+            "recorded_identity",
+            "drift_state",
+        ],
+        "additionalProperties": False,
+    }
+    return {"oneOf": [absent, foreign, current]}
+
+
+def _status_backup_schema() -> dict[str, object]:
+    """One completed provider backup and its current retention hold."""
+    return {
+        "type": "object",
+        "properties": {
+            "backup_ref": {"type": "string", "pattern": r"^slot-[0-9]{12}$"},
+            "operation": {"type": "string", "minLength": 1},
+            "setup_id": _nullable({"type": "string", "minLength": 1}),
+            "held": {"type": "boolean"},
+            "hold_reason": _nullable({"type": "string", "minLength": 1}),
+        },
+        "required": ["backup_ref", "operation", "setup_id", "held", "hold_reason"],
+        "additionalProperties": False,
+        "allOf": [
+            {
+                "if": {"properties": {"held": {"const": True}}, "required": ["held"]},
+                "then": {"properties": {"hold_reason": {"type": "string", "minLength": 1}}},
+                "else": {"properties": {"hold_reason": {"type": "null"}}},
+            }
+        ],
+    }
+
+
+def _build_status_wire_schema() -> dict[str, object]:
+    """Machine-owned closed schema for the protocol-v3 ``status`` response."""
+    digest_ref: dict[str, object] = {"$ref": "#/$defs/digest"}
+    nullable_digest = _nullable(digest_ref)
+    text_or_null = _nullable({"type": "string", "minLength": 1})
+    properties: dict[str, object] = {
+        "backups": {"type": "array", "items": _status_backup_schema()},
+        "canonical_target": {"type": "string", "minLength": 1},
+        "cleanup_state": {"type": "string", "enum": sorted(CLEANUP_STATES)},
+        "harness_id": {"type": "string", "minLength": 1},
+        "journal": _nullable(
+            {
+                "type": "object",
+                "properties": {
+                    "phase": {"type": "string", "enum": ["prepared", "committed"]},
+                    "operation": {"type": "string", "minLength": 1},
+                    "operation_id": {"type": "string", "minLength": 1},
+                },
+                "required": ["phase", "operation", "operation_id"],
+                "additionalProperties": False,
+            }
+        ),
+        "protocol_version": {"const": VERSION},
+        "provider_id": {"type": "string", "minLength": 1},
+        "provider_state": _status_provider_state_schema(),
+        "shadowed_by": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "minLength": 1},
+                    "over": {"type": "string", "minLength": 1},
+                    "effect": {"type": "string", "minLength": 1},
+                },
+                "required": ["name", "over", "effect"],
+                "additionalProperties": False,
+            },
+        },
+        "state": {"type": "string", "enum": list(STATUS_STATES)},
+        "target_digest": digest_ref,
+        "target_identity_digest": digest_ref,
+        "state_schema": {"type": "integer", "minimum": 1},
+        "provider_version": {"type": "string", "minLength": 1},
+        "provider_build_digest": digest_ref,
+        "provider_release_digest": nullable_digest,
+        "setup_stable_id": text_or_null,
+        "setup_version": text_or_null,
+        "setup_version_passport_digest": nullable_digest,
+        "setup_definition_digest": nullable_digest,
+        "component_refs": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1},
+        },
+        "bundle_format": text_or_null,
+        "bundle_digest": nullable_digest,
+        "artifact_digest": nullable_digest,
+        "projection_profile_digest": nullable_digest,
+        "provider_plan_digest": nullable_digest,
+        "operation_id": {"type": "string", "minLength": 1},
+        "target_precondition_digest": digest_ref,
+        "native_ownership": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1},
+        },
+        "written_paths": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1},
+        },
+        "backup_ref": _nullable({"type": "string", "pattern": r"^slot-[0-9]{12}$"}),
+        "previous_verified_identity": nullable_digest,
+        "drift_state": {"type": "string", "enum": list(DRIFT_STATES)},
+    }
+    return {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://nddev.asia/schemas/provider-protocol/v3/status-response.json",
+        "$defs": {"digest": {"type": "string", "pattern": r"^sha256:[0-9a-f]{64}$"}},
+        "type": "object",
+        "properties": properties,
+        "required": list(STATUS_ALWAYS_FIELDS),
+        "additionalProperties": False,
+        # Flat provenance describes the current target only while the nested
+        # record is readable and clean. A managed-but-drifted target correctly
+        # carries none of these fields.
+        "allOf": [
+            {
+                "if": {
+                    "properties": {
+                        "provider_state": {
+                            "type": "object",
+                            "properties": {
+                                "present": {"const": True},
+                                "readable": {"const": True},
+                                "drift_state": {"const": "clean"},
+                            },
+                            "required": ["present", "readable", "drift_state"],
+                        }
+                    },
+                    "required": ["provider_state"],
+                },
+                "then": {"required": list(STATUS_VERIFIED_FIELDS)},
+            }
+        ],
+    }
+
+
+STATUS_WIRE_SCHEMA: Final[dict[str, object]] = _build_status_wire_schema()

@@ -31,7 +31,12 @@ KIT_IDENTITY_SCHEMA: Final[str] = "ai-stp-provider-kit-identity/1"
 #: and it is already pinned in released work. A version whose bytes moved is
 #: the same defect as a republished immutable `X.Y` — the pin would either
 #: fail or, worse, keep matching a name that now means something else.
-KIT_VERSION: Final[str] = "0.2.6"
+#: 0.2.7 adds the closed ``status`` response schema. Providers and the
+#: consumer had independently maintained the same response as a Rust struct, a
+#: six-key reader ledger and a measured 33-key JSON note. All three could drift
+#: while provider-info conformance stayed green; the status schema is now a
+#: checksummed member of the kit they already vendor.
+KIT_VERSION: Final[str] = "0.2.7"
 
 #: The kit's only artifact with no source to re-derive it from, and therefore
 #: the exact limit of what `--check` can see. Everything else here is rendered
@@ -59,10 +64,12 @@ MACHINE_FILES: Final[tuple[str, ...]] = (
     "conformance-cases.json",
     "manifest.json",
     "provider-info.schema.json",
+    "status-response.schema.json",
 )
 OUTPUT_FILES: Final[tuple[str, ...]] = (
     "manifest.json",
     "provider-info.schema.json",
+    "status-response.schema.json",
     "conformance-cases.json",
     "SHA256SUMS",
     "KIT-IDENTITY.json",
@@ -72,16 +79,11 @@ OUTPUT_FILES: Final[tuple[str, ...]] = (
 #: kit file so a validator that follows the identifier gets those bytes, not a
 #: second hand copy.
 _REPO: Final[Path] = Path(__file__).resolve().parents[1]
-API_SCHEMA: Final[Path] = (
-    _REPO
-    / "apps"
-    / "api"
-    / "src"
-    / "ai_stp_api"
-    / "slices"
-    / "schemas"
-    / "provider-info.schema.json"
-)
+_API_SCHEMA_DIR: Final[Path] = _REPO / "apps" / "api" / "src" / "ai_stp_api" / "slices" / "schemas"
+API_SCHEMAS: Final[dict[str, Path]] = {
+    "provider-info.schema.json": _API_SCHEMA_DIR / "provider-info.schema.json",
+    "status-response.schema.json": _API_SCHEMA_DIR / "status-response.schema.json",
+}
 
 
 def _json_bytes(value: object) -> bytes:
@@ -116,6 +118,7 @@ def _manifest() -> dict[str, object]:
         "projection_kinds": [kind.value for kind in protocol_v3.ProjectionKind],
         "unsupported_reasons": [reason.value for reason in protocol_v3.UnsupportedReason],
         "provenance_fields": list(protocol_v3.PROVENANCE_FIELDS),
+        "status_response_schema": "status-response.schema.json",
         "operation_network": network,
         # One owner each, rather than a list of three "normative sources". This
         # file is the vocabulary; a projection that names three sources of truth
@@ -152,6 +155,13 @@ def _cases() -> dict[str, object]:
         "forbidden_in_safe_conformance": sorted(
             set(protocol_v3.COMMANDS) - protocol_v3.READ_COMMANDS
         ),
+        "status_response": {
+            "schema": "status-response.schema.json",
+            "required_fields": list(protocol_v3.STATUS_ALWAYS_FIELDS),
+            "verified_fields": list(protocol_v3.STATUS_VERIFIED_FIELDS),
+            "state_values": list(protocol_v3.STATUS_STATES),
+            "cleanup_state_values": sorted(protocol_v3.CLEANUP_STATES),
+        },
     }
 
 
@@ -193,6 +203,7 @@ def render() -> dict[str, bytes]:
     files = {
         "manifest.json": _json_bytes(_manifest()),
         "provider-info.schema.json": _json_bytes(protocol_v3.WIRE_SCHEMA),
+        "status-response.schema.json": _json_bytes(protocol_v3.STATUS_WIRE_SCHEMA),
         "conformance-cases.json": _json_bytes(_cases()),
     }
     checksums = "".join(
@@ -222,13 +233,14 @@ def synchronize(output: Path, *, check: bool) -> tuple[str, ...]:
         if not check:
             output.mkdir(parents=True, exist_ok=True)
             path.write_bytes(content)
-    schema = expected["provider-info.schema.json"]
-    if API_SCHEMA.is_file() and API_SCHEMA.read_bytes() == schema:
-        return tuple(mismatches)
-    mismatches.append(str(API_SCHEMA))
-    if not check:
-        API_SCHEMA.parent.mkdir(parents=True, exist_ok=True)
-        API_SCHEMA.write_bytes(schema)
+    for name, path in API_SCHEMAS.items():
+        schema = expected[name]
+        if path.is_file() and path.read_bytes() == schema:
+            continue
+        mismatches.append(str(path))
+        if not check:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(schema)
     return tuple(mismatches)
 
 

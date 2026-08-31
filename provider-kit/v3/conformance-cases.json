@@ -95,5 +95,55 @@
     "status",
     "validate-bundle"
   ],
-  "schema": "ai-stp-provider-conformance-cases/1"
+  "schema": "ai-stp-provider-conformance-cases/1",
+  "status_response": {
+    "cleanup_state_values": [
+      "none",
+      "pending",
+      "required"
+    ],
+    "required_fields": [
+      "backups",
+      "canonical_target",
+      "cleanup_state",
+      "harness_id",
+      "journal",
+      "protocol_version",
+      "provider_id",
+      "provider_state",
+      "shadowed_by",
+      "state",
+      "target_digest",
+      "target_identity_digest"
+    ],
+    "schema": "status-response.schema.json",
+    "state_values": [
+      "managed",
+      "unmanaged",
+      "missing"
+    ],
+    "verified_fields": [
+      "state_schema",
+      "provider_version",
+      "provider_build_digest",
+      "provider_release_digest",
+      "setup_stable_id",
+      "setup_version",
+      "setup_version_passport_digest",
+      "setup_definition_digest",
+      "component_refs",
+      "bundle_format",
+      "bundle_digest",
+      "artifact_digest",
+      "projection_profile_digest",
+      "provider_plan_digest",
+      "operation_id",
+      "target_precondition_digest",
+      "native_ownership",
+      "written_paths",
+      "backup_ref",
+      "previous_verified_identity",
+      "drift_state"
+    ]
+  }
 }

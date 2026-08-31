@@ -39,7 +39,7 @@
   ],
   "decision": "docs/adr/ADR-0061-capability-negotiated-provider-protocol-v3.md",
   "generated_from": "apps/cli/src/ai_stp_cli/provider/protocol_v3.py",
-  "kit_version": "0.2.6",
+  "kit_version": "0.2.7",
   "operation_network": {
     "backup": [
       {
@@ -188,6 +188,7 @@
   ],
   "requirements": "specs/active/SPEC-008-provider-installation.md",
   "schema": "ai-stp-provider-conformance-kit/1",
+  "status_response_schema": "status-response.schema.json",
   "unsupported_reasons": [
     "unsupported_operation",
     "unsupported_component_kind",

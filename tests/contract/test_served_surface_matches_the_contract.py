@@ -19,9 +19,11 @@ rather than an omission.
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 from typing import Any, Final, cast
+from urllib.parse import urlsplit
 
 import pytest
 
@@ -70,13 +72,23 @@ BEYOND_THE_CONTRACT: Final[dict[str, str]] = {
     "/v1/publishers/{account_id}": "public publisher profile read",
 }
 
+
 #: JSON Schema `$id` URLs. They are identifiers, not `/v1` resources. Serving
 #: them under `/v1` would be a different URL than the published `$id`.
-PUBLISHED_SCHEMA_IDS: Final[dict[str, str]] = {
-    "/schemas/provider-protocol/v3/provider-info.json": (
-        "provider-kit v3 provider-info JSON Schema $id"
-    ),
-}
+def _published_schema_ids() -> dict[str, str]:
+    published: dict[str, str] = {}
+    for schema in sorted(Path("provider-kit/v3").glob("*.schema.json")):
+        document = cast(dict[str, object], json.loads(schema.read_text(encoding="utf-8")))
+        identifier = document.get("$id")
+        assert isinstance(identifier, str), f"{schema} has no string $id"
+        path = urlsplit(identifier).path
+        assert path not in published, f"two provider schemas publish {path}"
+        published[path] = f"provider-kit v3 {schema.name} JSON Schema $id"
+    assert published, "provider-kit publishes no JSON Schema identifiers"
+    return published
+
+
+PUBLISHED_SCHEMA_IDS: Final[dict[str, str]] = _published_schema_ids()
 
 
 def _served_document(tmp_path: Path) -> dict[str, Any]:
