@@ -23,14 +23,20 @@ reverse proxy
 The MVP server environment is hosted on the owner's own `server-nddev-kazakhstan` server; no separate cloud budget is allocated. The reverse proxy, application, database, worker, and object storage run on that node within its resources. The public domain is fixed before server mode is opened; until then, examples use a placeholder catalog address.
 
 The node is shared with the owner's other services, and this constraint determines
-port publication. External ports `80` and `443` belong to the host proxy, which
-already serves neighboring domains and terminates TLS. Caddy therefore remains the
-stack entry point but is published on a local port: the addresses are set by
-`AI_STP_CADDY_HTTP_BIND` and `AI_STP_CADDY_HTTPS_BIND`, whose defaults (`80` and
-`443`) leave an unshared installation unchanged. Only the publication point moves,
-not Caddy's role. When the host proxy already holds the certificate, an
-`AI_STP_PUBLIC_HOST` using the `http://` scheme prevents Caddy from requesting ACME
-for a name whose challenge it cannot answer on port `80`.
+port publication. External ports `80` and `443` belong to the host's `nginx`, which
+already serves neighboring domains and terminates TLS with certbot certificates.
+The stack therefore ships no proxy of its own (`ADR-0135`): `api`, `web` and `docs`
+publish to loopback — `AI_STP_API_BIND`, `AI_STP_WEB_BIND` and `AI_STP_DOCS_BIND`,
+defaulting to `127.0.0.1:58082`, `58081` and `58083` — and nginx routes the public
+names to them.
+
+The route split is not host-only knowledge: this repository owns it as
+`deploy/nginx/ai-stp.conf.template` and `deploy/nginx/ai-stp-docs.conf.template`,
+and `deploy/nginx/render.sh` installs one site from them. That script is not part
+of the automatic deployment. The pull-deploy unit runs unprivileged with
+`NoNewPrivileges=true` and `ProtectSystem=strict` and cannot write `/etc/nginx`;
+granting it that would hand the unattended path root over the host's web server.
+Applying a routing change is therefore an operator step, run with `sudo`.
 
 ## Rules
 

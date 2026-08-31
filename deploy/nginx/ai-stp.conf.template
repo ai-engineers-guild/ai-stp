@@ -1,0 +1,64 @@
+# Public edge for the main ai_stp host (SPEC-019 REQ-1903, SPEC-024 REQ-2404/2406,
+# ADR-0135). nginx on the deployment host terminates TLS and owns the route split;
+# the compose stack publishes api, web and docs on loopback only and starts no
+# proxy of its own.
+#
+# Render with deploy/nginx/render.sh, which substitutes @@NAME@@ from .env.prod.
+# @@LINEAGE@@ is certbot's directory, which is not always the host name: a
+# reissue lands in `example.com-0001` while the site is still `example.com`.
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name @@MAIN_HOST@@;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name @@MAIN_HOST@@;
+
+    ssl_certificate /etc/letsencrypt/live/@@LINEAGE@@/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/@@LINEAGE@@/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    client_max_body_size 100M;
+
+    # Inherited by every location below, so each one carries only its upstream.
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    # The client address the API resolves a coarse location from (SPEC-023
+    # REQ-2314). Set rather than forwarded: this directive replaces whatever the
+    # client sent, so the value cannot be chosen by the visitor it describes.
+    proxy_set_header X-AI-STP-Client-IP $remote_addr;
+    proxy_read_timeout 300s;
+    proxy_send_timeout 300s;
+
+    # The API owns its versioned surface, the OpenAPI documents that describe it,
+    # and the provider-protocol schemas whose $id points at this host.
+    location /v1/ {
+        proxy_pass http://@@API_BIND@@;
+    }
+    location /docs {
+        proxy_pass http://@@API_BIND@@;
+    }
+    location /redoc {
+        proxy_pass http://@@API_BIND@@;
+    }
+    location = /openapi.json {
+        proxy_pass http://@@API_BIND@@;
+    }
+    location /schemas/provider-protocol/ {
+        proxy_pass http://@@API_BIND@@;
+    }
+
+    location / {
+        proxy_pass http://@@WEB_BIND@@;
+    }
+}

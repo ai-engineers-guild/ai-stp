@@ -1,6 +1,28 @@
 # Managed by codex-setup-system.
 #
 # Every key here is from learn.chatgpt.com/docs/config-file/config-reference.
+#
+# **Two of the three restate this build's own defaults, and that is recorded
+# rather than hidden.** Measured 2026-08-30 against the pinned artifact on
+# linux/x86_64, with a temporary CODEX_HOME and `codex doctor` reading the
+# resolved values back:
+#
+#   empty file                       approval OnRequest, filesystem restricted
+#   approval_policy = "on-request"   approval OnRequest      -- the same
+#   sandbox_mode = "workspace-write" filesystem restricted   -- the same
+#   approval_policy = "never"        approval Never          -- so it discriminates
+#   sandbox_mode = "danger-full-access"  filesystem unrestricted
+#
+# The last two lines are why the first three mean something: an instrument that
+# printed the same answer for every input would have produced these readings too.
+#
+# They stay. A posture should state what it wants rather than inherit it, because
+# a default is the vendor's decision and can move under a file that says nothing.
+# What must not happen is a reader taking them for switches somebody threw and
+# stopping there -- the one key that changes something here is
+# `model_reasoning_effort`, and `doctor` does not report it, so this file cannot
+# show you that it took. Unmeasured, not ineffective: the instrument is silent
+# about it, which is a different thing from the product being silent.
 approval_policy = "on-request"
 sandbox_mode = "workspace-write"
 model_reasoning_effort = "medium"

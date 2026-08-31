@@ -5,7 +5,7 @@ last_verified: "2026-08-10"
 
 # ADR-0078: User documentation container and subdomain
 
-Status: accepted.
+Status: accepted. Its review condition — that `Caddy` ceases to be the public edge — was met by `ADR-0135-nginx-is-the-only-edge-proxy.md`, and the decision survived it: the documentation is still a separate container on its own host name, now reached through the host's nginx and serving its built site with nginx rather than Caddy.
 
 ## Context
 

@@ -4,13 +4,6 @@
 # the posture, and it is only half of what a capability posture owes: approvals
 # and the sandbox decide what you are asked and what is confined, while the keys
 # below decide which tools exist at all.
-#
-# Only keys this build actually reads are set here. The vendor's configuration
-# reference also documents `features.hooks`, `features.memories` and
-# `features.multi_agent`; the pinned 0.149.1 binary carries none of those three
-# spellings and does carry `features.multi_agent_v...`, so writing the
-# documented forms would set keys this build ignores. They are left out until a
-# build names them.
 approval_policy = "never"
 sandbox_mode = "danger-full-access"
 
@@ -18,5 +11,38 @@ sandbox_mode = "danger-full-access"
 # `indexed`, `live` -- and the one a `disabled` default would otherwise withhold.
 web_search = "live"
 
-[tools]
-view_image = true
+# Every capability this build ships as `Stage::Stable` and leaves off. Measured
+# rather than chosen: the pinned 0.151.0 feature registry carries 126 specs, 40
+# of them stable, and exactly three of those are `default_enabled: false`. The
+# rest are already on, or are under development, deprecated or removed -- and a
+# posture that switched those on would be asking for behaviour this build does
+# not stand behind.
+#
+# **`[features]`, not `[tools]`.** This block used to read
+#
+#     [tools]
+#     view_image = true
+#
+# which set nothing at all. `ToolsToml` has three members at this pin --
+# `web_search`, `experimental_request_user_input`, `update_plan` -- and serde
+# carries no `deny_unknown_fields`, so the key parsed, was ignored, and left the
+# file claiming a capability it never turned on. `view_image` is a *feature*
+# key, and it is `default_enabled: true` anyway, so even the right spelling
+# would have changed nothing.
+#
+# Measured against the pinned 0.151.0 artifact with a temporary `CODEX_HOME`,
+# and with the control that makes the number mean something -- `codex doctor`
+# reports `46 enabled · 0 overridden` for an empty file, for the old
+# `[tools] view_image = true`, and for an invented `[tools]` key alike, and
+# `45 · 1` for `[features] view_image = false`. So the instrument does
+# discriminate, and the old key was indistinguishable from one nobody defined.
+# This block reports `49 enabled · 3 overridden`, `config.toml parse ok`, and no
+# startup warning.
+#
+# `memories` persists across sessions and `multi_agent_v2` is a second
+# orchestration backend. Both are the product's own stable features rather than
+# experiments, and this posture exists to hand over what the harness allows.
+[features]
+memories = true
+multi_agent_v2 = true
+recommended_plugins = true

@@ -1,3 +1,4 @@
 {
-  "enableSkillCommands": true
+  "enableSkillCommands": true,
+  "defaultProjectTrust": "always"
 }

@@ -1,6 +1,8 @@
-# Production stack (SPEC-019, ADR-0040, SPEC-024, ADR-0044, ADR-0086).
+# Production stack (SPEC-019, ADR-0040, SPEC-024, ADR-0044, ADR-0086, ADR-0135).
 # Copy .env.prod.example to .env.prod and fill secrets before bring-up.
-# Postgres and RustFS stay internal; only Caddy is published.
+# Postgres and RustFS stay internal. api, web and docs publish to loopback
+# only; the host's nginx terminates TLS and owns the public route split
+# (deploy/nginx/ai-stp.conf.template).
 
 services:
   postgres:
@@ -102,6 +104,12 @@ services:
         required: false
     volumes:
       - logs:/var/log/ai_stp
+      # Coarse-location database (SPEC-023 REQ-2314). Read-only, and empty in the
+      # repository: the file and its update policy belong to the operator. Absent,
+      # the lookup returns nothing and login is unaffected.
+      - ./deploy/geoip:/srv/geoip:ro
+    ports:
+      - "${AI_STP_API_BIND:-127.0.0.1:58082}:8000"
     networks: [internal, edge]
     depends_on:
       postgres:
@@ -282,6 +290,8 @@ services:
     env_file:
       - path: .env.prod
         required: false
+    ports:
+      - "${AI_STP_WEB_BIND:-127.0.0.1:58081}:3000"
     networks: [internal, edge]
     depends_on:
       api:
@@ -307,34 +317,11 @@ services:
       target: prod
       args:
         AI_STP_USER_DOCS_SITE_URL: ${AI_STP_USER_DOCS_URL:-https://docs.example.invalid}
+    ports:
+      - "${AI_STP_DOCS_BIND:-127.0.0.1:58083}:8080"
     networks: [edge]
     restart: always
 
-  caddy:
-    image: caddy:2@sha256:df7f1c2fb114453b951de51a98efc010db1655a92c2e86be6706714e2417a78d
-    environment:
-      AI_STP_PUBLIC_HOST: ${AI_STP_PUBLIC_HOST:-localhost}
-      AI_STP_DOCS_HOST: ${AI_STP_DOCS_HOST:-docs.example.invalid}
-    depends_on:
-      api:
-        condition: service_healthy
-      web:
-        condition: service_healthy
-      docs:
-        condition: service_started
-    # Published address is configurable so the stack can share a host that
-    # already serves something on 80/443. The defaults are exactly the previous
-    # values, so an untouched deployment behaves as before; a co-tenant sets
-    # `127.0.0.1:58080` and puts the host's own proxy in front.
-    ports:
-      - "${AI_STP_CADDY_HTTP_BIND:-80}:80"
-      - "${AI_STP_CADDY_HTTPS_BIND:-443}:443"
-    volumes:
-      - ./deploy/caddy/Caddyfile.prod:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    networks: [edge]
-    restart: always
 
 networks:
   internal:
@@ -347,5 +334,3 @@ volumes:
   logs:
   osv_offline:
   clamav_db:
-  caddy_data:
-  caddy_config:

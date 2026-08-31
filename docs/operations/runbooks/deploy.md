@@ -112,10 +112,11 @@ host, then run `deploy/run.sh` and `deploy/verify.sh`. It is also the recovery p
 when the runner on the host is unavailable.
 
 `AI_STP_PUBLIC_HOST` and `AI_STP_DOCS_HOST` belong in `.env.prod` on the host, not
-in the repository. Both include a scheme. Behind a host proxy that already terminates TLS,
-the address must begin with `http://`: without a scheme, Caddy enables automatic
-HTTPS and asks a public authority once a minute for a certificate for a name that does not exist
-in DNS. A host that publishes `80` and `443` itself omits the scheme.
+in the repository. Both are bare host names and carry no scheme: the stack asks no
+authority for anything, so they name a server rather than an origin (`ADR-0135`).
+Either may hold several space-separated names, as nginx's own `server_name` does;
+the first names the rendered file and, unless `AI_STP_TLS_LINEAGE` says otherwise,
+the certbot directory.
 
 The agent on the host executes only the contents of the monotonic ref published by the
 release job. Its deploy key has read-only access to Contents; there is no Actions
@@ -175,8 +176,9 @@ The preferred path is the script with locking:
 ```bash
 export AI_STP_COMPOSE_FILE=docker-compose.prod.yml
 export AI_STP_ENV_FILE=.env.prod
-# Optional: readiness URL through the published Caddy port
-# export AI_STP_READINESS_URL=https://$AI_STP_PUBLIC_HOST/v1/health/ready
+# On a host whose root is not a repository, name the commit being deployed;
+# without it the artifact record is written empty and rollback loses its baseline.
+export AI_STP_API_GIT_COMMIT="$(sed -n 's/^git_commit=//p' .deploy-state/current)"
 ./deploy/deploy.sh
 ```
 
@@ -190,7 +192,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d postgres ru
 docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm migrate
 docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm seed
 docker compose -f docker-compose.prod.yml --env-file .env.prod rm -fs content-import
-docker compose -f docker-compose.prod.yml --env-file .env.prod up -d api worker content-import web caddy
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d api worker content-import web docs
 ```
 
 Before `up`, the production worker Compose configuration requires the
@@ -207,7 +209,7 @@ user namespace still cannot be created. See `safety-scan.md` for details.
 
 ### Dev stack (local)
 
-Caddy is **not** used in dev. The browser origin is the published `web`.
+No host proxy is used in dev. The browser origin is the published `web`.
 
 ```bash
 export AI_STP_API_GIT_COMMIT="$(git rev-parse HEAD)"
@@ -235,11 +237,11 @@ sets `AI_STP_USE_MOCKS=true` in `.env.dev`. Staging smoke always uses `false`.
    `/v1/content/repository/state`, then POST the embedded snapshot. An empty
    token, an empty hub, and a zero commit cause rejection. The scripts remove the previous
    container (`compose rm -fs content-import`); otherwise, an exited-0 container skips the POST.
-6. `web` starts only after `content-import` exits 0; in **prod**, `caddy` starts
-   after healthy `api` and `web`. There is no Caddy in **dev**.
-   After `up`, prod recreates `caddy` (`--force-recreate --no-deps`): rsync
-   changes the inode of the bind-mounted `Caddyfile`, while the running process continues to read
-   the old one. `caddy reload` does not fix this.
+6. `web` starts only after `content-import` exits 0. The stack starts no proxy in
+   either environment (`ADR-0135`); in **prod** the host's nginx is already running
+   and reaches `api`, `web` and `docs` on their loopback ports, so a deploy that
+   only changes application code needs no proxy action at all. A change to the
+   route split is applied separately with `sudo deploy/nginx/render.sh`.
 
 Application rollback does not touch the schema (`REQ-2410`): `deploy/rollback.sh` restores
 the previous exact artifact and leaves the revision in place.
@@ -257,7 +259,7 @@ only for an environment with nothing to lose.
 
 ## Health and diagnostics
 
-| Check | URL (prod: through Caddy; dev: `:8000` or same-origin `:3000/v1`) | Expected result |
+| Check | URL (prod: through the host's nginx, or directly on `:58082`; dev: `:8000` or same-origin `:3000/v1`) | Expected result |
 | -------- | ----------------- | -------- |
 | Liveness | `/v1/health/live` | 200 |
 | Readiness | `/v1/health/ready` | 200, otherwise 503 |
@@ -281,13 +283,14 @@ It has no options to disable TLS or override DNS.
 
 ### Routing
 
-**Staging/prod (Caddy):**
+**Prod (the host's nginx, from `deploy/nginx/ai-stp.conf.template`):**
 
-- `/v1/*`, `/docs*`, `/redoc*`, `/openapi.json` → `api:8000`
-- everything else → `web:3000`
-- only Caddy is exposed externally
+- `/v1/`, `/docs`, `/redoc`, `/openapi.json`, `/schemas/provider-protocol/` → the API bind
+- everything else → the web bind
+- the documentation host → the docs bind
+- only nginx is exposed externally; the stack's own ports stay on loopback
 
-**Local dev (without Caddy):**
+**Local dev (no host proxy):**
 
 - host `web:3000`—UI; Next rewrite `/v1/*` (and docs paths) → `api:8000`
 - host `api:8000`—direct API (legacy OAuth callback)
@@ -393,7 +396,9 @@ after `rsync`.
 
 ## Smoke test on the deployed slice
 
-Verify through the public Caddy origin (not the direct api/web ports):
+Verify through the public origin the host's nginx serves, not the direct loopback
+binds: what the binds prove is that a container answers, and what the public origin
+proves is that the name, its certificate and the route split reach it.
 
 1. Landing page: `GET /` (or `/ru`, `/en`)—200, shell renders.
 2. Catalog: `GET /ru/catalog` (or en)—list/empty state without 5xx.

@@ -24,7 +24,7 @@ import os
 import sqlite3
 import stat
 import zipfile
-from dataclasses import KW_ONLY, dataclass
+from dataclasses import KW_ONLY, dataclass, replace
 from itertools import islice
 from pathlib import Path
 from typing import Final
@@ -930,6 +930,25 @@ def adopt(
         )
 
     adopted = _read(item.absolute)
+    # A component that contributes a key to an owned file carries the key's
+    # value, not the file. `contribution.parse_value` says so and `assemble`
+    # depends on it; adoption stored the whole host file, so the document became
+    # the value of its own key and the target grew `[mcp_servers.mcp_servers.…]`
+    # under a copy of unrelated settings — with `verified` reported, because the
+    # provider wrote exactly the bytes it was handed.
+    #
+    # Imported here rather than at module scope: `composition` imports this
+    # module, and the rule table is what knows a kind lands inside a host file.
+    from ai_stp_cli.local import composition, contribution
+
+    rule = composition.rule_for(item.component_type, item.harness_id)
+    if rule is not None and rule.declared_key:
+        adopted = replace(
+            adopted,
+            payload=contribution.extract_value(
+                host=rule.relative, content=adopted.payload, key=rule.declared_key
+            ),
+        )
     at = moment()
     stored_bytes = content.put(connection, adopted.payload, at=at)
 

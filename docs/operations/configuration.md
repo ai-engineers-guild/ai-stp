@@ -39,12 +39,17 @@ The browser device cookie outlives the login session and is refreshed after ever
 successful OAuth callback. Its lifetime is set by `AI_STP_AUTH_DEVICE_COOKIE_TTL_SECONDS`;
 the default is 400 days, the maximum lifetime supported by modern browsers.
 
-Approximate location does not depend on an external service. Caddy overwrites
-`X-AI-STP-Client-IP` with the computed client address, and the API looks up the city
-and country in a local City Lite MMDB at `AI_STP_AUTH_GEOIP_CITY_DB_PATH`. The
-production compose mounts `deploy/geoip` read-only; the database file and its update
-policy belong to the operator and are not committed to Git. `deploy/geoip/city.mmdb`
-contains the monthly DB-IP City Lite database under CC BY 4.0; the UI attributes DB-IP
-where it displays a resolved location. If the database is missing or corrupt, login
-continues to work and the location remains unknown. The application stores only city
-and country, not the source IP or precise coordinates.
+Approximate location does not depend on an external service. The host's nginx sets
+`X-AI-STP-Client-IP` to the connecting address, replacing whatever the client sent,
+and the API resolves city and country against a local City Lite MMDB at
+`AI_STP_AUTH_GEOIP_CITY_DB_PATH`. The production compose mounts `deploy/geoip`
+read-only; the database file and its update policy belong to the operator and are not
+committed to Git. A private or loopback address resolves to nothing, as does a missing
+or unreadable database, and login continues to work in either case.
+
+When the lookup yields nothing, `x-vercel-ip-city`, `x-vercel-ip-country` and
+`cf-ipcountry` are read as a fallback for a deployment behind a CDN that supplies
+them. No CDN sits in front of this one, so those headers reach the API only if a
+visitor sends them: the fallback can therefore mislabel the visitor's own device row
+and nothing else. The application stores only city and country, never the address it
+resolved them from or precise coordinates.

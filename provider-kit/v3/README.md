@@ -9,6 +9,8 @@ them at runtime.
   and network phases.
 - `provider-info.schema.json` is the closed JSON Schema for the `provider-info`
   response.
+- `status-response.schema.json` is the closed JSON Schema for the `status`
+  response.
 - `conformance-cases.json` lists the required fail-closed classes.
 - `SHA256SUMS` binds the exact bytes of the other artifacts.
 - `KIT-IDENTITY.json` names exactly one kit revision: an aggregate digest plus
@@ -32,7 +34,7 @@ command is named here as the file origin, not as an action.
 
 The kit reader owns a different check, which requires nothing external:
 `SHA256SUMS` binds the exact bytes of the other artifacts, and `KIT-IDENTITY.json`
-names the aggregate digest of the canonical bytes of `SHA256SUMS`. The kit carries
-these files for that purpose.
+names the SHA-256 of the `SHA256SUMS` file itself, without normalization. The kit
+carries these files for that purpose.
 
 Do not edit generated JSON by hand.

@@ -5,6 +5,8 @@ them, not a replacement.
 
 - Say what is true. If a check did not run, say it did not run.
 - Prefer the smallest change that actually fixes the thing.
-- A new guard is worth keeping only once it has been seen failing on the defect
-  it describes.
+- Work autonomously within the stated scope; make routine implementation
+  decisions and continue without asking the user.
+- Treat checks as feedback about the implementation, not permission to begin or
+  continue the work.
 - English in code, comments, documentation and commits.

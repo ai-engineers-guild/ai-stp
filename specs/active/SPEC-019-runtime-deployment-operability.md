@@ -11,20 +11,20 @@ The server runtime gets reproducible packaging and operations for dev and prod: 
 
 ## Scope
 
-Includes the env layout for dev and prod with samples, multi-stage images for `api`, `worker`, and user documentation, the `Caddy` reverse proxy for **prod**, direct host-publishing of `web`/`api`/`docs` for **dev** (without Caddy), `docker-compose` for dev and prod, network isolation, healthchecks for `liveness` and `readiness`, a restart policy, and file logs on a mounted volume. Excludes real ACME and a domain, production backups and the rollback procedure (`#84`), domain-handler contents (`SPEC-018`, `#79`, `#81`), and application rules (`SPEC-017`).
+Includes the env layout for dev and prod with samples, multi-stage images for `api`, `worker`, and user documentation, the loopback publishing of `web`/`api`/`docs` behind the deployment host's own `nginx` for **prod**, direct host-publishing of the same three for **dev**, `docker-compose` for dev and prod, network isolation, healthchecks for `liveness` and `readiness`, a restart policy, and file logs on a mounted volume. Excludes real ACME and a domain, production backups and the rollback procedure (`#84`), domain-handler contents (`SPEC-018`, `#79`, `#81`), and application rules (`SPEC-017`).
 
 ## Terms
 
 - `Env layout` - a set of configuration files for environments, where only samples without secrets are included in the repository.
-- `Reverse proxy` - `Caddy`, the only publicly accessible entry point of the **prod** stack. In **dev** public points are published ports of `web`, `api` and user documentation; same-origin `/v1/*` provides dev-rewrite Next.js.
+- `Reverse proxy` - the deployment host's `nginx`, the only publicly accessible entry point of the **prod** stack; it is host state, not a stack service, and this repository owns only the route split it executes (`ADR-0135`). In **dev** public points are published ports of `web`, `api` and user documentation; same-origin `/v1/*` provides dev-rewrite Next.js.
 - `Healthcheck` - `liveness` and `readiness` container check that controls dependency readiness and restart of unhealthy container.
 
 ## Requirements
 
 - `REQ-1901`: The dev and prod configurations are specified by separate env files, only samples without secrets are included in the repository, and the real `.env.dev` and `.env.prod` are excluded from the index.
 - `REQ-1902`: `api`, `worker`, and user documentation are built as multi-stage images, where the dev image is suitable for local development and the prod image is minimal or static.
-- `REQ-1903`: The `Caddy` reverse proxy serves **prod** (ACME/domain — `#84` / `SPEC-024`). **Dev exception:** local `docker-compose.dev.yml` does not start Caddy; the browser accesses the published `web`, with same-origin `/v1/*` reaching `api` through a Next.js dev rewrite.
-- `REQ-1904`: `docker-compose` **prod** starts `api`, `worker`, `docs`, `PostgreSQL`, `RustFS`, and `Caddy`. `docker-compose` **dev** starts `api`, `worker`, `docs`, `PostgreSQL`, `RustFS`, and `web` (without Caddy), publishing the `web`, `api`, and `docs` ports to the host.
+- `REQ-1903`: In **prod** the stack starts no proxy and publishes `api`, `web` and `docs` on loopback; the deployment host's `nginx` terminates TLS and executes the route split this repository keeps as a template (ACME/domain — `SPEC-024`). **Dev:** local `docker-compose.dev.yml` publishes the same services directly, and the browser reaches `api` from the web origin through a Next.js dev rewrite.
+- `REQ-1904`: `docker-compose` **prod** starts `api`, `worker`, `web`, `docs`, `PostgreSQL` and `RustFS`, and no proxy service. `docker-compose` **dev** starts the same set, publishing the `web`, `api`, and `docs` ports to the host.
 - `REQ-1905`: `PostgreSQL` and `RustFS` are not published on the Internet and are only available via the internal network. In **prod** only the reverse proxy is exposed to the outside; in **dev** `web`, `api` and `docs` are open to the outside (not the database or object storage).
 - `REQ-1906`: Containers have a healthcheck on `liveness` and `readiness`, dependent services start when the dependency is ready, and an unhealthy container is restarted by the restart policy.
 - `REQ-1908`: Daily file logs are written to a mounted volume with daily rotation.
@@ -48,8 +48,8 @@ The env layout is extended by adding optional keys and updating the samples. A c
 |---|---|
 | `REQ-1901` | Checking the repository confirms the presence of samples without secrets and the absence of real env files in the index. |
 | `REQ-1902` | The `api`, `worker` and `docs` images are built for dev and prod, and the prod image does not contain unnecessary development tools. |
-| `REQ-1903` | Prod rises from `Caddy`; dev compose does not contain the `caddy` service, and `/v1/*` from the origin of the web reaches the API (rewrite/proxy). |
-| `REQ-1904` | `docker-compose` prod raises api/worker/docs/postgres/rustfs/caddy (+ web by SPEC-024); dev - api/worker/web/docs/postgres/rustfs without caddy. |
+| `REQ-1903` | Neither compose file contains a proxy service; prod publishes `api`/`web`/`docs` on loopback and the checked-in nginx template routes `/v1/`, `/docs`, `/redoc`, `/openapi.json` and `/schemas/provider-protocol/` to the API and the rest to the web; in dev `/v1/*` from the web origin reaches the API by rewrite. |
+| `REQ-1904` | `docker-compose` prod raises api/worker/web/docs/postgres/rustfs and no proxy; dev raises the same set. |
 | `REQ-1905` | Network test confirms that `PostgreSQL` and `RustFS` are not accessible from the outside; prod - only through a proxy, dev - through published web/api/docs. |
 | `REQ-1906` | Healthcheck reflects `liveness` and `readiness`, the dependent service waits for the dependency to be ready, and the unhealthy container is restarted. |
 | `REQ-1908` | Checking the volume confirms the daily file log with rotation. |

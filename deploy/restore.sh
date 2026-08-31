@@ -82,7 +82,7 @@ log info "rustfs_restore_ok"
 compose up -d postgres rustfs >/dev/null
 compose run --rm migrate >/dev/null
 compose rm -fs content-import >/dev/null 2>&1 || true
-compose up -d api worker content-import web caddy >/dev/null
+compose up -d api worker content-import web docs >/dev/null
 wait_for_readiness
 
 log info "restore_complete"

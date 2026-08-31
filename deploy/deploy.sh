@@ -20,14 +20,15 @@ Deploy steps (order):
   1. Acquire deploy lock (flock)
   2. Record previous artifact for rollback
   3. Build images (unless --skip-build)
-  4. migrate -> seed -> api/worker + content-import -> web/caddy up
+  4. migrate -> seed -> api/worker + content-import -> web up
   5. Wait for readiness; abort on timeout
   6. Record current artifact
 
 Environment:
   AI_STP_COMPOSE_FILE   default docker-compose.prod.yml
   AI_STP_ENV_FILE       default .env.prod
-  AI_STP_API_GIT_COMMIT injected into api for safe diagnostics
+  AI_STP_API_GIT_COMMIT injected into api for safe diagnostics; on a host whose
+                        root is not a repository it also names the deploy
 EOF
 }
 
@@ -60,6 +61,14 @@ acquire_deploy_lock
 trap release_deploy_lock EXIT
 
 COMMIT="$(current_git_commit)"
+# An operator on a pull-model host names the commit through the one variable
+# this script documents. Without this, the identity resolver never saw it, wrote
+# an empty artifact record, and left `rollback.sh` with no baseline -- while the
+# deploy itself succeeded, so nothing said anything was wrong.
+if [[ ${COMMIT} == "unknown" && -n ${AI_STP_API_GIT_COMMIT:-} ]]; then
+  COMMIT="${AI_STP_API_GIT_COMMIT}"
+  export AI_STP_DEPLOY_COMMIT="${COMMIT}"
+fi
 export AI_STP_API_GIT_COMMIT="${AI_STP_API_GIT_COMMIT:-${COMMIT}}"
 
 # Web waits for the repository content import to complete. Without its shared
@@ -112,11 +121,7 @@ record_deploy_stage "${COMMIT}" "seeded"
 # One-shot importer: an exited container from the previous release is not
 # current. Remove it so `up` POSTs this image's snapshot (same digest is no-op).
 compose rm -fs content-import >/dev/null 2>&1 || true
-compose up -d api worker content-import web caddy
-# rsync deploys replace bind-mounted files by new inodes. The official
-# caddy:2 image does not follow that; a long-lived container keeps serving
-# the Caddyfile it opened at start, and `caddy reload` reloads that inode.
-compose up -d --force-recreate --no-deps caddy
+compose up -d api worker content-import web docs
 log info "services_started"
 record_deploy_stage "${COMMIT}" "services_started"
 

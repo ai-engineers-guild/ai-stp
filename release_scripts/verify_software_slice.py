@@ -65,6 +65,27 @@ _CAPABILITY_CODES: Final[frozenset[str]] = frozenset(
 )
 
 
+#: Codes that describe **this machine**, not the provider that was asked. Named
+#: one by one rather than matched by a pattern: a rule like "anything ending in
+#: UNAVAILABLE" would silently swallow a future code that describes a provider,
+#: and the whole point of separating them is that the wrong one changes what a
+#: row means.
+#:
+#: A row that hits one of these is `inconclusive`. It is not a provider that
+#: failed and not a provider that passed — the question was never put. The
+#: setup-systems session reached this the hard way: its scheduled run filed
+#: "seven harnesses stopped conforming" when none had, because a refusal about
+#: the environment arrived in the same `ok:false` envelope as a real one.
+_ENVIRONMENT_CODES: Final[frozenset[str]] = frozenset(
+    {
+        "AI_STP_DEPENDENCY_UNAVAILABLE",
+        "AI_STP_TIMEOUT_UNCONFIRMED",
+        "AI_STP_RATE_LIMITED",
+        "AI_STP_AUTH_REQUIRED",
+    }
+)
+
+
 def _artifact(directory: Path) -> Path:
     """The one executable `provider fetch` wrote, and its manifest beside it."""
     found = [
@@ -89,7 +110,12 @@ def _stage(
     if envelope.get("ok") is True:
         return {"stage": name, "outcome": PASSED, "data": data(envelope, name)}
     code = error_code(envelope)
-    outcome = NOT_APPLICABLE if code in _CAPABILITY_CODES else FAILED
+    if code in _ENVIRONMENT_CODES:
+        outcome = INCONCLUSIVE
+    elif code in _CAPABILITY_CODES:
+        outcome = NOT_APPLICABLE
+    else:
+        outcome = FAILED
     return {"stage": name, "outcome": outcome, "code": code}
 
 

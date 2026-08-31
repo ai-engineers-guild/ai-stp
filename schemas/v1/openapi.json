@@ -14123,7 +14123,7 @@
                         "published_at": "2026-08-12",
                         "slug": "safe-setup",
                         "source_kind": "repository",
-                        "source_path": "en/article-safe-setup.md",
+                        "source_path": "docs-user-facing/content/en/article-safe-setup.md",
                         "source_ref": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                         "tags": [
                           "setup"
@@ -14139,7 +14139,7 @@
                         "published_at": "2026-08-12",
                         "slug": "safe-setup",
                         "source_kind": "repository",
-                        "source_path": "ru/article-safe-setup.md",
+                        "source_path": "docs-user-facing/content/ru/article-safe-setup.md",
                         "source_ref": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                         "tags": [
                           "setup"
@@ -14528,7 +14528,7 @@
                       "schema_version": 1,
                       "slug": "safe-setup",
                       "source_kind": "repository",
-                      "source_path": "en/article-safe-setup.md",
+                      "source_path": "docs-user-facing/content/en/article-safe-setup.md",
                       "source_ref": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                       "tags": [
                         "setup",
