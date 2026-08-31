@@ -1,72 +1,72 @@
 ---
-description: "SPEC-010: Серверная платформа и API."
+description: "SPEC-010: Server platform and API."
 last_verified: "2026-08-28"
 ---
 
-# SPEC-010: Серверная платформа и API
+# SPEC-010: Server platform and API
 
-## Цель
+## Purpose
 
-Минимальная платформа предоставляет авторизацию, публичный и приватный реестр, устройства, синхронизацию, публикацию и административные операции через стабильный API, не дублируя локальные бизнес-правила CLI.
+The minimal platform provides authentication, a public and private registry, devices, synchronization, publication, and administrative operations through a stable API without duplicating the CLI's local business rules.
 
-## Границы
+## Scope
 
-Входят FastAPI `/v1`, PostgreSQL, рабочие задания на PostgreSQL, RustFS/S3, вход через Google и GitHub, веб-интерфейс Next.js для учётной записи и публичного каталога и Resend. Redis, платежи, браузерный редактор сетапов, сложный интерфейс торговой площадки и прямой доступ клиента к хранилищу не входят в MVP.
+This includes FastAPI `/v1`, PostgreSQL, PostgreSQL-backed jobs, RustFS/S3, Google and GitHub sign-in, a Next.js web interface for the account and public catalog, and Resend. Redis, payments, a browser-based setup editor, a complex marketplace interface, and direct client access to storage are out of scope for the MVP.
 
-Механику слоя исполнения, фонового worker и развёртывания детализируют `SPEC-017`, `SPEC-018` и `SPEC-019`; здесь эти правила не повторяются, а их владельцами остаются перечисленные спецификации.
+The mechanics of the execution layer, background worker, and deployment are detailed in `SPEC-017`, `SPEC-018`, and `SPEC-019`; those rules are not repeated here, and the listed specifications remain their owners.
 
-## Термины
+## Terms
 
-- `API` — версионируемая граница HTTP для CLI и веб-интерфейса.
-- `Worker` — обработчик заданий с доставкой не менее одного раза и идемпотентными обработчиками.
-- `RustFS` — S3-совместимое хранилище неизменяемых артефактов.
+- `API` — a versioned HTTP boundary for the CLI and web interface.
+- `Worker` — a job processor with at-least-once delivery and idempotent handlers.
+- `RustFS` — S3-compatible storage for immutable artifacts.
 
-## Требования
+## Requirements
 
-- `REQ-1001`: Платформа использует FastAPI `/v1`, PostgreSQL, рабочие задания на PostgreSQL и RustFS/S3.
-- `REQ-1002`: Вход поддерживает Google и GitHub с отдельным процессом связывания учётных записей.
-- `REQ-1003`: Полномочия проверяются для каждого объекта и действия; идентификатор аккаунта сам по себе не предоставляет доступ.
-- `REQ-1004`: Закрытые артефакты недоступны напрямую из хранилища и выдаются только после проверки полномочий объекта.
-- `REQ-1005`: Изменяющие запросы используют ключи идемпотентности и оптимистическую конкуренцию через ревизию или ETag.
-- `REQ-1006`: Рабочий процесс использует доставку не менее одного раза, транзакционный исходящий журнал, ограниченный повтор и идемпотентные обработчики.
-- `REQ-1007`: Административное чтение и изменения подтверждения, публичности, блокировки и прав создают события аудита.
-- `REQ-1008`: Next.js в MVP содержит landing с командой установки, вход, публичный поиск, карточки объектов и версий, публичные профили, профиль аккаунта, публичный профиль и приватность, устройства, собственные черновики, объекты и версии, публикацию и её состояние, состояние синхронизации, права и приглашения и минимальные административные действия.
-- `REQ-1009`: Resend используется только для согласованных почтовых сценариев, включая доставку приглашения, и не становится источником личности.
-- `REQ-1010`: API поддерживает объявленное окно версий CLI и схемы и возвращает типизированные ошибки.
-- `REQ-1011`: Веб и CLI вызывают один сценарий приложения и один API; отдельный маршрут веба допускается только при записанной причине безопасности.
-- `REQ-1012`: Создание и изменение паспортов, индексация проекта, подбор, сборка, проверки и установка не имеют собственной реализации в вебе.
-- `REQ-1013`: Страница устройства показывает только разрешённую сводку из закрытого перечня `docs/contracts/device-passport.md`; полный паспорт устройства через API и веб не выдаётся.
-- `REQ-1014`: Жалоба из веба и CLI создаёт один закрытый `ReportCase` через общий сценарий приложения по `SPEC-016`; автоматическое создание публичного GitHub issue из жалобы отсутствует.
-- `REQ-1015`: Ограничение частоты HTTP одного узла — два независимых скользящих окна до обработчика маршрута: общий бюджет процесса (по умолчанию 100 запросов за 60 секунд) и бюджет транспортного адреса клиента (по умолчанию 1000 запросов за 3600 секунд); оператор задаёт оба через env, отсутствие переменных оставляет эти значения, а не безлимит, явное `0` отключает только это измерение; исчерпание любого окна отвечает `AI_STP_RATE_LIMITED` и не расходует другое; ключ с пустым окном вытесняется, новые ключи не схлопываются в общую overflow-корзину; Redis, SlowAPI, отдельный прокси и `rate_limit` Caddy не входят (`ADR-0128`).
+- `REQ-1001`: The platform uses FastAPI `/v1`, PostgreSQL, PostgreSQL-backed jobs, and RustFS/S3.
+- `REQ-1002`: Sign-in supports Google and GitHub with a separate account-linking flow.
+- `REQ-1003`: Authorization is checked for every object and action; an account identifier alone does not grant access.
+- `REQ-1004`: Private artifacts are not directly accessible from storage and are served only after object authorization is checked.
+- `REQ-1005`: Mutating requests use idempotency keys and optimistic concurrency through a revision or ETag.
+- `REQ-1006`: Job processing uses at-least-once delivery, a transactional outbox, bounded retries, and idempotent handlers.
+- `REQ-1007`: Administrative reads and changes to verification, visibility, blocking, and permissions create audit events.
+- `REQ-1008`: In the MVP, Next.js includes a landing page with the installation command, sign-in, public search, object and version cards, public profiles, an account profile, public profile and privacy settings, devices, the user's own drafts, objects and versions, publication and its state, synchronization state, permissions and invitations, and minimal administrative actions.
+- `REQ-1009`: Resend is used only for approved email scenarios, including invitation delivery, and does not become an identity source.
+- `REQ-1010`: The API supports the declared CLI and schema version window and returns typed errors.
+- `REQ-1011`: The web interface and CLI invoke one application use case and one API; a separate web route is permitted only for a documented security reason.
+- `REQ-1012`: Passport creation and modification, project indexing, selection, compilation, validation, and installation have no separate implementation in the web interface.
+- `REQ-1013`: The device page shows only the permitted summary from the closed list in `docs/contracts/device-passport.md`; the full device passport is not exposed through the API or web interface.
+- `REQ-1014`: A report from the web interface or CLI creates one private `ReportCase` through the shared application use case defined by `SPEC-016`; reports do not automatically create public GitHub issues.
+- `REQ-1015`: Single-node HTTP rate limiting consists of two independent sliding windows before the route handler: a process-wide budget (100 requests per 60 seconds by default) and a client transport-address budget (1,000 requests per 3,600 seconds by default); the operator configures both through env, absent variables retain these values rather than making them unlimited, and an explicit `0` disables only that dimension; exhaustion of either window responds with `AI_STP_RATE_LIMITED` and does not consume the other; a key with an empty window is evicted, and new keys are not collapsed into a shared overflow bucket; Redis, SlowAPI, a separate proxy, and Caddy `rate_limit` are out of scope (`ADR-0128`).
 
-## Состояния и ошибки
+## States and errors
 
-API различает ошибки проверки, входа, полномочий, конкуренции, ограничения частоты, недоступной зависимости и внутреннего сбоя. Задание имеет состояния `queued`, `running`, `retry_scheduled`, `dead_letter` и `succeeded`. Готовность не становится успешной до применения миграций и доступности обязательных зависимостей.
+The API distinguishes validation, authentication, authorization, concurrency, rate-limit, unavailable-dependency, and internal-failure errors. A job has the states `queued`, `running`, `retry_scheduled`, `dead_letter`, and `succeeded`. Readiness does not become successful until migrations have been applied and required dependencies are available.
 
-## Безопасность и приватность
+## Security and privacy
 
-PostgreSQL и RustFS не публикуются в интернет. Токены входа и сессии хранятся как секреты и не возвращаются агенту. Изоляция пользователей, ограничения частоты, очистка аудита и полномочия закрытых объектов проверяются отрицательными тестами. Доступ администратора всегда отражается в аудите.
+PostgreSQL and RustFS are not exposed to the internet. Sign-in and session tokens are stored as secrets and are not returned to the agent. User isolation, rate limits, audit sanitization, and authorization for private objects are verified by negative tests. Administrator access is always recorded in the audit trail.
 
-## Совместимость и миграция
+## Compatibility and migration
 
-Изменения базы используют последовательность расширения, переноса, переключения и удаления. Поля API сначала добавляются необязательными. Совместимость старого клиента с новым сервером и нового клиента со старым поддерживаемым сервером проверяется контрактными тестами. Откат обязан читать данные, записанные новой версией в окне совместимости.
+Database changes use an expand, migrate, switch, and contract sequence. API fields are initially added as optional. Compatibility of an old client with a new server and a new client with an old supported server is verified by contract tests. A rollback must be able to read data written by the new version within the compatibility window.
 
-## Критерии приёмки
+## Acceptance criteria
 
-| Требование | Исполнимый способ проверки |
+| Requirement | Executable verification method |
 |---|---|
-| `REQ-1001` | Чистое интеграционное окружение поднимает API, базу, рабочий процесс и хранилище объектов. |
-| `REQ-1002` | Проверки входа покрывают вход, связывание, конфликт, отзыв и выход. |
-| `REQ-1003` | Матрица полномочий покрывает владельца, получателя права, постороннего и администратора. |
-| `REQ-1004` | Прямой адрес объекта без разрешённого запроса API отклоняется. |
-| `REQ-1005` | Повтор запроса и устаревший ETag не создают двойной эффект. |
-| `REQ-1006` | Проверки сбоя и повтора подтверждают исходящий журнал и идемпотентность обработчика. |
-| `REQ-1007` | Проверка аудита фиксирует автора, причину, цель и результат без секретов. |
-| `REQ-1008` | Инвентаризация маршрутов покрывает каждую заявленную область и не содержит функций вне границ веб-интерфейса. |
-| `REQ-1009` | Проверки почтового адаптера проверяют шаблон, очистку и классификацию повтора. |
-| `REQ-1010` | OpenAPI и смешанные версии проверяют окно совместимости. |
-| `REQ-1011` | Контрактная проверка доказывает, что веб и CLI вызывают один сценарий и один маршрут для каждой общей операции. |
-| `REQ-1012` | Отрицательная проверка отклоняет запись паспорта и запуск сборки через обработчик, недоступный CLI. |
-| `REQ-1013` | Эталон ответа устройства содержит только поля разрешённой сводки, а запрос полного паспорта устройства отклоняется. |
-| `REQ-1014` | Контрактная проверка доказывает один сценарий жалобы для веба и CLI и отсутствие интеграции с публичными issue. |
-| `REQ-1015` | Часы инжектируются в поставленный лимитер: 101-й запрос за 60 с общего окна отклоняется, 100-й проходит; 1001-й с одного адреса за 3600 с отклоняется, другой адрес по часовому окну проходит; много адресов вместе упираются в общий бюджет; отказ одного окна не меняет счётчик другого; настройки без env не безлимитны на 100/мин и 1000/час; явное `0` отключает измерение. Ключ с пустым окном освобождает слот, общей overflow-корзины нет. ASGI-фабрика на малом лимите отвечает `429` / `AI_STP_RATE_LIMITED` / `Retry-After`. |
+| `REQ-1001` | A clean integration environment starts the API, database, job processor, and object storage. |
+| `REQ-1002` | Authentication tests cover sign-in, linking, conflict, revocation, and sign-out. |
+| `REQ-1003` | The authorization matrix covers the owner, a permission recipient, an unrelated user, and an administrator. |
+| `REQ-1004` | A direct object address without an authorized API request is rejected. |
+| `REQ-1005` | A repeated request and stale ETag do not create duplicate effects. |
+| `REQ-1006` | Failure and retry tests confirm the outbox and handler idempotency. |
+| `REQ-1007` | An audit test records the actor, reason, target, and result without secrets. |
+| `REQ-1008` | Route inventory covers every declared area and contains no functionality outside the web-interface scope. |
+| `REQ-1009` | Mail adapter tests verify the template, sanitization, and retry classification. |
+| `REQ-1010` | OpenAPI and mixed-version tests verify the compatibility window. |
+| `REQ-1011` | A contract test proves that the web interface and CLI invoke one use case and one route for each shared operation. |
+| `REQ-1012` | A negative test rejects passport writes and compilation through a handler unavailable to the CLI. |
+| `REQ-1013` | The golden device response contains only fields from the permitted summary, and a request for the full device passport is rejected. |
+| `REQ-1014` | A contract test proves there is one reporting use case for the web interface and CLI and no integration with public issues. |
+| `REQ-1015` | A clock is injected into the shipped limiter: the 101st request in the shared 60-second window is rejected and the 100th passes; the 1,001st request from one address in 3,600 seconds is rejected while another address passes under the hourly window; many addresses together exhaust the shared budget; rejection by one window does not change the other's counter; settings without env are bounded at 100/minute and 1,000/hour; an explicit `0` disables a dimension. A key with an empty window releases its slot, and there is no shared overflow bucket. With a low limit, the ASGI factory responds with `429` / `AI_STP_RATE_LIMITED` / `Retry-After`. |

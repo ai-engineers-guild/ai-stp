@@ -1,13 +1,13 @@
 ---
-description: "Команды, граница исполнения и соответствие состояний публичного провайдера."
+description: "Commands, execution boundary, and state mapping of a public provider."
 last_verified: "2026-08-28"
 ---
 
-# Протокол провайдера
+# Provider protocol
 
-Владелец требований — `SPEC-008`. Здесь зафиксирована машинная граница: набор команд, правила запуска и соответствие состояний.
+The requirements owner is `SPEC-008`. This document defines the machine boundary: the command set, invocation rules, and state mapping.
 
-## Замороженные обязательные команды v1/v2
+## Frozen required v1/v2 commands
 
 ```text
 provider-info
@@ -24,26 +24,31 @@ restore
 launch
 ```
 
-`provider-info` сообщает версию протокола, идентификатор харнесса, версию провайдера, поддерживаемые действия, форматы пакета, системы, архитектуры и ограничения. Закрытая проверка сравнивает этот ответ с реально доступными действиями CLI.
+`provider-info` reports the protocol version, harness identifier, provider version, supported actions, bundle formats, systems, architectures, and limits. A closed check compares this response with the actions actually available in the CLI.
 
-## Граница исполнения
+## Execution boundary
 
-Команда получает массив аргументов, использует `shell=false`, явный абсолютный целевой каталог, точный исполнимый файл, отфильтрованное окружение, ограничение времени и объёма вывода.
+A command receives an argument array and uses `shell=false`, an explicit absolute target directory, the exact executable, a filtered environment, a timeout, and an output-size limit.
 
-Точный provider artifact проверяется до запуска: путь должен разрешаться в обычный
-файл с execute permission на текущем host. Существующий, но неисполняемый файл
-возвращает `AI_STP_DEPENDENCY_UNAVAILABLE`, а не внутреннюю ошибку процесса.
+The exact provider artifact is checked before invocation: the path must resolve to
+a regular file with execute permission on the current host. An existing but
+non-executable file returns `AI_STP_DEPENDENCY_UNAVAILABLE`, not an internal process error.
 
-Ограничение объёма вывода ограничивает то, что **читают**, а не то, что сохраняют. Вызывающая сторона читает не более предела и останавливает провайдера, вышедшего за него; ответ такого провайдера не разбирается, а называется отказом. Предел, применённый после чтения до конца, не ограничивает ничего: он оставляет память вызывающей стороны в распоряжении чужой программы.
+The output-size limit constrains what is **read**, not what is retained. The caller
+reads no more than the limit and stops a provider that exceeds it; such a response
+is not parsed and is treated as a failure. A limit applied after reading to EOF
+limits nothing: it leaves the caller's memory at the disposal of another program.
 
-Отфильтрованное окружение — список разрешённых имён с настоящими значениями, а не те же имена, обнулённые. Провайдер без `PATH` не может стартовать вовсе, и такой сбой читается как поломка провайдера, а не вызывающей стороны.
+A filtered environment is a list of permitted names with their actual values,
+not the same names cleared. A provider cannot start without `PATH`, and that
+failure would appear to be a provider defect rather than a caller defect.
 
-Команды чтения не создают состояние. `validate-bundle` и `plan-bundle` не изменяют цель. `apply-bundle` принимает точный хэш плана, получает блокировку и повторно проверяет цель после блокировки.
+Read commands create no state. `validate-bundle` and `plan-bundle` do not modify the target. `apply-bundle` accepts the exact plan hash, acquires a lock, and revalidates the target after locking.
 
-## Точная передача HarnessBundle
+## Exact HarnessBundle transfer
 
-Три bundle-команды получают одну и ту же неизменяемую привязку после общих
-аргументов протокола `--target` и, для v2, `--phase`:
+The three bundle commands receive the same immutable binding after the common
+protocol arguments `--target` and, for v2, `--phase`:
 
 ```text
 --bundle <absolute-content-addressed-path>
@@ -53,302 +58,309 @@ launch
 --bundle-size <decimal-bytes>
 ```
 
-`plan-bundle` добавляет `--expected-target-digest <digest>`. `apply-bundle`
-получает тот же аргумент и `--plan-digest <provider-plan-digest>`. Порядок выше
-является частью argv contract; путь указывает на обычный файл, не на каталог или
-ссылку. Путь не входит в идентичность и не сохраняется в плане: идентичность
-задают формат, два digest и размер.
+`plan-bundle` adds `--expected-target-digest <digest>`. `apply-bundle` receives
+the same argument and `--plan-digest <provider-plan-digest>`. The order above is
+part of the argv contract; the path identifies a regular file, not a directory
+or link. The path is not part of identity and is not stored in the plan: identity
+is defined by the format, two digests, and size.
 
-Provider response повторяет `bundle_format`, `bundle_digest`, `artifact_digest`
-и числовой `bundle_size`. `validate-bundle` дополнительно возвращает `valid=true`.
-`plan-bundle` возвращает `state=planned`, canonical SHA-256 `plan_digest`, тот же
-`expected_target_digest` и непустой список строк `effects`. `apply-bundle`
-возвращает собственное состояние, тот же target digest и exact `plan_digest`.
-Командно-специфичные дополнительные поля, например `backup_ref`, разрешены, но не
-заменяют обязательные echoes.
+The provider response echoes `bundle_format`, `bundle_digest`, `artifact_digest`,
+and numeric `bundle_size`. `validate-bundle` additionally returns `valid=true`.
+`plan-bundle` returns `state=planned`, canonical SHA-256 `plan_digest`, the same
+`expected_target_digest`, and a nonempty list of `effects` strings. `apply-bundle`
+returns its own state, the same target digest, and exact `plan_digest`.
+Command-specific additional fields such as `backup_ref` are allowed but do not
+replace the required echoes.
 
-### Что покрывает `target_digest`
+### What `target_digest` covers
 
-Digest считается **над управляемыми путями, а не над каталогом**, в котором они
-лежат: обходятся корни из `native_namespaces` провайдера, а его собственный
-control-каталог и записи, которые он не считает своими, исключаются.
+The digest is computed **over managed paths, not over the directory** containing
+them: roots from the provider's `native_namespaces` are traversed, while its own
+control directory and entries it does not own are excluded.
 
-Это не косметическое уточнение. При чтении «над целью целиком» под `user_root`
-любая запись соседнего продукта между планом и применением неотличима от дрейфа,
-и операция отказывает — на корне, в который четыре продукта пишут по замыслу.
-Отказ тем чаще, чем успешнее конвенция. При чтении «над управляемыми путями»
-`skills` чужого продукта в digest не входит, и области значат одно и то же.
+This is not a cosmetic clarification. If read as "over the entire target" under
+`user_root`, any neighboring product entry created between plan and apply is
+indistinguishable from drift, and the operation fails at a root intentionally
+shared by four products. The more successful the convention, the more frequent
+the failures. When read as "over managed paths," another product's `skills` do
+not enter the digest, and the scopes retain the same meaning.
 
-Объявленный набор перед обходом сокращается до **покрытия**: пространство имён,
-вложенное в другое объявленное, посещается один раз. Иначе identity зависела бы
-от того, как сформулирована декларация, — а во время переходного окна родитель и
-потомок объявлены оба (`plugins` и `plugins/local` у cursor,
-`antigravity-cli/plugins` и `config/plugins` у antigravity), и байты потомка
-нельзя хешировать дважды.
+Before traversal, the declared set is reduced to its **coverage**: a namespace
+nested under another declared namespace is visited once. Otherwise identity
+would depend on how the declaration is phrased; during the transition window,
+both parent and child are declared (`plugins` and `plugins/local` for cursor,
+`antigravity-cli/plugins` and `config/plugins` for antigravity), and child bytes
+must not be hashed twice.
 
-Записано после того, как выяснилось, что слово встречалось только в утверждениях
-о том, что digest *доказывает*, и ни разу — в предложении о том, что он
-*покрывает*. Реализация оказалась верной; совпадение не является контрактом.
+This was recorded after discovering that the word appeared only in statements
+about what the digest *proves*, never in a sentence about what it *covers*. The
+implementation happened to be correct; coincidence is not a contract.
 
-После собственной блокировки цели provider возвращает `stale`, если её digest
-уже отличается от `expected_target_digest`, и не выполняет эффект. Consumer
-сохраняет это как терминальный `stale`, а не как `partial`: точный ответ с
-обязательными echoes доказывает отказ до эффекта. Ошибка ответа или несовпадение
-echoes после вызова по-прежнему означает `partial`, потому что тогда отсутствие
-эффекта не доказано.
+After acquiring its own target lock, the provider returns `stale` without
+performing an effect if the target digest already differs from
+`expected_target_digest`. The consumer records this as terminal `stale`, not
+`partial`: an exact response with required echoes proves refusal before effect.
+A response error or echo mismatch after invocation still means `partial`, because
+absence of an effect is then unproven.
 
-Consumer проверяет echoes до записи результата. Несовпадение validation или plan
-блокирует создание operation plan. Несовпадение после вызова apply означает
-`partial`, потому что отсутствие проверяемого ответа не доказывает отсутствие
-эффекта. Перед apply consumer заново проверяет raw SHA-256 и размер cached bytes;
-потерянный или повреждённый artifact блокирует вызов. Observe-only `resume`
-вызывает только `provider-info` и `status` и никогда не повторяет `apply-bundle`.
+The consumer checks echoes before recording the result. A validation or plan
+mismatch blocks operation-plan creation. A mismatch after apply invocation means
+`partial`, because lack of a verifiable response does not prove lack of effect.
+Before apply, the consumer rechecks raw SHA-256 and cached-byte size; a missing or
+corrupt artifact blocks invocation. Observe-only `resume` calls only
+`provider-info` and `status` and never repeats `apply-bundle`.
 
-## Диагностика управляемых путей
+## Managed-path diagnostics
 
-План установки показывает относительные `managed_paths` точного сохранённого
-HarnessBundle. При `local_drift` команда `target diff` сравнивает их с
-`provider_target` последней verified operation и возвращает `managed_detail`:
-`available`, `unavailable` либо `not_applicable`. Доступная детализация содержит
-`managed_changes` со стабильными кодами `modified`, `added`, `deleted`,
-относительным путём и SHA-256 evidence; небезопасная ссылка обозначается
+The installation plan shows relative `managed_paths` from the exact stored
+HarnessBundle. On `local_drift`, `target diff` compares them with the
+`provider_target` of the last verified operation and returns `managed_detail`:
+`available`, `unavailable`, or `not_applicable`. Available detail contains
+`managed_changes` with stable codes `modified`, `added`, and `deleted`, a
+relative path, and SHA-256 evidence; an unsafe link is marked
 `observed_digest=unsafe`.
 
-Осмотр ограничен managed roots, не следует по символическим ссылкам, не показывает
-абсолютный локальный путь и не изменяет цель. Потеря точного bundle, target binding
-или verified history не угадывается по текущему каталогу, а закрыто возвращает
-`unavailable`. Результат является доказательством для пользователя и плана;
-восстановление или очистка им автоматически не запускаются.
+Inspection is limited to managed roots, does not follow symbolic links, does not
+show an absolute local path, and does not modify the target. Loss of the exact
+bundle, target binding, or verified history is not guessed from the current
+directory and instead fails closed with `unavailable`. The result is evidence for the
+user and plan; it does not automatically start recovery or cleanup.
 
-## Сеть и версия границы
+## Network and boundary version
 
-Замороженный protocol v1 не объявляет сетевую потребность и не устанавливает
-сетевую изоляцию процесса. Отсутствие сетевых полей в `Boundary` и успешное
-выполнение команды не являются доказательством запрета сети. Поэтому v1 нельзя
-использовать как подтверждение сетевого класса вредоносного корпуса `#184`.
+Frozen protocol v1 declares no network requirement and establishes no process
+network isolation. The absence of network fields in `Boundary` and successful
+command execution do not prove network denial. Therefore v1 cannot serve as
+evidence for the network class of hostile corpus `#184`.
 
-Сетевая способность вводится только protocol v2 по
-`ADR-0047-provider-network-capability.md`. Каждое действие объявляет
-`network_requirement` со значением `none`, `artifact_download` или
-`runtime_external`, а результат сообщает `network_enforcement`: `enforced`,
-`unavailable` или `not_requested`. При требовании `none` отсутствие доказанного
-механизма изоляции означает типизированный отказ до запуска. Неизвестная версия
-протокола не разбирается оптимистично, а v1 не расширяется дополнительными полями.
+Network capability is introduced only by protocol v2 under
+`ADR-0047-provider-network-capability.md`. Each action declares
+`network_requirement` as `none`, `artifact_download`, or `runtime_external`, and
+the result reports `network_enforcement` as `enforced`, `unavailable`, or
+`not_requested`. With requirement `none`, absence of a proven isolation mechanism
+means a typed refusal before invocation. An unknown protocol version is not parsed
+optimistically, and v1 is not extended with additional fields.
 
-Закрытая матрица command/phase, wire schema и pre-invocation решение v2 находятся в
-`ai_stp_cli.provider.protocol_v2`. `software-install` и `software-update` имеют
-отдельные `download` и `apply`: первая фаза объявляет `artifact_download`, вторая —
-`none`. Одна модель не выдаётся за сетевую песочницу: без доказанного launcher на
-текущей ОС она возвращает `unavailable` и не закрывает `#184`.
+The closed command/phase matrix, wire schema, and v2 pre-invocation decision live
+in `ai_stp_cli.provider.protocol_v2`. `software-install` and `software-update`
+have separate `download` and `apply` phases: the first declares
+`artifact_download`, the second `none`. A model is not presented as a network
+sandbox: without a proven launcher on the current OS it returns `unavailable`
+and does not close `#184`.
 
-Каждый v2-вызов передаёт обязательные аргументы `--phase <phase>` и
-`--target <absolute-directory>`. Отсутствующая или неизвестная фаза не угадывается.
-Версию до первого `provider-info` выбирает проверенный release manifest или явный
-conformance-вызов consumer, поэтому ответ непроверенного процесса не может сам
-переключить границу с v1 на v2. Наблюдённый `network_enforcement` добавляет consumer
-рядом с provider payload; значение из самого payload не является доказательством.
-Команда `provider conformance --protocol-version 2` проверяет точное объявление v2,
-закрытую матрицу каждой пары команды и фазы, решение consumer, общий вредоносный
-корпус, состояния и повторяемость чтения. Без аргумента она сохраняет замороженное
-поведение v1.
+Every v2 invocation passes required arguments `--phase <phase>` and
+`--target <absolute-directory>`. A missing or unknown phase is not guessed. Before
+the first `provider-info`, the version is selected by a verified release manifest
+or an explicit consumer conformance invocation, so an unverified process response
+cannot switch the boundary from v1 to v2 itself. The consumer adds observed
+`network_enforcement` beside the provider payload; a value in the payload itself
+is not evidence. `provider conformance --protocol-version 2` checks the exact v2
+declaration, the closed matrix for every command/phase pair, the consumer decision,
+the shared hostile corpus, states, and repeatability of reads. Without the argument,
+it preserves frozen v1 behavior.
 
-Conformance передаёт не JSON-заглушки, а временные literal ZIP-артефакты по тому же
-exact argv contract, что и установка. Валидный пакет обязан пройти validation и
-side-effect-free plan с точными echoes. Каждый hostile case получает отдельные
-content-addressed bytes: пути, повтор, link/special metadata, предел, неизвестную
-поверхность, несовпадающий digest или неподдерживаемую версию. После прогона corpus
-удаляется. Conformance не вызывает `software-install/update/remove`, `apply-bundle`,
-`restore` или `launch` на переданной пользователем цели: доказательство этих действий
-принадлежит provider E2E с одноразовой целью и подтверждённым планом.
+Conformance passes temporary literal ZIP artifacts, not JSON stubs, under the same
+exact argv contract as installation. A valid bundle must pass validation and a
+side-effect-free plan with exact echoes. Every hostile case receives separate
+content-addressed bytes: paths, duplication, link/special metadata, a limit,
+unknown surface, mismatched digest, or unsupported version. The corpus is deleted
+after the run. Conformance does not invoke `software-install/update/remove`,
+`apply-bundle`, `restore`, or `launch` on the user-supplied target: evidence for
+those actions belongs to provider E2E with a disposable target and confirmed plan.
 
-Для Linux реализован отдельный Bubblewrap launcher. Capability становится `enforced`
-только после положительного контроля доступности локальных IPv4, IPv6 и DNS-UDP
-endpoints снаружи и наблюдаемого запрета тех же transports внутри нового network
-namespace. Проверяется точный путь, версия и SHA-256 `bwrap`; group/world-writable
-либо не-root-owned executable/ancestor отвергается. Команда `provider network --json` применяет closed v2 decision
-и сообщает capability; при `unavailable` локальные v2 actions недоступны. Launcher
-оборачивает точный provider argv через `ai_stp_cli.provider.invocation_v2`; разрешённая
-download-фаза проходит без сетевого namespace, а apply снова требует доказанный
-launcher. `install plan` выбирает версию до первого вызова, сохраняет её и абсолютный
-provider target в неизменяемом плане, а `apply` и `resume` используют только эту
-одобренную версию. Поэтому v2 lifecycle проходит через тот же phase invoker и не
-может быть понижен аргументом после подтверждения. Реальные provider releases
-остаются отдельным release evidence. Текущая цель — six-leg matrix по
-`ADR-0113`; старый Linux-only профиль заменён.
+A separate Bubblewrap launcher is implemented for Linux. Capability becomes
+`enforced` only after positive control proves local IPv4, IPv6, and DNS-UDP
+endpoints reachable outside and the same transports blocked inside a new network
+namespace. The exact `bwrap` path, version, and SHA-256 are checked; a group/world-
+writable or non-root-owned executable/ancestor is rejected. `provider network --json`
+applies the closed v2 decision and reports capability; with `unavailable`, local
+v2 actions are unavailable. The launcher wraps exact provider argv through
+`ai_stp_cli.provider.invocation_v2`; the permitted download phase runs without a
+network namespace, while apply again requires the proven launcher. `install plan`
+selects the version before the first invocation and stores it and the absolute
+provider target in the immutable plan; `apply` and `resume` use only that approved
+version. Thus the v2 lifecycle uses the same phase invoker and cannot be downgraded
+by an argument after confirmation. Real provider releases remain release blockers.
+Under `ADR-0062`, the current required profile is Linux x86_64; macOS without a
+separate launcher/run has `not_verified`, fails closed for `none`, and does not
+block the current release.
 
-**Protocol v3 на трёх ОС.** Linux использует Bubblewrap. Windows использует
-native AppContainer launcher, который запрещает сеть дочернему process tree и
-доказывает доступ к выбранному target runtime probes; невозможность построить
-его оставляет явно названный trust fallback. macOS использует системный
-`/usr/bin/sandbox-exec` с `(deny network*)` только после проверки root-owned
-пути, SHA-256 и нативной positive/negative transport probe. При отсутствии или
-ошибке пробы macOS закрывается отказом без trust fallback. `provider network
---json` сообщает отдельный `v3_local_phase`:
+**Protocol v3 on a platform without a launcher.** Windows and macOS provide no
+ordinary CLI mechanism that denies network access: bubblewrap is Linux-only;
+AppContainer denies network but cannot reach an arbitrary target without changing
+parent ACLs; `CreateProcessInSandbox` and Windows Sandbox are unavailable or a
+separate component. Therefore the v3 local phase runs there **without isolation**:
+deliberate debt under `ADR-0126`, allowed for exactly two reasons: a trusted
+release or explicit `--unverified-provider`. No other surface receives this
+exception: v2, `target status`, `diff`, and any spawn outside install plan refuse
+before invocation.
 
-- `network_denied` — launcher доказан, фаза идёт внутри него;
-- `unisolated_by_trust` — Windows launcher недоступен, фаза идёт с достижимой
-  сетью, и `v3_local_phase_reasons` перечисляет причины, одну из которых обязан
-  предъявить вызывающий;
-- `refused` — launcher здесь возможен и отсутствует, поэтому не идёт ничего.
+`network_enforcement` **never** becomes `enforced` in this case, or the sole
+output by which the debt is found would hide it. `provider network --json`
+names the debt in a separate `v3_local_phase` field:
 
-Последние два не сливаются намеренно: отсутствие установленного launcher на
-Linux/macOS закрывается отказом, а Windows сохраняет отдельно видимую уступку.
-Проверка импортов provider binary является дополнительным evidence и не
-заменяет изоляцию process tree.
+- `network_denied` — the launcher is proven and the phase runs inside it;
+- `unisolated_by_trust` — no launcher exists on this platform, the phase runs
+  with reachable network, and `v3_local_phase_reasons` lists reasons, one of
+  which the caller must provide;
+- `refused` — a launcher is possible here but absent, so nothing runs.
+
+The last two are intentionally distinct: absent `bwrap` on Linux is a missing
+dependency, while absent mechanism on Windows is a missing OS capability, and
+`unisolated_local_phase` refuses to construct on a platform capable of isolation.
+
+The debt boundary is measurable and measured. All seven released `0.0.6`
+providers import no network symbols (`socket`, `connect`, `getaddrinfo`, `inet_*`,
+and others are absent), link only to `libc` and `libgcc_s`, and a traced local-
+phase run yields zero `socket` and zero `connect` calls for each. This is an
+artifact property, not isolation: `syscall` and `execvp` are imported, and a
+process not linked to networking can still spawn a linked child. A namespace
+covers the entire process tree; import inspection covers one process. It reduces
+the debt but does not eliminate it.
 
 ## Capability-negotiated protocol v3
 
-Protocol v3, принятый `ADR-0061-capability-negotiated-provider-protocol-v3.md`, не
-меняет v1/v2. Он отделяет обязательную wire boundary от нативных product
-capabilities и имеет закрытый набор команд и operations.
+Protocol v3, adopted by `ADR-0061-capability-negotiated-provider-protocol-v3.md`,
+does not change v1/v2. It separates the required wire boundary from native
+product capabilities and has closed command and operation sets.
 
-Состав этих наборов принадлежит одному владельцу — `provider-kit/v3/manifest.json`,
-порождаемому из `apps/cli/src/ai_stp_cli/provider/protocol_v3.py`. Точную ревизию
-называет `provider-kit/v3/KIT-IDENTITY.json` (`ADR-0085`). Здесь перечня нет
-намеренно: словарь, записанный прозой во втором месте, расходится с исполняемым
-источником, и обнаруживается это уже после того, как кто-то реализовал прозу.
+These sets have one owner: `provider-kit/v3/manifest.json`, generated from
+`apps/cli/src/ai_stp_cli/provider/protocol_v3.py`. The exact revision is named by
+`provider-kit/v3/KIT-IDENTITY.json` (`ADR-0085`). The list is intentionally absent
+here: a vocabulary recorded in prose in a second location drifts from the
+executable source, discovered only after someone implements the prose.
 
-`provider-kit/v3/provider-info.schema.json` объявляет
-`$id: https://nddev.asia/schemas/provider-protocol/v3/provider-info.json`. По
-JSON Schema 2020-12 это **идентификатор**, задающий базовый URI. Те же байты,
-что в комплекте, отдаются по этому адресу: внешний валидатор, который за ним
-пойдёт, получает схему, а не 404. Реализации по-прежнему сверяют комплект
-локально по `SHA256SUMS`; сетевой ответ не заменяет `KIT-IDENTITY.json`.
+`provider-kit/v3/provider-info.schema.json` declares
+`$id: https://nddev.asia/schemas/provider-protocol/v3/provider-info.json`. Under
+In JSON Schema 2020-12 this is an **identifier** defining the base URI. The same
+bytes shipped in the kit are served at that address: an external validator that
+follows it receives the schema, not a 404. Implementations still verify the kit
+locally against `SHA256SUMS`; the network response does not replace
+`KIT-IDENTITY.json`.
 
-`provider-kit/v3/status-response.schema.json` объявляет закрытую форму ответа
-`status`. Всегда обязательны protocol/provider/harness identity, canonical
-target, `state`, оба target digests, `cleanup_state`, `journal`, `backups`,
-`provider_state` и `shadowed_by`. Когда вложенный `provider_state` одновременно
-`present=true`, `readable=true` и `drift_state=clean`, схема дополнительно
-требует полный flat provenance: state/provider/release/setup/bundle/plan,
-operation/precondition, native ownership, written paths, backup и previous
-verified identity. Для missing, foreign-schema и local-drift ответ не обязан
-придумывать clean provenance.
+Only what the machine file cannot express follows: the meaning of the divisions.
 
-Схема, checksum и conformance cases опубликованы раньше enforcement. После
-выпуска provider systems `0.0.47`/`0.0.48`, которые вендорят эту ревизию kit,
-consumer проверяет каждый protocol-v3 `status` до чтения cleanup/provenance.
-Несовпадение возвращает `AI_STP_SCHEMA_UNSUPPORTED` и предлагает автономное
-обновление provider и conformance; частично разобранный ответ не используется.
+Commands are divided into a shared setup/bundle core and optional commands.
+`launch` is optional and allowed only with a declared capability; its absence
+from the parser of a provider without launch ownership is correct conformance.
 
-Ниже — только то, чего машинный файл не выражает: смысл делений.
+Operations are divided likewise. Core operations cover materialization,
+replacement, backup, restoration, and removal of a provider-owned setup
+projection; optional operations cover the provider-owned program lifecycle and
+runtime launch through the native boundary.
 
-Команды делятся на общий setup/bundle core и optional. `launch` является optional
-command и допустим только при объявленной capability; его отсутствие в parser для
-provider без launch ownership является корректным соответствием.
+Claude Code correctly conforms to core without software/launch ownership. Codex
+and Pi may declare software install/update and launch without software remove.
+The consumer does not invoke an undeclared operation. An unknown operation,
+component, native surface, format, protocol, projection profile, OS, or
+architecture is rejected with a stable reason code before plan and target
+mutation. A permission profile absent from closed `permission_profiles` is
+neither `unsupported_operation` nor `projection_profile_mismatch`.
 
-Operations делятся так же. Core покрывают материализацию, замену, копию,
-восстановление и удаление provider-owned setup projection; optional покрывают
-жизненный цикл provider-owned программы и запуск runtime через нативную границу.
+`provider-info` returns a build-manifest digest and content-addressed projection
+profile: component/projection kinds, native identifier namespaces, bundle
+formats, limits, permission profiles, OS, and architectures. The setup compiler
+builds a projection only for the exact profile, and the provider independently
+validates the bundle. The permission profile is a separate plan input and is not
+part of the setup/component digest.
 
-Все семь текущих systems объявляют software install/update/remove, но availability
-проверяется по platform artifact. Complete launch объявляют пять; Cursor и
-Antigravity launch не объявляют. Consumer не вызывает необъявленную operation.
-Unknown operation/component/native surface,
-формат, protocol, projection profile, OS или architecture отклоняются со стабильным
-reason code до plan и изменения цели. Профиль разрешений, которого нет в закрытом
-`permission_profiles`, это не `unsupported_operation` и не
-`projection_profile_mismatch`.
+The `provider-info` field set is closed and compared for exact equality, so an
+unknown field rejects the entire response, not part of it. The only optional name
+is `scoped_projection_profiles`: an array of profiles, each declaring
+`target_scope` from `global` / `project`. An entry with `global` is rejected
+because `projection_profile` declares global scope; array scopes are unique; each
+entry's digest binds its declaration together with its scope. Absence of the
+array means ownership of global scope only and is not degradation.
+`projection_profile` is changed by no field, so the declaration and digest of a
+release predating this extension remain unchanged. Scope is resolved once, by
+planning time when the target is known; the plan artifact and status still carry
+one `projection_profile_digest`, the resolved profile's digest. The decision and
+release order are in `ADR-0125`.
 
-`provider-info` возвращает digest build manifest и content-addressed
-projection profile: component/projection kinds, native identifier namespaces,
-bundle formats, limits, permission profiles, OS и architectures. Compiler строит
-projection только для exact профиля, а provider независимо проверяет bundle.
-Permission profile является отдельным plan input и не входит в setup/component digest.
+The optional program lifecycle (`software_install`, `software_update`,
+`software_remove`) adds no commands: the same `plan-operation` and
+`apply-operation`, journal, backup, and plan-digest apply. The provider opens no
+socket. `plan` returns exact artifact identity offline; the network-owning party
+fetches those bytes; `apply` checks digest and length against the plan and
+extracts offline. A provider that did not declare these operations does not plan them.
 
-Набор полей `provider-info` закрыт и сравнивается на точное равенство, поэтому
-неизвестное поле отклоняет весь ответ, а не его часть. Единственное необязательное
-имя — `scoped_projection_profiles`: массив профилей, каждый из которых объявляет
-`target_scope` из словаря `global` / `project`. Запись со значением `global`
-отклоняется, потому что глобальную область объявляет `projection_profile`; области
-в массиве уникальны; digest каждой записи связывает её декларацию вместе с
-областью. Отсутствие массива означает владение только глобальной областью и не
-является деградацией. `projection_profile` не меняется ни одним полем, поэтому
-declaration и digest релиза, выпущенного до этого расширения, остаются прежними.
-Разрешение области выполняется один раз, к моменту планирования, когда цель уже
-известна; plan artifact и status по-прежнему несут один `projection_profile_digest`
-— digest разрешённого профиля. Решение и порядок выпуска — `ADR-0125`.
+`--target` is the configuration directory. `--prefix` is the program directory.
+They are different absolute paths with different lifetimes. If
+`--software-version` is omitted, the pinned version is used; if passed, exactly
+that version is required or the operation is refused. An unpinned platform
+refuses with `unsupported_platform`.
 
-Необязательный жизненный цикл программы (`software_install`, `software_update`,
-`software_remove`) не добавляет команд: те же `plan-operation` и
-`apply-operation`, те же журнал, backup и plan-digest. Провайдер не открывает
-сокет. `plan` отвечает точной идентичностью артефакта офлайн; кто держит сеть,
-забирает эти байты; `apply` сверяет digest и длину с планом и распаковывает
-офлайн. Провайдер, который не объявил эти operations, их не планирует.
+The plan carries a `software_artifacts` array. One element means one file;
+multiple elements mean multiple files, in the same order in which `apply`
+receives repeated `--software-artifact` flags. Element fields are `platform`,
+`url`, `sha256`, `byte_length`, and `entry_point`. A directory at apply does not
+hide which file corresponds to which plan record. `software_remove` is plan and
+apply without download and without `--software-artifact`.
 
-`--target` — каталог конфигурации. `--prefix` — каталог программы. Это разные
-пути с разным временем жизни, оба абсолютные. `--software-version` опущен —
-закреплённая версия; передан — ровно эта версия, иначе отказ. Незакреплённая
-платформа отказывается кодом `unsupported_platform`.
+`apply-operation` remains in `forbidden_in_safe_conformance`. Purity of `plan`
+for a declared program lifecycle is checked: a provider that declares an
+operation but cannot identify the artifact offline is precisely the failure this
+contract must catch.
 
-План несёт массив `software_artifacts`. Один элемент — один файл; несколько —
-несколько, в том же порядке, в каком `apply` получит повторённый флаг
-`--software-artifact`. Поля элемента: `platform`, `url`, `sha256`,
-`byte_length`, `entry_point`. Каталог на apply не скрывает, какой файл какой
-записи плана соответствует. `software_remove` — plan и apply без download и
-без `--software-artifact`.
+`plan-operation` is always pure. It binds a stable operation ID, operation,
+canonical target and snapshot, provider build, consumer-verified release hash and
+protocol, exact identities of an optional bundle and optional `BackupRef`,
+permission profile, platform/runtime identity, expiry, and effects.
+`apply-operation` receives the canonical plan artifact and exact digest, locks the
+target, and rechecks preconditions after locking. A success response carries
+`state`, the same `plan_digest`, and `expected_target_digest`; the four bundle
+echoes remain on `validate-bundle` and `plan-operation`. A typed refusal after
+lock is `state=refused` with `reason=stale` (no effect) or `state=stale`. A
+mismatched or expired plan has no effect. A timeout/malformed response after a
+possible effect yields `partial` without automatic retry. After install, `status`
+proves `state=managed`, `target_digest`, protocol/provider identity, and drift
+`clean` or `verified`; nested `provider_state` is allowed.
 
-`apply-operation` остаётся в `forbidden_in_safe_conformance`. Чистота `plan`
-для объявленного жизненного цикла программы проверяется: провайдер, который объявил
-операцию и не умеет назвать артефакт офлайн, как раз тот отказ, который этот
-контракт должен ловить.
+Before the first write, the provider publishes a target-local durable journal in
+phase `prepared`, bound to the exact plan digest, operation ID, and target-bound
+`BackupRef`. After result verification, the journal transitions atomically to
+`committed`; cleanup occurs only after durable state. Presence of a journal,
+transaction directory, or incomplete backup slot makes `plan-operation` purely
+refuse with `recovery_required`. The only command authorized to resolve this state
+is `recover-operation`: `prepared` restores the exact pre-operation target;
+`committed` only verifies the exact result and cleans up remnants. `resume` may
+invoke this command after read-only `status`, but never repeats `apply-operation`.
 
-`plan-operation` всегда чистый. Он связывает стабильный operation ID, operation, canonical target и snapshot,
-сборку provider, проверенный consumer хэш выпуска и protocol, точные идентичности optional bundle и optional `BackupRef`,
-permission profile, platform/runtime identity, expiry и effects. `apply-operation`
-получает канонический plan artifact и точный digest, берёт блокировку цели, а после
-lock повторно проверяет preconditions. Ответ успеха несёт `state`, тот же
-`plan_digest` и `expected_target_digest`; четыре bundle-echo остаются на
-`validate-bundle` и `plan-operation`. Типизированный отказ после lock — это
-`state=refused` с `reason=stale` (нет эффекта) либо `state=stale`. Несовпадающий
-или истёкший plan не имеет эффекта. Timeout/malformed response после возможного
-эффекта даёт `partial` без автоматического повтора. `status` после install
-доказывает `state=managed`, `target_digest`, protocol/provider identity и drift
-`clean` или `verified`; вложенный `provider_state` допустим.
+After finalization, a prepared exact graph and a composed graph form one immutable
+setup, `SetupDefinition`, and pass through the same HarnessBundle, plan,
+confirmation, apply, state paths, backup, recovery, and removal. Channel/marketplace
+are acquisition or projection metadata, not setup identity.
 
-Provider перед первой записью публикует target-local durable journal в фазе
-`prepared`, связанный с exact plan digest, operation ID и target-bound `BackupRef`.
-После проверки результата journal атомарно переходит в `committed`; его очистка
-происходит только после durable state. Наличие journal, transaction directory или
-неполного backup slot делает `plan-operation` чистым отказом `recovery_required`.
-Единственная команда, имеющая право разобрать это состояние, —
-`recover-operation`: `prepared` восстанавливает точный pre-operation target,
-`committed` только проверяет exact result и очищает хвосты. `resume` может вызвать
-эту команду после read-only `status`, но никогда не повторяет `apply-operation`.
-
-Подготовленный exact graph и composed graph после finalization образуют один неизменяемый сетап,
-`SetupDefinition` и проходят одинаковые HarnessBundle, plan, confirmation, apply,
-общие пути состояния, копии, восстановления и удаления. Channel/marketplace являются acquisition или
-projection metadata, а не setup identity.
-
-Provider state связывает protocol/release/harness/target, SetupVersion passport и
+Provider state binds protocol/release/harness/target, the SetupVersion passport and
 SetupDefinition, ordered exact components, logical bundle/raw artifact,
 projection-profile/provider-plan, operation/precondition, native ownership,
-`BackupRef`, предыдущую verified identity и состояние drift. Секретные значения запрещены.
-`status` не мигрирует старый stamp; mutation сначала создаёт backup, затем атомарно
-пишет новую schema.
+`BackupRef`, previous verified identity, and drift state. Secret values are
+prohibited. `status` does not migrate an old stamp; mutation first creates a
+backup, then atomically writes the new schema.
 
-Запись преобразования связывает вид компонента, нативную поверхность и вид проекции.
-Каждый exact component обязан владеть хотя бы одним manifest-bound native file.
-Provider повторно проверяет продуктовую грамматику (например JSON/TOML) и
-обязательные маркеры полного дерева (`SKILL.md`, `plugin.json`, `package.json`)
-до plan; silent truncation каталога и пустая projection запрещены.
+A conversion record binds component kind, native surface, and projection kind.
+Every exact component must own at least one manifest-bound native file. Before
+plan, the provider rechecks product grammar (for example JSON/TOML) and required
+full-tree markers (`SKILL.md`, `plugin.json`, `package.json`); silent directory
+truncation and an empty projection are prohibited.
 
-Release digest не берётся из `provider-info`: это создало бы самоссылку артефакта.
-Consumer проверяет exact executable/release до запуска, передаёт его digest в plan и
-сверяет с неизменяемой операцией; provider сообщает независимый хэш build manifest.
+The release digest does not come from `provider-info`, which would create an
+artifact self-reference. The consumer verifies the exact executable/release
+before invocation, passes its digest into the plan, and checks it against the
+immutable operation; the provider reports an independent build-manifest hash.
 
-Машинная declaration и closed wire schema принадлежат
-`ai_stp_cli.provider.protocol_v3`. Public conformance kit распространяется отдельно
-от закрытого control plane и содержит точные схемы, examples, hostile corpus и
-expected digests; зависимость public provider во время исполнения от private repository запрещена.
+The machine declaration and closed wire schema belong to
+`ai_stp_cli.provider.protocol_v3`. The public conformance kit is distributed
+separately from the private control plane and contains exact schemas, examples,
+hostile corpus, and expected digests; a public provider's runtime dependency on
+a private repository is prohibited.
 
-## Наблюдение внешней авторизации
+## Observing external authorization
 
-Exact выбранный `SetupVersionPassport` объявляет требование
-`requires_authorization`. Только provider владеет нативной целью и может наблюдать,
-завершена ли соответствующая настройка. Поэтому ответ `status` может содержать
-необязательное command-specific evidence:
+The exact selected `SetupVersionPassport` declares the
+`requires_authorization` requirement. Only the provider owns the native target
+and can observe whether the corresponding configuration is complete. Therefore
+a `status` response may contain optional command-specific evidence:
 
 ```json
 {
@@ -359,24 +371,25 @@ Exact выбранный `SetupVersionPassport` объявляет требов�
 }
 ```
 
-Закрытые `kind` — `user_account` и `external_service`, закрытые `state` —
-`pending` и `ready`. Поле не содержит идентификатор пользователя, адрес входа,
-токен или иной секрет. Отсутствие поля сохраняет совместимость protocol v1, но не
-доказывает готовность: объявленное паспортом требование остаётся
-`needs_configuration`. Только совпадающий `kind` со `state=ready` снимает ожидание;
-неизвестная форма и несовпадение закрываются типизированным отказом. Полный rationale
-зафиксирован в `ADR-0052-provider-observed-authorization-readiness.md`.
+Closed `kind` values are `user_account` and `external_service`; closed `state`
+values are `pending` and `ready`. The field contains no user identifier, login
+address, token, or other secret. Its absence preserves protocol v1 compatibility
+but does not prove readiness: the passport-declared requirement remains
+`needs_configuration`. Only a matching `kind` with `state=ready` clears the wait;
+an unknown form or mismatch fails closed with a typed refusal. The full rationale
+is recorded in `ADR-0052-provider-observed-authorization-readiness.md`.
 
-`install plan` показывает объявленный `required_authorization` до изменения цели.
-Успешный apply не подменяет readiness: агент после настройки вызывает `target status`
-с тем же точным provider и объясняет оставшееся требование из machine output, а не
-угадывает его по локальному флагу или наличию секрета.
+`install plan` shows declared `required_authorization` before target mutation. A
+successful apply does not substitute for readiness: after configuration, the
+agent invokes `target status` with the same exact provider and explains the
+remaining requirement from machine output rather than guessing from a local flag
+or secret presence.
 
-## Соответствие состояний
+## State mapping
 
-Провайдер и `ai_stp` ведут собственные журналы. Результат провайдера отображается в долговечную операцию по `contracts/operation.md` однозначно:
+The provider and `ai_stp` maintain their own journals. A provider result maps unambiguously to a durable operation under `contracts/operation.md`:
 
-| Состояние провайдера | Состояние операции `ai_stp` |
+| Provider state | `ai_stp` operation state |
 |---|---|
 | `planned` | `planned` |
 | `applying` | `applying` |
@@ -387,14 +400,14 @@ Exact выбранный `SetupVersionPassport` объявляет требов�
 | `stale` | `stale` |
 | `rolled_back` | `rolled_back` |
 
-Состояния `approved` и `cancelled` принадлежат только операции `ai_stp` и не имеют источника у провайдера. Применённое, но не проверенное состояние не называется успехом.
+The `approved` and `cancelled` states belong only to the `ai_stp` operation and have no provider source. An applied but unverified state is not called success.
 
-## Пакет
+## Bundle
 
-Внешний пакет соответствует `harness-bundle.md`. Провайдер отклоняет неподдерживаемую версию, выход из каталога, ссылки, специальные устройства, конфликт путей, превышение пределов, неизвестную нативную поверхность и несовпадение хэша.
+The external bundle conforms to `harness-bundle.md`. The provider rejects an unsupported version, directory escape, links, special devices, path conflicts, exceeded limits, an unknown native surface, and a hash mismatch.
 
-## Резервная копия и частичный сбой
+## Backup and partial failure
 
-Резервная копия создаётся до первого изменения; байты принадлежат провайдеру, `ai_stp` хранит точную ссылку. Новый сетап устанавливается в неактивную цель, указатель следующего запуска меняется после проверки состояния и готовности к запуску.
+A backup is created before the first mutation; the bytes belong to the provider, and `ai_stp` stores the exact reference. A new setup is installed into an inactive target; the next-launch pointer changes after state and launch-readiness verification.
 
-Истечение времени после возможного эффекта, сбой восстановления и неизвестное состояние возвращают `partial` с последним подтверждённым состоянием. Повтор без отдельной проверки восстановления запрещён.
+A timeout after a possible effect, recovery failure, and unknown state return `partial` with the last confirmed state. Retrying without a separate recovery check is prohibited.

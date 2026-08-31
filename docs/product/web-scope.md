@@ -1,49 +1,49 @@
 ---
-description: "Состав веб MVP и граница владения между вебом и CLI."
+description: "The web MVP scope and the ownership boundary between the web and CLI."
 last_verified: "2026-08-17"
 ---
 
 # Web MVP
 
-Веб отвечает за учётную запись и публичный каталог. CLI и агент отвечают за создание, сборку, проверку и установку. Граница проходит по владению, а не по объёму: решение принадлежит `ADR-0018`. Веб доступен на русском и английском с запуска по `ADR-0035`.
+The web owns the account and public catalog. The CLI and agent own creation, assembly, verification, and installation. The boundary follows ownership, not volume: the decision belongs to `ADR-0018`. Under `ADR-0035`, the web is available in Russian and English from launch.
 
-## Публичная часть
+## Public area
 
-- landing и команда установки;
-- вход через Google и GitHub;
-- публичный поиск по каталогу;
-- карточки сетапов и компонентов с версиями, совместимостью и сводкой проверок;
-- паспорта опубликованных версий;
-- публичные профили авторов.
+- landing and installation command;
+- sign-in through Google and GitHub;
+- public catalog search;
+- setup and component cards with versions, compatibility, and a verification summary;
+- passports for published versions;
+- public author profiles.
 
-Публичные маршруты лендинга, каталога, карточки объекта, входа и базовые
-страницы аккаунта остаются пригодны для 360–430 px в `ru` и `en`: действие
-установки и просмотра исходников видно, горизонтальный выход за документ
-отсутствует, мобильная навигация и уточнение выдачи доступны с клавиатуры.
-Исполнимые критерии принадлежат `SPEC-022`, `SPEC-023`, `SPEC-034` и
+Public routes for the landing page, catalog, object card, sign-in, and basic
+account pages remain usable at 360–430 px in `ru` and `en`: the actions for
+installation and viewing sources are visible, the document does not overflow
+horizontally, and mobile navigation and result refinement are keyboard-accessible.
+The executable criteria belong to `SPEC-022`, `SPEC-023`, `SPEC-034`, and
 `SPEC-037`.
 
-## После входа
+## After sign-in
 
-- профиль аккаунта;
-- публичный профиль и настройки приватности;
-- устройства, их состояние и отзыв;
-- собственные черновики, объекты и версии;
-- публикация и её состояние;
-- состояние синхронизации;
-- выдача прав по идентификатору аккаунта и приглашения по подтверждённой почте;
-- отзыв прав и приглашений;
-- жалоба на объект и состояние собственных жалоб;
-- минимальные административные действия с обязательным аудитом, включая разбор жалоб.
+- account profile;
+- public profile and privacy settings;
+- devices, their state, and revocation;
+- the user's own drafts, objects, and versions;
+- publication and its state;
+- synchronization state;
+- granting access by account identifier and invitations by verified email;
+- revoking grants and invitations;
+- reporting an object and the state of the user's own reports;
+- minimal administrative actions with mandatory auditing, including report triage.
 
-## Остаётся за CLI и агентом
+## Owned by the CLI and agent
 
-Создание и изменение паспортов разработчика и проекта, индексация проекта, поиск и подбор кандидатов, сборка сетапа, проверки и установка выполняются через CLI. Веб показывает результаты этих операций, но не выполняет их.
+Creating and changing developer and project passports, project indexing, searching for and selecting candidates, setup assembly, verification, and installation are performed through the CLI. The web displays the results of these operations but does not perform them.
 
-## Не входит в MVP
+## Not in the MVP
 
-Браузерный редактор сетапов, социальная механика, платежи, корпоративный интерфейс и панель runtime telemetry в MVP не входят.
+A browser-based setup editor, social features, payments, an enterprise interface, and a runtime telemetry panel are not part of the MVP.
 
-## Одна реализация правил
+## One implementation of the rules
 
-Веб и CLI вызывают один сценарий приложения и один API. Отдельный маршрут веба допускается только при собственной причине безопасности, и эта причина записывается. Вторая реализация бизнес-правил запрещена: она удваивает поверхность авторизации и создаёт расхождение поведения между клиентами.
+The web and CLI invoke one application scenario and one API. A separate web route is permitted only when it has its own security rationale, and that rationale is recorded. A second implementation of business rules is prohibited: it doubles the authorization surface and creates behavioral divergence between clients.

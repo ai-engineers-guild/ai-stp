@@ -1,44 +1,44 @@
 ---
-description: "Решение хранить публичные документы и политики ревизиями с репозиторным импортом."
+description: "Decision to store public documents and policies as revisions with repository import."
 last_verified: "2026-08-08"
 ---
 
-# ADR-0070: Версионированные публичные документы и политики
+# ADR-0070: Versioned Public Documents and Policies
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-Сайту нужны технические документы для людей и agents, а также privacy, cookie,
-service и author-content/license policies. Файлы repository — лучший источник
-технической документации, но website должен уметь служить неизменяемую
-локализованную revision через API и хранить policy texts отдельно от deploy.
+The site needs technical documents for people and agents, as well as privacy, cookie,
+service, and author-content/license policies. Repository files are the best source
+of technical documentation, but the website must be able to serve an immutable
+localized revision through the API and store policy texts separately from deploys.
 
-## Варианты
+## Alternatives
 
-1. Рендерить `docs/**` файловой системой Next.js. Нет API, version history,
-   locale lifecycle и policy draft/publish.
-2. Сделать свободный CMS. Расширяет attack/authoring surface без MVP need.
-3. Ввести platform-owned immutable PublicDocument revisions, импортируемые из
-   разрешённых закреплённых источников repository или публикуемые служебным процессом.
+1. Render `docs/**` using the Next.js file system. No API, version history,
+   locale lifecycle, or policy draft/publish.
+2. Create a free-form CMS. Expands the attack/authoring surface without an MVP need.
+3. Introduce platform-owned immutable PublicDocument revisions, imported from
+   permitted pinned repository sources or published by a service process.
 
-## Решение
+## Decision
 
-Принимается вариант 3 по SPEC-031. Technical docs остаются canonical в Git;
-CI import записывает exact source commit/path/digest в platform revision. Policies
-имеют staff-controlled drafts/publish/supersession. Public web/API читают только
-published localized revisions через shared safe Markdown renderer.
+Alternative 3 is accepted per SPEC-031. Technical docs remain canonical in Git;
+CI import records the exact source commit/path/digest in the platform revision. Policies
+have staff-controlled drafts/publishing/supersession. The public web/API reads only
+published localized revisions through a shared safe Markdown renderer.
 
-## Последствия
+## Consequences
 
-- Нужны document/revision storage, API, import job, public cache policy,
-  operator workflow и migration/archive tests.
-- Web не тянет Markdown по произвольному URL и не является Git client.
-- Будущее обязательное acceptance policy потребует отдельного ADR и auditable
+- Document/revision storage, an API, an import job, a public cache policy,
+  an operator workflow, and migration/archive tests are required.
+- The web does not fetch Markdown from an arbitrary URL and is not a Git client.
+- Future mandatory policy acceptance will require a separate ADR and an auditable
   account acceptance record.
-- Глобальная 500 страница и 404 являются частью public shell, а не policy CMS fallback.
+- The global 500 page and 404 are part of the public shell, not a policy CMS fallback.
 
-## Условия пересмотра
+## Reconsideration Conditions
 
-Решение пересматривается при появлении multi-repository docs federation,
-enterprise legal tenancy или обязательного электронного согласия с policy.
+The decision will be reconsidered if multi-repository docs federation,
+enterprise legal tenancy, or mandatory electronic consent to a policy is introduced.

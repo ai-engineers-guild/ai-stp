@@ -1,88 +1,88 @@
 ---
-description: "Проблема, пользователи, ценность и позиционирование ai_stp."
+description: "The problem, users, value, and positioning of ai_stp."
 last_verified: "2026-08-29"
 ---
 
-# Видение продукта
+# Product vision
 
-## Проблема
+## Problem
 
-Разработчики тратят время на ручной поиск и настройку инструкций, навыков, MCP, хуков, агентов, команд и плагинов для каждого харнесса и проекта. Компоненты имеют разные форматы, конфликтуют, быстро устаревают и редко сопровождаются проверяемой информацией о совместимости и рисках.
+Developers spend time manually finding and configuring instructions, skills, MCP, hooks, agents, commands, and plugins for every harness and project. Components use different formats, conflict, become outdated quickly, and rarely include verifiable compatibility and risk information.
 
-## Решение
+## Solution
 
-`ai_stp` создаёт единый машиночитаемый цикл:
+`ai_stp` creates a unified machine-readable cycle:
 
 ```text
-разработчик + проект + харнесс
-→ паспорта
-→ поиск компонентов
-→ механические ограничения
-→ решение агента
-→ сборка связного сетапа
-→ проверки
-→ безопасная установка
-→ история и синхронизация
+developer + project + harness
+→ passports
+→ component search
+→ mechanical constraints
+→ agent decision
+→ coherent setup assembly
+→ verification
+→ safe installation
+→ history and synchronization
 ```
 
-## Первый пользователь
+## First user
 
-Разработчик, который хочет быстро получить рабочий full-auto харнесс под текущий проект. Непосредственно с CLI взаимодействует его coding agent: продукт рассчитан на агента как на первичного потребителя.
+A developer who wants to quickly obtain a working full-auto harness for the current project. Their coding agent interacts directly with the CLI: the product treats the agent as its primary consumer.
 
-Пользователь один и он же владелец: MVP описывает работу одного разработчика со своими проектами и своими устройствами. Речь о том, для кого сделан продукт, а не о том, кто его делает: сам `ai_stp` разрабатывается несколькими участниками, и правила их работы живут в `docs/engineering/git-workflow.md`. Совместная работа двоих над одним проектом не поддерживается — сетап принадлежит аккаунту, а не репозиторию, и коллега, склонировавший репозиторий, собирает свой сетап сам. Это ограничение, а не недосмотр: команда, общий сетап и его ревью потребовали бы собственной модели владения и разрешения конфликтов между людьми.
+There is one user, who is also the owner: the MVP describes one developer working with their own projects and devices. This concerns whom the product is for, not who builds it: `ai_stp` itself is developed by multiple contributors, whose working rules live in `docs/engineering/git-workflow.md`. Two people collaborating on one project is not supported — a setup belongs to an account, not a repository, and a colleague who clones the repository assembles their own setup. This is a constraint, not an oversight: a team, a shared setup, and its review would require their own ownership model and a way to resolve conflicts between people.
 
-Это не то же самое, что поделиться объектом. Выдать другому аккаунту доступ к своему приватному компоненту или сетапу можно — это отношение автора и получателя в каталоге. Чего нет, так это общего рабочего сетапа проекта, который двое меняют одновременно.
+This is not the same as sharing an object. An account can grant another account access to its private component or setup — that is an author-recipient relationship in the catalog. What does not exist is a shared working project setup that two people modify concurrently.
 
-Продукт живёт с проектом, а не заканчивается на первой установке: ежедневный цикл в `user-flows.md` является такой же частью продукта, как первый запуск.
+The product lives with the project rather than ending after the first installation: the daily cycle in `user-flows.md` is as much a part of the product as the first run.
 
-Роли разделены явно. CLI детерминированно обнаруживает факты, проверяет и сохраняет паспорта. Агент пользователя интерпретирует находки, задаёт вопросы и собирает состав. Пользователь подтверждает неизвестное и рисковое. CLI, паспорта, validation и обязательная публикация не вызывают интерфейсы моделей и не требуют ключа модели по `ADR-0022`; `ADR-0131` разрешает только необязательное серверное улучшение уже готовой публичной presentation-проекции.
+Roles are separated explicitly. The CLI deterministically discovers facts, verifies and stores passports. The user's agent interprets findings, asks questions, and assembles the composition. The user confirms unknown and risky matters. Under `ADR-0022`, the CLI, passports, validation, and required publication do not call model interfaces or require a model key; `ADR-0131` permits only optional server-side enhancement of an already complete public presentation projection.
 
-## Авторы
+## Authors
 
-Публиковать может любой пользователь с первого дня: предварительной модерации публикаций нет, а реакция на проблемные объекты идёт через закрытые случаи жалоб по `ADR-0031`. При этом гильдия различает два рода авторов: подтверждённых авторов, чью личность или владение пространством имён проверила платформа, и обычных пользователей.
+Any user can publish from day one: publications are not pre-moderated, and problematic objects are handled through closed report cases under `ADR-0031`. The guild nevertheless distinguishes two kinds of authors: verified authors whose identity or namespace ownership the platform has verified, and ordinary users.
 
-Подтверждение имеет две независимые оси: подтверждён автор и подтверждена конкретная версия объекта. Одно не следует из другого, и обе оси видны и фильтруются раздельно. От них зависит, в какую линию доверия попадает объект: в основную, в экспериментальную по явному согласию пользователя или в линию собственных и точно закреплённых объектов. Правила линий принадлежат `ADR-0016`.
+Verification has two independent axes: the author is verified, and a specific object version is verified. Neither follows from the other, and both axes are visible and filtered separately. They determine which trust lane receives the object: the authoritative lane, the experimental lane with explicit user consent, or the lane for owned and exactly pinned objects. The lane rules belong to `ADR-0016`.
 
-Каталог запуска первопартийный по `ADR-0034`: гильдия публикует из подтверждённого пространства имён базовые сетапы поддержанных харнессов; барьер запуска — базовый сетап каждого из семи (`ADR-0120`), и корпус его закрывает. Публикации пользователей дополняют каталог, но холодный старт от них не зависит.
+Under `ADR-0034`, the launch catalog is first-party: the guild publishes base setups for supported harnesses from a verified namespace; the launch barrier is a base setup for each of the seven (`ADR-0120`), and the corpus satisfies it. User publications supplement the catalog, but cold start does not depend on them.
 
-`author_verified` выдаётся двумя путями: по заявке автора после проверки владения GitHub-профилем или организацией и по личному приглашению владельцев платформы. Оба пути ручные и аудируемые по `SPEC-007`; порядок проверки — runbook `docs/operations/runbooks/author-verification.md`.
+`author_verified` is granted through two paths: on author application after verifying ownership of a GitHub profile or organization, and by personal invitation from the platform owners. Both paths are manual and auditable under `SPEC-007`; the verification procedure is the runbook `docs/operations/runbooks/author-verification.md`.
 
-Verified подтверждает происхождение, а не безопасность содержимого.
+Verified confirms provenance, not the safety of the content.
 
-## Главная ценность
+## Core value
 
-Продукт не просто хранит ссылки на компоненты. Он:
+The product does more than store links to components. It:
 
-- понимает окружение и предпочтения разработчика;
-- индексирует проект;
-- находит готовые сетапы и отдельные компоненты по тегам, фильтрам и линии доверия;
-- связывает их в нативную конфигурацию конкретного харнесса;
-- показывает происхождение, проверки, линию доверия и ограничения;
-- применяет конфигурацию через проверенный провайдер с резервной копией и восстановлением;
-- сохраняет уже существующую конфигурацию как личный сетап, а не затирает её.
+- understands the developer's environment and preferences;
+- indexes the project;
+- finds ready-made setups and individual components by tags, filters, and trust line;
+- connects them into the native configuration of a specific harness;
+- shows provenance, verification, trust line, and constraints;
+- applies the configuration through a verified provider with backup and recovery;
+- preserves an existing configuration as a personal setup instead of overwriting it.
 
-Итоговый выбор остаётся за агентом и пользователем: продукт возвращает допустимых кандидатов и объясняет их, но не выдаёт свой порядок за единственно верный.
+The final choice remains with the agent and user: the product returns eligible candidates and explains them, but does not present its ordering as the only correct one.
 
-## Три режима
+## Three modes
 
-- **Локальный:** полностью без аккаунта и сервера.
-- **Публичный:** анонимный поиск и чтение публичного каталога.
-- **Авторизованный:** приватные объекты, синхронизация, публикация, устройства и grants.
+- **Local:** fully without an account or server.
+- **Public:** anonymous search and reading of the public catalog.
+- **Authenticated:** private objects, synchronization, publication, devices, and grants.
 
-После успешной первичной настройки локальный режим работает без сети. Точная граница между автономными и сетевыми операциями принадлежит `ADR-0019`.
+After successful initial setup, local mode works without a network. The exact boundary between offline and network operations belongs to `ADR-0019`.
 
-## Позиционирование
+## Positioning
 
-`ai_stp` — не универсальный package manager, не только каталог навыков и не только security scanner. Это слой подбора, сборки и безопасного жизненного цикла полных конфигураций AI-харнессов.
+`ai_stp` is not a universal package manager, only a skill catalog, or only a security scanner. It is a layer for selecting, assembling, and safely managing the lifecycle of complete AI harness configurations.
 
-## Принадлежность
+## Ownership
 
-Каталог принадлежит гильдии. NDDev предоставляет публичные провайдеры харнессов — те системы установки, которыми пользуется сама компания. Платформа лицензируется под AGPL-3.0-or-later; опубликованные пользователями объекты остаются под лицензиями своих авторов.
+The catalog belongs to the guild. NDDev provides public harness providers — the installation systems the company itself uses. The platform is licensed under AGPL-3.0-or-later; user-published objects remain under their authors' licenses.
 
-## Мерило успеха MVP
+## Measure of MVP success
 
-MVP удался, когда владельцы гильдии полностью ведут свои реальные проекты через `ai_stp`: паспорта, подбор, сборку, установку и ежедневный цикл — без возврата к ручной настройке харнессов. Это критерий собственного ежедневного использования; внешние установки и счётчики желательны, но вторичны и выпуск не определяют.
+The MVP succeeds when the guild owners manage their real projects entirely through `ai_stp`: passports, selection, assembly, installation, and the daily cycle — without returning to manual harness configuration. This is the criterion of daily internal use; external installations and counters are desirable but secondary and do not determine release.
 
-## Деньги
+## Money
 
-MVP бесплатен: платежи, выплаты и платный доступ в него не входят, и экономическая модель сейчас не проектируется. Дверь при этом сознательно не закрыта: платный доступ возможен в будущем, и `ADR-0004` заранее даёт ему естественную границу — major-линию версий. Это задел, а не обещание: ни сроки, ни форма не зафиксированы, и до отдельного решения владельцев продукт остаётся бесплатным целиком.
+The MVP is free: payments, payouts, and paid access are not included, and no economic model is currently being designed. The door is deliberately left open: paid access may be possible in the future, and `ADR-0004` establishes a natural boundary for it in advance — the major version line. This is groundwork, not a promise: neither timing nor form is fixed, and the product remains entirely free until a separate decision by the owners.

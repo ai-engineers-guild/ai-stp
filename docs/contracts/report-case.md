@@ -1,65 +1,64 @@
 ---
-description: "Закрытый случай жалобы: разрешённый состав, предпросмотр, состояния и аудируемые действия модератора."
+description: "Private report case: allowed content, preview, states, and auditable moderator actions."
 last_verified: "2026-08-13"
 ---
 
-# Случай жалобы
+# Report case
 
-Владелец требований — `SPEC-016`; решение — `ADR-0031`. Здесь зафиксирована машинная граница: из чего состоит жалоба, какие состояния проходит случай и что разрешено модератору.
+The requirements owner is `SPEC-016`; the decision is `ADR-0031`. This document defines the machine boundary: what a report contains, which states a case passes through, and what a moderator may do.
 
-Действие жалобы в вебе и команда жалобы в CLI создают один внутренний закрытый `ReportCase` через общий сценарий приложения по `ADR-0018`. Публичный issue на GitHub из жалобы не создаётся автоматически.
+The web report action and CLI report command create one internal private `ReportCase` through the shared application flow under `ADR-0018`. A public GitHub issue is not created automatically from a report.
 
-## Разрешённый состав
+## Allowed content
 
-CLI собирает только механические поля:
+The CLI collects only mechanical fields:
 
-| Поле | Содержимое |
+| Field | Content |
 |---|---|
-| объект | устойчивый идентификатор, версия и точный хэш |
-| харнесс | идентификатор и версия харнесса |
-| провайдер | версия провайдера |
-| операция | идентификатор операции и стадия, если жалоба про сбой операции |
-| проверки | идентификаторы снимков проверок |
-| ошибка | типизированный код ошибки |
-| диагностика | необязательная, ограниченная по объёму и очищенная; только после явного просмотра и согласия |
+| object | stable identifier, version, and exact hash |
+| harness | harness identifier and version |
+| provider | provider version |
+| operation | operation identifier and stage, if the report concerns an operation failure |
+| checks | check snapshot identifiers |
+| error | typed error code |
+| diagnostics | optional, size-bounded, and sanitized; only after explicit review and consent |
 
-Исходный код, подсказки, содержимое `.env`, значения секретов и переменных окружения, закрытые байты объектов и полные домашние пути не отправляются автоматически ни в одном поле. Пути в диагностике сокращаются до относительных. Репортёр видит полный предпросмотр байтов жалобы до отправки; отправка без согласия после предпросмотра невозможна.
+Source code, prompts, `.env` contents, secret and environment-variable values, private object bytes, and full home paths are never sent automatically in any field. Paths in diagnostics are reduced to relative paths. The reporter sees a full preview of the report bytes before submission; submission without consent after preview is impossible.
 
-CLI выражает эту границу тремя командами. `report preview` проверяет закрытую
-проводную модель, отклоняет diagnostics с абсолютными путями или
-secret-bearing assignments и сохраняет exact payload вместе с его digest и
-ключом идемпотентности. `report confirm` требует exact `plan_id`, digest и
-`--confirm`; после потерянного ответа повтор использует сохранённый payload и
-тот же ключ. Успешный ответ сохраняется локально, поэтому дальнейший повтор не
-создаёт нового сетевого эффекта. `report list` читает принадлежащие репортёру
-случаи с сервера.
+The CLI expresses this boundary through three commands. `report preview`
+validates the closed wire model, rejects diagnostics containing absolute paths
+or secret-bearing assignments, and stores the exact payload with its digest and
+idempotency key. `report confirm` requires the exact `plan_id`, digest, and
+`--confirm`; after a lost response, a retry uses the stored payload and the same
+key. A successful response is stored locally, so a later retry creates no new
+network effect. `report list` reads the reporter's cases from the server.
 
-Необязательная диагностика читается только из bounded regular UTF-8 file без
-перехода по symlink. Весь её текст входит в результат `preview`; отдельного
-пути отправить не показанные пользователю байты нет.
+Optional diagnostics are read only from a bounded regular UTF-8 file without
+following symlinks. All of its text is included in the `preview` result; there
+is no separate path for sending bytes not shown to the user.
 
-## Состояния
+## States
 
 ```text
 submitted → triaged → awaiting_author → resolved | dismissed
                     ↘ security_escalated
 ```
 
-| Состояние | Смысл |
+| State | Meaning |
 |---|---|
-| `submitted` | случай создан и ожидает триажа |
-| `triaged` | модератор классифицировал случай |
-| `awaiting_author` | автору отправлено очищенное уведомление, ожидается ответ |
-| `security_escalated` | случай передан в закрытый процесс уязвимостей |
-| `resolved` | случай закрыт с результатом |
-| `dismissed` | случай закрыт без действия |
+| `submitted` | the case has been created and awaits triage |
+| `triaged` | a moderator has classified the case |
+| `awaiting_author` | a sanitized notification has been sent to the author; a response is pending |
+| `security_escalated` | the case has been transferred to the private vulnerability process |
+| `resolved` | the case has been closed with an outcome |
+| `dismissed` | the case has been closed without action |
 
-Автор объекта получает уведомление только после триажа и только в очищенном виде: личность и окружение репортёра не раскрываются.
+The object author is notified only after triage and only in sanitized form: the reporter's identity and environment are not disclosed.
 
-## Группировка и ограничения
+## Grouping and limits
 
-Повторные жалобы на один объект и версию могут группироваться в один случай. Отправка требует аккаунта, ограничена по частоте и идемпотентна по ключу. Число жалоб никогда не скрывает и не блокирует объект автоматически.
+Repeated reports for one object and version may be grouped into one case. Submission requires an account, is rate-limited, and is idempotent by key. Report count never automatically hides or blocks an object.
 
-## Действия модератора
+## Moderator actions
 
-Скрытие, блокировка и восстановление версии — явные действия модератора, каждое создаёт `AuditEvent` с автором, основанием и временем. Изменение жизненного цикла версии подчиняется `SPEC-005` и `SPEC-007`; случай жалобы лишь ссылается на решение, но не является им.
+Hiding, blocking, and restoring a version are explicit moderator actions; each creates an `AuditEvent` with the actor, rationale, and time. Version lifecycle changes are governed by `SPEC-005` and `SPEC-007`; a report case merely references the decision and is not the decision itself.

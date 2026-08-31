@@ -1,165 +1,172 @@
 ---
-description: "Решение распространить windows-исключение на provider conformance через тот же признак доверия, а не по признаку read-only."
+description: "Decision to extend the Windows exception to provider conformance through the same trust signal, not because it is read-only."
 last_verified: "2026-08-30"
 ---
 
-# ADR-0126: Conformance получает windows-исключение по тому же признаку
+# ADR-0126: Conformance earns the Windows exception through the same signal
 
-Статус: принято для Windows fallback. В части macOS заменено
-`ADR-0134-macos-sandbox-exec-is-probed-fail-closed.md`; основной Windows
-launcher принят в `ADR-0133-appcontainer-keeps-bypass-traverse-checking.md`.
+Status: accepted. Clarifies the scope of `#416`.
 
-## Контекст
+## Context
 
-`#416` разрешил local phase без изоляции сети на Windows и **явно** ограничил
-область: «protocol v2, `target-status`/`diff` и иные provider spawn вне install
-plan исключения не получают». `ADR-0125` и реализация это соблюдали.
+`#416` allowed a local phase without network isolation on Windows and
+**explicitly** limited its scope: "protocol v2, `target-status`/`diff`, and
+other provider spawns outside the install plan do not receive the exception."
+`ADR-0125` and the implementation complied with this.
 
-Следствие обнаружилось в `#423`: на Windows `provider conformance` не
-запускается вовсе. Не «часть случаев отказывает» — команда, которой автор
-провайдера проверяет свою сборку, недоступна на целой платформе.
+The consequence surfaced in `#423`: on Windows, `provider conformance` does
+not run at all. This is not "some cases are refused"—the command with which a
+provider author checks a build is unavailable on an entire platform.
 
-Отказ был правильным, но названная в нём причина — нет. Отказывая, я сказал:
-у установки есть план, одобрение и журнал, на которые можно опереться, а у
-наблюдающего запуска нет ничего, чем ограничить провайдера, уже получившего
-цель и сеть.
+The refusal was correct, but the reason I gave for it was not. I said that an
+installation has a plan, approval, and journal to rely on, while an
+observational invocation has nothing with which to constrain a provider that
+already has the target and network access.
 
-**Это не выдерживает проверки.** План, одобрение и журнал не мешают процессу
-использовать сеть: провайдер во время установки на Windows работает
-незаизолированным ровно так же. Возможность обращения к сети у него **та же**,
-а прав больше — он пишет. Отказывать строго меньшей возможности, разрешая
-большую, непоследовательно.
+**This does not withstand scrutiny.** A plan, approval, and journal do not stop
+a process from using the network: during installation on Windows, the provider
+runs without isolation in exactly the same way. Its ability to access the
+network is **the same**, and it has more rights because it writes. Refusing the
+strictly weaker capability while allowing the stronger one is inconsistent.
 
-Настоящее различие лежит не там, где я его назвал. Оно в том, **чей это
-исполняемый файл**. `#416` даёт исключение по двум признакам доверия:
-`trusted_release` или `explicit_unverified_provider`. У `provider conformance`
-не было **ни одного** — команда принимает произвольный `--executable` и не
-проверяет ничего. Отказ защищал не от чтения цели, а от отсутствия признака.
+The real distinction is not where I said it was. It is **whose executable this
+is**. `#416` grants the exception based on two trust signals:
+`trusted_release` or `explicit_unverified_provider`. `provider conformance`
+had **neither**—the command accepts an arbitrary `--executable` and verifies
+nothing. The refusal protected against the absence of a signal, not against
+reading the target.
 
-## Варианты
+## Options
 
-**Оставить как есть.** Windows остаётся без conformance. Отвергнуто: это
-блокирует разработку провайдеров на платформе целиком, а защищаемое свойство
-уже не держится у соседней, более сильной операции.
+**Leave it as is.** Windows remains without conformance. Rejected: this blocks
+provider development on the entire platform, while the protected property
+already does not hold for the adjacent, more powerful operation.
 
-**Разрешить по признаку read-only.** Отвергнуто: тогда `target-status` и `diff`
-получают исключение молча, вместе со всем, что когда-либо окажется read-only.
-Признак «команда ничего не пишет» ничего не говорит о том, чей код запущен.
+**Allow it because it is read-only.** Rejected: then `target-status` and
+`diff` silently receive the exception, along with everything that may ever be
+read-only. The fact that a command writes nothing says nothing about whose code
+is running.
 
-**Дать conformance тот же признак доверия.** Принято.
+**Give conformance the same trust signal.** Accepted.
 
-## Решение
+## Decision
 
-`provider conformance` получает `--unverified-provider`. На Windows он даёт ту
-же причину `explicit_unverified_provider`, которую `#416` уже принял для
-установки.
+`provider conformance` receives `--unverified-provider`. On Windows it
+provides the same reason, `explicit_unverified_provider`, that `#416` already
+accepted for installation.
 
-Из двух признаков conformance может установить только этот: команда не читает
-release manifest и принимает тот путь, который ей передали. `trusted_release`
-здесь недостижим честно, и притворяться иначе не следует.
+Of the two signals, conformance can establish only this one: the command does
+not read a release manifest and accepts the path it is given.
+`trusted_release` cannot honestly be reached here, and it should not pretend
+otherwise.
 
-Что **не** меняется:
+What **does not** change:
 
-- без флага — отказ ровно как прежде. По умолчанию слабее ничего не стало;
-- вне Windows флаг не делает ничего: `windows_unisolated` отказывается
-  собираться на любой другой системе, а `invocation_v3.invoke` перепроверяет
-  платформу отдельно, потому что значение может доехать, а действовать по нему
-  вправе только та система, которой исключение нужно;
-- `target-status`, `diff`, protocol v2 и всё прочее исключения по-прежнему не
-  получают. Область расширена **на одну команду по названному признаку**, а не
-  снята;
-- `provider network --json` на Windows остаётся `unavailable`.
+- without the flag, refusal is exactly as before. The default has not weakened;
+- outside Windows the flag does nothing: `windows_unisolated` refuses to be
+  constructed on any other system, and `invocation_v3.invoke` independently
+  rechecks the platform because the value may arrive there but may act only on
+  the system that needs the exception;
+- `target-status`, `diff`, protocol v2, and everything else still receive no
+  exception. The scope expands **by one command under the named signal**; it is
+  not removed;
+- `provider network --json` on Windows remains `unavailable`.
 
-## Последствия
+## Consequences
 
-- Автор провайдера может проверить свою сборку на Windows, назвав, что она
-  непроверенная. Это то же утверждение, которое он уже делает при установке.
-- Признак становится единым: исключение даётся по доверию к исполняемому файлу,
-  а не по тому, пишет команда или читает. Одно правило вместо двух похожих.
-- Долг Windows не уменьшился и не вырос: незаизолированная фаза остаётся
-  сознательным долгом `#416`, и снимает его тот же consumer-controlled launcher.
-- Цена, названная прямо: провайдер, названный оператором непроверенным, может
-  во время conformance обратиться к сети, держа названную `--target`. Раньше он
-  этого не мог, потому что не запускался.
+- A provider author can check a build on Windows while declaring it unverified.
+  This is the same statement already made during installation.
+- The signal becomes uniform: the exception is granted based on trust in the
+  executable, not on whether the command reads or writes. One rule replaces
+  two similar ones.
+- The Windows debt neither shrinks nor grows: the unisolated phase remains the
+  deliberate debt of `#416`, removed by the same consumer-controlled launcher.
+- The cost, stated directly: a provider that the operator identifies as
+  unverified can access the network during conformance while holding the named
+  `--target`. It could not do so before because it did not run.
 
-## Поправка от 2026-08-26: правило вместо перечня
+## Amendment of 2026-08-26: a rule instead of a list
 
-Запись выше говорит, что область расширена «на одну команду», а `target status`,
-`target diff` и protocol v2 исключения не получают. Первое утверждение устарело
-в тот же день, и заменять его следующим перечнем не стоит: перечень, растущий по
-коммиту, и есть то, что расходится.
+The record above says the scope expands "by one command", while `target status`,
+`target diff`, and protocol v2 do not receive the exception. The first claim
+became stale on the same day, and replacing it with another list would be
+wrong: a list that grows by commit is exactly what drifts.
 
-**Правило.** Исключение даётся любой команде, запускающей провайдера, которого
-назвал оператор, и только по одному из двух признаков доверия `#416`. Читает
-команда или пишет — не входит в правило: это и был неверный признак, от которого
-ушла основная запись.
+**Rule.** The exception is granted to any command that launches a provider
+named by the operator, and only under one of the two trust signals from `#416`.
+Whether the command reads or writes is not part of the rule: that was the
+incorrect signal rejected by the main record.
 
-`target status` и `target diff` получают тот же флаг по тому же признаку. Они
-принимают произвольный `--provider`, как conformance, и на Windows не
-запускались вовсе — та же дыра в платформе, что закрыта выше.
+`target status` and `target diff` receive the same flag under the same
+signal. They accept an arbitrary `--provider`, like conformance, and did not
+run at all on Windows—the same platform gap closed above.
 
-Довод, который стоит назвать, потому что он неочевиден: эти команды смотрят на
-**живую** цель, а не на одноразовую. Но незаизолированная фаза на Windows уже
-разрешена для установки, которая ту же живую цель **изменяет**. Риск принят для
-строго более опасного случая, и отказывать менее опасному по тому же признаку
-непоследовательно — ровно тот довод, которым эта запись начинается.
+The argument is worth stating because it is not obvious: these commands inspect
+a **live** target rather than a disposable one. But an unisolated phase on
+Windows is already permitted for installation, which **modifies** that same
+live target. The risk is accepted for a strictly more dangerous case, so
+refusing the less dangerous one under the same signal is inconsistent—the
+argument with which this record begins.
 
-Protocol v2 исключения не получает и получить не может: `invocation_v2.invoke`
-не принимает разрешение вовсе, так что отказ остаётся по устройству, а не по
-намерению. Это единственная часть перечня, которую стоило сохранить, и она
-сохранена тем, что её незачем помнить.
+Protocol v2 does not and cannot receive the exception:
+`invocation_v2.invoke` accepts no permission at all, so refusal remains a
+consequence of construction rather than intent. This is the only part of the
+list worth preserving, and it is preserved by making it unnecessary to
+remember.
 
-## Поправка от 2026-08-26: исключение принадлежит платформе без launcher, а не Windows
+## Amendment of 2026-08-26: the exception belongs to platforms without a launcher, not to Windows
 
-Обе редакции выше говорят «Windows», и это оказалось не решением, а именем.
-`#416` описывал Windows, потому что там проблему встретили; проверка была
-написана как `os_name != "windows"`, и на этом остановились.
+Both versions above say "Windows", and that proved to be a name rather than a
+decision. `#416` described Windows because that is where the problem was
+encountered; the check was written as `os_name != "windows"` and stopped
+there.
 
-Измерено прогоном по трём системам:
+Measured by running on three systems:
 
 ```text
-Linux    launcher=yes   enforced      исключение отказано  (верно)
-Darwin   launcher=none  unavailable   исключение отказано  (дыра)
-Windows  launcher=none  unavailable   исключение доступно
+Linux    launcher=yes   enforced      exception refused      (correct)
+Darwin   launcher=none  unavailable   exception refused      (gap)
+Windows  launcher=none  unavailable   exception available
 ```
 
-**На macOS не запускалась ни одна операция провайдера v3.** `discover_bubblewrap`
-отдаёт «недоступно» на всём, что не Linux, а исключение отказывалось строиться на
-всём, что не Windows. При этом `attested_bind` знает цели `macos/x86_64` и
-`macos/arm64`, провайдеры объявляют `supported_os: ["linux", "macos"]`, и матрица
-гейта гоняет `macos-latest`. То есть мы скачиваем и заверяем провайдера, которого
-не можем выполнить.
+**No provider v3 operation ran on macOS.** `discover_bubblewrap` returns
+"unavailable" on everything other than Linux, while the exception refused to
+be constructed on everything other than Windows. Meanwhile, `attested_bind`
+knows the targets `macos/x86_64` and `macos/arm64`, providers declare
+`supported_os: ["linux", "macos"]`, and the gate matrix runs `macos-latest`.
+In other words, we download and attest a provider that we cannot execute.
 
-Ни один документ macOS не исключал. Это следствие имени.
+No document excluded macOS. This was a consequence of the name.
 
-**Правило.** Исключение принадлежит системе, где **нет launcher'а, которым
-обычный CLI вправе отрицать сеть** — закрытый набор `UNISOLATED_PLATFORMS`.
-Linux в него не входит намеренно: отсутствие `bwrap` там — отсутствующая
-зависимость, а не отсутствующая возможность системы, и пропустить существующую
-возможность не то же, что уступить несуществующей.
+**Rule.** The exception belongs to a system that **has no launcher with which
+the ordinary CLI can deny network access**—the closed
+`UNISOLATED_PLATFORMS` set. Linux is intentionally absent: missing `bwrap`
+there is a missing dependency, not a missing system capability, and bypassing
+an existing capability is not the same as conceding a nonexistent one.
 
-Имена перестают называть Windows: `unisolated_local_phase`, `UNISOLATED_REASONS`,
-`UNISOLATED_PLATFORMS`. Признаки доверия не менялись — их по-прежнему два.
+Names stop naming Windows: `unisolated_local_phase`, `UNISOLATED_REASONS`,
+`UNISOLATED_PLATFORMS`. The trust signals did not change—there are still two.
 
-Долг не вырос: он был у Windows и оказался у macOS всё это время, только в форме
-полного отказа вместо явной уступки. Снимет его тот же consumer-controlled
-launcher; для macOS кандидат — `sandbox-exec`, и до тех пор, пока что-то не
-докажет его **на самой платформе**, писать его нельзя: непроверенный launcher —
-это зелёный сторож над пустотой.
+The debt did not grow: it existed for Windows and turned out to have existed
+for macOS all along, only as complete refusal rather than an explicit
+concession. The same consumer-controlled launcher will remove it; for macOS,
+the candidate is `sandbox-exec`, and until something proves it **on the
+platform itself**, it must not be written: an unverified launcher is a green
+guard over nothing.
 
-## Условия пересмотра
+## Review conditions
 
-- Появление launcher'а, который на Windows отрицает сеть без подготовки системы,
-  делает всю запись и `#416` ненужными разом. **Одно из препятствий к нему
-  измерено и оказалось не препятствием.** `#416` записывал, что произвольный
-  target требует DACL traversal, а значит подготовки родителя или корня диска.
-  Прогон на `windows-latest` (`NDDev-OpenNetwork/claude-setup-system`, run
-  33302576898): AppContainer прочитал target, несущий **только собственный
-  ACE**, при нетронутом DACL родителя — bypass-traverse выдаётся широко по
-  умолчанию. Проба перечислила ACE родителя для этого SID и не напечатала ни
-  одного, то есть контроль сработал, а не был предположен. Долг это не снимает:
-  launcher по-прежнему нужно построить и доказать на самой платформе. Снимает
-  оно записанную причину, по которой его считали непостроимым.
-- Если какая-нибудь команда получит исключение без одного из двух признаков
-  доверия, единство правила нарушится, и его нужно будет восстанавливать здесь,
-  а не в вызывающем.
+- The appearance of a launcher that denies network access on Windows without
+  system preparation makes this entire record and `#416` unnecessary at once.
+  **One alleged obstacle has been measured and was not an obstacle.** `#416`
+  recorded that an arbitrary target requires DACL traversal and therefore
+  preparation of its parent or disk root. A run on `windows-latest`
+  (`NDDev-OpenNetwork/claude-setup-system`, run 33302576898) showed that an
+  AppContainer read a target carrying **only its own ACE** while the parent's
+  DACL remained untouched—bypass traverse is granted broadly by default. The
+  probe enumerated the parent's ACEs for this SID and printed none, proving
+  that the control ran rather than being assumed. This does not remove the
+  debt: the launcher must still be built and proven on the platform itself. It
+  removes the recorded reason it was considered impossible to build.
+- If any command receives the exception without one of the two trust signals,
+  the rule's uniformity is broken and must be restored here, not in the caller.

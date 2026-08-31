@@ -1,59 +1,36 @@
 ---
-description: "Проверяемая инвентаризация реальных байтов и паспортов первопартийного корпуса запуска."
+description: "Verifiable inventory of the actual bytes and passports in the first-party launch corpus."
 last_verified: "2026-08-29"
 ---
 
-# Первопартийный корпус запуска
+# First-party launch corpus
 
-Нормативный состав каталога принадлежит
-[ADR-0034](../adr/ADR-0034-first-party-launch-corpus.md), а выпускной барьер —
-[release-evidence.md](release-evidence.md). Здесь хранится проверяемая
-инвентаризация уже подготовленных объектов, без изменения требуемого состава.
+The normative composition of the catalog belongs to
+[ADR-0034](../adr/ADR-0034-first-party-launch-corpus.md), and the release threshold —
+[release-evidence.md](release-evidence.md). Here is stored a verifiable
+inventory of already prepared items, without changing the required composition.
 
-## Чем корпус собран
+## How the corpus is built
 
-`release_scripts/build_first_party_corpus.py`. До 2026-08-29 сборщика **не
-существовало**: манифесты и встроенные артефакты собирались вне этого
-репозитория. Именно поэтому корпус продолжал ссылаться на эстейт, переведённый
-на личный аккаунт и заархивированный 2026-08-25 — пересобрать его отсюда было
-нечем, поэтому никто и не заметил.
+`release_scripts/build_first_party_corpus.py`. Until 2026-08-29 the builder **did not exist**: manifests and built-in artifacts were assembled outside of this repository. That is why the corpus continued to reference the estate, transferred to a personal account and archived on 2026-08-25 — there was nothing to rebuild it from here, so no one noticed.
 
-Сборщик читает дерево `setups/nddev-builder/` каждой системы сетапов на её
-текущем `main`, раскладывает каждый путь по **той же таблице проекции, которой
-пользуется компилятор** (`composition.rule_for`), упаковывает результат и
-записывает собственные tree и blob SHA гита как провенанс.
+The collector reads the `setups/nddev-builder/` tree of each setup system on its current `main`, lays out each path according to **the same projection table used by the compiler** (`composition.rule_for`), packs the result, and records its own tree and blob SHA of git as provenance.
 
-Две вещи он намеренно не делает. Он не выдумывает компонент для пути, который
-не маршрутизирует ни одно правило: единственный такой путь — codex
-`agents/nddev-builder.toml`, и это подтверждение модели, а не пропуск (роль
-codex — это таблица `agents.<name>` в файле настроек плюс слой, на который она
-указывает, то есть спутник настройки, а не компонент какого-либо вида). И он не
-переиспользует стабильные идентификаторы: это объекты из другого репозитория, и
-старые id утверждали бы, что опубликованная версия пришла из источника, откуда
-не приходила.
+There are two things he deliberately does not do. He does not invent a component for a path that is not routed by any rule: the only such path is codex `agents/nddev-builder.toml`, and this is a model confirmation, not an omission (the role of codex is a table `agents.<name>` in the configuration file plus the layer it points to, meaning the configuration satellite, not a component of any kind). And he does not reuse stable identifiers: these are objects from another repository, and the old IDs would imply that the published version came from a source from which it did not come.
 
-## Что заменено и какой ценой
+## What has been replaced and at what cost
 
-Предыдущий корпус нёс 126 объектов, из которых **120 называли архивные
-репозитории** под личным аккаунтом. Исправить правкой было нельзя: `source` и
-commit входят в адресуемый содержимым паспорт, а опубликованная `X.Y`
-неизменяема (`REQ-2606`). Единственная честная поправка — другие объекты с
-новыми идентификаторами.
+The previous corpus contained 126 objects, of which **120 were called archival repositories** under a personal account. It could not be corrected by editing: `source` and commit are part of the content-addressable passport, and the published `X.Y` is immutable (`REQ-2606`). The only honest correction is other objects with new identifiers.
 
-Цена названа числом, а не абзацем: **126 объектов с провенансом на архив
-становятся 40 с живым источником.** 60 ролевых компонентов приходили из
-`rldyour-claudecode` и `rldyour-codex` — обоих архивных под тем же личным
-аккаунтом, — и живого репозитория, из которого их можно пересобрать, нет. Это, а
-не модельное решение, и есть причина, по которой ролевой корпус снят.
+The price is given as a number, not a paragraph: **126 items with provenance in the archive become 40 with a live source.** 60 role components came from `rldyour-claudecode` and `rldyour-codex` — both archived under the same personal account — and there is no live repository from which they can be reconstructed. This, and not a model decision, is the reason why the role corpus was removed.
 
-Старые объекты остаются опубликованными и неизменяемыми. Снятие — это решение
-не сеять новые, а не удаление уже выпущенных.
+Old objects remain published and immutable. Withdrawal is a decision not to sow new ones, not the removal of those already released.
 
-## Состав, измеренный сборкой
+## Composition, measured by assembly
 
-Семь харнессов, 40 объектов: 33 компонентов и 7 сетапов, все версии `1.0`.
+Seven harnesses, 40 objects: 33 components and 7 setups, all versions `1.0`.
 
-| Харнесс | Компонентов | Виды |
+| Harness | Components | Types |
 |---|---:|---|
 | claude-code | 7 | agent 1, command 3, instruction 1, setting 1, skill 1 |
 | opencode | 7 | agent 1, command 3, instruction 1, setting 1, skill 1 |
@@ -63,97 +40,49 @@ commit входят в адресуемый содержимым паспорт,
 | antigravity | 2 | plugin 1, setting 1 |
 | cursor | 2 | plugin 1, setting 1 |
 
-Коммитов, blob-SHA и passport digest здесь **нет намеренно**. Их живой владелец —
-`ai_stp_contracts.first_party.versions()` и `corpus-sources.json` рядом с
-артефактами; таблица в документе была их копией и за одну сессию 2026-08-29
-устарела дважды. Текущие значения печатает:
+There are **intentionally no** commits, blob-SHA, or passport digest here. Their live owner is — `ai_stp_contracts.first_party.versions()` and `corpus-sources.json` next to the artifacts; the table in the document was their copy and during one session on 2026-08-29 it became outdated twice. The current values are printed by:
 
 ```bash
 uv run python -c "from ai_stp_contracts.first_party import versions
 for v in versions(): print(v.kind, v.passport.stable_id, v.passport_digest)"
 ```
 
-Проверить, разошёлся ли корпус с провайдерами, — по содержимому, а не по HEAD:
+Check whether the body has diverged from the providers — by content, not by HEAD:
 
 ```bash
 just corpus-drift
 ```
 
-`--drift` отвечает, сколько компонентов и сетапов действительно сдвинулось, и
-ничего не собирает. Отставание на компонент — публикуемое состояние, а не отказ:
-его несёт следующая версия.
+`--drift` indicates how many components and setups have actually shifted, and does not collect anything. The lag on the component is a published state, not a failure: it will be carried by the next version.
 
-Рецепт заведён 2026-08-29, и до него здесь стоял полный вызов скрипта с
-`--out`. Разница не косметическая: команда, которую надо набрать путём,
-запускается тогда, когда о ней вспомнили, — а этот корпус привязан к digest и
-локально не выводим, то есть кроме этой команды сказать «содержимое отстало»
-здесь нечему. Первый же запуск после заведения рецепта показал, что отстало:
-десять файлов компонентов по всем семи харнессам и два сетапа, `codex` и
-`cursor`; двадцать три объекта не менялись (`#461`).
+The recipe was created on 2026-08-29, and before it, there was a full script call with `--out`. The difference is not cosmetic: the command that needs to be executed manually runs only when it is remembered — and this module is tied to the digest and is not displayed locally, so aside from this command, there is nothing to report as 'content is lagging.' The very first run after the recipe was created showed that it was lagging: ten component files across all seven harnesses and two setups, `codex` and `cursor`; twenty-three objects had not changed (`#461`).
 
-Сорок объектов корпуса — тот класс, который защищён от изменения и ничем от
-неверности: `passport_digest` отказывает молчаливой правке и ничего не говорит
-о том, совпадает ли содержимое с источником.
+Forty objects of the corpus are the class that is protected from modification and immune to any discrepancy: `passport_digest` refuses silent edits and says nothing about whether the content matches the source.
 
-## Провенанс называет коммит, который произвёл байты
+## Provenance names the commit that produced the bytes
 
-`source.commit` — последний коммит, тронувший `setups/nddev-builder`, а не HEAD
-репозитория. До 2026-08-29 это был HEAD, и, поскольку `source` входит в
-адресуемый содержимым паспорт, **все семь сетапов меняли digest при любом
-релизе любого провайдера** — включая пять, чей payload не двигался. Измерено в
-тот день: три релиза провайдеров сдвинули два компонента из тридцати трёх и ни
-одного сетапа, а паспорта отличались все семь.
+`source.commit` — the last commit that touched `setups/nddev-builder`, not the repository HEAD. Until 2026-08-29, this was the HEAD, and since `source` is included in the content-addressable passport, **all seven setups changed the digest with any release of any provider** — including five whose payload did not move. Measured that day: three provider releases shifted two components out of thirty-three and no setups, while all seven passports differed.
 
-Опубликованная `X.Y` неизменяема, поэтому именно это делало посеянный корпус
-«устаревшим» через минуты после посева — навсегда. Эта видимость, а не
-содержимое, дважды откладывала пересев каталога.
+The published `X.Y` is immutable, which is why this made the planted corpus 'obsolete' minutes after planting—forever. This appearance, not the content, twice postponed the reseeding of the catalog.
 
-## Идентичность переживает пересборку
+## Identity Undergoes Reassembly
 
-`new_id` выдаёт новый ULID на каждый вызов, поэтому до 2026-08-29 каждая
-пересборка заменяла все сорок идентичностей. С неизменяемой `X.Y` это
-означало, что у посеянного корпуса нет пути из `1.0` в `1.1`: следующее
-изменение провайдера можно было бы опубликовать только как сорок **новых**
-объектов, осиротив посеянный набор.
+`new_id` generates a new ULID with each call, so until 2026-08-29 every rebuild replaced all forty identities. With the immutable `X.Y` this meant that the seeded corpus had no path from `1.0` to `1.1`: the next provider change could only be published as forty **new** objects, orphaning the seeded set.
 
-Логическая идентичность компонента — `(харнесс, вид, slug)`, сетапа — харнесс.
-Пересборка переиспользует идентификатор, который прошлая сборка уже выдала
-этому объекту, и печатает `new_identities` для путей, которых раньше не было.
-Идентификаторы снятого эстейта при этом по-прежнему не переиспользуются: те
-объекты пришли из другого репозитория.
+Logical identity of a component is `(harness, kind, slug)`; the logical identity of a setup is its harness.
+The rebuild reuses the identifier that the previous build already issued to this object, and prints `new_identities` for paths that were not there before.
+Identifiers of the removed estate are still not reused: those objects came from another repository.
 
-Платформенный набор каждого сетапа — три ОС и две архитектуры — **спрошен у
-выпущенного бинаря провайдера** при сборке, а не записан литералом. До
-2026-08-29 здесь стояли `["linux"]` и `["x86_64"]`, и каждый опубликованный
-сетап занижал собственную поддержку у всех семи сразу. Запасного значения в
-сборщике нет намеренно: литерал, подставляемый когда вопрос задать не удалось,
-и есть возвращение копии.
+The platform set of each setup — three OSes and two architectures — is **queried from the released provider binary** during the build, rather than recorded as a literal. Until 2026-08-29, `["linux"]` and `["x86_64"]` were placed here, and each published setup underestimated its own support for all seven at once. There is intentionally no spare value in the builder: the literal substituted when the query could not be made is what is returned as a copy.
 
-Точные подпути, Git object SHA, стабильные ID и **путь проекции** каждого
-компонента принадлежат `first_party/v1/corpus-sources.json`. Контрактный тест
-восстанавливает каждый Git blob или tree SHA непосредственно из вложенных байтов
-и режимов файлов, и отдельно проверяет, что объявленный `managed_path` — это
-ровно то, что произведёт правило компилятора.
+Exact subpaths, Git object SHA, stable IDs, and the **projection path** of each component belong to `first_party/v1/corpus-sources.json`. The contract test restores each Git blob or tree SHA directly from the embedded bytes and file modes, and separately checks that the declared `managed_path` is exactly what the compiler rule will produce.
 
-Третьей копии таблицы проекции больше нет. Она стояла в
-`ai_stp_contracts.first_party` до 2026-08-29 и к тому моменту уже расходилась с
-`PROVIDER_RULES`: плагин cursor был `plugins/local` в одной и `plugins` в
-другой. Корпус, чей managed path не совпадает с тем, что напишет компилятор,
-устанавливается «verified» и невидимо — ровно это случилось с 61 скиллом codex.
+The third copy of the projection table no longer exists. It was located in `ai_stp_contracts.first_party` until 2026-08-29 and by that time it was already diverging from `PROVIDER_RULES`: the cursor plugin was `plugins/local` in one and `plugins` in the other. A body whose managed path does not match what the compiler will write is set as "verified" and invisible — exactly what happened with 61 codex skills.
 
-`safe` и `full-auto` остаются execution profiles одного setup graph, а не двумя
-content setup. Переключение профиля не меняет component, setup artifact или
-граф по `SPEC-008` `REQ-835`; оба профиля проверяются provider lifecycle
-отдельно от корпуса содержимого.
+`safe` and `full-auto` remain execution profiles of one setup graph, not two content setups. Switching the profile does not change the component, setup artifact, or graph according to `SPEC-008` `REQ-835`; both profiles are checked by the provider lifecycle separately from the content body.
 
-Импортируемый владелец данных — `ai_stp_contracts.first_party`. Он поставляет
-точные байты артефактов, полные запечатанные паспорта и их хэши одним набором и
-используется обеими сторонами вместо независимых копий.
+The imported data owner is `ai_stp_contracts.first_party`. It supplies exact bytes of artifacts, full sealed passports, and their hashes in a single set and is used by both parties instead of independent copies.
 
-## Незакрытая интеграция
+## Unclosed integration
 
-Сервер сеет **не этот корпус**: `load_first_party_seed` раскладывает написанный
-вручную набор Sprint-1, а `ai_stp_contracts.first_party.CORPUS` не импортируется
-ничем в `apps/` — этим владеет `#374`. Пока это так, `#162` остаётся открытой:
-совпадение CLI и web должно быть доказано на одной опубликованной версии, а не
-выведено из локальной фикстуры.
+The server is seeding **not this chassis**: `load_first_party_seed` distributes the manually written Sprint-1 set, while `ai_stp_contracts.first_party.CORPUS` is not imported by anything into `apps/` — `#374` owns this. As long as this is the case, `#162` remains open: a match between CLI and web must be proven on a single published version, not inferred from a local fixture.

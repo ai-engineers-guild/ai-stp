@@ -1,88 +1,69 @@
 ---
-description: "Обязательные доказательства выпуска CLI, платформы и семи provider systems."
-last_verified: "2026-08-31"
+description: "Required release evidence for the CLI, platform, and providers."
+last_verified: "2026-08-04"
 ---
 
-# Доказательства выпуска
+# Release evidence
 
-Этот документ задаёт форму evidence, а не хранит текущий снимок версий. Текущее
-состояние и оставшаяся работа принадлежат `implementation-roadmap.md`.
+## Common record
 
-## Общая запись
+Every release records the repository, ref and SHA, version, artifact hash and provenance, schema versions, exact commands and results, skipped checks, final diff, working-tree state, migration, rollback, and known limitations.
 
-Каждый выпуск связывает exact repository/ref/SHA, версию, digests артефактов,
-версии schemas/policy, платформу, команды и наблюдаемые outcomes. Старый запуск
-на другом CLI или provider tag не переносится. Пропущенная строка получает
-`not_verified`; успешная сборка не называется real-product lifecycle.
+An old CI run on a different SHA is not evidence. A skipped line receives `not_verified`, not success.
 
-## CLI и пять Python-пакетов
+## CLI
 
-Candidate состоит из согласованных foundation, passports, assurance, contracts
-и CLI. Wheel/sdist собираются повторно, сравниваются побайтово и сопровождаются
-metadata, LICENSE, CycloneDX SBOM, manifest, checksums и provenance exact SHA.
-Install smoke связывает все пять exact candidate wheels по PEP 610 и выполняет
-machine commands вне checkout.
+A clean installation using the published command, Python 3.12 and 3.14 on Linux
+x86_64, an offline path, removal and reinstallation, reference JSON, and verification
+that no secrets are present are required. Under `ADR-0062`, macOS is not part of the
+current support matrix.
 
-Native release matrix содержит:
+The Python candidate additionally carries aligned versions of five public packages,
+byte-for-byte reproduced wheel/sdist artifacts, package metadata and LICENSE, a
+deterministic CycloneDX SBOM, `release-manifest.json`, `SHA256SUMS`, and provenance for
+the exact SHA. A dirty candidate, skipped attestation, or a workflow that exists but
+has not run successfully receives `not_verified`.
 
-- `ubuntu-24.04` и `ubuntu-24.04-arm`;
-- `windows-2025` и `windows-11-arm`;
-- `macos-15-intel` и `macos-15`.
+Installation evidence additionally records the PEP 610 provenance of all five internal
+wheels supplied from direct sources. Installing only the CLI wheel with `--find-links`
+is insufficient: matching internal versions might have resolved through the public
+index. The check runs machine commands outside the source tree and confirms removal of
+the program. Each row of the Python matrix must use a job-local
+`UV_PROJECT_ENVIRONMENT` and verify the actual Python version from the installed CLI's
+response; one persistent `.venv` is not evidence for two versions.
 
-Каждая строка использует нативный toolchain своей архитектуры, отдельное
-окружение и фактическую версию Python из ответа установленного CLI. Эмуляция
-другой архитектуры не закрывает строку.
+## Platform
 
-## Семь provider systems
+PostgreSQL migrations, user isolation, object authorization, RustFS operation, job idempotency, mixed API versions, administrator audit, backup, and restore are required.
 
-Общий core проверяется для Claude Code, Codex, Cursor, OpenCode, Antigravity,
-Pi и Grok Build. Для каждой системы evidence раздельно отвечает:
+## Provider
 
-1. существует ли exact provider binary на OS/arch;
-2. объявлена ли конкретная operation на этой строке;
-3. прошли ли plan/apply/status/recovery или ожидаемый типизированный отказ на
-   exact release bytes;
-4. совпадают ли provider-info, vendored provider-kit schemas и consumer policy.
+The exact public source, release artifact and manifest, trust policy, signature, hash, rollback protection, public checks, closed conformance verification, malicious packages, no-change plan, apply, launch, status, and restore are required.
 
-Software lifecycle доступен на 6/6 строках у всех семи систем. Complete launch
-имеют пять систем: Claude Code, Codex, Grok Build, OpenCode и Pi. Cursor и
-Antigravity не получают фиктивный launch-success.
+Linux x86_64 is required for all five providers. Claude Code and Codex block the main
+release; the three beta lines complete the same safe lifecycle but do not strengthen
+their support label. A platform that was not exercised is not called supported;
+macOS receives `not_verified` and does not block the current release.
 
-Network-free local phase использует consumer-controlled launcher с положительной
-DNS/IPv4/IPv6 probe. macOS доказывает системный `sandbox-exec`; отсутствие или
-ошибка пробы дают ранний отказ без trust exception. Сборка provider и direct
-provider E2E не заменяют
-consumer E2E через `ai-stp`.
+## First public catalog
 
-## Платформа и live-контур
+The launch-catalog composition is a release barrier under `ADR-0034`, not a schema invariant. The first public release requires an inventory:
 
-Platform evidence включает migrations PostgreSQL, tenant isolation, object
-storage, queue idempotency, mixed API versions, audit, backup/restore и
-readiness. Срезы `evidence-*` выполняются отдельно от repository gate: внешняя
-среда и browser login не являются зависимостью `just check`.
+- one baseline setup each for Claude Code, Codex, Pi, OpenCode, and Grok Build;
+- role families were removed from the barrier by the 2026-08-28 amendment to `ADR-0034`: their source is archived, there is no live repository from which to rebuild them, and provenance inside a content-addressed passport cannot be repaired by an edit;
+- reusable first-party components sufficient to build these setups;
+- every launch object is published from a verified AI Engineers Guild namespace with a complete passport, provenance, current required evidence, and compatibility and installation evidence;
+- launch-catalog object content— instructions, descriptions, and components—is maintained in English under `ADR-0035`;
+- every exact launch-catalog reference resolves, and no object has expired or missing required evidence.
 
-Deployment evidence связывает зелёный public `check`, `deploy/prod`, pulled SHA
-на host, успешные migrate/seed/content-import и только затем API/web readiness.
-Late one-shot refusal не засчитывается как безопасный deploy, если старый web уже
-остановлен; обязательные runtime secrets проверяются preflight до эффектов.
+Guild owners divide the role families among themselves, and peer review of every launch object is mandatory. Baseline setups for beta harnesses are minimal: definition, installation, and an honest label below the primary support tier; the depth of Pi, OpenCode, and Grok Build does not block the release. Specific object content is created during the content phase against real harnesses and is not fixed here.
 
-## Первый публичный каталог
+## Release lines
 
-Каталог выпуска покрывает семь харнессов и опубликованные postures, использует
-живое происхождение и не переносит archived corpus под старой identity.
-Доказательство перечисляет точные setup/component versions, разрешает каждую
-ссылку, проверяет immutable bytes и выполняет установку. Восемь component kinds
-— текущий schema vocabulary; отсутствие контента конкретного вида показывается
-как content gap, а не скрывается добавлением фиктивного объекта.
+The first MVP release is blocked by completeness of the product requirements for the core, local environment, server, and web; complete end-to-end evidence for Claude Code and Codex across the declared matrix; and the populated launch catalog described above.
 
-## Публикация
+The Pi, OpenCode, and Grok Build lines advance independently and do not block the first release. Incomplete beta evidence is grounds neither to delay the release nor to declare the beta line supported: a line without a recorded run receives `not_verified`.
 
-PyPI publication — отдельная агент-управляемая операция после зелёного
-кандидата через protected environment и Trusted Publishing OIDC. PR/check/deploy
-не имеют publish credential. Standing release task позволяет агенту выполнить
-environment approval текущим authenticated account без повторного вопроса.
+## Blocking conditions
 
-Evidence считается неполным при несовпадении schema/docs, stale provider pin,
-неизвестном provenance, отсутствующем recovery path или неисполненной строке
-заявленной матрицы. Это состояние измерения, а не процессный запрет на дальнейшую
-разработку: следующий план строится из точного недостающего результата.
+A release is blocked by an unresolved priority-one finding, an outdated pinned provider version, a missing source artifact, a schema-documentation mismatch, a dependency vulnerability above the approved threshold, or missing recovery instructions.

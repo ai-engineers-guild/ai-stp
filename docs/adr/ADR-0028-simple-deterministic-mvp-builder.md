@@ -1,51 +1,51 @@
 ---
-description: "Решение ограничить сборщик MVP детерминированными операциями без смыслового слияния при сохранении расширяемого графа."
+description: "Decision to limit the MVP setup compiler to deterministic operations without semantic merging while retaining an extensible graph."
 last_verified: "2026-08-04"
 ---
 
-# ADR-0028: Простой детерминированный сборщик MVP
+# ADR-0028: Simple deterministic MVP setup compiler
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-`SPEC-006` описывает сборщик поверх произвольного графа зависимостей: накладки, классы конфликтов, отчёты состава и преобразования. Модель верна как расширяемая основа, но не отделяет представление данных от объёма первой реализации. Читатель может понять контракт как обязательство MVP выполнять смысловое разрешение графа: автоматически сливать противоречивые инструкции, выбирать эквивалентные компоненты и оптимизировать состав.
+`SPEC-006` describes a setup compiler over an arbitrary dependency graph: overlays, conflict classes, composition reports, and transformations. The model is valid as an extensible foundation but does not separate the data representation from the scope of the first implementation. A reader may interpret the contract as requiring the MVP to resolve the graph semantically: automatically merge conflicting instructions, select equivalent components, and optimize the composition.
 
-Такое прочтение опасно вдвойне. Оно раздувает первую реализацию до неподъёмного объёма и одновременно открывает дверь недетерминированным преобразованиям, которые невозможно воспроизвести и проверить. Предложение issue #46 верно называет риск, но лечит его удалением графовой модели, что противоречит принятому направлению продукта.
+That interpretation is dangerous in two ways. It inflates the first implementation beyond manageable scope and opens the door to nondeterministic transformations that cannot be reproduced or verified. The proposal in issue #46 correctly identifies the risk but addresses it by removing the graph model, contrary to the accepted product direction.
 
-## Варианты
+## Options
 
-1. Полный семантический компилятор в MVP. Максимум автоматизации, но невоспроизводимые преобразования, огромная поверхность и задержка сквозной проверки продукта.
-2. Плоский сборщик без графа, как предложено в issue #46. Мал и прост, но выбрасывает точные зависимости, накладки и отчёты, которые уже приняты как основа модели.
-3. Сохранить расширяемый точный граф, но явно ограничить сборщик MVP закрытым набором детерминированных операций и блокирующим списком конфликтов.
+1. A full semantic compiler in the MVP. Maximum automation, but irreproducible transformations, an enormous surface, and delayed end-to-end product validation.
+2. A flat compiler without a graph, as proposed in issue #46. Small and simple, but discards the exact dependencies, overlays, and reports already accepted as the model's foundation.
+3. Retain the extensible exact graph, but explicitly limit the MVP compiler to a closed set of deterministic operations and a blocking conflict list.
 
-## Решение
+## Decision
 
-Принимается вариант 3.
+Option 3 is accepted.
 
-**`SetupGraph` остаётся точным представлением зависимостей.** Узлы, точные ссылки, накладки с `derived_from` и отчёты не меняются.
+**`SetupGraph` remains the exact dependency representation.** Nodes, exact references, overlays with `derived_from`, and reports remain unchanged.
 
-**Сборщику MVP разрешены только детерминированные операции:**
+**The MVP setup compiler permits only deterministic operations:**
 
-- каноническое упорядочение узлов и записей;
-- дедупликация идентичных точных ссылок;
-- разрешение точного замыкания зависимостей;
-- объединение непересекающихся управляемых путей;
-- детерминированная генерация отчётов и байтов пакета.
+- canonical ordering of nodes and records;
+- deduplication of identical exact references;
+- resolution of the exact dependency closure;
+- merging of non-overlapping managed paths;
+- deterministic generation of reports and package bytes.
 
-**Смысловое разрешение конфликтов сборщику запрещено.** Он не создаёт автоматическое слияние противоречивых инструкций, хуков, команд, MCP, агентов, плагинов и настроек, не выбирает эквивалент и не оптимизирует состав. Смысловой конфликт блокирует пакет; выбор другого компонента или создание явного производного компонента либо накладки принадлежит агенту и пользователю, а производный объект становится отдельной точной версией и проходит те же проверки.
+**The setup compiler is prohibited from semantic conflict resolution.** It does not automatically merge conflicting instructions, hooks, commands, MCPs, agents, plugins, or settings, select an equivalent, or optimize the composition. A semantic conflict blocks the package; selecting another component or creating an explicit derived component or overlay belongs to the agent and user, and the derived object becomes a separate exact version subject to the same checks.
 
-**Блокирующие конфликты закрыты списком.** Цикл или отсутствующая точная ссылка, несовпадение хэша, два владельца одного управляемого пути, повтор нативного идентификатора команды, хука, MCP, агента или плагина, несовместимые версии одного компонента, неподдерживаемая нативная поверхность, выход пути или ссылки за пределы пакета, нарушение лицензии или доступа, необъявленное обязательное окружение или внешняя точка подключения, расширение полномочий без подтверждения, кандидат `experimental` без согласия, неподдерживаемая пара OS и харнесса и отказ `validate-bundle` или `plan-bundle` провайдера.
+**Blocking conflicts are a closed list.** A cycle or missing exact reference, hash mismatch, two owners of one managed path, duplicate native identifier of a command, hook, MCP, agent, or plugin, incompatible versions of one component, unsupported native surface, a path or reference escaping the package, a license or access violation, undeclared mandatory environment or external endpoint, authority expansion without confirmation, an `experimental` candidate without consent, an unsupported OS and harness pair, and provider `validate-bundle` or `plan-bundle` rejection.
 
-**Отчёты остаются отчётами.** `CompositionReport` и `ConversionReport` — детерминированные объяснения состава и потерь, а не механизмы рассуждения.
+**Reports remain reports.** `CompositionReport` and `ConversionReport` are deterministic explanations of composition and loss, not reasoning mechanisms.
 
-## Последствия
+## Consequences
 
-- `SPEC-006` получает требования разрешённых операций и запрета смыслового слияния;
-- границы блокирующих конфликтов дополняются недостающими классами;
-- issue #46 частично поглощается: граница реализации принята, удаление графовой модели отклонено;
-- пределы ресурсов графа и времени сборки измеряются в фазах реализации и в этом решении не выдумываются.
+- `SPEC-006` receives requirements for permitted operations and the prohibition on semantic merging;
+- the blocking-conflict boundaries gain the missing classes;
+- issue #46 is partially incorporated: the implementation boundary is accepted, while removal of the graph model is rejected;
+- graph resource and build-time limits are measured during implementation phases and are not invented in this decision.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается после сквозного доказательства MVP, если накопятся реальные случаи, где записанное детерминированное правило преобразования доказуемо безопасно заменяет ручной выбор — такие правила добавляются по одному, с собственными проверками, а не общим «умным слиянием».
+This decision will be reconsidered after end-to-end MVP validation if real cases accumulate where a documented deterministic transformation rule can demonstrably replace manual selection safely. Such rules will be added one at a time with their own checks, not as general "smart merging."

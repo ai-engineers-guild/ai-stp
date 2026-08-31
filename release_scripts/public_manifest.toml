@@ -63,7 +63,6 @@ roots = [
 ".serena/memories" = "agent memory: internal narrative, host names, private issue numbers"
 ".impeccable" = "review screenshots and development logs, not implementation"
 ".gds" = "GDS artifacts, owned by another system"
-"plans" = "dated internal planning notes, superseded by specs"
 ".claude" = "agent entry point for the private working copy"
 ".agents" = "agent entry point for the private working copy"
 "AGENTS.md" = "internal working rules: fleet classes, deployment host, private tracker"
@@ -83,6 +82,13 @@ roots = [
 "docs/adr/ADR-0104-the-gate-runs-in-parallel-and-distributes-its-tests.md" = "private fleet decision"
 "docs/adr/ADR-0105-the-gate-is-five-jobs-shaped-by-capability.md" = "private fleet decision"
 "docs/adr/ADR-0107-a-class-is-chosen-by-measurement-not-by-capability.md" = "private fleet decision"
+
+# Internal plans and runbooks contain private fleet or deployment-host details.
+"docs/engineering/mvp-completion-plan.md" = "internal completion plan with private fleet references"
+"docs/engineering/implementation-roadmap.md" = "internal roadmap with private deployment references"
+"docs/engineering/runner-separation-readiness.md" = "internal runner-fleet readiness record"
+"docs/operations/infrastructure.md" = "internal deployment-host runbook"
+"docs/operations/runbooks/deploy.md" = "internal deployment-host runbook"
 
 # Status of one team against one internal plan, on one private infrastructure.
 

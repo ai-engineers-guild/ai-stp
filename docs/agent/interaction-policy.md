@@ -1,61 +1,57 @@
 ---
-description: "Standing authority агента, machine confirmations и граница отдельного решения."
-last_verified: "2026-08-31"
+description: "Confirmations and questions in the configuration workflow."
+last_verified: "2026-08-09"
 ---
 
-# Политика взаимодействия
+# Interaction Policy
 
-Задача пользователя является областью полномочий. Локальные обратимые шаги,
-входящие в запрошенный результат, выполняются подряд до проверенного состояния;
-повторно спрашивать перед каждым из них не нужно. Просьба подготовить, установить,
-обновить или починить сетап уже разрешает наблюдение, план, применение, проверку
-и восстановление внутри этого сетапа.
+The user's task defines the scope of authority. Local reversible steps that are
+part of the requested outcome are performed continuously until a verified state
+is reached; there is no need to ask again before each one. A request to prepare,
+install, update, or repair a setup already authorizes inspection, planning,
+application, verification, and recovery within that setup.
 
-Отдельное решение требуется только для эффекта без пути возврата или эффекта,
-который расширяет доступ: удаление данных/target/backup без восстановления,
-чужой аккаунт или новые сторонние credentials, повышение привилегий, установка
-непроверенного объекта и изменение публичности существующего объекта или прав
-доступа. Если пользователь прямо поручил такой точный эффект, это уже решение;
-повторный вопрос непосредственно перед тем же вызовом ничего не защищает.
+A separate decision is required when something outside the task arises:
 
-Неизвестный факт паспорта не угадывается и не превращается автоматически в
-вопрос: агент оставляет его неизвестным или получает типизированный отказ.
-Инженерную развилку и разрешимый конфликт агент закрывает своей рекомендацией,
-проверяет результат и называет выбор в отчёте.
+- a required passport fact is unknown and the alternatives materially change the result;
+- an unresolved conflict cannot be resolved mechanically;
+- consent to the `experimental` lane or selection of an object from an unverified author;
+- a public version, major version line, visibility change, access rights, or invitations;
+- linking credentials or an account, or elevating privileges;
+- complete cleanup or deletion of a target or backup with no recovery path;
+- an external Git or deployment action not requested by the task.
 
-Проверка digest, предусловий, идемпотентности и совпадения плана обязательна
-всегда и вопросом пользователю не является: это машинное подтверждение того, что
-выполняется именно одобренный эффект. Устаревший план закрывается построением
-нового и показом разницы; новое решение требуется, только если изменился сам
-эффект.
+Checking the digest, preconditions, idempotency, and plan match is always
+required and is not a question for the user: it is machine confirmation that
+the approved effect is exactly what will be performed. A stale plan is handled
+by building a new one and showing the difference; a new decision is required
+only if the effect itself changed.
 
-Согласие на линию `experimental` действует в пределах команды или сеанса; постоянной глобальной настройки согласия не существует. Долговечное исключение создаётся только по явному выбору пользователя и ровно в двух областях — издатель или основная линия точного объекта по `docs/contracts/unverified-consent.md`. Новая основная линия и любое расширение полномочий, сети, учётных данных, внешних точек, управляемых путей или нативных поверхностей требуют нового явного решения.
+Consent to the `experimental` lane applies within a command or session; no permanent global consent setting exists. A durable exception is created only through an explicit user choice and in exactly two scopes—a publisher or the major line of an exact object, as defined by `docs/contracts/unverified-consent.md`. A new major line and any expansion of capabilities, network access, credentials, external endpoints, managed paths, or native surfaces require a new explicit decision.
 
-Можно не спрашивать для чтения, повторяемой локальной проверки и детерминированной регенерации без смыслового изменения.
+No question is needed for reading, repeatable local validation, or deterministic regeneration without a semantic change.
 
-## Классы изменения machine help
+## Machine-Help Mutability Classes
 
-Агент читает `mutability` и `confirmation` независимо: `confirmation: none` не превращает изменяющую команду в чтение, а класс изменения сам по себе не разрешает чувствительное действие.
+The Agent reads `mutability` and `confirmation` independently: `confirmation: none` does not turn a mutating command into a read, and a mutability class alone does not authorize a sensitive action.
 
-- `read` только наблюдает: не создаёт identity или локальный реестр, не выполняет миграцию и не меняет содержимое существующего состояния;
-- `plan` сохраняет точный план или недолговечный снимок сеанса, но не создаёт версию и не меняет target;
-- `apply` изменяет локальное или внешнее состояние; `confirmation` задаёт
-  машинную привязку эффекта, а не обязательный новый диалог;
-- `destructive` удаляет данные, target или backup; отдельное решение требуется,
-  когда точный необратимый эффект ещё не был поручен пользователем.
+- `read` only observes: it does not create an identity or local registry, run a migration, or change existing state;
+- `plan` stores an exact plan or short-lived session snapshot, but does not create a version or change a target;
+- `apply` changes local or external state; the required method for recording the user's decision is defined by the separate `confirmation` field;
+- `destructive` deletes data, a target, or a backup and always requires a separate decision under the rules above.
 
-Пустое локальное состояние для коллекции возвращается честным пустым результатом, если отсутствие коллекции является нормальным состоянием. Команда, которой нужен уже существующий объект или контекст, возвращает типизированный отказ с безопасным следующим действием и ничего не создаёт сама.
+Empty local state for a collection returns an honest empty result when the collection's absence is normal. A command that requires an existing object or context returns a typed refusal with a safe next action and creates nothing itself.
 
-## Авторизация после установки
+## Post-Installation Authorization
 
-Агент читает `required_authorization` из результата `install plan` и до подтверждения
-объясняет пользователю вид требования. Он не просит передать токен в аргументе, не
-читает значение секрета и не ставит локальную отметку «готово».
+The Agent reads `required_authorization` from the `install plan` result and, before
+confirmation, explains the kind of requirement to the user. It does not ask for a
+token as an argument, read a secret value, or set a local "ready" marker.
 
-После нативной настройки агент вызывает `target status` с тем же проверенным provider.
-Поле `pending_authorization` является каноническим решением consumer: непустое
-значение означает `needs_configuration`, пустое — что отдельного ожидания
-авторизации нет. Агент не выводит готовность из успешного install, наличия переменной
-окружения или слов пользователя. Старый provider без authorization evidence остаётся
-совместимым, но не может подтвердить `ready`; в этом случае агент сообщает ограничение
-и предлагает обновить provider, не зацикливая apply.
+After native configuration, the Agent calls `target status` with the same verified provider.
+The `pending_authorization` field is the consumer's canonical decision: a non-empty
+value means `needs_configuration`; an empty value means there is no separate pending
+authorization. The Agent does not infer readiness from a successful install, the presence
+of an environment variable, or the user's words. An old provider without authorization
+evidence remains compatible but cannot confirm `ready`; in that case, the Agent reports
+the limitation and suggests updating the provider without looping apply.

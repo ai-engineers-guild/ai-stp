@@ -1,149 +1,144 @@
 ---
-description: "SPEC-032: Доказательная готовность production, governance данных, защита от злоупотреблений и восстановление."
+description: "SPEC-032: Evidence-based production readiness, data governance, abuse protection, and recovery."
 last_verified: "2026-08-22"
 ---
 
-# SPEC-032: Готовность production, governance и восстановление
+# SPEC-032: Production readiness, governance, and recovery
 
-## Цель
+## Purpose
 
-Перед первым production release платформа доказывает на точном commit, что её
-конфигурация, наблюдаемость, обработка данных, защита от злоупотреблений и
-восстановление готовы к эксплуатации. Доказательство отвечает на вопрос о
-дереве; выкатку выполняет конвейер `ADR-0109` — зелёный `check` продвигает
-`deploy/prod`, и хост забирает этот ref.
+Before the first production release, the platform proves at an exact commit that
+its configuration, observability, data handling, abuse protection, and recovery
+are ready for operation. The evidence answers a question about the tree; the
+`ADR-0109` pipeline performs deployment—a green `check` advances `deploy/prod`,
+and the host fetches that ref.
 
-## Границы
+## Scope
 
-Входят проверка production-конфигурации, безопасные доказательства выпуска, SLO и
-политика оповещений, проверяемое управление данными, серверная защита от
-злоупотреблений, резервные копии, тренировки восстановления и отката, документация
-оператора и доказательства выпуска. Не входят новый APM-вендор, автоматическое
-исправление, автоматическая блокировка по жалобам, browser control plane, изменение
-CLI и локального реестра.
+Included: production-configuration validation, safe release evidence, SLO and alert
+policy, verifiable data governance, server-side abuse protection, backups, recovery
+and rollback rehearsals, operator documentation, and release evidence. Excluded: a
+new APM vendor, automatic remediation, automatic blocking based on reports, a browser
+control plane, and changes to the CLI or local registry.
 
-Поля политик и wire formats принадлежат их каноническим владельцам: данные —
-`SPEC-013`, HTTP/API — `docs/contracts/` и `packages/contracts`, telemetry —
-`SPEC-017`, moderation — `SPEC-016`, deployment и recovery — `SPEC-024` и
-`docs/operations/runbooks/`. Эта спецификация не дублирует их schema или state
-vocabulary.
+Policy fields and wire formats belong to their canonical owners: data—
+`SPEC-013`, HTTP/API — `docs/contracts/` and `packages/contracts`, telemetry —
+`SPEC-017`, moderation—`SPEC-016`, deployment and recovery—`SPEC-024` and
+`docs/operations/runbooks/`. This specification does not duplicate their schema
+or state vocabulary.
 
-## Термины
+## Terms
 
-- `Readiness evidence` — безопасный, воспроизводимый набор результатов проверок
-  для одного exact commit, configuration/policy revisions и окружения.
-- `Operational policy` — утверждённая versioned policy для SLO, alerts, retention
-  или abuse limits; численные значения не являются неявными defaults приложения.
-- `Recovery rehearsal` — восстановление backup на изолированной копии данных с
-  проверяемым результатом, не являющееся production restore.
-- `Release decision` — решение выпустить изменение, принимаемое на ещё
-  действующем readiness evidence. По `ADR-0118` его принимает агент внутри
-  вижена владельца и называет в отчёте; отдельного человеческого одобрения оно
-  не требует.
+- `Readiness evidence` — a safe, reproducible set of verification results for one
+  exact commit, configuration/policy revisions, and environment.
+- `Operational policy` — an approved versioned policy for SLOs, alerts, retention,
+  or abuse limits; numeric values are not implicit application defaults.
+- `Recovery rehearsal` — restoration of a backup to an isolated data copy with a
+  verifiable result that is not a production restore.
+- `Release decision` — a decision to release a change, made using readiness
+  evidence that is still valid. Under `ADR-0118`, the agent makes it within the
+  owner's vision and identifies it in the report; it requires no separate human approval.
 
-## Требования
+## Requirements
 
-- `REQ-3201`: Production change допускается только после успешной валидации
-  production configuration; отсутствующий обязательный secret, policy reference,
-  безопасная release identity или недоступная обязательная dependency дают
-  наблюдаемый отказ до переключения трафика.
-- `REQ-3202`: Доказательство готовности привязано к exact commit, environment и
-  schema revision, а также к версионируемым operational policies; оно фиксирует
-  outcome, timestamp, безопасные IDs/digests и именованные остаточные риски без
-  секретов, tokens, значений env, private bytes или необязательных персональных данных.
-- `REQ-3203`: Изменение commit, configuration/policy revision, schema revision либо
-  истечение допустимого срока evidence делает прежний набор непригодным для owner
-  approval и требует его пересбора.
-- `REQ-3204`: SLO и alert policy утверждаются до production launch, имеют версию и
-  связь с runnable operator response; telemetry покрывает как минимум API,
+- `REQ-3201`: A production change is permitted only after successful validation
+  of production configuration; a missing required secret, policy reference, safe
+  release identity, or unavailable required dependency produces an observable
+  failure before traffic is switched.
+- `REQ-3202`: Readiness evidence is bound to an exact commit, environment, schema
+  revision, and versioned operational policies; it records the outcome, timestamp,
+  safe IDs/digests, and named residual risks without secrets, tokens, env values,
+  private bytes, or optional personal data.
+- `REQ-3203`: A change to the commit, configuration/policy revision, or schema
+  revision, or expiration of the permitted evidence lifetime makes the previous
+  set ineligible for owner approval and requires it to be collected again.
+- `REQ-3204`: The SLO and alert policy are approved before production launch, are
+  versioned, and link to a runnable operator response; telemetry covers at least API,
   authentication, dependency/readiness, queue, object storage, publication,
-  moderation и rate-limit/abuse signals по `docs/operations/observability.md`.
-- `REQ-3205`: Отсутствие или недоступность telemetry exporter не ломает приложение,
-  но отсутствие обязательного readiness signal, policy или recorded alert-response
-  не даёт собрать успешное production evidence.
-- `REQ-3206`: Управление production-данными исполняет `SPEC-013`: экспорт,
-  логическое и физическое удаление, хранение audit и backup имеют утверждённую
-  policy, явного authorizer, безопасную диагностику и проверяемый outcome; прямой
-  доступ к object storage не становится обходом authorization.
-- `REQ-3207`: Ограничения частоты и защита от злоупотреблений применяются на server
-  boundary до resource-intensive или sensitive mutation, различают безопасные классы
-  клиента и не доверяют browser state, request headers или числу жалоб как полномочию.
-- `REQ-3208`: Abuse signal, rate-limit rejection, staff read и staff lifecycle
-  action сохраняют безопасную correlation/audit evidence. Ни один automated signal
-  не блокирует, не скрывает, не удаляет и не раскрывает объект без существующего
-  explicit audited staff decision.
-- `REQ-3209`: Репетиция восстановления возвращает метаданные PostgreSQL и данные
-  RustFS в изолированном окружении, проверяет готовность и согласованность
-  метаданных с object storage, не выводит секреты или байты объекта в доказательство
-  и не меняет production data.
-- `REQ-3210`: Репетиция отката возвращает previous exact artifact под `deploy lock`,
-  проверяет готовность и не выполняет destructive schema downgrade; при
-  несовместимости сохраняет доказательство прерывания и следует `docs/engineering/schema-evolution.md`.
-- `REQ-3211`: Release decision опирается только на полное, действующее readiness
-  evidence: неполный, отклонённый или истёкший набор не выпускает. Исполняет
-  решение конвейер, а не отдельное человеческое одобрение (`ADR-0109`,
-  `ADR-0115`, `ADR-0118`); неизменным остаётся требование к самой операции —
-  план, точный digest, повторная проверка предусловий и идемпотентность, то
-  есть машинная гарантия, что выполняется именно одобренный эффект.
-- `REQ-3212`: Инструкции оператора и доказательства выпуска связывают каждую
-  обязательную проверку готовности с командой, ожидаемым результатом, инструкцией
-  восстановления и владельцем; неисполненная проверка и остаточный риск записываются
-  явно, а не выдаются за успех.
-- `REQ-3213`: Safety validation имеет bounded telemetry для queue wait/run/requeue,
-  scan count/cache/latency buckets и каждого check result/duration; offline
-  benchmark фиксирует commit, policy, corpus, profile и отсутствие network/CLI,
-  а измеренные latency не выдаются за универсальный cross-machine SLO.
-- `REQ-3214`: Каждый вид компонента и сетап имеют от 10 до 20 релевантных
-  вредоносных filesystem-примеров и не менее двух чистых контрольных примеров.
-  Один последовательный платформенный
-  сценарий прогоняет их через серверные проверки безопасности без сети, выдаёт
-  машиночитаемый отчёт и отказывает при пропущенной атаке или ложной находке.
+  moderation and rate-limit/abuse signals per `docs/operations/observability.md`.
+- `REQ-3205`: An absent or unavailable telemetry exporter does not break the application,
+  but a missing required readiness signal, policy, or recorded alert-response prevents
+  successful production evidence from being collected.
+- `REQ-3206`: Production data governance implements `SPEC-013`: export, logical
+  and physical deletion, and audit and backup retention have an approved policy,
+  explicit authorizer, safe diagnostics, and verifiable outcome; direct object
+  storage access does not become an authorization bypass.
+- `REQ-3207`: Rate limits and abuse protection are applied at the server boundary
+  before a resource-intensive or sensitive mutation, distinguish safe client classes,
+  and do not trust browser state, request headers, or report count as authority.
+- `REQ-3208`: An abuse signal, rate-limit rejection, staff read, and staff lifecycle
+  action preserve safe correlation/audit evidence. No automated signal blocks,
+  hides, deletes, or discloses an object without an existing explicit audited staff decision.
+- `REQ-3209`: A recovery rehearsal restores PostgreSQL metadata and RustFS data in
+  an isolated environment, verifies readiness and consistency between metadata and
+  object storage, includes no secrets or object bytes in the evidence, and does not
+  change production data.
+- `REQ-3210`: A rollback rehearsal restores the previous exact artifact under
+  `deploy lock`, verifies readiness, and performs no destructive schema downgrade;
+  on incompatibility, it preserves evidence of the abort and follows
+  `docs/engineering/schema-evolution.md`.
+- `REQ-3211`: A release decision relies only on complete, valid readiness evidence:
+  an incomplete, rejected, or expired set does not release. The pipeline, not a
+  separate human approval, executes the decision (`ADR-0109`, `ADR-0115`,
+  `ADR-0118`); the requirement on the operation itself remains unchanged—a plan,
+  exact digest, repeated precondition validation, and idempotency, providing a
+  machine guarantee that exactly the approved effect is executed.
+- `REQ-3212`: Operator instructions and release evidence link every mandatory
+  readiness check to a command, expected result, recovery instruction, and owner;
+  an unperformed check and residual risk are recorded explicitly rather than
+  represented as success.
+- `REQ-3213`: Safety validation has bounded telemetry for queue wait/run/requeue,
+  scan count/cache/latency buckets and each check result/duration; offline
+  benchmark records the commit, policy, corpus, profile, and absence of network/CLI,
+  and measured latency is not presented as a universal cross-machine SLO.
+- `REQ-3214`: Every component kind and setup has 10 to 20 relevant malicious
+  filesystem examples and at least two clean control examples. One sequential
+  platform scenario runs them through server-side security checks without network
+  access, emits a machine-readable report, and fails on a missed attack or false finding.
 
-## Состояния и ошибки
+## States and errors
 
-Readiness evidence может быть `collecting`, `complete`, `rejected` или `expired`.
-`complete` означает только полноту и успешность входящих проверок, а не факт
-production deployment; после изменения его привязок или истечения оно становится
-`expired`. Ошибки конкретных API и операций сохраняют зарегистрированные
-`AI_STP_*` codes своих контрактов. Ошибка evidence выдаёт безопасную причину
-неполноты и recovery instruction, не раскрывая конфигурацию или данные.
+Readiness evidence may be `collecting`, `complete`, `rejected`, or `expired`.
+`complete` means only that the included checks are complete and successful, not
+that production deployment occurred; after its bindings change or it expires, it
+becomes `expired`. Errors from specific APIs and operations retain their contracts'
+registered `AI_STP_*` codes. An evidence error provides a safe reason for
+incompleteness and a recovery instruction without disclosing configuration or data.
 
-## Безопасность и приватность
+## Security and privacy
 
-Все боевые записи требуют явного шага подтверждения в самой операции —
-`confirm` с точным digest сохранённого плана, а не человеческого одобрения:
-это гарантия, что выполняется именно спланированный эффект. Доказательства,
-оповещения, журналы, трассы и аудит используют разрешённый список полей; не содержат
-секреты, сеансовые данные, закрытые байты объекта, необработанную диагностику,
-полные локальные пути и значения окружения. Резервная копия остаётся защищённым
-активом данных и не публикуется как доказательство. Ограничения злоупотреблений не становятся скрытым
-профилированием, способом дискриминации или автоматической модерацией; staff
-полномочия и data access остаются минимальными и
-аудируемыми.
+All production writes require an explicit confirmation step within the operation—
+`confirm` with the exact digest of the saved plan, not human approval: this
+guarantees that exactly the planned effect is executed. Evidence, alerts, logs,
+traces, and audit use an allowlist of fields and contain no secrets, session data,
+private object bytes, raw diagnostics, full local paths, or environment values. A
+backup remains a protected data asset and is not published as evidence. Abuse
+limits do not become hidden profiling, a means of discrimination, or automatic
+moderation; staff authority and data access remain minimal and auditable.
 
-## Совместимость и миграция
+## Compatibility and migration
 
-Readiness evidence и policy references добавляются аддитивно. Existing API clients
-не должны требовать новых полей до согласованного rollout. Новая policy revision
-не переписывает historical evidence; она делает его непригодным для следующего
-approval, если меняет применимую проверку. Новые telemetry и abuse controls сначала
-проверяются с recorded outcome; production rollout остаётся owner-approved.
+Readiness evidence and policy references are added additively. Existing API clients
+must not require new fields before an agreed rollout. A new policy revision does
+not rewrite historical evidence; it makes it ineligible for the next approval if
+it changes an applicable check. New telemetry and abuse controls are first verified
+with a recorded outcome; production rollout remains owner-approved.
 
-## Критерии приёмки
+## Acceptance criteria
 
-| Требование | Исполнимый способ проверки |
+| Requirement | Executable verification method |
 | --- | --- |
-| `REQ-3201` | Проверка конфигурации отвергает отсутствующие secret, policy reference, release identity и dependency до traffic switch. |
-| `REQ-3202` | Фикстура доказательства содержит только разрешённые identifiers/outcomes и не проходит при secret, token, env value или private bytes. |
-| `REQ-3203` | Изменение каждой привязки или истечение времени делает previous evidence непригодным для approval. |
-| `REQ-3204` | Проверка policy доказывает versioned SLO/alert policy и runnable response для каждого обязательного signal class. |
-| `REQ-3205` | Приложение стартует при unavailable exporter, но readiness-evidence check не проходит без required signal/policy/response. |
-| `REQ-3206` | Интеграционная матрица покрывает export, tombstone, purge, audit/backup retention и отказ direct object-store access. |
-| `REQ-3207` | API tests доказывают server-side limits для anonymous/authenticated/sensitive paths и отсутствие client-side bypass. |
-| `REQ-3208` | Проверка audit/redaction фиксирует abuse и staff events; N abuse signals не меняют lifecycle без staff action. |
-| `REQ-3209` | Изолированная репетиция восстанавливает PostgreSQL и RustFS, проходит readiness/integrity check и не изменяет production fixture. |
-| `REQ-3210` | Репетиция проверяет deploy lock, exact artifact rollback, readiness и отсутствие destructive downgrade. |
-| `REQ-3211` | Негативная проверка доказывает, что CI/agent/automation без explicit approval не вызывает production mutation. |
-| `REQ-3212` | Release-evidence inventory связывает обязательные checks с command, outcome, owner и recovery instruction. |
-| `REQ-3213` | Unit-тесты проверяют bounded metrics snapshot, а `just safety-benchmark --iterations 3 --concurrency 1` выдаёт deterministic offline evidence с `network=disabled`, case order и scan/check/queue metrics. |
-| `REQ-3214` | `just safety-corpus` читает versioned manifest, последовательно проверяет каждый файловый fixture и setup pin scenario, фиксирует per-kind counts, recall, false-positive rate и список несовпадений; scenario test требует полного обнаружения manifest expectations без clean findings. |
+| `REQ-3201` | Configuration validation rejects a missing secret, policy reference, release identity, or dependency before traffic switch. |
+| `REQ-3202` | The evidence fixture contains only permitted identifiers/outcomes and fails on a secret, token, env value, or private bytes. |
+| `REQ-3203` | Changing each binding or expiration makes previous evidence ineligible for approval. |
+| `REQ-3204` | Policy validation proves a versioned SLO/alert policy and runnable response for every required signal class. |
+| `REQ-3205` | The application starts with an unavailable exporter, but the readiness-evidence check fails without the required signal/policy/response. |
+| `REQ-3206` | The integration matrix covers export, tombstone, purge, audit/backup retention, and denial of direct object-store access. |
+| `REQ-3207` | API tests prove server-side limits for anonymous/authenticated/sensitive paths and no client-side bypass. |
+| `REQ-3208` | Audit/redaction validation records abuse and staff events; N abuse signals do not change lifecycle without a staff action. |
+| `REQ-3209` | An isolated rehearsal restores PostgreSQL and RustFS, passes readiness/integrity checks, and does not change the production fixture. |
+| `REQ-3210` | The rehearsal verifies deploy lock, exact artifact rollback, readiness, and absence of destructive downgrade. |
+| `REQ-3211` | A negative check proves that CI/agent/automation without explicit approval does not cause a production mutation. |
+| `REQ-3212` | The release-evidence inventory links required checks to a command, outcome, owner, and recovery instruction. |
+| `REQ-3213` | Unit tests verify the bounded metrics snapshot, while `just safety-benchmark --iterations 3 --concurrency 1` emits deterministic offline evidence with `network=disabled`, case order, and scan/check/queue metrics. |
+| `REQ-3214` | `just safety-corpus` reads the versioned manifest, sequentially verifies every file fixture and setup pin scenario, and records per-kind counts, recall, false-positive rate, and the mismatch list; the scenario test requires complete detection of manifest expectations with no findings in clean controls. |

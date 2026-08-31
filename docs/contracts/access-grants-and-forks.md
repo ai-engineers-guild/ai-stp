@@ -1,13 +1,13 @@
 ---
-description: "Цель права доступа, действия получателя, форк, производная публикация и последствия отзыва."
+description: "Access grant target, recipient actions, forks, derivative publication, and revocation consequences."
 last_verified: "2026-08-04"
 ---
 
-# Права доступа, форки и производная публикация
+# Access grants, forks, and derivative publication
 
-Владельцы требований — `SPEC-002` для прав и `SPEC-005` для форков и публикации; решение — `ADR-0030`, транспорт приглашения — `ADR-0020`. Здесь зафиксирована машинная граница: что адресует право, что оно разрешает и что происходит при форке, публикации производного и отзыве.
+The requirements owners are `SPEC-002` for grants and `SPEC-005` for forks and publication; the decision is `ADR-0030`, and the invitation transport is `ADR-0020`. This document defines the machine boundary: what a grant addresses, what it permits, and what happens upon forking, derivative publication, and revocation.
 
-## Цель права
+## Grant target
 
 ```json
 {
@@ -16,63 +16,63 @@ last_verified: "2026-08-04"
 }
 ```
 
-Право адресует точный объект и одну его основную линию. Право на версию `X.Y` действует на всю линию `X.*`: получатель видит существующие и будущие младшие версии внутри `X`. Новая основная линия `X+1` правом не покрывается и требует нового права владельца.
+A grant addresses an exact object and one of its major lines. A grant for version `X.Y` applies to the entire `X.*` line: the recipient can see existing and future minor versions within `X`. The new major line `X+1` is not covered and requires a new grant from the owner.
 
-Прямой grant может адресовать получателя через `github_username`. Это отдельный
-дискриминированный тип, а не строковая эвристика: значение нормализуется до
-lower-case без начального `@`, разрешается через активную связанную GitHub identity,
-после чего полномочие хранит устойчивый `grantee_account_id`. Исходный тип и
-нормализованное значение сохраняются только для объяснимости выдачи; последующее
-переименование username не меняет уже выданное право.
+A direct grant may address the recipient through `github_username`. This is a
+separate discriminated type, not a string heuristic: the value is normalized to
+lowercase without a leading `@`, resolved through an active linked GitHub
+identity, and the grant then stores the stable `grantee_account_id`. The original
+type and normalized value are retained only to explain the grant; a later username
+rename does not change an already issued grant.
 
-Альтернативный тип `user_id` принимает только канонический устойчивый account ID.
-Он не нормализуется и не интерпретируется как GitHub username или email. После
-проверки существования аккаунта grant использует этот же ID как
-`grantee_account_id`; неизвестное и недоступное значение не раскрывает состояние
-аккаунта сверх единого `not found`.
+The alternative `user_id` type accepts only a canonical stable account ID. It is
+not normalized or interpreted as a GitHub username or email. After confirming
+that the account exists, the grant uses the same ID as `grantee_account_id`; an
+unknown or inaccessible value reveals no account state beyond a uniform
+`not found`.
 
-## Действия получателя
+## Recipient actions
 
-| Действие | Разрешено правом |
+| Action | Permitted by the grant |
 |---|---|
-| чтение метаданных и байтов версий линии | да |
-| установка версий линии | да |
-| форк в собственный приватный объект | да |
-| редактирование оригинала | нет, только владелец |
-| повторная выдача права третьему лицу | нет, только владелец |
+| read metadata and bytes of line versions | yes |
+| install line versions | yes |
+| fork into one's own private object | yes |
+| edit the original | no, owner only |
+| grant access onward to a third party | no, owner only |
 
-Запись получателя в чужой объект отклоняется на уровне полномочий; знание идентификатора объекта права не создаёт по `SPEC-002`.
+A recipient's write to another person's object is rejected at the authorization layer; knowing an object identifier does not create a grant under `SPEC-002`.
 
-## Форк
+## Fork
 
-Форк создаёт новый приватный объект получателя **того же вида**: сетап остаётся сетапом, компонент — компонентом; вид при форке не меняется:
+A fork creates a new private object owned by the recipient **of the same kind**: a setup remains a setup and a component remains a component; the kind does not change when forked:
 
-- новый устойчивый идентификатор; идентификатор оригинала не переиспользуется;
-- владелец — получатель; режим по умолчанию — закрытый;
-- происхождение записывается ссылкой на исходный объект и версию;
-- форк может синхронизироваться в приватный облачный реестр получателя.
+- a new stable identifier; the original identifier is not reused;
+- the recipient is the owner; the default mode is private;
+- provenance is recorded as a reference to the source object and version;
+- the fork may be synchronized to the recipient's private cloud registry.
 
-Ограниченная накладка компонента с `derived_from` по `component-setup-passports.md` остаётся отдельным механизмом малых изменений и форк не заменяет.
+The constrained component overlay with `derived_from` under `component-setup-passports.md` remains a separate mechanism for small changes and is not replaced by a fork.
 
-Форк не изменяет оригинал и не расширяет право: доступ к будущим версиям оригинала определяется правом, а не наличием форка.
+A fork does not change the original or expand the grant: access to future versions of the original is determined by the grant, not by the existence of a fork.
 
-## Производная публикация
+## Derivative publication
 
-Неизменённый клон чужого объекта не публикуется под новым пространством имён. Публикация производного:
+An unchanged clone of another person's object is not published under a new namespace. Publishing a derivative:
 
-- сетап — требует содержательного изменения состава, паспорта или байтов включённого компонента и полной проверки по `validation-policy.md`;
-- компонент — требует изменённых байтов или паспорта и новой идентичности и версии в пространстве имён получателя;
-- публичная публикация допустима, только когда каждый включённый байт и ссылка публичны или принадлежат получателю, а применимые лицензии разрешают распространение;
-- закрытые чужие байты не публикуются в неизменном виде; неизвестное право распространения закрывается отказом.
+- a setup requires a substantive change to its composition, passport, or included component bytes and full validation under `validation-policy.md`;
+- a component requires changed bytes or passport and a new identity and version in the recipient's namespace;
+- public publication is allowed only when every included byte and reference is public or owned by the recipient and applicable licenses permit distribution;
+- another party's private bytes are not published unchanged; unknown distribution rights fail closed.
 
-Происхождение производного объекта сохраняет ссылку на источник по правилам паспортов.
+The derivative object's provenance retains a reference to the source under the passport rules.
 
-## Отзыв
+## Revocation
 
-Отзыв права действует вперёд:
+Grant revocation applies prospectively:
 
-- будущие облачные чтения и получение младших версий линии прекращаются;
-- уже полученные байты, локальные форки и установленные цели не удаляются;
-- пересборка, которой нужна недоступная приватная зависимость, завершается точной типизированной ошибкой доступа с именем недоступного объекта, а не молчаливой заменой или деградацией.
+- future cloud reads and retrieval of minor versions in the line stop;
+- bytes already retrieved, local forks, and installed targets are not deleted;
+- a rebuild that needs an inaccessible private dependency ends with a precise typed access error naming the inaccessible object, rather than silent substitution or degradation.
 
-Отзыв приглашения и отзыв выданного права остаются раздельными действиями по `SPEC-002`.
+Revoking an invitation and revoking an issued grant remain separate actions under `SPEC-002`.

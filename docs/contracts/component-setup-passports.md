@@ -1,82 +1,81 @@
 ---
-description: "Паспорта версий компонентов и сетапов, виды компонентов и зависимости."
+description: "Component and setup version passports, component types, and dependencies."
 last_verified: "2026-08-22"
 ---
 
-# Паспорта компонентов и сетапов
+# Component and setup passports
 
-Компонент и сетап имеют устойчивую логическую сущность и неизменяемые версии `X.Y`. Описание версии — её паспорт по `passport-envelope.md`; отдельного манифеста не существует.
+A component and a setup each have a stable logical entity and immutable `X.Y` versions. A version is described by its passport under `passport-envelope.md`; no separate manifest exists.
 
-Сетап принадлежит ровно одному харнессу по `ADR-0014`. Компонент может иметь несколько нативных реализаций, поэтому вариант остаётся только у компонента.
+A setup belongs to exactly one harness under `ADR-0014`. A component may have multiple native implementations, so a variant remains a component-only concept.
 
-## Файл рядом с объектом
+## File next to the object
 
-Паспорт хранится одним файлом в корне описываемого объекта:
+The passport is stored as one file at the root of the object it describes:
 
 ```text
 ai-stp.component.yaml
 ai-stp.setup.yaml
 ```
 
-Имя фиксировано и является машинной границей: по нему CLI отличает описанный объект от произвольного каталога при обнаружении. Файл лежит ровно в корне объекта; вложенный файл-спутник задаёт другой объект, а не часть внешнего. Два файла в одном корне отклоняются.
+The name is fixed and is a machine boundary: the CLI uses it during discovery to distinguish a described object from an arbitrary directory. The file resides exactly at the object root; a nested companion file defines another object, not part of the outer one. Two files in one root are rejected.
 
-Корень компонента может находиться внутри репозитория с кодом проекта: тогда границей публикации является именно он, а не репозиторий, по правилам `SPEC-007`.
+A component root may be located inside a project code repository: under `SPEC-007`, that root, not the repository, is then the publication boundary.
 
-## Локальный черновик компонента
+## Local component draft
 
-`component adopt` создаёт в локальном registry узкий content-addressed draft:
-только механически наблюдённые происхождение, native layout и адрес exact bytes.
-Он не является `ComponentVersionPassport` и не получает несуществующие license,
-requirements или capabilities по догадке.
+`component adopt` creates a narrow content-addressed draft in the local registry:
+only mechanically observed provenance, native layout, and the address of the exact bytes.
+It is not a `ComponentVersionPassport` and does not acquire nonexistent license,
+requirements, or capabilities by inference.
 
-Обогащение принимает закрытый JSON patch, exact expected revision и явное
-подтверждение. Каждое изменение создаёт child revision; stale patch закрывается
-отказом. Поля patch становятся declared/user-confirmed facts, а наблюдённые факты
-сохраняют своё происхождение. Secret-bearing keys, null, неизвестные поля,
-небезопасный markdown, абсолютные или обходящие корень управляемые пути и неточный публичный источник
-отклоняются до записи. Patch-файл ограничен по размеру и читается без следования
-symbolic link.
+Enrichment accepts a closed JSON patch, an exact expected revision, and explicit
+confirmation. Every change creates a child revision; a stale patch fails closed.
+Patch fields become declared/user-confirmed facts, while observed facts retain their
+provenance. Secret-bearing keys, null, unknown fields, unsafe markdown, absolute or
+root-escaping managed paths, and an inexact public source are rejected before writing.
+The patch file has a size limit and is read without following a symbolic link.
 
-Перед patch команда `component passport suggest` может прочитать только уже
-сохранённые immutable bytes компонента. Источниками предложений служат явный
-закрытый блок `[tool.ai-stp.component]` в `pyproject.toml`, эквивалентный объект
-`ai-stp.component` в `package.json` и полная тройка exact Git provenance,
-зафиксированная при adopt. Каждое предложенное поле возвращается со ссылкой на
-источник и `requires_confirmation: true`; команда ничего не записывает.
-Отсутствующее поле остаётся в `unresolved_fields`, неизвестное или неверное поле
-закрывается отказом, а два manifest с разными значениями не получают выбранного
-победителя. Обычные зависимости пакета не становятся requirements компонента,
-а наличие SDK не доказывает capability, authorization или permission.
+Before patching, `component passport suggest` may read only the component's already
+stored immutable bytes. Suggestion sources are an explicit closed
+`[tool.ai-stp.component]` block in `pyproject.toml`, the equivalent
+`ai-stp.component` object in `package.json`, and the complete exact Git provenance
+triple recorded during adopt. Each suggested field is returned with a source reference
+and `requires_confirmation: true`; the command writes nothing. A missing field remains
+in `unresolved_fields`, an unknown or invalid field fails closed, and two manifests
+with different values do not get an arbitrarily selected winner. Ordinary package
+dependencies do not become component requirements, and the presence of an SDK does
+not prove a capability, authorization, or permission.
 
-Профиль `validate --for-publication` агрегирует все отсутствующие и неверные поля и
-проверяет возможность построить формальный `ComponentVersionPassport` с exact
-GitHub commit и artifact digest/size. Его `ready: true` означает лишь локальную
-структурную полноту названной ревизии. Облачная публикация остаётся отдельной
-аутентифицированной plan/apply state machine и не подменяется локальной проверкой.
+The `validate --for-publication` profile aggregates all missing and invalid fields and
+checks whether a formal `ComponentVersionPassport` can be built with an exact GitHub
+commit and artifact digest/size. Its `ready: true` means only local structural
+completeness of the named revision. Cloud publication remains a separate authenticated
+plan/apply state machine and is not replaced by local validation.
 
-## Механические подсказки качества
+## Mechanical quality hints
 
-`component passport quality --id <component_id> --json` читает одну точную
-локальную ревизию и возвращает optional профиль `mechanical/1`. Он группирует
-закрытые проверки по пяти измерениям: `safety`, `clarity`, `reusability`,
-`completeness`, `actionability`. Каждая проверка имеет стабильный `code`, статус
-`passed` или `hint`, связанные поля и короткое действие для автора.
+`component passport quality --id <component_id> --json` reads one exact local
+revision and returns an optional `mechanical/1` profile. It groups closed checks across
+five dimensions: `safety`, `clarity`, `reusability`, `completeness`, `actionability`.
+Each check has a stable `code`, a `passed` or `hint` status, related fields, and a
+short action for the author.
 
-Профиль использует только механически доступные паспортные факты. Для каждого
-из восьми видов компонента `actionability` проверяет подходящую ему комбинацию
-`entry_points`, `managed_paths` и `native_ids`; модель, эвристическая оценка
-текста и исполнение содержимого не используются. `completeness` ссылается на
-структурный publication-readiness verdict, но не заменяет его.
+The profile uses only mechanically available passport facts. For each of the eight
+component types, `actionability` checks its appropriate combination of `entry_points`,
+`managed_paths`, and `native_ids`; no model, heuristic text assessment, or content
+execution is used. `completeness` references the structural publication-readiness
+verdict but does not replace it.
 
-Quality report всегда содержит `informational_only=true` и явные значения
-`affects_publication_readiness=false`, `affects_component_verified=false`,
-`affects_trust_lane=false`. `hint` не блокирует выпуск и не является
-доказательством безопасности. Публичный каталог не агрегирует эти локальные
-подсказки без отдельного контракта происхождения evidence.
+The quality report always contains `informational_only=true` and explicit values
+`affects_publication_readiness=false`, `affects_component_verified=false`, and
+`affects_trust_lane=false`. A `hint` neither blocks release nor proves safety. The
+public catalog does not aggregate these local hints without a separate evidence
+provenance contract.
 
-## Виды компонентов
+## Component types
 
-Перечень закрыт по `ADR-0012` и сокращён до восьми значений по `ADR-0015`:
+The list is closed under `ADR-0012` and reduced to eight values under `ADR-0015`:
 
 ```text
 instruction
@@ -89,100 +88,147 @@ plugin
 setting
 ```
 
-Память, правила, параметры и вспомогательные инструменты не являются отдельными видами: это содержимое `instruction` или `skill`, значение `setting` либо внешняя зависимость набора инструментов. Изменение перечня требует нового ADR.
+Memory, rules, settings, and auxiliary tools are not separate types: they are content
+of an `instruction` or `skill`, a `setting` value, or an external toolset dependency.
+Changing the list requires a new ADR.
 
-Правило отнесения по одному примеру на вид:
+Classification rule, with one example for each type:
 
-| Вид | Пример объекта | Что делает его этим видом |
+| Type | Example object | What makes it this type |
 |---|---|---|
-| `instruction` | `AGENTS.md` с правилами репозитория | текст в нативном формате инструкций, влияющий на поведение через precedence |
-| `skill` | `SKILL.md` с процедурой ревью и вложенными сценариями | именованная процедура, которую харнесс подключает как навык |
-| `mcp` | сервер поиска по документации с объявленным транспортом | внешний процесс или адрес, говорящий по протоколу MCP |
-| `hook` | реакция на событие перед записью файла | исполняемое действие, привязанное к событию и сопоставителю |
-| `command` | `/review` с аргументами и классом эффекта | явно вызываемое пользователем действие с именем |
-| `agent` | субагент ревью с собственной ролью и набором инструментов | объявление роли, модели, инструментов и делегирования |
-| `plugin` | нативный пакет, вносящий сразу команды и хуки | нативный манифест, содержащий другие компоненты |
-| `setting` | значение лимита параллелизма | типизированная пара ключа и значения в нативной конфигурации |
+| `instruction` | `AGENTS.md` containing repository rules | text in a native instruction format that affects behavior through precedence |
+| `skill` | `SKILL.md` containing a review procedure and nested scenarios | a named procedure that the harness attaches as a skill |
+| `mcp` | a documentation search server with a declared transport | an external process or address speaking the MCP protocol |
+| `hook` | a reaction to an event before writing a file | an executable action bound to an event and matcher |
+| `command` | `/review` with arguments and an effect class | a named action explicitly invoked by the user |
+| `agent` | a review subagent with its own role and toolset | a declaration of role, model, tools, and delegation |
+| `plugin` | a native package contributing commands and hooks together | a native manifest containing other components |
+| `setting` | a concurrency-limit value | a typed key-value pair in native configuration |
 
-Витрина харнесса ни одним из видов не является: это канал доставки, выраженный через `projection_kind`.
+A harness marketplace is not any of these types: it is a delivery channel expressed through `projection_kind`.
 
-## Нативная упаковка
+## Native packaging
 
-Форма поставки описывается отдельным закрытым словарём и не смешивается с видом компонента:
+The delivery form is described by a separate closed vocabulary and is not mixed with the component type:
 
 ```text
 projection_kind: marketplace | plugin | native_files | package
 ```
 
-Значение принадлежит метаданным провайдера и нативной реализации. Витрина харнесса является каналом доставки других объектов, а не видом компонента.
+The value belongs to provider metadata and the native implementation. A harness marketplace is a delivery channel for other objects, not a component type.
 
-## Паспорт версии компонента
+## Component version passport
 
-Содержит `stable_id`, необязательный `variant_id`, `version`, `harness_id`, необязательный список `harness_ids` (включает первичный `harness_id`, если задан), `supported_os`, `component_type` и `projection_kind`; непустой список тегов из словаря по `tag-vocabulary.md`; точный репозиторий, коммит и подпуть источника; хэш и размер артефакта; предоставляемые возможности; зависимости; обязательные имена переменных окружения; конфликты путей, команд, хуков, MCP, агентов и плагинов; управляемые пути и нативные идентификаторы; entry points, runtime requirements, harness variants и поддерживаемые версии харнесса; файловые, сетевые и процессные полномочия; внешние точки подключения; лицензию и возможность распространения; ссылки на доказательства совместимости; режим доступа.
+Contains `stable_id`, optional `variant_id`, `version`, `harness_id`, an optional
+`harness_ids` list (including the primary `harness_id` when specified), `supported_os`,
+`component_type`, and `projection_kind`; a nonempty list of tags from the vocabulary in
+`tag-vocabulary.md`; the exact source repository, commit, and subpath; artifact hash
+and size; provided capabilities; dependencies; required environment variable names;
+path, command, hook, MCP, agent, and plugin conflicts; managed paths and native
+identifiers; entry points, runtime requirements, harness variants, and supported
+harness versions; file, network, and process permissions; external connection points;
+license and redistributability; links to compatibility evidence; and access mode.
 
-## Описание версии
+## Version description
 
-Единственное поле `description` принадлежит точному паспорту версии и для schema
-v1 всегда использует профиль `commonmark_v1` по `SPEC-029` и `ADR-0063`. Raw HTML,
-images и небезопасные ссылки отклоняются до сохранения. Карточка получает только
-детерминированный однострочный excerpt `safe_markdown_v1`, а detail/preview может
-получить безопасный HTML той же версии renderer. Отдельного object-level или
-mutable documentation field нет; исправление опубликованного описания создаёт
-новую версию `X.Y`.
+The sole `description` field belongs to the exact version passport and, for schema
+v1, always uses the `commonmark_v1` profile under `SPEC-029` and `ADR-0063`. Raw HTML,
+images, and unsafe links are rejected before storage. A card receives only the
+deterministic single-line `safe_markdown_v1` excerpt, while detail/preview may receive
+safe HTML from the same renderer version. There is no separate object-level or mutable
+documentation field; correcting a published description creates a new `X.Y` version.
 
-## Зависимости
+## Dependencies
 
-Зависимости разделены:
+Dependencies are separated:
 
-- `requires_components` — точные ссылки на версии компонентов по правилам `canonical-data.md`;
-- `requires_capabilities` — требования к окружению и проекту из закрытого словаря, например `project.language.python` или `toolchain.ruff`.
+- `requires_components` — exact component version references under `canonical-data.md`;
+- `requires_capabilities` — environment and project requirements from a closed vocabulary, such as `project.language.python` or `toolchain.ruff`.
 
-Словарь возможностей принадлежит `capability-vocabulary.md` и версионируется отдельным полем. Неизвестная возможность не подставляет значение по умолчанию, а возвращает типизированную несовместимость; неизвестное и отсутствующее у цели значение являются разными отказами.
+The capability vocabulary belongs to `capability-vocabulary.md` and is versioned by a
+separate field. An unknown capability does not substitute a default; it returns a typed
+incompatibility. An unknown target value and a missing target value are distinct failures.
 
-## Обязательное окружение и доступ
+## Required environment and access
 
-Компонент перечисляет только имена обязательных переменных окружения по шаблону `^[A-Z][A-Z0-9_]*$` и их назначение в поле `required_env`. Значение переменной не читается, не сохраняется в паспорте и не передаётся агенту. SetupVersion агрегирует эти требования, а readiness-команда всегда читает их из exact выбранного паспорта: отсутствие дополнительного CLI-флага не скрывает требование. Дополнительное target-specific имя может только расширить этот список. Readiness-команды применяют тот же шаблон и отклоняют `NAME=value`, не отражая отвергнутую строку в machine output. Проверка окружения возвращает `set` или `missing` по каждому имени. Правила установки и готовности при `missing` принадлежат `SPEC-001` и `SPEC-008`.
+A component lists only required environment variable names matching
+`^[A-Z][A-Z0-9_]*$` and their purpose in `required_env`. A variable's value is not
+read, stored in the passport, or passed to the agent. SetupVersion aggregates these
+requirements, and the readiness command always reads them from the exact selected
+passport: the absence of an additional CLI flag does not hide a requirement. An
+additional target-specific name may only extend this list. Readiness commands apply
+the same pattern and reject `NAME=value` without echoing the rejected string in machine
+output. The environment check returns `set` or `missing` for each name. Installation
+and readiness rules for `missing` belong to `SPEC-001` and `SPEC-008`.
 
-Отдельно объявляется сам факт потребности в доступе, чтобы пользователь узнал о нём до установки, а не после первого запуска:
+The need for access itself is declared separately so the user learns about it before
+installation rather than after the first run:
 
 ```text
 requires_credentials: true | false
 requires_authorization: none | user_account | external_service
 ```
 
-Эти поля описывают, нужны ли объекту учётные данные и требуется ли вход куда-либо ещё. Ни ключ, ни его значение, ни адрес выдачи учётных данных в паспорт не входят. Карточка и результат поиска показывают признак наравне с полномочиями и внешними точками подключения. SetupVersion агрегирует требование exact участников, а `install plan` показывает его как `required_authorization` до применения.
+These fields describe whether the object needs credentials and whether a login anywhere
+else is required. Neither a key, its value, nor a credential-issuance address belongs
+in the passport. The card and search result display this indicator alongside permissions
+and external connection points. SetupVersion aggregates the requirement of exact
+members, and `install plan` displays it as `required_authorization` before application.
 
-Проверка, которую невозможно выполнить без учётных данных, не превращается в `passed`: автор исполняет её локально своими учётными данными, а CLI выпускает подписанное авторское подтверждение по `validation-policy.md`. Обязательная проверка без актуального принятого доказательства блокирует публичную публикацию. При установке такого объекта агент объясняет каждую требуемую авторизацию, а готовность к запуску остаётся `needs_configuration` до совпадающего provider-observed `ready` по `ADR-0052` и правилам `SPEC-008`. Отсутствие provider evidence не считается готовностью.
+A check that cannot be performed without credentials does not become `passed`: the
+author runs it locally with their own credentials, and the CLI issues a signed author
+attestation under `validation-policy.md`. A mandatory check without current accepted
+evidence blocks public publication. When installing such an object, the agent explains
+every required authorization, and launch readiness remains `needs_configuration` until
+matching provider-observed `ready` under `ADR-0052` and `SPEC-008`. Missing provider
+evidence is not considered readiness.
 
-## Паспорт версии сетапа
+## Setup version passport
 
-Содержит `stable_id`, `version` и ровно один `harness_id`; непустой список тегов из словаря по `tag-vocabulary.md`; назначение, целевую роль и поддерживаемые задачи; список точных ссылок на версии компонентов, который может быть пустым для явного полного сетапа без компонентов; необязательные `ported_from` и `related_setup_ids`; профиль выполнения `full-auto`; поддерживаемые версии харнесса, системы и архитектуры; сводные полномочия, обязательное окружение и внешние точки подключения; ссылки на отчёт состава и отчёт преобразования; ссылки на артефакт, проверку установки и проверку запуска; состояние доступа и жизненного цикла.
+Contains `stable_id`, `version`, and exactly one `harness_id`; a nonempty tag list from
+`tag-vocabulary.md`; purpose, target role, and supported tasks; a list of exact component
+version references, which may be empty for an explicit complete setup without components;
+optional `ported_from` and `related_setup_ids`; the `full-auto` execution profile;
+supported harness versions, systems, and architectures; aggregate permissions, required
+environment, and external connection points; links to the composition report and
+conversion report; links to the artifact, installation check, and launch check; and
+access and lifecycle state.
 
-Для локально подтверждённой версии `artifact` является каноническим
-`ai-stp-setup-definition/1`, а не HarnessBundle. Он содержит exact component refs и
-selection input digest и хэшируется в домене `ai-stp:artifact:v1`. HarnessBundle
-включает паспорт, поэтому его ZIP digest не может входить в этот паспорт без
-самоссылки; две идентичности не взаимозаменяются по `ADR-0051`.
+For a locally confirmed version, `artifact` is the canonical
+`ai-stp-setup-definition/1`, not a HarnessBundle. It contains exact component refs and
+the selection input digest and is hashed in the `ai-stp:artifact:v1` domain. HarnessBundle
+includes the passport, so its ZIP digest cannot be included in that passport without a
+self-reference; the two identities are not interchangeable under `ADR-0051`.
 
-Поле расширения `member_metadata_complete` показывает, все ли компоненты имели
-формальный `ComponentVersionPassport` при агрегации требований. Значение `false`
-допустимо для частной legacy-композиции, но блокирует публикацию и redistribution;
-оно не означает, что отсутствующие метаданные равны пустым требованиям.
+The `member_metadata_complete` extension field indicates whether every component had a
+formal `ComponentVersionPassport` when requirements were aggregated. `false` is allowed
+for a private legacy composition but blocks publication and redistribution; it does not
+mean that missing metadata is equivalent to empty requirements.
 
-Поля `variant_id` у сетапа нет. Родство двух сетапов для разных харнессов выражается ссылками происхождения и не создаёт общую версию, общий номер и общее право доступа.
+A setup has no `variant_id` field. The relationship between two setups for different
+harnesses is expressed through provenance links and creates neither a shared version,
+shared version number, nor shared access right.
 
-## Число компонентов
+## Number of components
 
-Продуктового предела на количество компонентов в сетапе нет. Ограничения возникают только из конфликтов, совместимости и ресурсов.
+There is no product limit on the number of components in a setup. Limits arise only
+from conflicts, compatibility, and resources.
 
-## Производные компоненты
+## Derived components
 
-Небольшое изменение хранится как ограниченная накладка с `derived_from`. Перед установкой накладка материализуется в закрытую версию пользователя с собственным хэшем, лицензией и происхождением. Закрытые байты чужого компонента нельзя публиковать внутри производного объекта.
+A small change is stored as a constrained overlay with `derived_from`. Before
+installation, the overlay is materialized as a private user version with its own hash,
+license, and provenance. Private bytes from another user's component cannot be published
+inside the derived object.
 
-## Версии
+## Versions
 
-Изменение точной зависимости, содержимого, накладки или нативной реализации создаёт новую младшую версию сетапа. Новая основная линия требует решения пользователя. Номер опубликованной версии не переиспользуется.
+Changing an exact dependency, content, overlay, or native implementation creates a new
+minor setup version. A new major line requires a user decision. A published version
+number is never reused.
 
-## Запреты
+## Prohibitions
 
-Паспорт версии не содержит плавающие зависимости, локальные абсолютные пути, секреты, значения переменных окружения, произвольный сценарий после установки и ссылку без точного хэша.
+A version passport contains no floating dependencies, local absolute paths, secrets,
+environment variable values, arbitrary post-install script, or reference without an
+exact hash.

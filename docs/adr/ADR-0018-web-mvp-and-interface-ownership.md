@@ -1,58 +1,58 @@
 ---
-description: "Решение вернуть в веб MVP управление аккаунтом и сохранить владение созданием за CLI."
+description: "Decision to restore account management to the web MVP while retaining CLI ownership of creation."
 last_verified: "2026-08-04"
 ---
 
-# ADR-0018: Веб MVP и владение интерфейсами
+# ADR-0018: Web MVP and interface ownership
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-Веб был сокращён до landing, входа, поиска и публичных карточек. Обоснование звучало так: каждая функция, продублированная в вебе, удваивает поверхность авторизации, а пока агент остаётся единственным рабочим клиентом, эта цена не окупается. Профиль, устройства, собственные объекты, публикация и права были вынесены в CLI.
+The web was reduced to a landing page, sign-in, search, and public cards. The rationale was that every function duplicated on the web doubles the authorization surface, and while the agent remains the only working client, that cost is not justified. Profiles, devices, owned objects, publication, and permissions were moved to the CLI.
 
-Практика показала, что сокращение зашло дальше нужного. Часть операций не является дублированием агентской работы: это управление собственной учётной записью. Публичный профиль, приватность, список устройств и их отзыв, состояние публикации и выдача прав другому человеку — действия владельца аккаунта, а не шаги сборки сетапа. Требовать для них CLI означает, что пользователь не может отозвать украденное устройство или закрыть публичный профиль с чужой машины.
+Practice showed that the reduction went too far. Some operations do not duplicate agent work: they manage the user's own account. A public profile, privacy, a device list and revocation, publication state, and granting permissions to another person are actions of the account owner, not setup-building steps. Requiring the CLI for them means that a user cannot revoke a stolen device or close a public profile from another machine.
 
-Одновременно исходное опасение остаётся верным: если веб получит собственную реализацию правил создания паспортов, индексации, подбора, сборки и установки, появится вторая бизнес-логика с собственными ошибками.
+At the same time, the original concern remains valid: if the web gains its own implementation of the rules for creating passports, indexing, selection, building, and installation, a second business-logic implementation with its own errors will emerge.
 
-## Варианты
+## Options
 
-1. Оставить минимальный веб. Сохраняет малую поверхность, но оставляет управление аккаунтом и безопасностью доступным только с настроенного устройства.
-2. Сделать полноценный веб-интерфейс со всеми возможностями CLI. Закрывает потребность, но создаёт вторую реализацию бизнес-правил и удваивает стоимость проверок.
-3. Разделить не по объёму, а по владению: веб владеет учётной записью и публикацией, CLI и агент владеют созданием и установкой.
+1. Retain the minimal web. This preserves a small surface but leaves account and security management available only from a configured device.
+2. Build a full-featured web interface with all CLI capabilities. This meets the need but creates a second implementation of business rules and doubles the validation cost.
+3. Divide responsibility by ownership rather than scope: the web owns the account and publication; the CLI and agent own creation and installation.
 
-## Решение
+## Decision
 
-Принимается вариант 3.
+Option 3 is accepted.
 
-**Веб MVP содержит:**
+**The web MVP includes:**
 
-- landing и команду установки;
-- вход через Google и GitHub;
-- публичный поиск, карточки объектов и версий, паспорта, совместимость и сводку проверок;
-- публичные профили;
-- профиль аккаунта, публичную проекцию и настройки приватности;
-- устройства, их состояние и отзыв;
-- собственные черновики, объекты и версии;
-- публикацию и её состояние;
-- состояние синхронизации;
-- выдачу и отзыв прав по идентификатору аккаунта и подтверждённой почте;
-- минимальные административные действия с обязательным аудитом.
+- a landing page and installation command;
+- sign-in through Google and GitHub;
+- public search, cards for objects and versions, passports, compatibility, and a check summary;
+- public profiles;
+- the account profile, public projection, and privacy settings;
+- devices, their state, and revocation;
+- owned drafts, objects, and versions;
+- publication and its state;
+- synchronization state;
+- granting and revoking permissions by account identifier and verified email;
+- minimal administrative actions with mandatory auditing.
 
-**CLI и агент остаются каноническими** для создания и изменения паспортов, индексации проекта, подбора, сборки, проверок и установки. Веб отображает результаты этих операций, но не выполняет их.
+**The CLI and agent remain canonical** for creating and changing passports, indexing a project, selection, building, checks, and installation. The web displays the results of these operations but does not perform them.
 
-**Веб не имеет второй бизнес-логики.** Веб и CLI вызывают один и тот же сценарий приложения и один и тот же API. Маршрут веба, недоступный CLI, допускается только при отдельной причине безопасности, и эта причина записывается.
+**The web has no second business logic.** The web and CLI invoke the same application scenario and the same API. A web route unavailable to the CLI is permitted only for a distinct security reason, and that reason is recorded.
 
-**Полный веб-редактор остаётся вне MVP.** Браузерная сборка сетапов, социальная механика, платежи, корпоративный интерфейс и панель телеметрии в MVP не входят.
+**A full web editor remains outside the MVP.** Browser-based setup building, social features, payments, an enterprise interface, and a telemetry panel are not included in the MVP.
 
-## Последствия
+## Consequences
 
-- `docs/product/web-scope.md` описывает обе группы и границу владения вместо списка отложенного;
-- `SPEC-010` расширяет требование к веб-интерфейсу и получает отдельное требование о запрете второй реализации правил;
-- `docs/engineering/implementation-roadmap.md` меняет содержание фазы минимального веба;
-- матрица полномочий покрывает веб и CLI как двух клиентов одного API;
-- контрактная проверка доказывает, что запись паспорта доступна только через сценарий CLI и API, а не через отдельный обработчик веба.
+- `docs/product/web-scope.md` describes both groups and the ownership boundary instead of a deferred list;
+- `SPEC-010` expands the web-interface requirement and gains a separate requirement prohibiting a second implementation of the rules;
+- `docs/engineering/implementation-roadmap.md` changes the contents of the minimal-web phase;
+- the permission matrix covers the web and CLI as two clients of one API;
+- a contract check proves that writing a passport is available only through the CLI and API scenario, not through a separate web handler.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается, если управление аккаунтом в вебе начнёт требовать правил, которых нет в API для CLI, либо если появится доказанная потребность создавать и собирать сетапы из браузера.
+The decision shall be reconsidered if web account management begins to require rules absent from the CLI API, or if a proven need emerges to create and build setups in the browser.

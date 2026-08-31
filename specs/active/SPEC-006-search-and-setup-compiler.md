@@ -1,137 +1,137 @@
 ---
-description: "SPEC-006: Поиск, отбор кандидатов и сборщик сетапа."
+description: "SPEC-006: Search, candidate selection, and setup compiler."
 last_verified: "2026-08-26"
 ---
 
-# SPEC-006: Поиск, отбор и сборщик сетапа
+# SPEC-006: Search, Selection, and Setup Compiler
 
-## Цель
+## Purpose
 
-Агент получает ограниченный набор допустимых кандидатов, объяснимо выбирает или адаптирует компоненты, а детерминированный сборщик создаёт связный нативный пакет либо блокирует нерешённый конфликт.
+The agent receives a bounded set of eligible candidates and selects or adapts components explainably, while the deterministic setup compiler creates a coherent native package or blocks an unresolved conflict.
 
-## Границы
+## Scope
 
-Входят механические ограничения, линии доверия, поиск и его порядок, необязательный слой оценки, произвольный граф зависимостей, ограниченные накладки, разрешение конфликтов, отчёты состава и преобразования, а также детерминированный пакет. Агент не заменяет разрешатель зависимостей, механизм политики или провайдер записи. Граница реализации сборщика MVP принадлежит `ADR-0028`: смысловое слияние, выбор эквивалента и оптимизация состава в MVP не выполняются.
+The scope includes mechanical constraints, trust lines, search and its ordering, an optional scoring layer, an arbitrary dependency graph, bounded overlays, conflict resolution, composition and conversion reports, and a deterministic package. The agent does not replace the dependency resolver, policy mechanism, or write provider. The MVP setup compiler implementation boundary is owned by `ADR-0028`: semantic merging, equivalent selection, and composition optimization are not performed in the MVP.
 
-Конкретные критерии и веса оценки принадлежат версионируемой политике и здесь не фиксируются: MVP обязан работать без этого слоя.
+Specific scoring criteria and weights belong to versioned policy and are not fixed here: the MVP must work without this layer.
 
-## Термины
+## Terms
 
-- `SelectionRun` — зафиксированный контекст паспортов, вопросов и кандидатов.
-- `SelectionProposal` — недолговечное предложение состава внутри сеанса рекомендации; машинная граница принадлежит `docs/contracts/selection-proposal.md`.
-- `RecommendationTrace` — запись линии доверия, источника согласия и причин по каждому кандидату.
-- `SetupGraph` — точные узлы, зависимости, конфликты и накладки.
-- `CompositionReport` — причины выбора и отклонения.
-- `ConversionReport` — полнота нативной адаптации и потери.
+- `SelectionRun` is a frozen context of passports, questions, and candidates.
+- `SelectionProposal` is a short-lived composition proposal within a recommendation session; the machine boundary is owned by `docs/contracts/selection-proposal.md`.
+- `RecommendationTrace` records the trust line, consent source, and reasons for each candidate.
+- `SetupGraph` contains exact nodes, dependencies, conflicts, and overlays.
+- `CompositionReport` records reasons for selection and rejection.
+- `ConversionReport` records the completeness and losses of native adaptation.
 
-Линии доверия по `ADR-0016`:
+Trust lines under `ADR-0016`:
 
-- `authoritative` — подтверждённый автор, подтверждённая версия, полный паспорт, актуальные обязательные проверки и доказательства совместимости;
-- `experimental` — сторонний неподтверждённый объект, попадающий в выдачу только по явному согласию;
-- `local_owner_or_pinned` — собственный, импортированный или точно закреплённый объект пользователя после локальных проверок.
+- `authoritative` — verified author, verified version, complete passport, current mandatory checks, and compatibility evidence;
+- `experimental` — an unverified third-party object included in results only with explicit consent;
+- `local_owner_or_pinned` — the user's own, imported, or exactly pinned object after local checks.
 
-## Требования
+## Requirements
 
-- `REQ-601`: Механические ограничения совместимости, доступа, доверия, лицензии, полномочий и поддержки провайдера выполняются до выбора агентом; машинная граница семейств, причин отказа и порядка проверок принадлежит `docs/contracts/eligibility-constraints.md`.
-- `REQ-602`: Линия `authoritative` включает только объект с подтверждённым автором и подтверждённой версией, полным паспортом, актуальными обязательными проверками и доказательствами совместимости с целью.
-- `REQ-603`: Объекты линии `experimental` попадают в выдачу только при явном признаке согласия запроса, возвращаются отдельным разделом ответа и не переносятся в `authoritative` ни автоматически, ни решением агента.
-- `REQ-604`: Агент сохраняет объяснимый след рекомендации с фактами, вопросами, выбранными и отклонёнными альтернативами.
-- `REQ-605`: Произвольный граф поддерживает точные зависимости и ограниченные накладки с `derived_from`.
-- `REQ-606`: Сборщик обнаруживает конфликты путей, идентификаторов, версий, инструкций, хуков, MCP, команд, плагинов, полномочий, сети и лицензий.
-- `REQ-607`: Один и тот же канонический вход всегда создаёт одинаковый порядок, отчёты и хэш пакета.
-- `REQ-608`: Нерешённый конфликт или неподдерживаемая нативная поверхность блокирует пакет.
-- `REQ-609`: Пакет содержит отчёт состава и учитывающий потери отчёт преобразования.
-- `REQ-610`: Обязательным порядком выдачи является детерминированный порядок поиска; дополнительная оценка кандидата является необязательным слоем и может отсутствовать.
-- `REQ-611`: Если оценка вычисляется, она разложена по критериям, объяснима и версионируется; популярность не меняет доверие и используется только как последний детерминированный способ разрешить равенство.
-- `REQ-612`: Отсутствие оценки не является ошибкой: выдача возвращает `ranking: unavailable` и сохраняет порядок поиска.
-- `REQ-613`: Ни оценка, ни её настройка не отключают механические ограничения, линию доверия и обязательные доказательства совместимости.
-- `REQ-620`: Число кандидатов в ответе ограничено объявленным пределом политики, а не жёстко зашитым числом.
-- `REQ-629`: Пригодность объекта отвечается строкой на каждый харнесс из закрытого перечня, а не только для названного. Установленность харнесса на этой машине не является входом пригодности и не подставляет `harness_id` ни в паспорт, ни в предложение: отсутствующий харнесс даёт строку с причиной из `docs/contracts/eligibility-constraints.md`, а не отсутствие строки. Явно названный харнесс сужает ответ и остаётся допустимым.
-- `REQ-621`: Вход подбора детерминированно собирается из паспорта разработчика, паспорта текущего устройства, паспорта текущего проекта, выбранного харнесса и кандидатов реестра; факты окружения берутся из паспорта устройства.
-- `REQ-622`: Предложение состава является производным недолговечным объектом сеанса рекомендации: показ предложений не создаёт версии, цели, `entity`, ревизии или синхронизируемого объекта реестра; локальная строка сеанса хранит точный снимок только для межпроцессного подтверждения, устаревания и идемпотентного исхода, а число предложений решает агент пользователя в пределах политики.
-- `REQ-623`: Явное подтверждение ровно одного предложения атомарно замораживает его точный граф как новую приватную `SetupVersion` выбранного харнесса, записывает `RecommendationTrace` и закрепляет её как выбранную версию пары проект и харнесс с состоянием `pending_install`; установка остаётся отдельным планом провайдера, а без подтверждения `SetupVersion` не создаётся.
-- `REQ-630`: Предложение без участников создаётся только по явному признаку пустоты; без него нуль участников остаётся типизированным отказом, потому что таков же результат поиска, не нашедшего ничего. Признак пустоты вместе с названными участниками утверждает о вызове неверное и отклоняется, а не игнорируется. Подтверждение пустого предложения остаётся обычным `REQ-623`: замораживание требует отдельного решения пользователя, и пустая `SetupVersion` неизменяема и устанавливается штатным планом провайдера. Установленный пустой сетап оставляет цель управляемой с объявленным пустым содержимым, поэтому появившийся в ней файл является дрейфом; это не совпадает со снятием установки, оставляющим цель неуправляемой, и глаголы двух операций не смешиваются (`ADR-0124`).
-- `REQ-624`: Предложение привязано к снимку входа: изменение хэша кандидата, ревизий паспортов контекста или версии политики делает его устаревшим, подтверждение устаревшего предложения отклоняется типизированной ошибкой, а повтор подтверждения того же предложения идемпотентно возвращает ту же версию.
-- `REQ-625`: Сборщик MVP выполняет только детерминированные операции: каноническое упорядочение, дедупликацию идентичных точных ссылок, разрешение точного замыкания зависимостей, объединение непересекающихся управляемых путей и детерминированную генерацию отчётов и пакета.
-- `REQ-626`: Сборщик не создаёт автоматическое смысловое слияние, выбор эквивалента и оптимизацию для противоречивых инструкций, хуков, команд, MCP, агентов, плагинов и настроек; смысловой конфликт блокирует пакет, разрешение принадлежит агенту и пользователю через выбор другого компонента или явный производный компонент либо накладку, и производный объект проходит проверки как отдельная точная версия.
-- `REQ-627`: Долговечная запись согласия хранит цель, область, автора решения, время, источник и отпечаток полномочий и возможностей; новая основная линия и новое требование полномочий, процессов, сети, учётных данных, внешних точек, управляемых путей или нативных поверхностей делают запись недействительной для версии до нового явного решения, результат всегда остаётся в линии `experimental`, а источник согласия и отпечаток записываются в след рекомендации и план установки.
-- `REQ-628`: Confirmation атомарно сохраняет полный `SetupVersionPassport` и независимый канонический definition artifact с exact component refs; HarnessBundle не используется как artifact собственного встроенного паспорта, а неполные legacy member metadata явно блокируют публикацию.
-- `REQ-614`: Согласие на непроверенные объекты является явным признаком запроса и действует в пределах команды или сеанса; бессрочное глобальное согласие на всё непроверенное не поддерживается, а долговечные исключения существуют ровно в двух областях по `docs/contracts/unverified-consent.md` — издатель и основная линия точного объекта — и выбираются пользователем явно.
-- `REQ-615`: Объект линии `local_owner_or_pinned` выбирается напрямую после локальных проверок, доступен автономно и не помечается как подтверждённый платформой.
-- `REQ-616`: `RecommendationTrace` хранит линию каждого кандидата, состояние автора и версии, источник согласия, отпечаток полномочий и возможностей, результаты обязательных проверок и доказательства совместимости.
-- `REQ-617`: Отсутствие подтверждённых кандидатов не включает другую линию само по себе и остаётся честным состоянием.
-- `REQ-618`: Поиск кандидатов использует нормализованные имя, описание, теги и синонимы, поддерживает префиксный и фразовый запрос и структурные фильтры по виду, харнессу, совместимости, источнику, линии, `author_verified` и `component_verified`.
-- `REQ-619`: Локальный поиск работает без сети, моделей и отдельного векторного хранилища; недоступность облачного поиска не блокирует локальный.
+- `REQ-601`: Mechanical compatibility, access, trust, license, authority, and provider-support constraints are enforced before agent selection; the machine boundary for families, rejection reasons, and check order is owned by `docs/contracts/eligibility-constraints.md`.
+- `REQ-602`: The `authoritative` line includes only an object with a verified author and version, a complete passport, current mandatory checks, and evidence of compatibility with the target.
+- `REQ-603`: Objects on the `experimental` line are included in results only when the request has an explicit consent flag, are returned in a separate response section, and are not moved to `authoritative` either automatically or by agent decision.
+- `REQ-604`: The agent retains an explainable recommendation trace containing facts, questions, and selected and rejected alternatives.
+- `REQ-605`: An arbitrary graph supports exact dependencies and bounded overlays with `derived_from`.
+- `REQ-606`: The setup compiler detects conflicts in paths, identifiers, versions, instructions, hooks, MCP, commands, plugins, authority, network, and licenses.
+- `REQ-607`: The same canonical input always produces the same order, reports, and package hash.
+- `REQ-608`: An unresolved conflict or unsupported native surface blocks the package.
+- `REQ-609`: The package contains a composition report and a loss-aware conversion report.
+- `REQ-610`: Deterministic search order is the mandatory result order; additional candidate scoring is optional and may be absent.
+- `REQ-611`: If scoring is computed, it is decomposed by criterion, explainable, and versioned; popularity does not change trust and is used only as the final deterministic tie-breaker.
+- `REQ-612`: The absence of scoring is not an error: results return `ranking: unavailable` and preserve search order.
+- `REQ-613`: Neither scoring nor its configuration disables mechanical constraints, the trust line, or mandatory compatibility evidence.
+- `REQ-620`: The number of candidates in a response is bounded by a declared policy limit, not a hard-coded number.
+- `REQ-629`: Object eligibility is reported as one row for every harness in the closed list, not only for the named harness. Whether a harness is installed on this machine is not an eligibility input and does not inject `harness_id` into either a passport or proposal: an absent harness produces a row with a reason from `docs/contracts/eligibility-constraints.md`, not an absent row. Explicitly naming a harness may narrow the response and remains valid.
+- `REQ-621`: Selection input is assembled deterministically from the developer passport, current-device passport, current-project passport, selected harness, and registry candidates; environment facts come from the device passport.
+- `REQ-622`: A composition proposal is a derived, short-lived object of a recommendation session: showing proposals creates no version, target, `entity`, revision, or synchronizable registry object; the local session row stores an exact snapshot only for cross-process confirmation, staleness, and an idempotent outcome, while the user's agent decides the number of proposals within policy.
+- `REQ-623`: Explicit confirmation of exactly one proposal atomically freezes its exact graph as a new private `SetupVersion` for the selected harness, records `RecommendationTrace`, and pins it as the selected version for the project-and-harness pair with state `pending_install`; installation remains a separate provider plan, and no `SetupVersion` is created without confirmation.
+- `REQ-630`: A proposal with no members is created only with an explicit empty flag; without it, zero members remains a typed rejection because it is indistinguishable from a search that found nothing. An empty flag together with named members makes a false assertion about the call and is rejected rather than ignored. Confirming an empty proposal remains ordinary `REQ-623`: freezing requires a separate user decision, and the empty `SetupVersion` is immutable and installed through the provider's standard plan. An installed empty setup leaves the target managed with declared empty content, so a file appearing there is drift; this differs from uninstalling, which leaves the target unmanaged, and the verbs for the two operations are not mixed (`ADR-0124`).
+- `REQ-624`: A proposal is bound to an input snapshot: changing a candidate hash, context-passport revisions, or policy version makes it stale; confirmation of a stale proposal is rejected with a typed error, while repeated confirmation of the same proposal idempotently returns the same version.
+- `REQ-625`: The MVP setup compiler performs only deterministic operations: canonical ordering, deduplication of identical exact references, resolution of the exact dependency closure, merging of non-overlapping managed paths, and deterministic generation of reports and the package.
+- `REQ-626`: The setup compiler does not perform automatic semantic merging, equivalent selection, or optimization for conflicting instructions, hooks, commands, MCP, agents, plugins, and settings; a semantic conflict blocks the package, resolution belongs to the agent and user through selection of another component or an explicit derived component or overlay, and the derived object is checked as a separate exact version.
+- `REQ-627`: A durable consent record stores the target, scope, decision author, time, source, and authority-and-capability fingerprint; a new major line or a new requirement for authority, processes, network, credentials, external endpoints, managed paths, or native surfaces invalidates the record for that version until a new explicit decision, the result always remains on the `experimental` line, and the consent source and fingerprint are recorded in the recommendation trace and installation plan.
+- `REQ-628`: Confirmation atomically stores a complete `SetupVersionPassport` and an independent canonical definition artifact with exact component refs; HarnessBundle is not used as the artifact for its own embedded passport, and incomplete legacy member metadata explicitly blocks publication.
+- `REQ-614`: Consent to unverified objects is an explicit request flag and applies within a command or session; indefinite global consent to all unverified objects is not supported, while durable exceptions exist in exactly two scopes under `docs/contracts/unverified-consent.md` — publisher and exact-object major line — and are selected explicitly by the user.
+- `REQ-615`: An object on the `local_owner_or_pinned` line is selected directly after local checks, is available offline, and is not marked as platform-verified.
+- `REQ-616`: `RecommendationTrace` stores each candidate's line, author and version state, consent source, authority-and-capability fingerprint, mandatory-check results, and compatibility evidence.
+- `REQ-617`: The absence of verified candidates does not enable another line by itself and remains an honest state.
+- `REQ-618`: Candidate search uses normalized name, description, tags, and synonyms; supports prefix and phrase queries; and supports structural filters by type, harness, compatibility, source, line, `author_verified`, and `component_verified`.
+- `REQ-619`: Local search works without a network, models, or a separate vector store; cloud-search unavailability does not block local search.
 
-## Порядок выдачи
+## Result Ordering
 
-Порядок строится в три шага, и первые два обязательны:
+The order is built in three steps, and the first two are mandatory:
 
 ```text
-механические ограничения (REQ-601)
+mechanical constraints (REQ-601)
         ↓
-линия доверия (ADR-0016)
+trust line (ADR-0016)
         ↓
-порядок поиска — обязателен
+search order — mandatory
         ↓
-оценка кандидата — необязательный слой
+candidate scoring — optional layer
 ```
 
-Оценка упорядочивает кандидатов внутри линии и никогда не переносит кандидата между линиями. Её отсутствие является нормальным состоянием: MVP обязан оставаться полезным без неё, поэтому конкретный набор критериев и весов принадлежит версионируемой политике, а не этой спецификации.
+Scoring orders candidates within a line and never moves a candidate between lines. Its absence is a normal state: the MVP must remain useful without it, so the specific set of criteria and weights belongs to versioned policy, not this specification.
 
-Итоговый выбор состава принадлежит агенту и пользователю: продукт возвращает допустимых кандидатов, их линию и признаки совпадения, но не объявляет выбранный объект единственно правильным.
+Final composition selection belongs to the agent and user: the product returns eligible candidates, their line, and match signals, but does not declare the selected object uniquely correct.
 
-Прямой поиск и сеанс рекомендации — разные режимы. Поиск остаётся обычной операцией реестра и предложений не создаёт; предложение сеанса становится долговечным только через подтверждение по `ADR-0027`.
+Direct search and a recommendation session are distinct modes. Search remains an ordinary registry operation and creates no proposals; a session proposal becomes durable only through confirmation under `ADR-0027`.
 
-Сборщик обязан обнаруживать: цикл обязательных зависимостей, отсутствующую точную ссылку, несовпадение хэша, несовместимые версии одного компонента, двух владельцев одного управляемого пути, одинаковые идентификаторы команд, агентов, MCP и плагинов, противоречивые инструкции и precedence, несовместимый порядок хуков, потерю обязательной нативной поверхности, выход пути или ссылки за пределы пакета, необъявленное обязательное окружение или внешнюю точку подключения, усиление полномочий, запрещённую redistribution, missing entitlement, кандидата линии `experimental` без согласия, неподдерживаемую пару OS/харнесс/провайдер и отказ `validate-bundle` или `plan-bundle` провайдера.
+The setup compiler must detect: a required-dependency cycle, a missing exact reference, a hash mismatch, incompatible versions of one component, two owners of one managed path, duplicate identifiers for commands, agents, MCP, and plugins, conflicting instructions and precedence, incompatible hook ordering, loss of a required native surface, a path or reference escaping the package, an undeclared required environment or external endpoint, authority escalation, prohibited redistribution, missing entitlement, an `experimental` candidate without consent, an unsupported OS/harness/provider combination, and provider rejection by `validate-bundle` or `plan-bundle`.
 
-Отчёты состава и преобразования остаются детерминированными отчётами: они объясняют выбор и потери, но не являются механизмом рассуждения и состав не изменяют.
+Composition and conversion reports remain deterministic reports: they explain selections and losses but are not a reasoning mechanism and do not change the composition.
 
-## Состояния и ошибки
+## States and errors
 
-`SelectionRun` проходит состояния `created`, `needs_input`, `filtered`, `ordered`, `composed`, `confirmed`, `blocked` и `cancelled`; подтверждение фиксирует версию атомарно по `docs/contracts/selection-proposal.md`. Сборщик возвращает типизированные конфликты и не создаёт частичный пакет. Отсутствие подтверждённых кандидатов является нормальным состоянием `no_candidate`, а не ошибкой сервера и не основанием включить другую линию.
+`SelectionRun` moves through the states `created`, `needs_input`, `filtered`, `ordered`, `composed`, `confirmed`, `blocked`, and `cancelled`; confirmation freezes the version atomically under `docs/contracts/selection-proposal.md`. The setup compiler returns typed conflicts and does not create a partial package. The absence of verified candidates is the normal `no_candidate` state, not a server error or grounds to enable another line.
 
-Локальный поиск различает `available`, `empty` и `degraded`; недоступность облачного индекса даёт `degraded` с указанием времени последней проверки, а не пустой успешный результат.
+Local search distinguishes `available`, `empty`, and `degraded`; cloud-index unavailability yields `degraded` with the last check time, not an empty successful result.
 
-## Безопасность и приватность
+## Security and privacy
 
-Модель получает только необходимую структурированную сводку, а не секреты или полный закрытый исходный код. Агент не может вернуть исключённую ссылку через свободный текст. Накладка не обходит лицензию, право доступа и происхождение. Ограничения ресурсов сдерживают размер графа и время сборки.
+The model receives only the necessary structured summary, not secrets or complete private source code. The agent cannot reintroduce an excluded reference through free text. An overlay does not bypass license, access rights, or provenance. Resource limits constrain graph size and compilation time.
 
-## Совместимость и миграция
+## Compatibility and migration
 
-Версия оценки, версия сборщика и хэш входа записываются в след рекомендации. Изменение весов не меняет уже зафиксированную персональную версию. Новый контракт провайдера применяется только после совместимого нативного преобразователя и контрактных проверок.
+The scoring version, setup compiler version, and input hash are recorded in the recommendation trace. Changing weights does not alter an already frozen personal version. A new provider contract is applied only after a compatible native converter and contract checks are available.
 
-## Критерии приёмки
+## Acceptance criteria
 
-| Требование | Исполнимый способ проверки |
+| Requirement | Executable verification method |
 |---|---|
-| `REQ-601` | Проверка свойств доказывает, что исключённый кандидат никогда не выбирается. |
-| `REQ-602` | Отрицательные проверки доверия исключают из `authoritative` неполный объект, неподтверждённого автора, неподтверждённую версию и устаревшие доказательства. |
-| `REQ-603` | Запрос без согласия не возвращает `experimental`, запрос с согласием возвращает его отдельным разделом, и агент не может перенести такую ссылку в автоматический состав. |
-| `REQ-604` | Эталонный след связывает решение с фактами паспортов и причинами отклонения. |
-| `REQ-605` | Проверки графа покрывают зависимости, накладки и точное происхождение. |
-| `REQ-606` | Вредоносные фикстуры покрывают каждый класс конфликтов. |
-| `REQ-607` | Повтор одного входа даёт побайтово одинаковый полный `ai-stp-bundle/1`, одинаковые logical/artifact digests и совпадает с literal golden oracle. |
-| `REQ-608` | Проверка нерешённого конфликта не создаёт пакет. |
-| `REQ-609` | Контрактная проверка требует оба отчёта и состояния потерь. |
-| `REQ-610` | Выдача без слоя оценки сохраняет детерминированный порядок поиска и остаётся пригодной. |
-| `REQ-611` | Эталонная фикстура оценки проверяет вклад каждого критерия и версию политики. |
-| `REQ-612` | Отключение слоя оценки даёт `ranking: unavailable`, а не ошибку и не пустую выдачу. |
-| `REQ-613` | Проверки настройки не позволяют обнулить доказательства, сменить линию или обойти ограничения. |
-| `REQ-614` | Согласие из прошлой команды или сеанса не влияет на новый запрос, чистый профиль не возвращает `experimental`, а области `publisher` и `object_major` покрывают разные множества кандидатов в фикстурах. |
-| `REQ-615` | Автономная фикстура выбирает собственный объект и не показывает его подтверждённым платформой. |
-| `REQ-616` | Эталонный след содержит линию, состояние автора и версии, источник согласия, отпечаток полномочий и доказательства по каждому кандидату. |
-| `REQ-617` | Пустая выдача `authoritative` не подмешивает кандидатов других линий. |
-| `REQ-618` | Фикстуры поиска покрывают префиксный и фразовый запрос и каждый структурный фильтр. |
-| `REQ-619` | Поиск в отключённой сети возвращает локальные результаты и `degraded` для облачной части. |
-| `REQ-620` | Изменение предела политики меняет размер выдачи без правки кода. |
-| `REQ-629` | Фикстура машины без одного из харнессов сохраняет его строку в матрице с причиной; объект с layout только одного харнесса не становится пригодным для другого; явное сужение оставляет ровно названные строки. |
-| `REQ-621` | Эталонная фикстура подбора использует паспорт устройства для фактов окружения, и подмена устройства меняет кандидатов без изменения паспорта разработчика. |
-| `REQ-622` | Отмена сеанса и показ одного или нескольких предложений не создают версию, цель, `entity`, ревизию или sync event; строка сеанса не попадает в граф сущностей и сохраняет терминальный исход идемпотентно. |
-| `REQ-623` | Подтверждение создаёт версию, след и закрепление атомарно, а внедрённый сбой фиксации не оставляет ни одного из трёх. |
-| `REQ-630` | Вызов без участников и без признака пустоты отказывает; с признаком создаёт предложение нуля участников; признак вместе с участником отказывает; подтверждённая пустая версия неизменяема и проходит план, применение и восстановление провайдера. |
-| `REQ-624` | Фикстура изменённого кандидата или context passport отклоняет подтверждение типизированной ошибкой; внедрение изменения между preflight и write lock доказывает повторную проверку и полный rollback, а повтор подтверждения возвращает ту же версию без второго объекта. |
-| `REQ-625` | Повтор сборки одного входа даёт одинаковый полный ZIP с паспортом, обоими отчётами и точными файлами, а отчёт состава перечисляет применённые операции только из разрешённого набора. |
-| `REQ-626` | Фикстуры противоречивых инструкций, хуков и настроек блокируют пакет без попытки слияния, а явная производная накладка проходит только после собственных проверок как отдельная версия. |
-| `REQ-627` | Фикстуры новой основной линии и расширения полномочий отклоняют старую запись согласия и требуют нового решения, а запись никогда не переводит кандидата в `authoritative`. |
-| `REQ-628` | Проверка валидирует сохранённую revision моделью `SetupVersionPassport`, читает definition bytes по artifact digest и внедрённым сбоем доказывает общий rollback content/version/trace/pin; полный и legacy aggregate различаются явным признаком. |
+| `REQ-601` | A property test proves that an excluded candidate is never selected. |
+| `REQ-602` | Negative trust tests exclude an incomplete object, unverified author, unverified version, and stale evidence from `authoritative`. |
+| `REQ-603` | A request without consent does not return `experimental`; a request with consent returns it in a separate section; and the agent cannot move such a reference into the automatic composition. |
+| `REQ-604` | The golden trace links the decision to passport facts and rejection reasons. |
+| `REQ-605` | Graph tests cover dependencies, overlays, and exact provenance. |
+| `REQ-606` | Adversarial fixtures cover every conflict class. |
+| `REQ-607` | Repeating one input produces a byte-identical complete `ai-stp-bundle/1`, identical logical/artifact digests, and matches the literal golden oracle. |
+| `REQ-608` | An unresolved-conflict test creates no package. |
+| `REQ-609` | Contract validation requires both reports and loss states. |
+| `REQ-610` | Results without the scoring layer preserve deterministic search order and remain usable. |
+| `REQ-611` | A golden scoring fixture verifies each criterion's contribution and the policy version. |
+| `REQ-612` | Disabling the scoring layer yields `ranking: unavailable`, not an error or empty results. |
+| `REQ-613` | Configuration tests do not allow evidence to be zeroed, the line to be changed, or constraints to be bypassed. |
+| `REQ-614` | Consent from a previous command or session does not affect a new request, a clean profile does not return `experimental`, and the `publisher` and `object_major` scopes cover different candidate sets in fixtures. |
+| `REQ-615` | An offline fixture selects the user's own object and does not show it as platform-verified. |
+| `REQ-616` | The golden trace contains the line, author and version state, consent source, authority-and-capability fingerprint, and evidence for each candidate. |
+| `REQ-617` | Empty `authoritative` results do not mix in candidates from other lines. |
+| `REQ-618` | Search fixtures cover prefix and phrase queries and every structural filter. |
+| `REQ-619` | Search with the network disabled returns local results and `degraded` for the cloud part. |
+| `REQ-620` | Changing the policy limit changes result size without a code change. |
+| `REQ-629` | A fixture for a machine missing one harness retains its row in the matrix with a reason; an object with a layout for only one harness does not become eligible for another; explicit narrowing leaves exactly the named rows. |
+| `REQ-621` | The golden selection fixture uses the device passport for environment facts, and replacing the device changes candidates without changing the developer passport. |
+| `REQ-622` | Cancelling a session and showing one or more proposals create no version, target, `entity`, revision, or sync event; the session row does not enter the entity graph and stores the terminal outcome idempotently. |
+| `REQ-623` | Confirmation creates the version, trace, and pin atomically, while an injected persistence failure leaves none of the three. |
+| `REQ-630` | A call with no members and no empty flag is rejected; with the flag it creates a zero-member proposal; the flag together with a member is rejected; a confirmed empty version is immutable and passes provider planning, application, and restoration. |
+| `REQ-624` | A fixture with a changed candidate or context passport rejects confirmation with a typed error; an injected change between preflight and the write lock proves revalidation and complete rollback, while repeated confirmation returns the same version without a second object. |
+| `REQ-625` | Recompiling one input produces the same complete ZIP with its passport, both reports, and exact files, while the composition report lists applied operations only from the allowed set. |
+| `REQ-626` | Fixtures with conflicting instructions, hooks, and settings block the package without attempting a merge, while an explicit derived overlay passes only after its own checks as a separate version. |
+| `REQ-627` | Fixtures for a new major line and expanded authority reject the old consent record and require a new decision, while the record never moves a candidate to `authoritative`. |
+| `REQ-628` | A test validates the stored revision with the `SetupVersionPassport` model, reads definition bytes by artifact digest, and uses an injected failure to prove joint rollback of content/version/trace/pin; complete and legacy aggregates are distinguished by an explicit flag. |

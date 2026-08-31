@@ -1,47 +1,47 @@
 ---
-description: "Решение использовать Typer в качестве разборщика команд CLI."
+description: "Decision to use Typer as the CLI command parser."
 last_verified: "2026-08-04"
 ---
 
-# ADR-0013: Разборщик команд CLI
+# ADR-0013: CLI command parser
 
-Принято 2026-08-04. Заменено `ADR-0057-click-as-cli-parser.md`: разборщик строится
-из реестра команд, поэтому функций с аннотациями типов, ради которых выбирался
-Typer, не существует, а сам Typer тянет Rich и вендоренный слой совместимости с
-Click. Читать здесь только контекст исходного выбора.
+Accepted on 2026-08-04. Superseded by `ADR-0057-click-as-cli-parser.md`: the parser is built
+from the command registry, so the type-annotated functions for which Typer was chosen
+do not exist, while Typer itself brings in Rich and a vendored compatibility layer for
+Click. Read this record only for the context of the original choice.
 
-## Контекст
+## Context
 
-`tech-stack.md` объявлял выбор между Typer и argparse отложенным до отдельного ADR, но самого ADR не существовало. Фаза 1 упирается в этот выбор, потому что каркас команд создаётся до схем и локального состояния.
+`tech-stack.md` declared the choice between Typer and argparse deferred to a separate ADR, but that ADR did not exist. Phase 1 depends on this choice because the command skeleton is created before schemas and local state.
 
-Поверхность команд заранее велика: около семнадцати групп, и каждая изменяющая команда имеет пару план–применение с отдельным подтверждением. При этом сам машинный контракт от разборщика не зависит: конверт JSON, коды ошибок и `operation_id` формирует наш код по `contracts/cli-json.md`, а не библиотека.
+The command surface is large from the outset: about seventeen groups, with each mutating command having a plan–apply pair and separate confirmation. The machine contract itself does not depend on the parser: our code, rather than the library, forms the JSON envelope, error codes, and `operation_id` according to `contracts/cli-json.md`.
 
-Оценка в семнадцать групп на момент решения опиралась на документ `cli-api-contract`, свёрнутый при переходе к одному владельцу на нормативный факт. Владельца у полной поверхности команд сейчас нет: `docs/agent/machine-help.md` описывает точку входа, а перечень появится в `apps/cli` вместе с генерируемой машинной справкой. Число здесь оставлено как исторический масштаб решения, а не как действующее требование.
+The estimate of seventeen groups at the time of the decision was based on the `cli-api-contract` document, which was retired during the move to a single owner for each normative fact. The complete command surface currently has no owner: `docs/agent/machine-help.md` describes the entry point, and the list will appear in `apps/cli` with generated machine help. The number remains here as the historical scale of the decision, not as a current requirement.
 
-Политика зависимостей требует для новой зависимости конкретный пробел, закреплённую версию, владельца и путь удаления.
+The dependency policy requires a concrete gap, a pinned version, an owner, and a removal path for every new dependency.
 
-## Варианты
+## Options
 
-1. `argparse` из стандартной библиотеки. Ноль зависимостей, но семнадцать деревьев подпарсеров с парами план–применение дают много повторяющегося кода, а типизация параметров остаётся ручной.
-2. `Typer`. Тонкий слой над Click, объявление команд через аннотации типов. Две транзитивные зависимости, зато совпадает с уже принятым стилем Pydantic 2 и снимает основную часть шаблонного кода.
-3. `Click` напрямую. Тот же вес зависимостей, что у Typer, но без вывода параметров из аннотаций.
-4. Собственный разборщик. Отвергается сразу: собственный каркас не создаётся без доказанной необходимости.
+1. Standard-library `argparse`. Zero dependencies, but seventeen subparser trees with plan–apply pairs produce substantial repetitive code, while parameter typing remains manual.
+2. `Typer`. A thin layer over Click, with commands declared through type annotations. Two transitive dependencies, but it matches the adopted Pydantic 2 style and removes most boilerplate.
+3. `Click` directly. The same dependency weight as Typer, but without deriving parameters from annotations.
+4. A custom parser. Rejected immediately: no custom framework is created without demonstrated need.
 
-## Решение
+## Decision
 
-Используется Typer.
+Typer is used.
 
-Разборщик остаётся ограниченным слоем приложения `apps/cli`: он отвечает за разбор аргументов и вызов сценария, но не формирует конверт JSON, не определяет коды ошибок и не принимает решений о подтверждениях. Человекочитаемый и машинный вывод разделены, `--json` включает строгий конверт.
+The parser remains a limited `apps/cli` application layer: it parses arguments and invokes a scenario, but does not form the JSON envelope, define error codes, or make confirmation decisions. Human-readable and machine output are separate; `--json` enables the strict envelope.
 
-Версия Typer закрепляется в корневом `uv.lock` вместе с первым кодом.
+The Typer version is pinned in the root `uv.lock` with the first code.
 
-## Последствия
+## Consequences
 
-- контрактные тесты CLI проверяют конверт и коды завершения, а не поведение библиотеки;
-- замена разборщика затрагивает только `apps/cli` и не меняет ни один машинный контракт, поэтому путь удаления зависимости остаётся коротким;
-- Click и Typer появляются в дереве зависимостей и попадают под проверку лицензий и безопасности наравне с остальными;
-- `tech-stack.md` больше не содержит отложенного выбора.
+- CLI contract tests verify the envelope and exit codes, not library behavior;
+- replacing the parser affects only `apps/cli` and changes no machine contract, so the dependency removal path remains short;
+- Click and Typer appear in the dependency tree and undergo license and security checks like all other dependencies;
+- `tech-stack.md` no longer contains a deferred choice.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается, если Typer перестанет поддерживаться, если он начнёт навязывать поведение вывода, несовместимое со строгим конвертом, или если политика зависимостей запретит транзитивные зависимости этого класса в ядре.
+The decision is reconsidered if Typer is no longer maintained, if it begins imposing output behavior incompatible with the strict envelope, or if the dependency policy prohibits transitive dependencies of this class in the core.

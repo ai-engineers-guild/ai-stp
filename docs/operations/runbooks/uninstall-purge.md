@@ -3,10 +3,10 @@ description: "Runbook: uninstall purge."
 last_verified: "2026-08-03"
 ---
 
-# Удаление и полная очистка
+# Uninstall and full purge
 
-Обычное удаление показывает принадлежащие приложению executable и tooling paths, удаляет CLI, providers, toolchain, проекции Skill и credentials, сохраняет registry, passports, artifacts, targets и backups и выдаёт команду повторной установки.
+A regular uninstall shows the application-owned executable and tooling paths, removes the CLI, providers, toolchain, Skill projections, and credentials, preserves the registry, passports, artifacts, targets, and backups, and provides the reinstall command.
 
-Полная очистка использует отдельный план, перечисляет пользовательские данные, уточняет локальную и облачную область, удаляет только точные принадлежащие пути и проверяет отсутствие и журнал.
+A full purge uses a separate plan, lists user data, clarifies local and cloud scope, deletes only exact owned paths, and verifies their absence and the log.
 
-Targets и backups очищаются только отдельной командой.
+Targets and backups are purged only by a separate command.

@@ -1,81 +1,81 @@
 ---
-description: "SPEC-002: Аккаунты, OAuth, устройства и доступ."
+description: "SPEC-002: Accounts, OAuth, devices, and access."
 last_verified: "2026-08-13"
 ---
 
-# SPEC-002: Аккаунты, OAuth, устройства и доступ
+# SPEC-002: Accounts, OAuth, Devices, and Access
 
-## Цель
+## Purpose
 
-Пользователь безопасно связывает Google и GitHub identities, управляет устройствами и их паспортами и выдаёт доступ к приватным объектам без использования account ID как секрета или полномочия.
+The user securely links Google and GitHub identities, manages devices and their passports, and grants access to private objects without treating an account ID as a secret or authority.
 
-## Границы
+## Scope
 
-Входят внутренний аккаунт, OAuth identities, device keys, отзыв устройств, паспорт устройства и его сводка, `AccessGrant`, `GrantInvitation`, административные полномочия и аудит. Не входят платежные права, корпоративный SSO, доступ по ссылке без адресата и автоматическое объединение наполненных аккаунтов.
+The scope includes the internal account, OAuth identities, device keys, device revocation, the device passport and its summary, `AccessGrant`, `GrantInvitation`, administrative authority, and auditing. Payment permissions, enterprise SSO, recipient-free link access, and automatic merging of populated accounts are out of scope.
 
-## Термины
+## Terms
 
-- `Account` — внутренняя identity платформы.
-- `OAuthIdentity` — один подтверждённый Google или GitHub login.
-- `Device` — установка CLI с отдельным идентификатором и Ed25519 key pair.
-- `DevicePassport` — приватный ревизионируемый паспорт окружения одного устройства по `ADR-0025`; закрытый перечень полей и сводки принадлежит `docs/contracts/device-passport.md`.
-- `AccessGrant` — отдельное серверное право на объект или major-линию.
-- `GrantInvitation` — предложение доступа на нормализованный адрес почты до появления права.
+- `Account` — the platform's internal identity.
+- `OAuthIdentity` — one verified Google or GitHub login.
+- `Device` — a CLI installation with a distinct identifier and Ed25519 key pair.
+- `DevicePassport` — a private, revisioned passport for one device's environment under `ADR-0025`; the closed set of fields and summary fields belongs to `docs/contracts/device-passport.md`.
+- `AccessGrant` — a distinct server-side permission for an object or major line.
+- `GrantInvitation` — an offer of access addressed to a normalized email address before a permission exists.
 
-## Требования
+## Requirements
 
-- `REQ-201`: Внутренний `Account` отделён от `OAuthIdentity`.
-- `REQ-202`: Новая OAuth identity с тем же подтверждённым email может связаться с существующим аккаунтом, но два аккаунта с собственными данными не объединяются молча.
-- `REQ-203`: Identity с другой почтой связывается только из уже авторизованного аккаунта после повторного подтверждения.
-- `REQ-204`: Каждое устройство имеет стабильный ID, Ed25519 public key, дату последней активности и состояние отзыва.
-- `REQ-205`: Отозванное устройство не отправляет принимаемые sync events и attestation, но сохраняет локальное чтение.
-- `REQ-206`: Приватный объект доступен владельцу, получателю действующего `AccessGrant` и администратору с обязательным аудитом.
-- `REQ-207`: Пользователь может отозвать текущее устройство; возобновление облачного доступа требует нового входа и нового ключа.
-- `REQ-208`: Владелец может пригласить получателя по нормализованному адресу почты; приглашение не является правом доступа и не даёт чтения до подтверждения.
-- `REQ-209`: Ответ на создание приглашения одинаков независимо от того, зарегистрирован адрес или нет.
-- `REQ-210`: Приглашение превращается в `AccessGrant` только после входа аккаунта с тем же подтверждённым провайдером адресом; совпадение строки без подтверждения провайдером недостаточно.
-- `REQ-211`: Ключ приглашения одноразовый, имеет срок действия, а преобразование в право атомарно и идемпотентно по ключу.
-- `REQ-212`: Владелец отзывает приглашение и выданное право раздельно; отзыв не удаляет уже полученные получателем байты, и это сообщается владельцу.
-- `REQ-213`: Каждое устройство ведёт собственный паспорт устройства вида `device` с ревизиями; наблюдаемые OS, architecture, установленные харнессы и версии инструментов принадлежат ему, а не паспорту разработчика.
-- `REQ-214`: За пределы устройства уходит только разрешённая сводка по закрытому перечню из `docs/contracts/device-passport.md`; абсолютные пользовательские пути и значения переменных окружения в ревизии сводки не входят.
-- `REQ-215`: Сервер хранит сводку каждого устройства раздельно; паспорта устройств не объединяются в одно межустройственное окружение, а отзыв устройства помечает его сводку отозванной без удаления локального паспорта.
-- `REQ-216`: Право адресует точный объект и одну основную линию `X`: получатель читает и устанавливает существующие и будущие младшие версии внутри `X`, а новая основная линия требует нового права.
-- `REQ-217`: Право даёт чтение, установку и форк; редактирование оригинала и повторная выдача права остаются только у владельца, и запись получателя в чужой объект отклоняется.
-- `REQ-218`: Отзыв права прекращает будущие облачные чтения и получение младших версий, не удаляет уже полученные байты, локальные форки и установленные цели, а пересборка с недоступной приватной зависимостью завершается точной типизированной ошибкой доступа.
-- `REQ-219`: Выход из аккаунта завершает обе половины сессии: клиент отзывает её на сервере и забывает учётные данные локально. Локальная половина выполняется и без сети, а невыполненный серверный отзыв возвращается предупреждением в конверте, а не кодом завершения.
+- `REQ-201`: The internal `Account` is separate from `OAuthIdentity`.
+- `REQ-202`: A new OAuth identity with the same verified email may be linked to an existing account, but two accounts containing their own data are not merged silently.
+- `REQ-203`: An identity with a different email is linked only from an already authorized account after renewed confirmation.
+- `REQ-204`: Each device has a stable ID, Ed25519 public key, last-active timestamp, and revocation state.
+- `REQ-205`: A revoked device cannot submit accepted sync events or attestations, but retains local read access.
+- `REQ-206`: A private object is accessible to its owner, the recipient of an active `AccessGrant`, and an administrator subject to mandatory auditing.
+- `REQ-207`: A user can revoke the current device; resuming cloud access requires a new sign-in and a new key.
+- `REQ-208`: The owner can invite a recipient by normalized email address; an invitation is not an access permission and grants no read access before acceptance.
+- `REQ-209`: The response to invitation creation is the same whether or not the address is registered.
+- `REQ-210`: An invitation becomes an `AccessGrant` only after an account signs in with the same provider-verified address; matching the string without provider verification is insufficient.
+- `REQ-211`: An invitation key is single-use and expires, while conversion into a permission is atomic and idempotent by key.
+- `REQ-212`: The owner revokes an invitation and a granted permission separately; revocation does not delete bytes already received by the recipient, and the owner is informed of this.
+- `REQ-213`: Each device maintains its own revisioned device passport of kind `device`; its observed OS, architecture, installed harnesses, and tool versions belong to it, not to the developer passport.
+- `REQ-214`: Only the permitted summary from the closed set in `docs/contracts/device-passport.md` leaves the device; absolute user paths and environment variable values are excluded from a summary revision.
+- `REQ-215`: The server stores each device's summary separately; device passports are not merged into a single cross-device environment, and revoking a device marks its summary as revoked without deleting the local passport.
+- `REQ-216`: A permission addresses an exact object and one major line `X`: the recipient can read and install existing and future minor versions within `X`, while a new major line requires a new permission.
+- `REQ-217`: A permission grants read, install, and fork capabilities; editing the original and granting the permission again remain exclusive to the owner, and a recipient's write to another owner's object is rejected.
+- `REQ-218`: Revoking a permission stops future cloud reads and receipt of minor versions, but does not delete bytes already received, local forks, or installed targets; rebuilding with an inaccessible private dependency fails with a precise typed access error.
+- `REQ-219`: Signing out ends both halves of the session: the client revokes it on the server and forgets the credentials locally. The local half completes even without a network connection, while an incomplete server-side revocation is returned as a warning in the envelope rather than as an exit code.
 
-## Состояния и ошибки
+## States and errors
 
-OAuth link имеет состояния `pending`, `linked`, `conflict`, `revoked`. Device имеет `active` и `revoked`. Приглашение имеет состояния `pending`, `accepted`, `expired` и `revoked`. Ошибки различают неподтверждённый email, занятый provider identity, конфликт двух наполненных аккаунтов, истёкшую сессию, отозванное устройство, истёкшее и уже использованное приглашение.
+An OAuth link has the states `pending`, `linked`, `conflict`, and `revoked`. A Device has `active` and `revoked`. An invitation has the states `pending`, `accepted`, `expired`, and `revoked`. Errors distinguish an unverified email, an occupied provider identity, a conflict between two populated accounts, an expired session, a revoked device, and an expired or already-used invitation.
 
-## Безопасность и приватность
+## Security and privacy
 
-Private key устройства хранится только в защищённом локальном хранилище и не синхронизируется. OAuth tokens и ключ приглашения не попадают в YAML, журналы, трассы, метрики и Agent output. Знание идентификатора аккаунта или адреса почты не является полномочием. Административное чтение требует причины и создаёт неизменяемый `AuditEvent`.
+The device private key is stored only in secure local storage and is not synchronized. OAuth tokens and the invitation key do not appear in YAML, logs, traces, metrics, or Agent output. Knowledge of an account identifier or email address does not constitute authority. Administrative reads require a reason and create an immutable `AuditEvent`.
 
-## Совместимость и миграция
+## Compatibility and migration
 
-`Account` остаётся стабильным при добавлении или удалении OAuth provider. Смена формата device key требует параллельного чтения старого и нового формата, отдельной ротации и возможности отзыва без удаления локальных данных.
+`Account` remains stable when an OAuth provider is added or removed. Changing the device key format requires parallel reads of the old and new formats, separate rotation, and the ability to revoke without deleting local data.
 
-## Критерии приёмки
+## Acceptance criteria
 
-| Требование | Исполнимый oracle |
+| Requirement | Executable oracle |
 |---|---|
-| `REQ-201` | Модель и migration test подтверждают связь many-to-one без хранения provider ID как account ID. |
-| `REQ-202` | Integration test покрывает same-email link и блокирует silent merge двух наполненных аккаунтов. |
-| `REQ-203` | Auth test требует действующую сессию и step-up confirmation для identity с другой почтой. |
-| `REQ-204` | Device registration test проверяет ID, public key, timestamps и уникальность. |
-| `REQ-205` | Revocation test отклоняет sync/attestation и сохраняет offline read. |
-| `REQ-206` | Authorization matrix покрывает owner, grantee, outsider и audited admin. |
-| `REQ-207` | Тест отзыва текущего устройства требует нового login для следующего cloud request. |
-| `REQ-208` | Приглашение без подтверждения не даёт чтения приватного объекта. |
-| `REQ-209` | Ответы для известного и неизвестного адреса неотличимы по телу, коду и времени. |
-| `REQ-210` | Вход с другим подтверждённым адресом и вход с неподтверждённым адресом не создают право. |
-| `REQ-211` | Повтор ключа возвращает то же право, а истёкший и использованный ключ дают типизированные ошибки. |
-| `REQ-212` | Отзыв приглашения и отзыв права проверяются независимо, а ключ не появляется в журналах. |
-| `REQ-213` | Фикстура двух устройств хранит разные окружения в двух паспортах устройств и не меняет паспорт разработчика. |
-| `REQ-214` | Синхронизируемая сводка отклоняет поле вне закрытого перечня, абсолютный путь и значение переменной окружения. |
-| `REQ-215` | Сводки двух устройств читаются раздельно, объединяющего представления нет, а отзыв помечает сводку без удаления локальных данных. |
-| `REQ-216` | Фикстура права на `X.1` читает `X.2` и отклоняет `X+1.0` без нового права. |
-| `REQ-217` | Матрица полномочий разрешает получателю чтение, установку и форк и отклоняет запись в оригинал и передачу права. |
-| `REQ-218` | После отзыва фикстура сохраняет локальные байты, форк и цель, а пересборка с приватной зависимостью возвращает типизированную ошибку доступа с именем объекта. |
-| `REQ-219` | Тест выхода наблюдает ровно один `POST /v1/auth/logout` с held token, недостижимый сервер оставляет предупреждение и нулевой код при очищенных учётных данных, а уже недействительная сессия не порождает предупреждения. |
+| `REQ-201` | A model and migration test confirm the many-to-one relationship without storing the provider ID as the account ID. |
+| `REQ-202` | An integration test covers a same-email link and blocks a silent merge of two populated accounts. |
+| `REQ-203` | An auth test requires an active session and step-up confirmation for an identity with a different email. |
+| `REQ-204` | A device registration test verifies the ID, public key, timestamps, and uniqueness. |
+| `REQ-205` | A revocation test rejects sync/attestation and preserves offline read access. |
+| `REQ-206` | An authorization matrix covers owner, grantee, outsider, and audited admin. |
+| `REQ-207` | A test that revokes the current device requires a new login for the next cloud request. |
+| `REQ-208` | An unaccepted invitation grants no read access to the private object. |
+| `REQ-209` | Responses for known and unknown addresses are indistinguishable in body, code, and timing. |
+| `REQ-210` | Signing in with a different verified address or with an unverified address does not create a permission. |
+| `REQ-211` | Reusing a key returns the same permission, while expired and used keys produce typed errors. |
+| `REQ-212` | Invitation revocation and permission revocation are verified independently, and the key does not appear in logs. |
+| `REQ-213` | A two-device fixture stores different environments in two device passports and does not change the developer passport. |
+| `REQ-214` | The synchronized summary rejects a field outside the closed set, an absolute path, and an environment variable value. |
+| `REQ-215` | The summaries of two devices are read separately, no merged representation exists, and revocation marks the summary without deleting local data. |
+| `REQ-216` | A permission fixture for `X.1` reads `X.2` and rejects `X+1.0` without a new permission. |
+| `REQ-217` | An authority matrix permits the recipient to read, install, and fork, and rejects writes to the original and delegation of the permission. |
+| `REQ-218` | After revocation, a fixture preserves local bytes, the fork, and the target, while rebuilding with a private dependency returns a typed access error containing the object name. |
+| `REQ-219` | A logout test observes exactly one `POST /v1/auth/logout` with the held token; an unreachable server leaves a warning and a zero exit code after credentials are cleared, while an already invalid session produces no warning. |

@@ -5,190 +5,203 @@ last_verified: "2026-08-15"
 
 # SPEC-047: Web/backend consumer surfaces
 
-## Цель
+## Purpose
 
-Довести до общего продукта потребительские срезы канонических CLI copy и
-`deep links`. Periodic GitHub archive evidence и account blast radius на
-server/Web заменены `SPEC-049` и `ADR-0096`. Ни одна из этих проекций не
-меняет `immutable passport`, `lifecycle`, `eligibility` или `target`.
+Deliver the consumer-facing views of canonical CLI copy and `deep links` to the
+shared product. Periodic GitHub archive evidence and account blast radius on
+server/Web have been superseded by `SPEC-049` and `ADR-0096`. None of these
+projections changes `immutable passport`, `lifecycle`, `eligibility`, or
+`target`.
 
-## Границы
+## Scope
 
-Входит delivery-слой для issues #241, #307, #309, #344 и #347:
+Includes the delivery layer for issues #241, #307, #309, #344, and #347:
 
-- порождённая и проверенная web-проекция шаблонов CLI copy;
-- реально исполняемый `catalog coverage gate`;
-- web-потребитель `deep_link_v1`;
-- server-owned cache и public projection для `GitHub archive evidence`
-  (доставка снята: `SPEC-049`);
-- `versioned authenticated API/web projection` для отчётов blast radius
-  (доставка снята: `SPEC-049`). Account impact API может оставаться read-only,
-  но Web не показывает установленную основу, угаданную сервером.
+- generated and verified web projection of CLI copy templates;
+- an actually executable `catalog coverage gate`;
+- web consumer of `deep_link_v1`;
+- server-owned cache and public projection for `GitHub archive evidence`
+  (delivery removed: `SPEC-049`);
+- `versioned authenticated API/web projection` for blast-radius reports
+  (delivery removed: `SPEC-049`). The Account impact API may remain read-only,
+  but Web does not display an installed baseline derived by the server.
 
-Не входит:
+Does not include:
 
-- изменение грамматики `deep_link_v1` из `SPEC-030`;
-- изменение локального поведения CLI из `SPEC-043` и `SPEC-044`;
-- автоматическая смена `lifecycle`, `blocked/deprecated state` или установка;
-- GitHub credentials, private repository polling и внешний tokenizer;
-- redesign web brand или новый визуальный мир;
-- browser authoring паспортов, setup selection и install flow.
+- changing the `deep_link_v1` grammar from `SPEC-030`;
+- changing local CLI behavior from `SPEC-043` and `SPEC-044`;
+- automatic changes to `lifecycle`, `blocked/deprecated state`, or installation;
+- GitHub credentials, private repository polling, or an external tokenizer;
+- redesigning the web brand or creating a new visual language;
+- browser authoring of passports, setup selection, or install flow.
 
-Нормативные владельцы уже существующих смыслов остаются прежними:
+The normative owners of existing meanings remain unchanged:
 
-- `SPEC-030` и `ADR-0064` владеют `deep-link grammar` и `target semantics`;
-- `SPEC-043` владеет estimator, capability delta и `blast-radius semantics`;
-- `SPEC-044` и `ADR-0082` владеют `GitHub observation semantics`;
-- `SPEC-034` и `SPEC-037` владеют `catalog UX`, `copy actions`, localization и
+- `SPEC-030` and `ADR-0064` own `deep-link grammar` and `target semantics`;
+- `SPEC-043` owns the estimator, capability delta, and `blast-radius semantics`;
+- `SPEC-044` and `ADR-0082` own `GitHub observation semantics`;
+- `SPEC-034` and `SPEC-037` own `catalog UX`, `copy actions`, localization, and
   `responsive interaction`.
 
-Эта спецификация владеет только серверной/web доставкой этих смыслов и
-интегрированным `completion gate`.
+This specification owns only the server/web delivery of these meanings and the
+integrated `completion gate`.
 
-## Термины
+## Terms
 
-- **Потребительская проекция (`consumer projection`)** — read-only представление уже принятого контракта на
-  другой поверхности без новой доменной интерпретации.
-- **Публичная сводка архива (`public archive summary`)** — ограниченная web/API проекция последнего
-  server-owned GitHub observation без raw response и credentials.
-- **Отчёт влияния аккаунта (`account impact report`)** — server-scoped версия отчёта, ограниченная текущим
-  account и его разрешёнными synced entities.
-- **Канонический источник копирования (`canonical copy source`)** — один
-  machine-readable источник для шаблонов CLI copy, порождённых web-констант и
+- **Consumer projection (`consumer projection`)** — a read-only representation
+  of an already accepted contract on another surface, without new domain
+  interpretation.
+- **Public archive summary (`public archive summary`)** — a restricted web/API
+  projection of the latest server-owned GitHub observation, without the raw
+  response or credentials.
+- **Account impact report (`account impact report`)** — a server-scoped version
+  of the report, restricted to the current account and its authorized synced
+  entities.
+- **Canonical copy source (`canonical copy source`)** — a single
+  machine-readable source for CLI copy templates, generated web constants, and
   contract tests.
-- **Ограниченный gate (`scoped gate`)** — отдельный проверяемый quality gate с
-  фиксированным include scope, обязательный для `just web-check`.
+- **Scoped gate (`scoped gate`)** — a separate verifiable quality gate with a
+  fixed include scope, required by `just web-check`.
 
-## Требования
+## Requirements
 
-- `REQ-4701`: Web-шаблоны CLI copy используют canonical contract source. В
-  `apps/web` не остаётся hand-written копии command grammar, distribution name,
-  placeholders или provider names. Порождённая проекция либо механическая
-  проверка drift должна завершать сборку ошибкой при несовпадении с
-  `packages/contracts`.
+- `REQ-4701`: Web CLI copy templates use the canonical contract source. No
+  hand-written copy of command grammar, distribution name, placeholders, or
+  provider names remains in `apps/web`. The generated projection or mechanical
+  drift check must fail the build when it does not match `packages/contracts`.
 
-- `REQ-4702`: `just web-test` запускает scoped catalog coverage config вместе с
-  обычным web coverage. Gate имеет фиксированный набор включаемых production-файлов из
-  `vitest.catalog.config.ts`, требует не менее 95% statements, branches,
-  functions и lines и возвращает ненулевой exit code при нарушении любого
-  порога. Удаление файла, уменьшение порога или расширение exclusions не
-  считается исправлением.
+- `REQ-4702`: `just web-test` runs the scoped catalog coverage config together
+  with regular web coverage. The gate has a fixed set of included production
+  files from `vitest.catalog.config.ts`, requires at least 95% statements,
+  branches, functions, and lines, and returns a nonzero exit code if any
+  threshold is violated. Removing a file, lowering a threshold, or expanding
+  exclusions does not constitute a fix.
 
-- `REQ-4703`: Web-потребитель deep links использует тот же packaged positive и
-  negative corpus, что и contracts/CLI. Parser остаётся pure: не делает
-  catalog lookup, не подтверждает существование target и не превращает URL в
-  источник enumeration. Он принимает только маршруты `deep_link_v1` и
-  возвращает нормализованный target, `cli_argv` и безопасную human projection.
+- `REQ-4703`: The Web deep-link consumer uses the same packaged positive and
+  negative corpus as contracts/CLI. The parser remains pure: it performs no
+  catalog lookup, does not confirm that the target exists, and does not turn the
+  URL into an enumeration source. It accepts only `deep_link_v1` routes and
+  returns a normalized target, `cli_argv`, and a safe human projection.
 
-- `REQ-4704`: Component, setup, exact-version и publisher web surfaces дают
-  canonical `Copy URL` и `Copy CLI command` там, где target доступен текущей
-  проекции. Exact-version surface содержит `#report` anchor для report intent.
-  Hidden/private/inaccessible target не раскрывает существование и не создаёт
-  копируемую ссылку поверх authorization boundary.
+- `REQ-4704`: Component, setup, exact-version, and publisher web surfaces
+  provide canonical `Copy URL` and `Copy CLI command` actions wherever the
+  target is available to the current projection. The exact-version surface
+  includes a `#report` anchor for report intent. A hidden/private/inaccessible
+  target does not reveal its existence or create a copyable link across the
+  authorization boundary.
 
-- `REQ-4705`: Server/Web delivery периодических GitHub archive observations
-  заменена `SPEC-049` `REQ-4902`…`REQ-4905`. Локальный CLI evidence остаётся
-  у `SPEC-044`.
+- `REQ-4705`: Server/Web delivery of periodic GitHub archive observations has
+  been superseded by `SPEC-049` `REQ-4902`…`REQ-4905`. Local CLI evidence
+  remains owned by `SPEC-044`.
 
-- `REQ-4706`: Periodic worker refresh каталога заменён on-demand metadata
-  request из `SPEC-049`. Catalog list не инициирует внешний GitHub вызов.
+- `REQ-4706`: Periodic worker refresh of the catalog has been replaced by the
+  on-demand metadata request from `SPEC-049`. Catalog list does not initiate an
+  external GitHub call.
 
-- `REQ-4707`: Public catalog больше не несёт `github_archive` summary. Stars и
-  условный `Archived` badge принадлежат `SPEC-049`.
+- `REQ-4707`: Public catalog no longer carries a `github_archive` summary.
+  Stars and the conditional `Archived` badge belong to `SPEC-049`.
 
-- `REQ-4708`: Отсутствие GitHub metadata не скрывает catalog object и не
-  создаёт false warning; детали — `SPEC-049` `REQ-4903`/`REQ-4904`.
+- `REQ-4708`: The absence of GitHub metadata does not hide the catalog object or
+  create a false warning; see `SPEC-049` `REQ-4903`/`REQ-4904` for details.
 
-- `REQ-4709`: Локальные v1 `SelectionImpactReport` и `BlastRadiusReport`
-  сохраняют `local_snapshot` / `local_registry`. Account blast-radius server
-  contract снят `SPEC-049` `REQ-4906`.
+- `REQ-4709`: Local v1 `SelectionImpactReport` and `BlastRadiusReport` preserve
+  `local_snapshot` / `local_registry`. The account blast-radius server contract
+  was removed by `SPEC-049` `REQ-4906`.
 
-- `REQ-4710`: `GET /v1/selection/blast-radius` снят. `GET /v1/selection/impact`
-  остаётся read-only authenticated resource без Web baseline projection.
+- `REQ-4710`: `GET /v1/selection/blast-radius` has been removed.
+  `GET /v1/selection/impact` remains a read-only authenticated resource without
+  a Web baseline projection.
 
-- `REQ-4711`: Impact API не выдумывает нулевую стоимость и не раскрывает
-  чужие private objects. Web не читает installed/selected state (`SPEC-049`
-  `REQ-4911`).
+- `REQ-4711`: The Impact API does not fabricate zero cost or expose private
+  objects belonging to others. Web does not read installed/selected state
+  (`SPEC-049` `REQ-4911`).
 
-- `REQ-4712`: Web не показывает account blast radius и не выдаёт action как
-  auto-update/uninstall. Context budget и CLI copy принадлежат `SPEC-049`.
+- `REQ-4712`: Web does not display account blast radius or present an action as
+  auto-update/uninstall. Context budget and CLI copy belong to `SPEC-049`.
 
-- `REQ-4713`: Все новые web states и labels имеют RU/EN parity и keyboard-first
-  behavior. Каждый интерактивный control имеет состояния `default`, `hover`, `focus`,
-  `active`, `disabled`, `loading` и `error`; `loading` использует skeleton, а `stale`,
-  unavailable, private и validation cases объясняют следующее безопасное
-  действие. Layout сохраняет текущую дизайн-систему, semantic tokens, visible
-  focus, reduced motion и WCAG 2.2 AA.
+- `REQ-4713`: All new web states and labels have RU/EN parity and keyboard-first
+  behavior. Every interactive control has `default`, `hover`, `focus`, `active`,
+  `disabled`, `loading`, and `error` states; `loading` uses a skeleton, while
+  `stale`, unavailable, private, and validation cases explain the next safe
+  action. The layout preserves the current design system, semantic tokens,
+  visible focus, reduced motion, and WCAG 2.2 AA.
 
-- `REQ-4714`: Каждый новый API field, endpoint, migration, worker job и
-  generated client имеет source contract, negative tests, public/private
-  matrix, migration/recovery evidence и traceability к одному из #241/#307/#309/
-  #344/#347. Issue нельзя закрыть только по unit tests без exact SHA и
-  наблюдаемого `just web-check`/`just back-check` результата.
+- `REQ-4714`: Every new API field, endpoint, migration, worker job, and
+  generated client has a source contract, negative tests, a public/private
+  matrix, migration/recovery evidence, and traceability to one of
+  #241/#307/#309/#344/#347. An issue cannot be closed based only on unit tests
+  without the exact SHA and an observed `just web-check`/`just back-check`
+  result.
 
-## Состояния и ошибки
+## States and errors
 
-### Canonical copy и deep links
+### Canonical copy and deep links
 
-- `ready` — canonical source и generated web projection совпадают;
-- `copy_failed` — clipboard отказал, но URL/command остаются доступны как text;
-- `invalid_reference` — parser отклонил URL/argv без normalization;
-- `inaccessible` — web сохраняет non-enumeration поведение.
+- `ready` — the canonical source and generated web projection match;
+- `copy_failed` — the clipboard operation failed, but the URL/command remains
+  available as text;
+- `invalid_reference` — the parser rejected the URL/argv without normalization;
+- `inaccessible` — Web preserves non-enumeration behavior.
 
 ### GitHub archive
 
-Состояния periodic archive projection сняты. On-demand metadata: `SPEC-049`.
+The periodic archive projection states have been removed. On-demand metadata:
+`SPEC-049`.
 
 ### Selection impact
 
-- `ready` — report complete for declared authority boundary;
-- `partial` — отдельная measurement unavailable, причина видна;
-- `stale` — source revision или evidence устарели;
-- `invalid_graph` — exact graph refused before partial report;
+- `ready` — report complete for the declared authority boundary;
+- `partial` — an individual measurement is unavailable and the reason is
+  visible;
+- `stale` — the source revision or evidence is outdated;
+- `invalid_graph` — the exact graph was refused before a partial report;
 - `forbidden/not_found` — existing authorization and non-enumeration semantics.
 
-## Безопасность и приватность
+## Security and privacy
 
-- Клиент GitHub в worker не принимает credential из request, passport или web.
-- Public API не возвращает raw GitHub payload, различие private repository,
-  session/device identifiers либо закрытые artifact bytes.
-- Запросы `account impact` сначала проверяют принадлежность account, затем
-  загружают private rows и не используют скрытые на клиенте поля для authorization.
-- UI badges не превращают `external observation` в `trust claim`. Действия
-  копирования не помещают токены, локальные пути, учётные данные или состояние
-  сессии в URL/argv.
-- Аудит и журналы хранят идентификатор операции и ограниченную категорию ошибки,
-  но не тело ответа, заголовки с учётными данными или содержимое bytes.
+- The GitHub client in the worker does not accept credentials from a request,
+  passport, or Web.
+- The Public API does not return the raw GitHub payload, the distinction that a
+  repository is private, session/device identifiers, or private artifact bytes.
+- `account impact` requests first verify account ownership, then load private
+  rows, and do not use client-hidden fields for authorization.
+- UI badges do not turn an `external observation` into a `trust claim`. Copy
+  actions do not place tokens, local paths, credentials, or session state in
+  URL/argv.
+- Audit records and logs store the operation identifier and a restricted error
+  category, but not the response body, headers containing credentials, or byte
+  content.
 
-## Совместимость и миграция
+## Compatibility and migration
 
-1. Сначала публикуются contracts и generated artifacts; старые CLI/web clients
-   продолжают читать существующие v1 responses.
-2. Затем добавляется nullable storage для наблюдений архива и обработчик worker;
-   отсутствие rows означает `unavailable`, а не migration failure.
-3. После применения migration API начинает отдавать optional `github_archive`.
-   Старые clients игнорируют новое поле по существующей additive policy.
-4. Server impact v2 включается отдельным endpoint/response schema; v1 local
-   CLI output не меняется.
-5. Rollback приложения не удаляет observation history. Rollback migration
-   выполняется только по `SPEC-020` backup/downgrade procedure и не должен
-   маскировать уже опубликованный catalog object.
+1. Contracts and generated artifacts are published first; old CLI/web clients
+   continue to read existing v1 responses.
+2. Nullable storage for archive observations and a worker handler are then
+   added; the absence of rows means `unavailable`, not migration failure.
+3. After the migration is applied, the API begins returning optional
+   `github_archive`. Old clients ignore the new field under the existing
+   additive policy.
+4. Server impact v2 is enabled through a separate endpoint/response schema; v1
+   local CLI output does not change.
+5. Application rollback does not delete observation history. Migration rollback
+   is performed only under the `SPEC-020` backup/downgrade procedure and must
+   not mask an already published catalog object.
 
-## Критерии приёмки
+## Acceptance criteria
 
-| Requirement | Исполнимый oracle |
+| Requirement | Executable oracle |
 |---|---|
 | `REQ-4701` | Web tests render every copy template and pass it through the real CLI parser; generated drift check fails on deliberate divergence. |
 | `REQ-4702` | `just web-test` runs both configs; catalog suite reaches all four 95% thresholds and a deliberate branch regression fails. |
 | `REQ-4703` | Shared positive/negative corpus and pure parser tests cover canonical and hostile URLs. |
 | `REQ-4704` | Component/a11y tests and public/private Playwright matrix cover URL, CLI copy, exact-version report anchor and non-enumeration. |
-| `REQ-4705` | Oracle принадлежит `SPEC-049`: periodic archive evidence больше не доставляется. |
-| `REQ-4706` | Oracle принадлежит `SPEC-049`: catalog list не вызывает GitHub. |
-| `REQ-4707` | Oracle принадлежит `SPEC-049`: public catalog не несёт сводку архива. |
-| `REQ-4708` | Oracle принадлежит `SPEC-049`: отсутствие metadata не скрывает объект. |
-| `REQ-4709` | CLI v1 schemas остаются; generated API не содержит account blast radius. |
-| `REQ-4710` | Generated inventory не содержит `/selection/blast-radius`. |
-| `REQ-4711` | Impact API сохраняет non-enumeration; Web не читает installed/selected state. |
-| `REQ-4712` | Web panel не показывает blast radius и destructive update/uninstall actions. |
+| `REQ-4705` | The oracle belongs to `SPEC-049`: periodic archive evidence is no longer delivered. |
+| `REQ-4706` | The oracle belongs to `SPEC-049`: catalog list does not call GitHub. |
+| `REQ-4707` | The oracle belongs to `SPEC-049`: public catalog does not carry an archive summary. |
+| `REQ-4708` | The oracle belongs to `SPEC-049`: the absence of metadata does not hide the object. |
+| `REQ-4709` | CLI v1 schemas remain; generated API does not contain account blast radius. |
+| `REQ-4710` | Generated inventory does not contain `/selection/blast-radius`. |
+| `REQ-4711` | Impact API preserves non-enumeration; Web does not read installed/selected state. |
+| `REQ-4712` | Web panel does not display blast radius or destructive update/uninstall actions. |
 | `REQ-4713` | RU/EN parity, keyboard/focus, loading/error states and desktop/narrow viewport browser smoke pass. |
 | `REQ-4714` | `just docs-check`, `just back-check`, `just web-check`, generated diff review and issue evidence run on the feature SHA. |

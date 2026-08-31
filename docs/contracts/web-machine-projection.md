@@ -1,48 +1,48 @@
 ---
-description: "Поля машинного документа web, парные URL и запрет утечек."
+description: "Fields of the web machine document, paired URLs, and leak prevention."
 last_verified: "2026-08-16"
 ---
 
-# Machine-проекция web
+# Web machine projection
 
-Владелец требований — `SPEC-036`. Этот документ фиксирует машинные поля,
-парные URL и запрещённые классы данных. Состав пунктов навигации и тексты
-страниц сюда не входят.
+The requirements owner is `SPEC-036`. This document defines machine fields,
+paired URLs, and prohibited data classes. Navigation item composition and page
+copy are outside its scope.
 
-## Парный URL
+## Paired URL
 
-| Проекция | Path |
+| Projection | Path |
 |---|---|
 | human | `/{locale}/{path}` |
 | machine | `/{locale}/ai/{path}` |
 
-`locale` — `en` или `ru`. Query string принадлежит паре и не нормализуется
-отдельно. Эндпоинты API, `/llms.txt`, `/llms-full.txt`, `/agents.md` и внешние
-URL не являются страницами и не переписываются.
+`locale` is `en` or `ru`. The query string belongs to the pair and is not
+normalized separately. API endpoints, `/llms.txt`, `/llms-full.txt`,
+`/agents.md`, and external URLs are not pages and are not rewritten.
 
-## Запись inventory
+## Inventory entry
 
-| Поле | Форма |
+| Field | Form |
 |---|---|
-| `pattern` | сегменты human-пути; `:name` — один сегмент, `*` — хвост |
-| `access` | `public` или `session` |
+| `pattern` | human-path segments; `:name` is one segment, `*` is the tail |
+| `access` | `public` or `session` |
 | `feature` | optional compiled feature key |
-| `envGate` | optional runtime gate той же human-страницы |
-| `presenter` | `domain` или `generic` |
+| `envGate` | optional runtime gate for the same human page |
+| `presenter` | `domain` or `generic` |
 
-Каждый `page.tsx` human-дерева имеет ровно одну запись. Страница без записи
-является дефектом.
+Every `page.tsx` in the human tree has exactly one entry. A page without an
+entry is a defect.
 
-## Документ объекта
+## Object document
 
-Обязательные поля компонента: `stable_id`, `version`, `digest`, `harness`,
+Required component fields: `stable_id`, `version`, `digest`, `harness`,
 `component_type`, `trust_lane`, `author_verified`, `component_verified`,
-команда установки CLI. `component_type` принимает только
+CLI installation command. `component_type` accepts only
 `instruction`, `skill`, `mcp`, `hook`, `command`, `agent`, `plugin`, `setting`.
-Сетап вместо `component_type` отдаёт `purpose` и `target_role`.
+A setup returns `purpose` and `target_role` instead of `component_type`.
 
-## Запрещённые классы
+## Prohibited classes
 
-В документ не входят адреса медиа, `avatar`, `CSRF`, токен сессии, секрет,
-пароль, внутренний идентификатор операции и декоративные поля, которых нет
-в человеческих фактах той же страницы тому же субъекту.
+The document does not include media addresses, `avatar`, `CSRF`, a session token,
+a secret, a password, an internal operation identifier, or decorative fields
+absent from the human-readable facts on the same page for the same subject.

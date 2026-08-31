@@ -1,104 +1,107 @@
 ---
-description: "Решение ограничить весь исходящий трафик CLI одним анонимным GET после явного согласия и назвать всё, чем он не является."
+description: "Decision to limit all CLI outbound traffic to one anonymous GET after explicit consent and state everything it is not."
 last_verified: "2026-08-21"
 ---
 
-# ADR-0112: Клиентский egress — один GET после согласия
+# ADR-0112: Client egress is one GET after consent
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-Продуктовый вопрос простой: на чём люди ставят компоненты. Операционная система,
-харнесс и его версия, что именно поставили, версия `ai_stp`. Одна строка вида
-«на Windows в Codex 0.140.1 поставили Serena MCP».
+The product question is simple: where people install components. The operating
+system, harness and its version, what exactly was installed, and the `ai_stp`
+version. One line such as "Serena MCP was installed on Windows in Codex
+0.140.1."
 
-План MVP блокировал телеметрию, пока нет границы, и это была правильная блокировка:
-без границы «немного телеметрии» расширяется тихо. Отсюда и решение — не
-разрешить сбор, а **назвать ровно один канал** и объявить всё остальное вне его.
+The MVP plan blocked telemetry until a boundary existed, correctly: without a
+boundary, "a little telemetry" expands silently. Hence the decision is not to
+permit collection, but to **name exactly one channel** and declare everything
+else outside it.
 
-CLI сегодня ходит наружу только к каталогу и к провайдерским релизам, и оба
-маршрута объявлены. Клиентского аналитического egress нет вовсе.
+Today the CLI reaches outside only for the catalog and provider releases, and
+both routes are declared. There is no client analytics egress at all.
 
-## Варианты
+## Options
 
-**Не собирать ничего.** Дёшево и честно, но оставляет продуктовое решение о
-поддержке харнессов без единого факта: какие связки реально встречаются, видно
-только по догадкам.
+**Collect nothing.** Inexpensive and honest, but leaves the product decision on
+harness support without a single fact: which combinations actually occur can
+only be guessed.
 
-**События через `/v1`.** Уже есть аутентификация, схемы и хранилище. И ровно
-поэтому неверно: канал, который умеет носить аккаунт, рано или поздно его
-понесёт, а `REQ-1315` держит счётчики каталога не связываемыми с человеком.
-Аутентифицированный поток событий — это профиль пользователя, отложенный на
-одну итерацию.
+**Events through `/v1`.** Authentication, schemas, and storage already exist.
+That is precisely why this is wrong: a channel capable of carrying an account
+will eventually carry it, while `REQ-1315` keeps catalog counters unlinkable to
+a person. An authenticated event stream is a user profile deferred by one
+iteration.
 
-**OpenTelemetry или web analytics SDK.** Обе несут открытый набор полей и
-собственный транспорт. Граница, которую нельзя перечислить, границей не является.
+**OpenTelemetry or a web analytics SDK.** Both carry an open-ended field set
+and their own transport. A boundary that cannot be enumerated is not a boundary.
 
-**Один анонимный GET на настраиваемый адрес.** Перечислимый набор query,
-отсутствие тела, отсутствие любых учётных данных.
+**One anonymous GET to a configurable address.** An enumerable query set, no
+body, and no credentials of any kind.
 
-## Решение
+## Decision
 
-Весь клиентский egress телеметрии — это один неаутентифицированный `GET` с
-закрытым набором query-полей, по HTTPS, с коротким timeout, без тела, без
-cookie, без токена каталога и без GitHub-авторизации.
+All client telemetry egress is one unauthenticated `GET` with a closed set of
+query fields, over HTTPS, with a short timeout, no body, no cookie, no catalog
+token, and no GitHub authorization.
 
-**По умолчанию выключено.** Пока согласия нет, запросов нет ни одного. Отказ и
-«ещё не спрашивали» ведут себя одинаково — это одно наблюдаемое поведение, а не
-два состояния с разной сетевой активностью.
+**Disabled by default.** Until consent exists, there are zero requests. Refusal
+and "not asked yet" behave identically—one observable behavior, not two states
+with different network activity.
 
-Согласие даётся отдельной командой, а не интерактивным prompt: CLI не рисует
-диалог в терминале, потому что его первичный потребитель — агент, а агент,
-которого спросили в stdin, зависает. Команда печатает экран и принимает
-`--accept` или `--decline` вместе с `--confirm`.
+Consent is given through a separate command, not an interactive prompt: the CLI
+does not render a terminal dialog because its primary consumer is an agent, and
+an agent prompted on stdin hangs. The command prints a screen and accepts
+`--accept` or `--decline` together with `--confirm`.
 
-Запись `telemetry.enabled=true` в обход команды согласия отклоняется. Согласие —
-это событие, а не значение: иначе «включено» появлялось бы правкой файла, и
-происхождение согласия было бы неизвестно.
+Writing `telemetry.enabled=true` while bypassing the consent command is
+rejected. Consent is an event, not a value: otherwise "enabled" could appear
+through a file edit and the origin of consent would be unknown.
 
-**Что уходит — перечислимо и закрыто:** операционная система, харнесс и его
-версия, версия `ai_stp`, вид компонента, имя, источник (`platform` или `github`),
-идентификатор (stable id платформы **или** публичный GitHub URL), точная версия
-компонента и случайный локальный анонимный идентификатор.
+**What is sent is enumerable and closed:** operating system, harness and its
+version, `ai_stp` version, component kind, name, source (`platform` or
+`github`), identifier (platform stable id **or** public GitHub URL), exact
+component version, and a random local anonymous identifier.
 
-**Что не уходит никогда:** локальные пути, приватные репозитории, аккаунт,
-ключ устройства, почта, имя проекта, путь цели, переменные окружения, содержимое
-файлов. Если публично назвать нечего — запроса нет.
+**What is never sent:** local paths, private repositories, account, device key,
+email, project name, target path, environment variables, or file contents. If
+nothing can be named publicly, no request is made.
 
-Анонимный идентификатор существует, чтобы отличать одну установку CLI от другой,
-и ничего больше. Он создаётся только при согласии, лежит в локальном каталоге
-данных, не в конфигурации, не является `device_id` и не связан с аккаунтом.
-Отказ и выключение его удаляют; повторное согласие даёт новый. Он не
-объединяется со счётчиками каталога — `REQ-1315` не ослабляется.
+The anonymous identifier exists only to distinguish one CLI installation from
+another. It is created only upon consent, stored in the local data directory
+rather than configuration, is not a `device_id`, and is not linked to an
+account. Refusal and disabling delete it; renewed consent creates a new one. It
+is not combined with catalog counters—`REQ-1315` is not weakened.
 
-**Когда:** после **verified** `install apply` с действием `install` или
-`update`, по одному запросу на фактически установленный компонент. Не на
-`backup`, `rollback`, `remove`, и не на чтения.
+**When:** after a **verified** `install apply` with the `install` or `update`
+action, one request per component actually installed. Not for `backup`,
+`rollback`, `remove`, or reads.
 
-**Fail-open.** Сетевая ошибка, timeout и любой ответ, кроме 2xx, проглатываются
-молча. Установка не краснеет из-за телеметрии и не повторяет запрос пачкой:
-результат установки — свойство цели, а не сети.
+**Fail-open.** A network error, timeout, and any non-2xx response are silently
+swallowed. Installation does not fail because of telemetry and does not retry
+the request in a batch: the installation result is a property of the target,
+not the network.
 
-Автономный режим и тесты запросов не делают, и `just check` живого коллектора не
-касается.
+Offline mode and tests make no requests, and `just check` does not contact a
+live collector.
 
-## Последствия
+## Consequences
 
-Появляется первый клиентский egress, которого не было, и он объявлен целиком:
-поля перечислены в `docs/contracts/`, поведение — в `SPEC-013`, конфигурация —
-в `SPEC-011` `REQ-1114` и `docs/contracts/cli-config.md`.
+The first previously absent client egress appears, and it is declared in full:
+fields are listed in `docs/contracts/`, behavior in `SPEC-013`, and
+configuration in `SPEC-011` `REQ-1114` and `docs/contracts/cli-config.md`.
 
-Канонический Skill и `doctor` направляют к экрану согласия один раз, когда
-статус `not_asked`, и не блокируют работу, пока ответа нет.
+The canonical Skill and `doctor` direct the user to the consent screen once
+when the status is `not_asked`, and do not block work while no answer exists.
 
-Чем это решение **не** является, названо, чтобы не расширялось молча: не веб-
-панель, не хранилище событий в `apps/api`, не профиль пользователя, не отправка
-на каждый запуск, не интерактивный prompt и не ослабление запрета cookie и
-аналитики в вебе.
+What this decision is **not** is stated to prevent silent expansion: it is not
+a web panel, event storage in `apps/api`, a user profile, sending on every run,
+an interactive prompt, or a weakening of the prohibition on cookies and web
+analytics.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Пересмотреть, если понадобится поле вне перечисленного набора, если появится
-потребность связать пинг с аккаунтом — тогда это уже другое решение и другой
-канал, — или если fail-open перестанет быть приемлемым.
+Reconsider if a field outside the enumerated set is needed, if the ping must be
+linked to an account—which would be a different decision and a different
+channel—or if fail-open ceases to be acceptable.

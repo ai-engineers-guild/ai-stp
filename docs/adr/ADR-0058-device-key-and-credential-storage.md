@@ -1,68 +1,54 @@
 ---
-description: "Решение хранить ключ устройства и облачные учётные данные ярусами с обязательным именованием яруса."
-last_verified: "2026-08-31"
+description: "Decision to store the device key and cloud credentials in tiers with mandatory tier naming."
+last_verified: "2026-08-06"
 ---
 
-# ADR-0058: Ключ устройства и хранение учётных данных
+# ADR-0058: Device Key and Credential Storage
 
-Статус: принято. Ed25519 backend installed CLI уточнён поправкой 2026-08-31.
+Status: accepted.
 
-## Контекст
+## Context
 
-`SPEC-002` REQ-204 требует у каждого устройства стабильный идентификатор и пару ключей Ed25519, REQ-207 — чтобы возобновление облачного доступа требовало нового входа и нового ключа. `ai_stp_assurance` уже фиксирует формат подписи и прямо откладывает работу с ключом до идентичности устройства в CLI. Задача #73 требует держать приватный ключ и облачные учётные данные в системном хранилище секретов.
+`SPEC-002` REQ-204 requires every device to have a stable identifier and an Ed25519 key pair, and REQ-207 requires resuming cloud access to require a new login and a new key. `ai_stp_assurance` already defines the signature format and explicitly defers key handling until device identity is implemented in the CLI. Issue #73 requires the private key and cloud credentials to be kept in the system secret store.
 
-Системного хранилища в основной среде продукта нет. Агент обычно работает по SSH и в контейнерах — именно поэтому для входа выбран device-code flow, а не loopback-редирект. Измерено на машине владельца: при живой сессионной шине `keyring` выбирает `SecretService` и полный цикл записи и чтения проходит; без шины выбирается `fail.Keyring` и вызов даёт типизированный `NoKeyringError`.
+There is no system store in the product's primary environment. The agent typically operates over SSH and in containers—which is precisely why device-code flow was chosen for login instead of a loopback redirect. Measurements on the owner's machine showed that with a live session bus, `keyring` selects `SecretService` and the complete write-and-read cycle succeeds; without the bus, it selects `fail.Keyring` and the call produces a typed `NoKeyringError`.
 
-Отдельно измерено и оказалось важнее: **`keyring.get_keyring()` не является доказательством наличия защищённого хранилища**. С установленным пакетом `keyrings.alt` выбирается `PlaintextKeyring` с приоритетом 0.5, запись молча проходит, а секрет оказывается на диске в base64 — при том что библиотека сообщает об успехе. Проверка «есть ли keyring» приняла бы это за защищённое хранилище и сообщила бы пользователю неправду.
+A separate measurement proved even more important: **`keyring.get_keyring()` is not evidence that a protected store is available**. With the `keyrings.alt` package installed, `PlaintextKeyring` with priority 0.5 is selected, the write silently succeeds, and the secret ends up on disk in base64—even though the library reports success. A check for whether a keyring exists would mistake this for a protected store and misinform the user.
 
-Публичный опыт даёт три задокументированных дефекта того же класса. `gh` откатывается на файл, не сообщая об этом, и это накопило поток жалоб (`cli/cli#10108`). У Codex CLI (`openai/codex#14704`) описаны сразу три: молчаливый откат, видимый только в отладочном журнале; неудаление файловой копии после успешной записи в хранилище, причём ошибка удаления проглатывается и устаревший секрет остаётся на диске; и права `0600`, применяемые только при создании файла — перезапись существующего файла с ослабленными правами пишет секрет в файл, читаемый всеми.
+Public experience provides three documented defects of the same class. `gh` falls back to a file without reporting it, which has generated a stream of complaints (`cli/cli#10108`). Codex CLI (`openai/codex#14704`) has three documented at once: silent fallback visible only in the debug log; failure to remove the file copy after a successful write to the store, with the deletion error swallowed and the stale secret left on disk; and `0600` permissions applied only when the file is created—overwriting an existing file with weakened permissions writes the secret to a world-readable file.
 
-Индустриальный ответ на среду без хранилища — явный ярус переменной окружения, как четырёхъярусный поиск у Heroku CLI. **Нам он запрещён**: `SPEC-011` REQ-1108 не допускает передачу секрета через окружение.
+The industry response to an environment without a store is an explicit environment-variable tier, as in the four-tier lookup used by Heroku CLI. **It is prohibited for us**: `SPEC-011` REQ-1108 does not permit passing a secret through the environment.
 
-## Варианты
+## Alternatives
 
-1. Только системное хранилище, иначе типизированный отказ. Максимальная защита и неработоспособность ровно в той среде, ради которой выбран device-code flow.
-2. Только файл `0600`. Одинаковое поведение везде и на одну зависимость меньше, но на десктопе владельца теряется шифрование при хранении, которое там реально доступно.
-3. Ярусы с обязательным именованием яруса. Системное хранилище, когда оно действительно есть; иначе файл `0600`; использованный ярус всегда является частью ответа.
-4. Ярусы с ярусом переменной окружения для CI. Отклоняется: REQ-1108.
+1. System store only, otherwise a typed failure. Maximum protection and inoperability in precisely the environment for which device-code flow was chosen.
+2. `0600` file only. Identical behavior everywhere and one fewer dependency, but on the owner's desktop this loses encryption at rest that is actually available there.
+3. Tiers with mandatory tier naming. System store when one genuinely exists; otherwise a `0600` file; the tier used is always part of the response.
+4. Tiers with an environment-variable tier for CI. Rejected: REQ-1108.
 
-## Решение
+## Decision
 
-Принят вариант 3.
+Alternative 3 is accepted.
 
-**Ярус 1 — системное хранилище.** Используется `keyring`, но выбранный backend принимается только если он входит в закрытый перечень действительно защищённых: Secret Service, macOS Keychain, Windows Credential Locker, KWallet. Любой другой — включая `fail`, `chainer` и всё из `keyrings.alt` — считается **отсутствием** хранилища, а не хранилищем. Перечень проверяется по модулю и имени класса, а не по приоритету: приоритет назначает сторонний пакет.
+**Tier 1—the system store.** `keyring` is used, but the selected backend is accepted only if it belongs to a closed list of genuinely protected backends: Secret Service, macOS Keychain, Windows Credential Locker, KWallet. Any other backend—including `fail`, `chainer`, and everything from `keyrings.alt`—is treated as the **absence** of a store, not as a store. The list is checked by module and class name, not by priority: priority is assigned by a third-party package.
 
-**Ярус 2 — файл в пользовательском каталоге данных** с правами `0600`. Файл создаётся с этими правами сразу, через `O_CREAT|O_EXCL`, и устанавливается атомарной заменой. Существующий файл никогда не открывается на запись с усечением: именно этот путь у Codex CLI приводил к записи секрета в файл с ослабленными правами. При чтении файл с правами шире владельца отвергается типизированной ошибкой, а не используется молча.
+**Tier 2—a file in the user data directory** with `0600` permissions. The file is created with these permissions from the outset, using `O_CREAT|O_EXCL`, and installed by atomic replacement. An existing file is never opened for writing with truncation: this exact path in Codex CLI caused a secret to be written to a file with weakened permissions. On read, a file with permissions broader than owner-only is rejected with a typed error rather than used silently.
 
-**Ярус всегда назван.** Откат не является событием журнала: он попадает в поле `warnings` конверта, поэтому машинный вызов получает его тем же одним объектом и стандартный поток ошибок остаётся пустым. `device show` называет действующее хранилище и причину, `doctor` содержит проверку `credential_store`.
+**The tier is always named.** Fallback is not a log event: it is included in the envelope's `warnings` field, so a machine invocation receives it in the same single object and the standard error stream remains empty. `device show` names the active store and the reason, and `doctor` includes the `credential_store` check.
 
-**Повышение яруса убирает за собой.** Если секрет позже удаётся записать в системное хранилище, файловая копия удаляется, и **неудача удаления сообщается**, а не проглатывается.
+**Promotion to a higher tier cleans up after itself.** If the secret can later be written to the system store, the file copy is deleted, and **a deletion failure is reported** rather than swallowed.
 
-Ключ устройства — Ed25519 с raw wire forms, закреплёнными
-`ai_stp_assurance`. Идентичность создаётся при первом запуске, офлайн и без
-облачного аккаунта, поэтому она не принадлежит группе команд входа. Конкретный
-installed-CLI backend уточнён поправкой ниже.
+The device key uses Ed25519 via `cryptography`; the signature format is already defined in `ai_stp_assurance`. Identity is created on first launch, offline and without a cloud account, so it does not belong to the login command group.
 
-Сброс идентичности порождает новый `device_id` и новую пару ключей и помечает предыдущую запись отозванной локально; локальные данные при этом сохраняются по REQ-205. Молчаливое повторное использование отозванной идентичности невозможно, потому что сброс не переиспользует ни идентификатор, ни ключ.
+Resetting identity generates a new `device_id` and a new key pair and marks the previous record as revoked locally; local data is preserved in accordance with REQ-205. Silent reuse of a revoked identity is impossible because reset reuses neither the identifier nor the key.
 
-## Последствия
+## Consequences
 
-- в дерево зависимостей CLI входят `keyring` и выбранный Ed25519 backend; владелец — трек CLI, путь удаления — совместимая замена backend и переход на один storage tier;
-- «где лежит секрет» становится наблюдаемым фактом машинного контракта, а не деталью реализации;
-- проверки могут подставить изолированное хранилище, потому что ярус выбирается адаптером, а не глобальным состоянием библиотеки;
-- перечень защищённых backend'ов требует сопровождения: новый backend не становится доверенным сам по себе.
+- `keyring` and `cryptography`, along with their transitive packages, enter the CLI dependency tree; the owner is the CLI track, and the removal path is a transition to a single tier that affects only the storage adapter;
+- “where the secret is stored” becomes an observable fact of the machine contract rather than an implementation detail;
+- checks can substitute an isolated store because the tier is selected by the adapter rather than by the library's global state;
+- the list of protected backends requires maintenance: a new backend does not become trusted on its own.
 
-## Поправка от 2026-08-31: PyNaCl для installed CLI
+## Reconsideration Conditions
 
-Installed CLI использует `PyNaCl 1.6.2`: новые security-fixed releases
-`cryptography` больше не публикуют Windows/arm64 wheel, поэтому прежняя
-dependency делала six-leg candidate неустанавливаемым. API/platform и
-repository/provider tooling сохраняют `cryptography`.
-
-Машинный контракт не меняется: исходные 32-byte `seed`/`public key` и 64-byte
-`signature` проверены двусторонними тестами совместимости PyNaCl ↔
-cryptography. Это замена backend реализации, а не новая identity или schema.
-
-## Условия пересмотра
-
-Решение пересматривается, если появится среда, где файловый ярус недопустим по требованию пользователя — тогда нужен явный отказ от отката, и его местом будет закрытый перечень полей `cli-config.md`. Также пересматривается, если refresh-токен из #75 окажется требующим более сильной защиты, чем ключ устройства: сегодня оба хранятся одинаково, и это осознанно, потому что ключ устройства доказывает происхождение, а не честность исполнения по `ADR-0007`.
+The decision will be reconsidered if an environment emerges where the file tier is unacceptable under a user requirement—in that case, an explicit refusal to fall back will be needed, and its place will be the closed list of fields in `cli-config.md`. It will also be reconsidered if the refresh token from #75 turns out to require stronger protection than the device key: today both are stored identically, and this is deliberate because the device key proves origin, not execution integrity, under `ADR-0007`.

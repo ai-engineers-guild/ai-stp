@@ -1,257 +1,244 @@
 ---
-description: "Машинный контракт read-only обнаружения нативных компонентов поддерживаемых харнессов."
+description: "Machine contract for read-only discovery of native components in supported harnesses."
 last_verified: "2026-08-26"
 ---
 
-# Обнаружение нативных компонентов
+# Native component discovery
 
-## Граница
+## Boundary
 
-Владелец требований — `SPEC-005` REQ-517 и REQ-518, решения — `ADR-0054`,
-`ADR-0055` и `ADR-0056`.
-`component discover` проверяет только объявленные глобальные layout поддерживаемых
-харнессов и layout внутри явно переданного `--root`. Команда не обходит home,
-не читает значения в найденных файлах, не создаёт паспорт и не открывает
-registry для записи. Отдельный adapter по `ADR-0055` читает только объявленные,
-ограниченные по размеру metadata manifests, чтобы доказать package provenance;
-произвольные настройки и значения секретов он не читает.
-Адаптер MCP source дополнительно читает только bounded package manifest и точный
-declared entry source по `ADR-0065`; он не запускает package, launcher или Git.
-Адаптер клиентских MCP по `ADR-0106` открывает только тот файл, чья раскладка
-объявила ключ, и читает под этим ключом только имена серверов. Объявленный путь
-всё равно принадлежит чужой машине, поэтому граница «объявленный файл» держится
-не на имени: symlink и файл со второй жёсткой ссылкой не читаются вовсе,
-дескриптор сверяется с тем `lstat`, который его разрешил, а число серверов и
-длина имени ограничены — имена уходят в `evidence_refs`, и неограниченное имя
-означало бы произвольный текст там. Ограничена длина, а не набор символов:
-`say "hi"` — это имя, которое кто-то выбрал, и отказ от него сообщил бы, что
-файл не объявляет серверов, тогда как он объявляет.
-Внешние metadata ports по `SPEC-005` REQ-529 читают только `nori.json` в явно
-названном корне и `.agents/.skill-lock.json` версии 3 в проектной или глобальной
-области. Они уточняют уже найденный путь или добавляют объявленный Nori component,
-но не делают внешний manifest источником подтверждённых паспортных фактов.
+The requirements owner is `SPEC-005` REQ-517 and REQ-518; the decisions are
+`ADR-0054`, `ADR-0055`, and `ADR-0056`.
+`component discover` checks only declared global layouts of supported harnesses and
+layouts within an explicitly supplied `--root`. The command does not traverse home,
+read values from discovered files, create a passport, or open the registry for writing.
+A separate adapter under `ADR-0055` reads only declared size-bounded metadata manifests
+to prove package provenance; it does not read arbitrary settings or secret values.
+The MCP source adapter additionally reads only a bounded package manifest and exact
+declared entry source under `ADR-0065`; it does not run the package, launcher, or Git.
+Under `ADR-0106`, the client MCP adapter opens only the file whose layout declared a
+key and reads only server names under that key. A declared path still belongs to an untrusted
+machine, so the "declared file" boundary does not rest on its name: a symlink or a file
+with a second hard link is never read, the descriptor is checked against the `lstat`
+that resolved it, and the server count and name length are bounded. Names enter
+`evidence_refs`, and an unbounded name would put arbitrary text there. Length, not the
+character set, is bounded: `say "hi"` is a name someone chose, and rejecting it would
+claim that the file declares no servers when it does.
+External metadata ports under `SPEC-005` REQ-529 read only `nori.json` at an explicitly
+named root and `.agents/.skill-lock.json` version 3 in project or global scope. They
+refine an already discovered path or add a declared Nori component, but do not make an
+external manifest a source of confirmed passport facts.
 
-Поддерживаемый набор — Claude Code, Codex, Pi, OpenCode, Grok Build, Cursor и
-Antigravity. Общие
-`.agents/skills` не принадлежат одному из них и возвращаются с `harness_id=null`.
-Один физический путь не дублируется под несколькими harness только из-за
-совместимости форматов.
+The supported set is Claude Code, Codex, Pi, OpenCode, Grok Build, Cursor, and
+Antigravity. Shared `.agents/skills` belong to none of them and are returned with
+`harness_id=null`. One physical path is not duplicated under multiple harnesses merely
+because their formats are compatible.
 
-Исполнимый владелец набора — декларативная таблица, которую показывает
-`toolchain harness-capabilities`. Из неё строятся detector и discovery rules;
-строка `undefined` владеет только переносимыми соглашениями без единственного
-харнесса. Каждая строка называет уровень поддержки, глобальные и проектные
-layout, проекционные возможности, источники и известные пробелы.
+The executable owner of the set is the declarative table shown by
+`toolchain harness-capabilities`. Detector and discovery rules are built from it; the
+`undefined` row owns only portable conventions without a single harness. Each row names
+the support level, global and project layouts, projection capabilities, sources, and
+known gaps.
 
-## Матрица bounded layouts
+## Bounded layout matrix
 
 | Harness | Global | Project | Manifest-backed plugin |
 |---|---|---|---|
-| Claude Code | instruction, skill, agent, command, setting, MCP, plugin | instruction, skill, agent, command, setting, MCP, plugin | installed ledger/cache adapter; plugin root, skill, agent, command, hooks-directory и MCP client config |
-| Codex | instruction, command/prompt, setting, shared skill | instruction, setting, agent, hook, shared skill | plugin root, skill и hooks-directory |
-| Pi | instruction, skill, plugin, command, setting | skill, plugin, command, setting | не объявлен отдельный project-plugin manifest |
+| Claude Code | instruction, skill, agent, command, setting, MCP, plugin | instruction, skill, agent, command, setting, MCP, plugin | installed ledger/cache adapter; plugin root, skill, agent, command, hooks-directory, and MCP client config |
+| Codex | instruction, command/prompt, setting, shared skill | instruction, setting, agent, hook, shared skill | plugin root, skill, and hooks-directory |
+| Pi | instruction, skill, plugin, command, setting | skill, plugin, command, setting | no separate project-plugin manifest declared |
 | OpenCode | skill, agent, command, plugin, setting | skill, agent, command, plugin, setting | bounded native plugin directory |
 | Grok Build | skill, plugin, hook, setting, shared command | skill, plugin, hook, setting | bounded native plugin directory |
-| Cursor | instruction, setting, plugin | instruction, plugin | plugin root, skill, agent, command и rules-as-instruction; hook/MCP только если дерево их несёт |
+| Cursor | instruction, setting, plugin | instruction, plugin | plugin root, skill, agent, command, and rules-as-instruction; hook/MCP only if carried by the tree |
 | Antigravity | setting, plugin, skill, agent, hook, MCP | plugin, skill, agent, hook, MCP | bounded native plugin directory |
 
-MCP server package не принадлежит одному harness и показывается отдельно с
-`harness_id=null`. Python требует согласованную цепочку `pyproject.toml` → MCP SDK
-dependency → `project.scripts` → exact module import. TypeScript требует
-`package.json` → SDK dependency → `bin`/script source → exact SDK import.
+An MCP server package belongs to no single harness and is shown separately with
+`harness_id=null`. Python requires a consistent `pyproject.toml` → MCP SDK dependency →
+`project.scripts` → exact module import chain. TypeScript requires a `package.json` →
+SDK dependency → `bin`/script source → exact SDK import chain.
 
-`unsupported` в этой матрице не превращается в эвристику по имени файла. Новый
-layout появляется только вместе с официальным источником и fixture. Поэтому
-обычный `src/hooks/useFoo.ts`, business webhook и произвольный каталог `plugins/`
-не становятся harness components.
+`unsupported` in this matrix does not become a filename heuristic. A new layout appears
+only with an official source and fixture. Therefore an ordinary `src/hooks/useFoo.ts`,
+business webhook, or arbitrary `plugins/` directory does not become a harness component.
 
-Claude Code project plugin pack распознаётся так же, как Codex, и отличается
-именем манифеста. Каталог под `plugins/` становится plugin только по точному
-`.claude-plugin/plugin.json`; внутри доказанного plugin читаются `skills`
-(каталог с `SKILL.md`), `agents`, `commands`, `hooks/hooks.json` и `.mcp.json`.
+A Claude Code project plugin pack is recognized like a Codex pack and differs by
+manifest name. A directory under `plugins/` becomes a plugin only through exact
+`.claude-plugin/plugin.json`; within a proven plugin, discovery reads `skills` (a
+directory containing `SKILL.md`), `agents`, `commands`, `hooks/hooks.json`, and
+`.mcp.json`.
 
-Cursor project plugin pack отличается только именем манифеста:
-`plugins/<name>/.cursor-plugin/plugin.json`. Внутри доказанного plugin читаются
-`skills`, `agents`, `commands` и `rules` (каждый файл — instruction). Официальная
-схема также называет `hooks` и `mcpServers`; их нет в измеренном OpenNetwork
-образце, и walker не выдумывает эти виды из соседнего каталога. JSON values
-манифеста не читаются — существование файла доказывает, что каталог есть plugin.
+A Cursor project plugin pack differs only by manifest name:
+`plugins/<name>/.cursor-plugin/plugin.json`. Within a proven plugin, discovery reads
+`skills`, `agents`, `commands`, and `rules` (each file is an instruction). The official
+schema also names `hooks` and `mcpServers`; they are absent from the measured OpenNetwork
+sample, and the walker does not invent these types from an adjacent directory. JSON
+manifest values are not read—the file's existence proves that the directory is a plugin.
 
-`.mcp.json` внутри plugin — это client config, а не сервер: находка получает
-`component_type=mcp` и `native_role=mcp_client_config`. Такой файл доказывает
-себя именем, поэтому обнаружение его не открывает и ни токен, ни URL с
-встроенным доступом, ни тело `.env` в выдачу не попадают. Раскладка объявлена по
-наблюдению, а не по догадке: работающие серверы лежат именно там, тогда как
-`~/.claude.json`, `~/.claude/settings.json` и `~/.claude/.mcp.json` ключа MCP не
-несут.
+`.mcp.json` within a plugin is client config, not a server: the finding receives
+`component_type=mcp` and `native_role=mcp_client_config`. Such a file proves itself by
+name, so discovery does not open it, and no token, access-bearing URL, or `.env` body
+enters the output. The layout is declared by observation, not conjecture: working servers
+reside there, while `~/.claude.json`, `~/.claude/settings.json`, and
+`~/.claude/.mcp.json` do not carry an MCP key.
 
-Codex, OpenCode и Grok Build держат клиентские серверы внутри файла, который
-объявлен также как `setting`: у первого и третьего это `config.toml`, у второго
-`opencode.json` или `opencode.jsonc`. Здесь существование файла не доказывает
-ничего — он есть на любой машине, где харнесс запускали хотя бы раз, а пустое
-объявление означает отказ от серверов. Поэтому такая раскладка объявляет ключ, и
-файл становится находкой `mcp` только тогда, когда под этим ключом объявлен хотя
-бы один сервер. Находка `setting` при этом сохраняется: один файл даёт две
-находки разных видов.
+Codex, OpenCode, and Grok Build keep client servers inside a file also declared as a
+`setting`: for the first and third it is `config.toml`; for the second, `opencode.json`
+or `opencode.jsonc`. Here file existence proves nothing—it exists on any machine where
+the harness has run at least once, and an empty declaration means no servers. Therefore
+such a layout declares a key, and the file becomes an `mcp` finding only when at least
+one server is declared under that key. The `setting` finding remains: one file produces
+two findings of different types.
 
-Читаются только имена серверов, и они же попадают в `evidence_refs` — например
-`mcp_servers.github`. Значения рядом с именем — команда, аргументы, URL,
-заголовки и окружение — не читаются и не возвращаются, поэтому токен, записанный
-в серверную запись, не попадает ни в паспорт, ни в лог, ни в fixture. Файл,
-который не разбирается своим форматом, превышает предел размера или не несёт
-ключа, находок не даёт: догадка о его содержимом была бы той самой эвристикой,
-которую этот контракт запрещает.
+Only server names are read, and they enter `evidence_refs`—for example,
+`mcp_servers.github`. Values next to a name—command, arguments, URL, headers, and
+environment—are neither read nor returned, so a token stored in a server entry reaches
+neither a passport, log, nor fixture. A file that cannot be parsed in its format, exceeds
+the size limit, or lacks the key produces no findings: guessing its content would be
+the very heuristic this contract prohibits.
 
-У Pi объявленной клиентской раскладки нет. Файлы `mcp.json` под его корнем
-встречаются, но их создаёт пользовательское расширение, а не сам харнесс, и
-наблюдаемые экземпляры расходятся в ключе. Оглавление документации Pi страницы
-про MCP не содержит, поэтому машинная таблица сообщает проверенный пробел
-`no_documented_mcp_client_config`, а не выдуманную раскладку.
+Pi has no declared client layout. Files named `mcp.json` occur under its root, but they
+are created by user extensions rather than the harness itself, and observed instances
+disagree on the key. The Pi documentation table of contents contains no MCP page, so the
+machine table reports the verified gap `no_documented_mcp_client_config` rather than an
+invented layout.
 
-Это отдельный layout, а не переименование глобального адаптера кэша. Адаптер
-по-прежнему читает установленный ledger, а pack — это исходное дерево
-маркетплейса, в котором каталога `.claude/` может не быть совсем.
+This is a separate layout, not a renaming of the global cache adapter. The adapter still
+reads the installed ledger, while the pack is a marketplace source tree in which the
+`.claude/` directory may be entirely absent.
 
-Каталог `plugins/`, ни один член которого не несёт манифеста **ни одного** из
-поддержанных харнессов, не даёт компонентов и сообщает `unsupported_manifest`
-один раз на коллекцию. Молчание здесь было бы хуже отказа: оператор получал бы
-пустой инвентарь без причины. Пакет одного харнесса при этом не вызывает жалобы
-у другого: Codex-пакет остаётся пакетом, даже не неся манифеста Claude.
+A `plugins/` directory whose members carry no manifest from **any** supported harness
+produces no components and reports `unsupported_manifest` once per collection. Silence
+would be worse than failure: the operator would receive an empty inventory without a
+reason. A pack for one harness does not trigger a complaint from another: a Codex pack
+remains a pack even without a Claude manifest.
 
-Codex project hooks распознаются только как `.codex/hooks.json` или как
-`hooks/hooks.json` внутри plugin, доказанного точным
-`.codex-plugin/plugin.json`. Plugin hook-directory является одним компонентом и
-включает manifest и его соседние scripts в детерминированный artifact; скрипты
-не запускаются при discovery. Custom agents берутся только из `.codex/agents`.
-Файл CODEX.md не является документированным instruction layout и возвращается как
-безопасная `unsupported_manifest` диагностика с предложением использовать
-`AGENTS.md`, а не как ложная нативная находка.
+Codex project hooks are recognized only as `.codex/hooks.json` or as `hooks/hooks.json`
+inside a plugin proven by exact `.codex-plugin/plugin.json`. A plugin hook-directory is
+one component and includes the manifest and adjacent scripts in a deterministic artifact;
+scripts are not run during discovery. Custom agents come only from `.codex/agents`.
+CODEX.md is not a documented instruction layout and is returned as a safe
+`unsupported_manifest` diagnostic suggesting `AGENTS.md`, not as a false native finding.
 
-## Поля находки
+## Finding fields
 
-- `candidate_id` — `sha256:` доменного хэша в
-  `ai-stp:native-discovery:v1`; он адресует результат discovery, но не заменяет
-  логический идентификатор принятого Component;
-- `component_type` — значение закрытого словаря из восьми видов;
-- `native_role` — `mcp_client_config` или `mcp_server` для MCP, иначе `null`;
-- `harness_id` — владелец нативного layout или `null` для общей конвенции;
-- `scope` — `global` или `project`;
-- `source_path` — путь с заменой home на `~`;
-- `layout_source` — официальный документ, объявляющий проверенный layout;
-- `provenance` — согласованное происхождение: `filesystem/local` содержит только
-  layout evidence, `package/observed` — только наблюдаемую package identity без
-  remote claim, а `github/exact` требует канонический repository и полный commit
-  SHA и может содержать subpath и package name/version; askill-compatible lock
-  может добавить `digest` точной папки в `package/observed`, но этот digest не
-  является Git commit;
-- `byte_length` — размер обычного файла или `null` для каталога и неизмеримого
-  entry;
-- `holds_secret` — результат проверки имени, а не содержимого;
-- `entry_points`, `transport_capabilities`, `evidence_refs` — только
-  allowlisted структурные факты manifest-led adapter; transport может быть
-  пустым, если его нельзя доказать как `stdio` или `http`;
-- `reason` — безопасное основание классификации или неизмеримости.
+- `candidate_id` — `sha256:` of a domain hash in `ai-stp:native-discovery:v1`; it
+  addresses the discovery result but does not replace the adopted Component's logical
+  identifier;
+- `component_type` — a value from the closed eight-type vocabulary;
+- `native_role` — `mcp_client_config` or `mcp_server` for MCP, otherwise `null`;
+- `harness_id` — owner of the native layout, or `null` for a shared convention;
+- `scope` — `global` or `project`;
+- `source_path` — path with home replaced by `~`;
+- `layout_source` — official document declaring the verified layout;
+- `provenance` — consistent provenance: `filesystem/local` contains only layout
+  evidence; `package/observed` contains only observed package identity without a remote
+  claim; `github/exact` requires a canonical repository and full commit SHA and may
+  contain a subpath and package name/version; an askill-compatible lock may add the
+  exact folder's `digest` to `package/observed`, but that digest is not a Git commit;
+- `byte_length` — regular file size, or `null` for a directory or unmeasurable entry;
+- `holds_secret` — result of checking the name, not the content;
+- `entry_points`, `transport_capabilities`, `evidence_refs` — only allowlisted
+  structural facts from a manifest-led adapter; transport may be empty if it cannot be
+  proven as `stdio` or `http`;
+- `reason` — safe basis for classification or immeasurability.
 
-Идентичность кандидата вычисляется из вида, harness, области, отредактированного
-пути, `layout_source` и allowlisted provenance. Повтор на неизменном filesystem
-возвращает те же значения в том же порядке. Изменение официального layout-source
-или exact source намеренно меняет идентичность и требует повторной оценки агентом.
+Candidate identity is computed from the type, harness, scope, redacted path,
+`layout_source`, and allowlisted provenance. Repeating discovery on an unchanged
+filesystem returns the same values in the same order. Changing the official layout
+source or exact source intentionally changes identity and requires agent reevaluation.
 
 ## GitHub provenance
 
-Глобальные Claude plugins читаются через поддерживаемую цепочку ledger версии 2,
-реестра marketplaces и marketplace manifest. Install path принимается только
-внутри вычисленного plugin cache; записанный manifest-путь marketplace игнорируется.
-Допускаются относительный source внутри GitHub marketplace и GitHub-backed
-`github`, `url`, `git-subdir` с exact revision. Credentialed URL, путь с `..`,
-неполный SHA, неизвестная версия ledger и выход из cache root закрываются отказом.
+Global Claude plugins are read through the supported chain of a version 2 ledger,
+marketplace registry, and marketplace manifest. The install path is accepted only within
+the computed plugin cache; the marketplace's recorded manifest path is ignored. A
+relative source within a GitHub marketplace and GitHub-backed `github`, `url`, or
+`git-subdir` with an exact revision are permitted. A credentialed URL, a path containing
+`..`, an incomplete SHA, an unknown ledger version, and escape from the cache root fail
+closed.
 
-Проблема одного source adapter не удаляет независимые находки. Она появляется в
-`diagnostics` с закрытым code и безопасным reason без содержимого manifest,
-credential и системного текста ошибки. Наличие `github/exact` не означает
-подтверждение платформой или безопасность plugin.
+A problem in one source adapter does not remove independent findings. It appears in
+`diagnostics` with a closed code and safe reason, without manifest content, credentials,
+or system error text. The presence of `github/exact` does not mean platform verification
+or plugin safety.
 
-Установленный plugin с npm, archive, local или неполным Git evidence не исчезает:
-он возвращается как `package/observed`. Агент может использовать это для
-инвентаризации, но не называет repository или revision точными.
+An installed plugin with npm, archive, local, or incomplete Git evidence does not
+disappear: it is returned as `package/observed`. The agent may use this for inventory but
+does not call its repository or revision exact.
 
-Глобальные Pi Git packages обнаруживаются только в документированном
-`git/<host>/<owner>/<repository>` внутри config root. Для `github.com` adapter
-читает bounded `HEAD`, loose ref или `packed-refs`; `settings.json`, Git config,
-hooks, рабочие файлы и сеть не читаются и не запускаются. Такой checkout получает
-`github/exact`, но enabled state и чистота рабочего дерева не угадываются.
-Не-GitHub host остаётся без GitHub claim.
+Global Pi Git packages are discovered only in documented
+`git/<host>/<owner>/<repository>` within the config root. For `github.com`, the adapter
+reads bounded `HEAD`, loose ref, or `packed-refs`; it neither reads nor runs
+`settings.json`, Git config, hooks, working files, or the network. Such a checkout
+receives `github/exact`, but enabled state and working-tree cleanliness are not inferred.
+A non-GitHub host remains without a GitHub claim.
 
-Grok `plugins/marketplaces` является служебным контейнером, а не plugin, поэтому
-не выдаётся кандидатом. Публичный контракт Grok пока не раскрывает достаточную
-структуру реестра установки для точного происхождения каждого marketplace plugin;
-CLI показывает только доказуемые элементы локального layout и не угадывает источник.
+Grok `plugins/marketplaces` is a service container, not a plugin, and is therefore not
+returned as a candidate. The public Grok contract does not yet expose enough installation
+registry structure for exact provenance of each marketplace plugin; the CLI shows only
+provable local-layout elements and does not guess the source.
 
-## Внешние metadata ports
+## External metadata ports
 
-Nori port принимает bounded UTF-8 JSON с уникальными ключами и обязательными
-`name` и `version`. Он сопоставляет только объявленные `skills`, `subagents` и
-`slashcommands` с существующим реальным путём внутри названного корня. Значения
-`repository`, dependencies и scripts не создают exact provenance и не
-исполняются.
+The Nori port accepts bounded UTF-8 JSON with unique keys and required `name` and
+`version`. It maps only declared `skills`, `subagents`, and `slashcommands` to an
+existing real path within the named root. Values in `repository`, dependencies, and
+scripts neither create exact provenance nor execute.
 
-Skill-lock port принимает только версию 3 и существующий
-`.agents/skills/<sanitized-name>`. `skillFolderHash` сохраняется как `sha1:` или
-`sha256:` в наблюдаемом provenance; `source`, `sourceType` и `sourceUrl` не
-доказывают repository или commit. В принятом draft остаются ссылка на lock,
-folder digest и отдельный content digest фактически прочитанных байтов. Поэтому
-паспортная проверка продолжает показывать отсутствие exact public source до
-явного обогащения владельцем.
+The skill-lock port accepts only version 3 and an existing
+`.agents/skills/<sanitized-name>`. `skillFolderHash` is retained as `sha1:` or `sha256:`
+in observed provenance; `source`, `sourceType`, and `sourceUrl` do not prove a repository
+or commit. The adopted draft retains a reference to the lock, folder digest, and a
+separate content digest of the bytes actually read. Passport validation therefore keeps
+reporting missing exact public source until explicit owner enrichment.
 
-Оба manifest ограничены 1 MiB и 500 записями, не читаются через symlink, не
-принимают duplicate JSON keys и не запускают внешние команды, scripts, Git или
-package manager. Ошибка одного port возвращается безопасной диагностикой и не
-удаляет независимые находки.
+Both manifests are limited to 1 MiB and 500 entries, are not read through a symlink,
+reject duplicate JSON keys, and run no external commands, scripts, Git, or package
+manager. A failure in one port returns a safe diagnostic and does not remove independent
+findings.
 
-## Корни
+## Roots
 
-Config root берётся из той же таблицы detector, что и `harness survey`.
-Документированная переменная переноса целиком заменяет исходный корень. Общий home layout
-разрешён только правилом без `harness_id`; неизвестный root или правило без
-источника делает doctor-check `component_layouts` неуспешным.
+The config root comes from the same detector table as `harness survey`. A documented
+relocation variable completely replaces the original root. A shared home layout is
+permitted only by a rule without `harness_id`; an unknown root or a rule without a source
+makes the `component_layouts` doctor check unsuccessful.
 
-## Действие агента
+## Agent action
 
-Агент группирует находки по scope и harness, показывает `layout_source` при
-сомнении в классификации, отдельно показывает diagnostics и сохраняет
-`candidate_id` при обсуждении выбора. GitHub origin агент называет точным только
-при `provenance.kind=github` и `state=exact`; имя cache-каталога доказательством
-не является.
-Discovery не является согласием. До `component adopt` агент обязан получить
-решение пользователя и передать точный `source_path` вместе с правильным project
-root, если находка проектная.
+The agent groups findings by scope and harness, shows `layout_source` when classification
+is uncertain, shows diagnostics separately, and retains `candidate_id` while discussing
+selection. The agent calls GitHub origin exact only when `provenance.kind=github` and
+`state=exact`; a cache-directory name is not evidence.
+Discovery is not consent. Before `component adopt`, the agent must obtain the user's
+decision and pass the exact `source_path` together with the correct project root for a
+project finding.
 
-`component adopt` принимает только то, что уже названо discovery: путь, которого
-находка не называла, отклоняется. Каталог сверх этого обязан нести манифест из
-закрытого набора — `SKILL.md`, `AGENTS.md`, `plugin.json`,
-`.claude-plugin/plugin.json`, `.codex-plugin/plugin.json`,
-`.cursor-plugin/plugin.json`, `hooks.json`, `package.json`, `pyproject.toml`.
-Каталог без такого файла отклоняется: у приёмки нет способа отличить компонент
-от произвольного дерева, а угадывать по содержимому значило бы принимать чужое.
+`component adopt` accepts only what discovery already named: a path absent from the
+finding is rejected. A directory must additionally carry a manifest from the closed set—
+`SKILL.md`, `AGENTS.md`, `plugin.json`, `.claude-plugin/plugin.json`,
+`.codex-plugin/plugin.json`, `.cursor-plugin/plugin.json`, `hooks.json`, `package.json`,
+or `pyproject.toml`. A directory without such a file is rejected: adoption cannot
+distinguish a component from an arbitrary tree, and guessing from content would mean
+adopting someone else's content.
 
-Одиночный файл в каталого-образной раскладке манифеста не требует — он и есть
-компонент. Именно так пишутся агенты и команды claude-code, и приёмка их берёт.
+A single file in a directory-shaped layout needs no manifest—it is the component. This
+is how claude-code agents and commands are authored, and adoption accepts them.
 
-Каркас `component-scaffold/2` хранит authoring metadata рядом с точной раскладкой
-в `native/`. Для `discover`/`adopt` переносится содержимое `native/`, а не весь
-authoring-каталог. Одиночные OpenCode/Pi JS/TS plugins принимаются как файлы;
-manifest-directory plugins — только по манифесту из закрытого набора выше.
+The `component-scaffold/2` scaffold stores authoring metadata next to the exact layout
+under `native/`. `discover`/`adopt` transfers the contents of `native/`, not the entire
+authoring directory. Single-file OpenCode/Pi JS/TS plugins are adopted as files;
+manifest-directory plugins only through a manifest from the closed set above.
 
-## Внешняя идентичность источника
+## External source identity
 
-`component source parse` принимает published slug, GitHub shorthand или HTTPS URL,
-local path и collection URL и возвращает только структурированное намерение. Этот
-результат не является provenance evidence и всегда содержит
-`provenance_proven=false`. Команда не открывает сеть, Git, manifest или registry.
+`component source parse` accepts a published slug, GitHub shorthand or HTTPS URL, local
+path, and collection URL and returns only structured intent. This result is not
+provenance evidence and always contains `provenance_proven=false`. The command accesses
+neither the network, Git, manifest, nor registry.
 
-`component source resolve` является отдельной механической границей: только
-GitHub intent вместе с полным lowercase commit SHA становится `github/exact`.
-Ветка, тег, короткий SHA, credentialed URL, control characters, абсолютный или
-выходящий через `..` subpath закрыто отклоняются. Даже exact identity ещё не
-доказывает digest и размер содержимого: эти факты получает последующий bounded
-import/adopt path.
+`component source resolve` is a separate mechanical boundary: only GitHub intent with a
+full lowercase commit SHA becomes `github/exact`. A branch, tag, short SHA, credentialed
+URL, control characters, and an absolute subpath or one escaping through `..` fail
+closed. Even exact identity does not yet prove content digest and size; those facts come
+from the subsequent bounded import/adopt path.

@@ -1,201 +1,201 @@
 ---
-description: "SPEC-021: Анонимное чтение публичного каталога и первичный посев объектов."
+description: "SPEC-021: Anonymous reading of the public catalog and initial seeding of objects."
 last_verified: "2026-08-25"
 ---
 
-# SPEC-021: Анонимное чтение публичного каталога и первичный посев
+# SPEC-021: Anonymous public catalog reading and primary seeding
 
-## Цель
+## Purpose
 
-Платформа впервые отдаёт публичный каталог анонимно и только на чтение: поиск и
-листинг компонентов и сетапов, точное чтение объекта и версии, детерминированный
-непрозрачный курсор, проекции карточки и детали, проверка целостности при чтении и
-безопасная выдача байтов объекта. Одновременно вводится идемпотентный посев
-first-party объектов, достаточный для Sprint-1 E2E. Публикация пользовательских
-объектов в этот спринт не вводится.
+For the first time, the platform makes the public catalog anonymous and read-only: search and
+listing of components and setups, accurate reading of object and version, deterministic
+opaque cursor, card and detail projections, integrity check when reading and
+Safely returning object bytes. At the same time, idempotent seeding is introduced
+first-party objects, sufficient for Sprint-1 E2E. Publication of user-defined
+objects is not introduced in this sprint.
 
-Wire-контракт зафиксирован `#71` в `schemas/v1/openapi.json` и моделях
-`ai_stp_contracts.catalog`; эта спецификация не переопределяет его, а описывает
-серверное поведение позади него и владеет требованиями `REQ-21xx`. Механизм
-платформы принадлежит `ADR-0009`; линии доверия - `ADR-0016`; честность
-верификации - `ADR-0026` и `ADR-0032`; каноничность digest - `SPEC-015` и
-`ADR-0036`; хранилище и его ограничения - `SPEC-020`; каркас слайсов - `ADR-0037`;
-модель анонимного чтения и выдачи байтов - `ADR-0042`.
+Wire contract fixed `#71` in `schemas/v1/openapi.json` and models
+`ai_stp_contracts.catalog`; this specification does not redefine it, but describes it
+server behavior behind it and owns the `REQ-21xx` requirements. Mechanism
+platform belongs to `ADR-0009`; trust lines - `ADR-0016`; honesty
+verification - `ADR-0026` and `ADR-0032`; canonicity digest - `SPEC-015` and
+`ADR-0036`; storage and its limitations - `SPEC-020`; slice frame - `ADR-0037`;
+model for anonymous reading and issuing bytes - `ADR-0042`.
 
-## Границы
+## Scope
 
-Входят: шесть анонимных read-only маршрутов `/v1/catalog/components` и
-`/v1/catalog/setups` (листинг, карточка объекта, точная версия) позади
-замороженного контракта `#71`; непрозрачный, устойчивый к подделке курсор с полным
-стабильным порядком, ограниченной страницей и одной последовательностью на обе
-линии доверия; проекции карточки и детали из паспорта последней предложенной
-версии; разделение результата на `authoritative` и `experimental` секции с
-request-scoped согласием; независимая проверка digest и размера при чтении;
-безопасная выдача байтов объекта после проверки объекта и действия; идемпотентный,
-привязанный к окружению загрузчик first-party посева; свойство недоступности для
-перечисления скрытых, приватных и черновых записей.
+Includes: six anonymous read-only routes `/v1/catalog/components` and
+`/v1/catalog/setups` (listing, object card, exact version) behind
+frozen contract `#71`; opaque, tamper-resistant cursor with full
+stable order, limited page and one sequence for both
+trust lines; projections of the card and details from the passport of the last one offered
+versions; dividing the result into `authoritative` and `experimental` sections with
+request-scoped consent; independent check of digest and read size;
+secure release of object bytes after object and action verification; idempotent,
+first-party seeding loader tied to the environment; property of inaccessibility for
+listing hidden, private and draft entries.
 
-Не входят: произвольная пользовательская загрузка и публикация; воркеры валидации и
-сканирования; приватные объекты, grants и синхронизация; рекомендации, ранжирование
-и социальные метрики; изменение общих wire-схем и `schemas/**` (владелец - `#71`);
-доменная семантика колонок аккаунтов, устройств и идентичностей (`SPEC-002`); слой
-хранения и миграций как таковой (`SPEC-020`); REST-поверхность готовности
-(`SPEC-017`); сетевое сокрытие и `docker-compose` (`SPEC-019`).
+Does not include: arbitrary user uploading and publishing; validation workers and
+scanning; private objects, grants and synchronization; recommendations, ranking
+and social metrics; changing general wire diagrams and `schemas/**` (owner - `#71`);
+domain semantics of columns of accounts, devices and identities (`SPEC-002`); layer
+storage and migrations as such (`SPEC-020`); REST ready surface
+(`SPEC-017`); network hiding and `docker-compose` (`SPEC-019`).
 
-## Термины
+## Terms
 
-- `Catalog read route` — один из шести анонимных `GET`-маршрутов замороженного
-  контракта `#71`; писать в каталог этими маршрутами нельзя.
-- `Card projection` — проекция `ComponentSummary` или `SetupSummary`: поля объекта
-  без префикса и поля `latest_*`, прочитанные из паспорта последней предложенной
-  версии; объектного паспорта нет (`ADR-0012`).
-- `Opaque cursor` — непрозрачный для клиента токен порядка; сервер владеет его
-  содержимым, клиент лишь возвращает его дословно.
-- `Trust lane split` — разделение результата на секции `authoritative` и
-  `experimental`, а не их перемешивание (`ADR-0016`, `SPEC-006` `REQ-603`).
-- `Non-enumeration` — свойство, при котором существование скрытой, приватной или
-  черновой записи не выводится ни прямым ID, ни курсором, ни счётчиком, ни формой
-  ответа, зависящей от времени, ни ключом объекта в хранилище.
-- `First-party seed` — детерминированный набор объектов гильдии, загружаемый
-  идемпотентным загрузчиком, привязанным к окружению.
-- `Object delivery` — выдача байтов артефакта после проверки объекта и действия:
-  либо API-опосредованный поток, либо кратко живущий ограниченный URL (`ADR-0042`).
+- `Catalog read route` is one of the six anonymous `GET` frozen routes
+  contract `#71`; the catalog cannot be written through these routes.
+- `Card projection` - projection `ComponentSummary` or `SetupSummary`: object fields
+  without prefix and field `latest_*`, read from the passport of the last proposed
+  versions; there is no object passport (`ADR-0012`).
+- `Opaque cursor` — an order token that is opaque to the client; the server owns it
+  content, the client only returns it verbatim.
+- `Trust line split` — division of the result into sections `authoritative` and
+  `experimental`, rather than mixing them (`ADR-0016`, `SPEC-006` `REQ-603`).
+- `Non-enumeration` - a property in which the existence of a hidden, private or
+  the draft record is not displayed either by direct ID, or by the cursor, or by the counter, or by the form
+  time-dependent response, nor the key of the object in the store.
+- `First-party seed` - deterministic set of guild objects, loaded
+  an idempotent loader tied to the environment.
+- `Object delivery` - issuing artifact bytes after checking the object and action:
+  either an API-mediated stream or a short-lived limited URL (`ADR-0042`).
 
-## Требования
+## Requirements
 
-- `REQ-2101`: Шесть маршрутов каталога доступны анонимно и только на чтение; ни
-  один маршрут публичной публикации, загрузки или мутации каталога в этот спринт не
-  существует, что подтверждается отсутствием таких операций в реализации и контракте.
-- `REQ-2102`: Компоненты и сетапы - раздельные ресурсы; один вызов поиска
-  адресует один вид, а курсор принадлежит одному виду; полиморфный маршрут объекта
-  не вводится (замороженный контракт `#71`).
-- `REQ-2103`: Проекция карточки и детали заполняет поля `latest_*` из паспорта
-  последней предложенной версии; каждое поле `latest_*` соответствует реальному
-  полю паспорта, что закреплено тестом; объектных полей `name` или `tags` карточка
-  не несёт, поскольку объектного паспорта нет (`ADR-0012`).
-- `REQ-2104`: Каждая карточка несёт `CatalogTrust` с независимыми осями
-  `author_verified` и `component_verified` (`ADR-0016`); линия `authoritative`
-  представима только при обеих истинных осях; секция `experimental` возвращается
-  лишь при request-scoped согласии `include_experimental` (`SPEC-006` `REQ-603`,
-  `ADR-0029`) и приходит отдельной секцией, а не вперемешку.
-- `REQ-2105`: Порядок результата полный и стабильный внутри одной курсорной
-  последовательности с уникальным разрешителем ничьей `stable_id`; курсор
-  непрозрачен, устойчив к подделке и связан с сигнатурой фильтра и сортировки;
-  подделанный или относящийся к иному фильтру курсор отклоняется типизированной
-  ошибкой; страница ограничена суммарно по обеим линиям значением `PAGE_SIZE_MAX`;
-  пагинация не создаёт дубля и ничего не пропускает.
-- `REQ-2106`: Скрытая, приватная и черновая записи не выводимы для перечисления:
-  прямой запрос по ID отвечает тем же `AI_STP_NOT_FOUND`, что и отсутствующая
-  запись; ответ не несёт счётчика набора; форма ответа не выдаёт существование
-  записи различием, зависящим от времени; ключ объекта непрозрачен и не полномочен.
-- `REQ-2107`: Публичный маршрут представляет только опубликованный паспорт с
-  видимостью `public` и опубликованным жизненным циклом `active`, `deprecated` или
-  `blocked`; приватный или черновой паспорт на публичном маршруте не представим и
-  отклоняется до формирования ответа.
-- `REQ-2114`: Список просмотра по умолчанию предлагает только жизненный цикл
-  `active`. `deprecated` и `blocked` остаются полностью достижимы — по `id`, по
-  точной версии, в списке версий объекта и по явному `include_deprecated` — но
-  список является рекомендацией, а вытесненная версия ею не является.
-  `REQ-2107` отвечает на вопрос о представимости и на этот вопрос не отвечает;
-  до 2026-08-30 одно множество отвечало на оба, и первая страница каталога
-  состояла из девятнадцати вытесненных сетапов и одного действующего.
-- `REQ-2108`: Байты паспорта проверяются против `passport_digest` до ответа, а
-  байты артефакта — против digest в области `ai-stp:artifact:v1` и размера до
-  выдачи; raw SHA-256 и доменный digest не взаимозаменяются; тот же
-  `stable_id`/`version` не может быть связан с конфликтующим digest, и такой
-  конфликт отклоняется типизированной ошибкой без частичного ответа (`SPEC-015`,
-  `ADR-0036`). Тип этой ошибки не означает отсутствия: достижимая опубликованная
-  запись, не прошедшая проверку, отвечает `AI_STP_CATALOG_INTEGRITY` и оставляет
-  событие уровня `error`; структурно неразбираемый паспорт является той же
-  ошибкой целостности, а не необработанным сбоем (`ADR-0079`). Проводное поле
-  `passport` точной версии — сохранённый опубликованный документ, по которому
-  посчитан digest, а не повторная сериализация через текущую модель: поля,
-  появившиеся позже со значениями по умолчанию, в исторический снимок не
-  подставляются. Клиент сверяет digest с этим объектом до разбора модели.
-- `REQ-2109`: **Sprint 1:** публичный HTTP-контракт `#71` **не** содержит маршрута
-  выдачи байтов артефакта (решение / issue `#142`: defer). Клиенты получают только
-  метаданные и паспорт на шести `GET`-маршрутах; `REQ-2108` по-прежнему требует
-  проверки `passport_digest` при чтении паспорта. **После Sprint 1:** байты
-  артефакта выдаются только после проверки объекта и действия — API-опосредованным
-  потоком или кратко живущим ограниченным URL по `ADR-0042`; непрозрачный ключ
-  объекта сам по себе доступа к байтам не даёт (`SPEC-020` `REQ-2004`). Аддитивный
-  маршрут в `#71` — отдельное решение обоих владельцев контракта.
-- `REQ-2110`: Загрузчик фикстурного посева идемпотентен и привязан к окружению;
-  повторный запуск не создаёт дублирующих строк метаданных или артефактов; каждый
-  посеянный паспорт валиден по схеме, опубликован и публичен. Привязка к окружению
-  является отказом, а не предпочтением: посев выполняется только там, где окружение
-  названо `dev` либо явно потребовано `AI_STP_SEED_FIXTURES`; на любом обслуживающем
-  окружении он не выполняется вовсе. Причина в том, что фикстуры — это
-  `fixture-component`, `river-*` и `northwind-*`, то есть придуманные объекты, и на
-  публичном сайте они стоят рядом с настоящими. Проверка целостности каталога от
-  посева отделена и выполняется везде: она читает опубликованное, а не пишет.
-- `REQ-2111`: API никогда не помечает версию проверенной сверх сохранённого
-  состояния доказательств; `component_verified` отражает только сохранённое принятое
-  доказательство (`ADR-0026`, `ADR-0032`), а не факт запуска проверки платформой.
-- `REQ-2112`: Реализация проходит `ai_stp_contracts.conformance.run_conformance`
-  над общим корпусом `ai_stp_contracts.fixtures` - тем же, которому подчинён мок
-  CLI; «мок соответствует» и «API соответствует» означают одно и то же.
-- `REQ-2113`: CLI получает опубликованный `SetupVersion` только полным точным
-  замыканием: проверяет паспорт и artifact сетапа, каждую точную ссылку на компонент,
-  паспорт, харнесс и artifact каждого компонента, а затем одной локальной
-  транзакцией материализует неизменяемый граф. Печать ревизии и `passport_digest`
-  сверяются с опубликованным документом, а не с повторной сериализацией текущей
-  модели. Автономный повтор не открывает сеть, заново проверяет кэш и либо
-  возвращает тот же граф, либо типизированно отказывает без частичной записи.
+- `REQ-2101`: Six catalog routes are available anonymously and are read-only; no
+  route for public publishing, upload, or catalog mutation exists in this sprint
+  exists, which is confirmed by the absence of such operations in the implementation and contract.
+- `REQ-2102`: Components and setups - separate resources; one search call
+  addresses one view and the cursor belongs to one view; polymorphic object route
+  not entered (frozen contract `#71`).
+- `REQ-2103`: The projection of the card and details fills in the fields `latest_*` from the passport
+  latest proposed version; each field `latest_*` corresponds to a real
+  field of the passport, which is confirmed by the test; object fields `name` or `tags` card
+  does not carry it, since there is no object passport (`ADR-0012`).
+- `REQ-2104`: Each card carries `CatalogTrust` with independent axes
+  `author_verified` and `component_verified` (`ADR-0016`); line `authoritative`
+  representable only with both true axes; section `experimental` returns
+  only with request-scoped consent of `include_experimental` (`SPEC-006` `REQ-603`,
+  `ADR-0029`) and comes in a separate section, not mixed together.
+- `REQ-2105`: The order of the result is complete and stable within one cursor
+  sequences with unique tie resolver `stable_id`; cursor
+  opaque, tamper-resistant, and linked to a filter and sort signature;
+  a cursor that is tampered with or belongs to another filter is rejected by the typed
+  mistake; the page is limited in total along both lines by the value `PAGE_SIZE_MAX`;
+  pagination does not create duplicates and does not miss anything.
+- `REQ-2106`: Hidden, private and draft records are not displayed for enumeration:
+  a direct request by ID responds with the same `AI_STP_NOT_FOUND` as an absent one
+  recording; the response does not carry a dialing counter; the response form does not indicate existence
+  records with time-dependent differences; the object key is opaque and does not itself grant authority.
+- `REQ-2107`: The public route represents only the published passport with
+  visibility `public` and published life cycle `active`, `deprecated` or
+  `blocked`; We will not present a private or draft passport on a public route and
+  rejected before a response is generated.
+- `REQ-2114`: Default view list only offers lifecycle
+  `active`. `deprecated` and `blocked` remain fully achievable - by `id`, by
+  exact version, in the list of object versions and by explicit `include_deprecated` - but
+  the list is a recommendation, but the preempted version is not.
+  `REQ-2107` answers whether an entry is representable and does not answer this question;
+  until 2026-08-30 one set answered both, and the first page of the catalog
+  consisted of nineteen displaced setups and one active one.
+- `REQ-2108`: Passport bytes are checked against `passport_digest` before response, and
+  artifact bytes - against digest in the `ai-stp:artifact:v1` area and size up to
+  issuance; raw SHA-256 and domain digest are not interchangeable; the same
+  `stable_id`/`version` cannot be associated with a conflicting digest, and such
+  conflict is rejected with a typed error without partial response (`SPEC-015`,
+  `ADR-0036`). The type of this error does not mean missing: reachable published
+  an entry that fails verification responds with `AI_STP_CATALOG_INTEGRITY` and leaves
+  level event `error`; a structurally unassembled passport is the same
+  integrity error rather than an unhandled failure (`ADR-0079`). Wired field
+  `passport` exact version - saved published document, according to which
+  digest is considered, not re-serialization through the current model: fields,
+  that appeared later with default values are not included in the historical snapshot
+  are substituted. The client checks digest against this object before parsing the model.
+- `REQ-2109`: **Sprint 1:** `#71` public HTTP contract **does not** contain a route
+  issuing artifact bytes (decision / issue `#142`: defer). Clients only receive
+  metadata and passport on six `GET` routes; `REQ-2108` still requires
+  checking `passport_digest` when reading the passport. **After Sprint 1:** bytes
+  artifacts are issued only after checking the object and action - API-mediated
+  by stream or briefly live limited URL on `ADR-0042`; opaque key
+  The object itself does not provide access to bytes (`SPEC-020` `REQ-2004`). Additive
+  the route to `#71` is a separate decision of both contract owners.
+- `REQ-2110`: Fixture seeding loader is idempotent and tied to the environment;
+  rerunning does not create duplicate metadata lines or artifacts; everyone
+  the seeded passport is schema-valid, published, and public. Environment binding
+  is a refusal, not a preference: seeding runs only where the environment
+  named `dev` or explicitly required `AI_STP_SEED_FIXTURES`; on any serving
+  environment it is not executed at all. The reason is that fixtures are
+  `fixture-component`, `river-*` and `northwind-*`, that is, invented objects, and on
+  on the public site they appear alongside real objects. Catalog-integrity checking is
+  separate from seeding and runs everywhere: it reads published data rather than writing.
+- `REQ-2111`: API never marks the version checked beyond the saved one
+  state of evidence; `component_verified` reflects only saved received
+  proof (`ADR-0026`, `ADR-0032`), and not the fact that the platform launched the check.
+- `REQ-2112`: The implementation passes `ai_stp_contracts.conformance.run_conformance`
+  above the common body `ai_stp_contracts.fixtures` - the same one to which the moc is subordinated
+  CLI; "mock conforms" and "API conform" mean the same thing.
+- `REQ-2113`: CLI receives published `SetupVersion` only full exact
+  closure: checks the passport and artifact of the setup, each exact reference to the component,
+  passport, harness and artifact of each component, and then one local
+  transaction materializes an immutable graph. The revision seal and `passport_digest`
+  are checked against the published document, and not against a re-serialization of the current
+  models. Offline retry does not open the network, rechecks the cache and either
+  returns the same graph, or type-fails without a partial record.
 
-## Состояния и ошибки
+## States and errors
 
-Чтение каталога завершается успехом с телом ресурса, типизированной ошибкой
-`AI_STP_NOT_FOUND` для отсутствующей или непубличной записи (неразличимо),
-типизированной ошибкой неверного запроса для нарушенной схемы запроса, подделанного
-или чужого курсора и неизвестного поля запроса, либо ошибкой недоступной
-зависимости. Неизвестное поле запроса - отклонение, а не совместимость: молча
-отброшенный фильтр есть отброшенный фильтр. Ответы допускают добавочные поля,
-запросы - нет. Проверка целостности при чтении завершается успехом при совпадении
-digest и размера и типизированной ошибкой при несовпадении или конфликте без
-частичного ответа. Каждый ответ несёт `X-Request-Id`.
+Catalog reading completes successfully with a resource body, with a typed
+`AI_STP_NOT_FOUND` error for a missing or non-public entry (indistinguishably),
+with a typed invalid-request error for a violated request schema, a forged or
+foreign cursor, or an unknown request field, or with a dependency-unavailable
+error. An unknown request field causes rejection, not compatibility: a silently
+discarded filter is a lost filter. Responses allow additional fields; requests do
+not. The read-integrity check succeeds when the digest and size match and returns
+a typed error on mismatch or conflict, without a partial response. Every response
+carries `X-Request-Id`.
 
-## Безопасность и приватность
+## Security and privacy
 
-Анонимный маршрут - основной канал раскрытия, поэтому он представляет только
-опубликованный публичный паспорт: приватный паспорт несёт исходный репозиторий,
-точный коммит и подпуть, имена требуемых переменных окружения, внешние адреса и
-идентификатор владельца, и на публичном маршруте это утечка. Существование скрытой,
-приватной и черновой записи не выводимо ни одним из перечисленных каналов
-(`REQ-2106`). Разрыв в номерах версий не является каналом: сокрытие версии не
-освобождает её номер (`SPEC-005`), поэтому неплотная последовательность - честный
-ответ, а не свидетельство. Ключ объекта непрозрачен и не полномочен; байты
-выдаются отдельным проверенным шагом. Секреты, токены, значения окружения и
-необязательные персональные данные не попадают в паспорта на публичном маршруте,
-логи, метрики, трассы и фикстуры.
+The anonymous route is the main discovery channel, so it only represents
+published public passport: private passport carries the source repository,
+exact commit and subpath, names of required environment variables, external addresses and
+owner ID, and on a public route it's a leak. The existence of a hidden
+private and draft recordings are not output by any of the listed channels
+(`REQ-2106`). A gap in version numbers is not a channel: version hiding is not
+frees her number (`SPEC-005`), so the loose sequence is fair
+answer, not evidence. The object key is opaque and does not itself grant authority; bytes
+are issued in a separate verified step. Secrets, tokens, environment values and
+optional personal data is not included in passports on the public route,
+logs, metrics, traces and fixtures.
 
-## Совместимость и миграция
+## Compatibility and migration
 
-Контракт `#71` в этот спринт меняется только аддитивно и только самим `#71` по
-записанной миграции с согласием обоих владельцев; расхождение прозы issue и
-замороженного контракта разрешается в пользу контракта, а необходимость нового поля
-(например, издателя карточки или отдельного маршрута выдачи байтов) оформляется как
-аддитивная заявка к `#71`, а не как локальное отклонение. Состояние публикации
-(`published_at`, линия доверия, оси верификации) добавляется в схему хранения
-необязательным-сначала расширением по `SPEC-020` и `docs/engineering/schema-evolution.md`,
-не переопределяя владение `SPEC-020` слоем хранения. Изменение области digest или
-канонизации требует новой версии по `SPEC-015`.
+The `#71` contract in this sprint is changed only additively and only by `#71` himself
+recorded migration with the consent of both owners; divergence between issue prose and
+frozen contract is resolved in favor of the contract, and the need for a new field
+(for example, the card publisher or a separate route for serving bytes) is formalized as
+additive application to `#71`, and not as a local deviation. Publication status
+(`published_at`, trust line, verification axes) is added to the storage schema
+optional - first expansion by `SPEC-020` and `docs/engineering/schema-evolution.md`,
+without overriding ownership of the `SPEC-020` storage layer. Changing the digest area or
+canonicalization requires a new version under `SPEC-015`.
 
-## Критерии приёмки
+## Acceptance criteria
 
-| Требование | Исполнимый способ проверки |
+| Requirement | Executable verification method |
 |---|---|
-| `REQ-2101` | Тест подтверждает анонимный успех шести `GET`-маршрутов и отсутствие любого маршрута записи каталога в реализации и контракте. |
-| `REQ-2102` | Тест подтверждает раздельность ресурсов компонентов и сетапов и что курсор одного вида не принимается другим. |
-| `REQ-2103` | Тест связывает каждое поле `latest_*` карточки с реальным полем паспорта версии и подтверждает отсутствие объектных `name`/`tags`. |
-| `REQ-2104` | Тест подтверждает независимость осей, представимость `authoritative` только при обеих осях и появление секции `experimental` лишь при `include_experimental`. |
-| `REQ-2105` | Property-тест подтверждает полный стабильный порядок с разрешителем `stable_id`, отклонение подделанного и чужого курсора и отсутствие дублей и пропусков при пагинации. |
-| `REQ-2106` | Тест подтверждает одинаковый `AI_STP_NOT_FOUND` для отсутствующей и непубличной записи, отсутствие счётчика и непрозрачность ключа объекта. |
-| `REQ-2107` | Тест подтверждает отказ представить непубличный или черновой паспорт на публичном маршруте до формирования ответа. |
-| `REQ-2114` | Тест подтверждает, что список по умолчанию не содержит `deprecated`, что `include_deprecated` возвращает их, и что курсор, выпущенный при одном значении флага, не принимается при другом. |
-| `REQ-2108` | Негативный тест подтверждает проверку доменного artifact digest и размера при чтении, отдельность raw SHA-256 кэша и отклонение конфликтующего digest для того же `stable_id`/`version`. Отдельный тест подтверждает, что повреждённая достижимая запись отвечает `AI_STP_CATALOG_INTEGRITY`, а не отсутствием, оставляет событие с причиной и идентификаторами, и что неразбираемый паспорт даёт ту же ошибку целостности. Тест точной версии подтверждает, что проводной `passport` совпадает с сохранённым документом, даже когда текущая модель подставила бы поля со значениями по умолчанию, и что клиент сверяет digest с этим объектом до разбора модели. |
-| `REQ-2109` | Sprint 1: тест/контракт подтверждают **отсутствие** публичного route выдачи байтов артефакта и что ключ `object_location` не является полномочием. После введения route — тест выдачи только после проверки объекта и действия. |
-| `REQ-2110` | Тест подтверждает идемпотентность повторного посева без дублей, валидность и публичность паспортов и полностью экспериментальную линию посева; отдельный тест подтверждает, что названное обслуживающее окружение фикстур не получает, неназванное считается разработкой, а явное требование решает в обе стороны. |
-| `REQ-2111` | Тест подтверждает, что API не помечает версию проверенной сверх сохранённого состояния доказательств. |
-| `REQ-2112` | Прогон `run_conformance` над общим корпусом фикстур завершается без находок для реализации API. |
-| `REQ-2113` | Клиентские тесты получают точный setup graph, собирают его из локального реестра, повторяют acquisition без сети и подтверждают идемпотентность; повреждённый кэш отклоняется, а отказ внутри транзакции не оставляет частичного графа. Отдельный тест подтверждает, что паспорт без позже добавленных полей со значениями по умолчанию проходит acquire, если печать ревизии сходится с опубликованным документом. |
+| `REQ-2101` | The test confirms anonymous success for six `GET` routes and the absence of any catalog-write route in the implementation and contract. |
+| `REQ-2102` | The test confirms that the resources of components and setups are separate and that the cursor of one type is not accepted by the other. |
+| `REQ-2103` | The test connects each field `latest_*` of the card with the real field of the version passport and confirms the absence of object `name`/`tags`. |
+| `REQ-2104` | The test confirms the independence of the axes, the representability of `authoritative` only for both axes, and the appearance of the `experimental` section only for `include_experimental`. |
+| `REQ-2105` | The Property test confirms complete stable order with the `stable_id` resolution, rejection of counterfeit and foreign cursors and the absence of duplicates and omissions during pagination. |
+| `REQ-2106` | The test confirms the same `AI_STP_NOT_FOUND` for the missing and non-public record, the absence of a counter and the opacity of the object key. |
+| `REQ-2107` | The test confirms the refusal to present a non-public or draft passport on a public route before generating a response. |
+| `REQ-2114` | The test confirms that the default list does not contain `deprecated`, that `include_deprecated` returns them, and that a cursor released with one flag value is not accepted with another. |
+| `REQ-2108` | A negative test confirms the verification of the domain artifact digest and read size, the separateness of the raw SHA-256 cache and the rejection of the conflicting digest for the same `stable_id`/`version`. A separate test confirms that the corrupted reachable record responds with `AI_STP_CATALOG_INTEGRITY` rather than none, leaves the event with a cause and identifiers, and that an unparsed passport gives the same integrity error. The exact version test confirms that the wired `passport` matches the stored document, even when the current model would substitute fields with default values, and that the client checks the digest against this object before parsing the model. |
+| `REQ-2109` | Sprint 1: the test/contract confirms the **absence** of a public route issuing artifact bytes and that the `object_location` key is not an authority. After introducing route, the issuance test is performed only after checking the object and action. |
+| `REQ-2110` | The test confirms idempotent reseeding without duplicates, passport validity and public status, and an entirely experimental seeded trust line; a separate test confirms that a named serving environment receives no fixtures, an unnamed environment is treated as development, and the explicit requirement resolves in both directions. |
+| `REQ-2111` | The test confirms that the API does not mark the version verified beyond the stored evidence state. |
+| `REQ-2112` | The `run_conformance` run over the common fixture body completes with no findings for the API implementation. |
+| `REQ-2113` | Client tests receive the exact setup graph, collect it from the local registry, repeat the acquisition without a network and confirm idempotency; a corrupted cache is rejected, and a failure within a transaction leaves no partial graph. A separate test confirms that a passport without later added fields with default values ​​passes acquire if the revision seal matches the published document. |

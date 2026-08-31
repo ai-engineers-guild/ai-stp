@@ -1,38 +1,38 @@
 ---
-description: "Эксплуатационные правила web: SEO, machine discovery, browser storage, selectors и quality gates."
+description: "Web operating rules: SEO, machine discovery, browser storage, selectors, and quality gates."
 last_verified: "2026-08-29"
 ---
 
-# Качество web-поверхности
+# Web Surface Quality
 
-## Human и Machine
+## Human and Machine
 
-Human и Machine являются двумя режимами отображения одной серверной истины. Human использует светлую читаемую подачу. Machine использует отдельную тёмную техническую проекцию: текстовый индекс сайта, Markdown-подобные заголовки, ссылки с видимыми URL и отсутствие декоративных медиа. Формы, маршруты, данные и серверная авторизация остаются теми же. Переключатель хранит только строку `light` или `dark` под ключом `ai_stp_display_mode`; доменные данные и права от режима не зависят.
+Human and Machine are two modes of displaying one server truth. Human uses a light, readable presentation. Machine uses a separate dark technical projection: a textual site index, Markdown-like headings, links with visible URLs, and no decorative media. Forms, routes, data, and server authorization remain the same. The switch stores only the string `light` or `dark` under the key `ai_stp_display_mode`; domain data and permissions do not depend on the mode.
 
-## Machine discovery и SEO
+## Machine discovery and SEO
 
-Публичная поверхность отдаёт `robots.txt`, `sitemap.xml`, web manifest, locale-aware metadata, Open Graph и Twitter summary. Для LLM-клиентов доступны `/llms.txt`, `/llms-full.txt` и `/agents.md`. Эти файлы являются навигацией и кратким контекстом, но не вторым контрактом: поля и перечисления принадлежат `docs/contracts/` и `schemas/v1/`.
+The public surface exposes `robots.txt`, `sitemap.xml`, web manifest, locale-aware metadata, Open Graph, and Twitter summary. For LLM clients, `/llms.txt`, `/llms-full.txt`, and `/agents.md` are available. These files serve as navigation and brief context, but not as a second contract: the fields and enums belong to `docs/contracts/` and `schemas/v1/`.
 
-Приватные маршруты запрещены в `robots.txt` и не включаются в sitemap. Это не является security boundary: авторизация и отсутствие приватных данных в HTML обеспечиваются сервером.
+Private routes are forbidden in `robots.txt` and are not included in the sitemap. This is not a security boundary: authorization and the absence of private data in HTML are ensured by the server.
 
-## Cookies и browser storage
+## Cookies and browser storage
 
-- `ai_stp_session` — подписанная или серверная opaque session, `HttpOnly`, `SameSite=Lax`, `Secure` в production.
-- `ai_stp_csrf` — читаемый браузером double-submit token, `SameSite=Lax`, `Secure` в production; доменные данные в нём отсутствуют.
-- `sessionStorage` применяется только для временного preview публичного профиля внутри вкладки.
-- `localStorage` применяется только библиотекой темы для `ai_stp_display_mode`.
-- Хранить секреты, токены OAuth, закрытые ключи и закрытые метаданные объектов в браузерных хранилищах запрещено.
+- `ai_stp_session` — signed or server-side opaque session, `HttpOnly`, `SameSite=Lax`, `Secure` in production.
+- `ai_stp_csrf` — browser-readable double-submit token, `SameSite=Lax`, `Secure` in production; domain data is absent in it.
+- `sessionStorage` is used only for temporary preview of the public profile within the tab.
+- `localStorage` is used only by the theme library for `ai_stp_display_mode`.
+- Storing secrets, OAuth tokens, private keys, and private object metadata in browser storage is prohibited.
 
-## Стабильные selectors
+## Stable selectors
 
-Единый каталог находится в `apps/web/src/lib/ui-selectors.ts`. Значения используются через `data-ui`; классы и локализованный текст не являются API для browser tests. Реальные `id` остаются у landmarks, form controls и anchor targets, где они нужны семантике HTML. Новое значение selector должно быть уникальным, читаемым и пройти `apps/web/tests/unit/ui-selectors.test.ts`.
+The unified catalog is located at `apps/web/src/lib/ui-selectors.ts`. Values are used via `data-ui`; classes and localized text are not an API for browser tests. Real `id` remain on landmarks, form controls, and anchor targets where they are needed for HTML semantics. A new selector value must be unique, readable, and pass `apps/web/tests/unit/ui-selectors.test.ts`.
 
-## Клавиатура, touch и motion
+## Keyboard, touch, and motion
 
-- Интерактивные элементы в компактном mobile header сохраняют hit-area не меньше `44×44px`, даже если подпись скрыта ради ширины; доступное имя остаётся через `aria-label`.
-- Глобальные shortcuts `C`, `P` и `Ctrl+K`/`Cmd+K` не срабатывают при вводе в `input`, `textarea`, `select` или `contenteditable`. Однобуквенные shortcuts также игнорируются с модификаторами.
-- При `prefers-reduced-motion: reduce` непрерывные и декоративные animation останавливаются, а переходы сокращаются без отключения видимых focus, hover и state changes.
+- Interactive elements in the compact mobile header retain a hit area of no less than `44×44px`, even if the label is hidden for width; the accessible name remains via `aria-label`.
+- Global shortcuts `C`, `P`, and `Ctrl+K`/`Cmd+K` do not work when entered in `input`, `textarea`, `select`, or `contenteditable`. Single-letter shortcuts are also ignored when using modifiers.
+- During `prefers-reduced-motion: reduce`, continuous and decorative animations stop, and transitions are shortened without disabling visible focus, hover, and state changes.
 
 ## Quality gates
 
-Из `apps/web` выполняются `bun run lint`, `bun run type-check`, `bun run test`, `bun run build`, `bun run test:e2e` и `bun run audit`. Визуальная проверка включает desktop/mobile, клавиатуру, reduced motion и отсутствие перекрытия footer. Lighthouse запускается против production build, а не dev server.
+From `apps/web`, `bun run lint`, `bun run type-check`, `bun run test`, `bun run build`, `bun run test:e2e`, and `bun run audit` are executed. Visual checks include desktop/mobile, keyboard, reduced motion, and absence of footer overlap. Lighthouse is run against the production build, not the dev server.

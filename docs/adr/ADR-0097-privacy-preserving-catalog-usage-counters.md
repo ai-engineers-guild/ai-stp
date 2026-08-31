@@ -1,36 +1,38 @@
 ---
-description: "Решение считать публичное использование через короткоживущую дедупликацию без пользовательской аналитики."
+description: "Decision to count public usage through short-lived deduplication without user analytics."
 last_verified: "2026-08-16"
 ---
 
-# ADR-0097: Публичные usage counters без пользовательского трекинга
+# ADR-0097: Public usage counters without user tracking
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-Каталогу нужны сопоставимые просмотры detail и загрузки artifacts, но стабильный
-visitor identifier создаёт историю поведения, а browser analytics требует
-согласия. Download также не доказывает успешную установку provider.
+The catalog needs comparable detail views and artifact downloads, but a stable
+visitor identifier creates a behavioral history, while browser analytics
+requires consent. A download also does not prove a successful provider
+installation.
 
-## Решение
+## Decision
 
-Platform считает успешный публичный ответ detail и успешную выдачу байтов артефакта.
-Повторы подавляются в коротком окне keyed digest, который нельзя связать между
-окнами; raw network и account/device identifiers не сохраняются. Dedup rows имеют
-короткий retention, публична только сумма.
+The platform counts a successful public detail response and successful delivery
+of artifact bytes. Repeats are suppressed within a short window by a keyed
+digest that cannot be linked across windows; raw network and account/device
+identifiers are not stored. Dedup rows have short retention, and only the total
+is public.
 
-Это necessary anti-abuse, не optional analytics. Feature flag одновременно
-отключает запись и projection. Download не используется как install success,
-verification, trust или eligibility.
+This is necessary anti-abuse, not optional analytics. The feature flag disables
+both recording and projection. Download is not used as install success,
+verification, trust, or eligibility.
 
-## Последствия
+## Consequences
 
-Aggregate приблизителен и не равен числу уникальных людей. Card, detail и API
-читают одну проекцию. PostgreSQL обеспечивает unique dedup key и транзакционный
-increment; browser fingerprint и analytics vendor не нужны.
+The aggregate is approximate and is not the number of unique people. Card,
+detail, and API read one projection. PostgreSQL provides a unique dedup key and
+transactional increment; no browser fingerprint or analytics vendor is needed.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается для аналитики когорт с согласием, `provider install receipt`
-или иного юридического срока хранения.
+Reconsider this decision for consented cohort analytics, a
+`provider install receipt`, or a different statutory retention period.

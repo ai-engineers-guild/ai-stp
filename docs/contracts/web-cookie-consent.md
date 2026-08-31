@@ -1,30 +1,31 @@
 ---
-description: "Категории cookies и правило запуска необязательных интеграций Web."
+description: "Cookie categories and the rule for starting optional Web integrations."
 last_verified: "2026-08-22"
 ---
 
 # Web cookie consent
 
-| Cookie или storage | Категория | Назначение | До согласия |
+| Cookie or storage | Category | Purpose | Before consent |
 | --- | --- | --- | --- |
-| server session | necessary | Аутентифицированная сессия | разрешён |
-| CSRF token | necessary | Защита изменяющих запросов | разрешён |
-| `ai_stp_consent` | necessary | Сохранённый выбор категорий | разрешён |
-| analytics integration | analytics | Агрегированные продуктовые метрики | запрещён |
-| marketing integration | marketing | Будущие маркетинговые интеграции | запрещён |
+| server session | necessary | Authenticated session | allowed |
+| CSRF token | necessary | Protection for mutating requests | allowed |
+| `ai_stp_consent` | necessary | Stored category choices | allowed |
+| analytics integration | analytics | Aggregated product metrics | prohibited |
+| marketing integration | marketing | Future marketing integrations | prohibited |
 
-Отклонение необязательных категорий не удаляет и не отключает necessary cookies.
-Analytics и marketing не загружаются до положительного выбора и не записывают
-cookies или localStorage при отказе. Google Analytics (`@next/third-parties`) и
-официальный счётчик Яндекс Метрики `https://mc.yandex.ru/metrika/tag.js`
-подключаются только после согласия с категорией analytics и только при заданных
-`NEXT_PUBLIC_GA_MEASUREMENT_ID` / `NEXT_PUBLIC_YANDEX_METRIKA_COUNTER_ID`
-(пустой идентификатор — этот вендор выключен). `NEXT_PUBLIC_ANALYTICS_ENABLED=false`
-выключает оба счётчика даже при заданных id. Баннер можно отключить для
-deployment без tracking через `NEXT_PUBLIC_COOKIE_CONSENT_ENABLED=false`; это не
-включает необязательные интеграции автоматически.
+Rejecting optional categories neither deletes nor disables necessary cookies.
+Analytics and marketing are not loaded before an affirmative choice and do not
+write cookies or localStorage after rejection. Google Analytics
+(`@next/third-parties`) and the official Yandex Metrica counter
+`https://mc.yandex.ru/metrika/tag.js` are connected only after consent to the
+analytics category and only when `NEXT_PUBLIC_GA_MEASUREMENT_ID` /
+`NEXT_PUBLIC_YANDEX_METRIKA_COUNTER_ID` are set (an empty identifier disables
+that vendor). `NEXT_PUBLIC_ANALYTICS_ENABLED=false` disables both counters even
+when their IDs are set. The banner may be disabled for a deployment without
+tracking through `NEXT_PUBLIC_COOKIE_CONSENT_ENABLED=false`; this does not
+automatically enable optional integrations.
 
-Server-side detail/download counters по `catalog-usage-metrics.md` относятся к
-necessary anti-abuse: они не ставят cookie, не запускают browser tracker и не
-требуют analytics consent. Это не разрешает cohort analytics или стабильный
+Server-side detail/download counters under `catalog-usage-metrics.md` are
+necessary anti-abuse measures: they set no cookie, start no browser tracker, and
+require no analytics consent. This does not permit cohort analytics or a stable
 visitor identifier.

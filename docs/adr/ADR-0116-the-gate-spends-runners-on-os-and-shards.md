@@ -1,88 +1,90 @@
 ---
-description: "Решение гонять CLI и веб-тесты на трёх ОС параллельно, а серверный набор — только на Linux, разрезанным на шарды и без экономии runner'ов."
+description: "Decision to run CLI and web tests concurrently on three operating systems, and the server suite only on Linux, split into shards without conserving runners."
 last_verified: "2026-08-29"
 ---
 
-# ADR-0116: Гейт тратит runner'ы на ОС и шарды
+# ADR-0116: The gate spends runners on operating systems and shards
 
-Статус: принято. Уточняет `ADR-0113` и — в части формы job — два решения,
-которые принадлежат приватной инфраструктуре и здесь не публикуются, в том,
-какие job на каких ОС исполняются и сколько их запускается сразу.
+Status: accepted. Clarifies `ADR-0113` and, regarding job shape, two decisions
+that belong to private infrastructure and are not published here, specifying
+which jobs run on which operating systems and how many run concurrently.
 
-## Контекст
+## Context
 
-Публичный гейт уже шёл параллельно, но не той формой, которая режет настенное
-время. Веб-тесты жили только на Linux. Серверный набор был тремя крупными
-шардами на четырёх процессах. CLI на macOS упирался в `tests/contract`, внутри
-которого доминирует процессный хвост. Четыре vCPU одной job при этом простаивали
-бы, если соседняя работа могла идти на другой машине.
+The public gate already ran in parallel, but not in a form that reduced wall
+time. Web tests ran only on Linux. The server suite had three large shards on
+four processes. The CLI on macOS was bottlenecked by `tests/contract`, dominated
+by its process-heavy tail. The four vCPUs of one job would be idle while
+adjacent work could run on another machine.
 
-`ADR-0113` доказал поверхность CLI на трёх ОС. Браузерные и unit-тесты веба
-читают файловую систему, шрифты, Chrome и пути так же, как CLI читает
-кодировку и keyring: линуксовый прогон этого не видит.
+`ADR-0113` proved the CLI surface on three operating systems. Browser and web
+unit tests observe the filesystem, fonts, Chrome, and paths just as the CLI
+observes encoding and the keyring: a Linux run cannot see these differences.
 
-## Решение
+## Decision
 
-**CLI-тесты и веб-тесты исполняются на Linux, macOS и Windows одновременно.**
-Ноги не ждут друг друга. Статика веба (lint, типы, production-сборка, audit,
-Storybook) остаётся Linux-only: это не OS-зависимая поверхность.
+**CLI tests and web tests run concurrently on Linux, macOS, and Windows.** The
+legs do not wait for one another. Web static checks (lint, types, production
+build, audit, Storybook) remain Linux-only: they are not an OS-dependent
+surface.
 
-**Серверная полоса — только Linux.** PostgreSQL, ASGI и platform unit не
-доказывают Windows- или Darwin-рантайм сервера. Они режутся на отдельные job
-по дереву тестов: `api`, `integration`, `unit-platform`, `unit-api`, `unit`,
-`contract-process`, `contract-lifecycle`, `contract`, `property`. Каждая job
-берёт восемь xdist-процессов на стандартном четырёхъядерном раннере: тесты
-ждут базу и процессы, ядра не являются узким местом, экономить runner-минуты
-здесь запрещено явно.
+**The server lane is Linux-only.** PostgreSQL, ASGI, and platform unit tests do
+not prove a Windows or Darwin server runtime. They are split into separate jobs
+by the test tree: `api`, `integration`, `unit-platform`, `unit-api`, `unit`,
+`contract-process`, `contract-lifecycle`, `contract`, `property`. Each job uses
+eight xdist processes on a standard four-core runner: the tests wait on the
+database and processes, cores are not the bottleneck, and conserving runner
+minutes here is explicitly prohibited.
 
-`tests/contract` режется на три, потому что дерево неоднородно: на восьми
-процессах `test_cli_process.py` — 107 s, `test_offline_closure.py` вместе с
-`test_installation_restart.py` — 65 s, весь остаток — 23 s. Целиком шард шёл
-столько, сколько сумма, и был второй по длине job гейта. Резать по времени
-файлов, а не по именам каталогов, — следствие того же правила: узкое место
-измеряется, а не угадывается.
+`tests/contract` is split into three because the tree is heterogeneous: with
+eight processes, `test_cli_process.py` takes 107 s,
+`test_offline_closure.py` together with `test_installation_restart.py` takes
+65 s, and everything else takes 23 s. As a whole, the shard took as long as the
+sum and was the gate's second-longest job. Splitting by file timing rather than
+directory names follows the same rule: the bottleneck is measured, not guessed.
 
-Набор шардов является настройкой, а не контрактом. Контракт — что шарды
-покрывают дерево `tests/` ровно один раз и что `coverage` перечисляет их все;
-оба проверяются механически.
+The shard set is configuration, not a contract. The contract is that the shards
+cover the `tests/` tree exactly once and that `coverage` lists them all; both
+are checked mechanically.
 
-**Процессный контракт CLI — отдельная нога матрицы.** `tests/contract/test_cli_process.py`
-не делит машину с остальным `tests/contract`. Это единственный кратный выигрыш
-для macOS, который не требует большего числа ядер внутри одной job.
+**The CLI process contract is a separate matrix leg.**
+`tests/contract/test_cli_process.py` does not share a machine with the rest of
+`tests/contract`. This is the only multiplicative gain for macOS that does not
+require more cores within one job.
 
-Порог покрытия по-прежнему свойство объединения Linux-шардов: `coverage`
-собирает артефакты и только тогда проверяет 90%. Веб- и CLI-матрицы покрытия
-не пишут.
+The coverage threshold remains a property of combining the Linux shards:
+`coverage` gathers the artifacts and only then checks 90%. The web and CLI
+matrices do not write coverage.
 
-Provider support matrix не меняется (`ADR-0062`, `ADR-0113`): три ОС в гейте
-доказывают клиентскую поверхность, не установку через подписанный релиз
-провайдера.
+The provider support matrix does not change (`ADR-0062`, `ADR-0113`): three
+operating systems in the gate prove the client surface, not installation
+through a signed provider release.
 
-## Последствия
+## Consequences
 
-Настенное время — самая долгая нога плюс очередь, если одновременных job больше
-потолка хоста. Это принятая цена. Снимать OS-ногу веб-тестов или сливать
-серверные шарды обратно в три — регресс этого решения.
+Wall time is the longest leg plus queue time when concurrent jobs exceed the
+host limit. This is an accepted cost. Removing an OS leg from web tests or
+merging the server shards back into three is a regression of this decision.
 
-Потолок измерен, а не предполагается: на публичном репозитории пиковая
-одновременность равна 20 job, а для macOS — 5. Гейт из 34 job упирается в оба.
-Отсюда следствие, которое читается наоборот: **дробление ноги на большее число
-шардов не сокращает настенное время, пока прогон стоит в потолке** — оно лишь
-переносит ту же работу на другие слоты и удлиняет очередь. Проверено:
-`web-e2e`, разрезанный на четыре шарда вместо двух, дал 269 s против 262 s на
-самой длинной ноге и увеличил прогон с 5.6 до 6.08 минуты. Резать имеет смысл
-только неоднородную ногу, где сумма заметно больше максимума её частей.
+The limit is measured, not assumed: peak concurrency in the public repository
+is 20 jobs, and 5 for macOS. The 34-job gate reaches both. This yields a
+counterintuitive consequence: **splitting a leg into more shards does not reduce
+wall time while the run is at the concurrency limit**—it merely moves the same
+work to other slots and lengthens the queue. Verified: splitting `web-e2e` into
+four shards instead of two produced 269 s versus 262 s on the longest leg and
+increased the run from 5.6 to 6.08 minutes. Splitting is useful only for a
+heterogeneous leg whose sum is substantially greater than the maximum of its
+parts.
 
-Что при таком потолке действительно сокращает прогон — уменьшение суммы
-job-секунд, а не числа job. Поэтому фиксированная подготовка каждой ноги
-считается наравне с её тестами.
+What actually shortens a run under this limit is reducing total job-seconds,
+not the number of jobs. Therefore the fixed setup of each leg is counted on the
+same basis as its tests.
 
-Обязательные status check называются по фактически отрендеренным именам job,
-включая OS в скобках и шард в имени `tests-*`.
+Required status checks use the actually rendered job names, including the OS in
+parentheses and the shard in the `tests-*` name.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Пересмотреть, если стандартный GitHub-hosted runner сменит число ядер, если
-процессный контракт перестанет доминировать `tests/contract`, или если
-появятся платные более крупные раннеры, которые выгоднее одной жирной job,
-чем набору шардов.
+Reconsider if the standard GitHub-hosted runner changes its core count, if the
+process contract ceases to dominate `tests/contract`, or if paid larger runners
+become more economical for one large job than a set of shards.

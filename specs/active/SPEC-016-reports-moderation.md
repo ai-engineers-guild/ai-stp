@@ -1,58 +1,58 @@
 ---
-description: "SPEC-016: Жалобы на объекты и модерация."
+description: "SPEC-016: Object reports and moderation."
 last_verified: "2026-08-04"
 ---
 
-# SPEC-016: Жалобы и модерация
+# SPEC-016: Reports and moderation
 
-## Цель
+## Purpose
 
-Пользователь сообщает платформе о сломанном или вредоносном опубликованном объекте из веба или CLI, не раскрывая свои приватные данные, а модераторы разбирают случаи и принимают явные аудируемые решения о жизненном цикле версий.
+A user reports a broken or malicious published object to the platform from the web or CLI without disclosing their private data, while moderators review cases and make explicit, auditable decisions about version lifecycles.
 
-## Границы
+## Scope
 
-Входят создание закрытого случая из веба и CLI, механический состав жалобы, предпросмотр и согласие, триаж, уведомление автора, эскалация уязвимости, группировка повторов, ограничения частоты и аудируемые действия модератора. Публичные issue из жалоб, рейтинги, публичные обсуждения и автоматическая блокировка по числу жалоб не входят.
+Includes creating a private case from the web and CLI, the mechanically defined report contents, preview and consent, triage, author notification, vulnerability escalation, duplicate grouping, rate limits, and auditable moderator actions. Public issues created from reports, ratings, public discussions, and automatic blocking based on the number of reports are out of scope.
 
-Разрешённый состав жалобы и перечень состояний принадлежат `docs/contracts/report-case.md` и здесь не повторяются.
+The permitted report contents and list of states are owned by `docs/contracts/report-case.md` and are not repeated here.
 
-## Термины
+## Terms
 
-- `ReportCase` — внутренний закрытый случай жалобы на точную версию объекта.
-- `триаж` — первичная классификация случая модератором платформы.
-- `очищенное уведомление` — сообщение автору без личности и окружения репортёра.
+- `ReportCase` — an internal private report case concerning an exact object version.
+- `triage` — initial classification of a case by a platform moderator.
+- `sanitized notification` — a message to the author without the reporter's identity or environment.
 
-## Требования
+## Requirements
 
-- `REQ-1601`: Действие жалобы в вебе и команда жалобы в CLI создают один закрытый `ReportCase` через общий сценарий приложения; публичный issue на GitHub автоматически не создаётся.
-- `REQ-1602`: Полезная нагрузка жалобы ограничена разрешённым перечнем `docs/contracts/report-case.md`; исходный код, подсказки, содержимое `.env`, значения секретов, закрытые байты и полные домашние пути не отправляются автоматически.
-- `REQ-1603`: Необязательная диагностика ограничена по объёму, очищена и уходит только после явного предпросмотра и согласия репортёра; отправка без предпросмотра невозможна.
-- `REQ-1604`: Случай проходит закрытый перечень состояний из `docs/contracts/report-case.md`, автор получает только очищенное уведомление и только после триажа.
-- `REQ-1605`: Случай с признаками уязвимости эскалируется в закрытый процесс по `SECURITY.md` без публикации подробностей.
-- `REQ-1606`: Повторные жалобы на одну версию группируются; отправка требует аккаунта, ограничена по частоте и идемпотентна по ключу.
-- `REQ-1607`: Число жалоб само по себе никогда не скрывает и не блокирует объект; скрытие, блокировка и восстановление выполняются только явным действием модератора с событием аудита.
-- `REQ-1608`: Репортёр видит состояние собственных случаев; чужие случаи и личность репортёра не раскрываются ни автору, ни другим пользователям.
+- `REQ-1601`: The report action on the web and the report command in the CLI create one private `ReportCase` through a shared application flow; a public GitHub issue is not created automatically.
+- `REQ-1602`: The report payload is restricted to the allowlist in `docs/contracts/report-case.md`; source code, prompts, `.env` contents, secret values, private bytes, and full home paths are not sent automatically.
+- `REQ-1603`: Optional diagnostics are size-limited, sanitized, and sent only after the reporter explicitly previews and consents to them; sending without a preview is impossible.
+- `REQ-1604`: A case progresses through the closed list of states in `docs/contracts/report-case.md`; the author receives only a sanitized notification and only after triage.
+- `REQ-1605`: A case showing signs of a vulnerability is escalated to the private process in `SECURITY.md` without publishing details.
+- `REQ-1606`: Duplicate reports for one version are grouped; submission requires an account, is rate-limited, and is idempotent by key.
+- `REQ-1607`: The number of reports alone never hides or blocks an object; hiding, blocking, and restoration are performed only by an explicit moderator action with an audit event.
+- `REQ-1608`: A reporter can see the state of their own cases; other cases and the reporter's identity are disclosed neither to the author nor to other users.
 
-## Состояния и ошибки
+## States and errors
 
-Состояния случая принадлежат `docs/contracts/report-case.md`. Ошибки различают неизвестный объект или версию, превышение частоты, повтор ключа идемпотентности, слишком большую диагностику и недоступность сервера; недоступность сервера возвращает типизированную причину и не теряет подготовленную жалобу локально.
+Case states are owned by `docs/contracts/report-case.md`. Errors distinguish an unknown object or version, rate-limit excess, a duplicate idempotency key, oversized diagnostics, and server unavailability; server unavailability returns a typed reason and does not lose the locally prepared report.
 
-## Безопасность и приватность
+## Security and privacy
 
-Жалоба не является каналом сбора данных: разрешённый перечень закрыт, всё сверх него отклоняется до отправки. Личность репортёра доступна только модераторам. Журналы модерации не содержат секретов и закрытых байтов. Действия модератора выполняются с минимальными полномочиями и создают неизменяемые события аудита по `SPEC-002`.
+A report is not a data-collection channel: the allowlist is closed, and everything beyond it is rejected before sending. The reporter's identity is available only to moderators. Moderation logs contain neither secrets nor private bytes. Moderator actions use least privilege and create immutable audit events under `SPEC-002`.
 
-## Совместимость и миграция
+## Compatibility and migration
 
-Схема случая версионируется; новые необязательные поля совместимы внутри основной версии. Изменение разрешённого перечня состава требует новой версии схемы и обновления предпросмотра. Исторические случаи сохраняют исходную схему и не переписываются.
+The case schema is versioned; new optional fields are compatible within the major version. Changing the content allowlist requires a new schema version and a preview update. Historical cases retain their original schema and are not rewritten.
 
-## Критерии приёмки
+## Acceptance criteria
 
-| Требование | Исполнимый способ проверки |
+| Requirement | Executable verification method |
 |---|---|
-| `REQ-1601` | Контрактная проверка доказывает один сценарий для веба и CLI и отсутствие интеграции, создающей публичный issue из жалобы. |
-| `REQ-1602` | Фикстуры с исходным кодом, секретами, закрытыми байтами и домашними путями отклоняются до отправки. |
-| `REQ-1603` | Жалоба с диагностикой без подтверждённого предпросмотра отклоняется, а превышение объёма даёт типизированную ошибку. |
-| `REQ-1604` | Фикстура жизненного цикла проходит все состояния, а уведомление автора не содержит личности и окружения репортёра. |
-| `REQ-1605` | Случай с меткой уязвимости переходит в `security_escalated` и не появляется в обычных списках. |
-| `REQ-1606` | Повтор ключа возвращает тот же случай, дубликаты группируются, а превышение частоты отклоняется. |
-| `REQ-1607` | Фикстура множества жалоб не меняет состояние версии, а действие модератора меняет и создаёт `AuditEvent`. |
-| `REQ-1608` | Матрица полномочий разрешает репортёру только его случаи и скрывает личность репортёра от автора. |
+| `REQ-1601` | A contract check proves one flow for the web and CLI and the absence of an integration that creates a public issue from a report. |
+| `REQ-1602` | Fixtures containing source code, secrets, private bytes, and home paths are rejected before sending. |
+| `REQ-1603` | A report with diagnostics but without a confirmed preview is rejected, and exceeding the size limit produces a typed error. |
+| `REQ-1604` | A lifecycle fixture traverses all states, and the author notification contains neither the reporter's identity nor environment. |
+| `REQ-1605` | A case marked as a vulnerability transitions to `security_escalated` and does not appear in ordinary lists. |
+| `REQ-1606` | Repeating a key returns the same case, duplicates are grouped, and exceeding the rate limit is rejected. |
+| `REQ-1607` | A fixture with many reports does not change the version state, while a moderator action changes it and creates an `AuditEvent`. |
+| `REQ-1608` | The authorization matrix allows the reporter to access only their cases and hides the reporter's identity from the author. |

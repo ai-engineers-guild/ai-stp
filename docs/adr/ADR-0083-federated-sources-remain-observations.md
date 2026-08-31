@@ -1,39 +1,40 @@
 ---
-description: "Решение разделить local ports и metadata adapters общим descriptor без передачи им доверия или target."
+description: "Decision to unify local ports and metadata adapters under a common descriptor without granting them trust or target access."
 last_verified: "2026-08-13"
 ---
 
-# ADR-0083: Федеративные источники остаются внешними наблюдениями
+# ADR-0083: Federated sources remain external observations
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-SX/APM предоставляют локальные setup-store snapshots, а GitHub и каталоги
-экосистемы — удалённые metadata. Если назвать их одним marketplace, исчезают
-различия между локальными байтами, внешним заявлением, паспортом ASTP и правом
-изменить харнесс. Слияние по имени дополнительно допускает source takeover.
+SX/APM provide local setup-store snapshots, while GitHub and ecosystem catalogs
+provide remote metadata. Calling them one marketplace erases the distinctions
+between local bytes, an external claim, an ASTP passport, and the authority to
+modify a harness. Name-based merging additionally permits source takeover.
 
-## Решение
+## Decision
 
-Принимается общий versioned `federated-source/1`, но с разными kind:
-`local_port` и `metadata_adapter`. Descriptor всегда является
-`external_observation`, не повышает оси verification и запрещает target write.
-Local port может лишь подготовить отдельный подтверждённый import private draft;
-metadata adapter остаётся read-only.
+A common versioned `federated-source/1` is accepted, but with distinct kinds:
+`local_port` and `metadata_adapter`. The descriptor is always an
+`external_observation`, does not raise either verification axis, and prohibits
+target writes. A local port may only prepare a separate, confirmed import into
+a private draft; a metadata adapter remains read-only.
 
-Identity совпадает только по provider и exact external identifier. Один объект
-может иметь несколько references, но похожие названия и metadata не создают
-auto-merge. Паспорт ASTP остаётся единственным владельцем нормативных данных.
+Identity matches only by provider and exact external identifier. One object may
+have several references, but similar names and metadata do not cause an
+automatic merge. The ASTP passport remains the sole owner of normative data.
 
-## Последствия
+## Consequences
 
-Новый источник получает собственный bounded parser, attribution, TTL/error
-политику и conformance fixture. Состояния `stale` и `unavailable` не ломают
-основной registry. Популярность не становится trust score. Итоговый target
-по-прежнему пишет только публичный provider харнесса.
+A new source receives its own bounded parser, attribution, TTL/error policy,
+and conformance fixture. The `stale` and `unavailable` states do not break the
+primary registry. Popularity does not become a trust score. The final target is
+still written only by the harness's public provider.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается при появлении криптографически проверяемой внешней
-authority, нового вида источника или безопасного протокола межпровайдерной identity.
+The decision is reconsidered if a cryptographically verifiable external
+authority, a new source kind, or a secure cross-provider identity protocol
+appears.

@@ -1,26 +1,26 @@
 ---
-description: "Решение владеть доменной моделью ai_stp и делегировать запись target публичным NDDev providers."
+description: "Decision for ai_stp to own the domain model and delegate target writes to public NDDev providers."
 last_verified: "2026-08-03"
 ---
 
-# ADR-0002: Владеть ядром и использовать public providers
+# ADR-0002: Own the core and use public providers
 
-Принято 2026-08-03.
+Accepted on 2026-08-03.
 
-## Контекст
+## Context
 
-Внешние инструменты управления пакетами и распространением не покрывают согласованную модель паспортов, индекса проекта, произвольной композиции сетапа, синхронизации устройств и безопасного жизненного цикла пяти харнессов. Обязательная зависимость передала бы внешнему проекту контроль над ключевыми контрактами.
+External package-management and distribution tools do not cover a coherent model for passports, the project index, arbitrary setup composition, device synchronization, and the secure lifecycle of five harnesses. A mandatory dependency would give an external project control over key contracts.
 
-Публичные менеджеры NDDev уже реализуют явные целевые каталоги, резервное копирование, восстановление, жизненный цикл программного обеспечения и запуск для своих харнессов.
+Public NDDev managers already implement explicit target directories, backup, recovery, software lifecycle, and launch for their harnesses.
 
-## Решение
+## Decision
 
-`ai_stp` владеет паспортами, реестром, индексом проекта, графом и сборщиком сетапа, решениями доверия и доступа, синхронизацией и оркестрацией провайдеров.
+`ai_stp` owns passports, the registry, the project index, the setup graph and compiler, trust and access decisions, synchronization, and provider orchestration.
 
-Публичный провайдер конкретного харнесса владеет нативным target, установкой и обновлением runtime, блокировками, staging, резервной копией, применением, запуском, состоянием и восстановлением.
+The public provider for a specific harness owns the native target, runtime installation and updates, locking, staging, backup, apply, launch, state, and recovery.
 
-Закрытый контур авторинга систем сетапов остаётся внутренним validation/release control plane и не входит в поставку. Он назван здесь ролью, а не репозиторием: репозиторий за эти два года сменился, а граница — нет.
+The closed setup-system authoring circuit remains an internal validation/release control plane and is not part of the distribution. It is named here as a role rather than a repository: the repository changed during these two years, while the boundary did not.
 
-## Последствия
+## Consequences
 
-Пять public repositories получают additive versioned provider protocol. APM/SX могут появиться только как необязательные адаптеры без владения core data или final target.
+Five public repositories receive an additive versioned provider protocol. APM/SX may appear only as optional adapters without ownership of core data or the final target.

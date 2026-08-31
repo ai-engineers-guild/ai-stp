@@ -1,67 +1,66 @@
 ---
-description: "Решение вести публичную пользовательскую документацию отдельно от внутреннего docs/ и собирать её MkDocs Material."
+description: "Decision to maintain public user documentation separately from internal docs/ and build it with MkDocs Material."
 last_verified: "2026-08-10"
 ---
 
-# ADR-0077: Публичная пользовательская документация
+# ADR-0077: Public user documentation
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-`docs/` в репозитории уже является внутренним нормативным контуром: ADR,
-активные спецификации, контракты, инженерные и эксплуатационные правила. Его
-читает агент перед изменениями, и смешивание туда продуктового help center
-делает оба сценария хуже: пользователю приходится видеть внутреннюю кухню, а
-агенту сложнее отличить норму от объясняющего текста.
+`docs/` in the repository is already the internal normative corpus: ADRs,
+active specifications, contracts, and engineering and operational rules. The
+agent reads it before making changes, and mixing the product help center into
+it makes both use cases worse: users have to see internal implementation
+details, while the agent has more difficulty distinguishing rules from
+explanatory text.
 
-При этом MVP нужен отдельный читаемый public docs site: обычный Markdown в
-репозитории, нормальная навигация, поиск, статическая сборка и минимальная
-эксплуатационная стоимость. Стек должен быть не Vue и не отдельным сложным
-frontend-приложением ради документации.
+At the same time, the MVP needs a separate, readable public docs site: plain
+Markdown in the repository, proper navigation, search, a static build, and
+minimal operational cost. The stack must be neither Vue nor a separate,
+complex frontend application solely for documentation.
 
-## Варианты
+## Options
 
-1. Оставить публичные документы в `apps/web/content` и рендерить Next.js. Это
-   сохраняет один web runtime, но продолжает смешивать продуктовую
-   документацию с приложением и требует больше кастомного UI.
-2. Вести публичные документы в `docs/`. Это проще для инструментов, но ломает
-   границу внутреннего нормативного контура.
-3. Ввести `user-docs/` как отдельный Markdown-source и собирать его вторым
-   MkDocs Material конфигом.
-4. Ввести Docusaurus, Fumadocs или Astro Starlight. Эти стеки пригодны для
-   более богатого docs portal, но в MVP добавляют лишний JavaScript/runtime
-   слой и новую модель сопровождения.
+1. Keep public documents in `apps/web/content` and render them with Next.js.
+   This retains a single web runtime, but continues mixing product documentation
+   with the application and requires more custom UI.
+2. Maintain public documents in `docs/`. This is simpler for tooling, but breaks
+   the boundary of the internal normative corpus.
+3. Introduce `user-docs/` as a separate Markdown source and build it with a
+   second MkDocs Material configuration.
+4. Introduce Docusaurus, Fumadocs, or Astro Starlight. These stacks suit a richer
+   docs portal, but add an unnecessary JavaScript/runtime layer and a new
+   maintenance model to the MVP.
 
-## Решение
+## Decision
 
-Принимается вариант 3. Публичная пользовательская документация живёт в
-`user-docs/` и собирается отдельным конфигом
-`docs_scripts/user-mkdocs.yml`. Внутренний `docs/` остаётся источником
-нормативных документов и не становится help center.
+Option 3 is accepted. Public user documentation lives in `user-docs/` and is
+built with the separate `docs_scripts/user-mkdocs.yml` configuration. Internal
+`docs/` remains the source of normative documents and does not become a help
+center.
 
-Первый MVP-сайт русскоязычный, статический и строится тем же Python docs
-toolchain, что внутренний сайт. Markdown остаётся основным форматом; MDX,
-runtime-компоненты и браузерный редактор не входят в это решение.
+The first MVP site is Russian-language, static, and built with the same Python
+docs toolchain as the internal site. Markdown remains the primary format; MDX,
+runtime components, and an in-browser editor are outside this decision.
 
-## Последствия
+## Consequences
 
-- `user-docs/` становится исходником публичных пользовательских guide pages:
-  быстрый старт, понятия, CLI, каталог, компоненты, сетапы, публикация,
-  доверие, безопасность и диагностика.
-- Сборка public docs не требует нового lock-файла и использует уже закреплённые
-  зависимости docs-группы.
-- Production может отдавать артефакт `user-docs` как статический сайт через
-  отдельный container или Caddy route. Web/API import revision из `SPEC-031`
-  может позже читать именно `user-docs/` как technical source.
-- Любой будущий переход на Docusaurus, Fumadocs или Starlight требует нового
-  ADR, потому что меняет runtime и модель сопровождения публичной
-  документации.
+- `user-docs/` becomes the source for public user guide pages: quick start,
+  concepts, CLI, catalog, components, setups, publication, trust, security, and
+  troubleshooting.
+- Building public docs requires no new lock file and uses the already pinned
+  dependencies of the docs group.
+- Production may serve the `user-docs` artifact as a static site through a
+  separate container or Caddy route. The Web/API import revision from `SPEC-031`
+  may later read `user-docs/` specifically as its technical source.
+- Any future migration to Docusaurus, Fumadocs, or Starlight requires a new ADR
+  because it changes the runtime and maintenance model of public documentation.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается, если пользовательская документация потребует
-интерактивных playground-компонентов, версионирования по major-линии,
-полноценного двуязычного locale pipeline, API reference с живыми примерами или
-авторизованных docs pages, которые статический MkDocs Material не несёт без
-сложного кастома.
+The decision is reconsidered if user documentation requires interactive
+playground components, versioning by major line, a full bilingual locale
+pipeline, API reference with live examples, or authenticated docs pages that
+static MkDocs Material cannot provide without complex customization.

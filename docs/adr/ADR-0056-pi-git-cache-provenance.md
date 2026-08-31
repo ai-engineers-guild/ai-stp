@@ -1,60 +1,62 @@
 ---
-description: "Точное происхождение Pi Git packages из объявленного глобального cache без чтения пользовательских настроек и запуска Git."
+description: "Exact provenance of Pi Git packages from the declared global cache without reading user settings or invoking Git."
 last_verified: "2026-08-09"
 ---
 
-# ADR-0056: Происхождение Pi Git packages из cache
+# ADR-0056: Provenance of Pi Git packages from the cache
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-Pi документирует глобальные Git packages в
-`~/.pi/agent/git/<host>/<path>` и закрепляет checkout на ref или commit.
-`settings.json` одновременно является общим файлом настроек и может содержать
-не относящиеся к discovery чувствительные значения. Читать его целиком ради
-одного массива packages противоречит границе read-only discovery.
+Pi documents global Git packages in
+`~/.pi/agent/git/<host>/<path>` and pins the checkout to a ref or commit.
+At the same time, `settings.json` is a shared settings file and may contain
+sensitive values unrelated to discovery. Reading it in full for the sake of
+a single packages array violates the read-only discovery boundary.
 
-Запуск `git` также не нужен: он расширил бы исполняемую поверхность и мог бы
-наследовать пользовательскую конфигурацию. Для происхождения достаточно
-объявленного cache layout и точного Git `HEAD`.
+Invoking `git` is also unnecessary: it would expand the executable surface and
+could inherit user configuration. The declared cache layout and the exact Git
+`HEAD` are sufficient to establish provenance.
 
-## Решение
+## Decision
 
-Source adapter ограниченно перечисляет только три уровня под `git/`:
-host, owner и repository. Он не следует символическим ссылкам и закрывается
-отказом при превышении лимита entries или ошибке чтения. Exact GitHub
-provenance создаётся только для host `github.com`, валидных owner/repository
-segments и checkout с безопасным точным `HEAD`.
+The source adapter enumerates only three levels under `git/`:
+host, owner, and repository. It does not follow symbolic links and fails closed
+when the entry limit is exceeded or a read error occurs. Exact GitHub
+provenance is created only for the `github.com` host, valid owner/repository
+segments, and a checkout with a safe exact `HEAD`.
 
-`HEAD` читается как detached 40-символьный SHA либо как безопасная ссылка
-`refs/heads/*`/`refs/tags/*`. Revision берётся из bounded loose ref или
-`packed-refs`. Adapter не читает рабочие файлы, Git config, credentials и
-`settings.json`, не запускает Git, package code, hooks или сеть.
+`HEAD` is read either as a detached 40-character SHA or as a safe reference
+under `refs/heads/*`/`refs/tags/*`. The revision is obtained from a bounded
+loose ref or `packed-refs`. The adapter does not read working files, Git config,
+credentials, or `settings.json`, and does not invoke Git, package code, hooks,
+or the network.
 
-Находка получает `github/exact`, канонический HTTPS repository, checked-out
-revision, package identity и evidence `pi:git-cache-layout` плюс
-`git:checked-out-head`. Это доказывает источник наблюдаемого checkout, но не
-утверждает, что package включён текущим settings, чист относительно index или
-подтверждён платформой.
+The finding receives `github/exact`, a canonical HTTPS repository, the
+checked-out revision, package identity, and evidence `pi:git-cache-layout` plus
+`git:checked-out-head`. This proves the source of the observed checkout, but
+does not assert that the package is enabled by the current settings, clean
+relative to the index, or verified by the platform.
 
-Не-GitHub host не получает ложный GitHub claim. Повреждённый или floating
-checkout не исчезает из обычных объявленных Pi layouts, но cache package не
-выдаётся как exact и сопровождается безопасной диагностикой.
+A non-GitHub host does not receive a false GitHub claim. A corrupted or
+floating checkout does not disappear from the regular declared Pi layouts, but
+the cache package is not reported as exact and is accompanied by safe
+diagnostics.
 
-## Последствия
+## Consequences
 
-- глобальный Pi Git package имеет устойчивую source identity без доступа к
-  общим пользовательским настройкам;
-- loose и packed refs дают одинаковый результат;
-- enabled/disabled state намеренно не угадывается;
-- пакеты npm требуют отдельного адаптера `package/observed` без утверждения об
-  источнике GitHub;
-- изменение устройства cache или контракта хранения Git требует пересмотра
-  адаптера.
+- a global Pi Git package has a stable source identity without access to shared
+  user settings;
+- loose and packed refs produce the same result;
+- enabled/disabled state is intentionally not inferred;
+- npm packages require a separate `package/observed` adapter without asserting
+  a GitHub source;
+- changes to the cache layout or the Git storage contract require the adapter
+  to be reviewed.
 
-## Условия пересмотра
+## Review Conditions
 
-Решение пересматривается при появлении отдельного подписанного installation
-ledger Pi, документированного изменения cache layout или необходимости
-доказывать чистоту всего checkout относительно Git index.
+The decision must be reviewed if Pi introduces a separate signed installation
+ledger, if the cache layout changes in a documented manner, or if it becomes
+necessary to prove that the entire checkout is clean relative to the Git index.

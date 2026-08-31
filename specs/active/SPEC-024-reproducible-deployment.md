@@ -1,194 +1,194 @@
 ---
-description: "SPEC-024: Воспроизводимое развёртывание с web-ярусом, здоровьем, логами, резервными копиями и откатом."
+description: "SPEC-024: Reproducible deployment with web tier, health, logs, backups and rollback."
 last_verified: "2026-08-10"
 ---
 
-# SPEC-024: Воспроизводимое развёртывание
+# SPEC-024: Reproducible deployment
 
-## Цель
+## Purpose
 
-> `ADR-0084` убрал отдельный предпродакшн-ярус: развёрнутая среда одна.
-> `ADR-0086` дал ей имя `prod` и снял границу переименования, которую `ADR-0084`
-> оставлял открытой. «Проверено на staging» критерием приёмки больше нигде не
-> является. Требования этой спецификации описывают топологию, TLS, логи,
-> резервные копии и откат развёрнутой среды и действуют полностью — при одной
-> среде откат и резервная копия важнее, а не менее важны.
+> `ADR-0084` removed a separate pre-production tier: there is only one deployed environment.
+> `ADR-0086` gave it the name `prod` and removed the renaming boundary that `ADR-0084`
+> left open. “Tested on staging” is no longer an acceptance criterion anywhere.
+> The requirements of this specification describe the topology, TLS, logs,
+> backups, and rollback of the deployed environment and apply in full—with a single
+> environment, rollback and backups are more important, not less.
 
-Срез платформы запускается в среде, которую можно воссоздать, диагностировать и
-откатить из состояния репозитория. К каркасу `SPEC-019`
-добавляется web-ярус в топологию, боевой TLS и домен для хоста развёртывания, сбор
-структурных логов с корреляцией и ограниченным хранением, резервное копирование и
-восстановление PostgreSQL и RustFS, блокировка и сериализация развёртывания, критерии
-прерывания и документированный откат к предыдущему точному артефакту, а также видимая в
-безопасной диагностике идентичность версии, коммита и схемы.
+The platform slice runs in an environment that can be recreated, diagnosed, and
+rolled back from repository state. The `SPEC-019` foundation is extended with a web
+tier in the topology, production TLS and a domain for the deployment host, structured
+log collection with correlation and limited retention, PostgreSQL and RustFS backup
+and recovery, deployment locking and serialization, abort criteria, documented
+rollback to the previous exact artifact, and version, commit, and schema identity
+visible in safe diagnostics.
 
-Каркас упаковки и эксплуатации принадлежит `SPEC-019` и `ADR-0040`; эта спецификация не
-переопределяет его, а добивает боевое усиление развёртывания по `#84` и владеет требованиями
-`REQ-24xx`. Решения web-яруса, маршрутизации прокси, резервных копий, отката и
-блокировки развёртывания принадлежат `ADR-0044`; наблюдаемость и готовность —
-`SPEC-017` и `ADR-0039`; правила логов и данных — `SPEC-013`; веб-приложение — `#82`,
-`#83`, `SPEC-022`, `SPEC-023`; хранилище — `SPEC-020`.
+The packaging and operations foundation belongs to `SPEC-019` and `ADR-0040`; this specification does not
+redefine it, but completes production deployment hardening under `#84` and owns the requirements
+`REQ-24xx`. Solutions for web tier, proxy routing, backups, rollback and
+deployment locks belong to `ADR-0044`; observability and readiness -
+`SPEC-017` and `ADR-0039`; log and data rules - `SPEC-013`; web application - `#82`,
+`#83`, `SPEC-022`, `SPEC-023`; storage - `SPEC-020`.
 
-## Границы
+## Scope
 
-Входят: репозиторная топология развёртывания для `api`, `worker`, `web`, `docs`,
-`PostgreSQL` и `RustFS` за единой публичной точкой `Caddy` (**prod**);
-локальный **dev** compose без Caddy (опубликованные `web`/`api`/`docs`,
-same-origin hop через Next rewrite);
-контракт окружения и `.env.example` с именами без секретных значений и разделением
-dev/prod, включая переменные веба; отдельные dev- и prod-образы фронтенда; порядок
-исполнения миграций и посева; боевой TLS, домен и прокси, соответствующие доступному
-хосту развёртывания; проверки `liveness` и `readiness` и deploy smoke; сбор структурных логов
-с корреляцией запроса и операции и ограниченным хранением; резервное копирование и
-восстановление метаданных PostgreSQL и объектов RustFS; блокировка и сериализация
-развёртывания, критерии прерывания и откат к предыдущему точному артефакту; видимая в
-безопасной диагностике идентичность версии, коммита и схемы.
+Includes: repository deployment topology for `api`, `worker`, `web`, `docs`,
+`PostgreSQL` and `RustFS` behind a single public point `Caddy` (**prod**);
+local **dev** compose without Caddy (published by `web`/`api`/`docs`,
+same-origin hop via Next rewrite);
+environment contract and `.env.example` with names without secret values and separation
+dev/prod, including web variables; separate dev and prod images of the frontend; order
+execution of migrations and seeding; production TLS, domain and proxy corresponding to the available
+deployment host; checks `liveness` and `readiness` and deploy smoke; collection of structure logs
+with query-operation correlation and limited storage; backup and
+recovery of PostgreSQL metadata and RustFS objects; blocking and serialization
+deployments, abort criteria and rollback to the previous exact artifact; visible in
+safe diagnostics of version, commit and schema identity.
 
-Не входят: публичный производственный релиз и публикация репозитория; производственные
-пользовательские данные, SLA, автомасштабирование и мультирегион; развёртывания
-провайдеров; секреты в GitHub или тексте issue; содержимое доменных обработчиков
-(`SPEC-018`, `#79`, `#81`), правила приложения (`SPEC-017`) и бизнес-логика веба
+Excludes: public production release and repository publication; production
+user data, SLA, autoscaling and multi-region; deployment
+providers; secrets in GitHub or issue text; contents of domain handlers
+(`SPEC-018`, `#79`, `#81`), application rules (`SPEC-017`) and web business logic
 (`SPEC-022`, `SPEC-023`).
 
-## Термины
+## Terms
 
-- `Staging topology` — репозиторная раскладка сервисов `api`, `worker`, `web`,
-  `PostgreSQL`, `RustFS` и `Caddy` для развёрнутой среды.
-- `Web tier` — контейнер приложения `apps/web` с отдельными dev- и prod-образами;
-  в **prod** публично доступен только через `Caddy` (`ADR-0044`); в local
-  **dev** публикуется порт `web` напрямую, без Caddy.
-- `Docs tier` — контейнер публичной пользовательской документации из `user-docs/`;
-  в dev публикуется на `localhost:8011`, в **prod** доступен через отдельный
+- `Staging topology` — repository layout of services `api`, `worker`, `web`,
+  `PostgreSQL`, `RustFS` and `Caddy` for the deployed environment.
+- `Web tier` - `apps/web` application container with separate dev and prod images;
+  in **prod** publicly available only through `Caddy` (`ADR-0044`); to local
+  **dev** publishes the `web` port directly, without Caddy.
+- `Docs tier` - container of public user documentation from `user-docs/`;
+  in dev it is published on `localhost:8011`, in **prod** it is available through a separate
   host `AI_STP_DOCS_HOST`.
-- `Env contract` — набор образцов окружения с именами без значений и разделением
-  dev/prod, включая переменные веба.
-- `Deploy lock` — механизм сериализации развёртываний, исключающий одновременный
-  деплой (`ADR-0044`).
-- `Rollback` — возврат к предыдущему точному артефакту приложения, совместимому с
-  текущей схемой и данными (`ADR-0044`).
-- `Safe diagnostics` — эндпоинт готовности и идентичности без секретов по `SPEC-017`.
+- `Env contract` - a set of environment samples with names without values and separation
+  dev/prod, including web variables.
+- `Deploy lock` - deployment serialization mechanism, eliminating simultaneous
+  deployment (`ADR-0044`).
+- `Rollback` - return to the previous exact application artifact compatible with
+  the current schema and data (`ADR-0044`).
+- `Safe diagnostics` - readiness and identity endpoint without secrets according to `SPEC-017`.
 
-## Требования
+## Requirements
 
-- `REQ-2401`: Топология развёрнутого контура добавляет `web` и `docs` к `api`, `worker`,
-  `PostgreSQL`, `RustFS` и `Caddy`; prod compose воспроизводимо поднимает весь срез,
-  а `web` и `docs` в **prod** публично доступны только через `Caddy`.
-  **Dev-исключение:** `docker-compose.dev.yml` поднимает `web` и `docs` без Caddy
-  (порты на хост); same-origin `/v1/*` обеспечивает dev-rewrite Next.js к `api`.
-- `REQ-2402`: Контракт окружения задаётся образцами `.env.example` с именами без
-  секретных значений и разделением dev/prod, включая переменные веба
+- `REQ-2401`: The deployed environment topology adds `web` and `docs` to `api`, `worker`,
+  `PostgreSQL`, `RustFS` and `Caddy`; prod compose reproducibly lifts the entire slice,
+  and `web` and `docs` in **prod** are publicly accessible only through `Caddy`.
+  **Dev-exception:** `docker-compose.dev.yml` lifts `web` and `docs` without Caddy
+  (ports per host); same-origin `/v1/*` provides dev-rewrite Next.js to `api`.
+- `REQ-2402`: The environment contract is specified by `.env.example` samples with names without
+  secret values and dev/prod separation, including web variables
   (`AI_STP_API_BASE_URL`, `NEXT_PUBLIC_APP_URL`, `AI_STP_USER_DOCS_URL`,
   `AI_STP_WEB_PROFILE`, optional build-time `AI_STP_FEATURE_*`,
-  `AI_STP_SESSION_SECRET`, `AI_STP_USE_MOCKS` и прочие требуемые `#82`/`#83`);
-  реальные `.env.dev` и `.env.prod`
-  исключены из индекса; отсутствие обязательного секрета даёт типизированный отказ
-  старта по `SPEC-017`, а не тихий дефолт.
-- `REQ-2403`: Фронтенд собирается отдельными dev- и prod-образами: prod-образ минимален
-  (standalone-вывод Next.js, минимальный runtime, non-root), dev-образ пригоден для
-  локальной разработки; версии базовых образов закреплены и обновляются отдельным
-  проверяемым изменением.
-- `REQ-2404`: В **prod** обратный прокси `Caddy` остаётся единственной
-  публичной точкой входа; основной host маршрутизирует запросы API к `api`, а
-  остальные к `web`, docs host маршрутизирует пользовательскую документацию к `docs`.
-  **Dev-исключение:** Caddy в dev compose отсутствует; `web` и `api` публикуют порты
-  на хост, `docs` публикует порт пользовательской документации; browser-relative
-  `/v1/*` (и API docs paths) переписываются Next в dev к `AI_STP_API_BASE_URL`.
-  `PostgreSQL` и `RustFS` не публикуются наружу; `web` обращается к `api` по
-  внутренней сети, а не через публичный адрес.
-- `REQ-2405`: Миграции и посев исполняются в определённом порядке до приёма трафика;
-  готовность блокирует трафик, пока зависимости и миграции не готовы (`SPEC-017`).
-- `REQ-2406`: Боевой TLS и домен, соответствующие доступному хосту развёртывания,
-  обслуживаются `Caddy` (автоматический HTTPS) на хосте развёртывания; local **dev**
-  работает по plain HTTP на опубликованном порту `web` (без reverse proxy).
-- `REQ-2407`: Контейнеры имеют `liveness` и `readiness`; deploy smoke покрывает
-  лендинг, каталог, OAuth и список и отзыв устройств на развёрнутом срезе.
-- `REQ-2408`: Структурные логи собираются с корреляцией запроса и операции и
-  ограниченным хранением; лог не содержит OAuth-токенов, cookie, байтов объекта,
-  приватных путей и значений окружения (`SPEC-017`, `SPEC-013`).
-- `REQ-2409`: Резервное копирование и восстановление метаданных PostgreSQL и объектов
-  RustFS определены и отрепетированы на восстановленной копии; восстановление проверяется, а
-  резервная копия и её лог не содержат секретов и байтов объекта.
-- `REQ-2410`: Развёртывание сериализуется блокировкой, повторное развёртывание
-  идемпотентно, определены критерии прерывания, а откат возвращает предыдущий точный
-  артефакт приложения и не изменяет ревизию схемы ни в какую сторону.
-- `REQ-2418`: Понижение ревизии схемы выполняется отдельной явной операцией с
-  указанной целевой ревизией; она отказывает, если резервная копия не снята в том
-  же прогоне, и записывает исходную и целевую ревизии, имя копии и коммит.
-- `REQ-2411`: Идентичность версии, коммита и схемы видна в безопасной диагностике без
-  секретов (`SPEC-017`); диагностика не раскрывает значений окружения и токенов.
-- `REQ-2412`: Чистый авторизованный хост разворачивает срез из точного коммита
-  документированными командами runbook; требуемые доказательства (артефакт и коммит,
-  команды и коды выхода, валидация конфигурации, вывод миграции и посева, проверки
-  здоровья, репетиция резервной копии и восстановления, репетиция отката, результаты
-  smoke, непройденные тесты и остаточные риски) записываются.
-- `REQ-2413`: Код pull request и развёртывание исполняются в физически разных
-  постоянных доменах доверия; роли runner, учётные записи users, файловые системы и
-  машины hosts используют разные ресурсы; CI не
-  получает deployment secrets и не имеет SSH-маршрута к хосту развёртывания (`ADR-0046`).
-- `REQ-2414`: Новый pull request run может отменить прежний pull request run, но новый
-  push не отменяет выполняющийся deployment; durable stage marker позволяет следующему
-  run детерминированно повторить прерванный идемпотентный forward path.
-- `REQ-2415`: SSH identity хоста развёртывания закрепляется доверенным `known_hosts` вне
-  сетевого обнаружения; несовпадение ключа останавливает операцию до `rsync` и SSH.
-- `REQ-2416`: После внутренней readiness независимый deployment runner через обычные
-  DNS и строгий TLS проверяет публичные ответы liveness, readiness, web и safe
+  `AI_STP_SESSION_SECRET`, `AI_STP_USE_MOCKS` and other required `#82`/`#83`);
+  real `.env.dev` and `.env.prod`
+  excluded from the index; the absence of a required secret gives a typed failure
+  start on `SPEC-017`, and not a quiet default.
+- `REQ-2403`: The frontend is assembled with separate dev and prod images: the prod image is minimal
+  (standalone Next.js output, minimal runtime, non-root), dev image suitable for
+  local development; versions of base images are pinned and updated separately
+  verifiable change.
+- `REQ-2404`: In **prod** the reverse proxy `Caddy` remains the only one
+  public entry point; the main host routes API requests to the `api`, and
+  the rest to `web`, docs host routes user documentation to `docs`.
+  **Dev exception:** Caddy is missing from dev compose; `web` and `api` publish ports
+  to the host, `docs` publishes a port of user documentation; browser-relative
+  `/v1/*` (and API docs paths) are rewritten Next in dev to `AI_STP_API_BASE_URL`.
+  `PostgreSQL` and `RustFS` are not published outside; `web` refers to `api` by
+  internal network, and not through a public address.
+- `REQ-2405`: Migrations and seeding are performed in a certain order before receiving traffic;
+  readiness blocks traffic until dependencies and migrations are ready (`SPEC-017`).
+- `REQ-2406`: Production TLS and a domain corresponding to the available deployment host,
+  served by `Caddy` (automatic HTTPS) on the deployment host; local **dev**
+  works via plain HTTP on the published port `web` (without reverse proxy).
+- `REQ-2407`: Containers have `liveness` and `readiness`; deploy smoke covers
+  the landing page, catalog, OAuth, and device listing and revocation on the deployed slice.
+- `REQ-2408`: Structural logs are collected with correlation between request and operation and
+  limited storage; the log does not contain OAuth tokens, cookies, object bytes,
+  private paths and environment values (`SPEC-017`, `SPEC-013`).
+- `REQ-2409`: Backup and restore PostgreSQL metadata and objects
+  RustFS are defined and rehearsed on the restored copy; recovery is checked and
+  the backup and its log do not contain secrets or object bytes.
+- `REQ-2410`: Deployment is serialized by locking, re-deployment
+  idempotent, abort criteria are defined, and rollback returns the previous exact
+  an application artifact and does not change the schema revision in any way.
+- `REQ-2418`: Downgrading a schema revision is performed as a separate explicit operation with
+  the specified target revision; it fails if the backup copy is not taken in that
+  same run, and records the source and target revisions, the name of the copy and the commit.
+- `REQ-2411`: Identity of version, commit and schema is visible in safe diagnostics without
+  secrets (`SPEC-017`); diagnostics do not reveal environment and token values.
+- `REQ-2412`: Clean authorized host unwraps slice from exact commit
+  documented runbook commands; required evidence (artifact and commit,
+  commands and exit codes, configuration validation, migration and seeding output, checks
+  health, backup and restore rehearsal, rollback rehearsal, results
+  smoke, failed tests and residual risks) are recorded.
+- `REQ-2413`: Pull request code and deployment are executed in physically different
+  permanent trust domains; runner roles, users accounts, file systems and
+  hosts machines use different resources; CI is not
+  receives deployment secrets and does not have an SSH route to the deployment host (`ADR-0046`).
+- `REQ-2414`: New pull request run can cancel the previous pull request run, but the new one
+  push does not cancel an ongoing deployment; durable stage marker allows the following
+  run deterministically repeat the interrupted idempotent forward path.
+- `REQ-2415`: SSH identity of the deployment host is secured by the trusted `known_hosts` outside
+  network discovery; a key mismatch stops the operation until `rsync` and SSH.
+- `REQ-2416`: After internal readiness, independent deployment runner through conventional
+  DNS and strict TLS check public responses for liveness, readiness, web and safe
   diagnostics;
-  commit, environment и head-ревизия схемы совпадают с ожидаемыми.
-- `REQ-2417`: Автоматический deployment принимает только точный двухродительский
-  merge-коммит единственного разрешённого pull request в `dev`; actor и личная ветка
-  входят в явные allowlists, решение записывается без токенов и secrets.
+  commit, environment and head revision of the schema are as expected.
+- `REQ-2417`: Auto deployment only accepts exact bi-parent
+  merge commit of the only allowed pull request in `dev`; actor and personal branch
+  are included in explicit allowlists, the solution is written without tokens and secrets.
 
-## Состояния и ошибки
+## States and errors
 
-Сервис контейнера проходит `starting`, `healthy` и `unhealthy` по результату
-healthcheck; зависимый сервис не считается доступным до истинной готовности зависимости
-и миграций (`REQ-2405`). Развёртывание при удержанной блокировке сериализуется, а не
-выполняется параллельно; при невыполнении критерия готовности развёртывание прерывается
-по записанному критерию и не переводит трафик на нездоровый артефакт. Откат возвращает
-предыдущий точный артефакт; разрушающая обратная миграция при откате не выполняется.
-Отсутствие обязательного секрета даёт типизированный отказ старта, а не тихий дефолт.
+The container service passes `starting`, `healthy` and `unhealthy` according to the result
+healthcheck; a dependent service is not considered available until the dependency is truly ready
+and migrations (`REQ-2405`). Deployment when a lock is held is serialized rather than
+runs in parallel; if the readiness criterion is not met, the deployment is aborted
+according to the recorded criterion and does not transfer traffic to an unhealthy artifact. Rollback returns
+previous exact artifact; No destructive reverse migration is performed on rollback.
+The absence of a mandatory secret results in a typed startup failure, rather than a silent default.
 
-## Безопасность и приватность
+## Security and privacy
 
-Секреты не попадают в репозиторий, GitHub и текст issue: индексируются только образцы
-без значений (`REQ-2402`). `PostgreSQL` и `RustFS` недоступны из внешней сети; на
-в **prod** наружу открыт только `Caddy` (`REQ-2404`); в local dev — порты
+Secrets are not included in the repository, GitHub and issue text: only samples are indexed
+no values (`REQ-2402`). `PostgreSQL` and `RustFS` are not accessible from the external network; on
+in **prod** only `Caddy` (`REQ-2404`) is open to the outside; in local dev - ports
 `web`/`api`/`docs`.
-Структурные логи, резервные копии и безопасная диагностика не содержат OAuth-токенов,
-cookie, байтов объекта, приватных путей и значений окружения (`REQ-2408`, `REQ-2409`,
-`REQ-2411`, `SPEC-013`, `SPEC-017`). Долгоживущие полномочия к хранилищу клиенту не
-выдаются (`SPEC-020`).
+Structural logs, backups and secure diagnostics do not contain OAuth tokens,
+cookies, object bytes, private paths and environment values (`REQ-2408`, `REQ-2409`,
+`REQ-2411`, `SPEC-013`, `SPEC-017`). Long-lived storage credentials are not issued to the
+client (`SPEC-020`).
 
-## Совместимость и миграция
+## Compatibility and migration
 
-Раскладка окружения расширяется добавлением необязательных ключей с обновлением
-образцов; изменение топологии сети, политики перезапуска, web-яруса, маршрутизации
-прокси, резервных копий, отката и блокировки развёртывания отражается в `ADR-0040` и
-`ADR-0044`. Переход к боевому TLS и домену выполняется на хосте развёртывания без изменения
-границ `SPEC-019`. Откат остаётся совместимым с текущей схемой: обратная миграция при
-откате не разрушает данные, а несовместимое изменение схемы получает отдельную
-процедуру по `docs/engineering/schema-evolution.md`. Версии базовых образов
-закрепляются и обновляются отдельным проверяемым изменением.
+The environment layout is expanded by adding optional keys with update
+samples; changing network topology, restart policy, web tier, routing
+proxies, backups, rollback and deployment blocking are reflected in `ADR-0040` and
+`ADR-0044`. The transition to production TLS and a domain is performed on the deployment host without changes
+boundaries `SPEC-019`. The rollback remains compatible with the current scheme: reverse migration when
+rollback does not destroy data, and an incompatible schema change receives a separate
+procedure according to `docs/engineering/schema-evolution.md`. Base image versions
+are committed and updated with a separate verifiable change.
 
-## Критерии приёмки
+## Acceptance criteria
 
-| Требование | Исполнимый способ проверки |
+| Requirement | Executable verification method |
 |---|---|
-| `REQ-2401` | Prod compose поднимает `api`, `worker`, `web`, `docs`, `PostgreSQL`, `RustFS` и `Caddy` (`web` и `docs` только через Caddy). Dev compose поднимает тот же срез без `caddy`, с опубликованными `web` и `docs`. |
-| `REQ-2402` | Проверка репозитория подтверждает образцы dev/prod с именами веба и пользовательской документации без секретов и отсутствие реальных env-файлов; отсутствие обязательного секрета даёт типизированный отказ старта. |
-| `REQ-2403` | Сборка dev- и prod-образов фронтенда проходит; prod-образ минимален, non-root и не содержит инструментов разработки. |
-| `REQ-2404` | Staging/prod: Caddy делит основной host `/v1` → api и остальное → web, а docs host → docs. Dev: нет caddy; rewrite/proxy Next для `/v1`, docs опубликован отдельным портом. Postgres/RustFS снаружи недоступны; web → api по internal URL. |
-| `REQ-2405` | Порядок миграции и посева проверяем, а готовность блокирует трафик до готовности зависимостей и миграций. |
-| `REQ-2406` | Подъём на хосте развёртывания обслуживает боевой TLS и домен через `Caddy`; local dev — plain HTTP на порту `web` без reverse proxy. |
-| `REQ-2407` | Deploy smoke на развёрнутом срезе проходит лендинг, каталог, OAuth и список и отзыв устройств. |
-| `REQ-2408` | Проверка логов подтверждает корреляцию запроса и операции, ограниченное хранение и отсутствие токенов, cookie, байтов объекта, путей и значений окружения. |
-| `REQ-2409` | Репетиция резервной копии и восстановления PostgreSQL и RustFS на восстановленной копии подтверждает восстановление и отсутствие секретов в копии. |
-| `REQ-2410` | Тест подтверждает сериализацию развёртывания, идемпотентность повтора, критерий прерывания и откат к предыдущему артефакту, оставляющий ревизию схемы неизменной. |
-| `REQ-2418` | Тест подтверждает, что понижение требует явной целевой ревизии и отказывает без резервной копии этого прогона. |
-| `REQ-2411` | Безопасная диагностика показывает версию, коммит и схему без секретов и значений окружения. |
-| `REQ-2412` | Развёртывание из точного коммита документированными командами на чистом хосте воспроизводимо; записанные доказательства полны. |
-| `REQ-2413` | PR job оставляет marker/process; deployment runner не видит его, имеет другое имя и инвентаризован на другом host/user; CI не читает secret и не достигает SSH endpoint. |
-| `REQ-2414` | Два push вокруг искусственно долгого deployment не отменяют первый; fault injection после transfer/migrate/start оставляет marker, а повтор завершается детерминированно. |
-| `REQ-2415` | Правильный pinned host key проходит; другой ключ завершается отказом до передачи дерева; runbook описывает перекрытие ключей. |
-| `REQ-2416` | Поломка DNS, certificate chain, nginx/Caddy route, expected SHA или schema revision по отдельности валит внешний probe. |
-| `REQ-2417` | Direct push, неразрешённый actor/head, SHA без PR association и неоднозначная association отклоняются до чтения deployment secrets. |
+| `REQ-2401` | Prod compose lifts `api`, `worker`, `web`, `docs`, `PostgreSQL`, `RustFS` and `Caddy` (`web` and `docs` via Caddy only). Dev compose picks up the same slice without `caddy`, with `web` and `docs` published. |
+| `REQ-2402` | Checking the repository confirms dev/prod samples with web and user documentation names without secrets and the absence of real env files; the absence of a mandatory secret results in a typed startup failure. |
+| `REQ-2403` | The assembly of dev and prod images of the frontend is underway; The prod image is minimal, non-root and does not contain development tools. |
+| `REQ-2404` | Staging/prod: Caddy divides the main host `/v1` → api and the rest → web, and docs host → docs. Dev: no caddy; rewrite/proxy Next for `/v1`, docs published as a separate port. Postgres/RustFS are not accessible from the outside; web → api by internal URL. |
+| `REQ-2405` | We check the order of migration and seeding, and readiness blocks traffic until dependencies and migrations are ready. |
+| `REQ-2406` | Startup on the deployment host serves production TLS and the domain through `Caddy`; local dev uses plain HTTP on the `web` port without a reverse proxy. |
+| `REQ-2407` | Deploy smoke on the deployed slice covers the landing page, catalog, OAuth, and device listing and revocation. |
+| `REQ-2408` | Checking the logs confirms the request-operation correlation, limited storage, and the absence of tokens, cookies, object bytes, paths, and environment values. |
+| `REQ-2409` | Rehearsing a PostgreSQL and RustFS backup and restore on the restored copy confirms the recovery and the absence of secrets in the copy. |
+| `REQ-2410` | The test confirms deployment serialization, retry idempotency, abort criterion, and rollback to a previous artifact leaving the schema revision unchanged. |
+| `REQ-2418` | The test confirms that the downgrade requires an explicit target revision and fails without a backup of that run. |
+| `REQ-2411` | Safe diagnostics shows version, commit and schema without secrets and environment values. |
+| `REQ-2412` | Deploying from the exact commit using documented commands to a clean host is reproducible; the evidence recorded is complete. |
+| `REQ-2413` | PR job leaves marker/process; deployment runner does not see it, has a different name and is inventory on a different host/user; CI does not read secret and does not reach SSH endpoint. |
+| `REQ-2414` | Two pushes around an artificially long deployment do not cancel the first one; fault injection leaves a marker after transfer/migrate/start, and the replay ends deterministically. |
+| `REQ-2415` | The correct pinned host key passes; another key fails before the tree is transferred; The runbook describes the key overlap. |
+| `REQ-2416` | Failure of DNS, certificate chain, nginx/Caddy route, expected SHA or schema revision individually brings down the external probe. |
+| `REQ-2417` | Direct push, unauthorized or non-allowlisted actor/head, SHA without PR association and ambiguous association are rejected before reading deployment secrets. |

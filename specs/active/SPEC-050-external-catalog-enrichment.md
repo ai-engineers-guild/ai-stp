@@ -1,90 +1,60 @@
 ---
-description: "SPEC-050: Безопасное обогащение каталога наблюдаемыми метаданными внешних каталогов."
+description: "SPEC-050: Safe catalog enrichment with observable metadata from external catalogs."
 last_verified: "2026-08-16"
 ---
 
-# SPEC-050: Внешнее обогащение каталога
+# SPEC-050: External Catalog Enrichment
 
-## Цель
+## Purpose
 
-Platform дополняет точную публичную ревизию компонента ограниченными наблюдаемыми
-метаданными `skills.sh`, Nori и `modelcontextprotocol.com`, не копируя артефакты и
-не превращая внешний сигнал в паспорт, подтверждение или линию доверия.
+The platform supplements an exact public component revision with limited observable metadata from `skills.sh`, Nori, and `modelcontextprotocol.com`, without copying artifacts or turning an external signal into a passport, verification, or trust line.
 
-## Границы
+## Scope
 
-Спецификация охватывает server-owned metadata adapters, несколько внешних ссылок,
-freshness и безопасную деградацию. Импорт bytes, публикация, установка, изменение
-паспорта и сопоставление по похожему имени не входят. Общая authority-модель
-принадлежит `SPEC-045` и `ADR-0083`, wire contract —
-`docs/contracts/federated-sources.md`.
+This specification covers server-owned metadata adapters, multiple external references, freshness, and safe degradation. Importing bytes, publication, installation, passport modification, and matching by a similar name are out of scope. The general authority model belongs to `SPEC-045` and `ADR-0083`; the wire contract belongs to `docs/contracts/federated-sources.md`.
 
-## Термины
+## Terms
 
-- **Exact coordinate** — заранее сохранённая пара `provider` и `external_identifier`.
-- **Metadata observation** — ограниченный allowlist внешних полей; не паспорт
-  и не доказательство.
-- **Policy gate** — сохранённые attribution, terms URL и разрешающий допуск до
-  fetch и показа.
+- **Exact coordinate** — a previously stored pair of `provider` and `external_identifier`.
+- **Metadata observation** — a restricted allowlist of external fields; neither a passport nor evidence.
+- **Policy gate** — stored attribution, terms URL, and an affirmative permission governing fetch and display.
 
-Канонические поля и freshness принадлежат `docs/contracts/federated-sources.md`.
+Canonical fields and freshness belong to `docs/contracts/federated-sources.md`.
 
-## Требования
+## Requirements
 
-- `REQ-5001`: Поддерживаются только adapters `skills_sh`, `nori` и
-  `modelcontextprotocol`; каждый возвращает общий metadata projection и сохраняет
-  собственные attribution и terms reference.
-- `REQ-5002`: Adapter принимает только закрытый allowlist полей из контракта,
-  ограничивает размер ответа, глубину и число элементов JSON, длины строк и число
-  references и не исполняет полученный content.
-- `REQ-5003`: Связь создаётся только по заранее сохранённой exact coordinate.
-  Имя, описание, URL или package name без provider namespace не создают связь.
-- `REQ-5004`: Одна точная ревизия может иметь несколько независимых references.
-  Deduplication выполняется только по provider и external identifier; отказ одной
-  ссылки не меняет остальные.
-- `REQ-5005`: Успех сохраняет `fetched_at`, `checked_at` и `expires_at`. После TTL
-  последнее допустимое значение становится `stale`; безопасный fetch/parse failure
-  даёт `unavailable`, не удаляя последнее допустимое наблюдение.
-- `REQ-5006`: Cache ограничен числом записей и TTL; fetch имеет timeouts, запрет
-  credentials и redirect escape, bounded response и per-provider rate limit.
-- `REQ-5007`: Fetch и показ provider разрешены только при сохранённых attribution,
-  terms URL и разрешающем policy gate. Запрет закрыто отключает adapter.
-- `REQ-5008`: Внешние metadata всегда остаются observation и не меняют
-  `author_verified`, `component_verified`, `trust_lane`, lifecycle, install
-  eligibility или ranking без отдельной спецификации.
-- `REQ-5009`: Fixtures и общий conformance suite каждого adapter покрывают happy
-  path, oversized/poisoned/malformed payload, unknown fields, timeout/rate limit,
-  stale/unavailable и exact-coordinate mismatch.
+- `REQ-5001`: Only the `skills_sh`, `nori`, and `modelcontextprotocol` adapters are supported; each returns a common metadata projection and retains its own attribution and terms reference.
+- `REQ-5002`: An adapter accepts only the closed allowlist of fields defined by the contract, limits response size, JSON depth and item count, string lengths, and the number of references, and does not execute received content.
+- `REQ-5003`: A link is created only from a previously stored exact coordinate. A name, description, URL, or package name without a provider namespace does not create a link.
+- `REQ-5004`: One exact revision may have multiple independent references. Deduplication is performed only by provider and external identifier; failure of one reference does not affect the others.
+- `REQ-5005`: A successful operation stores `fetched_at`, `checked_at`, and `expires_at`. After the TTL, the last valid value becomes `stale`; a safe fetch/parse failure results in `unavailable` without deleting the last valid observation.
+- `REQ-5006`: The cache is bounded by entry count and TTL; fetch uses timeouts, prohibits credentials and redirect escape, bounds the response, and applies a per-provider rate limit.
+- `REQ-5007`: Fetching from and displaying a provider are permitted only when attribution, a terms URL, and an affirmative policy gate are stored. A denial disables the adapter fail-closed.
+- `REQ-5008`: External metadata always remains an observation and does not change `author_verified`, `component_verified`, `trust_lane`, lifecycle, install eligibility, or ranking without a separate specification.
+- `REQ-5009`: Fixtures and a shared conformance suite for each adapter cover the happy path, oversized/poisoned/malformed payloads, unknown fields, timeout/rate limit, `stale`/`unavailable`, and exact-coordinate mismatch.
 
-## Состояния и ошибки
+## States and errors
 
-Свежесть принимает `fresh`, `stale` или `unavailable`. Закрытый допуск политики,
-несовпадение точной координаты, истечение времени, ограничение частоты и ошибка
-разбора не создают связь и не удаляют последнее допустимое наблюдение. Отказ
-одной ссылки не меняет остальные.
+Freshness is `fresh`, `stale`, or `unavailable`. A closed policy gate, exact-coordinate mismatch, timeout, rate limiting, or parse failure does not create a link or delete the last valid observation. Failure of one reference does not affect the others.
 
-## Безопасность и приватность
+## Security and privacy
 
-Adapter не исполняет полученный content, не передаёт credentials и не копирует
-artifact bytes. Fetch и показ закрыты, пока не сохранены attribution, terms URL
-и разрешающий policy gate. Модель угроз принадлежит
-`docs/engineering/federated-source-threat-model.md`.
+An adapter does not execute received content, transmit credentials, or copy artifact bytes. Fetch and display remain fail-closed until attribution, a terms URL, and an affirmative policy gate are stored. The threat model belongs to `docs/engineering/federated-source-threat-model.md`.
 
-## Совместимость и миграция
+## Compatibility and migration
 
-Отсутствие enrichment и выключенный adapter дают прежнюю публичную проекцию.
-Откат скрывает additive поля без изменения паспортов, artifacts и coordinates.
+The absence of enrichment and a disabled adapter produce the previous public projection. Rollback hides the additive fields without changing passports, artifacts, or coordinates.
 
-## Критерии приёмки
+## Acceptance criteria
 
-| Требование | Исполнимое доказательство |
+| Requirement | Executable Evidence |
 |---|---|
-| `REQ-5001` | Contract и adapter tests подтверждают три provider и общий metadata projection. |
-| `REQ-5002` | Bounded parser tests отклоняют oversized, poisoned, malformed payload и unknown fields. |
-| `REQ-5003` | Tests подтверждают связь только по exact coordinate. |
-| `REQ-5004` | Tests подтверждают несколько независимых references и изолированный отказ. |
-| `REQ-5005` | Clock-controlled tests подтверждают TTL, stale и сохранение последнего допустимого значения. |
-| `REQ-5006` | Tests подтверждают bounded cache, timeouts, запрет credentials и per-provider rate limit. |
-| `REQ-5007` | Policy fixture запрещает fetch и projection без attribution/terms permission. |
-| `REQ-5008` | Regression tests доказывают неизменность verification, trust и install eligibility. |
-| `REQ-5009` | Общий conformance suite выполняется для fixtures всех трёх adapters. |
+| `REQ-5001` | Contract and adapter tests confirm the three providers and the common metadata projection. |
+| `REQ-5002` | Bounded parser tests reject oversized, poisoned, and malformed payloads and unknown fields. |
+| `REQ-5003` | Tests confirm linking only by exact coordinate. |
+| `REQ-5004` | Tests confirm multiple independent references and isolated failure. |
+| `REQ-5005` | Clock-controlled tests confirm TTL, `stale`, and retention of the last valid value. |
+| `REQ-5006` | Tests confirm a bounded cache, timeouts, prohibition of credentials, and a per-provider rate limit. |
+| `REQ-5007` | A policy fixture prohibits fetch and projection without attribution/terms permission. |
+| `REQ-5008` | Regression tests prove that verification, trust, and install eligibility remain unchanged. |
+| `REQ-5009` | The shared conformance suite runs against fixtures for all three adapters. |

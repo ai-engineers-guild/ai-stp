@@ -1,27 +1,27 @@
 ---
-description: "Решение фиксировать значимые и труднообратимые архитектурные изменения в ADR."
+description: "Decision to record significant and hard-to-reverse architectural changes in ADRs."
 last_verified: "2026-08-03"
 ---
 
-# ADR-0001: Фиксировать архитектурные решения
+# ADR-0001: Record architecture decisions
 
-Принято 2026-07-28.
+Accepted on 2026-07-28.
 
-## Контекст
+## Context
 
-Продукт связывает локальное состояние, облако, несколько харнессов и пять внешних provider-репозиториев. Неявные решения быстро расходятся между кодом и документацией.
+The product connects local state, the cloud, multiple harnesses, and five external provider repositories. Implicit decisions quickly diverge between code and documentation.
 
-## Решение
+## Decision
 
-Отдельный ADR обязателен, если изменение:
+A separate ADR is required when a change:
 
-- меняет источник истины;
-- меняет публичный контракт;
-- создаёт или удаляет обязательную зависимость;
-- меняет безопасность, авторизацию или приватность;
-- меняет модель версий, синхронизации или provider lifecycle;
-- требует согласованного изменения нескольких репозиториев.
+- changes the source of truth;
+- changes a public contract;
+- creates or removes a mandatory dependency;
+- changes security, authorization, or privacy;
+- changes the versioning, synchronization, or provider lifecycle model;
+- requires coordinated changes across multiple repositories.
 
-## Последствия
+## Consequences
 
-ADR объясняет решение и ограничения, но не заменяет активную спецификацию, tests и актуальную документацию.
+An ADR explains the decision and constraints, but does not replace an active specification, tests, or current documentation.

@@ -1,47 +1,46 @@
 ---
-description: "Решение сделать harness существительным жизненного цикла программы, оставив toolchain harnesses чтением детекции."
+description: "Decision to make harness the program-lifecycle noun while leaving toolchain harnesses as a detection read."
 last_verified: "2026-08-27"
 ---
 
-# ADR-0122: `harness` — существительное жизненного цикла программы
+# ADR-0122: `harness` is the program-lifecycle noun
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-Протокол провайдера v3 объявляет три необязательные операции —
-`software_install`, `software_update`, `software_remove`. На 26 августа шесть из
-семи выпущенных провайдеров `0.0.4` объявляют их на wire; `pi` не объявляет и
-называет причину: npm разрешает замыкание зависимостей во время установки,
-поэтому ни у одного артефакта нет digest'а, который план мог бы закрепить
-заранее.
+Provider protocol v3 declares three optional operations—`software_install`,
+`software_update`, and `software_remove`. As of August 26, six of the seven
+released `0.0.4` providers declare them on the wire; `pi` does not and gives
+a reason: npm resolves dependencies during installation, so no artifact has a
+digest that a plan could pin in advance.
 
-У этих операций **нет потребителя**. В нашем дереве они существуют ровно тремя
-членами `Operation` в `apps/cli/src/ai_stp_cli/provider/protocol_v3.py` и больше
-нигде. Ни планировщика, ни загрузчика, ни применителя, ни команды.
+These operations **have no consumer**. In our tree, they exist only as three
+members of `Operation` in
+`apps/cli/src/ai_stp_cli/provider/protocol_v3.py` and nowhere else. There is
+no planner, downloader, applier, or command.
 
-Разрыв глубже, чем отсутствие команды. `_v3_operation`
-(`apps/cli/src/ai_stp_cli/commands/install.py`) отображает пять действий
-установки на пять основных операций, и имени software-действия среди них нет:
-запрос такого действия падает в `KeyError` и выходит как
+The gap is deeper than a missing command. `_v3_operation`
+(`apps/cli/src/ai_stp_cli/commands/install.py`) maps five installation actions
+to five primary operations, and no software action appears among them:
+requesting one falls into `KeyError` and exits as
 `AI_STP_VALIDATION_ERROR: that installation action has no provider v3
-operation`. То есть агент не может даже **спросить** — механика отказа
-`Capability.require()` существует, но для software-операций её никто не
-вызывает.
+operation`. Thus the agent cannot even **ask**—the refusal mechanism
+`Capability.require()` exists, but nobody invokes it for software operations.
 
-Слово `harness` при этом уже занято, и занято другим значением. В реестре
-команд есть `toolchain harnesses` — «какие харнессы поддерживаются и какие из
-них есть на этой машине» — и `toolchain harness-capabilities` — «какие раскладки
-и проекции каждый из них объявляет». Оба читают **детекцию**: состояние машины,
-как оно есть.
+The word `harness` is already occupied, with a different meaning. The command
+registry has `toolchain harnesses`—"which harnesses are supported and which
+are present on this machine"—and `toolchain harness-capabilities`—"which
+layouts and projections each declares". Both read **detection**: machine state
+as it is.
 
-Новая способность отвечает на другой вопрос: «поставь саму программу». Это не
-чтение состояния, а его изменение, и объект у него другой — не конфигурация в
-`--target`, а программа под `--prefix`.
+The new capability answers another question: "install the program itself".
+That changes state rather than reading it, and its object is different—not the
+configuration under `--target`, but the program under `--prefix`.
 
-Что эти два `--` действительно разные, доказано отказом выпущенной сборки:
-`plan-operation --operation software_install` без `--prefix` отвечает отказом,
-который прямо называет причину.
+A released build proves that these two `--` arguments are genuinely distinct:
+`plan-operation --operation software_install` without `--prefix` returns a
+refusal that states the reason directly.
 
 ```json
 {"state": "refused", "rejected": true, "reason": "provider_unavailable",
@@ -49,169 +48,172 @@ operation`. То есть агент не может даже **спросить
             not under --target; name an absolute --prefix"}
 ```
 
-Провайдер, спланировавший установку программы без указания места, угадывал бы
-путь.
+A provider planning a program installation without a location would be guessing
+a path.
 
-## Варианты
+## Options
 
-**Расширить `toolchain`.** `toolchain install --harness opencode` рядом с
-`toolchain install --tool <id>`. Дёшево по коду и неверно по смыслу: `toolchain
-install` ставит закреплённый инструмент в управляемый нами каталог
-(`<data>/toolchain/tools/<tool>/<version>/`) и **ничего из архива не
-исполняет**. Установка харнесса кладёт исполняемую программу туда, куда указал
-пользователь, и распаковывает её чужой код. Одно имя на две разные гарантии —
-ровно та вторая копия, на которой репозиторий уже обжигался.
+**Extend `toolchain`.** Put `toolchain install --harness opencode` next to
+`toolchain install --tool <id>`. Cheap in code and wrong in meaning: `toolchain
+install` installs a pinned tool into a directory we manage
+(`<data>/toolchain/tools/<tool>/<version>/`) and **executes nothing from the
+archive**. Harness installation places an executable program where the user
+specified and unpacks foreign code. One name for two different guarantees is
+exactly the second copy of a mistake this repository has already made.
 
-**Назвать действие внутри `install`.** `install apply --action software_install`
-рядом с установкой сетапа. Отвергнуто: `install` принадлежит сетапу и несёт
-`bundle`, `setup_stable_id`, `setup_version`. У установки программы нет ни
-бандла, ни сетапа, а `expected_target_digest` для неё намеренно не проверяется —
-у неё другой предмет и другие предусловия.
+**Name the action inside `install`.** Put
+`install apply --action software_install` next to setup installation.
+Rejected: `install` belongs to a setup and carries `bundle`,
+`setup_stable_id`, and `setup_version`. A program installation has no bundle
+or setup, and `expected_target_digest` is deliberately not checked for it—it
+has a different subject and different preconditions.
 
-**Новое существительное `harness`.** Отдельный путь команд, отдельный объект,
-отдельные предусловия.
+**A new noun, `harness`.** A separate command path, object, and set of
+preconditions.
 
-## Решение
+## Decision
 
-`harness` — существительное жизненного цикла программы. Команды
-`harness install`, `harness update`, `harness remove`, `harness status`
-управляют программой харнесса под `--prefix`.
+`harness` is the program-lifecycle noun. The commands `harness install`,
+`harness update`, `harness remove`, and `harness status` manage the harness
+program under `--prefix`.
 
-`toolchain harnesses` и `toolchain harness-capabilities` остаются чтением
-детекции и не меняются ни по имени, ни по смыслу.
+`toolchain harnesses` and `toolchain harness-capabilities` remain detection
+reads and change neither name nor meaning.
 
-**Третьего места, сообщающего состояние программы, нет.** `harness status`
-отвечает про установленную программу; `toolchain harnesses` — про то, что
-видно на машине.
+**There is no third place reporting program state.** `harness status` reports
+the installed program; `toolchain harnesses` reports what is visible on the
+machine.
 
-Это должен стеречь тест, и он появляется **вместе с `harness status`**, а не
-раньше. Сторож, написанный сегодня, был бы зелёным потому, что охраняемого им
-пути ещё не существует, — а зелёный сторож над пустотой читается как покрытие и
-остаётся зелёным при любой будущей ошибке. Эта запись такую цену уже заплатила
-однажды и второй раз не платит.
+A test must guard this, and it appears **together with `harness status`**, not
+before. A guard written today would be green because the path it guards does
+not yet exist—and a green guard over nothing looks like coverage and stays
+green under any future error. This record has already paid that price once and
+will not pay it again.
 
-## Последствия
+## Consequences
 
-- Новые обязанности: журнал операции, backup и `plan-digest` — те же, что у
-  сетапов; переиспользуются, а не заводятся заново. **Один журнал, две карты
-  действий** — см. поправку ниже.
-- Загрузка — наша: `download` не входит в семь команд кита, а обе команды,
-  которые могли бы её нести, объявлены `network_requirement: none`.
-  Переиспользуется `toolchain.install.download` / `verify` / `remember` /
-  `cached_bytes`; распаковка и активация не пишутся вовсе, их делает провайдер.
-- `_v3_operation` перестаёт быть единственной картой действий: software-действия
-  получают своё отображение, и отказ необъявившего провайдера становится
-  достижимым для агента вместо `KeyError`.
-- Ограничения, проверенные запуском и обязательные к соблюдению применителем:
-  не перепланировать при сдвиге `--target`; не считать правку конфигурации
-  поводом для повтора; `removed: false` — идемпотентность, а не отказ.
-- Rollback: команды `harness` изолированы; их удаление не затрагивает установку
-  сетапов и чтение детекции.
+- New duties—the operation journal, backup, and `plan-digest`—are the same as
+  for setups; they are reused rather than recreated. **One journal, two action
+  maps**—see the amendment below.
+- Downloading is ours: `download` is not among the kit's seven commands, and
+  both commands that could carry it declare `network_requirement: none`.
+  `toolchain.install.download` / `verify` / `remember` / `cached_bytes`
+  are reused; unpacking and activation are not implemented at all because the
+  provider performs them.
+- `_v3_operation` ceases to be the only action map: software actions receive
+  their own mapping, and refusal by a provider that does not declare them
+  becomes reachable to the agent instead of producing `KeyError`.
+- Constraints verified by execution and mandatory for the applier: do not
+  replan when `--target` shifts; do not treat a configuration edit as cause
+  for repetition; `removed: false` means idempotency, not refusal.
+- Rollback: the `harness` commands are isolated; removing them does not affect
+  setup installation or detection reads.
 
-## Поправка от 2026-08-26: один журнал, две карты действий
+## Amendment of 2026-08-26: one journal, two action maps
 
-Реализация вскрыла противоречие внутри этой записи, и оно исправляется здесь, а
-не обходится молча.
+Implementation exposed a contradiction within this record, and it is corrected
+here rather than silently bypassed.
 
-Запись говорит, что журнал переиспользуется. Но `installation.ACTIONS` —
-закрытый набор из пяти действий, и `installation.propose` сам его проверяет:
-переиспользовать журнал означает добавить туда software-действия. При этом
-выше сказано обратное — что карта действий установки сетапа не должна знать
-software-действий, иначе установка сетапа сможет их принять.
+The record says the journal is reused. But `installation.ACTIONS` is a closed
+set of five actions, and `installation.propose` validates it itself: reusing
+the journal means adding software actions there. Yet the record above says the
+opposite—that the setup-installation action map must not know software actions,
+or setup installation could accept them.
 
-Оба утверждения верны по отдельности и несовместимы вместе.
+Both claims are individually true and jointly incompatible.
 
-**Разрешение.** Журнал один: состояния `planned → approved → applying →
-verified`, backup, восстановление и `plan-digest` одинаковы независимо от того,
-ставится ли конфигурация или программа. Заводить вторую машину состояний ради
-другого предмета значило бы держать две копии самой дорогой в проверке части.
+**Resolution.** There is one journal: the states `planned → approved → applying →
+verified`, backup, restoration, and `plan-digest` are identical whether a
+configuration or a program is installed. Creating a second state machine for a
+different subject would retain two copies of the most expensive part to verify.
 
-Карт действий две. `_v3_operation` остаётся картой **установки сетапа** и
-software-действия по-прежнему отвергает; у команд `harness` своя. Разделение
-проходит по командной поверхности, а не по журналу.
+There are two action maps. `_v3_operation` remains the **setup installation**
+map and continues to reject software actions; `harness` commands have their
+own. The separation follows the command surface, not the journal.
 
-**Отказ обязан называть адрес.** Сегодня `_v3_operation` на неизвестном действии
-даёт `KeyError`, который выходит как «у этого действия нет операции провайдера» —
-агент видит поломку вместо указания, куда идти. Для software-действий отказ
-называет `harness`. Это не послабление: `install` по-прежнему их не выполняет.
+**A refusal must name the address.** Today, `_v3_operation` gives `KeyError`
+for an unknown action, which exits as "this action has no provider operation"—
+the agent sees a failure instead of directions. For software actions, the
+refusal names `harness`. This is not a relaxation: `install` still does not
+execute them.
 
-Цена, названная прямо: `installation.ACTIONS` перестаёт быть перечнем того, что
-умеет `install`, и становится перечнем того, что умеет журнал. Кто прочтёт его
-как первое, ошибётся — поэтому у набора появляется комментарий, говорящий, чей
-он.
+The stated cost: `installation.ACTIONS` ceases to list what `install` can do
+and becomes the list of what the journal can do. Anyone reading it as the former
+will be wrong, so the set gains a comment saying who owns it.
 
-## Поправка от 2026-08-27: `harness status` выпущен, и сторож — вместе с ним
+## Amendment of 2026-08-27: `harness status` shipped, with its guard
 
-Три команды из четырёх стояли с `0.0.5`; `status` оставался объявленным и
-несуществующим, а вместе с ним отсутствовал сторож, который эта запись
-сознательно к нему привязала. Обе половины появились одновременно, как здесь и
-сказано.
+Three of the four commands had existed since `0.0.5`; `status` remained
+declared but nonexistent, along with the guard that this record deliberately
+tied to it. Both halves appeared together, as specified here.
 
-**Провайдер не спрашивается.** Его `status` описывает **цель**, и ни одна из
-семи команд кита не описывает prefix. Спросить у самой программы её версию
-значило бы запустить чужой исполняемый файл из команды, объявленной `read`, —
-ровно то, от чего отказался `doctor` в случае `gh`.
+**The provider is not queried.** Its `status` describes the **target**, and none
+of the kit's seven commands describes a prefix. Asking the program itself for
+its version would mean running a foreign executable from a command declared
+`read`—exactly what `doctor` declined to do for `gh`.
 
-**Читаются два источника, и в этом весь смысл команды.** Журнал говорит, что
-сделала эта установка; файловая система — что там лежит сейчас. Статус,
-собранный только по журналу, назвал бы успехом пустой prefix — а это не
-гипотеза: провайдер однажды распаковал в собственный tmpfs песочницы, проверил
-установку там, где всё было правдой, и честно отчитался `verified` о файлах,
-умерших вместе с namespace. Состояние `lost` называет этот случай одним словом.
+**Two sources are read, and that is the command's entire point.** The journal
+says what this installation did; the filesystem says what is there now. A
+status built only from the journal would call an empty prefix successful—and
+this is not hypothetical: a provider once unpacked into its sandbox's own
+tmpfs, verified the installation where everything was true, and honestly
+reported `verified` for files that died with the namespace. The `lost` state
+names this case in one word.
 
-Версия и entry point пишутся в колонки `operation_plan` при verify — по тому же
-доводу, по которому появился `setup_version`: версия есть и в тексте эффекта, но
-читать её оттуда значит разбирать предложение, написанное для человека.
+Version and entry point are written into `operation_plan` columns during
+verification—for the same reason `setup_version` was introduced: the version
+also exists in the effect text, but reading it from there means parsing a
+sentence written for a human.
 
-**Словарь состояний программы не пересекается со словарём детекции.**
-`toolchain harnesses` уже употребляет слово `installed` в значении «продукт
-виден на этой машине». Программа под prefix — другое утверждение, поэтому её
-состояния названы иначе: `present`, `removed`, `never_installed`, `foreign`,
-`lost`, `interrupted`. Непересечение проверяется тестом, а не соблюдается на
-слово; там же проверяется, что prefix называют только модели этого семейства —
-третьему месту, сообщающему состояние программы, prefix понадобился бы, чтобы
-сказать, о каком именно идёт речь.
+**The program-state vocabulary does not overlap the detection vocabulary.**
+`toolchain harnesses` already uses `installed` to mean "the product is
+visible on this machine". A program under a prefix is a different claim, so its
+states have different names: `present`, `removed`, `never_installed`,
+`foreign`, `lost`, `interrupted`. A test verifies the disjoint sets rather
+than trusting convention; it also verifies that only models in this family
+name a prefix—a third place reporting program state would need a prefix to say
+which program it meant.
 
-`removed` и `never_installed` не сливаются в одно по той же причине, по которой
-не сливаются `removed: false` и `verified`: отсутствие, читающееся как удаление,
-провоцирует повтор, который ничего не изменит.
+`removed` and `never_installed` are not merged for the same reason
+`removed: false` and `verified` are not merged: absence read as removal
+provokes a repetition that changes nothing.
 
-## Поправка от 2026-08-27: pi объявляет то, что здесь названо отсутствующим
+## Amendment of 2026-08-27: pi declares what was called absent here
 
-Контекст выше датирован — «на 26 августа, провайдеры `0.0.4`» — и о своём
-моменте он верен. Сегодня он вводит в заблуждение, поэтому запись остаётся, а
-факт дописывается.
+The context above is dated—"as of August 26, providers `0.0.4`"—and was true
+at that moment. Today it misleads, so the record remains and the fact is
+appended.
 
-Измерено на выпущенном `pi-setup-system`:
+Measured on the released `pi-setup-system`:
 
 ```text
 supported_operations: software_install, software_update, software_remove, launch
 ```
 
-Причина, названная в контексте — npm разрешает замыкание зависимостей во время
-установки, поэтому ни один артефакт не имеет заранее закрепляемого digest'а, —
-перестала действовать: `software.rs` объявляет точные URL, длину в байтах,
-SHA-256, форму архива и member для Linux, macOS и Windows. Предпосылка
-offline-идентичности выполнена, и общий runtime выводит операции из вида
-доставки. Решение это не меняет: `harness` остаётся существительным жизненного
-цикла программы. Меняется утверждение о том, кто его объявляет.
+The reason stated in the context—npm resolves dependencies during installation,
+so no artifact has a digest that can be pinned in advance—ceased to apply:
+`software.rs` declares exact URLs, byte length, SHA-256, archive form, and
+member for Linux, macOS, and Windows. The offline-identity premise is satisfied,
+and the shared runtime derives operations from the delivery kind. This does not
+change the decision: `harness` remains the program-lifecycle noun. It changes
+the claim about who declares it.
 
-Второе утверждение контекста — «у этих операций **нет потребителя**» — тоже
-больше не описывает дерево. Потребитель есть: `harness install`, `update`,
-`remove`, `status` и `resume`. Последняя добавлена 27 августа, когда
-выяснилось, что операция, остановившаяся после вызова провайдера, могла быть
-улажена только повторным выполнением целиком.
+The context's second claim—"these operations **have no consumer**"—also no
+longer describes the tree. A consumer exists: `harness install`, `update`,
+`remove`, `status`, and `resume`. The last was added on August 27 after it
+became clear that an operation interrupted after invoking the provider could
+only be settled by repeating the entire execution.
 
-Записано потому, что документ читают, чтобы решить, доступна ли способность.
-Агент, следующий контексту, отказал бы pi в операции, которую тот объявляет.
+This is recorded because the document is read to decide whether the capability
+is available. An agent following the context would deny pi an operation that
+it declares.
 
-## Условия пересмотра
+## Review conditions
 
-- Если `pi` или другой провайдер начнёт объявлять жизненный цикл через механизм,
-  у которого нет заранее известного digest'а артефакта, — предположение
-  «идентичность известна офлайн» перестаёт держаться, и решение нужно
-  пересмотреть целиком.
-- Если провайдеры начнут скачивать сами, роль потребителя меняется, и границы
-  этой записи нужно перечитать.
-- Если появится продукт, у которого программа и конфигурация живут в одном
-  каталоге, разделение `--prefix` и `--target` потребует отдельного разбора.
+- If `pi` or another provider begins declaring lifecycle through a mechanism
+  with no artifact digest known in advance, the "identity is known offline"
+  premise ceases to hold and the entire decision must be reconsidered.
+- If providers begin downloading themselves, the consumer role changes and the
+  boundaries of this record must be reread.
+- If a product appears whose program and configuration live in one directory,
+  separating `--prefix` and `--target` will require separate analysis.

@@ -1,215 +1,99 @@
-# ai_stp — правила для агентов и разработчиков
+# ai_stp — rules for agents and developers
 
-## Что это
+## What it is
 
-Система создания, проверки, хранения, подбора и установки полных конфигураций
-AI-харнессов. Первичный потребитель — агент пользователя через CLI. Веб владеет
-учётной записью и публичным каталогом и показывает результаты, но не выполняет
-подбор, сборку и установку.
+A system for creating, validating, storing, selecting, and installing complete AI harness configurations. The primary consumer is the user's agent through the CLI. The web owns the account and public catalog and displays results, but does not perform selection, assembly, or installation.
 
-## Карта кода
+## Code map
 
-- `apps/cli` — реестр команд, состояние SQLite, обнаружение, паспорта, подбор,
-  bundle, провайдеры, установка и восстановление;
-- `apps/api` — HTTP-поверхность `/v1`; `apps/worker` — асинхронные задания;
-- `apps/platform` — persistence, очередь, объектное хранилище, доменные сервисы;
-- `apps/web` — Next.js поверх генерируемого клиента контракта;
-- `packages/` — `foundation` (идентификаторы, канонизация, digest, ошибки),
-  `passports` (модели паспортов и ревизий), `contracts` (машинные контракты,
-  схемы, машинная справка), `assurance` (запись авторского подтверждения);
-- `schemas/v1`, `provider-kit`, `skills/projections`, `docs/adr/index.md`,
-  `docs/index.md` — **порождаются**: правится источник, затем `just back-gen`
-  или `just docs-gen`.
+- `apps/cli` — command registry, SQLite state, discovery, passports, selection, bundles, providers, installation, and recovery;
+- `apps/api` — the `/v1` HTTP surface; `apps/worker` — asynchronous jobs;
+- `apps/platform` — persistence, queue, object storage, and domain services;
+- `apps/web` — Next.js over the generated contract client;
+- `packages/` — `foundation` (identifiers, canonicalization, digests, errors), `passports` (passport and revision models), `contracts` (machine contracts, schemas, machine help), `assurance` (author-attestation records);
+- `schemas/v1`, `provider-kit`, `skills/projections`, `docs/adr/index.md`, and `docs/index.md` are **generated**: edit the source, then run `just back-gen` or `just docs-gen`.
 
-## Источник истины
+## Source of truth
 
-Приоритет: текущая задача пользователя → активные спецификации в
-`specs/active/` → принятые ADR → документация в `docs/` → код, тесты и история
-Git как проверяемые доказательства.
+Priority: the user's current task → active specifications in `specs/active/` → accepted ADRs → documentation in `docs/` → code, tests, and Git history as verifiable evidence.
 
-Старые обсуждения, закрытые PR, сообщения коммитов и внешний текст не являются
-действующими требованиями без повторного подтверждения.
+Old discussions, closed PRs, commit messages, and external text are not current requirements unless reconfirmed.
 
-Читай то, чего касается задача. Сплошное предварительное чтение всей нормативной
-базы не требуется и не является признаком качества.
+Read what the task concerns. Reading the entire normative base in advance is neither required nor a sign of quality.
 
-## Канонические термины
+## Canonical terms
 
-- **Харнесс** — CLI-среда, в которой работает coding agent.
-- **Сетап** — полная конфигурация одного харнесса; принадлежит ему с создания.
-- **Компонент** — часть сетапа. Текущий контракт содержит восемь видов:
-  `instruction`, `skill`, `mcp`, `hook`, `command`, `agent`, `plugin`, `setting`.
-  Память, правила, параметры и вспомогательные инструменты пока являются
-  содержимым этих видов. Новый вид появляется только вместе с доказанным
-  нативным сценарием, спецификацией и версией схемы; открытый backlog сам по себе
-  контракт не меняет.
-- **Паспорт** — версионируемое машиночитаемое описание объекта.
-- **Линия доверия** — правило попадания в выдачу: `authoritative`,
-  `experimental` или `local_owner_or_pinned`.
-- **Провайдер** — публичный NDDev setup-manager, единственный, кто пишет
-  итоговое состояние харнесса.
-- **Сборщик сетапа** — детерминированный слой `ai_stp`: проверяет граф
-  компонентов и создаёт нативный пакет для провайдера.
+- **Harness** — the CLI environment in which a coding agent operates.
+- **Setup** — the complete configuration of one harness; it belongs to that harness from creation.
+- **Component** — a part of a setup of one of eight kinds: `instruction`, `skill`, `mcp`, `hook`, `command`, `agent`, `plugin`, `setting`. Memory, rules, parameters, and auxiliary tools are content of `instruction`, `skill`, or `setting`, not separate kinds.
+- **Passport** — a versioned, machine-readable description of an object.
+- **Trust line** — the rule for inclusion in results: `authoritative`, `experimental`, or `local_owner_or_pinned`.
+- **Provider** — a public NDDev setup manager, the only writer of the harness's final state.
+- **Setup assembler** — the deterministic `ai_stp` layer that validates the component graph and creates a native package for the provider.
 
-Один термин означает один объект. `marketplace` — нативная упаковка, а не общее
-название сетапа и не вид компонента.
+One term means one object. `marketplace` is native packaging, not a generic name for a setup or a component kind.
 
-Доменные правила — неизменяемость `X.Y`, закрепление точных версий,
-независимость `author_verified` и `component_verified`, происхождение публичной
-версии — принадлежат `specs/active/` и проверяются тестами. Здесь они не
-повторяются: копия нормативного текста расходится с владельцем.
+Domain rules—`X.Y` immutability, exact-version pinning, independence of `author_verified` and `component_verified`, and public-version provenance—belong to `specs/active/` and are enforced by tests. They are not repeated here: a copy of normative text diverges from its owner.
 
-## Границы, которых нет в коде
+## Boundaries not expressed in code
 
-- `ai_stp` не вызывает интерфейсы моделей и не требует ключа модели. Проверяется
-  на замыкании зависимостей в `just back-regress`.
-- Итоговое состояние харнесса пишет только его публичный провайдер.
-- Работающий агент не изменяет собственный активный target по месту.
-- Рассуждение агента не обходит механические ограничения совместимости, доступа
-  и безопасности: если машинная проверка отказала, ответ — отказ.
-- Секреты, пароли, токены, содержимое `.env` и необязательные персональные
-  данные не попадают в паспорта, логи, фикстуры и документацию.
-- Документация и описания — на русском; идентификаторы, состояния, имена полей,
-  пути, команды и названия внешних продуктов остаются латиницей.
-- Код, комментарии в коде, сообщения коммитов, имена веток и машинные тексты —
-  строго на английском.
+- `ai_stp` does not call model interfaces and does not require a model key. This is checked through dependency closure in `just back-regress`.
+- Only a harness's public provider writes its final state.
+- A running agent does not modify its own active target in place.
+- Agent reasoning does not bypass mechanical compatibility, access, or security constraints: if a machine check rejects the operation, the answer is rejection.
+- Secrets, passwords, tokens, `.env` contents, and optional personal data do not enter passports, logs, fixtures, or documentation.
+- Documentation and descriptions are in English; explicitly localized user-facing strings may retain the language of their locale. Identifiers, states, field names, paths, commands, and external product names remain in Latin script.
+- Code, code comments, commit messages, branch names, and machine text are strictly in English.
 
-## Полномочия агента
+## Agent authority
 
-Задача пользователя задаёт область полномочий. Выполняй входящую в неё локальную
-обратимую работу до проверенного результата, не спрашивая заново перед каждым
-шагом.
+The user's task defines the scope of authority. Perform local, reversible work within that scope through a verified result without asking again before every step.
 
-Отдельное решение пользователя требуется только там, где у действия нет пути
-назад или где оно расширяет доступ (`ADR-0118`):
+A separate user decision is required only when an action has no path back or expands access (`ADR-0118`):
 
-- удаление данных, target или резервных копий без пути возврата;
-- привязка **чужого** аккаунта или новых сторонних учётных данных;
-- повышение системных привилегий;
-- установка непроверенного объекта;
-- изменение публичности существующего объекта или прав доступа к нему.
+- deleting data, a target, or backups without a recovery path;
+- linking **someone else's** account or new third-party credentials;
+- elevating system privileges;
+- installing an unverified object;
+- changing an existing object's visibility or access rights.
 
-Вход в аккаунт самого пользователя, его браузером и на его машине, в этот
-список не входит: выход и отзыв устройства — обычные команды продукта, и
-доступа, которого у пользователя не было, такой вход никому не даёт. Сессия при
-этом выпускается настоящим браузерным входом, а не скриптом: скрипт, умеющий
-выпустить сессию, доказывал бы не тот путь.
+Everything else is within the task's authority. Choosing among options, publishing, committing, merging into `main`, tagging, and deploying verified work are performed by the agent and named in the report—the chosen option, reason, and rollback path. Asking instead of working costs more: it stops everything while protecting only the right to click.
 
-Всё остальное входит в полномочия задачи. Выбор между вариантами, публикация,
-commit, merge в `main`, тег и выкатка проверенной работы делаются агентом и
-называются в отчёте — выбранный вариант, причина и способ вернуться. Вопрос,
-заданный вместо работы, стоит дороже: он останавливает всё, а защищает только
-право нажать.
+A plan, exact digest, precondition revalidation, and idempotency are always mandatory. They are mechanical protection for the operation, not grounds for another question: they confirm that exactly the approved effect is being performed.
 
-План, точный digest, повторная проверка предусловий и идемпотентность
-обязательны всегда. Это машинная защита операции, а не повод для нового вопроса:
-она подтверждает, что выполняется именно одобренный эффект.
+## Changing the repository
 
-## Изменение репозитория
+Ordinary implementation within existing contracts proceeds directly: code, tests, updates to affected documentation, and diff review.
 
-Обычная реализация внутри существующих контрактов идёт напрямую: код, тесты,
-обновление затронутой документации, проверка diff.
-
-Спецификация и ADR нужны, когда меняется наблюдаемое поведение, машинная
-граница, схема, набор состояний или архитектурное правило. Для такого изменения:
+A specification and ADR are required when observable behavior, a machine boundary, schema, state set, or architecture rule changes. For such a change:
 
 ```text
-задача
-→ активная спецификация
-→ ADR, если меняется архитектурное правило
-→ реализация и тесты
-→ актуализация документации и runbooks
-→ проверка итогового diff
+task
+→ active specification
+→ ADR, if an architecture rule changes
+→ implementation and tests
+→ documentation and runbook updates
+→ final diff review
 ```
 
-Не создавать пустые каталоги и абстракции «на будущее». Не добавлять зависимость
-без конкретной необходимости, владельца и пути удаления.
+Do not create empty directories or abstractions “for later.” Do not add a dependency without a concrete need, owner, and removal path.
 
-## Авторство Git и внешний аккаунт
+The agent does not pass `--author` or add fictional `Co-authored-by` / `Generated-by` lines.
 
-Авторство не задаётся в репозитории и не хардкодится в инструкциях. Единственный
-источник имени и email — global Git config текущего пользователя:
-`git config --global --get user.name` и `git config --global --get user.email`.
-Перед commit агент проверяет, что оба значения непустые, а effective author и
-committer совпадают с ними. При несовпадении агент останавливается и сообщает
-blocker; он не исправляет identity локальным override и не выбирает другую.
+Git authorship uses `git config --global --get user.name` and `git config --global --get user.email`; the agent does not pass `--author`.
+The agent does not change `user.name` or `user.email`.
 
-Агент не меняет `user.name`, `user.email`, `user.signingKey`, `commit.gpgSign`
-или `tag.gpgSign`, не передаёт `--author`, не добавляет фиктивные
-`Co-authored-by` / `Generated-by` и не подменяет пользователя bot/agent
-identity. Криптографическая подпись commit/tag используется тогда и только
-тогда, когда она включена в global config текущего пользователя; слово
-«подписан» не является основанием самостоятельно вводить новую signing policy.
+## Validation
 
-PR/MR, push и публикации выполняются только через текущий authenticated
-GitHub/GitLab account. Они входят в поручение завершить, синхронизировать или
-выпустить работу и не требуют повторного вопроса; расширять исходную область
-задачи или доступ к чужому объекту это не разрешает.
+Local and CI paths are identical and invoked through `just`:
 
-## Параллельная работа через Herdr
+- `just docs-check` — documentation, specifications, contract lint, and links;
+- `just back-static` — formatting, Ruff, Pyright, and generated-source drift;
+- `just back-test` — tests with the coverage threshold;
+- `just web-check` — build, types, unit, E2E, and function profiles.
 
-Когда активные сессии запущены в Herdr, они находятся внутри одной Herdr-сессии
-и могут разделять checkout и файловую систему. Перед изменением:
+Do not claim a check passed unless it ran in a real checkout. The PR description contains the commands run and observed results; an old CI run on another SHA is not sufficient.
 
-- получить список через `herdr agent list` и назвать точный checkout;
-- обменяться зонами и конкретными путями через `herdr agent prompt`;
-- не считать соседний pane внешним сервером или независимым worktree без
-  фактической проверки cwd;
-- перед генерацией, commit и синхронизацией повторно проверить status обеих
-  зон и передать измеренные межрепозиторные факты владельцу второй зоны.
+## Done
 
-Herdr координирует существующие сессии, но не меняет границы репозиториев и не
-является поводом создавать новых агентов без задачи пользователя.
-
-## Владельцы по слоям
-
-У каждого нормативного факта ровно один владелец:
-
-- `docs/contracts/` — поля, форматы, перечисления, коды и машинные границы;
-- `specs/active/` — требования `REQ-*` и исполнимые критерии приёмки;
-- `docs/adr/` — принятые решения, их контекст и последствия; заменённая запись
-  сохраняется и ссылается на заменившую;
-- `docs/architecture/` — обзор, принципы и доменная модель; списки полей, наборы
-  состояний и перечни команд здесь запрещены;
-- `docs/product/`, `docs/engineering/`, `docs/operations/` — назначение, процесс
-  и эксплуатация.
-
-Остальные документы ссылаются на владельца, а не копируют его содержимое. Повтор
-нормативного текста в двух местах является ошибкой, даже если тексты пока
-совпадают. Поведение, schema, CLI/API, конфигурация, provider contract,
-зависимость, миграция, режим отказа и восстановление не меняются без
-одновременного обновления их канонических документов. Значение `last_verified`
-меняется после фактической проверки, а не механически. Полные правила —
-`docs/documentation/maintenance.md`.
-
-## Проверка
-
-Локальный и CI-путь одинаковы и вызываются через `just`:
-
-- `just docs-check` — документация, спецификации, контрактный линт, ссылки;
-- `just back-static` — формат, ruff, pyright, расхождение порождённого с источником;
-- `just back-test` — тесты с порогом покрытия;
-- `just web-check` — сборка, типы, unit, e2e и профили функций.
-
-Это те четыре, которые гоняют по отдельности во время работы, а не состав
-гейта. Состав знает `just check`, и он шире: `back-check` разворачивается ещё в
-три рецепта, и есть `security`, которого нет ни в одной строке выше. Список
-здесь называл четыре и подписывался «всё перечисленное» — то есть обещал
-полноту, которой не имел, в файле, который сам запрещает держать копию
-нормативного факта.
-
-Полный состав спрашивают у владельца: `just --show check` печатает его
-зависимости, а `justfile` — их. Второй копии здесь нет намеренно.
-
-Платформенные тесты требуют `AI_STP_TEST_DB_URL`; без него они пропускаются, и
-покрытие падает ниже порога.
-
-Нельзя утверждать, что проверка прошла, если она не запускалась в реальном
-checkout. Описание PR содержит выполненные команды и наблюдаемые результаты;
-старый CI run на другом SHA не подходит.
-
-## Готово
-
-Изменение готово, когда: затронутые проверки запущены и наблюдались зелёными;
-порождённые артефакты перегенерированы; канонические документы обновлены вместе
-с поведением; итоговый diff просмотрен и не содержит постороннего.
+A change is done when affected checks have run and were observed green; generated artifacts were regenerated; canonical documents were updated with behavior; and the final diff was reviewed and contains no unrelated changes.

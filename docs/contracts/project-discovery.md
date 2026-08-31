@@ -1,34 +1,34 @@
 ---
-description: "Машинная форма полного discovery проектов в явно названной области."
+description: "Machine form of complete project discovery within an explicitly named scope."
 last_verified: "2026-08-09"
 ---
 
-# Discovery проектов
+# Project discovery
 
-Владелец требований — `SPEC-004`, решение обхода — `ADR-0053`.
+The requirements owner is `SPEC-004`; the traversal decision is `ADR-0053`.
 
-`project discover --root <path> --json` является read-командой. Она не создаёт
-registry, Project или паспорт и возвращает:
+`project discover --root <path> --json` is a read command. It does not create a
+registry, Project, or passport and returns:
 
-- `discovery_root` — явно выбранная область с редактированным home prefix;
-- `complete` — доказательство, что ни access error, ни entry limit не оборвали обход;
-- `candidates` — детерминированно отсортированные уникальные корни;
-- `diagnostics` — наблюдаемые причины каждого пропуска.
+- `discovery_root` — the explicitly selected scope with a redacted home prefix;
+- `complete` — proof that neither an access error nor an entry limit interrupted traversal;
+- `candidates` — deterministically sorted unique roots;
+- `diagnostics` — observed reasons for every omission.
 
-Candidate содержит `root`, `kind`, `state`, `markers` и `reason`. `kind` принимает
-`project` и `nested_repository`; `state` — `new` и `established`; marker `git`
-покрывает как каталог `.git`, так и worktree-файл `.git`. Manifest package внутри
-monorepo не создаёт Project, но отдельный Git marker всегда показывается.
+A candidate contains `root`, `kind`, `state`, `markers`, and `reason`. `kind` accepts
+`project` and `nested_repository`; `state` accepts `new` and `established`; the `git`
+marker covers both a `.git` directory and a `.git` worktree file. A package manifest
+inside a monorepo does not create a Project, but a separate Git marker is always shown.
 
-Diagnostic содержит редактированный `path`, закрытый `code` и безопасный `reason`:
+A diagnostic contains a redacted `path`, closed `code`, and safe `reason`:
 
-| Code | Смысл | Влияет на `complete` |
+| Code | Meaning | Affects `complete` |
 |---|---|---|
-| `excluded` | каталог исключён политикой vendor/VCS/cache/build | нет |
-| `symlink` | symlink не пройден | нет |
-| `entry_limit` | каталог содержит больше разрешённого числа записей | да |
-| `unreadable` | каталог или путь невозможно проверить | да |
+| `excluded` | the directory is excluded by vendor/VCS/cache/build policy | no |
+| `symlink` | the symlink was not traversed | no |
+| `entry_limit` | the directory contains more than the permitted number of entries | yes |
+| `unreadable` | the directory or path cannot be checked | yes |
 
-`complete=false` запрещает агенту называть список исчерпывающим. Агент показывает
-diagnostics и предлагает сузить root или исправить доступ, затем повторяет read.
-Ни один diagnostic не разрешает автоматически зарегистрировать найденный root.
+`complete=false` prohibits the agent from calling the list exhaustive. The agent shows
+diagnostics and suggests narrowing the root or fixing access, then repeats the read.
+No diagnostic authorizes automatic registration of a discovered root.

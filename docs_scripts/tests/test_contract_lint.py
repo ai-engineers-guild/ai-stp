@@ -71,23 +71,23 @@ def validation_policy() -> str:
         "# Политика проверок\n\n"
         "| Вид | Проверки |\n|---|---|\n" + rows + "\n\n"
         "| Класс | Проверки |\n|---|---|\n" + transports + "\n\n"
-        "## Пригодность к установке\n\n"
-        "Версия без актуального доказательства блокируется для новых установок и обновлений.\n\n"
-        "## Авторское подтверждение\n\n"
+        "## Installation eligibility\n\n"
+        "A version without current evidence is blocked for new installations and updates.\n\n"
+        "## Author attestation\n\n"
         "Запись привязана к точному хэшу и версии политики.\n"
     )
 
 
 VISION_CONTRACT_FIXTURES = {
-    "docs/contracts/device-passport.md": "Паспорта устройств не объединяются между устройствами.",
+    "docs/contracts/device-passport.md": "Full device passports are not merged.",
     "docs/contracts/unverified-consent.md": (
         "Области `publisher` и `object_major` выбирает пользователь."
     ),
     "docs/contracts/access-grants-and-forks.md": (
-        "Неизменённый клон не публикуется под новым именем."
+        "An unchanged clone is not published under a new name."
     ),
-    "docs/contracts/report-case.md": "Публичный issue из жалобы не создаётся автоматически.",
-    "docs/contracts/selection-proposal.md": "Подтверждение фиксирует версию атомарно.",
+    "docs/contracts/report-case.md": "A public issue is not created automatically from a report.",
+    "docs/contracts/selection-proposal.md": "Confirmation is atomic.",
 }
 
 
@@ -201,6 +201,17 @@ class ContractLintTests(unittest.TestCase):
         self.write(
             "docs/contracts/x.md",
             self.doc("Ссылка на версию компонента содержит необязательный `variant_id`."),
+        )
+        self.assertEqual(self.codes(), set())
+
+    def test_english_prohibition_wording_passes(self) -> None:
+        self.write(
+            "docs/contracts/x.md",
+            self.doc(
+                "A setup has no `variant_id`.\n\n"
+                "The `inferred` origin is not used.\n\n"
+                "The `search.include_unverified` key has been removed."
+            ),
         )
         self.assertEqual(self.codes(), set())
 
@@ -398,10 +409,10 @@ class ContractLintTests(unittest.TestCase):
         self.write(
             "docs/contracts/validation-policy.md",
             validation_policy()
-            .replace("## Пригодность к установке\n\n", "")
+            .replace("## Installation eligibility\n\n", "")
             .replace(
-                "Версия без актуального доказательства блокируется "
-                "для новых установок и обновлений.\n\n",
+                "A version without current evidence is blocked "
+                "for new installations and updates.\n\n",
                 "",
             ),
         )
@@ -410,7 +421,7 @@ class ContractLintTests(unittest.TestCase):
     def test_missing_attestation_marker_fails(self) -> None:
         self.write(
             "docs/contracts/validation-policy.md",
-            validation_policy().replace("## Авторское подтверждение", "## Прочее"),
+            validation_policy().replace("## Author attestation", "## Other"),
         )
         self.assertIn("CT061", self.codes())
 

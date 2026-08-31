@@ -1,111 +1,112 @@
 ---
-description: "Runbook: platform safety-scan для publication validate."
+description: "Runbook: platform safety scan for publication validation."
 last_verified: "2026-08-25"
 ---
 
-# Runbook: platform safety-scan
+# Runbook: platform safety scan
 
-Серверный набор проверок безопасности на шаге публикации `validate`
-(issues #268 / #270 / #281). Источник evidence: `platform_safety_scan`.
-Версия политики: `safety-2`.
+The server-side security check set runs during publication `validate`
+(issues #268 / #270 / #281). Evidence source: `platform_safety_scan`.
+Policy version: `safety-2`.
 
-## Образ worker и внешние CLI
+## Worker image and external CLIs
 
-В dev и prod compose публикационный worker собирается из
-`Dockerfile.worker-safety` (target `worker-safety`) с переменными:
+In dev and prod compose, the publication worker is built from
+`Dockerfile.worker-safety` (target `worker-safety`) with:
 
 - `AI_STP_SAFETY_EXTERNAL_CLI=1`
 - volume `osv_offline` → `/var/lib/ai_stp/osv`
-- `AI_STP_OSV_OFFLINE_DIR` и `OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY` (один путь;
-  osv-scanner читает offline packs только из второго)
+- `AI_STP_OSV_OFFLINE_DIR` and `OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY` (one path;
+  osv-scanner reads offline packs from the second variable)
 - `AI_STP_OSV_MAX_AGE_HOURS`
 
-Сервисы API и migrate/seed остаются на target `worker`/`api` без бинарников
-сканеров.
+The API and migrate/seed services remain on the `worker`/`api` targets without
+scanner binaries.
 
-## Что получает движок скиллов
+## What the skill engine receives
 
-`skill-scanner` загружает **пакет скилла** — каталог, в котором
-лежит `SKILL.md`, — а не корень артефакта. Артефакт `ai-stp-component-tree/1`
-распаковывается в `component.json` и `files/`, поэтому корень пакетом не
-является: `skill-scanner` отвечает `Error loading skill: SKILL.md not found`,
-выходит с кодом 1 и не печатает отчёт.
+`skill-scanner` loads a **skill package**—a directory containing `SKILL.md`—not the
+artifact root. The `ai-stp-component-tree/1` artifact unpacks into `component.json`
+and `files/`, so its root is not a package: `skill-scanner` returns
+`Error loading skill: SKILL.md not found`, exits with code 1, and prints no report.
 
-Гейт передавал именно корень и читал этот отказ как находку «сканер сообщил о
-рисках». На корпусе это отклонило 96 компонентов из 103 за содержимое, которого
-никто не читал, и заблокировало все сетапы, их закрепляющие. Теперь каждый
-движок получает по каталогу на найденный `SKILL.md`; `skill_packages` в
-`detail` говорит, сколько их было. Ноль означает, что загружать было нечего —
-например, у компонента вида `agent` — и движки не запускались вовсе.
+The gate passed that root and interpreted the failure as a finding that the scanner
+had reported risks. On the corpus, this rejected 96 of 103 components for content
+that nobody had read and blocked every setup pinning them. Each engine now receives
+one directory for each discovered `SKILL.md`; `skill_packages` in `detail` reports
+how many there were. Zero means there was nothing to load—for example, for an
+`agent` component—and the engines are not started at all.
 
-Отдельно: `skill-scanner` требует во frontmatter `name` и `description`.
-`SKILL.md` без них не загружается, и это тоже `degraded` с причиной, а не
-находка.
+Separately, `skill-scanner` requires `name` and `description` in frontmatter. A
+`SKILL.md` without them does not load; that is also `degraded` with a reason, not a
+finding.
 
-## Лимит времени одной проверки
+## Per-check time limit
 
-Сколько отведено конкретной проверке, решает её `timeout_seconds` в
-`safety/policy.py`. `safety/adapters/_cli.py` держит потолок
-`MAX_TIMEOUT_SECONDS` — защиту от неверного аргумента, а не вторую политику;
-тест запрещает объявить больше потолка. Весь набор дополнительно ограничен
-собственным бюджетом в `safety/orchestrator.py`.
+The time allocated to a particular check is set by its `timeout_seconds` in
+`safety/policy.py`. `safety/adapters/_cli.py` keeps a `MAX_TIMEOUT_SECONDS` ceiling
+as protection against an invalid argument, not as a second policy; a test forbids
+declaring more than the ceiling. The whole set also has its own budget in
+`safety/orchestrator.py`.
 
-Раньше потолок был 25 секунд молча, при объявленных 30 и 60. Разницу никто не
-сообщал, поэтому повышение лимита ничего не меняло, а убитый по времени сканер
-записывался как находка: объект отклонялся за опасное содержимое, которого
-никто не видел. Проверка, не успевшая закончиться, теперь `degraded` и называет
-причину.
+Previously the ceiling was silently 25 seconds while checks declared 30 and 60.
+Because nobody reported the difference, increasing the limit changed nothing, and
+a scanner killed by the timeout was recorded as a finding: an object was rejected
+for dangerous content nobody had seen. A check that does not finish is now
+`degraded` and names the reason.
 
-Ручная сборка:
+Manual build:
 
 ```text
 docker build -f Dockerfile.worker-safety --target worker-safety -t ai-stp-worker-safety .
 ```
 
-Пины версий лежат в `scripts/safety/versions.env`; установка — в
-`scripts/safety/install_scanners.sh`. Образ включает:
+Version pins are in `scripts/safety/versions.env`; installation is in
+`scripts/safety/install_scanners.sh`. The image includes:
 
-| Инструмент | Роль |
+| Tool | Role |
 |------|------|
-| gitleaks | секреты (вторично к in-proc heuristic) |
-| opengrep | SAST с vendored rules в `safety/policy_pack/opengrep/` |
-| shellcheck | shell-сценарии |
+| gitleaks | secrets (secondary to the in-process heuristic) |
+| opengrep | SAST with vendored rules in `safety/policy_pack/opengrep/` |
+| shellcheck | shell scripts |
 | bandit | Python SAST |
 | pip-audit | Python SCA |
 | gosec | Go SAST |
-| govulncheck | Go SCA (обязателен в образе) |
-| cargo audit | Rust SCA (если на хосте есть cargo) |
-| eslint | JS/TS SAST (по наличию) |
+| govulncheck | Go SCA (required in the image) |
+| cargo audit | Rust SCA (when cargo is available on the host) |
+| eslint | JS/TS SAST (when available) |
 | npm audit | JS SCA |
 | cargo deny | Rust policy (strict) |
-| osv-scanner | SCA (`--offline`, когда задан `AI_STP_OSV_OFFLINE_DIR`) |
-| pdf in-proc | проверка `document_pdf` для /JavaScript /Launch и т.п. |
-| clamscan | malware (профиль strict) |
-| yara | malware IOC pack (strict; in-proc marker всегда) |
-| skill-scanner | skill static + `--use-behavioral` data-flow (Cisco `cisco-ai-skill-scanner`, обязателен вместе с независимыми правилами платформы) |
-| bwrap | Linux network namespace для дочерних external CLI |
+| osv-scanner | SCA (`--offline` when `AI_STP_OSV_OFFLINE_DIR` is set) |
+| PDF in-process | `document_pdf` checks for /JavaScript, /Launch, and similar content |
+| clamscan | malware (strict profile) |
+| yara | malware IOC pack (strict; in-process marker always) |
+| skill-scanner | skill static + `--use-behavioral` data flow (Cisco `cisco-ai-skill-scanner`, required together with independent platform rules) |
+| bwrap | Linux network namespace for child external CLIs |
 
-Без флага `AI_STP_SAFETY_EXTERNAL_CLI` по-прежнему работают in-proc адаптеры
-(denylist, secrets heuristic, MCP/hook static, PI/stego, owned skill patterns,
-malware test marker), а также offline `network_intent` и bounded decoding
-обфускации (не более двух слоёв, 32 кандидатов и 64 KiB на кандидат).
+Without `AI_STP_SAFETY_EXTERNAL_CLI`, in-process adapters still run (denylist,
+secrets heuristic, MCP/hook static checks, PI/stego, owned skill patterns, and the
+malware test marker), as well as offline `network_intent` and bounded decoding of
+obfuscation (no more than two layers, 32 candidates, and 64 KiB per candidate).
 
-## Изоляция (sandbox)
+## Isolation (sandbox)
 
-- Переменная: `AI_STP_SAFETY_SANDBOX=auto|off` (по умолчанию `auto`).
-- На Linux с рабочим `bwrap` (unprivileged user namespaces) argv CLI
-  оборачивается `--unshare-net` и RW bind каталога workdir скана.
-- Если `bwrap` отсутствует или не создаёт namespaces (часто на Docker Desktop
-  по умолчанию), режим падает в env-only deny: `AI_STP_SAFETY_NETWORK=deny`,
-  proxy-переменные очищены. Детали probe — в `doctor_tools()` / `sandbox_status()`.
-- Сетевая политика контейнера остаётся основным контролем egress; `bwrap` —
-  дополнительный слой защиты.
-- Жёсткое включение namespaces на Docker Desktop: поддержка kernel userns и
-  non-default security profile; production Linux workers обычно работают с `auto`.
+- Variable: `AI_STP_SAFETY_SANDBOX=auto|off` (default `auto`).
+- On Linux with working `bwrap` (unprivileged user namespaces), CLI argv is wrapped
+  with `--unshare-net` and an RW bind of the scan workdir.
+- If `bwrap` is missing or cannot create namespaces (often the Docker Desktop
+  default), the mode falls back to env-only deny:
+  `AI_STP_SAFETY_NETWORK=deny`, with proxy variables cleared. Probe details are in
+  `doctor_tools()` / `sandbox_status()`.
+- The container network policy remains the primary egress control; `bwrap` is an
+  additional protection layer.
+- Forcibly enabling namespaces on Docker Desktop requires kernel user namespaces
+  and a non-default security profile; production Linux workers usually run with
+  `auto`.
 
-## Обновление offline баз
+## Updating offline databases
 
-Offline-база OSV (compose volume `osv_offline`):
+Offline OSV database (compose volume `osv_offline`):
 
 ```text
 export AI_STP_OSV_OFFLINE_DIR=/var/lib/ai_stp/osv
@@ -113,146 +114,146 @@ export OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY=/var/lib/ai_stp/osv
 /opt/ai_stp/scripts/safety/refresh_osv_db.sh
 ```
 
-- Скрипт выставляет `OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY=$DEST`, чтобы packs
-  легли на volume (`{dir}/osv-scanner/{ecosystem}/all.zip`).
-- Production compose по умолчанию загружает только поддержанные safety policy
-  экосистемы `PyPI,npm,Go,crates.io`; расширение задаётся через
-  `AI_STP_OSV_ECOSYSTEMS` вместе с поддержкой нового package manifest.
-- Не пишет `.ai_stp_osv_refreshed_at`, если zip packs не появились (без ложной
-  свежести).
-- Ежедневный cron на хосте или job, который пишет в shared volume.
-- Причины doctor: `not_configured`, `directory_missing`, `no_files`, `no_stamp`,
+- The script sets `OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY=$DEST` so packs land on the
+  volume (`{dir}/osv-scanner/{ecosystem}/all.zip`).
+- Production compose downloads only the ecosystems supported by the safety policy
+  by default: `PyPI,npm,Go,crates.io`. Expansion requires
+  `AI_STP_OSV_ECOSYSTEMS` and support for the new package manifest.
+- It does not write `.ai_stp_osv_refreshed_at` when no ZIP packs appeared, avoiding
+  false freshness.
+- Use a daily host cron or a job that writes to the shared volume.
+- Doctor reasons: `not_configured`, `directory_missing`, `no_files`, `no_stamp`,
   `stale`, `ok`.
-- SCA-адаптер: нет packs → `not_run` / `offline_db_missing` (не `tool_missing`).
-- Возраст: `AI_STP_OSV_MAX_AGE_HOURS` (по умолчанию 36). Опциональный hard gate:
-  `AI_STP_OSV_REQUIRE_FRESH=1` (API readiness остаётся optional; для worker-only
+- SCA adapter: no packs → `not_run` / `offline_db_missing` (not `tool_missing`).
+- Age: `AI_STP_OSV_MAX_AGE_HOURS` (default 36). Optional hard gate:
+  `AI_STP_OSV_REQUIRE_FRESH=1` (API readiness remains optional; for worker-only
   probes).
-- Подписи ClamAV обновляет отдельный `clamav-refresh` в shared read-only для
-  worker volume; worker стартует только после появления непустой `.cvd`/`.cld`.
+- A separate `clamav-refresh` updates ClamAV signatures in shared read-only worker
+  volume; the worker starts only after a non-empty `.cvd`/`.cld` appears.
 
-## Аутентификация хранилища
+## Storage authentication
 
-- `RUSTFS_ACCESS_KEY` / `RUSTFS_SECRET_KEY` должны совпадать с
-  `AI_STP_STORAGE_ACCESS_KEY_ID` / `AI_STP_STORAGE_SECRET_ACCESS_KEY` при первом
-  старте volume RustFS.
+- `RUSTFS_ACCESS_KEY` / `RUSTFS_SECRET_KEY` must match
+  `AI_STP_STORAGE_ACCESS_KEY_ID` / `AI_STP_STORAGE_SECRET_ACCESS_KEY` on the first
+  RustFS volume startup.
 - Compose healthcheck: `curl -sf http://127.0.0.1:9000/minio/health/live`.
-- API и worker: `depends_on: rustfs (service_healthy)`.
+- API and worker: `depends_on: rustfs (service_healthy)`.
 
-## Честность checks summary
+## Honest checks summary
 
-`build_checks_summary` — статусы:
+`build_checks_summary` statuses:
 
-| status | смысл |
+| status | meaning |
 |--------|---------|
-| `pending` | обязательная проверка ещё `not_run` / `degraded` / `running` |
-| `incomplete` | optional engines в плане, но missing (`not_run`); percent учитывает все запланированные проверки |
-| `available` | coverage complete; percent 0–100 по passed/failed/warning |
-| `empty` | нет bindings |
+| `pending` | a mandatory check is still `not_run` / `degraded` / `running` |
+| `incomplete` | optional engines are planned but missing (`not_run`); percent includes all planned checks |
+| `available` | coverage is complete; percent is 0–100 over passed/failed/warning |
+| `empty` | no bindings |
 
-Поля: `coverage_complete`, `not_run`, `checks_passed_percent` (доля `passed`
-среди всех запланированных проверок кроме `skipped` и `not_applicable`).
+Fields: `coverage_complete`, `not_run`, `checks_passed_percent` (the share of
+`passed` among all planned checks except `skipped` and `not_applicable`).
 
-## Пины setup
+## Setup pins
 
-Проверка setup читает `checks_summary` каждого pin из `components[]` в
-`catalog_metadata` и запускает `setup_pin_aggregate` (без повторного скана
-объединённого дерева). Отсутствующий или проваленный обязательный pin валит
-gate setup.
+Setup checking reads each pin's `checks_summary` from `components[]` in
+`catalog_metadata` and runs `setup_pin_aggregate` without rescanning the merged
+tree. A missing or failed mandatory pin fails the setup gate.
 
-## Диагностика и метрики
+## Diagnostics and metrics
 
 ```text
 python -c "from ai_stp_platform.safety import doctor_tools, safety_diagnostics; import json; print(json.dumps(safety_diagnostics(), indent=2, default=str))"
 ```
 
-Счётчики в процессе (structlog + snapshot, без зависимости Prometheus):
+Process counters (structlog plus snapshot, with no Prometheus dependency):
 
 - `safety_scan_total`, `safety_scan_cache_hit_total`
-- `safety_scan_duration_ms_*` включая buckets и p50/p95/p99
+- `safety_scan_duration_ms_*` including buckets and p50/p95/p99
 - `safety_check_total`, `safety_check_result_total`, `safety_check_result_by_id_total`
-- `safety_check_duration_ms_*` по `check_id`
-- `safety_finding_total` по `family:severity`
+- `safety_check_duration_ms_*` by `check_id`
+- `safety_finding_total` by `family:severity`
 - `safety_cli_timeout_total`, `safety_cli_missing_total`
 - `safety_sandbox_mode_total`
 - `safety_queue_claim_*`, `safety_queue_wait_ms_*`, `safety_queue_job_*`,
   `safety_queue_requeued_total`
 
-Для проверяемого offline performance evidence:
+For reproducible offline performance evidence:
 
 ```text
 just safety-benchmark --iterations 3 --concurrency 1
 ```
 
-Команда принудительно устанавливает `AI_STP_SAFETY_EXTERNAL_CLI=0` и
-`AI_STP_SAFETY_SANDBOX=off`, не обращается к сети, использует фиксированные ZIP
-bytes и печатает JSON. `wall_ms` сравнивается только между одинаковыми
-окружениями; обязательными инвариантами остаются schema, case order, digest,
-profile, disabled network/CLI и отсутствие mandatory failures.
+The command forces `AI_STP_SAFETY_EXTERNAL_CLI=0` and
+`AI_STP_SAFETY_SANDBOX=off`, accesses no network, uses fixed ZIP bytes, and prints
+JSON. Compare `wall_ms` only across identical environments; required invariants
+remain schema, case order, digest, profile, disabled network/CLI, and no mandatory
+failures.
 
-Adversarial corpus и JSON-отчёт:
+Adversarial corpus and JSON report:
 
 ```text
 just safety-corpus --output .work/safety-corpus-report.json
 ```
 
-Команда последовательно материализует ZIP каждого component fixture, запускает
-тот же `run_safety_suite`, которым пользуется publication validation, и отдельно
-проверяет setup через `setup_pin_aggregate`. Успех требует полного совпадения
-ожидаемых `check_id`/`rule_id` и отсутствия findings на clean controls. Сырые
-байты fixture в отчёт не попадают.
+The command materializes each component fixture ZIP in sequence, runs the same
+`run_safety_suite` used by publication validation, and separately checks the setup
+through `setup_pin_aggregate`. Success requires an exact match of expected
+`check_id`/`rule_id` values and no findings on clean controls. Raw fixture bytes do
+not enter the report.
 
-Corpus v2 содержит 156 файловых сценариев: 134 вредоносных и 22 чистых. В него
-входят классы MCPTox для предусловий в метаданных и подмены аргументов, изменение
-MCP tool/schema, затенение tool, отравление resource/prompt/output, опасные цепочки,
-атаки через сабагентов и память, закрепление, цепочка поставки, ограниченное
-многослойное кодирование, Unicode Tag Block, омоглифы и структурное скрытие в
-Markdown. Контроли фиксируют стабильные снимки MCP, ограниченную делегацию и
-защитный текст, который описывает запрещённую атаку.
+Corpus v2 contains 156 file scenarios: 134 malicious and 22 clean. It includes
+MCPTox classes for metadata preconditions and argument substitution, MCP tool/schema
+modification, tool shadowing, resource/prompt/output poisoning, dangerous chains,
+subagent and memory attacks, persistence, supply chain, limited multilayer
+encoding, Unicode Tag Block, homoglyphs, and structural hiding in Markdown.
+Controls pin stable MCP snapshots, bounded delegation, and defensive text that
+describes the prohibited attack.
 
-Готовность API (`/v1/health/ready`) зависит только от database/migrations/storage,
-чтобы отсутствие сканеров не роняло публичный API. Операции worker используют
+API readiness (`/v1/health/ready`) depends only on database/migrations/storage, so
+missing scanners do not bring down the public API. Worker operations use
 `doctor_tools`.
 
-## Scenario matrix (in-proc)
+## Scenario matrix (in-process)
 
-Unit-сценарии в `tests/unit/platform/test_safety_scenario_matrix.py`:
+Unit scenarios in `tests/unit/platform/test_safety_scenario_matrix.py`:
 
-| Fixture | Ожидаемый сигнал gate |
+| Fixture | Expected gate signal |
 |---------|----------------------|
-| clean skill | нет mandatory `failed` |
+| clean skill | no mandatory `failed` |
 | secret skill (`ghp_…`) | secrets family fails |
 | toxic skill (pipe shell / PI) | skill gate fails |
-| clean MCP | путь mcp_config не даёт mandatory-fail |
+| clean MCP | the `mcp_config` path does not cause a mandatory failure |
 
-Внешние CLI для этой matrix не обязательны.
+External CLIs are not required for this matrix.
 
-## Типичные сбои
+## Common failures
 
-| Симптом | Действие |
+| Symptom | Action |
 |---------|--------|
-| Все publish блокируются с `not_run` | Нет байтов artifact на validate; проверить fetch из object-store |
-| Зависание external CLI | `AI_STP_SAFETY_EXTERNAL_CLI` только в worker-safety; лимит объявляет проверка, потолок раннера — `MAX_TIMEOUT_SECONDS` |
-| Проверка `degraded`, а в `reason` — `did not finish within Ns` | Сканер не успел, а не нашёл. Смотреть нагрузку worker и объявленный `timeout_seconds` этой проверки, не содержимое объекта |
-| Host AV блокирует temp files | Не класть полный EICAR; маркер `AI_STP_MALWARE_TEST_MARKER_V1` |
-| OSV stale | Запустить `refresh_osv_db.sh`; сверить stamp с `AI_STP_OSV_MAX_AGE_HOURS` |
-| Sandbox всегда `env_only`, worker `unhealthy` | См. раздел ниже. `bwrap` уже в образе; не ставить повторно. |
+| All publishes are blocked with `not_run` | No artifact bytes reached validate; check the object-store fetch |
+| External CLI hangs | `AI_STP_SAFETY_EXTERNAL_CLI` belongs only in worker-safety; the check declares the limit and the runner ceiling is `MAX_TIMEOUT_SECONDS` |
+| Check is `degraded` and `reason` says `did not finish within Ns` | The scanner timed out; inspect worker load and that check's declared `timeout_seconds`, not the object's contents |
+| Host AV blocks temporary files | Do not place a full EICAR; use marker `AI_STP_MALWARE_TEST_MARKER_V1` |
+| OSV is stale | Run `refresh_osv_db.sh`; compare the stamp with `AI_STP_OSV_MAX_AGE_HOURS` |
+| Sandbox is always `env_only`, worker `unhealthy` | See the section below. `bwrap` is already in the image; do not install it again. |
 
-### Worker `unhealthy`: probe `bwrap` даёт `env_only`
+### Worker `unhealthy`: `bwrap` probe returns `env_only`
 
-`safety_readiness()` требует `detect_sandbox_mode() == "bwrap"`. На Ubuntu 24.04
-хост держит `kernel.apparmor_restrict_unprivileged_userns=1`. `seccomp=unconfined`
-в compose недостаточно: профиль `docker-default` запрещает и mount, и user
-namespace. Снятие AppArmor с контейнера (`apparmor=unconfined`) меняет ошибку на
-`loopback: Failed RTM_NEWADDR` — у unconfined нет правила `userns`, и создать
-namespace всё равно нельзя.
+`safety_readiness()` requires `detect_sandbox_mode() == "bwrap"`. On Ubuntu 24.04,
+the host keeps `kernel.apparmor_restrict_unprivileged_userns=1`. `seccomp=unconfined`
+in compose is insufficient: the `docker-default` profile blocks both mount and the
+user namespace. Removing AppArmor from the container (`apparmor=unconfined`)
+changes the error to `loopback: Failed RTM_NEWADDR`—unconfined has no `userns` rule,
+so the namespace still cannot be created.
 
-Репозиторий не снимает sysctl и не запускает worker как root. Вместо этого
-prod compose ставит `apparmor=ai-stp-worker`, а `deploy/load-apparmor.sh`
-загружает профиль с правилом `userns` в ядро до `compose up` worker. Юнит
-`pull-deploy` держит `NoNewPrivileges=true`, поэтому загрузка идёт через docker
-daemon (он уже root) и `nsenter` в mount namespace pid 1, затем копия профиля
-в `/etc/apparmor.d/` переживает reboot. Контейнер остаётся uid `10001`.
+The repository does not remove the sysctl or run the worker as root. Instead, prod
+compose sets `apparmor=ai-stp-worker`, and `deploy/load-apparmor.sh` loads a profile
+with a `userns` rule into the kernel before `compose up` starts the worker. The
+`pull-deploy` unit keeps `NoNewPrivileges=true`, so loading runs through the Docker
+daemon (which is already root) and `nsenter` enters PID 1's mount namespace; a copy
+of the profile in `/etc/apparmor.d/` survives reboot. The container remains uid
+`10001`.
 
-Пока профиль не загружен, healthcheck worker красный и каждый внешний CLI при
-`AI_STP_SAFETY_REQUIRE_BWRAP=1` выходит с кодом 126. `deploy/verify.sh`
-отказывает, если healthcheck в состоянии `unhealthy`.
+Until the profile is loaded, the worker healthcheck is red and every external CLI
+with `AI_STP_SAFETY_REQUIRE_BWRAP=1` exits with code 126. `deploy/verify.sh` refuses
+to proceed when the healthcheck is `unhealthy`.

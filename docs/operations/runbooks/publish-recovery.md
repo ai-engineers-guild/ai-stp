@@ -3,13 +3,13 @@ description: "Runbook: publish recovery."
 last_verified: "2026-08-03"
 ---
 
-# Восстановление публикации
+# Publication recovery
 
-1. Найти operation ID и неизменяемый план публикации.
-2. Проверить, создана ли версия в реестре.
-3. Сверить digest артефакта, паспорта и проверок.
-4. Если серверная запись отсутствует, повторить только идемпотентный шаг.
-5. Если версия существует с тем же digest, считать повтор идемпотентным.
-6. Если номер `X.Y` совпадает, но digest другой, заблокировать конфликт.
-7. Не удалять опубликованную версию; при риске установить состояние `blocked`.
-8. Построить новый план для дальнейших действий.
+1. Find the operation ID and immutable publication plan.
+2. Check whether the version was created in the registry.
+3. Compare the artifact, passport, and check digests.
+4. If the server record is absent, repeat only the idempotent step.
+5. If the version exists with the same digest, treat the retry as idempotent.
+6. If the `X.Y` number matches but the digest differs, block the conflict.
+7. Do not delete the published version; if there is risk, set its state to `blocked`.
+8. Build a new plan for further actions.

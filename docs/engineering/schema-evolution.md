@@ -1,40 +1,40 @@
 ---
-description: "Версионирование, совместимость и миграция сохраняемых и передаваемых схем."
+description: "Versioning, compatibility, and migration of persisted and transmitted schemas."
 last_verified: "2026-08-03"
 ---
 
-# Эволюция схем
+# Schema evolution
 
-## Владение
+## Ownership
 
-Каждый машинный контракт имеет одного владельца: JSON Schema, OpenAPI или публичная схема провайдера. Документация и примеры проверяются относительно владельца и не создают альтернативные поля.
+Each machine contract has one owner: JSON Schema, OpenAPI, or a public provider schema. Documentation and examples are validated against the owner and do not introduce alternative fields.
 
-## Версии
+## Versions
 
-Новое необязательное поле сохраняет совместимость внутри основной версии. Переименование, смена типа, обязательности, канонизации или области хэша требует новой основной версии либо явной миграции с двойным чтением.
+A new optional field preserves compatibility within the major version. Renaming or changing the type, required status, canonicalization, or hash domain requires a new major version or an explicit dual-read migration.
 
-Неизвестное значение перечисления не превращается в небезопасное значение по умолчанию. Читатель либо сохраняет неизвестное необязательное значение, либо возвращает типизированную несовместимость.
+An unknown enumeration value is not converted to an unsafe default. A reader either preserves an unknown optional value or returns a typed incompatibility.
 
-## Порядок изменения
+## Change sequence
 
 ```text
-расширить читатель
-→ записывать совместимую форму
-→ перенести или заполнить данные
-→ переключить читатели
-→ удалить старую форму после окна
+extend the reader
+→ write the compatible form
+→ migrate or backfill the data
+→ switch the readers
+→ remove the old form after the compatibility window
 ```
 
-Для базы данных дополнительно фиксируются блокировки, объём, возобновляемость заполнения и совместимость отката. Для файловой схемы фиксируются старые и новые читатели. Для API проверяются обе стороны смешанных версий.
+For a database, locks, volume, resumability of the backfill, and rollback compatibility are also recorded. For a file schema, old and new readers are recorded. For an API, both sides of mixed-version operation are tested.
 
-## Миграция
+## Migration
 
-Миграция идемпотентна, журналируется и имеет проверку целостности. Необратимое преобразование требует отдельного решения и резервной копии. Откат приложения обязан читать данные, записанные новой версией в заявленном окне.
+A migration is idempotent, journaled, and has an integrity check. An irreversible transformation requires a separate decision and a backup. A rolled-back application must be able to read data written by the new version during the declared compatibility window.
 
-## Опубликованные данные
+## Published data
 
-Опубликованный артефакт и его хэш не переписываются. Преобразование создаёт новую версию или ревизию и сохраняет исходный хэш и происхождение.
+A published artifact and its hash are never rewritten. A transformation creates a new version or revision and preserves the original hash and provenance.
 
-## Генерация
+## Generation
 
-Схемы, эталонные примеры, клиентские типы и документация генерируются закреплённым инструментом. Повтор генерации обязан давать чистый diff. CI проверяет соответствие источника и результата.
+Schemas, reference examples, client types, and documentation are generated with a pinned tool. Regeneration must produce a clean diff. CI verifies that the source and generated output match.

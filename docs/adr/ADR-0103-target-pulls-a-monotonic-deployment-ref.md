@@ -1,46 +1,48 @@
 ---
-description: "Решение убрать GitHub Actions runner с production-хоста и развёртывать только монотонно продвигаемый ref после зелёного CI."
+description: "Decision to remove the GitHub Actions runner from the production host and deploy only a monotonically advanced ref after green CI."
 last_verified: "2026-08-29"
 ---
 
-# ADR-0103: Target забирает монотонный deployment ref
+# ADR-0103: The target pulls a monotonic deployment ref
 
-Статус: принято. Заменяет в части постоянного GitHub Actions runner решение,
-которое принадлежит приватной инфраструктуре и здесь не публикуется.
-Уточнено `ADR-0109`: источником развёртывания становится публичный репозиторий,
-транспорт этой записи при этом сохраняется.
+Status: accepted. Supersedes, for the permanent GitHub Actions runner, a
+decision owned by private infrastructure and not published here. Refined by
+`ADR-0109`: the public repository becomes the deployment source while this
+record's transport remains unchanged.
 
-## Контекст
+## Context
 
-Предыдущее решение правильно развернуло транспорт: production-хост устанавливает
-исходящее соединение, а CI не получает SSH-ключ и не входит на сервер. Однако
-постоянный Actions runner оставил на production-хосте credential, который
-принимает исполняемый workflow, и сделал GitHub scheduler частью runtime
-сервера — последнее постоянное Linux-исключение.
+The previous decision correctly reversed the transport: the production host
+establishes the outbound connection, while CI receives no SSH key and does not
+enter the server. However, the permanent Actions runner left a credential on
+the production host that accepts executable workflows and made the GitHub
+scheduler part of the runtime server—the last permanent Linux exception.
 
-## Решение
+## Decision
 
-Зелёный `check` точного push-коммита выполняет на одноразовом release worker
-только promotion: без force продвигает `refs/heads/deploy/prod` на проверенный
-SHA. Отложенный старый workflow не может откатить ref.
+After a green `check` of an exact push commit, a disposable release worker
+performs only promotion: without force, it advances
+`refs/heads/deploy/prod` to the verified SHA. A delayed old workflow cannot
+roll the ref back.
 
-Production-хост больше не зарегистрирован как runner. Минутный systemd timer
-исходящим соединением забирает единственный ref через read-only deploy key.
-`deploy/pull-deploy.sh`:
+The production host is no longer registered as a runner. A one-minute systemd
+timer uses an outbound connection and a read-only deploy key to fetch the sole
+ref. `deploy/pull-deploy.sh`:
 
-- держит bare mirror и сериализует выполнение через `flock`;
-- отказывается от не-fast-forward перехода относительно развёрнутого SHA;
-- извлекает exact commit в content-addressed каталог;
-- до изменения дерева пишет существующий recovery marker;
-- сохраняет host-owned `.env*`, `.deploy-env`, `.deploy-state` и backups;
-- вызывает неизменившиеся `deploy/run.sh` и `deploy/verify.sh`.
+- maintains a bare mirror and serializes execution with `flock`;
+- rejects a non-fast-forward transition relative to the deployed SHA;
+- extracts the exact commit into a content-addressed directory;
+- writes the existing recovery marker before changing the tree;
+- preserves host-owned `.env*`, `.deploy-env`, `.deploy-state`, and backups;
+- invokes the unchanged `deploy/run.sh` and `deploy/verify.sh`.
 
-GitHub получает право записи только в promotion job. Target получает только
-read-only Contents-доступ и не умеет менять checks, workflows или refs.
+GitHub receives write access only in the promotion job. The target has read-only
+Contents access and cannot modify checks, workflows, or refs.
 
-## Последствия
+## Consequences
 
-Actions credential и сервис runner удаляются с production-хоста после canary.
-Развёртывание асинхронно относительно promotion job; авторитетный результат —
-точная identity в `.deploy-state/current`, systemd journal и внешний
-`verify_public.py`. Ручной exact-SHA deploy и rollback остаются рабочими.
+The Actions credential and runner service are removed from the production host
+after the canary. Deployment is asynchronous relative to the promotion job; the
+authoritative result is the exact identity in `.deploy-state/current`, the
+systemd journal, and external `verify_public.py`. Manual exact-SHA deployment
+and rollback continue to work.

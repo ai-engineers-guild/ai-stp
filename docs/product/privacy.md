@@ -1,79 +1,78 @@
 ---
-description: "Что уходит с машины пользователя, что не уходит никогда и как ответить на вопрос о телеметрии."
+description: "What leaves the user's machine, what never leaves it, and how to answer questions about telemetry."
 last_verified: "2026-08-21"
 ---
 
-# Приватность CLI
+# CLI privacy
 
-Эта страница отвечает на вопрос человека, который решает, соглашаться ли.
-Машинную границу — перечень полей, их источники и правила отправки — держит
-[`cli-telemetry.md`](../contracts/cli-telemetry.md); требования принадлежат
-`SPEC-013`, решение — [`ADR-0112`](../adr/ADR-0112-client-egress-is-one-consented-ping.md).
-Здесь ничего из этого не повторяется: расходящаяся копия хуже отсутствующей.
+This page answers the question for a person deciding whether to consent.
+The machine boundary — the list of fields, their sources, and sending rules — is owned by
+[`cli-telemetry.md`](../contracts/cli-telemetry.md); the requirements belong to
+`SPEC-013`, and the decision to [`ADR-0112`](../adr/ADR-0112-client-egress-is-one-consented-ping.md).
+None of it is repeated here: a divergent copy is worse than no copy.
 
-## Короткий ответ
+## Short answer
 
-`ai_stp` не отправляет ничего, пока вы не согласились. Согласия по умолчанию
-нет, оно не появляется от установки, обновления или входа в аккаунт, и его
-нельзя выдать правкой файла настроек.
+`ai_stp` sends nothing until you consent. There is no consent by default;
+installation, updates, or signing in do not create it, and it
+cannot be granted by editing the settings file.
 
-Если вы согласились, с машины уходит один анонимный запрос на каждый
-установленный компонент. Он говорит, что «такой-то публично названный компонент
-такой-то версии поставили на такой-то харнесс в такой-то ОС». Он не говорит, кто
-это сделал.
+If you consent, one anonymous request leaves the machine for each
+installed component. It says that “a particular publicly named component
+of a particular version was installed on a particular harness on a particular OS.” It does not say who
+did it.
 
-## Что не уходит никогда
+## What never leaves
 
-Ни при каком ответе и ни при какой настройке наружу не попадают локальные пути,
-приватные репозитории, идентификатор аккаунта, ключ устройства, почта, имя
-проекта, путь цели, переменные окружения, содержимое файлов и параметры
-MCP-серверов. Компонент, который нельзя назвать публично, не описывается
-приблизительно — он просто не упоминается.
+No response or setting ever sends local paths, private repositories, the account
+identifier, device key, email, project name, target path, environment variables,
+file contents, or MCP server parameters. A component that cannot be named publicly
+is not described approximately — it is simply not mentioned.
 
-Анонимный идентификатор существует ровно для одного: отличить одну установку CLI
-от другой. Он не равен ключу устройства, не связан с аккаунтом и не объединяется
-с публичными счётчиками каталога.
+The anonymous identifier exists for exactly one purpose: to distinguish one CLI installation
+from another. It is not the device key, is not linked to an account, and is not combined
+with public catalog counters.
 
-## Как ответить
+## How to respond
 
 ```bash
 ai-stp telemetry show --json
 ```
 
-Печатает текущее состояние, адрес коллектора и перечень полей — включая `anon`
-по имени. Значение идентификатора команда не печатает: показывать его означало бы
-сделать обычное чтение состояния тем самым местом, откуда его можно скопировать.
+Prints the current state, collector address, and list of fields — including `anon`
+by name. The command does not print the identifier value: showing it would make
+an ordinary state read the very place from which it could be copied.
 
 ```bash
 ai-stp telemetry consent --accept --confirm --json
 ai-stp telemetry consent --decline --confirm --json
 ```
 
-Ответ требуется ровно один, и он требует `--confirm`. Флага, переданного не
-глядя, недостаточно: согласие, полученное так, не является согласием, а
-случайный отказ был бы записан как ответ и больше ничего бы не спросило.
+Exactly one response is required, and it requires `--confirm`. A flag passed
+without review is insufficient: consent obtained that way is not consent, while
+an accidental refusal would be recorded as the response and nothing would ask again.
 
-## Как передумать
+## How to change your mind
 
 ```bash
 ai-stp config set telemetry.enabled=false
 ```
 
-Выключает отправку и удаляет анонимный идентификатор. Записанный ответ при этом
-сохраняется: быть выключенным и быть спрошенным и отказавшимся — разные вещи, и
-вопрос не возвращается.
+Disables sending and deletes the anonymous identifier. The recorded response is
+retained: being disabled and having been asked and declined are different things, and
+the question does not return.
 
-Обратной командой включить нельзя — `telemetry.enabled=true` отклоняется
-типизированной ошибкой. Согласие является событием, а не значением: включение
-правкой файла оставило бы «включено» там, где никто не может сказать, кто и
-когда на это согласился.
+The reverse command cannot enable it — `telemetry.enabled=true` is rejected with
+a typed error. Consent is an event, not a value: enabling it
+by editing a file would leave “enabled” where nobody can say who
+consented or when.
 
-Повторное согласие после отказа создаёт **другой** идентификатор. Прежний не
-восстанавливается — иначе выключение и включение связали бы два периода, а
-именно этого избегал тот, кто выключал.
+Consenting again after declining creates a **different** identifier. The previous one is not
+restored — otherwise disabling and enabling would link the two periods, which
+is precisely what the person who disabled it sought to avoid.
 
-## Если коллектор недоступен
+## If the collector is unavailable
 
-Ничего не происходит. Сетевая ошибка, timeout и любой ответ вне 2xx
-проглатываются молча, установка остаётся `verified`, повтора пачкой нет.
-Результат установки — свойство вашей цели, а не чужого сервиса.
+Nothing happens. A network error, timeout, or any non-2xx response
+is silently swallowed, the installation remains `verified`, and there is no batch retry.
+The installation result is a property of your target, not of someone else's service.

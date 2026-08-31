@@ -1,161 +1,142 @@
 ---
-description: "SPEC-008: Провайдеры, установка и восстановление."
-last_verified: "2026-08-31"
+description: "SPEC-008: Providers, installation and recovery."
+last_verified: "2026-08-27"
 ---
 
-# SPEC-008: Провайдеры, установка и восстановление
+# SPEC-008: Providers, installation and recovery
 
-## Цель
+## Purpose
 
-`ai_stp` передаёт проверенный пакет единственному публичному провайдеру выбранного харнесса. Провайдер безопасно управляет исполнимой средой, целевым каталогом, резервной копией, применением, запуском и восстановлением.
+`ai_stp` transfers the verified package to the only public provider of the selected harness. The provider securely manages the runtime, target directory, backup, application, startup, and recovery.
 
-## Границы
+## Scope
 
-Входят семь публичных менеджеров сетапов `NDDev-OpenNetwork/*-setup-system` — по одному на каждый харнесс закрытого набора `ADR-0120`: claude-code, codex, cursor, opencode, pi, grok-build и antigravity, — артефакты выпуска, общий протокол, жизненный цикл исполнимой среды, внешний пакет, неактивный целевой каталог, план, применение, состояние, восстановление и импорт уже существующей нативной конфигурации.
+Includes seven public setup managers `NDDev-OpenNetwork/*-setup-system` - one for each harness of the closed set `ADR-0120`: claude-code, codex, cursor, opencode, pi, grok-build and antigravity - release artifacts, common protocol, runtime lifecycle, external package, inactive target directory, plan, application, state, recovery and import of an existing native configuration.
 
-Прежний эстейт провайдеров снят (`ADR-0119`, `ADR-0120`). Он остаётся в исторических ADR как контекст и не является источником для нового объекта; линия доверия закреплена `provider-policy.toml` за семью `*-setup-system`.
+The previous estate of providers has been removed (`ADR-0119`, `ADR-0120`). It remains in historical ADR as context and is not the source for a new object; the trust line is assigned `provider-policy.toml` to the family `*-setup-system`.
 
-Закрытый контур авторинга систем сетапов является контуром проверок и координации: он не клонируется пользователю, не является зависимостью или источником runtime-поведения и не участвует в работе приложения. Прямая запись `ai_stp` в нативные каталоги запрещена.
+The closed authoring loop of setup systems is a check and coordination loop: it is not cloned to the user, is not a dependency or source of runtime behavior, and does not participate in the operation of the application. Direct writing of `ai_stp` to native directories is prohibited.
 
-## Термины
+## Terms
 
-- `ProviderRelease` — подписанный точный артефакт публичного менеджера сетапа.
-- `HarnessBundle` — ограниченный нативный пакет от сборщика сетапа.
-- `HarnessTarget` — изолированный корень исполнимой среды и конфигурации.
-- `BackupRef` — принадлежащая провайдеру ссылка; байты не хранятся в базе `ai_stp`.
-- `ImportedSetup` — личный сетап, созданный из уже существующей нативной конфигурации.
+- `ProviderRelease` - signed exact artifact of the public manager of the setup.
+- `HarnessBundle` - limited native package from the setup compiler.
+- `HarnessTarget` - isolated root of the executable environment and configuration.
+- `BackupRef` — link belonging to the provider; bytes are not stored in the `ai_stp` database.
+- `ImportedSetup` is a personal setup created from an already existing native configuration.
 
-## Требования
+## Requirements
 
-- `REQ-801`: Провайдеры доставляются версионируемыми артефактами выпуска, а не рабочими подмодулями Git. Установка по протоколу v3 требует закрытого манифеста выпуска — подписанного Ed25519 либо связанного потребителем из attested-байтов и закреплённого правила `build_attestations`; провайдер без него устанавливается только по явному отдельному параметру, и план сообщает такую установку как непроверенную. Изменяющий путь ограничен этим правилом, наблюдающие вызовы провайдера — нет.
-- `REQ-802`: Все семь провайдеров закрытого набора реализуют общий
-  версионируемый protocol core и машиночитаемый `provider-info`; product-specific
-  software lifecycle и launch объявляются capabilities, а не фиктивными
-  обязательными командами. Software install/update/remove и точные software
-  artifacts доступны у всех семи на 6/6 OS/arch строках. Complete launch
-  объявляют Claude Code, Codex, Grok Build, OpenCode и Pi; Cursor Partial и
-  Antigravity Undocumented launch не объявляют.
-- `REQ-803`: Провайдер единолично владеет нативной projection, блокировками, подготовительным каталогом, изменением цели, резервной копией, состоянием и восстановлением; программой и запуском он владеет только при явно объявленной capability.
-- `REQ-804`: Проверка пакета запрещает абсолютные и родительские пути, выход из каталога, символические и жёсткие ссылки, специальные устройства, повтор нормализованного пути и превышение пределов.
-- `REQ-805`: План не имеет побочных эффектов и привязан к текущему хэшу цели, версиям провайдера и среды, а также сроку действия.
-- `REQ-806`: Применение требует точный хэш плана, блокировку и повторную проверку цели после получения блокировки.
-- `REQ-807`: Резервная копия создаётся до первого изменения, а неуправляемое состояние сохраняется по контракту.
-- `REQ-808`: Новый целевой каталог остаётся неактивным до проверки, готовности к запуску и проверки состояния.
-- `REQ-809`: Состояния `applied_unverified`, `verified`, `partial` и `failed` различаются в результате провайдера и долговечной операции; успехом называется только `verified`.
-- `REQ-810`: Текущая сессия агента не переписывает собственный активный целевой каталог по месту.
-- `REQ-811`: Выпуск провайдера принимается только после проверки закреплённой политики доверия, подписи, источника, хэша артефакта, принадлежности выпуска закреплённому перечню одобренных выпусков и последовательности защиты от отката. Перечень закрепляет digest вместе с `provider_id` и `repository`, которые вправе его предъявить; пустой перечень не разрешает ничего.
-- `REQ-812`: Смена ключей и отзыв меняют допустимость выпуска без переписывания исторических доказательств или автоматического удаления цели; восстановление требует отдельного подтверждённого плана, exact digest из локальной verified history и не опускается ниже policy floor.
-- `REQ-813`: Импорт существующей конфигурации выполняется в порядке осмотра без изменения, резервной копии провайдера, очистки от секретов и описи, создания личного сетапа с паспортом, точными хэшами файлов и происхождением, локальной проверки и фиксации в реестре.
-- `REQ-814`: `BackupRef` и `ImportedSetup` остаются отдельными объектами; ссылка на резервную копию не является идентичностью сетапа и не заменяет её.
-- `REQ-815`: Импортированный сетап содержит только имена обязательных переменных окружения; значения секретов из нативной конфигурации не переносятся.
-- `REQ-816`: Установка при отсутствующей обязательной переменной окружения разрешена с предупреждением, а готовность к запуску остаётся `needs_configuration` до её появления.
-- `REQ-817`: Версия харнесса принадлежит управляемому жизненному циклу провайдера; `ai_stp` не обновляет и не подменяет программу харнесса мимо него.
-- `REQ-818`: Изменение программы или цели харнесса вне провайдера обнаруживается как `local_drift` и не устраняется автоматически.
-- `REQ-819`: Объект объявляет потребность в учётных данных и во внешней авторизации до установки; значения, ключи и адреса их выдачи в паспорт не входят.
-- `REQ-820`: Установка объекта с объявленной потребностью в доступе объясняет пользователю каждую требуемую авторизацию и ведёт настройку; установка может завершиться, но готовность к запуску остаётся `needs_configuration`, пока exact provider не наблюдает совпадающий вид авторизации в состоянии `ready`; отсутствие evidence, несовпадение вида и неизвестная форма не считаются готовностью.
-- `REQ-821`: Замороженный protocol v1 не заявляет сетевую изоляцию; сетевая потребность вводится только отдельной версией протокола и принимает закрытые значения `none`, `artifact_download` или `runtime_external` для каждого действия.
-- `REQ-822`: Результат protocol v2 сообщает `network_enforcement` как `enforced`, `unavailable` или `not_requested`; значение `unavailable` не называется запретом сети.
-- `REQ-823`: Действие с `network_requirement=none` предпочитает доказанный
-  capability `enforced`. Только оставшийся Windows runtime fallback может
-  использовать явно наблюдаемый trust exception `trusted_release` или
-  `explicit_unverified_provider` по `ADR-0126`; он не называется `enforced`.
-  Любой другой случай возвращает типизированный отказ до запуска провайдера.
-- `REQ-824`: Разрешение `artifact_download` принадлежит отдельной download-фазе и не расширяет локальную проверку, изменение цели или последующие действия; `runtime_external` разрешается только явному запуску.
-- `REQ-825`: `install plan` передаёт один полный content-addressed HarnessBundle в `validate-bundle` и `plan-bundle`; provider подтверждает формат, logical digest, raw artifact digest, размер и текущий target digest до создания изменяющей операции.
-- `REQ-826`: Подтверждаемый неизменяемый plan связывает обе идентичности HarnessBundle, размер и точный provider plan digest; внутренний digest плана `ai_stp` не подменяет provider plan digest.
-- `REQ-827`: Перед `apply-operation` consumer повторно проверяет exact cached bytes и передаёт исходный target и provider plan digests; точный ответ `stale` после provider-side lock — в том числе `state=refused` с `reason=stale` — сохраняется как отказ без эффекта, несовпадающий ответ после возможного эффекта создаёт `partial`, а `resume` наблюдает `provider-info`/`status`, при необходимости вызывает только `recover-operation` и никогда не повторяет apply. `apply-operation` сверяется по `plan_digest` и `expected_target_digest`; четыре bundle-echo остаются обязательными для `validate-bundle` и `plan-operation`. `status` после install доказывает `state=managed`, protocol/provider identity и clean/verified drift; дополнительные provenance-поля сверяются, только если провайдер их прислал.
-- `REQ-828`: Conformance проверяет validation и plan на literal content-addressed ZIP corpus с exact binding, но не запускает изменяющие или исполняющие команды на пользовательской цели; такие команды доказываются только отдельным E2E на одноразовой цели.
-- `REQ-829`: Повтор планирования с тем же логическим idempotency key возвращает текущую активную operation; после терминального `stale`, `cancelled`, `partial`, `failed`, `rolled_back` или `verified` ключ атомарно передаётся новой operation без переоткрытия или удаления старого журнала.
-- `REQ-830`: История установленных версий и rollback следуют сериализованному порядку verified events; совпадение wall-clock timestamps и порядок создания operation не могут переставить текущую и предыдущую версии.
-- `REQ-831`: Замороженные protocol v1/v2 не расширяются; protocol v3 разделяет обязательный setup/bundle command core и закрытые capability-negotiated operations, а unknown/unsupported operation отклоняется до plan и изменения цели.
-- `REQ-832`: Подготовленный exact graph и composed graph после finalization создают одну неизменяемую `SetupDefinition` и используют один HarnessBundle, provider plan и общие пути подтверждения, применения, состояния, копии, восстановления и удаления.
-- `REQ-833`: Точный профиль проекции provider объявляет виды компонентов и проекций, пространства native identifiers, форматы bundle, пределы, OS/architecture и digest; compiler и provider независимо отклоняют неподдержанный компонент, поверхность, collision или изменившийся профиль.
-- `REQ-834`: `plan-operation` является чистым и связывает operation, provider build, проверенный consumer release digest/protocol, снимок цели, optional exact bundle/BackupRef, permission profile, platform/runtime identity, срок и эффекты; `apply-operation` требует точный plan artifact/digest и повторную проверку после блокировки.
-- `REQ-835`: Permission/execution profile не является setup identity и не меняет SetupDefinition/component graph digest; standalone legacy identities мигрируют только в подтверждённой mutation после резервной копии.
-- `REQ-836`: Ответ `status` проходит закрытую
-  `provider-kit/v3/status-response.schema.json`: always-поля описывают identity,
-  цель, cleanup/journal/backups/provider state/shadowing, а полный flat
-  provenance обязателен только для readable clean managed state. Состояние не
-  мигрируется чтением, секретные значения не сохраняются.
-- `REQ-837`: Provider v3 conformance распространяется как неизменяемый public
-  artifact без runtime-зависимости от закрытых `ai_stp`/authoring и включает
-  provider-info/status schemas, canonical examples, hostile corpus и expected
-  digests. Новая схема producer публикуется до включения проверки в consumer.
-- `REQ-838`: Software download разрешается только отдельной phase; последующая local apply снова требует доказанной network isolation, а launch использует только явно объявленную `runtime_external` capability.
-- `REQ-839`: Provider durable journal имеет закрытые фазы `prepared` и `committed`, связывает exact plan/operation/target-bound BackupRef и блокирует новый plan до recovery; prepared восстанавливает exact pre-operation target, committed только проверяет result и дренирует cleanup.
-- `REQ-840`: Отчёт преобразования связывает вид компонента, нативную поверхность и вид проекции; каждый точный компонент владеет непустым содержимым, а принадлежащие provider нативный синтаксис и обязательные маркеры дерева проверяются до плана без изменения цели.
-- `REQ-841`: Импорт сначала строит детерминированный read-only plan относительно exact inspection: естественные нативные границы становятся предлагаемыми компонентами, хэш набора файлов не выдаётся за digest ещё не материализованного артефакта, а файл, который не удалось прочитать, остаётся явным blocker. Файл сверх объявленной границы размера прочитан и захэширован: он исключается из предлагаемых компонентов и blocker'ом не является. Один путь не может одновременно числиться исключённым и блокирующим. Регистрация setup и его exact component graph выполняется отдельным подтверждённым действием и отклоняет изменившийся inspection.
-- `REQ-842`: Приобретённый публичный SetupVersion не содержит локальную project identity. `install plan --setup` принимает явно названный project root, требует его текущие developer/device/project revisions и связывает exact setup graph с вычисленным локальным context snapshot без изменения опубликованного паспорта.
-- `REQ-843`: Read-only diff локального расхождения сравнивает только managed paths точного HarnessBundle из последней verified operation с сохранённой provider target, не следует по ссылкам, не изменяет цель и сообщает стабильные классы `modified`, `added`, `deleted` без абсолютных путей; отсутствие exact evidence обозначается отдельно и не запускает восстановление.
-- `REQ-844`: Доверие к выпуску провайдера имеет закрытые уровни `verified_publisher`, `signed`, `build_attested` и `unverified`. `verified_publisher` требует одновременно проверенных exact bytes и издателя, заранее закреплённого локальной политикой как verified; удалённая галочка или имя аккаунта сами по себе доверия байтам не дают.
-- `REQ-845`: `build_attested` требует успешной проверки Sigstore/GitHub artifact attestation над фактически загруженным артефактом с exact repository, source commit и signer workflow из локальной политики. Manifest, workflow output и predicate не расширяют политику; отсутствие verifier, сети или offline bundle даёт типизированный отказ, а не понижение до доверенного состояния.
-- `REQ-846`: Уровень доверия, идентичность attestation и digest использованного bundle входят в неизменяемый install plan, повторно проверяются перед apply и сохраняются в локальной истории. Повторная проверка подаёт в `gh attestation verify --bundle` Sigstore bundle, извлечённый из сохранённого JSON ответа GitHub CLI, а не обёртку `attestation` с `bundle_url`. Совместимое поле `provider_release_trusted` выводится как `level != unverified`, но не является источником уровня.
-- `REQ-847`: Потребитель материализует закрытый манифест выпуска из attested-артефакта, exact tag, source commit и `provider-info` этих байт, когда издатель не приложил JSON. Sequence кодируется из exact semver-тега. Это не второй trust anchor и не заносит байты в `releases`. Исполняемый файл не запускается до успешной проверки attestation.
-- `REQ-848`: План установки называет выбранный сетап — его имя и его собственное описание — вместе с перечнем эффектов. Перечень эффектов точен относительно файлов, которые запишет провайдер, и ничего не говорит о том, что означает их изменить; для сетапа, чьё содержание и есть отключаемое, это разные вопросы. Описание берётся из точного паспорта SetupVersion, который план и так разрешает, и не сокращается.
-- `REQ-849`: На macOS consumer использует только root-owned системный `/usr/bin/sandbox-exec` с закрытым профилем `(allow default)`/`(deny network*)` и объявляет `enforced` лишь после положительного контроля IPv4/IPv6/DNS-like UDP снаружи и запрета тех же transports внутри. Отсутствие executable, недоверенный путь или ошибка пробы дают `unavailable` и ранний отказ без trust exception.
+- `REQ-801`: Providers are delivered as versionable release artifacts rather than working Git submodules. Installation using the v3 protocol requires a private release manifest - signed by Ed25519 or linked by the consumer from attested bytes and the assigned rule `build_attestations`; a provider without it is installed only by an explicit separate option, and the plan reports such an installation as unverified. The changing path is limited by this rule, the observing provider calls are not.
+- `REQ-802`: All seven closed set providers implement a common versioned protocol core and machine-readable `provider-info`; product-specific software lifecycle and launch are declared capabilities, not fictitious required commands. The announcement differs by product and this is not a defect: on `0.0.4`+ six announce `software_install` / `software_update` / `software_remove`, `pi` does not announce any, and antigravity announces three and does not announce `launch`.
+- `REQ-803`: The provider has sole ownership of native projection, locks, staging directory, target change, backup, state and restore; he owns the program and launches only with an explicitly declared capability.
+- `REQ-804`: Package checking disallows absolute and parent paths, directory escaping, symbolic and hard links, special devices, normalized path repeat, and exceeding limits.
+- `REQ-805`: The plan has no side effects and is bound to the current target hash, provider and environment versions, and expiration date.
+- `REQ-806`: The application requires an exact hash of the plan, a lock, and re-validation of the target after acquiring the lock.
+- `REQ-807`: A backup is created before the first change, and the unmanaged state is retained by contract.
+- `REQ-808`: The new target directory remains inactive until verified, ready to run, and status checked.
+- `REQ-809`: The states of `applied_unverified`, `verified`, `partial` and `failed` differ as a result of the provider and durable operation; Only `verified` is called success.
+- `REQ-810`: The current agent session does not overwrite its own active target directory in place.
+- `REQ-811`: The provider's release is accepted only after checking the committed trust policy, signature, source, artifact hash, whether the release belongs to the committed list of approved releases, and the rollback protection sequence. The list is secured by digest together with `provider_id` and `repository`, who have the right to present it; an empty list does not allow anything.
+- `REQ-812`: Rekeying and revocation changes release validity without rewriting historical evidence or automatically deleting the target; recovery requires a separate verified plan, an exact digest from the local verified history and does not go below the policy floor.
+- `REQ-813`: Import of an existing configuration is performed in the order of inspection without modification, backup of the provider, clearing of secrets and inventory, creation of a personal setup with a passport, exact file hashes and origin, local verification and fixation in the registry.
+- `REQ-814`: `BackupRef` and `ImportedSetup` remain separate objects; a link to a backup copy is not the identity of the setup and does not replace it.
+- `REQ-815`: The imported setup contains only the names of the required environment variables; secret values ​​from the native configuration are not transferred.
+- `REQ-816`: Installation when a required environment variable is missing is allowed with a warning, and launch readiness remains `needs_configuration` until it appears.
+- `REQ-817`: Harness version belongs to the managed lifecycle of the provider; `ai_stp` does not update or replace the Harness program past it.
+- `REQ-818`: A change to the program or target of Harness outside the provider is detected as `local_drift` and is not automatically resolved.
+- `REQ-819`: The object declares the need for credentials and external authorization before installation; values, keys and addresses of their issue are not included in the passport.
+- `REQ-820`: Setting up an object with a declared access need explains to the user each required authorization and guides the configuration; the installation may complete, but launch readiness remains `needs_configuration` until the exact provider observes a matching authorization type in the `ready` state; absence of evidence, mismatch of species and unknown form are not considered ready.
+- `REQ-821`: Frozen protocol v1 does not state network isolation; the network demand is introduced only by a separate version of the protocol and takes the private values ​​`none`, `artifact_download` or `runtime_external` for each action.
+- `REQ-822`: The protocol v2 result reports `network_enforcement` as `enforced`, `unavailable` or `not_requested`; the value `unavailable` is not called network prohibition.
+- `REQ-823`: Action with `network_requirement=none` is launched only after the proven capability result `enforced`; the lack of a proven mechanism on the current or future OS returns a typed failure before the provider starts.
+- `REQ-824`: The `artifact_download` permission belongs to a separate download phase and does not extend local verification, target change or subsequent actions; `runtime_external` is only allowed to be run explicitly.
+- `REQ-825`: `install plan` passes one complete content-addressed HarnessBundle to `validate-bundle` and `plan-bundle`; provider validates the format, logical digest, raw artifact digest, size, and current target digest before creating the modifying operation.
+- `REQ-826`: Confirmed immutable plan binds both HarnessBundle identities, size and exact provider plan digest; internal plan digest `ai_stp` does not replace provider plan digest.
+- `REQ-827`: Before `apply-operation`, the consumer re-checks the exact cached bytes and passes the original target and provider plan digests; the exact response `stale` after a provider-side lock - including `state=refused` with `reason=stale` - is stored as a failure with no effect, a mismatched response after a possible effect creates `partial`, and `resume` observes `provider-info`/`status`, if necessary calls only `recover-operation` and never repeats apply. `apply-operation` is checked against `plan_digest` and `expected_target_digest`; four bundle-echoes remain required for `validate-bundle` and `plan-operation`. `status` after install proves `state=managed`, protocol/provider identity and clean/verified drift; additional provenance fields are checked only if the provider sent them.
+- `REQ-828`: Conformance checks validation and plan on literal content-addressed ZIP corpus with exact binding, but does not run modifying or executing commands on the user target; such commands are only proven by individual E2Es on a one-time target.
+- `REQ-829`: Repeat scheduling with the same logical idempotency key returns the currently active operation; after the terminal `stale`, `cancelled`, `partial`, `failed`, `rolled_back` or `verified`, the key is atomically transferred to the new operation without reopening or deleting the old log.
+- `REQ-830`: History of installed versions and rollback follow the serialized order of verified events; The coincidence of wall-clock timestamps and the creation order of the operation cannot rearrange the current and previous versions.
+- `REQ-831`: Frozen protocol v1/v2 are not expanded; protocol v3 separates the mandatory setup/bundle command core and closed capability-negotiated operations, and unknown/unsupported operation is rejected until the plan and target change.
+- `REQ-832`: Prepared exact graph and composed graph after finalization create one immutable `SetupDefinition` and use one HarnessBundle, provider plan and common confirmation, apply, state, copy, restore and delete paths.
+- `REQ-833`: Precise provider projection profile declares component and projection views, native identifier spaces, bundle formats, limits, OS/architecture and digest; compiler and provider independently reject an unsupported component, surface, collision, or profile change.
+- `REQ-834`: `plan-operation` is clean and bundles operation, provider build, verified consumer release digest/protocol, target snapshot, optional exact bundle/BackupRef, permission profile, platform/runtime identity, term and effects; `apply-operation` requires an accurate plan artifact/digest and re-checking after acquiring the lock.
+- `REQ-835`: Permission/execution profile is not a setup identity and does not change SetupDefinition/component graph digest; standalone legacy identities migrate only in a confirmed mutation after a backup.
+- `REQ-836`: Provider state and backup metadata link exact SetupVersion, SetupDefinition, components, bundle, projection profile, provider plan/release, target and native ownership; `status` does not migrate state, and secret values are not preserved.
+- `REQ-837`: Provider v3 conformance is distributed as an immutable public artifact with no runtime dependency on private `ai_stp` or authoring loops and includes schemas, canonical examples, hostile corpus and expected digests.
+- `REQ-838`: Software download is allowed only in a separate phase; subsequent local apply again requires proven network isolation, and launch uses only the explicitly declared `runtime_external` capability.
+- `REQ-839`: Provider durable journal has closed phases `prepared` and `committed`, binds exact plan/operation/target-bound BackupRef and blocks the new plan until recovery; prepared restores the exact pre-operation target, committed only checks the result and drains cleanup.
+- `REQ-840`: The conversion report links the component view, native surface and projection view; each exact component owns non-empty content, and the provider's native syntax and required tree markers are checked before the plan without changing the target.
+- `REQ-841`: Import first builds a deterministic read-only plan with respect to exact inspection: natural native boundaries become proposed components, the hash of a set of files is not passed off as a digest of an artifact that has not yet been materialized, and a file that could not be read remains an explicit blocker. A file exceeding the declared size limit is read and hashed: it is excluded from the proposed components and is not a blocker. One path cannot be considered both excluded and blocking at the same time. Registration of setup and its exact component graph is performed as a separate confirmed action and rejects the changed inspection.
+- `REQ-842`: The purchased public SetupVersion does not contain the local project identity. `install plan --setup` accepts an explicitly named project root, requires its current developer/device/project revisions, and associates an exact setup graph with the computed local context snapshot without changing the published passport.
+- `REQ-843`: Read-only diff of a local discrepancy compares only managed paths of the exact HarnessBundle from the last verified operation with the saved provider target, does not follow links, does not change the target and reports stable classes `modified`, `added`, `deleted` without absolute paths; the absence of exact evidence is indicated separately and does not trigger recovery.
+- `REQ-844`: Provider release trust has closed levels `verified_publisher`, `signed`, `build_attested` and `unverified`. `verified_publisher` requires both verified exact bytes and a publisher previously assigned by local policy as verified; a remote checkmark or account name alone does not give trust to the bytes.
+- `REQ-845`: `build_attested` requires a successful Sigstore/GitHub artifact attestation on the actual uploaded artifact with exact repository, source commit and signer workflow from local policy. Manifest, workflow output, and predicate do not extend the policy; the absence of a verifier, network, or offline bundle results in a typed failure, rather than a downgrade to a trusted state.
+- `REQ-846`: The trust level, identity attestation and digest of the used bundle are included in the immutable install plan, re-checked before apply and stored in the local history. The repeated check feeds the `gh attestation verify --bundle` Sigstore bundle extracted from the saved JSON GitHub CLI response, rather than the `attestation` wrapper with `bundle_url`. The compatible field `provider_release_trusted` is output as `level != unverified` but is not a level source.
+- `REQ-847`: The consumer materializes the private release manifest from the attested artifact, exact tag, source commit, and `provider-info` of these bytes when the publisher did not include JSON. Sequence is encoded from the exact semver tag. This is not a second trust anchor and does not add bytes to `releases`. The executable file does not run until the attestation check is successful.
+- `REQ-848`: The setup plan names the selected setup - its name and its own description - along with a list of effects. The list of effects is specific to the files the provider will record and says nothing about what it means to change them; for a setup whose content is disabled, these are different questions. The description is taken from the exact SetupVersion passport, which the plan already allows, and is not abbreviated.
 
-## Состояния и ошибки
+## States and errors
 
-Операция провайдера различает `planned`, `stale`, `applying`, `applied_unverified`, `verified`, `partial`, `failed` и `rolled_back`. Истечение времени после возможного побочного эффекта не повторяется вслепую. Параллельное изменение возвращает конфликт блокировки или цели. Ошибка восстановления сохраняет последнее точно подтверждённое состояние.
+The provider operation distinguishes between `planned`, `stale`, `applying`, `applied_unverified`, `verified`, `partial`, `failed` and `rolled_back`. The lapse of time after a possible side effect is not repeated blindly. A parallel change returns a lock or target conflict. A restore error preserves the last accurately confirmed state.
 
-## Безопасность и приватность
+## Security and privacy
 
-Провайдер запускается точным массивом аргументов с `shell=false`, отфильтрованным окружением, ограничением времени и объёма вывода. Protocol v1 не обещает сетевую изоляцию. Protocol v2 исполняет `network_requirement=none` только через доказанный launcher и закрывается отказом, если capability недоступна. Артефакт выпуска проверяется по политике доверия. Пакет не содержит произвольные сценарии и секреты. Пароль повышения привилегий никогда не передаётся агенту или CLI.
+The provider is triggered by a precise array of arguments with `shell=false`, a filtered environment, and a time and output limit. Protocol v1 does not promise network isolation. Protocol v2 executes `network_requirement=none` only through a proven launcher and fails if the capability is not available. The release artifact is verified against the trust policy. The package does not contain arbitrary scripts or secrets. The privilege escalation password is never passed to the agent or CLI.
 
-## Совместимость и миграция
+## Compatibility and migration
 
-Версия контракта согласуется до операции. Старый провайдер не принимает новую несовместимую схему пакета. Публичная реализация, закрытая проверка соответствия, артефакт выпуска и манифест потребителя продвигаются раздельно в установленном межрепозиторном порядке.
+The version of the contract is agreed upon before the operation. The old provider does not accept the new incompatible packet scheme. The public implementation, private compliance check, release artifact, and consumer manifest are promoted separately in the established cross-repository order.
 
-## Критерии приёмки
+## Acceptance criteria
 
-| Требование | Исполнимый способ проверки |
+| Requirement | Executable verification method |
 |---|---|
-| `REQ-801` | Проверка установки получает провайдер из манифеста выпуска без клонирования Git; `install plan` по протоколу v3 без манифеста отклоняется и называет `provider fetch`, закрытый манифест и явный unverified; с явным параметром планирует и сообщает `provider_release_trusted` равным `false`, а манифест вместе с этим параметром отклоняется как противоречие; v1 планирует без манифеста как прежде. |
-| `REQ-802` | Проверка смыслового соответствия сравнивает `provider-info` с реальными действиями CLI всех семи провайдеров. |
-| `REQ-803` | Отрицательная проверка доказывает отсутствие прямой записи цели из `ai_stp`. |
-| `REQ-804` | Набор вредоносных пакетов покрывает все классы путей, ссылок, устройств и пределов. |
-| `REQ-805` | Проверка снимка подтверждает отсутствие изменений после построения плана. |
-| `REQ-806` | Изменённая цель и изменённый хэш плана блокируют применение. |
-| `REQ-807` | Проверки отказов подтверждают резервную копию до записи и сохранение неуправляемых данных. |
-| `REQ-808` | Ошибка состояния или готовности к запуску не переключает активный указатель. |
-| `REQ-809` | Матрица сбоев проверяет все долговечные состояния результата. |
-| `REQ-810` | Сквозная проверка подтверждает работу текущей сессии до следующего запуска. |
-| `REQ-811` | Эталонные проверки подписи и манифеста отклоняют неизвестный ключ, policy mismatch, изменение любого подписанного поля, несовпадение exact executable bytes и откат; корректно подписанный выпуск вне закреплённого перечня и одобренные байты под чужим `provider_id` отклоняются кодом `release_not_pinned` до первого запуска провайдера; trusted plan повторяет проверку перед apply и атомарно продвигает history только с `verified`. |
-| `REQ-812` | Фикстуры смены и отзыва ключей проверяют перекрытие и блокировку; recovery принимает только отдельный подтверждённый план на exact digest из verified history и не снижает floor. |
-| `REQ-813` | Фикстура существующей цели проходит осмотр, копию, очистку, опись, паспорт, проверку и фиксацию без изменения цели. |
-| `REQ-814` | Удаление импортированного сетапа не удаляет резервную копию, и наоборот. |
-| `REQ-815` | Нативная конфигурация с секретами даёт паспорт только с именами переменных. |
-| `REQ-816` | Установка без переменной завершается предупреждением, а запуск возвращает `needs_configuration`; readiness берёт обязательные имена из exact выбранного SetupVersion даже без CLI-флага, а hostile-ввод `NAME=value` отклоняется без отражения значения в machine output. |
-| `REQ-817` | Отрицательная проверка доказывает отсутствие пути обновления харнесса мимо провайдера. |
-| `REQ-818` | Фикстура изменённой вне провайдера программы даёт `local_drift` и не запускает исправление сама. |
-| `REQ-819` | Фикстура объекта с учётными данными показывает признак до установки и не содержит значений и адресов. |
-| `REQ-820` | Exact SetupVersion показывает требование в install plan; фикстура provider status проверяет `missing → pending`, совпадающий `ready → installed`, отзыв `ready → pending`, а неизвестная форма и несовпадающий вид закрываются отказом без утечки значений. |
-| `REQ-821` | Контрактная проверка сохраняет wire shape и default conformance v1 без сетевых полей; явный v2 conformance закрывает команды, фазы и словарь требований и отвергает неизвестную версию. |
-| `REQ-822` | Матрица решений запрещает выдавать `unavailable` за `enforced`, требует launcher identity и evidence для enforced claim и сохраняет наблюдаемое доказательство. |
-| `REQ-823` | Шестистрочная native platform matrix запускает контрольные DNS/IPv4/IPv6 probes; результат различает enforced launcher, macOS trust exception и ранний отказ, не называя исключение изоляцией. |
-| `REQ-824` | Conformance fixture доказывает, что разрешённая download-фаза запускается отдельно, а apply того же действия снова проходит только через доказанный launcher. |
-| `REQ-825` | Сквозная CLI-фикстура проверяет literal ZIP path и точный argv validate/plan; изменение любого echo блокирует создание operation plan. |
-| `REQ-826` | Изменение каждого bundle/provider-plan поля меняет user-approved plan digest, а повтор идентичных read-only provider answers возвращает ту же operation. |
-| `REQ-827` | Повреждение cache блокирует provider spawn; exact `stale` и `state=refused`/`reason=stale` оставляют терминальный отказ без recovery, несовпадающий apply echo оставляет `partial`; обычный resume trace содержит только `provider-info` и `status`, recovery trace добавляет ровно `recover-operation` и не содержит apply. Тест принимает apply без четырёх bundle-echo и `status` с вложенным `provider_state.drift_state=clean`. |
-| `REQ-828` | Корпус материализует отдельный ZIP для каждого hostile class, проверяет exact argv/echo и удаляет bytes после прогона; trace conformance не содержит install/update/remove/apply/restore/launch. |
-| `REQ-829` | Последовательный и восьмипоточный тесты после terminal outcome создают ровно одну новую operation, сохраняют старый журнал и возвращают новую operation на повтор активного запроса. |
-| `REQ-830` | Две заранее созданные operation завершаются в обратном порядке с одним timestamp; status выбирает завершённую последней, а rollback — непосредственно предшествующий verified event. |
-| `REQ-831` | Contract tests сохраняют command/state declarations v1/v2, проверяют closed v3 core/operations и доказывают non-mutating отказ необъявленной operation. |
-| `REQ-832` | Prepared и composed fixtures с одним exact graph дают одинаковые SetupDefinition/HarnessBundle digests и проходят один trace validate/plan/confirm/apply/status. |
-| `REQ-833` | Изменение profile digest, неизвестный component/native surface, duplicate normalized path/native ID и ownership collision отклоняются до provider plan и не изменяют target. |
-| `REQ-834` | Изменение каждого plan-bound поля, expiry или target после lock даёт отказ без эффекта; timeout после возможного эффекта сохраняется как `partial` без blind retry. |
-| `REQ-835` | Profile-only switch сохраняет setup/component digests; Codex legacy safe/full-auto stamps мигрируют детерминированно после backup и status показывает setup/profile отдельно. |
-| `REQ-836` | Missing/unmanaged/managed status samples проходят kit schema; clean readable sample обязан нести полный provenance, local drift не обязан его придумывать, secret-pattern fixture отклоняется. |
-| `REQ-837` | Чистая public-provider checkout проверяет immutable kit digest и обе schemas без доступа к private repositories; enforcement включается отдельным consumer change после producer release. |
-| `REQ-838` | Network trace разрешает download только точной software phase, требует enforced local apply и допускает runtime external только объявленному launch. |
-| `REQ-839` | Fault-injection прерывает prepared и committed phases; status сообщает recovery state, новый plan остаётся чистым отказом, exact restore/cleanup завершаются одной recover-командой. |
-| `REQ-840` | Семь provider fixtures отклоняют неверный projection kind, malformed JSON/TOML, пустой component и деревья без обязательного нативного marker до mutation. |
-| `REQ-841` | Повтор одного inspection даёт тот же plan digest; изменение файла меняет inspection и plan digest; skill tree группируется одним компонентом, нечитаемый файл блокирует регистрацию, файл сверх границы размера исключается и регистрацию не блокирует, а план не пишет ни registry, ни target. |
-| `REQ-842` | Тест приобретает публичный setup с пустыми `facts`, отказывает без `--project`, затем связывает его с зарегистрированным project root и получает snapshot, меняющийся при новой project revision. |
-| `REQ-843` | Фикстура verified operation меняет, добавляет и удаляет файлы внутри managed roots; `target diff` возвращает относительные пути и точные digest evidence, игнорирует неуправляемые корни и ссылки, оставляет target byte-identical, а потерянный bundle сообщает `unavailable`. |
-| `REQ-844` | Матрица четырёх уровней доказывает порядок и условия: verified publisher без проверки exact bytes не принимается, verified bytes без закреплённого издателя остаются `signed` или `build_attested`, а явный unverified plan остаётся возможен только с отдельным согласием. |
-| `REQ-845` | Фикстуры `gh attestation verify --format=json` принимают только exact artifact, repository, source digest и signer workflow из policy; изменение каждого binding, отсутствие verified timestamp, self-hosted runner или управляемое процессом поле вместо certificate claim дают отказ до provider spawn. |
-| `REQ-846` | Изменение уровня, attestation identity или bundle digest меняет plan digest; apply повторяет проверку exact bytes и evidence, а history и machine output сохраняют уровень без секретов. Отдельный тест подтверждает, что `verify_stored` извлекает Sigstore bundle из JSON GitHub CLI и отказывает, если в `--bundle` остаётся обёртка без `dsseEnvelope`. |
-| `REQ-847` | Фикстура `provider fetch` после успешной GitHub attestation записывает закрытый JSON, который `verify_attested` принимает; `provider-info` вызывается только после attestation; тег `latest` и открытый pre-release отклоняются; байты не попадают в `releases`. |
-| `REQ-848` | План выбранного сетапа несёт его имя и полное описание; описание с оговоркой сохраняет оговорку, а не только первую фразу. |
-| `REQ-849` | Нативная macOS проба принимает только root-owned `/usr/bin/sandbox-exec`, доказывает positive control и запрет IPv4/IPv6/DNS-like UDP; отсутствие executable, writable ancestor, malformed/failed profile или достижимый transport оставляют capability `unavailable` и не запускают provider. |
+| `REQ-801` | Installation verification is obtained by the provider from the release manifest without Git cloning; `install plan` under protocol v3 without a manifest is rejected and calls `provider fetch`, a closed manifest and an explicit unverified; with an explicit parameter plans and reports `provider_release_trusted` equal to `false`, and the manifest along with this parameter is rejected as a contradiction; v1 plans without a manifest as before. |
+| `REQ-802` | The semantic compliance check compares `provider-info` with the actual CLI actions of all seven providers. |
+| `REQ-803` | A negative check proves that there is no direct target entry from `ai_stp`. |
+| `REQ-804` | The set of malicious packages covers all classes of paths, links, devices and limits. |
+| `REQ-805` | Checking the snapshot confirms that there have been no changes since the plan was built. |
+| `REQ-806` | A changed target and a changed plan hash will block application. |
+| `REQ-807` | Failure checks confirm pre-write backup and retention of unmanaged data. |
+| `REQ-808` | A status or ready to run error does not toggle the active pointer. |
+| `REQ-809` | The failure matrix checks all long-lived states of the result. |
+| `REQ-810` | End-to-end verification confirms the current session until the next launch. |
+| `REQ-811` | Benchmark signature and manifest checks reject unknown key, policy mismatch, modification of any signed field, exact executable bytes mismatch, and rollback; a correctly signed release outside the assigned list and approved bytes under someone else's `provider_id` are rejected by the code `release_not_pinned` before the first launch of the provider; trusted plan repeats the check before apply and atomically advances history only with `verified`. |
+| `REQ-812` | Fixtures for changing and revoking keys check overlap and blocking; recovery only accepts a separate confirmed plan for exact digest from verified history and does not reduce floor. |
+| `REQ-813` | The fixture of an existing target undergoes inspection, copy, cleaning, inventory, passport, verification and fixation without changing the target. |
+| `REQ-814` | Deleting an imported setup does not delete the backup copy, and vice versa. |
+| `REQ-815` | The native configuration with secrets provides a passport with only variable names. |
+| `REQ-816` | Installing without a variable completes with a warning and running returns `needs_configuration`; readiness takes the required names from the exact selected SetupVersion even without a CLI flag, and the hostile input `NAME=value` is rejected without reflecting the value in the machine output. |
+| `REQ-817` | A negative check proves that there is no Harness update path past the provider. |
+| `REQ-818` | The fixture of a program modified outside the provider gives `local_drift` and does not run the fix itself. |
+| `REQ-819` | The object fixture with credentials shows the sign before installation and does not contain values ​​and addresses. |
+| `REQ-820` | Exact SetupVersion shows the requirement in the install plan; the provider status fixture checks `missing → pending`, matched `ready → installed`, revocation `ready → pending`, and the unknown form and mismatched form are rejected without leaking values. |
+| `REQ-821` | Contract check saves wire shape and default conformance v1 without network fields; explicit v2 conformance closes the commands, phases, and requirements dictionary and rejects the unknown version. |
+| `REQ-822` | The decision matrix prohibits passing off `unavailable` as `enforced`, requires launcher identity and evidence for an enforced claim, and preserves observable evidence. |
+| `REQ-823` | `provider network --json` reports observed capability; v2/v3 lifecycle on the current Linux x86_64 release profile tries DNS, IPv4 and IPv6 connections, and the `none` action either provably blocks them or does not fire; any other OS without a proven launcher fails closed. |
+| `REQ-824` | Conformance fixture proves that the allowed download phase is launched separately, and apply of the same action again passes only through the proven launcher. |
+| `REQ-825` | The end-to-end CLI fixture checks the literal ZIP path and the exact argv validate/plan; changing any echo blocks the creation of an operation plan. |
+| `REQ-826` | Changing each bundle/provider-plan field changes the user-approved plan digest, and repeating identical read-only provider answers returns the same operation. |
+| `REQ-827` | Damage to cache blocks provider spawn; exact `stale` and `state=refused`/`reason=stale` leave terminal failure without recovery, mismatched apply echo leaves `partial`; a regular resume trace contains only `provider-info` and `status`, a recovery trace adds exactly `recover-operation` and does not contain apply. The test accepts apply without four bundle-echo and `status` with nested `provider_state.drift_state=clean`. |
+| `REQ-828` | The corpus materializes a separate ZIP for each hostile class, checks the exact argv/echo and removes bytes after the run; trace conformance does not contain install/update/remove/apply/restore/launch. |
+| `REQ-829` | Sequential and eight-thread tests after the terminal outcome create exactly one new operation, save the old log and return a new operation to repeat the active request. |
+| `REQ-830` | Two pre-created operations are completed in reverse order with the same timestamp; status selects the last completed one, and rollback selects the immediately preceding verified event. |
+| `REQ-831` | Contract tests preserve command/state declarations v1/v2, check closed v3 core/operations and prove non-mutating failure of an undeclared operation. |
+| `REQ-832` | Prepared and composed fixtures with the same exact graph give the same SetupDefinition/HarnessBundle digests and pass the same trace validate/plan/confirm/apply/status. |
+| `REQ-833` | Change profile digest, unknown component/native surface, duplicate normalized path/native ID and ownership collision are rejected before the provider plan is created and do not change the target. |
+| `REQ-834` | Changing every plan-bound, expiry, or target field after lock fails without effect; timeout after a possible effect is saved as `partial` without blind retry. |
+| `REQ-835` | Profile-only switch saves setup/component digests; Codex legacy safe/full-auto stamps migrate deterministically after backup and status shows setup/profile separately. |
+| `REQ-836` | Install/no-op/replace/backup/restore/remove E2E saves and verifies exact provenance; read-only status leaves legacy fixture byte-identical, secret-pattern fixture is rejected. |
+| `REQ-837` | A pure public-provider checkout checks immutable kit digest and conformance without access to private repositories; private root repeats exact release E2E. |
+| `REQ-838` | Network trace allows download only of the exact software phase, requires enforced local apply, and allows runtime external only to the declared launch. |
+| `REQ-839` | Fault-injection interrupts prepared and committed phases; status reports recovery state, the new plan remains a pure failure, exact restore/cleanup are completed with one recover command. |
+| `REQ-840` | Five provider fixtures reject invalid projection kind, malformed JSON/TOML, empty component and trees without `SKILL.md`, `plugin.json` or `package.json` before mutation. |
+| `REQ-841` | Repeating one inspection gives the same plan digest; changing the file changes inspection and plan digest; skill tree is grouped by one component, an unreadable file blocks registration, a file over the size limit is excluded and does not block registration, and the plan does not write either registry or target. |
+| `REQ-842` | The test acquires a public setup with empty `facts`, fails without `--project`, then associates it with the registered project root and receives a snapshot that changes with the new project revision. |
+| `REQ-843` | The verified operation fixture changes, adds and deletes files within managed roots; `target diff` returns relative paths and exact digest evidence, ignores unmanaged roots and links, leaves the target byte-identical, and the lost bundle reports `unavailable`. |
+| `REQ-844` | The matrix of four levels proves the order and conditions: verified publisher without checking exact bytes is not accepted, verified bytes without an assigned publisher remain `signed` or `build_attested`, and an explicit unverified plan remains possible only with separate consent. |
+| `REQ-845` | `gh attestation verify --format=json` fixtures only accept exact artifact, repository, source digest and signer workflow from policy; changing each binding, missing verified timestamp, self-hosted runner, or process-driven field instead of certificate claim fails before provider spawn. |
+| `REQ-846` | Changing the level, attestation identity or bundle digest changes the plan digest; apply repeats the exact bytes and evidence checks, while history and machine output keep the level without secrets. A separate test confirms that `verify_stored` fetches the Sigstore bundle from the JSON GitHub CLI and fails if `--bundle` is left with a wrapper without `dsseEnvelope`. |
+| `REQ-847` | The `provider fetch` fixture, after successful GitHub attestation, writes a private JSON, which `verify_attested` accepts; `provider-info` is called only after attestation; tag `latest` and open pre-release are rejected; the bytes do not end up in `releases`. |
+| `REQ-848` | The plan of the selected setup carries its name and full description; a qualified description retains the disclaimer, not just the first phrase. |

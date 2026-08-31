@@ -1,48 +1,48 @@
 ---
-description: "Решение сделать предложения состава недолговечными и создавать SetupVersion только из явного подтверждения."
+description: "Decision to make composition proposals short-lived and create a SetupVersion only from explicit confirmation."
 last_verified: "2026-08-09"
 ---
 
-# ADR-0027: Предложения состава и подтверждённая SetupVersion
+# ADR-0027: Composition proposals and a confirmed SetupVersion
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-`SPEC-006` определяет `SelectionRun`, кандидатов и линии доверия, а `ADR-0022` закрепляет, что состав собирает агент пользователя, а не модель внутри `ai_stp`. При этом переход от показанного агентом варианта состава к устанавливаемому объекту не определён: не сказано, кто решает, сколько вариантов показать, живут ли показанные варианты дольше сеанса, где проходит граница подтверждения и что именно фиксируется в момент согласия пользователя.
+`SPEC-006` defines `SelectionRun`, candidates, and trust lines, while `ADR-0022` establishes that the user's agent, not a model inside `ai_stp`, composes the setup. However, the transition from a composition option shown by the agent to an installable object is undefined: who decides how many options to show, whether shown options outlive the session, where the confirmation boundary lies, and exactly what is fixed when the user consents.
 
-Без этой границы реализация может сохранить каждый показанный вариант как версию, применить неверсионированный временный состав мимо `REQ-1110` или потерять воспроизводимость между рекомендацией и установкой, когда кандидаты успели измениться.
+Without this boundary, an implementation may persist every shown option as a version, apply an unversioned temporary composition outside `REQ-1110`, or lose reproducibility between recommendation and installation after candidates change.
 
-## Варианты
+## Options
 
-1. Хранить каждое показанное предложение как долговечный объект. Даёт историю, но засоряет реестр версиями, которые никто не выбирал, и делает «показать» неотличимым от «создать».
-2. Применять подтверждённый состав напрямую, без версии. Быстро, но установка перестаёт адресоваться точной версией, и воспроизводимость с историей теряются.
-3. Считать предложения производными и недолговечными, а долговечный объект создавать единственным действием — подтверждением пользователя.
+1. Store every shown proposal as a durable object. This provides history but clutters the registry with versions nobody selected and makes "show" indistinguishable from "create."
+2. Apply the confirmed composition directly, without a version. This is fast, but installation is no longer addressed by an exact version and reproducibility and history are lost.
+3. Treat proposals as derived and short-lived, and create a durable object through a single action: user confirmation.
 
-## Решение
+## Decision
 
-Принимается вариант 3.
+Option 3 is accepted.
 
-**Поиск и рекомендация — разные режимы.** Прямой поиск остаётся обычной операцией реестра. Сеанс рекомендации — отдельный поток: снимок контекста, допустимые кандидаты, одно или несколько предложений состава, подтверждение.
+**Search and recommendation are different modes.** Direct search remains a normal registry operation. A recommendation session is a separate flow: context snapshot, eligible candidates, one or more composition proposals, and confirmation.
 
-**Сколько предложений показать, решает агент пользователя.** `ai_stp` отдаёт кандидатов, механические ограничения, линии доверия, совместимость и причины; предел на размер выдачи остаётся пределом политики по `REQ-620`. Продукт не навязывает ни одно предложение как единственно правильное и не вызывает модель.
+**The user's agent decides how many proposals to show.** `ai_stp` returns candidates, mechanical constraints, trust lines, compatibility, and reasons; the result size limit remains the policy limit under `REQ-620`. The product does not impose any proposal as the only correct one and does not invoke a model.
 
-**Предложение недолговечно.** Показ предложений не создаёт версии, цели, `entity`, ревизии или синхронизируемого объекта реестра. Точный снимок хранится локальной строкой сеанса, потому что подтверждение выполняется отдельным процессом CLI и обязано проверить устаревание. Отмена записывает только идемпотентный терминальный исход этой строки; она не создаёт доменный объект и не меняет target.
+**A proposal is short-lived.** Showing proposals creates no version, target, `entity`, revision, or synchronizable registry object. The exact snapshot is stored in a local session row because confirmation runs in a separate CLI process and must detect staleness. Cancellation records only an idempotent terminal outcome for that row; it creates no domain object and does not change the target.
 
-**Подтверждение атомарно фиксирует ровно один объект.** Явное подтверждение одного предложения замораживает его точный граф как новую приватную `SetupVersion` выбранного харнесса, записывает `RecommendationTrace` и закрепляет версию как активную для пары проект и харнесс по `REQ-514`. Нет подтверждения — нет `SetupVersion`.
+**Confirmation atomically fixes exactly one object.** Explicit confirmation of one proposal freezes its exact graph as a new private `SetupVersion` for the selected harness, records `RecommendationTrace`, and pins the version as active for the project and harness pair under `REQ-514`. No confirmation means no `SetupVersion`.
 
-*Уточнение 2026-08-05: закрепление из этого решения означает выбранную версию пары; установленной она становится после `verified` провайдера, а окно между ними — состояние `pending_install`, не расхождение. Точная граница — `docs/contracts/selection-proposal.md`.*
+*Clarification dated 2026-08-05: pinning in this decision means the selected version for the pair; it becomes installed after provider `verified`, and the interval between them is the `pending_install` state, not drift. The exact boundary is defined in `docs/contracts/selection-proposal.md`.*
 
-**Подтверждение привязано к точному входу.** Изменение хэша кандидата, ревизий паспортов контекста или версии политики делает предложение устаревшим; подтверждение устаревшего предложения отклоняется типизированной ошибкой и требует нового сеанса. Повтор подтверждения того же предложения идемпотентно возвращает ту же версию.
+**Confirmation is bound to exact input.** A change to a candidate hash, context passport revisions, or policy version makes the proposal stale; confirmation of a stale proposal is rejected with a typed error and requires a new session. Repeated confirmation of the same proposal idempotently returns the same version.
 
-## Последствия
+## Consequences
 
-- `SPEC-006` получает требования недолговечности предложений, атомарного подтверждения и устаревания;
-- `SPEC-011` объявляет действия сеанса рекомендации и подтверждения в машинной справке;
-- машинная граница предложения и подтверждения принадлежит `docs/contracts/selection-proposal.md`;
-- пользовательские пути и обзор архитектуры показывают подтверждение как границу между рекомендацией и установкой;
-- доменная модель помечает предложение как производный недолговечный объект.
+- `SPEC-006` receives requirements for proposal ephemerality, atomic confirmation, and staleness;
+- `SPEC-011` declares recommendation-session and confirmation actions in machine help;
+- the machine boundary for proposal and confirmation belongs to `docs/contracts/selection-proposal.md`;
+- user journeys and the architecture overview show confirmation as the boundary between recommendation and installation;
+- the domain model marks a proposal as a derived short-lived object.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается, если появится доказанная потребность в долговечных черновиках предложений — тогда они станут отдельной сущностью с собственным жизненным циклом, а не версиями, — либо если идемпотентность подтверждения окажется недостаточной для сценариев с несколькими устройствами.
+This decision will be reconsidered if a demonstrated need appears for durable proposal drafts—in that case they will become a separate entity with their own lifecycle, not versions—or if confirmation idempotency proves insufficient for multi-device scenarios.

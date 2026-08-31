@@ -1,51 +1,51 @@
 ---
-description: "Решение вести локальный реестр на стандартном sqlite3 с собственным раннером миграций вместо Alembic."
+description: "Decision to maintain the local registry using the standard sqlite3 with a custom migration runner instead of Alembic."
 last_verified: "2026-08-06"
 ---
 
-# ADR-0059: Локальный реестр на стандартном sqlite3
+# ADR-0059: Local Registry Using the Standard sqlite3
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-`SPEC-009` REQ-901 требует от локального реестра миграции, журнал упреждающей записи, внешние ключи, транзакции и закрытые права файловой системы. Задача #74 называет инструментом Alembic.
+`SPEC-009` REQ-901 requires the local registry to support migrations, write-ahead logging, foreign keys, transactions, and restrictive file system permissions. Issue #74 names Alembic as the tool.
 
-Alembic создан для SQLAlchemy и без него не работает. Измерено в пустом окружении: он приводит пять пакетов — `sqlalchemy`, `greenlet`, `mako`, `markupsafe`, `typing-extensions`, — из которых один SQLAlchemy занимает 14 МБ. Импорт `sqlalchemy` стоит около 510 мс сверх пустого интерпретатора, импорт `alembic` — около 440 мс. Стандартный `sqlite3` стоит 2 мс.
+Alembic is designed for SQLAlchemy and does not work without it. Measurements in an empty environment show that it brings in five packages—`sqlalchemy`, `greenlet`, `mako`, `markupsafe`, and `typing-extensions`—of which SQLAlchemy alone occupies 14 MB. Importing `sqlalchemy` costs about 510 ms beyond an empty interpreter, while importing `alembic` costs about 440 ms. The standard `sqlite3` costs 2 ms.
 
-Порядок величин здесь решает. В `ADR-0058` импорт `keyring` был вынесен в ленивый именно потому, что 100 мс — это втрое дороже Click и заметно в команде, которая ничего не хранит. Полсекунды впятеро хуже, и заплатит их первая же команда, открывающая реестр, потому что миграции применяются при открытии.
+The order of magnitude is decisive here. In `ADR-0058`, the `keyring` import was made lazy precisely because 100 ms is three times more expensive than Click and is noticeable in a command that stores nothing. Half a second is five times worse, and the very first command that opens the registry will pay that cost because migrations are applied on open.
 
-Mako и MarkupSafe входят в дерево ради генерации файлов миграций — задачи времени разработки, которая попадает в колесо каждого пользователя.
+Mako and MarkupSafe are included in the dependency tree for migration file generation—a development-time task that ends up in every user's wheel.
 
-Отдельная сложность: Alembic ожидает каталог со скриптами и `alembic.ini` рядом с проектом. В установленном колесе это данные пакета, и запуск миграций перестаёт совпадать с запуском из исходного дерева. Это ровно тот класс расхождения, который `smoke-cli` из #72 существует, чтобы ловить.
+A separate complication is that Alembic expects a directory containing scripts and an `alembic.ini` alongside the project. In an installed wheel, these are package data, and running migrations no longer behaves the same as running them from the source tree. This is exactly the class of discrepancy that `smoke-cli` from #72 exists to catch.
 
-Модель данных локального реестра мала: сущности, ревизии, головы и журнал операций. Она не требует ни ORM, ни автогенерации миграций из моделей.
+The local registry data model is small: entities, revisions, heads, and an operation log. It requires neither an ORM nor automatic generation of migrations from models.
 
-## Варианты
+## Alternatives
 
-1. Alembic и SQLAlchemy, как названо в задаче. Стандартный инструмент и знакомый рабочий процесс, ценой 15 МБ и полусекунды на каждой команде, открывающей реестр.
-2. Alembic поверх SQLAlchemy Core без ORM. Дерево зависимостей то же; выигрыш только в стиле кода.
-3. Стандартный `sqlite3` и собственный раннер миграций, упорядоченный по `PRAGMA user_version`. Ноль зависимостей, одинаковое поведение из исходного дерева и из колеса, миграции применяются, идемпотентны и откатываются там, где откат объявлен.
-4. Отложить миграции до появления второй версии схемы. Отвергается: первая же установка создаёт файл, который придётся уметь обновлять, а механизм, добавленный после появления пользовательских данных, добавляется в худший момент.
+1. Alembic and SQLAlchemy, as specified in the issue. A standard tool and familiar workflow, at the cost of 15 MB and half a second for every command that opens the registry.
+2. Alembic on top of SQLAlchemy Core without an ORM. The dependency tree is the same; the only benefit is in code style.
+3. The standard `sqlite3` and a custom migration runner ordered by `PRAGMA user_version`. Zero dependencies, identical behavior from the source tree and from the wheel; migrations are applied, are idempotent, and are rolled back where rollback is declared.
+4. Defer migrations until a second schema version appears. Rejected: the very first installation creates a file that must be upgradable, and adding the mechanism after user data already exists means adding it at the worst possible time.
 
-## Решение
+## Decision
 
-Принят вариант 3.
+Alternative 3 is accepted.
 
-Реестр открывается стандартным `sqlite3` с `journal_mode=WAL`, `foreign_keys=ON` и записью в транзакции. Версия схемы хранится в `PRAGMA user_version`; миграции объявлены упорядоченным списком, каждая со своими операторами применения и, где это выразимо, отката. Применение идемпотентно: миграция с номером не выше текущего не выполняется повторно.
+The registry is opened using the standard `sqlite3` with `journal_mode=WAL`, `foreign_keys=ON`, and transactional writes. The schema version is stored in `PRAGMA user_version`; migrations are declared as an ordered list, each with its own apply statements and, where expressible, rollback statements. Application is idempotent: a migration whose number is not greater than the current version is not executed again.
 
-База данных, каталог содержимого и журнал операций создаются с правами владельца по тем же примитивам, что и в `ADR-0058`.
+The database, content directory, and operation log are created with owner-only permissions using the same primitives as in `ADR-0058`.
 
-Файл с версией схемы выше поддерживаемой не открывается и не изменяется: ответ типизирован, а исходная база остаётся нетронутой. Понижать версию молча нельзя — это единственный способ потерять данные, записанные более новой сборкой.
+A file with a schema version higher than the supported version is neither opened nor modified: the response is typed, and the original database remains untouched. The version must not be silently downgraded—doing so is the only way to lose data written by a newer build.
 
-## Последствия
+## Consequences
 
-- дерево зависимостей CLI не растёт; `sqlite3` входит в стандартную библиотеку;
-- миграции пишутся как SQL, а не порождаются из моделей: расхождение модели и схемы ловится тестом, а не автогенерацией;
-- поведение из исходного дерева и из установленного колеса одинаково по построению, потому что ничего не ищется на диске рядом с проектом;
-- серверный трек продолжает использовать PostgreSQL и Alembic по своей задаче; это разные хранилища с разными требованиями, и общего инструмента у них нет;
-- владелец зависимости отсутствует, потому что зависимости нет; путь удаления не требуется.
+- the CLI dependency tree does not grow; `sqlite3` is part of the standard library;
+- migrations are written as SQL rather than generated from models: discrepancies between the model and the schema are caught by a test, not by autogeneration;
+- behavior from the source tree and from the installed wheel is identical by construction because nothing is looked up on disk alongside the project;
+- the server track continues to use PostgreSQL and Alembic for its own issue; these are different storage systems with different requirements, and they do not share a common tool;
+- there is no dependency owner because there is no dependency; no removal path is required.
 
-## Условия пересмотра
+## Reconsideration Conditions
 
-Решение пересматривается, если локальной схеме понадобятся возможности, которых у `sqlite3` нет без ORM, если число миграций сделает ручной список дороже автогенерации, или если локальный и серверный слои начнут делить один код доступа к данным — сегодня они не делят ничего, кроме моделей паспортов.
+The decision will be reconsidered if the local schema requires capabilities that `sqlite3` does not provide without an ORM, if the number of migrations makes a manual list more costly than autogeneration, or if the local and server layers begin sharing the same data-access code—today they share nothing except passport models.

@@ -1,45 +1,45 @@
 ---
-description: "Шаблон проверяемой спецификации."
+description: "Template for a verifiable specification."
 last_verified: "2026-08-03"
 ---
 
-# SPEC-NNN: Краткое название
+# SPEC-NNN: Short title
 
-## Цель
+## Goal
 
-Какой наблюдаемый результат должен стать возможным.
+The observable result that must become possible.
 
-## Границы
+## Boundaries
 
-Что входит и что явно не входит.
+What is included and what is explicitly excluded.
 
-## Термины
+## Terms
 
-Только новые или уточнённые термины.
+Only new or clarified terms.
 
-## Требования
+## Requirements
 
-Идентификаторы требований принадлежат блоку своей спецификации: `SPEC-NNN` владеет
-диапазоном `REQ-NNNxx`, где `xx` — порядковый номер внутри спецификации. Так
-`SPEC-006` владеет `REQ-601`…`REQ-6nn`. Номер требования не переиспользуется даже
-после удаления требования.
+Requirement identifiers belong to their specification block: `SPEC-NNN` owns
+the `REQ-NNNxx` range, where `xx` is the ordinal within the specification. For
+example, `SPEC-006` owns `REQ-601`…`REQ-6nn`. A requirement number is never
+reused, even after the requirement is removed.
 
-- `REQ-NNN`: Одно наблюдаемое и проверяемое требование.
+- `REQ-NNN`: One observable and verifiable requirement.
 
-## Состояния и ошибки
+## States and errors
 
-Успешные, ошибочные, частичные и неизвестные состояния; stable error codes и recovery.
+Successful, erroneous, partial, and unknown states; stable error codes and recovery.
 
-## Безопасность и приватность
+## Security and privacy
 
-Trust boundary, данные, полномочия, журналирование и запрещённые утечки.
+Trust boundary, data, authority, logging, and prohibited leaks.
 
-## Совместимость и миграция
+## Compatibility and migration
 
-Старые и новые клиенты, версия схемы, порядок rollout и rollback.
+Old and new clients, schema version, rollout order, and rollback.
 
-## Критерии приёмки
+## Acceptance criteria
 
-| Требование | Исполнимый oracle |
+| Requirement | Executable oracle |
 |---|---|
-| `REQ-NNN` | Точный test, contract check или иной наблюдаемый результат. |
+| `REQ-NNN` | Exact test, contract check, or other observable result. |

@@ -1,42 +1,46 @@
 ---
-description: "Проводная семантика публичных detail view и artifact download counters."
+description: "Wire semantics of public detail-view and artifact-download counters."
 last_verified: "2026-08-17"
 ---
 
 # Catalog usage metrics
 
-При включённом feature публичные component card/detail/version responses получают
-nullable `usage_metrics` с неотрицательными `detail_views_count` и
-`artifact_downloads_count`. Все поверхности читают aggregate `stable_id`;
-отсутствие означает выключенный feature или недоступное значение, а не ноль.
+When the feature is enabled, public component card/detail/version responses gain
+nullable `usage_metrics` with non-negative `detail_views_count` and
+`artifact_downloads_count`. All surfaces read the aggregate by `stable_id`;
+absence means the feature is disabled or the value is unavailable, not zero.
 
-Просмотр detail — успешный публичный ответ. Загрузка артефакта — успешная выдача
-bytes после проверок доступа и целостности. HEAD, preflight, ошибка, незавершённый
-stream и получение download URL не считаются. Download не является install success.
+A detail view is a successful public response. An artifact download is a
+successful delivery of bytes after access and integrity checks. HEAD, preflight,
+an error, an incomplete stream, and obtaining a download URL do not count. A
+download is not an installation success.
 
-Dedup key строится из action, `stable_id`, окна и keyed digest минимального сетевого
-признака. Raw IP, user-agent, account/device id и cross-window digest не хранятся.
-Окно, срок хранения и ротация секрета задаются серверной конфигурацией; public API не
-возвращает events или unique-user estimate.
+The dedup key is built from the action, `stable_id`, window, and a keyed digest of
+a minimal network signal. Raw IP, user-agent, account/device ID, and cross-window
+digest are not stored. The window, retention period, and secret rotation are set
+by server configuration; the public API does not return events or a unique-user
+estimate.
 
-Default anti-abuse window — `1 h`, retention dedup rows — `25 h`, rotation secret
-— каждые `24 h` с перекрытием текущего окна. Значения bounded server configuration:
-окно `5 min..24 h`, retention не меньше окна и не больше `7 d`, rotation не реже
-срока хранения. Изменение defaults требует проверки приватности и граничных тестов.
+The default anti-abuse window is `1 h`, dedup-row retention is `25 h`, and the
+secret rotates every `24 h` with overlap for the current window. Bounded server
+configuration values are: window `5 min..24 h`, retention no shorter than the
+window and no longer than `7 d`, and rotation no less frequent than the retention
+period. Changing defaults requires a privacy review and boundary tests.
 
-## Эксплуатация
+## Operations
 
-API включает сбор через `AI_STP_CATALOG_USAGE_ENABLED`; Web показывает aggregate
-только при одновременном build-time feature
-`AI_STP_FEATURE_CATALOG_USAGE_METRICS`. Параметры API:
+The API enables collection through `AI_STP_CATALOG_USAGE_ENABLED`; Web displays
+the aggregate only when the build-time feature
+`AI_STP_FEATURE_CATALOG_USAGE_METRICS` is also enabled. API parameters:
 
-- `AI_STP_CATALOG_USAGE_SECRET` — обязательный секрет keyed digest при включении;
-- `AI_STP_CATALOG_USAGE_WINDOW_SECONDS` — окно dedup;
-- `AI_STP_CATALOG_USAGE_RETENTION_SECONDS` — срок хранения dedup rows;
-- `AI_STP_CATALOG_USAGE_SECRET_ROTATION_SECONDS` — период ротации.
+- `AI_STP_CATALOG_USAGE_SECRET` — required keyed-digest secret when enabled;
+- `AI_STP_CATALOG_USAGE_WINDOW_SECONDS` — dedup window;
+- `AI_STP_CATALOG_USAGE_RETENTION_SECONDS` — dedup-row retention period;
+- `AI_STP_CATALOG_USAGE_SECRET_ROTATION_SECONDS` — rotation period.
 
-Секрет ротируется с перекрытием активного окна: прежнее значение сохраняется до
-истечения окна, затем удаляется. Cleanup удаляет только dedup rows старше retention;
-aggregate не уменьшается. Если конфигурация невалидна, API не стартует. Для rollback
-сначала выключают Web feature, затем `AI_STP_CATALOG_USAGE_ENABLED`; публичная
-проекция становится nullable/отсутствующей, накопленные aggregate не удаляются.
+The secret rotates with active-window overlap: the previous value is retained
+until the window expires, then removed. Cleanup removes only dedup rows older than
+the retention period; the aggregate does not decrease. The API does not start
+with invalid configuration. For rollback, disable the Web feature first, then
+`AI_STP_CATALOG_USAGE_ENABLED`; the public projection becomes nullable/absent,
+and accumulated aggregates are not deleted.

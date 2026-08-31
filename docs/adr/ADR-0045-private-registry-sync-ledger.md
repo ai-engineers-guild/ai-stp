@@ -1,86 +1,87 @@
 ---
-description: "Решение о минимальной серверной синхронизации через revision ledger и account-scoped outbox."
+description: "Decision on minimal server-side synchronization through a revision ledger and account-scoped outbox."
 last_verified: "2026-08-07"
 ---
 
-# ADR-0045: Минимальная серверная синхронизация через revision ledger
+# ADR-0045: Minimal Server-Side Synchronization Through a Revision Ledger
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-`ADR-0005` и `SPEC-009` уже требуют граф ревизий, fast-forward,
-трёхстороннее объединение, конфликты и tombstone. После Sprint 1 есть PostgreSQL,
-Alembic, активные устройства с непрозрачной серверной сессией и минимальная
-PostgreSQL-очередь. Для #179 нужно материализовать приватный серверный контур,
-не притащив брокер, CRDT или вторую реализацию локального реестра.
+`ADR-0005` and `SPEC-009` already require a revision graph, fast-forward,
+three-way merge, conflicts, and tombstones. After Sprint 1, PostgreSQL, Alembic,
+active devices with opaque server-side sessions, and a minimal PostgreSQL queue
+exist. For #179, the private server-side path must be materialized without bringing
+in a broker, CRDT, or a second implementation of the local registry.
 
-## Варианты
+## Options
 
-1. Брокер или CDC-стрим как transport синхронизации. Даёт отдельный transport,
-   но добавляет сервис, эксплуатацию, повторную доставку и второй источник
-   порядка до появления нагрузки, которая это оправдает.
-2. Последняя запись побеждает либо серверное автоматическое слияние. Выглядит
-   короче, но теряет подтверждённые изменения и прямо противоречит `ADR-0005`.
-3. Журнал ревизий в PostgreSQL, одна серверная голова на сущность, долговечные
-   receipts и упорядоченный append-only outbox, который клиенты читают курсором.
+1. A broker or CDC stream as the synchronization transport. Provides a separate
+   transport, but adds a service, operations, redelivery, and a second source of
+   ordering before there is load to justify them.
+2. Last-write-wins or automatic server-side merging. Appears shorter, but loses
+   confirmed changes and directly contradicts `ADR-0005`.
+3. A PostgreSQL revision ledger, one server-side head per entity, durable receipts,
+   and an ordered append-only outbox read by clients through a cursor.
 
-## Решение
+## Decision
 
-Принимается вариант 3.
+Option 3 is accepted.
 
-Сервер хранит четыре минимальные роли в одной PostgreSQL-схеме; каждая запись
-изолирована account, а head уникальна по паре account и сущности:
+The server stores four minimal roles in one PostgreSQL schema; every record is
+isolated by account, and the head is unique by the account and entity pair:
 
-- неизменяемую ревизию с канонической нагрузкой и родителями;
-- текущую head сущности в account;
-- receipt идемпотентного события;
-- append-only server outbox с монотонной последовательностью.
+- an immutable revision with a canonical payload and parents;
+- the entity's current head in the account;
+- a receipt for the idempotent event;
+- an append-only server outbox with a monotonic sequence.
 
-Принятие события сериализует head сущности, проверяет account, активное устройство,
-схему, content-addressed revision, родителей и ожидаемую голову. В одной
-транзакции оно записывает revision при необходимости, переводит head, добавляет
-outbox-запись и сохраняет receipt. Повтор возвращает сохранённый receipt. Для
-пакета события обрабатываются в порядке клиента; частичный пакет честно отдаёт
-поштучные результаты и не отменяет уже закоммиченные предыдущие события.
+Event acceptance serializes the entity head and validates the account, active
+device, schema, content-addressed revision, parents, and expected head. In one
+transaction, it writes the revision if necessary, advances the head, adds an outbox
+entry, and stores the receipt. A retry returns the stored receipt. For a batch,
+events are processed in client order; a partial batch truthfully returns per-item
+results and does not roll back already committed preceding events.
 
-Pull читает server outbox через подписанный account-scoped cursor. Cursor несёт
-только позицию и проверяется с отдельной областью подписи существующего серверного
-секрета; отдельная переменная окружения и серверная таблица курсоров не нужны.
-Он не заменяет авторизацию и не раскрывает порядок или события другого account.
+Pull reads the server outbox through a signed account-scoped cursor. The cursor
+carries only the position and is validated with a separate signing scope of the
+existing server secret; neither a separate environment variable nor a server-side
+cursor table is needed. It does not replace authorization and does not expose the
+ordering or events of another account.
 
-Fast-forward разрешён, когда ожидаемая текущая head является родителем новой
-ревизии. Расхождение возвращает `conflict` с головами и общим предком; сервер не
-выполняет LWW, CRDT или слияние полей. Валидный конфликтный кандидат остаётся в
-ledger без перехода head и без outbox-события, чтобы клиент мог сослаться на него
-в явной ревизии с двумя родителями позднее. Tombstone проходит этот же путь и не
-удаляет нужную для графа историю.
+Fast-forward is allowed when the expected current head is a parent of the new
+revision. Divergence returns `conflict` with the heads and common ancestor; the
+server does not perform LWW, CRDT, or field merging. A valid conflicting candidate
+remains in the ledger without advancing the head and without an outbox event, so the
+client can refer to it later in an explicit revision with two parents. A tombstone
+follows the same path and does not delete history required by the graph.
 
-Для #179 server outbox — это сам durable поток принятых sync-событий. Worker и
-его `job` table не получают пустой sync-job: они подключаются позднее только для
-реальной асинхронной проекции, например публикации или доставки уведомления.
-Точные модели, маршруты и коды появляются из `packages/contracts` и
-сгенерированного OpenAPI; это решение не создаёт параллельный wire-contract.
+For #179, the server outbox is itself the durable stream of accepted sync events.
+The worker and its `job` table do not receive an empty sync job: they are connected
+later only for a real asynchronous projection, such as publication or notification
+delivery. Exact models, routes, and codes come from `packages/contracts` and the
+generated OpenAPI; this decision does not create a parallel wire contract.
 
-## Последствия
+## Consequences
 
-- добавляются аддитивные Alembic-модели и миграция revision ledger, head, receipt
-  и outbox; новая зависимость или брокер не нужны;
-- появляется отдельный API slice синхронизации, использующий существующую
-  аутентификацию сессии и проверку активного устройства;
-- cursor должен быть подписан, ограничен и привязан к account; его отзыв или
-  переиздание не затрагивает данные и просто требует новый pull от безопасной
-  позиции;
-- понадобятся контрактные, API и PostgreSQL-интеграционные проверки повтора,
-  конкурентных push, cursor, tombstone, конфликта, merge-ревизии и отзыва;
-- CLI-клиент, web-состояние синхронизации, grants, публикация, очистка и bytes
-  остаются отдельными задачами;
-- переход на брокер, серверное слияние или несколько server-head потребует нового
-  ADR с измеренным обоснованием.
+- additive Alembic models and a migration are added for the revision ledger, head,
+  receipt, and outbox; no new dependency or broker is needed;
+- a separate synchronization API slice is introduced, using the existing session
+  authentication and active-device validation;
+- the cursor must be signed, bounded, and bound to the account; revoking or reissuing
+  it does not affect data and merely requires a new pull from a safe position;
+- contract, API, and PostgreSQL integration checks will be required for retries,
+  concurrent pushes, the cursor, tombstones, conflicts, merge revisions, and
+  revocation;
+- the CLI client, web synchronization state, grants, publication, cleanup, and bytes
+  remain separate tasks;
+- moving to a broker, server-side merging, or multiple server heads will require a
+  new ADR with measured justification.
 
-## Условия пересмотра
+## Reconsideration Conditions
 
-Решение пересматривается, если измеренная нагрузка потребует независимой доставки
-вне PostgreSQL, если поддерживаемым устройствам нужен retained history, которое
-нельзя хранить в ledger, либо если появится доказанный сценарий, где клиентское
-явное слияние не даёт приемлемого UX без потери данных.
+The decision will be reconsidered if measured load requires independent delivery
+outside PostgreSQL, if supported devices need retained history that cannot be stored
+in the ledger, or if a demonstrated scenario arises where explicit client-side
+merging cannot provide acceptable UX without data loss.

@@ -1,20 +1,20 @@
 ---
-description: "Решение: разделить full-auto и чувствительные действия."
+description: "Decision to separate full-auto from sensitive actions."
 last_verified: "2026-08-03"
 ---
 
-# ADR-0006: Разделить полный автоматический режим и чувствительные действия
+# ADR-0006: Separate full-auto mode from sensitive actions
 
-Принято 2026-08-03. Заменено `ADR-0017-three-independent-automation-axes.md`: та запись сохраняет это решение и разводит профиль выполнения, изоляцию проверок и целостность изменения по трём независимым осям. Читать здесь только контекст исходного выбора.
+Accepted on 2026-08-03. Superseded by `ADR-0017-three-independent-automation-axes.md`: that record preserves this decision and separates execution profile, verification isolation, and change integrity along three independent axes. Read this record only for the context of the original choice.
 
-## Контекст
+## Context
 
-Максимальные полномочия агента повышают эффективность coding workflow, но опасны при публикации, изменении доступа, удалении данных и повышении системных привилегий.
+Maximum agent authority improves coding workflow efficiency but is dangerous for publication, access changes, data deletion, and system privilege elevation.
 
-## Решение
+## Decision
 
-Все управляемые target харнессов MVP используют профиль полного автоматического доступа. Публичная публикация, создание новой основной линии версий, установка объекта непроверенного автора, повышение привилегий, полная очистка данных, удаление target или резервных копий и внешние Git/deployment действия требуют явного решения пользователя.
+All managed targets of MVP harnesses use the full-auto access profile. Public publication, creation of a new major version line, installation of an object from an unverified author, privilege elevation, complete data erasure, deletion of a target or backups, and external Git/deployment actions require an explicit user decision.
 
-## Последствия
+## Consequences
 
-Runtime profile и policy подтверждений остаются отдельными сущностями. Agent Skill обязан чаще задавать вопросы во время настройки сетапа и не может подтверждать собственную внешнюю запись.
+The runtime profile and confirmation policy remain separate entities. The Agent Skill must ask questions more often while configuring a setup and cannot confirm its own external write.

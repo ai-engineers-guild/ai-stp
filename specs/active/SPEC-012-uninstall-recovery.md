@@ -1,60 +1,60 @@
 ---
-description: "SPEC-012: Удаление, полная очистка и восстановление."
+description: "SPEC-012: Uninstallation, full cleanup, and recovery."
 last_verified: "2026-08-03"
 ---
 
-# SPEC-012: Удаление, полная очистка и восстановление
+# SPEC-012: Uninstallation, full cleanup, and recovery
 
-## Цель
+## Purpose
 
-Пользователь может удалить исполнимый слой `ai_stp`, сохранить свои данные для повторной установки, отдельно выполнить полную очистку и восстановить харнесс после частичной операции без догадок о последнем состоянии.
+The user can uninstall the `ai_stp` executable layer, retain their data for reinstallation, perform a full cleanup separately, and recover the harness after a partial operation without guessing the last state.
 
-## Границы
+## Scope
 
-Входят обычное удаление, `--purge`, отдельная очистка целевых каталогов и резервных копий, устаревшие планы, восстановление после частичной операции и повторная установка. Автоматическое удаление резервных копий провайдера и необратимые действия без плана не входят.
+This includes regular uninstallation, `--purge`, separate cleanup of target directories and backups, stale plans, recovery after a partial operation, and reinstallation. Automatic deletion of provider backups and irreversible actions without a plan are out of scope.
 
-## Термины
+## Terms
 
-- `uninstall` — удаление CLI, провайдеров, набора инструментов, управляющих навыков и учётных данных с сохранением пользовательских данных.
-- `purge` — отдельная подтверждённая очистка локального реестра и пользовательских данных.
-- `recovery report` — точное последнее подтверждённое состояние и допустимые дальнейшие действия.
+- `uninstall` — removal of the CLI, providers, toolkit, control skills, and credentials while retaining user data.
+- `purge` — a separate, confirmed cleanup of the local registry and user data.
+- `recovery report` — the exact last verified state and the permitted next actions.
 
-## Требования
+## Requirements
 
-- `REQ-1201`: Обычное удаление очищает CLI, провайдеры, управляемый набор инструментов, интеграционные навыки и локальные облачные учётные данные.
-- `REQ-1202`: Паспорта, реестр, черновики, артефакты, цели и резервные копии провайдера сохраняются при обычном удалении.
-- `REQ-1203`: Полная очистка данных выполняется отдельной операцией после плана без побочных эффектов и подтверждения пользователя.
-- `REQ-1204`: Целевые каталоги харнессов и байты резервных копий требуют отдельной разрушительной операции и не входят в общую очистку молча.
-- `REQ-1205`: Истёкший или изменённый план не применяется.
-- `REQ-1206`: Частичное применение или удаление сохраняет долговечную операцию и выдаёт отчёт восстановления вместо автоматического повтора.
-- `REQ-1207`: Восстановление использует точную ссылку `BackupRef`, версию провайдера и идентификатор цели. Ссылка читается командой после операции копирования, а не только из ответа на неё; план восстановления связывается с `BackupRef` и целью и не требует называть сетап или предложение.
-- `REQ-1208`: Повторная установка обнаруживает сохранённый реестр и предлагает восстановление без изменения цели.
-- `REQ-1209`: Восстановление возвращает весь `HarnessTarget` целиком по точной ссылке резервной копии; частичное восстановление отдельного компонента не поддерживается.
-- `REQ-1210`: До восстановления показывается план с текущей активной и целевой версией, а после операции выполняется проверка состояния; неудачное восстановление сохраняет `partial` и последнее подтверждённое состояние без автоматического повтора.
+- `REQ-1201`: Regular uninstallation removes the CLI, providers, managed toolkit, integration skills, and local cloud credentials.
+- `REQ-1202`: Passports, the registry, drafts, artifacts, targets, and provider backups are retained during regular uninstallation.
+- `REQ-1203`: Full data cleanup is performed as a separate operation after a side-effect-free plan and user confirmation.
+- `REQ-1204`: Harness target directories and backup bytes require a separate destructive operation and are not silently included in general cleanup.
+- `REQ-1205`: An expired or changed plan is not applied.
+- `REQ-1206`: A partial apply or removal persists a durable operation and produces a recovery report instead of retrying automatically.
+- `REQ-1207`: Recovery uses the exact `BackupRef`, provider version, and target identifier. The reference is read by a command after the copy operation, not only from its response; the recovery plan is bound to the `BackupRef` and target and does not require naming a setup or proposal.
+- `REQ-1208`: Reinstallation detects the retained registry and offers recovery without changing the target.
+- `REQ-1209`: Recovery restores the entire `HarnessTarget` from the exact backup reference; partial recovery of an individual component is not supported.
+- `REQ-1210`: Before recovery, a plan showing the current active and target versions is displayed, and after the operation the state is verified; failed recovery retains `partial` and the last verified state without retrying automatically.
 
-## Состояния и ошибки
+## States and errors
 
-Операции используют общий набор состояний изменяющей операции из `docs/contracts/operation.md`, где единственным именем успеха является `verified`; отдельного состояния `succeeded` у операции нет. Очистка различает отзыв доступа, логическую метку удаления и физическое удаление. Неизвестная версия провайдера или отсутствующая резервная копия блокирует восстановление с точным кодом ошибки.
+Operations use the common state set for mutating operations from `docs/contracts/operation.md`, where `verified` is the only success state name; there is no separate `succeeded` operation state. Cleanup distinguishes access revocation, a logical deletion marker, and physical deletion. An unknown provider version or missing backup blocks recovery with an exact error code.
 
-## Безопасность и приватность
+## Security and privacy
 
-План перечисляет каждый принадлежащий системе путь и исключает пользовательские данные. Выход через ссылку и гонка с активной операцией провайдера блокируются. Учётные данные удаляются без печати значения. Локальная полная очистка не затрагивает облачные данные без отдельного серверного запроса.
+The plan lists every system-owned path and excludes user data. Symlink escape and races with an active provider operation are blocked. Credentials are removed without printing their values. Local full cleanup does not affect cloud data without a separate server request.
 
-## Совместимость и миграция
+## Compatibility and migration
 
-Манифест владения и журнал операций имеют версии. Новый CLI читает поддерживаемые старые манифесты. Перед удалением старого анализатора требуется проверка миграции и восстановления. Возврат провайдера не зависит от самой новой доступной версии.
+The ownership manifest and operation journal are versioned. A new CLI reads supported older manifests. Migration and recovery must be verified before removing an old parser. Provider rollback does not depend on the newest available version.
 
-## Критерии приёмки
+## Acceptance criteria
 
-| Требование | Исполнимый способ проверки |
+| Requirement | Executable verification method |
 |---|---|
-| `REQ-1201` | Проверка удаления подтверждает очистку принадлежащих исполнимых путей и учётных данных. |
-| `REQ-1202` | Проверка снимка подтверждает сохранение паспорта, реестра, черновика, цели и ссылок резервных копий. |
-| `REQ-1203` | Полная очистка без действующего плана и подтверждения отклоняется. |
-| `REQ-1204` | Отдельная проверка целей перечисляет и удаляет только явно выбранные цели и резервные копии. |
-| `REQ-1205` | Изменённый манифест владения делает план устаревшим. |
-| `REQ-1206` | Внедрение отказа после каждого шага создаёт возобновляемый отчёт восстановления. |
-| `REQ-1207` | Проверка восстановления использует точный выпуск провайдера и идентификатор резервной копии; копии пары перечисляются read-командой в порядке их создания, незавершённая операция копию не предлагает, копия другой пары не предлагается, а план `rollback` строится без `--setup` и `--proposal`. |
-| `REQ-1208` | Повторная установка подключает реестр без изменения цели. |
-| `REQ-1209` | Запрос восстановления одного компонента отклоняется типизированной ошибкой. |
-| `REQ-1210` | Внедрение отказа в восстановление сохраняет `partial` и не запускает повтор автоматически. |
+| `REQ-1201` | An uninstall test confirms removal of owned executable paths and credentials. |
+| `REQ-1202` | A snapshot test confirms retention of the passport, registry, draft, target, and backup references. |
+| `REQ-1203` | Full cleanup without a valid plan and confirmation is rejected. |
+| `REQ-1204` | A separate target test lists and deletes only explicitly selected targets and backups. |
+| `REQ-1205` | A changed ownership manifest makes the plan stale. |
+| `REQ-1206` | Fault injection after each step creates a resumable recovery report. |
+| `REQ-1207` | A recovery test uses the exact provider release and backup identifier; backups for the pair are listed by a read command in creation order, an incomplete operation does not offer a backup, a backup for another pair is not offered, and the `rollback` plan is built without `--setup` and `--proposal`. |
+| `REQ-1208` | Reinstallation attaches the registry without changing the target. |
+| `REQ-1209` | A request to recover one component is rejected with a typed error. |
+| `REQ-1210` | Recovery fault injection retains `partial` and does not start a retry automatically. |

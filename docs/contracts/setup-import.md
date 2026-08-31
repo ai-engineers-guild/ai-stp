@@ -1,37 +1,34 @@
 ---
-description: "Машинная граница обнаружения и регистрации существующего нативного сетапа."
-last_verified: "2026-08-31"
+description: "Machine boundary for discovering and registering an existing native setup."
+last_verified: "2026-08-12"
 ---
 
-# Импорт нативного сетапа
+# Native setup import
 
-Владелец требований — `SPEC-008` (`REQ-813`–`REQ-815`, `REQ-841`). Этот документ
-фиксирует наблюдаемую CLI-границу и не определяет нативные форматы харнессов.
+The requirements owner is `SPEC-008` (`REQ-813`–`REQ-815`, `REQ-841`). This
+document defines the observable CLI boundary and does not define native harness formats.
 
-Импорт разделён на четыре действия: `discover`, `inspect`, `plan` и `register`.
-Первые три ничего не записывают. `register` выполняет только exact plan, который
-пользователь подтвердил после просмотра эффектов.
+Import is divided into four actions: `discover`, `inspect`, `plan`, and `register`.
+The first three write nothing. `register` executes only the exact plan that the user
+confirmed after reviewing its effects.
 
-`inspection_digest` связывает корень, харнесс, правило очистки и опись файлов.
-`plan_digest` дополнительно связывает предлагаемое разложение на компоненты,
-исключения, причины блокировки и эффекты. Изменение любого прочитанного файла
-делает ранее полученный план неприменимым.
+`inspection_digest` binds the root, harness, sanitization rule, and file inventory.
+`plan_digest` additionally binds the proposed component decomposition, exclusions,
+blocking reasons, and effects. Changing any file read by inspection makes the previous
+plan inapplicable.
 
-`file_set_digest` предложения описывает опись путей, размеров и хэшей файлов. Он
-не является `ArtifactRef.digest`: последний появляется лишь после построения
-точных очищенных байтов. CLI не выдаёт описание будущего артефакта за проверку
-его содержимого.
+The proposal's `file_set_digest` describes the inventory of paths, sizes, and file
+hashes. It is not `ArtifactRef.digest`: the latter appears only after exact sanitized
+bytes have been built. The CLI does not present a description of a future artifact as
+verification of its content.
 
-`setup import register` принимает `plan-digest` и `backup-ref`; exact digest
-является подтверждением локальной регистрации, отдельного boolean-confirm нет.
-Перед записью CLI повторяет inspection и строит план заново. Совпадение digest
-разрешает одну транзакцию: в ней появляются ссылка на резервную копию, очищенные
-content-addressed артефакты компонентов, их личные паспорта и личный паспорт
-сетапа с точными ссылками на созданные ревизии. Ошибка на любом этапе не
-оставляет ни части графа, ни сиротской ссылки на резервную копию.
+`setup import register` accepts `plan-digest`, `backup-ref`, and explicit `confirm`.
+Before writing, the CLI repeats inspection and rebuilds the plan. A matching digest
+authorizes one transaction that creates the backup reference, sanitized content-addressed
+component artifacts, their individual passports, and the setup's own passport with
+exact references to the created revisions. An error at any stage leaves neither part
+of the graph nor an orphaned backup reference.
 
-Непрочитанный файл не пропускается молча. Он перечисляется одновременно в
-`excluded` и `blocked_by`; регистрация полного сетапа до устранения причины
-невозможна. Значения секретов, кэш среды исполнения, состояние сессии и байты
-резервной копии в
-реестр не переносятся.
+An unread file is not silently skipped. It is listed in both `excluded` and `blocked_by`;
+registering the complete setup is impossible until the cause is resolved. Secret values,
+runtime cache, session state, and backup bytes are not transferred into the registry.

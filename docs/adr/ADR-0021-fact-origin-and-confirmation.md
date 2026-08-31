@@ -1,60 +1,60 @@
 ---
-description: "Решение разделить происхождение факта и его подтверждение пользователем."
+description: "Decision to separate fact origin from user confirmation."
 last_verified: "2026-08-04"
 ---
 
-# ADR-0021: Происхождение и подтверждение факта — две оси
+# ADR-0021: Fact origin and confirmation are two axes
 
-Статус: принято. Уточняет `ADR-0012` в части происхождения фактов.
+Status: accepted. Clarifies `ADR-0012` with respect to fact origin.
 
-## Контекст
+## Context
 
-`ADR-0012` упростил модель факта до одного поля источника с четырьмя взаимоисключающими значениями: `declared`, `observed`, `confirmed` и `imported`. Упрощение было верным по направлению: пятизначная модель с отдельной сущностью доказательства и графом ревизий на каждый паспорт стоила дороже пользы.
+`ADR-0012` simplified the fact model to one source field with four mutually exclusive values: `declared`, `observed`, `confirmed`, and `imported`. The simplification was directionally correct: a five-value model with a separate evidence entity and a revision graph for every passport cost more than it provided.
 
-Но одно из четырёх значений оказалось не источником. `confirmed` отвечает на вопрос «подтвердил ли пользователь», а остальные три — на вопрос «откуда значение взялось». Из-за этого обычный сценарий теряет данные: анализатор увидел `Python 3.12`, агент показал значение пользователю, пользователь подтвердил — и факт обязан перестать быть наблюдаемым, потому что поле одно.
+But one of the four values proved not to be a source. `confirmed` answers "did the user confirm it?", while the other three answer "where did the value come from?" As a result, a normal scenario loses data: the analyzer observed `Python 3.12`, the agent showed the value to the user, and the user confirmed it—so the fact must cease to be observed because there is only one field.
 
-Последствия выходят за рамки формулировки. Повторное сканирование не знает, можно ли обновить значение, которое пользователь однажды подтвердил. Объединение при синхронизации не отличает подтверждённое пользователем значение от заявленного. Объяснение выбора компонента не может сказать, на чём основан факт.
+The consequences extend beyond wording. A repeated scan cannot know whether it may update a value the user once confirmed. A sync merge cannot distinguish a user-confirmed value from a declared one. An explanation of a component choice cannot state what the fact is based on.
 
-## Варианты
+## Options
 
-1. Оставить одно поле. Ничего не меняет, но теряет либо происхождение, либо подтверждение при первом же подтверждении наблюдения.
-2. Вернуть полную модель доказательств с отдельной сущностью и графом ссылок. Восстанавливает точность, но возвращает стоимость, которую `ADR-0012` сознательно убрал.
-3. Разделить одно поле на две независимые оси и оставить остальную модель лёгкой.
+1. Keep one field. Changes nothing, but loses either origin or confirmation as soon as an observation is confirmed.
+2. Restore the full evidence model with a separate entity and a reference graph. Restores precision, but also restores the cost that `ADR-0012` deliberately removed.
+3. Split the one field into two independent axes and keep the rest of the model lightweight.
 
-## Решение
+## Decision
 
-Принимается вариант 3.
+Option 3 is accepted.
 
-**Факт имеет две независимые оси.**
+**A fact has two independent axes.**
 
 ```text
 value
 origin: declared | observed | derived | imported
 confirmation: none | user_confirmed
-source_refs: ограниченный список
-confidence: необязательно
-observed_at: необязательно
-confirmed_at: необязательно
+source_refs: bounded list
+confidence: optional
+observed_at: optional
+confirmed_at: optional
 ```
 
-**`confirmed` перестаёт быть источником.** Подтверждение пользователя записывается во вторую ось и не стирает происхождение.
+**`confirmed` ceases to be an origin.** User confirmation is recorded on the second axis and does not erase origin.
 
-**Добавляется `derived`.** Значение, вычисленное из других фактов детерминированным правилом, отличается от прямого наблюдения. Это не возвращает удалённый `inferred`: `derived` требует записанного правила и ссылок на исходные факты, а не оценки уверенности модели.
+**`derived` is added.** A value computed from other facts by a deterministic rule differs from direct observation. This does not restore the removed `inferred`: `derived` requires a recorded rule and references to source facts, rather than a model confidence estimate.
 
-**Ссылки на источник ограничены списком.** Одно значение может иметь несколько источников, но список ограничен по длине и не превращается в граф доказательств.
+**Source references are a bounded list.** One value may have multiple sources, but the list is length-limited and does not become an evidence graph.
 
-**Подтверждение сбрасывается при существенном изменении наблюдения.** Если повторное наблюдение даёт другое значение, `confirmation` возвращается в `none`, а пользователю показывается расхождение. Молчаливое сохранение подтверждения на новом значении запрещено.
+**Confirmation is reset when an observation changes materially.** If a repeated observation produces a different value, `confirmation` returns to `none`, and the discrepancy is shown to the user. Silently retaining confirmation for the new value is prohibited.
 
-**Модель остаётся лёгкой.** Точные хэши, отчёты проверок, подписанные подтверждения и планы установки не затрагиваются: они остаются обязательными и неизменяемыми и не смешиваются с происхождением фактов окружения.
+**The model remains lightweight.** Exact hashes, verification reports, signed confirmations, and installation plans are unaffected: they remain mandatory and immutable and are not mixed with the origin of environment facts.
 
-## Последствия
+## Consequences
 
-- `contracts/passport-envelope.md` описывает две оси, `derived` и правило сброса подтверждения;
-- `SPEC-003` меняет требование к происхождению и получает исполнимую проверку перехода наблюдения в подтверждённое;
-- `ADR-0012` сохраняет силу во всём остальном и ссылается сюда в части происхождения;
-- объединение при синхронизации учитывает обе оси и не теряет подтверждение при слиянии независимых полей;
-- след рекомендации может ссылаться на происхождение факта без отдельной сущности доказательства.
+- `contracts/passport-envelope.md` describes the two axes, `derived`, and the confirmation reset rule;
+- `SPEC-003` changes the origin requirement and gains an executable check for the transition from observed to confirmed;
+- `ADR-0012` remains in force in all other respects and refers here for origin;
+- sync merging considers both axes and does not lose confirmation when independent fields are merged;
+- a recommendation trace can refer to fact origin without a separate evidence entity.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается, если появится сценарий, где нужны несколько независимых подтверждений одного факта разными участниками, либо если `derived` начнёт использоваться как обход честного `observed` с низкой уверенностью.
+This decision is reconsidered if a scenario requires multiple independent confirmations of one fact by different participants, or if `derived` begins to be used to bypass an honest low-confidence `observed` value.

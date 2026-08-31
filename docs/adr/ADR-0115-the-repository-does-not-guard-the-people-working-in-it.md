@@ -1,79 +1,84 @@
 ---
-description: "Решение не ставить защит на участников репозитория: гейт доказывает дерево, а не разрешает человека."
+description: "Decision not to place protections on repository contributors: the gate proves the tree rather than authorizing a person."
 last_verified: "2026-08-22"
 ---
 
-# ADR-0115: Репозиторий не охраняет тех, кто в нём работает
+# ADR-0115: The repository does not guard the people working in it
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-`quality-gates.md` описывал целевое состояние: branch protection на `main`,
-одно обязательное одобрение, сброс устаревших ревью, требование одобрить
-последний push, разрешение всех обсуждений, `enforce_admins`, запрет
-force-push и удаления, отдельное окружение `pypi` с ревьюером и политикой тега.
-Желаемое хранилось машинно в `.github/release-protection-policy.json`, а
-`just release-protections` сверял его с live API. `#188` был задачей «включить
-это, когда репозиторий станет публичным».
+`quality-gates.md` described the target state: branch protection on `main`, one
+required approval, dismissal of stale reviews, required approval of the latest
+push, resolution of all conversations, `enforce_admins`, prohibition of force
+pushes and deletion, and a separate `pypi` environment with a reviewer and tag
+policy. The desired state was stored mechanically in
+`.github/release-protection-policy.json`, and `just release-protections`
+compared it with the live API. `#188` was the task to "enable this when the
+repository becomes public."
 
-Репозиторий стал публичным. Включать оказалось нечего, и вот почему.
+The repository became public. It turned out that nothing should be enabled,
+for the following reason.
 
-Основной участник этого репозитория — не человек с мышью, а coding agent. Он
-работает циклом «изменение → гейт → публикация», и каждый из перечисленных
-пунктов ставит в этот цикл шаг, который агент выполнить не может: одобрение
-требует второго человека, `require_last_push_approval` обнуляет одобрение при
-любой правке по замечанию, `dismiss_stale_reviews` — при любом обновлении базы.
-Владельцев двое, и один из них тот же, кто одобрял бы.
+The primary contributor to this repository is not a human with a mouse but a
+coding agent. It works in a "change → gate → publish" cycle, and every listed
+item inserts a step the agent cannot perform: approval requires a second human,
+`require_last_push_approval` invalidates approval after any review-driven edit,
+and `dismiss_stale_reviews` does so after any base update. There are two owners,
+and one is the same person who would approve.
 
-При этом ни одно из этих правил не проверяет само изменение. Изменение
-проверяет гейт: три операционные системы, типы, линт, тесты с порогом покрытия,
-контрактные проверки, отчёт публикации. Гейт доказывает дерево. Одобрение
-доказывает, что кто-то нажал кнопку.
+None of these rules checks the change itself. The gate checks the change: three
+operating systems, types, lint, tests with a coverage threshold, contract
+checks, and the publication report. The gate proves the tree. Approval proves
+that someone pressed a button.
 
-## Решение
+## Decision
 
-Репозиторий не несёт защит на участников. Ни branch protection, ни обязательных
-одобрений, ни защищённых окружений, ни правил тегов.
+The repository imposes no protections on contributors: no branch protection,
+required approvals, protected environments, or tag rules.
 
-`release-protection-policy.json`, `verify_protections.py`, рецепт
-`just release-protections` и runbook активации защит
-удаляются: они описывают состояние, которого не будет.
+`release-protection-policy.json`, `verify_protections.py`, the
+`just release-protections` recipe, and the protection activation runbook are
+removed: they describe a state that will not exist.
 
-Что остаётся и почему это не «защита»:
+What remains, and why it is not "protection":
 
-- **гейт** — он про дерево, а не про человека, и без него публикация не идёт;
-- **явное подтверждение необратимой операции в продукте** — это свойство
-  продукта, а не режим репозитория: `plan` → `digest` → `confirm` существует,
-  чтобы агент подтверждал именно то, что показал, и от него отказ не зависит;
-- **allowlist публикуемых путей** (`ADR-0108`) — он отвечает на вопрос «что
-  можно опубликовать», а не «кому можно нажать».
+- **the gate** concerns the tree, not the person, and publication does not
+  proceed without it;
+- **explicit confirmation of an irreversible product operation** is a product
+  property, not a repository mode: `plan` → `digest` → `confirm` exists so the
+  agent confirms exactly what was shown, and refusal does not depend on it;
+- **the allowlist of publishable paths** (`ADR-0108`) answers "what can be
+  published," not "who may press the button."
 
-Разница проходит по одной линии: правило, которое проверяет **изменение**,
-остаётся; правило, которое проверяет **разрешение**, уходит.
+The distinction follows one line: a rule that checks the **change** remains; a
+rule that checks **permission** goes away.
 
-## Последствия
+## Consequences
 
-`main` пишется напрямую. История линейна не потому, что force-push запрещён, а
-потому, что ошибка в `main` исправляется вперёд — это уже правило
-`git-workflow.md` и оно не менялось.
+`main` is written directly. History is linear not because force push is
+prohibited, but because an error in `main` is fixed forward—this is already a
+rule in `git-workflow.md`, and it has not changed.
 
-Выпуск больше не требует ревьюера окружения и тега по шаблону. Версия и тег —
-решение владельца, как и раньше; отличие в том, что платформа их не сторожит.
+A release no longer requires an environment reviewer or a tag matching a
+pattern. Version and tag remain the owner's decision; the difference is that
+the platform does not guard them.
 
-Плата названа прямо: случайный push в `main` ничем не остановлен. Мы принимаем
-её, потому что цена обратна — заблокированный агент останавливает работу
-целиком, а обратимая ошибка в линейной истории стоит одного коммита.
+The cost is explicit: nothing stops an accidental push to `main`. We accept it
+because the converse cost is a blocked agent stopping all work, while a
+reversible error in linear history costs one commit.
 
-`#188` закрывается как решённая в другую сторону, а не выполненная.
+`#188` is closed as decided in the opposite direction, not as implemented.
 
-## Альтернативы
+## Alternatives
 
-**Включить защиты и выдать агенту право обходить их.** Тогда правило
-существует только для человека, а формально — для всех. Правило, которое не
-применяется к тому, кто чаще всего пишет, — это не защита, а описание.
+**Enable protections and allow the agent to bypass them.** The rule would then
+exist only for a human while formally applying to everyone. A rule that does
+not apply to the most frequent writer is not protection but a description.
 
-**Оставить политику как декларацию без включения.** Так было до сих пор:
-документ описывал состояние, которого нет, `just release-protections` сверял
-живое с несуществующим, а `#188` висел. Документ, который расходится с реальным
-состоянием, — та самая ошибка, которую `AGENTS.md` запрещает отдельным пунктом.
+**Leave the policy as a declaration without enabling it.** That was the prior
+state: the document described a nonexistent state,
+`just release-protections` compared reality with the nonexistent state, and
+`#188` remained open. A document that diverges from reality is precisely the
+error that `AGENTS.md` prohibits explicitly.

@@ -1,62 +1,63 @@
 ---
-description: "Канонические CLI-шаблоны для copy-блоков веб-UI (SPEC-037)."
+description: "Canonical CLI templates for web UI copy blocks (SPEC-037)."
 last_verified: "2026-08-13"
 ---
 
 # CLI copy templates
 
-Владелец требований — `SPEC-037` (`REQ-3706`, `REQ-3707`). Веб и прототипы не
-изобретают глаголы: команды берутся из этого контракта. HTML-макеты с
-`ai-stp use` не нормативны.
+The requirements owner is `SPEC-037` (`REQ-3706`, `REQ-3707`). The web UI and
+prototypes do not invent verbs: commands come from this contract. HTML mockups
+containing `ai-stp use` are not normative.
 
-Единственный исполняемый источник шаблонов — `ai_stp_contracts.cli_copy`.
-Таблицы ниже описывают его, а не дублируют: расхождение ловится не сверкой двух
-списков, а прогоном отрисованной строки через настоящий разборщик команд
-(`tests/contract/test_cli_copy_templates.py`). Сверка списков однажды уже не
-помогла — оба списка совпадали друг с другом и не совпадали с реестром команд,
-и каждая кнопка копирования выдавала команду, которую CLI отвергает.
+The sole executable source of templates is `ai_stp_contracts.cli_copy`. The
+tables below describe it rather than duplicate it: drift is caught not by
+comparing two lists, but by passing the rendered string through the real command
+parser (`tests/contract/test_cli_copy_templates.py`). Comparing lists has already
+failed once: both lists matched each other but not the command registry, and
+every copy button produced a command rejected by the CLI.
 
-## Идентификаторы в шаблонах
+## Identifiers in templates
 
-- `{kind}` — вид объекта: `component` или `setup`. Обязателен: `registry show` и
-  `registry version` объявляют `--kind` закрытым перечнем.
-- `{stable_id}` — стабильный id объекта (`component_…` / `setup_…`).
-- `{version}` — точная версия `X.Y`. Отдельная команда, а не суффикс `@`:
-  такого синтаксиса CLI не разбирает.
-- `{provider}` — `google` или `github`.
-- Пути и токены в команды UI **не** подставляются.
+- `{kind}` — object kind: `component` or `setup`. Required: `registry show` and
+  `registry version` declare `--kind` as a closed set.
+- `{stable_id}` — stable object ID (`component_…` / `setup_…`).
+- `{version}` — exact `X.Y` version. It is a separate argument, not an `@`
+  suffix: the CLI does not parse such syntax.
+- `{provider}` — `google` or `github`.
+- Paths and tokens are **not** substituted into UI commands.
 
 ## Public object / version
 
-| Контекст | Шаблон |
+| Context | Template |
 |---|---|
-| Показать опубликованный объект | `ai-stp registry show --kind {kind} --id {stable_id}` |
-| Показать точную версию | `ai-stp registry version --kind {kind} --id {stable_id} --version {version}` |
+| Show a published object | `ai-stp registry show --kind {kind} --id {stable_id}` |
+| Show an exact version | `ai-stp registry version --kind {kind} --id {stable_id} --version {version}` |
 
 ## Owner next steps (empty / sync)
 
-Пустое состояние получает **читающую** точку входа своего потока, а не
-изменяющую команду, к которой он ведёт. Обе не требуют аргументов, поэтому
-скопированная строка полна и безопасна; шаг, которому нужны корень, харнесс или
-подтверждение, невозможно отрисовать, не подставив то, что этот контракт
-запрещает помещать в команду UI.
+An empty state receives the **read-only** entry point to its flow, not the
+mutating command to which that flow leads. Neither entry point requires
+arguments, so the copied string is complete and safe; a step requiring a root,
+harness, or confirmation cannot be rendered without substituting something this
+contract prohibits placing in a UI command.
 
-| Контекст | Шаблон |
+| Context | Template |
 |---|---|
-| У владельца ещё нет компонентов | `ai-stp component discover` |
-| У владельца ещё нет сетапов | `ai-stp toolchain harnesses` |
-| Вход устройства | `ai-stp auth login --provider {provider}` |
-| Установка CLI (landing) | `uv tool install ai-stp-cli` |
+| The owner has no components yet | `ai-stp component discover` |
+| The owner has no setups yet | `ai-stp toolchain harnesses` |
+| Device login | `ai-stp auth login --provider {provider}` |
+| CLI installation (landing) | `uv tool install ai-stp-cli` |
 
-`ai-stp` — имя исполняемого файла, `ai-stp-cli` — имя дистрибутива. Установка по
-имени исполняемого файла тянет пакет, который этот проект не публикует.
+`ai-stp` is the executable name; `ai-stp-cli` is the distribution name.
+Installing by executable name fetches a package that this project does not
+publish.
 
-## Правила интерфейса
+## Interface rules
 
-1. Кнопка копирования вставляет **ровно** строку шаблона после подстановки
+1. The copy button inserts **exactly** the template string after substituting
    `{kind}` / `{stable_id}` / `{version}` / `{provider}`.
-2. Интерфейс не обещает установку через браузер и не рисует web-редактор
-   паспорта.
-3. Ошибка копирования показывается явно; успех — краткий отклик без ложного
-   «установлено».
-4. Ссылка на документацию ведёт на `/docs` (раздел CLI), не на произвольный URL.
+2. The interface does not promise installation through the browser and does not
+   render a web-based passport editor.
+3. A copy failure is shown explicitly; success produces brief feedback without
+   falsely claiming "installed."
+4. The documentation link points to `/docs` (the CLI section), not an arbitrary URL.

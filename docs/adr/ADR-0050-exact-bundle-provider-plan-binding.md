@@ -1,39 +1,40 @@
 ---
-description: "Решение связать provider plan и применение с одними точными байтами HarnessBundle."
+description: "Decision to bind the provider plan and apply operation to the same exact HarnessBundle bytes."
 last_verified: "2026-08-09"
 ---
 
-# ADR-0050: Точная привязка HarnessBundle к provider plan
+# ADR-0050: Exact HarnessBundle Binding to the Provider Plan
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-`ADR-0049` сделал HarnessBundle настоящим каноническим ZIP с логической и
-побайтовой идентичностью, но installation consumer продолжал вызывать
-`apply-bundle` с digest внутреннего плана `ai_stp`. Он не передавал ZIP,
-`validate-bundle` и `plan-bundle` не участвовали в установке, а provider plan
-вообще не сохранялся. Пользователь мог подтвердить описание, не связанное с
-байтами, которые должен получить единственный writer цели.
+`ADR-0049` made HarnessBundle a real canonical ZIP with logical and byte-level
+identities, but the installation consumer continued to invoke `apply-bundle` with the
+digest of the internal `ai_stp` plan. It did not pass the ZIP, `validate-bundle` and
+`plan-bundle` did not participate in installation, and the provider plan was not
+stored at all. A user could confirm a description unrelated to the bytes that the
+target's sole writer was supposed to receive.
 
-Хэш плана `ai_stp` и хэш provider plan отвечают на разные вопросы. Первый
-идентифицирует решение пользователя вместе с release, target и сроком. Второй
-идентифицирует программу изменений, которую построил владелец нативной цели.
-Подмена одного другим не проверяет ни один из них.
+The `ai_stp` plan hash and provider plan hash answer different questions. The first
+identifies the user's decision together with the release, target, and expiration.
+The second identifies the change program built by the owner of the native target.
+Substituting one for the other validates neither.
 
-## Решение
+## Decision
 
-`install plan` компилирует полный `ai-stp-bundle/1`, атомарно сохраняет точные
-ZIP-байты под их raw SHA-256 и передаёт один абсолютный content-addressed путь
-последовательно в `validate-bundle` и `plan-bundle`. Оба вызова получают формат,
-логический `bundle_digest`, raw `artifact_digest` и размер. `plan-bundle`
-дополнительно получает текущий target digest.
+`install plan` compiles the complete `ai-stp-bundle/1`, atomically stores the exact
+ZIP bytes under their raw SHA-256, and passes one absolute content-addressed path in
+sequence to `validate-bundle` and `plan-bundle`. Both invocations receive the format,
+logical `bundle_digest`, raw `artifact_digest`, and size. `plan-bundle` additionally
+receives the current target digest.
 
-Consumer принимает ответы только когда provider возвращает точные значения тех
-же полей. Validation требует `valid=true`. Provider plan требует `state=planned`,
-канонический `plan_digest`, тот же target digest и непустой перечень эффектов.
+The consumer accepts responses only when the provider returns the exact same values
+for those fields. Validation requires `valid=true`. The provider plan requires
+`state=planned`, a canonical `plan_digest`, the same target digest, and a non-empty
+effect list.
 
-Immutable plan schema v5 связывает:
+Immutable plan schema v5 binds:
 
 - `bundle_format`;
 - `bundle_digest`;
@@ -41,40 +42,41 @@ Immutable plan schema v5 связывает:
 - `bundle_size`;
 - `provider_plan_digest`.
 
-Все пять полей входят в digest, который подтверждает пользователь. Локальный
-абсолютный cache path не входит: он является производным расположением байтов,
-может отличаться на другом устройстве и не является их идентичностью.
+All five fields enter the digest confirmed by the user. The local absolute cache path
+does not: it is a derived location of the bytes, may differ on another device, and is
+not their identity.
 
-Перед `apply-bundle` consumer повторно хэширует cached artifact и проверяет его
-размер. Provider получает те же bundle bindings, исходный target digest и exact
-provider plan digest. Его ответ обязан повторить все привязки. Несовпадение после
-вызова не называется обычным отказом: эффект уже мог произойти, поэтому операция
-становится `partial`. `resume` не передаёт пакет и не повторяет apply; он вызывает
-только `provider-info` и `status`.
+Before `apply-bundle`, the consumer rehashes the cached artifact and validates its
+size. The provider receives the same bundle bindings, the original target digest,
+and the exact provider plan digest. Its response must repeat all bindings. A mismatch
+after invocation is not described as an ordinary failure: an effect may already have
+occurred, so the operation becomes `partial`. `resume` neither passes the package nor
+repeats apply; it invokes only `provider-info` and `status`.
 
-## Совместимость
+## Compatibility
 
-Набор команд protocol v1 не меняется, сетевые поля не добавляются и frozen
-network semantics остаётся прежней. Это решение специфицирует ранее отсутствующий
-обязательный argv/response contract уже объявленных `validate-bundle`,
-`plan-bundle` и `apply-bundle`. Provider, который отвечал на имена команд, но не
-принимал HarnessBundle, не был исполнимой реализацией installation contract.
+The protocol v1 command set does not change, no network fields are added, and the
+frozen network semantics remain unchanged. This decision specifies the previously
+absent mandatory argv/response contract for the already declared `validate-bundle`,
+`plan-bundle`, and `apply-bundle`. A provider that responded to command names but did
+not accept HarnessBundle was not an executable implementation of the installation
+contract.
 
-Старые планы schema v1–v4 сохраняют исторический digest. Они могут быть осмотрены
-и завершены observe-only recovery, но новый effect по ним не применяется:
-отсутствующие exact bytes и provider plan нельзя восстановить догадкой.
+Old schema v1–v4 plans retain their historical digest. They can be inspected and
+completed through observe-only recovery, but no new effect is applied from them:
+missing exact bytes and a provider plan cannot be reconstructed by guessing.
 
-## Последствия
+## Consequences
 
-Подтверждение пользователя, кэш байтов, проверка провайдера, его план и применение
-теперь образуют одну проверяемую цепочку. Повторный `install plan` может
-повторить read-only provider calls, но одинаковые ответы дают один idempotency key
-и существующую операцию. Цена — один локальный cache artifact и более строгий
-provider adapter; реальные Claude Code и Codex providers обязаны реализовать этот
-wire contract до E2E.
+User confirmation, the byte cache, provider validation, its plan, and apply now form
+one verifiable chain. Repeating `install plan` may repeat read-only provider calls,
+but identical responses produce one idempotency key and the existing operation. The
+cost is one local cache artifact and a stricter provider adapter; real Claude Code
+and Codex providers must implement this wire contract before E2E.
 
-## Условия пересмотра
+## Reconsideration Conditions
 
-Решение пересматривается при появлении потокового bundle protocol, при котором
-provider не получает локальный путь. Новая транспортная форма обязана сохранить
-обе идентичности, размер, provider plan digest и семантику `partial` после вызова.
+The decision will be reconsidered if a streaming bundle protocol is introduced in
+which the provider does not receive a local path. The new transport form must
+preserve both identities, the size, provider plan digest, and `partial` semantics
+after invocation.

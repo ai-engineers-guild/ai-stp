@@ -1,56 +1,56 @@
 ---
-description: "Решение оставить создание паспортов агенту пользователя и не вызывать модель из ai_stp."
+description: "Decision to leave passport creation to the user's agent and not call a model from ai_stp."
 last_verified: "2026-08-29"
 ---
 
-# ADR-0022: Паспорта собирает агент, `ai_stp` не вызывает модель
+# ADR-0022: The agent assembles passports; `ai_stp` does not call a model
 
-Статус: принято. Серверная presentation-проекция уточнена `ADR-0131`.
+Status: accepted. The server-side presentation projection is clarified by `ADR-0131`.
 
-## Контекст
+## Context
 
-Продуктовые документы писали, что система автоматически создаёт паспорт разработчика и извлекает факты проекта. Формулировка не разделяла две роли: что делает детерминированный CLI и что делает уже запущенный coding agent пользователя.
+Product documents stated that the system automatically creates a developer passport and extracts project facts. The wording did not distinguish two roles: what the deterministic CLI does and what the user's already-running coding agent does.
 
-Из этого следует ошибочная реализация. Фраза «система создаёт паспорт» допускает вызов модели внутри `ai_stp`, а значит отдельный ключ модели, отдельный счёт, отдельную сетевую зависимость и отдельную поверхность утечки контекста. Это противоречит и продуктовой посылке, где первичным потребителем является агент пользователя, и обещанию полноценной локальной работы без аккаунта.
+This leads to an incorrect implementation. The phrase "the system creates a passport" permits a model call inside `ai_stp`, and therefore a separate model key, a separate bill, a separate network dependency, and a separate surface for context leakage. This contradicts both the product premise that the user's agent is the primary consumer and the promise of full local operation without an account.
 
-## Варианты
+## Options
 
-1. Оставить формулировку и решить вопрос при реализации. Дёшево сейчас, но выбор будет сделан молча и обнаружится после появления зависимости от модели.
-2. Встроить вызов модели в `ai_stp`. Даёт автономность от агента, но требует ключа и счёта, ломает локальный режим и дублирует то, что агент пользователя уже умеет.
-3. Явно закрепить разделение ролей и запретить собственный вызов модели в MVP.
+1. Keep the wording and decide during implementation. Cheap now, but the choice will be made silently and discovered after a model dependency appears.
+2. Embed a model call in `ai_stp`. Provides independence from the agent, but requires a key and billing, breaks local mode, and duplicates what the user's agent can already do.
+3. Explicitly establish the separation of roles and prohibit first-party model calls in the MVP.
 
-## Решение
+## Decision
 
-Принимается вариант 3.
+Option 3 is accepted.
 
-**`ai_stp` не вызывает интерфейсы моделей.** MVP не требует ключа модели, не хранит его и не содержит клиента модели. Отсутствие ключа не ухудшает ни одну функцию продукта.
+**`ai_stp` does not call model interfaces.** The MVP does not require or store a model key and contains no model client. The absence of a key does not degrade any product function.
 
-**Роли разделены.**
+**Roles are separated.**
 
 ```text
-CLI      детерминированно обнаруживает факты и находки,
-         валидирует, сохраняет и версионирует паспорт
+CLI      deterministically discovers facts and findings,
+         validates, stores, and versions the passport
 
-Агент    интерпретирует находки, задаёт вопросы пользователю,
-         дособирает паспорт и выбирает состав
+Agent    interprets findings, asks the user questions,
+         completes the passport and selects the composition
 
-Пользователь  подтверждает неизвестное и спорное
+User     confirms unknown and disputed information
 ```
 
-**Цикл машиночитаем.** Агент проходит обнаружение, получение фактов и находок, вопросы, сборку паспорта, проверку и регистрацию. Каждый шаг доступен как команда с машинным выводом, поэтому агент не угадывает параметры.
+**The loop is machine-readable.** The agent performs discovery, retrieves facts and findings, asks questions, assembles the passport, validates it, and registers it. Every step is available as a command with machine output, so the agent does not guess parameters.
 
-**CLI не выдаёт решение за агента.** Детерминированные ограничения, схема, конфликты и права проверяются механически, но выбор состава и формулировки остаются за агентом и пользователем.
+**The CLI does not present a decision as the agent's.** Deterministic constraints, schema, conflicts, and permissions are checked mechanically, but composition choices and wording remain with the agent and the user.
 
-**Неизвестное остаётся неизвестным.** CLI не подставляет догадку вместо необнаруженного факта: он возвращает честное отсутствие значения и причину.
+**Unknown remains unknown.** The CLI does not substitute a guess for an undiscovered fact: it returns an honest absence of value and the reason.
 
-## Последствия
+## Consequences
 
-- `docs/product/vision.md`, `feature-list.md` и `user-flows.md` описывают роль агента, а не самостоятельное создание паспорта системой;
-- `SPEC-003` и `SPEC-011` фиксируют цикл обнаружения, проверки и регистрации без вызова модели;
-- `docs/engineering/dependency-policy.md` и `tech-stack.md` не содержат клиента модели среди зависимостей MVP;
-- проверка зависимостей отклоняет появление клиента модели или требования ключа;
-- будущее добавление необязательного собственного вызова модели потребует нового решения.
+- `docs/product/vision.md`, `feature-list.md`, and `user-flows.md` describe the agent's role rather than autonomous passport creation by the system;
+- `SPEC-003` and `SPEC-011` establish the discovery, validation, and registration loop without a model call;
+- `docs/engineering/dependency-policy.md` and `tech-stack.md` do not include a model client among MVP dependencies;
+- a dependency check rejects the appearance of a model client or a key requirement;
+- adding an optional first-party model call in the future requires a new decision.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается, если появится функция, которую невозможно выполнить силами агента пользователя через машинный контракт, и её ценность перевесит стоимость ключа, счёта и новой сетевой зависимости.
+This decision is reconsidered if a function emerges that the user's agent cannot perform through a machine contract and its value outweighs the cost of a key, billing, and a new network dependency.

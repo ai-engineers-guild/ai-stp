@@ -1,11 +1,11 @@
 ---
-description: "Состояния, план, журнал и восстановление изменяющей операции."
+description: "States, plan, journal, and recovery of a mutating operation."
 last_verified: "2026-08-09"
 ---
 
-# Изменяющая операция
+# Mutating operation
 
-## Состояния
+## States
 
 ```text
 planned
@@ -20,67 +20,92 @@ cancelled
 rolled_back
 ```
 
-Переходы выполняются только по явно разрешённым событиям. Завершающее состояние долговечно записывается до ответа вызывающей стороне.
+Transitions occur only on explicitly permitted events. A terminal state is
+durably recorded before responding to the caller.
 
-## План
+## Plan
 
-Неизменяемый план содержит идентификатор операции, тип действия, срок действия,
-автора, целевую сущность, ожидаемую ревизию или хэш цели, версии схемы, провайдера и
-provider protocol, абсолютную provider target для изолируемого v2-вызова,
-канонический подписанный release manifest для trusted path, перечисление эффектов,
-требования подтверждения, хэш плана и действие восстановления.
-Старый план schema v1 не меняет digest после миграции; новый schema v2 включает
-protocol и target в область подтверждения.
-Новый schema v3 также включает release manifest: смена подписи, sequence или digest
-после показа плана требует нового подтверждения.
-Schema v4 отдельно связывает явное provider release recovery с тем же подтверждением:
-обычный rollback цели не разрешает более старый provider artifact, а recovery требует
-exact digest из локальной verified history.
-Schema v5 связывает полный HarnessBundle и план единственного writer: формат,
-логический хэш (`bundle_digest`), побайтовый хэш артефакта, размер и хэш плана
-провайдера (`provider_plan_digest`). Абсолютный
-cache path является производным и в digest не входит. Старые schema v1–v4 сохраняют
-историческую идентичность, но новый effect без точных bundle bytes и provider plan по
-ним запрещён.
+The immutable plan contains the operation identifier, action type, expiration,
+author, target entity, expected target revision or hash, schema, provider, and
+provider protocol versions, the absolute provider target for the isolated v2
+call, the canonical signed release manifest for the trusted path, the effect
+list, confirmation requirements, the plan hash, and the recovery action.
+An old schema v1 plan does not change its digest after migration; new schema v2
+includes protocol and target in the confirmation scope.
+New schema v3 also includes the release manifest: changing the signature,
+sequence, or digest after displaying the plan requires new confirmation.
+Schema v4 separately binds explicit provider release recovery to the same
+confirmation: ordinary target rollback does not permit an older provider
+artifact, while recovery requires an exact digest from local verified history.
+Schema v5 binds the complete HarnessBundle and the single-writer plan: format,
+logical hash (`bundle_digest`), byte-for-byte artifact hash, size, and provider
+plan hash (`provider_plan_digest`). The absolute cache path is derived and is
+not included in the digest. Old schemas v1–v4 retain their historical identity,
+but a new effect without exact bundle bytes and a provider plan is prohibited
+under them.
 
-Изменение любого предусловия делает план устаревшим. Подтверждение относится к точному хэшу плана и не переносится на новый план.
+A change to any precondition makes the plan stale. Confirmation applies to the
+exact plan hash and does not carry over to a new plan.
 
-## Журнал
+## Journal
 
-Каждый шаг создаёт событие с последовательным номером, ключом идемпотентности, временем, состоянием до и после, безопасным результатом и ссылкой на доказательство. Поток событий только дополняется. Секреты и исходное закрытое содержимое не записываются.
+Each step creates an event with a sequential number, idempotency key, time,
+state before and after, safe result, and evidence reference. The event stream is
+append-only. Secrets and original private content are not recorded.
 
-## Применение
+## Application
 
-Перед первым эффектом повторно проверяются полномочия, срок, хэш плана и текущая цель. После эффекта, но до проверки результата, используется `applied_unverified`. Состояние `verified` устанавливается только после долговечной проверки всех обязательных постусловий и является единственным именем успеха. Соответствие состояний провайдера описано в `provider-protocol.md`.
+Permissions, expiration, plan hash, and current target are rechecked before the
+first effect. After an effect but before result verification,
+`applied_unverified` is used. State `verified` is set only after durable
+verification of every mandatory postcondition and is the sole name for success.
+The mapping of provider states is described in `provider-protocol.md`.
 
-Перед вызовом provider повторно проверяются raw digest и размер exact cached
-HarnessBundle. `apply-bundle` получает provider plan digest, а не digest плана
-`ai_stp`; оба значения различны и оба покрываются подтверждением пользователя.
-Ответ без точных echoes bundle, target и provider plan после возможного эффекта
-переводит операцию в `partial`.
+The raw digest and size of the exact cached HarnessBundle are rechecked before
+calling the provider. `apply-bundle` receives the provider plan digest, not the
+`ai_stp` plan digest; the two values are distinct, and both are covered by user
+confirmation. A response without exact echoes of the bundle, target, and
+provider plan after a possible effect moves the operation to `partial`.
 
-Вместе с `verified` записывается наблюдённое после эффекта состояние цели и версия сетапа, которую операция установила. Наблюдение читается заново после эффекта, а не переносится из плана: значение, снятое до записи, способно сообщить только «ничего не изменилось». Именно эта пара позднее отличает локальное расхождение от нетронутой цели и даёт точную предыдущую версию для возврата.
+Together with `verified`, the target state observed after the effect and the
+setup version installed by the operation are recorded. The observation is read
+anew after the effect rather than copied from the plan: a value captured before
+the write can report only “nothing changed.” This pair later distinguishes local
+drift from an untouched target and provides the exact previous version for
+rollback.
 
-Порядок verified history задаёт явный монотонный `global_sequence` terminal
-events локального реестра, а не одни настенные timestamps и не идентификаторы
-операций. Номер назначается под write-lock; две операции могут завершиться в
-одну миллисекунду, а operation id отражает создание, не завершение. Rollback
-выбирает запись непосредственно перед последним terminal event и поэтому не
-меняет направление при timestamp tie.
+Verified-history order is defined by an explicit monotonic `global_sequence` of
+terminal events in the local registry, not by wall-clock timestamps alone or by
+operation identifiers. The number is assigned under a write lock; two operations
+may finish in the same millisecond, while an operation id reflects creation, not
+completion. Rollback selects the record immediately before the latest terminal
+event and therefore does not reverse direction on a timestamp tie.
 
-## Частичный результат
+## Partial result
 
-Неизвестный эффект, сбой после записи или ошибка возврата создаёт `partial`. Такая операция не повторяется автоматически. Отчёт восстановления содержит последнее подтверждённое состояние, уже выполненные эффекты, ссылку на резервную копию и допустимые следующие действия.
+An unknown effect, a failure after a write, or a rollback error creates
+`partial`. Such an operation is not retried automatically. The recovery report
+contains the last confirmed state, effects already performed, a backup
+reference, and permitted next actions.
 
-Операция, потерявшая свой процесс до проверки результата, завершается повторной проверкой постусловий, а не повторным применением: запрещён повтор эффекта, а не наблюдение за целью. Проверка спрашивает провайдера о текущем состоянии цели и записывает ответ — `verified`, если постусловия выполнены, иначе `partial`. Операция, оставшаяся в `applying`, проходит через `applied_unverified`: вызов провайдера был сделан, и «эффект мог произойти» — единственное честное имя такого положения. Без этого пути прерванная операция неустранима: отмена после возможного эффекта запрещена, а повторное применение является запрещённым повтором.
+An operation whose process was lost before result verification completes by
+rechecking postconditions, not by reapplying: repeating the effect is prohibited,
+not observing the target. The check asks the provider for the current target
+state and records the response—`verified` if the postconditions hold, otherwise
+`partial`. An operation left in `applying` passes through `applied_unverified`:
+the provider was called, and “an effect may have occurred” is the only honest
+name for this condition. Without this path, an interrupted operation cannot be
+resolved: cancellation after a possible effect is prohibited, while reapplying
+is a prohibited repetition.
 
-## Повтор и отмена
+## Retry and cancellation
 
-Повтор с тем же ключом возвращает существующую операцию, пока она остаётся
-активной. После терминального исхода тот же логический запрос создаёт новую operation и не
-переоткрывает старую: прежний журнал и план сохраняются, а передача внутреннего
-idempotency key новой операции сериализуется тем же write-lock. Это особенно
-важно для `stale`, `cancelled` и `partial`, потому что ни одно из этих состояний
-не допускает перехода обратно к применению. Отмена допустима только до
-необратимого эффекта либо через явную компенсацию. Истечение времени внешнего
-вызова не доказывает отсутствие эффекта.
+A retry with the same key returns the existing operation while it remains
+active. After a terminal outcome, the same logical request creates a new
+operation and does not reopen the old one: the previous journal and plan are
+preserved, while allocation of the new operation's internal idempotency key is
+serialized by the same write lock. This is especially important for `stale`,
+`cancelled`, and `partial`, because none of these states permits a transition
+back to application. Cancellation is allowed only before an irreversible effect
+or through explicit compensation. Expiration of an external-call timeout does
+not prove that no effect occurred.

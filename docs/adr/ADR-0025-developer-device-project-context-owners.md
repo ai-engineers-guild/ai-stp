@@ -1,65 +1,65 @@
 ---
-description: "Решение разделить контекст на паспорта разработчика, устройства и проекта."
+description: "Decision to divide context among developer, device, and project passports."
 last_verified: "2026-08-04"
 ---
 
-# ADR-0025: Три владельца контекста — разработчик, устройство и проект
+# ADR-0025: Three context owners—developer, device, and project
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-`SPEC-003` требовал хранить в паспорте разработчика одновременно личные предпочтения и наблюдаемые факты машины: операционную систему, архитектуру, установленные харнессы и версии инструментов. Устройство при этом существовало только как идентификатор с ключом.
+`SPEC-003` required the developer passport to store both personal preferences and observed machine facts: the operating system, architecture, installed harnesses, and tool versions. At the same time, a device existed only as an identifier with a key.
 
-У пользователя больше одного устройства, и окружения на них законно различаются. Пока факты машины живут в паспорте разработчика, каждое повторное сканирование на другой машине переписывает чужие наблюдения или создаёт конфликт ревизий на ровном месте. Облачная синхронизация вынуждена объединять несравнимые окружения, вход подбора становится неоднозначным, а страницам устройств в вебе неоткуда взять канонический источник данных об окружении.
+A user has more than one device, and their environments can legitimately differ. While machine facts live in the developer passport, every rescan on another machine overwrites observations from the other device or creates a revision conflict for no reason. Cloud synchronization is forced to merge incomparable environments, selection input becomes ambiguous, and device pages on the web have no canonical source of environment data.
 
-## Варианты
+## Options
 
-1. Оставить один паспорт разработчика. Не требует изменений, но два устройства гарантированно конфликтуют по фактам машины, и стабильные предпочтения пользователя страдают от чужого шума.
-2. Вести отдельную копию паспорта разработчика на каждом устройстве. Убирает конфликт, но раздваивает личные предпочтения и историю решений — то, что как раз обязано быть общим.
-3. Разделить контекст на три паспорта с непересекающимся владением: разработчик, устройство и проект.
+1. Retain a single developer passport. This requires no changes, but two devices are guaranteed to conflict over machine facts, and stable user preferences suffer from unrelated noise.
+2. Maintain a separate copy of the developer passport on each device. This eliminates the conflict but splits personal preferences and decision history—the very things that must be shared.
+3. Divide context among three passports with non-overlapping ownership: developer, device, and project.
 
-## Решение
+## Decision
 
-Принимается вариант 3.
+Option 3 is accepted.
 
-**Три владельца контекста, поля не пересекаются.**
+**There are three context owners, and their fields do not overlap.**
 
 ```text
 DeveloperPassport
-  роль, типовые задачи, предпочтения, полномочия и автономность,
-  предпочитаемые языки и харнессы, история принятых и отклонённых
-  решений, устойчивые межустройственные решения пользователя
+  role, typical tasks, preferences, permissions and autonomy,
+  preferred languages and harnesses, history of accepted and rejected
+  decisions, stable cross-device user decisions
 
 DevicePassport
-  device_id, операционная система, архитектура, установленные
-  харнессы и их версии, версии инструментов и адаптеров,
-  возможности и наблюдаемые факты окружения этого устройства
+  device_id, operating system, architecture, installed harnesses
+  and their versions, tool and adapter versions,
+  capabilities and observed facts of this device's environment
 
 ProjectPassport
-  идентичность проекта, стек и версии, команды, поверхности для
-  агента, требования, выбранный харнесс и активный сетап
+  project identity, stack and versions, commands, agent-facing surfaces,
+  requirements, selected harness, and active setup
 ```
 
-Наблюдаемые операционная система, архитектура, установленные версии харнессов и инструментов и локальные возможности не входят в паспорт разработчика. Языки и харнессы остаются в нём только как предпочтения, а не как факты установки.
+Observed operating system, architecture, installed harness and tool versions, and local capabilities are not part of the developer passport. Languages and harnesses remain in it only as preferences, not as installation facts.
 
-**DevicePassport приватен, ревизионируем и принадлежит устройству.** Он ведёт ревизии по общему конверту паспорта. При включённой синхронизации сервер хранит разрешённую сводку по каждому устройству отдельно; паспорта устройств никогда не объединяются в одно межустройственное окружение.
+**DevicePassport is private, revisioned, and owned by the device.** It maintains revisions under the common passport envelope. When synchronization is enabled, the server stores the permitted summary for each device separately; device passports are never merged into one cross-device environment.
 
-**DeveloperPassport остаётся межустройственным.** Он синхронизируется и объединяется по существующей ревизионной модели, потому что после разделения в нём остаются только факты, общие для всех устройств пользователя.
+**DeveloperPassport remains cross-device.** It is synchronized and merged under the existing revision model because, after the separation, it contains only facts shared across all of the user's devices.
 
-**ProjectPassport остаётся локальным по умолчанию.** В облако уходит только явно разрешённая сводка, как и раньше.
+**ProjectPassport remains local by default.** Only an explicitly permitted summary is sent to the cloud, as before.
 
-**Вход подбора собирается из четырёх источников:** паспорт разработчика, паспорт текущего устройства, паспорт текущего проекта и выбранный харнесс — плюс кандидаты реестра. Чувствительные абсолютные пути остаются в локальном состоянии детектора и не синхронизируются как данные профиля.
+**Selection input is assembled from four sources:** the developer passport, current-device passport, current-project passport, and selected harness—plus registry candidates. Sensitive absolute paths remain in local detector state and are not synchronized as profile data.
 
-## Последствия
+## Consequences
 
-- конверт паспорта получает пятый вид `device` с ревизиями;
-- `SPEC-002` получает требования владения, ревизий, приватности и сводки паспорта устройства; `SPEC-003` перестаёт требовать факты машины в паспорте разработчика;
-- `SPEC-009` фиксирует, что паспорта устройств синхронизируются раздельно и не объединяются; `SPEC-014` направляет вывод детекторов в паспорт устройства;
-- страницы устройств в вебе показывают разрешённую сводку окружения по `SPEC-010`, публичный профиль остаётся отдельным объектом;
-- закрытый перечень полей и сводки принадлежит `docs/contracts/device-passport.md`;
-- доменная модель получает `DevicePassport` и его ревизию как отдельные сущности.
+- the passport envelope gains a fifth `device` kind with revisions;
+- `SPEC-002` gains requirements for device-passport ownership, revisions, privacy, and summary; `SPEC-003` no longer requires machine facts in the developer passport;
+- `SPEC-009` establishes that device passports are synchronized separately and not merged; `SPEC-014` directs detector output into the device passport;
+- device pages on the web display the permitted environment summary under `SPEC-010`; the public profile remains a separate object;
+- the closed list of fields and summary belongs to `docs/contracts/device-passport.md`;
+- the domain model gains `DevicePassport` and its revision as separate entities.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается, если появится доказанная потребность в межустройственном объединении фактов окружения либо если предпочтения пользователя начнут систематически расходиться между устройствами и потребуют собственной по-устройственной модели.
+The decision shall be reconsidered if a proven need emerges to merge environment facts across devices, or if user preferences begin systematically diverging between devices and require their own per-device model.

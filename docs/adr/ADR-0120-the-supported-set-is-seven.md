@@ -1,100 +1,102 @@
 ---
-description: "Решение расширить закрытый набор поддерживаемых харнессов с пяти до семи: opencode остаётся, cursor и antigravity добавляются."
+description: "Decision to expand the closed set of supported harnesses from five to seven: opencode remains, cursor and antigravity are added."
 last_verified: "2026-08-24"
 ---
 
-# ADR-0120: Поддерживаемых харнессов семь
+# ADR-0120: The supported harness set has seven members
 
-Статус: принято. Заменяет решение `ADR-0119`.
+Status: accepted. Supersedes `ADR-0119`.
 
-## Контекст
+## Context
 
-`ADR-0003` и `SPEC-001 REQ-105` объявили закрытый набор из пяти харнессов, и
-`ADR-0119` предложил заменить в нём `opencode` на `cursor`. Оба довода той
-записи опирались на состояние эстейта, и оно изменилось дважды за один день.
+`ADR-0003` and `SPEC-001 REQ-105` declared a closed set of five harnesses, and
+`ADR-0119` proposed replacing `opencode` with `cursor`. Both arguments in that
+record depended on the estate's state, which changed twice in one day.
 
-Сначала появился `cursor-setup-system`, а `opencode-setup-system` не
-существовал — на этом основании и предлагалась замена. Затем появились и
-`opencode-setup-system`, и `antigravity-setup-system`. Оба условия пересмотра,
-записанные в `ADR-0119`, сработали, и это зафиксировано в самой записи.
+First `cursor-setup-system` appeared while `opencode-setup-system` did not
+exist—the proposed replacement rested on that fact. Then both
+`opencode-setup-system` and `antigravity-setup-system` appeared. Both
+reconsideration conditions in `ADR-0119` were met, as recorded in that ADR.
 
-Эстейт `NDDev-OpenNetwork` — семь систем сетапов: claude, codex, cursor, grok,
-pi, opencode, antigravity. Все на Rust, все публичные под AGPL-3, все вендорят
-`provider-kit/v3` побайтово: `kit_version 0.2.0`, `aggregate_digest
+The `NDDev-OpenNetwork` estate has seven setup systems: claude, codex, cursor,
+grok, pi, opencode, and antigravity. All are written in Rust, all are public
+under AGPL-3, and all vendor `provider-kit/v3` byte for byte:
+`kit_version 0.2.0`, `aggregate_digest
 sha256:d45add27…`.
 
-Проверено против API, а не по сообщению. Первая проверка дала обратное: за
-двадцать минут до подтверждения оба новых репозитория существовали пустыми —
-`size=0`, ни ветки, ни коммита, — а один из них не существовал вовсе.
-Утверждение «сборка проходит conformance» и «репозиторий проходит conformance»
-относятся к разным объектам.
+This was verified against the API, not a report. The first check showed the
+opposite: twenty minutes before confirmation, both new repositories existed
+but were empty—`size=0`, with no branch or commit—and one did not exist at all.
+"The build passes conformance" and "the repository passes conformance" are
+claims about different objects.
 
-## Варианты
+## Options
 
-**Оставить пять и заменить один.** Решение `ADR-0119`. После появления
-реализации opencode его первый довод перестал держаться: замена сделала бы
-недостижимой работающую реализацию ради ещё не выпущенной.
+**Keep five and replace one.** The `ADR-0119` decision. Once the opencode
+implementation appeared, its first argument no longer held: replacement would
+make a working implementation unreachable in favor of one not yet released.
 
-**Оставить пять и не менять состав.** Набор перестаёт описывать эстейт: две
-реализации из семи недостижимы никаким идентификатором.
+**Keep five without changing membership.** The set stops describing the
+estate: two of seven implementations are unreachable by any identifier.
 
-**Расширить набор до семи.** Набор снова описывает эстейт. Стоимость — форма
-контракта: закрытый литерал, порождённые схемы, каталог харнессов, правила
-композиции, проекции скиллов и таблица уровней меняются вместе, и требуется
-новая версия схемы.
+**Expand the set to seven.** The set again describes the estate. The cost is
+contract shape: the closed literal, generated schemas, harness catalog,
+composition rules, skill projections, and tier table change together, requiring
+a new schema version.
 
-## Решение
+## Decision
 
-Поддерживаемых харнессов семь: `claude-code`, `codex`, `pi`, `opencode`,
-`grok-build`, `cursor`, `antigravity`. Всё, что вне набора, остаётся
+Seven harnesses are supported: `claude-code`, `codex`, `pi`, `opencode`,
+`grok-build`, `cursor`, `antigravity`. Everything outside the set remains
 `undefined`.
 
-`cursor` и `antigravity` получают тир `beta`. Состав уровней принадлежит
-`SPEC-033 REQ-3315` и обновлён там.
+`cursor` and `antigravity` receive the `beta` tier. Tier membership belongs to
+`SPEC-033 REQ-3315` and is updated there.
 
-## Последствия
+## Consequences
 
-**Набор остаётся закрытым.** Расширение не отменяет закрытости: `undefined`
-по-прежнему единственный ответ для всего остального, и следующее изменение
-состава снова потребует ADR и версии схемы.
+**The set remains closed.** Expansion does not remove closure: `undefined`
+remains the only answer for everything else, and the next membership change
+will again require an ADR and a schema version.
 
-**Раскладка снята с самих систем, а не с документации продуктов.** Cursor —
-дом `~/.cursor`, переменная `CURSOR_CONFIG_DIR`, компоненты объявляются
-манифестом плагина `.cursor-plugin/plugin.json`, поэтому глобальных каталогов
-для skill, agent, command, hook и mcp у него нет и объявлять их было бы
-выдумкой. Antigravity — дом `~/.gemini`, не свой: `antigravity-cli/` его
-собственное, `config/` общее с Gemini CLI; переменной, переносящей дом, продукт
-не документирует, а instruction и command документирует только на уровне
-проекта. Оба факта записаны в каталоге как названные пробелы, а не как молчание.
+**Layouts come from the systems themselves, not product documentation.**
+Cursor uses home `~/.cursor` and variable `CURSOR_CONFIG_DIR`; components are
+declared by `.cursor-plugin/plugin.json`, so it has no global directories for
+skill, agent, command, hook, or mcp, and declaring them would be invention.
+Antigravity uses `~/.gemini`, which is not exclusively its own:
+`antigravity-cli/` is its own and `config/` is shared with Gemini CLI. The
+product documents no variable for relocating the home and documents
+instruction and command only at project level. Both facts are recorded in the
+catalog as named gaps rather than silence.
 
-**Восемь копий набора убраны.** Литерал харнессов был повторён в контрактных
-моделях, в реестре команд, в проекции скилла, в локальном authoring и в тестах.
-Каждая копия совпадала с источником ровно до этого изменения. Теперь они
-выводятся из `HarnessId` и нового `HARNESS_ID_ORDER`, который даёт тот же набор
-в порядке объявления для мест, где нужен стабильный список.
+**Eight copies of the set are removed.** The harness literal was repeated in
+contract models, the command registry, skill projection, local authoring, and
+tests. Every copy matched the source exactly until this change. They are now
+derived from `HarnessId` and the new `HARNESS_ID_ORDER`, which supplies the same
+set in declaration order where a stable list is needed.
 
-**Оракулы миграции ограничены теми, ради кого написаны.** `_MIGRATION_*_ORACLE`
-хранят рукописные правила, которые заменило порождение, и доказывают, что
-порождение их воспроизвело. Про харнесс, добавленный после миграции, они не
-утверждают ничего, поэтому сравнение сужено до покрытых ими. Расширять оракул
-значило бы превратить запись о том, что было, во второе место, объявляющее то,
-что есть.
+**Migration oracles are limited to what they were written for.**
+`_MIGRATION_*_ORACLE` values preserve handwritten rules replaced by generation
+and prove that generation reproduced them. They assert nothing about a harness
+added after migration, so comparison is narrowed to what they cover. Expanding
+an oracle would turn a record of what existed into a second declaration of what
+exists.
 
-**Чего это не даёт.** Ни один из семи не закреплён в `provider-policy.toml` как
-Ed25519-выпуск `nddev-*-app`. У OpenNetwork `*-setup-system` теги `0.0.1` есть;
-подписанного манифеста нашей схемы v2 у них нет. Схема политики v3 закрепляет
-linux x86_64 артефакты `0.0.1` в `attested_releases` и проверяет GitHub
-attestation. Пока digest не в этом перечне, установка идёт через
-`--unverified-provider` с записью `provider_release_trusted: false`. Тир и
-состояние независимы по `REQ-3307`, поэтому `beta` и `not_verified` сосуществуют
-честно.
+**What this does not provide.** None of the seven is pinned in
+`provider-policy.toml` as an Ed25519 `nddev-*-app` release. OpenNetwork
+`*-setup-system` repositories have `0.0.1` tags but no signed manifest for our
+v2 schema. Policy schema v3 pins linux x86_64 `0.0.1` artifacts in
+`attested_releases` and verifies GitHub attestation. Until a digest is in that
+list, installation uses `--unverified-provider` and records
+`provider_release_trusted: false`. Tier and state are independent under
+`REQ-3307`, so `beta` and `not_verified` coexist honestly.
 
-Запись 2026-08-24: предыдущая формулировка «релизов нет» относилась к нашему
-подписанному манифесту и читалась как отсутствие тегов. Теги есть.
+Note dated 2026-08-24: the previous phrase "there are no releases" referred to
+our signed manifest and could be read as absence of tags. The tags exist.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Пересмотреть, если состав эстейта снова изменится численно, если появится
-реализация вне набора, которую владелец решит поддерживать, или если владелец
-объявит набор открытым — тогда закрытый литерал перестаёт быть подходящей
-формой и решение принимается заново.
+Reconsider if the estate's size changes again, if an implementation outside
+the set appears and the owner decides to support it, or if the owner makes the
+set open—in that case a closed literal is no longer the appropriate form and
+the decision must be made again.

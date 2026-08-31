@@ -1,9 +1,9 @@
 ---
-description: "Целевая структура монорепозитория и правила владения кодом."
+description: "Target monorepository structure and code ownership rules."
 last_verified: "2026-08-05"
 ---
 
-# Структура репозитория
+# Repository structure
 
 ```text
 apps/
@@ -43,20 +43,20 @@ docs/
 specs/
 ```
 
-## Границы
+## Boundaries
 
-`apps/*` содержит точки входа и сборку зависимостей. Функциональный пакет владеет моделями, сценариями и портами своей области. `storage` реализует хранилища, но не бизнес-правила. `providers` адаптирует публичные контракты провайдеров. `tool_runner` запускает внешние инструменты, но не определяет итоговый вердикт. `foundation` содержит только действительно сквозные примитивы. `contracts` владеет проводной границей `/v1`: моделями запросов и ответов, общими соглашениями заголовков, курсора и соответствия кода ошибки статусу. Он не содержит бизнес-правил и не обращается к сети; `apps/api` обязан ему соответствовать, а не порождать его.
+`apps/*` contains entry points and dependency assembly. A feature package owns the models, use cases, and ports of its domain. `storage` implements storage, but not business rules. `providers` adapts public provider contracts. `tool_runner` runs external tools, but does not determine the final verdict. `foundation` contains only genuinely cross-cutting primitives. `contracts` owns the `/v1` wire boundary: request and response models, shared conventions for headers and cursors, and the mapping from error codes to statuses. It contains no business rules and makes no network calls; `apps/api` must conform to it, not generate it.
 
-Внутренняя организация `apps/api` и `apps/worker` следует вертикальным слайсам с общим ядром по `ADR-0037`, а форма данных разделяется на DTO, доменную сущность и ORM-сущность. Тесты платформы и CLI разделены подкаталогами и маркерами по `docs/engineering/testing.md`. Схема таблиц очереди заданий живёт в общем дереве миграций Alembic по `SPEC-018` и `ADR-0038`.
+The internal organization of `apps/api` and `apps/worker` follows vertical slices with a shared core under `ADR-0037`, while data representation is separated into DTOs, domain entities, and ORM entities. Platform and CLI tests are separated by subdirectories and markers under `docs/engineering/testing.md`. The job-queue table schema lives in the shared Alembic migration tree under `SPEC-018` and `ADR-0038`.
 
-Общие пакеты с именами `domain`, `common`, `utils` или `manager` запрещены без узкой предметной ответственности. Пустые каталоги не коммитятся; структура вводится по мере появления первого поведения.
+Generic packages named `domain`, `common`, `utils`, or `manager` are prohibited unless they have a narrow domain responsibility. Empty directories are not committed; structure is introduced when its first behavior appears.
 
-Материализовано на фазе 1: `packages/foundation` (типизированные идентификаторы, канонический JSON, байтовый вход, домены хэшей, контентные ревизии, точные ссылки, канонические таймстампы, машинный конверт), `packages/passports` (конверт паспорта, пять видов, факты, паспорта версий компонента и сетапа), `packages/assurance` (запись авторского подтверждения), `packages/contracts` (замороженная граница `/v1`, корпус фикстур, mock-транспорт и набор соответствия, форма машинной справки), `apps/cli` (разборщик, конверт, команды, идентичность устройства, ярусное хранилище секретов локальный реестр с паспортами разработчика и устройства, облачный клиент `/v1` и кэш каталога), `schemas/v1` с генерируемыми схемами и `tests/{unit,property,contract,golden}`.
+Materialized in phase 1: `packages/foundation` (typed identifiers, canonical JSON, byte input, hash domains, content revisions, exact references, canonical timestamps, machine envelope), `packages/passports` (passport envelope, five kinds, facts, component-version and setup-version passports), `packages/assurance` (author-verification record), `packages/contracts` (frozen `/v1` boundary, fixture corpus, mock transport and conformance suite, machine-help shape), `apps/cli` (parser, envelope, commands, device identity, tiered secret storage, local registry with developer and device passports, `/v1` cloud client, and catalog cache), `schemas/v1` with generated schemas, and `tests/{unit,property,contract,golden}`.
 
-`apps/cli` устроен так, что команда объявлена ровно один раз. Реестр команд объявляет дескрипторы данными; разборщик собирается из реестра, а `help --agent` рендерит те же дескрипторы, поэтому разборщик и машинная справка не могут разойтись. Click остаётся тонким слоем по `ADR-0057`: он разбирает аргументы и вызывает сценарий, но не формирует конверт, не выбирает коды ошибок и не определяет код завершения.
+`apps/cli` is structured so that each command is declared exactly once. The command registry declares descriptors as data; the parser is assembled from the registry, and `help --agent` renders the same descriptors, so the parser and machine help cannot diverge. Click remains a thin layer under `ADR-0057`: it parses arguments and invokes a use case, but does not build the envelope, choose error codes, or determine the exit code.
 
-Материализовано спринтом 1: `packages/contracts` — замороженная граница `/v1`. Он стоит на вершине цепочки пакетов, поэтому репозиторная точка генерации схем принадлежит ему: цели `just back-gen` и `just back-static` вызывают `ai_stp_contracts.schemas` и порождают и `schemas/v1/*.schema.json`, и `schemas/v1/openapi.json`.
+Materialized in sprint 1: `packages/contracts`, the frozen `/v1` boundary. It sits at the top of the package chain, so it owns the repository schema-generation entry point: the `just back-gen` and `just back-static` targets invoke `ai_stp_contracts.schemas` and generate both `schemas/v1/*.schema.json` and `schemas/v1/openapi.json`.
 
-Пакет намеренно несёт три вещи, которые обычно кладут в тесты, — корпус фикстур, мок-транспорт и набор проверки соответствия по `docs/contracts/fixture-corpus.md`. Причина в том, что они общие с серверным треком: корпус, лежащий в `tests/`, нельзя импортировать из другого приложения, а два независимо написанных набора примеров совпали бы только случайно. Мок требует `httpx` и поэтому вынесен в необязательную зависимость `ai-stp-contracts[mock]`: серверной стороне нужен корпус и набор проверок, но не HTTP-клиент.
+The package intentionally carries three things that usually live in tests: the fixture corpus, mock transport, and conformance suite defined by `docs/contracts/fixture-corpus.md`. They are shared with the server track: a corpus under `tests/` cannot be imported from another application, and two independently written example sets would match only by accident. The mock requires `httpx`, so it is exposed through the optional `ai-stp-contracts[mock]` dependency: the server side needs the corpus and conformance suite, but not the HTTP client.
 
-Остальные каталоги появляются со своим первым поведением.
+The remaining directories appear with their first behavior.

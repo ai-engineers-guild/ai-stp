@@ -1,64 +1,64 @@
 ---
-description: "Обнаружение, проверка версии, обновление и переустановка setup-system provider."
+description: "Discovery, version checking, updating, and reinstalling a setup-system provider."
 last_verified: "2026-08-29"
 ---
 
-# Жизненный цикл setup-system provider
+# Setup-system provider lifecycle
 
-Владелец требований — `#452`. Provider — единственное, что пишет итоговое
-состояние харнесса, поэтому какая именно его копия сейчас запустится, какой она
-версии и есть ли новее — факты, которые пользователь обязан видеть.
+The requirements owner is `#452`. A provider is the only thing that writes the final
+harness state, so which copy will run now, which version it is, and whether a newer one
+exists are facts the user must be shown.
 
-Замена provider меняет один исполняемый файл и больше ничего. Что этот provider
-затем сделает с target харнесса — по-прежнему его собственная операция, со своим
-планом и своим подтверждением.
+Replacing a provider changes one executable file and nothing else. What that provider
+then does to the target harness remains its own operation, with its own
+plan and confirmation.
 
-## Откуда берётся путь
+## Where the path comes from
 
-Порядок закреплён и каждый ответ называет свой источник:
+The order is fixed, and every response names its source:
 
 ```text
-явный --executable
+explicit --executable
     ↓
 config: provider.paths.<harness_id>
     ↓
-выбор, записанный в реестре
+selection recorded in the registry
     ↓
-обнаружение в ~/.local/share/ai-stp/providers/<harness>/<tag>/
+discovery in ~/.local/share/ai-stp/providers/<harness>/<tag>/
 ```
 
-«Provider найден» и «provider выбран» — разные факты, и решением является
-только второй. Поэтому `provider check` записывает **наблюдение**, а не выбор:
-строка с источником `discovered` не закрывает вопрос, и если на машине позже
-появится второй provider, обнаружение отработает снова и покажет
-неоднозначность. Выбор записывают `provider update` и `provider reinstall`.
+“Provider found” and “provider selected” are different facts, and only the
+latter is a decision. Therefore, `provider check` records an **observation**, not a selection:
+a row with source `discovered` does not resolve the question, and if a second
+provider later appears on the machine, discovery runs again and reports
+ambiguity. `provider update` and `provider reinstall` record the selection.
 
-Реестр — место, где ответ хранится, а не источник, откуда он взялся. Слово
-`registry` не возвращается как источник: когда возвращалось, обнаружение на
-следующем запуске перезаписывалось как выбор, и второй provider становился
-невидимым навсегда.
+The registry is where the answer is stored, not the source from which it came. The word
+`registry` is not returned as a source: when it was, discovery on the
+next run was overwritten as a selection, and a second provider became
+invisible forever.
 
-Несколько кандидатов — это состояние `ambiguous`, а не ошибка. Две копии на
-машине — нормально; молча выбрать одну и перезаписать её — нет.
+Multiple candidates are the `ambiguous` state, not an error. Two copies on the
+machine are normal; silently selecting and overwriting one is not.
 
-## Проверка
+## Check
 
 ```bash
-ai-stp provider check --json                     # все харнессы
-ai-stp provider check --harness codex --json     # один
-ai-stp provider check --offline --json           # не спрашивать источник релизов
+ai-stp provider check --json                     # all harnesses
+ai-stp provider check --harness codex --json     # one
+ai-stp provider check --offline --json           # do not query the release source
 ```
 
-Состояния: `up_to_date`, `update_available`, `unknown_version`,
+States: `up_to_date`, `update_available`, `unknown_version`,
 `source_unavailable`, `unsupported_platform`, `unmanaged`, `missing`,
-`ambiguous`. Каждое — исход, а не молчание: недоступный источник релизов даёт
-`source_unavailable`, а не «обновлений нет».
+`ambiguous`. Each is an outcome, not silence: an unavailable release source yields
+`source_unavailable`, not “no updates.”
 
-Версии сравниваются по числам, а не как текст: `0.0.10` новее `0.0.9`. Версия,
-которую разбор не понял, никогда не объявляется устаревшей — честный ответ
-«не могу показать, что новее», а не догадка.
+Versions are compared numerically, not as text: `0.0.10` is newer than `0.0.9`. A version
+the parser does not understand is never declared outdated—the honest answer is
+“cannot determine what is newer,” not a guess.
 
-## Обновление
+## Update
 
 ```bash
 ai-stp provider update plan --harness codex --json
@@ -66,29 +66,30 @@ ai-stp provider update apply --harness codex \
   --expected-plan-digest <digest> --confirm --json
 ```
 
-План и применение — две команды, как у `install plan` и `install apply`.
-Одна команда, отвечающая то планом, то результатом, отдаёт две разные схемы под
-одним объявлением, и проверяющий ответ агент сверяет его не с той.
+Planning and applying are two commands, as with `install plan` and `install apply`.
+A single command that sometimes returns a plan and sometimes a result exposes two
+different schemas under one declaration, and the agent validating the response checks it
+against the wrong one.
 
-План без подтверждения ничего не устанавливает и — что важнее — ничего не
-меняет: скачанные байты уходят во временный каталог, а не в каталог
-обнаружения. Когда они уходили туда, сам план создавал вторую установку, после
-чего машина становилась неоднозначной и только что спланированное обновление
-отказывалось выполняться.
+A plan without confirmation installs nothing and—more importantly—changes
+nothing: downloaded bytes go to a temporary directory, not the discovery
+directory. When they went there, the plan itself created a second installation, after
+which the machine became ambiguous and the newly planned update
+refused to run.
 
-`apply` пересчитывает план и сверяет digest. Устаревший план отказывает, а не
-устанавливает то, чего в нём не было.
+`apply` recomputes the plan and checks the digest. A stale plan is rejected instead of
+installing something that was not in it.
 
-Идемпотентно по digest: если нужные байты уже на месте, ответ `unchanged` и
-резервной копии не создаётся. Прерванный запуск можно повторить — второй не
-станет второй установкой.
+It is idempotent by digest: if the required bytes are already in place, the response is
+`unchanged` and no backup is created. An interrupted run can be repeated—the
+second run will not become a second installation.
 
-Замена атомарна: файл пишется рядом и переименовывается поверх цели, поэтому
-прерывание оставляет либо старый исполняемый файл, либо новый, но никогда не
-полузаписанный, который при этом запустится. Заменённые байты остаются рядом
-под именем со своим digest.
+Replacement is atomic: the file is written beside the target and renamed over it, so
+an interruption leaves either the old executable or the new one, never a
+partially written executable that can still run. The replaced bytes remain beside it
+under a name containing their digest.
 
-## Переустановка
+## Reinstallation
 
 ```bash
 ai-stp provider reinstall plan --harness codex --version 0.0.32 --json
@@ -96,37 +97,36 @@ ai-stp provider reinstall apply --harness codex --version 0.0.32 \
   --expected-plan-digest <digest> --confirm --json
 ```
 
-Без `--version` переустанавливается версия, которая уже стоит. Переход на самую
-новую — это `update`, отдельным действием: из двух только одно может удивить
-того, кто его запустил.
+Without `--version`, the currently installed version is reinstalled. Moving to the
+newest version is `update`, a separate action: only one of the two may surprise
+the person who ran it.
 
-## Чужой provider
+## Externally managed provider
 
-Исполняемый файл, который положил не `ai-stp`, не перезаписывается молча.
-Операция отказывает и называет флаг:
+An executable not placed by `ai-stp` is not silently overwritten.
+The operation is rejected and names the flag:
 
 ```bash
 ai-stp provider update plan --harness codex --adopt --json
 ```
 
-## Отмена выбора
+## Forgetting the selection
 
-`update` и `reinstall` записывают решение, и решение, которое нельзя отменить,
-оставляет машину привязанной к пути, из которого она выросла:
+`update` and `reinstall` record a decision, and a decision that cannot be undone
+leaves the machine bound to the path from which it originated:
 
 ```bash
-ai-stp provider forget --harness codex --json   # один харнесс
-ai-stp provider forget --json                   # все
+ai-stp provider forget --harness codex --json   # one harness
+ai-stp provider forget --json                   # all
 ```
 
-После этого решают конфиг и обнаружение — как до первого обновления.
+Afterward, configuration and discovery decide—as before the first update.
 
-## Восстановление
+## Recovery
 
-Резервная копия лежит рядом с заменённым файлом и названа по digest прежних
-байтов, а не по времени: два запуска, заменяющие одни и те же байты, пишут одну
-и ту же копию, поэтому повтор обновления не может завалить ту, к которой нужно
-вернуться.
+The backup is stored beside the replaced file and named by the digest of the previous
+bytes, not by time: two runs replacing the same bytes write the same
+copy, so repeating an update cannot overwrite the one needed for rollback.
 
 ```bash
 cp <path>.<digest>.backup <path>

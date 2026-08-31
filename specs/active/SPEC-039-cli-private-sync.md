@@ -1,95 +1,101 @@
 ---
-description: "SPEC-039: CLI-синхронизация приватного реестра между устройствами."
+description: "SPEC-039: CLI synchronization of the private registry between devices."
 last_verified: "2026-08-13"
 ---
 
-# SPEC-039: CLI-синхронизация приватного реестра
+# SPEC-039: CLI synchronization of the private registry
 
-## Цель
+## Purpose
 
-CLI переносит разрешённые приватные ревизии между устройствами через серверный
-ledger, не выгружая исходный код, полный паспорт устройства, project index,
-секреты или локальные пути. Локальный revision graph остаётся владельцем
-слияния; сервер принимает события и выдаёт упорядоченный поток.
+The CLI transfers permitted private revisions between devices through the server
+ledger without uploading source code, the full device passport, project index,
+secrets, or local paths. The local revision graph remains responsible for
+merging; the server accepts events and provides an ordered stream.
 
-## Границы
+## Scope
 
-Входят `sync push`, `sync pull`, `sync preview` и `sync merge`, долговечные
-event/idempotency key, receipt, remote-head mapping и account cursor, upsert,
-tombstone, fast-forward, две головы, чистое трёхстороннее слияние, явный конфликт
-полей и коллизия выпущенной версии. Проводные модели принадлежат
-`packages/contracts`, серверная машина — `SPEC-025`.
+The scope includes `sync push`, `sync pull`, `sync preview`, and `sync merge`,
+durable event/idempotency keys, receipts, remote-head mappings and account
+cursors, upserts, tombstones, fast-forwards, two heads, clean three-way merges,
+explicit field conflicts, and released-version collisions. Wire models belong
+to `packages/contracts`; the server-side state machine is defined by `SPEC-025`.
 
-Не входят изменение серверного ledger, синхронизация артефактных байтов,
-project passport/index, полного device passport, установка в target и
-автоматический выбор значения при конфликте.
+The scope excludes modifying the server ledger, synchronizing artifact bytes,
+the project passport/index, the full device passport, installation into a target,
+and automatic value selection during conflict resolution.
 
-## Термины
+## Terms
 
-- **Локальная ревизия** — content-addressed паспорт в SQLite-графе устройства.
-- **Удалённая ревизия** — событие server ledger, чей идентификатор дополнительно
-  связывает аккаунт, устройство, операцию и локальный payload.
-- **Неопределённый результат** — сервер мог принять push, но клиент не получил
-  контрактный receipt и поэтому обязан повторить тот же event.
+- **Local revision** — a content-addressed passport in the device's SQLite graph.
+- **Remote revision** — a server ledger event whose identifier additionally
+  binds the account, device, operation, and local payload.
+- **Indeterminate result** — the server may have accepted the push, but the
+  client did not receive a contract-compliant receipt and therefore must retry
+  the same event.
 
-## Требования
+## Requirements
 
-- `REQ-3901`: Push строит событие только из локальной allowlisted ревизии,
-  вычисляет серверный revision/content digest по каноническим доменам и до HTTP
-  клиент долговечно сохраняет точный event, idempotency key и ожидаемую remote head.
-- `REQ-3902`: Неопределённый сетевой результат не создаёт новый event. Следующий
-  запуск повторяет сохранённый запрос; принятые предки не отправляются вторично,
-  а непринятый ребёнок не обгоняет предка.
-- `REQ-3903`: Pull перед записью проверяет account, canonical revision id,
-  клиент проверяет content digest, entity kind/id и внутренний revision id паспорта. Вся страница
-  и opaque cursor фиксируются одной SQLite-транзакцией; ошибка откатывает всё.
-- `REQ-3904`: Полученный fast-forward двигает локальную голову обычным правилом
-  графа. Расхождение сохраняет обе головы; независимые поля дают механический
-  merge candidate, а один изменённый JSON Pointer остаётся явным конфликтом.
-- `REQ-3905`: `sync merge` требует подтверждения и записывает только чистый
-  developer-passport merge с двумя точными родителями. Компонент и сетап не
-  объединяются по полям.
-- `REQ-3906`: Tombstone является отдельным replay-safe событием, требует
-  принятую remote head, не удаляет историю и при pull идемпотентно закрывает
-  локальное обычное чтение.
-- `REQ-3907`: Метаданные выпущенных component/setup версий синхронизируются
-  вместе с приватной ревизией. Одинаковый `stable_id + X.Y` с другим digest
-  отклоняет всю страницу как `AI_STP_CONFLICT`; номер не переназначается.
-- `REQ-3908`: Sync выключен по умолчанию, сетевые команды требуют явного
-  подтверждения, активной сессии и передают bearer token только проверенному
-  endpoint. Preview и локальный merge не меняют target харнесса.
+- `REQ-3901`: Push constructs an event only from a local allowlisted revision,
+  computes the server revision/content digest over the canonical domains, and
+  durably stores the exact event, idempotency key, and expected remote head
+  before issuing the HTTP request.
+- `REQ-3902`: An indeterminate network result does not create a new event. The
+  next invocation retries the stored request; accepted ancestors are not sent
+  again, and an unaccepted child does not overtake its ancestor.
+- `REQ-3903`: Before writing, pull validates the account and canonical revision
+  id; the client validates the content digest, entity kind/id, and the
+  passport's internal revision id. The entire page and opaque cursor are
+  committed in a single SQLite transaction; an error rolls back everything.
+- `REQ-3904`: A received fast-forward advances the local head according to the
+  graph's normal rule. Divergence preserves both heads; changes to independent
+  fields produce a mechanical merge candidate, while a JSON Pointer changed on
+  both sides remains an explicit conflict.
+- `REQ-3905`: `sync merge` requires confirmation and records only a clean
+  developer-passport merge with two exact parents. Components and setups are
+  not merged field by field.
+- `REQ-3906`: A tombstone is a separate replay-safe event, requires an accepted
+  remote head, does not delete history, and, upon pull, idempotently closes the
+  revision to normal local reads.
+- `REQ-3907`: Metadata for released component/setup versions is synchronized
+  together with the private revision. The same `stable_id + X.Y` with a
+  different digest rejects the entire page as `AI_STP_CONFLICT`; the version
+  number is not reassigned.
+- `REQ-3908`: Sync is disabled by default; network commands require explicit
+  confirmation and an active session, and transmit the bearer token only to a
+  verified endpoint. Preview and local merge do not modify the harness target.
 
-## Состояния и ошибки
+## States and errors
 
-Receipt `accepted`, `rejected`, `conflict` и `superseded` сохраняется без
-переинтерпретации. Transport failure остаётся retryable и сохраняет pending
-event. Несовпадение содержимого, аккаунта или координат — validation failure до
-локальной записи. Version collision и две несовместимые головы — conflict без
-выбора победителя.
+Receipt states `accepted`, `rejected`, `conflict`, and `superseded` are stored
+without reinterpretation. A transport failure remains retryable and preserves
+the pending event. A mismatch in content, account, or coordinates is a
+validation failure before any local write. A version collision and two
+incompatible heads are conflicts with no winner selected.
 
-## Безопасность и приватность
+## Security and privacy
 
-Allowlist закрыта на уровне события. Payload не содержит source bytes,
-Payload не содержит учётные данные credentials, значения environment, абсолютные
-пути, backup, project index или
-полный device passport. Общий command envelope показывает идентификаторы,
-receipt state и JSON Pointer полей конфликта, но не значения этих полей.
+The allowlist is closed at the event level. The payload does not contain source
+bytes, credentials, environment values, absolute paths, backups, the project
+index, or the full device passport. The common command envelope exposes
+identifiers, receipt state, and the JSON Pointers of conflicting fields, but
+not the values of those fields.
 
-## Совместимость и миграция
+## Compatibility and migration
 
-SQLite migration 17 аддитивно добавляет журнал событий, remote heads и cursor и
-имеет обратный путь удаления новых таблиц. Старые ревизии отправляются от корня
-к голове при первом push. Клиент не декодирует и не создаёт серверный cursor.
+SQLite migration 17 additively introduces the event journal, remote heads, and
+cursor, and provides a rollback path that removes the new tables. On the first
+push, old revisions are sent from the root to the head. The client neither
+decodes nor creates the server cursor.
 
-## Критерии приёмки
+## Acceptance criteria
 
-| Требование | Доказательство |
+| Requirement | Evidence |
 | --- | --- |
-| `REQ-3901` | Unit/transport test сравнивает request с серверной канонизацией и проверяет durable row до вызова. |
-| `REQ-3902` | Mock теряет первый ответ; повтор видит те же event/idempotency key и продолжает ребёнком только после receipt предка. |
-| `REQ-3903` | Tampered page не оставляет revision/event/cursor; валидная страница применяет их атомарно и replay является no-op. |
-| `REQ-3904` | Две SQLite-базы проходят root, fast-forward, divergence, pull второй головы и deterministic merge preview. |
-| `REQ-3905` | Тест записывает merge с двумя родителями и отклоняет overlapping field conflict. |
-| `REQ-3906` | Tombstone повторяет один event, имеет remote parent и повторный pull не меняет первую deletion mark. |
-| `REQ-3907` | Две базы записывают разные digest под одним X.Y; pull откатывает страницу и cursor. |
-| `REQ-3908` | Registry/process tests фиксируют confirmations, disabled guard, bearer boundary и отсутствие запрещённых данных. |
+| `REQ-3901` | A unit/transport test compares the request against server canonicalization and verifies the durable row before the call. |
+| `REQ-3902` | A mock drops the first response; the retry observes the same event/idempotency key and proceeds with the child only after receiving the ancestor's receipt. |
+| `REQ-3903` | A tampered page leaves no revision/event/cursor; a valid page applies them atomically, and replay is a no-op. |
+| `REQ-3904` | Two SQLite databases exercise root, fast-forward, divergence, pulling the second head, and deterministic merge preview. |
+| `REQ-3905` | A test records a merge with two parents and rejects an overlapping field conflict. |
+| `REQ-3906` | A tombstone retries the same event, has a remote parent, and a repeated pull does not alter the initial deletion mark. |
+| `REQ-3907` | Two databases record different digests under the same X.Y; pull rolls back the page and cursor. |
+| `REQ-3908` | Registry/process tests verify confirmations, the disabled guard, the bearer boundary, and the absence of prohibited data. |

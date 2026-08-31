@@ -1,45 +1,45 @@
 ---
-description: "Решение выдавать локальную идентичность владельца до входа и переносить владение паспортами при первом входе."
+description: "Decision to issue a local owner identity before sign-in and transfer passport ownership upon first sign-in."
 last_verified: "2026-08-06"
 ---
 
-# ADR-0060: Локальная идентичность владельца
+# ADR-0060: Local Owner Identity
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-Конверт паспорта требует `owner_id` вида `account_…` (`passport-envelope.md`). Аккаунт выдаёт сервер: `DeviceTokenResponse` из замороженного `/v1` возвращает `account_id` в ответ на успешный вход.
+The passport envelope requires an `owner_id` of the form `account_…` (`passport-envelope.md`). The account is issued by the server: `DeviceTokenResponse` from the frozen `/v1` returns `account_id` in response to a successful sign-in.
 
-При этом `offline-capability.md` относит чтение, изменение и ревизии паспорта разработчика к автономным операциям, а `SPEC-001` делает локальный контур полностью пригодным без аккаунта. Задача #74 требует создавать паспорт разработчика в среде, где входа ещё не существует: он появится только в #75.
+At the same time, `offline-capability.md` classifies reading, modifying, and revising the developer passport as offline operations, while `SPEC-001` makes the local environment fully usable without an account. Issue #74 requires creating the developer passport in an environment where sign-in does not yet exist: it will only appear in #75.
 
-Значит паспорт нужно создать раньше, чем станет известен идентификатор аккаунта. Не создавать его до входа означало бы, что автономный контур не работает без сети, — прямое противоречие принятому решению.
+Therefore, the passport must be created before the account identifier becomes known. Not creating it before sign-in would mean that the offline environment does not work without a network connection—a direct contradiction of the accepted decision.
 
-## Варианты
+## Alternatives
 
-1. Отложить создание паспорта до первого входа. Простейший вариант и он же отменяет автономность.
-2. Сделать `owner_id` необязательным. Требует изменения замороженного конверта паспорта ради состояния, которое является временным, и оставляет паспорт без владельца в модели, где владение определяет доступ (`SPEC-003` REQ-301).
-3. Использовать идентификатор устройства как владельца. Неверно по существу: паспорт разработчика один на все устройства и объединяется между ними (`SPEC-009` REQ-911), а идентификатор устройства принадлежит одному.
-4. Выдавать локальный идентификатор владельца и переносить владение при первом входе.
+1. Defer passport creation until the first sign-in. This is the simplest option, and it also eliminates offline capability.
+2. Make `owner_id` optional. This requires changing the frozen passport envelope for a state that is temporary and leaves the passport without an owner in a model where ownership determines access (`SPEC-003` REQ-301).
+3. Use the device identifier as the owner. This is fundamentally incorrect: there is one developer passport across all devices, and it is merged between them (`SPEC-009` REQ-911), whereas a device identifier belongs to a single device.
+4. Issue a local owner identifier and transfer ownership upon first sign-in.
 
-## Решение
+## Decision
 
-Принят вариант 4.
+Alternative 4 is accepted.
 
-При первом создании паспорта выдаётся локальный `account_…` — типизированный идентификатор из того же реестра префиксов. Он идентифицирует владельца этой установки и хранится рядом с идентичностью устройства.
+When the passport is first created, a local `account_…` is issued—a typed identifier from the same prefix registry. It identifies the owner of this installation and is stored alongside the device identity.
 
-При первом успешном входе владение переносится на идентификатор аккаунта, выданный сервером. Перенос выполняется как обычная ревизия: `owner_id` — часть содержимого, значит его изменение порождает новую ревизию с предыдущей в родителях. История сохраняется, момент передачи владения виден в графе, и ничего не переписывается на месте. Обязанность выполнить перенос принадлежит #75; локальный идентификатор после переноса остаётся в истории и не переиспользуется.
+Upon the first successful sign-in, ownership is transferred to the account identifier issued by the server. The transfer is performed as a regular revision: `owner_id` is part of the content, so changing it creates a new revision with the previous revision among its parents. The history is preserved, the moment of ownership transfer is visible in the graph, and nothing is rewritten in place. The responsibility to perform the transfer belongs to #75; after the transfer, the local identifier remains in the history and is not reused.
 
-Локальный идентификатор владельца не отправляется на сервер и не появляется ни в одном запросе `/v1`: он не является аккаунтом и выдавать его за аккаунт нельзя.
+The local owner identifier is not sent to the server and does not appear in any `/v1` request: it is not an account and must not be represented as one.
 
-## Последствия
+## Consequences
 
-- автономный контур создаёт и изменяет паспорта без сети и без аккаунта, как и обещано;
-- замороженный конверт паспорта не меняется;
-- у #75 появляется обязательный шаг: перенос владения при первом входе, иначе локальные паспорта останутся принадлежать идентификатору, которого сервер не знает;
-- пока входа не было, `owner_id` в локальных паспортах не совпадает ни с одним серверным аккаунтом, и это нормальное состояние, а не рассогласование;
-- второй вход другим аккаунтом на том же устройстве не сливает паспорта молча: это отдельный случай, и его разбирает `SPEC-002` REQ-202.
+- the offline environment creates and modifies passports without a network connection and without an account, as promised;
+- the frozen passport envelope remains unchanged;
+- #75 gains a mandatory step: transfer ownership upon first sign-in; otherwise, local passports will remain owned by an identifier unknown to the server;
+- until sign-in has occurred, `owner_id` in local passports does not match any server account, and this is a normal state, not an inconsistency;
+- a second sign-in with a different account on the same device does not silently merge passports: this is a separate case addressed by `SPEC-002` REQ-202.
 
-## Условия пересмотра
+## Reconsideration Conditions
 
-Решение пересматривается, если сервер начнёт принимать идентификатор аккаунта, предложенный клиентом, — тогда перенос владения станет не нужен, — или если появится сценарий, в котором локальные паспорта создаются только после входа и автономность до входа перестанет требоваться.
+The decision is to be reconsidered if the server begins accepting an account identifier proposed by the client—in which case ownership transfer will no longer be necessary—or if a scenario emerges in which local passports are created only after sign-in and offline capability before sign-in is no longer required.

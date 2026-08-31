@@ -1,83 +1,55 @@
 ---
-description: "SPEC-044: GitHub archived state как локальное evidence устаревания."
+description: "SPEC-044: GitHub archived state as local evidence of obsolescence."
 last_verified: "2026-08-13"
 ---
 
 # SPEC-044: GitHub archive evidence
 
-## Цель
+## Purpose
 
-Для точной локальной версии с публичным GitHub source CLI получает официальный
-`archived` state репозитория и сохраняет его как датированное внешнее evidence.
-Сигнал предупреждает об устаревании, но сам не меняет lifecycle, eligibility,
-опубликованные байты или установленный target.
+For an exact local version with a public GitHub source, the CLI obtains the repository's official `archived` state and stores it as timestamped external evidence. The signal warns of obsolescence but does not itself change the lifecycle, eligibility, published bytes, or installed target.
 
-## Границы
+## Scope
 
-Первая реализация — machine CLI и локальный registry. Публичная catalog/detail
-проекция принадлежит platform/web. Поддерживается только `github.com` и официальный
-REST endpoint. Первая версия не принимает GitHub credential и запрашивает только
-public metadata; private repository получает неразличимый `unavailable`.
+The initial implementation covers the machine CLI and local registry. The public catalog/detail projection belongs to platform/web. Only `github.com` and the official REST endpoint are supported. The first version does not accept GitHub credentials and requests only public metadata; a private repository produces the indistinguishable `unavailable` state.
 
-## Термины
+## Terms
 
-- **Observation** — неизменяемая строка одного ответа GitHub с временем и TTL.
-- **Repository identity** — числовой GitHub repository id, переживающий rename и
-  transfer.
-- **Proposal** — механическое предложение lifecycle без автоматического эффекта.
-- **Freshness** — сравнение времени чтения со сроком сохранённого observation.
+- **Observation** — an immutable row representing one GitHub response, with a timestamp and TTL.
+- **Repository identity** — the numeric GitHub repository id, which survives rename and transfer.
+- **Proposal** — a mechanical lifecycle proposal with no automatic effect.
+- **Freshness** — a comparison of the read time against the stored observation's validity period.
 
-## Требования
+## Requirements
 
-- `REQ-4401`: Refresh принимает точные `stable_id` и `X.Y`, читает source из
-  сохранённого immutable passport и отказывает для local, отсутствующего,
-  credentialed или не-GitHub source.
-- `REQ-4402`: Успешное наблюдение сохраняет immutable GitHub repository id,
-  canonical `full_name`, исходную coordinate, `archived`, `fetched_at`, TTL и
-  необязательный ETag. Redirect, rename и transfer принимаются только из
-  официального ответа с тем же repository id после первого наблюдения.
-- `REQ-4403`: `archived=true` возвращает только предложение `deprecated` и
-  предупреждение. Он никогда не создаёт `blocked`, не меняет lifecycle, bytes,
-  паспорт, выбор, установку или target и не выполняет замену.
-- `REQ-4404`: Каждое изменившееся наблюдение добавляется в append-only history.
-  `unarchive` не стирает прежний archived факт; повторный `304` обновляет freshness
-  отдельным observation без выдуманного изменения состояния.
-- `REQ-4405`: Offline show использует последнее наблюдение и помечает его `fresh`
-  либо `stale`. Отсутствие evidence имеет состояние `unavailable`; 404, 403,
-  ограничение частоты, неверный ответ и транспортный отказ не превращаются в
-  deprecation и не уничтожают сохранённое evidence.
-- `REQ-4406`: Refresh использует conditional GET, закрытый response model,
-  ограниченный размер ответа и не более одного запроса. Credential не принимается,
-  не читается из окружения и не появляется в registry либо ответе.
-- `REQ-4407`: Machine CLI использует общие строгие схемы для refresh/show/history;
-  history ограничена, упорядочена и содержит attribution и freshness.
+- `REQ-4401`: Refresh accepts an exact `stable_id` and `X.Y`, reads the source from the stored immutable passport, and rejects a local, missing, credentialed, or non-GitHub source.
+- `REQ-4402`: A successful observation stores the immutable GitHub repository id, canonical `full_name`, original coordinate, `archived`, `fetched_at`, TTL, and an optional ETag. Redirect, rename, and transfer are accepted only from the official response with the same repository id after the first observation.
+- `REQ-4403`: `archived=true` returns only a `deprecated` proposal and a warning. It never creates `blocked`, changes the lifecycle, bytes, passport, selection, installation, or target, or performs a replacement.
+- `REQ-4404`: Every changed observation is added to append-only history. `unarchive` does not erase the previous archived fact; a repeated `304` updates freshness through a separate observation without inventing a state change.
+- `REQ-4405`: Offline show uses the latest observation and marks it `fresh` or `stale`. Missing evidence has the `unavailable` state; 404, 403, rate limiting, an invalid response, and transport failure do not become deprecation and do not destroy stored evidence.
+- `REQ-4406`: Refresh uses conditional GET, a closed response model, a bounded response size, and no more than one request. Credentials are not accepted, read from the environment, or included in the registry or response.
+- `REQ-4407`: The machine CLI uses shared strict schemas for refresh/show/history; history is bounded, ordered, and includes attribution and freshness.
 
-## Состояния и ошибки
+## States and errors
 
-Evidence имеет `fresh`, `stale` или `unavailable`; repository state — `active`,
-`archived` или `unavailable`; proposal — `none` либо `deprecated`. Ошибка сети
-возвращает типизированный отказ и не заменяет последний хороший снимок.
+Evidence is `fresh`, `stale`, or `unavailable`; repository state is `active`, `archived`, or `unavailable`; proposal is `none` or `deprecated`. A network error returns a typed failure and does not replace the last good snapshot.
 
-## Безопасность и приватность
+## Security and privacy
 
-Запрос строится только из проверенного публичного source passport. Redirect
-не следует автоматически. Ответ ограничен по размеру и проходит строгую схему.
-Первая версия намеренно не имеет credential surface.
+The request is constructed only from a validated public source passport. Redirects are not followed automatically. The response size is bounded, and the response is validated against a strict schema. The first version intentionally has no credential surface.
 
-## Совместимость и миграция
+## Compatibility and migration
 
-SQLite получает append-only observation table. Существующие версии не меняются;
-без refresh их ответ честно `unavailable`. Новые provider hosts и lifecycle
-автоматизация требуют отдельного решения.
+SQLite receives an append-only observation table. Existing versions do not change; without refresh, their response is truthfully `unavailable`. New provider hosts and lifecycle automation require a separate decision.
 
-## Критерии приёмки
+## Acceptance criteria
 
-| Требование | Исполнимое доказательство |
+| Requirement | Executable evidence |
 |---|---|
-| `REQ-4401` | Fixtures точной версии принимают GitHub source и отклоняют local/unknown coordinate до HTTP. |
-| `REQ-4402` | Mock отвечает rename/transfer с тем же id и collision с другим id; сохраняются точные coordinates. |
-| `REQ-4403` | Archived fixture возвращает proposal без изменений version, selection, installation и target. |
-| `REQ-4404` | Archived → unarchived → 304 остаются тремя упорядоченными observations. |
-| `REQ-4405` | Clock-controlled tests различают fresh/stale, а 404/rate-limit/outage сохраняют прежний снимок. |
-| `REQ-4406` | Transport test фиксирует conditional header, один запрос, bounded body и отсутствие credential surface. |
-| `REQ-4407` | Registry, generated schemas и machine help объявляют один evidence refresh и две read-only команды. |
+| `REQ-4401` | Exact-version fixtures accept a GitHub source and reject a local/unknown coordinate before HTTP. |
+| `REQ-4402` | The mock returns rename/transfer with the same id and a collision with a different id; exact coordinates are stored. |
+| `REQ-4403` | The archived fixture returns a proposal without changing version, selection, installation, or target. |
+| `REQ-4404` | Archived → unarchived → 304 remain three ordered observations. |
+| `REQ-4405` | Clock-controlled tests distinguish fresh/stale, while 404/rate-limit/outage preserve the previous snapshot. |
+| `REQ-4406` | The transport test verifies the conditional header, one request, bounded body, and absence of a credential surface. |
+| `REQ-4407` | The registry, generated schemas, and machine help declare one evidence refresh command and two read-only commands. |

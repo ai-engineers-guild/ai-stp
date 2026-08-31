@@ -42,6 +42,36 @@ class FreshnessTests(unittest.TestCase):
         self.assertEqual(linter.issues, [])
 
 
+class LanguageTests(unittest.TestCase):
+    def test_english_documentation_passes_in_every_area(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            linter = Linter(template_mode=False, max_age=90, root=root)
+
+            for path in (
+                root / "specs" / "active" / "SPEC-001-example.md",
+                root / "docs" / "adr" / "ADR-0001-example.md",
+                root / "docs" / "contracts" / "example.md",
+                root / "docs" / "architecture" / "example.md",
+                root / "docs" / "agent" / "example.md",
+                root / "docs" / "documentation" / "example.md",
+                root / "docs" / "product" / "example.md",
+            ):
+                linter.check_language(path, "This migrated document is written in English.")
+
+            self.assertEqual(linter.issues, [])
+
+    def test_russian_prose_fails(self) -> None:
+        linter = Linter(template_mode=False, max_age=90)
+
+        linter.check_language(
+            Path("docs/example.md"),
+            "Эта строка документации полностью написана на русском языке для проверки.",
+        )
+
+        self.assertEqual([issue.code for issue in linter.issues], ["EN001"])
+
+
 class BacktickedDocumentTests(unittest.TestCase):
     """Имя документа в обратных кавычках обязано вести к существующему файлу.
 

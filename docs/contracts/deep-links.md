@@ -1,23 +1,23 @@
 ---
-description: "Грамматика канонических URL и CLI references для component, setup, publisher и report intent."
+description: "Grammar of canonical URLs and CLI references for component, setup, publisher, and report intent."
 last_verified: "2026-08-15"
 ---
 
-# Канонические CLI/web deep links
+# Canonical CLI/web deep links
 
-Владелец требований — `SPEC-030`, решение — `ADR-0064`. Этот документ фиксирует
-машинную grammar `deep_link_v1`.
+The requirements owner is `SPEC-030`; the decision is `ADR-0064`. This document
+defines the machine grammar `deep_link_v1`.
 
-## Нормализованный target
+## Normalized target
 
-| Поле | Форма |
+| Field | Form |
 |---|---|
 | `grammar_version` | `1` |
-| `kind` | `component`, `setup` или `publisher` |
-| `stable_id` | canonical ID с prefix, соответствующим `kind` |
-| `version` | optional exact canonical `X.Y`; только component/setup |
-| `locale` | `ru` или `en`; default `ru` |
-| `intent` | `view` или `report`; `report` требует component/setup и version |
+| `kind` | `component`, `setup`, or `publisher` |
+| `stable_id` | canonical ID with the prefix corresponding to `kind` |
+| `version` | optional exact canonical `X.Y`; component/setup only |
+| `locale` | `ru` or `en`; default `ru` |
+| `intent` | `view` or `report`; `report` requires component/setup and version |
 
 ## URL paths
 
@@ -29,13 +29,13 @@ last_verified: "2026-08-15"
 /{locale}/publishers/{account_id}
 ```
 
-`report` использует exact component/setup version path и фиксированный fragment
-`#report`. Query отсутствует во всех формах. Base address — действующий
-`catalog.url` без `/v1`; его необязательный базовый путь сохраняется перед маршрутом.
+`report` uses the exact component/setup version path and the fixed `#report`
+fragment. Query is absent in all forms. The base address is the current
+`catalog.url` without `/v1`; its optional base path is preserved before the route.
 
-## Ссылка CLI
+## CLI reference
 
-Каноническая форма — массив аргументов, а не shell-строка:
+The canonical form is an argument array, not a shell string:
 
 ```json
 [
@@ -48,21 +48,21 @@ last_verified: "2026-08-15"
 ]
 ```
 
-Для `report` перед `--json` добавляется `--report`. Human `cli_command` получается
-только соединением безопасных элементов канонического массива пробелом. Опускание
-`--locale` разрешено на входе CLI, но canonical output всегда включает resolved
-locale.
+For `report`, `--report` is added before `--json`. The human `cli_command` is
+formed only by joining the safe elements of the canonical array with spaces.
+Omitting `--locale` is allowed in CLI input, but canonical output always includes
+the resolved locale.
 
-## Валидация и доступ
+## Validation and access
 
-Stable ID и версия проверяются до построения URL. Parser принимает только точно
-настроенные схему, authority и базовый путь, перечисленные пути и fragment `report` в
-допустимом контексте. Credentials, query, кодированные разделители, лишние сегменты
-и неизвестные fragments отклоняются.
+The stable ID and version are validated before the URL is built. The parser
+accepts only the precisely configured scheme, authority, and base path, the
+listed paths, and the `report` fragment in an allowed context. Credentials,
+query, encoded separators, extra segments, and unknown fragments are rejected.
 
-Генерация и разбор ничего не читают из каталога. Ссылка не является доказательством
-существования или доступа: публичность, private authorization и запрет перечисления
-остаются за существующей границей web/API.
+Generation and parsing read nothing from the catalog. A link is not proof of
+existence or access: public visibility, authorization for private objects, and enumeration
+prevention remain behind the existing web/API boundary.
 
-Web-потребитель использует тот же packaged corpus и ту же grammar. Он не
-является вторым владельцем маршрутов.
+The web consumer uses the same packaged corpus and the same grammar. It is not a
+second owner of the routes.

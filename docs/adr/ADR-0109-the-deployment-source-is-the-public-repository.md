@@ -1,79 +1,80 @@
 ---
-description: "Решение развёртывать production из публичного репозитория анонимным fetch без credential."
+description: "Decision to deploy production from the public repository through anonymous fetch without credentials."
 last_verified: "2026-08-21"
 ---
 
-# ADR-0109: Источник развёртывания — публичный репозиторий
+# ADR-0109: The deployment source is the public repository
 
-Статус: принято. Уточняет транспорт `ADR-0103`, не отменяя его.
-Продолжено `ADR-0111`: release candidate собирается там, где будет опубликован.
+Status: accepted. Clarifies the transport in `ADR-0103` without superseding it.
+Continued by `ADR-0111`: the release candidate is built where it will be
+published.
 
-## Контекст
+## Context
 
-`ADR-0103` вывел runner с production-хоста: зелёный `check` продвигает
-`refs/heads/deploy/prod`, а хост минутным timer забирает этот ref исходящим
-соединением. Транспорт при этом был SSH через `ssh.github.com:443` с read-only
-deploy key, потому что источником был приватный репозиторий.
+`ADR-0103` removed the runner from the production host: a green `check` advances
+`refs/heads/deploy/prod`, and a one-minute timer on the host fetches that ref
+over an outbound connection. The transport was SSH through
+`ssh.github.com:443` with a read-only deploy key because the source was a
+private repository.
 
-Публичное дерево `ai-stp` (`ADR-0108`) сделало это допущение необязательным.
-Опубликованные пути содержат весь код, который развёртывание собирает и
-запускает: `apps`, `packages`, `migrations`, `deploy`, `docker-compose.prod.yml`,
-`Dockerfile*`, `alembic.ini`, `uv.lock`. Ничто из удержанного — приватные
-решения о флоте, внутренние отчёты, память агента, `.github` — не читается во
-время развёртывания.
+The public `ai-stp` tree (`ADR-0108`) made that assumption unnecessary. The
+published paths contain all code that deployment builds and runs: `apps`,
+`packages`, `migrations`, `deploy`, `docker-compose.prod.yml`, `Dockerfile*`,
+`alembic.ini`, `uv.lock`. None of the withheld material—private fleet
+decisions, internal reports, agent memory, `.github`—is read during deployment.
 
-Пока продвигали оба репозитория, `deploy/prod` существовал в двух местах и
-означал разное. Это не расхождение, которое кто-то заметит: хост тихо
-развернул бы то, что нашёл первым.
+While both repositories were advanced, `deploy/prod` existed in two places and
+meant different things. This is not a divergence someone would notice: the host
+would silently deploy whichever one it found first.
 
-## Варианты
+## Options
 
-**Оставить приватный источник.** Ничего не менять. Сохраняет deploy key,
-SSH-конфигурацию и обязанность держать её в согласии с host keys GitHub. Кроме
-того, оставляет `git_commit` в `/v1/system/version` неразрешимым для любого,
-кто не имеет доступа к приватному репозиторию.
+**Keep the private source.** Change nothing. This preserves the deploy key, SSH
+configuration, and the obligation to keep it aligned with GitHub host keys. It
+also leaves the `git_commit` in `/v1/system/version` unresolvable by anyone
+without access to the private repository.
 
-**Публичный источник, по-прежнему по SSH.** Убирает двусмысленность ref, но
-сохраняет credential, который больше ничего не защищает: содержимое доступно
-анонимно.
+**Public source, still over SSH.** This removes ref ambiguity but preserves a
+credential that no longer protects anything: the content is anonymously
+available.
 
-**Публичный источник, анонимный HTTPS.** Убирает и ref-двусмысленность, и
+**Public source, anonymous HTTPS.** This removes both ref ambiguity and the
 credential.
 
-## Решение
+## Decision
 
-`deploy/pull-deploy.sh` по умолчанию забирает
-`https://github.com/ai-engineers-guild/ai-stp.git`. Fetch анонимный: на хосте
-нет deploy key, нет SSH-конфигурации и нет секрета, который надо ротировать.
+By default, `deploy/pull-deploy.sh` fetches
+`https://github.com/ai-engineers-guild/ai-stp.git`. Fetching is anonymous: the
+host has no deploy key, no SSH configuration, and no secret to rotate.
 
-Продвигает ref только этот репозиторий. Приватный репозиторий больше не
-содержит workflow развёртывания.
+Only this repository advances the ref. The private repository no longer
+contains a deployment workflow.
 
-Скрипт приводит remote зеркала к `${AI_STP_PULL_REPOSITORY}` на каждом запуске,
-а не только при создании. Прежняя форма задавала remote один раз, поэтому смена
-источника не меняла ничего — зеркало продолжало ходить по старому адресу.
+The script resets the mirror remote to `${AI_STP_PULL_REPOSITORY}` on every
+run, not only at creation. The previous form set the remote once, so changing
+the source changed nothing—the mirror continued using the old address.
 
-## Последствия
+## Consequences
 
-Развёрнутая identity становится проверяемой публично: `git_commit`, который
-отдаёт `/v1/system/version`, разрешается в коммит открытого репозитория, и
-доказательство развёртывания перестаёт требовать доступа.
+The deployed identity becomes publicly verifiable: the `git_commit` returned
+by `/v1/system/version` resolves to a commit in the open repository, and proof
+of deployment no longer requires access.
 
-Смена источника — однократный разрыв истории. У двух репозиториев нет общего
-предка, поэтому защита от отката отказывает, и это правильно: она делает
-именно то, для чего написана. Переход требует осознанного сброса базовой линии
-— удалить зеркало и записанный `git_commit`, — и порядок описан в runbook.
-Внутри публичной истории защита от отката действует без изменений.
+Changing the source is a one-time history discontinuity. The two repositories
+have no common ancestor, so rollback protection fails, correctly: it does
+exactly what it was written to do. The transition requires a deliberate
+baseline reset—deleting the mirror and the recorded `git_commit`—and the order
+is documented in the runbook. Rollback protection continues unchanged within
+the public history.
 
-Секреты приложения не затронуты: они живут в `.env.prod` на хосте, который не
-читает и не пишет ни один workflow. Ни один credential не переезжает в
-публичный репозиторий; всё, что нужно CI, остаётся в GitHub secrets.
+Application secrets are unaffected: they live in `.env.prod` on the host,
+which no workflow reads or writes. No credential moves to the public
+repository; everything CI needs remains in GitHub secrets.
 
-`AI_STP_DEPLOY_SSH_KEY`, `AI_STP_DEPLOY_HOST`, `AI_STP_DEPLOY_USER` и
-`AI_STP_DEPLOY_KNOWN_HOSTS` не читает никто и они удаляются.
+`AI_STP_DEPLOY_SSH_KEY`, `AI_STP_DEPLOY_HOST`, `AI_STP_DEPLOY_USER`, and
+`AI_STP_DEPLOY_KNOWN_HOSTS` are read by nothing and are removed.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Пересмотреть, если публичное дерево перестанет содержать всё, что собирает
-развёртывание, или если появится вторая развёрнутая среда, которой нужен свой
-ref.
+Reconsider if the public tree ceases to contain everything deployment builds,
+or if a second deployed environment needs its own ref.

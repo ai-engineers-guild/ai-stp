@@ -1,38 +1,38 @@
 ---
-description: "Изменяемое представление компонента в каталоге без изменения паспорта версии."
+description: "Mutable component presentation in the catalog without changing the version passport."
 last_verified: "2026-08-10"
 ---
 
-# Представление компонента
+# Component presentation
 
-Catalog presentation принадлежит владельцу компонента и хранится отдельно от
-неизменяемого паспорта. Изменение presentation не создаёт версию и не меняет
+Catalog presentation belongs to the component owner and is stored separately from
+the immutable passport. Changing the presentation does not create a version or change
 `passport_document`, `passport_digest`, `name`, `component_type`, `tags`,
-`source` или publication state.
+`source`, or publication state.
 
 ## Owner API
 
-- `GET /v1/owner/objects/component/{stable_id}/presentation` возвращает текущее
-  представление только владельцу;
-- `PUT /v1/owner/objects/component/{stable_id}/presentation` атомарно заменяет
-  `bio` и весь упорядоченный список `media`;
-- `POST /v1/owner/objects/component/{stable_id}/presentation/media` принимает
-  binary upload автора и возвращает ready public path `/v1/media/component/{id}`;
-- `GET /v1/media/component/{media_id}` отдаёт ready bytes без object key;
-- отсутствие объекта и обращение чужого аккаунта дают одинаковый `404`;
-- cookie-authenticated mutating routes требуют double-submit CSRF.
+- `GET /v1/owner/objects/component/{stable_id}/presentation` returns the current
+  presentation only to the owner;
+- `PUT /v1/owner/objects/component/{stable_id}/presentation` atomically replaces
+  `bio` and the entire ordered `media` list;
+- `POST /v1/owner/objects/component/{stable_id}/presentation/media` accepts the
+  author's binary upload and returns the ready public path `/v1/media/component/{id}`;
+- `GET /v1/media/component/{media_id}` serves ready bytes without an object key;
+- a missing object and access by another account both produce the same `404`;
+- cookie-authenticated mutating routes require double-submit CSRF.
 
-Запрос имеет `schema_version: 1`, `bio` длиной до 2000 символов и не более пяти
-`media`-элементов. Элемент содержит `kind`, `url`, обязательный `alt` и
-необязательный `caption`. Для `youtube` поле `url` содержит 11-символьный video
-ID. Для `image` и `video` разрешены:
+The request has `schema_version: 1`, a `bio` of up to 2000 characters, and no more
+than five `media` items. An item contains `kind`, `url`, required `alt`, and optional
+`caption`. For `youtube`, the `url` field contains an 11-character video ID. For
+`image` and `video`, the following are allowed:
 
-- upload path `/v1/media/component/{media_id}` после owner upload;
-- HTTPS URL `raw.githubusercontent.com`, закреплённый на точный commit.
+- upload path `/v1/media/component/{media_id}` after owner upload;
+- an HTTPS URL on `raw.githubusercontent.com` pinned to an exact commit.
 
-Upload allowlist: JPEG, PNG, WebP, GIF, MP4, WebM до 25 MiB (REQ-3506).
-Произвольные embed, HTML и внешние hosts запрещены.
+Upload allowlist: JPEG, PNG, WebP, GIF, MP4, WebM up to 25 MiB (REQ-3506).
+Arbitrary embeds, HTML, and external hosts are prohibited.
 
-Публичная catalog projection использует `bio`, если владелец его сохранил, и
-иначе возвращает `description` текущего паспорта. Публичная media projection
-по-прежнему содержит только элементы в состоянии `ready`.
+The public catalog projection uses `bio` if the owner saved it, and otherwise
+returns the current passport's `description`. The public media projection still
+contains only items in the `ready` state.

@@ -1,84 +1,85 @@
 ---
-description: "Решение собирать публичный репозиторий из манифеста-allowlist с проверкой запрещённого содержимого, а не удалять лишнее из копии."
+description: "Decision to build the public repository from an allowlist manifest with forbidden-content checks rather than deleting excess content from a copy."
 last_verified: "2026-08-20"
 ---
 
-# ADR-0108: Публичное дерево собирается по allowlist
+# ADR-0108: The public tree is built from an allowlist
 
-Статус: принято. Уточняет `#188`, который планировал открыть сам этот
-репозиторий: открывается не он, а собранное из него дерево.
-Направление сборки изменено `ADR-0110`: работа идёт в публичном дереве, а приватная копия следует за ним.
+Status: accepted. Clarifies `#188`, which planned to make this repository itself
+public: what becomes public is a tree assembled from it, not this repository.
+The build direction was changed by `ADR-0110`: work takes place in the public
+tree, and the private copy follows it.
 
-## Контекст
+## Context
 
-Этот рабочий репозиторий содержит больше, чем реализация: агентскую память с
-именами хостов и номерами приватных задач, скриншоты ревью и логи разработки,
-датированные внутренние планы, решения о приватном парке раннеров и runbook
-конкретной развёртки. Публиковать его целиком нельзя, а публиковать реализацию
-нужно.
+This working repository contains more than the implementation: agent memory
+with host names and private task numbers, review screenshots and development
+logs, dated internal plans, decisions about the private runner fleet, and a
+runbook for a specific deployment. It cannot be published in full, while the
+implementation must be published.
 
-Разница в цене ошибки несимметрична. Пропущенный файл лечится тем, что его
-называют; утекший — тем, что меняют утёкшее.
+The costs of errors are asymmetric. An omitted file is fixed by naming it; a
+leaked file is fixed by changing what leaked.
 
-## Варианты
+## Options
 
-1. Открыть репозиторий как есть, предварительно вычистив лишнее. Однократная
-   уборка не переживает следующий коммит: новый внутренний файл становится
-   публичным молча.
-2. Держать публичную копию рядом и править обе. Копия расходится с оригиналом,
-   и это запрещено правилом о единственном владельце факта.
-3. Собирать публичное дерево из манифеста, который перечисляет публикуемое.
+1. Make the repository public as-is after removing excess content. A one-time
+   cleanup does not survive the next commit: a new internal file silently
+   becomes public.
+2. Maintain a public copy beside it and edit both. The copy diverges from the
+   original, violating the rule that each fact has one owner.
+3. Build the public tree from a manifest that enumerates what is published.
 
-## Решение
+## Decision
 
-Принимается вариант 3. `release_scripts/public_manifest.toml` перечисляет корни,
-которые публикуются, и пути, которые изымаются — каждый с причиной. Путь,
-который никто не назвал, остаётся приватным: сборка отказывает, если во
-внутреннем дереве появился корень, о котором манифест ничего не говорит.
+Option 3 is accepted. `release_scripts/public_manifest.toml` enumerates roots
+that are published and paths that are withheld, each with a reason. A path that
+nobody names remains private: the build fails if a root appears in the internal
+tree about which the manifest says nothing.
 
-Это обратно правилу обнаружения нативных компонентов, где применяется denylist.
-Там ошибка прячет находку, здесь — публикует. Направление умолчания выбирается
-по тому, чем ошибка обходится.
+This is the reverse of the native-component discovery rule, which uses a
+denylist. There, an error hides a finding; here, it publishes one. The default
+direction is chosen according to the cost of an error.
 
-Второй рубеж — сканирование содержимого. Пригодность решается по каталогу, а
-утечка происходит по строке, поэтому опубликованный каталог не является
-обещанием, что каждая строка в нём публична. Сборка отказывает, если в
-публикуемом файле встретилось имя класса приватного парка, приватный
-репозиторий или идентичность хоста развёртки. Оверлей сканируется на тех же
-условиях: файл, написанный для публичного дерева, ровно так же способен назвать
-приватный хост.
+The second boundary is content scanning. Suitability is decided by directory,
+while leakage happens by string, so a published directory does not promise
+that every string in it is public. The build fails if a published file contains
+the name of a private fleet class, a private repository, or a deployment-host
+identity. The overlay is scanned under the same rules: a file written for the
+public tree can name a private host just as easily.
 
-Список запрещённого судит по тому, что раскрывается, а не по тому, насколько
-внутренне звучит. `/home/ubuntu` был в нём и убран: это обычный путь пользователя
-по умолчанию на Ubuntu, соседний SSH-конфиг указывает на `ssh.github.com`, а не
-на наш сервер, и называет путь к ключу, а не ключ. Эталонная развёртка — то, что
-открытый репозиторий как раз должен давать.
+The forbidden list judges what is disclosed, not what sounds internal.
+`/home/ubuntu` was included and then removed: it is Ubuntu's ordinary default
+user path, the adjacent SSH configuration points to `ssh.github.com`, not our
+server, and it names a key path rather than a key. A reference deployment is
+exactly what the open repository should provide.
 
-Изъятое не редактируется, а замещается заглушкой там, где на него ссылаются.
-Сокращённый эксплуатационный документ читается как полный, потеряв ровно те
-детали, ради которых к нему обращаются; заглушка называет причину и не устаревает.
+Withheld content is not edited; where referenced, it is replaced by a stub. An
+abridged operations document reads like a complete document missing precisely
+the details for which it is consulted; a stub states the reason and does not go
+stale.
 
-## Последствия
+## Consequences
 
-- Публичное дерево порождается, а не поддерживается: правится источник, затем
-  `just public-build`. `just back-static` вызывает отчёт, поэтому неназванный
-  корень и утечка ломают гейт, а не обнаруживаются при публикации.
-- Собранное дерево — собственный репозиторий без унаследованной истории. Это
-  ещё и условие корректности: инструменты внутри дерева спрашивают у Git, какие
-  документы существуют, и в каталоге, принадлежащем родительскому репозиторию и
-  им игнорируемом, получают пустой ответ.
-- Порождённые индексы пересобираются по собранному дереву: скопированный без
-  изменений индекс ссылался бы на изъятые записи.
-- Собранное дерево лежит внутри исходников и является их полной копией,
-  поэтому обход репозитория обязан его пропускать: иначе проверка на
-  единственность таблицы находит её же копию и сообщает о дубликате.
-  Каталог вывода назван наравне с `.venv` и `node_modules`.
-- Тесты, утверждающие контракт приватных workflow, не публикуются. Опубликованные
-  без изменений они были бы не избыточны, а ложны: публичное дерево исполняется
-  на раннерах GitHub.
+- The public tree is generated rather than maintained: edit the source, then
+  run `just public-build`. `just back-static` invokes the report, so an unnamed
+  root or leak breaks the gate rather than being discovered during publication.
+- The assembled tree is its own repository without inherited history. This is
+  also a correctness condition: tools inside the tree ask Git which documents
+  exist and receive an empty answer in a directory owned by, and ignored by,
+  the parent repository.
+- Generated indexes are rebuilt against the assembled tree: an index copied
+  unchanged would reference withheld records.
+- The assembled tree lives inside the source and is a complete copy of it, so
+  repository traversal must skip it; otherwise the check for a unique table
+  finds its own copy and reports a duplicate. The output directory is named
+  alongside `.venv` and `node_modules`.
+- Tests asserting the contract of private workflows are not published.
+  Published unchanged, they would be false rather than redundant: the public
+  tree runs on GitHub runners.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Пересмотреть, если публичным станет сам этот репозиторий и сборка потеряет
-смысл; если публикуемым окажется то, что сейчас изъято; либо если появится
-второй потребитель дерева, для которого нужен отличный от `ai-stp` состав.
+Reconsider if this repository itself becomes public and the build loses its
+purpose, if currently withheld content becomes publishable, or if a second
+consumer needs a tree composition different from `ai-stp`.

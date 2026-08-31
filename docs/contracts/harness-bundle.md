@@ -1,14 +1,14 @@
 ---
-description: "Ограниченный и детерминированный пакет для публичного провайдера харнесса."
+description: "Bounded deterministic package for a public harness provider."
 last_verified: "2026-08-28"
 ---
 
-# Пакет харнесса
+# Harness bundle
 
-## Структура
+## Structure
 
-Формат `ai-stp-bundle/1` — канонический ZIP без сжатия по `ADR-0049`. Это
-последовательность байтов, а не условное дерево каталогов.
+The `ai-stp-bundle/1` format is a canonical uncompressed ZIP under `ADR-0049`.
+It is a byte sequence, not a conceptual directory tree.
 
 ```text
 bundle.json
@@ -19,160 +19,162 @@ files/
 attestations/
 ```
 
-Файл `setup-passport.json` — паспорт версии сетапа по `component-setup-passports.md`. Каталог `attestations/` обязателен: на нём стоит разделение источников доказательств по `ADR-0007`.
+The `setup-passport.json` file is a setup-version passport under `component-setup-passports.md`. The `attestations/` directory is required: the separation of evidence sources under `ADR-0007` depends on it.
 
-`SetupVersionPassport.artifact` ссылается на независимое каноническое определение
-версии по `ADR-0051`, а не на этот ZIP. Поэтому паспорт может входить в ZIP без
-самоссылки; `artifact.digest`, `bundle_digest` и raw ZIP `artifact_digest` остаются
-тремя разными идентичностями с разными проверками.
+`SetupVersionPassport.artifact` refers to the independent canonical version
+definition under `ADR-0051`, not to this ZIP. The passport can therefore be
+included in the ZIP without a self-reference; `artifact.digest`, `bundle_digest`,
+and raw-ZIP `artifact_digest` remain three distinct identities with distinct checks.
 
-Порядок членов совпадает с порядком выше; после `files/` идут управляемые файлы в
-порядке манифеста, последним идёт `attestations/`. Время каждого члена фиксировано
-как `1980-01-01T00:00:00`, creator — Unix, extra/comment пусты, сжатие отсутствует.
-JSON-члены являются каноническими UTF-8 байтами RFC 8785 без завершающего перевода
-строки. Локальное время, uid/gid, umask и порядок обхода файловой системы в пакет не
-попадают.
+Member order matches the order above; managed files follow `files/` in manifest
+order, and `attestations/` comes last. Every member timestamp is fixed at
+`1980-01-01T00:00:00`, the creator is Unix, extra/comment are empty, and no
+compression is used. JSON members are canonical RFC 8785 UTF-8 bytes without a
+trailing newline. Local time, uid/gid, umask, and filesystem traversal order are
+not included in the bundle.
 
-## Манифест пакета
+## Bundle manifest
 
-`bundle.json` содержит `bundle_format`, версию схемы и протокола, точную ссылку на
-`SetupVersion`, `harness_id`, версию сборщика, хэш входа, перечень управляемых путей,
-манифест файлов, метаданные трёх обязательных документов, общие пределы и
-`bundle_digest`.
+`bundle.json` contains `bundle_format`, schema and protocol versions, an exact
+reference to `SetupVersion`, `harness_id`, the setup-compiler version, input hash,
+the managed-path set, file manifest, metadata for the three required documents,
+common limits, and `bundle_digest`.
 
-Запись файла содержит нормализованный относительный путь, SHA-256, размер, допустимый режим и владельца поверхности. Содержимое `files/` должно в точности соответствовать манифесту.
+A file record contains a normalized relative path, SHA-256, size, permitted mode, and surface owner. The contents of `files/` must match the manifest exactly.
 
-## Детерминизм
+## Determinism
 
-Одинаковый канонический вход создаёт одинаковый порядок записей, одинаковые ZIP-
-байты и два одинаковых хэша. `bundle_digest` вычисляется в домене
-`ai-stp:bundle:v1` от канонического `bundle.json` **без** поля `bundle_digest`, после
-чего записывается в этот файл. `artifact_digest` является обычным SHA-256 готовых
-ZIP-байтов и передаётся рядом с пакетом. Самоссылка не вычисляется и не угадывается.
-Время сборки, локальный путь и объяснение модели в содержимое не входят.
+The same canonical input produces the same record order, identical ZIP bytes,
+and two identical hashes. `bundle_digest` is computed in the
+`ai-stp:bundle:v1` domain from canonical `bundle.json` **without** the
+`bundle_digest` field, then written into that file. `artifact_digest` is the
+ordinary SHA-256 of the finished ZIP bytes and is passed alongside the bundle.
+A self-reference is neither computed nor guessed. Build time, local path, and
+model explanation are not included in the contents.
 
-## Проверка до плана
+## Validation before planning
 
-Провайдер до любого изменения проверяет:
+Before any mutation, the provider validates:
 
-- версию протокола и выбранный харнесс;
-- хэш пакета и каждого файла;
-- SHA-256 точных ZIP-байтов до разбора;
-- обязательные члены, их единственность, порядок и фиксированные ZIP-метаданные;
-- ограничения среды и платформы;
-- допустимые управляемые поверхности;
-- число файлов, суммарный и отдельный размер;
-- отсутствие неизвестных обязательных полей;
-- полноту отчёта преобразования;
-- совпадение вида компонента, нативной поверхности и вида проекции с точным профилем;
-- непустой native content для каждого exact component;
-- продуктовую грамматику управляемых JSON/TOML и обязательные маркеры полного дерева;
-- право доступа, если оно передано как подтверждённая ссылка.
+- the protocol version and selected harness;
+- the bundle hash and every file hash;
+- SHA-256 of the exact ZIP bytes before parsing;
+- required members, their uniqueness, order, and fixed ZIP metadata;
+- environment and platform constraints;
+- permitted managed surfaces;
+- file count, total size, and individual size;
+- absence of unknown required fields;
+- completeness of the conversion report;
+- correspondence of component kind, native surface, and projection kind to the exact profile;
+- nonempty native content for every exact component;
+- product grammar of managed JSON/TOML and required full-tree markers;
+- authorization, if passed as a confirmed reference.
 
-## Запреты
+## Prohibitions
 
-Отклоняются абсолютные и родительские пути, пустые сегменты, выход из цели, символические ссылки и каталоги вместо файлов, специальные устройства, повтор нормализованного пути, конфликт регистра, необъявленный путь, несовпадение хэша, режим вне разрешённых и секрет.
+Absolute and parent paths, empty segments, target escapes, symbolic links and directories in place of files, special devices, duplicate normalized paths, case conflicts, undeclared paths, hash mismatches, modes outside the allowed set, and secrets are rejected.
 
-Жёсткие ссылки сборщик не отклоняет и отклонить не может: пакет собирается из содержимого, адресуемого хэшем, а не обходом каталога, поэтому у входа нет ни inode, ни счётчика ссылок. Их отвергает тот, кто читает файловую систему, — сторона обнаружения компонентов и провайдер при распаковке по `provider-protocol.md`.
+The setup compiler does not and cannot reject hard links: the bundle is assembled from content addressed by hash, not by traversing a directory, so the input has neither an inode nor a link count. They are rejected by whoever reads the filesystem: the component-discovery side and the provider during extraction under `provider-protocol.md`.
 
-Произвольный исполняемый сценарий не является отдельным отказом и не нуждается в нём: путь обязан входить в объявленные управляемые поверхности состава, иначе это `path_undeclared`, а режим обязан быть одним из разрешённых, иначе `mode_not_allowed`. Исполняемый бит сам по себе разрешён — нативные поверхности некоторых харнессов состоят из исполняемых файлов, и запрет на них запретил бы законный состав.
+An arbitrary executable script is not a separate rejection and does not need to be: its path must be within the composition's declared managed surfaces or it is `path_undeclared`, and its mode must be one of the permitted modes or it is `mode_not_allowed`. The executable bit itself is allowed: native surfaces of some harnesses consist of executable files, and prohibiting them would prohibit a valid composition.
 
-Перечень отказов закрыт. Каждый имеет устойчивый код, не меняющийся вместе с текстом сообщения:
+The rejection set is closed. Each rejection has a stable code that does not change with the message text:
 
-| Код | Когда возникает |
+| Code | Condition |
 |---|---|
-| `path_not_relative` | путь абсолютный, начинается с `~` или несёт букву диска |
-| `path_escapes_target` | путь содержит сегмент `..` |
-| `path_not_portable` | сегмент называет зарезервированное устройство Windows (`CON`, `PRN`, `AUX`, `NUL`, `COM1`–`COM9`, `COM¹`, `COM²`, `COM³`, `LPT1`–`LPT9`, `LPT¹`, `LPT²`, `LPT³` — с любым расширением, поскольку `NUL.tar.gz` эквивалентен `NUL`), заканчивается точкой или пробелом, либо несёт `:` или любой из `<`, `>`, `"`, `\|`, `?`, `*`. Источник: `learn.microsoft.com/windows/win32/fileio/naming-a-file` |
-| `path_empty_segment` | путь пуст либо содержит пустой сегмент или `.` |
-| `path_invalid_character` | путь содержит NUL или другой управляющий символ |
-| `path_too_long` | UTF-8 путь длиннее 1024 байт либо сегмент длиннее 255 байт |
-| `path_duplicate` | два файла нормализуются в один путь |
-| `path_case_conflict` | два пути различаются только регистром |
-| `path_undeclared` | путь не входит в управляемые пути состава |
-| `declared_path_absent` | состав объявляет управляемый путь, и ни один источник его не несёт |
-| `link_not_allowed` | символическая либо жёсткая ссылка или каталог вместо файла |
-| `special_file_not_allowed` | устройство, сокет или канал |
-| `mode_not_allowed` | режим файла вне разрешённых |
-| `secret_in_bundle` | имя файла говорит о хранении учётных данных |
-| `file_too_large` | файл больше предела ресурсов |
-| `bundle_too_large` | пакет больше предела ресурсов |
-| `too_many_files` | файлов больше предела ресурсов |
-| `setup_passport_mismatch` | паспорт SetupVersion не совпадает с точной ссылкой по stable ID или digest |
+| `path_not_relative` | path is absolute, begins with `~`, or contains a drive letter |
+| `path_escapes_target` | path contains a `..` segment |
+| `path_not_portable` | a segment names a reserved Windows device (`CON`, `PRN`, `AUX`, `NUL`, `COM1`–`COM9`, `COM¹`, `COM²`, `COM³`, `LPT1`–`LPT9`, `LPT¹`, `LPT²`, `LPT³` — with any extension, because `NUL.tar.gz` is equivalent to `NUL`), ends with a dot or space, or contains `:` or any of `<`, `>`, `"`, `\|`, `?`, `*`. Source: `learn.microsoft.com/windows/win32/fileio/naming-a-file` |
+| `path_empty_segment` | path is empty or contains an empty segment or `.` |
+| `path_invalid_character` | path contains NUL or another control character |
+| `path_too_long` | UTF-8 path exceeds 1024 bytes or a segment exceeds 255 bytes |
+| `path_duplicate` | two files normalize to the same path |
+| `path_case_conflict` | two paths differ only in case |
+| `path_undeclared` | path is not among the composition's managed paths |
+| `declared_path_absent` | the composition declares a managed path and no source provides it |
+| `link_not_allowed` | symbolic or hard link, or a directory in place of a file |
+| `special_file_not_allowed` | device, socket, or pipe |
+| `mode_not_allowed` | file mode is outside the allowed set |
+| `secret_in_bundle` | file name indicates stored credentials |
+| `file_too_large` | file exceeds the resource limit |
+| `bundle_too_large` | bundle exceeds the resource limit |
+| `too_many_files` | file count exceeds the resource limit |
+| `setup_passport_mismatch` | SetupVersion passport does not match the exact reference by stable ID or digest |
 
-`path_too_long` ограничивает относительный путь и сегмент, но **не** проверяет
-предел Windows в 260 символов, и это решение, а не пропуск. `MAX_PATH` считает
-путь целиком, а пакет не знает корня, к которому его приложат: `~/.codex` и
-`Library/Application Support` под длинным именем пользователя различаются более
-чем на сотню символов, поэтому любое число здесь было бы догадкой о чужом
-домашнем каталоге. Провайдер решить это тоже не может — `validate-bundle`
-выполняется до того, как назван target.
+`path_too_long` limits the relative path and segment but **does not** check the
+Windows 260-character limit; this is a decision, not an omission. `MAX_PATH`
+counts the entire path, while the bundle does not know the root to which it will
+be applied: `~/.codex` and `Library/Application Support` under a long user name
+differ by more than a hundred characters, so any number here would be a guess
+about someone else's home directory. The provider cannot resolve this either:
+`validate-bundle` runs before the target is named.
 
-Оба конца принадлежат этой стороне, и арифметика становится точной на этапе
-плана: `install plan` отказывает до вызова `plan-operation`, когда длина
-`target` вместе с самым длинным управляемым путём превышает предел на машине,
-не включившей длинные пути (`local/windows_paths.py`). Нового поля в манифесте
-для этого не заводится: `managed_paths` уже перечислены, и записанное рядом
-число было бы второй копией того же факта.
+Both ends belong to this side, and the arithmetic becomes exact at the planning
+stage: `install plan` rejects before calling `plan-operation` when the length of
+`target` plus the longest managed path exceeds the limit on a machine where long
+paths are not enabled (`local/windows_paths.py`). No new manifest field is added
+for this: `managed_paths` are already listed, and a number stored beside them
+would be a second copy of the same fact.
 
-`path_undeclared` и `declared_path_absent` — две стороны одной проверки, и
-вторая появилась позже первой. Отказ «файл пришёл и не объявлен» ничего не
-говорит о полноте: объявленный путь, для которого источник не пришёл, не
-порождает записи, поэтому ни одна итерация цикла его не видит. Измерено на
-Windows против antigravity — паспорт объявлял `config/hooks.json` и
-`config/hooks/h01.py`, план сообщил «write the 1 declared files», провайдер
-отчитался о проверенной установке, и установленный хук не мог исполниться.
-Провайдер был прав: он записал всё, что нёс пакет. Ослаблен молча был пакет.
+`path_undeclared` and `declared_path_absent` are two sides of one check, and the
+latter was added after the former. The rejection "a file arrived but was not
+declared" says nothing about completeness: a declared path for which no source
+arrived creates no record, so no loop iteration sees it. This was measured on
+Windows against antigravity: the passport declared `config/hooks.json` and
+`config/hooks/h01.py`, the plan reported "write the 1 declared files," the
+provider reported a verified installation, and the installed hook could not
+run. The provider was correct: it wrote everything carried by the bundle. The
+bundle had been silently weakened.
 
-Объявленный путь здесь тоже корень, как в `composition-reports.md`:
-`skills/foo` покрывает `skills/foo/SKILL.md` и не является `path_undeclared`.
-Корень, под которым не пришло ни одного файла, остаётся
-`declared_path_absent`.
+A declared path is also a root here, as in `composition-reports.md`:
+`skills/foo` covers `skills/foo/SKILL.md` and is not `path_undeclared`. A root
+under which no file arrived remains `declared_path_absent`.
 
-Путь не чинится молча. Нормализация, разрешающая коллизию выбором победителя,
-является тем самым автоматическим разрешением конфликта, которое `REQ-626`
-запрещает сборщику.
+A path is not silently repaired. Normalization that resolves a collision by
+choosing a winner is precisely the automatic conflict resolution that `REQ-626`
+prohibits the setup compiler from performing.
 
-Ссылка отклоняется по своему виду, а не по тому, куда указывает: указывать она
-может в другое место между чтением и установкой.
+A link is rejected based on its kind, not its destination: its destination can
+change between reading and installation.
 
-Секрет распознаётся по имени. Открывать файл, чтобы решить, секрет ли он, — то
-самое действие, ради предотвращения которого правило существует.
+A secret is recognized by name. Opening a file to decide whether it is a secret
+is the very action the rule exists to prevent.
 
-Компонент-каталог сохраняется целиком как детерминированный адресуемый содержимым
-артефакт и разворачивается в пакет без усечения: вложенные ресурсы и исполняемые
-вспомогательные файлы входят с точными хэшами и режимами. Один лишь верхний манифест
-не является полным содержимым компонента. Обнаружение и provider независимо
-отвергают ссылки, специальные файлы, превышение пределов и отсутствующий
-обязательный нативный маркер.
+A component directory is preserved in full as a deterministic content-addressed
+artifact and expanded into the bundle without truncation: nested resources and
+executable helper files are included with exact hashes and modes. The top-level
+manifest alone is not the component's complete content. Discovery and the
+provider independently reject links, special files, exceeded limits, and a
+missing required native marker.
 
-## Режимы и пределы
+## Modes and limits
 
 ```text
-разрешённые режимы: 0644 и 0755
-максимум файлов: 2000
-максимальный размер файла: 4 MiB
-максимальный размер готового ZIP-пакета: 64 MiB
+allowed modes: 0644 and 0755
+maximum files: 2000
+maximum file size: 4 MiB
+maximum finished ZIP bundle size: 64 MiB
 ```
 
-Режим вне перечня является решением о правах, которое пакет принимать не
-вправе. Пределы объявлены и возвращаются в манифесте, поэтому упёршийся в них
-пакет отличим от полного; упёршийся пакет отклоняется, а не усекается.
+A mode outside the set is a permissions decision the bundle is not authorized
+to make. Limits are declared and returned in the manifest, so a bundle that hits
+them is distinguishable from a complete one; such a bundle is rejected, not
+truncated.
 
-## Частичного пакета нет
+## No partial bundle
 
-Пакет либо собран целиком, либо не собран. Манифест рядом со списком отказов
-читался бы как «почти собрано», а пакет с непринятым файлом установке не
-подлежит.
+A bundle is either assembled in full or not assembled. A manifest beside a list
+of rejections would read as "almost assembled," while a bundle containing an
+unaccepted file must not be installed.
 
-## Доказательства
+## Evidence
 
-Содержимое `attestations/` считается недоверенным входом и проверяется по отдельной политике. Наличие подписи не заменяет проверку пакета и не предоставляет право записи.
+The contents of `attestations/` are treated as untrusted input and validated under a separate policy. A signature does not replace bundle validation and does not grant write authorization.
 
-## Жизненный цикл
+## Lifecycle
 
-Проверка пакета не создаёт состояние. Точный argv/response contract принадлежит
-`provider-protocol.md`: validation и provider plan повторяют обе идентичности и
-размер этих же ZIP-байтов. Immutable operation plan связывает provider plan с
-пакетом по `ADR-0050`. Применение повторно проверяет cached bytes, требует точный
-provider plan digest, блокировку, резервную копию и повторную проверку цели.
+Bundle validation creates no state. The exact argv/response contract belongs to
+`provider-protocol.md`: validation and the provider plan repeat both identities
+and the size of these same ZIP bytes. The immutable operation plan binds the
+provider plan to the bundle under `ADR-0050`. Apply revalidates cached bytes and
+requires the exact provider plan digest, a lock, a backup, and target revalidation.

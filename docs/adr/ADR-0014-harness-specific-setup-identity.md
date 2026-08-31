@@ -1,69 +1,69 @@
 ---
-description: "Решение привязать сетап к одному харнессу и убрать вариант сетапа из идентичности."
+description: "Decision to bind a setup to one harness and remove the setup variant from its identity."
 last_verified: "2026-08-04"
 ---
 
-# ADR-0014: Сетап принадлежит одному харнессу
+# ADR-0014: A setup belongs to one harness
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-Прежняя модель описывала сетап как устойчивую логическую сущность, у которой есть отдельный `SetupVariant` для каждого харнесса и неизменяемые версии внутри варианта. Идентификатор варианта попадал в точную ссылку наравне с устойчивым идентификатором и версией.
+The previous model described a setup as a stable logical entity with a separate `SetupVariant` for each harness and immutable versions within each variant. The variant identifier was included in the exact reference alongside the stable identifier and version.
 
-Это создавало три проблемы. Точная ссылка смешивала две разные оси: какой объект и в какой нативной реализации. Одна логическая версия могла означать разное содержимое в разных средах, поэтому неизменяемость версии переставала быть свойством самой версии. И граница провайдера размывалась: пакет всегда собирается ровно для одного харнесса, но идентичность объекта делала вид, что версия существует независимо от него.
+This created three problems. An exact reference mixed two different axes: which object it was and which native implementation it used. One logical version could mean different content in different environments, so version immutability ceased to be a property of the version itself. The provider boundary was also blurred: a bundle is always built for exactly one harness, but the object's identity implied that the version existed independently of it.
 
-Одновременно `ADR-0012` уже убрал отдельную сущность манифеста версии, но канонический контракт продолжал использовать `manifest_digest`, область хэша `ai-stp:manifest:v1` и `variant_id` уровня сетапа. Начинать фазу 1 с этой модели опасно: схемы, идентификаторы и области хэшей фиксируются публично и потом требуют миграции.
+At the same time, `ADR-0012` had already removed the separate version-manifest entity, but the canonical contract continued to use `manifest_digest`, the `ai-stp:manifest:v1` hash domain, and a setup-level `variant_id`. Starting phase 1 with this model is dangerous: schemas, identifiers, and hash domains are fixed publicly and later require migration.
 
-## Варианты
+## Options
 
-1. Оставить `SetupVariant` отдельной сущностью идентичности. Сохраняет текущие документы, но фиксирует смешанную ссылку и неоднозначную неизменяемость версии в публичной схеме.
-2. Сделать сетап кросс-harness сущностью с общей версией и вариантами внутри неё. Отражает пользовательское представление о единой настройке проекта, но заставляет менять общий номер версии при изменении одного варианта и оставляет вариант внутри идентичности версии.
-3. Сделать сетап принадлежащим ровно одному харнессу с момента создания.
+1. Retain `SetupVariant` as a separate identity entity. This preserves the current documents but fixes a mixed reference and ambiguous version immutability in the public schema.
+2. Make a setup a cross-harness entity with a common version and variants within it. This reflects the user's view of a single project configuration but forces the common version number to change when one variant changes and leaves the variant within the version identity.
+3. Make a setup belong to exactly one harness from the moment it is created.
 
-## Решение
+## Decision
 
-Принимается вариант 3.
+Option 3 is accepted.
 
-**Сетап привязан к одному харнессу.** `harness_id` задаётся при создании и не меняется. Сетапы `claude-developer` и `codex-developer` являются двумя разными сетапами, а не вариантами одного.
+**A setup is bound to one harness.** `harness_id` is set at creation and does not change. The `claude-developer` and `codex-developer` setups are two different setups, not variants of one.
 
 ```text
 Setup
 ├── stable_id
-├── harness_id        один харнесс, задан при создании
+├── harness_id        one harness, set at creation
 ├── owner_id
 └── SetupVersion[]
      ├── version X.Y
      ├── passport_digest
-     ├── точные ссылки на версии компонентов
-     └── ссылки на артефакт и пакет
+     ├── exact references to component versions
+     └── references to the artifact and bundle
 ```
 
-**Отдельная сущность варианта сетапа удаляется.** `SetupVariant` и поле `variant_id` уровня сетапа не существуют. Точная ссылка на версию сетапа содержит устойчивый идентификатор, версию и хэш паспорта.
+**The separate setup-variant entity is removed.** `SetupVariant` and the setup-level `variant_id` field do not exist. An exact setup-version reference contains the stable identifier, version, and passport hash.
 
-**Разделение по харнессам является целью, а не издержкой.** Харнессы отличаются возможностями, спецификой и нативными форматами. Общая версия для двух сред обещала бы эквивалентность, которой нет: одно и то же изменение состава выражается в них по-разному, а часть поверхностей одной среды в другой просто отсутствует. Отдельный сетап на харнесс делает это различие видимым вместо того, чтобы прятать его внутри общего номера.
+**Separation by harness is a goal, not an overhead.** Harnesses differ in capabilities, specifics, and native formats. A common version for two environments would promise an equivalence that does not exist: the same composition change is expressed differently in each, and some surfaces of one environment are simply absent from the other. A separate setup per harness makes this distinction visible instead of hiding it inside a common version number.
 
-**Механизма сведения вариантов в MVP нет.** Продукт не сводит два родственных сетапа к общему состоянию и не обещает их синхронность. Пользователь ведёт их раздельно; расхождение состава видно через обычное сравнение версий каждого сетапа.
+**There is no variant reconciliation mechanism in the MVP.** The product does not reconcile two related setups into a common state and does not promise that they remain synchronized. The user maintains them separately; composition divergence is visible through ordinary comparison of each setup's versions.
 
-**Происхождение выражается связью, а не идентичностью.** Сетап может ссылаться на другой сетап через необязательные `ported_from` и `related_setup_ids`. Такая связь описывает происхождение и родство, но не создаёт общую версию, общий номер и общее право доступа.
+**Provenance is expressed by a relationship, not by identity.** A setup may reference another setup through optional `ported_from` and `related_setup_ids` fields. Such a relationship describes provenance and affinity but does not create a common version, common number, or common access right.
 
-**Вариант компонента сохраняется.** Компонент действительно имеет разные нативные реализации, поэтому точная ссылка на версию компонента содержит необязательный `variant_id`. Он обозначает нативную реализацию компонента, а не отдельную ось идентичности сетапа.
+**The component variant is retained.** A component genuinely has different native implementations, so an exact component-version reference contains an optional `variant_id`. It denotes the component's native implementation, not a separate axis of setup identity.
 
-**Проект закрепляет один сетап на харнесс.** Для каждого используемого харнесса проект закрепляет ровно один сетап и ровно одну активную версию. Прошлые версии сохраняются только для сравнения и возврата. Каналы `production` и `experimental` и несколько одновременно активных версий одного сетапа в MVP не поддерживаются.
+**A project pins one setup per harness.** For every harness it uses, a project pins exactly one setup and exactly one active version. Previous versions are retained only for comparison and rollback. `production` and `experimental` channels and multiple simultaneously active versions of one setup are not supported in the MVP.
 
-**Число компонентов не ограничено.** Продуктового предела на количество инструкций, навыков, MCP, хуков и прочих компонентов внутри сетапа нет. Ограничения возникают только из конфликтов, совместимости и ресурсов.
+**The number of components is unlimited.** There is no product limit on the number of instructions, skills, MCPs, hooks, and other components within a setup. Limits arise only from conflicts, compatibility, and resources.
 
-**Область хэша и имя поля приводятся к паспорту.** Версия описывается своим паспортом, поэтому используются `passport_digest` и область `ai-stp:passport:v1`. Слово «манифест» сохраняется только за ограниченной таблицей файлов внутри пакета и не обозначает сущность идентичности.
+**The hash domain and field name are aligned with the passport.** A version is described by its passport, so `passport_digest` and the `ai-stp:passport:v1` domain are used. The word “manifest” is retained only for the limited file table inside a bundle and does not denote an identity entity.
 
-## Последствия
+## Consequences
 
-- `contracts/canonical-data.md` описывает точную ссылку без `variant_id` уровня сетапа, с `passport_digest` и без области `ai-stp:manifest:v1`;
-- `contracts/component-setup-passports.md` и `contracts/passport-envelope.md` описывают паспорт версии сетапа с одним `harness_id` и без варианта;
-- `architecture/domain-model.md` удаляет `SetupVariant` и добавляет связь происхождения между сетапами;
-- `SPEC-005` и `SPEC-015` перестают требовать вариант в сохраняемой ссылке;
-- пользователь, которому нужна одна настройка в двух средах, ведёт два сетапа; продукт показывает их родство, но не сводит их состояние и не обещает синхронность;
-- перенос сетапа на другой харнесс выполняется созданием нового сетапа с `ported_from`, а не добавлением варианта.
+- `contracts/canonical-data.md` describes an exact reference without a setup-level `variant_id`, with `passport_digest`, and without the `ai-stp:manifest:v1` domain;
+- `contracts/component-setup-passports.md` and `contracts/passport-envelope.md` describe a setup-version passport with one `harness_id` and no variant;
+- `architecture/domain-model.md` removes `SetupVariant` and adds a provenance relationship between setups;
+- `SPEC-005` and `SPEC-015` no longer require a variant in a stored reference;
+- a user who needs one configuration in two environments maintains two setups; the product shows their relationship but does not reconcile their state or promise synchronization;
+- porting a setup to another harness is performed by creating a new setup with `ported_from`, not by adding a variant.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается, если ведение двух родственных сетапов на практике окажется дороже общей версии и пользователи начнут систематически терять синхронность между средами, либо если появится провайдер, которому для установки требуется единая кросс-harness версия.
+The decision shall be reconsidered if maintaining two related setups proves more costly in practice than a common version and users begin systematically losing synchronization between environments, or if a provider emerges that requires a single cross-harness version for installation.

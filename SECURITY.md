@@ -1,59 +1,59 @@
-# Политика безопасности
+# Security policy
 
-## Сообщение об уязвимости
+## Reporting a vulnerability
 
-Не публикуйте данные об уязвимости в открытом issue. Используйте GitHub Private Vulnerability Reporting во вкладке **Security** этого репозитория.
+Do not disclose vulnerability details in a public issue. Use GitHub Private Vulnerability Reporting on this repository's **Security** tab.
 
-Жалобы на опубликованные объекты каталога подаются из продукта и создают закрытый случай модерации по `SPEC-016`; случай с признаками уязвимости модераторы эскалируют в этот закрытый процесс без публикации подробностей.
+Reports about published catalog objects are submitted through the product and create a private moderation case under `SPEC-016`; moderators escalate a case showing signs of a vulnerability into this private process without disclosing details.
 
-Укажите затронутую версию или commit, минимальные шаги воспроизведения, ожидаемое и фактическое поведение, возможное влияние и безопасное доказательство без реальных секретов.
+Include the affected version or commit, minimal reproduction steps, expected and actual behavior, potential impact, and safe evidence without real secrets.
 
-## Активы
+## Assets
 
-Защищаются приватные артефакты сетапов и компонентов, ключи OAuth, сессий и устройств, файловая система пользователя и targets харнессов, паспорта и данные проектов, авторство публикации, выпуски провайдеров, административный доступ и журнал операций.
+Protected assets include private setup and component artifacts; OAuth, session, and device keys; the user's file system and harness targets; passports and project data; publication authorship; provider releases; administrative access; and the operation journal.
 
-## Недоверенные входы
+## Untrusted inputs
 
-Недоверенными считаются содержимое внешних репозиториев и архивов, загруженные артефакты, манифесты и паспорта сторонних авторов, удалённые MCP и их ответы, обратные вызовы OAuth, вывод провайдера и scanner, события синхронизации, административные действия, а также issue, PR, commit message и документация.
+Untrusted inputs include the contents of external repositories and archives, uploaded artifacts, third-party manifests and passports, remote MCPs and their responses, OAuth callbacks, provider and scanner output, synchronization events, administrative actions, and issues, PRs, commit messages, and documentation.
 
-## Учитываемые акторы
+## Actors considered
 
-Обычный пользователь, автор, непроверенный автор, отозванное устройство, администратор, вредоносный артефакт, репозиторий или MCP, скомпрометированный выпуск провайдера и процесс того же пользователя, который игнорирует согласованные блокировки.
+These include a regular user, author, unverified author, revoked device, administrator, malicious artifact, repository or MCP, compromised provider release, and a process belonging to the same user that ignores coordinated locks.
 
-## Основные угрозы
+## Primary threats
 
-Выход из каталога и небезопасное распаковывание, замена через символические или жёсткие ссылки, внедрение команд или инструкций для модели, вредоносные хуки, сценарии и плагины, извлечение секретов, SSRF через внешние endpoints, обход полномочий пользователя или объекта, повтор события от устройства, поддельное attestation, подмена зависимости или провайдера, устаревший план, частичное применение, потеря параллельного изменения, сохранённый XSS в описании и исчерпание ресурсов.
+Path traversal and unsafe extraction, replacement through symbolic or hard links, command or model-instruction injection, malicious hooks, scripts, and plugins, secret extraction, SSRF through external endpoints, bypassing user or object authorization, device event replay, forged attestation, dependency or provider substitution, stale plans, partial application, lost concurrent updates, stored XSS in descriptions, and resource exhaustion.
 
-## Три независимые оси
+## Three independent axes
 
-Профиль выполнения агента внутри харнесса, изоляция запуска инструментов проверок и целостность изменяющей операции являются тремя независимыми осями по `ADR-0017`. Профиль `full-auto` относится только к первой оси и не отменяет права, проверку артефакта, план, резервную копию, атомарность и восстановление.
+The agent execution profile within the harness, isolation of validation-tool execution, and integrity of the mutating operation are three independent axes under `ADR-0017`. The `full-auto` profile applies only to the first axis and does not waive authorization, artifact validation, planning, backup, atomicity, or recovery.
 
-## Обязательные защиты
+## Mandatory protections
 
-- публикуемая версия привязана к точному source revision и digest;
-- traversal, небезопасные symlink и hardlink, специальные устройства отклоняются;
-- произвольные post-install scripts запрещены по умолчанию;
-- внешний инструмент запускается массивом аргументов без shell, по точному пути, с timeout и ограничением вывода;
-- проверки по умолчанию выполняются без сети;
-- ошибка, `degraded` и `not_run` не превращаются в `passed`;
-- обязательный набор проверок задаётся политикой по виду объекта и классу транспорта, а неизвестное значение закрывается отказом;
-- удалённая точка подключения проверяется отдельно от локального пакета, включая защиту от подделки серверных запросов;
-- verified-автор не является автоматическим security verdict и не делает версию подтверждённой;
-- значения переменных окружения не читаются: проверяется только наличие имени;
-- знание идентификатора аккаунта или адреса почты не является полномочием;
-- agent не подтверждает собственную внешнюю запись;
-- пароль для `sudo` никогда не передаётся агенту, CLI, аргументом, stdin или environment;
-- авторизация проверяется на каждом объекте и действии, административный доступ журналируется;
-- отзыв устройства, nonce и ключи идемпотентности защищают от повтора;
-- цикл plan/revalidate/journal и изолированный target предшествуют любой записи;
-- веб-вывод безопасно кодируется, применяются CSP, ограничения частоты и ресурсов;
-- токены и ключи устройств не хранятся в паспортах;
-- неизвестные состояния типизированы и не сводятся к успеху.
+- a published version is bound to an exact source revision and digest;
+- traversal, unsafe symlinks and hardlinks, and special devices are rejected;
+- arbitrary post-install scripts are denied by default;
+- an external tool is launched with an argument array, without a shell, by exact path, with a timeout and output limit;
+- validations run without network access by default;
+- an error, `degraded`, or `not_run` result is not converted into `passed`;
+- policy defines the mandatory validation set by object kind and transport class, and an unknown value fails closed;
+- a remote connection endpoint is validated separately from the local package, including server-side request forgery protection;
+- a verified author is not an automatic security verdict and does not make a version verified;
+- environment-variable values are not read; only the presence of a name is checked;
+- knowledge of an account identifier or email address does not grant authority;
+- an agent does not confirm its own external write;
+- a `sudo` password is never passed to the agent, CLI, as an argument, through stdin, or through the environment;
+- authorization is checked for every object and action, and administrative access is logged;
+- device revocation, nonces, and idempotency keys protect against replay;
+- the plan/revalidate/journal cycle and an isolated target precede every write;
+- web output is safely encoded, with CSP, rate limits, and resource limits applied;
+- device tokens and keys are not stored in passports;
+- unknown states are typed and are not reduced to success.
 
-## Явное ограничение
+## Explicit limitation
 
-Преднамеренное изменение файлов процессом того же пользователя вне согласованного протокола не считается доказанно предотвращённым.
+Intentional file modification by another process of the same user outside the coordinated protocol is not considered proven to be prevented.
 
-## Поддерживаемые версии
+## Supported versions
 
-До первого публичного релиза поддерживается только текущая версия из default branch. После первого релиза здесь будет зафиксировано окно поддержки major-линий.
+Until the first public release, only the current version from the default branch is supported. After the first release, the support window for major lines will be recorded here.

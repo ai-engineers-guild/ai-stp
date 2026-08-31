@@ -1,110 +1,105 @@
 ---
-description: "Структура skill package, обязательные и необязательные поля, коды отклонений."
+description: "Skill package structure, required and optional fields, and rejection codes."
 last_verified: "2026-08-29"
 ---
 
-# Authoring-контракт вида `skill`
+# Authoring contract for the `skill` type
 
-Владелец требований — `#455`. Внешний источник — **Agent Skills Specification**,
-<https://agentskills.io/specification>. Здесь зафиксирована машинная граница:
-что проверяется, какими кодами называются отклонения и что проверкой **не**
-является.
+The requirements owner is `#455`. The external source is the **Agent Skills Specification**,
+<https://agentskills.io/specification>. This document defines the machine boundary: what
+is validated, which codes name rejections, and what the validation **is not**.
 
-Из восьми видов компонентов у `skill` единственного есть спецификация,
-существующая независимо от этого репозитория. Поэтому каждый предел ниже взят
-оттуда, а не выбран здесь: валидатор, чьи правила придуманы на месте, может быть
-не прав только относительно нашего же мнения.
+Of the eight component types, `skill` alone has a specification that exists independently
+of this repository. Every limit below therefore comes from that specification rather
+than being selected here: a validator whose rules were invented locally can be wrong
+only relative to our own opinion.
 
-## Структура
+## Structure
 
 ```text
 skill-name/
-├── SKILL.md          обязательно: frontmatter и инструкции
-├── scripts/          необязательно, по соглашению
-├── references/       необязательно, по соглашению
-├── assets/           необязательно, по соглашению
-└── …                 любые другие файлы и каталоги
+├── SKILL.md          required: frontmatter and instructions
+├── scripts/          optional, by convention
+├── references/       optional, by convention
+├── assets/           optional, by convention
+└── …                 any other files and directories
 ```
 
-`SKILL.md` лежит **в корне** пакета. Обёртка `payload/SKILL.md` делает пакет
-несоответствующим для любого читателя, который реализует стандарт, а не нашу
-раскладку.
+`SKILL.md` is located **at the package root**. A `payload/SKILL.md` wrapper makes the
+package nonconforming for any reader implementing the standard rather than our layout.
 
-## Поля frontmatter
+## Frontmatter fields
 
-| Поле | Обязательно | Ограничение |
+| Field | Required | Constraint |
 |---|---|---|
-| `name` | да | 1–64 символа; строчные буквы, цифры и дефисы; не начинается и не заканчивается дефисом; без двойных дефисов; совпадает с именем каталога |
-| `description` | да | 1–1024 символа, непустое |
-| `license` | нет | предела стандарт не задаёт, и здесь он не выдумывается |
-| `compatibility` | нет | 1–500 символов |
-| `metadata` | нет | отображение строк в строки |
-| `allowed-tools` | нет | строка через пробел; экспериментальное |
+| `name` | yes | 1–64 characters; lowercase letters, digits, and hyphens; neither starts nor ends with a hyphen; no double hyphens; matches the directory name |
+| `description` | yes | 1–1024 characters, nonempty |
+| `license` | no | the standard sets no limit, and none is invented here |
+| `compatibility` | no | 1–500 characters |
+| `metadata` | no | mapping of strings to strings |
+| `allowed-tools` | no | space-delimited string; experimental |
 
-Ключ верхнего уровня, которого стандарт не определяет, сообщается как `SK033`.
-Место для собственных свойств клиента — `metadata`; это ответ самого стандарта.
+A top-level key not defined by the standard is reported as `SK033`. Client-specific
+properties belong under `metadata`; this is the standard's own answer.
 
-Тело после frontmatter не проверяется: спецификация говорит, что ограничений
-формата нет, а валидатор, который их вводит, навязывает вкус под видом
-стандарта.
+The body after frontmatter is not validated: the specification says there are no format
+constraints, and a validator that adds them imposes taste under the guise of a standard.
 
-## Расширение ai_stp
+## ai_stp extension
 
-`evals/`, `tests/` и фикстуры допустимы и отклонением не являются: стандарт
-разрешает любое содержимое сверх `SKILL.md`. В отчёте они перечислены отдельно
-от каталогов-соглашений, чтобы читатель видел, где чьё.
+`evals/`, `tests/`, and fixtures are permitted and are not rejections: the standard
+allows any content in addition to `SKILL.md`. The report lists them separately from
+convention directories so the reader can see which belongs to whom.
 
-## Два вида под одним каталогом
+## Two types under one directory
 
-Под `skills/` у claude-code живут **два** вида, и различает их манифест, а не
-расположение: `skills/foo/SKILL.md` — скил, `skills/foo/.claude-plugin/plugin.json`
-или `skills/foo/plugin.json` — плагин. Валидатор, который этого не знает,
-объявляет исправный плагин скилом без точки входа и отправляет автора чинить не
-тот файл.
+Under claude-code `skills/`, **two** types exist, distinguished by a manifest rather
+than location: `skills/foo/SKILL.md` is a skill; `skills/foo/.claude-plugin/plugin.json`
+or `skills/foo/plugin.json` is a plugin. A validator unaware of this calls a valid plugin
+a skill without an entry point and sends the author to fix the wrong file.
 
-Манифест с префиксом вендора сопоставляется по **суффиксу** `-plugin`, а не по
-списку встреченных вендоров: список делает пятого вендора молчаливым промахом.
+A vendor-prefixed manifest is matched by the `-plugin` **suffix**, not by a list of
+observed vendors: a list makes the fifth vendor a silent miss.
 
-## Коды
+## Codes
 
-| Код | Что не так |
+| Code | What is wrong |
 |---|---|
-| `SK001` | это не каталог |
-| `SK002` | `SKILL.md` не в корне пакета |
-| `SK003` | `SKILL.md` не читается |
-| `SK004` | нет frontmatter |
-| `SK005` | блок frontmatter не закрыт |
-| `SK006` | frontmatter не является корректным YAML |
-| `SK007` | frontmatter не является отображением |
-| `SK010` | не объявлено `name` |
-| `SK011` | `name` длиннее предела |
-| `SK012` | `name` вне разрешённого набора символов |
-| `SK013` | `name` не совпадает с именем каталога |
-| `SK020` | не объявлено `description` |
-| `SK021` | `description` длиннее предела |
-| `SK030` | `compatibility` длиннее предела |
-| `SK031` | `metadata` не является отображением строк в строки |
-| `SK032` | `allowed-tools` не строка |
-| `SK033` | поле верхнего уровня, которого стандарт не определяет |
+| `SK001` | this is not a directory |
+| `SK002` | `SKILL.md` is not at the package root |
+| `SK003` | `SKILL.md` cannot be read |
+| `SK004` | frontmatter is absent |
+| `SK005` | the frontmatter block is not closed |
+| `SK006` | frontmatter is not valid YAML |
+| `SK007` | frontmatter is not a mapping |
+| `SK010` | `name` is not declared |
+| `SK011` | `name` exceeds the limit |
+| `SK012` | `name` is outside the permitted character set |
+| `SK013` | `name` does not match the directory name |
+| `SK020` | `description` is not declared |
+| `SK021` | `description` exceeds the limit |
+| `SK030` | `compatibility` exceeds the limit |
+| `SK031` | `metadata` is not a mapping of strings to strings |
+| `SK032` | `allowed-tools` is not a string |
+| `SK033` | a top-level field not defined by the standard |
 
-## Команда
+## Command
 
 ```bash
-ai-stp component skill validate --path <каталог> --json
+ai-stp component skill validate --path <directory> --json
 ```
 
-Только читает.
+Read-only.
 
-## Что нашла проверка собственных текстов
+## What validation found in our own texts
 
-Валидатор был прогнан по восьми текстам, которые CLI устанавливает, и нашёл наше
-собственное отклонение: проекции несли `harness` полем верхнего уровня, а
-стандарт таких шести не определяет. Перенесено в `metadata` — туда, куда сам
-стандарт и адресует свойства клиента.
+The validator was run against the eight texts installed by the CLI and found our own
+nonconformance: projections carried `harness` as a top-level field, while the standard
+defines no such field among its six. It was moved to `metadata`—where the standard itself
+directs client-specific properties.
 
-Проверять при этом нужно **установленную** форму, а не исходное дерево: тексты
-лежат под `skills/canonical/` и `skills/projections/`, а `skill install` пишет
-их в каталог, который называет вызывающий. В исходном дереве каждый из них дал
-бы `SK013` — несовпадение имени с каталогом, которого в установленном пакете
-нет. Исключить этот код ради зелёного результата значило бы не запускать
-проверку вовсе.
+The **installed** form must be validated, not the source tree: the texts reside under
+`skills/canonical/` and `skills/projections/`, while `skill install` writes them into the
+directory named by its caller. In the source tree, each would produce `SK013`—a name-to-
+directory mismatch absent from the installed package. Excluding that code to obtain a
+green result would mean not running the validation at all.

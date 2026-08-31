@@ -1,104 +1,106 @@
 ---
-description: "Решение о доказательном выпускном барьере production: явное подтверждение владельца, data governance, защита от злоупотреблений и тренировки восстановления."
+description: "Decision on the evidence-based production release barrier: explicit owner approval, data governance, abuse protection, and recovery rehearsals."
 last_verified: "2026-08-08"
 ---
 
-# ADR-0071: Доказательный барьер готовности production
+# ADR-0071: Evidence-Based Production Readiness Barrier
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-К моменту `#187` платформа уже имеет раздельные liveness/readiness, безопасную
-диагностику, структурные логи и OpenTelemetry (`SPEC-017`, `ADR-0039`), закрытые
-данные и аудит (`SPEC-013`), модерацию (`SPEC-016`) и staging deploy, backup,
-restore и rollback (`SPEC-024`, `ADR-0044`). Однако эти механизмы не образуют
-единого выпускного решения: отдельный зелёный healthcheck, существование backup
-или текст runbook не доказывают, что production-конфигурация проверена, данные
-управляются по утверждённой политике, злоупотребление ограничено, а восстановление
-реально отрепетировано.
+By `#187`, the platform already has separate liveness/readiness, safe
+diagnostics, structured logs, and OpenTelemetry (`SPEC-017`, `ADR-0039`), private
+data and auditing (`SPEC-013`), moderation (`SPEC-016`), and staging deploy, backup,
+restore, and rollback (`SPEC-024`, `ADR-0044`). However, these mechanisms do not form
+a unified release decision: a single green healthcheck, the existence of a backup,
+or a textual runbook do not prove that the production configuration has been verified,
+data is governed according to an approved policy, abuse is constrained, and recovery
+has actually been rehearsed.
 
-`#187` требует production-конфигурацию, alerts и SLO, хранение, экспорт и удаление
-данных, защиту от злоупотреблений, резервные копии и полные тренировки recovery и
-rollback. При этом задача явно запрещает любые действия в production без явного
-разрешения владельца. APM и SX не являются обязательными зависимостями ядра, а
-coding agent не получает полномочие на production deployment.
+`#187` requires production configuration, alerts and SLO, data retention, export,
+and deletion, abuse protection, backups, and full recovery and rollback rehearsals.
+At the same time, the issue explicitly prohibits any actions in production without
+the owner's explicit authorization. APM and SX are not mandatory dependencies of the
+core, and the coding agent is not granted authority for production deployment.
 
-## Варианты
+## Alternatives
 
-1. Оставить независимые runbooks и проверки без общего барьера. Это не добавляет
-   механизмов, но позволяет объявить релиз готовым по неполному набору разрозненных
-   свидетельств.
-2. Автоматизировать выпуск и remediation в production. Это ускоряет реакцию, но
-   нарушает границу явного подтверждения владельца и может превратить ошибочный
-   сигнал или abuse-эвристику в необратимое действие.
-3. Ввести evidence-gated readiness: автоматизация только собирает и валидирует
-   безопасные доказательства, а допуск к production требует полного набора,
-   ограниченного срока годности и явного подтверждения владельца.
+1. Leave independent runbooks and checks without a common barrier. This adds no
+   mechanisms, but allows a release to be declared ready based on an incomplete set
+   of fragmented evidence.
+2. Automate release and remediation in production. This accelerates response, but
+   violates the boundary of explicit owner approval and may turn an erroneous signal
+   or abuse heuristic into an irreversible action.
+3. Introduce evidence-gated readiness: automation only collects and validates safe
+   evidence, while admission to production requires a complete set, a limited validity
+   period, and explicit owner approval.
 
-## Решение
+## Decision
 
-Принимается вариант 3.
+Alternative 3 is accepted.
 
-`SPEC-032` владеет выпускным процессом готовности Phase 10. Он связывает, но не
-переопределяет существующих владельцев фактов: data governance остаётся в
-`SPEC-013`, lifecycle жалоб и staff decisions — в `SPEC-016`, telemetry — в
-`SPEC-017`, а topology, deploy, backup, restore и rollback — в `SPEC-024` и
-`ADR-0044`.
+`SPEC-032` owns the Phase 10 readiness release process. It links, but does not
+redefine, the existing owners of facts: data governance remains in `SPEC-013`,
+the lifecycle of complaints and staff decisions remains in `SPEC-016`, telemetry
+remains in `SPEC-017`, and topology, deploy, backup, restore, and rollback remain
+in `SPEC-024` and `ADR-0044`.
 
-Перед production change должен существовать проверяемый набор evidence на точном
-commit. В него входят результат валидации production-конфигурации, безопасная
-идентичность релиза, актуальная политика хранения и удаления, SLO/alert policy,
-проверка ограничений злоупотреблений, результат rehearsal backup/restore и
-rollback, а также явно названные исключения и остаточные риски. Набор содержит
-только безопасные ссылки, IDs, digests, timestamps и outcomes; секреты, токены,
-закрытые байты, персональные данные и значения env в него не входят.
+Before a production change, there must be a verifiable set of evidence for the exact
+commit. It includes the production configuration validation result, safe release
+identity, current retention and deletion policy, SLO/alert policy, verification of
+abuse constraints, the result of backup/restore and rollback rehearsal, as well as
+explicitly named exceptions and residual risks. The set contains only safe links,
+IDs, digests, timestamps, and outcomes; secrets, tokens, private bytes, personal
+data, and env values are not included.
 
-Сбор и проверка доказательств могут быть автоматическими и повторяемыми, но не выполняют
-развёртывание, восстановление, очистку, изменение жизненного цикла или другую боевую запись.
-Допуск — отдельное явное решение владельца на ещё действующий набор evidence;
-истечение, изменение commit/config/policy или неполнота требуют нового набора.
+Evidence collection and verification may be automated and repeatable, but do not
+perform deployment, recovery, cleanup, lifecycle changes, or any other production
+write. Admission is a separate explicit owner decision on a still-valid evidence set;
+expiration, a change to the commit/config/policy, or incompleteness require a new set.
 
-Защита от злоупотреблений применяется на server boundary и наблюдается через
-ограниченные безопасные сигналы. Клиентский код, число жалоб и один эвристический
-сигнал не являются источником полномочия для блокировки, удаления, раскрытия данных
-или автоматического наказания. Такие решения сохраняют существующие явные
-audited staff actions.
+Abuse protection is applied at the server boundary and observed through limited safe
+signals. Client code, the number of complaints, and a single heuristic signal are not
+a source of authority for blocking, deletion, data disclosure, or automatic
+punishment. Such decisions retain the existing explicit audited staff actions.
 
-## Последствия
+## Consequences
 
-- появляется `SPEC-032` с требованиями и исполнимыми критериями для #187;
-- будущая реализация добавит versioned policy references и безопасный readiness
-  evidence artifact, не копируя в него схему данных, секреты или object bytes;
-- validation configuration, observability, abuse limits и recovery rehearsal
-  получают отдельные deterministic tests и operator evidence;
-- точные числовые цели SLO, сроки хранения и бюджеты ограничений не выбираются по
-  памяти: до production launch они становятся утверждённой версионируемой политикой;
-- runbooks остаются способом исполнения операций; новая спецификация требует их
-  доказательства, а не заменяет их скрытым control plane;
-- боевое развёртывание, очистка, восстановление и откат по-прежнему требуют явного
-  разрешения владельца.
+- `SPEC-032` is introduced with requirements and executable criteria for #187;
+- future implementation will add versioned policy references and a safe readiness
+  evidence artifact, without copying the data schema, secrets, or object bytes into it;
+- validation configuration, observability, abuse limits, and recovery rehearsal
+  receive separate deterministic tests and operator evidence;
+- exact numerical SLO targets, retention periods, and limit budgets are not chosen
+  from memory: before production launch, they become an approved versioned policy;
+- runbooks remain the means of executing operations; the new specification requires
+  evidence from them rather than replacing them with a hidden control plane;
+- production deployment, cleanup, recovery, and rollback still require the owner's
+  explicit authorization.
 
-## Поправка 2026-08-29: кто принимает допуск
+## Amendment 2026-08-29: Who Makes the Admission Decision
 
-Последний пункт последствий и абзац «Допуск — отдельное явное решение владельца»
-заменены `ADR-0118`. Запись сохранена: она верно описывает решение на момент
-принятия, когда раздел «Полномочия агента» ещё был списком поводов остановиться.
+The final consequence and the paragraph “Admission is a separate explicit owner
+decision” were superseded by `ADR-0118`. The record is preserved: it accurately
+describes the decision at the time it was accepted, when the “Agent Authority”
+section was still a list of reasons to stop.
 
-Что изменилось: `ADR-0115` снял защиты с участников репозитория, `ADR-0118`
-провёл ту же линию через полномочия агента, и `ADR-0109` сделал выкатку
-следствием зелёного `check`, а не отдельного нажатия. Допуск принимает агент
-внутри вижена владельца и называет его в отчёте.
+What changed: `ADR-0115` removed protections from repository participants,
+`ADR-0118` extended the same principle to agent authority, and `ADR-0109` made
+rollout a consequence of a green `check`, rather than a separate button press.
+The agent makes the admission decision within the owner's vision and states
+that decision in the report.
 
-Что **не** изменилось и здесь остаётся в силе: доказательство привязано к
-точному commit и его привязкам; неполный, отклонённый или истёкший набор не
-выпускает; сбор доказательств не выполняет боевую запись; а сама операция
-по-прежнему требует плана, точного digest, повторной проверки предусловий и
-идемпотентности. Это машинная гарантия эффекта, а не разрешение человека.
+What **did not** change and remains in force here: the evidence is bound to the
+exact commit and its bindings; an incomplete, rejected, or expired set does not
+release; evidence collection does not perform a production write; and the
+operation itself still requires a plan, an exact digest, re-verification of
+preconditions, and idempotency. This is a machine guarantee of effect, not human
+permission.
 
-## Условия пересмотра
+## Reconsideration Conditions
 
-Решение пересматривается, если появится подтверждённая необходимость в отдельном
-control plane, автоматическом remediation с ограниченной властью либо обязательном
-APM-вендоре. Любой такой переход должен отдельно определить полномочия, rollback,
-audit, data retention и безопасный failure mode.
+The decision must be reconsidered if a confirmed need arises for a separate
+control plane, automatic remediation with limited authority, or a mandatory
+APM vendor. Any such transition must separately define authority, rollback,
+audit, data retention, and a safe failure mode.

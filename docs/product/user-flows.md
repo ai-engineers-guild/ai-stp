@@ -1,168 +1,168 @@
 ---
-description: "Основные пути пользователя и поведение системы при ошибках."
+description: "Primary user flows and system behavior on errors."
 last_verified: "2026-08-04"
 ---
 
-# Пользовательские пути
+# User flows
 
-## Первый запуск
+## First run
 
 ```text
-пользователь копирует команду с сайта
-→ CLI устанавливается через uv
-→ создаётся локальный каталог данных
-→ регистрируется устройство
-→ обнаруживаются харнессы и инструменты
-→ обнаруженное окружение записывается в Device Passport
-→ устанавливается полный набор инструментов mvp-full
-→ устанавливается Agent Skill
-→ агент дособирает Developer Passport: предпочтения и решения
+user copies the command from the website
+→ CLI is installed through uv
+→ local data directory is created
+→ device is registered
+→ harnesses and tools are discovered
+→ discovered environment is recorded in the Device Passport
+→ complete mvp-full toolset is installed
+→ Agent Skill is installed
+→ agent completes the Developer Passport: preferences and decisions
 ```
 
-## Новый проект
+## New project
 
 ```text
-Agent запускает ai-stp в пустой или docs-only папке
-→ система определяет новый проект
-→ Agent задаёт вопросы о цели, стеке и ограничениях
-→ создаётся Project Passport
-→ поиск, фильтры и подбор дают допустимых кандидатов
-→ Agent формирует предложения состава и показывает отчёты
-→ пользователь подтверждает одно предложение
-→ фиксируется приватная SetupVersion и закрепляется за проектом
-→ пользователь подтверждает план установки
-→ provider применяет сетап
+Agent runs ai-stp in an empty or docs-only folder
+→ system identifies a new project
+→ Agent asks about the goal, stack, and constraints
+→ Project Passport is created
+→ search, filters, and selection yield eligible candidates
+→ Agent creates composition proposals and displays reports
+→ user confirms one proposal
+→ private SetupVersion is fixed and pinned to the project
+→ user confirms the installation plan
+→ provider applies the setup
 ```
 
-Предложения недолговечны: пока пользователь не подтвердил одно из них, ни версия, ни цель, ни запись реестра не создаются. Сколько предложений показать, решает агент.
+Proposals are short-lived: until the user confirms one, no version, target, or registry entry is created. The agent decides how many proposals to show.
 
-## Существующий проект
+## Existing project
 
 ```text
-индексация manifest/lock/config/AI-файлов
-→ обнаружение текущего сетапа
-→ сравнение с паспортами разработчика и устройства
-→ допустимые кандидаты и их линии доверия
-→ адаптация и сборка
+indexing manifest/lock/config/AI files
+→ current setup discovery
+→ comparison with developer and device passports
+→ eligible candidates and their trust lines
+→ adaptation and assembly
 → backup/apply/status
 ```
 
-## Существующая конфигурация
+## Existing configuration
 
 ```text
-чтение текущей нативной конфигурации без изменения
-→ резервная копия силами провайдера
-→ очистка от секретов и опись файлов
-→ личный сетап для этого харнесса
-→ паспорт, точные хэши файлов и происхождение
-→ локальные проверки
-→ фиксация в локальном реестре
-→ выбор или восстановление позже
+read current native configuration without changing it
+→ backup by the provider
+→ secret removal and file inventory
+→ personal setup for this harness
+→ passport, exact file hashes, and provenance
+→ local verification
+→ record in local registry
+→ select or restore later
 ```
 
-Ссылка на резервную копию и импортированный личный сетап остаются разными объектами: первая принадлежит провайдеру, второй — реестру.
+The backup reference and imported personal setup remain separate objects: the former belongs to the provider, the latter to the registry.
 
-## Обнаружение и принятие компонентов
+## Discovering and accepting components
 
 ```text
-CLI показывает глобальные и проектные компоненты
-→ классифицирует вид, источник и область
-→ пользователь выбирает, что принять
-→ рядом с компонентом создаётся YAML-паспорт
-→ проверка
-→ регистрация в локальном каталоге
+CLI shows global and project components
+→ classifies kind, source, and scope
+→ user chooses what to accept
+→ YAML passport is created next to the component
+→ verification
+→ registration in local catalog
 ```
 
-Ничего не импортируется автоматически. Значения секретов не читаются. Массовая миграция и облачный импорт в MVP не входят.
+Nothing is imported automatically. Secret values are not read. Bulk migration and cloud import are not part of the MVP.
 
-## Путь автора
+## Author flow
 
 ```text
-локальный компонент или сетап
-→ обнаружение
-→ YAML-паспорт рядом с объектом
-→ проверки
-→ локальная регистрация без аккаунта
-→ при желании публикация из точного коммита GitHub
+local component or setup
+→ discovery
+→ YAML passport next to the object
+→ verification
+→ local registration without an account
+→ optional publication from an exact GitHub commit
 ```
 
-Каталог запуска наполняется первопартийными объектами гильдии по выпускному барьеру `ADR-0034`; публикации пользователей дополняют его. Оформление чужих open-source компонентов силами платформы в MVP не выполняется: чужая работа попадает в каталог только публикацией её автора.
+The launch catalog is populated with the guild's first-party objects according to the `ADR-0034` release barrier; user publications supplement it. Platform-authored packaging of third-party open-source components is not performed in the MVP: third-party work enters the catalog only when published by its author.
 
-Публикация project-local компонента использует явный корень компонента и список разрешённых файлов из его паспорта. Перед публикацией показывается точная опись файлов; выход за корень, ссылки, файлы, похожие на секреты, двоичные и необъявленные файлы отклоняются.
+Publishing a project-local component uses an explicit component root and the list of permitted files from its passport. An exact file inventory is shown before publication; paths outside the root, links, secret-like files, binary files, and undeclared files are rejected.
 
-## Доступ, форк и производная публикация
+## Access, fork, and derivative publication
 
 ```text
-владелец выдаёт право на основную линию X
-→ получатель читает и устанавливает версии X.*
-→ новая линия X+1 требует нового права
-→ форк создаёт новый приватный сетап получателя
-→ производная публикация требует содержательного изменения и полных проверок
-→ отзыв прекращает будущие чтения, не трогая локальные копии и цели
+owner grants access to major line X
+→ recipient reads and installs versions X.*
+→ new line X+1 requires a new grant
+→ fork creates a new private setup for the recipient
+→ derivative publication requires a substantive change and complete verification
+→ revocation stops future reads without affecting local copies and targets
 ```
 
-Получатель не редактирует оригинал: любое своё изменение он делает в форке. Неизменённый клон нельзя переиздать под новым пространством имён, а закрытые чужие байты не публикуются в неизменном виде. После отзыва пересборка с недоступной приватной зависимостью завершается точной ошибкой доступа.
+The recipient does not edit the original: they make every change of their own in a fork. An unchanged clone cannot be republished under a new namespace, and private third-party bytes are not published unchanged. After revocation, rebuilding with an inaccessible private dependency ends with a precise access error.
 
-## Публикация
+## Publication
 
 ```text
-локальный draft
-→ полный паспорт и непустые теги
-→ проверки по матрице политики проверок
-→ credential-зависимые проверки локально учётными данными автора
-→ подписанное авторское подтверждение точного digest
-→ exact Git commit и подпуть для public object
-→ server digest/structure validation и повтор credential-свободных проверок
-→ публикация immutable X.Y
+local draft
+→ complete passport and non-empty tags
+→ verification according to the verification policy matrix
+→ credential-dependent checks run locally with the author's credentials
+→ signed author attestation of the exact digest
+→ exact Git commit and subpath for the public object
+→ server digest/structure validation and repetition of credential-free checks
+→ publication of immutable X.Y
 ```
 
-Неполный draft может синхронизироваться приватно, но не появляется в каталоге. Обязательная проверка без актуального принятого доказательства — `failed`, `degraded`, `not_run` или `expired` — блокирует публикацию целиком.
+An incomplete draft can synchronize privately but does not appear in the catalog. A required check without current accepted evidence — `failed`, `degraded`, `not_run`, or `expired` — blocks publication entirely.
 
-## Ежедневная работа
+## Daily work
 
 ```text
 status → rescan → search → diff → update → rollback
 ```
 
-`status` показывает проект, сетап, харнесс, выбранную и установленную версии, состояние ожидающей установки и оба вида расхождения вместе с отсутствующими обязательными переменными окружения. Расхождения различаются: `local_drift` означает, что цель изменена мимо провайдера, `catalog_drift` — что доступна более новая версия; ожидание установки только что подтверждённой версии — состояние `pending_install`, а не расхождение. Ни одно из них не устраняется само. `rescan` обновляет локальные находки — наблюдения, ещё не внесённые в паспорт. `search` ищет доступные версии и компоненты. `diff` показывает изменения состава и требований. `update` всегда выполняется по решению пользователя, создаёт новую версию и применяется после плана. `rollback` возвращает предыдущую подтверждённую версию целиком.
+`status` shows the project, setup, harness, selected and installed versions, pending installation state, and both kinds of drift together with missing required environment variables. The drift types differ: `local_drift` means the target was changed outside the provider, while `catalog_drift` means a newer version is available; waiting to install a newly confirmed version is the `pending_install` state, not drift. None resolves itself. `rescan` updates local findings — observations not yet entered in the passport. `search` finds available versions and components. `diff` shows changes in composition and requirements. `update` is always performed by user decision, creates a new version, and is applied after a plan. `rollback` restores the entire previous confirmed version.
 
-Автоматических обновлений, каналов выпуска, сложных политик обновления и фонового демона в MVP нет. Прошлые версии хранятся только для сравнения и возврата.
+The MVP has no automatic updates, release channels, complex update policies, or background daemon. Previous versions are stored only for comparison and rollback.
 
-## Жалоба на объект
+## Reporting an object
 
 ```text
-пользователь замечает вредное поведение или повторяемый сбой
-→ веб-действие или команда CLI собирает механические поля
-→ полный предпросмотр и явное согласие
-→ создаётся один закрытый ReportCase
-→ модераторы выполняют триаж
-→ автор получает очищенное уведомление при необходимости
-→ уязвимость эскалируется в закрытый процесс
+user notices harmful behavior or a recurring failure
+→ web action or CLI command collects mechanical fields
+→ complete preview and explicit consent
+→ one closed ReportCase is created
+→ moderators perform triage
+→ author receives a sanitized notification when necessary
+→ vulnerability is escalated into a closed process
 ```
 
-Жалоба не создаёт публичный issue и не блокирует объект сама: скрытие и блокировка остаются аудируемыми действиями модератора. Исходный код, подсказки, секреты и полные пути в жалобу автоматически не попадают; состав ограничен `docs/contracts/report-case.md`.
+A report does not create a public issue or block the object by itself: hiding and blocking remain auditable moderator actions. Source code, prompts, secrets, and full paths are not included in a report automatically; its contents are limited by `docs/contracts/report-case.md`.
 
-## Непроверенный автор
+## Unverified author
 
-По умолчанию выдача содержит только основную линию доверия. Объекты неподтверждённых авторов появляются отдельным разделом лишь после явного согласия пользователя и не переносятся в основную линию ни автоматически, ни решением агента. Установка такого объекта требует локальной проверки и отдельного решения.
+By default, results contain only the authoritative trust lane. Objects from unverified authors appear in a separate section only after explicit user consent and are not moved into the authoritative lane either automatically or by agent decision. Installing such an object requires local verification and a separate decision.
 
-Пустая основная линия является честным результатом и сама по себе не включает экспериментальную.
+An empty authoritative lane is an honest result and does not enable the experimental lane by itself.
 
-Согласие действует на команду или сеанс. Долговечное исключение создаётся только явным выбором области — издатель или основная линия объекта — и перестаёт действовать при новой основной линии или расширении полномочий, сети и учётных данных.
+Consent applies to a command or session. A durable exception is created only through an explicit scope choice — publisher or object major line — and ceases to apply for a new major line or an expansion of permissions, network access, or credentials.
 
-## Ошибки
+## Errors
 
-| Ситуация | Поведение |
+| Situation | Behavior |
 |---|---|
-| План устарел | apply блокируется, строится новый план |
-| Сетап конфликтует | возвращается ConflictReport, запись не выполняется |
-| Provider не поддерживает поверхность | conversion получает `unsupported`, установка блокируется |
-| Проверка не запустилась | статус `not_run` или `degraded` |
-| Apply завершился частично | операция помечается `partial`, автоматический повтор запрещён |
-| Device отозван | cloud access прекращается, локальные данные остаются доступны |
-| Новый target не запускается | активируется restore предыдущего target |
-| Обязательная переменная окружения отсутствует | установка возможна с предупреждением, готовность к запуску `needs_configuration` |
-| Установленная версия заблокирована | новые установки и обновления запрещены, текущий target не отключается |
-| Доказательства версии истекли или провалились | версия теряет подтверждение и пригодность, новые установки и обновления блокируются, установленная цель работает с предупреждением |
-| Харнесс не поддерживается | готовность `unsupported`, применение возвращает `AI_STP_UNSUPPORTED_APPLY`; объекты не создаются |
-| Сам харнесс изменён мимо провайдера | `local_drift`: жизненным циклом программы владеет провайдер, изменение вне его требует решения пользователя |
+| Plan is stale | apply is blocked and a new plan is built |
+| Setup conflicts | ConflictReport is returned and no write is performed |
+| Provider does not support the surface | conversion receives `unsupported` and installation is blocked |
+| Check did not run | status is `not_run` or `degraded` |
+| Apply completed partially | operation is marked `partial` and automatic retry is prohibited |
+| Device is revoked | cloud access ends and local data remains available |
+| New target does not launch | restore of the previous target is activated |
+| Required environment variable is missing | installation is possible with a warning; launch readiness is `needs_configuration` |
+| Installed version is blocked | new installations and updates are prohibited; the current target is not disabled |
+| Version evidence expired or failed | version loses verification and eligibility, new installations and updates are blocked, and the installed target operates with a warning |
+| Harness is unsupported | readiness is `unsupported`, apply returns `AI_STP_UNSUPPORTED_APPLY`; no objects are created |
+| Harness itself was changed outside the provider | `local_drift`: the provider owns the program lifecycle; a change outside it requires a user decision |

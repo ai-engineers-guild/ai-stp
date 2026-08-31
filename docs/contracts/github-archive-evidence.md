@@ -1,43 +1,44 @@
 ---
-description: "Машинный контракт локального GitHub archive evidence и истории наблюдений."
+description: "Machine contract for local GitHub archive evidence and observation history."
 last_verified: "2026-08-15"
 ---
 
 # GitHub archive evidence
 
-## Команды
+## Commands
 
-`component source evidence refresh --id <stable_id> --version <X.Y>` получает
-одно официальное наблюдение. `show` и `history` читают только локальный registry.
-Точные параметры и result schemas принадлежат генерируемому `help --agent`.
+`component source evidence refresh --id <stable_id> --version <X.Y>` obtains one
+official observation. `show` and `history` read only the local registry. Exact
+parameters and result schemas belong to the generated `help --agent`.
 
-## Identity и состояние
+## Identity and state
 
-Входная coordinate берётся из immutable паспорта указанной версии. Первое
-наблюдение обращается по `owner/repository`, последующие — по immutable GitHub
-repository id; поэтому rename и transfer меняют `repository_full_name`, но не
-identity. Каждая строка содержит исходный source, точный passport digest,
-`archived`, время получения, срок свежести и attribution официального REST
-контракта.
+The input coordinate comes from the immutable passport of the specified version.
+The first observation uses `owner/repository`; subsequent observations use the
+immutable GitHub repository id. Thus, rename and transfer change
+`repository_full_name` but not identity. Each row contains the original source,
+exact passport digest, `archived`, retrieval time, freshness period, and
+attribution for the official REST contract.
 
-`archived=true` даёт только `proposal=deprecated`. `blocked`, изменение lifecycle,
-replacement, update и удаление target не являются эффектами этих команд.
+`archived=true` produces only `proposal=deprecated`. `blocked`, lifecycle
+changes, replacement, update, and target removal are not effects of these
+commands.
 
-## Freshness и отказ
+## Freshness and failure
 
-TTL равен 24 часам. Последнее наблюдение возвращается как `fresh` или `stale`;
-если его нет — как `unavailable`. Conditional `304` создаёт новое датированное
-наблюдение с тем же состоянием. История append-only, поэтому последующий
-unarchive не стирает прежний факт.
+TTL is 24 hours. The latest observation is returned as `fresh` or `stale`; if
+none exists, it is returned as `unavailable`. A conditional `304` creates a new
+timestamped observation with the same state. History is append-only, so a later
+unarchive does not erase the earlier fact.
 
-Ответ ограничен одним MiB и закрытой allowlist-моделью. Redirect не выполняется,
-credential surface отсутствует. 403, 404, 429, server/transport failure,
-неверный JSON, private repository и смена repository id закрываются отказом и
-не заменяют последний хороший снимок.
+The response is limited to one MiB and a closed allowlist model. Redirects are
+not followed, and there is no credential surface. 403, 404, 429, server or
+transport failure, invalid JSON, a private repository, and a changed repository
+id fail closed and do not replace the latest good snapshot.
 
-## Server и public catalog
+## Server and public catalog
 
-Локальный CLI evidence остаётся владельцем этого документа. Server/Web
-доставка periodic archive observation снята: public catalog больше не несёт
-`github_archive`, а detail читает on-demand `stars`/`archived` по `SPEC-049`
-и `ADR-0096`.
+Local CLI evidence remains the owner of this document. Server/Web delivery of
+periodic archive observations has been removed: the public catalog no longer
+carries `github_archive`, while detail reads on-demand `stars`/`archived` under
+`SPEC-049` and `ADR-0096`.

@@ -1,207 +1,215 @@
 ---
-description: "Решение о стеке apps/web: Next.js App Router, TypeScript 7 с боковым TS6 для линта, Tailwind 4 с токенами, стандартный shadcn/ui по atomic design, Zustand и клиент из #71."
+description: "apps/web uses Next.js App Router, TypeScript 7 with side-by-side TS6 linting, Tailwind 4 tokens, shadcn/ui under atomic design, Zustand, and the generated #71 client."
 last_verified: "2026-08-06"
 ---
 
-# ADR-0043: Стек apps/web и типизированный клиент контракта
+# ADR-0043: apps/web Stack and Typed Contract Client
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-`#82` и `#83` впервые материализуют `apps/web` — первое Node-приложение в
-репозитории, где до сих пор жил только Python. `docs/engineering/tech-stack.md`
-называет фронтендом Next.js, а `SPEC-010` `REQ-1008` перечисляет его поверхность,
-но конкретный стек нигде не зафиксирован: ни диалект Next.js, ни версия языка, ни
-слой стилей и темы, ни библиотека двуязычия, ни набор компонентов и их организация,
-ни способ получения типов из контракта, ни слой данных и клиентский стор, ни линтер и
-typecheck, ни менеджер пакетов и его lock. Без такого решения `#82` и `#83`
-разошлись бы в несовместимых реализациях оболочки, а первое же добавление зависимости
-нарушило бы `docs/engineering/dependency-policy.md`, который требует sign-off до
-попадания пакета в lock.
+`#82` and `#83` first materialize `apps/web`, the repository's first Node application
+where previously only Python existed. `docs/engineering/tech-stack.md` names Next.js
+as the frontend, and `SPEC-010` `REQ-1008` lists its surface, but the concrete stack
+is not established anywhere: the Next.js dialect, language version, styling and theme
+layer, bilingual library, component set and organization, method for deriving types
+from the contract, data layer and client store, linter and typecheck, and package
+manager and its lockfile. Without this decision, `#82` and `#83` would diverge into
+incompatible shell implementations, and the first dependency addition would violate
+`docs/engineering/dependency-policy.md`, which requires sign-off before a package
+enters the lockfile.
 
-Требования обеих issue сужают выбор сильнее, чем кажется. `#82` требует порождать или
-проверять типизированный клиент из `#71` и не вести параллельный ручной DTO-набор:
-контракт заморожен в `schemas/v1/openapi.json` (`#71`), поэтому веб обязан порождать
-типы из него, а не описывать их заново. `ADR-0035` требует русскую и английскую
-локали с первого маршрута. `ADR-0018`, `SPEC-010` `REQ-1011` и `REQ-1012` запрещают
-вторую бизнес-логику в вебе: клиент вызывает один и тот же API, а не принимает решения
-о полномочиях сам. `ADR-0041` уже выбрал транспорт веба (`HttpOnly; Secure;
-SameSite=Lax` cookie, double-submit CSRF, никаких долгоживущих токенов провайдера в
-браузере). Оболочку `#82` и аутентифицированную поверхность `#83` должен нести один
-стек, поэтому решение принимается один раз и здесь.
+The requirements of both issues narrow the choice more than they appear to. `#82`
+requires generating or validating a typed client from `#71` and prohibits maintaining
+a parallel hand-written DTO set: the contract is frozen in `schemas/v1/openapi.json`
+(`#71`), so the web must generate types from it rather than describe them again.
+`ADR-0035` requires Russian and English locales from the first route. `ADR-0018`,
+`SPEC-010` `REQ-1011`, and `REQ-1012` prohibit a second implementation of business
+logic in the web: the client calls the same API instead of making authorization
+decisions itself. `ADR-0041` already selected the web transport (`HttpOnly; Secure;
+SameSite=Lax` cookie, double-submit CSRF, and no long-lived provider tokens in the
+browser). One stack must support both the `#82` shell and the `#83` authenticated
+surface, so the decision is made once here.
 
-Отдельное напряжение вносит TypeScript 7: его нативный компилятор вышел GA в 2026 и
-проверяет типы примерно на порядок быстрее, но у него пока нет стабильного
-программного API, поэтому `typescript-eslint` и подобные инструменты на нём не
-работают и объявляют поддерживаемый диапазон ниже 7.0. Требования пользователя
-«TypeScript 7» и «релевантный линтер с полным запретом `any`» одновременно
-выполнимы только явной боковой установкой TS6 для линта до появления TS7.1 со
-стабильным API.
+TypeScript 7 creates a separate tension: its native compiler reached GA in 2026 and
+typechecks roughly an order of magnitude faster, but it does not yet have a stable
+programmatic API, so `typescript-eslint` and similar tools do not work with it and
+declare a supported range below 7.0. The user's requirements for "TypeScript 7" and
+"a relevant linter with a complete ban on `any`" can both be met only by explicitly
+installing TS6 side by side for linting until TS7.1 provides a stable API.
 
-Механизм OAuth и сессии принадлежит `ADR-0041`; модель анонимного чтения каталога —
-`ADR-0042`; языки — `ADR-0035`; владение интерфейсами — `ADR-0018`; конвенции кода
-фронтенда — `docs/engineering/coding-rules.md`. Эта запись владеет только выбором
-фронтенд-стека и способом получения типов из контракта.
+The OAuth and session mechanism belongs to `ADR-0041`; the anonymous catalog read
+model to `ADR-0042`; languages to `ADR-0035`; interface ownership to `ADR-0018`; and
+frontend code conventions to `docs/engineering/coding-rules.md`. This record owns
+only the frontend stack selection and the method of deriving types from the contract.
 
-## Варианты
+## Options
 
-Диалект Next.js:
+Next.js dialect:
 
-1. App Router (React Server Components). Нативная серверная выборка для анонимных
-   чтений `#82`, серверное чтение сессии для `#83`, встроенная граница server/client
-   как барьер от утечки приватных данных в клиентский бандл. Стоимость — более новая
-   модель и осторожность с «use client».
-2. Pages Router. Проще и старше, но выборка на клиенте по умолчанию хуже ложится на
-   требование не встраивать скрытые данные в HTML и бандл и на серверное чтение сессии.
+1. App Router (React Server Components). Native server-side fetching for anonymous
+   `#82` reads, server-side session reads for `#83`, and a built-in server/client
+   boundary as a barrier against leaking private data into the client bundle. The
+   cost is a newer model and care with "use client".
+2. Pages Router. Simpler and older, but client-side fetching by default fits less well
+   with the requirement not to embed hidden data in HTML and the bundle, and with
+   server-side session reads.
 
-Версия языка и линт:
+Language version and linting:
 
-1. TypeScript 7 как основной typecheck плюс боковой TS6 только для `typescript-eslint`.
-   Даёт быстрый строгий typecheck нативным компилятором и одновременно type-aware
-   правила линта (полный запрет `any`, запрет небезопасного структурного доступа) до
-   выхода TS7.1. Стоимость — две версии компилятора в devDependencies на переходный
-   период.
-2. Только TypeScript 6. Совместимо со всем tooling, но противоречит явному требованию
-   TypeScript 7.
-3. Только TypeScript 7. Быстрее всего, но лишает проект type-aware линта, а значит
-   полного запрета `any` и запрета duck-typing через линт.
+1. TypeScript 7 for the primary typecheck plus side-by-side TS6 only for
+   `typescript-eslint`. Provides fast strict typechecking with the native compiler
+   while retaining type-aware lint rules (a complete ban on `any` and unsafe
+   structural access) until TS7.1. The cost is two compiler versions in
+   devDependencies during the transition.
+2. TypeScript 6 only. Compatible with all tooling, but contradicts the explicit
+   TypeScript 7 requirement.
+3. TypeScript 7 only. Fastest, but deprives the project of type-aware linting and thus
+   of the complete ban on `any` and lint enforcement against duck typing.
 
-Стили и тема:
+Styles and theme:
 
-1. Tailwind CSS 4 с токенизированной темой на CSS-переменных: светлая и тёмная темы,
-   семантические токены цвета, запрет захардкоженных цветов. Совместимо со
-   стандартным `shadcn/ui`.
-2. CSS-модули или runtime-CSS-in-JS. Больше свободы, но хуже согласуется с `shadcn/ui`
-   и не даёт единой токенизированной темы из коробки.
+1. Tailwind CSS 4 with a tokenized CSS-variable theme: light and dark themes,
+   semantic color tokens, and no hardcoded colors. Compatible with standard
+   `shadcn/ui`.
+2. CSS modules or runtime CSS-in-JS. More freedom, but less aligned with `shadcn/ui`
+   and no unified tokenized theme out of the box.
 
-Набор компонентов и организация:
+Component set and organization:
 
-1. Стандартный `shadcn/ui` (примитивы Radix, Tailwind) без надстроек, со слоями
-   `atoms`, `molecules`, `organisms` и `layouts` по `atomic design`. Код компонентов
-   версионируется в `apps/web` и правится, а не тянется как непрозрачная зависимость.
-2. `shadcn/ui` плюс дополнительные реестры анимаций. Быстрее наполняет лендинг, но
-   добавляет зависимость и визуальный слой, который в этот срез не требуется.
-3. Тяжёлый UI-фреймворк (MUI/Chakra). Быстрый старт, но чужая тема, больший бандл и
-   слабее контроль доступности и разметки.
+1. Standard `shadcn/ui` (Radix primitives, Tailwind) without extensions, organized
+   into `atoms`, `molecules`, `organisms`, and `layouts` layers under `atomic design`.
+   Component code is versioned and edited in `apps/web`, rather than pulled as an
+   opaque dependency.
+2. `shadcn/ui` plus additional animation registries. Populates the landing page
+   faster, but adds a dependency and visual layer not required by this slice.
+3. A heavy UI framework (MUI/Chakra). Quick start, but a foreign theme, a larger
+   bundle, and less control over accessibility and markup.
 
-Клиент контракта:
+Contract client:
 
-1. `@hey-api/openapi-ts` порождает типы и fetch-клиент из `schemas/v1/openapi.json`.
-   Клиент — порождаемый артефакт, не правится руками, пересобирается скриптом. Прямо
-   удовлетворяет `#82` о запрете ручного конкурирующего DTO-набора.
-2. Ручные типы и `fetch`. Быстро в малом, но создаёт второй источник истины рядом с
-   `#71` и расходится с контрактом при первом же изменении.
+1. `@hey-api/openapi-ts` generates types and a fetch client from
+   `schemas/v1/openapi.json`. The client is a generated artifact, is not edited by
+   hand, and is rebuilt by a script. Directly satisfies `#82`'s prohibition on a
+   competing hand-written DTO set.
+2. Hand-written types and `fetch`. Fast at small scale, but creates a second source of
+   truth alongside `#71` and diverges from the contract at the first change.
 
-Слой данных и клиентский стор:
+Data layer and client store:
 
-1. RSC и Next Server Actions для серверных данных и мутаций (`revalidateTag`/
-   `revalidatePath`), Zustand для клиентского состояния, `react-hook-form` + `zod` для
-   форм и валидации окружения. Меньше зависимостей, серверная истина не дублируется на
-   клиенте.
-2. Клиентская библиотека кэша запросов (react-query и подобные). Богатый клиентский
-   кэш, но лишняя зависимость и соблазн держать серверную истину на клиенте против
-   модели App Router; в этот срез не требуется.
+1. RSC and Next Server Actions for server data and mutations (`revalidateTag`/
+   `revalidatePath`), Zustand for client state, and `react-hook-form` + `zod` for forms
+   and environment validation. Fewer dependencies, with no duplication of server
+   truth on the client.
+2. A client query-cache library (react-query and similar). A rich client cache, but
+   an extra dependency and a temptation to keep server truth on the client contrary
+   to the App Router model; not required by this slice.
 
-Менеджер пакетов и lock:
+Package manager and lockfile:
 
-1. `bun` с `bun.lock`, `apps/web` как отдельное Node-workspace, изолированное от
-   корневого `uv.lock`. Быстрый, единый runtime и тест-раннер.
-2. `npm` с `package-lock.json`. Наиболее привычный, но медленнее и без единого runtime.
+1. `bun` with `bun.lock`, with `apps/web` as a separate Node workspace isolated from
+   the root `uv.lock`. Fast, with one runtime and test runner.
+2. `npm` with `package-lock.json`. Most familiar, but slower and without a single
+   runtime.
 
-## Решение
+## Decision
 
-Принимаются **Next.js App Router**, **TypeScript 7 с боковым TS6 для линта**,
-**Tailwind 4 с токенизированной темой**, **стандартный shadcn/ui по atomic design**,
-**next-intl**, **`@hey-api/openapi-ts`**, **RSC + Server Actions + Zustand +
-react-hook-form/zod** и **bun**.
+The accepted stack is **Next.js App Router**, **TypeScript 7 with side-by-side TS6
+for linting**, **Tailwind 4 with a tokenized theme**, **standard shadcn/ui under
+atomic design**, **next-intl**, **`@hey-api/openapi-ts`**, **RSC + Server Actions +
+Zustand + react-hook-form/zod**, and **bun**.
 
-Диалект и структура:
+Dialect and structure:
 
-- Next.js App Router на React Server Components, строгий TypeScript. Приватные данные
-  читаются на сервере и не попадают в клиентский бандл; `"use client"` добавляется
-  точечно и не тянет серверные секреты.
-- `apps/web` — самостоятельное Node-workspace со своим `package.json` и `bun.lock`; оно
-  не смешивается с корневым `uv.lock` и Python-зависимостями.
+- Next.js App Router on React Server Components with strict TypeScript. Private data
+  is read on the server and does not enter the client bundle; `"use client"` is added
+  selectively and does not pull in server secrets.
+- `apps/web` is an independent Node workspace with its own `package.json` and
+  `bun.lock`; it is not mixed with the root `uv.lock` or Python dependencies.
 
-Язык и линт:
+Language and linting:
 
-- Основной typecheck — TypeScript 7 нативным компилятором в strict-режиме
-  (`strict`, `noImplicitAny`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`);
-  это гейт `apps/web`.
-- `typescript-eslint` запускается на боковой установленной TS6 и даёт type-aware
-  правила: полный запрет `any` (`no-explicit-any` плюс запрет `no-unsafe-*`), запрет
-  небезопасного структурного доступа. Боковой TS6 удаляется, когда TS7.1 даст
-  стабильный API для линта. Конкретные правила и границы — в
+- The primary typecheck uses the TypeScript 7 native compiler in strict mode
+  (`strict`, `noImplicitAny`, `noUncheckedIndexedAccess`,
+  `exactOptionalPropertyTypes`); this is an `apps/web` gate.
+- `typescript-eslint` runs on the side-by-side installed TS6 and provides type-aware
+  rules: a complete ban on `any` (`no-explicit-any` plus the `no-unsafe-*` rules) and
+  a ban on unsafe structural access. Side-by-side TS6 is removed when TS7.1 provides
+  a stable linting API. Concrete rules and boundaries are in
   `docs/engineering/coding-rules.md`.
 
-Стили и тема: Tailwind CSS 4 с темой на CSS-переменных с запуска: светлая и тёмная
-темы и семантические токены цвета; захардкоженные цвета запрещены. Все
-пользовательские строки локализованы с запуска через `next-intl` (`ADR-0035`); литерал
-пользовательского текста в разметке запрещён.
+Styles and theme: Tailwind CSS 4 with a CSS-variable theme from launch, including
+light and dark themes and semantic color tokens; hardcoded colors are prohibited.
+All user-facing strings are localized from launch through `next-intl` (`ADR-0035`);
+literal user-facing text in markup is prohibited.
 
-Компоненты: стандартный `shadcn/ui` поверх примитивов Radix и Tailwind без
-дополнительных реестров, со слоями `atoms`, `molecules`, `organisms` и `layouts` по
-`atomic design`; страницы собираются маршрутами App Router. Импортные границы между
-слоями проверяются линтом. Код компонентов версионируется в `apps/web`.
+Components: standard `shadcn/ui` over Radix and Tailwind primitives without
+additional registries, organized into `atoms`, `molecules`, `organisms`, and
+`layouts` layers under `atomic design`; pages are assembled through App Router
+routes. Import boundaries between layers are enforced by linting. Component code is
+versioned in `apps/web`.
 
-Клиент контракта: `@hey-api/openapi-ts` порождает типы и типизированный fetch-клиент из
-`schemas/v1/openapi.json`. Порождённый код — сборочный артефакт: помечается generated,
-не правится руками, пересобирается скриптом `api:generate`. Ручной DTO-набор рядом с
-`#71` не ведётся.
+Contract client: `@hey-api/openapi-ts` generates types and a typed fetch client from
+`schemas/v1/openapi.json`. Generated code is a build artifact: it is marked as
+generated, is not edited by hand, and is rebuilt by the `api:generate` script. No
+hand-written DTO set is maintained alongside `#71`.
 
-Данные и стор: анонимные чтения `#82` выполняются серверными компонентами через
-порождённый клиент; данные и мутации `#83` — через Next Server Actions с
-`revalidateTag`/`revalidatePath` от серверной истины (после `revoke` вид обновляется
-ответом сервера, а не оптимистично). Клиентское состояние держит Zustand тонкими
-слайсами по границе ответственности; серверная истина на клиенте не дублируется. Формы
-и валидация окружения — `react-hook-form` + `zod`. Никакое решение о полномочиях не
-принимается на клиенте: защита маршрута читает серверную сессию, а конечное правило
-остаётся за API (`ADR-0018`, `REQ-1011`, `REQ-1012`).
+Data and store: anonymous `#82` reads are performed by server components through the
+generated client; `#83` data and mutations use Next Server Actions with
+`revalidateTag`/`revalidatePath` against server truth (after `revoke`, the view is
+updated from the server response, not optimistically). Client state is held by
+Zustand in thin slices by responsibility boundary; server truth is not duplicated on
+the client. Forms and environment validation use `react-hook-form` + `zod`. No
+authorization decision is made on the client: route protection reads the server
+session, while the final rule remains with the API (`ADR-0018`, `REQ-1011`,
+`REQ-1012`).
 
-Типовая дисциплина (границы — `coding-rules.md`): полный запрет `any`; запрет
-duck-typing — идентификаторы и токены выражаются номинально (branded types), внешние
-данные принимаются только через порождённые типы и `zod`-схемы, небезопасный
-структурный каст запрещён; запрет god-объектов — модули ограничены по ответственности
-и размеру, общий свалочный `utils` и единый глобальный стор запрещены, стор разбит на
-слайсы.
+Type discipline (boundaries are in `coding-rules.md`): complete ban on `any`; duck
+typing is prohibited—identifiers and tokens are expressed nominally (branded types),
+external data is accepted only through generated types and `zod` schemas, and unsafe
+structural casts are prohibited; god objects are prohibited—modules are bounded by
+responsibility and size, a shared dumping-ground `utils` and one global store are
+prohibited, and the store is divided into slices.
 
-Транспорт и токены наследуются из `ADR-0041` без изменения. Менеджер пакетов — `bun` с
-зафиксированным `bun.lock`; список одобренных зависимостей `apps/web` ведётся в
-`docs/engineering/dependency-policy.md`.
+Transport and tokens are inherited unchanged from `ADR-0041`. The package manager is
+`bun` with a pinned `bun.lock`; the approved `apps/web` dependency list is maintained
+in `docs/engineering/dependency-policy.md`.
 
-## Последствия
+## Consequences
 
-- Появляется первый Node-toolchain репозитория: `bun`, `bun.lock` и Node lock policy
-  для `apps/web`. `docs/engineering/dependency-policy.md` получает раздел sign-off
-  зависимостей `apps/web`; `docs/engineering/tech-stack.md` детализирует строку
-  Frontend; `docs/engineering/coding-rules.md` получает раздел конвенций фронтенда.
-- Переходный период двух версий TypeScript: TS7 как typecheck-гейт и TS6 как peer для
-  `typescript-eslint`. Оба закреплены lock; удаление TS6 — при выходе TS7.1 со
-  стабильным API, отдельной записью.
-- `apps/web` получает собственные гейты: линт с type-aware правилами, проверка типов
-  на TS7, модульные и компонентные тесты, сборка и `browser smoke`; они подключаются к
-  общей цепочке `just check` и CI тем же локальным и CI-путём.
-- Токенизированная тема и локализация проверяемы: линт запрещает захардкоженные цвета и
-  литеральные пользовательские строки, тест подтверждает светлую и тёмную темы и
-  паритет локалей.
-- Порождённый клиент контракта пересобирается, а не правится: контрактный тест
-  доказывает происхождение типов из `schemas/v1/openapi.json`.
-- Разработка идёт mock-first: MSW отдаёт фикстуры `#71` до готовности `#80`/`#81`.
-- Безопасность: серверная граница App Router и запрет второй бизнес-логики держат
-  приватные данные вне HTML и бандла; транспорт токенов — по `ADR-0041`.
-- Требуются тесты: генерация и соответствие клиента контракту, паритет локалей,
-  светлая и тёмная темы, доступность, поведение при недоступном API, защита маршрутов и
-  невынос приватных данных в клиент.
-- Rollback: диалект, версия языка, генератор клиента, стор и менеджер пакетов
-  инкапсулированы; смена любого из них требует нового ADR и пересборки, а не правки по
-  месту.
+- The repository gains its first Node toolchain: `bun`, `bun.lock`, and a Node
+  lockfile policy for `apps/web`. `docs/engineering/dependency-policy.md` gains an
+  `apps/web` dependency sign-off section; `docs/engineering/tech-stack.md` expands
+  the Frontend row; `docs/engineering/coding-rules.md` gains a frontend conventions
+  section.
+- There is a transition period with two TypeScript versions: TS7 as the typecheck
+  gate and TS6 as the peer for `typescript-eslint`. Both are pinned in the lockfile;
+  TS6 is removed when TS7.1 provides a stable API, under a separate record.
+- `apps/web` gains its own gates: linting with type-aware rules, typechecking on TS7,
+  unit and component tests, build, and `browser smoke`; they join the shared
+  `just check` and CI chain through the same local and CI path.
+- The tokenized theme and localization are verifiable: linting prohibits hardcoded
+  colors and literal user-facing strings, and a test confirms light and dark themes
+  and locale parity.
+- The generated contract client is rebuilt, not edited: a contract test proves that
+  the types originate from `schemas/v1/openapi.json`.
+- Development is mock-first: MSW serves `#71` fixtures until `#80`/`#81` are ready.
+- Security: the App Router server boundary and the prohibition on a second business-
+  logic implementation keep private data out of HTML and the bundle; token transport
+  follows `ADR-0041`.
+- Required tests: client generation and contract conformance, locale parity, light
+  and dark themes, accessibility, behavior when the API is unavailable, route
+  protection, and absence of private data from the client.
+- Rollback: the dialect, language version, client generator, store, and package
+  manager are encapsulated; changing any of them requires a new ADR and a rebuild,
+  not an in-place edit.
 
-## Условия пересмотра
+## Reconsideration Conditions
 
-Решение пересматривается, если TS7.1 даст стабильный API и боковой TS6 станет не нужен
-(тогда TS6 удаляется отдельной записью); если модель RSC/App Router потребует правил,
-которых нет в API для CLI (нарушая `REQ-1011`); если `@hey-api/openapi-ts` не сможет
-выразить замороженный контракт `#71`; если `bun` окажется нестабильным в CI целевых
-платформ; либо если появится доказанная потребность в браузерном редакторе сетапов за
-границей `ADR-0018`.
+The decision will be reconsidered if TS7.1 provides a stable API and side-by-side TS6
+is no longer needed (TS6 is then removed under a separate record); if the RSC/App
+Router model requires rules absent from the CLI API (violating `REQ-1011`); if
+`@hey-api/openapi-ts` cannot express the frozen `#71` contract; if `bun` proves
+unstable in CI on the target platforms; or if a demonstrated need for a browser setup
+editor arises beyond the boundary of `ADR-0018`.

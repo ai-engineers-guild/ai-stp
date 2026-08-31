@@ -1,22 +1,23 @@
 ---
-description: "Авторизованное чтение объектов владельца через CLI."
+description: "Authorized reading of owner objects through the CLI."
 last_verified: "2026-08-13"
 ---
 
-# Объекты владельца в CLI
+# Owner objects in the CLI
 
-`owner objects`, `owner object show` и `owner version show` являются только
-читающей проекцией server-authorized owner models из `packages/contracts`.
-Клиент не объединяет их с публичным каталогом, локальными паспортами или
-полученными grants и не пытается самостоятельно определить владельца.
+`owner objects`, `owner object show`, and `owner version show` are read-only
+projections of server-authorized owner models from `packages/contracts`. The
+client does not merge them with the public catalog, local passports, or received
+grants, and does not attempt to determine ownership itself.
 
-Список принимает необязательный закрытый фильтр вида объекта, bounded page size
-и opaque cursor. Cursor только возвращается серверу; CLI не разбирает и не
-пересобирает его. Detail адресует точный вид и устойчивый идентификатор, а
-version detail дополнительно точную `X.Y`.
+The list accepts an optional closed object-kind filter, bounded page size, and
+opaque cursor. The cursor is only returned to the server; the CLI neither parses
+nor reconstructs it. Detail addresses an exact kind and stable identifier, while
+version detail additionally addresses an exact `X.Y`.
 
-Состояния lifecycle, visibility, trust lane, независимые признаки
-`author_verified` и `component_verified`, eligibility, evidence и возможность
-начала публикации показываются ровно в серверной модели. Полученный grant не
-создаёт owner object и не даёт команды записи в оригинал. Все три команды
-требуют действующую cloud session и не передают локальные байты или credentials.
+Lifecycle state, visibility, trust lane, independent `author_verified` and
+`component_verified` flags, eligibility, evidence, and whether publication may
+start are shown exactly as represented by the server model. A received grant
+does not create an owner object or permit writing to the original. All three
+commands require an active cloud session and do not transmit local bytes or
+credentials.

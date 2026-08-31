@@ -1,22 +1,23 @@
 ---
-description: "Машинная граница серверной SEO-ревизии, discovery документов и model-enrichment."
+description: "Machine boundary for server-side SEO revisions, discovery documents, and model enrichment."
 last_verified: "2026-08-29"
 ---
 
 # SEO publication projection
 
-`SPEC-053` определяет поведение, `ADR-0131` — архитектурную границу. Этот документ
-владеет полями и закрытыми словарями публичной SEO-проекции.
+`SPEC-053` defines behavior; `ADR-0131` defines the architectural boundary. This
+document owns the fields and closed vocabularies of the public SEO projection.
 
 ## Identity
 
-SEO subject задаётся тройкой `subject_kind`, `subject_id`, `locale`.
-`subject_kind` принимает `component`, `setup`, `article`, `service`, `country`.
-`subject_id` использует canonical stable ID объекта, article identity
-`{type}:{slug}`, registrable service domain либо ISO 3166-1 alpha-2 country code.
+An SEO subject is defined by the `subject_kind`, `subject_id`, `locale` triple.
+`subject_kind` accepts `component`, `setup`, `article`, `service`, or `country`.
+`subject_id` uses the object's canonical stable ID, article identity
+`{type}:{slug}`, registrable service domain, or ISO 3166-1 alpha-2 country code.
 
-Snapshot identity включает `source_digest`. Revision identity дополнительно
-включает вид и версию генератора; указатель active revision не входит в identity.
+Snapshot identity includes `source_digest`. Revision identity additionally
+includes the generator kind and version; the active revision pointer is not part
+of identity.
 
 ## Profile document v1
 
@@ -44,76 +45,76 @@ modified_at           = RFC 3339
 generator             = {kind, template_version, prompt_version?, model_alias?}
 ```
 
-`generator.kind` принимает `template` или `model`. `model_alias` — операторский
-alias LiteLLM, не имя upstream credential/account. `search_intents` и
-`taxonomy_tags` помогают представлению и навигации; HTML `meta keywords` из них не
-строится.
+`generator.kind` accepts `template` or `model`. `model_alias` is an operator
+LiteLLM alias, not an upstream credential or account name. `search_intents` and
+`taxonomy_tags` support presentation and navigation; they are not used to build
+HTML `meta keywords`.
 
 ## Index decision reasons
 
-Закрытый v1-набор: `eligible`, `not_public`, `blocked`, `hidden`, `deprecated`,
+The closed v1 set is `eligible`, `not_public`, `blocked`, `hidden`, `deprecated`,
 `missing_primary_content`, `missing_source`, `empty_collection`,
-`duplicate_canonical`, `unavailable` и `materialization_pending`. Только пустой
-список при `eligible=true`; значение `eligible` используется как positive audit
-reason, но не смешивается с отрицательными reasons.
+`duplicate_canonical`, `unavailable`, and `materialization_pending`. The reasons
+list is empty only when `eligible=true`; `eligible` is used as a positive audit
+reason but is not mixed with negative reasons.
 
-Решение вычисляется template builder и не принимается из model response.
+The decision is computed by the template builder and is not accepted from the model response.
 
 ## Kind-specific structured data
 
-Каждый документ содержит `BreadcrumbList`. Primary entity выбирается из
+Every document contains `BreadcrumbList`. The primary entity is selected from
 `SoftwareSourceCode`, `SoftwareApplication`, `TechArticle`, `Article`, `WebSite`,
-`CollectionPage` и `ItemList` по фактам subject. `Person`/`Organization`
-добавляется только для опубликованного профиля. `FAQPage`, рейтинг, отзыв, offer
-и price допустимы только после отдельного расширения контракта с visible source;
-v1 их не генерирует.
+`CollectionPage`, and `ItemList` based on subject facts. `Person`/`Organization`
+is added only for a published profile. `FAQPage`, ratings, reviews, offers, and
+prices are allowed only after a separate contract extension with a visible
+source; v1 does not generate them.
 
-## Маршруты обнаружения
+## Discovery routes
 
-| Маршрут | Документ |
+| Route | Document |
 |---|---|
-| `/sitemap.xml` | Sitemap либо sitemap index текущей generation. |
-| `/sitemaps/{kind}-{locale}-{page}.xml` | Не более 50 000 eligible canonical URLs. |
-| `/llms.txt` | Короткий стабильный индекс продукта и discovery surfaces. |
-| `/llms-full.txt` | Ограниченная справка продукта без полного каталога. |
-| `/llms/catalog.ndjson` | Пагинируемый manifest active subjects. |
-| `/llms/{kind}/{subject_id}.md` | Канонический Markdown активной SEO-ревизии. |
+| `/sitemap.xml` | Sitemap or sitemap index for the current generation. |
+| `/sitemaps/{kind}-{locale}-{page}.xml` | At most 50,000 eligible canonical URLs. |
+| `/llms.txt` | Short stable product index and discovery surfaces. |
+| `/llms-full.txt` | Bounded product reference without the full catalog. |
+| `/llms/catalog.ndjson` | Paginated manifest of active subjects. |
+| `/llms/{kind}/{subject_id}.md` | Canonical Markdown for the active SEO revision. |
 | `/og/{revision_id}.png` | Immutable 1200×630 social image. |
 
-Human page, Markdown и catalog manifest ссылаются на один canonical URL. Machine
-documents не заявляют canonical на себя. Private, preview и failed revisions не
-попадают в discovery.
+The human page, Markdown, and catalog manifest reference one canonical URL.
+Machine documents do not declare themselves canonical. Private, preview, and
+failed revisions do not enter discovery.
 
-## Запрос и ответ enrichment
+## Enrichment request and response
 
-Worker отправляет LiteLLM system instruction version, public fact snapshot и
-JSON Schema. Response v1 может содержать только `title`, `description`, `summary`,
-`search_intents`, presentation body разрешённых sections и `social.title`,
+The worker sends the LiteLLM system instruction version, public fact snapshot,
+and JSON Schema. The v1 response may contain only `title`, `description`,
+`summary`, `search_intents`, presentation bodies for allowed sections, and `social.title`,
 `social.description`, `social.image_alt`.
 
-Server игнорирует unknown fields и отклоняет весь response; частичное merge
-запрещено. Canonical, alternates, links, identifiers, timestamps, numbers,
-robots, факты JSON-LD и решение об индексации всегда пересобираются сервером после
-приёма разрешённого текста.
+The server does not silently ignore unknown fields: it rejects the entire response;
+partial merge is prohibited. Canonical URL, alternates, links, identifiers, timestamps,
+numbers, robots, JSON-LD facts, and the indexing decision are always rebuilt by
+the server after allowed text is accepted.
 
-До merge server также требует предметные title и description, несколько
-естественных поисковых намерений и полный набор секций, применимый к доступным
-фактам данного subject kind. Статья не получает model-generated sections:
-модель улучшает только metadata и summary, а опубликованный текст остаётся
-авторитетным содержимым. Rejected candidate можно исправить не более чем за пять
-попыток одного job; base revision всё это время остаётся активной.
-Service без собственного описания и source URL остаётся на `noindex` base:
-связь с объектом каталога сама по себе не доказывает hosting, support или integration.
-Модель может расшифровать общеизвестный инструмент или техническую категорию,
-но не может добавлять неподтверждённое поведение конкретного объекта. Search snippet,
-который лишь перефразирует машинное описание snapshot, отклоняется.
-Для workflow/orchestration-компонентов факты о roles, topology и review должны
-превратиться в понятное описание работы coding agents; отсутствие agent outcome
-в title и search description является quality rejection.
+Before merge, the server also requires subject-specific title and description,
+several natural search intents, and the complete section set applicable to the
+available facts for that subject kind. An article receives no model-generated
+sections: the model improves only metadata and summary, while published text
+remains authoritative content. A rejected candidate may be repaired in at most
+five attempts within one job; the base revision remains active throughout.
+A service without its own description and source URL remains on the `noindex`
+base: association with a catalog object alone does not prove hosting, support,
+or integration. The model may explain a well-known tool or technical category
+but may not add unverified behavior for a specific object. A search snippet that
+merely paraphrases the snapshot's machine description is rejected. For
+workflow/orchestration components, facts about roles, topology, and review must
+become a clear description of how coding agents work; absence of the agent
+outcome from the title and search description is a quality rejection.
 
 ## Cache and freshness
 
-ETag активного profile равен digest profile document. Sitemap и LLM index ETag
-включает SEO generation. OG asset адресуется immutable revision ID. Доменный
-`lastmod` меняется только от source facts, видимого primary content или relations,
-но не от повторной генерации тем же содержимым.
+The active profile ETag equals the profile document digest. The ETag for the sitemap
+and LLM index includes the SEO generation. An OG asset is addressed by immutable
+revision ID. Domain `lastmod` changes only with source facts, visible primary
+content, or relations, not when the same content is regenerated.

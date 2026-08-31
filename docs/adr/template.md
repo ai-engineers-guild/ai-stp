@@ -1,28 +1,28 @@
 ---
-description: "Шаблон записи архитектурного решения."
+description: "Architecture decision record template."
 last_verified: "2026-08-03"
 ---
 
-# ADR-NNNN: Краткое название
+# ADR-NNNN: Short title
 
-Статус: предложено.
+Status: proposed.
 
-## Контекст
+## Context
 
-Опишите наблюдаемую проблему, ограничения и текущие источники истины.
+Describe the observable problem, constraints, and current sources of truth.
 
-## Варианты
+## Options
 
-Перечислите реальные варианты, их преимущества, стоимость и риски.
+List the real options, their benefits, costs, and risks.
 
-## Решение
+## Decision
 
-Зафиксируйте одно конкретное решение.
+Record one specific decision.
 
-## Последствия
+## Consequences
 
-Опишите новые обязанности, ограничения, миграцию, rollback и необходимые tests.
+Describe new responsibilities, constraints, migration, rollback, and required tests.
 
-## Условия пересмотра
+## Revisit conditions
 
-Укажите проверяемые события, после которых решение нужно пересмотреть.
+Specify verifiable events after which the decision must be revisited.

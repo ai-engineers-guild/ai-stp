@@ -1,51 +1,51 @@
 ---
-description: "Решение выдавать доступ по подтверждённой почте через отдельное приглашение."
+description: "Decision to grant access by verified email through a separate invitation."
 last_verified: "2026-08-04"
 ---
 
-# ADR-0020: Доступ по подтверждённой почте через приглашение
+# ADR-0020: Access by verified email through an invitation
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-Модель доступа знала только `AccessGrant` на идентификатор аккаунта. Это защищало от превращения идентификатора в полномочие, но закрывало обычный сценарий: владелец хочет поделиться закрытым объектом с человеком, у которого ещё нет аккаунта или чей идентификатор владелец не знает.
+The access model recognized only an `AccessGrant` issued to an account identifier. This prevented an identifier from becoming an authority, but blocked a common scenario: an owner wants to share a private object with a person who does not yet have an account or whose identifier the owner does not know.
 
-Без нормативного описания реализация неизбежно изобретёт свой вариант, и каждый из очевидных вариантов небезопасен. Выдача права сразу на строку почты превращает знание адреса в полномочие. Ответ «такого пользователя нет» раскрывает, кто зарегистрирован. Привязка к неподтверждённому адресу отдаёт доступ тому, кто первым заявит адрес. Повторная отправка без ключа идемпотентности создаёт несколько прав на один адрес.
+Without a normative description, an implementation will inevitably invent its own approach, and each obvious option is unsafe. Granting a right directly to an email string turns knowledge of the address into authority. A response saying "no such user" reveals who is registered. Binding access to an unverified address gives it to whoever claims the address first. Retrying without an idempotency key creates multiple rights for one address.
 
-## Варианты
+## Options
 
-1. Оставить выдачу только по идентификатору аккаунта. Безопасно, но не закрывает сценарий и вынуждает пользователей передавать идентификаторы вне продукта.
-2. Выдавать право прямо на адрес почты. Просто, но делает знание адреса полномочием и не имеет момента подтверждения.
-3. Ввести отдельное состояние приглашения, которое становится правом только после подтверждения адреса входом.
+1. Keep grants limited to account identifiers. Safe, but does not cover the scenario and forces users to exchange identifiers outside the product.
+2. Grant a right directly to an email address. Simple, but turns knowledge of the address into authority and has no confirmation point.
+3. Introduce a separate invitation state that becomes a right only after the address is verified by signing in.
 
-## Решение
+## Decision
 
-Принимается вариант 3.
+Option 3 is accepted.
 
-**Появляется `GrantInvitation` как отдельная сущность.** Приглашение содержит нормализованный адрес получателя, объект, права, срок действия, автора, состояние и ключ идемпотентности. Приглашение не является правом доступа.
+**`GrantInvitation` is introduced as a separate entity.** The invitation contains the recipient's normalized address, the object, rights, expiration time, author, state, and idempotency key. An invitation is not an access right.
 
-**Ответ не раскрывает существование аккаунта.** Создание приглашения возвращает одинаковый ответ независимо от того, зарегистрирован адрес или нет.
+**The response does not reveal whether an account exists.** Creating an invitation returns the same response regardless of whether the address is registered.
 
-**Подтверждение выполняется входом.** Одноразовый ключ с ограниченным сроком доставляется письмом. Приглашение превращается в `AccessGrant`, только когда вошедший аккаунт имеет тот же подтверждённый провайдером адрес. Совпадение строки без подтверждения провайдером недостаточно.
+**Confirmation is performed by signing in.** A time-limited one-time key is delivered by email. The invitation becomes an `AccessGrant` only when the signed-in account has the same provider-verified address. A matching string without provider verification is insufficient.
 
-**Преобразование атомарно и идемпотентно.** Повтор ключа возвращает существующее право и не создаёт второе. Истёкшее, отозванное или уже использованное приглашение возвращает типизированную ошибку.
+**Conversion is atomic and idempotent.** Reusing the key returns the existing right and does not create another one. An expired, revoked, or already used invitation returns a typed error.
 
-**Владелец сохраняет управление.** Приглашение и полученное право отзываются и истекают отдельно. Отзыв права не удаляет уже загруженные получателем байты, и это прямо сообщается владельцу.
+**The owner retains control.** The invitation and the resulting right are revoked and expire independently. Revoking the right does not delete bytes already downloaded by the recipient, and this is explicitly communicated to the owner.
 
-**Почта только доставляет.** Внешний почтовый сервис является транспортом приглашения и не становится источником личности. Ключ приглашения не записывается в журналы, трассы и метрики.
+**Email is only a delivery mechanism.** The external email service transports the invitation and does not become a source of identity. The invitation key is not written to logs, traces, or metrics.
 
-**Один сценарий для двух клиентов.** Веб и CLI вызывают один сценарий приложения и один API; второй реализации правил доступа не создаётся.
+**One flow for two clients.** The web and CLI invoke one application flow and one API; no second implementation of access rules is created.
 
-## Последствия
+## Consequences
 
-- `SPEC-002` получает требования к приглашению, подтверждению, атомарному преобразованию и отзыву;
-- `SPEC-013` описывает состояния приглашения рядом с состояниями права;
-- `architecture/domain-model.md` добавляет `GrantInvitation` в раздел identity;
-- `docs/product/glossary.md` различает право и приглашение;
-- отрицательные проверки покрывают неотличимый ответ, чужой адрес, повтор, истечение и отзыв;
-- платежи и платный доступ этим решением не вводятся.
+- `SPEC-002` gains requirements for invitation, confirmation, atomic conversion, and revocation;
+- `SPEC-013` describes invitation states alongside grant states;
+- `architecture/domain-model.md` adds `GrantInvitation` to the identity section;
+- `docs/product/glossary.md` distinguishes a grant from an invitation;
+- negative checks cover an indistinguishable response, a different address, reuse, expiration, and revocation;
+- this decision does not introduce payments or paid access.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается, если появится требование делиться объектом по ссылке без адресата, либо если подтверждение адреса провайдером входа окажется недостаточным доказательством владения адресом.
+This decision is reconsidered if a requirement appears to share an object through a recipient-free link, or if verification of the address by the sign-in provider proves insufficient evidence of address ownership.

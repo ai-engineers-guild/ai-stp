@@ -1,53 +1,53 @@
 ---
-description: "Решение ставить полный набор инструментов сразу и индексировать любой безопасный текст."
+description: "Decision to install the complete toolset up front and index any safe text."
 last_verified: "2026-08-04"
 ---
 
-# ADR-0019: Полный набор инструментов, полный индекс и граница автономной работы
+# ADR-0019: Complete toolset, complete index, and offline boundary
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-Прежние требования строили набор инструментов из потребностей активных адаптеров проекта, а критерий приёмки прямо требовал минимальный набор. Индекс второго уровня разбирал только Markdown, YAML, JSON, TOML и TXT, а ограниченный третий уровень покрывал пять экосистем.
+The previous requirements built the toolset from the needs of the project's active adapters, and the acceptance criterion explicitly required a minimal set. The second-level index parsed only Markdown, YAML, JSON, TOML, and TXT, while the limited third level covered five ecosystems.
 
-У такой экономии обнаружились два системных дефекта. Новый или документационный проект получает набор инструментов, которого не хватит, как только в нём появится код: смена стека требует новой загрузки, а значит сети, и ломает автономность именно тогда, когда она нужна. И подбор компонентов не видит файлы, которые определяют проект: конфигурации сборки, скрипты, исходники и нативные файлы агентов не входили в перечень разбираемых форматов.
+This economy revealed two systemic defects. A new or documentation project receives a toolset that becomes insufficient as soon as code appears in it: changing the stack requires another download, hence network access, and breaks offline operation precisely when it is needed. Component selection also cannot see files that define the project: build configurations, scripts, source files, and native agent files were not among the parsed formats.
 
-Одновременно продукт обещает полноценную локальную работу без аккаунта и сервера, но нигде не было сказано, что именно продолжает работать без сети и что перестаёт.
+At the same time, the product promises full local operation without an account or server, but nowhere stated exactly what continues to work without network access and what stops working.
 
-## Варианты
+## Options
 
-1. Оставить адаптивный минимальный набор. Экономит место и время первой настройки, но переносит стоимость на момент, когда сети может не быть.
-2. Ставить инструменты по требованию при первом использовании. Сохраняет минимальность, но делает автономную работу непредсказуемой и превращает индексацию в сетевую операцию.
-3. Ставить один полный версионируемый профиль сразу и явно описать границу автономной работы.
+1. Retain the adaptive minimal set. This saves space and initial-setup time but shifts the cost to a moment when network access may be unavailable.
+2. Install tools on demand at first use. This preserves minimality but makes offline operation unpredictable and turns indexing into a network operation.
+3. Install one complete versioned profile up front and explicitly describe the offline boundary.
 
-## Решение
+## Decision
 
-Принимается вариант 3.
+Option 3 is accepted.
 
-**Первичная настройка ставит профиль `mvp-full`.** Профиль содержит серверы языка, линтеры, проверяющие типы, анализаторы и сканеры для Python, TypeScript и JavaScript, Rust, Go и Dart и Flutter, а также анализаторы информационных форматов. Состав определяется версионируемой политикой, а не текущим содержимым проекта.
+**Initial setup installs the `mvp-full` profile.** The profile includes language servers, linters, type checkers, analyzers, and scanners for Python, TypeScript and JavaScript, Rust, Go, and Dart and Flutter, as well as analyzers for information formats. Its composition is defined by a versioned policy rather than by the project's current contents.
 
-**Требования к артефактам не смягчаются.** Каждый инструмент имеет точную версию, источник, доказательство целостности, лицензию и матрицу поддерживаемых систем. Установка идёт в пользовательский версионируемый каталог, вызов выполняется по точному пути, `sudo` не требуется.
+**Artifact requirements are not relaxed.** Every tool has an exact version, source, integrity evidence, license, and supported-system matrix. Installation uses a versioned user directory, invocation uses an exact path, and `sudo` is not required.
 
-**Индексируется любой ограниченный безопасный текстовый файл** внутри выбранного корня. Структурный разбор применяется к пяти экосистемам и информационным форматам; для прочих безопасных текстовых файлов сохраняются ограниченные метаданные, а не выдуманная структура.
+**Any bounded safe text file is indexed** within the selected root. Structural parsing is applied to the five ecosystems and information formats; bounded metadata rather than invented structure is retained for other safe text files.
 
-**Запреты сохраняются.** Секреты, двоичное содержимое, внутренние каталоги системы контроля версий, каталоги поставщиков, кэши и генерируемые результаты исключаются по умолчанию. Ограничения размера, глубины и времени остаются обязательными.
+**Prohibitions remain.** Secrets, binary content, internal version-control directories, vendor directories, caches, and generated results are excluded by default. Limits on size, depth, and time remain mandatory.
 
-**Граница автономной работы фиксируется.** После успешной первичной настройки без сети работают паспорта, индекс проекта, локальный реестр, импортированные объекты, поиск по кэшу, подбор и сборка из локальных и кэшированных кандидатов, проверки установленными инструментами, построение пакета, план, применение, состояние и восстановление провайдера, запуск из кэшированных артефактов.
+**The offline boundary is fixed.** After successful initial setup, the following work without network access: passports, the project index, the local registry, imported objects, cached search, selection and building from local and cached candidates, checks with installed tools, bundle construction, the plan, provider application, state and recovery, and launching from cached artifacts.
 
-Сеть требуется для первой некэшированной загрузки, входа, некэшированного облачного поиска, доступа к закрытым облачным объектам, синхронизации, публикации, приглашений и прав, обновления сведений об отзыве и живой проверки удалённых MCP.
+Network access is required for the first uncached download, sign-in, uncached cloud search, access to private cloud objects, synchronization, publication, invitations and permissions, updating revocation information, and live verification of remote MCPs.
 
-**Отзыв не разрушает локальные данные.** Отзыв прекращает будущие облачные операции, но не удаляет локальные данные и уже проверенные кэшированные байты.
+**Revocation does not destroy local data.** Revocation stops future cloud operations but does not delete local data or already verified cached bytes.
 
-## Последствия
+## Consequences
 
-- `SPEC-004` меняет перечень разбираемых форматов на любой ограниченный безопасный текст с сохранением запретов;
-- `SPEC-014` заменяет адаптивный набор профилем `mvp-full` и получает требование к границе автономной работы;
-- `docs/engineering/tech-stack.md` и roadmap описывают полный профиль вместо набора по потребности;
-- появляется матрица автономной работы, на которую ссылаются продуктовые пути и runbooks;
-- проверка первичной настройки перечисляет установленный профиль и подтверждает работу после отключения сети;
-- конкретный перечень версий инструментов выбирается на этапе реализации из поддерживаемых манифестов, а не фиксируется в этом решении.
+- `SPEC-004` changes the list of parsed formats to any bounded safe text while retaining the prohibitions;
+- `SPEC-014` replaces the adaptive set with the `mvp-full` profile and gains an offline-boundary requirement;
+- `docs/engineering/tech-stack.md` and the roadmap describe the complete profile instead of an on-demand set;
+- an offline-operation matrix is introduced and referenced by product flows and runbooks;
+- initial-setup validation lists the installed profile and confirms operation after network disconnection;
+- the specific list of tool versions is selected during implementation from supported manifests rather than fixed in this decision.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается, если объём или время установки полного профиля станут неприемлемыми на типичной машине разработчика, либо если появится способ доказуемо гарантировать автономность при установке по требованию.
+The decision shall be reconsidered if the complete profile's size or installation time becomes unacceptable on a typical developer machine, or if a way emerges to provably guarantee offline operation with on-demand installation.

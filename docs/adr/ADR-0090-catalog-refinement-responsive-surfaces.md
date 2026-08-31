@@ -1,68 +1,67 @@
 ---
-description: "Решение закрепить для каталога UX-инварианты уточнения выдачи вместо жёсткого выбора modal/drawer."
+description: "Decision to establish catalog-refinement UX invariants instead of rigidly choosing modal/drawer."
 last_verified: "2026-08-14"
 ---
 
-# ADR-0090: Responsive surfaces уточнения каталога
+# ADR-0090: Responsive catalog-refinement surfaces
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-Каталог получил быстрый текстовый поиск, структурные фильтры, сортировку,
-переключатель представления и региональные связи. В уже существующем Web UI часть
-контролов была полноценными searchable multiselect и раскрывающимися панелями, а
-часть поздних требований стала предписывать конкретный виджет: центрированный
-modal или drawer. Это привело к конфликту спецификации с продуктовой задачей.
+The catalog gained fast text search, structured filters, sorting, a view
+selector, and regional relationships. In the existing Web UI, some controls
+were full searchable multiselects and expandable panels, while some later
+requirements began prescribing a specific widget: a centered modal or drawer.
+This created a conflict between the specification and the product objective.
 
-Продуктовый инвариант другой: пользователь должен уточнять выдачу без потери
-контекста, URL, клавиатурной доступности и результата. Конкретная оболочка
-зависит от ширины экрана, плотности контента и количества активных фильтров.
+The product invariant is different: users must refine results without losing
+context, the URL, keyboard accessibility, or the result set. The specific shell
+depends on screen width, content density, and the number of active filters.
 
-## Варианты
+## Options
 
-1. Всегда использовать один modal dialog. Это просто тестировать, но на desktop
-   отрывает пользователя от результатов и дублирует уже работающие multiselect.
-2. Всегда использовать inline panels. Это хорошо для desktop, но на narrow
-   viewport быстро превращает каталог в длинную страницу фильтров перед
-   результатами.
-3. Закрепить поведенческие инварианты и разрешить responsive surface:
-   docked/attached panel на широком экране и contained overlay/sheet/drawer на
-   узком, с одинаковыми controls и одинаковой URL-семантикой.
+1. Always use one modal dialog. It is easy to test, but on desktop it separates
+   users from results and duplicates existing working multiselects.
+2. Always use inline panels. This works well on desktop, but on a narrow viewport
+   quickly turns the catalog into a long page of filters before the results.
+3. Establish behavioral invariants and allow a responsive surface: a
+   docked/attached panel on a wide screen and a contained overlay/sheet/drawer on
+   a narrow one, with identical controls and URL semantics.
 
-## Решение
+## Decision
 
-Выбран вариант 3. Нормативные спецификации каталога описывают не конкретный
-компонент, а обязательные свойства `refinement surface`:
+Option 3 is selected. Normative catalog specifications describe not a specific
+component but the required properties of the `refinement surface`:
 
-- desktop может показывать уточнение как inline, docked или attached panel рядом с
-  hero/search областью, если результаты остаются доступны без перезагрузки;
-- узкий экран использует ограниченную модальную поверхность: sheet, drawer или
-  dialog с явным `Close`, закрытием по `Escape` и backdrop, удержанием фокуса и
-  возвратом фокуса на кнопку открытия;
-- во всех вариантах используются одни и те же searchable multiselect, диапазон
-  дат, сортировка и выбор представления; surface не заменяет фильтры на
-  упрощённые одноразовые списки;
-- `Reset all`, `Apply`, chips активных значений, validation errors и help
-  доступны независимо от выбранной оболочки;
-- изменение поиска, фильтров, сортировки, page mode или view mode обновляет URL и
-  перезапрашивает только каталог, не перезагружая весь shell;
-- Catalog QL autocomplete и простая коррекция являются opt-in/contextual assist и
-  не переписывают обычный текст вроде `author` или `tags` в reserved keywords без
-  явного выбора пользователя.
+- desktop may show refinement as an inline, docked, or attached panel next to
+  the hero/search area if results remain available without a reload;
+- a narrow screen uses a contained modal surface: sheet, drawer, or dialog with
+  an explicit `Close`, closing on `Escape` and backdrop, focus trapping, and
+  focus return to the opening button;
+- every variant uses the same searchable multiselect, date range, sorting, and
+  view selector; the surface does not replace filters with simplified one-off
+  lists;
+- `Reset all`, `Apply`, active-value chips, validation errors, and help are
+  available regardless of the chosen shell;
+- changing search, filters, sorting, page mode, or view mode updates the URL and
+  refetches only the catalog without reloading the entire shell;
+- Catalog QL autocomplete and simple correction are opt-in/contextual assistance
+  and do not rewrite ordinary text such as `author` or `tags` into reserved
+  keywords without an explicit user choice.
 
-## Последствия
+## Consequences
 
-- `SPEC-034` и `SPEC-037` больше не должны требовать конкретный `modal dialog`
-  там, где нужен responsive refinement surface.
-- Component/a11y tests проверяют свойства поверхности: доступное имя, открытие,
-  закрытие, клавиатуру, сохранение URL, одинаковый набор controls и отсутствие
-  full page reload.
-- Визуальные реализации могут меняться без нового ADR, пока сохраняют описанные
-  инварианты.
+- `SPEC-034` and `SPEC-037` must no longer require a specific `modal dialog`
+  where a responsive refinement surface is needed.
+- Component/a11y tests verify surface properties: accessible name, opening,
+  closing, keyboard behavior, URL preservation, identical controls, and no full
+  page reload.
+- Visual implementations may change without a new ADR as long as the described
+  invariants are preserved.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Решение пересматривается, если появится единая дизайн-системная primitive для
-сложных фильтров, обязательная для всех product surfaces; либо если каталог
-перейдёт на server-driven UI, где контейнер фильтров становится частью контракта.
+The decision is reconsidered if a single design-system primitive for complex
+filters becomes mandatory for all product surfaces, or if the catalog moves to
+server-driven UI where the filter container becomes part of the contract.

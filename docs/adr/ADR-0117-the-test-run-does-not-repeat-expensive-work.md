@@ -1,95 +1,102 @@
 ---
-description: "Решение не повторять дорогую работу в прогоне: миграции применяются один раз на процесс, трассировка покрытия идёт через sys.monitoring."
+description: "Decision not to repeat expensive work in a run: migrations are applied once per process, and coverage tracing uses sys.monitoring."
 last_verified: "2026-08-29"
 ---
 
-# ADR-0117: Прогон не повторяет дорогую работу
+# ADR-0117: The run does not repeat expensive work
 
-Статус: принято. Уточняет в части стоимости прогона решение, которое
-принадлежит приватной инфраструктуре и здесь не публикуется. Решение
-распределять тесты по процессам и держать порог покрытия неизменным не
-меняется.
+Status: accepted. Clarifies, with respect to run cost, a decision that belongs
+to private infrastructure and is not published here. The decisions to
+distribute tests across processes and keep the coverage threshold unchanged
+remain unchanged.
 
-## Контекст
+## Context
 
-После снятия цепочки между job стоимость прогона определяли два повтора одной
-и той же работы, и оба были видны в коде до всякого замера.
+After removing the chain between jobs, the run cost was determined by two
+repetitions of the same work, both visible in the code before any measurement.
 
-Каждый тест, которому нужна PostgreSQL, заново применял всю цепочку Alembic:
-`migrated_database_url` создавал пустую базу и гонял `command.upgrade` на
-каждый тест. Под xdist эта цена умножалась на число worker'ов против одного
-экземпляра PostgreSQL.
+Every test that needed PostgreSQL reapplied the entire Alembic chain:
+`migrated_database_url` created an empty database and ran `command.upgrade` for
+every test. Under xdist, this cost was multiplied by the number of workers
+against a single PostgreSQL instance.
 
-Трассировка покрытия шла бэкендом `ctrace` — историческим дефолтом coverage.py.
-Более ранний замер уже показал, что сбор покрытия стоит около трети времени
-гейта (787.89 с против 547.92 с без него), но сам бэкенд не выбирался.
+Coverage tracing used the `ctrace` backend, the historical default of
+coverage.py. An earlier measurement had already shown that collecting coverage
+cost about a third of the gate time (787.89 s versus 547.92 s without it), but
+the backend itself had not been selected.
 
-## Решение
+## Decision
 
-Два изменения; каждое измерено до принятия, числа ниже — локальный прогон на
-закреплённых версиях (pytest 9.1.1, pytest-cov 7.1.0, coverage 7.15.3,
-Python 3.12), если не оговорено иначе.
+Two changes; each was measured before adoption. Unless stated otherwise, the
+figures below are from a local run on pinned versions (pytest 9.1.1,
+pytest-cov 7.1.0, coverage 7.15.3, Python 3.12).
 
-**Миграции применяются один раз на процесс.** Session-scoped фикстура
-`pg_migrated_template` в обоих платформенных conftest'ах применяет цепочку
-Alembic к одной базе на xdist-worker; `migrated_database_url` создаёт тестовую
-базу клоном `CREATE DATABASE ... TEMPLATE` — файловое копирование вместо повтора
-миграций. Замер на DB-срезе (`tests/api/platform` + `tests/integration`,
-PostgreSQL 16, `-n 4`, без покрытия): **346.15 с с повтором на каждый тест
-против 99.50 с с template — 3.48 раза**, состав набора зелёный в обоих случаях.
-Изоляция не ослаблена: база у теста по-прежнему своя и уничтожается после;
-тест, проверяющий сами миграции, работает с пустой базой через
-`isolated_database_url` и платит полную цену сознательно.
+**Migrations are applied once per process.** The session-scoped fixture
+`pg_migrated_template` in both platform conftests applies the Alembic chain to
+one database per xdist worker; `migrated_database_url` creates the test database
+as a `CREATE DATABASE ... TEMPLATE` clone—file copying instead of repeating
+migrations. Measurement on the DB slice (`tests/api/platform` +
+`tests/integration`, PostgreSQL 16, `-n 4`, without coverage): **346.15 s with
+repetition for every test versus 99.50 s with the template—3.48 times faster**;
+the test set was green in both cases. Isolation is not weakened: each test
+still has its own database, which is destroyed afterward; the test that checks
+the migrations themselves uses an empty database via `isolated_database_url`
+and deliberately pays the full cost.
 
-**Трассировка покрытия идёт через sys.monitoring.** `COVERAGE_CORE=sysmon`
-(дефолт задаётся в `justfile` и в `[tool.coverage.run] core`, переопределяется
-переменной `AI_STP_TEST_COVERAGE_CORE`). Замер полного набора без базы, `-n 4`:
-547.94 с на `ctrace` против **521.97 с на `sysmon`**, покрытие совпало до сотой
-(87.09 % в обоих). Выигрыш меньше порога, которым обычно оправдывают смену
-механизма, и решение принято не ради этих четырёх процентов: данные идентичны,
-риск нулевой, а доля трассировки во времени выше на медленном исполнителе, где
-эффект ожидается больше локального. Число CI будет наблюдением первого прогона;
-если оно окажется хуже, возврат — одно слово в `justfile`.
+**Coverage tracing uses sys.monitoring.** `COVERAGE_CORE=sysmon` (the default is
+set in `justfile` and in `[tool.coverage.run] core`, and can be overridden by
+`AI_STP_TEST_COVERAGE_CORE`). Measurement of the full set without a database,
+`-n 4`: 547.94 s on `ctrace` versus **521.97 s on `sysmon`**, with coverage
+matching to the hundredth (87.09% in both). The gain is below the threshold
+that would usually justify changing a mechanism, and the decision was not made
+for these four percent: the data is identical, the risk is zero, and tracing
+accounts for a larger share of time on the slower runner, where the effect is
+expected to exceed the local result. The CI figure will be an observation from
+the first run; if it is worse, reverting is a one-word change in `justfile`.
 
-`concurrency = ["greenlet"]` в `[tool.coverage.run]` делает sysmon невозможным:
-coverage 7.15 отказывается от sysmon при таком concurrency и возвращается
-к `ctrace`. Так прогон — локально на 3.12 через экспорт `justfile` и в CI на
-3.14, где sysmon уже дефолт coverage.py — платил за медленное ядро плюс
-предупреждение на каждом xdist-worker. `greenlet` из concurrency убран;
-`thread` остаётся. Пересечения `await` в SQLAlchemy asyncio этим плагином
-больше не дотягиваются: это цена выбранного ядра.
+`concurrency = ["greenlet"]` in `[tool.coverage.run]` makes sysmon impossible:
+coverage 7.15 refuses sysmon with that concurrency and falls back to `ctrace`.
+Consequently, the run—locally on 3.12 through the `justfile` export and in CI
+on 3.14, where sysmon is already the coverage.py default—paid for the slower
+core plus a warning on every xdist worker. `greenlet` was removed from
+concurrency; `thread` remains. Intersections across `await` in SQLAlchemy
+asyncio are no longer reached by this plugin: that is the cost of the selected
+core.
 
-Попутно зафиксировано и отвергнуто: масштабирование 4→8 worker'ов дало лишь
-410.85 с против 521.97 с (1.27x вместо 2x) — набор упирается в хвост из
-CLI-subprocess тестов, а не в число ядер. Локальные worker'ы дальше не
-расширяются; следующий кратный выигрыш даёт только шардирование между job, и
-рецепт `back-durations` уже пишет длительности для duration-based разбивки.
+Also recorded and rejected: scaling from 4 to 8 workers yielded only 410.85 s
+versus 521.97 s (1.27x instead of 2x)—the set is constrained by a tail of CLI
+subprocess tests, not by the number of cores. The local worker count is not
+increased further; the next multiplicative gain can come only from sharding
+between jobs, and the `back-durations` recipe already writes durations for
+duration-based splitting.
 
-## Отклонённая альтернатива
+## Rejected alternative
 
-Рассматривалась и была реализована на старом приватном гейте дедупликация ноги
-матрицы `back-python-3.12`: статика, сборка колёс и install-regression не
-зависят от версии интерпретатора и жили в `package`, поэтому нога должна была
-исполнять только тесты. Пока работа шла, гейт переехал в публичное дерево
-(`ADR-0110`) и нога исчезла вместе со всей матрицей — публичный гейт исполняет
-каждый рецепт ровно один раз по построению (`ADR-0113`). Правка потеряла
-адресата и отозвана; вывод остался правилом: повтор версионно-независимой
-работы в прогоне — ошибка формы, которую чинят удалением повтора, а не
-ускорением каждого экземпляра.
+Deduplicating the `back-python-3.12` matrix leg was considered and implemented
+on the old private gate: static checks, wheel builds, and install regression do
+not depend on the interpreter version and lived in `package`, so the leg should
+have run only tests. While the work was in progress, the gate moved to the
+public tree (`ADR-0110`) and the leg disappeared with the entire matrix—the
+public gate runs every recipe exactly once by construction (`ADR-0113`). The
+change lost its target and was withdrawn; the conclusion remains a rule:
+repeating version-independent work in a run is a shape error fixed by removing
+the repetition, not by speeding up every instance.
 
-## Последствия
+## Consequences
 
-Время DB-части прогона падает примерно втрое. Порог покрытия, состав набора и
-семантика изоляции не меняются; порог проверяется так же.
+The DB portion of the run becomes roughly three times faster. The coverage
+threshold, test-set composition, and isolation semantics do not change; the
+threshold is checked in the same way.
 
-Полный набор с PostgreSQL на Windows, Python 3.12, `-n 4`: **636 с** пока
-`concurrency=greenlet` отключал sysmon, против **522 с** после снятия,
-покрытие 93.44 %.
+The full set with PostgreSQL on Windows, Python 3.12, `-n 4`: **636 s** while
+`concurrency=greenlet` disabled sysmon, versus **522 s** after its removal,
+with 93.44% coverage.
 
-Маркер `pg` ставится корневым conftest автоматически по fixture-замыканию,
-поэтому селекция «набор без базы» не может разойтись с реальной потребностью
-тестов.
+The root conftest automatically applies the `pg` marker through fixture
+closure, so selecting the "set without a database" cannot diverge from the
+tests' actual requirements.
 
-Цена решения — одна session-scoped база на worker, которая живёт до конца
-процесса и удаляется при teardown. Одновременные клоны из одного template
-безопасны: ни один процесс не подключён к источнику в момент копирования.
+The cost of the decision is one session-scoped database per worker, which
+lives until the process ends and is removed during teardown. Concurrent clones
+from one template are safe: no process is connected to the source while it is
+being copied.

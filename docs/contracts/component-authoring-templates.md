@@ -1,79 +1,77 @@
 ---
-description: "Версионируемые scaffold-планы и безопасная проекция authoring templates компонентов."
-last_verified: "2026-08-31"
+description: "Versioned scaffold plans and safe projection of component authoring templates."
+last_verified: "2026-08-29"
 ---
 
-# Authoring templates компонентов
+# Component authoring templates
 
-Переносимый синтаксис принадлежит `SPEC-005` REQ-528, а полный scaffold lifecycle —
-[`SPEC-041`](../../specs/active/SPEC-041-component-scaffold-framework.md). Ни один
-из путей не публикует объект и не записывает итоговое состояние харнесса.
+The portable syntax belongs to `SPEC-005` REQ-528, while the complete scaffold lifecycle
+belongs to [`SPEC-041`](../../specs/active/SPEC-041-component-scaffold-framework.md). Neither
+path publishes an object or writes the final harness state.
 
-## Команды
+## Commands
 
-`component scaffold plan` принимает вид, язык, вариант харнесса, имя и новый
-каталог. Он ничего не записывает и возвращает версии template/generator, полный
-список файлов, размеры, режимы, digest каждого файла и digest всего плана.
-Файл хешируется в домене `ai-stp:artifact:v1`, канонический JSON входов плана —
-в домене `ai-stp:scaffold-plan:v1`; `plan_id` выводится из первых 24 hex-символов
-plan digest.
+`component scaffold plan` accepts a type, language, harness variant, name, and new
+directory. It writes nothing and returns the template/generator versions, complete
+file list, sizes, modes, each file's digest, and the entire plan's digest.
+A file is hashed in the `ai-stp:artifact:v1` domain; canonical JSON of the plan inputs
+is hashed in the `ai-stp:scaffold-plan:v1` domain; `plan_id` is derived from the first
+24 hex characters of the plan digest.
 
-`component scaffold apply` принимает те же входы и exact
-`--expected-plan-digest`, который подтверждает локальный эффект. CLI повторно строит план, резервирует
-новый каталог без перезаписи и создаёт файлы `0600`, откатывая собственный
-неполный результат при отказе. Существующий target — даже пустой — symlink и
-отсутствующий parent отклоняются; скрытой перезаписи или merge нет.
+`component scaffold apply` accepts the same inputs, the exact
+`--expected-plan-digest`, and `--confirm`. The CLI rebuilds the plan, reserves a new
+directory without overwriting, and creates files with mode `0600`, rolling back its
+own incomplete result on failure. An existing target—even an empty one—a symlink,
+and a missing parent are rejected; there is no hidden overwrite or merge.
 
-Декларативные `instruction`, `skill`, `command`, `agent`, `setting` используют
-`--language none`. Исполняемые `mcp` и `plugin` выбирают `python`, `typescript`,
-`javascript`, `rust`, `go` или `dart-flutter`; `hook` не принимает Rust и Go,
-потому что provider не выполняет скрытую сборку source. Вариант — `portable`
-или один из харнессов закрытого реестра. Если у выбранного харнесса нет
-самостоятельной нативной формы вида, plan закрывается отказом до записи.
+Declarative `instruction`, `skill`, `command`, `agent`, and `setting` use
+`--language none`. Executable `mcp` and `plugin` select `python`, `typescript`,
+`javascript`, `rust`, `go`, or `dart-flutter`; `hook` does not accept Rust or Go
+because the provider does not perform a hidden source build. The variant is `portable`
+or one of the harnesses in the closed registry. If the selected harness has no
+independent native form for the type, the plan fails closed before any write.
 
-Каталог версии `component-scaffold/2` содержит `component-passport.json`, `eval-profile.json`, descriptor,
-переносимый файл authoring-template.md, README, safety declaration, publication checklist,
-а также готовую нативную раскладку в `native/`. Паспорт —
-локальный patch: в нём нет придуманного source, секретов или разрешения
-распространения. Автор продолжает путь через `component passport validate`,
-локальную регистрацию и команды публикационного плана.
+The `component-scaffold/2` version directory contains `component-passport.json`, `eval-profile.json`, a descriptor,
+portable authoring-template.md, README, safety declaration, publication checklist,
+and a ready native layout under `native/`. The passport is a local patch: it contains
+no invented source, secrets, or permission to redistribute. The author continues via
+`component passport validate`, local registration, and publication plan commands.
 
-Для hook канонический `hook-source.json` хранит событие, порядок, блокирующую
-failure policy и команду handler; строгая схема запрещает лишние поля. Из него
-детерминированно создаются `native/hooks.json` и соседний исполняемый handler.
-Manifest-directory plugins получают product manifest. OpenCode и Pi получают
-одиночный JS/TS module без придуманного manifest. Marketplace registration не
-является plugin package: это отдельный `setting`, владеющий целым нативным
-settings-файлом. Codex agent как standalone component не существует и
-отклоняется вместо преобразования в другой вид.
+For a hook, canonical `hook-source.json` stores the event, order, blocking failure
+policy, and handler command; the strict schema prohibits extra fields. It
+deterministically produces `native/hooks.json` and an adjacent executable handler.
+Manifest-directory plugins receive a product manifest. OpenCode and Pi receive a
+single JS/TS module without an invented manifest. Marketplace registration is not a
+plugin package: it is a separate `setting` that owns an entire native settings file.
+A Codex agent does not exist as a standalone component and is rejected instead of
+being converted into another type.
 
-## Путь автора
+## Author path
 
-1. Выполнить `component scaffold plan`, просмотреть descriptor, каждый файл и
-   digest, затем передать неизменившиеся входы в `component scaffold apply` с
-   exact plan digest.
-2. Реализовать поведение и заполнить только подтверждённые факты patch. Для
-   `required_env` записываются имена и назначение, но не значения. Source
-   добавляется только после фиксации публичного GitHub commit.
-3. Поместить компонент в поддержанный native layout, выполнить
-   `component discover` и `component adopt`, затем применить patch через
-   `component passport update --expected-revision ... --from ...`.
-4. Выполнить `component passport validate` и evaluation lifecycle. Сохранённый
-   профиль заранее показывает, что core выполнит local-static checks, а
-   model/human checks без соответствующего runner честно останутся `not_run`.
-5. Записать и выпустить точную версию, после чего использовать
-   `publication plan` и `publication confirm`. Publication checklist не является
-   разрешением: источник, лицензия, evidence и серверная проверка остаются
-   обязательными отдельными границами.
+1. Run `component scaffold plan`, review the descriptor, every file, and digest,
+   then pass unchanged inputs to `component scaffold apply` with the exact plan
+   digest and `--confirm`.
+2. Implement the behavior and fill in only confirmed patch facts. For `required_env`,
+   record names and purposes, but not values. Add source only after pinning a public
+   GitHub commit.
+3. Place the component in a supported native layout, run `component discover` and
+   `component adopt`, then apply the patch through
+   `component passport update --expected-revision ... --from ... --confirm`.
+4. Run `component passport validate` and the evaluation lifecycle. The saved profile
+   shows in advance that core will perform local-static checks, while model/human
+   checks without the corresponding runner will honestly remain `not_run`.
+5. Record and release an exact version, then use `publication plan` and
+   `publication confirm`. The publication checklist is not authorization: source,
+   license, evidence, and server-side validation remain mandatory separate boundaries.
 
-`component template render` читает один обычный файл не более 64 KiB без
-перехода по symlink и возвращает проверенную проекцию в machine output. Исходный
-файл и target при этом не меняются. Ответ содержит SHA-256 исходного и
-полученного UTF-8 текста, чтобы повтор можно было сравнить байт-в-байт.
+`component template render` reads one regular file of no more than 64 KiB without
+following a symlink and returns a validated projection in machine output. The source
+file and target remain unchanged. The response contains SHA-256 values of the source
+and resulting UTF-8 text so a repeat can be compared byte for byte.
 
-## Закрытый синтаксис
+## Closed syntax
 
-Вне fenced code разрешены только четыре placeholders:
+Outside fenced code, only four placeholders are allowed:
 
 ```text
 {{harness_id}}
@@ -82,24 +80,22 @@ settings-файлом. Codex agent как standalone component не сущест
 {{config_root}}
 ```
 
-Они означают соответственно выбранный идентификатор харнесса, ограниченный
-идентификатор `lowercase slug`, переданный относительный `POSIX path` и
-`config root` из исполнимого реестра харнессов.
+They mean, respectively, the selected harness identifier, a constrained `lowercase slug`
+identifier, the supplied relative `POSIX path`, and the `config root` from the
+executable harness registry.
 
-Условный блок занимает отдельные строки:
+A conditional block occupies separate lines:
 
 ```text
 {{#harness:claude-code,codex}}
-Текст только для перечисленных харнессов.
+Text only for the listed harnesses.
 {{/harness}}
 ```
 
-Имена в условии берутся только из закрытого реестра. Повторы, неизвестные
-имена, вложенные, лишние и незакрытые блоки отклоняются. Внутри fenced code
-placeholders и условные теги сохраняются буквально, поэтому пример синтаксиса
-не исполняется как шаблон.
+Names in the condition come only from the closed registry. Duplicates, unknown names,
+nested, extra, and unclosed blocks are rejected. Inside fenced code, placeholders and
+conditional tags remain literal, so a syntax example is not executed as a template.
 
-`component_root` не бывает абсолютным, не начинается с `~`, не содержит `..`,
-`.` или обратную косую черту и ограничен 512 символами. Значения placeholders
-сами проходят закрытую проверку, поэтому подстановка не может добавить новую
-строку или управляющий тег.
+`component_root` is never absolute, does not start with `~`, contains neither `..`,
+`.` nor a backslash, and is limited to 512 characters. Placeholder values themselves
+pass closed validation, so substitution cannot add a new line or control tag.

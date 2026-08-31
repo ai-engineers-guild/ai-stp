@@ -1,140 +1,140 @@
 ---
-description: "Сущности продукта, их владение и основные инварианты."
+description: "Product entities, their ownership, and core invariants."
 last_verified: "2026-08-29"
 ---
 
-# Доменная модель
+# Domain Model
 
-## Identity и устройства
+## Identity and Devices
 
-| Сущность | Смысл |
+| Entity | Meaning |
 |---|---|
-| Account | Внутренний пользователь платформы. |
-| OAuthIdentity | Связанный Google или GitHub identity. |
-| PublicProfile | Отдельно заполняемый публичный объект, не проекция паспорта. |
-| Device | Установка CLI с отдельным ID и ключом. |
-| AccessGrant | Право account ID получить приватный объект или major-линию. |
-| GrantInvitation | Приглашение на подтверждённую почту до появления права. |
-| AuditEvent | Неизменяемая запись чувствительного действия. |
-| ReportCase | Закрытый случай жалобы с механическими доказательствами и аудируемой модерацией. |
+| Account | An internal platform user. |
+| OAuthIdentity | A linked Google or GitHub identity. |
+| PublicProfile | A separately maintained public object, not a passport projection. |
+| Device | A CLI installation with its own ID and key. |
+| AccessGrant | The right of an account ID to access a private object or major line. |
+| GrantInvitation | An invitation sent to a verified email address before a grant exists. |
+| AuditEvent | An immutable record of a sensitive action. |
+| ReportCase | A private report case with mechanical evidence and auditable moderation. |
 
-## Паспорта и проекты
+## Passports and Projects
 
-| Сущность | Смысл |
+| Entity | Meaning |
 |---|---|
-| DeveloperPassport | Частный межустройственный профиль предпочтений и истории решений. |
-| DeveloperPassportRevision | Неизменяемая ревизия паспорта. |
-| DevicePassport | Частный паспорт окружения одного устройства: OS, architecture, харнессы и инструменты. |
-| DevicePassportRevision | Неизменяемая ревизия паспорта устройства. |
-| Project | Зарегистрированный локальный проект. |
-| ProjectPassport | Структурированные факты и требования проекта. |
-| ProjectIndex | Индекс ограниченных безопасных файлов и символов. |
-| Fact | Значение с происхождением, подтверждением и ссылками на источник. |
+| DeveloperPassport | A private cross-device profile of preferences and decision history. |
+| DeveloperPassportRevision | An immutable passport revision. |
+| DevicePassport | A private passport for one device environment: OS, architecture, harnesses, and tools. |
+| DevicePassportRevision | An immutable device-passport revision. |
+| Project | A registered local project. |
+| ProjectPassport | Structured project facts and requirements. |
+| ProjectIndex | An index of a restricted set of safe files and symbols. |
+| Fact | A value with provenance, confirmation, and source references. |
 
 ## Registry
 
-| Сущность | Смысл |
+| Entity | Meaning |
 |---|---|
-| Component | Стабильная логическая сущность компонента с закрытым `component_type` из восьми значений. |
-| ComponentVariant | Нативная реализация компонента для одного харнесса. |
-| ComponentVersion | Неизменяемая версия `X.Y`. |
-| Setup | Стабильная логическая сущность сетапа, принадлежащая одному харнессу. |
-| SetupVersion | Неизменяемая версия сетапа. |
-| SetupLineage | Необязательная связь происхождения между сетапами разных харнессов. |
-| DraftRevision | Изменяемая private history до freeze/publish. |
-| Artifact | Content-addressed bytes с точным хэшем. |
-| ValidationSnapshot | Результаты проверок exact digest. |
-| EvidenceBinding | Принятый источник доказательства одной обязательной проверки со сроком. |
-| PublicationPlan | Неизменяемый серверный план публикации (Operation) с plan_hash. |
-| Article | Стабильный материал content hub с единственным source owner `repository` или `staff`. |
-| ArticleRevision | Неизменяемая локализованная ревизия Article с canonical digest и provenance. |
-| ArticleActive | Активные RU/EN pointers опубликованной Article. |
-| SeoFactSnapshot | Неизменяемая allowlist-проекция публичных фактов точной ревизии subject и locale. |
-| SeoRevision | Неизменяемое presentation-представление snapshot с provenance генератора. |
-| SeoActiveRevision | Единственный активный указатель presentation для subject и locale. |
+| Component | A stable logical component entity with a closed eight-value `component_type`. |
+| ComponentVariant | A native component implementation for one harness. |
+| ComponentVersion | An immutable `X.Y` version. |
+| Setup | A stable logical setup entity belonging to one harness. |
+| SetupVersion | An immutable setup version. |
+| SetupLineage | An optional provenance relationship between setups for different harnesses. |
+| DraftRevision | Mutable private history before freeze/publish. |
+| Artifact | Content-addressed bytes with an exact hash. |
+| ValidationSnapshot | Validation results for an exact digest. |
+| EvidenceBinding | The accepted source of time-bounded evidence for one required check. |
+| PublicationPlan | An immutable server-side publication plan (Operation) with a plan_hash. |
+| Article | A stable content-hub item with exactly one source owner: `repository` or `staff`. |
+| ArticleRevision | An immutable localized Article revision with a canonical digest and provenance. |
+| ArticleActive | Active RU/EN pointers for a published Article. |
+| SeoFactSnapshot | An immutable allowlist projection of public facts for an exact subject revision and locale. |
+| SeoRevision | An immutable presentation representation of a snapshot with generator provenance. |
+| SeoActiveRevision | The single active presentation pointer for a subject and locale. |
 
-## Сборка
+## Compilation
 
-| Сущность | Смысл |
+| Entity | Meaning |
 |---|---|
-| SelectionRun | Контекст, вопросы, candidates и решения. |
-| SelectionProposal | Производное недолговечное предложение состава внутри сеанса рекомендации. |
-| UnverifiedConsent | Долговечная запись согласия области publisher или object_major с отпечатком полномочий. |
-| RecommendationTrace | Линия доверия, источник согласия и причины выбора кандидата. |
-| SetupGraph | Узлы компонентов и зависимости. |
-| Overlay | Ограниченное изменение поверх upstream version. |
-| Conflict | Неразрешённое противоречие. |
-| CompositionReport | Почему выбран каждый компонент. |
-| ConversionReport | Полнота нативной адаптации. |
-| HarnessBundle | Проверенный пакет для provider. |
+| SelectionRun | Context, questions, candidates, and decisions. |
+| SelectionProposal | A derived, short-lived composition proposal within a recommendation session. |
+| UnverifiedConsent | A durable consent record scoped to a publisher or object_major, with a capability fingerprint. |
+| RecommendationTrace | The trust lane, consent source, and reasons for selecting a candidate. |
+| SetupGraph | Component nodes and dependencies. |
+| Overlay | A constrained change on top of an upstream version. |
+| Conflict | An unresolved contradiction. |
+| CompositionReport | Why each component was selected. |
+| ConversionReport | The completeness of native adaptation. |
+| HarnessBundle | A validated package for the provider. |
 
-## Установка
+## Installation
 
-| Сущность | Смысл |
+| Entity | Meaning |
 |---|---|
-| ProviderRelease | Exact version публичного setup-manager. |
-| HarnessTarget | Изолированный каталог runtime/configuration. |
-| ImportedSetup | Личный сетап, созданный из существующей нативной конфигурации. |
-| InstallPlan | Side-effect-free план с digest и предусловиями. |
-| Operation | Durable plan/apply/verify lifecycle. |
-| InstallationSnapshot | Состояние до и после операции. |
-| BackupRef | Ссылка на provider-owned backup. |
-| ActiveTargetPointer | Выбранный target следующего запуска. |
+| ProviderRelease | An exact version of a public setup manager. |
+| HarnessTarget | An isolated runtime/configuration directory. |
+| ImportedSetup | A personal setup created from an existing native configuration. |
+| InstallPlan | A side-effect-free plan with a digest and preconditions. |
+| Operation | A durable plan/apply/verify lifecycle. |
+| InstallationSnapshot | State before and after an operation. |
+| BackupRef | A reference to a provider-owned backup. |
+| ActiveTargetPointer | The selected target for the next launch. |
 
-## Синхронизация
+## Synchronization
 
-| Сущность | Смысл |
+| Entity | Meaning |
 |---|---|
-| EntityRevision | Content-addressed revision с parents. |
-| DeviceHead | Последняя известная ревизия сущности на устройстве. |
-| ServerHead | Текущая принятая сервером ревизия сущности в одном account. |
-| SyncCursor | Позиция принятого server stream. |
-| LocalOutboxEvent | Локальное изменение, ожидающее отправки. |
-| ServerOutboxEvent | Упорядоченная запись о принятом сервером изменении для pull. |
-| SyncReceipt | Долговечный идемпотентный результат одного server sync event. |
-| Tombstone | Явное удаление. |
-| ConflictRecord | Неразрешённое параллельное изменение. |
+| EntityRevision | A content-addressed revision with parents. |
+| DeviceHead | The latest known entity revision on a device. |
+| ServerHead | The current revision accepted by the server within one account. |
+| SyncCursor | A position in the accepted server stream. |
+| LocalOutboxEvent | A local change awaiting upload. |
+| ServerOutboxEvent | An ordered record of a server-accepted change for pull. |
+| SyncReceipt | A durable, idempotent result for one server sync event. |
+| Tombstone | An explicit deletion. |
+| ConflictRecord | An unresolved concurrent change. |
 
-## Владение данными
+## Data Ownership
 
-| Данные | Владелец |
+| Data | Owner |
 |---|---|
-| Файлы target | локальный провайдер харнесса |
-| Installation state | устройство |
-| Local draft | локальный реестр, облачная копия опциональна |
-| Published metadata и version | сервер |
-| Visibility, grants, verified badge | сервер |
-| Project index | устройство; облако только после opt-in |
-| Backup bytes | провайдер на устройстве |
-| Создание паспортов и установка | CLI и агент пользователя |
-| Аккаунт, приватность, устройства и публикация | общий сценарий для web и CLI |
+| Target files | local harness provider |
+| Installation state | device |
+| Local draft | local registry; cloud copy is optional |
+| Published metadata and version | server |
+| Visibility, grants, verified badge | server |
+| Project index | device; cloud only after opt-in |
+| Backup bytes | provider on the device |
+| Passport creation and installation | CLI and the user's Agent |
+| Account, privacy, devices, and publication | shared web and CLI scenario |
 
-## Инварианты
+## Invariants
 
-- DeveloperPassport private по умолчанию.
-- Наблюдаемые факты окружения принадлежат DevicePassport; DeveloperPassport их не содержит.
-- Паспорта устройств не объединяются между устройствами; межустройственно объединяется только DeveloperPassport.
-- PublicProfile заполняется отдельно и не получает поля из паспорта автоматически.
-- Факт хранит происхождение и подтверждение как две независимые оси.
-- Published version immutable.
-- Version `X.Y` не переиспользуется для другого digest.
-- Setup принадлежит одному `harness_id`, заданному при создании.
-- Идентичность SetupVersion не содержит вариант; родство сетапов выражается SetupLineage.
-- SetupVersion pin'ит exact ComponentVersion.
-- SelectionProposal недолговечно; SetupVersion возникает только из явного подтверждения пользователя.
-- Зависимости компонента разделены на `requires_components` и `requires_capabilities`.
-- Major-линия определяет будущую access boundary.
-- Получатель права читает, устанавливает и форкает, но не редактирует оригинал.
-- Неизменённый клон не переиздаётся; производная публикация требует содержательного изменения.
-- InstallationSnapshot не дублирует backup bytes.
-- BackupRef и ImportedSetup остаются разными объектами.
-- Device signature не равна platform-executed validation.
-- Unverified object входит в выдачу только по явному согласию и не попадает в authoritative lane.
-- Запись согласия ограничена областью publisher или object_major и отменяется расширением полномочий.
-- `author_verified` и `component_verified` являются независимыми осями.
-- AccessGrant не создаётся знанием account ID или адреса почты.
-- Число жалоб само не меняет жизненный цикл версии; скрытие и блокировка — аудируемые действия модератора.
-- Пригодность к установке выводится из актуальных обязательных доказательств и не отключает установленные цели.
-- Published version не merge'ится; выпускается новая версия.
-- Article source owner не меняется при import или staff publication; совпадение identity другого owner отклоняется.
-- SEO revision не изменяет passport, тело статьи, trust или lifecycle; созданная моделью presentation активируется только после детерминированной base revision и проверки фактов.
+- DeveloperPassport is private by default.
+- Observable environment facts belong to DevicePassport; DeveloperPassport does not contain them.
+- Device passports are not merged across devices; only DeveloperPassport is merged across devices.
+- PublicProfile is maintained separately and does not receive passport fields automatically.
+- A fact stores provenance and confirmation as two independent axes.
+- A published version is immutable.
+- Version `X.Y` is not reused for a different digest.
+- A Setup belongs to one `harness_id`, fixed at creation.
+- SetupVersion identity does not contain a variant; relationships between setups are expressed through SetupLineage.
+- SetupVersion pins an exact ComponentVersion.
+- SelectionProposal is short-lived; SetupVersion is created only from explicit user confirmation.
+- Component dependencies are split into `requires_components` and `requires_capabilities`.
+- A major line defines the future access boundary.
+- A grant recipient may read, install, and fork, but may not edit the original.
+- An unchanged clone is not republished; derivative publication requires a substantive change.
+- InstallationSnapshot does not duplicate backup bytes.
+- BackupRef and ImportedSetup remain distinct objects.
+- A device signature is not platform-executed validation.
+- An unverified object enters results only with explicit consent and never enters the authoritative lane.
+- A consent record is scoped to a publisher or object_major and is revoked when capabilities expand.
+- `author_verified` and `component_verified` are independent axes.
+- AccessGrant is not created merely from knowledge of an account ID or email address.
+- Report count alone does not change a version's lifecycle; hiding and blocking are auditable moderator actions.
+- Installability is derived from current required evidence and does not disable installed targets.
+- A published version is not merged; a new version is released.
+- An Article's source owner does not change on import or staff publication; an identity collision with another owner is rejected.
+- An SEO revision does not change a passport, article body, trust, or lifecycle; model-generated presentation is activated only after a deterministic base revision and fact validation.

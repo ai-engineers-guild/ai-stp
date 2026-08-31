@@ -1,101 +1,106 @@
 ---
-description: "SPEC-041: Версионируемые scaffold-планы полного authoring-каталога компонента."
-last_verified: "2026-08-31"
+description: "SPEC-041: Versioned scaffold plans for a component's complete authoring catalog."
+last_verified: "2026-08-29"
 ---
 
-# SPEC-041: Scaffold framework компонентов
+# SPEC-041: Component scaffold framework
 
-## Цель
+## Purpose
 
-Автор или агент получает детерминированную заготовку компонента, которую можно
-проверить, зарегистрировать локально и затем обогатить точным происхождением для
-публикации. Создание отделено от preview точной границей plan/confirm и никогда
-не перезаписывает существующий путь.
+An author or agent receives a deterministic component scaffold that can be
+validated, registered locally, and then enriched with precise provenance for
+publication. Creation is separated from preview by an exact plan/confirm
+boundary and never overwrites an existing path.
 
-## Границы
+## Scope
 
-Framework создаёт локальный authoring-каталог и закрытый паспортный patch. Он не
-регистрирует объект, не придумывает public source, лицензию или полномочия, не
-вызывает package manager и не выполняет сгенерированный код.
+The framework creates a local authoring catalog and a private passport patch. It
+does not register the object, invent a public source, license, or authorization,
+invoke a package manager, or execute generated code.
 
-## Термины
+## Terms
 
-- **Descriptor** — закрытый выбор версии template/generator, вида, языка и
-  варианта харнесса.
-- **Scaffold plan** — content-addressed preview всех создаваемых файлов.
-- **Scaffold apply** — подтверждённое создание нового каталога по exact plan.
+- **Descriptor** — a private selection of the template/generator version, type,
+  language, and harness variant.
+- **Scaffold plan** — a content-addressed preview of all files to be created.
+- **Scaffold apply** — confirmed creation of a new catalog from the exact plan.
 
-## Требования
+## Requirements
 
-- `REQ-4101`: Descriptor фиксирует версии template и generator, один из восьми
-  видов компонента, язык, portable или конкретный harness variant и признак
-  исполняемости.
-- `REQ-4102`: Матрица допускает `none` для декларативных `instruction`, `skill`,
-  `command`, `agent`, `setting`; `mcp` и `plugin` используют один из исполняемых
-  языков, а `hook` — только язык, чей source можно запустить после установки без
-  неявной сборки. Сочетание без нативной семантики выбранного харнесса
-  отклоняется до записи файлов.
-- `REQ-4103`: Plan перечисляет каждый относительный путь, точный byte length,
-  режим и domain-separated digest и связывает их с абсолютным новым target.
-- `REQ-4104`: Scaffold содержит descriptor, закрытый component passport patch,
-  `SetupEvalProfile`, README, safety declaration, publication checklist,
-  исходную заготовку и проверку для выбранного языка.
-- `REQ-4105`: Passport patch использует только имена `required_env`, объявляет
-  пустые минимальные permissions и capabilities и честно сохраняет
-  `NOASSERTION`/запрет распространения до решения автора. Portable descriptor не
-  выдаётся за паспорт конкретного харнесса.
-- `REQ-4106`: Apply повторно строит plan из тех же явных входов и требует его
-  exact digest как подтверждение локального обратимого эффекта, создаёт
-  owner-only файлы с откатом своего неполного результата и закрывается
-  отказом для существующего target, symlink или отсутствующего parent.
-- `REQ-4107`: Eval skeleton содержит локальную deterministic проверку, а
-  недоступные model/human проверки при выполнении получают `not_run` по
-  `SPEC-040`; scaffold сам код не исполняет.
-- `REQ-4108`: Scaffold содержит каталог `native/` с точной раскладкой выбранного
-  харнесса. `instruction`, `command`, `agent` и `setting` получают нативный файл
-  или каталог из реестра проекций; целый settings-файл является одним
-  компонентом. Codex `agent` не маскируется под отдельный вид: такая комбинация
-  отклоняется.
-- `REQ-4109`: `hook-source.json` строго фиксирует событие, порядок, блокирующую
-  политику отказа и команду обработчика. Нативный manifest и соседний handler
-  выводятся детерминированно; scaffold не создаёт заглушку `handle_event`.
-- `REQ-4110`: Manifest-directory plugin несёт нативный manifest выбранного
-  продукта. OpenCode plugin является одиночным `plugins/<name>.js|ts`, Pi
-  extension — одиночным JS/TS package entry. Регистрация marketplace не входит
-  в plugin package и моделируется отдельным `setting`.
+- `REQ-4101`: The descriptor pins the template and generator versions, one of
+  the eight component types, the language, a portable or specific harness
+  variant, and the executability flag.
+- `REQ-4102`: The matrix permits `none` for the declarative `instruction`,
+  `skill`, `command`, `agent`, and `setting` types; `mcp` and `plugin` use one of
+  the executable languages, while `hook` uses only a language whose source can
+  be run after installation without an implicit build. A combination without
+  native semantics in the selected harness is rejected before any files are
+  written.
+- `REQ-4103`: The plan lists every relative path, exact byte length, mode, and
+  domain-separated digest and binds them to an absolute new target.
+- `REQ-4104`: The scaffold contains the descriptor, private component passport
+  patch, `SetupEvalProfile`, README, safety declaration, publication checklist,
+  source scaffold, and a check for the selected language.
+- `REQ-4105`: The passport patch uses only `required_env` names, declares empty
+  minimal permissions and capabilities, and faithfully retains
+  `NOASSERTION`/the prohibition on distribution until the author decides. A
+  portable descriptor is not misrepresented as a passport for a specific
+  harness.
+- `REQ-4106`: Apply rebuilds the plan from the same explicit inputs, requires its
+  exact digest and `--confirm`, creates owner-only files, rolls back its own
+  incomplete result, and fails closed for an existing target, a symlink, or a
+  missing parent.
+- `REQ-4107`: The eval skeleton contains a local deterministic check, while
+  unavailable model/human checks receive `not_run` when executed under
+  `SPEC-040`; the scaffold itself does not execute code.
+- `REQ-4108`: The scaffold contains a `native/` catalog with the exact layout
+  for the selected harness. `instruction`, `command`, `agent`, and `setting`
+  receive a native file or catalog from the projection registry; an entire
+  settings file is one component. A Codex `agent` is not disguised as a
+  separate type: that combination is rejected.
+- `REQ-4109`: `hook-source.json` strictly pins the event, order, blocking failure
+  policy, and handler command. The native manifest and adjacent handler are
+  derived deterministically; the scaffold does not create a `handle_event`
+  stub.
+- `REQ-4110`: A manifest-directory plugin carries the selected product's native
+  manifest. An OpenCode plugin is a single `plugins/<name>.js|ts` file, while a
+  Pi extension is a single JS/TS package entry. Marketplace registration is not
+  part of the plugin package and is modeled as a separate `setting`.
 
-## Состояния и ошибки
+## States and errors
 
-Plan не является сохранённым mutable объектом: одинаковые входы и свободный
-target дают одинаковые bytes и digest. Неверная комбинация матрицы, stale plan,
-изменённые bytes, занятый или небезопасный target дают типизированный отказ до
-изменения принадлежащих пользователю файлов.
+A plan is not a persisted mutable object: identical inputs and an available
+target produce identical bytes and digest. An invalid matrix combination, stale
+plan, modified bytes, or an occupied or unsafe target results in a typed failure
+before any user-owned files are modified.
 
-## Безопасность и приватность
+## Security and privacy
 
-Scaffold не читает environment values, credentials и пользовательские файлы.
-Он не открывает сеть и не исполняет созданный код. Patch содержит только пустой
-список `required_env`; последующее обогащение принимает имена переменных, но не
-их значения. Cleanup удаляет только файлы и каталоги, созданные текущим apply.
+The scaffold does not read environment values, credentials, or user files. It
+does not access the network or execute created code. The patch contains only an
+empty `required_env` list; subsequent enrichment accepts variable names but not
+their values. Cleanup removes only files and catalogs created by the current
+apply.
 
-## Совместимость и миграция
+## Compatibility and migration
 
-`component-scaffold/2` и `ai-stp/2` являются текущими независимыми версиями
-template и generator; descriptors версии `1` остаются валидными. Изменение точных создаваемых байтов требует новой template version;
-изменение механики без изменения descriptor contract требует новой generator
-version. Старые descriptors остаются валидируемыми собственной схемой.
+`component-scaffold/2` and `ai-stp/2` are the current independent versions of
+the template and generator; version `1` descriptors remain valid. A change to
+the exact generated bytes requires a new template version; a change to the
+mechanics without changing the descriptor contract requires a new generator
+version. Older descriptors remain validatable against their own schema.
 
-## Критерии приёмки
+## Acceptance criteria
 
-| Требование | Исполнимый способ проверки |
+| Requirement | Executable verification method |
 |---|---|
-| `REQ-4101` | Строгая схема отклоняет неизвестные поля и значения вне закрытых vocabulary. |
-| `REQ-4102` | Параметризованный тест проходит всю type × language × variant матрицу и отрицательные сочетания. |
-| `REQ-4103` | Повторный preview совпадает, а каждый digest пересчитывается из фактических bytes. |
-| `REQ-4104` | Для каждой строки матрицы паспорт и eval profile проходят свои схемы, а обязательные файлы присутствуют. |
-| `REQ-4105` | Fixtures не содержат secret values, public source claim и разрешение распространения. |
-| `REQ-4106` | Без exact digest, со stale digest, существующим target, symlink и отсутствующим parent операция отказана без изменения файлов. |
-| `REQ-4107` | Eval profile содержит deterministic и model-assisted checks; общий runner подтверждает честный `not_run`. |
-| `REQ-4108` | Fixtures нативных instruction/command/agent/setting совпадают с реестром; неподдерживаемый Codex agent отказан без записи. |
-| `REQ-4109` | Hook fixtures сохраняют событие, порядок, failure policy и команду; malformed source отклоняется строгой схемой. |
-| `REQ-4110` | Fixtures различают manifest packages и одиночные OpenCode/Pi modules; plugin не пишет marketplace settings. |
+| `REQ-4101` | The strict schema rejects unknown fields and values outside the closed vocabularies. |
+| `REQ-4102` | A parameterized test covers the entire type × language × variant matrix and negative combinations. |
+| `REQ-4103` | A repeated preview matches, and every digest is recomputed from the actual bytes. |
+| `REQ-4104` | For every matrix row, the passport and eval profile pass their respective schemas, and all required files are present. |
+| `REQ-4105` | Fixtures contain no secret values, public source claims, or permission to distribute. |
+| `REQ-4106` | Without confirm, with a stale digest, an existing target, a symlink, or a missing parent, the operation is rejected without modifying files. |
+| `REQ-4107` | The eval profile contains deterministic and model-assisted checks; the shared runner confirms an accurate `not_run`. |
+| `REQ-4108` | Fixtures for native instruction/command/agent/setting components match the registry; an unsupported Codex agent is rejected without writing files. |
+| `REQ-4109` | Hook fixtures preserve the event, order, failure policy, and command; malformed source is rejected by the strict schema. |
+| `REQ-4110` | Fixtures distinguish manifest packages from single OpenCode/Pi modules; the plugin does not write marketplace settings. |

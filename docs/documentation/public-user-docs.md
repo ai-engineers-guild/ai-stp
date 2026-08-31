@@ -1,43 +1,44 @@
 ---
-description: "Граница, каталог и сборка публичной пользовательской документации."
+description: "Boundary, directory, and build process for public user documentation."
 last_verified: "2026-08-10"
 ---
 
-# Публичная пользовательская документация
+# Public User Documentation
 
-Публичная пользовательская документация живёт в `user-docs/`. Это help center
-для разработчика и его агента: как установить CLI, понять каталог, выбрать
-компоненты, собрать сетап, оценить доверие и восстановиться после ошибки.
+Public user documentation lives in `user-docs/`. It is a help center for a
+developer and their Agent: how to install the CLI, understand the catalog,
+select components, build a setup, evaluate trust, and recover from an error.
 
-`docs/` остаётся внутренним нормативным контуром репозитория. ADR,
-спецификации, контракты, инженерные правила и runbooks не копируются в
-`user-docs/`; публичные страницы ссылаются на них только когда читателю нужен
-источник истины.
+`docs/` remains the repository's internal normative environment. ADRs,
+specifications, contracts, engineering rules, and runbooks are not copied into
+`user-docs/`; public pages link to them only when the reader needs the source
+of truth.
 
-Сборка выполняется отдельным конфигом:
+The site is built with a separate configuration:
 
 ```bash
 just user-docs-build
 ```
 
-Локальный preview:
+Local preview:
 
 ```bash
 just user-docs-serve
 ```
 
-Артефакт public site пишется в `.site-user-docs/`. Его можно отдавать
-статическим контейнером или отдельным маршрутом Caddy без запуска `apps/web`.
+The public-site artifact is written to `.site-user-docs/`. It can be served by
+a static container or a dedicated Caddy route without running `apps/web`.
 
-В compose публичная пользовательская документация отдаётся отдельным service
-`docs`. В dev он публикуется как `http://localhost:8011`; в prod Caddy
-ведёт отдельный host `AI_STP_DOCS_HOST` к внутреннему `docs:8080`.
+In Compose, public user documentation is served by a separate `docs` service.
+In development it is published at `http://localhost:8011`; in production,
+Caddy routes a dedicated `AI_STP_DOCS_HOST` host to the internal `docs:8080`.
 
-Ссылки из `apps/web` берутся из `AI_STP_USER_DOCS_URL`. В dev это
-`http://localhost:8011`, в prod — HTTPS URL docs-subdomain. Path
-`/docs` остаётся за API documentation и не используется как help center.
+Links from `apps/web` use `AI_STP_USER_DOCS_URL`. In development this is
+`http://localhost:8011`; in production it is the HTTPS URL of the docs
+subdomain. The `/docs` path remains reserved for API documentation and is not
+used as the help center.
 
-Навигация публичного сайта задаётся рядом с контентом через
-`user-docs/.pages`. Markdown остаётся базовым форматом. Если странице нужны
-данные контракта, она должна ссылаться на канонический владелец в `docs/`,
-`specs/active/` или `schemas/`, а не копировать нормативное определение.
+Public-site navigation is defined alongside the content through
+`user-docs/.pages`. Markdown remains the base format. If a page needs contract
+data, it must link to the canonical owner in `docs/`, `specs/active/`, or
+`schemas/` rather than copying a normative definition.

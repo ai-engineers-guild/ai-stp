@@ -1,64 +1,67 @@
 ---
-description: "Машинный контракт общих descriptors для local ports и metadata adapters."
+description: "Machine contract for shared descriptors used by local ports and metadata adapters."
 last_verified: "2026-08-16"
 ---
 
 # Federated sources
 
-## Общая граница
+## Shared boundary
 
-`FederatedSourceDescriptor` версии `federated-source/1` проецирует внешний
-источник без переноса его vendor schema в паспорт. `source_kind=local_port`
-обозначает exact локальный snapshot; `metadata_adapter` — официальное удалённое
-наблюдение. Оба вида имеют `authority=external_observation`, ложные verification
-оси и `target_write=false`.
+`FederatedSourceDescriptor` version `federated-source/1` projects an external
+source without importing its vendor schema into the passport.
+`source_kind=local_port` denotes an exact local snapshot; `metadata_adapter`
+denotes an official remote observation. Both kinds have
+`authority=external_observation`, false verification axes, and
+`target_write=false`.
 
-Поля и закрытые vocabulary принадлежат генерируемой схеме
-`federated-source-descriptor`. `FederatedSourceSet` хранит несколько references
-одного ASTP object и фиксирует `auto_merged=false`.
+The fields and closed vocabulary belong to the generated
+`federated-source-descriptor` schema. `FederatedSourceSet` stores multiple
+references for one ASTP object and records `auto_merged=false`.
 
-## Identity и deduplication
+## Identity and deduplication
 
-Dedup key равен точной паре provider/external identifier. Для SX/APM external
-identifier — snapshot digest. Для доступного GitHub observation — immutable
-repository id; до первого успешного наблюдения — точная source coordinate.
-Похожее имя и наблюдаемые показатели другого provider не являются точным
-совпадением identity.
+The dedup key is the exact provider/external identifier pair. For SX/APM, the
+external identifier is the snapshot digest. For an available GitHub observation,
+it is the immutable repository id; before the first successful observation, it
+is the exact source coordinate. A similar name and observed metrics from another
+provider are not an exact identity match.
 
-## Полномочия
+## Authority
 
-Local port может объявить только `confirmed_private_draft_import`: реальный import
-остаётся отдельной digest-bound операцией с подтверждением. Metadata adapter имеет
-`registry_effect=none`. Ни один descriptor не публикует объект, не изменяет
-eligibility, verification, lifecycle или target.
+A local port may declare only `confirmed_private_draft_import`: the actual import
+remains a separate digest-bound operation requiring confirmation. A metadata
+adapter has `registry_effect=none`. No descriptor publishes an object or changes
+eligibility, verification, lifecycle, or the target.
 
-## Freshness и расширение
+## Freshness and extension
 
-Локальный snapshot имеет `local_snapshot`, фиксирует `checked_at` и не выдумывает
-время сетевого fetch. Удалённое наблюдение имеет `fresh`, `stale` либо
-`unavailable`; только unavailable не содержит `fetched_at`. `external_state`
-переносит `present`, `archived` либо `unavailable` как наблюдение, а не решение
-жизненного цикла ASTP. У локального порта нет сетевого ограничения частоты;
-адаптер метаданных обязан соблюдать собственную политику TTL и ограничения
-частоты. Добавление `provider` или `source_kind` меняет закрытый контракт и
-требует спецификацию, генерацию схемы и проверочную фикстуру.
+A local snapshot has `local_snapshot`, records `checked_at`, and does not invent
+a network fetch time. A remote observation is `fresh`, `stale`, or `unavailable`;
+only unavailable omits `fetched_at`. `external_state` carries `present`,
+`archived`, or `unavailable` as an observation, not an ASTP lifecycle decision.
+A local port has no network rate limit; a metadata adapter must follow its own
+TTL and rate-limit policy. Adding a `provider` or `source_kind` changes the
+closed contract and requires a specification, schema generation, and a
+validation fixture.
 
 ## Catalog metadata adapters
 
-Server-owned adapters имеют provider `skills_sh`, `nori` или
-`modelcontextprotocol`. Exact coordinate задаётся до fetch и содержит provider и
-его immutable external identifier; ответ не может сам связать себя с ASTP object.
-Один object хранит несколько таких descriptors.
+Server-owned adapters have provider `skills_sh`, `nori`, or
+`modelcontextprotocol`. The exact coordinate is set before fetch and contains the
+provider and its immutable external identifier; a response cannot associate
+itself with an ASTP object. One object stores multiple such descriptors.
 
-Allowlist наблюдения: `display_name`, `summary`, `homepage_url`, `repository_url`,
-`published_at`, `updated_at`, `popularity_count` и `external_state`. Поля
-необязательны и bounded; неизвестные поля отбрасываются до persistence. Descriptor
-отдельно хранит source URL, attribution, terms URL, `fetched_at`, `checked_at`,
-`expires_at` и freshness. Artifact content, executable snippets, verification,
-trust и install claims не входят.
+The observation allowlist is `display_name`, `summary`, `homepage_url`,
+`repository_url`, `published_at`, `updated_at`, `popularity_count`, and
+`external_state`. Fields are optional and bounded; unknown fields are discarded
+before persistence. The descriptor separately stores the source URL,
+attribution, terms URL, `fetched_at`, `checked_at`, `expires_at`, and freshness.
+Artifact content, executable snippets, verification, trust, and install claims
+are excluded.
 
-Общие верхние границы: `256 KiB` response, JSON depth `16`, `100` collection
-элементов, `4096` кодовых точек Unicode на строку, `8` references на ревизию, connect
-timeout `2 s`, read timeout `5 s`, cache `1000` записей на provider и TTL `6 h`.
-Лимит fetch — не более `60` запросов в минуту на provider и не выше опубликованного
-ограничения источника. Более строгая provider policy всегда имеет приоритет.
+Shared upper bounds: `256 KiB` response, JSON depth `16`, `100` collection
+elements, `4096` Unicode code points per string, `8` references per revision,
+connect timeout `2 s`, read timeout `5 s`, cache of `1000` entries per provider,
+and TTL `6 h`. The fetch limit is at most `60` requests per minute per provider
+and never exceeds the source's published limit. A stricter provider policy
+always takes precedence.

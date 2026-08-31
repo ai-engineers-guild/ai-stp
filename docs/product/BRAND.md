@@ -1,19 +1,19 @@
 ---
-description: "Голос, тон, маркеры и правила идентичности продукта ai_stp."
+description: "The voice, tone, markers, and identity rules of the ai_stp product."
 last_verified: "2026-08-22"
 ---
 
-# ai_stp — бренд
+# ai_stp — brand
 
-## Паспорта сетапов для AI-харнессов
+## Setup passports for AI harnesses
 
-Единый слой подбора, сборки и безопасного жизненного цикла конфигураций AI-харнессов: паспорта, каталог, линии доверия, установка через проверенные провайдеры.
+A unified layer for selecting, assembling, and safely managing the lifecycle of AI harness configurations: passports, a catalog, trust lines, and installation through verified providers.
 
-## Система одной строкой
+## The system in one line
 
-Почти чёрный машинный холст, чернильные поверхности, белый основной и серый вторичный текст, серые линии `1px` и один сигнальный оранжевый (`#fb631b`) с гарнитурами IBM Plex Sans и IBM Plex Mono — светлый human и тёмный machine режимы.
+An almost-black machine canvas, ink surfaces, white primary and gray secondary text, gray `1px` lines, and a single signal orange (`#fb631b`) with IBM Plex Sans and IBM Plex Mono typefaces — light human and dark machine modes.
 
-## Знак продукта
+## Product mark
 
 | Element | Rule |
 | --- | --- |
@@ -42,46 +42,46 @@ last_verified: "2026-08-22"
 | Accent | `#fb631b` | Primary CTA, focus ring, active signals |
 | Accent hover | `#f4793f` | Primary hover / soft brand emphasis |
 
-В human режиме: холст `#ffffff`, чернильный текст `#181818`, песочная поверхность `#f9f8f4`, светлая линия `#d4d2cb`.
+In human mode: `#ffffff` canvas, `#181818` ink text, `#f9f8f4` sand surface, `#d4d2cb` light line.
 
-## Типографика
+## Typography
 
 - **Display / body:** plexSans (400, 500) — self-host `apps/web/public/fonts/plex-sans-*.woff2`
 - **Mono:** plexMono (400, 500) — ids, versions, install commands, technical meta — `plex-mono-*.woff2`
 - Fallbacks: Arial / system-ui (sans); ui-monospace stack (mono)
-- Обе гарнитуры — IBM Plex под SIL Open Font License 1.1, одна суперсемья, обе несут кириллицу.
-  Они заменили Gerstner Programm и FT System Mono, чьи собственные метаданные запрещают
-  хранение на публичных серверах и распространение — то есть ровно то, что делает этот
-  репозиторий, став публичным. Замена нашлась через `just fonts-licence`; заодно она
-  починила русский интерфейс, который на прежней паре молча падал в Arial.
+- Both typefaces are IBM Plex under the SIL Open Font License 1.1, from one superfamily, and both support Cyrillic.
+  They replaced Gerstner Programm and FT System Mono, whose own metadata prohibits
+  storage on public servers and distribution — exactly what this repository does
+  once it becomes public. The replacement was found through `just fonts-licence`; it also
+  fixed the Russian interface, which silently fell back to Arial with the previous pair.
 
-## Голос
+## Voice
 
-Точный, собранный и насыщенный сигналами голос. Он обращается к разработчикам и их coding agents, собирающим полные сетапы харнессов, без рекламной шелухи.
+A precise, composed, signal-rich voice. It addresses developers and their coding agents assembling complete harness setups, without marketing fluff.
 
-### Опоры
+### Pillars
 
-- Паспорта сетапов вместо разрозненных вставок
-- Линии доверия с фильтрацией
+- Setup passports instead of scattered snippets
+- Filtered trust lines
 - Agent-first CLI, human confirmation for risk
-- Локальный режим, публичный каталог и синхронизация после входа — три ясных режима
+- Local mode, public catalog, and synchronization after sign-in — three clear modes
 - Origin and verification are visible, not buried
 
-**Предпочитать:** паспорт, сетап, компонент, харнесс, линия доверия, подтверждённый автор, установка, устройство, grant, revision
+**Prefer:** passport, setup, component, harness, trust line, verified author, installation, device, grant, revision
 **Avoid:** magical AI, unlimited intelligence, synergy, disrupt, game-changing, chatbot fluff
 
-## Образы
+## Imagery
 
-Модули product UI, карточки каталога, бейджи доверия, блоки установки и моноширинные технические метки. Фотографии редки. Высокий чёрно-белый контраст с оранжевым CTA-сигналом. Градиент orange→deep-violet применяется только внутри знака; page CTAs остаются сплошным сигнальным оранжевым без заливки фона.
+Product UI modules, catalog cards, trust badges, installation blocks, and monospaced technical labels. Photographs are rare. High black-and-white contrast with an orange CTA signal. The orange→deep-violet gradient is used only within the mark; page CTAs remain solid signal orange without a background fill.
 
-## Правила компоновки
+## Layout rules
 
-- Базовый радиус 8px; элементы управления 4px; метки 6px; крупные блоки до 24px
+- Base radius 8px; controls 4px; labels 6px; large blocks up to 24px
 - 1px borders; 8px spacing baseline
 - Dual human / machine modes
-- Один primary orange CTA на viewport; акцент является сигналом, а не заливкой
+- One primary orange CTA per viewport; the accent is a signal, not a fill
 
-## Паттерны CTA
+## CTA patterns
 
 - Open catalog
 - Sign in
@@ -89,10 +89,10 @@ last_verified: "2026-08-22"
 - Copy install command
 - Apply filters
 
-## Заметки по реализации Agent
+## Agent implementation notes
 
 1. Bind color roles from `apps/web/src/theme/tokens.json` into CSS variables (`globals.css`).
 2. Self-host IBM Plex Sans + IBM Plex Mono; map `--font-sans` and `--font-mono`.
-3. Предпочитать тёмный machine режим для плотного product UI; human light — для marketing/landing.
-4. Использовать orange экономно; вторичный текст — muted; не допускать light-on-light или dark-on-dark.
-5. Components используют только semantic utilities (`bg-primary`, `text-muted-foreground`) без raw hex в React.
+3. Prefer dark machine mode for dense product UI; human light for marketing/landing.
+4. Use orange sparingly; secondary text is muted; do not allow light-on-light or dark-on-dark.
+5. Components use only semantic utilities (`bg-primary`, `text-muted-foreground`) with no raw hex in React.

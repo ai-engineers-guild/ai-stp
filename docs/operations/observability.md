@@ -1,28 +1,28 @@
 ---
-description: "Минимальные сигналы для диагностики CLI, sync, публикации и providers."
+description: "Minimum signals for diagnosing the CLI, sync, publishing, and providers."
 last_verified: "2026-08-29"
 ---
 
-# Наблюдаемость
+# Observability
 
-## Локальный CLI
+## Local CLI
 
-Каждая изменяющая операция имеет:
+Every mutating operation has:
 
 - operation ID;
 - plan digest;
 - entity/device/provider IDs;
 - started/finished timestamps;
-- состояние;
-- безопасный error code;
+- state;
+- safe error code;
 - append-only steps;
 - recovery instruction.
 
-Raw secrets, prompts и source content в журнал не входят.
+Raw secrets, prompts, and source content are not included in the log.
 
 ## Server mode
 
-Нужны измерения:
+The following measurements are required:
 
 - API requests, errors and duration;
 - auth/login/link failures;
@@ -31,58 +31,58 @@ Raw secrets, prompts и source content в журнал не входят.
 - worker queue depth/retry/dead letter;
 - object storage errors;
 - provider release download failures;
-- объём жалоб, время триажа и действия модерации;
+- report volume, triage time, and moderation actions;
 - rate-limit and abuse signals;
 - platform safety-scan counters (`safety_*`, see runbook `safety-scan.md`).
-- Результат и задержка SEO build/enrichment, доля active base/enriched, причины rejection/stale, решение об индексации, generation/cache age sitemap и расход модели по operator alias без prompt, body и subject ID (`SPEC-053`).
+- SEO build/enrichment outcome and latency, active base/enriched share, rejection/stale reasons, indexing decision, sitemap generation/cache age, and model usage by operator alias without prompt, body, or subject ID (`SPEC-053`).
 
 ### Safety-scan signals (`safety_*`)
 
-Источник: in-process counters в worker/API процессе (`ai_stp_platform.safety.metrics`),
-плюс structured log event `safety_scan` / `safety_cli`. Снимок:
+Source: in-process counters in the worker/API process (`ai_stp_platform.safety.metrics`),
+plus the structured log event `safety_scan` / `safety_cli`. Snapshot:
 
 ```text
 python -c "from ai_stp_platform.safety.metrics import snapshot; print(snapshot())"
 ```
 
-| Metric | Решение |
+| Metric | Decision |
 |--------|---------|
-| `safety_scan_total` | объём validate/scan |
-| `safety_scan_duration_ms_avg/max/p50/p95/p99` | деградация suite / hard cap |
-| `safety_scan_duration_ms_buckets` | bounded latency distribution; `+Inf` — выше hard-cap bucket |
-| `safety_check_total` | число исполнений каждого `check_id` |
+| `safety_scan_total` | validate/scan volume |
+| `safety_scan_duration_ms_avg/max/p50/p95/p99` | suite degradation / hard cap |
+| `safety_scan_duration_ms_buckets` | bounded latency distribution; `+Inf` is above the hard-cap bucket |
+| `safety_check_total` | number of executions of each `check_id` |
 | `safety_check_result_total`, `safety_check_result_by_id_total` | failed/not_run/degraded balance globally and per check |
 | `safety_check_duration_ms_avg/max`, `safety_check_duration_ms_buckets` | per-check cost and tail |
 | `safety_finding_total` | family:severity pressure |
-| `safety_cli_timeout_total` | зависания внешних CLI |
+| `safety_cli_timeout_total` | external CLI hangs |
 | `safety_sandbox_mode_total` | bwrap vs env_only coverage |
 | `safety_queue_claim_total`, `safety_queue_empty_poll_total` | polling pressure |
 | `safety_queue_claimed_total`, `safety_queue_wait_ms_*` | queue throughput and wait |
 | `safety_queue_job_*` | handler duration/result |
 | `safety_queue_requeued_total` | drain/stale-lease pressure |
 
-Secrets и raw finding bodies в метрики не входят.
+Secrets and raw finding bodies are not included in the metrics.
 
 ### Safety performance evidence
 
-Нормативный offline smoke/load corpus запускается без сети и без внешних CLI:
+The normative offline smoke/load corpus runs without network access or external CLIs:
 
 ```text
 just safety-benchmark --iterations 3 --concurrency 1
 ```
 
-Результат — JSON с `schema_version`, exact local `commit`, фиксированным
-`case_order`, profile, artifact digests, mandatory failures и metrics snapshot.
-Corpus/order/profile deterministic; `wall_ms` зависит от CPU, filesystem и
-текущей нагрузки и используется для сравнения одинакового окружения, а не как
-межмашинный критерий успеха. Для production-оповещений используются ожидание очереди, хвост scan,
-tail, `degraded/not_run`, `+Inf` buckets и рост requeue; отсутствие exporter не
-удаляет локальный structured event и не превращает отсутствие evidence в success.
+The result is JSON with `schema_version`, exact local `commit`, fixed
+`case_order`, profile, artifact digests, mandatory failures, and a metrics snapshot.
+Corpus/order/profile are deterministic; `wall_ms` depends on the CPU, filesystem, and
+current load and is used to compare identical environments, not as a
+cross-machine success criterion. Production alerts use queue wait, scan tail,
+tail, `degraded/not_run`, `+Inf` buckets, and requeue growth; the absence of an exporter does not
+remove the local structured event or turn a lack of evidence into success.
 
-## Провайдер и логи
+## Provider and logs
 
-Server mode использует провайдер OpenTelemetry с конфигурируемым экспортёром и структурный лог в дневной файл по `ADR-0039`; недоступный экспортёр не роняет приложение. `trace_id` связывается со спаном и попадает в конверт ответа рядом с `request_id`. Токены и персональные данные в лог не входят по `SPEC-013`.
+Server mode uses the OpenTelemetry provider with a configurable exporter and a structured log written to a daily file under `ADR-0039`; an unavailable exporter does not bring down the application. `trace_id` is associated with the span and included in the response envelope alongside `request_id`. Tokens and personal data are not included in the log under `SPEC-013`.
 
-## Принцип
+## Principle
 
-Сигнал создаётся только если по нему принимается решение. Нельзя логировать `success` до durable commit или provider verification.
+A signal is created only if a decision is made based on it. `success` must not be logged before a durable commit or provider verification.

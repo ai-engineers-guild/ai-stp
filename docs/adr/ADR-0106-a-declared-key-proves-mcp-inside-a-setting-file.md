@@ -1,79 +1,83 @@
 ---
-description: "Решение доказывать клиентские MCP внутри setting-файла объявленным ключом и читать только имена серверов."
+description: "Decision to prove client MCPs inside a setting file by a declared key and read only server names."
 last_verified: "2026-08-20"
 ---
 
-# ADR-0106: Клиентские MCP внутри setting доказывает объявленный ключ
+# ADR-0106: A declared key proves client MCPs inside a setting
 
-Статус: принято. Дополняет `ADR-0054` в части того, что обнаружение вправе
-открыть, и продолжает линию `ADR-0055` и `ADR-0065`: читающий адаптер объявляет
-свою границу отдельно.
+Status: accepted. Supplements `ADR-0054` regarding what discovery may open and
+continues the line of `ADR-0055` and `ADR-0065`: the reader adapter declares
+its boundary separately.
 
-## Контекст
+## Context
 
-Обнаружение объявляло вид `mcp` только для Claude Code. У него клиентские
-серверы лежат в отдельном файле `.mcp.json`, и такой файл доказывает себя
-именем: он существует тогда и только тогда, когда его создали ради серверов.
+Discovery declared the `mcp` kind only for Claude Code. Its client servers live
+in a separate `.mcp.json` file, and such a file proves itself by name: it exists
+if and only if it was created for servers.
 
-Остальные харнессы устроены иначе. Codex и Grok Build держат серверы в
-`config.toml`, OpenCode — в `opencode.json` или `opencode.jsonc`, то есть в
-файле, который уже объявлен видом `setting`. Инвентарь поэтому молчал о
-работающих серверах на четырёх харнессах из пяти, хотя пути были известны.
+The other harnesses work differently. Codex and Grok Build keep servers in
+`config.toml`, and OpenCode keeps them in `opencode.json` or `opencode.jsonc`—a
+file already declared as the `setting` kind. The inventory therefore said
+nothing about active servers on four of the five harnesses, although their
+paths were known.
 
-Просто объявить `mcp` на этих путях нельзя. Существование setting-файла не
-доказывает ничего: он есть на любой машине, где харнесс запускали хотя бы раз, а
-пустое объявление `mcp` — обычный способ не запускать ни одного сервера. Находка
-получалась бы на каждой такой машине, а контракт обнаружения прямо запрещает
-выдавать за доказательство то, что им не является.
+Simply declaring `mcp` on these paths is invalid. The existence of a setting
+file proves nothing: it exists on any machine where the harness has run at
+least once, and an empty `mcp` declaration is a normal way to run no servers.
+That would produce a finding on every such machine, while the discovery
+contract expressly forbids presenting something as evidence when it is not.
 
-## Варианты
+## Options
 
-1. Объявить раскладку на пути setting-файла и не открывать его. Дёшево и
-   ничего не читает, но даёт ложную находку везде, где харнесс лишь установлен.
-2. Прочитать setting-файл целиком и положить объявление серверов в находку.
-   Отвечает на вопрос, но втягивает в выдачу команды, URL и заголовки, среди
-   которых встречаются токены. Это прямо противоречит запрету на попадание
-   секретов в паспорта, логи и фикстуры.
-3. Прочитать только имена серверов под объявленным ключом. Отвечает ровно на
-   вопрос инвентаря — объявлены ли серверы и какие — и ничего сверх него не
-   возвращает.
+1. Declare a layout on the setting-file path without opening it. This is cheap
+   and reads nothing, but creates a false finding wherever the harness is merely
+   installed.
+2. Read the entire setting file and place the server declarations in the
+   finding. This answers the question but draws commands, URLs, and headers—
+   which may contain tokens—into the output. That directly contradicts the ban
+   on secrets entering passports, logs, and fixtures.
+3. Read only server names beneath a declared key. This answers exactly the
+   inventory question—which servers are declared, if any—and returns nothing
+   beyond it.
 
-## Решение
+## Decision
 
-Раскладка вправе объявить ключ. Файл с объявленным ключом становится находкой
-`mcp` только тогда, когда под этим ключом объявлен хотя бы один сервер. Читаются
-только имена серверов; они же становятся `evidence_refs` в форме `ключ.имя`.
-Значения рядом с именем — команда, аргументы, URL, заголовки и окружение — не
-читаются и не возвращаются.
+A layout may declare a key. A file with a declared key becomes an `mcp` finding
+only when at least one server is declared beneath that key. Only server names
+are read; they also become `evidence_refs` in the form key.name. Values beside
+the name—command, arguments, URL, headers, and environment—are neither read nor
+returned.
 
-Ключ объявляют `codex` и `grok-build` (`mcp_servers` в `config.toml`) и
-`opencode` (`mcp` в `opencode.json` и `opencode.jsonc`). Claude Code остаётся без
-ключа: его `.mcp.json` доказывает себя именем, и обнаружение его не открывает.
+The key is declared by `codex` and `grok-build` (`mcp_servers` in
+`config.toml`) and by `opencode` (`mcp` in `opencode.json` and
+`opencode.jsonc`). Claude Code remains keyless: its `.mcp.json` proves itself by
+name, and discovery does not open it.
 
-У Pi объявленной раскладки нет. Файлы `mcp.json` под его корнем в природе
-встречаются, но их создаёт пользовательское расширение, а не сам харнесс, и
-наблюдаемые экземпляры расходятся в ключе. Оглавление документации Pi страницы
-про MCP не содержит, поэтому вместо раскладки объявлен проверенный пробел
-`no_documented_mcp_client_config`.
+Pi has no declared layout. Files named `mcp.json` do occur beneath its root,
+but they are created by a user extension rather than the harness itself, and
+observed instances disagree on the key. The Pi documentation table of contents
+has no MCP page, so the verified gap `no_documented_mcp_client_config` is
+declared instead of a layout.
 
-## Последствия
+## Consequences
 
-- Один файл может дать две находки разных видов: `setting` и `mcp`. Setting при
-  этом остаётся setting и своего смысла не теряет.
-- Обнаружение открывает объявленный setting-файл, поэтому граница названа
-  точнее: не читаются значения, а не «содержимое найденных файлов» целиком.
-- Нечитаемый, превышающий предел размера, повреждённый или лишённый ключа файл
-  находок не даёт. Догадка о его содержимом была бы ровно той эвристикой,
-  которую контракт обнаружения запрещает.
-- Разбор JSONC написан на месте, а не взят зависимостью: нужно прочесть имена
-  ключей одного рукописного файла, и короткий разбор в пути обнаружения дешевле
-  нового пакета.
-- Проверяется фикстурами на каждый объявленный ключ: пустое объявление,
-  комментарии и висячие запятые JSONC, повреждённый и превышающий предел файл, а
-  также запись, у которой в значении лежит токен.
+- One file may produce two findings of different kinds: `setting` and `mcp`.
+  The setting remains a setting and does not lose its meaning.
+- Discovery opens the declared setting file, so the boundary is stated more
+  precisely: values are not read, rather than all "contents of discovered
+  files."
+- An unreadable, oversized, malformed, or keyless file produces no findings.
+  Guessing its contents would be exactly the heuristic forbidden by the
+  discovery contract.
+- JSONC parsing is implemented locally rather than through a dependency: only
+  the key names of one hand-written file must be read, and a short parser in
+  the discovery path is cheaper than a new package.
+- Fixtures verify every declared key: an empty declaration, JSONC comments and
+  trailing commas, malformed and oversized files, and a record whose value
+  contains a token.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Пересмотреть, если харнесс перенесёт клиентские серверы в отдельный файл; если
-Pi опубликует документацию своей раскладки; или если объявленный ключ начнёт
-встречаться во вложенной форме, которую чтение верхнего уровня не покрывает.
+Reconsider if a harness moves client servers into a separate file, if Pi
+publishes documentation for its layout, or if a declared key starts appearing
+in a nested form not covered by top-level reading.

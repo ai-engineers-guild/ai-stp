@@ -1,64 +1,60 @@
-# Быстрый старт для разработки
+# Development quickstart
 
-## Текущее состояние
+## Current status
 
-Состояние работ и единый оставшийся план — в
-`docs/engineering/implementation-roadmap.md`. Local-first CLI, platform/API,
-серверный worker, веб, потребитель провайдеров, семь setup systems и production deploy уже
-материализованы. Открытые GitHub issues являются backlog, пока их явно не
-продвинули в active spec.
+Work status is tracked in `docs/engineering/implementation-roadmap.md`. The `uv` workspace exists, the `foundation`, `passports`, `assurance`, and `contracts` packages are materialized, the `apps/cli` application exists, and both per-file schemas and `openapi.json` are generated in `schemas/v1`. Remaining work is tracked in GitHub issues.
 
-Полезное про `apps/cli`: команда ставится как `ai-stp`, `uv run ai-stp help --agent --json` печатает весь реестр команд, `uv run ai-stp doctor --json` — состояние установки, `uv run ai-stp device init --json` создаёт идентичность этого устройства, `uv run ai-stp device show --json` показывает её и то, где лежит ключ, ничего не создавая, `uv run ai-stp passport developer init --json` создаёт локальный реестр и паспорт разработчика, а `uv run ai-stp auth status --json` показывает отношение установки к платформе: `local_only`, `authenticated`, `expired` или `revoked`. Команда объявлена ровно один раз: разборщик собирается из реестра, и машинная справка рендерится из него же, поэтому расходиться им не на чем. Подробности — в `docs/agent/machine-help.md`.
+Useful facts about `apps/cli`: the command is installed as `ai-stp`; `uv run ai-stp help --agent --json` prints the complete command registry; `uv run ai-stp doctor --json` reports installation state; `uv run ai-stp device init --json` creates this device's identity; `uv run ai-stp device show --json` shows it and the key location without creating anything; `uv run ai-stp passport developer init --json` creates the local registry and developer passport; and `uv run ai-stp auth status --json` shows the installation's relationship to the platform: `local_only`, `authenticated`, `expired`, or `revoked`. Each command is declared exactly once: the parser is built from the registry and machine help is rendered from the same source, so they cannot diverge. See `docs/agent/machine-help.md` for details.
 
-Полезное про `packages/contracts`: он несёт замороженную границу `/v1` и вместе с ней общий корпус фикстур, мок-транспорт и набор проверки соответствия. Мок требует `httpx` и вынесен в необязательную зависимость `ai-stp-contracts[mock]`. Подробности — в `docs/contracts/fixture-corpus.md`.
+Useful facts about `packages/contracts`: it carries the frozen `/v1` boundary together with a shared fixture corpus, mock transport, and conformance suite. The mock requires `httpx` and is provided through the optional `ai-stp-contracts[mock]` dependency. See `docs/contracts/fixture-corpus.md` for details.
 
-Источник истины Python-зависимостей один — корневой `uv.lock`; документационные инструменты живут группой `docs`, инструменты разработки — группой `dev`. Node-инструменты закреплены в `docs_scripts/bun.lock` и ставятся `bun` версии из `.bun-version` — рецепты проверяют её точно, потому что `bun install` другой линии перепишет lockfile в формат, который гейт не прочитает. Произвольные глобальные версии линтеров не используются.
+The sole source of truth for Python dependencies is the root `uv.lock`; documentation tools live in the `docs` group and development tools in the `dev` group. Node tools are pinned in `docs_scripts/bun.lock` and installed with the `bun` version from `.bun-version`; recipes check it exactly because `bun install` from another release line rewrites the lockfile into a format the gate cannot read. Arbitrary global linter versions are not used.
 
-## Установка CLI
+## Installing the CLI
 
 ```bash
 uv tool install ai-stp-cli
 ai-stp doctor --json
 ```
 
-Это та же команда, которую обещает лендинг, и `just back-smoke` проверяет её на каждом прогоне: сборку, установку в изолированный каталог инструментов, запуск вне исходного дерева и удаление. Права администратора не нужны.
+This is the same command promised by the landing page, and `just back-smoke` verifies it on every run: build, installation into an isolated tool directory, execution outside the source tree, and removal. Administrator privileges are not required.
 
-Удаление снимает только файлы CLI:
+Uninstallation removes only the CLI files:
 
 ```bash
 uv tool uninstall ai-stp-cli
 ```
 
-Локальные данные — реестр, паспорта, идентичность устройства и кэш — остаются в `${XDG_DATA_HOME}/ai-stp`. Их удаление является отдельным явным действием пользователя, а не побочным эффектом удаления программы.
+Local data—the registry, passports, device identity, and cache—remain in `${XDG_DATA_HOME}/ai-stp`. Removing them is a separate explicit user action, not a side effect of uninstalling the program.
 
-## Требования
+## Requirements
 
-- Python 3.12 или 3.14;
+- Python 3.12 or 3.14;
 - `uv` 0.12.1;
-- `just` 1.43.0 или новее;
-- Node.js 24 и npm;
+- `just` 1.43.0 or later;
+- Node.js 24 and npm;
 - Git.
 
-Для `web-regress` системные библиотеки Chromium должны быть заранее установлены в
-образе рабочей станции или self-hosted runner. Сам проект скачивает закреплённый
-Chromium только в пользовательский cache Playwright и никогда не вызывает `sudo`;
-системная подготовка машины не является частью `just check`.
+For `web-regress`, Chromium system libraries must already be installed in the
+workstation image or self-hosted runner. The project itself downloads pinned
+Chromium only into the user's Playwright cache and never invokes `sudo`;
+system preparation of the machine is not part of `just check`.
 
-Provider protocol v3 запускает network-free local phase только после runtime
-capability probe consumer-controlled launcher. Наличие команды не считается
-достаточным: тест требует положительный контроль DNS/IPv4/IPv6 и их недоступность
-внутри изоляции. Недоказанная строка закрывается отказом до запуска провайдера;
-protocol v1 от этого не становится сетево-изолированным. Release target — шесть
-native Linux/Windows/macOS × architecture legs по `ADR-0113`; неисполненная
-строка получает `not_verified`.
+Provider protocol v3 on Linux uses the system `bwrap` only after a runtime
+capability probe. Command presence is insufficient: the test requires a positive
+control of local DNS-UDP/IPv4/IPv6 endpoints and proof that they are unavailable inside the network
+namespace. Without `bwrap`, or for any unproven result, the local v2 phase
+fails closed before the provider starts. This does not make protocol v1
+network-isolated. The current release profile is Linux x86_64; macOS receives
+`not_verified` until a dedicated launcher and real-host evidence exist under `ADR-0062`.
 
-Наблюдаемый результат текущей машины:
+Observable result for the current machine:
 
 ```bash
 uv run ai-stp provider network --json
 ```
 
-## Подготовка и проверка
+## Setup and validation
 
 ```bash
 just setup
@@ -66,17 +62,17 @@ just gen
 just check
 ```
 
-Весь `justfile` держится на двух глаголах: `gen` пишет, `check` читает. `just gen` перегенерирует всё машинное — оглавления документации, `schemas/v1`, проекции Skill, типизированный клиент веба и форматирование исходников; после него обязательно просмотрите итоговый diff. `just check` ничего не пишет и состоит из трёх групповых агрегатов — `docs-check`, `back-check`, `web-check` — плюс общий `just security`.
+The entire `justfile` uses two verbs: `gen` writes and `check` reads. `just gen` regenerates all machine artifacts—documentation tables of contents, `schemas/v1`, Skill projections, the typed web client, and source formatting; always review the resulting diff afterward. `just check` writes nothing and consists of three grouped aggregates—`docs-check`, `back-check`, and `web-check`—plus the shared `just security`.
 
-Внутри группы глаголы одни и те же, поэтому команду не нужно помнить: `<группа>-static` читает исходник, `<группа>-test` гоняет тесты, `<группа>-build` собирает артефакт, `<группа>-regress` запускает собранное в реальном движке. Полная таблица — в `docs/engineering/quality-gates.md`.
+The verbs are identical within each group, so there is no command list to memorize: `<group>-static` reads source, `<group>-test` runs tests, `<group>-build` builds an artifact, and `<group>-regress` runs the built artifact in the real engine. The complete table is in `docs/engineering/quality-gates.md`.
 
-`pre-commit` держит быстрый контур (`docs-check` + `back-check` без веба); полный набор с `web-check` — на push и в CI. Отдельные `ci` / `pre-push` рецепты не заведены: они были бы вторыми именами `just check`.
+`pre-commit` maintains the fast path (`docs-check` + `back-check` without the web); the complete set including `web-check` runs on push and in CI. There are no separate `ci` / `pre-push` recipes because they would only be aliases for `just check`.
 
-### PostgreSQL для platform-тестов
+### PostgreSQL for platform tests
 
-Интеграционные и ASGI-тесты платформы (`tests/api/platform`, `tests/integration/platform`) требуют живой PostgreSQL 16. Без `AI_STP_TEST_DB_URL` они **пропускаются**, и порог покрытия `--cov-fail-under=90` обычно не выполняется.
+Platform integration and ASGI tests (`tests/api/platform`, `tests/integration/platform`) require a live PostgreSQL 16 instance. Without `AI_STP_TEST_DB_URL`, they are **skipped**, and the `--cov-fail-under=90` coverage threshold usually fails.
 
-Локально (отдельный контейнер с портом на host; dev-compose публикует Postgres только во внутреннюю сеть):
+Locally (a separate container with a port exposed on the host; dev-compose exposes Postgres only to the internal network):
 
 ```bash
 docker run -d --name ai_stp-test-postgres \
@@ -85,29 +81,26 @@ docker run -d --name ai_stp-test-postgres \
 
 export AI_STP_TEST_DB_URL=postgresql+asyncpg://ai_stp:ai_stp_dev@127.0.0.1:55432/ai_stp
 just back-test
-# или полный гейт:
+# or the full gate:
 just check
 ```
 
-В CI тот же URL выставляется workflow `check` на сервис `postgres:16`. Не используйте production-данные и не коммитьте реальные пароли: для тестов достаточно throwaway credentials выше.
+In CI, the `check` workflow sets the same URL for the `postgres:16` service. Do not use production data or commit real passwords; the throwaway credentials above are sufficient for tests.
 
-## Начало изменения
+## Starting a change
 
-1. Прочитайте `AGENTS.md` и применимую active spec.
-2. Обновите удалённые refs и убедитесь, что работаете в каноническом public checkout.
-3. Если работа параллельна в Herdr, обменяйтесь exact checkout/path ownership.
-4. Исправьте противоречивое требование до кода, не создавая второй нормативный
-   текст.
-5. Реализуйте изменение, обновите владельцев контракта, выполните затронутые
-   проверки и просмотрите diff.
-6. Сделайте атомарный commit и синхронизируйте `main`; PR нужен, когда он даёт
-   независимое review или изолирует параллельную работу.
+1. Read `AGENTS.md`.
+2. Work in your personal contributor branch (`rldyourmnd` or `letya999`) under `docs/engineering/git-workflow.md`: merge the latest `dev` into it, then send the completed change to `dev` through a PR. After the PR is merged, publish the personal branch again with a normal push.
+3. Find the applicable active specification.
+4. If requirements are absent or contradictory, fix the specification before the code.
+5. In the draft PR, state the acceptance criteria, plan, affected contracts, and validation commands.
+6. Only then begin implementation.
 
-## Что не делать
+## What not to do
 
-- не запускать удалённые скрипты без предварительного чтения;
-- не использовать `sudo` для инструментов проекта;
-- не добавлять APM, SX или закрытый контур авторинга как обязательную зависимость;
-- не расширять работу на внешние репозитории за пределы текущей задачи;
-- не считать документационный green CI доказательством работоспособности будущего продукта;
-- не менять поведение без одновременного обновления спецификаций, документации, тестов и runbooks по затронутой области.
+- do not run remote scripts without reading them first;
+- do not use `sudo` for project tools;
+- do not add APM, SX, or the closed system-authoring environment as a mandatory dependency;
+- do not modify external repositories without an explicit task;
+- do not treat green documentation CI as proof that the future product works;
+- do not change behavior without simultaneously updating the affected specifications, documentation, tests, and runbooks.

@@ -1,116 +1,120 @@
 ---
-description: "Решение сделать target_role необязательным и ввести posture первоклассным полем паспорта сетапа, потому что позу можно сорсить, а роль нельзя."
+description: "Decision to make target_role optional and introduce posture as a first-class setup passport field, because a posture can be sourced while a role cannot."
 last_verified: "2026-08-30"
 ---
 
-# ADR-0130: Позу можно сорсить, роль — нельзя
+# ADR-0130: A posture is sourceable; a role is not
 
-Статус: принято.
+Status: accepted.
 
-## Контекст
+## Context
 
-Ни одна принятая запись и ни одна спецификация поле `target_role` не называет:
-поиск по `docs/adr/` и `specs/active/` не находит его нигде, кроме этой записи.
-Оно появилось в модели без решения. Это не поправка к чужому выбору, а первый
-раз, когда выбор записан, — и часть объяснения того, почему поле оказалось
-обязательным без источника.
+No accepted record or specification names the `target_role` field: a search of
+`docs/adr/` and `specs/active/` finds it nowhere except this record. It appeared
+in the model without a decision. This is not an amendment to someone else's
+choice, but the first time the choice has been recorded—and part of the
+explanation for why the field became mandatory without a source.
 
-Каталог отдавал **26** сетапов: семь активных и девятнадцать `deprecated`.
-Измерено обходом развёрнутого `/v1/catalog/setups` до конца, а не первой
-страницы.
+The catalog returned **26** setups: seven active and nineteen `deprecated`.
+This was measured by traversing the deployed `/v1/catalog/setups` to the end,
+not just its first page.
 
-Семь активных несли `target_role: "ai-harness-engineer"`. Эта строка ставится
-`packages/contracts/src/ai_stp_contracts/first_party/__init__.py:299` и не
-встречается ни в одном файле публикующей стороны — подтверждено ими повторным
-поиском по всем семи репозиториям. Поле рендерится на карточке каталога и на
-странице версии, то есть это утверждение о чужом артефакте, которое читает
-каждый посетитель.
+The seven active setups carried `target_role: "ai-harness-engineer"`. This string
+is set by `packages/contracts/src/ai_stp_contracts/first_party/__init__.py:299`
+and does not occur in any file on the publishing side—as confirmed by another
+search across all seven repositories. The field is rendered on the catalog card
+and the version page, so it is a claim about someone else's artifact that every
+visitor reads.
 
-Двенадцать из девятнадцати `deprecated` — сетапы ролей `backend`, `frontend`,
-`full-stack`, `code-review`, `security`, `research`. Их не планировала ни одна
-сторона; тест, требовавший шести ролей, снят в `e1560b41` как описывающий
-несуществующее.
+Twelve of the nineteen `deprecated` entries are setups for the roles `backend`,
+`frontend`, `full-stack`, `code-review`, `security`, and `research`. Neither side
+planned them; the test that required six roles was removed in `e1560b41` as
+describing something nonexistent.
 
-Настоящая ось, по которой различаются сетапы одного харнесса, — **поза**:
-`minimal`, `baseline`, `full-auto`, `nddev-builder`. Она опубликована: каждый
-`setups/<поза>/setup.json` несёт `"id"` ровно с этой строкой, во всех 7×4.
+The real axis that distinguishes setups for the same harness is **posture**:
+`minimal`, `baseline`, `full-auto`, `nddev-builder`. It is published: every
+`setups/<posture>/setup.json` carries an `"id"` with exactly that string, across
+all 7×4.
 
-## Почему поле оказалось незаполнимым
+## Why the field proved impossible to populate
 
-Поза сорсится: каждый `setup.json` перечисляет страницы вендора, по которым
-поза собрана. Роль — утверждение о **содержимом**, и подтвердить его нечем: ни
-одна страница вендора о ролях не говорит. Публикующая сторона роли не публикует
-и не планировала — это их решение, а не пробел.
+A posture is sourceable: every `setup.json` lists the vendor pages from which
+the posture was assembled. A role is a claim about **content**, and there is
+nothing to substantiate it: no vendor page says anything about roles. The
+publishing side does not publish roles and did not plan them—that is their
+decision, not an omission.
 
-Отсюда общий вид дефекта, и он важнее случая: **обязательное поле, которое ни
-один источник заполнить не может, — это поле, вынуждающее выдумывать.**
+This yields the general form of the defect, which matters more than this case:
+**a mandatory field that no source can populate is a field that forces
+fabrication.**
 
-Доказательство того, что вынуждало, есть в самом дереве. Из четырёх мест,
-заполняющих `target_role`, три уже кладут туда не роль:
+The tree itself proves that fabrication was forced. Of the four places that
+populate `target_role`, three already put something other than a role there:
 
-| место | значение |
+| location | value |
 |---|---|
-| `first_party/__init__.py:299` | `ai-harness-engineer` — выдумано |
+| `first_party/__init__.py:299` | `ai-harness-engineer` — fabricated |
 | `local/setup_versions.py:95` | `local-project` |
 | `provider/bundle_corpus.py:195` | `provider-conformance` |
-| `catalog_seed.py` | `on-call-engineer`, `platform-engineer` — настоящие роли |
+| `catalog_seed.py` | `on-call-engineer`, `platform-engineer` — actual roles |
 
-Настоящие роли только в демонстрационных сидах. Всё остальное — свободная
-метка «что это такое», написанная в поле с именем `target_role`.
+Actual roles exist only in demonstration seeds. Everything else is a free-form
+label for “what this is,” written into a field named `target_role`.
 
-## Рассмотренные варианты
+## Considered options
 
-**Класть позу в `target_role`.** Отвергнуто. Читателю карточки строка
-`full-auto` в графе «Целевая роль» прочтётся сносно, но имя поля станет ложью, а
-`ADR-0015` описывает роль. Одно слово — один объект.
+**Put the posture in `target_role`.** Rejected. On a card, a reader could make
+reasonable sense of `full-auto` under “Target role,” but the field name would
+become a lie, and `ADR-0015` describes a role. One word, one object.
 
-**Убрать `target_role` совсем.** Отвергнуто. Поле опубликовано, у него есть
-непустые значения в сидах, и удаление ломает читателей ради того, что решается
-необязательностью. Роль остаётся осмысленной для сетапа, автор которого её
-заявляет.
+**Remove `target_role` entirely.** Rejected. The field is published, it has
+nonempty values in seeds, and removal would break readers over something that
+optionality solves. A role remains meaningful for a setup whose author declares
+one.
 
-**Оставить обязательным и заполнять позой при импорте.** Это текущее поведение
-под другим именем: механизм, вынуждающий выдумывать, сохраняется.
+**Keep it mandatory and populate it with the posture during import.** This is
+the current behavior under another name: the mechanism that forces fabrication
+remains.
 
-**Сделать `target_role` необязательным и ввести `posture`.** Принято.
+**Make `target_role` optional and introduce `posture`.** Accepted.
 
-## Решение
+## Decision
 
-`target_role` становится необязательным (`str | None`). Первопартийный импорт
-его не ставит: он не знает роли и не имеет источника, который бы её назвал.
+`target_role` becomes optional (`str | None`). First-party import does not set
+it: it does not know the role and has no source that names one.
 
-`posture` вводится первоклассным полем паспорта сетапа. Не частью строки имени:
-ось, по которой пользователь выбирает между четырьмя карточками одного
-харнесса, — именно она, и спрятать её в имя значит сделать выбор строковым
-поиском. Значение берётся из опубликованного `"id"`, а не из сегмента пути;
-директория, чей `setup.json` объявляет другой `id`, отвергается громко.
+`posture` is introduced as a first-class setup passport field. It is not part
+of the name string: it is the axis by which a user chooses among four cards for
+one harness, and hiding it in the name would turn the choice into a string
+search. The value comes from the published `"id"`, not from the path segment; a
+directory whose `setup.json` declares a different `id` is rejected loudly.
 
-`name` и `description` тоже перестают сочиняться и берутся из источника.
-Описание `full-auto` — от 690 до 3312 символов в зависимости от харнесса — это
-несущий контекст безопасности: оно называет, например, что ключ песочницы ни на
-что не влияет на нативной Windows. Карточка просмотра вправе его обрезать;
-поверхность установки — нет.
+`name` and `description` also cease to be invented and come from the source.
+Depending on the harness, the `full-auto` description ranges from 690 to 3312
+characters; it carries essential security context, stating, for example, that
+the sandbox key has no effect on native Windows. The browsing card may truncate
+it; the installation surface may not.
 
-Отсутствие `sources` записывается как утверждение, а не как пропуск: пять из
-семи `minimal` не задают продуктовых ключей, и сорсить там нечего.
+An absence of `sources` is recorded as a claim rather than an omission: five of
+the seven `minimal` setups define no product keys, so there is nothing to source.
 
-## Последствия
+## Consequences
 
-Меняется **опубликованный** контракт: модель паспорта, порождённые схемы,
-проекция каталога, генерируемый клиент и две страницы веба. Карточка получает
-строку «поза» рядом с ролью, и роль на первопартийных сетапах пуста, что
-честно: её никто не заявлял.
+The **published** contract changes: the passport model, generated schemas,
+catalog projection, generated client, and two web pages. The card gains a
+“posture” line beside the role, and the role is empty for first-party setups,
+which is honest: nobody declared one.
 
-Каталог пересевается: 28 сетапов вместо 7, двенадцать ролевых записей и семь
-вытесненных `v1.0` снимаются.
+The catalog is reseeded: 28 setups instead of 7; twelve role-based entries and
+seven superseded `v1.0` entries are withdrawn.
 
-Цена, названная прямо: у существующих читателей `target_role` был обязателен, и
-`None` — новое состояние, которое каждый из них обязан уметь показать. Это
-ровно тот класс, где поле находит своих читателей по одному, поэтому все они
-перечисляются в том же изменении, а не по мере обнаружения.
+The cost, stated directly: existing readers treated `target_role` as mandatory,
+and `None` is a new state that every one of them must be able to display. This
+is exactly the class of change in which a field discovers its readers one by
+one, so all of them are listed in the same change rather than as they are found.
 
-## Условия пересмотра
+## Reconsideration conditions
 
-Пересмотреть, если появится источник, к которому роль сорсится, — тогда поле
-возвращает обязательность для тех объектов, у которых такой источник есть, а не
-для всех.
+Reconsider if a source to which a role can be sourced appears; the field would
+then become mandatory again for objects that have such a source, not for all
+objects.

@@ -3,15 +3,15 @@ description: "Runbook: sync conflict."
 last_verified: "2026-08-03"
 ---
 
-# Конфликт синхронизации
+# Sync conflict
 
-1. Не перезаписывать локальную или облачную голову.
-2. Получить общего предка и затронутые поля.
-3. Проверить полномочия устройства и аккаунта.
-4. Автоматически объединить независимые поля.
-5. Показать пользователю несовместимые значения и их происхождение.
-6. Создать объединённую ревизию с двумя родителями после решения.
-7. Повторить отправку по ключу идемпотентности.
-8. Убедиться, что target и состояние установки не изменялись.
+1. Do not overwrite the local or cloud head.
+2. Obtain the common ancestor and affected fields.
+3. Verify device and account authority.
+4. Automatically merge independent fields.
+5. Show the user the conflicting values and their provenance.
+6. Create a merged revision with two parents after resolution.
+7. Retry the submission using the idempotency key.
+8. Ensure that the target and installation state have not changed.
 
-Отозванное устройство может читать локальное состояние, но не отправляет изменения.
+A revoked device may read local state but does not submit changes.
