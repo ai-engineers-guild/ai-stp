@@ -485,11 +485,23 @@ def _plan_v3(
                 "AI_STP_PRECONDITION_FAILED",
                 "the installation source has no immutable SetupVersion identity",
             )
+        # The installing machine's target, because a component contributing a
+        # key to an owned file needs that file's current bytes and they exist
+        # only here (`ADR-0129`).
+        #
+        # This argument was on the other call site and not on this one, and this
+        # is the only one protocol v3 uses — which is to say, the only one any
+        # released provider speaks. So every contribution component refused at
+        # `install plan` with "needs a named target" while a target had in fact
+        # been named, and the four routes `#456` and `#460` added could not
+        # reach a provider at all. Unit tests could not see it: they assert the
+        # routing table and the assembly, and the gap was between them.
         compiled = select_command.compile_setup_version_bundle(
             connection,
             proposal.confirmed_stable_id,
             proposal.confirmed_version,
             expected_harness=pair.harness_id,
+            host_root=Path(provider_target),
         )
         planned_scope = _v3_profile_accepts(capabilities, compiled).scope
         bundle_path = cache.store_raw_artifact_bytes(compiled.archive, compiled.artifact_digest)
