@@ -17,6 +17,7 @@ Both are about ordering, so both are checked by recording the order.
 
 from __future__ import annotations
 
+import shutil
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -54,15 +55,21 @@ def _parameters(tmp_path: Path) -> dict[str, object]:
     target = tmp_path / "target"
     prefix.mkdir()
     target.mkdir()
+    # A copy rather than `sys.executable` itself. Since the provider registry
+    # resolves these commands, the path goes through `installations.validated`,
+    # which refuses a symlink — the bytes verified through a link are not
+    # necessarily the bytes that run, because the link can be repointed in
+    # between. `sys.executable` is a symlink inside a virtual environment, so
+    # the rule that protects real installations was failing these tests.
+    #
+    # Copied for the same reason the original used `sys.executable`: it exists
+    # on all three systems. Nothing is ever run — the invoker is replaced — so
+    # only the path has to be real, regular and executable.
+    provider = tmp_path / ("provider.exe" if sys.platform == "win32" else "provider")
+    shutil.copy2(sys.executable, provider)
     return {
         "harness": "claude-code",
-        # An executable that exists on all three systems. This was
-        # `/usr/bin/true`, which resolves on Linux and macOS and does not exist
-        # on Windows, so four of these tests failed there with
-        # `FileNotFoundError` — never reaching the ordering they exist to check.
-        # Nothing is ever run: the invoker is replaced. The path only has to
-        # resolve, and `sys.executable` always does.
-        "provider": sys.executable,
+        "provider": str(provider),
         "provider-release-digest": "sha256:" + "a" * 64,
         "prefix": str(prefix),
         "target": str(target),

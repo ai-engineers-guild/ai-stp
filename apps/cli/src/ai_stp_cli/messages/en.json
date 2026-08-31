@@ -132,6 +132,7 @@
   "each --tool-version must be one unique non-empty name=version pair": "each --tool-version must be one unique non-empty name=version pair",
   "history limit must be between 1 and 100": "history limit must be between 1 and 100",
   "more than one provider is installed for this harness; name the one to replace": "more than one provider is installed for this harness; name the one to replace",
+  "more than one provider serves this harness here": "more than one provider serves this harness here",
   "name at most one confirmed proposal or prepared exact SetupVersion": "name at most one confirmed proposal or prepared exact SetupVersion",
   "name either one proposal or one or more members, not both and not neither": "name either one proposal or one or more members, not both and not neither",
   "name exactly one confirmed proposal or prepared exact SetupVersion": "name exactly one confirmed proposal or prepared exact SetupVersion",

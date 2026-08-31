@@ -1959,9 +1959,9 @@
           "name": "provider",
           "kind": "option",
           "value_type": "string",
-          "required": true,
+          "required": false,
           "repeatable": false,
-          "summary": "Exact provider executable to invoke.",
+          "summary": "Override the provider executable. Resolved from the provider registry when omitted: explicit path, then configuration, then the remembered choice, then discovery.",
           "choices": []
         },
         {
@@ -2047,9 +2047,9 @@
           "name": "provider",
           "kind": "option",
           "value_type": "string",
-          "required": true,
+          "required": false,
           "repeatable": false,
-          "summary": "Exact provider executable to invoke.",
+          "summary": "Override the provider executable. Resolved from the provider registry when omitted: explicit path, then configuration, then the remembered choice, then discovery.",
           "choices": []
         },
         {
@@ -2144,9 +2144,9 @@
           "name": "provider",
           "kind": "option",
           "value_type": "string",
-          "required": true,
+          "required": false,
           "repeatable": false,
-          "summary": "Exact provider executable to invoke.",
+          "summary": "Override the provider executable. Resolved from the provider registry when omitted: explicit path, then configuration, then the remembered choice, then discovery.",
           "choices": []
         },
         {
@@ -2267,9 +2267,9 @@
           "name": "provider",
           "kind": "option",
           "value_type": "string",
-          "required": true,
+          "required": false,
           "repeatable": false,
-          "summary": "Exact provider executable to invoke.",
+          "summary": "Override the provider executable. Resolved from the provider registry when omitted: explicit path, then configuration, then the remembered choice, then discovery.",
           "choices": []
         },
         {

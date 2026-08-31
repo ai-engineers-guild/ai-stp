@@ -200,11 +200,53 @@ class _Api:
 
     @classmethod
     def load(cls) -> Self:
+        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        _declare_kernel(kernel)
         return cls(
-            kernel=ctypes.WinDLL("kernel32", use_last_error=True),
+            kernel=kernel,
             userenv=ctypes.WinDLL("userenv", use_last_error=True),
             advapi=ctypes.WinDLL("advapi32", use_last_error=True),
         )
+
+
+#: Every kernel32 entry point this module calls, with the types it actually has.
+#:
+#: **This is not tidiness.** An undeclared function returns `c_int` in ctypes,
+#: which is 32 bits, and a Windows `HANDLE` is a 64-bit pointer. So
+#: `CreateJobObjectW` — added with the job object that owns the provider's
+#: process tree — handed back a *truncated* handle, and every later use of it
+#: (`AssignProcessToJobObject`, `CloseHandle`) was operating on a value that is
+#: not the handle the kernel returned. On a 64-bit host the job would not hold
+#: the tree it exists to hold, and the failure appears only as a descendant
+#: surviving a timeout.
+#:
+#: It went unseen because this module's Windows half is type-checked nowhere:
+#: `ctypes.WinDLL` does not exist in the stubs a checker on Linux loads, so the
+#: suppression at the top of the file covers exactly the code where an ABI
+#: mistake is invisible and expensive. Declaring the signatures is the part of
+#: that cover which does not need a Windows runner to be true.
+_KERNEL_SIGNATURES: Final[dict[str, tuple[list[Any], Any]]] = {
+    "CreateJobObjectW": ([ctypes.c_void_p, ctypes.c_wchar_p], ctypes.c_void_p),
+    "SetInformationJobObject": (
+        [ctypes.c_void_p, ctypes.c_int32, ctypes.c_void_p, ctypes.c_uint32],
+        ctypes.c_int32,
+    ),
+    "AssignProcessToJobObject": ([ctypes.c_void_p, ctypes.c_void_p], ctypes.c_int32),
+    "ResumeThread": ([ctypes.c_void_p], ctypes.c_uint32),
+    "TerminateProcess": ([ctypes.c_void_p, ctypes.c_uint32], ctypes.c_int32),
+    "CloseHandle": ([ctypes.c_void_p], ctypes.c_int32),
+    "WaitForSingleObject": ([ctypes.c_void_p, ctypes.c_uint32], ctypes.c_uint32),
+    "GetExitCodeProcess": ([ctypes.c_void_p, ctypes.c_void_p], ctypes.c_int32),
+    "SetHandleInformation": ([ctypes.c_void_p, ctypes.c_uint32, ctypes.c_uint32], ctypes.c_int32),
+}
+
+
+def _declare_kernel(kernel: Any) -> None:
+    """Give every kernel32 call its real signature before anything calls it."""
+    for name, (argtypes, restype) in _KERNEL_SIGNATURES.items():
+        function = getattr(kernel, name)
+        function.argtypes = argtypes
+        function.restype = restype
 
 
 def _job(api: _Api) -> ctypes.c_void_p | None:
@@ -217,20 +259,24 @@ def _job(api: _Api) -> ctypes.c_void_p | None:
     that as fatal rather than as a degraded mode. Containment that is sometimes
     absent is reported as absent.
     """
-    handle = api.kernel.CreateJobObjectW(None, None)
-    if not handle:
+    # `restype` is declared, so this is the whole handle rather than its low
+    # thirty-two bits. It used to be re-wrapped in `c_void_p` below, which
+    # looked like care and could not undo a truncation that had already
+    # happened at the return.
+    handle = ctypes.c_void_p(api.kernel.CreateJobObjectW(None, None))
+    if not handle.value:
         return None
     limits = _JobObjectExtendedLimitInformation()
     limits.BasicLimitInformation.LimitFlags = _JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
     if not api.kernel.SetInformationJobObject(
-        ctypes.c_void_p(handle),
+        handle,
         _JOB_OBJECT_EXTENDED_LIMIT_INFORMATION,
         ctypes.byref(limits),
         ctypes.sizeof(limits),
     ):
-        api.kernel.CloseHandle(ctypes.c_void_p(handle))
+        api.kernel.CloseHandle(handle)
         return None
-    return ctypes.c_void_p(handle)
+    return handle
 
 
 class AppContainerProcess:

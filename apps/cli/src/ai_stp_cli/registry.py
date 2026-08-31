@@ -1201,7 +1201,13 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         mutability="apply",
         parameters=(
             option("harness", "string", "Harness whose program this is.", required=True),
-            option("provider", "string", "Exact provider executable to invoke.", required=True),
+            option(
+                "provider",
+                "string",
+                "Override the provider executable. Resolved from the provider "
+                "registry when omitted: explicit path, then configuration, then "
+                "the remembered choice, then discovery.",
+            ),
             option(
                 "provider-release-digest",
                 "string",
@@ -1245,7 +1251,13 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         mutability="apply",
         parameters=(
             option("harness", "string", "Harness whose program this is.", required=True),
-            option("provider", "string", "Exact provider executable to invoke.", required=True),
+            option(
+                "provider",
+                "string",
+                "Override the provider executable. Resolved from the provider "
+                "registry when omitted: explicit path, then configuration, then "
+                "the remembered choice, then discovery.",
+            ),
             option(
                 "provider-release-digest",
                 "string",
@@ -1290,7 +1302,13 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         confirmation="explicit_flag",
         parameters=(
             option("harness", "string", "Harness whose program this is.", required=True),
-            option("provider", "string", "Exact provider executable to invoke.", required=True),
+            option(
+                "provider",
+                "string",
+                "Override the provider executable. Resolved from the provider "
+                "registry when omitted: explicit path, then configuration, then "
+                "the remembered choice, then discovery.",
+            ),
             option(
                 "provider-release-digest",
                 "string",
@@ -1340,7 +1358,13 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         mutability="apply",
         parameters=(
             option("operation", "string", "The operation that stopped.", required=True),
-            option("provider", "string", "Exact provider executable to invoke.", required=True),
+            option(
+                "provider",
+                "string",
+                "Override the provider executable. Resolved from the provider "
+                "registry when omitted: explicit path, then configuration, then "
+                "the remembered choice, then discovery.",
+            ),
             option(
                 "harness",
                 "string",

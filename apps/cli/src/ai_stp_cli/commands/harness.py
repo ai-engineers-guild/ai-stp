@@ -400,6 +400,48 @@ def _occupied(prefix: Path) -> bool:
     return exposed.is_dir() and any(exposed.iterdir())
 
 
+def _resolve_provider(
+    connection: sqlite3.Connection,
+    harness_id: str,
+    parameters: Mapping[str, object],
+) -> str:
+    """Which provider executable serves this harness, by the precedence of `#452`.
+
+    Explicit argument, then configuration, then the remembered choice, then
+    discovery under the managed root. `installations.resolve` owns that order and
+    names which of the four answered; nothing here re-decides it.
+
+    Ambiguity stays a refusal rather than a choice. Two providers for one harness
+    is the one case where picking is deciding, and `#452` leaves that decision
+    with whoever installed both.
+    """
+    from ai_stp_cli.config import effective_config
+    from ai_stp_cli.local import provider_installations as installations
+
+    configured = {item.path: item.value for item in effective_config().values}
+    found = installations.resolve(
+        connection,
+        harness_id,
+        argument=str(parameters.get("provider") or ""),
+        configured=str(configured.get(f"provider.paths.{harness_id}") or ""),
+    )
+    if found.state == installations.STATE_AMBIGUOUS:
+        raise CliFailure(
+            "AI_STP_USER_DECISION_REQUIRED",
+            "more than one provider serves this harness here",
+            details={"harness": harness_id, "candidates": ", ".join(found.candidates)},
+            next_actions=["provider check --json", "harness install --provider <path> --json"],
+        )
+    if not found.path:
+        raise CliFailure(
+            "AI_STP_NOT_FOUND",
+            "no provider for this harness is installed here",
+            details={"harness": harness_id, "reason": found.reason},
+            next_actions=[f"provider fetch --harness {harness_id} --json"],
+        )
+    return conformance.resolve_executable(found.path)
+
+
 def _planned_entry_point(
     artifacts: tuple[operation_v3.SoftwareArtifact, ...],
     *,
@@ -463,7 +505,6 @@ def _release_digest(
 def _perform(action: str, parameters: Mapping[str, object]) -> Answer[HarnessProgram]:
     operation = _OPERATIONS[action]
     harness_id = _required(parameters, "harness")
-    executable = conformance.resolve_executable(_required(parameters, "provider"))
     prefix = _directory(parameters, "prefix")
     target = _directory(parameters, "target")
 
@@ -482,6 +523,12 @@ def _perform(action: str, parameters: Mapping[str, object]) -> Answer[HarnessPro
     # of two things the caller already established, a verified release or a
     # deliberate `--unverified-provider`.
     with open_registry(configured_path()) as connection:
+        # The registry answers which provider serves this harness, so `--provider`
+        # is an override rather than something every caller must carry. It was
+        # required here while `provider fetch` had already installed one and
+        # recorded where it put it — an agent had to copy a path the system
+        # could state, and a copied path goes stale silently.
+        executable = _resolve_provider(connection, harness_id, parameters)
         evidence = trust.trusted_manifest(
             connection, parameters, executable, recovery_requested=False
         )
@@ -918,7 +965,7 @@ def resume(parameters: Mapping[str, object]) -> Answer[HarnessProgram]:
         before = program_state.deserialize(held.program_prefix_state)
         _assert_same(parameters, held, prefix=prefix, target=target, harness_id=harness_id)
 
-        executable = _resume_executable(parameters, held)
+        executable = _resume_executable(connection, parameters, held)
         evidence = trust.trusted_manifest(
             connection, _resume_trust(parameters, held), executable, recovery_requested=False
         )
@@ -1029,23 +1076,24 @@ def _assert_same(
             )
 
 
-def _resume_executable(parameters: Mapping[str, object], held: installation.Plan) -> str:
+def _resume_executable(
+    connection: sqlite3.Connection,
+    parameters: Mapping[str, object],
+    held: installation.Plan,
+) -> str:
     """The provider that planned this, found again and proved to be the same bytes.
 
-    A path may be given because a provider can legitimately have moved. What
-    cannot change is what it hashes to: the plan recorded the exact artifact
-    digest, so a relocated copy is accepted only when it is byte-identical, and
-    a different executable at the same path is refused rather than run.
+    Nothing has to be supplied. The plan records which harness it was for, the
+    registry answers which provider serves that harness, and the plan's artifact
+    digest decides whether whatever was found is the same bytes. `--provider`
+    remains an override for a provider that moved somewhere the registry does not
+    know about.
+
+    What cannot change is what it hashes to. A relocated copy is accepted only
+    when it is byte-identical; a different executable at the same path is refused
+    rather than run, whichever of the two found it.
     """
-    given = str(parameters.get("provider") or "")
-    if not given:
-        raise CliFailure(
-            "AI_STP_VALIDATION_ERROR",
-            "--provider is required until the resolved provider path is recorded in the plan",
-            details={"operation": held.operation_id},
-            next_actions=[f"harness resume --operation {held.operation_id} --provider <path>"],
-        )
-    executable = conformance.resolve_executable(given)
+    executable = _resolve_provider(connection, held.program_harness_id, parameters)
     if not held.provider_artifact_digest:
         return executable
     observed, _ = release.artifact_identity(Path(executable))

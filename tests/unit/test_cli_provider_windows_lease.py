@@ -122,6 +122,42 @@ def test_the_job_kills_on_close_rather_than_on_a_remembered_call() -> None:
     assert windows_launcher._JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE == 0x2000  # pyright: ignore[reportPrivateUsage]
 
 
+def test_every_kernel_call_declares_its_signature() -> None:
+    """An undeclared ctypes call returns `c_int`, and a Windows HANDLE is 64-bit.
+
+    `CreateJobObjectW` was added without a `restype`, so it handed back a
+    truncated handle and the job could not have held the tree it exists to hold
+    — visible only as a descendant surviving a timeout, on a platform this
+    suite's type checker never sees.
+    """
+    source = Path(windows_launcher.__file__).read_text(encoding="utf-8")
+    called = {
+        name
+        for name in (
+            "CreateJobObjectW",
+            "SetInformationJobObject",
+            "AssignProcessToJobObject",
+            "ResumeThread",
+            "TerminateProcess",
+            "CloseHandle",
+            "WaitForSingleObject",
+            "GetExitCodeProcess",
+            "SetHandleInformation",
+        )
+        if f"kernel.{name}(" in source
+    }
+    declared = set(windows_launcher._KERNEL_SIGNATURES)  # pyright: ignore[reportPrivateUsage]
+    assert called <= declared, f"undeclared kernel32 calls: {sorted(called - declared)}"
+
+
+def test_a_handle_returning_call_is_not_declared_as_an_int() -> None:
+    """The specific truncation. `c_int` here is the bug, not a style choice."""
+    import ctypes
+
+    signatures = windows_launcher._KERNEL_SIGNATURES  # pyright: ignore[reportPrivateUsage]
+    assert signatures["CreateJobObjectW"][1] is ctypes.c_void_p
+
+
 def test_the_process_starts_suspended_so_nothing_escapes_the_job() -> None:
     """Assigned before it runs, or a fast child is outside the job that owns it."""
     source = Path(windows_launcher.__file__).read_text(encoding="utf-8")

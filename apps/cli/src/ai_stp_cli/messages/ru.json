@@ -132,6 +132,7 @@
   "each --tool-version must be one unique non-empty name=version pair": "каждый --tool-version должен быть одной уникальной непустой парой name=version",
   "history limit must be between 1 and 100": "предел истории должен быть от 1 до 100",
   "more than one provider is installed for this harness; name the one to replace": "для этого харнесса установлено несколько provider; назовите тот, который заменить",
+  "more than one provider serves this harness here": "этому харнессу здесь служит больше одного провайдера",
   "name at most one confirmed proposal or prepared exact SetupVersion": "назовите не более одного подтверждённого предложения или подготовленного точного SetupVersion",
   "name either one proposal or one or more members, not both and not neither": "назовите либо одно предложение, либо одного или нескольких участников, не оба и не ни одного",
   "name exactly one confirmed proposal or prepared exact SetupVersion": "назовите ровно одно подтверждённое предложение или подготовленный точный SetupVersion",
