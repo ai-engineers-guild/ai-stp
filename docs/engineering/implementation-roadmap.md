@@ -98,6 +98,26 @@ antigravity), поэтому `install plan` показывает описани�
    без фиктивных объектов. Anonymous live, provider 0.0.48, citation и
    six-native release evidence уже выполнены.
 
+### P2. Шесть объявленных scope, в которые нечем маршрутизировать
+
+Шесть из семи provider systems объявляют scoped projection profile — пять
+`user_root -> skills` (codex, grok-build, pi, cursor, opencode) и один
+`project` с пятью namespace (antigravity). `PROVIDER_RULES` несёт **одно**
+правило со `scope`: `Rule("skill", "skills", "directory", "codex",
+target_scope="user_root")`.
+
+`scoped_projections` при этом читается — `install.py::_v3_profile` выбирает по
+нему профиль (`ADR-0127`). Недостижима не ветка потребителя, а сам scope:
+`_v3_profile` берёт scope из `composition.rule_for`, у остальных шести множество
+пустое, `or {"global"}` даёт global, и объявленный профиль не выбирается никогда.
+
+Объявления снимать нельзя: они описывают продукт провайдера и верны независимо
+от этой таблицы. Неполна здешняя половина. Добавление правил меняет, куда у
+пяти харнессов уезжает `skill` — из собственного дома в общий `~/.agents/skills`
+— вместе с инвентарём backup/restore, shadowing и объёмом операции. Это
+наблюдаемое поведение, поэтому оно идёт через активную спецификацию, а не через
+строку в таблице.
+
 ### P2. Native evidence для того, что уже реализовано, но не измерено
 
 1. `just evidence-software <tag>` ведёт семь выпущенных провайдеров через
