@@ -76,7 +76,7 @@ class SandboxExecLauncher:
             raise ValueError("provider executable must be absolute")
         if target.is_symlink() or not target.is_absolute() or not target.is_dir():
             raise ValueError("provider target must be an existing absolute directory")
-        return (str(self.executable), "-p", PROFILE, *argv)
+        return (self.executable.as_posix(), "-p", PROFILE, *argv)
 
     def run(
         self,
@@ -113,7 +113,7 @@ def _probe(executable: Path) -> tuple[bool, tuple[str, ...]]:
         }
         result = subprocess.run(
             (
-                str(executable),
+                executable.as_posix(),
                 "-p",
                 PROFILE,
                 sys.executable,
