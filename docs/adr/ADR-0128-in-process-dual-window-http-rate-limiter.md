@@ -5,7 +5,7 @@ last_verified: "2026-08-28"
 
 # ADR-0128: Single-node HTTP limiter — two in-process sliding windows
 
-Status: accepted. Clarifies `SPEC-010` `REQ-1015`. The proxy named in its context changed with `ADR-0135-nginx-is-the-only-edge-proxy.md`; the fact the decision rests on did not, because `request.client.host` is still the adjacent peer rather than the public client, and is now the host's nginx.
+Status: accepted. Clarifies `SPEC-010` `REQ-1015`. Its two windows and their in-process implementation stand. The premise underneath the per-address one does not: this record noted that `request.client.host` is the adjacent peer, so that budget was one shared bucket for every anonymous reader, and it accepted that because nothing stated a trustworthy address. `ADR-0135-nginx-is-the-only-edge-proxy.md` put the edge under this repository's own configuration, and its template states one — `X-AI-STP-Client-IP`, set rather than forwarded, so a visitor cannot choose the value describing them. The limiter reads it when it parses as an IP address and falls back to the peer otherwise, which is what the "separately reviewed trusted-proxy policy" named in the middleware was waiting for.
 
 ## Context
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import OrderedDict, deque
 from collections.abc import Awaitable, Callable
+from ipaddress import ip_address
 from time import monotonic
 
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -16,6 +17,39 @@ from ai_stp_foundation.ids import new_id
 
 OVERALL_WINDOW_KEY = "overall"
 UNKNOWN_PEER = "unknown"
+
+#: The client address the edge proxy states. `deploy/nginx/ai-stp.conf.template`
+#: sets it with `proxy_set_header`, which replaces whatever the client sent, so a
+#: visitor cannot choose the value that describes them.
+CLIENT_ADDRESS_HEADER = "x-ai-stp-client-ip"
+
+
+def client_key(request: Request) -> str:
+    """Name the caller a per-address budget should be charged to.
+
+    The transport peer alone was the whole key until now, and behind a proxy that
+    is the proxy: every anonymous reader shared one bucket, so one busy caller
+    rate-limited everyone and a 429 said nothing about the caller who got it.
+    `ADR-0128` recorded that as the cost of having no trusted address, which was
+    true while nothing stated one.
+
+    The edge states one now. It is read only when it parses as an IP address:
+    that keeps a malformed or invented value from opening a key of its own
+    choosing, and an unparseable one falls back rather than failing, because a
+    limiter that refuses traffic it cannot classify is a worse failure than a
+    limiter that charges it to the peer.
+
+    Reaching the API without passing the proxy means reaching a loopback port on
+    the deployment host, which is not a position this defends against, and in
+    local development nothing sets the header and the peer is the caller anyway.
+    """
+    stated = request.headers.get(CLIENT_ADDRESS_HEADER, "").strip()
+    if stated:
+        try:
+            return str(ip_address(stated))
+        except ValueError:
+            pass
+    return request.client.host if request.client is not None else UNKNOWN_PEER
 
 
 class SlidingWindowLimiter:
@@ -141,9 +175,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         request: Request,
         call_next: Callable[[Request], Awaitable[Response]],
     ) -> Response:
-        # ``Request.client`` is transport-derived. Forwarded headers are deliberately
-        # ignored until a separately reviewed trusted-proxy policy exists.
-        origin = request.client.host if request.client is not None else UNKNOWN_PEER
+        origin = client_key(request)
         if self.gate.allow(origin):
             return await call_next(request)
         request_id = getattr(request.state, "request_id", "") or new_id("request")
