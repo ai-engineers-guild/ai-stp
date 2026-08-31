@@ -387,6 +387,7 @@
   "the provider status carries a malformed copy list": "статус провайдера несёт повреждённый список копий",
   "the provider status carries a malformed shadow list": "статус провайдера несёт повреждённый список перекрытий",
   "the provider status carries malformed authorization evidence": "статус провайдера несёт повреждённые доказательства авторизации",
+  "the provider status does not match the released protocol-v3 schema": "статус провайдера не соответствует опубликованной схеме протокола v3",
   "the provider target must be an existing absolute directory, not a symlink": "цель провайдера должна быть существующим абсолютным каталогом, не symlink",
   "the provider trust policy is not valid TOML": "политика доверия провайдера не является допустимым TOML",
   "the provider-info harness does not match the requested harness": "харнесс в provider-info не совпадает с запрошенным",

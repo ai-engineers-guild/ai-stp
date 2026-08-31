@@ -28,6 +28,7 @@ dependencies = [
     "click>=8.1",
     "pynacl>=1.6.2",
     "httpx>=0.28",
+    "jsonschema>=4.26",
     "keyring>=25.6",
     "pydantic>=2.9",
     "pyyaml>=6",

@@ -4,11 +4,40 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Final
 
+from jsonschema import Draft202012Validator
+
 from ai_stp_cli.errors import CliFailure
 from ai_stp_foundation.canonical import JsonValue
 
 AUTHORIZATION_KINDS: Final[frozenset[str]] = frozenset({"user_account", "external_service"})
 AUTHORIZATION_STATES: Final[frozenset[str]] = frozenset({"pending", "ready"})
+
+
+def require_wire(answer: Mapping[str, JsonValue]) -> dict[str, JsonValue]:
+    """Reject a protocol-v3 status that does not match the released closed schema."""
+    from ai_stp_cli.provider import protocol_v3
+
+    validator = Draft202012Validator(protocol_v3.STATUS_WIRE_SCHEMA)
+    errors = sorted(
+        validator.iter_errors(answer),  # pyright: ignore[reportUnknownMemberType]
+        key=lambda item: list(item.absolute_path),
+    )
+    if errors:
+        first = errors[0]
+        path = ".".join(str(item) for item in first.absolute_path) or "$"
+        raise CliFailure(
+            "AI_STP_SCHEMA_UNSUPPORTED",
+            "the provider status does not match the released protocol-v3 schema",
+            details={
+                "field": path,
+                "validator": str(first.validator),
+            },
+            next_actions=[
+                "toolchain install --harness <id> --json",
+                "provider conformance --harness <id> --executable <path> --json",
+            ],
+        )
+    return dict(answer)
 
 
 @dataclass(frozen=True)

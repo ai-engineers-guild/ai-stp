@@ -65,6 +65,24 @@ def _object(value: JsonValue) -> dict[str, JsonValue]:
     return cast(dict[str, JsonValue], value)
 
 
+def _missing_status() -> dict[str, JsonValue]:
+    digest = "sha256:" + "0" * 64
+    return {
+        "backups": [],
+        "canonical_target": "/tmp/status-target",
+        "cleanup_state": "none",
+        "harness_id": "codex",
+        "journal": None,
+        "protocol_version": 3,
+        "provider_id": "codex-setup-system",
+        "provider_state": {"present": False},
+        "shadowed_by": [],
+        "state": "missing",
+        "target_digest": digest,
+        "target_identity_digest": digest,
+    }
+
+
 def test_local_phase_without_matching_launcher_fails_before_spawn(tmp_path: Path) -> None:
     marker = tmp_path / "spawned"
     executable = _provider(tmp_path, f"open({str(marker)!r}, 'w').write('yes')\n")
@@ -179,9 +197,12 @@ def test_v2_requires_an_existing_absolute_target(tmp_path: Path) -> None:
 
 
 def test_v3_core_always_uses_the_exact_enforced_local_launcher(tmp_path: Path) -> None:
+    status_answer = _missing_status()
     executable = _provider(
         tmp_path,
-        "import json, sys\nprint(json.dumps({'argv': sys.argv[1:]}))\n",
+        "import json, sys\n"
+        f"answer = {status_answer!r} if sys.argv[1] == 'status' else {{'argv': sys.argv[1:]}}\n"
+        "print(json.dumps(answer))\n",
     )
     capability = _enforced()
     launcher = RecordingLauncher(capability)
@@ -203,14 +224,16 @@ def test_v3_core_always_uses_the_exact_enforced_local_launcher(tmp_path: Path) -
     )
 
     assert _object(info)["argv"] == ["provider-info"]
-    assert _object(status)["argv"] == [
+    assert _object(status)["state"] == "missing"
+    assert launcher.calls[1] == (
+        executable,
         "status",
         "--target",
         str(tmp_path.resolve()),
         "--json",
         "--probe",
         "exact",
-    ]
+    )
     assert len(launcher.calls) == 2
 
 

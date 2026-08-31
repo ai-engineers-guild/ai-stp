@@ -178,7 +178,22 @@ def test_windows_with_the_exception_reaches_the_spawn_unwrapped(
 
     def spawn(argv: tuple[str, ...], *, command: str) -> JsonValue:
         seen.append(tuple(argv))
-        return {"state": "missing", "target_digest": "x", "command": command}
+        del command
+        digest = "sha256:" + "0" * 64
+        return {
+            "backups": [],
+            "canonical_target": str(target),
+            "cleanup_state": "none",
+            "harness_id": "codex",
+            "journal": None,
+            "protocol_version": 3,
+            "provider_id": "codex-setup-system",
+            "provider_state": {"present": False},
+            "shadowed_by": [],
+            "state": "missing",
+            "target_digest": digest,
+            "target_identity_digest": digest,
+        }
 
     monkeypatch.setattr(conformance, "invoke_argv", spawn)
 

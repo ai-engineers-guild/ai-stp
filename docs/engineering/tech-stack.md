@@ -15,7 +15,7 @@ last_verified: "2026-08-31"
 | Ключ устройства и секреты | Ed25519 в установленном CLI через `PyNaCl 1.6.2`; `keyring` с закрытым перечнем доверенных backend'ов по `ADR-0058` |
 | Локальный реестр | стандартный `sqlite3` с WAL и собственным раннером миграций по `ADR-0059`; Alembic и SQLAlchemy не используются в CLI |
 | Облачный клиент CLI | `httpx` с ограниченными таймаутами и повторами; транспорт — часть `Endpoint`, поэтому мок из #71 и реальный сервер идут одним путём |
-| Схемы | Pydantic 2; JSON Schema и OpenAPI 3.1 генерируются из моделей |
+| Схемы | Pydantic 2; JSON Schema и OpenAPI 3.1 генерируются из моделей; установленный CLI проверяет закрытый provider `status` через `jsonschema 4.26` |
 | API | FastAPI |
 | Server DB | PostgreSQL |
 | Local DB | SQLite |

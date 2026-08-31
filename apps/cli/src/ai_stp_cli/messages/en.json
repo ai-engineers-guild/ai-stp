@@ -387,6 +387,7 @@
   "the provider status carries a malformed copy list": "the provider status carries a malformed copy list",
   "the provider status carries a malformed shadow list": "the provider status carries a malformed shadow list",
   "the provider status carries malformed authorization evidence": "the provider status carries malformed authorization evidence",
+  "the provider status does not match the released protocol-v3 schema": "the provider status does not match the released protocol-v3 schema",
   "the provider target must be an existing absolute directory, not a symlink": "the provider target must be an existing absolute directory, not a symlink",
   "the provider trust policy is not valid TOML": "the provider trust policy is not valid TOML",
   "the provider-info harness does not match the requested harness": "the provider-info harness does not match the requested harness",

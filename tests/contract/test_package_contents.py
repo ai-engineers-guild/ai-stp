@@ -71,11 +71,13 @@ DISTRIBUTION_OF: Final[dict[str, str]] = {
     "ai_stp_contracts": "ai-stp-contracts",
     "ai_stp_foundation": "ai-stp-foundation",
     "ai_stp_passports": "ai-stp-passports",
+    "jsonschema": "jsonschema",
     "nacl": "pynacl",
 }
 
 #: Reasons on the record: `click` by `ADR-0057`, `pynacl` and `keyring` by
-#: `ADR-0058`, `httpx` by `#75`, `pyyaml` for the configuration file, `pydantic`
+#: `ADR-0058`, `httpx` by `#75`, `jsonschema` for the closed provider status
+#: boundary, `pyyaml` for the configuration file, `pydantic`
 #: for the wire and report models, `ai-stp-passports` for the passport envelope,
 #: `ai-stp-assurance` for the signed attestation boundary, and `tomlkit` by
 #: `ADR-0129` for format-preserving writes to a host file a component
@@ -90,6 +92,7 @@ ALLOWED_DEPENDENCIES: Final[frozenset[str]] = frozenset(
         "ai-stp-passports",
         "click",
         "httpx",
+        "jsonschema",
         "keyring",
         "pynacl",
         "pydantic",

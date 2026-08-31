@@ -12,6 +12,9 @@ from ai_stp_cli.provider import (
     protocol_v2,
     protocol_v3,
 )
+from ai_stp_cli.provider import (
+    status as provider_status,
+)
 from ai_stp_foundation.canonical import JsonValue
 
 
@@ -72,5 +75,11 @@ def invoke(
     # target, the timeouts and output limits. Only the isolation is absent, and
     # its absence is what `provider network` keeps reporting.
     if launcher is None:
-        return conformance.invoke_argv(argv, command=command)
-    return launcher.run(argv, target=resolved_target, writable=writable, command=command)
+        answer = conformance.invoke_argv(argv, command=command)
+    else:
+        answer = launcher.run(argv, target=resolved_target, writable=writable, command=command)
+    if command == "status":
+        if not isinstance(answer, dict):
+            return provider_status.require_wire({"answer": answer})
+        return provider_status.require_wire(answer)
+    return answer

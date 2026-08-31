@@ -59,11 +59,10 @@ last_verified: "2026-08-31"
 
 1. Provider-kit `0.2.7` vendored в released setup-systems `0.0.48`; 35 status
    samples (семь × пять состояний) проходят Draft 2020-12.
-2. Включить отказ
-   consumer для malformed status отдельным compatible change.
-3. После consumer enforcement повторить cross-repository conformance; schema
-   publication и enforcement являются двумя последовательными окнами
-   совместимости, не одним коммитом.
+2. Consumer enforcement включён отдельным compatible change после producer
+   release и отказывает malformed status до чтения полей.
+3. Повторить cross-repository conformance после enforcement; schema publication
+   и enforcement остаются двумя последовательными evidence-окнами.
 
 ### P2. Release-candidate и live evidence
 

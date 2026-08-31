@@ -31,6 +31,20 @@ last_verified: "2026-08-31"
 граница не заменяет серверную verify implementation и не переносит PyNaCl в
 server runtime.
 
+### jsonschema
+
+| Поле | Значение |
+|---|---|
+| Capability gap | Проверка полного Draft 2020-12 `status-response.schema.json` до чтения install/recovery/status полей. Частичный ручной parser не доказывает closed wire boundary. |
+| Источник | PyPI `jsonschema`, upstream <https://github.com/python-jsonschema/jsonschema>. |
+| Версия | `>=4.26`, exact lock. |
+| Лицензия / security | MIT. Advisory frontend или `rpds-py` требует bump и повторной six-leg evidence. |
+| Платформы | Linux, Windows, macOS на `x86_64`/`arm64`; `rpds-py` имеет native wheels для всей матрицы. |
+| Failure | Первое несовпадение даёт `AI_STP_SCHEMA_UNSUPPORTED`, имя поля и автономные update/conformance actions; частичный ответ не используется. |
+| Тест | 35 producer samples, hostile schema cases, invocation-boundary negative и six-leg candidate install. |
+| Владелец обновлений | CLI provider protocol boundary. |
+| План удаления | Только вместе с эквивалентным полным Draft 2020-12 validator и повторным cross-repository conformance. |
+
 ## Одобренные зависимости `apps/api` (issue #80, ADR-0041)
 
 Каждая запись ниже является sign-off на добавление в `apps/api/pyproject.toml` и корневой `uv.lock`. Точная версия закрепляется lock-файлом при `uv lock` / `uv sync`.

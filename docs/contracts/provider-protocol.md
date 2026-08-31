@@ -225,10 +225,11 @@ operation/precondition, native ownership, written paths, backup и previous
 verified identity. Для missing, foreign-schema и local-drift ответ не обязан
 придумывать clean provenance.
 
-Схема, checksum и conformance cases публикуются раньше enforcement. До выпуска
-provider systems, которые вендорят эту ревизию kit, consumer продолжает читать
-совместимый status прежних релизов; наличие schema в kit само по себе не означает,
-что runtime уже отклоняет старый ответ.
+Схема, checksum и conformance cases опубликованы раньше enforcement. После
+выпуска provider systems `0.0.47`/`0.0.48`, которые вендорят эту ревизию kit,
+consumer проверяет каждый protocol-v3 `status` до чтения cleanup/provenance.
+Несовпадение возвращает `AI_STP_SCHEMA_UNSUPPORTED` и предлагает автономное
+обновление provider и conformance; частично разобранный ответ не используется.
 
 Ниже — только то, чего машинный файл не выражает: смысл делений.
 

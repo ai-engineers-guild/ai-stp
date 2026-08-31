@@ -10,7 +10,10 @@ import pytest
 from jsonschema import Draft202012Validator, ValidationError
 from release_scripts import provider_kit
 
+from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.provider import protocol_v3
+from ai_stp_cli.provider import status as provider_status
+from ai_stp_foundation.canonical import JsonValue
 
 DIGEST = "sha256:" + "a" * 64
 OTHER_DIGEST = "sha256:" + "b" * 64
@@ -106,6 +109,22 @@ def test_missing_unmanaged_and_clean_managed_answers_validate() -> None:
     ]
     for answer in (missing, unmanaged, _managed()):
         _validate(answer)
+
+
+def test_runtime_enforces_the_same_closed_schema() -> None:
+    managed = _managed()
+    assert provider_status.require_wire(cast(dict[str, JsonValue], managed))["state"] == "managed"
+
+    malformed = deepcopy(managed)
+    del malformed["cleanup_state"]
+    with pytest.raises(CliFailure) as raised:
+        provider_status.require_wire(cast(dict[str, JsonValue], malformed))
+    assert raised.value.code == "AI_STP_SCHEMA_UNSUPPORTED"
+    assert raised.value.details["field"] == "$"
+    assert raised.value.next_actions == [
+        "toolchain install --harness <id> --json",
+        "provider conformance --harness <id> --executable <path> --json",
+    ]
 
 
 def test_clean_state_requires_every_flat_provenance_field() -> None:
