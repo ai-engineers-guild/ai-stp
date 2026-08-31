@@ -39,6 +39,8 @@ last_verified: "2026-08-31"
 - canonical development checkout: `ai-engineers-guild/ai-stp`; private
   underscore tree импортирует его штатным `public-sync` и отдельно хранит
   private deployment history;
+- опубликованные Python-пакеты: `0.0.11`, пять exact distributions с PyPI
+  Trusted Publishing, attestations, SBOM/checksums и clean install smoke;
 - активный выпуск провайдеров: `0.0.48`, семь выпусков по шесть нативных бинарников и
   `SHA256SUMS`;
 - core provider surface/binaries: 7 × 6 строк Linux/Windows/macOS ×
@@ -55,23 +57,15 @@ last_verified: "2026-08-31"
 
 ## Оставшаяся работа
 
-### P1. Exact current provider wave
+### P1. Account-dependent live evidence
 
-1. Provider-kit `0.2.7` vendored в released setup-systems `0.0.48`; 35 status
-   samples (семь × пять состояний) проходят Draft 2020-12.
-2. Consumer enforcement включён отдельным compatible change после producer
-   release и отказывает malformed status до чтения полей.
-3. Повторить cross-repository conformance после enforcement; schema publication
-   и enforcement остаются двумя последовательными evidence-окнами.
-
-### P2. Release-candidate и live evidence
-
-1. Собрать пять exact Python packages, SBOM/checksums/provenance и install smoke
-   вне checkout на шести строках.
-2. Прогнать repository-independent `evidence-*` против exact deployed SHA:
-   anonymous live, account sync, publication, providers и recovery.
+1. Завершить настоящий browser device flow для двух отдельных file credential
+   stores и прогнать fast-forward/replay/conflict/merge sync scenarios.
+2. Тем же аккаунтом проверить owner/publication/grant/report read surface и
+   локальные attestation/preview/reachability scenarios.
 3. Проверить catalog install для семи harnesses/postures и записать content gaps
-   без фиктивных объектов.
+   без фиктивных объектов. Anonymous live, provider 0.0.48, citation и
+   six-native release evidence уже выполнены.
 
 ### P4. Agent-first cleanup как постоянная практика
 
