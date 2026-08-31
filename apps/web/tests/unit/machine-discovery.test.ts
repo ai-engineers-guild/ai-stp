@@ -35,7 +35,8 @@ describe("machine discovery surfaces", () => {
   it("keeps agent onboarding safety-first", async () => {
     const body = await agents().text();
     expect(body).toContain("ai-stp doctor --json");
-    expect(body).toContain("Ask before experimental selection");
+    expect(body).toContain("Decide and execute reversible in-scope work yourself");
+    expect(body).not.toContain("any external write");
   });
 
   it("serves a paginated catalog manifest instead of one giant document", async () => {
