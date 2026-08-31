@@ -1,6 +1,6 @@
 ---
-title: "ai_stp"
-description: "ai_stp user documentation."
+title: "Overview"
+description: "Understand ai_stp, its trust model, and the path from catalog to installed setup."
 ---
 
 <!--

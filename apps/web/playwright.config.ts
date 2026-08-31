@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import { defineConfig, devices } from "@playwright/test";
 
 // 3100 collided with another project on the maintainer's machine and the
@@ -78,6 +80,7 @@ export default defineConfig({
             AI_STP_API_BASE_URL: "http://127.0.0.1:8000",
             NEXT_PUBLIC_APP_URL: baseURL,
             AI_STP_SESSION_SECRET: "playwright-session-secret-32chars-min",
+            AI_STP_USER_FACING_ROOT: path.resolve(process.cwd(), "..", "..", "docs-user-facing"),
           },
         },
       }),

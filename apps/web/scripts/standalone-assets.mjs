@@ -34,11 +34,13 @@ if (existsSync(publicSrc)) {
   cpSync(publicSrc, path.join(standalone, "public"), { recursive: true });
 }
 
-// Fumadocs local-md resolves Markdown at runtime for optional catch-all routes.
-// Keep the repository-owned sources beside the standalone server.
-const contentSrc = path.join(root, "content");
-if (existsSync(contentSrc)) {
-  cpSync(contentSrc, path.join(standalone, "content"), { recursive: true });
+// Fumadocs and the Content Hub resolve Markdown at runtime. Keep the single
+// repository-owned user-facing source tree beside the standalone server.
+const userFacingSrc = process.env.AI_STP_USER_FACING_ROOT
+  ? path.resolve(process.env.AI_STP_USER_FACING_ROOT)
+  : path.resolve(root, "..", "..", "docs-user-facing");
+if (existsSync(userFacingSrc)) {
+  cpSync(userFacingSrc, path.join(standalone, "docs-user-facing"), { recursive: true });
 }
 
 // Next.js 15 can omit this statically required directory from the Windows
@@ -54,5 +56,5 @@ if (existsSync(nextBuildOutputSrc)) {
 }
 
 console.log(
-  `standalone-assets: public, content and ${distDir}/static mirrored into standalone output`,
+  `standalone-assets: public, user-facing sources and ${distDir}/static mirrored into standalone output`,
 );
