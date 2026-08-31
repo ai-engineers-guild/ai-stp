@@ -44,15 +44,14 @@ Pi и Grok Build. Для каждой системы evidence раздельно
    exact release bytes;
 4. совпадают ли provider-info, vendored provider-kit schemas и consumer policy.
 
-Software lifecycle доступен на 6/6 строках у шести систем и на Linux/macOS 4/6
-у Antigravity; его Windows-строки обязаны отказать `unsupported_platform` до
-эффекта. Complete launch имеют пять систем: Claude Code, Codex, Grok Build,
-OpenCode и Pi. Cursor и Antigravity не получают фиктивный launch-success.
+Software lifecycle доступен на 6/6 строках у всех семи систем. Complete launch
+имеют пять систем: Claude Code, Codex, Grok Build, OpenCode и Pi. Cursor и
+Antigravity не получают фиктивный launch-success.
 
 Network-free local phase использует consumer-controlled launcher с положительной
-DNS/IPv4/IPv6 probe. macOS без launcher отдельно записывает ограниченный trust
-exception; он не называется `enforced`. `unavailable` без допустимой причины
-остаётся честным отказом. Сборка provider и direct provider E2E не заменяют
+DNS/IPv4/IPv6 probe. macOS доказывает системный `sandbox-exec`; отсутствие или
+ошибка пробы дают ранний отказ без trust exception. Сборка provider и direct
+provider E2E не заменяют
 consumer E2E через `ai-stp`.
 
 ## Платформа и live-контур

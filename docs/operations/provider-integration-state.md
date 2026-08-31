@@ -11,7 +11,7 @@ Pins принадлежат provider policy/manifests, нормативная wi
 
 ## Active release
 
-Active public tag семи `NDDev-OpenNetwork/*-setup-system` — `0.0.47`. Каждый
+Active public tag семи `NDDev-OpenNetwork/*-setup-system` — `0.0.48`. Каждый
 release содержит шесть native binaries и `SHA256SUMS`, прочитанные обратно из
 GitHub.
 
@@ -19,9 +19,7 @@ GitHub.
 
 - core configuration binary/provider-info существует на шести OS/arch строках
   у всех семи;
-- software install/update/remove доступен 6/6 у Claude Code, Codex, Cursor,
-  Grok Build, OpenCode и Pi; Antigravity — Linux/macOS 4/6, Windows обязан дать
-  `unsupported_platform` до эффекта;
+- software install/update/remove доступен 6/6 у всех семи систем;
 - complete launch объявляют Claude Code, Codex, Grok Build, OpenCode и Pi;
   Cursor/Antigravity launch не объявляют;
 - provider-kit `0.2.7` публикует closed status-response schema. Producer release
@@ -30,10 +28,8 @@ GitHub.
 ## Evidence
 
 Exact-current provider plan/digest/apply/update/rollback операции прошли 6/6 у
-всех семи systems. Общий Pi workflow verdict имеет четыре green legs и две
-Windows instrumentation-oracle failures: оба exact vendor releases отвечают
-`0.0.0` на `--version`. PR232 сравнивает pre/post launch output; corrected
-released run ещё pending.
+всех семи systems. Pi oracle сравнивает pre/post launch output, потому что оба
+exact vendor releases на Windows отвечают `0.0.0` на `--version`.
 
 Linux использует доказанный Bubblewrap, Windows — AppContainer runtime proof.
 macOS использует системный `sandbox-exec` только после нативной transport probe;

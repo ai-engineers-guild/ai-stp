@@ -39,14 +39,10 @@ last_verified: "2026-08-31"
 - canonical development checkout: `ai-engineers-guild/ai-stp`; private
   underscore tree импортирует его штатным `public-sync` и отдельно хранит
   private deployment history;
-- активный выпуск провайдеров: `0.0.47`, семь выпусков по шесть нативных бинарников и
+- активный выпуск провайдеров: `0.0.48`, семь выпусков по шесть нативных бинарников и
   `SHA256SUMS`;
 - core provider surface/binaries: 7 × 6 OS/arch строк;
-- software lifecycle: 6 systems × 6/6, Antigravity × 4/6 (Linux/macOS; Windows
-  отказывает `unsupported_platform`);
-- exact-current provider operations: семь systems 6/6; у Pi общий workflow
-  verdict имеет четыре green legs и две Windows instrumentation-oracle failures,
-  PR232/corrected released run ещё впереди;
+- software lifecycle и exact-current provider operations: семь systems × 6/6;
 - live deploy восстановлен после `AI_STP_CONTENT_IMPORT_FORBIDDEN`: внутренний
   token задан owner-only, content-import завершён, API/web готовы. Deployer
   теперь проверяет token до build/migrate/recreate, поэтому тот же пропуск не
@@ -58,19 +54,9 @@ last_verified: "2026-08-31"
 
 ## Оставшаяся работа
 
-### P0. Свести текущие public/private bytes
-
-1. Status-response schema/provider-kit `0.2.7` уже опубликован и выборочно
-   импортирован без перезаписи active docs.
-2. После экспорта документации импортировать остальные точные public commits в private tree и повторить
-   `public-sync-verify` из правильного cwd.
-3. Доставить этот documentation patch обратно в public tree после завершения
-   параллельной schema/workflow работы; не оставлять новое требование только в
-   private copy.
-
 ### P1. Exact current provider wave
 
-1. Provider-kit `0.2.7` vendored в released setup-systems `0.0.47`; 35 status
+1. Provider-kit `0.2.7` vendored в released setup-systems `0.0.48`; 35 status
    samples (семь × пять состояний) проходят Draft 2020-12.
 2. Включить отказ
    consumer для malformed status отдельным compatible change.
@@ -78,21 +64,7 @@ last_verified: "2026-08-31"
    publication и enforcement являются двумя последовательными окнами
    совместимости, не одним коммитом.
 
-### P2. Шесть native evidence legs
-
-1. Исполнить CLI candidate на Linux/Windows/macOS × `x86_64`/`arm64` без
-   эмуляции; provider operations уже прошли 6/6 для семи systems.
-2. На каждой строке различать binary availability, operation availability и
-   реальный lifecycle. Antigravity Windows проверяет ранний typed refusal.
-3. Влить Pi PR232 и повторить две Windows native legs исправленным oracle; не
-   переиздавать старые assets и не считать исправленный source evidence.
-4. После exact evidence обновить package classifiers; до него classifier не
-   опережает доказательство.
-5. macOS использует consumer-controlled `sandbox-exec` только после нативной
-   transport probe; отсутствие executable/proof закрывается отказом без trust
-   exception.
-
-### P3. Release-candidate и live evidence
+### P2. Release-candidate и live evidence
 
 1. Собрать пять exact Python packages, SBOM/checksums/provenance и install smoke
    вне checkout на шести строках.

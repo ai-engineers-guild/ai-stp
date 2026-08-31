@@ -31,12 +31,10 @@ last_verified: "2026-08-31"
 - `REQ-802`: Все семь провайдеров закрытого набора реализуют общий
   версионируемый protocol core и машиночитаемый `provider-info`; product-specific
   software lifecycle и launch объявляются capabilities, а не фиктивными
-  обязательными командами. Software install/update/remove объявляют все семь,
-  но platform availability принадлежит точному software artifact: шесть систем
-  имеют 6/6 OS/arch строк, Antigravity — Linux/macOS 4/6 и честный Windows
-  `unsupported_platform`. Complete launch объявляют Claude Code, Codex, Grok
-  Build, OpenCode и Pi; Cursor Partial и Antigravity Undocumented launch не
-  объявляют.
+  обязательными командами. Software install/update/remove и точные software
+  artifacts доступны у всех семи на 6/6 OS/arch строках. Complete launch
+  объявляют Claude Code, Codex, Grok Build, OpenCode и Pi; Cursor Partial и
+  Antigravity Undocumented launch не объявляют.
 - `REQ-803`: Провайдер единолично владеет нативной projection, блокировками, подготовительным каталогом, изменением цели, резервной копией, состоянием и восстановлением; программой и запуском он владеет только при явно объявленной capability.
 - `REQ-804`: Проверка пакета запрещает абсолютные и родительские пути, выход из каталога, символические и жёсткие ссылки, специальные устройства, повтор нормализованного пути и превышение пределов.
 - `REQ-805`: План не имеет побочных эффектов и привязан к текущему хэшу цели, версиям провайдера и среды, а также сроку действия.

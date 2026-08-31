@@ -41,8 +41,7 @@ Matrix содержит Linux, Windows и macOS на `x86_64` и `arm64`. На �
 - network launcher evidence/refusal;
 - фактически выполненные lifecycle stages.
 
-Software lifecycle у Antigravity не объявлен на Windows без vendor artifact, и
-правильное evidence там — `unsupported_platform` до эффекта. Cursor и
+Software lifecycle у всех семи систем проверяется на шести строках. Cursor и
 Antigravity не объявляют complete launch; launch проверяется у остальных пяти.
 
 Evidence предыдущего tag не переносится. Текущий снимок незакрытых строк живёт
