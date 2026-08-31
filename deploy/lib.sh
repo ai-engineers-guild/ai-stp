@@ -69,11 +69,24 @@ current_git_commit() {
   #
   # The `rev-parse` fallback stays for the manual path, where an operator does
   # rsync a checkout and the root is a repository.
+  #
+  # Running `deploy.sh` by hand on a pull-model host reached neither: no
+  # explicit value, no repository, so "unknown" was handed to the content
+  # snapshot, which refused it as not a 40-hex SHA and failed the build. The
+  # last recorded deploy answers that, and it is safe to read despite the
+  # deadlock above -- `write_artifact_record` refuses to write "unknown" into
+  # it, so this file holds a real commit or nothing at all.
+  local recorded
   if [[ -n ${AI_STP_DEPLOY_COMMIT:-} ]]; then
     echo "${AI_STP_DEPLOY_COMMIT}"
     return 0
   fi
-  git -C "${AI_STP_ROOT}" rev-parse HEAD 2>/dev/null || echo "unknown"
+  if recorded="$(git -C "${AI_STP_ROOT}" rev-parse HEAD 2>/dev/null)"; then
+    echo "${recorded}"
+    return 0
+  fi
+  recorded="$(sed -n 's/^git_commit=//p' "${AI_STP_STATE_DIR}/current" 2>/dev/null | head -n 1)"
+  echo "${recorded:-unknown}"
 }
 
 write_artifact_record() {
