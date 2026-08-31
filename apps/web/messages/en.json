@@ -507,6 +507,18 @@
     "toDocs": "Documentation",
     "rickrollTitle": "Never Gonna Give You Up"
   },
+  "consent": {
+    "title": "Cookie choices",
+    "body": "Necessary cookies keep the service working. Optional analytics and marketing stay off until you allow them.",
+    "necessary": "Necessary (always on)",
+    "analytics": "Analytics",
+    "marketing": "Marketing",
+    "accept": "Accept all",
+    "reject": "Reject optional",
+    "save": "Save choices",
+    "manage": "Cookie settings",
+    "privacy": "Privacy policy"
+  },
   "onboarding": {
     "title": "Before you continue",
     "body": "Review the current service rules and consent to the processing needed to operate your account.",
