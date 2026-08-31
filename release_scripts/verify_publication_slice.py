@@ -554,7 +554,9 @@ def refused(report: Mapping[str, Any]) -> bool:
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--origin", default="https://nddev.asia", help="Bare https origin.")
+    parser.add_argument(
+        "--origin", default="https://ai-stp.aiguild.space", help="Bare https origin."
+    )
     parser.add_argument("--home", required=True, help="Device home, already signed in.")
     parser.add_argument(
         "--allow-writes",

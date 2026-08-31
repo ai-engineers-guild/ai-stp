@@ -1,6 +1,6 @@
 # Development stack (SPEC-019, ADR-0040, SPEC-024, ADR-0044). Self-contained: runs
 # out of the box without any .env.dev. An optional .env.dev overrides these defaults.
-# Postgres and RustFS stay internal. No Caddy in dev: web (:3000) and api (:8000)
+# Postgres and RustFS stay internal. No host proxy in dev: web (:3000) and api (:8000)
 # are published on the host; browser /v1/* is rewritten by Next to the API.
 
 x-app-env: &app-env

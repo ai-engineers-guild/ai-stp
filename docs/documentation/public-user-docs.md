@@ -27,11 +27,12 @@ just user-docs-serve
 ```
 
 The public-site artifact is written to `.site-user-docs/`. It can be served by
-a static container or a dedicated Caddy route without running `apps/web`.
+a static container or a dedicated edge route without running `apps/web`.
 
 In Compose, public user documentation is served by a separate `docs` service.
 In development it is published at `http://localhost:8011`; in production,
-Caddy routes a dedicated `AI_STP_DOCS_HOST` host to the internal `docs:8080`.
+the host's nginx routes a dedicated `AI_STP_DOCS_HOST` name to the port the `docs`
+service publishes on loopback (`ADR-0135`).
 
 Links from `apps/web` use `AI_STP_USER_DOCS_URL`. In development this is
 `http://localhost:8011`; in production it is the HTTPS URL of the docs

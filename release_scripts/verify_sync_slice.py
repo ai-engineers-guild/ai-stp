@@ -483,7 +483,9 @@ def _run_scenarios(
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--origin", default="https://nddev.asia", help="Bare https origin.")
+    parser.add_argument(
+        "--origin", default="https://ai-stp.aiguild.space", help="Bare https origin."
+    )
     parser.add_argument("--home-a", required=True, help="First device home, already signed in.")
     parser.add_argument("--home-b", required=True, help="Second device home, already signed in.")
     parser.add_argument("--python", default=sys.executable, help="Interpreter running the CLI.")

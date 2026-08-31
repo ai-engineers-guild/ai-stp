@@ -95,7 +95,7 @@ def _reach(citation: str) -> tuple[str, str]:
 #: uptime, and it is a real 404 rather than an unresolvable name: a DNS failure
 #: grades `inconclusive`, which is precisely the state this is here to tell
 #: apart from a genuine death.
-CONTROL_CITATION = "https://nddev.asia/ai-stp-citation-slice-control-404"
+CONTROL_CITATION = "https://ai-stp.aiguild.space/ai-stp-citation-slice-control-404"
 
 
 def verify_citations() -> dict[str, Any]:

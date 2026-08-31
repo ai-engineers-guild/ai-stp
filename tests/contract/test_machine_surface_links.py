@@ -22,7 +22,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 APP = REPO / "apps/web/src/app"
-CADDYFILE = REPO / "deploy/caddy/Caddyfile.prod"
+EDGE_TEMPLATE = REPO / "deploy/nginx/ai-stp.conf.template"
 
 #: The surfaces an agent is told to read first.
 MACHINE_SURFACES = ("llms.txt/route.ts", "llms-full.txt/route.ts", "agents.md/route.ts")
@@ -66,9 +66,12 @@ def _next_routes() -> list[re.Pattern[str]]:
 
 
 def _edge_prefixes() -> list[str]:
-    """Paths the edge routes away from the web app, from the prod Caddyfile."""
-    config = CADDYFILE.read_text(encoding="utf-8")
-    return re.findall(r"^\s*handle\s+(/\S+?)\*?\s*\{", config, flags=re.MULTILINE)
+    """Paths the edge routes away from the web app, from the host nginx template."""
+    config = EDGE_TEMPLATE.read_text(encoding="utf-8")
+    # `location [= ]/prefix {`; the exact-match form drops its `=` and reads the same.
+    found = re.findall(r"^\s*location\s+(?:=\s+)?(/\S*)\s*\{", config, flags=re.MULTILINE)
+    # The catch-all is the web app itself, not a path routed away from it.
+    return [prefix for prefix in found if prefix != "/"]
 
 
 def _is_served(path: str, routes: list[re.Pattern[str]], edges: list[str]) -> bool:

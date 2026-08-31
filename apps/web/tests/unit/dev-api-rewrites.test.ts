@@ -6,7 +6,7 @@ import {
   shouldEnableDevApiRewrites,
 } from "@/lib/dev-api-rewrites";
 
-describe("dev API rewrites (same-origin hop without Caddy)", () => {
+describe("dev API rewrites (same-origin hop without a host proxy)", () => {
   it("enables rewrites only in development", () => {
     expect(shouldEnableDevApiRewrites("development")).toBe(true);
     expect(shouldEnableDevApiRewrites("production")).toBe(false);

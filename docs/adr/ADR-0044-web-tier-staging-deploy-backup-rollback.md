@@ -5,7 +5,7 @@ last_verified: "2026-08-07"
 
 # ADR-0044: Staging Web Tier, Backups, and Rollback
 
-Status: accepted. The staging tier was superseded by `ADR-0084-single-deployed-environment.md`: there is one deployed environment, updated directly. The backup, rollback, and concurrent-deployment locking mechanisms in this record remain fully applicable and become more important because errors are no longer caught by a separate tier. Read this record for those mechanisms and the context of the original choice.
+Status: accepted. The staging tier was superseded by `ADR-0084-single-deployed-environment.md`: there is one deployed environment, updated directly. The backup, rollback, and concurrent-deployment locking mechanisms in this record remain fully applicable and become more important because errors are no longer caught by a separate tier. Read this record for those mechanisms and the context of the original choice. The proxy routing was superseded by `ADR-0135-nginx-is-the-only-edge-proxy.md`, which keeps the same path split and moves it to the host's nginx.
 
 ## Context
 

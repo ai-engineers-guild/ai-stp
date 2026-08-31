@@ -15,15 +15,15 @@ if [[ -f "${ROOT}/.deploy-env" ]]; then
   set -a && source "${ROOT}/.deploy-env" && set +a
 fi
 
-# Where the stack is published, and under which name its certificate was issued.
-# Both are needed: Caddy serves a certificate for the configured host name, so a
-# request by IP fails the handshake even when the service behind it is perfectly
-# healthy — an error that reads like an outage and is not one.
-readonly BASE="${AI_STP_VERIFY_BASE_URL:-https://localhost:58443}"
-readonly SNI="${AI_STP_VERIFY_SNI:-localhost:58443:127.0.0.1}"
+# Where the stack is published. The services answer plain HTTP on loopback and
+# the host's nginx terminates TLS in front of them (ADR-0135), so this script
+# asks the published ports directly. Certificates and public names are outside
+# what it can see, and `verify_public.py` proves those from the deployment runner.
+readonly API_BASE="${AI_STP_VERIFY_API_URL:-http://127.0.0.1:58082}"
+readonly WEB_BASE="${AI_STP_VERIFY_WEB_URL:-http://127.0.0.1:58081}"
 
 probe() {
-  curl -sSk --resolve "${SNI}" --max-time 15 -o /dev/null -w '%{http_code}' "${BASE}$1" || echo "000"
+  curl -sS --max-time 15 -o /dev/null -w '%{http_code}' "${API_BASE}$1" || echo "000"
 }
 
 failed=0
@@ -34,7 +34,7 @@ for path in /v1/health/live /v1/health/ready; do
 done
 
 # The web tier redirects to a locale, so a 2xx only appears after following it.
-web="$(curl -sSk --resolve "${SNI}" --max-time 25 -o /dev/null -w '%{http_code}' -L "${BASE}/" || echo "000")"
+web="$(curl -sS --max-time 25 -o /dev/null -w '%{http_code}' -L "${WEB_BASE}/" || echo "000")"
 printf '  %-20s %s\n' "/ (web)" "${web}"
 [[ "${web}" == "200" ]] || failed=1
 

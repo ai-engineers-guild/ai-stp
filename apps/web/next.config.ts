@@ -86,8 +86,8 @@ const nextConfig: NextConfig = {
       static: 180,
     },
   },
-  // Dev-only: same-origin /v1 (and API docs) → internal API without Caddy.
-  // Prod/staging keep path split on Caddy (ADR-0044); rewrites stay empty there.
+  // Dev-only: same-origin /v1 (and API docs) → internal API without a host proxy.
+  // Prod keeps the path split in the host's nginx (ADR-0135); rewrites stay empty there.
   rewrites() {
     return Promise.resolve(
       resolveDevApiRewrites(process.env.NODE_ENV, process.env.AI_STP_API_BASE_URL),

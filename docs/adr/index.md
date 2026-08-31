@@ -133,6 +133,7 @@ last_verified: "2026-08-03"
 | [ADR-0132-one-server-owned-article-publication-stream.md](ADR-0132-one-server-owned-article-publication-stream.md) | Decision to converge repository import and the staff API into one server-side article publication stream. | 2026-08-29 |
 | [ADR-0133-appcontainer-keeps-bypass-traverse-checking.md](ADR-0133-appcontainer-keeps-bypass-traverse-checking.md) | Decision to build the Windows network-isolated launcher on AppContainer because measurement disproved the objection that parent DACLs must be modified. | 2026-08-30 |
 | [ADR-0134-macos-sandbox-exec-is-probed-fail-closed.md](ADR-0134-macos-sandbox-exec-is-probed-fail-closed.md) | Decision to use the system sandbox-exec on macOS only after a native network-denial probe and never fall back to a trust exception. | 2026-08-31 |
+| [ADR-0135-nginx-is-the-only-edge-proxy.md](ADR-0135-nginx-is-the-only-edge-proxy.md) | Decision to drop the in-stack Caddy container and let the deployment host's nginx be the only edge proxy, with the route split owned by a template in this repository. | 2026-08-31 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 
 <!-- END CONTENTS -->

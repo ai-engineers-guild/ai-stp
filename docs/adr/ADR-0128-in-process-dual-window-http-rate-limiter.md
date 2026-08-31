@@ -5,7 +5,7 @@ last_verified: "2026-08-28"
 
 # ADR-0128: Single-node HTTP limiter — two in-process sliding windows
 
-Status: accepted. Clarifies `SPEC-010` `REQ-1015`.
+Status: accepted. Clarifies `SPEC-010` `REQ-1015`. The proxy named in its context changed with `ADR-0135-nginx-is-the-only-edge-proxy.md`; the fact the decision rests on did not, because `request.client.host` is still the adjacent peer rather than the public client, and is now the host's nginx.
 
 ## Context
 

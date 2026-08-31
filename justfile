@@ -149,7 +149,7 @@ release-candidate-install:
 # зависеть от внешней среды, иначе её недоступность читается как красный код.
 #
 # Доказывает анонимный срез `#85` против развёрнутой среды.
-evidence-live origin="https://nddev.asia" commit="":
+evidence-live origin="https://ai-stp.aiguild.space" commit="":
     uv run --locked python -m release_scripts.verify_live_slice \
         --origin "{{origin}}" \
         {{ if commit == "" { "" } else { "--expected-commit " + commit } }}
@@ -166,7 +166,7 @@ evidence-live origin="https://nddev.asia" commit="":
 # `skip` — пробел-разделённые точные id событий, которые в истории этого
 # аккаунта не применимы ни одним клиентом. Именует оператор: срез, угадывающий,
 # что пропустить, зеленел бы за счёт непрочитанного.
-evidence-sync home_a home_b origin="https://nddev.asia" skip="":
+evidence-sync home_a home_b origin="https://ai-stp.aiguild.space" skip="":
     uv run --locked python -m release_scripts.verify_sync_slice \
         --origin "{{origin}}" \
         --home-a "{{home_a}}" \
@@ -244,7 +244,7 @@ evidence-citations:
 # Доказывает публикацию, гранты, отчёты и чтения владельца против развёрнутой
 # среды (#182). По умолчанию только читающая половина: публикация неизменяемой
 # версии и изменение чужого доступа требуют явного решения оператора.
-evidence-publication home origin="https://nddev.asia" writes="":
+evidence-publication home origin="https://ai-stp.aiguild.space" writes="":
     uv run --locked python -m release_scripts.verify_publication_slice \
         --origin "{{origin}}" \
         --home "{{home}}" \

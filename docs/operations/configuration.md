@@ -39,12 +39,12 @@ The browser device cookie outlives the login session and is refreshed after ever
 successful OAuth callback. Its lifetime is set by `AI_STP_AUTH_DEVICE_COOKIE_TTL_SECONDS`;
 the default is 400 days, the maximum lifetime supported by modern browsers.
 
-Approximate location does not depend on an external service. Caddy overwrites
-`X-AI-STP-Client-IP` with the computed client address, and the API looks up the city
-and country in a local City Lite MMDB at `AI_STP_AUTH_GEOIP_CITY_DB_PATH`. The
-production compose mounts `deploy/geoip` read-only; the database file and its update
-policy belong to the operator and are not committed to Git. `deploy/geoip/city.mmdb`
-contains the monthly DB-IP City Lite database under CC BY 4.0; the UI attributes DB-IP
-where it displays a resolved location. If the database is missing or corrupt, login
-continues to work and the location remains unknown. The application stores only city
-and country, not the source IP or precise coordinates.
+Approximate location is read from the `x-vercel-ip-city` and `x-vercel-ip-country`
+request headers when a CDN in front of the deployment supplies them, and is otherwise
+unknown; login works either way. The application stores only city and country, not the
+source IP or precise coordinates.
+
+`SPEC-023` `REQ-2314` describes a different mechanism — a local City Lite MMDB looked
+up from a client-address header the edge proxy sets. That mechanism is not built: no
+database, env variable, mount or lookup code exists. The requirement stands as intent;
+this page describes what currently runs.

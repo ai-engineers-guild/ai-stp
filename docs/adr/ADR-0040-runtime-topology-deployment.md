@@ -5,7 +5,7 @@ last_verified: "2026-08-07"
 
 # ADR-0040: Runtime topology and deployment
 
-Status: accepted.
+Status: accepted. The choice of `Caddy` as the reverse proxy was superseded by `ADR-0135-nginx-is-the-only-edge-proxy.md`: the stack ships no proxy and the deployment host's nginx is the only public entry point. The rest of the topology in this record — multi-stage images, compose for dev and prod, network isolation, healthchecks and the restart policy — is unchanged.
 
 ## Context
 
