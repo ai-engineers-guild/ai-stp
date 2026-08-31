@@ -20,14 +20,20 @@ test.describe("component presentation media editor", () => {
 
   test.beforeEach(async ({ page }) => {
     await page.goto("/en/login");
-    await page.getByRole("button", { name: /Continue with GitHub|Войти через GitHub/i }).click();
+    await page
+      .getByRole("button", {
+        name: /Continue with GitHub|\u0412\u043e\u0439\u0442\u0438 \u0447\u0435\u0440\u0435\u0437 GitHub/i,
+      })
+      .click();
     await expect(page).toHaveURL(/\/en\/account/);
   });
 
   test("uploads image media, shows preview, and saves presentation", async ({ page }) => {
     await page.goto(`/en/objects/component/${FIXTURE_COMPONENT_ID}/edit`);
     await expect(
-      page.getByRole("heading", { name: /Edit bio and media|Изменить био и медиа/i }),
+      page.getByRole("heading", {
+        name: /Edit bio and media|\u0418\u0437\u043c\u0435\u043d\u0438\u0442\u044c \u0431\u0438\u043e \u0438 \u043c\u0435\u0434\u0438\u0430/i,
+      }),
     ).toBeVisible();
     await expect(page.getByText(/JPEG, PNG, WebP, GIF, MP4 or WebM/i)).toBeVisible();
 
@@ -37,30 +43,52 @@ test.describe("component presentation media editor", () => {
       timeout: 15_000,
     });
     await expect(
-      page.getByText(/File uploaded and ready|Файл загружен и готов/i).first(),
+      page
+        .getByText(
+          /File uploaded and ready|\u0424\u0430\u0439\u043b \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d \u0438 \u0433\u043e\u0442\u043e\u0432/i,
+        )
+        .first(),
     ).toBeVisible({ timeout: 15_000 });
     await expect(page.locator('input[value*="/v1/media/component/"]')).toHaveCount(0);
 
     await page
-      .getByLabel(/Alternative text|Альтернативный текст/i)
+      .getByLabel(
+        /Alternative text|\u0410\u043b\u044c\u0442\u0435\u0440\u043d\u0430\u0442\u0438\u0432\u043d\u044b\u0439 \u0442\u0435\u043a\u0441\u0442/i,
+      )
       .first()
       .fill("E2E uploaded cover");
     await page.locator("#presentation-bio").fill("E2E presentation bio with uploaded media");
 
-    await page.getByRole("button", { name: /Save presentation|Сохранить представление/i }).click();
-    await expect(page.getByText(/Presentation saved|Представление сохранено/i).first()).toBeVisible(
-      { timeout: 15_000 },
-    );
+    await page
+      .getByRole("button", {
+        name: /Save presentation|\u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u043f\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u0438\u0435/i,
+      })
+      .click();
+    await expect(
+      page
+        .getByText(
+          /Presentation saved|\u041f\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u0438\u0435 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u043e/i,
+        )
+        .first(),
+    ).toBeVisible({ timeout: 15_000 });
 
     await page.reload();
     await expect(page.locator("#presentation-bio")).toHaveValue(
       "E2E presentation bio with uploaded media",
     );
-    await expect(page.getByLabel(/Alternative text|Альтернативный текст/i).first()).toHaveValue(
-      "E2E uploaded cover",
-    );
     await expect(
-      page.getByText(/File uploaded and ready|Файл загружен и готов|Ready|Готово/i).first(),
+      page
+        .getByLabel(
+          /Alternative text|\u0410\u043b\u044c\u0442\u0435\u0440\u043d\u0430\u0442\u0438\u0432\u043d\u044b\u0439 \u0442\u0435\u043a\u0441\u0442/i,
+        )
+        .first(),
+    ).toHaveValue("E2E uploaded cover");
+    await expect(
+      page
+        .getByText(
+          /File uploaded and ready|\u0424\u0430\u0439\u043b \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d \u0438 \u0433\u043e\u0442\u043e\u0432|Ready|\u0413\u043e\u0442\u043e\u0432\u043e/i,
+        )
+        .first(),
     ).toBeVisible();
   });
 
@@ -78,7 +106,11 @@ test.describe("component presentation media editor", () => {
       });
 
     await expect(
-      page.getByText(/Unsupported file type|Неподдерживаемый тип файла/i).first(),
+      page
+        .getByText(
+          /Unsupported file type|\u041d\u0435\u043f\u043e\u0434\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u043c\u044b\u0439 \u0442\u0438\u043f \u0444\u0430\u0439\u043b\u0430/i,
+        )
+        .first(),
     ).toBeVisible();
   });
 
@@ -120,33 +152,67 @@ test.describe("component presentation media editor", () => {
     });
     await expect(
       page
-        .getByText(/component media upload failed|Could not upload|Не удалось загрузить/i)
+        .getByText(
+          /component media upload failed|Could not upload|\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c/i,
+        )
         .first(),
     ).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText(/Upload failed|Ошибка загрузки/i).first()).toBeVisible();
-
-    await page
-      .getByLabel(/Alternative text|Альтернативный текст/i)
-      .first()
-      .fill("Broken upload");
-    await page.getByRole("button", { name: /Save presentation|Сохранить представление/i }).click();
     await expect(
       page
         .getByText(
-          /Finish or fix each upload|Завершите или исправьте|component media upload failed|Could not upload|Не удалось загрузить/i,
+          /Upload failed|\u041e\u0448\u0438\u0431\u043a\u0430 \u0437\u0430\u0433\u0440\u0443\u0437\u043a\u0438/i,
         )
         .first(),
     ).toBeVisible();
-    await expect(page.getByText(/Presentation saved|Представление сохранено/i)).toHaveCount(0);
 
-    await page.getByRole("button", { name: /Retry upload|Повторить загрузку/i }).click();
+    await page
+      .getByLabel(
+        /Alternative text|\u0410\u043b\u044c\u0442\u0435\u0440\u043d\u0430\u0442\u0438\u0432\u043d\u044b\u0439 \u0442\u0435\u043a\u0441\u0442/i,
+      )
+      .first()
+      .fill("Broken upload");
+    await page
+      .getByRole("button", {
+        name: /Save presentation|\u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u043f\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u0438\u0435/i,
+      })
+      .click();
     await expect(
-      page.getByText(/File uploaded and ready|Файл загружен и готов/i).first(),
+      page
+        .getByText(
+          /Finish or fix each upload|\u0417\u0430\u0432\u0435\u0440\u0448\u0438\u0442\u0435 \u0438\u043b\u0438 \u0438\u0441\u043f\u0440\u0430\u0432\u044c\u0442\u0435|component media upload failed|Could not upload|\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c/i,
+        )
+        .first(),
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        /Presentation saved|\u041f\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u0438\u0435 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u043e/i,
+      ),
+    ).toHaveCount(0);
+
+    await page
+      .getByRole("button", {
+        name: /Retry upload|\u041f\u043e\u0432\u0442\u043e\u0440\u0438\u0442\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u043a\u0443/i,
+      })
+      .click();
+    await expect(
+      page
+        .getByText(
+          /File uploaded and ready|\u0424\u0430\u0439\u043b \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d \u0438 \u0433\u043e\u0442\u043e\u0432/i,
+        )
+        .first(),
     ).toBeVisible({ timeout: 15_000 });
-    await page.getByRole("button", { name: /Save presentation|Сохранить представление/i }).click();
-    await expect(page.getByText(/Presentation saved|Представление сохранено/i).first()).toBeVisible(
-      { timeout: 15_000 },
-    );
+    await page
+      .getByRole("button", {
+        name: /Save presentation|\u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u043f\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u0438\u0435/i,
+      })
+      .click();
+    await expect(
+      page
+        .getByText(
+          /Presentation saved|\u041f\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u0438\u0435 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u043e/i,
+        )
+        .first(),
+    ).toBeVisible({ timeout: 15_000 });
   });
 
   test("keeps keyboard focus order through source controls and save", async ({ page }) => {
@@ -165,7 +231,9 @@ test.describe("component presentation media editor", () => {
     await expect(page.locator(":focus")).toBeVisible();
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(
-      page.getByRole("button", { name: /Save presentation|Сохранить представление/i }),
+      page.getByRole("button", {
+        name: /Save presentation|\u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u043f\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u0438\u0435/i,
+      }),
     ).toBeVisible();
     await expect(page.getByText(/JPEG, PNG, WebP, GIF, MP4 or WebM/i)).toBeVisible();
   });

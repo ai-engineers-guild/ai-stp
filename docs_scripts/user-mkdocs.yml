@@ -1,17 +1,17 @@
-# Публичная пользовательская документация собирается отдельно от внутреннего
-# нормативного docs/. Пути заданы относительно этого файла.
+# Public user documentation is built separately from internal normative docs/.
+# Paths are relative to this file.
 
 site_name: ai_stp user docs
 site_description: Пользовательская документация ai_stp для разработчиков и агентов.
 site_url: !ENV [AI_STP_USER_DOCS_SITE_URL, "http://localhost:8011/"]
 repo_url: https://github.com/ai-engineers-guild/ai-stp
-edit_uri: edit/main/user-docs/
+edit_uri: edit/main/docs-user-facing/docs/ru/
 
-# Обе линии собираются отдельными прогонами: русская в корень, английская в
-# `/en/`. Плагин `mkdocs-static-i18n` дал бы одну сборку с переключателем, но
-# его material-экстра закреплена `<9.7.2`, а здесь material 9.7.7 — брать
-# зависимость, которая просит откатить другую, дороже второго прогона.
-# `extra.alternate` — родной селектор Material и работает без плагина.
+# Both language lines are built separately: Russian at the root and English at
+# `/en/`. `mkdocs-static-i18n` would provide one build with a switch, but its
+# Material extra is pinned below 9.7.2 while this project uses Material 9.7.7;
+# adding a dependency that requires a downgrade costs more than a second build.
+# `extra.alternate` is Material's native selector and needs no plugin.
 extra:
   alternate:
     - name: Русский
@@ -21,7 +21,7 @@ extra:
       link: /en/
       lang: en
 
-docs_dir: ../user-docs
+docs_dir: ../docs-user-facing/docs/ru
 site_dir: ../.site-user-docs
 
 theme:

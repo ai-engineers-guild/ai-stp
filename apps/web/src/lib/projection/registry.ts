@@ -13,6 +13,7 @@ import {
   readSetupVersion,
 } from "@/lib/api/catalog";
 import { readPublisherProfile } from "@/lib/api/public-profile";
+import { readPublicLegalDocument } from "@/lib/api/legal";
 import { catalogQueryToRecord, parseCatalogSearchParams } from "@/lib/catalog-query";
 import { startCatalogResourceReads } from "@/lib/catalog-load";
 import { INSTALL_CLI } from "@/lib/cli-copy";
@@ -324,16 +325,24 @@ const PUBLIC_ROUTES: MachineRoute[] = [
     resolve: async ({ segments, locale }) => {
       const slug = segments[1] ?? "";
       const t = await getTranslations("legal");
+      const policy = await readPublicLegalDocument(slug, locale).catch(() => null);
+      if (!policy) return null;
       return presentLegal({
-        title: t(`${slug}.title`),
-        body: t(`${slug}.body`),
-        version: "1.0",
-        effective: "2026-08-05",
-        language: locale,
+        title: policy.title,
+        body: t("revisionNote"),
+        version: policy.policy_version,
+        effective: policy.effective_at?.slice(0, 10) ?? "",
+        language: policy.locale,
         versionLabel: t("version"),
         effectiveLabel: t("effective"),
         languageLabel: t("language"),
-        policyLinks: ["privacy", "cookies", "service-rules", "licensing"].map((item) => ({
+        policyLinks: [
+          "privacy",
+          "cookies",
+          "service-rules",
+          "personal-data-consent",
+          "licensing",
+        ].map((item) => ({
           title: t(`${item}.title`),
           href: `/legal/${item}`,
         })),

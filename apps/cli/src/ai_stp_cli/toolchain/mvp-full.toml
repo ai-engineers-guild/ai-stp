@@ -1,29 +1,28 @@
-# Профиль набора инструментов `mvp-full` (SPEC-014).
+# Toolchain profile `mvp-full` (SPEC-014).
 #
-# Состав задаётся политикой, а не содержимым выбранного проекта (REQ-1402):
-# пустой проект и проект с одной документацией получают одно и то же.
+# The set is defined by policy, not by the selected project's contents (REQ-1402):
+# an empty project and a documentation-only project receive the same set.
 #
-# Каждая запись обязана нести точную версию, точный источник, доказательство
-# целостности, лицензию и матрицу систем (REQ-1403). Проверка отвергает запись,
-# в которой чего-то из этого нет, поэтому добавить инструмент «пока без суммы»
-# невозможно — это осознанное ограничение, а не недосмотр.
+# Each entry must carry an exact version, exact source, integrity evidence, a
+# license, and a platform matrix (REQ-1403). Validation rejects incomplete entries,
+# so a tool cannot be added "without a digest for now" by accident.
 #
-# `digest_source` различает две вещи разной силы: сумму, опубликованную самим
-# поставщиком, и сумму, посчитанную нами при однократной загрузке. Вторая
-# защищает от подмены после закрепления, но не подтверждает, что закрепили
-# правильное. Смешивать их в одном поле значило бы потерять это различие.
+# `digest_source` distinguishes two differently strong facts: a digest published
+# by the vendor and one calculated during a one-time download. The latter protects
+# against replacement after pinning but does not prove that the right artifact was
+# pinned. Combining them would lose that distinction.
 
 schema_version = 1
 profile = "mvp-full"
 
-# Пять экосистем по REQ-1407. Экосистема без инструмента остаётся объявленной и
-# отвечает `not_available` с причиной — это честнее, чем молча её не показать.
+# Five ecosystems under REQ-1407. An ecosystem without a tool remains declared and
+# returns `not_available` with a reason; silently hiding it would be less honest.
 [ecosystems]
 python = "Python"
-typescript = "TypeScript и JavaScript"
+typescript = "TypeScript and JavaScript"
 rust = "Rust"
 go = "Go"
-dart = "Dart и Flutter"
+dart = "Dart and Flutter"
 
 [[tools]]
 id = "ruff"
@@ -33,7 +32,7 @@ version = "0.16.1"
 license = "MIT"
 entry_point = "ruff"
 digest_source = "vendor_published"
-# Суммы взяты из файлов `<asset>.sha256` самого релиза 0.16.1.
+# Digests come from the release's own `<asset>.sha256` files for version 0.16.1.
 
 [tools.artifacts.linux-x86_64]
 url = "https://github.com/astral-sh/ruff/releases/download/0.16.1/ruff-x86_64-unknown-linux-gnu.tar.gz"

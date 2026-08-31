@@ -1,4 +1,4 @@
-# Порядок разделов в навигации сайта.
+# Section order in site navigation.
 nav:
   - index.md
   - product

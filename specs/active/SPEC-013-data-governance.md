@@ -42,6 +42,7 @@ Includes the developer passport, public projection, private objects, project-ind
 - `REQ-1317`: A telemetry ping is one unauthenticated HTTPS `GET` with the closed field list in `docs/contracts/cli-telemetry.md`, without a body, cookie, catalog token, or authorization. Local paths, private repositories, account, device key, email, project name, target path, environment values, and file contents are excluded; if there is no publicly nameable object, no request is sent.
 - `REQ-1318`: A ping is sent only after a `verified` apply with the `install` or `update` action, one per component actually installed. Network errors, timeout, and non-2xx responses are silently swallowed: the installation result does not depend on collector availability, and no batched retry occurs.
 - `REQ-1319`: An anonymous identifier is created only upon consent, stored in the local data directory outside configuration, differs from `device_id`, and is not linked to an account; refusal and disabling delete it, renewed consent creates a new one, and it is not combined with public usage counters (`REQ-1315`).
+- `REQ-1320`: Legal-account acceptance evidence is limited to the exact document revision, account, acceptance kind, time, locale, and source. It contains no raw IP, provider token, user agent, or browser fingerprint.
 
 ## States and errors
 
@@ -78,3 +79,4 @@ Changing a data class or retention period requires a policy version and migratio
 | `REQ-1317` | The captured request contains exactly the listed fields and none outside the list; fixtures with a local path, private repository, and environment variable either produce no request or do not expose those values. |
 | `REQ-1318` | Collector failure and timeout leave the operation `verified`; `backup`, `rollback`, `remove`, and reads produce no request; a three-component setup produces three requests. |
 | `REQ-1319` | Refusal and disabling delete the identifier; renewed consent creates a different one; it differs from `device_id` and does not appear in ordinary state output. |
+| `REQ-1320` | Onboarding storage/API tests prove exact revision records and the absence of network or provider-secret fields. |

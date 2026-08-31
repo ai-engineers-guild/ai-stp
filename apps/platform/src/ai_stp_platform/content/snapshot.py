@@ -149,7 +149,7 @@ def _entry_from_file(
     if not (1 <= len(description) <= 320):
         raise ContentError("AI_STP_CONTENT_INVALID", "invalid description")
     validate_article_body(body)
-    relative = path.relative_to(hub).as_posix()
+    relative = f"docs-user-facing/content/{path.relative_to(hub).as_posix()}"
     digest = revision_content_digest(
         article_type=article_type,
         slug=slug,
@@ -202,7 +202,7 @@ def build_repository_snapshot(
     now: datetime | None = None,
     expected_generation: int = 0,
 ) -> ContentRepositoryImportRequest:
-    """Build a full published snapshot from apps/web/content/hub. No network."""
+    """Build a full published snapshot from docs-user-facing/content. No network."""
     if re.fullmatch(CONTENT_COMMIT_PATTERN, commit) is None:
         raise ContentError("AI_STP_CONTENT_INVALID", "commit must be an exact 40-hex SHA")
     if commit == "0" * 40:

@@ -3,6 +3,16 @@
     "siteName": "ai_stp",
     "defaultDescription": "The AI setup registry for skills, MCP, hooks, and subagents — not another skills.sh. Search, verify, install, and maintain setups across your team."
   },
+  "componentTypes": {
+    "instruction": "Instruction",
+    "skill": "Skill",
+    "mcp": "MCP",
+    "hook": "Hook",
+    "command": "Command",
+    "agent": "Agent",
+    "plugin": "Plugin",
+    "setting": "Setting"
+  },
   "nav": {
     "primaryLabel": "Primary navigation",
     "home": "Home",
@@ -100,7 +110,6 @@
     "empty": "Nothing to show",
     "retry": "Try again",
     "notFound": "Not found",
-    "save": "Save",
     "cancel": "Cancel",
     "confirm": "Confirm",
     "copy": "Copy",
@@ -498,17 +507,18 @@
     "toDocs": "Documentation",
     "rickrollTitle": "Never Gonna Give You Up"
   },
-  "consent": {
-    "title": "Cookie choices",
-    "body": "Necessary cookies keep the service working. Optional analytics and marketing stay off until you allow them.",
-    "necessary": "Necessary (always on)",
-    "analytics": "Analytics",
-    "marketing": "Marketing",
-    "accept": "Accept all",
-    "reject": "Reject optional",
-    "save": "Save choices",
-    "manage": "Cookie settings",
-    "privacy": "Privacy policy"
+  "onboarding": {
+    "title": "Before you continue",
+    "body": "Review the current service rules and consent to the processing needed to operate your account.",
+    "required": "Both confirmations are required to create an account.",
+    "rulesPrefix": "I have read and accept the",
+    "serviceRules": "Service rules",
+    "rulesSuffix": ".",
+    "consentPrefix": "I consent to the processing described in the",
+    "personalData": "Personal data consent",
+    "consentSuffix": ".",
+    "continue": "Continue",
+    "evidence": "Your account keeps the exact revision and acceptance time. You can withdraw consent by deleting your account."
   },
   "footer": {
     "summary": "The AI setup registry, not just a skill catalog.",
@@ -599,22 +609,22 @@
     "language": "Language",
     "contents": "Policy text",
     "policies": "Policies",
+    "sourceMarkdown": "Source Markdown on GitHub",
     "revisionNote": "This is the current public revision. Human and machine views carry the same policy facts.",
     "privacy": {
-      "title": "Privacy",
-      "body": "How account and device data are processed to provide catalog access. Full published policy text is served from versioned revisions."
+      "title": "Privacy"
     },
     "cookies": {
-      "title": "Cookies",
-      "body": "Session and preference cookies required to operate the signed-in shell."
+      "title": "Cookies"
     },
     "service-rules": {
-      "title": "Service rules",
-      "body": "Acceptable use of the platform and publication surface."
+      "title": "Service rules"
+    },
+    "personal-data-consent": {
+      "title": "Personal data consent"
     },
     "licensing": {
-      "title": "Licensing / author content responsibility",
-      "body": "Platform licensing is separate from author content. Authors are responsible for rights and do not receive a platform content-safety guarantee."
+      "title": "Licensing / author content responsibility"
     }
   },
   "a11y": {

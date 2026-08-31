@@ -561,6 +561,7 @@ async def test_api_timestamp_and_device_guard_edges() -> None:
     assert report_timestamp(naive).endswith("Z")
     ctx = AuthContext(
         account_id="account_1",
+        account_status="active",
         session_id="session_1",
         device_id="device_1",
         is_admin=False,

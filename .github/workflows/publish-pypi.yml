@@ -60,7 +60,7 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - name: Получить ровно те байты, которые заверил release-candidate
+      - name: Download the exact bytes attested by release-candidate
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           run-id: ${{ inputs.run_id }}
@@ -69,7 +69,7 @@ jobs:
           merge-multiple: true
           path: candidate
 
-      - name: Сверить дистрибутивы с SHA256SUMS кандидата
+      - name: Verify distributions against the candidate SHA256SUMS
         working-directory: candidate
         run: |
           set -euo pipefail
@@ -78,7 +78,7 @@ jobs:
           # Checking only what we upload would leave a swapped SBOM unnoticed.
           sha256sum --check --strict SHA256SUMS
 
-      - name: Отобрать дистрибутивы пакета и отказать при неполном наборе
+      - name: Select package distributions and reject incomplete sets
         env:
           EXPECTED_VERSION: ${{ inputs.version }}
           DISTRIBUTION: ai_stp_${{ inputs.package }}
@@ -110,7 +110,7 @@ jobs:
           printf 'publishing:\n'
           find dist -type f -printf '  %f\n' | sort
 
-      - name: Загрузить через Trusted Publishing
+      - name: Upload through Trusted Publishing
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33
         with:
           packages-dir: dist

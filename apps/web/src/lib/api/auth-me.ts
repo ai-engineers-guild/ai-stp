@@ -3,6 +3,7 @@ import { apiRequest } from "@/lib/api/http";
 export type AuthMe = {
   account_id: string;
   device_id: string | null;
+  account_status: "onboarding_pending" | "active";
 };
 
 function unwrapData(body: unknown): Record<string, unknown> {
@@ -29,8 +30,13 @@ export async function readAuthMe(): Promise<AuthMe> {
     throw new Error("invalid /v1/auth/me payload");
   }
   const deviceId = data["device_id"];
+  const accountStatus = data["account_status"];
+  if (accountStatus !== "onboarding_pending" && accountStatus !== "active") {
+    throw new Error("invalid /v1/auth/me account status");
+  }
   return {
     account_id: accountId,
     device_id: typeof deviceId === "string" ? deviceId : null,
+    account_status: accountStatus,
   };
 }

@@ -1,35 +1,35 @@
-## Цель
+## Goal
 
-Опишите наблюдаемый результат и причину изменения.
+Describe the observable result and the reason for the change.
 
-## Границы
+## Boundaries
 
-- Входит:
-- Не входит:
+- In scope:
+- Out of scope:
 
-## Контракты и документация
+## Contracts and documentation
 
 - Active specs:
 - ADR:
 - Schemas/API/provider contracts:
-- Документация и runbooks обновлены:
+- Documentation and runbooks updated:
 
-## Совместимость и порядок
+## Compatibility and Ordering
 
-- Миграция/версионирование:
-- Межрепозиторный порядок:
+- Migration/versioning:
+- Cross-repository ordering:
 - Rollback:
 
-## Проверка
+## Verification
 
-| Команда | Результат | Evidence |
+| Command | Result | Evidence |
 |---|---|---|
 | `...` | passed / failed / not_run | ... |
 
-## Не выполнено
+## Not Run
 
-Перечислите проверки, которые не запускались, и причину.
+List checks that were not run and explain why.
 
-## Остаточные риски
+## Residual Risks
 
-Перечислите подтверждённые ограничения. Не используйте этот раздел для скрытого scope creep.
+List confirmed limitations. Do not use this section for hidden scope creep.

@@ -26,7 +26,7 @@ def test_the_pypi_runbook_describes_the_live_per_package_upload() -> None:
     """
     runbook = Path("docs/operations/runbooks/pypi-release.md").read_text(encoding="utf-8")
     assert "activation contract" not in runbook
-    assert "не содержит PyPI upload" not in runbook
+    assert "does not contain PyPI upload" not in runbook
     assert "publish-pypi" in runbook
     assert "pypi-{package}" in runbook or "pypi-passports" in runbook
     assert "id-token: write" in runbook
@@ -38,7 +38,7 @@ def test_the_public_overlay_pypi_runbook_is_not_a_stub() -> None:
     if not overlay.is_file():
         return
     text = overlay.read_text(encoding="utf-8")
-    assert "Заглушка" not in text
+    assert "Placeholder" not in text
     assert "activation contract" not in text
     assert "publish-pypi" in text
     assert "pypi-{package}" in text or "pypi-passports" in text

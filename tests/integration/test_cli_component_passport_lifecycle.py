@@ -13,6 +13,7 @@ def _run(environment: dict[str, str], *arguments: str) -> dict[str, object]:
         [sys.executable, "-m", "ai_stp_cli", *arguments, "--json"],
         capture_output=True,
         text=True,
+        encoding="utf-8",
         env=environment,
         check=False,
     )
@@ -27,6 +28,7 @@ def _refused(environment: dict[str, str], *arguments: str) -> dict[str, object]:
         [sys.executable, "-m", "ai_stp_cli", *arguments, "--json"],
         capture_output=True,
         text=True,
+        encoding="utf-8",
         env=environment,
         check=False,
     )
@@ -269,6 +271,7 @@ redistribution_allowed = true
         ],
         capture_output=True,
         text=True,
+        encoding="utf-8",
         env=environment,
         check=False,
     )

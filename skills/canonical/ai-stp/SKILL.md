@@ -1,161 +1,186 @@
 ---
 name: ai-stp
-description: Управляет локальными сетапами, паспортами, провайдерами и облачными функциями через ai-stp CLI.
+description: Manage local setups, passports, providers, and cloud features through the ai-stp CLI.
 ---
 
 # ai_stp
 
-## Используй Skill, когда
+## Use this Skill when
 
-- нужно подготовить харнесс под пользователя или проект;
-- нужно посмотреть или изменить паспорт разработчика;
-- нужно войти в аккаунт платформы или проверить состояние входа;
-- нужно найти объект в публичном каталоге или посмотреть его версии;
-- нужно подобрать, собрать, установить, проверить, обновить или восстановить сетап.
+- preparing a harness for a user or project;
+- viewing or changing a developer passport;
+- signing in to the platform or checking sign-in state;
+- finding an object in the public catalog or viewing its versions;
+- selecting, composing, installing, checking, updating, or restoring a setup.
 
-## Начало
+## Start here
 
-1. Выполни `ai-stp doctor --json` и прочитай состояние установки.
-2. Выполни `ai-stp help --agent --json` и возьми оттуда перечень команд, их классы изменения, правила подтверждения и ссылки на схемы.
-3. Дальше вызывай только те команды, которые вернула машинная справка.
+1. Run `ai-stp doctor --json` and read the installation state.
+2. Run `ai-stp help --agent --json` and take the command list, mutation classes,
+   confirmation rules, and schema links from it.
+3. Call only the commands returned by machine help.
 
-Перечень команд здесь не повторяется. Он живёт в реестре CLI, машинная справка порождается из него, и копия в этом файле разошлась бы с реализацией на первом же изменении. По той же причине здесь нет пошаговых маршрутов с точными флагами: параметры берутся из дескриптора установленной версии, а не из этого текста.
+The command list is not repeated here. It lives in the CLI registry, and a copy
+in this file would drift from the implementation on its first change. For the
+same reason, this file has no step-by-step routes with exact flags: parameters
+come from the installed version's descriptor, not from this text.
 
-Паспорт собираешь ты: CLI обнаруживает факты детерминированно, ты интерпретируешь их и дособираешь паспорт, пользователь подтверждает спорное. Собственного вызова модели у `ai_stp` нет.
+You assemble the passport: the CLI discovers facts deterministically, you
+interpret them and complete the passport, and the user confirms disputed facts.
+`ai_stp` does not call a model itself.
 
-## Рабочие маршруты
+## Workflows
 
-Маршрут — это форма работы, а не перечень вызовов. Конкретные команды и их
-параметры каждый раз берутся из машинной справки.
+A workflow is a shape of work, not a list of calls. Get concrete commands and
+parameters from machine help each time.
 
-**Наблюдение → выбор → эффект → проверка.** Сначала read-команды строят картину:
-состояние установки, конфигурация, доступные харнессы, содержимое дерева. Затем
-выбирается конкретный предмет — по идентификатору из предыдущего
-структурированного ответа, а не по угаданному имени. Затем выполняется
-изменяющая команда. Затем результат проверяется отдельной read-командой, а не
-предполагается по успешному коду возврата.
+**Observe → select → effect → verify.** First, read commands build the picture:
+installation state, configuration, available harnesses, and tree contents. Then
+select one exact object using an identifier from the previous structured response,
+not an invented name. Run the mutating command. Finally, verify the result with a
+separate read command instead of inferring it from the exit code.
 
-**Подбор → план → одобрение → применение → состояние.** Подбор даёт снимок и
-предложение; план превращает предложение в точный проверяемый эффект с digest;
-одобрение связывает решение с этим digest; применение выполняет только
-одобренную операцию; состояние читается у фактического target. Между планом и
-применением ничего не меняется незаметно: если CLI сообщает устаревший план,
-строится новый и решение принимается заново.
+**Select → plan → approve → apply → state.** Selection produces a snapshot and a
+proposal; the plan turns the proposal into an exact, checkable effect with a
+digest; approval binds the decision to that digest; apply executes only the
+approved operation; state is read from the actual target. Nothing changes
+silently between plan and apply: if the CLI reports a stale plan, build a new one
+and obtain the decision again.
 
-**Неопределённый исход → фактический эффект → восстановление.** После
-неподтверждённого timeout или частичного результата сначала выясняется, что
-произошло на самом деле, и только потом выбирается предложенное CLI действие
-восстановления. Повторный apply «для синхронизации» не является восстановлением.
+**Uncertain outcome → actual effect → recovery.** After an unconfirmed timeout or
+partial result, first establish what actually happened, then choose the CLI's
+proposed recovery action. Repeating apply "for synchronization" is not recovery.
 
-**Ежедневный проход read-only.** Состояние установки, состояние входа, состояние
-операций и состояние каждого управляемого target. Изменяющая команда запускается
-только если status сам предложил действие.
+**Daily read-only pass.** Read installation state, sign-in state, operation state,
+and the state of every managed target. Run a mutating command only when status
+itself proposes that action.
 
-## Как читать ответ
+## Reading responses
 
-Каждая команда с `--json` печатает ровно один объект. При `ok: true` результат лежит в `data`, а `warnings` может содержать то, что стоит показать пользователю, не считая вызов неуспешным. При `ok: false` в `error.code` находится устойчивый код из закрытого реестра, а `next_actions` называет разумный следующий шаг.
+Every `--json` command prints exactly one object. With `ok: true`, the result is
+in `data`; `warnings` may contain information to show the user without making the
+call unsuccessful. With `ok: false`, `error.code` contains a stable code from the
+closed registry, and `next_actions` names a sensible next step.
 
-Для ошибки найди `error.code` в `error_codes` из машинной справки и следуй её
-`handling` вместе с `retryable` и `next_actions` конкретного ответа. Не выводи
-действие только из process exit class: один класс может включать конфликт,
-устаревший план и запрос решения пользователя. Повтор допустим только при
-`retryable: true`; после неподтверждённого timeout сначала проверяй фактический
-эффект через предложенную status/recovery-команду.
+For an error, find `error.code` in `error_codes` from machine help and follow its
+`handling`, together with the response's `retryable` and `next_actions`. Do not
+choose an action from the process exit class alone: one class can include a
+conflict, a stale plan, or a request for a user decision. Retry only when
+`retryable: true`; after an unconfirmed timeout, first check the actual effect
+through the proposed status or recovery command.
 
-## Как принимать решение
+## Making decisions
 
-Задача пользователя задаёт область полномочий. Если он попросил подготовить,
-установить, обновить или починить сетап, ты выполняешь входящие в это локальные
-обратимые шаги подряд и не спрашиваешь заново перед каждым из них. Спрашиваешь,
-когда появляется то, чего в задаче не было.
+The user's task defines the authority boundary. If the user asked to prepare,
+install, update, or repair a setup, perform the local reversible steps included
+in that task in sequence without asking again before each one. Ask only when
+something outside the task appears.
 
-`mutability` и `confirmation` отвечают на разные вопросы. Первое поле описывает
-эффект команды, второе — какой машинный токен решения проверяет CLI. Значение
-`confirmation: none` означает только отсутствие такого токена; оно не превращает
-изменение в чтение и не означает согласие пользователя.
+`mutability` and `confirmation` answer different questions. The first describes
+the command's effect; the second describes which machine token proves a decision.
+`confirmation: none` only means that no such token is required; it does not turn a
+mutation into a read or imply user consent.
 
-- `read` только наблюдает; его можно выполнять без вопроса, если сам запрос
-  пользователя не ограничил чтение.
-- `plan` создаёт проверяемый план или недолговечный снимок, но не меняет target.
-  Используй его, чтобы получить точный предмет решения.
-- `apply` меняет состояние. Выполняй его, когда текущий запрос пользователя уже
-  разрешает именно это изменение; отдельное решение нужно только тогда, когда
-  эффект выходит за пределы запроса.
-- `destructive` всегда требует отдельного решения непосредственно перед вызовом,
-  даже если пользователь ранее разрешил окружающую работу.
+- `read` only observes; run it without asking when the user's request does not
+  restrict reading.
+- `plan` creates a checkable plan or short-lived snapshot without changing the
+  target. Use it to get the exact subject of a decision.
+- `apply` changes state. Run it when the current request already authorizes that
+  change; ask separately only when the effect exceeds the request.
+- `destructive` always requires a separate decision immediately before the call,
+  even when the user authorized surrounding work earlier.
 
-Отдельное решение пользователя нужно только тогда, когда: выбор между вариантами меняет
-результат, а пользователь его не сделал; объект становится публичным или меняется
-право доступа; создаётся основная линия версии; привязываются учётные данные или
-аккаунт; данные, target или backup удаляются без пути возврата; выполняется
-внешнее Git- или deployment-действие, которого задача не требовала; в состав
-попадает объект линии `experimental` или непроверенного автора.
+A separate user decision is required only when an unresolved choice changes the
+  result; an object becomes public or its access rights change; a primary version
+  line is created; credentials or an account are linked; data, a target, or a
+  backup is deleted without a recovery path; an unrequested external Git or
+  deployment action is performed; or an `experimental` or unverified-author
+  object enters the composition.
 
-При `explicit_flag` сначала получи решение, затем найди требуемый параметр в
-дескрипторе команды и передай его явно. При `plan_digest` сначала выполни
-указанную plan-команду, покажи пользователю эффект и `required_authorization`,
-получи решение и передай apply-команде точный digest неизменённого плана. Не
-вычисляй digest самостоятельно. Если CLI сообщает устаревший или изменённый план,
-построй новый, снова покажи разницу и запроси новое решение.
+For `explicit_flag`, first obtain the decision, then find the required parameter
+in the command descriptor and pass it explicitly. For `plan_digest`, first run
+the named plan command, show the user the effect and `required_authorization`,
+obtain the decision, and pass the exact digest of the unchanged plan to apply. Do
+not calculate the digest yourself. If the CLI reports a stale or changed plan,
+build a new one, show the difference again, and request a new decision.
 
-Проверка digest, предусловий и идемпотентности остаётся обязательной всегда. Это
-машинная защита операции; выполняй её без нового вопроса, пока смысл и область эффекта не изменились. Она подтверждает, что выполняется именно одобренный
-эффект.
+Digest checks, precondition checks, and idempotency are always required. They are
+mechanical protection for the operation; perform them without a new question
+while the meaning and scope of the effect are unchanged. They prove that the
+approved effect is the one being executed.
 
-`next_actions` — упорядоченная подсказка, а не разрешение. Перед каждым следующим
-вызовом заново проверь его дескриптор, доступность, эффект и подтверждение.
+`next_actions` is an ordered hint, not permission. Before every next call, check
+its descriptor, availability, effect, and confirmation requirement again.
 
-## Ловушки
+## Traps
 
-Эти различия не выводятся из имени команды, и ошибка в них выглядит как успех.
+These distinctions are not encoded in command names, and getting them wrong can
+look like success.
 
-- Доступность харнесса читай по `surface`, `version_source` и `diagnostic`, а не
-  по строке `version`: на Windows версия может происходить из ограниченного
-  package metadata после отказа запуска shim.
-- `state: available` с пустым `installations` означает «поддерживается сборкой,
-  но не установлено». Особенно часто это Pi, и такой результат нельзя называть
-  установленным.
-- Принятый локальный паспорт означает известное происхождение и согласие
-  владельца. Он не означает publish-ready, platform-verified или пригодность к
-  публичному каталогу.
-- `ready: true` у валидации паспорта означает только локальную структурную
-  полноту точной ревизии. Это не разрешение на облачную запись.
-- Подпись выпуска провайдера не является доказательством совместимости.
-  Нужны оба результата: доверие к выпуску и conformance.
-- Байты для offline closure отдаёт только команда каталога, предназначенная для
-  этого. Ключ объекта сам по себе не является полномочием и не загружается
-  напрямую.
-- `init` не является универсальным retry: сначала читай код ошибки и
-  `next_actions`.
-- Локальное состояние меняется только командами. Файлы XDG напрямую не
-  редактируются.
-- В browser device flow покажи пользователю verification URL и код, но не
-  подтверждай аккаунт за него.
+- Read harness availability from `surface`, `version_source`, and `diagnostic`,
+  not from the `version` string: on Windows, the version may come from restricted
+  package metadata after a shim fails to start.
+- `state: available` with an empty `installations` means "supported by the build,
+  but not installed." This is especially common for Pi; do not call it installed.
+- An accepted local passport means known provenance and owner consent. It does
+  not mean publish-ready, platform-verified, or suitable for the public catalog.
+- `ready: true` for passport validation means only local structural completeness
+  of an exact revision. It is not permission for a cloud write.
+- A provider release signature does not prove compatibility. Both release trust
+  and conformance are required.
+- Only the catalog command intended for offline closure supplies its bytes. An
+  object key alone is not authority and must not be fetched directly.
+- `init` is not a universal retry: read the error code and `next_actions` first.
+- Local state changes only through commands. Do not edit XDG files directly.
+- In browser device flow, show the user the verification URL and code; do not
+  approve the account for them.
 
-## Правила
+## Rules
 
-- Не угадывай флаги: бери их из `ai-stp help --agent --json`.
-- Не вызывай команду, которой нет в машинной справке, даже если она кажется очевидной.
-- Перед вызовом смотри `mutability` и `confirmation` и применяй алгоритм выше.
-- Не обходи механические ограничения.
-- В `project discover` считай список исчерпывающим только при `complete: true`; при `false` покажи `diagnostics`, сузь root или исправь доступ и повтори read-команду, не регистрируя кандидата автоматически.
-- В `component discover` различай `candidate_id` и логический Component id: первый стабильно адресует read-only находку, второй появляется только после явного принятия. Для объяснения классификации показывай `layout_source`, а GitHub origin называй точным только при `provenance.kind: github` и `state: exact`; имя cache-каталога доказательством не является. Pi Git checkout не называй enabled или чистым: discovery этого не доказывает. Покажи `diagnostics` до выбора. Общий путь с `harness_id: null` не приписывай одному харнессу самостоятельно.
-- По умолчанию используй только линию `authoritative`; линию `experimental` запрашивай явным признаком согласия и показывай отдельным разделом.
-- Не переноси объект из `experimental` в автоматический состав ни при каких условиях.
-- Собственный или точно закреплённый объект не называй подтверждённым платформой.
-- Различай `author_verified` и `component_verified` и показывай их раздельно.
-- Ответ с `source: cache` описывает прошлое: показывай вместе с ним `checked_at` и не выдавай за текущее состояние облака.
-- Когда нужен переход в web, бери каноническую ссылку и структурированный `cli_argv` из read-команды `link web`; не собирай route вручную, не добавляй token или device ID и не считай наличие ссылки доказательством доступа к объекту.
-- Не изменяй target харнесса напрямую.
-- Не читай значения переменных окружения; сообщай только `set` или `missing` по именам.
-- Не передавай пароль, токен или секрет — ни в аргументах, ни в окружении, ни в журнале. Вход проходит в браузере, и CLI их не видит.
-- До подтверждения установки объясни `required_authorization` из результата `install plan`. После нативной настройки вызови `target status` с тем же provider и доверяй только `pending_authorization`: не выводи готовность из успешного apply, наличия секрета или слов пользователя и не повторяй apply для завершения входа.
-- При частичном результате или ошибке остановись и покажи `next_actions`.
-- Не удаляй этот управляющий Skill вместе с пользовательским сетапом.
+- Do not guess flags: take them from `ai-stp help --agent --json`.
+- Do not call a command absent from machine help, even if it seems obvious.
+- Before every call, inspect `mutability` and `confirmation` and apply the
+  algorithm above.
+- Do not bypass mechanical constraints.
+- In `project discover`, treat the list as exhaustive only when
+  `complete: true`; when it is `false`, show `diagnostics`, narrow the root or
+  fix access, and repeat the read command instead of registering candidates
+  automatically.
+- In `component discover`, distinguish `candidate_id` from the logical Component
+  id: the first stably addresses a read-only finding, while the second appears
+  only after explicit adoption. To explain classification, show `layout_source`.
+  Call a GitHub origin exact only with `provenance.kind: github` and
+  `state: exact`; a cache directory name is not evidence. Do not call a Pi Git
+  checkout enabled or clean: discovery does not prove that. Show `diagnostics`
+  before selection. Do not assign a shared path with `harness_id: null` to one
+  harness yourself.
+- By default use only the `authoritative` line. Request the `experimental` line
+  with an explicit consent signal and show it in a separate section.
+- Never move an `experimental` object into an automatic composition.
+- Do not call an owned or exactly pinned object platform-confirmed.
+- Distinguish `author_verified` and `component_verified` and show them separately.
+- A response with `source: cache` describes the past: show `checked_at` with it
+  and do not present it as current cloud state.
+- When web navigation is needed, use the canonical link and structured
+  `cli_argv` from the `link web` read command. Do not construct routes manually,
+  add a token or device ID, or treat a link as proof of access.
+- Do not change a harness target directly.
+- Do not read environment variable values; report only whether a named variable
+  is set or missing.
+- Never pass a password, token, or secret in arguments, the environment, or logs.
+  Sign-in happens in the browser, and the CLI does not see those values.
+- Before approving an installation, explain `required_authorization` from the
+  `install plan` result. After native setup, call `target status` with the same
+  provider and trust only `pending_authorization`; do not infer readiness from a
+  successful apply, a present secret, or the user's words, and do not repeat apply
+  to finish sign-in.
+- Stop and show `next_actions` after a partial result or error.
+- Do not delete this controlling Skill together with a user setup.
 
-## Граница доступности
+## Availability boundary
 
-Не определяй доступность функции по этому Skill или по продуктовой документации.
-Единственный исполнимый источник — машинная справка текущей установленной версии.
-Если нужной команды там нет, не подменяй её похожим действием и не изменяй target
-напрямую: сообщи об отсутствующей возможности и покажи доступные `next_actions`.
+Do not determine feature availability from this Skill or product documentation.
+The only executable source is machine help for the currently installed version.
+If the required command is absent, do not substitute a similar action or change a
+target directly: report the missing capability and show the available
+`next_actions`.

@@ -1,28 +1,29 @@
-# Схемы
+# Schemas
 
-Каталог генерируемых JSON Schema — машинных владельцев контрактов по `SPEC-015`.
+This directory contains generated JSON Schemas, the machine owners of the
+contracts defined by `SPEC-015`.
 
-Файлы в `v1/` создаются только генератором из Pydantic-моделей пакета
-`ai-stp-foundation` и не редактируются руками:
+Files in `v1/` are created only by the generator from the `ai-stp-foundation`
+Pydantic models and must not be edited by hand:
 
 ```bash
-just back-gen       # перегенерировать schemas/v1 и проекции Skill
-just back-static    # сверить байт в байт с моделями; входит в just check
+just back-gen       # regenerate schemas/v1 and Skill projections
+just back-static    # compare byte-for-byte with the models; part of just check
 ```
 
-Дрейф между моделями и закоммиченными файлами роняет проверку `back-static`
-в CI по `SPEC-015` REQ-1509. Схема без генератора в `v1/` также является
-ошибкой. Смысл полей объясняют канонические контракты в `docs/contracts/`;
-здесь живут только машинные артефакты.
+Drift between the models and committed files fails `back-static` in CI under
+`SPEC-015` REQ-1509. A schema without a generator in `v1/` is also an error.
+The canonical contracts in `docs/contracts/` explain the fields; this directory
+contains machine artifacts only.
 
-Каждая схема несёт диалект 2020-12 и устойчивый `$id` вида
-`urn:ai-stp:schema:v1:<имя>`. Ограничения значений выражены шаблонами и
-совпадают с проверками Pydantic-моделей; паритет доказывают дифференциальные
-тесты в `tests/contract/`, а не только байтовое сравнение.
+Each schema uses the 2020-12 dialect and a stable `$id` of the form
+`urn:ai-stp:schema:v1:<name>`. Value constraints are expressed as patterns and
+match the Pydantic model checks; differential tests in `tests/contract/` prove
+parity rather than relying on byte comparison alone.
 
-Граница расширения различается по назначению объекта. Точные ссылки —
-хэшируемые структуры: неизвестные поля отклоняются (`additionalProperties:
-false`). Конверты машинного вывода — транзитные: на проводе обязательны все
-объявленные поля, а неизвестные необязательные добавления внутри
-поддерживаемой основной версии допускаются; строгие модели остаются формой
-производителя, читатели используют классы `*Reader`.
+The extension boundary depends on the purpose of the object. Exact references
+are hashed structures: unknown fields are rejected (`additionalProperties:
+false`). Machine-output envelopes are transit structures: all declared fields
+are required on the wire, while unknown optional additions inside a supported
+major version are allowed. Strict models remain the producer form; readers use
+the `*Reader` classes.

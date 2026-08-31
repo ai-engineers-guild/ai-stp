@@ -25,7 +25,9 @@ export type ContentEntry = z.infer<typeof contentMetaSchema> & {
 };
 
 function contentRoot(): string {
-  return path.join(process.cwd(), "content", "hub");
+  return process.env.AI_STP_USER_FACING_ROOT
+    ? path.join(process.env.AI_STP_USER_FACING_ROOT, "content")
+    : path.resolve(process.cwd(), "..", "..", "docs-user-facing", "content");
 }
 
 function parseFile(file: string): ContentEntry {

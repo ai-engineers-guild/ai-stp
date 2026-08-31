@@ -2,7 +2,6 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { StatePanel } from "@/components/molecules/state-panel";
 import { PrivacyPreferencesForm } from "@/components/organisms/privacy-preferences-form";
-import { CookiePreferencesTrigger } from "@/components/molecules/cookie-preferences-trigger";
 import { privacyFieldsFromAccount, readAccount } from "@/lib/api/account";
 import { ApiError } from "@/lib/api/errors";
 import { readCsrfToken } from "@/lib/auth/session";
@@ -19,7 +18,6 @@ export default async function AccountPrivacyPage({ params }: PageProps) {
   setRequestLocale(locale);
   await requireSession(locale, `/${locale}/account/privacy`);
   const t = await getTranslations("account");
-  const tConsent = await getTranslations("consent");
   const tc = await getTranslations("common");
   const token = await sessionCookieValue();
   const csrfToken = (await readCsrfToken()) ?? "";
@@ -62,11 +60,6 @@ export default async function AccountPrivacyPage({ params }: PageProps) {
           failed: t("preferencesSaveFailed"),
         }}
       />
-      <section className="border-border space-y-3 border-t pt-6">
-        <h2 className="text-lg font-semibold">{tConsent("title")}</h2>
-        <p className="text-muted-foreground max-w-[70ch] text-sm">{tConsent("body")}</p>
-        <CookiePreferencesTrigger label={tConsent("manage")} />
-      </section>
     </article>
   );
 }

@@ -1,26 +1,26 @@
-# Конфиг лежит рядом со скриптами, а не в корне: пути ниже заданы относительно
-# него. Запуск только через just, чтобы флаг -f не приходилось помнить.
-# Плейсхолдеры в кавычках: без них YAML читает {{ как начало отображения.
+# The config lives beside the scripts rather than at the root: paths below are
+# relative to this file. Run it through just so the -f flag is not forgotten.
+# Placeholders are quoted because otherwise YAML reads {{ as the start of a map.
 
 site_name: "{{PROJECT_NAME}}"
-site_description: "{{ОДНО_ПРЕДЛОЖЕНИЕ_О_НАЗНАЧЕНИИ}}"
+site_description: "{{ONE_SENTENCE_ABOUT_PURPOSE}}"
 repo_url: https://github.com/{{OWNER}}/{{REPO}}
 edit_uri: edit/main/docs/
 
 docs_dir: ../docs
 site_dir: ../.site
 
-# Индекс прототипов публикуется как Markdown-страница: одноимённый HTML
-# остаётся исходным артефактом и не должен конкурировать за тот же маршрут.
+# The prototype index is published as a Markdown page: the same-named HTML
+# remains the source artifact and must not compete for the same route.
 exclude_docs: |
   references/prototypes/index.html
 
-# specs в сайт не входят: это рабочие артефакты, а не документация
-# для читателя.
+# specs are not included in the site: they are working artifacts, not reader
+# documentation.
 
 theme:
   name: material
-  language: ru
+  language: en
   features:
     - navigation.instant
     - navigation.tracking
@@ -37,12 +37,12 @@ theme:
       scheme: default
       toggle:
         icon: material/weather-night
-        name: Тёмная тема
+        name: Dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
       toggle:
         icon: material/weather-sunny
-        name: Светлая тема
+        name: Light mode
 
 markdown_extensions:
   - admonition
@@ -64,9 +64,9 @@ markdown_extensions:
   - pymdownx.caret
   - pymdownx.mark
   - pymdownx.tilde
-  # Рендер mermaid без внешних скриптов. Нативная интеграция Material
-  # предпочтительнее плагина mermaid2: она совместима с остальными фичами темы
-  # и не тянет отдельную зависимость.
+  # Render Mermaid without external scripts. Material's native integration is
+  # preferable to mermaid2 because it works with the other theme features and
+  # adds no separate dependency.
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
@@ -76,20 +76,19 @@ markdown_extensions:
 plugins:
   - search:
       lang: ru
-  # Навигация собирается из структуры папок. Явный nav пришлось бы
-  # синхронизировать руками при каждом новом документе, и он молча
-  # расходился бы с деревом.
+  # Navigation is built from the directory structure. An explicit nav would
+  # need manual synchronization for every new document and could silently drift.
   - awesome-pages
-  # Дата последнего изменения из git. Рядом с полем last_verified она
-  # показывает главное: документ правили позже, чем сверяли с кодом.
+  # The last-change date comes from Git. Beside last_verified it shows whether a
+  # document was edited after it was checked against the code.
   - git-revision-date-localized:
       type: date
-      locale: ru
+      locale: en
       enable_creation_date: false
       fallback_to_build_date: true
-      # Отсутствие истории у файла не должно ломать сборку: свежий клон и
-      # первый коммит - нормальные состояния, а mkdocs --strict превращает
-      # любое предупреждение в ошибку.
+      # Missing file history must not break the build: a fresh clone and the
+      # first commit are normal states, while mkdocs --strict turns warnings
+      # into errors.
       strict: false
 
 validation:
@@ -97,10 +96,10 @@ validation:
     omitted_files: warn
     not_found: warn
   links:
-    # Документы ссылаются на AGENTS.md, SECURITY.md и specs/, которых
-    # нет в сайте намеренно. Эти ссылки верны при чтении репозитория, а
-    # репозиторий и есть основной способ потребления: агент читает файлы.
-    # Целостность ссылок проверяет docs_lint.py, он видит всё дерево.
+    # Documents intentionally link to AGENTS.md, SECURITY.md, and specs/, which
+    # are not part of the site. These links are valid when reading the repository,
+    # which is the primary consumption path for agents. docs_lint.py checks link
+    # integrity across the full tree.
     not_found: ignore
     unrecognized_links: ignore
     absolute_links: ignore

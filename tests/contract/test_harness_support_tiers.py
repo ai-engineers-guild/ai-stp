@@ -71,12 +71,26 @@ SPELLED: Final[dict[str, HarnessId]] = {
 
 
 #: Anchored, so a tier is read only where a cell *is* the label — not wherever
-#: the word appears in a sentence inside one. Both languages are here because
-#: the user documentation ships in both, and a pattern that knew only Russian
-#: read the English page as if it declared one tier instead of two.
+#: the word appears in a sentence inside one. Both languages are supported
+#: because user documentation ships in both, and a pattern that knew only one
+#: language would read the other page as if it declared one tier instead of two.
 TIER_LABELS: Final[tuple[tuple[re.Pattern[str], str], ...]] = (
-    (re.compile(r"^(?:Основн\w+ поддержк\w+|primary(?: support)?)$", re.IGNORECASE), "primary"),
-    (re.compile(r"^(?:Бета|beta)(?:-поддержк\w+| support)?$", re.IGNORECASE), "beta"),
+    (
+        re.compile(
+            r"^(?:\u041e\u0441\u043d\u043e\u0432\u043d\w+ "
+            r"\u043f\u043e\u0434\u0434\u0435\u0440\u0436\u043a\w+|primary(?: support)?)$",
+            re.IGNORECASE,
+        ),
+        "primary",
+    ),
+    (
+        re.compile(
+            r"^(?:\u0411\u0435\u0442\u0430|beta)"
+            r"(?:-\u043f\u043e\u0434\u0434\u0435\u0440\u0436\u043a\w+| support)?$",
+            re.IGNORECASE,
+        ),
+        "beta",
+    ),
 )
 
 

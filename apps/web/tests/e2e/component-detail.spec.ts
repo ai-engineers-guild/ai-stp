@@ -77,8 +77,14 @@ test.describe("component detail actions and media (SPEC-035)", () => {
     await expect(
       page.getByRole("heading", { level: 1, name: "river-planner-agent" }),
     ).toBeVisible();
-    await expect(page.getByRole("button", { name: "Другие действия" })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Нравится/ })).toBeVisible();
+    await expect(
+      page.getByRole("button", {
+        name: "\u0414\u0440\u0443\u0433\u0438\u0435 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u044f",
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /\u041d\u0440\u0430\u0432\u0438\u0442\u0441\u044f/ }),
+    ).toBeVisible();
     expect(errors).toEqual([]);
   });
 });

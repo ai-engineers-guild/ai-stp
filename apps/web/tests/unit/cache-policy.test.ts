@@ -53,6 +53,7 @@ describe("public catalog cache policy", () => {
     expect(isPublicCatalogGetPath("/v1/content")).toBe(true);
     expect(isPublicCatalogGetPath("/v1/content/article/safe-setup")).toBe(true);
     expect(isPublicCatalogGetPath("/v1/content/blog_post/first-content")).toBe(true);
+    expect(isPublicCatalogGetPath("/v1/documents/personal-data-consent")).toBe(true);
     expect(isPublicCatalogGetPath("/v1/content/repository/state")).toBe(false);
     expect(isPublicCatalogGetPath("/v1/content/repository/import")).toBe(false);
     expect(isPublicCatalogGetPath("/v1/staff/content/article/staff-note")).toBe(false);

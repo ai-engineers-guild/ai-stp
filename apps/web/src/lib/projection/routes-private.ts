@@ -32,6 +32,13 @@ import { presentPage } from "@/lib/projection/presenters";
 
 const ACCOUNT_ROUTES: MachineRoute[] = [
   {
+    pattern: "onboarding",
+    resolve: async () => {
+      const t = await getTranslations("onboarding");
+      return presentPage({ title: t("title"), summary: t("body") });
+    },
+  },
+  {
     pattern: "account",
     resolve: async () => {
       const t = await getTranslations("account");

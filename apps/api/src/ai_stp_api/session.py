@@ -37,6 +37,7 @@ class AuthContext:
     account_id: str
     session_id: str
     device_id: str | None
+    account_status: str
     is_admin: bool
     via_cookie: bool
 
@@ -106,7 +107,7 @@ async def load_session_row(db: AsyncSession, session_id: str) -> AccountSession 
     result = await db.execute(
         select(AccountSession)
         .where(AccountSession.id == session_id)
-        .options(selectinload(AccountSession.device))
+        .options(selectinload(AccountSession.device), selectinload(AccountSession.account))
     )
     return result.scalar_one_or_none()
 
@@ -136,6 +137,7 @@ async def verify_raw_token(
     *,
     admin_account_ids: frozenset[str],
     via_cookie: bool,
+    allow_onboarding: bool = False,
 ) -> AuthContext:
     """Hash ``raw_token``, look up the session and return an AuthContext.
 
@@ -153,6 +155,11 @@ async def verify_raw_token(
         raise ApiError(ErrorCategory.DEVICE_REVOKED, "device is revoked")
     if not session_is_active(row):
         raise ApiError(ErrorCategory.AUTH_REQUIRED, "authentication required")
+    account = row.account
+    if account.status != "active" and not (
+        allow_onboarding and account.status == "onboarding_pending"
+    ):
+        raise ApiError(ErrorCategory.PERMISSION, "legal onboarding is required")
     if row.device is not None:
         row.device.last_seen_at = datetime.now(UTC)
         await db.flush()
@@ -160,6 +167,7 @@ async def verify_raw_token(
         account_id=row.account_id,
         session_id=row.id,
         device_id=row.device_id,
+        account_status=account.status,
         is_admin=row.account_id in admin_account_ids,
         via_cookie=via_cookie,
     )

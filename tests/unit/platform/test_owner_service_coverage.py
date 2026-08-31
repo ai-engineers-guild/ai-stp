@@ -24,6 +24,7 @@ pytestmark = pytest.mark.platform
 def _ctx(account_id: str = "account_test") -> AuthContext:
     return AuthContext(
         account_id=account_id,
+        account_status="active",
         device_id="device_test",
         session_id="sess",
         is_admin=False,

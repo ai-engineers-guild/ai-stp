@@ -18,19 +18,23 @@ from ai_stp_api.deps import (
     get_db,
     new_csrf_token,
     require_auth,
+    require_onboarding_auth,
     set_session_cookies,
 )
 from ai_stp_api.envelope import success_response
 from ai_stp_api.errors import ApiError, ErrorCategory
+from ai_stp_api.geoip import approximate_location
 from ai_stp_api.session import AuthContext, issue_session, revoke_session
 from ai_stp_api.settings import AuthSettings
 from ai_stp_api.slices.auth.domain import validate_provider
 from ai_stp_api.slices.auth.oauth import get_client, profile_from_token
+from ai_stp_api.slices.auth.onboarding import complete_onboarding, required_revisions
 from ai_stp_api.slices.auth.service import (
     resolve_login_identity,
     resolve_step_up_link,
     unlink_identity,
 )
+from ai_stp_contracts.auth import LegalOnboardingCompleteRequest
 from ai_stp_contracts.identity import AccountPrivacyUpdate
 from ai_stp_foundation.ids import new_id
 from ai_stp_foundation.timestamps import format_timestamp
@@ -218,11 +222,17 @@ async def oauth_callback(
 
     web_device: Device | None = None
     if client_hint == "web" or (client_hint != "cli" and not _wants_json(request, response_mode)):
-        forwarded_country = request.headers.get("x-vercel-ip-country") or request.headers.get(
-            "cf-ipcountry"
+        location = approximate_location(
+            request.headers.get("x-ai-stp-client-ip"), auth.geoip_city_db_path
         )
-        forwarded_city = request.headers.get("x-vercel-ip-city")
-        location = ", ".join(part for part in (forwarded_city, forwarded_country) if part) or None
+        if location is None:
+            forwarded_country = request.headers.get("x-vercel-ip-country") or request.headers.get(
+                "cf-ipcountry"
+            )
+            forwarded_city = request.headers.get("x-vercel-ip-city")
+            location = (
+                ", ".join(part for part in (forwarded_city, forwarded_country) if part) or None
+            )
         remembered_id = request.cookies.get(auth.device_cookie_name)
         if remembered_id:
             web_device = await db.scalar(
@@ -248,6 +258,11 @@ async def oauth_callback(
         web_device.last_seen_at = datetime.now(UTC)
         await db.flush()
 
+    account = await db.get(Account, decision.account_id)
+    if account is None:
+        raise ApiError(ErrorCategory.AUTH_REQUIRED, "authentication failed")
+    pending_onboarding = account.status == "onboarding_pending"
+
     issued = await issue_session(
         db,
         account_id=decision.account_id,
@@ -261,6 +276,8 @@ async def oauth_callback(
         client_hint != "web" and _wants_json(request, response_mode)
     )
     csrf = new_csrf_token()
+    if wants_json and pending_onboarding:
+        raise ApiError(ErrorCategory.PERMISSION, "complete legal onboarding in the web service")
     if wants_json:
         data: dict[str, object] = {
             "account_id": decision.account_id,
@@ -274,7 +291,15 @@ async def oauth_callback(
             operation_id=str(data["operation_id"]),
         )
     else:
-        location = _web_return_location(auth, return_to if isinstance(return_to, str) else None)
+        if pending_onboarding:
+            locale = _locale_from_return_to(return_to if isinstance(return_to, str) else None)
+            target = _safe_return_to(return_to if isinstance(return_to, str) else None)
+            params = urlencode({"returnTo": target}) if target else ""
+            location = f"{auth.public_base_url.rstrip('/')}/{locale}/onboarding"
+            if params:
+                location = f"{location}?{params}"
+        else:
+            location = _web_return_location(auth, return_to if isinstance(return_to, str) else None)
         response = RedirectResponse(url=location, status_code=303)
     set_session_cookies(response, auth=auth, raw_token=issued.raw_token, csrf_token=csrf)
     if web_device is not None:
@@ -347,7 +372,7 @@ async def start_step_up_link(
 async def logout(
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
-    ctx: Annotated[AuthContext, Depends(require_auth)],
+    ctx: Annotated[AuthContext, Depends(require_onboarding_auth)],
     auth: Annotated[AuthSettings, Depends(get_auth_settings)],
 ) -> JSONResponse:
     """Revoke the current session; replay of the old token is rejected."""
@@ -364,7 +389,7 @@ async def logout(
 @router.get("/auth/me", response_model=None)
 async def current_account(
     request: Request,
-    ctx: Annotated[AuthContext, Depends(require_auth)],
+    ctx: Annotated[AuthContext, Depends(require_onboarding_auth)],
 ) -> JSONResponse:
     """Return the authenticated account id (resource body, no envelope)."""
     del request
@@ -373,8 +398,40 @@ async def current_account(
             "schema_version": 1,
             "account_id": ctx.account_id,
             "device_id": ctx.device_id,
+            "account_status": ctx.account_status,
         },
         status_code=200,
+    )
+
+
+@router.get("/auth/onboarding", response_model=None)
+async def read_legal_onboarding(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_onboarding_auth)],
+    locale: Annotated[str, Query()] = "en",
+) -> JSONResponse:
+    """Return the exact revisions a pending account must accept."""
+    return JSONResponse(
+        content=await required_revisions(db, account_id=ctx.account_id, locale=locale)
+    )
+
+
+@router.post("/auth/onboarding/complete", response_model=None)
+async def complete_legal_onboarding(
+    payload: LegalOnboardingCompleteRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_onboarding_auth)],
+    locale: Annotated[str, Query()] = "en",
+) -> JSONResponse:
+    """Record exact acceptances and activate the current account."""
+    return JSONResponse(
+        content=await complete_onboarding(
+            db,
+            account_id=ctx.account_id,
+            locale=locale,
+            service_rules_revision_id=payload.service_rules_revision_id,
+            personal_data_consent_revision_id=payload.personal_data_consent_revision_id,
+        )
     )
 
 

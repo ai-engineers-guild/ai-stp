@@ -49,7 +49,7 @@ REFUSALS: Final[frozenset[str]] = frozenset(
     }
 )
 
-#: Resource bounds (`SPEC-006`: "ограничения ресурсов сдерживают размер графа").
+#: Resource bounds (`SPEC-006`: "resource limits constrain graph size").
 #: Declared rather than implicit, and returned in the answer, so a closure that
 #: reached one is distinguishable from a complete one.
 MAX_DEPTH: Final[int] = 32

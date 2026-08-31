@@ -39,7 +39,7 @@ pointers select the published RU/EN revisions. An identity collision on
 `{type}:{slug}` between different owners is rejected and is never resolved by
 priority or last-write-wins.
 
-The web build validates `apps/web/content/hub` and creates a deterministic full
+The deploy build validates `docs-user-facing/content` and creates a deterministic full
 `snapshot` with the exact repository commit, source paths, content digest, and
 whole-snapshot digest. The build does not call the API or PostgreSQL. During
 deploy, after migrations and API readiness, a one-shot importer submits the

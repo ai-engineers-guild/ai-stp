@@ -1,3 +1,3 @@
-# Канонические Skills
+# Canonical Skills
 
-- [ai-stp/](ai-stp/SKILL.md) — управление паспортами, сборкой, проверкой и установкой сетапов.
+- [ai-stp/](ai-stp/SKILL.md) — passport, assembly, validation, and setup installation.

@@ -5,11 +5,10 @@ import { ComponentType } from "@/lib/api/generated/types.gen";
 import { COMPONENT_TYPE_PRESENTATION, ComponentTypeIcon } from "@/theme/component-types";
 
 describe("component type presentation registry (REQ-3418)", () => {
-  it("covers every contract type with an icon and both locales", () => {
+  it("covers every contract type with an icon and an i18n label key", () => {
     for (const type of Object.values(ComponentType)) {
       const entry = COMPONENT_TYPE_PRESENTATION[type];
-      expect(entry.labels.en).not.toBe("");
-      expect(entry.labels.ru).not.toBe("");
+      expect(entry.labelKey).toMatch(/^componentTypes\./);
       const { container, unmount } = render(<ComponentTypeIcon type={type} />);
       expect(container.querySelector("svg")).not.toBeNull();
       unmount();

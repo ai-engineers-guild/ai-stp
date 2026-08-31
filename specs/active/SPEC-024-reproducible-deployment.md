@@ -57,7 +57,7 @@ providers; secrets in GitHub or issue text; contents of domain handlers
 - `Web tier` - `apps/web` application container with separate dev and prod images;
   in **prod** publicly available only through `Caddy` (`ADR-0044`); to local
   **dev** publishes the `web` port directly, without Caddy.
-- `Docs tier` - container of public user documentation from `user-docs/`;
+- `Docs tier` - container of public user documentation from `docs-user-facing/docs/`;
   in dev it is published on `localhost:8011`, in **prod** it is available through a separate
   host `AI_STP_DOCS_HOST`.
 - `Env contract` - a set of environment samples with names without values and separation

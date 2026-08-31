@@ -178,7 +178,7 @@ describe("component detail interactions", () => {
     render(
       <ComponentMediaGallery
         locale="ru"
-        fallbackAlt="ai-repo-safety — Галерея"
+        fallbackAlt={"ai-repo-safety — \u0413\u0430\u043b\u0435\u0440\u0435\u044f"}
         items={[
           {
             id: "media_example",
@@ -188,11 +188,18 @@ describe("component detail interactions", () => {
             source_label: "storage",
           },
         ]}
-        labels={{ gallery: "Галерея", open: "Открыть", source: "Источник", close: "Закрыть" }}
+        labels={{
+          gallery: "\u0413\u0430\u043b\u0435\u0440\u0435\u044f",
+          open: "\u041e\u0442\u043a\u0440\u044b\u0442\u044c",
+          source: "\u0418\u0441\u0442\u043e\u0447\u043d\u0438\u043a",
+          close: "\u0417\u0430\u043a\u0440\u044b\u0442\u044c",
+        }}
       />,
     );
 
-    expect(screen.getByAltText("ai-repo-safety — Галерея")).toBeInTheDocument();
+    expect(
+      screen.getByAltText("ai-repo-safety — \u0413\u0430\u043b\u0435\u0440\u0435\u044f"),
+    ).toBeInTheDocument();
   });
 
   it("opens media in an accessible dialog without a bottom close control", async () => {

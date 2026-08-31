@@ -1,6 +1,8 @@
 import createMiddleware from "next-intl/middleware";
 import { NextRequest, NextResponse } from "next/server";
 
+import enMessages from "../messages/en.json";
+import ruMessages from "../messages/ru.json";
 import { SESSION_COOKIE } from "@/lib/auth/cookies";
 import { routing } from "@/lib/i18n/routing";
 import { parseProjectionRoute, projectionRequestHeaders } from "@/lib/projection/route";
@@ -32,7 +34,8 @@ export default function middleware(request: NextRequest) {
     isImpossibleCountryPath(pathname)
   ) {
     const language = pathname.startsWith("/ru/") ? "ru" : "en";
-    const title = language === "ru" ? "Страница не найдена" : "Page not found";
+    const messages = language === "ru" ? ruMessages : enMessages;
+    const title = messages.errors.notFoundTitle;
     return new NextResponse(
       `<!doctype html><html lang="${language}"><head><meta charset="utf-8"><meta name="robots" content="noindex"><title>${title}</title></head><body><main><h1>${title}</h1></main></body></html>`,
       {

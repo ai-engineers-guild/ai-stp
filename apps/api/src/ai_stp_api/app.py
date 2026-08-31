@@ -61,6 +61,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.engine = engine
         app.state.sessionmaker = make_sessionmaker(engine)
         app.state.oauth = build_oauth(resolved.auth)
+        from ai_stp_api.slices.documents.service import sync_builtin_policies
+
+        try:
+            async with app.state.sessionmaker() as legal_db:
+                await sync_builtin_policies(
+                    legal_db,
+                    source_ref=resolved.service.git_commit,
+                )
+                await legal_db.commit()
+        except Exception:
+            if resolved.service.environment != "test":
+                raise
+            log.warning("legal_policy_sync_failed")
         # Tests and offline environments use in-memory object store; production uses S3/RustFS.
         memory_client: MemoryObjectClient | None = None
         s3_client: S3ObjectClient | None = None

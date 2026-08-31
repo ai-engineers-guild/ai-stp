@@ -38,7 +38,7 @@ def localized_entry(
     tags: list[str] | None = None,
 ) -> ContentSnapshotEntry:
     ordered = sorted(tags or ["setup"])
-    source_path = f"{locale}/article-{slug}.md"
+    source_path = f"docs-user-facing/content/{locale}/article-{slug}.md"
     digest = revision_content_digest(
         article_type=article_type,
         slug=slug,

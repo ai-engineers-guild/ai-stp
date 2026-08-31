@@ -19,8 +19,11 @@ async def read_document(
     slug: str,
     db: Annotated[AsyncSession, Depends(get_db)],
     locale: Annotated[str, Query()] = "en",
+    revision_id: Annotated[str | None, Query()] = None,
 ) -> JSONResponse:
-    body = await documents_service.get_published(db, slug=slug, locale=locale)
+    body = await documents_service.get_published(
+        db, slug=slug, locale=locale, revision_id=revision_id
+    )
     return JSONResponse(
         content=body,
         headers={"Cache-Control": "public, max-age=60"},

@@ -229,6 +229,10 @@ export type AuthLogoutResponse = {
  */
 export type AuthMeResponse = {
   account_id: AccountId;
+  /**
+   * Account Status
+   */
+  account_status: "onboarding_pending" | "active";
   device_id: DeviceId | null;
   /**
    * Schema Version
@@ -2131,6 +2135,52 @@ export const InvitationState = {
 export type InvitationState = (typeof InvitationState)[keyof typeof InvitationState];
 
 export type JsonValue = unknown;
+
+/**
+ * LegalOnboardingCompleteRequest
+ *
+ * Accept the exact two legal revisions required to activate an account.
+ */
+export type LegalOnboardingCompleteRequest = {
+  /**
+   * Personal Data Consent Revision Id
+   */
+  personal_data_consent_revision_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Service Rules Revision Id
+   */
+  service_rules_revision_id: string;
+};
+
+/**
+ * LegalOnboardingStatus
+ *
+ * Exact current revisions an authenticated pending account must accept.
+ */
+export type LegalOnboardingStatus = {
+  account_id: AccountId;
+  /**
+   * Account Status
+   */
+  account_status: "onboarding_pending" | "active";
+  /**
+   * Personal Data Consent Revision Id
+   */
+  personal_data_consent_revision_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Service Rules Revision Id
+   */
+  service_rules_revision_id: string;
+  [key: string]: unknown;
+};
 
 /**
  * LicenseInfo
@@ -5081,6 +5131,111 @@ export type ReadAuthMeResponses = {
 };
 
 export type ReadAuthMeResponse = ReadAuthMeResponses[keyof ReadAuthMeResponses];
+
+export type ReadLegalOnboardingData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/auth/onboarding";
+};
+
+export type ReadLegalOnboardingErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadLegalOnboardingError = ReadLegalOnboardingErrors[keyof ReadLegalOnboardingErrors];
+
+export type ReadLegalOnboardingResponses = {
+  /**
+   * Read the exact current legal revisions required for account activation.
+   */
+  200: LegalOnboardingStatus;
+};
+
+export type ReadLegalOnboardingResponse =
+  ReadLegalOnboardingResponses[keyof ReadLegalOnboardingResponses];
+
+export type CompleteLegalOnboardingData = {
+  body: LegalOnboardingCompleteRequest;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/auth/onboarding/complete";
+};
+
+export type CompleteLegalOnboardingErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type CompleteLegalOnboardingError =
+  CompleteLegalOnboardingErrors[keyof CompleteLegalOnboardingErrors];
+
+export type CompleteLegalOnboardingResponses = {
+  /**
+   * Accept the current legal revisions and activate the account.
+   */
+  200: LegalOnboardingStatus;
+};
+
+export type CompleteLegalOnboardingResponse =
+  CompleteLegalOnboardingResponses[keyof CompleteLegalOnboardingResponses];
 
 export type ReadOAuthCallbackResultData = {
   body?: never;

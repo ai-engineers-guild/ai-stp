@@ -1,31 +1,31 @@
-# Golden-корпус канонизации
+# Canonicalization golden corpus
 
-Языконезависимые фикстуры для любой будущей реализации канонического слоя;
-Python-тесты в `tests/contract/` — их первый потребитель.
+Language-neutral fixtures for any future implementation of the canonicalization
+layer; the Python tests in `tests/contract/` are their first consumer.
 
-## `canonical/` — позитивные векторы
+## `canonical/` — positive vectors
 
-Каждый файл — JSON-объект с полями:
+Each file is a JSON object with these fields:
 
-- `name` — имя вектора;
-- `value` — разобранное входное значение как есть, до нормализации;
-- `canonical` — точные канонические байты RFC 8785 после NFC как строка UTF-8;
-- `digests` — доменные хэши этих байтов по каждому домену из `canonical-data.md`.
+- `name` — vector name;
+- `value` — parsed input value as received, before normalization;
+- `canonical` — exact RFC 8785 canonical bytes after NFC, represented as a UTF-8 string;
+- `digests` — domain hashes of those bytes for each domain in `canonical-data.md`.
 
-Реализация обязана дать байт в байт `canonical` и совпадающие хэши. Векторы
-покрывают сортировку ключей, NFC-декомпозицию, кириллицу и эмодзи, крайние
-числа (`-0.0` → `0`, экспоненты, безопасная граница целых), экранирование
-управляющих символов и пустые контейнеры.
+An implementation must produce `canonical` byte-for-byte and produce matching
+hashes. The vectors cover key sorting, NFC decomposition, Cyrillic and emoji,
+extreme numbers (`-0.0` → `0`, exponents, the safe integer boundary), control
+character escaping, and empty containers.
 
-## `canonical-invalid/` — негативный байтовый корпус
+## `canonical-invalid/` — negative byte corpus
 
-Сырые байты, которые обязаны дать типизированный отказ конвейера
-`canonize(from_json_bytes(data))` по REQ-1504: BOM-префикс и BOM внутри
-строки, повтор ключей до нормализации, NFC-коллизия ключей, литералы
-`NaN`/`Infinity`, невалидный UTF-8, целое вне домена `2^53` и оборванный
-JSON. Ожидаемая причина каждого файла закреплена в
-`tests/contract/test_canonical_bytes.py`; отказ по другой причине — ошибка.
+Raw bytes that must produce a typed rejection from
+`canonize(from_json_bytes(data))` under REQ-1504: a BOM prefix and an interior
+BOM, duplicate keys before normalization, an NFC key collision, `NaN`/`Infinity`
+literals, invalid UTF-8, an integer outside the `2^53` domain, and truncated JSON.
+The expected reason for each file is fixed in
+`tests/contract/test_canonical_bytes.py`; a rejection for another reason is an error.
 
-Векторы генерируются кодом фонда и после фиксации не переписываются;
-изменение канонического поведения требует новых векторов и решения, а не
-правки старых.
+The foundation code generates the vectors, and they are not rewritten after
+being fixed. A change to canonicalization behavior requires new vectors and a
+decision, not edits to old ones.

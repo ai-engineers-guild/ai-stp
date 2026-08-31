@@ -1,8 +1,8 @@
 """A grant is written down before it is made, so a killed process leaves no reach.
 
 `ADR-0133` chose AppContainer and named the consequence in the same breath:
-"появляется новая обязанность: снимать ACE и профиль после успеха, отказа,
-таймаута и краха". The first three were covered by a `finally`. The fourth was
+"a new duty appears: remove the ACE and profile after success, refusal,
+timeout, and crash". The first three were covered by a `finally`. The fourth was
 not covered by anything — a `finally` does not run when the process is killed,
 the package SID is stable by design, and the grant therefore survives into the
 next isolated phase, which selected a different target.

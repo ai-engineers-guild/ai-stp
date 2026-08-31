@@ -1,41 +1,41 @@
 {
-  // Разметка markdown. Смысловые правила проверяет docs_scripts/docs_lint.py,
-  // здесь остаются только правила, которые не создают несмысловой churn.
+  // Markdown structure. Semantic rules live in docs_scripts/docs_lint.py;
+  // only rules that avoid meaningless churn remain here.
   "config": {
     "default": true,
 
-    // Жёсткая длина строки отключена. Русский нормативный текст, аннотированные
-    // ссылки и генерируемые таблицы регулярно превышают произвольный предел,
-    // а ручной перенос меняет diff без изменения смысла. Структуру, язык,
-    // ссылки, frontmatter и индексы проверяет проектный docs_lint.py.
+    // Hard line length is disabled. Normative text, annotated links, and
+    // generated tables regularly exceed arbitrary limits, while manual
+    // wrapping changes the diff without changing meaning. Project docs_lint.py
+    // checks structure, language, links, frontmatter, and indexes.
     "MD013": false,
 
-    // Разрешаем inline HTML: details, маркеры генерируемых блоков.
+    // Allow inline HTML: details and generated-block markers.
     "MD033": false,
 
-    // Первая строка файла - frontmatter, а не заголовок.
+    // The first line is frontmatter, not a heading.
     "MD041": false,
 
-    // Поле title во frontmatter не считается заголовком документа: иначе
-    // единственный H1 в теле выглядит как второй.
+    // The frontmatter title is not a document heading; otherwise the only H1
+    // in the body looks like a second one.
     "MD025": { "front_matter_title": "" },
 
-    // Одинаковые заголовки в разных секциях допустимы: "Команды" встречается
-    // в нескольких документах на одном уровне вложенности.
+    // Identical headings in different sections are allowed: the same heading
+    // can occur in multiple documents at one nesting level.
     "MD024": { "siblings_only": true },
 
-    // Знаки препинания в заголовках нужны для вопросов вида "Что где лежит?".
+    // Heading punctuation is needed for questions such as "Where is it?".
     "MD026": { "punctuation": ".,;:!" },
 
-    // Нумерованные списки со сплошной нумерацией.
+    // Ordered lists use consecutive numbering.
     "MD029": { "style": "ordered" },
 
-    // Голые URL запрещены: ссылка должна быть аннотирована.
+    // Bare URLs are forbidden: links must be annotated.
     "MD034": true,
 
-    // Выравнивание столбцов таблиц. Отключено: правило считает ширину в
-    // символах, а таблицы на кириллице выравниваются по видимой ширине.
-    // Автоисправления у правила нет, ручная подгонка ломается при первой правке.
+    // Table-column alignment is disabled: the rule counts characters, while
+    // tables with non-Latin text align by visible width. The rule has no
+    // automatic fix, and manual tuning breaks on the first edit.
     "MD060": false
   },
   "globs": ["**/*.md"],
@@ -43,14 +43,14 @@
     "node_modules/**",
     "**/node_modules/**",
     ".site/**",
-    // Собранное публичное дерево — вывод, а не источник: полная копия
-    // репозитория вместе с чужими зависимостями, установленными при её
-    // проверке (`ADR-0108`).
+    // The built public tree is output, not source: it is a full copy of the
+    // repository together with dependencies installed during its check
+    // (`ADR-0108`).
     "public/**",
     ".venv/**",
     ".venv-check/**",
     "research_sources/**",
-    // Вредоносные Markdown-фикстуры намеренно нарушают правила обычной документации.
+    // Malicious Markdown fixtures intentionally violate ordinary-document rules.
     "tests/fixtures/safety-corpus/**",
     ".work/**",
     ".tmp/**",

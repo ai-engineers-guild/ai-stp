@@ -16,7 +16,7 @@ from ai_stp_platform.content.snapshot_cli import main as snapshot_cli_main
 pytestmark = pytest.mark.platform
 
 NOW = datetime(2026, 8, 29, tzinfo=UTC)
-HUB = Path("apps/web/content/hub")
+HUB = Path("docs-user-facing/content")
 
 
 def _write_entry(root: Path, name: str, body: str) -> None:
@@ -63,8 +63,8 @@ Body RU.
     assert left.snapshot_digest == right.snapshot_digest
     assert canonize(left.model_dump(mode="json")) == canonize(right.model_dump(mode="json"))
     assert {entry.source_path for entry in left.entries} == {
-        "en/article-alpha.md",
-        "ru/article-alpha.md",
+        "docs-user-facing/content/en/article-alpha.md",
+        "docs-user-facing/content/ru/article-alpha.md",
     }
 
 

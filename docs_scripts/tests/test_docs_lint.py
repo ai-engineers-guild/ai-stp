@@ -8,11 +8,11 @@ from pathlib import Path
 from docs_scripts.docs_lint import Linter
 
 DOCUMENT = """---
-description: "Проверка"
+description: "Check"
 last_verified: "2026-08-03"
 ---
 
-# Проверка
+# Check
 
 {body}
 """
@@ -66,19 +66,26 @@ class LanguageTests(unittest.TestCase):
 
         linter.check_language(
             Path("docs/example.md"),
-            "Эта строка документации полностью написана на русском языке для проверки.",
+            "\u042d\u0442\u0430 "
+            "\u0441\u0442\u0440\u043e\u043a\u0430 "
+            "\u0434\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u0430\u0446\u0438\u0438 "
+            "\u043f\u043e\u043b\u043d\u043e\u0441\u0442\u044c\u044e "
+            "\u043d\u0430\u043f\u0438\u0441\u0430\u043d\u0430 "
+            "\u043d\u0430 \u0440\u0443\u0441\u0441\u043a\u043e\u043c "
+            "\u044f\u0437\u044b\u043a\u0435 \u0434\u043b\u044f "
+            "\u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0438.",
         )
 
         self.assertEqual([issue.code for issue in linter.issues], ["EN001"])
 
 
 class BacktickedDocumentTests(unittest.TestCase):
-    """Имя документа в обратных кавычках обязано вести к существующему файлу.
+    """A backticked document name must point to an existing file.
 
-    Правило появилось после двух висячих ссылок подряд: `cli-api-contract` в
-    ADR-0013 и `contracts/component-setup-manifests.md` в ADR-0012. Оба
-    документа были свёрнуты, ссылки остались, и проверка ссылок Markdown их не
-    видела, потому что это были не ссылки.
+    The rule followed two consecutive dangling references: `cli-api-contract`
+    in ADR-0013 and `contracts/component-setup-manifests.md` in ADR-0012. Both
+    documents were folded, the references remained, and the Markdown link
+    checker missed them because they were not links.
     """
 
     def _issues(self, body: str, *, existing: tuple[str, ...] = ()) -> list[str]:
@@ -87,7 +94,7 @@ class BacktickedDocumentTests(unittest.TestCase):
             for name in existing:
                 target = root / name
                 target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_text("# Существует\n", encoding="utf-8")
+                target.write_text("# Exists\n", encoding="utf-8")
             document = root / "section" / "document.md"
             document.parent.mkdir(parents=True, exist_ok=True)
             document.write_text(DOCUMENT.format(body=body), encoding="utf-8")
@@ -97,11 +104,11 @@ class BacktickedDocumentTests(unittest.TestCase):
             return [issue.code for issue in linter.issues]
 
     def test_a_missing_document_is_reported(self) -> None:
-        self.assertEqual(self._issues("См. `docs/contracts/absent.md`."), ["LN002"])
+        self.assertEqual(self._issues("See `docs/contracts/absent.md`."), ["LN002"])
 
     def test_an_existing_document_passes(self) -> None:
         self.assertEqual(
-            self._issues("См. `neighbour.md`.", existing=("neighbour.md",)),
+            self._issues("See `neighbour.md`.", existing=("neighbour.md",)),
             [],
         )
 
@@ -109,7 +116,7 @@ class BacktickedDocumentTests(unittest.TestCase):
         # An ADR naming `contracts/x.md` means `docs/contracts/x.md`, which
         # resolves one level up from `docs/adr/`.
         self.assertEqual(
-            self._issues("См. `contracts/neighbour.md`.", existing=("contracts/neighbour.md",)),
+            self._issues("See `contracts/neighbour.md`.", existing=("contracts/neighbour.md",)),
             [],
         )
 
@@ -117,14 +124,14 @@ class BacktickedDocumentTests(unittest.TestCase):
         # Documents legitimately name a neighbour by file name, and CLAUDE.md
         # and SKILL.md are real files that do not live under `docs/`.
         self.assertEqual(
-            self._issues("См. `tech-stack.md`.", existing=("elsewhere/deep/tech-stack.md",)),
+            self._issues("See `tech-stack.md`.", existing=("elsewhere/deep/tech-stack.md",)),
             [],
         )
 
     def test_a_non_markdown_name_is_not_a_document_reference(self) -> None:
         # `bundle.json` and `ai-stp.component.yaml` are artifact names a
         # contract describes, not files of this repository.
-        self.assertEqual(self._issues("Пакет содержит `bundle.json` и `setup.yaml`."), [])
+        self.assertEqual(self._issues("The package contains `bundle.json` and `setup.yaml`."), [])
 
     def test_a_reference_inside_a_fence_is_not_checked(self) -> None:
         self.assertEqual(self._issues("```text\n`docs/absent.md`\n```"), [])
@@ -146,8 +153,8 @@ class AdrIdentityTests(unittest.TestCase):
         self.assertEqual(
             self._issues(
                 {
-                    "ADR-0042-first.md": "# ADR-0042: Первое решение",
-                    "ADR-0042-second.md": "# ADR-0042: Второе решение",
+                    "ADR-0042-first.md": "# ADR-0042: First decision",
+                    "ADR-0042-second.md": "# ADR-0042: Second decision",
                 }
             ),
             ["AD002"],
@@ -155,7 +162,7 @@ class AdrIdentityTests(unittest.TestCase):
 
     def test_heading_must_match_file_identity(self) -> None:
         self.assertEqual(
-            self._issues({"ADR-0042-first.md": "# ADR-0043: Первое решение"}),
+            self._issues({"ADR-0042-first.md": "# ADR-0043: First decision"}),
             ["AD004"],
         )
 
@@ -163,8 +170,8 @@ class AdrIdentityTests(unittest.TestCase):
         self.assertEqual(
             self._issues(
                 {
-                    "ADR-0042-first.md": "# ADR-0042: Первое решение",
-                    "ADR-0043-second.md": "# ADR-0043: Второе решение",
+                    "ADR-0042-first.md": "# ADR-0042: First decision",
+                    "ADR-0043-second.md": "# ADR-0043: Second decision",
                 }
             ),
             [],

@@ -37,7 +37,7 @@ type TagId = Annotated[str, Field(pattern=TAG_PATTERN)]
 type CapabilityId = Annotated[str, Field(pattern=CAPABILITY_PATTERN)]
 type SupportedOs = Literal["linux", "macos", "windows"]
 
-#: The closed component taxonomy (AGENTS.md, "Канонические термины"). Named so
+#: The closed component taxonomy (AGENTS.md, "Canonical terms"). Named so
 #: the catalog wire contract reuses this one owner instead of restating the
 #: eight values, which would be two normative copies free to drift apart.
 type ComponentType = Literal[

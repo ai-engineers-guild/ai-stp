@@ -34,8 +34,9 @@ async def test_public_document_only_published_and_renders_safe_html(
     harness: tuple[AsyncClient, async_sessionmaker[AsyncSession]],
 ) -> None:
     client, sessionmaker = harness
-    missing = await client.get("/v1/documents/privacy")
-    assert missing.status_code == 404
+    bundled = await client.get("/v1/documents/privacy")
+    assert bundled.status_code == 200
+    assert bundled.json()["policy_version"] == "1.0"
 
     async with sessionmaker() as db:
         await documents_service.publish_revision(
@@ -79,6 +80,13 @@ async def test_public_document_only_published_and_renders_safe_html(
     assert v2.status_code == 200
     assert v2.json()["title"] == "Privacy v2"
     assert "Updated text" in v2.json()["html"]
+
+    historical = await client.get(
+        "/v1/documents/privacy",
+        params={"revision_id": ok.json()["revision_id"]},
+    )
+    assert historical.status_code == 200
+    assert historical.json()["lifecycle"] == "superseded"
 
 
 @pytest.mark.asyncio

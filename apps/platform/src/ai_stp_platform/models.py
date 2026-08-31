@@ -34,11 +34,14 @@ class Account(Base):
     __tablename__ = "account"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    # Existing accounts predate legal onboarding and remain active after the
+    # additive migration. New OAuth accounts become active only on acceptance.
+    status: Mapped[str] = mapped_column(String(32), default="active", server_default="active")
     show_profile_publicly: Mapped[bool] = mapped_column(
-        Boolean, default=True, server_default="true"
+        Boolean, default=False, server_default="false"
     )
     allow_publisher_listing: Mapped[bool] = mapped_column(
-        Boolean, default=True, server_default="true"
+        Boolean, default=False, server_default="false"
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -861,7 +864,7 @@ class PublicDocument(Base):
     __table_args__ = (
         CheckConstraint(
             "kind in ('technical', 'privacy', 'cookies', 'service_rules', "
-            "'author_content_and_license')",
+            "'author_content_and_license', 'personal_data_consent')",
             name="ck_public_document_kind",
         ),
     )
@@ -893,6 +896,8 @@ class DocumentRevision(Base):
     locale: Mapped[str] = mapped_column(String(16))
     lifecycle: Mapped[str] = mapped_column(String(32), default="draft")
     title: Mapped[str] = mapped_column(String(240))
+    policy_version: Mapped[str] = mapped_column(String(32), default="1.0")
+    effective_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     markdown_source: Mapped[str] = mapped_column(Text)
     content_digest: Mapped[str] = mapped_column(String(80))
     renderer_version: Mapped[str] = mapped_column(String(32), default="commonmark_v1")
@@ -902,6 +907,38 @@ class DocumentRevision(Base):
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     supersedes_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class AccountPolicyAcceptance(Base):
+    """One immutable acceptance of an exact published legal revision."""
+
+    __tablename__ = "account_policy_acceptance"
+    __table_args__ = (
+        CheckConstraint(
+            "acceptance_type in ('service_rules', 'personal_data_consent')",
+            name="ck_account_policy_acceptance_type",
+        ),
+        UniqueConstraint(
+            "account_id",
+            "document_revision_id",
+            "acceptance_type",
+            name="uq_account_policy_acceptance_exact",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    account_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("account.id", ondelete="CASCADE"), index=True
+    )
+    document_revision_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("document_revision.id", ondelete="RESTRICT"), index=True
+    )
+    acceptance_type: Mapped[str] = mapped_column(String(32))
+    accepted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    locale: Mapped[str] = mapped_column(String(16))
+    source: Mapped[str] = mapped_column(String(32), default="web_onboarding")
 
 
 class CatalogExternalObservation(Base):

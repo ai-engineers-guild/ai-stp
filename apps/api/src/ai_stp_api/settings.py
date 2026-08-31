@@ -130,6 +130,7 @@ class AuthSettings(BaseSettings):
     challenge_ttl_seconds: int = Field(default=300, ge=30, le=3600)
     cookie_name: str = Field(default="ai_stp_session")
     device_cookie_name: str = Field(default="ai_stp_browser_device")
+    geoip_city_db_path: Path | None = Field(default=None)
     csrf_cookie_name: str = Field(default="ai_stp_csrf")
     csrf_header_name: str = Field(default="X-CSRF-Token")
     cookie_secure: bool = Field(default=True)

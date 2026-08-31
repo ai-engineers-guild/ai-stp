@@ -41,18 +41,21 @@ class Projection:
 
 TARGETS: Final[tuple[Projection, ...]] = (
     Projection(
-        "claude-code", "claude-code", "SKILL.md", "Plugin/Skill и явный import через `CLAUDE.md`"
+        "claude-code",
+        "claude-code",
+        "SKILL.md",
+        "Plugin/Skill and explicit import through `CLAUDE.md`",
     ),
-    Projection("codex", "codex", "SKILL.md", "Plugin/Skill и совместимая инструкция `AGENTS.md`"),
-    Projection("pi", "pi", "SKILL.md", "Package, resources, Skill и локальные settings target"),
-    Projection("opencode", "opencode", "SKILL.md", "Native Skill, plugin, agent и command"),
-    Projection("grok-build", "grok-build", "SKILL.md", "Native marketplace, plugin и Skill"),
-    Projection("cursor", "cursor", "SKILL.md", "Plugin с манифестом `.cursor-plugin/plugin.json`"),
+    Projection("codex", "codex", "SKILL.md", "Plugin/Skill and compatible `AGENTS.md` instruction"),
+    Projection("pi", "pi", "SKILL.md", "Package, resources, Skill, and local target settings"),
+    Projection("opencode", "opencode", "SKILL.md", "Native Skill, plugin, agent, and command"),
+    Projection("grok-build", "grok-build", "SKILL.md", "Native marketplace, plugin, and Skill"),
+    Projection("cursor", "cursor", "SKILL.md", "Plugin with `.cursor-plugin/plugin.json` manifest"),
     Projection(
         "antigravity",
         "antigravity",
         "SKILL.md",
-        "Skill и agent в общем доме Gemini, плагин в `antigravity-cli`",
+        "Skill and agent in Gemini's shared home, with a plugin in `antigravity-cli`",
     ),
 )
 
@@ -67,23 +70,24 @@ def render(projection: Projection) -> str:
     # the quoting.
     return f"""---
 name: ai-stp
-description: Нативная проекция канонического Skill ai-stp.
+description: Native projection of the canonical ai-stp Skill.
 metadata:
   harness: "{projection.harness_id}"
 ---
 
 {MARKER}
 
-# ai_stp — проекция для {projection.harness_id}
+# ai_stp — projection for {projection.harness_id}
 
-Нативная поверхность этого харнесса: {projection.surface}.
+Native surface for this harness: {projection.surface}.
 
-Процедура не дублируется. Канон находится в `skills/canonical/ai-stp/SKILL.md`,
-и эта проекция существует, чтобы харнесс нашёл его в ожидаемом для себя месте.
+The procedure is not duplicated. The canonical version is in
+`skills/canonical/ai-stp/SKILL.md`; this projection places it where the harness
+expects to find it.
 
-Перечня команд здесь нет намеренно. Он живёт в реестре CLI, а машинная справка
-порождается из реестра: начни с `ai-stp doctor --json`, затем возьми команды из
-`ai-stp help --agent --json` и вызывай только их.
+The command list is intentionally omitted. It lives in the CLI registry, and
+machine help is generated from that registry: start with `ai-stp doctor --json`,
+then take commands from `ai-stp help --agent --json` and call only those commands.
 """
 
 
@@ -101,9 +105,9 @@ def write() -> list[Path]:
     for projection in TARGETS:
         target = PROJECTIONS / projection.directory / projection.filename
         target.parent.mkdir(parents=True, exist_ok=True)
-        # newline="\n" как в docs_lint.py и install_hooks.py: без него генератор
-        # на Windows пишет CRLF, и каждый локальный прогон показывает пять
-        # изменённых проекций, отличающихся только концами строк.
+        # newline="\n" matches docs_lint.py and install_hooks.py: without it the
+        # generator writes CRLF on Windows and every local run shows five changed
+        # projections that differ only in line endings.
         target.write_text(render(projection), encoding="utf-8", newline="\n")
         written.append(target)
     for source, packaged in packaged_targets().items():

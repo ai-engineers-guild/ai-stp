@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Запуск закреплённого repository-local markdownlint-cli2."""
+"""Run the pinned repository-local markdownlint-cli2 binary."""
 
 from __future__ import annotations
 
@@ -20,9 +20,7 @@ BINARY = (
 
 def main() -> int:
     if not BINARY.is_file():
-        print(
-            "ОШИБКА markdownlint: локальный binary не найден. Запусти just setup.", file=sys.stderr
-        )
+        print("ERROR markdownlint: local binary not found. Run just setup.", file=sys.stderr)
         return 1
     return subprocess.call(
         [str(BINARY), "--config", str(CONFIG), "**/*.md"],

@@ -55,11 +55,11 @@ class SpecLinter:
     def run(self) -> None:
         directory = self.root / SPEC_DIR
         if not directory.is_dir():
-            self.error(directory, "SP01", "нет specs/active")
+            self.error(directory, "SP01", "specs/active is missing")
             return
         files = sorted(path for path in directory.glob("SPEC-*.md") if path.is_file())
         if not files:
-            self.error(directory, "SP01", "нет active specs")
+            self.error(directory, "SP01", "no active specs found")
             return
         self.spec_count = len(files)
         for path in files:
@@ -68,26 +68,26 @@ class SpecLinter:
     def check_spec(self, path: Path) -> None:
         match = SPEC_FILE_RE.match(path.name)
         if not match:
-            self.error(path, "SP02", "имя не по форме SPEC-NNN-краткое-название.md")
+            self.error(path, "SP02", "name does not match SPEC-NNN-short-name.md")
             return
         spec_id = match.group(1)
         text = path.read_text(encoding="utf-8")
         if not FRONTMATTER_RE.match(text):
-            self.error(path, "SP03", "нет корректного frontmatter")
+            self.error(path, "SP03", "valid frontmatter is missing")
         if "{{" in text:
-            self.error(path, "SP04", "остался незаполненный placeholder")
+            self.error(path, "SP04", "an unfilled placeholder remains")
         if not re.search(rf"^# {re.escape(spec_id)}:\s+\S", text, re.M):
-            self.error(path, "SP05", f"H1 не начинается с {spec_id}")
+            self.error(path, "SP05", f"H1 does not start with {spec_id}")
 
         for heading in REQUIRED_HEADINGS:
             section = self.section(text, heading)
             if not section:
-                self.error(path, "SP06", f"нет непустого раздела {heading}")
+                self.error(path, "SP06", f"non-empty section {heading} is missing")
 
         requirements_section = self.section(text, "## Requirements")
         requirements = list(REQ_LINE_RE.finditer(requirements_section))
         if not requirements:
-            self.error(path, "SP07", "нет требований формата `REQ-NNN`")
+            self.error(path, "SP07", "no requirements in `REQ-NNN` format")
             return
 
         ids: list[str] = []
@@ -97,7 +97,9 @@ class SpecLinter:
             previous = self.seen_requirements.get(req_id)
             if previous:
                 self.error(
-                    path, "SP08", f"{req_id} уже объявлен в {previous.relative_to(self.root)}"
+                    path,
+                    "SP08",
+                    f"{req_id} is already declared in {previous.relative_to(self.root)}",
                 )
             else:
                 self.seen_requirements[req_id] = path
@@ -106,13 +108,13 @@ class SpecLinter:
         accepted_ids = set(REQ_REF_RE.findall(acceptance))
         for req_id in ids:
             if req_id not in accepted_ids:
-                self.error(path, "SP09", f"для {req_id} нет acceptance oracle")
+                self.error(path, "SP09", f"acceptance oracle is missing for {req_id}")
         unknown = accepted_ids - set(ids)
         if unknown:
             self.error(
                 path,
                 "SP10",
-                f"acceptance ссылается на чужие требования: {', '.join(sorted(unknown))}",
+                f"acceptance references unknown requirements: {', '.join(sorted(unknown))}",
             )
 
     def report(self, fmt: str) -> int:
@@ -123,10 +125,10 @@ class SpecLinter:
         else:
             for issue in sorted(self.issues, key=lambda item: (str(item.path), item.code)):
                 relative = issue.path.relative_to(self.root)
-                print(f"ОШИБКА {relative} [{issue.code}] {issue.message}")
+                print(f"ERROR {relative} [{issue.code}] {issue.message}")
             print(
-                f"Спецификаций: {self.spec_count}, требований: {len(self.seen_requirements)}, "
-                f"ошибок: {len(self.issues)}"
+                f"Specifications: {self.spec_count}, requirements: {len(self.seen_requirements)}, "
+                f"errors: {len(self.issues)}"
             )
         return 1 if self.issues else 0
 

@@ -443,7 +443,7 @@ def test_the_command_line_itself_still_runs_with_the_network_gone(warm: Warm) ->
 
 # One test per declared offline row of `offline-capability.md`.
 def test_passports_are_read_and_changed_offline(private: Warm) -> None:
-    """Row: паспорта разработчика и проекта — чтение, изменение, ревизии.
+    """Row: developer and project passports — read, change, revisions.
 
     On a copy: changing a passport changes what a composition is derived from
     (`REQ-621`), and the shared home is what the digest checks compare against.
@@ -470,7 +470,7 @@ def test_passports_are_read_and_changed_offline(private: Warm) -> None:
 
 
 def test_the_project_index_rescans_offline(warm: Warm) -> None:
-    """Row: индекс проекта — полное сканирование и повторное сканирование."""
+    """Row: project index — full scan and rescanning."""
     for argv in (
         ("project", "discover", "--root", str(warm.work.parent)),
         ("project", "index", "--root", str(warm.work)),
@@ -492,7 +492,7 @@ def test_a_rescan_offline_reads_the_same_bytes(warm: Warm) -> None:
 
 
 def test_the_local_registry_reads_and_registers_offline(private: Warm) -> None:
-    """Row: локальный реестр — чтение, черновики, регистрация, фиксация версий."""
+    """Row: local registry — reads, drafts, registration, version pinning."""
     warm = private
     listed = _ok(
         "component",
@@ -522,7 +522,7 @@ def test_the_local_registry_reads_and_registers_offline(private: Warm) -> None:
 
 
 def test_local_search_answers_offline(warm: Warm) -> None:
-    """Row: поиск — локальный индекс."""
+    """Row: search — local index."""
     found = _ok("component", "find", "--json", home=warm.home, guard=warm.guard)
     # Own and pinned objects are their own lane (`ADR-0016`): an adopted
     # component is never authoritative, and looking for it there would fail for
@@ -533,7 +533,7 @@ def test_local_search_answers_offline(warm: Warm) -> None:
 
 
 def test_composition_and_compilation_run_offline(warm: Warm) -> None:
-    """Rows: подбор и сборка, пакет и план — построение и осмотр."""
+    """Rows: selection and assembly, bundle and plan — build and inspection."""
     # Recompile the exact already-confirmed SetupVersion. A new proposal would
     # correctly create a different SetupVersion identity and therefore a
     # different bundle even when its component files happen to be equal.
@@ -589,7 +589,7 @@ def test_composition_and_compilation_run_offline(warm: Warm) -> None:
 
 
 def test_the_checks_run_offline(warm: Warm) -> None:
-    """Row: проверки — установленными инструментами набора."""
+    """Row: checks — with the installed toolchain."""
     for argv in (
         ("config", "validate"),
         ("doctor",),
@@ -614,7 +614,7 @@ def test_the_checks_run_offline(warm: Warm) -> None:
 
 
 def test_applying_state_and_recovery_run_offline(private: Warm) -> None:
-    """Rows: установка и запуск — применение, состояние, восстановление."""
+    """Rows: installation and launch — apply, state, recovery."""
     home, work = private.home, private.work
     proposal = _proposal(home, work, private.component_id, guard=private.guard)
     _ok(
@@ -702,7 +702,7 @@ def test_applying_state_and_recovery_run_offline(private: Warm) -> None:
 
 
 def test_the_provider_is_launched_offline(private: Warm) -> None:
-    """Row: установка и запуск — запуск из кэшированных артефактов.
+    """Row: installation and launch — launch from cached artifacts.
 
     There is no `ai-stp launch`: `provider-protocol.md` gives the harness
     lifecycle to the provider, and `launch` is its command. What `ai_stp` owes
@@ -736,7 +736,7 @@ def test_the_provider_is_launched_offline(private: Warm) -> None:
 # The other side of the contract: what needs the network says so, in a
 # registered code, rather than answering with an empty success.
 def test_an_uncached_tool_refuses_with_a_registered_reason(warm: Warm) -> None:
-    """`offline-capability.md`: первая некэшированная загрузка требует сети."""
+    """`offline-capability.md`: the first uncached fetch requires the network."""
     profile = _ok("toolchain", "profile", "--json", home=warm.home, guard=warm.guard)
     pinned = next(
         item["tools"][0]["tool_id"] for item in profile["ecosystems"] if item.get("tools")

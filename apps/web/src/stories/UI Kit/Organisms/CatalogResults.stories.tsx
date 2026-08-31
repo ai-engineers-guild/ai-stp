@@ -92,7 +92,7 @@ export const NarrowPhone: Story = {
     view: "list",
     basePath: "/catalog",
     query: { resource: "all" },
-    labels: { ...labels, resultsHeading: "Все результаты" },
+    labels: { ...labels, resultsHeading: "All results" },
   },
   decorators: [
     (Story) => (

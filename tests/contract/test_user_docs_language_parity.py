@@ -23,8 +23,8 @@ from typing import Final
 CYRILLIC: Final[re.Pattern[str]] = re.compile("[\u0410-\u044f\u0401\u0451]")
 
 ROOT = Path(__file__).resolve().parents[2]
-RU: Final[Path] = ROOT / "user-docs"
-EN: Final[Path] = ROOT / "user-docs-en"
+RU: Final[Path] = ROOT / "docs-user-facing" / "docs" / "ru"
+EN: Final[Path] = ROOT / "docs-user-facing" / "docs" / "en"
 
 
 def _pages(root: Path) -> set[str]:
@@ -39,6 +39,19 @@ def test_both_languages_carry_the_same_pages() -> None:
     extra = sorted(english - russian)
     assert not missing, f"the English line has no counterpart for: {missing}"
     assert not extra, f"the English line has pages Russian does not: {extra}"
+
+
+def test_no_legacy_user_facing_source_trees_remain() -> None:
+    """Every renderer must consume the canonical root instead of a tracked copy."""
+    legacy = (
+        ROOT / "user-docs",
+        ROOT / "user-docs-en",
+        ROOT / "apps" / "web" / "content" / "user-docs",
+        ROOT / "apps" / "web" / "content" / "hub",
+        ROOT / "apps" / "platform" / "src" / "ai_stp_platform" / "legal" / "en",
+        ROOT / "apps" / "platform" / "src" / "ai_stp_platform" / "legal" / "ru",
+    )
+    assert not [path.relative_to(ROOT) for path in legacy if path.exists()]
 
 
 def test_every_page_declares_a_description_in_its_own_language() -> None:

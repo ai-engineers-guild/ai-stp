@@ -52,7 +52,8 @@ SYSTEM_INSTRUCTION = (
     "A service-object relation means only that the catalog links them: never claim the vendor "
     "hosts, supports, integrates, deploys or runs the related object unless facts explicitly "
     "say so. "
-    "Do not append generic labels such as Article or Статья to an article title. "
+    "Do not append generic labels such as Article or "
+    "\u0421\u0442\u0430\u0442\u044c\u044f to an article title. "
     "Do not use generic praise, vague benefits, "
     "keyword stuffing, repeated sentences, or filler such as robust, powerful, seamless, "
     "specialized, comprehensive, structured, secure or enhances. "
@@ -250,13 +251,13 @@ def _validate_quality(parsed: SeoEnrichmentOutput, snapshot: Mapping[str, object
         and any(term in source_blob for term in ("workflow", "orchestration"))
         and any(term in source_blob for term in ("role", "topology", "review"))
         and not re.search(
-            r"\b(agent|agents|агент|агенты|агентов|агентами)\b",
+            r"\b(agent|agents|\u0430\u0433\u0435\u043d\u0442|\u0430\u0433\u0435\u043d\u0442\u044b|\u0430\u0433\u0435\u043d\u0442\u043e\u0432|\u0430\u0433\u0435\u043d\u0442\u0430\u043c\u0438)\b",
             f"{parsed.title} {parsed.description}".casefold(),
         )
     ):
         raise SeoEnrichmentRejected("AI_STP_SEO_OUTPUT_INVALID", "agent outcome missing")
     if snapshot.get("kind") == "article" and re.search(
-        r"(?:\s|[-—:])(article|статья)$", parsed.title.casefold()
+        r"(?:\s|[-—:])(article|\u0441\u0442\u0430\u0442\u044c\u044f)$", parsed.title.casefold()
     ):
         raise SeoEnrichmentRejected("AI_STP_SEO_OUTPUT_INVALID", "generic article title suffix")
     if snapshot.get("kind") == "service":

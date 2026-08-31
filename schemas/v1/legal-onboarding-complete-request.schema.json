@@ -1,0 +1,32 @@
+{
+  "$id": "urn:ai-stp:schema:v1:legal-onboarding-complete-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Accept the exact two legal revisions required to activate an account.",
+  "properties": {
+    "personal_data_consent_revision_id": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Personal Data Consent Revision Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "service_rules_revision_id": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Service Rules Revision Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "service_rules_revision_id",
+    "personal_data_consent_revision_id"
+  ],
+  "title": "LegalOnboardingCompleteRequest",
+  "type": "object"
+}

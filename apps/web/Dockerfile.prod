@@ -4,13 +4,14 @@
 
 FROM oven/bun:1.4.0-alpine AS deps
 WORKDIR /app
-COPY package.json bun.lock ./
+COPY apps/web/package.json apps/web/bun.lock ./
 RUN bun install --frozen-lockfile
 
 FROM oven/bun:1.4.0-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+COPY apps/web .
+COPY docs-user-facing /docs-user-facing
 
 # Public URL is baked into the client bundle at build time.
 ARG NEXT_PUBLIC_APP_URL=http://localhost:8080
@@ -33,7 +34,8 @@ ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL} \
     # Build-time placeholders only; runtime secrets come from env at process start.
     AI_STP_API_BASE_URL=http://api:8000 \
     AI_STP_USE_MOCKS=false \
-    AI_STP_SESSION_SECRET=build-time-placeholder-not-for-runtime-use
+    AI_STP_SESSION_SECRET=build-time-placeholder-not-for-runtime-use \
+    AI_STP_USER_FACING_ROOT=/docs-user-facing
 
 RUN bun run build
 

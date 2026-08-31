@@ -343,7 +343,7 @@ function contentHandlers(method: string, path: string, query?: URLSearchParams):
       source_kind: "repository",
       body: entry.body,
       source_ref: "a".repeat(40),
-      source_path: `${entry.locale}/article-${entry.slug}.md`,
+      source_path: `docs-user-facing/content/${entry.locale}/article-${entry.slug}.md`,
     },
   };
 }
@@ -534,6 +534,51 @@ function complaintHandler(method: string, path: string, body: unknown): MockResu
   };
 }
 
+function legalDocumentHandler(
+  method: string,
+  path: string,
+  query?: URLSearchParams,
+): MockResult | null {
+  if (method !== "GET") return null;
+  const match = path.match(
+    /^\/v1\/documents\/(privacy|cookies|service-rules|personal-data-consent|licensing)$/,
+  );
+  if (!match) return null;
+  const slug = match[1] ?? "";
+  const locale = query?.get("locale") === "ru" ? "ru" : "en";
+  const titles: Record<string, Record<string, string>> = {
+    en: {
+      privacy: "Privacy notice",
+      cookies: "Cookie Policy",
+      "service-rules": "Service rules",
+      "personal-data-consent": "Personal data consent",
+      licensing: "Licensing",
+    },
+    ru: {
+      privacy: "Политика конфиденциальности",
+      cookies: "Уведомление о cookie",
+      "service-rules": "Правила сервиса",
+      "personal-data-consent": "Согласие на обработку персональных данных",
+      licensing: "Лицензирование",
+    },
+  };
+  return {
+    status: 200,
+    body: {
+      schema_version: 1,
+      slug,
+      revision_id: `drev_mock_${slug}_${locale}`,
+      locale,
+      title: titles[locale]?.[slug] ?? slug,
+      policy_version: "1.0",
+      effective_at: "2026-09-01T00:00:00Z",
+      source_ref: "a".repeat(40),
+      source_path: `docs-user-facing/legal/${locale}/${slug}/1.0/document.md`,
+      html: "<p>Versioned legal document.</p>",
+    },
+  };
+}
+
 function parseMockBody(raw: string | undefined): unknown {
   if (!raw) {
     return undefined;
@@ -558,6 +603,8 @@ export function mockFetch(
   const body = parseMockBody(init?.body);
   const complaint = complaintHandler(method, path, body);
   if (complaint) return complaint;
+  const legal = legalDocumentHandler(method, path, init?.query);
+  if (legal) return legal;
   const reaction = reactionHandler(method, path);
   if (reaction) return reaction;
   const content = contentHandlers(method, path, init?.query);
