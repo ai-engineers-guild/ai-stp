@@ -13,8 +13,12 @@ AI_STP_STATE_DIR="${AI_STP_STATE_DIR:-${AI_STP_ROOT}/.deploy-state}"
 AI_STP_BACKUP_DIR="${AI_STP_BACKUP_DIR:-${AI_STP_ROOT}/.backups}"
 AI_STP_BACKUP_RETENTION="${AI_STP_BACKUP_RETENTION:-7}"
 AI_STP_DEPLOY_LOCK="${AI_STP_DEPLOY_LOCK:-${AI_STP_STATE_DIR}/deploy.lock}"
-AI_STP_READINESS_URL="${AI_STP_READINESS_URL:-http://127.0.0.1/v1/health/ready}"
-AI_STP_LIVENESS_URL="${AI_STP_LIVENESS_URL:-http://127.0.0.1/v1/health/live}"
+# The API's own published port, not port 80. The host proxy routes by name
+# (ADR-0135), so a request to the bare loopback address carries a Host header no
+# site matches and lands wherever the default server points — which is a fact
+# about the host's other tenants, not about this deployment being ready.
+AI_STP_READINESS_URL="${AI_STP_READINESS_URL:-http://127.0.0.1:58082/v1/health/ready}"
+AI_STP_LIVENESS_URL="${AI_STP_LIVENESS_URL:-http://127.0.0.1:58082/v1/health/live}"
 AI_STP_READY_TIMEOUT_SECONDS="${AI_STP_READY_TIMEOUT_SECONDS:-180}"
 
 log() {
