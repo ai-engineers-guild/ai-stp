@@ -41,7 +41,8 @@ last_verified: "2026-08-31"
   private deployment history;
 - активный выпуск провайдеров: `0.0.48`, семь выпусков по шесть нативных бинарников и
   `SHA256SUMS`;
-- core provider surface/binaries: 7 × 6 OS/arch строк;
+- core provider surface/binaries: 7 × 6 строк Linux/Windows/macOS ×
+  `x86_64`/`arm64`;
 - software lifecycle и exact-current provider operations: семь systems × 6/6;
 - live deploy восстановлен после `AI_STP_CONTENT_IMPORT_FORBIDDEN`: внутренний
   token задан owner-only, content-import завершён, API/web готовы. Deployer
