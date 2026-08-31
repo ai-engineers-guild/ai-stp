@@ -9,8 +9,7 @@ them at runtime.
   and network phases.
 - `provider-info.schema.json` is the closed JSON Schema for the `provider-info`
   response.
-- `status-response.schema.json` is the closed JSON Schema for the `status`
-  response.
+- `status-response.schema.json` is the closed JSON Schema for the `status` response.
 - `conformance-cases.json` lists the required fail-closed classes.
 - `SHA256SUMS` binds the exact bytes of the other artifacts.
 - `KIT-IDENTITY.json` names exactly one kit revision: an aggregate digest plus
