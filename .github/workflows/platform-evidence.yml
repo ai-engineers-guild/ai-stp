@@ -1,0 +1,231 @@
+# Manual installation and network-boundary evidence on every supported native
+# OS/architecture pair. Provider lifecycle belongs to the seven setup-system
+# repositories; this workflow proves the one exact ai_stp candidate that calls
+# those providers rather than rebuilding a different candidate in every job.
+name: platform-evidence
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: platform-evidence
+  cancel-in-progress: false
+
+env:
+  UV_VERSION: "0.12.1"
+
+jobs:
+  build:
+    name: build-exact-candidate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.14"
+      - name: Install pinned native uv
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/scripts/install-uv.sh "${UV_VERSION}" "${RUNNER_TEMP}/uv"
+          echo "${RUNNER_TEMP}/uv" >> "${GITHUB_PATH}"
+      - name: Build and reproduce the candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python_path="$(python -c 'import sys; print(sys.executable)')"
+          export UV_PYTHON="${python_path}"
+          export UV_PROJECT_ENVIRONMENT="${RUNNER_TEMP}/platform-build"
+          uv sync --locked --group dev
+          uv run --locked python release_scripts/build_candidate.py --replace
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: platform-candidate-${{ github.sha }}
+          path: dist/release-candidate/
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+  verify:
+    name: ${{ matrix.id }}
+    needs: build
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: linux-x86_64-python314
+            runner: ubuntu-24.04
+            os: linux
+            arch: x86_64
+            python: "3.14"
+          - id: linux-arm64-python314
+            runner: ubuntu-24.04-arm
+            os: linux
+            arch: arm64
+            python: "3.14"
+          - id: macos-x86_64-python314
+            runner: macos-15-intel
+            os: darwin
+            arch: x86_64
+            python: "3.14"
+          - id: macos-arm64-python314
+            runner: macos-15
+            os: darwin
+            arch: arm64
+            python: "3.14"
+          - id: windows-x86_64-python314
+            runner: windows-2025
+            os: windows
+            arch: x86_64
+            python: "3.14"
+          - id: windows-arm64-python314
+            runner: windows-11-arm
+            os: windows
+            arch: arm64
+            python: "3.14"
+          - id: linux-x86_64-python312
+            runner: ubuntu-24.04
+            os: linux
+            arch: x86_64
+            python: "3.12"
+    env:
+      AI_STP_FORCE_FILE_CREDENTIAL_STORE: "1"
+      EXPECTED_OS: ${{ matrix.os }}
+      EXPECTED_ARCH: ${{ matrix.arch }}
+      EXPECTED_PYTHON: ${{ matrix.python }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Prove the native runner identity
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os
+          import platform
+
+          aliases = {
+              "amd64": "x86_64",
+              "x64": "x86_64",
+              "x86_64": "x86_64",
+              "aarch64": "arm64",
+              "arm64": "arm64",
+          }
+          actual_os = platform.system().casefold()
+          actual_arch = aliases.get(platform.machine().casefold(), platform.machine().casefold())
+          assert actual_os == os.environ["EXPECTED_OS"], (actual_os, os.environ["EXPECTED_OS"])
+          assert actual_arch == os.environ["EXPECTED_ARCH"], (
+              actual_arch,
+              os.environ["EXPECTED_ARCH"],
+          )
+          PY
+      - name: Install pinned native uv and project dependencies
+        run: |
+          set -euo pipefail
+          python_path="$(python -c 'import sys; print(sys.executable)')"
+          {
+            echo "UV_PYTHON=${python_path}"
+            echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/platform-${{ matrix.id }}"
+            echo "UV_CACHE_DIR=${RUNNER_TEMP}/uv-cache"
+          } >> "${GITHUB_ENV}"
+          bash .github/scripts/install-uv.sh "${UV_VERSION}" "${RUNNER_TEMP}/uv"
+          echo "${RUNNER_TEMP}/uv" >> "${GITHUB_PATH}"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: platform-candidate-${{ github.sha }}
+          path: dist/release-candidate
+      - name: Install, execute and remove the exact candidate
+        run: |
+          set -euo pipefail
+          uv sync --locked --group dev
+          mkdir -p .evidence
+          uv run --locked python -m release_scripts.verify_candidate_install \
+            dist/release-candidate \
+            --expected-sha "${GITHUB_SHA}" \
+            --expected-python "${EXPECTED_PYTHON}" \
+            --python "${UV_PYTHON}" \
+            > ".evidence/candidate-${{ matrix.id }}.json"
+      - name: Install Linux network launcher
+        if: ${{ runner.os == 'Linux' }}
+        run: |
+          set -euo pipefail
+          if ! command -v bwrap >/dev/null 2>&1; then
+            sudo apt-get update -q
+            sudo apt-get install -y --no-install-recommends bubblewrap
+          fi
+      - name: Record the real provider network boundary
+        run: |
+          set -euo pipefail
+          uv run --locked ai-stp provider network --json \
+            > ".evidence/network-${{ matrix.id }}.json"
+          EVIDENCE_PATH=".evidence/network-${{ matrix.id }}.json" uv run --locked python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          report = json.loads(Path(os.environ["EVIDENCE_PATH"]).read_text(encoding="utf-8"))
+          assert report["ok"] is True
+          data = report["data"]
+          assert data["os_name"] == os.environ["EXPECTED_OS"]
+          enforcement = data["network_enforcement"]
+          if os.environ["EXPECTED_OS"] in {"linux", "windows"}:
+              assert enforcement == "enforced", data
+          else:
+              assert enforcement in {"enforced", "unavailable"}, data
+          PY
+      - name: Record safe system and candidate identity
+        run: |
+          set -euo pipefail
+          uv run --locked python - <<'PY'
+          import hashlib
+          import json
+          import os
+          import platform
+          from pathlib import Path
+
+          candidate = Path("dist/release-candidate")
+          evidence = Path(".evidence")
+          identity = {
+              "schema_version": 1,
+              "git_sha": os.environ["GITHUB_SHA"],
+              "runner_name": os.environ["RUNNER_NAME"],
+              "runner_os": os.environ["RUNNER_OS"],
+              "runner_arch": os.environ["RUNNER_ARCH"],
+              "platform_system": platform.system().casefold(),
+              "platform_machine": platform.machine().casefold(),
+              "python": platform.python_version(),
+              "candidate": {
+                  path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+                  for path in sorted(candidate.iterdir())
+                  if path.is_file()
+              },
+          }
+          (evidence / "system.json").write_text(
+              json.dumps(identity, sort_keys=True, indent=2) + "\n", encoding="utf-8"
+          )
+          PY
+          git diff --exit-code
+          git diff --cached --exit-code
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: ${{ always() }}
+        with:
+          name: platform-${{ matrix.id }}-${{ github.sha }}
+          path: .evidence/
+          if-no-files-found: warn
+          retention-days: 30

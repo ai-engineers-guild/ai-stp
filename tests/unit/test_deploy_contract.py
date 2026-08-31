@@ -318,11 +318,11 @@ def test_the_images_resolve_the_lockfile_with_the_uv_every_gate_installs() -> No
     assert seen >= 3, f"expected every image to pin uv, found {seen} references"
 
 
-def test_macos_evidence_stays_manual_and_can_neither_publish_nor_deploy() -> None:
+def test_platform_evidence_stays_manual_and_can_neither_publish_nor_deploy() -> None:
     """An optional oracle, not a gate, and holding no authority either way."""
-    path = WORKFLOWS / "macos-evidence.yml"
+    path = WORKFLOWS / "platform-evidence.yml"
     if not path.is_file():
-        pytest.skip("this tree carries no macOS evidence workflow")
+        pytest.skip("this tree carries no platform evidence workflow")
     workflow = path.read_text(encoding="utf-8")
     executable = "\n".join(
         line for line in workflow.splitlines() if not line.lstrip().startswith("#")

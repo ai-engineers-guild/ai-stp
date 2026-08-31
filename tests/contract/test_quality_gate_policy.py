@@ -22,7 +22,7 @@ WORKFLOWS = OVERLAY if OVERLAY.is_dir() else ROOT / ".github" / "workflows"
 
 CHECK_WORKFLOW = WORKFLOWS / "check.yml"
 CODEQL_WORKFLOW = WORKFLOWS / "codeql.yml"
-MACOS_WORKFLOW = WORKFLOWS / "macos-evidence.yml"
+PLATFORM_WORKFLOW = WORKFLOWS / "platform-evidence.yml"
 PROVIDER_SAFE_PATH = ROOT / ".github" / "scripts" / "provider-safe-path.sh"
 ENSURE_CHROME = ROOT / ".github" / "scripts" / "ensure-chrome.sh"
 
@@ -205,15 +205,28 @@ def test_primary_quality_gates_do_not_require_bash_on_windows() -> None:
         assert "bash release_scripts/clean_install_regress.sh" not in output
 
 
-def test_macos_matrix_proves_its_selected_python_and_exact_candidate() -> None:
-    workflow = MACOS_WORKFLOW.read_text(encoding="utf-8")
-
-    assert "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-python-${{ matrix.python }}" in workflow
-    assert "release_scripts/build_candidate.py --replace" in workflow
-    assert "release_scripts.verify_candidate_install" in workflow
-    assert '--expected-python "${{ matrix.python }}"' in workflow
-    assert '> ".evidence/release-candidate-python-${{ matrix.python }}.json"' in workflow
-    assert workflow.count("ai_stp_use_provider_safe_path") == 1
+def test_platform_matrix_installs_one_exact_candidate_on_six_native_targets() -> None:
+    text = PLATFORM_WORKFLOW.read_text(encoding="utf-8")
+    workflow = yaml.safe_load(text)
+    rows = workflow["jobs"]["verify"]["strategy"]["matrix"]["include"]
+    observed = {(row["os"], row["arch"], row["runner"]) for row in rows}
+    expected = {
+        ("linux", "x86_64", "ubuntu-24.04"),
+        ("linux", "arm64", "ubuntu-24.04-arm"),
+        ("darwin", "x86_64", "macos-15-intel"),
+        ("darwin", "arm64", "macos-15"),
+        ("windows", "x86_64", "windows-2025"),
+        ("windows", "arm64", "windows-11-arm"),
+    }
+    assert observed == expected
+    assert sum(row["python"] == "3.12" for row in rows) == 1
+    assert text.count("release_scripts/build_candidate.py --replace") == 1
+    assert "actions/download-artifact" in text
+    assert "release_scripts.verify_candidate_install" in text
+    assert '--expected-python "${EXPECTED_PYTHON}"' in text
+    assert "RUNNER_ARCH" in text
+    assert "ai-stp provider network --json" in text
+    assert not (WORKFLOWS / "macos-evidence.yml").exists()
 
 
 def test_codeql_is_public_github_hosted_security_and_not_the_gate() -> None:
