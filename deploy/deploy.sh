@@ -27,7 +27,8 @@ Deploy steps (order):
 Environment:
   AI_STP_COMPOSE_FILE   default docker-compose.prod.yml
   AI_STP_ENV_FILE       default .env.prod
-  AI_STP_API_GIT_COMMIT injected into api for safe diagnostics
+  AI_STP_API_GIT_COMMIT injected into api for safe diagnostics; on a host whose
+                        root is not a repository it also names the deploy
 EOF
 }
 
@@ -60,6 +61,14 @@ acquire_deploy_lock
 trap release_deploy_lock EXIT
 
 COMMIT="$(current_git_commit)"
+# An operator on a pull-model host names the commit through the one variable
+# this script documents. Without this, the identity resolver never saw it, wrote
+# an empty artifact record, and left `rollback.sh` with no baseline -- while the
+# deploy itself succeeded, so nothing said anything was wrong.
+if [[ ${COMMIT} == "unknown" && -n ${AI_STP_API_GIT_COMMIT:-} ]]; then
+  COMMIT="${AI_STP_API_GIT_COMMIT}"
+  export AI_STP_DEPLOY_COMMIT="${COMMIT}"
+fi
 export AI_STP_API_GIT_COMMIT="${AI_STP_API_GIT_COMMIT:-${COMMIT}}"
 
 # Web waits for the repository content import to complete. Without its shared
