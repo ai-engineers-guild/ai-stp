@@ -333,6 +333,39 @@ def test_no_conditional_refusal_is_described_by_nothing() -> None:
     )
 
 
+def test_a_handler_cannot_require_a_hidden_confirmation_flag() -> None:
+    """A plan digest command must not keep an old boolean decision in its handler.
+
+    `registry port import` moved from an explicit flag to the exact plan digest
+    in the registry, but its handler kept reading `parameters["confirm"]`.
+    Machine help therefore offered no flag that could make the command pass:
+    omitting it returned `AI_STP_USER_DECISION_REQUIRED`, while supplying it
+    was rejected as an undeclared option.
+
+    This reads the same handler evidence as the conditional-refusal sweep, but
+    asks the narrower two-sided question: if code demands `confirm`, the
+    descriptor must both declare that option and classify the decision as an
+    explicit flag. A digest-confirmed command is intentionally absent from this
+    set.
+    """
+    hidden: list[str] = []
+    observed = 0
+    for command in COMMANDS:
+        if "confirm" not in _conditional_demands(command):
+            continue
+        observed += 1
+        declared = {parameter.name for parameter in command.descriptor.parameters}
+        if "confirm" not in declared or command.descriptor.confirmation != "explicit_flag":
+            hidden.append(
+                f"{command.name}: handler demands --confirm, descriptor declares "
+                f"confirmation={command.descriptor.confirmation!r} and options={sorted(declared)}"
+            )
+    assert observed >= 8, "the handler sweep stopped recognizing explicit confirmations"
+    assert not hidden, (
+        "handlers require confirmation flags machine help cannot supply:\n" + "\n".join(hidden)
+    )
+
+
 def _conditional_demands(command: object) -> set[str]:
     """Options refused inside an `if`, wherever it sits in the handler."""
     handler = getattr(command, "handler")  # noqa: B009 — attribute, not a key

@@ -195,7 +195,6 @@
   "secret-bearing fields are forbidden in a component passport patch": "secret-bearing fields are forbidden in a component passport patch",
   "secret-bearing tool version names are forbidden": "secret-bearing tool version names are forbidden",
   "select confirm requires explicit confirmation": "select confirm requires explicit confirmation",
-  "setup-store import requires explicit confirmation": "setup-store import requires explicit confirmation",
   "some files could not be read, so this configuration is not fully described": "some files could not be read, so this configuration is not fully described",
   "stored cloud credentials are incomplete": "stored cloud credentials are incomplete",
   "stored credential material is not an object": "stored credential material is not an object",

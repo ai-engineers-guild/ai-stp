@@ -74,7 +74,7 @@ def port_plan(parameters: Mapping[str, object]) -> Answer[StorePortImportPlan]:
 
 
 def port_import(parameters: Mapping[str, object]) -> Answer[StorePortImportResult]:
-    """Apply one confirmed still-current plan to the local registry only."""
+    """Apply one exact still-current plan to the local registry only."""
     expected = parameters.get("expected-plan-digest")
     if expected is None:
         raise CliFailure(
@@ -82,16 +82,7 @@ def port_import(parameters: Mapping[str, object]) -> Answer[StorePortImportResul
             "the exact setup-store import plan digest is required",
             next_actions=[
                 "registry port import --adapter <adapter> --root <path> "
-                "--expected-plan-digest <digest> --confirm --json"
-            ],
-        )
-    if not bool(parameters.get("confirm")):
-        raise CliFailure(
-            "AI_STP_USER_DECISION_REQUIRED",
-            "setup-store import requires explicit confirmation",
-            next_actions=[
-                "registry port import --adapter <adapter> --root <path> "
-                "--expected-plan-digest <digest> --confirm --json"
+                "--expected-plan-digest <digest> --json"
             ],
         )
     current, _warning = identity.load_or_create()

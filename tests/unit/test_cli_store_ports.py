@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from ai_stp_cli.commands import registry as registry_commands
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import store_ports
 from ai_stp_cli.local.database import configured_path, open_registry, transaction
@@ -134,6 +135,25 @@ def test_sx_import_is_exact_local_only_and_idempotent(tmp_path: Path) -> None:
     assert "author_verified" not in passport
     assert "component_verified" not in passport
     assert {path: path.read_bytes() for path in source_files if path.is_file()} == source_before
+
+
+def test_command_import_uses_the_exact_digest_as_its_only_confirmation(tmp_path: Path) -> None:
+    skill = tmp_path / ".sx" / "versions" / "review" / "1.2.3"
+    skill.mkdir(parents=True)
+    (skill / "SKILL.md").write_text("# Review\n", encoding="utf-8")
+    _sx(tmp_path)
+
+    planned = registry_commands.port_plan({"root": str(tmp_path), "adapter": "sx"}).payload
+    imported = registry_commands.port_import(
+        {
+            "root": str(tmp_path),
+            "adapter": "sx",
+            "expected-plan-digest": planned.plan_digest,
+        }
+    ).payload
+
+    assert [item.state for item in imported.imported] == ["imported"]
+    assert imported.plan_digest == planned.plan_digest
 
 
 def test_changed_snapshot_refuses_stale_plan(tmp_path: Path) -> None:

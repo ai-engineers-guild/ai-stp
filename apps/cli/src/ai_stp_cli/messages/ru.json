@@ -195,7 +195,6 @@
   "secret-bearing fields are forbidden in a component passport patch": "поля с секретами запрещены в патче паспорта компонента",
   "secret-bearing tool version names are forbidden": "имена версий инструментов с секретами запрещены",
   "select confirm requires explicit confirmation": "select confirm требует явного подтверждения",
-  "setup-store import requires explicit confirmation": "импорт setup-store требует явного подтверждения",
   "some files could not be read, so this configuration is not fully described": "некоторые файлы не удалось прочитать, поэтому эта конфигурация описана не полностью",
   "stored cloud credentials are incomplete": "сохранённые облачные учётные данные неполны",
   "stored credential material is not an object": "сохранённый материал учётных данных не является объектом",
