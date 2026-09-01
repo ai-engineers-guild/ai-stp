@@ -1791,6 +1791,13 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("harness", "string", "The harness being composed for.", required=True),
             option("proposal", "string", "The composition being bundled.", required=True),
             option("project", "string", "Project root whose facts the target is built from."),
+            option(
+                "target",
+                "string",
+                "Existing absolute provider target directory. Needed when a member "
+                "contributes a key to a file the provider owns there: the host file's "
+                "current bytes exist only on the target.",
+            ),
         ),
         next_actions=("select reports",),
     ),

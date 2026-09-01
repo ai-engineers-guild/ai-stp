@@ -581,7 +581,7 @@ def propose(parameters: Mapping[str, object]) -> Answer[ProposalSession]:
         context = context_for_project(connection, harness, root)
         at = moment()
         members = _resolve(connection, wanted, harness=harness, root=root)
-        selection.propose(
+        recorded = selection.propose(
             connection,
             context=context,
             members=members,
@@ -589,7 +589,7 @@ def propose(parameters: Mapping[str, object]) -> Answer[ProposalSession]:
             expires_at=_plus(at, PROPOSAL_TTL_SECONDS),
             empty=empty,
         )
-        return _session(connection, context, at)
+        return _session(connection, context, at, recorded=recorded.proposal_id)
 
     with closing(open_registry(configured_path(), create=True)) as connection:
         return Answer(work(connection))
@@ -900,7 +900,11 @@ def _root_of(connection: sqlite3.Connection, proposal: selection.Proposal) -> Pa
 
 
 def _session(
-    connection: sqlite3.Connection, context: selection.Context, now: str
+    connection: sqlite3.Connection,
+    context: selection.Context,
+    now: str,
+    *,
+    recorded: str | None = None,
 ) -> ProposalSession:
     pinned = selection.selected(
         connection, project_id=context.project_id, harness_id=context.harness_id
@@ -912,6 +916,7 @@ def _session(
         project_id=context.project_id,
         harness_id=context.harness_id,  # pyright: ignore[reportArgumentType]
         policy_version=context.policy_version,
+        proposal_id=recorded,
         proposals=[_proposal(item, now) for item in open_now],
         selected_stable_id=None if pinned is None else pinned[0],
         selected_version=None if pinned is None else pinned[1],
@@ -1319,12 +1324,38 @@ def harness_bundle(parameters: Mapping[str, object]) -> Answer[HarnessBundle]:
             "the composition being bundled must be named",
             next_actions=["select session --harness <id> --json"],
         )
+    host_root = _bundle_host_root(parameters)
 
     def work(connection: sqlite3.Connection) -> HarnessBundle:
-        return _bundle_view(compile_harness_bundle(connection, proposal_id, harness), harness)
+        return _bundle_view(
+            compile_harness_bundle(connection, proposal_id, harness, host_root=host_root), harness
+        )
 
     with closing(open_readonly(configured_path())) as connection:
         return Answer(work(connection))
+
+
+def _bundle_host_root(parameters: Mapping[str, object]) -> Path | None:
+    """The installing machine's target, when the caller names one.
+
+    A composition holding a contribution to a file the provider owns needs
+    that file's current bytes, and they exist only on the target (`ADR-0129`).
+    `install plan` has always taken one; `select bundle` declared none, so a
+    composition with an `mcp` server for codex could be planned and installed
+    but never bundled on its own — a dead end between two commands. The same
+    shape `install plan` accepts: an existing absolute directory, not a link.
+    """
+    given = str(parameters.get("target") or "")
+    if not given:
+        return None
+    place = Path(given).expanduser()
+    if place.is_symlink() or not place.is_absolute() or not place.is_dir():
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "the provider target must be an existing absolute directory, not a symlink",
+            details={"target": redact_home(place)},
+        )
+    return place.resolve()
 
 
 def compile_harness_bundle(
@@ -1598,7 +1629,10 @@ def _bundle_sources(
                         "host": rule.relative,
                         "key": rule.declared_key,
                     },
-                    next_actions=["install plan --target <directory> --json"],
+                    next_actions=[
+                        "select bundle --target <directory> --json",
+                        "install plan --target <directory> --json",
+                    ],
                 )
             contributions.append((rule, item.stable_id, expanded[0]))
             continue

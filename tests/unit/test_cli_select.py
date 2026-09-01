@@ -1445,3 +1445,51 @@ def test_a_project_stable_id_where_a_root_belongs_is_refused_by_name(
     with pytest.raises(CliFailure) as absent:
         command.session({"harness": "claude-code", "project": str(real)})
     assert absent.value.code == "AI_STP_PRECONDITION_FAILED"
+
+
+def test_propose_names_the_proposal_it_recorded_among_the_open_ones(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """Several proposals may be open for one pair; the answer says which is new.
+
+    Measured in a functional sweep: `select propose` answered with the whole
+    session, the caller took the first row, confirmed an older empty proposal
+    and installed nothing. `proposal_id` is the one this call recorded;
+    `select session`, which records none, leaves it empty.
+    """
+    _ready(registry, tmp_path)
+    first = select.propose(
+        {"harness": "claude-code", "project": str(tmp_path), "empty": True}
+    ).payload
+    second = select.propose(
+        {"harness": "claude-code", "project": str(tmp_path), "empty": True}
+    ).payload
+
+    assert first.proposal_id == first.proposals[0].proposal_id
+    assert second.proposal_id is not None
+    assert second.proposal_id != first.proposal_id
+    assert second.proposal_id in {item.proposal_id for item in second.proposals}
+    assert len(second.proposals) == 2
+
+    session = select.session({"harness": "claude-code", "project": str(tmp_path)}).payload
+    assert session.proposal_id is None
+
+
+def test_bundle_takes_the_target_a_contribution_needs(tmp_path: Path) -> None:
+    """`select bundle --target` is the same shape `install plan --target` accepts.
+
+    A composition holding a contribution to a provider-owned file could be
+    planned and installed but never bundled on its own, because `install plan`
+    took a target and `select bundle` declared none.
+    """
+    target = tmp_path / "target"
+    target.mkdir()
+    assert select._bundle_host_root({}) is None  # pyright: ignore[reportPrivateUsage]
+    assert select._bundle_host_root({"target": str(target)}) == target.resolve()  # pyright: ignore[reportPrivateUsage]
+
+    link = tmp_path / "link"
+    link.symlink_to(target)
+    for given in ("relative/place", str(tmp_path / "absent"), str(link)):
+        with pytest.raises(CliFailure) as raised:
+            select._bundle_host_root({"target": given})  # pyright: ignore[reportPrivateUsage]
+        assert raised.value.code == "AI_STP_VALIDATION_ERROR"

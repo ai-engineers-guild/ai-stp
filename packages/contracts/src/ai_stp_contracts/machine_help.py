@@ -1518,6 +1518,13 @@ class ProposalSession(BaseModel):
     policy_version: Annotated[str, Field(min_length=1)]
     proposals: list[ProposalView] = []
 
+    #: The proposal the answering call recorded, when it recorded one.
+    #: `select propose` answers with the whole session, and several proposals
+    #: may be open for one pair at once; a caller that took the first row
+    #: confirmed an older proposal and installed nothing. `select session`
+    #: records none and leaves this empty.
+    proposal_id: str | None = None
+
     #: The version selected for this pair, if one has been confirmed. Selected
     #: and installed are different facts: `pending_install` is the ordinary
     #: window between them, not a drift.

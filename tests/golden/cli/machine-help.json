@@ -4389,6 +4389,15 @@
           "repeatable": false,
           "summary": "Project root whose facts the target is built from.",
           "choices": []
+        },
+        {
+          "name": "target",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Existing absolute provider target directory. Needed when a member contributes a key to a file the provider owns there: the host file's current bytes exist only on the target.",
+          "choices": []
         }
       ],
       "parameter_rules": [],

@@ -13,7 +13,7 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import cache, revisions, versions
+from ai_stp_cli.local import cache, component_passports, revisions, versions
 from ai_stp_contracts.github_evidence import GitHubArchiveEvidence, GitHubArchiveHistory
 from ai_stp_foundation.canonical import JsonValue
 
@@ -196,9 +196,21 @@ def _coordinate(connection: sqlite3.Connection, stable_id: str, version: str) ->
     if cache.digest_of(cast(JsonValue, document)) != recorded.passport_digest:
         raise CliFailure("AI_STP_CONFLICT", "the recorded version passport digest does not match")
     source = document.get("source")
+    if not isinstance(source, dict):
+        # An adopted draft declares its source as a fact rather than as a
+        # top-level field, the way every other declared value travels; the
+        # public passport of a corpus version carries it at the top. Reading
+        # only the top level made evidence unreachable for any component this
+        # machine adopted and enriched, however exact its declared source.
+        source = component_passports.declared_values(document).get("source")
     repository = source.get("repository") if isinstance(source, dict) else None
     if not isinstance(repository, str):
-        raise CliFailure("AI_STP_VALIDATION_ERROR", "the exact version has no public GitHub source")
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "the exact version has no public GitHub source",
+            details={"id": stable_id, "version": version},
+            next_actions=[f"component passport suggest --id {stable_id} --json"],
+        )
     parsed = urlsplit(repository)
     parts = parsed.path.strip("/").split("/")
     if (
