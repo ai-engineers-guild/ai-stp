@@ -13295,6 +13295,9 @@
                         "latest_checks": null,
                         "latest_description": "fixture-setup-description",
                         "latest_harness_id": "claude-code",
+                        "latest_harness_ids": [
+                          "claude-code"
+                        ],
                         "latest_lifecycle": "active",
                         "latest_name": "fixture-setup",
                         "latest_posture": "baseline",

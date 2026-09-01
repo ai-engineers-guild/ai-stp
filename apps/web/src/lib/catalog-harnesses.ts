@@ -1,8 +1,8 @@
 /** Harnesses a catalog card or detail should show.
 
-A component passport may name several; a setup still has exactly one. Empty
-`latest_harness_ids` falls back to the primary `latest_harness_id` so older
-projections stay renderable.
+ A component or setup passport may name several projections. Empty
+ `latest_harness_ids` falls back to the primary `latest_harness_id` so older
+ projections stay renderable.
 */
 export function namedHarnesses(item: {
   latest_harness_id: string;

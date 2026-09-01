@@ -33,6 +33,7 @@ dependencies = [
     "keyring>=25.6",
     "pydantic>=2.9",
     "pyyaml>=6",
+    "python-ulid>=3.0",
     # Format-preserving TOML writing, for `ADR-0129`: a component whose landing
     # is a key inside a host file the provider owns is compiled as a
     # contribution to that file, and the consumer assembles the full bytes.

@@ -74,6 +74,7 @@ DISTRIBUTION_OF: Final[dict[str, str]] = {
     "ai_stp_sources": "ai-stp-sources",
     "jsonschema": "jsonschema",
     "nacl": "pynacl",
+    "ulid": "python-ulid",
 }
 
 #: Reasons on the record: `click` by `ADR-0057`, `pynacl` and `keyring` by
@@ -85,6 +86,7 @@ DISTRIBUTION_OF: Final[dict[str, str]] = {
 #: `ADR-0129` for format-preserving writes to a host file a component
 #: contributes one key to — `tomllib` in the standard library only reads, and
 #: writing values back would erase every comment the file's owner put there.
+#: `python-ulid` provides stable IDs for local setup composition.
 #: A name reaching this set without a reason is the thing to argue about.
 ALLOWED_DEPENDENCIES: Final[frozenset[str]] = frozenset(
     {
@@ -100,6 +102,7 @@ ALLOWED_DEPENDENCIES: Final[frozenset[str]] = frozenset(
         "pynacl",
         "pydantic",
         "pyyaml",
+        "python-ulid",
         "tomlkit",
     }
 )

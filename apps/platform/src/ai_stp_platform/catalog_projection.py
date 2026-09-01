@@ -140,23 +140,80 @@ def project_checks_summary(row: PublicVersionRow) -> SafetyChecksSummary | None:
                         ],
                     )
                 )
-        percent = summary.get("checks_passed_percent")
+        if row.object_kind == "setup" and not components:
+            # Older published setup rows stored the human composition in the
+            # passport but predate the per-member checks projection. Keep
+            # those rows useful without inventing check results.
+            facts_raw = row.passport.get("facts")
+            facts = cast(dict[str, Any], facts_raw) if isinstance(facts_raw, dict) else {}
+            presentations_raw = facts.get("component_presentations")
+            presentations: list[Any] = []
+            if isinstance(presentations_raw, dict):
+                value = cast(dict[str, Any], presentations_raw).get("value")
+                if isinstance(value, list):
+                    presentations = cast(list[Any], value)
+            refs_raw = row.passport.get("components")
+            refs = cast(list[Any], refs_raw) if isinstance(refs_raw, list) else []
+            for raw_ref in refs if presentations else []:
+                if not isinstance(raw_ref, dict):
+                    continue
+                ref = cast(dict[str, Any], raw_ref)
+                stable_id = str(ref.get("stable_id") or "unknown")
+                version = str(ref.get("version") or "unknown")
+                presentation: dict[str, Any] = {}
+                for raw_presentation in presentations:
+                    if not isinstance(raw_presentation, dict):
+                        continue
+                    candidate = cast(dict[str, Any], raw_presentation)
+                    if (
+                        candidate.get("stable_id") == stable_id
+                        and candidate.get("version") == version
+                    ):
+                        presentation = candidate
+                        break
+                components.append(
+                    SetupComponentChecks(
+                        stable_id=stable_id,
+                        name=str(presentation.get("name") or stable_id),
+                        version=version,
+                        embedded=bool(presentation.get("embedded", False)),
+                        source_coordinate=(
+                            str(presentation["source_coordinate"])
+                            if presentation.get("source_coordinate")
+                            else None
+                        ),
+                        # The old row passed setup publication, but did not
+                        # retain enough member evidence to recompute a digest.
+                        digest_matches=False,
+                        failed_mandatory=False,
+                        checks=[],
+                    )
+                )
+        # A setup is a composition, not one scannable component. Its stored
+        # aggregate remains an internal publication gate; public clients get
+        # only the exact members and each member's own checks.
+        is_setup = row.object_kind == "setup"
+        percent = None if is_setup else summary.get("checks_passed_percent")
         status_raw = str(summary.get("status") or "empty")
+        if is_setup:
+            status_raw = "empty"
         if status_raw not in {"pending", "available", "empty", "incomplete"}:
             status_raw = "empty"
         coverage = summary.get("coverage_complete")
         if coverage is None:
             coverage = status_raw == "available"
+        if is_setup:
+            coverage = False
         return SafetyChecksSummary(
             status=status_raw,  # type: ignore[arg-type]
             checks_passed_percent=int(percent) if isinstance(percent, int) else None,
             coverage_complete=bool(coverage),
-            passed=int(summary.get("passed") or 0),
-            failed=int(summary.get("failed") or 0),
-            warning=int(summary.get("warning") or 0),
-            not_run=int(summary.get("not_run") or 0),
-            total_countable=int(summary.get("total_countable") or 0),
-            checks=entries,
+            passed=0 if is_setup else int(summary.get("passed") or 0),
+            failed=0 if is_setup else int(summary.get("failed") or 0),
+            warning=0 if is_setup else int(summary.get("warning") or 0),
+            not_run=0 if is_setup else int(summary.get("not_run") or 0),
+            total_countable=0 if is_setup else int(summary.get("total_countable") or 0),
+            checks=[] if is_setup else entries,
             components=components,
         )
     except Exception:

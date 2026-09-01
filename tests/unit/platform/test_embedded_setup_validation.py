@@ -641,6 +641,7 @@ async def test_execute_publish_keeps_axes_and_caps_embedded_at_experimental(
         content_digest=digest,
         actor_account_id=OWNER,
         passport=passport,
+        policy_version=POLICY_VERSION,
         component_verified=True,
         state="publish_planned",
     )
@@ -663,6 +664,7 @@ async def test_execute_publish_keeps_axes_and_caps_embedded_at_experimental(
     session.execute = AsyncMock(
         return_value=SimpleNamespace(scalars=lambda: SimpleNamespace(all=lambda: [binding]))
     )
+    session.scalars = AsyncMock(return_value=SimpleNamespace(all=lambda: []))
     session.add = lambda obj: added.append(obj)
     session.flush = AsyncMock()
     monkeypatch.setattr("ai_stp_platform.publication_logic.enqueue", AsyncMock())

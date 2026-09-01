@@ -685,7 +685,9 @@ async def _load_setup_pin_context(
         pins.append(
             {
                 "stable_id": sid,
+                "name": getattr(row, "name", sid) if row is not None else sid,
                 "version": ver,
+                "embedded": False,
                 "digest": expected_digest,
                 "digest_matches": digest_matches,
                 "checks_summary": summary,

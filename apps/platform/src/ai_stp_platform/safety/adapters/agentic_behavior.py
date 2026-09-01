@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
+from typing import cast
 
 from ai_stp_platform.safety.normalize import redact_message
 from ai_stp_platform.safety.policy import CheckSpec
@@ -130,16 +131,17 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
 
 def _has_floating_git_dependency(text: str) -> bool:
     try:
-        document = json.loads(text)
+        raw_document = json.loads(text)
     except json.JSONDecodeError:
         return False
-    if not isinstance(document, dict):
+    if not isinstance(raw_document, dict):
         return False
+    document = cast(dict[str, object], raw_document)
     for section in ("dependencies", "devDependencies", "optionalDependencies", "peerDependencies"):
         dependencies = document.get(section)
         if not isinstance(dependencies, dict):
             continue
-        for value in dependencies.values():
+        for value in cast(dict[object, object], dependencies).values():
             if isinstance(value, str) and value.startswith(("git+http://", "git+https://")):
                 return "#" not in value
     return False

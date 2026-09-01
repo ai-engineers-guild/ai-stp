@@ -706,6 +706,106 @@ def test_project_checks_summary_on_catalog_card() -> None:
     assert summary.checks[0].finding_summary.rule_ids == ["credential_path"]
 
 
+def test_project_checks_summary_exposes_setup_members_without_an_aggregate() -> None:
+    from datetime import UTC, datetime
+
+    from ai_stp_platform.catalog_projection import project_checks_summary
+    from ai_stp_platform.catalog_read import PublicVersionRow
+
+    meta = SimpleNamespace(
+        checks_summary={
+            "status": "available",
+            "checks_passed_percent": 100,
+            "passed": 2,
+            "total_countable": 2,
+            "checks": [{"check_id": "setup_pin_aggregate", "result": "passed"}],
+            "components": [
+                {
+                    "stable_id": "component_x",
+                    "name": "Readable component",
+                    "version": "1.0",
+                    "embedded": False,
+                    "digest_matches": True,
+                    "failed_mandatory": False,
+                    "checks_summary": {
+                        "checks": [{"check_id": "path_denylist", "result": "passed"}]
+                    },
+                }
+            ],
+        }
+    )
+    row = PublicVersionRow(
+        metadata=meta,  # type: ignore[arg-type]
+        passport={},
+        passport_digest="sha256:" + "0" * 64,
+        published_at=datetime.now(UTC),
+        trust_lane="experimental",
+        author_verified=False,
+        component_verified=False,
+        lifecycle="active",
+        stable_id="setup_x",
+        version="1.0",
+        object_kind="setup",
+    )
+
+    summary = project_checks_summary(row)
+
+    assert summary is not None
+    assert summary.checks_passed_percent is None
+    assert summary.checks == []
+    assert summary.total_countable == 0
+    assert summary.components is not None
+    assert summary.components[0].name == "Readable component"
+    assert summary.components[0].checks[0].check_id == "path_denylist"
+
+
+def test_project_checks_summary_backfills_legacy_setup_presentations() -> None:
+    from datetime import UTC, datetime
+
+    from ai_stp_platform.catalog_projection import project_checks_summary
+    from ai_stp_platform.catalog_read import PublicVersionRow
+
+    row = PublicVersionRow(
+        metadata=SimpleNamespace(
+            checks_summary={"status": "available", "checks_passed_percent": 100}
+        ),  # type: ignore[arg-type]
+        passport={
+            "facts": {
+                "component_presentations": {
+                    "value": [
+                        {
+                            "stable_id": "component_x",
+                            "version": "1.0",
+                            "name": "Legacy component",
+                            "embedded": True,
+                            "source_coordinate": "package:npm:legacy@1.0.0",
+                        }
+                    ]
+                }
+            },
+            "components": [{"stable_id": "component_x", "version": "1.0"}],
+        },
+        passport_digest="sha256:" + "0" * 64,
+        published_at=datetime.now(UTC),
+        trust_lane="experimental",
+        author_verified=False,
+        component_verified=False,
+        lifecycle="active",
+        stable_id="setup_x",
+        version="1.0",
+        object_kind="setup",
+    )
+
+    summary = project_checks_summary(row)
+
+    assert summary is not None
+    assert summary.components is not None
+    assert summary.components[0].name == "Legacy component"
+    assert summary.components[0].embedded is True
+    assert summary.components[0].source_coordinate == "package:npm:legacy@1.0.0"
+    assert summary.components[0].checks == []
+
+
 def test_doctor_tools_returns_map() -> None:
     tools = doctor_tools()
     assert "gitleaks" in tools

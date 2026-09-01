@@ -91,7 +91,6 @@ function AuthorRail({
       <Author
         item={item}
         author={author}
-        label={labels.publisher ?? "Publisher"}
         verifiedLabel={verifiedLabel(labels.authorVerifiedDescription)}
       />
     </div>
@@ -129,12 +128,10 @@ function CatalogMetrics({
 function Author({
   item,
   author,
-  label,
   verifiedLabel,
 }: {
   item: ComponentSummary | SetupSummary;
   author: CatalogAuthor | undefined;
-  label: string;
   verifiedLabel: string;
 }) {
   return (
@@ -149,7 +146,7 @@ function Author({
         verifiedLabel={verifiedLabel}
         size="sm"
       />
-      <span className="truncate text-sm">{author?.displayName?.trim() || label}</span>
+      <span className="truncate text-sm">{author?.displayName?.trim() || item.publisher_id}</span>
     </Link>
   );
 }

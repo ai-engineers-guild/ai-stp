@@ -78,6 +78,14 @@ def test_path_component_composes_and_records_a_publishable_setup() -> None:
         passport = SetupVersionPassport.model_validate(stored.envelope.model_dump(mode="json"))
         assert passport.visibility == "public"
         assert verify_revision_id(passport)
+        assert passport.model_extra is not None
+        assert passport.model_extra["harness_ids"] == [
+            "antigravity",
+            "claude-code",
+            "codex",
+            "cursor",
+            "grok-build",
+        ]
 
 
 def test_cli_plan_and_apply_resolve_a_local_component(tmp_path: Path) -> None:

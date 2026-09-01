@@ -52,6 +52,7 @@ PLATFORM_VERSION_FACTS = {
     "support",
     "checks",
     "requirements_count",
+    "harness_ids",
 }
 
 SUPPORT_MISSING = CatalogSupport(
