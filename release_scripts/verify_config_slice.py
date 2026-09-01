@@ -414,10 +414,30 @@ def _settle(
     }
 
 
+def _isolation(home: Path, python: str) -> dict[str, Any]:
+    """What this machine can enforce, asked once and recorded beside the rows.
+
+    Every configuration apply runs the provider through the platform's
+    network-denying launcher, so a machine that cannot isolate cannot produce a
+    single row — and the first six-leg run said only
+    `AI_STP_DEPENDENCY_UNAVAILABLE` seven times per leg. Recording the
+    capability turns "nothing ran" into "nothing ran, and here is the launcher's
+    own reason", which is the difference between a rerun and a diagnosis.
+    """
+    envelope = cli(["provider", "network"], home=home, python=python, allow_failure=True)
+    if envelope.get("ok") is not True:
+        return {"asked": True, "code": error_code(envelope)}
+    return data(envelope, "provider network")
+
+
 def verify_config_slice(harnesses: Sequence[str], *, tag: str, python: str) -> dict[str, Any]:
     rows: list[dict[str, Any]] = []
     with tempfile.TemporaryDirectory(prefix="ai-stp-config-slice-") as scratch:
         root = Path(scratch)
+        probe_home = root / "home-isolation"
+        (probe_home / "config").mkdir(parents=True)
+        (probe_home / "data").mkdir(parents=True)
+        isolation = _isolation(probe_home, python)
         for harness_id in harnesses:
             rows.append(_row(harness_id, root=root, tag=tag, python=python))
     counts = {
@@ -429,6 +449,7 @@ def verify_config_slice(harnesses: Sequence[str], *, tag: str, python: str) -> d
         "schema_version": 1,
         "slice": "config",
         "tag": tag,
+        "isolation": isolation,
         "rows": rows,
         "counts": counts,
         "missing": missing,

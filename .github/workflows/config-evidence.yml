@@ -106,6 +106,12 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends bubblewrap
           bwrap --version
+          # Ubuntu 24.04 restricts unprivileged user namespaces through
+          # AppArmor, and Bubblewrap needs one to unshare the network. Present
+          # but unable to isolate is the state the first run reported as
+          # `network_enforcement: unavailable` with `bwrap` installed.
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          bwrap --unshare-net --dev-bind / / true && echo "unshare-net works"
       - name: Install the consumer and nothing else
         # The slice drives `ai-stp` the way a user's machine does, and a user's
         # machine holds no server. A workspace-wide sync would also demand a
