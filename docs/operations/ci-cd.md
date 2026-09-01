@@ -74,7 +74,13 @@ single string; a persistent role is addressed by a set of labels and written as 
 
 The production host is not an Actions runner. After a green `check`, the release job
 advances the monotonic `deploy/prod`, and a host-side timer fetches it with a read-only
-key and deploys the exact SHA (`ADR-0103`).
+key and deploys the exact SHA (`ADR-0103`). `verify-public` then waits for the origin
+to answer with the promoted commit or a descendant of it. The wait is bounded by
+measurement, not by the timer's tick: one roll of the host — pull, image build,
+migrate, bring-up — measured 29 minutes on 2026-09-01, and because the host deploys
+serially and always takes the newest ref, a promotion that lands mid-roll waits for
+that roll and then for its own, never more. The bound is two rolls; a second push
+inside that window is verified through the descendant that overtook it.
 
 Checks were moved to an ephemeral scale set under `ADR-0080`, and the migration is effective:
 the scale set serves jobs for this repository, `back-python-3.12` passes on it
