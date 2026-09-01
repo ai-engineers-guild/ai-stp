@@ -249,7 +249,7 @@
     },
     "policy_version": {
       "$ref": "#/$defs/PolicyVersion",
-      "default": "1"
+      "default": "safety-3"
     },
     "schema_version": {
       "const": 1,

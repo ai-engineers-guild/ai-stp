@@ -81,7 +81,7 @@ def plan(parameters: Mapping[str, object]) -> Answer[PublicationSetView]:
 
     with closing(open_readonly(configured_path())) as connection:
         setup = _setup_passport(connection, stable_id, version)
-        pins = _pins(setup)
+        pins = _catalog_pins(connection, setup)
         artifacts = {
             item[0]: _artifact(connection, item[1]) for item in _digests(connection, setup, pins)
         }
@@ -348,9 +348,16 @@ def _setup_passport(
     return SetupVersionPassport.model_validate(stored.envelope.model_dump(mode="json"))
 
 
-def _pins(setup: SetupVersionPassport) -> tuple[tuple[str, str], ...]:
-    """The exact component versions this setup pins, in passport order."""
-    return tuple((ref.stable_id, ref.version) for ref in setup.components)
+def _catalog_pins(
+    connection: sqlite3.Connection, setup: SetupVersionPassport
+) -> tuple[tuple[str, str], ...]:
+    """Catalog pins only. Embedded members stay in the definition (REQ-5714)."""
+    from ai_stp_cli.local.embedded_promotion import embedded_component_ids
+
+    embedded = embedded_component_ids(connection, setup.artifact.digest)
+    return tuple(
+        (ref.stable_id, ref.version) for ref in setup.components if ref.stable_id not in embedded
+    )
 
 
 def _digests(

@@ -23,6 +23,10 @@ from ai_stp_foundation.digests import digest_bytes
 from ai_stp_foundation.ids import new_id
 from ai_stp_passports.envelope import verify_revision_id
 from ai_stp_passports.versions import ComponentVersionPassport, SetupVersionPassport
+from ai_stp_platform.embedded_validation import (
+    resolve_embedded_setup,
+    setup_trust_lane,
+)
 from ai_stp_platform.models import (
     AccountAuthorVerification,
     CatalogMetadata,
@@ -48,6 +52,7 @@ from ai_stp_platform.safety.orchestrator import run_safety_suite
 from ai_stp_platform.safety.percent import build_checks_summary
 from ai_stp_platform.safety.policy import POLICY_VERSION, SafetyProfile
 from ai_stp_platform.storage.object_store import ImmutableObjectStore, ObjectIntegrityError
+from ai_stp_sources.definition import definition_has_embedded
 
 #: Minimal mandatory credential-free checks for the server barrier.
 MANDATORY_PLATFORM_CHECKS: tuple[str, ...] = (
@@ -102,18 +107,22 @@ def compute_plan_hash(
 
 def validate_passport_completeness(passport: dict[str, object]) -> list[str]:
     """Return missing field names for SPEC-007 REQ-706 minimums."""
-    required = ("name", "version", "license", "tags", "source", "artifact")
+    component = passport.get("kind") != "setup"
+    required = ("name", "version", "license", "tags", "artifact") + (
+        ("source",) if component else ()
+    )
     missing = [
         key for key in required if key not in passport or passport[key] in (None, "", [], {})
     ]
-    source_raw = passport.get("source")
-    if isinstance(source_raw, dict):
-        source_map = cast(dict[str, object], source_raw)
-        for key in ("repository", "commit", "path"):
-            if key not in source_map or not source_map[key]:
-                missing.append(f"source.{key}")
-    else:
-        missing.append("source")
+    if component:
+        source_raw = passport.get("source")
+        if isinstance(source_raw, dict):
+            source_map = cast(dict[str, object], source_raw)
+            for key in ("repository", "commit", "path"):
+                if key not in source_map or not source_map[key]:
+                    missing.append(f"source.{key}")
+        else:
+            missing.append("source")
     license_raw = passport.get("license")
     if isinstance(license_raw, dict):
         license_map = cast(dict[str, object], license_raw)
@@ -155,7 +164,7 @@ def validate_publication_passport(
         invalid.append("visibility")
     if owner_account_id is not None and model.owner_id != owner_account_id:
         invalid.append("owner_id")
-    if model.source is None:
+    if object_kind == "component" and model.source is None:
         invalid.append("source")
     if model.artifact.digest != content_digest:
         invalid.append("artifact.digest")
@@ -224,7 +233,7 @@ def run_platform_checks(
             "mandatory": True,
         }
     )
-    source_ok = False
+    source_ok = passport.get("kind") == "setup"
     source_raw = passport.get("source")
     if isinstance(source_raw, dict):
         source_map = cast(dict[str, object], source_raw)
@@ -423,6 +432,7 @@ async def execute_validate(
         await session.commit()
 
     owned_store: ImmutableObjectStore | None = None
+    setup_pin_context: list[dict[str, Any]] | None = None
     try:
         if not skip_safety:
             policy_ver = plan.policy_version or POLICY_VERSION
@@ -470,7 +480,24 @@ async def execute_validate(
                 from ai_stp_platform.safety.adapters import setup_aggregate as setup_agg
 
                 pin_ctx = await _load_setup_pin_context(session, passport_dict)
+                extra_bindings: list[dict[str, Any]] = []
+                if resolved_bytes is not None:
+                    resolution = await resolve_embedded_setup(
+                        session,
+                        definition_bytes=resolved_bytes,
+                        publisher_id=plan.actor_account_id,
+                        public=str(passport_dict.get("visibility") or "") == "public",
+                        skip_safety=False,
+                        safety_profile=safety_profile,
+                        policy_version=policy_ver,
+                    )
+                    if resolution is not None:
+                        pin_ctx = resolution.pins
+                        extra_bindings = resolution.bindings
+                        for scan in resolution.scans:
+                            await _persist_safety_run(session, scan)
                 setup_agg.set_pin_context(pin_ctx)
+                setup_pin_context = pin_ctx
                 try:
                     safety = await run_safety_suite(
                         passport=passport_dict,
@@ -486,6 +513,7 @@ async def execute_validate(
                 finally:
                     setup_agg.clear_pin_context()
                 await _persist_safety_run(session, safety)
+                bindings.extend(extra_bindings)
                 bindings.extend(safety.bindings())
             elif resolved_bytes is not None:
                 # Digested bytes path: suite re-hashes again inside orchestrator.
@@ -540,6 +568,8 @@ async def execute_validate(
 
     state, component_verified = snapshot_outcome(bindings)
     summary = build_checks_summary(bindings)
+    if setup_pin_context is not None:
+        summary["components"] = setup_pin_context
 
     snapshot = ValidationSnapshot(
         id=new_id("snapshot"),
@@ -820,11 +850,29 @@ async def execute_publish(
             for b in bindings
         ]
     )
+    if plan.object_kind == "setup":
+        pins = await _load_setup_pin_context(session, canonical_passport)
+        resolution = await resolve_embedded_setup(
+            session,
+            definition_bytes=artifact_bytes,
+            publisher_id=plan.actor_account_id,
+            public=True,
+            safety_profile=SafetyProfile.STANDARD,
+            policy_version=plan.policy_version,
+        )
+        if resolution is not None:
+            pins = resolution.pins
+        summary["components"] = pins
 
     author_row = await session.get(AccountAuthorVerification, plan.actor_account_id)
     author_verified = bool(author_row and author_row.verified)
     component_verified = bool(snapshot.component_verified)
-    trust_lane = "authoritative" if author_verified and component_verified else "experimental"
+    has_embedded = plan.object_kind == "setup" and definition_has_embedded(artifact_bytes)
+    trust_lane = setup_trust_lane(
+        has_embedded=has_embedded,
+        author_verified=author_verified,
+        component_verified=component_verified,
+    )
     name = plan.passport.get("name")
     metadata = CatalogMetadata(
         owner_account_id=plan.actor_account_id,

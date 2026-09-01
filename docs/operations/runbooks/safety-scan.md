@@ -7,7 +7,7 @@ last_verified: "2026-08-25"
 
 The server-side security check set runs during publication `validate`
 (issues #268 / #270 / #281). Evidence source: `platform_safety_scan`.
-Policy version: `safety-2`.
+Policy version: `safety-3`.
 
 ## Worker image and external CLIs
 

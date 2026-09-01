@@ -1,0 +1,39 @@
+[project]
+name = "ai-stp-sources"
+version = "0.0.13"
+description = "Shared SourceIntent/SourceSnapshot contracts and GitHub/local resolvers."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
+authors = [{ name = "AI Engineers Guild" }]
+keywords = ["ai", "developer-tools", "setup", "sources"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Typing :: Typed",
+]
+dependencies = [
+    "ai-stp-foundation==0.0.13",
+    "ai-stp-passports==0.0.13",
+    "pydantic>=2.9",
+]
+
+[project.urls]
+Homepage = "https://github.com/ai-engineers-guild/ai-stp"
+Repository = "https://github.com/ai-engineers-guild/ai-stp"
+Issues = "https://github.com/ai-engineers-guild/ai-stp/issues"
+
+[tool.uv.sources]
+ai-stp-foundation = { workspace = true }
+ai-stp-passports = { workspace = true }
+
+[build-system]
+requires = ["uv_build>=0.11,<0.13"]
+build-backend = "uv_build"

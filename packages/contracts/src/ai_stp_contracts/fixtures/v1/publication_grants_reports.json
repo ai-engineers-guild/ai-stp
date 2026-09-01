@@ -700,6 +700,194 @@
         "error_code": "AI_STP_VALIDATION_ERROR",
         "harness_id": "claude-code"
       }
+    },
+    {
+      "case_id": "createOwnershipClaim.submitted",
+      "operation_id": "createOwnershipClaim",
+      "kind": "positive",
+      "why": "A verified maintainer may request transfer of an official catalog component.",
+      "request": {
+        "body": {
+          "schema_version": 1,
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "reason": "upstream-maintainer",
+          "evidence": "github-commits",
+          "idempotency_key": "claimkey0000000001"
+        }
+      },
+      "status": 201,
+      "body": {
+        "schema_version": 1,
+        "claim_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "requester_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "from_account_id": "account_01KZET6ZKJN7S72T5H4WDV62T0",
+        "to_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "reason": "upstream-maintainer",
+        "evidence": "github-commits",
+        "state": "requested",
+        "preview": {
+          "schema_version": 1,
+          "object_kind": "component",
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "name": "official-skill",
+          "current_owner_account_id": "account_01KZET6ZKJN7S72T5H4WDV62T0",
+          "versions": ["1.0", "2.0"],
+          "major_lines": [1, 2]
+        },
+        "created_at": "2026-08-10T00:00:00.000Z",
+        "decided_at": null,
+        "staff_account_id": null,
+        "decision_reason": null
+      }
+    },
+    {
+      "case_id": "readOwnershipClaim.pending",
+      "operation_id": "readOwnershipClaim",
+      "kind": "positive",
+      "why": "Requester or staff can read one claim with the exact object and major-line preview.",
+      "request": {
+        "path_params": {
+          "claim_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "claim_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "requester_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "from_account_id": "account_01KZET6ZKJN7S72T5H4WDV62T0",
+        "to_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "reason": "upstream-maintainer",
+        "evidence": "github-commits",
+        "state": "requested",
+        "preview": {
+          "schema_version": 1,
+          "object_kind": "component",
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "name": "official-skill",
+          "current_owner_account_id": "account_01KZET6ZKJN7S72T5H4WDV62T0",
+          "versions": ["1.0", "2.0"],
+          "major_lines": [1, 2]
+        },
+        "created_at": "2026-08-10T00:00:00.000Z",
+        "decided_at": null,
+        "staff_account_id": null,
+        "decision_reason": null
+      }
+    },
+    {
+      "case_id": "approveOwnershipClaim.applied",
+      "operation_id": "approveOwnershipClaim",
+      "kind": "positive",
+      "why": "Staff approval transfers catalog owner columns and records an immutable revision without rewriting published passports.",
+      "request": {
+        "path_params": {
+          "claim_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "schema_version": 1,
+          "reason": "staff-verified",
+          "idempotency_key": "approvekey00000001"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "claim_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "requester_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "from_account_id": "account_01KZET6ZKJN7S72T5H4WDV62T0",
+        "to_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "reason": "upstream-maintainer",
+        "evidence": "github-commits",
+        "state": "approved",
+        "preview": {
+          "schema_version": 1,
+          "object_kind": "component",
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "name": "official-skill",
+          "current_owner_account_id": "account_01KZET6ZKJN7S72T5H4WDV62T0",
+          "versions": ["1.0", "2.0"],
+          "major_lines": [1, 2]
+        },
+        "created_at": "2026-08-10T00:00:00.000Z",
+        "decided_at": "2026-08-10T01:00:00.000Z",
+        "staff_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y8Z",
+        "decision_reason": "staff-verified"
+      }
+    },
+    {
+      "case_id": "denyOwnershipClaim.denied",
+      "operation_id": "denyOwnershipClaim",
+      "kind": "positive",
+      "why": "Staff denial records the decision and has no catalog effect.",
+      "request": {
+        "path_params": {
+          "claim_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y8A"
+        },
+        "body": {
+          "schema_version": 1,
+          "reason": "insufficient-evidence",
+          "idempotency_key": "denykey0000000001"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "claim_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y8A",
+        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "requester_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "from_account_id": "account_01KZET6ZKJN7S72T5H4WDV62T0",
+        "to_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "reason": "upstream-maintainer",
+        "evidence": "github-commits",
+        "state": "denied",
+        "preview": {
+          "schema_version": 1,
+          "object_kind": "component",
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "name": "official-skill",
+          "current_owner_account_id": "account_01KZET6ZKJN7S72T5H4WDV62T0",
+          "versions": ["1.0", "2.0"],
+          "major_lines": [1, 2]
+        },
+        "created_at": "2026-08-10T00:00:00.000Z",
+        "decided_at": "2026-08-10T01:00:00.000Z",
+        "staff_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y8Z",
+        "decision_reason": "insufficient-evidence"
+      }
+    },
+    {
+      "case_id": "listOwnershipRevisions.one",
+      "operation_id": "listOwnershipRevisions",
+      "kind": "positive",
+      "why": "Ownership history lists immutable revisions and does not rewrite published versions.",
+      "request": {
+        "path_params": {
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "items": [
+          {
+            "schema_version": 1,
+            "revision_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y8Z",
+            "claim_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "from_account_id": "account_01KZET6ZKJN7S72T5H4WDV62T0",
+            "to_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "major_lines": [1, 2],
+            "reason": "staff-verified",
+            "staff_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y8Z",
+            "created_at": "2026-08-10T01:00:00.000Z"
+          }
+        ]
+      }
     }
   ]
 }

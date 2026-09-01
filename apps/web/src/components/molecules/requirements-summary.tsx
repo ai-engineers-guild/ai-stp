@@ -12,6 +12,8 @@ export type Requirements = {
   supported_harness_versions?: string[];
   supported_os?: string[];
   supported_arch?: string[];
+  harness_ids?: string[];
+  runtime_requirements?: string[];
 };
 
 export function mergeRequirements(items: Requirements[]): Requirements {
@@ -45,6 +47,8 @@ export function mergeRequirements(items: Requirements[]): Requirements {
     ],
     supported_os: [...new Set(items.flatMap((item) => item.supported_os ?? []))],
     supported_arch: [...new Set(items.flatMap((item) => item.supported_arch ?? []))],
+    harness_ids: [...new Set(items.flatMap((item) => item.harness_ids ?? []))],
+    runtime_requirements: [...new Set(items.flatMap((item) => item.runtime_requirements ?? []))],
   };
 }
 export type RequirementsLabels = {
@@ -59,6 +63,8 @@ export type RequirementsLabels = {
   harnessVersions: string;
   operatingSystems: string;
   architectures: string;
+  harnesses: string;
+  runtime: string;
   none: string;
   yes: string;
   no: string;
@@ -80,6 +86,8 @@ export function requirementLabels(
     harnessVersions: t("supportedHarnessVersions"),
     operatingSystems: t("supportedOs"),
     architectures: t("supportedArch"),
+    harnesses: t("supportedHarnesses"),
+    runtime: t("runtimeRequirements"),
     none: t("noneListed"),
     yes: tc("yes"),
     no: tc("no"),
@@ -118,6 +126,8 @@ export function RequirementsSummary({
     { label: labels.harnessVersions, values: requirements.supported_harness_versions ?? [] },
     { label: labels.operatingSystems, values: requirements.supported_os ?? [] },
     { label: labels.architectures, values: requirements.supported_arch ?? [] },
+    { label: labels.harnesses, values: requirements.harness_ids ?? [] },
+    { label: labels.runtime, values: requirements.runtime_requirements ?? [] },
     { label: labels.permissions, values: permissions, mono: true },
     { label: labels.endpoints, values: requirements.external_endpoints, mono: true },
   ];
@@ -140,6 +150,8 @@ function countRequirements(requirements: Requirements): number {
     requirements.required_env.length +
     (requirements.requires_components?.length ?? 0) +
     (requirements.requires_capabilities?.length ?? 0) +
+    (requirements.runtime_requirements?.length ?? 0) +
+    (requirements.harness_ids?.length ?? 0) +
     Object.values(requirements.permissions).flat().length +
     requirements.external_endpoints.length
   );
@@ -161,8 +173,11 @@ function RequirementList({
       <h3 className="text-sm font-semibold">{label}</h3>
       {values.length ? (
         <ul className="mt-1.5 space-y-1 text-sm leading-5">
-          {values.map((value) => (
-            <li key={value} className={mono ? "font-mono text-xs break-all" : "break-words"}>
+          {values.map((value, index) => (
+            <li
+              key={`${value}-${index}`}
+              className={mono ? "font-mono text-xs break-all" : "break-words"}
+            >
               {value}
             </li>
           ))}

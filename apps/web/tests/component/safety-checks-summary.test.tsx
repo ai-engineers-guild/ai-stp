@@ -52,6 +52,7 @@ function summary(overrides: Partial<SafetyChecksSummary> = {}): SafetyChecksSumm
     warning: 0,
     not_run: 0,
     total_countable: 1,
+    components: [],
     checks: [
       {
         schema_version: 1,

@@ -25,6 +25,7 @@ dependencies = [
     "ai-stp-contracts==0.0.13",
     "ai-stp-foundation==0.0.13",
     "ai-stp-passports==0.0.13",
+    "ai-stp-sources==0.0.13",
     "click>=8.1",
     "pynacl>=1.6.2",
     "httpx>=0.28",
@@ -57,6 +58,7 @@ Issues = "https://github.com/ai-engineers-guild/ai-stp/issues"
 ai-stp-assurance = { workspace = true }
 ai-stp-contracts = { workspace = true }
 ai-stp-foundation = { workspace = true }
+ai-stp-sources = { workspace = true }
 
 [build-system]
 requires = ["uv_build>=0.11,<0.13"]

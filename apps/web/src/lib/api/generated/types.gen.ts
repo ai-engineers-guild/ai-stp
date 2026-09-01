@@ -556,6 +556,14 @@ export const ChecksStatus = {
 
 export type ChecksStatus = (typeof ChecksStatus)[keyof typeof ChecksStatus];
 
+export const ClaimState = {
+  REQUESTED: "requested",
+  APPROVED: "approved",
+  DENIED: "denied",
+} as const;
+
+export type ClaimState = (typeof ClaimState)[keyof typeof ClaimState];
+
 /**
  * CliError
  *
@@ -764,7 +772,7 @@ export type ComponentRef = {
    * Variant Id
    */
   variant_id?: string | null;
-  version: Version;
+  version: AiStpFoundationRefsVersion;
 };
 
 /**
@@ -885,7 +893,7 @@ export type ComponentSummary = {
   latest_support: CatalogSupport;
   latest_tags: Tags;
   latest_trust: CatalogTrust;
-  latest_version: Version;
+  latest_version: AiStpContractsCatalogVersion;
   /**
    * Likes Count
    */
@@ -1054,7 +1062,7 @@ export type ComponentVersionPassport = {
    * Variant Id
    */
   variant_id: string | null;
-  version: Version;
+  version: AiStpFoundationRefsVersion;
   /**
    * Visibility
    */
@@ -2475,7 +2483,7 @@ export type OwnerObjectSummary = {
    * Component Verified
    */
   component_verified: boolean;
-  latest_version: Version | null;
+  latest_version: AiStpContractsOwnerVersion | null;
   lifecycle_state: LifecycleState;
   /**
    * Name
@@ -2574,7 +2582,7 @@ export type OwnerVersionDetail = {
    */
   stable_id: string;
   trust_lane: TrustLane | null;
-  version: Version;
+  version: AiStpContractsOwnerVersion;
   /**
    * Visibility
    */
@@ -2612,11 +2620,210 @@ export type OwnerVersionSummary = {
    */
   schema_version: 1;
   trust_lane: TrustLane | null;
-  version: Version;
+  version: AiStpContractsOwnerVersion;
   /**
    * Visibility
    */
   visibility: "public" | "private";
+  [key: string]: unknown;
+};
+
+/**
+ * OwnershipClaimCreateRequest
+ *
+ * POST /v1/ownership-claims body.
+ */
+export type OwnershipClaimCreateRequest = {
+  /**
+   * Evidence
+   */
+  evidence: string;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Reason
+   */
+  reason: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+};
+
+/**
+ * OwnershipClaimDecisionRequest
+ *
+ * POST /v1/staff/ownership-claims/{claim_id}/approve or /deny body.
+ */
+export type OwnershipClaimDecisionRequest = {
+  idempotency_key: IdempotencyKey;
+  /**
+   * Reason
+   */
+  reason: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * OwnershipClaimPreview
+ *
+ * Exact object and major lines that a claim would transfer.
+ */
+export type OwnershipClaimPreview = {
+  /**
+   * Current Owner Account Id
+   */
+  current_owner_account_id: string;
+  /**
+   * Major Lines
+   */
+  major_lines: Array<number>;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Object Kind
+   */
+  object_kind: "component";
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  /**
+   * Versions
+   */
+  versions: Array<AiStpContractsOwnershipVersion>;
+  [key: string]: unknown;
+};
+
+/**
+ * OwnershipClaimResponse
+ *
+ * One ownership claim, including the staff preview.
+ */
+export type OwnershipClaimResponse = {
+  /**
+   * Claim Id
+   */
+  claim_id: string;
+  created_at: Timestamp;
+  decided_at: Timestamp | null;
+  /**
+   * Decision Reason
+   */
+  decision_reason: string | null;
+  /**
+   * Evidence
+   */
+  evidence: string;
+  /**
+   * From Account Id
+   */
+  from_account_id: string;
+  preview: OwnershipClaimPreview;
+  /**
+   * Reason
+   */
+  reason: string;
+  /**
+   * Requester Account Id
+   */
+  requester_account_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  /**
+   * Staff Account Id
+   */
+  staff_account_id: string | null;
+  state: ClaimState;
+  /**
+   * To Account Id
+   */
+  to_account_id: string;
+  [key: string]: unknown;
+};
+
+/**
+ * OwnershipRevisionListResponse
+ *
+ * History of ownership revisions for one catalog component.
+ */
+export type OwnershipRevisionListResponse = {
+  /**
+   * Items
+   */
+  items: Array<OwnershipRevisionView>;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  [key: string]: unknown;
+};
+
+/**
+ * OwnershipRevisionView
+ *
+ * One immutable ownership revision. Published version passports are unchanged.
+ */
+export type OwnershipRevisionView = {
+  /**
+   * Claim Id
+   */
+  claim_id: string;
+  created_at: Timestamp;
+  /**
+   * From Account Id
+   */
+  from_account_id: string;
+  /**
+   * Major Lines
+   */
+  major_lines: Array<number>;
+  /**
+   * Reason
+   */
+  reason: string;
+  /**
+   * Revision Id
+   */
+  revision_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  /**
+   * Staff Account Id
+   */
+  staff_account_id: string;
+  /**
+   * To Account Id
+   */
+  to_account_id: string;
   [key: string]: unknown;
 };
 
@@ -2751,7 +2958,7 @@ export type PublicationPlanCreateRequest = {
    * Stable Id
    */
   stable_id: string;
-  version: Version;
+  version: AiStpContractsPublicationVersion;
 };
 
 /**
@@ -2792,7 +2999,7 @@ export type PublicationPlanResponse = {
    */
   stable_id: string;
   state: PlanState;
-  version: Version;
+  version: AiStpContractsPublicationVersion;
   [key: string]: unknown;
 };
 
@@ -2879,7 +3086,7 @@ export type ReportCaseCreateRequest = {
    * Validation Snapshot Ids
    */
   validation_snapshot_ids?: Array<string>;
-  version: Version;
+  version: AiStpContractsReportsVersion;
   /**
    * Vulnerability
    */
@@ -2924,7 +3131,7 @@ export type ReportCaseResponse = {
    */
   stable_id: string;
   state: ReportState;
-  version: Version;
+  version: AiStpContractsReportsVersion;
   /**
    * Vulnerability
    */
@@ -3002,6 +3209,10 @@ export type SafetyChecksSummary = {
    * Checks Passed Percent
    */
   checks_passed_percent: number | null;
+  /**
+   * Components
+   */
+  components: Array<SetupComponentChecks> | null;
   /**
    * Coverage Complete
    */
@@ -3485,6 +3696,47 @@ export type SeoSubjectRef = {
 };
 
 /**
+ * SetupComponentChecks
+ *
+ * Checks for one exact component snapshot inside a setup.
+ */
+export type SetupComponentChecks = {
+  /**
+   * Checks
+   */
+  checks: Array<SafetyCheckEntry>;
+  /**
+   * Digest Matches
+   */
+  digest_matches: boolean;
+  /**
+   * Embedded
+   */
+  embedded: boolean;
+  /**
+   * Failed Mandatory
+   */
+  failed_mandatory: boolean;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Source Coordinate
+   */
+  source_coordinate: string | null;
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  /**
+   * Version
+   */
+  version: string;
+  [key: string]: unknown;
+};
+
+/**
  * SetupContextBudget
  *
  * Absolute context estimate of one visible exact setup (SPEC-049).
@@ -3603,7 +3855,7 @@ export type SetupRef = {
    * Stable Id
    */
   stable_id: string;
-  version: Version;
+  version: AiStpFoundationRefsVersion;
 };
 
 /**
@@ -3690,6 +3942,10 @@ export type SetupSummary = {
   latest_checks: SafetyChecksSummary | null;
   latest_description: DescriptionExcerpt;
   latest_harness_id: HarnessId;
+  /**
+   * Latest Harness Ids
+   */
+  latest_harness_ids: Array<HarnessId>;
   latest_lifecycle: PublicLifecycle;
   /**
    * Latest Name
@@ -3719,7 +3975,7 @@ export type SetupSummary = {
    */
   latest_target_role: string | null;
   latest_trust: CatalogTrust;
-  latest_version: Version;
+  latest_version: AiStpContractsCatalogVersion;
   /**
    * Likes Count
    */
@@ -3741,7 +3997,7 @@ export type SetupSummary = {
 /**
  * SetupVersionPassport
  *
- * Immutable setup version passport: exactly one harness, no variant axis.
+ * Immutable setup version passport with one native harness and projections.
  */
 export type SetupVersionPassport = {
   artifact: ArtifactRef;
@@ -3866,7 +4122,7 @@ export type SetupVersionPassport = {
    * Target Role
    */
   target_role: string | null;
-  version: Version;
+  version: AiStpFoundationRefsVersion;
   /**
    * Visibility
    */
@@ -4070,7 +4326,7 @@ export type StaffLifecycleRequest = {
    * Stable Id
    */
   stable_id: string;
-  version: Version;
+  version: AiStpContractsReportsVersion;
 };
 
 /**
@@ -4106,7 +4362,7 @@ export type StaffReportDetail = {
    * State
    */
   state: string;
-  version: Version;
+  version: AiStpContractsOwnerVersion;
   /**
    * Vulnerability
    */
@@ -4171,7 +4427,7 @@ export type StaffReportSummary = {
    * State
    */
   state: string;
-  version: Version;
+  version: AiStpContractsOwnerVersion;
   /**
    * Vulnerability
    */
@@ -4554,8 +4810,6 @@ export type TrustLane = (typeof TrustLane)[keyof typeof TrustLane];
 
 export type UserCode = string;
 
-export type Version = string;
-
 /**
  * VersionListEntry
  *
@@ -4571,12 +4825,22 @@ export type VersionListEntry = {
   published_at: Timestamp;
   support: CatalogSupport;
   trust: CatalogTrust;
-  version: Version;
+  version: AiStpContractsCatalogVersion;
   [key: string]: unknown;
 };
 
+export type AiStpContractsCatalogVersion = string;
+
+export type AiStpContractsOwnerVersion = string;
+
+export type AiStpContractsOwnershipVersion = string;
+
 export type AiStpContractsPublicationCheckResult =
   AiStpContractsSafetyChecksCheckResult | "expired";
+
+export type AiStpContractsPublicationVersion = string;
+
+export type AiStpContractsReportsVersion = string;
 
 export const AiStpContractsSafetyChecksCheckResult = {
   PASSED: "passed",
@@ -4591,6 +4855,8 @@ export const AiStpContractsSafetyChecksCheckResult = {
 
 export type AiStpContractsSafetyChecksCheckResult =
   (typeof AiStpContractsSafetyChecksCheckResult)[keyof typeof AiStpContractsSafetyChecksCheckResult];
+
+export type AiStpFoundationRefsVersion = string;
 
 export type ReadAccountData = {
   body?: never;
@@ -6995,6 +7261,68 @@ export type ListOwnerObjectsResponses = {
 
 export type ListOwnerObjectsResponse = ListOwnerObjectsResponses[keyof ListOwnerObjectsResponses];
 
+export type ListOwnershipRevisionsData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Typed stable identifier of the catalog component.
+     */
+    stable_id: string;
+  };
+  query?: never;
+  url: "/v1/owner/objects/component/{stable_id}/ownership-revisions";
+};
+
+export type ListOwnershipRevisionsErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ListOwnershipRevisionsError =
+  ListOwnershipRevisionsErrors[keyof ListOwnershipRevisionsErrors];
+
+export type ListOwnershipRevisionsResponses = {
+  /**
+   * List immutable ownership revisions for one catalog component.
+   */
+  200: OwnershipRevisionListResponse;
+};
+
+export type ListOwnershipRevisionsResponse =
+  ListOwnershipRevisionsResponses[keyof ListOwnershipRevisionsResponses];
+
 export type ReadOwnerObjectData = {
   body?: never;
   headers?: {
@@ -7282,6 +7610,136 @@ export type StartOwnerPublicationResponses = {
 
 export type StartOwnerPublicationResponse =
   StartOwnerPublicationResponses[keyof StartOwnerPublicationResponses];
+
+export type CreateOwnershipClaimData = {
+  body: OwnershipClaimCreateRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/ownership-claims";
+};
+
+export type CreateOwnershipClaimErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_CONFLICT.
+   */
+  409: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_PRECONDITION_FAILED.
+   */
+  412: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type CreateOwnershipClaimError =
+  CreateOwnershipClaimErrors[keyof CreateOwnershipClaimErrors];
+
+export type CreateOwnershipClaimResponses = {
+  /**
+   * Request transfer of an official catalog component to a verified maintainer.
+   */
+  201: OwnershipClaimResponse;
+};
+
+export type CreateOwnershipClaimResponse =
+  CreateOwnershipClaimResponses[keyof CreateOwnershipClaimResponses];
+
+export type ReadOwnershipClaimData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Typed operation identifier of the ownership claim.
+     */
+    claim_id: string;
+  };
+  query?: never;
+  url: "/v1/ownership-claims/{claim_id}";
+};
+
+export type ReadOwnershipClaimErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadOwnershipClaimError = ReadOwnershipClaimErrors[keyof ReadOwnershipClaimErrors];
+
+export type ReadOwnershipClaimResponses = {
+  /**
+   * Read one ownership claim and its staff preview.
+   */
+  200: OwnershipClaimResponse;
+};
+
+export type ReadOwnershipClaimResponse =
+  ReadOwnershipClaimResponses[keyof ReadOwnershipClaimResponses];
 
 export type CreatePublicationPlanData = {
   body: PublicationPlanCreateRequest;
@@ -8261,6 +8719,145 @@ export type PutStaffContentResponses = {
 };
 
 export type PutStaffContentResponse = PutStaffContentResponses[keyof PutStaffContentResponses];
+
+export type ApproveOwnershipClaimData = {
+  body: OwnershipClaimDecisionRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Typed operation identifier of the ownership claim.
+     */
+    claim_id: string;
+  };
+  query?: never;
+  url: "/v1/staff/ownership-claims/{claim_id}/approve";
+};
+
+export type ApproveOwnershipClaimErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_CONFLICT.
+   */
+  409: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ApproveOwnershipClaimError =
+  ApproveOwnershipClaimErrors[keyof ApproveOwnershipClaimErrors];
+
+export type ApproveOwnershipClaimResponses = {
+  /**
+   * Approve a verified-maintainer claim without rewriting published passports.
+   */
+  200: OwnershipClaimResponse;
+};
+
+export type ApproveOwnershipClaimResponse =
+  ApproveOwnershipClaimResponses[keyof ApproveOwnershipClaimResponses];
+
+export type DenyOwnershipClaimData = {
+  body: OwnershipClaimDecisionRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Typed operation identifier of the ownership claim.
+     */
+    claim_id: string;
+  };
+  query?: never;
+  url: "/v1/staff/ownership-claims/{claim_id}/deny";
+};
+
+export type DenyOwnershipClaimErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_CONFLICT.
+   */
+  409: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type DenyOwnershipClaimError = DenyOwnershipClaimErrors[keyof DenyOwnershipClaimErrors];
+
+export type DenyOwnershipClaimResponses = {
+  /**
+   * Deny a verified-maintainer claim with no catalog effect.
+   */
+  200: OwnershipClaimResponse;
+};
+
+export type DenyOwnershipClaimResponse =
+  DenyOwnershipClaimResponses[keyof DenyOwnershipClaimResponses];
 
 export type ListStaffReportsData = {
   body?: never;

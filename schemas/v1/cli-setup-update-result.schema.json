@@ -1,0 +1,60 @@
+{
+  "$id": "urn:ai-stp:schema:v1:cli-setup-update-result",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Outcome of a confirmed exact update. A new immutable setup version.",
+  "properties": {
+    "created": {
+      "title": "Created",
+      "type": "boolean"
+    },
+    "from_version": {
+      "pattern": "^\\d+\\.\\d+$",
+      "title": "From Version",
+      "type": "string"
+    },
+    "plan_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Plan Digest",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "selected_stable_id": {
+      "default": "",
+      "title": "Selected Stable Id",
+      "type": "string"
+    },
+    "selected_version": {
+      "default": "",
+      "title": "Selected Version",
+      "type": "string"
+    },
+    "setup_id": {
+      "minLength": 1,
+      "title": "Setup Id",
+      "type": "string"
+    },
+    "to_version": {
+      "pattern": "^\\d+\\.\\d+$",
+      "title": "To Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "created",
+    "from_version",
+    "plan_digest",
+    "schema_version",
+    "selected_stable_id",
+    "selected_version",
+    "setup_id",
+    "to_version"
+  ],
+  "title": "SetupUpdateResult",
+  "type": "object"
+}

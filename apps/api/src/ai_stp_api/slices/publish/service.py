@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ai_stp_api.audit import emit_audit
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
+from ai_stp_api.slices.profile.service import get_public_publisher
 from ai_stp_contracts.publication import (
     PublicationConfirmRequest,
     PublicationPlanCreateRequest,
@@ -21,7 +22,13 @@ from ai_stp_platform.artifact_bind import (
     bind_plan_artifact,
     plan_artifact_is_durable,
 )
-from ai_stp_platform.models import Device, EvidenceBinding, PublicationPlan, ValidationSnapshot
+from ai_stp_platform.models import (
+    Account,
+    Device,
+    EvidenceBinding,
+    PublicationPlan,
+    ValidationSnapshot,
+)
 from ai_stp_platform.publication_logic import (
     PLAN_TTL,
     compute_plan_hash,
@@ -31,6 +38,7 @@ from ai_stp_platform.publication_logic import (
 from ai_stp_platform.queue.engine import enqueue
 from ai_stp_platform.queue.states import JobType
 from ai_stp_platform.safety.artifact_fetch import passport_artifact_size
+from ai_stp_platform.safety.policy import POLICY_VERSION
 from ai_stp_platform.storage.object_store import (
     ImmutableObjectStore,
     ObjectConflict,
@@ -62,6 +70,20 @@ async def create_plan(
     body: PublicationPlanCreateRequest,
 ) -> PublicationPlanResponse:
     await _require_active_device(db, ctx=ctx, device_id=body.device_id)
+    account = await db.get(Account, ctx.account_id)
+    public_profile = await get_public_publisher(db, account_id=ctx.account_id)
+    if (
+        account is None
+        or not account.show_profile_publicly
+        or not account.allow_publisher_listing
+        or public_profile is None
+        or not str(public_profile.get("display_name") or "").strip()
+    ):
+        raise ApiError(
+            ErrorCategory.VALIDATION,
+            "publish a non-empty public publisher profile before publishing catalog objects",
+            details={"field": "publisher_profile"},
+        )
     existing = await db.scalar(
         select(PublicationPlan).where(
             PublicationPlan.actor_account_id == ctx.account_id,
@@ -94,7 +116,7 @@ async def create_plan(
         stable_id=body.stable_id,
         version=body.version,
         content_digest=body.content_digest,
-        policy_version=body.policy_version,
+        policy_version=POLICY_VERSION,
         passport=passport,
         attestations=attestations,
     )
@@ -106,7 +128,7 @@ async def create_plan(
         stable_id=body.stable_id,
         version=body.version,
         content_digest=body.content_digest,
-        policy_version=body.policy_version,
+        policy_version=POLICY_VERSION,
         plan_hash=plan_hash,
         state="ready",
         passport=passport,

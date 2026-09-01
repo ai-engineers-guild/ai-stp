@@ -743,6 +743,55 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         next_actions=("component discover", "component adopt"),
     ),
     Declaration(
+        path=["component", "source", "search"],
+        summary="Search catalog names; package and GitHub hits need --registry-discovery.",
+        result_schema="urn:ai-stp:schema:v1:cli-source-search",
+        handler="component:source_search",
+        parameters=(
+            option("query", "string", "Name-only query. Never selects a candidate.", required=True),
+            option(
+                "registry-discovery",
+                "boolean",
+                "Also search supported package names and known GitHub candidates.",
+            ),
+        ),
+        next_actions=("setup update plan", "component source resolve"),
+    ),
+    Declaration(
+        path=["component", "publish"],
+        summary="Extract one embedded component into the ordinary publication plan.",
+        result_schema="urn:ai-stp:schema:v1:cli-component-promotion-plan",
+        handler="component_publish:publish",
+        mutability="plan",
+        parameters=(
+            option(
+                "from-setup",
+                "string",
+                "Setup that holds the embedded component.",
+                required=True,
+            ),
+            option(
+                "setup-version",
+                "string",
+                "Exact local setup X.Y version.",
+                required=True,
+            ),
+            option(
+                "component-id",
+                "string",
+                "Exact embedded component identifier, never a display name.",
+                required=True,
+            ),
+            option(
+                "attestation-file",
+                "string",
+                "Full locally signed attestation bound to the promoted version.",
+                repeatable=True,
+            ),
+        ),
+        next_actions=("publication confirm", "publication status"),
+    ),
+    Declaration(
         path=["component", "source", "evidence", "refresh"],
         summary="Refresh official GitHub archived evidence for one exact local version.",
         result_schema="urn:ai-stp:schema:v1:cli-github-archive-evidence",
@@ -2208,6 +2257,42 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         next_actions=("target status",),
     ),
     Declaration(
+        path=["setup", "compose", "plan"],
+        summary=(
+            "Resolve and freeze a new setup from exact catalog, Git, package and local sources."
+        ),
+        result_schema="urn:ai-stp:schema:v1:cli-setup-compose-plan",
+        handler="setup_compose:plan",
+        mutability="plan",
+        parameters=(
+            option("manifest", "string", "JSON composition manifest to resolve.", required=True),
+            option("root", "string", "Root that bounds path: sources."),
+            option("id", "string", "Setup id returned by an earlier plan."),
+        ),
+        next_actions=("setup compose apply",),
+    ),
+    Declaration(
+        path=["setup", "compose", "apply"],
+        summary="Record the exact still-current mixed setup as one immutable local version.",
+        result_schema="urn:ai-stp:schema:v1:cli-setup-compose-result",
+        handler="setup_compose:apply",
+        mutability="apply",
+        confirmation="explicit_flag",
+        parameters=(
+            option("manifest", "string", "JSON composition manifest to resolve.", required=True),
+            option("root", "string", "Root that bounds path: sources."),
+            option("id", "string", "Exact setup id returned by plan.", required=True),
+            option("created-at", "string", "Exact timestamp returned by plan.", required=True),
+            option(
+                "expected-plan-digest", "string", "Exact digest returned by plan.", required=True
+            ),
+            option(
+                "confirm", "boolean", "Confirm recording this exact composition.", required=True
+            ),
+        ),
+        next_actions=("setup publish plan", "select session"),
+    ),
+    Declaration(
         path=["setup", "import", "inspect"],
         summary="Read one native configuration and report what it holds. Writes nothing.",
         result_schema="urn:ai-stp:schema:v1:cli-import-inspection",
@@ -2274,6 +2359,75 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
         ),
         next_actions=("publication status", "owner objects"),
+    ),
+    Declaration(
+        path=["setup", "update", "plan"],
+        summary="Preview replacing one embedded component with a newer exact snapshot.",
+        result_schema="urn:ai-stp:schema:v1:cli-setup-update-plan",
+        handler="setup_update:plan",
+        mutability="plan",
+        parameters=(
+            option("id", "string", "Stable identifier of the setup being updated.", required=True),
+            option("version", "string", "Exact currently selected X.Y version.", required=True),
+            option(
+                "component-id",
+                "string",
+                "Exact embedded component identifier, never a display name.",
+                required=True,
+            ),
+            option(
+                "source",
+                "string",
+                "Exact git, package:ecosystem:name@version, or path:relative source.",
+                required=True,
+            ),
+            option("commit", "string", "Exact lowercase 40-character Git commit SHA."),
+            option("subpath", "string", "Safe repository subpath for a Git source."),
+            option("harness", "string", "Harness whose selected setup is checked.", required=True),
+            option("project", "string", "Project root whose selected setup is checked."),
+        ),
+        next_actions=("setup update apply",),
+    ),
+    Declaration(
+        path=["setup", "update", "apply"],
+        summary="Confirm one exact embedded update and create a new immutable setup version.",
+        result_schema="urn:ai-stp:schema:v1:cli-setup-update-result",
+        handler="setup_update:apply",
+        mutability="apply",
+        confirmation="explicit_flag",
+        parameters=(
+            option("id", "string", "Stable identifier of the setup being updated.", required=True),
+            option("version", "string", "Exact currently selected X.Y version.", required=True),
+            option(
+                "component-id",
+                "string",
+                "Exact embedded component identifier, never a display name.",
+                required=True,
+            ),
+            option(
+                "source",
+                "string",
+                "Exact git, package:ecosystem:name@version, or path:relative source.",
+                required=True,
+            ),
+            option("commit", "string", "Exact lowercase 40-character Git commit SHA."),
+            option("subpath", "string", "Safe repository subpath for a Git source."),
+            option("harness", "string", "Harness whose selected setup is checked.", required=True),
+            option("project", "string", "Project root whose selected setup is checked."),
+            option(
+                "expected-plan-digest",
+                "string",
+                "Exact digest returned by setup update plan.",
+                required=True,
+            ),
+            option(
+                "confirm",
+                "boolean",
+                "Confirm creating this exact new setup version.",
+                required=True,
+            ),
+        ),
+        next_actions=("select session",),
     ),
     Declaration(
         path=["setup", "import", "register"],

@@ -397,6 +397,9 @@ class SetupSummary(BaseModel):
     #: Deterministic plain-text `safe_markdown_v1` excerpt, never raw Markdown or HTML.
     latest_description: DescriptionExcerpt
     latest_harness_id: HarnessId
+    latest_harness_ids: Annotated[list[HarnessId], Field(max_length=7)] = Field(
+        default_factory=list[HarnessId]
+    )
     latest_purpose: str
     #: Optional for the same reason the passport field is (`ADR-0130`): a role
     #: has no source, so first-party setups carry none and the card shows the

@@ -26,7 +26,7 @@ last_verified: "2026-08-03"
 | [SPEC-015-canonical-contracts.md](SPEC-015-canonical-contracts.md) | SPEC-015: Canonical data, identifiers, and hashes. | 2026-08-03 |
 | [SPEC-016-reports-moderation.md](SPEC-016-reports-moderation.md) | SPEC-016: Object reports and moderation. | 2026-08-04 |
 | [SPEC-017-runtime-shell-observability.md](SPEC-017-runtime-shell-observability.md) | SPEC-017: Server application shell and observability. | 2026-08-05 |
-| [SPEC-018-worker-job-queue.md](SPEC-018-worker-job-queue.md) | SPEC-018: Background worker and PostgreSQL job queue. | 2026-08-29 |
+| [SPEC-018-worker-job-queue.md](SPEC-018-worker-job-queue.md) | SPEC-018: Background worker and PostgreSQL job queue. | 2026-08-31 |
 | [SPEC-019-runtime-deployment-operability.md](SPEC-019-runtime-deployment-operability.md) | SPEC-019: Runtime deployment and operation. | 2026-08-10 |
 | [SPEC-020-persistence-migrations-object-store.md](SPEC-020-persistence-migrations-object-store.md) | SPEC-020: Server-side storage, PostgreSQL migrations and immutable object storage. | 2026-08-25 |
 | [SPEC-021-anonymous-catalog-read-and-seed.md](SPEC-021-anonymous-catalog-read-and-seed.md) | SPEC-021: Anonymous reading of the public catalog and initial seeding of objects. | 2026-08-25 |
@@ -64,5 +64,7 @@ last_verified: "2026-08-03"
 | [SPEC-053-server-seo-publication-projections.md](SPEC-053-server-seo-publication-projections.md) | SPEC-053: Server-side SEO revisions for components, setups, articles, services, and countries. | 2026-08-29 |
 | [SPEC-054-hybrid-article-publication.md](SPEC-054-hybrid-article-publication.md) | SPEC-054: Unified server-side publication of repository- and staff-authored articles. | 2026-08-29 |
 | [SPEC-055-legal-account-onboarding.md](SPEC-055-legal-account-onboarding.md) | SPEC-055: Versioned legal policies and required account onboarding. | 2026-08-31 |
+| [SPEC-056-official-upstream-components.md](SPEC-056-official-upstream-components.md) | SPEC-056: Curated GitHub component snapshots published by AI STP Official. | 2026-08-31 |
+| [SPEC-057-embedded-component-sources.md](SPEC-057-embedded-component-sources.md) | SPEC-057: Exact external and local components embedded in setup definitions. | 2026-08-31 |
 
 <!-- END CONTENTS -->

@@ -17,7 +17,11 @@ from ai_stp_contracts.catalog import (
     SetupVersionResponse,
     VersionListEntry,
 )
-from ai_stp_contracts.safety_checks import SafetyCheckEntry, SafetyChecksSummary
+from ai_stp_contracts.safety_checks import (
+    SafetyCheckEntry,
+    SafetyChecksSummary,
+    SetupComponentChecks,
+)
 from ai_stp_foundation.canonical import JsonValue, canonize
 from ai_stp_foundation.digests import digest_bytes
 from ai_stp_foundation.timestamps import format_timestamp
@@ -102,6 +106,40 @@ def project_checks_summary(row: PublicVersionRow) -> SafetyChecksSummary | None:
                         finding_summary=item.get("finding_summary"),  # type: ignore[arg-type]
                     )
                 )
+        components: list[SetupComponentChecks] = []
+        components_raw = summary.get("components")
+        if isinstance(components_raw, list):
+            for raw_component in cast(list[object], components_raw):
+                if not isinstance(raw_component, dict):
+                    continue
+                component = cast(dict[str, Any], raw_component)
+                nested = component.get("checks_summary")
+                nested_checks: list[object] = []
+                if isinstance(nested, dict):
+                    nested_map = cast(dict[str, object], nested)
+                    checks_value = nested_map.get("checks")
+                    if isinstance(checks_value, list):
+                        nested_checks = cast(list[object], checks_value)
+                components.append(
+                    SetupComponentChecks(
+                        stable_id=str(component.get("stable_id") or "unknown"),
+                        name=str(component.get("name") or component.get("stable_id") or "unknown"),
+                        version=str(component.get("version") or "unknown"),
+                        embedded=bool(component.get("embedded", False)),
+                        source_coordinate=(
+                            str(component["source_coordinate"])
+                            if component.get("source_coordinate")
+                            else None
+                        ),
+                        digest_matches=bool(component.get("digest_matches", False)),
+                        failed_mandatory=bool(component.get("failed_mandatory", True)),
+                        checks=[
+                            SafetyCheckEntry.model_validate(item)
+                            for item in nested_checks
+                            if isinstance(item, dict)
+                        ],
+                    )
+                )
         percent = summary.get("checks_passed_percent")
         status_raw = str(summary.get("status") or "empty")
         if status_raw not in {"pending", "available", "empty", "incomplete"}:
@@ -119,6 +157,7 @@ def project_checks_summary(row: PublicVersionRow) -> SafetyChecksSummary | None:
             not_run=int(summary.get("not_run") or 0),
             total_countable=int(summary.get("total_countable") or 0),
             checks=entries,
+            components=components,
         )
     except Exception:
         return None
@@ -235,6 +274,7 @@ def setup_summary(row: PublicVersionRow, *, now: datetime | None = None) -> Setu
         latest_name=passport.name,
         latest_description=_card_excerpt(passport.description),
         latest_harness_id=passport.harness_id,
+        latest_harness_ids=named_harness_ids(passport.model_dump(mode="json")),  # type: ignore[arg-type]
         latest_purpose=passport.purpose,
         latest_target_role=passport.target_role,
         latest_posture=passport.posture,

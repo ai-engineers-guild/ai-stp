@@ -64,6 +64,8 @@ owned by `ADR-0092`. Artifact-byte binding is owned by `ADR-0093`.
 
 - `REQ-2601`: Creating a `PublicationPlan` requires an active device for the
   current session, ownership of the object (or staff with audit), the exact
+  authenticated account as passport owner, and a non-empty published public
+  profile with publisher listing enabled. It also requires the exact
   content digest, an `X.Y` version, complete passport fields from `SPEC-007`
   REQ-706, a policy version, and an idempotency key. The response returns the
   plan id, `plan_hash`, `expires_at`, and effects.
@@ -229,7 +231,7 @@ version during the compatibility window (`SPEC-010`).
 
 | Requirement | Executable verification |
 |---|---|
-| `REQ-2601` | A contract/API test creates a plan with the required fields and rejects an incomplete passport, repository, license, or tags. |
+| `REQ-2601` | A contract/API test creates a plan with the required fields and rejects another owner, a missing public publisher profile, or an incomplete passport, repository, license, or tags. |
 | `REQ-2602` | Confirm with an invalid hash, an expired plan, and a repeated idempotency key. |
 | `REQ-2603` | Fault injection before commit leaves neither `validating` nor a `validate` job. |
 | `REQ-2604` | Fixtures for required `failed`, `degraded`, `not_run`, `expired`, and `warning` results. |

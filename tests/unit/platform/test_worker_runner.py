@@ -52,7 +52,43 @@ def _worker(jobs: dict[int, object]) -> runner.Worker:
         batch_size=2,
         poll_interval_seconds=0.001,
         drain_timeout_seconds=1.0,
+        schedule_official_upstream=False,
     )
+
+
+@pytest.mark.asyncio
+async def test_worker_enqueues_official_sources_once_per_process_day(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sessionmaker = cast(async_sessionmaker[AsyncSession], _SessionMaker({}))
+    worker = runner.Worker(
+        sessionmaker,
+        worker_id="worker-test",
+        batch_size=1,
+        poll_interval_seconds=0.001,
+    )
+    calls = 0
+
+    async def enqueue(session: object) -> list[object]:
+        nonlocal calls
+        del session
+        calls += 1
+        return []
+
+    async def reclaim(session: object, *, lease_timeout_seconds: float) -> int:
+        del session, lease_timeout_seconds
+        return 0
+
+    async def claim(session: object, *, worker_id: str, batch: int) -> list[object]:
+        del session, worker_id, batch
+        return []
+
+    monkeypatch.setattr(runner, "enqueue_daily", enqueue)
+    monkeypatch.setattr(runner, "requeue_stale", reclaim)
+    monkeypatch.setattr(runner, "claim", claim)
+    assert await worker.run_once() == 0
+    assert await worker.run_once() == 0
+    assert calls == 1
 
 
 @pytest.mark.asyncio

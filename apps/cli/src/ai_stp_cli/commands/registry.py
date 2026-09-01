@@ -34,6 +34,7 @@ from ai_stp_cli.local import (
 from ai_stp_cli.local.database import configured_path, open_registry, transaction
 from ai_stp_cli.local.passports import moment
 from ai_stp_cli.paths import redact_home
+from ai_stp_contracts.catalog import CatalogTrust
 from ai_stp_contracts.http import PAGE_SIZE_MAX
 from ai_stp_contracts.machine_help import (
     AcquiredComponentVersion,
@@ -54,6 +55,12 @@ from ai_stp_foundation.canonical import JsonValue, canonize
 from ai_stp_foundation.digests import digest_bytes
 from ai_stp_passports.envelope import derive_revision_id
 from ai_stp_passports.versions import ArtifactRef, ComponentVersionPassport, SetupVersionPassport
+from ai_stp_sources.definition import (
+    DEFINITION_V2,
+    decode_embedded_artifact,
+    try_parse_setup_definition,
+)
+from ai_stp_sources.errors import SourceError
 
 KINDS: tuple[CatalogKind, ...] = ("component", "setup")
 
@@ -290,7 +297,7 @@ def acquire(parameters: Mapping[str, object]) -> Answer[CatalogSetupAcquisition]
 
     setup = acquire_version("setup", stable_id, number, offline=offline)
     assert isinstance(setup.passport, SetupVersionPassport)
-    _validate_setup_definition(setup)
+    embedded = _embedded_components(setup)
 
     acquired: dict[str, AcquiredCatalogVersion] = {}
     pending = list(setup.passport.components)
@@ -308,7 +315,11 @@ def acquire(parameters: Mapping[str, object]) -> Answer[CatalogSetupAcquisition]
                 )
             continue
         pinned[reference.stable_id] = exact
-        item = acquire_version("component", reference.stable_id, reference.version, offline=offline)
+        item = embedded.get(reference.stable_id)
+        if item is None:
+            item = acquire_version(
+                "component", reference.stable_id, reference.version, offline=offline
+            )
         if item.view.passport_digest != reference.passport_digest:
             raise CliFailure(
                 "AI_STP_CATALOG_INTEGRITY",
@@ -342,7 +353,7 @@ def acquire(parameters: Mapping[str, object]) -> Answer[CatalogSetupAcquisition]
                     "AI_STP_CATALOG_INTEGRITY",
                     "verified catalogue bytes changed before local materialization",
                 )
-            document = cast(dict[str, JsonValue], item.passport.model_dump(mode="json"))
+            document = dict(item.view.passport)
             document.pop("revision_id", None)
             stored = revisions.commit(connection, document, device_id=current.device_id)
             versions.record(
@@ -453,14 +464,118 @@ def acquire_version(
     return AcquiredCatalogVersion(view, passport, artifact)
 
 
-def _validate_setup_definition(acquired: AcquiredCatalogVersion) -> None:
+def _embedded_components(acquired: AcquiredCatalogVersion) -> dict[str, AcquiredCatalogVersion]:
+    """Materialize embedded passports and artifacts from definition version 2."""
+    document = _validate_setup_definition(acquired)
+    if document is None:
+        return {}
+    raw = document.get("embedded")
+    if not isinstance(raw, list) or not raw:
+        return {}
+    found: dict[str, AcquiredCatalogVersion] = {}
+    for record in raw:
+        if not isinstance(record, dict):
+            raise CliFailure(
+                "AI_STP_CATALOG_INTEGRITY",
+                "the setup definition embedded index is malformed",
+                details={"stable_id": acquired.passport.stable_id},
+            )
+        item = _acquired_embedded(acquired, record)
+        previous = found.get(item.passport.stable_id)
+        if previous is not None and previous.view.passport_digest != item.view.passport_digest:
+            raise CliFailure(
+                "AI_STP_CATALOG_INTEGRITY",
+                "the setup definition pins two embedded records for one component",
+                details={"stable_id": item.passport.stable_id},
+            )
+        found[item.passport.stable_id] = item
+    return found
+
+
+def _acquired_embedded(
+    setup: AcquiredCatalogVersion, record: dict[str, JsonValue]
+) -> AcquiredCatalogVersion:
+    ref_raw = record.get("ref")
+    passport_raw = record.get("passport")
+    if not isinstance(ref_raw, dict) or not isinstance(passport_raw, dict):
+        raise CliFailure(
+            "AI_STP_CATALOG_INTEGRITY",
+            "an embedded component record is not complete",
+        )
+    try:
+        passport = ComponentVersionPassport.model_validate(passport_raw)
+        artifact = decode_embedded_artifact(str(record.get("artifact_b64") or ""))
+    except (ValidationError, SourceError, TypeError, ValueError) as error:
+        raise CliFailure(
+            "AI_STP_CATALOG_INTEGRITY",
+            "an embedded component record is not complete",
+        ) from error
+    expected_digest = str(record.get("artifact_digest") or "")
+    expected_size = record.get("artifact_size_bytes")
+    passport_digest = str(record.get("passport_digest") or "")
+    if (
+        not isinstance(expected_size, int)
+        or len(artifact) != expected_size
+        or digest_bytes("ai-stp:artifact:v1", artifact) != expected_digest
+        or passport.artifact.digest != expected_digest
+        or passport.artifact.size_bytes != expected_size
+        or digest_bytes("ai-stp:passport:v1", canonize(cast(JsonValue, passport_raw)))
+        != passport_digest
+        or passport.stable_id != str(ref_raw.get("stable_id") or "")
+        or passport.version != str(ref_raw.get("version") or "")
+        or str(ref_raw.get("passport_digest") or "") != passport_digest
+    ):
+        raise CliFailure(
+            "AI_STP_CATALOG_INTEGRITY",
+            "an embedded component no longer matches its recorded digest",
+            details={"stable_id": passport.stable_id},
+        )
+    components.expand(artifact, str(passport_raw.get("artifact_format") or ""))
+    return AcquiredCatalogVersion(
+        CatalogVersionView(
+            kind="component",
+            source=setup.view.source,
+            checked_at=setup.view.checked_at,
+            passport_digest=passport_digest,
+            lifecycle="active",
+            trust=CatalogTrust(
+                trust_lane="experimental",
+                author_verified=False,
+                component_verified=False,
+            ),
+            published_at=setup.view.published_at,
+            passport=cast(dict[str, JsonValue], passport_raw),
+        ),
+        passport,
+        artifact,
+    )
+
+
+def _validate_setup_definition(acquired: AcquiredCatalogVersion) -> dict[str, JsonValue] | None:
     assert isinstance(acquired.passport, SetupVersionPassport)
+    parsed = try_parse_setup_definition(acquired.artifact)
+    if parsed is not None:
+        _require_definition_identity(acquired, parsed)
+        return parsed
     try:
         document = cast(dict[str, JsonValue], json.loads(acquired.artifact))
     except (UnicodeDecodeError, json.JSONDecodeError, TypeError) as error:
         raise CliFailure(
             "AI_STP_CATALOG_INTEGRITY", "the setup definition artifact is not canonical JSON"
         ) from error
+    if document.get("format") == DEFINITION_V2:
+        raise CliFailure(
+            "AI_STP_CATALOG_INTEGRITY",
+            "the setup definition is not a valid version 2 document",
+            details={"stable_id": acquired.passport.stable_id},
+        )
+    _require_definition_identity(acquired, document)
+    return None
+
+
+def _require_definition_identity(
+    acquired: AcquiredCatalogVersion, document: dict[str, JsonValue]
+) -> None:
     expected_refs = acquired.view.passport.get("components")
     if (
         canonize(cast(JsonValue, document)) != acquired.artifact

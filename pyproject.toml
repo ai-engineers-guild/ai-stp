@@ -13,6 +13,7 @@ dependencies = [
     "ai-stp-contracts",
     "ai-stp-foundation",
     "ai-stp-passports",
+    "ai-stp-sources",
     "ai-stp-platform",
     "ai-stp-worker",
 ]
@@ -97,6 +98,7 @@ exclude = ["apps/web"]
 ai-stp-foundation = { workspace = true }
 ai-stp-passports = { workspace = true }
 ai-stp-contracts = { workspace = true }
+ai-stp-sources = { workspace = true }
 ai-stp-assurance = { workspace = true }
 ai-stp-cli = { workspace = true }
 ai-stp-platform = { workspace = true }
@@ -111,6 +113,7 @@ src = [
     "packages/passports/src",
     "packages/contracts/src",
     "packages/assurance/src",
+    "packages/sources/src",
     "apps/cli/src",
     "apps/platform/src",
     "apps/api/src",

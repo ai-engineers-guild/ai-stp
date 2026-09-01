@@ -17,6 +17,8 @@ const labels = {
   harnessVersions: "Harness versions",
   operatingSystems: "Operating systems",
   architectures: "Architectures",
+  harnesses: "Harnesses",
+  runtime: "Runtime",
   none: "None",
   yes: "Yes",
   no: "No",

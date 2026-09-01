@@ -1123,6 +1123,129 @@ class ExternalSourceIdentity(BaseModel):
     provenance_proven: bool = False
 
 
+class SourceSearchCandidate(BaseModel):
+    """One name-query hit. Source, catalog status, and trust stay separate."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    name: Annotated[str, Field(min_length=1, max_length=256)]
+    source: Literal["catalog", "package", "git"]
+    exact_coordinate: Annotated[str, Field(min_length=1, max_length=1024)]
+    catalog_status: Literal["catalog", "not_in_catalog"]
+    trust_lane: Literal["authoritative", "experimental", "local_owner_or_pinned"]
+    author_verified: bool
+    component_verified: bool
+    stable_id: str | None = None
+
+
+class SourceSearchResult(BaseModel):
+    """Name-only discovery. The resolver never selects a candidate."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    query: Annotated[str, Field(min_length=1, max_length=512)]
+    registry_discovery: bool
+    resolution: Literal["unresolved", "needs_selection", "resolved", "failed"]
+    selected: SourceSearchCandidate | None = None
+    candidates: list[SourceSearchCandidate]
+
+
+class ComponentPromotionPlan(BaseModel):
+    """Ordinary publication plan produced from one embedded component (REQ-5714)."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    setup_id: Annotated[str, Field(min_length=1)]
+    setup_version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
+    source_component_id: Annotated[str, Field(min_length=1)]
+    catalog_stable_id: Annotated[str, Field(min_length=1)]
+    catalog_version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
+    reused_passport: bool
+    still_embedded: bool
+    plan_id: str = ""
+    plan_hash: str = ""
+    state: str = ""
+
+
+class SetupUpdatePlan(BaseModel):
+    """Preview of one explicit embedded-component update. Selection is unchanged."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    setup_id: Annotated[str, Field(min_length=1)]
+    from_version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
+    to_version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
+    component_id: Annotated[str, Field(min_length=1)]
+    snapshot_coordinate: Annotated[str, Field(min_length=1, max_length=1024)]
+    snapshot_identity: Annotated[str, Field(min_length=1, max_length=256)]
+    plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    selected_stable_id: str = ""
+    selected_version: str = ""
+    suggested_catalog_stable_id: str = ""
+    suggested_catalog_version: str = ""
+    suggested_catalog_dismissible: bool = False
+
+
+class SetupUpdateResult(BaseModel):
+    """Outcome of a confirmed exact update. A new immutable setup version."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    setup_id: Annotated[str, Field(min_length=1)]
+    from_version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
+    to_version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
+    created: bool
+    selected_stable_id: str = ""
+    selected_version: str = ""
+    plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+
+
+class SetupComposeMember(BaseModel):
+    """One exact member frozen by a setup composition plan."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    stable_id: Annotated[str, Field(min_length=1)]
+    version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
+    source: Annotated[str, Field(min_length=1, max_length=1024)]
+    embedded: bool
+
+
+class SetupComposePlan(BaseModel):
+    """Exact preview for a new mixed catalog/Git/package/path setup."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    schema_version: Literal[1] = 1
+    setup_id: Annotated[str, Field(min_length=1)]
+    version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
+    harness_id: Annotated[str, Field(min_length=1)]
+    created_at: Annotated[str, Field(min_length=1)]
+    definition_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    members: list[SetupComposeMember]
+
+
+class SetupComposeResult(BaseModel):
+    """A newly recorded immutable mixed setup version."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    schema_version: Literal[1] = 1
+    setup_id: Annotated[str, Field(min_length=1)]
+    version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
+    created_at: Annotated[str, Field(min_length=1)]
+    passport_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    definition_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    created: bool
+
+
 class ComponentScaffoldView(BaseModel):
     """One safely created component authoring template."""
 

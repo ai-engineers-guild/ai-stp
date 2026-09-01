@@ -222,15 +222,15 @@ back-static:
     {{py}} {{scripts}}/skill_projections.py --check
 
 back-test:
-    {{run}} pytest {{ if test_workers == "0" { "" } else { "-n " + test_workers } }} --dist={{test_dist}}
+    {{run}} python -m pytest {{ if test_workers == "0" { "" } else { "-n " + test_workers } }} --dist={{test_dist}}
     # `FAIL Required test coverage of 95% not reached. Total coverage: 94.55%`,
-    {{run}} coverage report --precision=2 --fail-under=90
+    {{run}} python -m coverage report --precision=2 --fail-under=90
 
 back-test-fast *args:
-    {{run}} pytest --no-cov {{ if test_workers == "0" { "" } else { "-n " + test_workers } }} --dist={{test_dist}} {{args}}
+    {{run}} python -m pytest --no-cov {{ if test_workers == "0" { "" } else { "-n " + test_workers } }} --dist={{test_dist}} {{args}}
 
 back-durations:
-    {{run}} pytest -n 0 --no-cov -q \
+    {{run}} python -m pytest -n 0 --no-cov -q \
         --store-durations --durations-path .test_durations
 
 # SQLite emits its direct ResourceWarning only on Python 3.13+ finalization.
@@ -238,7 +238,7 @@ back-durations:
 # the broad suite also owns platform logging handlers, whose lifecycle belongs
 # to the platform track and must not weaken this CLI-specific acceptance gate.
 back-resource:
-    {{run}} pytest --no-cov -q \
+    {{run}} python -m pytest --no-cov -q \
         -W error::ResourceWarning \
         -W error::pytest.PytestUnraisableExceptionWarning \
         tests/contract/test_cli_resource_lifecycle.py
@@ -250,7 +250,7 @@ back-resource:
 # which is how three CI runs died on their own timeout without saying why.
 # Local runs on one OS exercise the same invocation the three-OS matrix runs.
 back-cli-suite suite:
-    {{run}} pytest "tests/{{suite}}" --no-cov -vv \
+    {{run}} python -m pytest "tests/{{suite}}" --no-cov -vv \
         -o faulthandler_timeout=300 {{ if test_workers == "0" { "" } else { "-n " + test_workers } }} --dist={{test_dist}} \
         {{ if suite == "unit" { "--ignore=tests/unit/platform --ignore=tests/unit/api" } else { "" } }}
 

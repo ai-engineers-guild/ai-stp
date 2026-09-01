@@ -30,6 +30,7 @@ from ai_stp_api.slices.documents.router import router as documents_router
 from ai_stp_api.slices.grants.router import router as grants_router
 from ai_stp_api.slices.health.router import router as health_router
 from ai_stp_api.slices.owner.router import router as owner_router
+from ai_stp_api.slices.ownership.router import router as ownership_router
 from ai_stp_api.slices.profile.router import router as profile_router
 from ai_stp_api.slices.publish.router import router as publish_router
 from ai_stp_api.slices.reports.router import router as reports_router
@@ -137,6 +138,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(reports_router, prefix=_API_PREFIX)
     app.include_router(selection_router, prefix=_API_PREFIX)
     app.include_router(owner_router, prefix=_API_PREFIX)
+    app.include_router(ownership_router, prefix=_API_PREFIX)
     app.include_router(profile_router, prefix=_API_PREFIX)
     app.include_router(documents_router, prefix=_API_PREFIX)
     app.include_router(content_router, prefix=_API_PREFIX)

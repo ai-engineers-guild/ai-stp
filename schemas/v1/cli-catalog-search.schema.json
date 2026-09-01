@@ -525,6 +525,22 @@
           "default": null,
           "title": "Checks Passed Percent"
         },
+        "components": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/SetupComponentChecks"
+              },
+              "maxItems": 500,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Components"
+        },
         "coverage_complete": {
           "default": true,
           "title": "Coverage Complete",
@@ -573,6 +589,7 @@
       "required": [
         "checks",
         "checks_passed_percent",
+        "components",
         "coverage_complete",
         "failed",
         "not_run",
@@ -640,6 +657,75 @@
       "title": "SafetyFindingSummary",
       "type": "object"
     },
+    "SetupComponentChecks": {
+      "additionalProperties": true,
+      "description": "Checks for one exact component snapshot inside a setup.",
+      "properties": {
+        "checks": {
+          "items": {
+            "$ref": "#/$defs/SafetyCheckEntry"
+          },
+          "title": "Checks",
+          "type": "array"
+        },
+        "digest_matches": {
+          "title": "Digest Matches",
+          "type": "boolean"
+        },
+        "embedded": {
+          "title": "Embedded",
+          "type": "boolean"
+        },
+        "failed_mandatory": {
+          "title": "Failed Mandatory",
+          "type": "boolean"
+        },
+        "name": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "source_coordinate": {
+          "anyOf": [
+            {
+              "maxLength": 1024,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Coordinate"
+        },
+        "stable_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "version": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "checks",
+        "digest_matches",
+        "embedded",
+        "failed_mandatory",
+        "name",
+        "source_coordinate",
+        "stable_id",
+        "version"
+      ],
+      "title": "SetupComponentChecks",
+      "type": "object"
+    },
     "SetupId": {
       "pattern": "^setup_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
       "type": "string"
@@ -677,6 +763,14 @@
         },
         "latest_harness_id": {
           "$ref": "#/$defs/HarnessId"
+        },
+        "latest_harness_ids": {
+          "items": {
+            "$ref": "#/$defs/HarnessId"
+          },
+          "maxItems": 7,
+          "title": "Latest Harness Ids",
+          "type": "array"
         },
         "latest_lifecycle": {
           "$ref": "#/$defs/PublicLifecycle"
@@ -780,6 +874,7 @@
         "latest_checks",
         "latest_description",
         "latest_harness_id",
+        "latest_harness_ids",
         "latest_lifecycle",
         "latest_name",
         "latest_posture",

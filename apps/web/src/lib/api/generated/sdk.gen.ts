@@ -6,6 +6,9 @@ import type {
   AcceptGrantInvitationData,
   AcceptGrantInvitationErrors,
   AcceptGrantInvitationResponses,
+  ApproveOwnershipClaimData,
+  ApproveOwnershipClaimErrors,
+  ApproveOwnershipClaimResponses,
   BindPublicationArtifactData,
   BindPublicationArtifactErrors,
   BindPublicationArtifactResponses,
@@ -27,6 +30,9 @@ import type {
   CreateGrantInvitationData,
   CreateGrantInvitationErrors,
   CreateGrantInvitationResponses,
+  CreateOwnershipClaimData,
+  CreateOwnershipClaimErrors,
+  CreateOwnershipClaimResponses,
   CreatePublicationPlanData,
   CreatePublicationPlanErrors,
   CreatePublicationPlanResponses,
@@ -36,6 +42,9 @@ import type {
   DeleteStaffContentData,
   DeleteStaffContentErrors,
   DeleteStaffContentResponses,
+  DenyOwnershipClaimData,
+  DenyOwnershipClaimErrors,
+  DenyOwnershipClaimResponses,
   ExchangeDeviceCodeData,
   ExchangeDeviceCodeErrors,
   ExchangeDeviceCodeResponses,
@@ -66,6 +75,9 @@ import type {
   ListOwnerObjectsData,
   ListOwnerObjectsErrors,
   ListOwnerObjectsResponses,
+  ListOwnershipRevisionsData,
+  ListOwnershipRevisionsErrors,
+  ListOwnershipRevisionsResponses,
   ListReportCasesData,
   ListReportCasesErrors,
   ListReportCasesResponses,
@@ -117,6 +129,9 @@ import type {
   ReadOwnerObjectData,
   ReadOwnerObjectErrors,
   ReadOwnerObjectResponses,
+  ReadOwnershipClaimData,
+  ReadOwnershipClaimErrors,
+  ReadOwnershipClaimResponses,
   ReadOwnerVersionData,
   ReadOwnerVersionErrors,
   ReadOwnerVersionResponses,
@@ -842,6 +857,22 @@ export const listOwnerObjects = <ThrowOnError extends boolean = false>(
   });
 
 /**
+ * List immutable ownership revisions for one catalog component.
+ */
+export const listOwnershipRevisions = <ThrowOnError extends boolean = false>(
+  options: Options<ListOwnershipRevisionsData, ThrowOnError>,
+): RequestResult<ListOwnershipRevisionsResponses, ListOwnershipRevisionsErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ListOwnershipRevisionsResponses,
+    ListOwnershipRevisionsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/owner/objects/component/{stable_id}/ownership-revisions",
+    ...options,
+  });
+
+/**
  * Read one owned object and its versions.
  */
 export const readOwnerObject = <ThrowOnError extends boolean = false>(
@@ -903,6 +934,42 @@ export const startOwnerPublication = <ThrowOnError extends boolean = false>(
       "Content-Type": "application/json",
       ...options.headers,
     },
+  });
+
+/**
+ * Request transfer of an official catalog component to a verified maintainer.
+ */
+export const createOwnershipClaim = <ThrowOnError extends boolean = false>(
+  options: Options<CreateOwnershipClaimData, ThrowOnError>,
+): RequestResult<CreateOwnershipClaimResponses, CreateOwnershipClaimErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    CreateOwnershipClaimResponses,
+    CreateOwnershipClaimErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/ownership-claims",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Read one ownership claim and its staff preview.
+ */
+export const readOwnershipClaim = <ThrowOnError extends boolean = false>(
+  options: Options<ReadOwnershipClaimData, ThrowOnError>,
+): RequestResult<ReadOwnershipClaimResponses, ReadOwnershipClaimErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ReadOwnershipClaimResponses,
+    ReadOwnershipClaimErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/ownership-claims/{claim_id}",
+    ...options,
   });
 
 /**
@@ -1152,6 +1219,46 @@ export const putStaffContent = <ThrowOnError extends boolean = false>(
   (options.client ?? client).put<PutStaffContentResponses, PutStaffContentErrors, ThrowOnError>({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/staff/content/{type}/{slug}",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Approve a verified-maintainer claim without rewriting published passports.
+ */
+export const approveOwnershipClaim = <ThrowOnError extends boolean = false>(
+  options: Options<ApproveOwnershipClaimData, ThrowOnError>,
+): RequestResult<ApproveOwnershipClaimResponses, ApproveOwnershipClaimErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    ApproveOwnershipClaimResponses,
+    ApproveOwnershipClaimErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/staff/ownership-claims/{claim_id}/approve",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Deny a verified-maintainer claim with no catalog effect.
+ */
+export const denyOwnershipClaim = <ThrowOnError extends boolean = false>(
+  options: Options<DenyOwnershipClaimData, ThrowOnError>,
+): RequestResult<DenyOwnershipClaimResponses, DenyOwnershipClaimErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    DenyOwnershipClaimResponses,
+    DenyOwnershipClaimErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/staff/ownership-claims/{claim_id}/deny",
     ...options,
     headers: {
       "Content-Type": "application/json",

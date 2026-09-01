@@ -71,6 +71,7 @@ DISTRIBUTION_OF: Final[dict[str, str]] = {
     "ai_stp_contracts": "ai-stp-contracts",
     "ai_stp_foundation": "ai-stp-foundation",
     "ai_stp_passports": "ai-stp-passports",
+    "ai_stp_sources": "ai-stp-sources",
     "jsonschema": "jsonschema",
     "nacl": "pynacl",
 }
@@ -79,7 +80,8 @@ DISTRIBUTION_OF: Final[dict[str, str]] = {
 #: `ADR-0058`, `httpx` by `#75`, `jsonschema` for the closed provider status
 #: boundary, `pyyaml` for the configuration file, `pydantic`
 #: for the wire and report models, `ai-stp-passports` for the passport envelope,
-#: `ai-stp-assurance` for the signed attestation boundary, and `tomlkit` by
+#: `ai-stp-assurance` for the signed attestation boundary, `ai-stp-sources` by
+#: `ADR-0139` for mixed catalog/Git/package/path setup freeze, and `tomlkit` by
 #: `ADR-0129` for format-preserving writes to a host file a component
 #: contributes one key to — `tomllib` in the standard library only reads, and
 #: writing values back would erase every comment the file's owner put there.
@@ -90,6 +92,7 @@ ALLOWED_DEPENDENCIES: Final[frozenset[str]] = frozenset(
         "ai-stp-contracts",
         "ai-stp-foundation",
         "ai-stp-passports",
+        "ai-stp-sources",
         "click",
         "httpx",
         "jsonschema",

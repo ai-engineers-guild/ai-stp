@@ -1,0 +1,64 @@
+{
+  "$defs": {
+    "Version": {
+      "pattern": "^\\d+\\.\\d+$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:ownership-claim-preview",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Exact object and major lines that a claim would transfer.",
+  "properties": {
+    "current_owner_account_id": {
+      "title": "Current Owner Account Id",
+      "type": "string"
+    },
+    "major_lines": {
+      "items": {
+        "type": "integer"
+      },
+      "title": "Major Lines",
+      "type": "array"
+    },
+    "name": {
+      "default": "",
+      "title": "Name",
+      "type": "string"
+    },
+    "object_kind": {
+      "const": "component",
+      "default": "component",
+      "title": "Object Kind",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stable_id": {
+      "title": "Stable Id",
+      "type": "string"
+    },
+    "versions": {
+      "items": {
+        "$ref": "#/$defs/Version"
+      },
+      "title": "Versions",
+      "type": "array"
+    }
+  },
+  "required": [
+    "current_owner_account_id",
+    "major_lines",
+    "name",
+    "object_kind",
+    "schema_version",
+    "stable_id",
+    "versions"
+  ],
+  "title": "OwnershipClaimPreview",
+  "type": "object"
+}

@@ -27,7 +27,9 @@ from ai_stp_platform.models import (
     CatalogMetadata,
     Device,
     OAuthIdentity,
+    ProfileRevision,
     PublicationPlan,
+    PublicProfile,
 )
 from ai_stp_platform.queue.engine import claim, fail, mark_succeeded
 from ai_stp_platform.queue.models import Job
@@ -194,9 +196,12 @@ async def _seed_account_device(
     *,
     email: str | None = None,
     email_verified: bool = True,
+    publish_profile: bool = True,
 ) -> tuple[str, str, str]:
     async with sessionmaker() as db:
-        account = Account(id=new_id("account"))
+        account = Account(
+            id=new_id("account"), show_profile_publicly=True, allow_publisher_listing=True
+        )
         device = Device(
             id=new_id("device"),
             account_id=account.id,
@@ -205,6 +210,19 @@ async def _seed_account_device(
         )
         db.add(account)
         db.add(device)
+        if publish_profile:
+            profile_revision = ProfileRevision(
+                id=new_id("prevision"),
+                account_id=account.id,
+                lifecycle="published",
+                display_name="Test Publisher",
+                bio=None,
+                links=[],
+                avatar_asset_id=None,
+                content_digest="sha256:" + "1" * 64,
+            )
+            db.add(profile_revision)
+            db.add(PublicProfile(account_id=account.id, published_revision_id=profile_revision.id))
         if email is not None:
             db.add(
                 OAuthIdentity(
@@ -312,6 +330,32 @@ async def test_publication_artifact_rejects_declared_oversize_before_buffering(
 
     assert response.status_code == int(CATEGORY_STATUS[ErrorCategory.VALIDATION])
     assert response.json()["error"]["message"] == "artifact exceeds the accepted size"
+
+
+async def test_publication_requires_public_profile(
+    harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], Settings],
+) -> None:
+    client, sessionmaker, _settings = harness
+    account_id, device_id, token = await _seed_account_device(sessionmaker, publish_profile=False)
+    response = await client.post(
+        "/v1/publications/plans",
+        headers=_auth(token),
+        json={
+            "schema_version": 1,
+            "object_kind": "component",
+            "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "version": "1.0",
+            "content_digest": DIGEST,
+            "policy_version": "1",
+            "passport": _passport(owner_id=account_id),
+            "attestations": [],
+            "idempotency_key": "profile-required-1",
+            "device_id": device_id,
+        },
+    )
+
+    assert response.status_code == int(CATEGORY_STATUS[ErrorCategory.VALIDATION])
+    assert response.json()["error"]["details"]["field"] == "publisher_profile"
 
 
 async def test_publication_plan_confirm_validate_publish(

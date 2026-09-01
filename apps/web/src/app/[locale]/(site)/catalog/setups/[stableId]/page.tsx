@@ -19,10 +19,6 @@ import {
   requirementLabels,
   RequirementsSummary,
 } from "@/components/molecules/requirements-summary";
-import {
-  SafetyChecksSummaryView,
-  safetyChecksLabels,
-} from "@/components/molecules/safety-checks-summary";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { contextBudgetLabels } from "@/components/organisms/context-budget-labels";
 import { ContextBudgetPanel } from "@/components/organisms/context-budget-panel";
@@ -39,9 +35,10 @@ import {
 import { ApiError } from "@/lib/api/errors";
 import { listCatalogReactions } from "@/lib/api/reactions";
 import { readPublisherProfile, type PublicProfileProjection } from "@/lib/api/public-profile";
+import type { SetupComponentChecks } from "@/lib/api/generated/types.gen";
 import { sessionCookieValue } from "@/lib/auth/require-session";
 import { asAccountId, asComponentId, asVersionId, tryAsSetupId } from "@/lib/brands";
-import { namedOperatingSystems } from "@/lib/catalog-harnesses";
+import { namedHarnesses, namedOperatingSystems } from "@/lib/catalog-harnesses";
 import { registryVersion, selectImpact } from "@/lib/cli-copy";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { publicOrigin } from "@/lib/site";
@@ -161,7 +158,11 @@ export default async function SetupDetailPage({ params }: PageProps) {
         badges={
           <>
             <Badge variant="secondary">{t("setupKind")}</Badge>
-            <Badge variant="outline">{summary.latest_harness_id}</Badge>
+            {namedHarnesses(summary).map((harness) => (
+              <Badge key={harness} variant="outline">
+                {harness}
+              </Badge>
+            ))}
           </>
         }
         versionLabel={`v${summary.latest_version}`}
@@ -242,7 +243,13 @@ export default async function SetupDetailPage({ params }: PageProps) {
                 licenseLabel={t("license")}
               />
             ) : null}
-            {passport ? <SetupComposition passport={passport} t={t} /> : null}
+            {passport ? (
+              <SetupComposition
+                passport={passport}
+                components={summary.latest_checks?.components ?? []}
+                t={t}
+              />
+            ) : null}
             {passport ? <Compatibility passport={passport} t={t} /> : null}
             {aggregatedRequirements ? (
               <RequirementsSummary
@@ -250,10 +257,6 @@ export default async function SetupDetailPage({ params }: PageProps) {
                 labels={requirementLabels(t, tc)}
               />
             ) : null}
-            <SafetyChecksSummaryView
-              summary={summary.latest_checks}
-              labels={safetyChecksLabels(t)}
-            />
           </>
         }
         rail={
@@ -322,39 +325,98 @@ export default async function SetupDetailPage({ params }: PageProps) {
 
 function SetupComposition({
   passport,
+  components,
   t,
 }: {
   passport: NonNullable<Awaited<ReturnType<typeof readSetupVersion>>["passport"]>;
+  components: SetupComponentChecks[];
   t: (key: string) => string;
 }) {
+  const checksByRef = new Map(
+    components.map((item) => [`${item.stable_id}@${item.version}`, item]),
+  );
   return (
     <DetailAccordion title={t("composition")} summary={t("compositionDescription")}>
       {passport.components.length ? (
         <ol className="space-y-3">
-          {passport.components.map((ref, index) => (
-            <li key={`${ref.stable_id}@${ref.version}`} className="flex items-center gap-3">
-              <span className="bg-muted grid h-8 w-8 shrink-0 place-items-center rounded-full text-sm font-semibold">
-                {index + 1}
-              </span>
-              <div className="min-w-0 flex-1">
-                <Link
-                  href={`/catalog/components/${ref.stable_id}`}
-                  className="font-mono text-sm font-medium break-all underline underline-offset-4"
-                >
-                  {ref.stable_id}
-                </Link>
-                <p className="text-muted-foreground mt-1 text-sm">
-                  {t("pinnedVersion")} {ref.version}
-                </p>
-              </div>
-            </li>
-          ))}
+          {passport.components.map((ref, index) => {
+            const component = checksByRef.get(`${ref.stable_id}@${ref.version}`);
+            const href = component?.embedded
+              ? sourceCoordinateUrl(component.source_coordinate)
+              : `/catalog/components/${ref.stable_id}`;
+            return (
+              <li key={`${ref.stable_id}@${ref.version}`} className="flex items-center gap-3">
+                <span className="bg-muted grid h-8 w-8 shrink-0 place-items-center rounded-full text-sm font-semibold">
+                  {index + 1}
+                </span>
+                <div className="min-w-0 flex-1">
+                  {href && component?.embedded ? (
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-sm font-medium break-all underline underline-offset-4"
+                    >
+                      {component?.name ?? ref.stable_id}
+                    </a>
+                  ) : href ? (
+                    <Link
+                      href={href}
+                      className="text-sm font-medium break-all underline underline-offset-4"
+                    >
+                      {component?.name ?? ref.stable_id}
+                    </Link>
+                  ) : (
+                    <span className="text-sm font-medium break-all">
+                      {component?.name ?? ref.stable_id}
+                    </span>
+                  )}
+                  <p className="text-muted-foreground mt-1 text-sm">
+                    {t("pinnedVersion")} {ref.version}
+                    {component?.embedded
+                      ? ` · ${t("embeddedSnapshot")}`
+                      : ` · ${t("catalogComponent")}`}
+                  </p>
+                  {component?.embedded ? (
+                    <p className="text-muted-foreground mt-1 text-xs">
+                      {t("embeddedSnapshotHint")}
+                    </p>
+                  ) : null}
+                  {component?.checks.length ? (
+                    <ul className="mt-2 flex flex-wrap gap-2">
+                      {component.checks.map((check) => (
+                        <li key={check.check_id} className="font-mono text-xs">
+                          {check.check_id}: {check.result}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+              </li>
+            );
+          })}
         </ol>
       ) : (
         <StatePanel kind="empty" title={t("noneListed")} />
       )}
     </DetailAccordion>
   );
+}
+
+function sourceCoordinateUrl(coordinate: string | null | undefined): string | null {
+  if (!coordinate || coordinate.startsWith("path:")) return null;
+  if (coordinate.startsWith("git:https://github.com/")) {
+    return coordinate.slice(4).split("@", 1)[0] ?? null;
+  }
+  const match = /^package:(npm|pypi|crates\.io|go|pub\.dev):(.+)@([^@]+)$/.exec(coordinate);
+  if (!match) return null;
+  const [, ecosystem, name, version] = match;
+  if (!name || !version) return null;
+  if (ecosystem === "npm") return `https://www.npmjs.com/package/${name}/v/${version}`;
+  if (ecosystem === "pypi") return `https://pypi.org/project/${name}/${version}/`;
+  if (ecosystem === "crates.io") return `https://crates.io/crates/${name}/${version}`;
+  if (ecosystem === "go") return `https://pkg.go.dev/${name}@${version}`;
+  return `https://pub.dev/packages/${name}/versions/${version}`;
 }
 
 function Compatibility({

@@ -250,6 +250,16 @@ def test_passport_completeness_flags_non_object_source_and_license() -> None:
     assert "tags" in missing
 
 
+def test_setup_composition_is_its_own_exact_source() -> None:
+    passport = _passport(kind="setup", source=None)
+    assert "source" not in validate_passport_completeness(passport)
+    checks = run_platform_checks(
+        passport=passport,
+        content_digest="sha256:" + "b" * 64,
+    )
+    assert next(item for item in checks if item["check_id"] == "source_repo")["result"] == "passed"
+
+
 def test_validate_publication_passport_rejects_field_mismatches() -> None:
     # Breakage: catalog accepts a passport whose identity axes diverge from the plan.
     from ai_stp_passports.envelope import derive_revision_id

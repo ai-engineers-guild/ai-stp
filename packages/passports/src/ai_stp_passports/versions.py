@@ -169,7 +169,7 @@ class ComponentVersionPassport(_VersionPassportBase):
     managed_paths: list[str] = Field(default_factory=list)
     native_ids: list[str] = Field(default_factory=list)
     #: Additional harnesses this version names. Empty means only `harness_id`.
-    harness_ids: Annotated[list[HarnessId], Field(max_length=6)] = Field(
+    harness_ids: Annotated[list[HarnessId], Field(max_length=7)] = Field(
         default_factory=list[HarnessId]
     )
     supported_os: list[SupportedOs] = Field(default_factory=list[SupportedOs])
@@ -184,7 +184,7 @@ class ComponentVersionPassport(_VersionPassportBase):
 
 
 class SetupVersionPassport(_VersionPassportBase):
-    """Immutable setup version passport: exactly one harness, no variant axis."""
+    """Immutable setup version passport with one native harness and projections."""
 
     # Narrowing the envelope kind to one literal is safe on a frozen model.
     kind: Literal["setup"] = "setup"  # pyright: ignore[reportIncompatibleVariableOverride]

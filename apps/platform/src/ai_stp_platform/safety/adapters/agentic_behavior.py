@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
@@ -70,7 +71,7 @@ RULES: tuple[tuple[str, str], ...] = (
     ),
     (
         "dependency_floating",
-        r"(?i)(?:git\+https?://[^\s#]+(?:\s|$)|(?:npx|uvx)\s+[@A-Za-z0-9_./-]+(?:\s|$)|(?:branch|version)\s*[:=]\s*[\"']?(?:main|master|latest|\*))",
+        r"(?i)(?:(?:npx|uvx)\s+[@A-Za-z0-9_./-]+(?:\s|$)|(?:branch|version)\s*[:=]\s*[\"']?(?:main|master|latest|\*))",
     ),
     (
         "memory_poisoning",
@@ -107,6 +108,15 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
                 findings.append(
                     _finding(spec, rule_id, rel, f"Dangerous agent behavior: {rule_id}")
                 )
+        if path.name == "package.json" and _has_floating_git_dependency(text):
+            findings.append(
+                _finding(
+                    spec,
+                    "dependency_floating",
+                    rel,
+                    "Dangerous agent behavior: dependency_floating",
+                )
+            )
     return CheckOutcome(
         check_id=spec.check_id,
         family=spec.family,
@@ -116,6 +126,23 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
         severity_max="high" if findings else "info",
         findings=findings,
     )
+
+
+def _has_floating_git_dependency(text: str) -> bool:
+    try:
+        document = json.loads(text)
+    except json.JSONDecodeError:
+        return False
+    if not isinstance(document, dict):
+        return False
+    for section in ("dependencies", "devDependencies", "optionalDependencies", "peerDependencies"):
+        dependencies = document.get(section)
+        if not isinstance(dependencies, dict):
+            continue
+        for value in dependencies.values():
+            if isinstance(value, str) and value.startswith(("git+http://", "git+https://")):
+                return "#" not in value
+    return False
 
 
 def _finding(spec: CheckSpec, rule_id: str, path: str, title: str) -> Finding:
