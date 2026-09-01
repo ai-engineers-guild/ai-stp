@@ -466,7 +466,9 @@ def test_cursor_is_detected_by_its_vendor_pair(tmp_path: Path) -> None:
     found = harnesses.detect(cursor, environment=environment)
     assert found.state != "available"
     assert len(found.installations) == 1
-    assert found.installations[0].path.endswith(
+    # `casefold`, because Windows resolves through PATHEXT, whose entries are
+    # uppercase — `which` answers `cursor-agent.CMD` for a `cursor-agent.cmd`.
+    assert found.installations[0].path.casefold().endswith(
         "cursor-agent.cmd" if os.name == "nt" else "cursor-agent"
     )
 
