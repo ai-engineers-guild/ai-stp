@@ -87,17 +87,30 @@ seed a native surface → component adopt → component version release
 per harness, with the verdict read from the target rather than from the
 provider's reply.
 
-Measured on `0.0.53`: **macOS `x86_64` and `arm64` are 7/7**; Linux and Windows
-came back `inconclusive` on every row, and the workflow reported success anyway
-because the slice's `clean` rule asked "did nothing fail" rather than "did
-everything pass". Both are fixed — the rule now requires every row to have
-passed, and a refusal carries its message so the next run diagnoses itself.
-Linux wanted Bubblewrap, which the configuration path runs the provider through
-and a hosted runner does not ship; Windows refused at the observation step and
-will name its dependency on the next run.
+Measured on `0.0.53`, run `33545244518`:
 
-Remaining: the four legs that have not yet proven anything, then the six-leg run
-on the release candidate's exact SHA.
+| leg | rows | isolation |
+|---|---|---|
+| linux `x86_64` / `arm64` | **7/7** | `enforced` (Bubblewrap) |
+| macOS `x86_64` / `arm64` | **7/7** | `enforced` (`sandbox-exec`) |
+| windows `x86_64` / `arm64` | 0/7, all `inconclusive` | `unavailable` |
+
+The first run of this slice reported success on all six legs while four of them
+had proven nothing: `clean` asked "did nothing fail" rather than "did everything
+pass", which a run of pure `inconclusive` rows satisfies. Fixed in all three
+slices, and a refusal now carries its message and details so a leg diagnoses
+itself. The Linux legs then wanted Bubblewrap plus the unprivileged user
+namespace Ubuntu 24.04 restricts; both are in the workflow and both legs are
+green.
+
+Windows is a product finding rather than an environment one, and it has its own
+issue (`#65`): the AppContainer probe fails on a hosted runner, `install
+plan/approve/apply` proceed through the trusted-release exception, and
+`target status/diff/backups` refuse — the read path is stricter than the write
+it observes, because `_optional_invoker` is the one caller that never consults a
+trusted release and the observation commands declare no `--provider-manifest`.
+
+Remaining: `#65`, then the six-leg run on the release candidate's exact SHA.
 
 ### P1. The last link of the capture round-trip (`#63`)
 
