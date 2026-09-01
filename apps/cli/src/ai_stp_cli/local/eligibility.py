@@ -402,12 +402,18 @@ def selectable(assessments: tuple[Assessment, ...]) -> tuple[Assessment, ...]:
 
 def _compatibility(candidate: CandidateFacts, target: Target) -> list[Refusal]:
     found: list[Refusal] = []
-    if candidate.harness_id != target.harness_id:
+    # A component that names no harness is portable — a repository-root
+    # `AGENTS.md` is one convention four products agreed to read, not four
+    # harness-bound surfaces sharing a path — and it fits every harness whose
+    # provider declares a native surface for its kind, which `_provider`
+    # decides from the composition table (`#64`). A setup always names one
+    # harness, so an empty value never reaches here from a setup.
+    if candidate.harness_id and candidate.harness_id != target.harness_id:
         found.append(
             _refuse(
                 "harness_mismatch",
                 "this object is not for the harness being composed",
-                {"declared": candidate.harness_id or "none", "target": target.harness_id},
+                {"declared": candidate.harness_id, "target": target.harness_id},
             )
         )
 
@@ -619,7 +625,7 @@ def _provider(candidate: CandidateFacts, target: Target) -> list[Refusal]:
     # less.
     if (
         candidate.component_type
-        and candidate.harness_id == target.harness_id
+        and candidate.harness_id in {"", target.harness_id}
         and not native_surface(candidate.component_type, target.harness_id)
     ):
         found.append(

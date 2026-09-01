@@ -51,12 +51,19 @@ and tests.
 
 | Code | When it occurs |
 |---|---|
-| `harness_mismatch` | the object declares another harness or does not name its harness |
+| `harness_mismatch` | the object declares another harness |
 
 The declared harness is read from the stored passport in the same way as the
 composition surface: first from the document field, otherwise from
 `facts.harness_id`. A passport of an exact catalog version carries `harness_id`
 at the top level and need not duplicate it as a fact.
+
+A component that names no harness is portable — a repository-root `AGENTS.md`
+is one convention several products read, not one surface per product — and is
+compatible with every harness whose released provider declares a native
+surface for its kind; where none does, the refusal is
+`provider_surface_unavailable`, the same code a harness-bound object of that
+kind receives. A setup always names exactly one harness.
 | `harness_version_unsupported` | the detected harness version is outside the declared range |
 | `harness_version_unknown` | a range is declared, but the harness version on the target could not be read |
 | `os_unsupported` | the target system is not among the declared systems |
