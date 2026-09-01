@@ -206,7 +206,7 @@ async def test_public_context_budget_does_not_include_account_inventory(
 async def test_incident_setup_budget_reports_conditional_subagent_tokens(
     seeded_client: AsyncClient,
 ) -> None:
-    estimator = estimator_for("ai-stp:utf8-bytes/1")
+    estimator = estimator_for("ai-stp:unicode-chars-div4/1")
     assert estimator is not None
     expected = estimate_context(
         [
@@ -251,8 +251,8 @@ async def test_component_budget_measures_text_and_explains_runtime_context(
         f"/v1/catalog/components/{SEED_A1_INCIDENT_AGENT_ID}/versions/1.0/context-budget"
     )
     assert agent.status_code == 200
-    assert agent.json()["status"] == "exact"
-    assert agent.json()["tokens"] == len(INCIDENT_SUBAGENT_ARTIFACT)
+    assert agent.json()["status"] == "estimated"
+    assert agent.json()["tokens"] == (len(INCIDENT_SUBAGENT_ARTIFACT.decode("utf-8")) + 3) // 4
     assert agent.json()["loading"] == "conditional"
 
     mcp = await seeded_client.get(

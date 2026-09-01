@@ -56,7 +56,7 @@ export function ObjectDetailHeader({
         <div className="flex min-w-0 items-start gap-3 pr-12 sm:gap-4">
           <div className="shrink-0">{icon}</div>
           <div className="min-w-0 flex-1 space-y-3">
-            <h1 className="text-2xl font-semibold tracking-tight break-words sm:text-3xl lg:text-4xl">
+            <h1 className="max-w-4xl text-xl leading-tight font-semibold tracking-tight [overflow-wrap:anywhere] break-words sm:text-2xl lg:text-3xl">
               {title}
             </h1>
             <div className="flex min-w-0 flex-wrap items-center gap-2">

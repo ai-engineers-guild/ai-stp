@@ -38,7 +38,7 @@ import { readPublisherProfile, type PublicProfileProjection } from "@/lib/api/pu
 import { sessionCookieValue } from "@/lib/auth/require-session";
 import { asAccountId, asComponentId, asVersionId, tryAsSetupId } from "@/lib/brands";
 import { namedHarnesses } from "@/lib/catalog-harnesses";
-import { registryVersion, selectImpact } from "@/lib/cli-copy";
+import { registryVersion } from "@/lib/cli-copy";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { publicOrigin } from "@/lib/site";
 import { Link } from "@/lib/i18n/navigation";
@@ -137,7 +137,6 @@ export default async function SetupDetailPage({ params }: PageProps) {
     () => null,
   );
   const cliCommand = registryVersion("setup", summary.stable_id, summary.latest_version);
-  const impactCommand = selectImpact(summary.stable_id, summary.latest_version);
   const canonical = buildDeepLink(
     publicOrigin().origin,
     normalizeTarget({
@@ -246,7 +245,6 @@ export default async function SetupDetailPage({ params }: PageProps) {
                 components={summary.latest_checks?.components ?? []}
                 catalogComponents={catalogComponents}
                 setupAuthor={{ accountId: ownerId, displayName: author?.display_name }}
-                budget={budget}
                 t={t}
               />
             ) : null}
@@ -277,11 +275,7 @@ export default async function SetupDetailPage({ params }: PageProps) {
                 downloadsLabel={t("artifactDownloads")}
               />
             </div>
-            <ContextBudgetPanel
-              budget={budget}
-              command={impactCommand}
-              labels={contextBudgetLabels(t, tCli)}
-            />
+            <ContextBudgetPanel budget={budget} labels={contextBudgetLabels(t, tCli)} />
             <CliCopyBlock
               command={cliCommand}
               title={tCli("useTitle")}

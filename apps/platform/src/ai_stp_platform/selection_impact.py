@@ -144,7 +144,7 @@ async def setup_context_budget(
     stable_id: str,
     version: str,
     store: ImmutableObjectStore | None,
-    estimator_profile: str = "ai-stp:utf8-bytes/1",
+    estimator_profile: str = "ai-stp:unicode-chars-div4/1",
 ) -> SetupContextBudget:
     """Absolute context estimate of one visible exact setup (SPEC-049)."""
     estimator = estimator_for(estimator_profile)
@@ -174,7 +174,7 @@ async def component_context_budget(
     stable_id: str,
     version: str,
     store: ImmutableObjectStore | None,
-    estimator_profile: str = "ai-stp:utf8-bytes/1",
+    estimator_profile: str = "ai-stp:unicode-chars-div4/1",
 ) -> ComponentContextBudget:
     """Context estimate of one visible exact component."""
     estimator = estimator_for(estimator_profile)

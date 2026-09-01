@@ -735,7 +735,7 @@ class SetupContextBudgetQuery(BaseModel):
 
     schema_version: Literal[1] = 1
     estimator_profile: Literal["ai-stp:utf8-bytes/1", "ai-stp:unicode-chars-div4/1"] = (
-        "ai-stp:utf8-bytes/1"
+        "ai-stp:unicode-chars-div4/1"
     )
 
 

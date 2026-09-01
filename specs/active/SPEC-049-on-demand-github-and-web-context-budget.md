@@ -123,6 +123,13 @@ only where they are not explicitly superseded by this specification.
   its immutable setup-definition record; it is not required to exist as a
   standalone catalog row.
 
+- `REQ-4914`: Public Web estimates default to the approximate Unicode
+  codepoint-divided-by-four profile and present only potential total and the
+  subset loaded when used. Raw UTF-8 byte counts, per-component coordinates,
+  price calculators, and safety details do not appear in the compact setup
+  composition. Mixed catalog results use one page sequence: setup pages first,
+  then component pages, with one page navigator and no repeated boundary page.
+
 ## States and errors
 
 - GitHub: `ready`, `unavailable`; UI distinguishes only the presence of stars
@@ -173,3 +180,4 @@ only where they are not explicitly superseded by this specification.
 | `REQ-4911` | Web does not read installed/selected state; the copy command is visible only after the nested disclosure is opened. |
 | `REQ-4912` | Policy test/agent review verifies global/effective identity parity and prohibits hardcoding/overrides; signing behavior is inherited unchanged. |
 | `REQ-4913` | API tests cover a textual component, a runtime-derived MCP state, and an embedded setup component resolved from setup-definition bytes; Web shows the component estimate or the explicit reason. |
+| `REQ-4914` | Web component tests cover the two-value context panel and catalog-like setup composition; pagination tests cover the setup-to-component boundary and one combined navigator. |

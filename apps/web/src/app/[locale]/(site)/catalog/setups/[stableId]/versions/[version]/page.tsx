@@ -18,7 +18,7 @@ import {
 } from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
 import { asVersionId, tryAsSetupId } from "@/lib/brands";
-import { registryVersion, selectImpact } from "@/lib/cli-copy";
+import { registryVersion } from "@/lib/cli-copy";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { versionPageMetadata } from "@/lib/seo/metadata";
 import { publicOrigin } from "@/lib/site";
@@ -145,17 +145,12 @@ export default async function SetupVersionPage({ params }: PageProps) {
       {metadata.archived === true ? (
         <p className="text-sm font-medium">{t("githubArchived")}</p>
       ) : null}
-      <ContextBudgetPanel
-        budget={budget}
-        command={selectImpact(stableId, version)}
-        labels={contextBudgetLabels(t, tCli)}
-      />
+      <ContextBudgetPanel budget={budget} labels={contextBudgetLabels(t, tCli)} />
       <SetupComposition
         passport={passport}
         components={response.checks?.components ?? []}
         catalogComponents={[]}
         setupAuthor={{ accountId: passport.owner_id }}
-        budget={budget}
         t={t}
       />
       <CliCopyBlock

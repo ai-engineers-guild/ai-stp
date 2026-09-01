@@ -1,16 +1,15 @@
 import { Badge } from "@/components/atoms/badge";
 import { DetailAccordion } from "@/components/molecules/detail-accordion";
-import { safetyCheckName } from "@/components/molecules/safety-checks-summary";
 import { StatePanel } from "@/components/molecules/state-panel";
 import type {
+  ComponentType,
   SetupComponentChecks,
   SetupVersionPassport,
-  ComponentType,
 } from "@/lib/api/generated/types.gen";
-import type { SetupContextBudget } from "@/lib/api/catalog";
 import { Link } from "@/lib/i18n/navigation";
 import { isComponentType } from "@/lib/projection/inventory";
 import { ComponentTypeIcon } from "@/theme/component-types";
+import { Icon } from "@/theme/icons";
 
 export type CatalogComponentPresentation = {
   stableId: string;
@@ -26,14 +25,12 @@ export function SetupComposition({
   components,
   catalogComponents,
   setupAuthor,
-  budget,
   t,
 }: {
   passport: SetupVersionPassport;
   components: SetupComponentChecks[];
   catalogComponents: CatalogComponentPresentation[];
   setupAuthor: { accountId: string; displayName?: string | null | undefined };
-  budget: SetupContextBudget | null;
   t: (key: string) => string;
 }) {
   const checksByRef = new Map(
@@ -43,18 +40,14 @@ export function SetupComposition({
     catalogComponents.map((item) => [`${item.stableId}@${item.version}`, item]),
   );
   const presentations = componentPresentations(passport);
-  const tokensByRef = new Map(
-    (budget?.components ?? []).map((item) => [
-      `${item.component.stable_id}@${item.component.version}`,
-      item,
-    ]),
-  );
+
   return (
     <DetailAccordion title={t("composition")} summary={t("compositionDescription")}>
       {passport.components.length ? (
-        <ul className="divide-border border-border divide-y rounded-lg border">
+        <ul className="divide-border border-border divide-y overflow-hidden rounded-lg border">
           {passport.components.map(
-            // eslint-disable-next-line complexity -- one row joins optional catalog, source, scan, and budget evidence
+            // One row resolves catalog identity, embedded provenance, and external source display.
+            // eslint-disable-next-line complexity
             (ref) => {
               const key = `${ref.stable_id}@${ref.version}`;
               const component = checksByRef.get(key);
@@ -65,83 +58,68 @@ export function SetupComposition({
                 presentation?.componentType ?? catalog?.componentType ?? "setting";
               const name = component?.name ?? presentation?.name ?? ref.stable_id;
               const sourceUrl =
-                catalog?.sourceUrl ?? sourceCoordinateUrl(component?.source_coordinate);
-              const author = embedded
+                catalog?.sourceUrl ??
+                sourceCoordinateUrl(component?.source_coordinate ?? presentation?.sourceCoordinate);
+              const identity = embedded
                 ? setupAuthor
                 : {
-                    accountId: catalog?.ownerId ?? null,
+                    accountId: catalog?.ownerId ?? "",
                     displayName: catalog?.authorName,
                   };
-              const measurement = tokensByRef.get(key);
+
               return (
-                <li key={key} className="p-4 sm:p-5">
-                  <div className="flex items-start gap-3">
+                <li key={key} className={embedded ? "bg-muted/20 p-4 sm:p-5" : "p-4 sm:p-5"}>
+                  <div className="flex min-w-0 items-start gap-3 sm:gap-4">
                     <ComponentTypeIcon type={componentType} compact />
-                    <div className="min-w-0 flex-1 space-y-3">
-                      <div className="flex flex-wrap items-center gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex min-w-0 flex-wrap items-center gap-2">
                         {embedded ? (
-                          <span className="font-medium break-words">{name}</span>
+                          <span className="font-medium [overflow-wrap:anywhere] break-words">
+                            {name}
+                          </span>
                         ) : (
                           <Link
                             href={`/catalog/components/${ref.stable_id}`}
-                            className="font-medium break-words underline underline-offset-4"
+                            className="font-medium [overflow-wrap:anywhere] break-words underline underline-offset-4"
                           >
                             {name}
                           </Link>
                         )}
-                        <Badge variant="secondary">{componentType}</Badge>
+                        <Badge variant="outline">{componentType}</Badge>
                         <Badge variant="outline">
                           {t("version")} {ref.version}
                         </Badge>
-                        <Badge variant="outline">
-                          {embedded ? t("embeddedSnapshot") : t("catalogComponent")}
-                        </Badge>
+                        {embedded ? (
+                          <Badge variant="secondary">{t("externalComponent")}</Badge>
+                        ) : null}
                       </div>
-                      <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-                        <div>
-                          <dt className="text-muted-foreground">{t("componentAuthor")}</dt>
-                          <dd>
-                            {author.accountId ? (
-                              <Link
-                                href={`/publishers/${author.accountId}`}
-                                className="underline underline-offset-4"
-                              >
-                                {author.displayName || author.accountId}
-                              </Link>
-                            ) : (
-                              <span className="text-muted-foreground">{t("noneListed")}</span>
-                            )}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className="text-muted-foreground">{t("componentSource")}</dt>
-                          <dd>
-                            {sourceUrl ? (
-                              <a
-                                href={sourceUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="break-all underline underline-offset-4"
-                              >
-                                {sourceLabel(sourceUrl)}
-                              </a>
-                            ) : (
-                              <span className="text-muted-foreground">{t("noneListed")}</span>
-                            )}
-                          </dd>
-                        </div>
-                      </dl>
-                      <SafetySummary component={component} t={t} />
-                      <p className="text-muted-foreground text-sm">
-                        {measurement?.tokens === null
-                          ? t("contextBudgetError")
-                          : measurement
-                            ? `${measurement.tokens} ${t("contextBudgetTokens")} · ${measurement.loading === "always" ? t("contextBudgetAlways") : t("contextBudgetConditional")}`
-                            : t("contextBudgetRuntimeDerived")}
-                      </p>
-                      {embedded ? (
-                        <p className="text-muted-foreground text-xs">{t("embeddedSnapshotHint")}</p>
-                      ) : null}
+
+                      <div className="text-muted-foreground mt-2 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+                        <span>
+                          {embedded ? t("componentPublisher") : t("componentAuthor")}:{" "}
+                          {identity.accountId ? (
+                            <Link
+                              href={`/publishers/${identity.accountId}`}
+                              className="text-foreground underline underline-offset-4"
+                            >
+                              {identity.displayName || identity.accountId}
+                            </Link>
+                          ) : (
+                            t("noneListed")
+                          )}
+                        </span>
+                        {sourceUrl ? (
+                          <a
+                            href={sourceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-foreground inline-flex min-w-0 items-center gap-1.5 underline underline-offset-4"
+                          >
+                            <Icon name={sourceIcon(sourceUrl)} size="sm" />
+                            <span className="truncate">{sourceLabel(sourceUrl)}</span>
+                          </a>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
                 </li>
@@ -156,75 +134,15 @@ export function SetupComposition({
   );
 }
 
-function SafetySummary({
-  component,
-  t,
-}: {
-  component: SetupComponentChecks | undefined;
-  t: (key: string) => string;
-}) {
-  if (!component || component.checks.length === 0) {
-    return <Badge variant="outline">{t("safetyNoScan")}</Badge>;
-  }
-  const countable = component.checks.filter(
-    (check) => check.result !== "not_applicable" && check.result !== "skipped",
-  );
-  const passed = countable.filter((check) => check.result === "passed").length;
-  const failed = countable.filter((check) => check.result === "failed").length;
-  const warning = countable.filter((check) => check.result === "warning").length;
-  const notRun = countable.filter((check) => check.result === "not_run").length;
-  const requiredPassed = component.digest_matches && !component.failed_mandatory;
-  return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <Badge variant={requiredPassed ? "success" : "warning"}>
-          {requiredPassed ? t("requiredChecksPassed") : t("requiredChecksFailed")}
-        </Badge>
-        <span className="font-mono tabular-nums">
-          {passed}/{countable.length} {t("safetyChecksComplete")}
-        </span>
-        {failed ? (
-          <Badge variant="warning">
-            {t("safetyFailed")}: {failed}
-          </Badge>
-        ) : null}
-        {warning ? (
-          <Badge variant="outline">
-            {t("safetyWarning")}: {warning}
-          </Badge>
-        ) : null}
-        {notRun ? (
-          <Badge variant="outline">
-            {t("safetyNotRun")}: {notRun}
-          </Badge>
-        ) : null}
-      </div>
-      <details className="group">
-        <summary className="focus-visible:ring-ring w-fit cursor-pointer text-sm underline underline-offset-4 focus-visible:rounded-sm focus-visible:ring-2 focus-visible:outline-none">
-          {t("reviewChecks")}
-        </summary>
-        <ul className="mt-2 grid gap-1.5 sm:grid-cols-2">
-          {component.checks.map((check) => (
-            <li
-              key={`${check.check_id}-${check.source}`}
-              className="flex items-center gap-2 text-sm"
-            >
-              <Badge variant={check.result === "failed" ? "warning" : "outline"}>
-                {setupCheckResultLabel(check.result, t)}
-              </Badge>
-              <span>{safetyCheckName(check.check_id)}</span>
-            </li>
-          ))}
-        </ul>
-      </details>
-    </div>
-  );
-}
-
 function componentPresentations(passport: SetupVersionPassport) {
   const output = new Map<
     string,
-    { name: string; componentType: ComponentType; embedded: boolean }
+    {
+      name: string;
+      componentType: ComponentType;
+      embedded: boolean;
+      sourceCoordinate: string | null;
+    }
   >();
   const fact = passport.facts.component_presentations?.value;
   if (!Array.isArray(fact)) return output;
@@ -239,6 +157,7 @@ function componentPresentations(passport: SetupVersionPassport) {
           ? item.component_type
           : "setting",
       embedded: item.embedded === true,
+      sourceCoordinate: typeof item.source_coordinate === "string" ? item.source_coordinate : null,
     });
   }
   return output;
@@ -261,20 +180,25 @@ function sourceCoordinateUrl(coordinate: string | null | undefined): string | nu
   return `https://pub.dev/packages/${name}/versions/${exactVersion}`;
 }
 
-function sourceLabel(url: string): string {
+function sourceIcon(url: string): "github" | "objects" {
   try {
-    return new URL(url).hostname.replace(/^www\./, "");
+    return new URL(url).hostname === "github.com" ? "github" : "objects";
   } catch {
-    return url;
+    return "objects";
   }
 }
 
-function setupCheckResultLabel(result: string, t: (key: string) => string): string {
-  if (result === "passed") return t("safetyResultPassed");
-  if (result === "failed") return t("safetyResultFailed");
-  if (result === "warning") return t("safetyResultWarning");
-  if (result === "not_applicable" || result === "skipped") {
-    return t("safetyResultNotApplicable");
+function sourceLabel(url: string): string {
+  try {
+    const hostname = new URL(url).hostname.replace(/^www\./, "");
+    if (hostname === "npmjs.com") return "npm";
+    if (hostname === "pypi.org") return "PyPI";
+    if (hostname === "crates.io") return "crates.io";
+    if (hostname === "pkg.go.dev") return "Go packages";
+    if (hostname === "pub.dev") return "pub.dev";
+    if (hostname === "github.com") return "GitHub";
+    return hostname;
+  } catch {
+    return url;
   }
-  return t("safetyResultNotRun");
 }

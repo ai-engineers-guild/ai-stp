@@ -163,21 +163,17 @@ function isComponentSummary(item: ComponentSummary | SetupSummary): item is Comp
 
 function mixedCatalogRows({
   visible,
-  setupsPageNumber,
-  componentsPageNumber,
+  pageNumber,
   setupsTotalPages,
 }: {
   visible: Array<ComponentSummary | SetupSummary>;
-  setupsPageNumber: number;
-  componentsPageNumber: number;
+  pageNumber: number;
   setupsTotalPages: number | null;
 }) {
   const setupRows = visible.filter((item) => !isComponentSummary(item));
   const componentRows = visible.filter(isComponentSummary);
-  const setupSequenceComplete = !setupsTotalPages || setupsPageNumber >= setupsTotalPages;
-  if (!setupSequenceComplete) return setupRows;
-  if (componentsPageNumber > 1) return componentRows;
-  return [...setupRows, ...componentRows];
+  if (setupsTotalPages === null) return [...setupRows, ...componentRows];
+  return pageNumber <= setupsTotalPages ? setupRows : componentRows;
 }
 
 export function CatalogResults({
@@ -188,8 +184,6 @@ export function CatalogResults({
   totalItems = null,
   totalPages = null,
   pageNumber = 1,
-  setupsPageNumber = 1,
-  componentsPageNumber = 1,
   setupsTotalPages = null,
   componentsTotalPages = null,
   view = "list",
@@ -207,8 +201,7 @@ export function CatalogResults({
     kind === "mixed"
       ? mixedCatalogRows({
           visible,
-          setupsPageNumber,
-          componentsPageNumber,
+          pageNumber,
           setupsTotalPages,
         })
       : visible;
@@ -286,8 +279,7 @@ export function CatalogResults({
       {kind === "mixed" ? (
         <MixedPager
           labels={labels}
-          setupsPageNumber={setupsPageNumber}
-          componentsPageNumber={componentsPageNumber}
+          pageNumber={pageNumber}
           setupsTotalPages={setupsTotalPages}
           componentsTotalPages={componentsTotalPages}
           basePath={basePath}
@@ -300,61 +292,32 @@ export function CatalogResults({
 
 function MixedPager({
   labels,
-  setupsPageNumber,
-  componentsPageNumber,
+  pageNumber,
   setupsTotalPages,
   componentsTotalPages,
   basePath,
   query,
 }: Pick<
   CatalogResultsProps,
-  | "labels"
-  | "setupsPageNumber"
-  | "componentsPageNumber"
-  | "setupsTotalPages"
-  | "componentsTotalPages"
-  | "basePath"
-  | "query"
+  "labels" | "pageNumber" | "setupsTotalPages" | "componentsTotalPages" | "basePath" | "query"
 >) {
-  if (
-    !(setupsTotalPages && setupsTotalPages > 1) &&
-    !(componentsTotalPages && componentsTotalPages > 1)
-  ) {
-    return null;
-  }
-  const setupSequenceComplete = !setupsTotalPages || (setupsPageNumber ?? 1) >= setupsTotalPages;
+  const setupPages = setupsTotalPages ?? 0;
+  const componentPages = componentsTotalPages ?? 0;
+  const totalPages = setupPages + componentPages;
+  if (totalPages <= 1) return null;
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      {setupsTotalPages && setupsTotalPages > 1 ? (
-        <PageNav
-          label={labels.setupsPagination ?? "Setups pagination"}
-          pageNumber={setupsPageNumber ?? 1}
-          totalPages={setupsTotalPages}
-          hrefFor={(page) =>
-            catalogHref(basePath, {
-              ...query,
-              page: "1",
-              setups_page: String(page),
-              components_page: "1",
-            })
-          }
-        />
-      ) : null}
-      {setupSequenceComplete && componentsTotalPages && componentsTotalPages > 1 ? (
-        <PageNav
-          label={labels.componentsPagination ?? "Components pagination"}
-          pageNumber={componentsPageNumber ?? 1}
-          totalPages={componentsTotalPages}
-          hrefFor={(page) =>
-            catalogHref(basePath, {
-              ...query,
-              page: "1",
-              components_page: String(page),
-              setups_page: String(setupsPageNumber ?? 1),
-            })
-          }
-        />
-      ) : null}
-    </div>
+    <PageNav
+      label={labels.pagination ?? "Pagination"}
+      pageNumber={pageNumber ?? 1}
+      totalPages={totalPages}
+      hrefFor={(page) =>
+        catalogHref(basePath, {
+          ...query,
+          page: String(page),
+          setups_page: String(page <= setupPages ? page : Math.max(1, setupPages)),
+          components_page: String(page <= setupPages ? 1 : page - setupPages),
+        })
+      }
+    />
   );
 }
