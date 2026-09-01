@@ -355,6 +355,17 @@ def _version_collision(
             "error_code": seeded.get("error_code"),
         }
     pulled = _pull(home_b, python=python, skip=skip)
+    # The seed has to reach B before B can be asked to diverge from it. A pull
+    # that refused left B without the component, and the next step's
+    # `passport show` then reported "no local passport" — a true sentence about
+    # the wrong cause. The refusal is the finding, so it is what gets reported.
+    if not pulled.get("ok"):
+        return {
+            "state": "failed",
+            "reason": "the seed did not reach device B; its pull refused",
+            "stable_id": stable_id,
+            "seed_pull_error": pulled.get("error_code"),
+        }
 
     _declare(home_a, stable_id, "a", python=python)
     _declare(home_b, stable_id, "b", python=python)

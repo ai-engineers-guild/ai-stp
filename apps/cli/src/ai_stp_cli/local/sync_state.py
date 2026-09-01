@@ -430,18 +430,41 @@ def _apply_event(connection: sqlite3.Connection, *, account_id: str, event: Sync
                 )
             item = cast(dict[str, object], raw)
             try:
-                versions.record(
-                    connection,
-                    stable_id=event.entity_id,
-                    version=str(item["version"]),
-                    passport_digest=str(item["passport_digest"]),
-                    revision_id=str(item["revision_id"]),
-                    at=str(item["created_at"]),
-                )
+                version = str(item["version"])
+                passport_digest = str(item["passport_digest"])
+                version_revision = str(item["revision_id"])
+                created_at = str(item["created_at"])
             except KeyError as error:
                 raise CliFailure(
                     "AI_STP_VALIDATION_ERROR", "a pulled released version is incomplete"
                 ) from error
+            # A released number points at a revision, and this device may not
+            # hold it: the revision's own event was walked past with
+            # `--skip-event`, so its number arrives with nothing to stand on.
+            # Measured on a real account after such a skip, the recorder's
+            # foreign key refused and the refusal reached the caller as
+            # `AI_STP_INTERNAL: IntegrityError` — a defect report about a
+            # decision the operator had just made. Named here instead, with
+            # the way past it, which is the same one that led here.
+            if revisions.get(connection, version_revision) is None:
+                raise CliFailure(
+                    "AI_STP_CONFLICT",
+                    "a pulled released version points at a revision this device does not hold",
+                    details={
+                        "stable_id": event.entity_id,
+                        "version": version,
+                        "version_revision_id": version_revision,
+                    },
+                    next_actions=["sync pull --skip-event <event_id> --confirm --json"],
+                )
+            versions.record(
+                connection,
+                stable_id=event.entity_id,
+                version=version,
+                passport_digest=passport_digest,
+                revision_id=version_revision,
+                at=created_at,
+            )
     else:
         lifecycle.entomb(
             connection,

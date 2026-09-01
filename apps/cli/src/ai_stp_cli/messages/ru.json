@@ -64,6 +64,7 @@
   "a pulled event fails its content-addressed account binding": "принятое событие не проходит привязку к account по содержимому",
   "a pulled released version is incomplete": "принятая выпущенная версия неполная",
   "a pulled released version is not an object": "принятая выпущенная версия не является объектом",
+  "a pulled released version points at a revision this device does not hold": "полученная выпущенная версия указывает на ревизию, которой нет на этом устройстве",
   "a pulled sync payload does not match its exact event coordinates": "принятый sync payload не совпадает со своими точными координатами события",
   "a pulled sync payload is not a passport envelope": "принятый sync payload не является конвертом паспорта",
   "a recorded component passport is invalid": "записанный паспорт компонента недействителен",

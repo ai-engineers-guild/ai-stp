@@ -1332,8 +1332,10 @@ def test_a_member_outside_its_boundary_is_a_conflict_not_a_silent_root(tmp_path:
     """Packaging trusts the plan's grouping and still checks it: a stray path is refused."""
     root = tmp_path / "root"
     (root / "skills" / "review").mkdir(parents=True)
-    (root / "skills" / "review" / "SKILL.md").write_text("# Review\n", encoding="utf-8")
-    (root / "stray.md").write_text("elsewhere\n", encoding="utf-8")
+    # Bytes, not text: the digests below are computed from these exact bytes,
+    # and text mode on Windows would write `\r\n` and move them.
+    (root / "skills" / "review" / "SKILL.md").write_bytes(b"# Review\n")
+    (root / "stray.md").write_bytes(b"elsewhere\n")
     from ai_stp_cli.local import content as content_store
 
     digests = {
