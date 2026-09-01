@@ -66,9 +66,23 @@ def _wants_json(request: Request, response_mode: str | None) -> bool:
 
 
 def _callback_uri(request: Request, auth: AuthSettings, provider: str) -> str:
-    # Must match Authorized redirect URIs in the provider console exactly.
-    del request  # origin comes from settings, not Host (proxy-safe)
-    return f"{auth.oauth_callback_base()}/v1/auth/{provider}/callback"
+    """The console-registered callback for the origin this flow started on.
+
+    Must match an Authorized redirect URI in the provider console exactly, so
+    the origin is chosen from the list this deployment declares rather than read
+    from `Host`, which a proxy controls. The request may *select* among declared
+    origins; it cannot introduce one.
+
+    `#62` is why this is per-request. The handshake state lives in a session
+    cookie on the origin that started the flow. With one pinned callback and two
+    served domains, a sign-in begun on the second domain landed on the first,
+    `authorize_access_token` found no state, and the user saw "Sign-in failed" —
+    twice in one production log, both from the canonical domain.
+    """
+    declared = auth.oauth_callback_bases()
+    origin = f"{request.url.scheme}://{request.url.netloc}".rstrip("/")
+    base = origin if origin in declared else declared[0]
+    return f"{base}/v1/auth/{provider}/callback"
 
 
 def _safe_return_to(value: str | None) -> str | None:

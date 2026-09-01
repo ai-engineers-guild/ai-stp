@@ -142,10 +142,39 @@ class AuthSettings(BaseSettings):
     # Comma-separated account ids that may perform audited admin reads.
     admin_account_ids: str = Field(default="")
 
+    # Every browser origin this deployment answers on whose callback is also
+    # registered in the provider console, comma-separated. `#62`: the aiguild
+    # migration made the login page reachable on a second domain, while the
+    # callback stayed pinned to the first — so the authlib state lived in a
+    # cookie on the domain that started the flow, the callback landed on the
+    # other one, and every sign-in from the canonical domain failed.
+    #
+    # An allowlist rather than the request `Host`, which a proxy controls: the
+    # request may select among the origins the operator already declared, and
+    # nothing else. A deployment that names none behaves exactly as before.
+    oauth_callback_origins: str = Field(default="")
+
     def oauth_callback_base(self) -> str:
         """Origin used to build provider redirect_uri (must match console)."""
         base = self.oauth_redirect_base_url.strip() or self.public_base_url
         return base.rstrip("/")
+
+    def oauth_callback_bases(self) -> tuple[str, ...]:
+        """The default origin first, then every additional declared one.
+
+        Order matters: the first entry is what a request whose origin is not
+        declared falls back to, which is the single-domain behaviour this
+        deployment had before the list existed.
+        """
+        default = self.oauth_callback_base()
+        extra = [
+            item.strip().rstrip("/")
+            for item in self.oauth_callback_origins.split(",")
+            if item.strip()
+        ]
+        ordered = [default]
+        ordered.extend(item for item in extra if item != default)
+        return tuple(ordered)
 
     @field_validator("cookie_samesite")
     @classmethod
