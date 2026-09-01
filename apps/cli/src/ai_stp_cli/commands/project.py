@@ -278,6 +278,7 @@ def import_register(parameters: Mapping[str, object]) -> Answer[ImportedSetup]:
             expected_plan_digest=plan_digest,
             target_id=str(parameters.get("target") or root.name),
             provider_ref=provider_ref,
+            partial=bool(parameters.get("partial", False)),
             owner_id=owner().account_id,
             device_id=current.device_id,
             at=at,

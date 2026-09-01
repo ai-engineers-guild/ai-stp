@@ -28,6 +28,7 @@ them. Conflating the two would make deleting a backup delete a setup's identity.
 """
 
 import json
+import os
 import re
 import sqlite3
 from base64 import b64encode
@@ -35,9 +36,14 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Final, cast
 
+import tomlkit
+import tomlkit.exceptions
+import yaml
+
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import content, harness_catalog, journal, revisions
+from ai_stp_cli.local import content, harness_catalog, journal, mcp_clients, reading, revisions
 from ai_stp_cli.local.database import transaction
+from ai_stp_cli.paths import redact_home
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import digest_canonical
 from ai_stp_foundation.ids import new_id
@@ -79,13 +85,48 @@ DETECTION_RULE: Final[str] = "key-name"
 
 #: Files that are configuration worth importing. A binary or an artifact is not
 #: configuration, and importing one would carry bytes nobody reviewed.
+#: `.jsonc` because opencode reads it wherever it reads `.json` — the catalog
+#: declares both spellings — and `.mdc` because cursor rules are written in it;
+#: both were invisible to import while discovery already knew them.
 IMPORTABLE_SUFFIXES: Final[frozenset[str]] = frozenset(
-    {".json", ".toml", ".yaml", ".yml", ".md", ".txt"}
+    {".json", ".jsonc", ".toml", ".yaml", ".yml", ".md", ".mdc", ".txt"}
 )
 
 #: Bound on one imported file. A harness configuration is text somebody wrote;
 #: anything larger is not the thing this is for.
 MAX_FILE_BYTES: Final[int] = 1024 * 1024
+
+#: Bound on one inspected tree. A configuration root is a few hundred files at
+#: the wild extreme; a tree past this is not a configuration and walking the
+#: rest of it would spend the reader's time describing something else.
+MAX_INSPECTED_FILES: Final[int] = 10_000
+
+
+@dataclass(frozen=True)
+class Placed:
+    """One catalogue layout this file answers to: what it is, and where it ends.
+
+    A physical path can answer to more than one — codex's `config.toml` is the
+    `setting` and, when it declares servers, the host of an `mcp` contribution
+    — so a file carries a tuple of these rather than one classification.
+    """
+
+    component_type: str
+    native_role: str
+
+    #: The component family boundary: the layout-relative directory child for a
+    #: directory layout, the path itself for a file layout, and
+    #: `path#declared_key` for a contribution living inside a host file.
+    boundary: str
+
+    #: The structured key a contribution owns inside its host file, empty for a
+    #: whole-file or directory component.
+    declared_key: str = ""
+
+    #: The entry names the host file declares under `declared_key`, read as
+    #: names only. These are the component's native identities — `config.toml`
+    #: is the container, never the identity.
+    entry_names: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -110,6 +151,20 @@ class Finding:
     #: not reach `unreadable`: the two need different remedies and only one of
     #: them means the configuration was not fully described.
     oversized: bool = False
+
+    #: Set when the path was refused rather than read: a symlink, a hardlink or
+    #: a special file. Naming which is the difference between a report and a
+    #: shrug, and none of the three may contribute bytes to a capture — a link
+    #: reads bytes from outside the tree, a second name can swap them later.
+    refused: str = ""
+
+    #: What the catalogue says this file is, possibly several things at once.
+    candidates: tuple[Placed, ...] = ()
+
+    #: The structured format the scrubber actually rewrote, or `none` when the
+    #: bytes went through untouched. The inventory used to imply every file was
+    #: scanned; this is the honest per-file answer.
+    scrub_format: str = "none"
 
 
 @dataclass(frozen=True)
@@ -137,9 +192,13 @@ class Inspection:
         return tuple(item.path for item in self.findings if item.oversized)
 
     @property
+    def refused(self) -> tuple[str, ...]:
+        return tuple(item.path for item in self.findings if item.refused)
+
+    @property
     def skipped(self) -> tuple[str, ...]:
-        """Every path that contributes to no component, for either reason."""
-        return tuple(sorted({*self.unreadable, *self.oversized}))
+        """Every path that contributes to no component, for any reason."""
+        return tuple(sorted({*self.unreadable, *self.oversized, *self.refused}))
 
 
 @dataclass(frozen=True)
@@ -183,6 +242,12 @@ class ProposedComponent:
     file_set_digest: str
     byte_length: int
 
+    #: Carried from the layout when this component is a contribution to a host
+    #: file: the key it owns, and the entry names it declares there. The entry
+    #: names are the native identities; the host filename never is.
+    declared_key: str = ""
+    entry_names: tuple[str, ...] = ()
+
 
 @dataclass(frozen=True)
 class Plan:
@@ -212,31 +277,49 @@ def plan(inspection: Inspection) -> Plan:
                 "redacted_keys": list(item.redacted_keys),
                 "unreadable": item.unreadable,
                 "oversized": item.oversized,
+                "refused": item.refused,
+                "scrub_format": item.scrub_format,
+                "candidates": [
+                    {
+                        "component_type": placed.component_type,
+                        "native_role": placed.native_role,
+                        "boundary": placed.boundary,
+                        "declared_key": placed.declared_key,
+                        "entry_names": list(placed.entry_names),
+                    }
+                    for placed in item.candidates
+                ],
             }
             for item in inspection.findings
         ],
     }
     inspection_digest = digest_canonical("ai-stp:native-discovery:v1", inspection_document)
-    grouped: dict[tuple[str, str], list[Finding]] = {}
+    grouped: dict[tuple[str, str], list[tuple[Finding, Placed]]] = {}
     excluded: list[str] = []
     for item in inspection.findings:
-        if item.unreadable or item.oversized:
+        if item.unreadable or item.oversized or item.refused:
             excluded.append(item.path)
             continue
-        component_type, native_role, boundary = _component_boundary(item.path)
-        grouped.setdefault((component_type, f"{native_role}:{boundary}"), []).append(item)
+        for placed in item.candidates:
+            grouped.setdefault((placed.component_type, placed.boundary), []).append((item, placed))
 
     proposed: list[ProposedComponent] = []
-    for (component_type, identity), findings in sorted(grouped.items()):
-        native_role, _, _boundary = identity.partition(":")
-        paths = tuple(sorted(item.path for item in findings))
+    for (component_type, boundary), members in sorted(grouped.items()):
+        native_role = members[0][1].native_role
+        declared_key = members[0][1].declared_key
+        entry_names = members[0][1].entry_names
+        findings = sorted({item for item, _placed in members}, key=lambda found: found.path)
+        paths = tuple(item.path for item in findings)
         material: dict[str, JsonValue] = {
             "harness_id": inspection.harness_id,
             "component_type": component_type,
             "native_role": native_role,
+            "boundary": boundary,
+            "declared_key": declared_key,
+            "entry_names": list(entry_names),
             "files": [
                 {"path": item.path, "digest": item.digest, "byte_length": item.byte_length}
-                for item in sorted(findings, key=lambda found: found.path)
+                for item in findings
             ],
         }
         file_set_digest = digest_canonical("ai-stp:plan:v1", material)
@@ -249,6 +332,8 @@ def plan(inspection: Inspection) -> Plan:
                 paths=paths,
                 file_set_digest=file_set_digest,
                 byte_length=sum(item.byte_length for item in findings),
+                declared_key=declared_key,
+                entry_names=entry_names,
             )
         )
 
@@ -271,6 +356,8 @@ def plan(inspection: Inspection) -> Plan:
                 "paths": list(item.paths),
                 "file_set_digest": item.file_set_digest,
                 "byte_length": item.byte_length,
+                "declared_key": item.declared_key,
+                "entry_names": list(item.entry_names),
             }
             for item in proposed
         ],
@@ -290,28 +377,95 @@ def plan(inspection: Inspection) -> Plan:
     )
 
 
-def _component_boundary(path: str) -> tuple[str, str, str]:
-    """Map a native relative path onto a stable component family boundary."""
-    parts = Path(path).parts
-    folded = tuple(part.casefold() for part in parts)
-    families = {
-        "skills": ("skill", "skill"),
-        "commands": ("command", "command"),
-        "agents": ("agent", "agent"),
-        "hooks": ("hook", "hook"),
-        "plugins": ("plugin", "plugin"),
-    }
-    for index, part in enumerate(folded[:-1]):
-        if part in families:
-            component_type, role = families[part]
-            boundary = parts[index + 1]
-            return component_type, role, f"{part}/{boundary}"
-    name = folded[-1]
-    if "mcp" in name:
-        return "mcp", "mcp_server", path
-    if name in {"agents.md", "claude.md"} or name.endswith("instructions.md"):
-        return "instruction", "instruction", path
-    return "setting", "configuration", path
+#: The native role each component kind reports, matching what `component
+#: discover` reports for the same kind so the two capture paths speak one
+#: vocabulary.
+_ROLE_OF: Final[dict[str, str]] = {
+    "skill": "skill",
+    "command": "command",
+    "agent": "agent",
+    "hook": "hook",
+    "plugin": "plugin",
+    "mcp": "mcp_server",
+    "instruction": "instruction",
+    "setting": "configuration",
+}
+
+
+def _global_layouts(harness_id: str) -> tuple[harness_catalog.Layout, ...]:
+    """This harness's global layouts, longest path first.
+
+    The catalogue is the one owner of what a native path means — discovery
+    already consumes it, and import used to carry its own five-name guess
+    beside it, which is how codex `prompts/` became a `setting` while the
+    catalogue two files away said `command`. Longest first so `plugins/local`
+    wins over any shorter prefix that may one day sit above it.
+
+    Only layouts rooted at the configuration directory: an import inspects one
+    root, and a `home`-rooted shared convention lives outside it.
+    """
+    definition = harness_catalog.BY_ID.get(harness_id)
+    if definition is None:
+        return ()
+    layouts = tuple(
+        layout
+        for layout in definition.layouts
+        if layout.scope == "global" and layout.root == "config"
+    )
+    return tuple(sorted(layouts, key=lambda layout: len(layout.relative), reverse=True))
+
+
+def classify(harness_id: str, relative: str, place: Path) -> tuple[Placed, ...]:
+    """Everything the catalogue says this file is, in one deterministic answer.
+
+    A file may be several things at once — a `config.toml` is the `setting`
+    and, when it declares servers, the host of an `mcp` contribution — so the
+    answer is a tuple. A file no layout claims stays a `setting` with its own
+    path as its boundary: capturing an authored file the catalogue has not met
+    beats inventing a kind for it, and beats dropping it.
+
+    Directory layouts claim the first child under them as the component
+    boundary, which is what makes `plugins/local/<name>` one plugin per name
+    rather than one aggregate called `local`. A child the layout excludes by
+    name falls through to the unclaimed bucket rather than joining a component
+    the product does not read it into.
+    """
+    posix = PurePosixPath(relative.replace("\\", "/"))
+    candidates: list[Placed] = []
+    claimed_by_directory = False
+    for layout in _global_layouts(harness_id):
+        role = _ROLE_OF.get(layout.component_type, layout.component_type)
+        if layout.shape == "file":
+            if str(posix) != layout.relative:
+                continue
+            if layout.declared_key:
+                names = mcp_clients.declared_servers(place, layout.declared_key)
+                if names:
+                    candidates.append(
+                        Placed(
+                            layout.component_type,
+                            role,
+                            f"{layout.relative}#{layout.declared_key}",
+                            declared_key=layout.declared_key,
+                            entry_names=names,
+                        )
+                    )
+                continue
+            candidates.append(Placed(layout.component_type, role, layout.relative))
+            continue
+        if claimed_by_directory:
+            continue
+        prefix = PurePosixPath(layout.relative).parts
+        if posix.parts[: len(prefix)] != prefix or len(posix.parts) <= len(prefix):
+            continue
+        child = posix.parts[len(prefix)]
+        if child in layout.excluded_names:
+            continue
+        candidates.append(Placed(layout.component_type, role, f"{layout.relative}/{child}"))
+        claimed_by_directory = True
+    if candidates:
+        return tuple(candidates)
+    return (Placed("setting", "configuration", str(posix)),)
 
 
 def _state_paths(harness_id: str) -> tuple[str, ...]:
@@ -361,11 +515,46 @@ def inspect(root: Path, *, harness_id: str) -> Inspection:
 
     state_paths = _state_paths(harness_id)
     findings: list[Finding] = []
-    for place in sorted(resolved.rglob("*")):
-        if not place.is_file() or place.suffix.casefold() not in IMPORTABLE_SUFFIXES:
+    visited = 0
+    # `os.walk` with `followlinks=False`, not `rglob`: `rglob` descends into a
+    # symlinked directory as if it were the tree's own, which is exactly how
+    # bytes from outside a capture root end up described as inside it. A
+    # symlinked *file* is likewise refused below rather than read through.
+    places: list[Path] = []
+    for parent, directories, names in os.walk(resolved, followlinks=False):
+        directories.sort()
+        # A directory that is itself a link is pruned before descent; `walk`
+        # with `followlinks=False` does not descend either, but pruning also
+        # keeps it out of the walk's own bookkeeping.
+        directories[:] = [
+            name
+            for name in directories
+            if reading.classify_place(Path(parent) / name)[0] == reading.PLACE_DIRECTORY
+        ]
+        for name in sorted(names):
+            places.append(Path(parent) / name)
+    for place in places:
+        if place.suffix.casefold() not in IMPORTABLE_SUFFIXES:
             continue
         relative = place.relative_to(resolved).as_posix()
         if _is_state(relative, state_paths):
+            continue
+        visited += 1
+        if visited > MAX_INSPECTED_FILES:
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "this tree holds more files than a configuration does",
+                details={"root": str(root), "limit": str(MAX_INSPECTED_FILES)},
+            )
+        kind, _held = reading.classify_place(place)
+        if kind in {reading.PLACE_LINK, reading.PLACE_HARDLINK, reading.PLACE_SPECIAL}:
+            # Not read, and said so. A link reads bytes from outside the tree,
+            # a second name can swap them after the fact, and a device node is
+            # not configuration; each is reported rather than silently skipped
+            # so a complete-capture registration can refuse over it.
+            findings.append(Finding(path=relative, byte_length=0, digest="", refused=kind))
+            continue
+        if kind != reading.PLACE_REGULAR:
             continue
         # Ask how big it is before reading it. `REQ-841` requires an oversized
         # file to be read and hashed, and it still is — but "read" used to mean
@@ -407,35 +596,132 @@ def inspect(root: Path, *, harness_id: str) -> Inspection:
             )
             continue
 
-        _, names = scrub(raw)
+        suffix = place.suffix.casefold()
+        _, names, scrub_format = _scrub_with_format(raw, suffix)
         findings.append(
             Finding(
                 path=relative,
                 byte_length=len(raw),
                 digest=content.address_of(raw),
                 redacted_keys=names,
+                candidates=classify(harness_id, relative, place),
+                scrub_format=scrub_format,
             )
         )
     return Inspection(root=str(resolved), harness_id=harness_id, findings=tuple(findings))
 
 
-def scrub(raw: bytes) -> tuple[bytes, tuple[str, ...]]:
+def scrub(raw: bytes, *, suffix: str = "") -> tuple[bytes, tuple[str, ...]]:
     """Remove credential values, returning the clean bytes and the key names.
 
-    Structured documents are walked and rewritten; anything else is returned
-    untouched with nothing claimed about it. Guessing at the shape of an
-    unstructured file would either miss a secret or mangle a document, and both
-    are worse than saying the file was not rewritten.
+    Structured documents are walked and rewritten in the format their name
+    declares; anything else is returned untouched with nothing claimed about
+    it. Guessing at the shape of an unstructured file would either miss a
+    secret or mangle a document, and both are worse than saying the file was
+    not rewritten — and the report says which files were which, per file.
+
+    TOML goes through `tomlkit` so the rewrite keeps the comments a person
+    wrote: losing them would damage a file this program did not author. JSONC
+    and YAML come back as canonical JSON and YAML respectively — their comment
+    grammar has no round-tripping writer here, and a redacted document that
+    lost its comments still beats a faithful one that kept a token. The
+    measured case this closes: a `config.toml` with
+    `env = { TOKEN = "live" }` under `[mcp_servers.x]` used to pass through
+    whole.
     """
+    cleaned, names, _format = _scrub_with_format(raw, suffix)
+    return cleaned, names
+
+
+def _scrub_with_format(raw: bytes, suffix: str) -> tuple[bytes, tuple[str, ...], str]:
+    """The scrub plus the honest answer of which rewrite actually happened.
+
+    `none` means the bytes went through untouched — an unhandled format or a
+    document that did not parse — and the per-file report carries it, so "this
+    file was scanned" is a recorded fact rather than an implication.
+    """
+    folded = suffix.casefold()
+    if folded == ".toml":
+        return _scrub_toml(raw)
+    if folded in {".yaml", ".yml"}:
+        return _scrub_yaml(raw)
+    if folded == ".jsonc":
+        return _scrub_json(raw, jsonc=True)
+    if folded in {"", ".json"}:
+        return _scrub_json(raw)
+    return raw, (), "none"
+
+
+def _scrub_json(raw: bytes, *, jsonc: bool = False) -> tuple[bytes, tuple[str, ...], str]:
     try:
-        decoded: object = json.loads(raw.decode("utf-8"))
+        text = raw.decode("utf-8")
+        decoded: object = json.loads(mcp_clients.jsonc_source(text) if jsonc else text)
     except (ValueError, UnicodeDecodeError):
-        return raw, ()
+        return raw, (), "none"
 
     names: set[str] = set()
     cleaned = _walk(decoded, names)
-    return json.dumps(cleaned, ensure_ascii=False, sort_keys=True).encode("utf-8"), tuple(
-        sorted(names)
+    return (
+        json.dumps(cleaned, ensure_ascii=False, sort_keys=True).encode("utf-8"),
+        tuple(sorted(names)),
+        "jsonc" if jsonc else "json",
+    )
+
+
+def _scrub_toml(raw: bytes) -> tuple[bytes, tuple[str, ...], str]:
+    """Rewrite a TOML document in place, keeping its comments and layout."""
+    try:
+        document = tomlkit.parse(raw.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError, tomlkit.exceptions.TOMLKitError):
+        return raw, (), "none"
+    names: set[str] = set()
+    _walk_toml(document, names)
+    return tomlkit.dumps(document).encode("utf-8"), tuple(sorted(names)), "toml"
+
+
+def _walk_toml(container: object, names: set[str], prefix: str = "") -> None:
+    """Rewrite one tomlkit container in place, the same rule as `_walk`."""
+    if isinstance(container, dict):
+        held = cast("dict[str, object]", container)
+        for key in list(held.keys()):
+            name = str(key)
+            path = f"{prefix}.{name}" if prefix else name
+            value = held[name]
+            if is_secret_key(name):
+                names.add(path)
+                held[name] = REDACTED
+                continue
+            if _fold_key(name) in ENVIRONMENT_MAPS and isinstance(value, dict):
+                block = cast("dict[str, object]", value)
+                for variable in list(block.keys()):
+                    names.add(f"{path}.{variable}")
+                    block[str(variable)] = REDACTED
+                continue
+            _walk_toml(value, names, path)
+        return
+    if isinstance(container, list):
+        for item in cast("list[object]", container):
+            _walk_toml(item, names, f"{prefix}[]")
+
+
+def _scrub_yaml(raw: bytes) -> tuple[bytes, tuple[str, ...], str]:
+    """Rewrite a YAML document as canonical safe YAML, values removed.
+
+    `safe_load` only: a YAML file in a harness root is data, and a loader that
+    can construct objects would be running the file rather than reading it.
+    """
+    try:
+        decoded: object = yaml.safe_load(raw.decode("utf-8"))
+    except (yaml.YAMLError, UnicodeDecodeError):
+        return raw, (), "none"
+    if not isinstance(decoded, dict | list):
+        return raw, (), "none"
+    names: set[str] = set()
+    cleaned = _walk(cast(object, decoded), names)
+    return (
+        yaml.safe_dump(cleaned, allow_unicode=True, sort_keys=True).encode("utf-8"),
+        tuple(sorted(names)),
+        "yaml",
     )
 
 
@@ -529,12 +815,20 @@ def register(
     plan_digest: str = "",
     components: list[dict[str, JsonValue]] | None = None,
     operation_id: str | None = None,
+    partial: bool = False,
 ) -> Imported:
     """Register the inspected configuration as the user's own setup.
 
     Everything or nothing: the passport, its exact file hashes and its
     provenance are one transaction, because a setup recorded without the hashes
     it was made from is a setup nobody can verify against its source.
+
+    Complete by default. A registration that quietly left files out — an
+    oversized cache, a refused link — would present itself as the working
+    configuration while describing part of one. `partial=True` is the caller
+    saying so out loud, and the passport then records the mode and what was
+    left out, so the incompleteness travels with the object rather than with
+    the operator's memory.
 
     The backup must already exist. `REQ-813` puts the provider's backup before
     registration, and taking a reference to something that was never made would
@@ -568,6 +862,21 @@ def register(
             "some files could not be read, so this configuration is not fully described",
             details={"unreadable": ", ".join(unreadable)},
         )
+    left_out = inspection.skipped
+    if left_out and not partial:
+        # Oversized files and refused links were seen and deliberately not
+        # captured. Registering over them by default would present part of a
+        # configuration as the whole of one; the operator says `partial` out
+        # loud, and the passport records it.
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "this capture leaves files out, and a complete one was asked for",
+            details={"skipped": ", ".join(left_out)},
+            next_actions=[
+                "setup import register --partial "
+                f"--root {inspection.root} --harness {inspection.harness_id} ... --json"
+            ],
+        )
 
     own_operation = operation_id is None
     if operation_id is None:
@@ -585,9 +894,10 @@ def register(
                     plan_digest,
                     components or [],
                     at,
+                    partial=partial,
                 )
                 if plan_digest
-                else _content(inspection, stable_id, held, owner_id, at),
+                else _content(inspection, stable_id, held, owner_id, at, partial=partial),
                 device_id=device_id,
                 operation_id=operation_id,
             )
@@ -610,6 +920,7 @@ def register_graph(
     owner_id: str,
     device_id: str,
     at: str,
+    partial: bool = False,
 ) -> Imported:
     """Atomically materialize the exact confirmed import plan.
 
@@ -659,14 +970,32 @@ def register_graph(
             for candidate in proposed.components:
                 packaged: list[JsonValue] = []
                 for relative in candidate.paths:
-                    raw = (root / relative).read_bytes()
-                    if content.address_of(raw) != by_path[relative].digest:
-                        raise CliFailure(
-                            "AI_STP_CONFLICT",
-                            "a native file changed while the import was being registered",
-                            details={"path": relative},
+                    raw = _reread(root, relative, by_path[relative].digest)
+                    if candidate.declared_key:
+                        # A contribution carries the key's value, never the
+                        # host file — the same rule adoption follows
+                        # (`ADR-0129`), read from the same owner. The value is
+                        # then scrubbed in the host's own format, because a
+                        # server entry is exactly where an `env` block with a
+                        # live token likes to sit.
+                        from ai_stp_cli.local import contribution
+
+                        host = Path(relative).name
+                        value = contribution.extract_value(
+                            host=host, content=raw, key=candidate.declared_key
                         )
-                    cleaned, _names = scrub(raw)
+                        value_suffix = (
+                            ".toml" if PurePosixPath(host).suffix.casefold() == ".toml" else ".json"
+                        )
+                        cleaned, _names = scrub(value, suffix=value_suffix)
+                        packaged.append(
+                            {
+                                "path": f"{relative}#{candidate.declared_key}",
+                                "content_base64": b64encode(cleaned).decode("ascii"),
+                            }
+                        )
+                        continue
+                    cleaned, _names = scrub(raw, suffix=PurePosixPath(relative).suffix)
                     packaged.append(
                         {"path": relative, "content_base64": b64encode(cleaned).decode("ascii")}
                     )
@@ -712,6 +1041,7 @@ def register_graph(
                 plan_digest=proposed.plan_digest,
                 components=components,
                 operation_id=operation_id,
+                partial=partial,
             )
     except BaseException as error:
         journal.settle(connection, operation_id, "failed", at, type(error).__name__)
@@ -724,6 +1054,33 @@ def register_graph(
         plan_digest=proposed.plan_digest,
         component_ids=tuple(component_ids),
     )
+
+
+def _reread(root: Path, relative: str, expected_digest: str) -> bytes:
+    """The registration-time read: no link followed, no substitution accepted.
+
+    Inspection classified this path as a regular file; registration reads it
+    again through the shared discipline — `O_NOFOLLOW`, an inode re-check, a
+    bound — and then demands the bytes still hash to what the reviewed plan
+    recorded. A path that became a link, gained a second name, or changed
+    content between the two reads is a conflict, not an input.
+    """
+    place = root / relative
+    kind, held = reading.classify_place(place)
+    if kind != reading.PLACE_REGULAR or held is None:
+        raise CliFailure(
+            "AI_STP_CONFLICT",
+            "a native file changed shape while the import was being registered",
+            details={"path": relative, "found": kind},
+        )
+    raw = reading.read_regular(place, held, limit=MAX_FILE_BYTES, subject="import")
+    if content.address_of(raw) != expected_digest:
+        raise CliFailure(
+            "AI_STP_CONFLICT",
+            "a native file changed while the import was being registered",
+            details={"path": relative},
+        )
+    return raw
 
 
 def _component_content(
@@ -739,7 +1096,14 @@ def _component_content(
         "component_type": _fact(candidate.component_type, at),
         "native_role": _fact(candidate.native_role, at),
         "harness_id": _fact(inspection.harness_id, at),
-        "source_root": _fact(inspection.root, at),
+        # Global by construction: an import inspects one configuration root,
+        # which is the global scope's. Project trees come through `component
+        # discover`, which reads scope from the same catalogue.
+        "scope": _fact("global", at),
+        # The `~`-relative spelling, never the absolute one: an absolute root
+        # is one machine's identity, and this passport is a revision that can
+        # travel. The exact absolute path stays in the command's own output.
+        "source_root": _fact(redact_home(Path(inspection.root)), at),
         "source_paths": _fact(list(candidate.paths), at),
         "candidate_id": _fact(candidate.candidate_id, at),
         "file_set_digest": _fact(candidate.file_set_digest, at),
@@ -747,6 +1111,13 @@ def _component_content(
         "content_digest": _fact(artifact_digest, at),
         "byte_length": _fact(artifact_size, at),
     }
+    if candidate.declared_key:
+        # A contribution's identity is what it declares, not what it sits in:
+        # the entry names are the native identifiers, and the locator names the
+        # exact key of the exact host file the value came from.
+        facts["declared_key"] = _fact(candidate.declared_key, at)
+        facts["native_ids"] = _fact(list(candidate.entry_names), at)
+        facts["source_locator"] = _fact(f"{candidate.paths[0]}#{candidate.declared_key}", at)
     return {
         "schema_version": 1,
         "kind": "component",
@@ -767,8 +1138,10 @@ def _graph_content(
     plan_digest: str,
     components: list[dict[str, JsonValue]],
     at: str,
+    *,
+    partial: bool = False,
 ) -> dict[str, JsonValue]:
-    document = _content(inspection, stable_id, held, owner_id, at)
+    document = _content(inspection, stable_id, held, owner_id, at, partial=partial)
     facts = cast(dict[str, JsonValue], document["facts"])
     facts["plan_digest"] = _fact(plan_digest, at)
     facts["components"] = _fact(cast(list[JsonValue], components), at)
@@ -781,6 +1154,8 @@ def _content(
     held: BackupRef,
     owner_id: str,
     at: str,
+    *,
+    partial: bool = False,
 ) -> dict[str, JsonValue]:
     """The imported setup's passport, built by naming every field it may hold.
 
@@ -796,15 +1171,23 @@ def _content(
         "harness_id": _fact(inspection.harness_id, at),
         "origin": _fact("imported", at),
         # Provenance: where these bytes came from, so the setup can be checked
-        # against its source rather than taken on trust.
-        "source_root": _fact(inspection.root, at),
+        # against its source rather than taken on trust. The `~`-relative
+        # spelling: an absolute root is one machine's identity, and a passport
+        # travels.
+        "source_root": _fact(redact_home(Path(inspection.root)), at),
         "files": _fact(files, at),
         # A reference to a separate object (`REQ-814`), never its identity.
         "backup_id": _fact(held.backup_id, at),
         # `REQ-815`: names, and only names.
         "redacted_keys": _fact(list(inspection.redacted_keys), at),
         "detection_rule": _fact(inspection.detection_rule, at),
+        # Whether this snapshot claims to be the whole configuration. A partial
+        # one names what it left out, so the incompleteness travels with the
+        # object rather than with the operator's memory.
+        "capture_mode": _fact("partial" if partial else "complete", at),
     }
+    if partial:
+        facts["excluded_paths"] = _fact(list(inspection.skipped), at)
     return {
         "schema_version": 1,
         "kind": "setup",

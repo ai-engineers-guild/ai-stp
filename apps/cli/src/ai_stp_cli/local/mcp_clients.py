@@ -195,6 +195,16 @@ def _document(path: Path) -> dict[str, object] | None:
     return cast("dict[str, object]", parsed) if isinstance(parsed, dict) else None
 
 
+def jsonc_source(text: str) -> str:
+    """JSONC text as the plain JSON it spells, comments removed.
+
+    The public face of the comment stripper, so the import scrubber reads the
+    dialect through the same code that discovery already trusts, rather than
+    growing a second stripper that can disagree with this one.
+    """
+    return _without_comments(text)
+
+
 def declared_servers(path: Path, key: str) -> tuple[str, ...]:
     """Names of the MCP servers this file declares under `key`, sorted.
 

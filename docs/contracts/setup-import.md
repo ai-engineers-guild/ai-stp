@@ -1,6 +1,6 @@
 ---
 description: "Machine boundary for discovering and registering an existing native setup."
-last_verified: "2026-08-12"
+last_verified: "2026-09-01"
 ---
 
 # Native setup import
@@ -32,3 +32,28 @@ of the graph nor an orphaned backup reference.
 An unread file is not silently skipped. It is listed in both `excluded` and `blocked_by`;
 registering the complete setup is impossible until the cause is resolved. Secret values,
 runtime cache, session state, and backup bytes are not transferred into the registry.
+
+Component decomposition is read from the harness catalog — the same owner
+`component discover` consumes — never from a second table (`ADR-0138`). A file
+matching a layout with a `declared_key` yields a contribution candidate whose
+boundary is `path#key`, whose native identities are the declared entry names,
+and whose registered artifact carries only the extracted key value, sanitized
+in the host file's own format. A file no layout claims is registered as a
+per-file `setting`, never dropped and never guessed into another kind.
+
+Sanitization is structural per format: JSON, JSONC, TOML (comment-preserving),
+and YAML documents are rewritten with credential values removed and environment
+maps reduced to variable names; each file's inventory row records which rewrite
+actually happened, and an unparsed or unstructured file is reported as not
+rewritten rather than implied clean.
+
+Inspection follows no link. A symlink, a Windows reparse point, a hardlinked
+file, and a special file are each reported as refused with their reason;
+registration re-reads every packed file without following links, re-checks the
+inode it classified, and demands the bytes still hash to what the confirmed
+plan recorded.
+
+Registration is complete by default: a plan whose inventory left anything out —
+oversized, refused — is refused until the operator passes `partial`, and a
+partial registration records `capture_mode` and the exact `excluded_paths` in
+the setup passport, so the incompleteness travels with the object.

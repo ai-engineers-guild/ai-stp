@@ -136,6 +136,7 @@ last_verified: "2026-08-03"
 | [ADR-0135-nginx-is-the-only-edge-proxy.md](ADR-0135-nginx-is-the-only-edge-proxy.md) | Decision to drop the in-stack Caddy container and let the deployment host's nginx be the only edge proxy, with the route split owned by a template in this repository. | 2026-08-31 |
 | [ADR-0136-one-user-facing-content-root.md](ADR-0136-one-user-facing-content-root.md) | Decision to keep articles, product documentation, and legal source under one public repository root. | 2026-08-31 |
 | [ADR-0137-versioned-legal-onboarding.md](ADR-0137-versioned-legal-onboarding.md) | Decision to activate new accounts only after exact immutable service-rules and personal-data-consent revisions are accepted. | 2026-08-31 |
+| [ADR-0138-the-catalog-is-the-one-owner-of-native-meaning.md](ADR-0138-the-catalog-is-the-one-owner-of-native-meaning.md) | Decision to make the harness catalog the single semantic owner for every capture path, replacing setup import's private classification table. | 2026-09-01 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 
 <!-- END CONTENTS -->

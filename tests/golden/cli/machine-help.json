@@ -4938,6 +4938,15 @@
           "repeatable": false,
           "summary": "Which target the backup was taken from.",
           "choices": []
+        },
+        {
+          "name": "partial",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Register even though some files were left out; the passport records the mode and the exact paths.",
+          "choices": []
         }
       ],
       "parameter_rules": [],

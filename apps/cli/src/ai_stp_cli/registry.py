@@ -2302,6 +2302,12 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 required=True,
             ),
             option("target", "string", "Which target the backup was taken from."),
+            option(
+                "partial",
+                "boolean",
+                "Register even though some files were left out; the passport records "
+                "the mode and the exact paths.",
+            ),
         ),
         next_actions=("component find",),
     ),
