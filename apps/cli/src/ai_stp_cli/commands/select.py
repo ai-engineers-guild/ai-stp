@@ -602,13 +602,10 @@ def confirm(parameters: Mapping[str, object]) -> Answer[ConfirmationView]:
     returns the version already created rather than making a second one, which
     `REQ-624` makes a success and not a conflict.
 
-    The confirmation flag is checked here because `_require_declared_flags`
-    deliberately does not: a missing confirmation is a decision the user has not
-    made, which is `AI_STP_USER_DECISION_REQUIRED` and exit class 4, not a
-    malformed call. This command declared `explicit_flag` and then carried no
-    flag to check, so the one command whose whole purpose is the user's decision
-    was the only one of seventeen that never asked for it, and a bare call froze
-    an immutable version.
+    Naming the exact proposal is the decision. What this freezes is private,
+    local and reversible by composing again, so the `--confirm` flag it once
+    demanded beside the proposal was a second question about one answer — the
+    class `ADR-0118` removes rather than adds to.
     """
     proposal_id = str(parameters.get("proposal") or "")
     if not proposal_id:
@@ -616,14 +613,6 @@ def confirm(parameters: Mapping[str, object]) -> Answer[ConfirmationView]:
             "AI_STP_VALIDATION_ERROR",
             "the proposal being confirmed must be named",
             next_actions=["select propose --harness <id> --json"],
-        )
-    # After the proposal is known, not before: a call naming nothing is
-    # malformed, and only a well-formed call can be a decision left unmade.
-    if parameters.get("confirm") is not True:
-        raise CliFailure(
-            "AI_STP_USER_DECISION_REQUIRED",
-            "select confirm requires explicit confirmation",
-            next_actions=[f"select confirm --proposal {proposal_id} --confirm --json"],
         )
 
     def work(connection: sqlite3.Connection) -> ConfirmationView:

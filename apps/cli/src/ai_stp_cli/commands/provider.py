@@ -405,15 +405,6 @@ def _replace(
     wanted_tag = str(parameters.get("version") or "")
     executable = str(parameters.get("executable") or "")
     expected = str(parameters.get("expected-plan-digest") or "")
-    if confirmed and parameters.get("confirm") is not True:
-        raise CliFailure(
-            "AI_STP_USER_DECISION_REQUIRED",
-            "replacing a provider requires explicit confirmation",
-            next_actions=[
-                f"provider {operation} apply --harness {harness_id} "
-                "--expected-plan-digest <digest> --confirm --json"
-            ],
-        )
     adopt = bool(parameters.get("adopt"))
 
     configured = {item.path: item.value for item in effective_config().values}

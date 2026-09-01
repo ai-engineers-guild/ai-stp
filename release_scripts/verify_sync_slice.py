@@ -287,7 +287,7 @@ def _release(home: Path, stable_id: str, *, python: str) -> str:
     """Give the current head its next immutable number and return that number."""
     released = data(
         cli(
-            ["component", "version", "release", "--id", stable_id, "--confirm"],
+            ["component", "version", "release", "--id", stable_id],
             home=home,
             python=python,
         ),

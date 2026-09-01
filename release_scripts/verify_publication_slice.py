@@ -321,7 +321,7 @@ def _seed_local_release(home: Path, *, python: str) -> tuple[str, str]:
     )
     released = data(
         cli(
-            ["component", "version", "release", "--id", stable_id, "--confirm"],
+            ["component", "version", "release", "--id", stable_id],
             home=home,
             python=python,
         ),
@@ -580,7 +580,7 @@ def _seed_publishable(home: Path, *, python: str) -> tuple[str, str]:
     )
     released = data(
         cli(
-            ["component", "version", "release", "--id", stable_id, "--confirm"],
+            ["component", "version", "release", "--id", stable_id],
             home=home,
             python=python,
         ),

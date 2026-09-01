@@ -78,10 +78,8 @@ def _json_option() -> click.Option:
 def _option_for(parameter: CommandParameter) -> click.Option:
     """One declared parameter, as Click sees it."""
     if parameter.value_type == "boolean":
-        # A required flag is unusual and deliberate: `help` exists only to
-        # produce the machine registry, so an absent `--agent` is a mistake
-        # worth naming rather than a default worth guessing. Click cannot model
-        # "required flag", so it is declared optional here and enforced in
+        # Click cannot model a required flag, so every boolean is declared
+        # optional here; a declaration that requires one is enforced in
         # `_require_declared_flags`, which can raise a registered error code
         # instead of Click's usage text.
         return click.Option(

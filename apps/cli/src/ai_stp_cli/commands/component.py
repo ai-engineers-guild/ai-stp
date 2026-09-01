@@ -437,12 +437,9 @@ def passport_suggest(parameters: Mapping[str, object]) -> Answer[ComponentPasspo
 def passport_validate(parameters: Mapping[str, object]) -> Answer[ComponentPassportValidation]:
     """List every local structural blocker to a future public publication plan."""
     stable_id = _required(parameters, "id", "a component stable id is required")
-    if not bool(parameters.get("for-publication")):
-        raise CliFailure(
-            "AI_STP_VALIDATION_ERROR",
-            "the validation profile must be selected explicitly",
-            next_actions=[f"component passport validate --id {stable_id} --for-publication --json"],
-        )
+    # `--for-publication` names the only profile this command has, so it is
+    # accepted and changes nothing: refusing without it asked the caller to
+    # repeat the command's one meaning back before being answered.
     with closing(open_readonly(configured_path())) as connection:
         readiness = component_passports.validate_for_publication(connection, stable_id)
     return Answer(
@@ -689,7 +686,6 @@ def version_release(parameters: Mapping[str, object]) -> Answer[VersionLine]:
     """
     stable_id = _required(parameters, "id", "a stable id is required")
     wants_major = bool(parameters.get("major"))
-    confirmed = bool(parameters.get("confirm"))
 
     def work(connection: sqlite3.Connection) -> VersionLine:
         stored = revisions.head(connection, stable_id)
@@ -701,7 +697,7 @@ def version_release(parameters: Mapping[str, object]) -> Answer[VersionLine]:
                 next_actions=["component adopt --path <path> --json"],
             )
         number = (
-            versions.next_major(connection, stable_id, decided=confirmed)
+            versions.next_major(connection, stable_id)
             if wants_major
             else versions.next_minor(connection, stable_id)
         )

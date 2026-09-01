@@ -249,7 +249,7 @@ def _row(form: str, harness_id: str, *, root: Path, tag: str, python: str) -> di
 
     released = _stage(
         "release",
-        ["component", "version", "release", "--id", identifier, "--major", "--confirm"],
+        ["component", "version", "release", "--id", identifier, "--major"],
         home=home,
         python=python,
     )
@@ -283,7 +283,7 @@ def _row(form: str, harness_id: str, *, root: Path, tag: str, python: str) -> di
     stages.append(
         _stage(
             "confirm",
-            ["select", "confirm", "--proposal", proposal, "--confirm"],
+            ["select", "confirm", "--proposal", proposal],
             home=home,
             python=python,
         )
@@ -434,7 +434,7 @@ def _refusal(root: Path, python: str) -> dict[str, Any]:
     member = data(adopted, "adopt")
     identifier = str(member.get("stable_id", ""))
     released = cli(
-        ["component", "version", "release", "--id", identifier, "--major", "--confirm"],
+        ["component", "version", "release", "--id", identifier, "--major"],
         home=home,
         python=python,
         allow_failure=True,

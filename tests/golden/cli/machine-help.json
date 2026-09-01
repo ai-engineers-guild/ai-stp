@@ -613,9 +613,9 @@
           "name": "for-publication",
           "kind": "option",
           "value_type": "boolean",
-          "required": true,
+          "required": false,
           "repeatable": false,
-          "summary": "Select the strict public-publication readiness profile.",
+          "summary": "The public-publication readiness profile, which is the profile this command applies; accepted so an older caller's spelling still parses.",
           "choices": []
         }
       ],
@@ -1153,15 +1153,6 @@
           "required": false,
           "repeatable": false,
           "summary": "Open the next major line instead of the next minor.",
-          "choices": []
-        },
-        {
-          "name": "confirm",
-          "kind": "option",
-          "value_type": "boolean",
-          "required": false,
-          "repeatable": false,
-          "summary": "The explicit decision a major line requires.",
           "choices": []
         }
       ],
@@ -2363,9 +2354,9 @@
           "name": "agent",
           "kind": "option",
           "value_type": "boolean",
-          "required": true,
+          "required": false,
           "repeatable": false,
-          "summary": "Required. Selects the machine registry rather than usage text.",
+          "summary": "Names the caller. The machine registry is the only answer this command has, with or without it.",
           "choices": []
         }
       ],
@@ -3358,7 +3349,7 @@
       ],
       "summary": "Carry out exactly the provider reinstallation a plan described.",
       "mutability": "apply",
-      "confirmation": "none",
+      "confirmation": "plan_digest",
       "parameters": [
         {
           "name": "harness",
@@ -3402,15 +3393,6 @@
           "required": true,
           "repeatable": false,
           "summary": "Exact digest returned by the plan.",
-          "choices": []
-        },
-        {
-          "name": "confirm",
-          "kind": "option",
-          "value_type": "boolean",
-          "required": true,
-          "repeatable": false,
-          "summary": "Confirm the exact replacement the plan described.",
           "choices": []
         },
         {
@@ -3525,7 +3507,7 @@
       ],
       "summary": "Carry out exactly the provider replacement a plan described.",
       "mutability": "apply",
-      "confirmation": "none",
+      "confirmation": "plan_digest",
       "parameters": [
         {
           "name": "harness",
@@ -3569,15 +3551,6 @@
           "required": true,
           "repeatable": false,
           "summary": "Exact digest returned by the plan.",
-          "choices": []
-        },
-        {
-          "name": "confirm",
-          "kind": "option",
-          "value_type": "boolean",
-          "required": true,
-          "repeatable": false,
-          "summary": "Confirm the exact replacement the plan described.",
           "choices": []
         }
       ],
@@ -4456,7 +4429,7 @@
       ],
       "summary": "Freeze one proposal as a private setup version, its trace and its pin.",
       "mutability": "apply",
-      "confirmation": "explicit_flag",
+      "confirmation": "none",
       "parameters": [
         {
           "name": "proposal",
@@ -4465,15 +4438,6 @@
           "required": true,
           "repeatable": false,
           "summary": "The proposal being confirmed.",
-          "choices": []
-        },
-        {
-          "name": "confirm",
-          "kind": "option",
-          "value_type": "boolean",
-          "required": true,
-          "repeatable": false,
-          "summary": "Confirm freezing this exact proposal as a setup version.",
           "choices": []
         }
       ],

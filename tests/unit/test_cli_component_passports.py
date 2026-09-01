@@ -501,7 +501,9 @@ def test_the_passport_commands_refuse_before_they_open_the_registry(tmp_path: Pa
         )
     assert refused.value.code == "AI_STP_NOT_FOUND"
 
-    with pytest.raises(CliFailure, match="profile must be selected"):
+    # `--for-publication` names the only profile and is no longer demanded;
+    # the first refusal is the registry that is not there.
+    with pytest.raises(CliFailure, match="registry does not exist"):
         command.passport_validate({"id": stable_id})
 
 

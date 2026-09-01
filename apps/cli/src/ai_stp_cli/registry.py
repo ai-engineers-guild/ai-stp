@@ -135,14 +135,13 @@ _REPLACEMENT_OPTIONS: Final[tuple[CommandParameter, ...]] = (
     ),
 )
 
-#: What `apply` adds: the plan's exact digest and an explicit confirmation. Both
-#: required, so a confirmation can only ever be of something already described.
+#: What `apply` adds: the plan's exact digest, required, so what is carried out
+#: can only ever be something already described. The digest is the confirmation
+#: (`ADR-0118`): it says *which* replacement, where a boolean beside it said
+#: only "yes" and asked a second time for the same decision.
 _CONFIRMED_OPTIONS: Final[tuple[CommandParameter, ...]] = (
     *_REPLACEMENT_OPTIONS,
     option("expected-plan-digest", "string", "Exact digest returned by the plan.", required=True),
-    option(
-        "confirm", "boolean", "Confirm the exact replacement the plan described.", required=True
-    ),
 )
 
 _VERSION_OPTION: Final[CommandParameter] = option(
@@ -852,8 +851,8 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "for-publication",
                 "boolean",
-                "Select the strict public-publication readiness profile.",
-                required=True,
+                "The public-publication readiness profile, which is the profile this "
+                "command applies; accepted so an older caller's spelling still parses.",
             ),
         ),
         next_actions=("component passport update", "component version release"),
@@ -933,11 +932,11 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         handler="component:version_release",
         mutability="apply",
         # A major line is a separate access boundary, so asking for one needs a
-        # decision rather than a flag that defaults to yes.
+        # decision rather than a flag that defaults to yes. `--major` is that
+        # decision; a second flag repeating it asked the same question twice.
         parameters=(
             option("id", "string", "Stable identifier of a registered object.", required=True),
             option("major", "boolean", "Open the next major line instead of the next minor."),
-            option("confirm", "boolean", "The explicit decision a major line requires."),
         ),
         next_actions=("component version list",),
     ),
@@ -1095,8 +1094,8 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "agent",
                 "boolean",
-                "Required. Selects the machine registry rather than usage text.",
-                required=True,
+                "Names the caller. The machine registry is the only answer this "
+                "command has, with or without it.",
             ),
         ),
         next_actions=("capabilities",),
@@ -1736,19 +1735,12 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         summary="Freeze one proposal as a private setup version, its trace and its pin.",
         result_schema="urn:ai-stp:schema:v1:cli-confirmation",
         handler="select:confirm",
-        # The only path from a shown composition to a stored object, and the
-        # user's decision is what authorises it.
+        # The only path from a shown composition to a stored object. Calling it
+        # with the exact proposal is the decision: what it freezes is private,
+        # local and reversible by composing again, so a flag repeating the
+        # verb was a second question about one answer (`ADR-0118`).
         mutability="apply",
-        confirmation="explicit_flag",
-        parameters=(
-            option("proposal", "string", "The proposal being confirmed.", required=True),
-            option(
-                "confirm",
-                "boolean",
-                "Confirm freezing this exact proposal as a setup version.",
-                required=True,
-            ),
-        ),
+        parameters=(option("proposal", "string", "The proposal being confirmed.", required=True),),
         next_actions=("select session",),
     ),
     Declaration(
@@ -2421,6 +2413,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-provider-replacement-result",
         handler="provider:update_apply",
         mutability="apply",
+        confirmation="plan_digest",
         parameters=_CONFIRMED_OPTIONS,
         next_actions=("provider check", "provider conformance"),
     ),
@@ -2440,6 +2433,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-provider-replacement-result",
         handler="provider:reinstall_apply",
         mutability="apply",
+        confirmation="plan_digest",
         parameters=(*_CONFIRMED_OPTIONS, _VERSION_OPTION),
         next_actions=("provider check", "provider conformance"),
     ),

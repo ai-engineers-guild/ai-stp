@@ -1024,7 +1024,7 @@ def test_the_whole_envelope_validates_against_its_published_schema(
     "argv",
     [
         ("nope",),
-        ("help",),
+        ("device", "reset"),
         ("registry", "search", "--kind", "component"),
         ("auth", "complete"),
     ],

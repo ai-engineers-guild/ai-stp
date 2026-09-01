@@ -1,6 +1,6 @@
 ---
 description: "Decision to treat option selection, publication, and code promotion as part of the agent's authority, reserving a separate decision only for irreversible and external actions."
-last_verified: "2026-08-30"
+last_verified: "2026-09-02"
 ---
 
 # ADR-0118: The agent decides within the vision
@@ -175,6 +175,29 @@ A minor imprecision is stated explicitly: the `plan_digest` kind for
 The kind means "confirmed by the named exact value," and its name comes from
 its first use. Renaming it would change a published contract for cosmetic
 reasons, so it was not done.
+
+## Amendment of 2026-09-02: five stops with nothing behind them
+
+Counted again against the current registry, the previous amendment's rule —
+where an operation is local, reversible and already names an exact expected
+value, that value is the confirmation — had not been applied to two commands
+that met it, and three other refusals asked the caller to repeat a command's
+only meaning before being answered:
+
+| command | asked for | already carried |
+|---|---|---|
+| `provider update apply`, `provider reinstall apply` | `--confirm` | `--expected-plan-digest` |
+| `component version release --major` | `--confirm` beside `--major` | the `--major` decision itself |
+| `select confirm` | `--confirm` beside the proposal | the exact proposal, private and local |
+| `component passport validate` | `--for-publication`, required | the command's one profile |
+| `help` | `--agent`, required | the command's one answer |
+
+Decision: the two provider `apply` commands become `plan_digest`; `select
+confirm` and `component version release` lose `--confirm`; `--for-publication`
+and `--agent` stay accepted and stop being demanded. What remains behind a flag
+is exactly the list this record keeps: deletion without recovery, another
+party's account or new credentials, privilege, an unverified object, and the
+publicity or access of an existing object — plus the end user's own consent.
 
 ## Reconsideration conditions
 

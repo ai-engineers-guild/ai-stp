@@ -4,7 +4,7 @@ A `next_actions` entry is machine output an agent executes next. One that names
 a command that does not exist, or a flag the named command does not take, sends
 the caller into a refusal the original answer manufactured. Two such pointers
 shipped and sat unnoticed — `registry version next` (a command that never
-existed; the decision lives on `component version release --major --confirm`)
+existed; the decision lives on `component version release --major`)
 and `toolchain install --harness` (that command takes `--tool`; installing a
 harness program is `harness install`) — because nothing read these strings the
 way their audience does. This test is that reader.

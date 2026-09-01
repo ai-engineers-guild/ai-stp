@@ -36,10 +36,9 @@ def capabilities(_parameters: Mapping[str, object]) -> Answer[Capabilities]:
 def registry(_parameters: Mapping[str, object]) -> Answer[MachineHelp]:
     """Emit the full command registry.
 
-    `--agent` is required by the parser rather than optional: this command
-    exists only to produce the machine registry — human usage is what `--help`
-    is for — and an optional flag that changes nothing would be noise in a
-    contract five harness projections read.
+    `--agent` names the caller and is accepted with or without: this command
+    has exactly one answer, and refusing to give it until the caller repeated
+    the command's only meaning was a stop with nothing behind it.
     """
     from ai_stp_cli.registry import GLOBAL_OPTIONS, descriptors
 

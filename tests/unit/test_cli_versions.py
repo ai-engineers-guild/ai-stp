@@ -186,13 +186,9 @@ def test_a_major_line_needs_an_explicit_decision(registry: sqlite3.Connection) -
         revision_id=_revision(registry, "a"),
         at=MOMENT,
     )
-    # `REQ-507`: a new major line is a separate access boundary. Computing it
-    # silently is how a minor change becomes one nobody chose.
-    with pytest.raises(CliFailure, match="explicit decision") as raised:
-        versions.next_major(registry, HELD, decided=False)
-    assert raised.value.code == "AI_STP_USER_DECISION_REQUIRED"
-
-    assert versions.next_major(registry, HELD, decided=True) == "2.0"
+    # `REQ-507`: a new major line is a separate access boundary, reached only
+    # through the `--major` decision; nothing computes it by default.
+    assert versions.next_major(registry, HELD) == "2.0"
 
 
 def test_the_first_major_line_of_a_new_object_is_one(registry: sqlite3.Connection) -> None:
@@ -430,14 +426,12 @@ def test_releasing_the_same_head_twice_is_refused_as_a_reused_number(adopted: st
     assert second.versions[0].passport_digest == second.versions[1].passport_digest
 
 
-def test_a_major_release_needs_the_decision_flag(adopted: str) -> None:
+def test_a_major_release_is_the_decision_flag_and_nothing_more(adopted: str) -> None:
+    """`--major` is the decision `REQ-507` asks for; a second flag repeated it."""
     from ai_stp_cli.commands import component as command
 
     command.version_release({"id": adopted})
-    with pytest.raises(CliFailure, match="explicit decision"):
-        command.version_release({"id": adopted, "major": True})
-
-    opened = command.version_release({"id": adopted, "major": True, "confirm": True}).payload
+    opened = command.version_release({"id": adopted, "major": True}).payload
     assert [item.version for item in opened.versions] == ["1.0", "2.0"]
     assert opened.next_minor == "2.1"
 

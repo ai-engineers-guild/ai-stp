@@ -185,23 +185,14 @@ def next_minor(connection: sqlite3.Connection, stable_id: str, *, major: int | N
     return format_version(wanted, max(item.minor for item in within) + 1)
 
 
-def next_major(connection: sqlite3.Connection, stable_id: str, *, decided: bool) -> str:
-    """The first version of the next major line, only on an explicit decision.
+def next_major(connection: sqlite3.Connection, stable_id: str) -> str:
+    """The first version of the next major line.
 
-    `REQ-507` makes this a user decision that creates a separate access
-    boundary, so the flag is required and false is a refusal rather than a
-    default. Computing it silently is how a minor change becomes a new access
-    boundary nobody chose.
+    `REQ-507` makes a new major line a user decision that creates a separate
+    access boundary, so nothing computes it by default: the caller reaches
+    here only through `component version release --major`, and that flag is
+    the decision. A second flag repeating it asked the same question twice.
     """
-    if not decided:
-        raise CliFailure(
-            "AI_STP_USER_DECISION_REQUIRED",
-            "a new major line needs the user's explicit decision",
-            details={"stable_id": stable_id},
-            # This used to say `registry version next` — a command that never
-            # existed; the decision lives on the release command's flags.
-            next_actions=["component version release --id <stable_id> --major --confirm --json"],
-        )
     recorded = line(connection, stable_id)
     highest = max((item.major for item in recorded), default=0)
     return format_version(highest + 1, 0)

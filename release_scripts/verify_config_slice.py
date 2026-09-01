@@ -259,7 +259,7 @@ def _row(harness_id: str, *, root: Path, tag: str, python: str) -> dict[str, Any
 
     released = _stage(
         "release",
-        ["component", "version", "release", "--id", identifier, "--major", "--confirm"],
+        ["component", "version", "release", "--id", identifier, "--major"],
         home=home,
         python=python,
     )
@@ -292,7 +292,7 @@ def _row(harness_id: str, *, root: Path, tag: str, python: str) -> dict[str, Any
 
     confirmed = _stage(
         "confirm",
-        ["select", "confirm", "--proposal", proposal, "--confirm"],
+        ["select", "confirm", "--proposal", proposal],
         home=home,
         python=python,
     )
