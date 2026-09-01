@@ -17,7 +17,16 @@ from typing import Final
 
 #: Native at a scope a provider owns, and this compiler has no route. Waiting
 #: helps here and nowhere else: the surface exists and the work is ours.
-PROJECTION_MISSING: Final[dict[tuple[str, str], str]] = {}
+PROJECTION_MISSING: Final[dict[tuple[str, str], str]] = {
+    ("cursor", "agent"): (
+        "the shipped 2026.08.11 bundle discovers `**/.cursor/agents/**/*.md` "
+        "(also `.mdc`, `.markdown`) beside its skills and rules globs, and the "
+        "catalogue reads the surface since 2026-09-01; release `0.0.53` "
+        "declares no `agents` namespace and no `agent` kind, so there is "
+        "nothing to route to until the estate half lands — "
+        "cursor-setup-system#94."
+    ),
+}
 
 #: Routed by this compiler and absent from the catalogue at an owned scope. Each
 #: is deliberate and each names what it was established from.

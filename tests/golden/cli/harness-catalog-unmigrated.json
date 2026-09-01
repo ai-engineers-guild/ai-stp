@@ -28,6 +28,15 @@
       "declared_key": ""
     },
     {
+      "component_type": "agent",
+      "relative": ".cursor/agents",
+      "shape": "directory",
+      "scope": "project",
+      "root": "config",
+      "source": "cursor.com/docs/agents",
+      "declared_key": ""
+    },
+    {
       "component_type": "plugin",
       "relative": ".cursor/plugins",
       "shape": "directory",
@@ -52,6 +61,15 @@
       "scope": "global",
       "root": "config",
       "source": "cursor.com/docs/skills",
+      "declared_key": ""
+    },
+    {
+      "component_type": "agent",
+      "relative": "agents",
+      "shape": "directory",
+      "scope": "global",
+      "root": "config",
+      "source": "cursor.com/docs/agents",
       "declared_key": ""
     },
     {

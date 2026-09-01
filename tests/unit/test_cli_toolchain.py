@@ -319,17 +319,17 @@ def test_capabilities_separate_what_the_product_reads_from_what_this_build_route
     states = {
         cell.state for row in rows.values() if row.components is not None for cell in row.components
     }
-    # `projection_missing` left this list on 2026-08-31, and its absence is the
-    # result rather than a weakening: `ADR-0129` gave the last four cells that
-    # held it — claude-code's `hook` and the `mcp` of codex, grok-build and
-    # opencode — a route, by compiling a component that lands inside an owned
-    # file as a contribution to that file.
-    #
-    # The state itself stays derivable and stays asserted above, cell by cell.
-    # What this line holds is that the table is not answering uniformly, and
-    # four distinct states still say that.
+    # `projection_missing` left this list on 2026-08-31 when `ADR-0129` gave
+    # its last four cells a route, and returned on 2026-09-01 with a new
+    # measurement: cursor's shipped bundle reads `.cursor/agents` and release
+    # 0.0.53 declares no route to it. The stale form of this assertion pinned
+    # the absence as a fact of the world; the durable claim is that the state
+    # appears exactly where `capability_reasons.PROJECTION_MISSING` explains
+    # it — a set that is allowed to empty and to refill with the estate.
     assert {"supported", "routed_only", "project_only", "unsupported"} <= states
-    assert "projection_missing" not in states
+    from ai_stp_cli.local.capability_reasons import PROJECTION_MISSING
+
+    assert ("projection_missing" in states) == bool(PROJECTION_MISSING)
 
     # `#462` item 4: a state that is not `supported` carries why, on the wire.
     # These reasons were correct and written twice where a caller could not read

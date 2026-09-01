@@ -383,6 +383,13 @@ def test_every_exercised_row_is_one_somebody_actually_exercised() -> None:
         # with `**/.cursor/skills-cursor/**/SKILL.md`; a live machine holds
         # user skills there while `skills` does not exist.
         ("cursor", "skill", "skills-cursor", "bytes"),
+        # The same pinned 2026.08.11 bundle discovers agent definitions with
+        # `**/.cursor/agents/**/*.md` (also `.mdc`, `.markdown`) beside the
+        # rules and skills globs, and carves `!**/.cursor/agents/**` out of
+        # workspace indexing exactly as it does for skills — a first-party
+        # surface in both the home and the project.
+        ("cursor", "agent", "agents", "bytes"),
+        ("cursor", "agent", ".cursor/agents", "bytes"),
         # `antigravity plugin install` creates `~/.gemini/config/plugins/` and
         # validates the plugin; no `antigravity-cli/plugins` is created at all.
         ("antigravity", "plugin", "config/plugins", "ran"),

@@ -667,6 +667,12 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
             # looks authoritative for a thing does not name its placement.
             _layout("plugin", "plugins/local", "directory", f"{CURSOR}/plugins", G),
             _layout("instruction", ".cursor/rules", "directory", f"{CURSOR}/rules", P),
+            # The project half of the `agents` surface above: the bundle's
+            # discovery glob is `**/`-anchored, so it reads the workspace's
+            # `.cursor/agents` exactly as it reads the home's.
+            _layout(
+                "agent", ".cursor/agents", "directory", f"{CURSOR}/agents", P, evidence="bytes"
+            ),
             _layout("plugin", ".cursor/plugins", "directory", f"{CURSOR}/reference/plugins", P),
             # Five user-scope surfaces the docs page does not mention and the
             # product reads. `mcp.json` was confirmed by running the product,
@@ -684,6 +690,16 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
             # same matcher as third-party interop — deliberately not rows of
             # this harness.)
             _layout("skill", "skills-cursor", "directory", f"{CURSOR}/skills", G, evidence="bytes"),
+            # Agent definitions, read off the same pinned bundle: the config
+            # matcher lists `**/.cursor/agents/**/*.md` (also `.mdc` and
+            # `.markdown`) beside the rules and skills globs, and workspace
+            # indexing carves `!**/.cursor/agents/**` out exactly as it does
+            # for skills. No vendor page names the placement — the fourth
+            # Cursor surface where the product's own bytes are the only
+            # authority. The provider estate does not manage it yet
+            # (0.0.53 declares no `agents` namespace); discovery must still
+            # see it, or a person's agent files read as loose notes.
+            _layout("agent", "agents", "directory", f"{CURSOR}/agents", G, evidence="bytes"),
             _layout("instruction", "rules", "directory", f"{CURSOR}/rules", G, evidence="bytes"),
             _layout("command", "commands", "directory", CURSOR_COMMANDS, G, evidence="bytes"),
             _layout("hook", "hooks.json", "file", f"{CURSOR}/hooks", G, evidence="bytes"),
