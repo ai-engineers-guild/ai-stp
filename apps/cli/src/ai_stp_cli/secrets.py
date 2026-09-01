@@ -181,10 +181,58 @@ def selected_backend() -> str | None:
     return name if name in TRUSTED_BACKENDS else None
 
 
-#: Read once to find out whether the selected backend actually answers. The name
-#: is never written; a store that has no such entry returns `None`, which is the
-#: successful outcome.
+#: A reserved entry used for one ephemeral read/write/delete availability probe.
+#: It is never a user secret and is removed before the selected store is returned.
 _PROBE_ENTRY: Final[str] = "availability-probe"
+_PROBE_VALUE: Final[str] = "ai-stp-availability-probe"
+
+
+class FileFallbackStore:
+    """Write to the file tier while retaining read access to an old OS entry."""
+
+    def __init__(self, file_store: FileStore, os_store: KeyringStore, detail: str) -> None:
+        self._file_store = file_store
+        self._os_store = os_store
+        self._detail = detail
+
+    @property
+    def tier(self) -> CredentialStore:
+        return "file"
+
+    @property
+    def detail(self) -> str:
+        return self._detail
+
+    def get(self, name: str) -> str | None:
+        value = self._file_store.get(name)
+        if value is not None:
+            return value
+        try:
+            return self._os_store.get(name)
+        except CliFailure as error:
+            if error.code == "AI_STP_DEPENDENCY_UNAVAILABLE":
+                return None
+            raise
+
+    def put(self, name: str, value: str) -> None:
+        self._file_store.put(name, value)
+
+    def drop(self, name: str) -> None:
+        self._os_store.drop(name)
+        self._file_store.drop(name)
+
+
+def _probe(store: KeyringStore) -> None:
+    """Require a read/write/delete round trip before selecting the OS tier."""
+    written = False
+    try:
+        store.put(_PROBE_ENTRY, _PROBE_VALUE)
+        written = True
+        if store.get(_PROBE_ENTRY) != _PROBE_VALUE:
+            raise _store_unavailable(RuntimeError("credential store probe did not round trip"))
+    finally:
+        if written:
+            store.drop(_PROBE_ENTRY)
 
 
 def open_store() -> tuple[SecretStore, str | None]:
@@ -219,10 +267,15 @@ def open_store() -> tuple[SecretStore, str | None]:
     if backend is not None:
         store = KeyringStore(backend)
         try:
-            store.get(_PROBE_ENTRY)
+            _probe(store)
         except CliFailure:
+            file_store = FileStore(detail="owner-only file; the credential store did not answer")
             return (
-                FileStore(detail="owner-only file; the credential store did not answer"),
+                FileFallbackStore(
+                    file_store,
+                    store,
+                    detail="owner-only file; the credential store did not answer",
+                ),
                 "the operating system credential store was found but did not answer; "
                 "secrets are kept in an owner-only file",
             )

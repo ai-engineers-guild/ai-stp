@@ -24,7 +24,10 @@ from ai_stp_platform.models import (
     OfficialUpstreamSync,
     PublicationPlan,
 )
-from ai_stp_platform.official_upstream.artifact import package_component_tree
+from ai_stp_platform.official_upstream.artifact import (
+    COMPONENT_TREE_FORMAT,
+    package_component_tree,
+)
 from ai_stp_platform.official_upstream.attribution import build_description
 from ai_stp_platform.official_upstream.errors import (
     CHANGED_REPOSITORY_IDENTITY,
@@ -160,16 +163,22 @@ def _store_identity(
 
 
 async def _already_published(session: AsyncSession, stable_id: str, digest: str) -> bool:
-    found = await session.scalar(
-        select(ObjectLocation.id)
-        .join(CatalogMetadata, CatalogMetadata.id == ObjectLocation.catalog_metadata_id)
-        .where(
-            CatalogMetadata.stable_id == stable_id,
-            CatalogMetadata.object_kind == "component",
-            ObjectLocation.digest == digest,
+    passports = (
+        await session.scalars(
+            select(CatalogMetadata.passport_document)
+            .select_from(ObjectLocation)
+            .join(CatalogMetadata, CatalogMetadata.id == ObjectLocation.catalog_metadata_id)
+            .where(
+                CatalogMetadata.stable_id == stable_id,
+                CatalogMetadata.object_kind == "component",
+                ObjectLocation.digest == digest,
+            )
         )
+    ).all()
+    return any(
+        isinstance(passport, dict) and passport.get("artifact_format") == COMPONENT_TREE_FORMAT
+        for passport in passports
     )
-    return found is not None
 
 
 async def _start_publication(
@@ -188,7 +197,7 @@ async def _start_publication(
             PublicationPlan.idempotency_key == f"official-upstream:{source.id}:{component_digest}",
         )
     )
-    if existing is not None and existing.state not in {"failed", "cancelled", "stale"}:
+    if existing is not None and existing.state not in {"failed", "cancelled", "stale", "published"}:
         return existing
     version = await _next_unused_minor(session, source.stable_id)
     license_spdx = snapshot.observed_license or source.reviewed_license
@@ -363,6 +372,7 @@ def _passport(
         "tags": list(source.tags),
         "source": _git_source_fields(source, snapshot),
         "artifact": {"digest": component_digest, "size_bytes": size_bytes},
+        "artifact_format": COMPONENT_TREE_FORMAT,
         "harness_id": source.harness_id,
         "harness_ids": [],
         "supported_os": [],

@@ -65,6 +65,20 @@ from ai_stp_sources.errors import SourceError
 KINDS: tuple[CatalogKind, ...] = ("component", "setup")
 
 
+def _artifact_format(document: Mapping[str, JsonValue]) -> str:
+    direct = document.get("artifact_format")
+    if isinstance(direct, str) and direct:
+        return direct
+    facts = document.get("facts")
+    if isinstance(facts, dict):
+        legacy = facts.get("content_format")
+        if isinstance(legacy, dict):
+            value = legacy.get("value")
+            if isinstance(value, str):
+                return value
+    return ""
+
+
 def port_discover(parameters: Mapping[str, object]) -> Answer[StorePortDiscovery]:
     """Find compatible local setup-store snapshots without changing state."""
     return Answer(store_ports.discover(_port_root(parameters)))
@@ -460,7 +474,7 @@ def acquire_version(
         )
     if isinstance(passport, ComponentVersionPassport):
         component_document = cast(dict[str, JsonValue], passport.model_dump(mode="json"))
-        components.expand(artifact, str(component_document.get("artifact_format") or ""))
+        components.expand(artifact, _artifact_format(component_document))
     return AcquiredCatalogVersion(view, passport, artifact)
 
 
@@ -530,7 +544,7 @@ def _acquired_embedded(
             "an embedded component no longer matches its recorded digest",
             details={"stable_id": passport.stable_id},
         )
-    components.expand(artifact, str(passport_raw.get("artifact_format") or ""))
+    components.expand(artifact, _artifact_format(passport_raw))
     return AcquiredCatalogVersion(
         CatalogVersionView(
             kind="component",

@@ -89,6 +89,42 @@ def test_with_a_store_there_is_nothing_to_warn_about(monkeypatch: pytest.MonkeyP
     assert store.detail == "macOS"
 
 
+def test_a_store_that_reads_but_cannot_write_falls_back_to_file(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import sys
+
+    class ReadOnly:
+        class errors:
+            class PasswordDeleteError(Exception):
+                pass
+
+        @staticmethod
+        def get_password(_service: str, name: str) -> str | None:
+            return "old-key" if name == "existing" else None
+
+        @staticmethod
+        def set_password(_service: str, _name: str, _value: str) -> None:
+            raise RuntimeError("write unavailable")
+
+        @staticmethod
+        def delete_password(_service: str, _name: str) -> None:
+            raise RuntimeError("delete unavailable")
+
+    monkeypatch.setitem(sys.modules, "keyring", ReadOnly)
+    monkeypatch.setattr(
+        secrets, "selected_backend", lambda: "keyring.backends.Windows.WinVaultKeyring"
+    )
+
+    store, warning = secrets.open_store()
+
+    assert store.tier == "file"
+    assert warning is not None
+    assert store.get("existing") == "old-key"
+    store.put("new", "value")
+    assert store.get("new") == "value"
+
+
 def test_the_file_tier_round_trips_and_stays_owner_only() -> None:
     store = secrets.FileStore()
     assert store.get("thing") is None

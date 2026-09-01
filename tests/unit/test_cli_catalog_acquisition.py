@@ -363,6 +363,57 @@ def test_acquire_version_seals_published_bytes_not_a_model_dump(
     assert found.artifact == component.artifact
 
 
+def test_acquire_version_supports_legacy_content_format_fact(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    (component, *_rest), _setup = _grok()
+    published = component.passport.model_dump(mode="json")
+    legacy_format = str(published.pop("artifact_format"))
+    facts = published["facts"]
+    assert isinstance(facts, dict)
+    facts["content_format"] = {
+        "value": legacy_format,
+        "origin": "observed",
+        "confirmation": "none",
+    }
+    published["revision_id"] = derive_revision_id(published)
+    view = CatalogVersionView(
+        kind="component",
+        source="online",
+        checked_at="2026-08-25T00:00:00.000Z",
+        passport_digest=local_cache.digest_of(published),
+        lifecycle="active",
+        trust=CatalogTrust(
+            author_verified=True,
+            component_verified=True,
+            trust_lane="authoritative",
+        ),
+        published_at="2026-08-25T00:00:00.000Z",
+        passport=published,
+    )
+    artifact = tmp_path / "component.zip"
+    artifact.write_bytes(component.artifact)
+
+    def version(*_args: object, **_kwargs: object) -> CatalogVersionView:
+        return view
+
+    def fetch_artifact(*_args: object, **_kwargs: object) -> Path:
+        return artifact
+
+    def stored_none(_digest: str) -> Path | None:
+        return None
+
+    monkeypatch.setattr(cloud_catalog, "version", version)
+    monkeypatch.setattr(cloud_catalog, "fetch_artifact", fetch_artifact)
+    monkeypatch.setattr(local_cache, "stored_version_artifact", stored_none)
+    monkeypatch.setattr(registry_commands, "endpoint", lambda: Endpoint("https://nddev.asia"))
+
+    found = registry_commands.acquire_version(
+        "component", component.passport.stable_id, component.passport.version, offline=False
+    )
+    assert found.artifact == component.artifact
+
+
 def test_offline_acquisition_refuses_corrupt_cached_bytes(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

@@ -27,6 +27,7 @@ from ai_stp_platform.models import (
     PublicProfile,
 )
 from ai_stp_platform.official_upstream import OFFICIAL_ACCOUNT_ID, SOURCE_ID
+from ai_stp_platform.official_upstream.artifact import COMPONENT_TREE_FORMAT
 from ai_stp_platform.official_upstream.enqueue import enqueue_daily
 from ai_stp_platform.official_upstream.errors import (
     CHANGED_REPOSITORY_IDENTITY,
@@ -206,6 +207,7 @@ async def test_sync_noop_then_publish_once_and_redelivery_is_idempotent(
         assert published.version == "1.0"
         assert published.owner_account_id == OFFICIAL_ACCOUNT_ID
         passport = dict(published.passport_document or {})
+        assert passport.get("artifact_format") == COMPONENT_TREE_FORMAT
         assert str(passport.get("description", "")).startswith(
             "Demo is maintained by Acme Maintainers at https://github.com/acme/tool under MIT."
         )
@@ -221,20 +223,40 @@ async def test_sync_noop_then_publish_once_and_redelivery_is_idempotent(
         assert len(versions) == 1
         plans = list((await session.scalars(select(PublicationPlan))).all())
         assert len(plans) == 1
+        legacy_passport = dict(published.passport_document or {})
+        legacy_passport.pop("artifact_format", None)
+        published.passport_document = legacy_passport
+        await session.flush()
+        repaired = await run_sync(
+            session, SOURCE_ID, fetch=fetch, store=store, now=now + timedelta(days=1)
+        )
+        assert repaired == "publication_started"
+        repair_plan = (
+            await session.scalars(select(PublicationPlan).where(PublicationPlan.version == "1.1"))
+        ).one()
+        await execute_validate(
+            session, plan_id=repair_plan.id, object_store=store, skip_safety=True
+        )
+        repaired_metadata = await execute_publish(session, plan_id=repair_plan.id, store=store)
+        assert repaired_metadata.version == "1.1"
+        assert (
+            dict(repaired_metadata.passport_document or {}).get("artifact_format")
+            == COMPONENT_TREE_FORMAT
+        )
         changed = _fetch(_tar("# Demo changed\n"))
         started = await run_sync(
-            session, SOURCE_ID, fetch=changed, store=store, now=now + timedelta(days=1)
+            session, SOURCE_ID, fetch=changed, store=store, now=now + timedelta(days=2)
         )
         assert started == "publication_started"
         second_plan = (
-            await session.scalars(select(PublicationPlan).where(PublicationPlan.version == "1.1"))
+            await session.scalars(select(PublicationPlan).where(PublicationPlan.version == "1.2"))
         ).first()
         assert second_plan is not None
         await execute_validate(
             session, plan_id=second_plan.id, object_store=store, skip_safety=True
         )
         second = await execute_publish(session, plan_id=second_plan.id, store=store)
-        assert second.version == "1.1"
+        assert second.version == "1.2"
         first_read = await session.get(CatalogMetadata, published.id)
         assert first_read is not None
         assert first_read.version == "1.0"

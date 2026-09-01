@@ -126,18 +126,12 @@ def _credential_store_check() -> DoctorCheck:
     configuration and the only one available over SSH or in a container. What
     would be wrong is not saying which one is in use.
     """
-    # Called through the module, not a bound name: a name imported at module
-    # load cannot be replaced later, and the test isolation that keeps this
-    # process out of the developer's real keyring works by replacement.
-    backend = secrets.selected_backend()
-    if backend is not None:
-        short = backend.rpartition(".")[0].removeprefix("keyring.backends.")
-        return DoctorCheck(name="credential_store", state="ready", detail=f"{short}")
-    return DoctorCheck(
-        name="credential_store",
-        state="ready",
-        detail="owner-only file; no operating system credential store is available",
-    )
+    # `open_store` runs the same ephemeral read/write/delete probe as every
+    # command that stores a secret; backend selection alone misses a keyring
+    # that can read but cannot write, which is the failure this check exists to
+    # expose.
+    store, _warning = secrets.open_store()
+    return DoctorCheck(name="credential_store", state="ready", detail=store.detail)
 
 
 def _device_identity_check() -> DoctorCheck:
