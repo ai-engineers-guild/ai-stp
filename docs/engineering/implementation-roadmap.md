@@ -37,14 +37,15 @@ plans are not continued literally after the implementation changes.
 | Release | All five Python packages published through Trusted Publishing (the exact version is in the snapshot below); public `check` and CodeQL green on the verified main; the host pulls `deploy/prod` |
 | Catalog | Seven harness families and four postures published; review tasks `#408`, `#456`, `#460`, and `#461` closed by implementation |
 
-## Verified snapshot: 2026-09-01
+## Verified snapshot: 2026-09-01, updated at the 0.0.14 cut
 
 - The canonical development checkout is `ai-engineers-guild/ai-stp`. The private
   underscore tree is an archive: it runs no workflows, promotes nothing, and its
   README names where the work went.
-- Published Python packages are `0.0.13` — five exact distributions through PyPI
+- Published Python packages are `0.0.14` — five exact distributions through PyPI
   Trusted Publishing with attestations, SBOMs/checksums and a clean-install smoke
-  check.
+  check, cut from tag `v0.0.14` and proven on that exact SHA by the six-leg
+  configuration and program slices (42 of 42 rows each).
 - The active provider release is `0.0.53` across all seven public setup-system
   repositories, each with six native binaries and `SHA256SUMS`. Provider kit
   `0.2.8` (it opens `plan_request_fields` to `end_state`), protocol 3.
