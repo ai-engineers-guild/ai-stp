@@ -31,7 +31,7 @@ import json
 import os
 import re
 import sqlite3
-from base64 import b64encode
+import stat
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Final, cast
@@ -41,7 +41,16 @@ import tomlkit.exceptions
 import yaml
 
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import content, harness_catalog, journal, mcp_clients, reading, revisions
+from ai_stp_cli.local import (
+    components,
+    composition,
+    content,
+    harness_catalog,
+    journal,
+    mcp_clients,
+    reading,
+    revisions,
+)
 from ai_stp_cli.local.database import transaction
 from ai_stp_cli.paths import redact_any_home
 from ai_stp_cli.provider import protocol_v3
@@ -249,6 +258,13 @@ class ProposedComponent:
     declared_key: str = ""
     entry_names: tuple[str, ...] = ()
 
+    #: The boundary `Placed` computed: the path every member is relative to.
+    #: A file layout's own path, a directory layout's first child, or
+    #: `path#key` for a contribution. Carried rather than re-derived so the
+    #: registration packages members the way the compiler will read them —
+    #: relative to the component, never to the harness root (`#63`).
+    boundary: str = ""
+
 
 @dataclass(frozen=True)
 class Plan:
@@ -335,6 +351,7 @@ def plan(inspection: Inspection) -> Plan:
                 byte_length=sum(item.byte_length for item in findings),
                 declared_key=declared_key,
                 entry_names=entry_names,
+                boundary=boundary,
             )
         )
 
@@ -359,6 +376,7 @@ def plan(inspection: Inspection) -> Plan:
                 "byte_length": item.byte_length,
                 "declared_key": item.declared_key,
                 "entry_names": list(item.entry_names),
+                "boundary": item.boundary,
             }
             for item in proposed
         ],
@@ -1000,43 +1018,9 @@ def register_graph(
             by_path = {item.path: item for item in inspection.findings}
             root = Path(inspection.root)
             for candidate in proposed.components:
-                packaged: list[JsonValue] = []
-                for relative in candidate.paths:
-                    raw = _reread(root, relative, by_path[relative].digest)
-                    if candidate.declared_key:
-                        # A contribution carries the key's value, never the
-                        # host file — the same rule adoption follows
-                        # (`ADR-0129`), read from the same owner. The value is
-                        # then scrubbed in the host's own format, because a
-                        # server entry is exactly where an `env` block with a
-                        # live token likes to sit.
-                        from ai_stp_cli.local import contribution
-
-                        host = Path(relative).name
-                        value = contribution.extract_value(
-                            host=host, content=raw, key=candidate.declared_key
-                        )
-                        value_suffix = (
-                            ".toml" if PurePosixPath(host).suffix.casefold() == ".toml" else ".json"
-                        )
-                        cleaned, _names = scrub(value, suffix=value_suffix)
-                        packaged.append(
-                            {
-                                "path": f"{relative}#{candidate.declared_key}",
-                                "content_base64": b64encode(cleaned).decode("ascii"),
-                            }
-                        )
-                        continue
-                    cleaned, _names = scrub(raw, suffix=PurePosixPath(relative).suffix)
-                    packaged.append(
-                        {"path": relative, "content_base64": b64encode(cleaned).decode("ascii")}
-                    )
-                artifact_bytes = json.dumps(
-                    {"format": "ai-stp-imported-component/1", "files": packaged},
-                    ensure_ascii=False,
-                    sort_keys=True,
-                    separators=(",", ":"),
-                ).encode("utf-8")
+                artifact_bytes, content_format, source_name = _package(
+                    root, candidate, {path: item.digest for path, item in by_path.items()}
+                )
                 artifact = content.put(connection, artifact_bytes, at=at)
                 component_id = new_id("component")
                 stored = revisions.commit(
@@ -1049,6 +1033,8 @@ def register_graph(
                         artifact.byte_length,
                         owner_id,
                         at,
+                        content_format=content_format,
+                        source_name=source_name,
                     ),
                     device_id=device_id,
                     operation_id=operation_id,
@@ -1128,7 +1114,7 @@ def _already_registered(connection: sqlite3.Connection, plan_digest: str) -> Imp
     return None
 
 
-def _reread(root: Path, relative: str, expected_digest: str) -> bytes:
+def _reread(root: Path, relative: str, expected_digest: str) -> tuple[bytes, int]:
     """The registration-time read: no link followed, no substitution accepted.
 
     Inspection classified this path as a regular file; registration reads it
@@ -1154,7 +1140,58 @@ def _reread(root: Path, relative: str, expected_digest: str) -> bytes:
             details={"path": relative},
             next_actions=["setup import plan --root <root> --harness <harness> --json"],
         )
-    return raw
+    return raw, 0o755 if stat.S_IMODE(held.st_mode) & 0o111 else 0o644
+
+
+def _package(
+    root: Path, candidate: ProposedComponent, digests: dict[str, str]
+) -> tuple[bytes, str, str]:
+    """The component's artifact in the format adoption would have stored.
+
+    Three shapes, one owner each. A contribution carries the key's value,
+    scrubbed in the host's format (`ADR-0129`). A single file carries its
+    scrubbed bytes. A directory is sealed through the same tree encoder
+    adoption uses, with every member relative to the component boundary.
+
+    The envelope this replaced kept every member at its harness-root-relative
+    path, so a file-shaped component reached the compiler as a named member
+    and a directory-shaped one re-rooted under itself — a path stored without
+    the root it was relative to, and the last link the capture round-trip was
+    missing (`#63`). Returns the bytes, their format and the component's name.
+    """
+    boundary = candidate.boundary
+    if candidate.declared_key:
+        relative = candidate.paths[0]
+        raw, _mode = _reread(root, relative, digests[relative])
+        from ai_stp_cli.local import contribution
+
+        host = Path(relative).name
+        value = contribution.extract_value(host=host, content=raw, key=candidate.declared_key)
+        value_suffix = ".toml" if PurePosixPath(host).suffix.casefold() == ".toml" else ".json"
+        cleaned, _names = scrub(value, suffix=value_suffix)
+        return cleaned, components.COMPONENT_FILE_FORMAT, host
+    name = PurePosixPath(boundary).name
+    if len(candidate.paths) == 1 and candidate.paths[0] == boundary:
+        raw, _mode = _reread(root, boundary, digests[boundary])
+        cleaned, _names = scrub(raw, suffix=PurePosixPath(boundary).suffix)
+        return cleaned, components.COMPONENT_FILE_FORMAT, name
+    prefix = f"{boundary}/"
+    files: list[components.ComponentFile] = []
+    for relative in candidate.paths:
+        if not relative.startswith(prefix):
+            raise CliFailure(
+                "AI_STP_CONFLICT",
+                "an import member lies outside its component boundary",
+                details={"path": relative, "boundary": boundary},
+            )
+        raw, mode = _reread(root, relative, digests[relative])
+        cleaned, _names = scrub(raw, suffix=PurePosixPath(relative).suffix)
+        files.append(components.ComponentFile(relative[len(prefix) :], cleaned, mode))
+    return (
+        components.encode_tree_artifact(files, root / boundary),
+        components.COMPONENT_TREE_FORMAT,
+        name,
+    )
 
 
 def _component_content(
@@ -1165,6 +1202,9 @@ def _component_content(
     artifact_size: int,
     owner_id: str,
     at: str,
+    *,
+    content_format: str,
+    source_name: str,
 ) -> dict[str, JsonValue]:
     facts = {
         "component_type": _fact(candidate.component_type, at),
@@ -1181,10 +1221,22 @@ def _component_content(
         "source_paths": _fact(list(candidate.paths), at),
         "candidate_id": _fact(candidate.candidate_id, at),
         "file_set_digest": _fact(candidate.file_set_digest, at),
-        "content_format": _fact("ai-stp-imported-component/1", at),
+        "boundary": _fact(candidate.boundary, at),
+        # The same three facts adoption records, so the compiler names the
+        # component's root and checks its projection the same way for both
+        # capture paths.
+        "source_name": _fact(source_name, at),
+        "content_format": _fact(content_format, at),
         "content_digest": _fact(artifact_digest, at),
         "byte_length": _fact(artifact_size, at),
     }
+    managed = (
+        ()
+        if candidate.declared_key
+        else composition.covers(candidate.component_type, inspection.harness_id, source_name)
+    )
+    if managed:
+        facts["managed_paths"] = _fact(list(managed), at)
     if candidate.declared_key:
         # A contribution's identity is what it declares, not what it sits in:
         # the entry names are the native identifiers, and the locator names the

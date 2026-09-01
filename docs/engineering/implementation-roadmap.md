@@ -117,20 +117,28 @@ Remaining: the six-leg run on the release candidate's exact SHA.
 
 ### P1. The last link of the capture round-trip (`#63`)
 
-An imported setup is a private draft: its components are drafts and it has no
-released `X.Y`, so `install plan --setup` correctly refuses it. No command takes
-an imported draft graph to a released, installable version. Until it exists,
-"import my machine" does not continue into "and install it on the next one",
-which is the sentence the product is for.
+The path from an imported draft to an installable version exists command by
+command — `component version release` on each draft, `select propose` and
+`select confirm` over those exact versions — and the wall was one layer down:
+the importer stored every member at its harness-root-relative path, so the
+compiler met a file-shaped component as a named member and re-rooted a
+directory-shaped one under itself. Registration now packages members relative
+to the component boundary in adoption's own formats and records the same
+`source_name`, `content_format` and `managed_paths` facts, so an imported
+setup compiles into the bundle an adopted one would
+(`docs/contracts/setup-import.md`). Remaining: a `--from-import` row in the
+configuration slice, so the round trip is proven by the same slice that proves
+the ordinary path.
 
 ### P2. `end_state` on the consumer side (`#54`)
 
 `ADR-0125` fixes the order: this CLI accepts the field, the CLI is released, kit
-`0.2.8` declares it, providers implement it. The first step is ours and nothing
-blocks it. A remove plan gains a per-path end state —
-`removed | final_bytes{member, sha256, byte_length}` — carried through the same
-argv `replace` already uses, and a provider that does not declare the field keeps
-today's honest behaviour.
+`0.2.8` declares it, providers implement it. The first two steps are done —
+`end_state` is accepted and kit `0.2.8` publishes it in `plan_request_fields`.
+The argv and schema through which a remove plan carries a per-path end state
+belong to the kit revision the provider estate introduces; the consumer's
+withdraw reconstruction lands in one change once a provider declares the
+field, and a provider that does not declare it keeps today's honest behaviour.
 
 ### P3. Native evidence for implemented but unmeasured behaviour
 

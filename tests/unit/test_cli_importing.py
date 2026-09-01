@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import importing, revisions
+from ai_stp_cli.local import importing, revisions, versions
 from ai_stp_cli.local.database import configured_path, open_registry
 
 AT = "2026-08-08T10:00:00.000Z"
@@ -950,11 +950,10 @@ def test_grok_toml_mcp_is_a_contribution_and_its_artifact_is_the_key(
 
     assert SECRET not in artifacts["mcp"]
     assert SECRET not in artifacts["setting"]
-    mcp_files = json.loads(artifacts["mcp"])["files"]
-    assert mcp_files[0]["path"] == "config.toml#mcp_servers"
-    from base64 import b64decode
-
-    value = b64decode(mcp_files[0]["content_base64"]).decode("utf-8")
+    # The artifact *is* the key's value in the host's own format — the shape
+    # adoption stores and the compiler parses — rather than an envelope around
+    # it (`#63`).
+    value = artifacts["mcp"]
     assert "github" in value
     assert "model" not in value
     assert importing.REDACTED in value
@@ -1205,3 +1204,113 @@ def test_the_imported_envelope_expands_through_the_one_decoder() -> None:
         with pytest.raises(CliFailure) as corrupt:
             components.expand(envelope(refused), components.IMPORTED_COMPONENT_FORMAT)
         assert corrupt.value.code == "AI_STP_CONFLICT"
+
+
+def test_an_imported_setup_compiles_into_the_bundle_an_adopted_one_would(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """`#63`, the last link: an imported draft graph reaches a bundle a provider can write.
+
+    The envelope stored every member at its harness-root-relative path, so a
+    file-shaped component reached the compiler as a named member and a
+    directory-shaped one re-rooted under itself. Members are now relative to
+    the component boundary and sealed in adoption's formats; the compiler meets
+    the same three shapes whichever capture path found them.
+    """
+    from ai_stp_cli.commands import component as component_command
+    from ai_stp_cli.commands import select as select_command
+    from ai_stp_cli.local import passports, project_passport, selection
+
+    home = tmp_path / "codex"
+    home.mkdir()
+    (home / "AGENTS.md").write_text("# House rules\n", encoding="utf-8")
+    (home / "config.toml").write_text(
+        'model = "o3"\n\n[mcp_servers.github]\ncommand = "gh-mcp"\n', encoding="utf-8"
+    )
+    (home / "prompts").mkdir()
+    (home / "prompts" / "ship.md").write_text("Ship it.\n", encoding="utf-8")
+
+    found = importing.inspect(home, harness_id="codex")
+    proposed = importing.plan(found)
+    passports.init_developer(registry, device_id=DEVICE)
+    passports.ensure_device(registry, device_id=DEVICE)
+    imported = importing.register_graph(
+        registry,
+        found,
+        expected_plan_digest=proposed.plan_digest,
+        target_id="pair_codex",
+        provider_ref="slot-202609020000",
+        owner_id=passports.owner().account_id,
+        device_id=DEVICE,
+        at=AT,
+    )
+    assert {item.component_type for item in proposed.components} == {
+        "instruction",
+        "setting",
+        "mcp",
+        "command",
+    }
+    registry.commit()
+
+    members: list[selection.Member] = []
+    for component_id in imported.component_ids:
+        line = component_command.version_release({"id": component_id}).payload
+        version = line.versions[-1].version
+        recorded = versions.held(registry, component_id, version)
+        assert recorded is not None
+        members.append(
+            selection.Member(
+                component_id, version, recorded.passport_digest, "local_owner_or_pinned", "own"
+            )
+        )
+    scanned = project_passport.scan(registry, tmp_path)
+    project_passport.record(registry, scanned, device_id=DEVICE)
+    developer_id = passports.developer_stable_id(registry)
+    device_id = passports.device_stable_id(registry)
+    assert developer_id is not None and device_id is not None
+    heads = [
+        revisions.head(registry, item) for item in (developer_id, device_id, scanned.stable_id)
+    ]
+    assert all(head is not None for head in heads)
+    context = selection.Context(
+        project_id=scanned.stable_id,
+        harness_id="codex",
+        developer_revision=heads[0].revision_id,  # type: ignore[union-attr]
+        device_revision=heads[1].revision_id,  # type: ignore[union-attr]
+        project_revision=heads[2].revision_id,  # type: ignore[union-attr]
+        policy_version="selection-policy/1;result_limit=20",
+    )
+    proposal = selection.propose(
+        registry,
+        context=context,
+        members=tuple(members),
+        at=AT,
+        expires_at="2099-01-01T00:00:00.000Z",
+    )
+    confirmed = selection.confirm(
+        registry,
+        proposal.proposal_id,
+        context=context,
+        owner_id=passports.owner().account_id,
+        device_id=DEVICE,
+        at=AT,
+    )
+    registry.commit()
+
+    target = tmp_path / "target"
+    target.mkdir()
+    (target / "config.toml").write_text('approval = "never"\n', encoding="utf-8")
+    compiled = select_command.compile_setup_version_bundle(
+        registry, confirmed.stable_id, confirmed.version, expected_harness="codex", host_root=target
+    )
+
+    assert compiled.compiled, compiled.refusals
+    paths = sorted(item.path for item in compiled.files)
+    assert paths == ["AGENTS.md", "config.toml", "prompts/ship.md"]
+    import io
+    import zipfile
+
+    with zipfile.ZipFile(io.BytesIO(compiled.archive)) as archive:
+        written = archive.read("files/config.toml").decode("utf-8")
+    assert "[mcp_servers.github]" in written
+    assert 'model = "o3"' in written

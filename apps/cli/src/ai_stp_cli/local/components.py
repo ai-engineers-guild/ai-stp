@@ -88,15 +88,16 @@ CLAUDE_MCP_SOURCE: Final[str] = "code.claude.com/docs/en/mcp"
 CURSOR_PLUGIN_SOURCE: Final[str] = "cursor.com/docs/reference/plugins"
 COMPONENT_FILE_FORMAT: Final[str] = "ai-stp-component-file/1"
 COMPONENT_TREE_FORMAT: Final[str] = "ai-stp-component-tree/1"
-#: What `setup import register` stores: a canonical JSON envelope of scrubbed
-#: members, where a `declared_key` contribution is one member at `path#key`
-#: holding the extracted value rather than the whole host file.
+#: What `setup import register` stored until 2026-09-02: a canonical JSON
+#: envelope of scrubbed members at their harness-root-relative paths. It
+#: reached `select impact` and stopped there, then reached the compiler and
+#: stopped again — a file-shaped component arrived as a named member and a
+#: directory-shaped one re-rooted under itself, because the members were
+#: relative to a root the envelope never carried (`#63`).
 #:
-#: It reached `select impact` and stopped there. `impact._files` could read it
-#: and `expand` — the owner of "what a stored artifact contains" — could not, so
-#: an imported setup composed and confirmed into a real `SetupVersion` and then
-#: refused at `install plan` with `the component content format is unsupported`.
-#: One decoding with two readers, and only one of them taught.
+#: The importer now stores the two formats above, members relative to the
+#: component boundary. This name stays decodable so a draft registered before
+#: that rule is not orphaned; nothing produces it any more.
 IMPORTED_COMPONENT_FORMAT: Final[str] = "ai-stp-imported-component/1"
 COMPONENT_TREE_TIMESTAMP: Final[tuple[int, int, int, int, int, int]] = (
     1980,
@@ -1717,7 +1718,7 @@ def _read_regular(place: Path, held: os.stat_result) -> bytes:
 
 
 def _tree_artifact(root: Path) -> bytes:
-    return _encode_tree_artifact(_tree_files(root), root)
+    return encode_tree_artifact(_tree_files(root), root)
 
 
 def _hook_tree_artifact(manifest: Path, siblings: Path, manifest_stat: os.stat_result) -> bytes:
@@ -1726,7 +1727,7 @@ def _hook_tree_artifact(manifest: Path, siblings: Path, manifest_stat: os.stat_r
         ComponentFile("hooks.json", _read_regular(manifest, manifest_stat), manifest_mode),
         *_tree_files(siblings, prefix="hooks"),
     ]
-    return _encode_tree_artifact(files, manifest.parent)
+    return encode_tree_artifact(files, manifest.parent)
 
 
 def _tree_files(root: Path, *, prefix: str = "") -> list[ComponentFile]:
@@ -1772,7 +1773,13 @@ def _tree_files(root: Path, *, prefix: str = "") -> list[ComponentFile]:
     return files
 
 
-def _encode_tree_artifact(files: list[ComponentFile], source_root: Path) -> bytes:
+def encode_tree_artifact(files: list[ComponentFile], source_root: Path) -> bytes:
+    """Seal member files into the closed tree artifact adoption stores.
+
+    Public because the importer packages a captured directory through the
+    same encoder: one artifact format per shape, whichever capture path found
+    it (`ADR-0138`), so the compiler meets one thing rather than two.
+    """
     manifest_names = {
         "SKILL.md",
         "AGENTS.md",

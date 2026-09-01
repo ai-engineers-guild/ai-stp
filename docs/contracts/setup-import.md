@@ -46,6 +46,16 @@ and whose registered artifact carries only the extracted key value, sanitized
 in the host file's own format. A file no layout claims is registered as a
 per-file `setting`, never dropped and never guessed into another kind.
 
+A registered component's artifact is stored in the same format `component
+adopt` would have stored for that shape, with every member relative to the
+component boundary rather than to the harness root: a single file as
+`ai-stp-component-file/1`, a directory as `ai-stp-component-tree/1` sealed by
+the one tree encoder, and a contribution as the extracted key value. The
+passport records `source_name`, `content_format` and `managed_paths` exactly as
+adoption records them, so a bundle compiled from an imported setup is the
+bundle an adopted one would produce. Drafts registered before this rule in the
+`ai-stp-imported-component/1` envelope remain readable.
+
 Sanitization is structural per format: JSON, JSONC, TOML (comment-preserving),
 and YAML documents are rewritten with credential values removed and environment
 maps reduced to variable names; each file's inventory row records which rewrite

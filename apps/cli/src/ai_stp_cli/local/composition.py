@@ -625,16 +625,27 @@ def adopted_covers(item: Found) -> tuple[str, ...]:
     copied into ``managed_paths`` (`ADR-0127`): ``.agents/skills/x`` against a
     ``~/.agents`` target lands at ``~/.agents/.agents/skills/x``.
     """
-    rule = rule_for(item.component_type, item.harness_id)
     name = ""
     if item.provenance.subpath:
         name = PurePosixPath(item.provenance.subpath).name
     if not name:
         name = item.absolute.name
+    return covers(item.component_type, item.harness_id, name)
+
+
+def covers(component_type: str, harness_id: str, name: str) -> tuple[str, ...]:
+    """Target-relative roots a component of this kind and name owns.
+
+    The rule both capture paths record: adoption names the component from its
+    source path, the importer from the catalogue boundary it found, and the
+    roots each writes into `managed_paths` are the same roots the compiler
+    checks the projection against.
+    """
+    rule = rule_for(component_type, harness_id)
     if rule is None:
-        return (f"skills/{name}",) if item.component_type == "skill" and name else ()
+        return (f"skills/{name}",) if component_type == "skill" and name else ()
     if rule.shape == "file":
-        return claimed_paths(rule.relative) if item.component_type == "hook" else (rule.relative,)
+        return claimed_paths(rule.relative) if component_type == "hook" else (rule.relative,)
     if not name:
         return (rule.relative,)
     return (f"{rule.relative}/{name}",)
