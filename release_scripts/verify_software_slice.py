@@ -253,7 +253,11 @@ def verify_software_slice(
         "rows": rows,
         "counts": counts,
         "missing": missing,
-        "clean": not missing and counts[FAILED] == 0,
+        # Every asked row passed. "No row failed" is satisfied by a run where
+        # every row is `inconclusive`, which is a green that examined nothing;
+        # the config slice beside this one produced exactly that on four legs
+        # before the rule was tightened here too.
+        "clean": not missing and counts[PASSED] == len(rows) and len(rows) > 0,
     }
 
 

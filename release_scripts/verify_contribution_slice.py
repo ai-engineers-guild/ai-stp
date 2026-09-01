@@ -506,7 +506,9 @@ def verify_contribution_slice(*, tag: str, python: str) -> dict[str, Any]:
         "rows": rows,
         "counts": counts,
         "missing": missing,
-        "clean": not missing and counts[FAILED] == 0,
+        # Every row passed. Zero failures is not the same claim: a run whose
+        # rows are all `inconclusive` satisfies it while proving nothing.
+        "clean": not missing and counts[PASSED] == len(rows) and len(rows) > 0,
     }
 
 

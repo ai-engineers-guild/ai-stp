@@ -85,8 +85,19 @@ seed a native surface → component adopt → component version release
 
 `just evidence-config <tag>` and the `config-evidence` workflow drive it, one row
 per harness, with the verdict read from the target rather than from the
-provider's reply. The remaining work is the six-leg run on the release
-candidate's exact SHA and the reading of what the other five legs say.
+provider's reply.
+
+Measured on `0.0.53`: **macOS `x86_64` and `arm64` are 7/7**; Linux and Windows
+came back `inconclusive` on every row, and the workflow reported success anyway
+because the slice's `clean` rule asked "did nothing fail" rather than "did
+everything pass". Both are fixed — the rule now requires every row to have
+passed, and a refusal carries its message so the next run diagnoses itself.
+Linux wanted Bubblewrap, which the configuration path runs the provider through
+and a hosted runner does not ship; Windows refused at the observation step and
+will name its dependency on the next run.
+
+Remaining: the four legs that have not yet proven anything, then the six-leg run
+on the release candidate's exact SHA.
 
 ### P1. The last link of the capture round-trip (`#63`)
 

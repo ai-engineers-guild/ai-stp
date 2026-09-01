@@ -92,6 +92,20 @@ jobs:
           echo "UV_PYTHON=${python_path}" >> "${GITHUB_ENV}"
           echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/config-${{ matrix.id }}" \
             >> "${GITHUB_ENV}"
+      - name: Install the isolation the product requires on Linux
+        # The configuration apply path runs the provider through
+        # `network_launcher`, which is Bubblewrap on Linux, and a hosted runner
+        # does not ship it. Without it the first six-leg run answered
+        # `AI_STP_DEPENDENCY_UNAVAILABLE` at `install plan` on both Linux legs —
+        # the product refusing correctly, and the evidence proving nothing.
+        # `software-evidence` beside this one does not need it, which is why the
+        # gap only appeared when the configuration path was measured.
+        if: startsWith(matrix.id, 'linux')
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends bubblewrap
+          bwrap --version
       - name: Install the consumer and nothing else
         # The slice drives `ai-stp` the way a user's machine does, and a user's
         # machine holds no server. A workspace-wide sync would also demand a

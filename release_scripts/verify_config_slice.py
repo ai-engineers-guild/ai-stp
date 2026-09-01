@@ -121,12 +121,28 @@ def _surface(harness_id: str, home: Path) -> tuple[Path, str, str]:
 
 
 def _stage(name: str, arguments: list[str], *, home: Path, python: str) -> dict[str, Any]:
+    """One command, with the refusal's own words kept beside its code.
+
+    Measured the hard way on the first six-leg run: four legs came back
+    `AI_STP_DEPENDENCY_UNAVAILABLE` and the row said only that. Which dependency
+    is in the refusal's `details`, and dropping it turned a diagnosable failure
+    into a shrug — the same lesson `746ffd4f` taught the software slice.
+    """
     envelope = cli(arguments, home=home, python=python, allow_failure=True)
     if envelope.get("ok") is True:
         return {"stage": name, "outcome": PASSED, "data": data(envelope, name)}
     code = error_code(envelope)
     outcome = INCONCLUSIVE if code in _ENVIRONMENT_CODES else FAILED
-    return {"stage": name, "outcome": outcome, "code": code}
+    held = envelope.get("error")
+    message = held.get("message", "") if isinstance(held, dict) else ""
+    details = held.get("details", {}) if isinstance(held, dict) else {}
+    return {
+        "stage": name,
+        "outcome": outcome,
+        "code": code,
+        "message": message,
+        "details": details,
+    }
 
 
 def _artifact(directory: Path) -> Path:
@@ -416,7 +432,11 @@ def verify_config_slice(harnesses: Sequence[str], *, tag: str, python: str) -> d
         "rows": rows,
         "counts": counts,
         "missing": missing,
-        "clean": not missing and counts[FAILED] == 0,
+        # Every row passed, not "no row failed". A run whose rows are all
+        # `inconclusive` has zero failures, and the first six-leg run of this
+        # slice reported `clean` on four legs having proven nothing at all —
+        # a control that cannot fail, written by copying the shape beside it.
+        "clean": not missing and counts[PASSED] == len(rows) and len(rows) > 0,
     }
 
 
