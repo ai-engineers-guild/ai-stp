@@ -1,0 +1,97 @@
+# Manual consumer-path evidence on every supported native OS/architecture pair.
+# `platform-evidence` proves the exact candidate installs and keeps its network
+# boundary; the six provider repositories prove their own lifecycle natively.
+# What neither answers is whether a *consumer* on that leg can drive a released
+# provider through `harness install/status/update/remove` using `ai-stp`
+# itself — every integration defect this estate has had lived exactly between
+# those two, and until now that question was measured on one leg only
+# (linux/x86_64). One row per harness, typed outcomes, a missing row is an
+# error (`release_scripts/verify_software_slice.py`). Not part of `check`: the
+# repository gate must not depend on another party's release network.
+name: software-evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Exact provider release tag to drive (for example 0.0.50)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: software-evidence
+  cancel-in-progress: false
+
+env:
+  UV_VERSION: "0.12.1"
+
+jobs:
+  consume:
+    name: ${{ matrix.id }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: linux-x86_64
+            runner: ubuntu-24.04
+          - id: linux-arm64
+            runner: ubuntu-24.04-arm
+          - id: macos-x86_64
+            runner: macos-15-intel
+          - id: macos-arm64
+            runner: macos-15
+          - id: windows-x86_64
+            runner: windows-2025
+          - id: windows-arm64
+            runner: windows-11-arm
+    env:
+      AI_STP_FORCE_FILE_CREDENTIAL_STORE: "1"
+      GH_TOKEN: ${{ github.token }}
+      PROVIDER_TAG: ${{ inputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.14"
+      - name: Install pinned native uv
+        run: |
+          set -euo pipefail
+          bash .github/scripts/install-uv.sh "${UV_VERSION}" "${RUNNER_TEMP}/uv"
+          echo "${RUNNER_TEMP}/uv" >> "${GITHUB_PATH}"
+      - name: Isolate the exact Python job environment
+        run: |
+          set -euo pipefail
+          python_path="$(python -c 'import sys; print(sys.executable)')"
+          test -n "${python_path}"
+          echo "UV_PYTHON=${python_path}" >> "${GITHUB_ENV}"
+          echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/software-${{ matrix.id }}" \
+            >> "${GITHUB_ENV}"
+      - name: Install locked dependencies
+        run: |
+          set -euo pipefail
+          uv sync --locked --group dev
+      - name: Drive every released provider through the consumer path
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          uv run --locked python -m release_scripts.verify_software_slice \
+            --tag "${PROVIDER_TAG}" \
+            | tee "evidence/software-${{ matrix.id }}.json"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: software-${{ matrix.id }}-${{ github.sha }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30
