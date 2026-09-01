@@ -87,13 +87,14 @@ seed a native surface → component adopt → component version release
 per harness, with the verdict read from the target rather than from the
 provider's reply.
 
-Measured on `0.0.53`, run `33545244518`:
+Measured on `0.0.53`, run `33561657609`, read from the six artifacts rather
+than the badge — 42 of 42 rows and 84 of 84 observe stages passed:
 
 | leg | rows | isolation |
 |---|---|---|
 | linux `x86_64` / `arm64` | **7/7** | `enforced` (Bubblewrap) |
 | macOS `x86_64` / `arm64` | **7/7** | `enforced` (`sandbox-exec`) |
-| windows `x86_64` / `arm64` | 0/7, all `inconclusive` | `unavailable` |
+| windows `x86_64` / `arm64` | **7/7** | `unavailable`, `unisolated_by_trust` |
 
 The first run of this slice reported success on all six legs while four of them
 had proven nothing: `clean` asked "did nothing fail" rather than "did everything
@@ -103,17 +104,21 @@ itself. The Linux legs then wanted Bubblewrap plus the unprivileged user
 namespace Ubuntu 24.04 restricts; both are in the workflow and both legs are
 green.
 
-Windows was a product finding rather than an environment one (`#65`): the
-AppContainer probe fails on a hosted runner, `install plan/approve/apply`
+Windows was a product finding rather than an environment one (`#65`, closed):
+the AppContainer probe fails on a hosted runner, `install plan/approve/apply`
 proceeded through the trusted-release exception, and `target
 status/diff/backups` refused — the read path was stricter than the write it
 observed, because the observer was the one caller that never consulted a
 trusted release. The three reads now establish trust the way the writers do:
 a named `--provider-manifest`, the operator's `--unverified-provider`, or the
 release the pair was last verified under when the named executable is its
-exact bytes (`docs/contracts/provider-release.md`).
+exact bytes (`docs/contracts/provider-release.md`). Both Windows legs read
+their targets back under the same trust the install used, and the isolation
+record still says the launcher was unavailable.
 
-Remaining: the six-leg run on the release candidate's exact SHA.
+The slice also drives the import capture path (`from_import=1`), so the
+round trip `#63` closed is proven by the same slice as the ordinary path.
+Remaining: the aggregated run on each release candidate's exact SHA (`#56`).
 
 ### P1. The last link of the capture round-trip (`#63`)
 
