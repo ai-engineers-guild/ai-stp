@@ -8,8 +8,9 @@ from typing import Literal, cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_contracts.catalog import SetupContextBudget
+from ai_stp_contracts.catalog import ComponentContextBudget, SetupContextBudget
 from ai_stp_contracts.context_estimator import (
+    TOKENIZED_TYPES,
     EstimatorInput,
     estimate_context,
     estimator_for,
@@ -33,6 +34,7 @@ from ai_stp_passports.versions import ComponentVersionPassport, SetupVersionPass
 from ai_stp_platform.catalog_read import ObjectKind, get_visible_metadata
 from ai_stp_platform.models import CatalogMetadata
 from ai_stp_platform.storage.object_store import ImmutableObjectStore
+from ai_stp_sources.definition import decode_embedded_artifact, try_parse_setup_definition
 
 PASSPORT_DIGEST_DOMAIN = "ai-stp:passport:v1"
 
@@ -165,6 +167,49 @@ async def setup_context_budget(
     )
 
 
+async def component_context_budget(
+    session: AsyncSession,
+    *,
+    account_id: str | None,
+    stable_id: str,
+    version: str,
+    store: ImmutableObjectStore | None,
+    estimator_profile: str = "ai-stp:utf8-bytes/1",
+) -> ComponentContextBudget:
+    """Context estimate of one visible exact component."""
+    estimator = estimator_for(estimator_profile)
+    if estimator is None:
+        raise SelectionInvalid("the token estimator profile is not supported")
+    row = await _visible_row(session, account_id, "component", stable_id, version)
+    if row is None or row.passport_digest is None:
+        raise SelectionNotFound("the exact component version is not visible")
+    node = await _component_node(
+        session, account_id, stable_id, version, row.passport_digest, store
+    )
+    if node is None:
+        raise SelectionInvalid("the exact component is missing or changed")
+    if node.passport.component_type not in TOKENIZED_TYPES:
+        return ComponentContextBudget(
+            coordinate=node.coordinate,
+            estimator=estimator,
+            component_type=node.passport.component_type,
+            status="not_applicable",
+            reason="runtime_context_not_statically_measurable",
+        )
+    budget = _budget_nodes((node,), estimator)
+    measurement = budget.components[0]
+    return ComponentContextBudget(
+        coordinate=node.coordinate,
+        estimator=estimator,
+        component_type=node.passport.component_type,
+        loading=measurement.loading,
+        tokens=measurement.tokens,
+        utf8_bytes=measurement.utf8_bytes,
+        status=measurement.status,
+        reason=measurement.reason,
+    )
+
+
 async def _setup_graph(
     session: AsyncSession,
     account_id: str | None,
@@ -182,12 +227,18 @@ async def _setup_graph(
     digest = _passport_digest(setup)
     if digest != row.passport_digest:
         raise SelectionInvalid("the setup passport no longer matches its digest")
+    setup_payload = await _artifact_payload(setup, store)
+    embedded = embedded_component_nodes(setup_payload) if setup_payload is not None else {}
     loaded: list[_ComponentNode] = []
     incomplete = False
     for ref in setup.components:
-        node = await _component_node(
-            session, account_id, ref.stable_id, str(ref.version), ref.passport_digest, store
-        )
+        node = embedded.get((ref.stable_id, str(ref.version)))
+        if node is not None and node.coordinate.passport_digest != ref.passport_digest:
+            raise SelectionInvalid("an exact setup component is missing or changed")
+        if node is None:
+            node = await _component_node(
+                session, account_id, ref.stable_id, str(ref.version), ref.passport_digest, store
+            )
         if node is None:
             raise SelectionInvalid("an exact setup component is missing or changed")
         if node.payload is None:
@@ -221,18 +272,56 @@ async def _component_node(
     digest = _passport_digest(passport)
     if digest != row.passport_digest:
         return None
-    payload = None
-    if store is not None:
-        artifact = passport.artifact
-        try:
-            payload = await store.read_by_digest(artifact.digest, expected_size=artifact.size_bytes)
-        except Exception:
-            payload = None
+    payload = await _artifact_payload(passport, store)
     return _ComponentNode(
         ExactCoordinate(stable_id=stable_id, version=version, passport_digest=digest),
         passport,
         payload,
     )
+
+
+async def _artifact_payload(
+    passport: ComponentVersionPassport | SetupVersionPassport,
+    store: ImmutableObjectStore | None,
+) -> bytes | None:
+    if store is None:
+        return None
+    try:
+        return await store.read_by_digest(
+            passport.artifact.digest, expected_size=passport.artifact.size_bytes
+        )
+    except Exception:
+        return None
+
+
+def embedded_component_nodes(payload: bytes) -> dict[tuple[str, str], _ComponentNode]:
+    document = try_parse_setup_definition(payload)
+    if document is None:
+        return {}
+    records = document.get("embedded")
+    if not isinstance(records, list):
+        return {}
+    nodes: dict[tuple[str, str], _ComponentNode] = {}
+    for raw in records:
+        if not isinstance(raw, dict):
+            continue
+        record = cast(dict[str, JsonValue], raw)
+        ref = record.get("ref")
+        passport_raw = record.get("passport")
+        if not isinstance(ref, dict) or not isinstance(passport_raw, dict):
+            continue
+        passport = ComponentVersionPassport.model_validate(passport_raw)
+        stable_id = str(ref.get("stable_id"))
+        version = str(ref.get("version"))
+        digest = str(ref.get("passport_digest"))
+        nodes[(stable_id, version)] = _ComponentNode(
+            coordinate=ExactCoordinate(
+                stable_id=stable_id, version=version, passport_digest=digest
+            ),
+            passport=passport,
+            payload=decode_embedded_artifact(str(record.get("artifact_b64") or "")),
+        )
+    return nodes
 
 
 async def _visible_row(
@@ -258,8 +347,12 @@ def _passport_digest(passport: ComponentVersionPassport | SetupVersionPassport) 
 
 
 def _budget(graph: _SetupGraph, estimator: TokenEstimator):
+    return _budget_nodes(graph.components, estimator)
+
+
+def _budget_nodes(nodes: tuple[_ComponentNode, ...], estimator: TokenEstimator):
     inputs: list[EstimatorInput] = []
-    for node in graph.components:
+    for node in nodes:
         inputs.append(
             EstimatorInput(
                 coordinate=node.coordinate,

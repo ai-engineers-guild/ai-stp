@@ -6,14 +6,10 @@ import { Badge } from "@/components/atoms/badge";
 import { CatalogUsageStats } from "@/components/molecules/catalog-usage-stats";
 import { CliCopyBlock } from "@/components/molecules/cli-copy-block";
 import { ExactSourceLink } from "@/components/molecules/exact-source-link";
-import { OsBadgeList } from "@/components/molecules/os-badge-list";
 import { contextBudgetLabels } from "@/components/organisms/context-budget-labels";
 import { ContextBudgetPanel } from "@/components/organisms/context-budget-panel";
+import { SetupComposition } from "@/components/organisms/setup-composition";
 import { StatePanel } from "@/components/molecules/state-panel";
-import {
-  SafetyChecksSummaryView,
-  safetyChecksLabels,
-} from "@/components/molecules/safety-checks-summary";
 import { SupportSummary, supportLabels } from "@/components/molecules/support-summary";
 import {
   readSetupContextBudget,
@@ -22,7 +18,6 @@ import {
 } from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
 import { asVersionId, tryAsSetupId } from "@/lib/brands";
-import { namedOperatingSystems } from "@/lib/catalog-harnesses";
 import { registryVersion, selectImpact } from "@/lib/cli-copy";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { versionPageMetadata } from "@/lib/seo/metadata";
@@ -39,7 +34,6 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 // The page intentionally renders the complete immutable passport in one server component.
-// eslint-disable-next-line max-lines-per-function
 export default async function SetupVersionPage({ params }: PageProps) {
   const { locale, stableId, version } = await params;
   setRequestLocale(locale);
@@ -106,34 +100,12 @@ export default async function SetupVersionPage({ params }: PageProps) {
           <dd>{response.published_at}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground text-sm">{t("purpose")}</dt>
-          <dd>{passport.purpose}</dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground text-sm">{t("posture")}</dt>
-          <dd>{passport.posture ?? ""}</dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground text-sm">{t("targetRole")}</dt>
-          <dd>{passport.target_role ?? ""}</dd>
-        </div>
-        <div>
           <dt className="text-muted-foreground text-sm">{t("harness")}</dt>
           <dd>{passport.harness_id}</dd>
         </div>
         <div>
           <dt className="text-muted-foreground text-sm">{t("license")}</dt>
           <dd>{passport.license.spdx_id}</dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground text-sm">{t("supportedOs")}</dt>
-          <dd>
-            <OsBadgeList values={namedOperatingSystems(passport)} empty={t("noneListed")} />
-          </dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground text-sm">{t("supportedArch")}</dt>
-          <dd>{passport.supported_arch.join(", ") || t("noneListed")}</dd>
         </div>
         <div className="sm:col-span-2">
           <dt className="text-muted-foreground text-sm">{t("publisher")}</dt>
@@ -151,18 +123,6 @@ export default async function SetupVersionPage({ params }: PageProps) {
                 {tag}
               </Badge>
             ))}
-          </dd>
-        </div>
-        <div className="sm:col-span-2">
-          <dt className="text-muted-foreground text-sm">{t("evidenceSummary")}</dt>
-          <dd>
-            {[
-              passport.install_evidence_ref,
-              passport.launch_evidence_ref,
-              ...passport.compatibility_evidence_refs,
-            ]
-              .filter(Boolean)
-              .join(", ") || t("noEvidence")}
           </dd>
         </div>
         <div className="sm:col-span-2">
@@ -190,6 +150,14 @@ export default async function SetupVersionPage({ params }: PageProps) {
         command={selectImpact(stableId, version)}
         labels={contextBudgetLabels(t, tCli)}
       />
+      <SetupComposition
+        passport={passport}
+        components={response.checks?.components ?? []}
+        catalogComponents={[]}
+        setupAuthor={{ accountId: passport.owner_id }}
+        budget={budget}
+        t={t}
+      />
       <CliCopyBlock
         command={registryVersion("setup", stableId, version)}
         title={tCli("useTitle")}
@@ -204,7 +172,6 @@ export default async function SetupVersionPage({ params }: PageProps) {
         <p className="text-muted-foreground text-sm">{t("reportSectionBody")}</p>
         <p className="font-mono text-xs break-all">{canonical.web_url}</p>
       </section>
-      <SafetyChecksSummaryView summary={response.checks} labels={safetyChecksLabels(t)} />
       <SupportSummary support={response.support} labels={supportLabels(t)} />
     </article>
   );

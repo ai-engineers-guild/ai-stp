@@ -2,7 +2,7 @@ import { DetailAccordion } from "@/components/molecules/detail-accordion";
 import type { ContextBudgetLabels } from "@/components/organisms/context-budget-labels";
 import { ContextBudgetLocalCheck } from "@/components/organisms/context-budget-local-check";
 import { ContextCostCalculator } from "@/components/organisms/context-cost-calculator";
-import type { SetupContextBudget } from "@/lib/api/catalog";
+import type { ComponentContextBudget, SetupContextBudget } from "@/lib/api/catalog";
 import { UI } from "@/lib/ui-selectors";
 
 export type { ContextBudgetLabels } from "@/components/organisms/context-budget-labels";
@@ -74,6 +74,46 @@ export function ContextBudgetPanel({
         ) : (
           <p className="text-sm" role="status">
             {labels.error}
+          </p>
+        )}
+      </DetailAccordion>
+    </div>
+  );
+}
+
+export function ComponentContextBudgetPanel({
+  budget,
+  labels,
+}: {
+  budget: ComponentContextBudget | null;
+  labels: ContextBudgetLabels;
+}) {
+  const tokens = budget?.tokens;
+  const componentLead = labels.componentLead ?? labels.lead;
+  const runtimeDerived = labels.runtimeDerived ?? labels.error;
+  const measured = typeof tokens === "number";
+  const summary = measured
+    ? `${componentLead} ${tokens} ${labels.tokens}`
+    : budget?.status === "not_applicable"
+      ? runtimeDerived
+      : labels.error;
+  return (
+    <div data-ui={UI.component.contextBudget}>
+      <DetailAccordion title={labels.title} summary={summary}>
+        {measured ? (
+          <div className="space-y-4">
+            <p className="text-muted-foreground text-sm">{componentLead}</p>
+            <p className="font-mono text-2xl font-medium tabular-nums">
+              {tokens} <span className="text-base">{labels.tokens}</span>
+            </p>
+            <p className="text-muted-foreground text-sm">
+              {budget?.loading === "always" ? labels.alwaysHint : labels.conditionalHint}
+            </p>
+            <ContextCostCalculator totalTokens={tokens} labels={labels.cost} />
+          </div>
+        ) : (
+          <p className="text-muted-foreground text-sm" role="status">
+            {budget?.status === "not_applicable" ? runtimeDerived : labels.error}
           </p>
         )}
       </DetailAccordion>

@@ -9,6 +9,7 @@ import pytest
 from ai_stp_foundation.canonical import JsonValue, canonize, from_json_bytes
 from ai_stp_foundation.refs import ComponentRef
 from ai_stp_passports.versions import ComponentType, ComponentVersionPassport
+from ai_stp_platform.selection_impact import embedded_component_nodes
 from ai_stp_sources import (
     CATALOG_COLLISION,
     DEFINITION_V1,
@@ -216,6 +217,14 @@ def test_mixed_freeze_uses_definition_version_2_and_exact_refs() -> None:
     assert "files" not in snapshot
     assert "\\" not in str(snapshot["canonical_coordinate"])
     validate_setup_definition(frozen.payload, catalog_ids=frozenset({CATALOG_ID}))
+
+
+def test_context_estimator_reads_embedded_component_bytes_from_setup_definition() -> None:
+    frozen = _freeze(embedded=(_draft(_path_snapshot(), stable_id=PATH_ID),))
+    nodes = embedded_component_nodes(frozen.payload)
+    node = nodes[(PATH_ID, "1.0")]
+    assert node.passport.component_type == "skill"
+    assert node.payload is not None
 
 
 def test_package_snapshot_exposes_upstream_and_registry_source_pages() -> None:

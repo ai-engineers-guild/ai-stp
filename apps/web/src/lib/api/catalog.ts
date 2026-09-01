@@ -49,6 +49,18 @@ export type SetupContextBudget = {
   }>;
 };
 
+export type ComponentContextBudget = {
+  schema_version: 1;
+  coordinate: { stable_id: string; version: string; passport_digest: string };
+  estimator: SetupContextBudget["estimator"];
+  component_type: string;
+  loading: "always" | "conditional" | null;
+  tokens: number | null;
+  utf8_bytes: number | null;
+  status: "exact" | "estimated" | "unavailable" | "not_applicable";
+  reason: string | null;
+};
+
 type SearchParams = {
   q?: string;
   page_size?: number;
@@ -255,5 +267,14 @@ export async function readSetupContextBudget(
 ): Promise<SetupContextBudget> {
   return publicApiGetLive<SetupContextBudget>(
     `/v1/catalog/setups/${stableId}/versions/${version}/context-budget`,
+  );
+}
+
+export async function readComponentContextBudget(
+  stableId: ComponentId,
+  version: VersionId,
+): Promise<ComponentContextBudget> {
+  return publicApiGetLive<ComponentContextBudget>(
+    `/v1/catalog/components/${stableId}/versions/${version}/context-budget`,
   );
 }

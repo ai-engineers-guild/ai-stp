@@ -115,6 +115,10 @@ const CHECK_INFO: Record<string, { name: string; description: string }> = {
   },
 };
 
+export function safetyCheckName(checkId: string): string {
+  return CHECK_INFO[checkId]?.name ?? checkId.replaceAll("_", " ");
+}
+
 function resultLabel(result: Summary["checks"][number]["result"], labels: Labels): string {
   if (result === "passed") return labels.resultPassed;
   if (result === "failed") return labels.resultFailed;

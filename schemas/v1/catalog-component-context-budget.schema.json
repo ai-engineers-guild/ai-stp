@@ -1,0 +1,190 @@
+{
+  "$defs": {
+    "ExactCoordinate": {
+      "additionalProperties": false,
+      "properties": {
+        "passport_digest": {
+          "minLength": 1,
+          "title": "Passport Digest",
+          "type": "string"
+        },
+        "stable_id": {
+          "minLength": 1,
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^[0-9]+\\.[0-9]+$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "stable_id",
+        "version",
+        "passport_digest"
+      ],
+      "title": "ExactCoordinate",
+      "type": "object"
+    },
+    "TokenEstimator": {
+      "additionalProperties": false,
+      "properties": {
+        "accuracy": {
+          "enum": [
+            "exact",
+            "estimated"
+          ],
+          "title": "Accuracy",
+          "type": "string"
+        },
+        "local_only": {
+          "const": true,
+          "default": true,
+          "title": "Local Only",
+          "type": "boolean"
+        },
+        "method": {
+          "enum": [
+            "utf8_byte_count",
+            "unicode_codepoints_div_4"
+          ],
+          "title": "Method",
+          "type": "string"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model"
+        },
+        "profile": {
+          "enum": [
+            "ai-stp:utf8-bytes/1",
+            "ai-stp:unicode-chars-div4/1"
+          ],
+          "title": "Profile",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "profile",
+        "accuracy",
+        "method"
+      ],
+      "title": "TokenEstimator",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:catalog-component-context-budget",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Context estimate of one visible exact component (SPEC-049).",
+  "properties": {
+    "component_type": {
+      "title": "Component Type",
+      "type": "string"
+    },
+    "coordinate": {
+      "$ref": "#/$defs/ExactCoordinate"
+    },
+    "estimator": {
+      "$ref": "#/$defs/TokenEstimator"
+    },
+    "loading": {
+      "anyOf": [
+        {
+          "enum": [
+            "always",
+            "conditional"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Loading"
+    },
+    "reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reason"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "status": {
+      "enum": [
+        "exact",
+        "estimated",
+        "unavailable",
+        "not_applicable"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "tokens": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Tokens"
+    },
+    "utf8_bytes": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Utf8 Bytes"
+    }
+  },
+  "required": [
+    "component_type",
+    "coordinate",
+    "estimator",
+    "loading",
+    "reason",
+    "schema_version",
+    "status",
+    "tokens",
+    "utf8_bytes"
+  ],
+  "title": "ComponentContextBudget",
+  "type": "object"
+}

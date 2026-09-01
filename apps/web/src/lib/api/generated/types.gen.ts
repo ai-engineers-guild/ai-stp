@@ -655,6 +655,45 @@ export const ComplaintTargetKind = {
 export type ComplaintTargetKind = (typeof ComplaintTargetKind)[keyof typeof ComplaintTargetKind];
 
 /**
+ * ComponentContextBudget
+ *
+ * Context estimate of one visible exact component (SPEC-049).
+ */
+export type ComponentContextBudget = {
+  /**
+   * Component Type
+   */
+  component_type: string;
+  coordinate: ExactCoordinate;
+  estimator: TokenEstimator;
+  /**
+   * Loading
+   */
+  loading: "always" | "conditional" | null;
+  /**
+   * Reason
+   */
+  reason: string | null;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Status
+   */
+  status: "exact" | "estimated" | "unavailable" | "not_applicable";
+  /**
+   * Tokens
+   */
+  tokens: number | null;
+  /**
+   * Utf8 Bytes
+   */
+  utf8_bytes: number | null;
+  [key: string]: unknown;
+};
+
+/**
  * ComponentDetail
  *
  * Exact read of one public component and the versions it offers.
@@ -5824,6 +5863,69 @@ export type ReadComponentArtifactResponses = {
 
 export type ReadComponentArtifactResponse =
   ReadComponentArtifactResponses[keyof ReadComponentArtifactResponses];
+
+export type ReadComponentContextBudgetData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Typed stable identifier of the catalog object.
+     */
+    stable_id: string;
+    /**
+     * Exact two-integer version. A range or `latest` is not a reference.
+     */
+    version: string;
+  };
+  query?: {
+    /**
+     * Estimator Profile
+     */
+    estimator_profile?: "ai-stp:utf8-bytes/1" | "ai-stp:unicode-chars-div4/1";
+  };
+  url: "/v1/catalog/components/{stable_id}/versions/{version}/context-budget";
+};
+
+export type ReadComponentContextBudgetErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_CATALOG_INTEGRITY, AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadComponentContextBudgetError =
+  ReadComponentContextBudgetErrors[keyof ReadComponentContextBudgetErrors];
+
+export type ReadComponentContextBudgetResponses = {
+  /**
+   * Read the context budget of one visible exact component.
+   */
+  200: ComponentContextBudget;
+};
+
+export type ReadComponentContextBudgetResponse =
+  ReadComponentContextBudgetResponses[keyof ReadComponentContextBudgetResponses];
 
 export type ReadComponentGithubMetadataData = {
   body?: never;

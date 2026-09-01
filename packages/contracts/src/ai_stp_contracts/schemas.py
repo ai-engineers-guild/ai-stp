@@ -37,6 +37,7 @@ from ai_stp_contracts.catalog import (
     CatalogReactionList,
     CatalogReactionState,
     CatalogUsageMetrics,
+    ComponentContextBudget,
     ComponentDetail,
     ComponentListResponse,
     ComponentSearchRequest,
@@ -260,6 +261,7 @@ from ai_stp_foundation.schemas import ExportedSchema, check, write
 #: rejects any that is not.
 HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
     "catalog-component-detail": ComponentDetail,
+    "catalog-component-context-budget": ComponentContextBudget,
     "catalog-component-list": ComponentListResponse,
     "catalog-component-search": ComponentSearchRequest,
     "catalog-component-version": ComponentVersionResponse,

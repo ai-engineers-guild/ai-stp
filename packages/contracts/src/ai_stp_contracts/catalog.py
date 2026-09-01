@@ -753,3 +753,19 @@ class SetupContextBudget(BaseModel):
     unavailable_components: Annotated[int, Field(ge=0)]
     status: Literal["ready", "unavailable", "invalid_graph"]
     components: list[ComponentTokenMeasurement]
+
+
+class ComponentContextBudget(BaseModel):
+    """Context estimate of one visible exact component (SPEC-049)."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    coordinate: ExactCoordinate
+    estimator: TokenEstimator
+    component_type: str
+    loading: Literal["always", "conditional"] | None = None
+    tokens: Annotated[int, Field(ge=0)] | None = None
+    utf8_bytes: Annotated[int, Field(ge=0)] | None = None
+    status: Literal["exact", "estimated", "unavailable", "not_applicable"]
+    reason: str | None = None

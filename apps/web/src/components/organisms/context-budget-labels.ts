@@ -10,6 +10,8 @@ export type ContextCostLabels = {
 export type ContextBudgetLabels = {
   title: string;
   lead: string;
+  componentLead?: string;
+  runtimeDerived?: string;
   always: string;
   alwaysHint: string;
   conditional: string;
@@ -36,6 +38,8 @@ export function contextBudgetLabels(
   return {
     title: t("contextBudgetTitle"),
     lead: t("contextBudgetLead"),
+    componentLead: t("contextBudgetComponentLead"),
+    runtimeDerived: t("contextBudgetRuntimeDerived"),
     always: t("contextBudgetAlways"),
     alwaysHint: t("contextBudgetAlwaysHint"),
     conditional: t("contextBudgetConditional"),

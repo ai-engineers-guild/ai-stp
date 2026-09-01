@@ -15,16 +15,19 @@ vi.mock("next-intl", () => ({
 }));
 
 import {
+  ComponentContextBudgetPanel,
   ContextBudgetPanel,
   type ContextBudgetLabels,
 } from "@/components/organisms/context-budget-panel";
-import type { SetupContextBudget } from "@/lib/api/catalog";
+import type { ComponentContextBudget, SetupContextBudget } from "@/lib/api/catalog";
 import en from "../../messages/en.json";
 import ru from "../../messages/ru.json";
 
 const labels: ContextBudgetLabels = {
   title: "Context budget",
   lead: "Potential context this setup can add, not actual model usage.",
+  componentLead: "Potential context from this component:",
+  runtimeDerived: "Runtime tool schemas determine this component's context.",
   always: "Always loaded",
   alwaysHint: "Included every time the setup loads.",
   conditional: "Loaded when used",
@@ -152,5 +155,50 @@ describe("ContextBudgetPanel", () => {
     );
     expect(screen.getByText("The exact setup graph cannot be measured.")).toBeVisible();
     expect(screen.queryByText(/2000 tokens/)).not.toBeInTheDocument();
+  });
+});
+
+describe("ComponentContextBudgetPanel", () => {
+  it("shows a measured textual component budget", async () => {
+    const user = userEvent.setup();
+    const componentBudget: ComponentContextBudget = {
+      schema_version: 1,
+      coordinate: { stable_id: "component_a", version: "1.0", passport_digest: "sha256:aa" },
+      estimator: budget.estimator,
+      component_type: "skill",
+      loading: "conditional",
+      tokens: 640,
+      utf8_bytes: 640,
+      status: "exact",
+      reason: null,
+    };
+    render(<ComponentContextBudgetPanel budget={componentBudget} labels={labels} />);
+    expect(screen.getByText(/640 tokens/)).toBeVisible();
+    await user.click(screen.getByRole("button", { name: /Context budget/ }));
+    expect(screen.getByText(labels.conditionalHint)).toBeVisible();
+  });
+
+  it("explains why MCP context is runtime-derived", () => {
+    render(
+      <ComponentContextBudgetPanel
+        budget={{
+          schema_version: 1,
+          coordinate: {
+            stable_id: "component_mcp",
+            version: "1.0",
+            passport_digest: "sha256:bb",
+          },
+          estimator: budget.estimator,
+          component_type: "mcp",
+          loading: null,
+          tokens: null,
+          utf8_bytes: null,
+          status: "not_applicable",
+          reason: "runtime_context_not_statically_measurable",
+        }}
+        labels={labels}
+      />,
+    );
+    expect(screen.getByText(labels.runtimeDerived ?? labels.error)).toBeVisible();
   });
 });

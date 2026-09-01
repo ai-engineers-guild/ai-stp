@@ -12,7 +12,6 @@ import { MarkdownDescription } from "@/components/molecules/markdown-description
 import { ObjectRelationships } from "@/components/molecules/object-relationships";
 import { ObjectTechnicalDetails } from "@/components/molecules/object-technical-details";
 import { ObjectVersionHistory } from "@/components/molecules/object-version-history";
-import { OsBadgeList } from "@/components/molecules/os-badge-list";
 import { PassportJsonViewer } from "@/components/molecules/passport-json-viewer";
 import {
   requirementLabels,
@@ -24,11 +23,14 @@ import {
 } from "@/components/molecules/safety-checks-summary";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { ComponentMediaGallery } from "@/components/organisms/component-media-gallery";
+import { contextBudgetLabels } from "@/components/organisms/context-budget-labels";
+import { ComponentContextBudgetPanel } from "@/components/organisms/context-budget-panel";
 import { ObjectDetailFrame } from "@/components/organisms/object-detail-frame";
 import { ObjectDetailHeader } from "@/components/organisms/object-detail-header";
 import {
   catalogRelations,
   readComponent,
+  readComponentContextBudget,
   readComponentGithubMetadata,
   readComponentVersion,
 } from "@/lib/api/catalog";
@@ -38,7 +40,7 @@ import { listCatalogReactions } from "@/lib/api/reactions";
 import { readPublisherProfile } from "@/lib/api/public-profile";
 import { sessionCookieValue } from "@/lib/auth/require-session";
 import { asAccountId, asVersionId, tryAsComponentId } from "@/lib/brands";
-import { namedHarnesses, namedOperatingSystems } from "@/lib/catalog-harnesses";
+import { namedHarnesses } from "@/lib/catalog-harnesses";
 import { registryVersion } from "@/lib/cli-copy";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { publicOrigin } from "@/lib/site";
@@ -101,6 +103,10 @@ export default async function ComponentDetailPage({ params }: PageProps) {
     componentId,
     asVersionId(summary.latest_version),
   ).catch(() => ({ schema_version: 1 as const, stars: null, archived: null }));
+  const budget = await readComponentContextBudget(
+    componentId,
+    asVersionId(summary.latest_version),
+  ).catch(() => null);
   const reportHref = latest?.passport_digest
     ? `/${locale}/reports?object_kind=component&stable_id=${encodeURIComponent(stableId)}&version=${encodeURIComponent(summary.latest_version)}&digest=${encodeURIComponent(latest.passport_digest)}`
     : undefined;
@@ -226,11 +232,6 @@ export default async function ComponentDetailPage({ params }: PageProps) {
                 facts={[
                   { label: t("lifecycle"), value: summary.latest_lifecycle },
                   { label: t("projectionKind"), value: summary.latest_projection_kind },
-                  {
-                    label: t("requiresCredentials"),
-                    value: passport.requires_credentials ? tc("yes") : tc("no"),
-                  },
-                  { label: t("requiresAuthorization"), value: passport.requires_authorization },
                   { label: t("publishedAt"), value: summary.latest_published_at },
                   { label: t("harness"), value: namedHarnesses(summary).join(", ") },
                 ]}
@@ -245,7 +246,6 @@ export default async function ComponentDetailPage({ params }: PageProps) {
               summary={summary.latest_checks}
               labels={safetyChecksLabels(t)}
             />
-            {passport ? <ComponentCompatibility passport={passport} t={t} /> : null}
           </>
         }
         rail={
@@ -266,6 +266,7 @@ export default async function ComponentDetailPage({ params }: PageProps) {
                 downloadsLabel={t("artifactDownloads")}
               />
             </div>
+            <ComponentContextBudgetPanel budget={budget} labels={contextBudgetLabels(t, tCli)} />
             <CliCopyBlock
               command={cliCommand}
               title={tCli("useTitle")}
@@ -342,31 +343,4 @@ async function isLiked(token: string, objectKind: "component" | "setup", stableI
   } catch {
     return false;
   }
-}
-
-function ComponentCompatibility({
-  passport,
-  t,
-}: {
-  passport: NonNullable<Awaited<ReturnType<typeof readComponentVersion>>["passport"]>;
-  t: (key: string) => string;
-}) {
-  const osValues = namedOperatingSystems(passport);
-  const evidence = passport.compatibility_evidence_refs.join(", ") || t("noEvidence");
-  return (
-    <DetailAccordion title={t("compatibility")}>
-      <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="bg-muted/30 min-w-0 rounded-sm p-3">
-          <dt className="text-muted-foreground text-sm">{t("supportedOs")}</dt>
-          <dd className="mt-1 font-medium break-words">
-            <OsBadgeList values={osValues} empty={t("noneListed")} />
-          </dd>
-        </div>
-        <div className="bg-muted/30 min-w-0 rounded-sm p-3">
-          <dt className="text-muted-foreground text-sm">{t("evidenceSummary")}</dt>
-          <dd className="mt-1 font-medium break-words">{evidence}</dd>
-        </div>
-      </dl>
-    </DetailAccordion>
-  );
 }

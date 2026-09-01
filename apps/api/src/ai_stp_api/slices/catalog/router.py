@@ -39,6 +39,7 @@ from ai_stp_platform.catalog_usage import (
 from ai_stp_platform.selection_impact import (
     SelectionInvalid,
     SelectionNotFound,
+    component_context_budget,
     setup_context_budget,
 )
 from ai_stp_platform.storage.object_store import ImmutableObjectStore
@@ -747,6 +748,43 @@ async def read_setup_context_budget(
         ) from exc
     try:
         result = await setup_context_budget(
+            db,
+            account_id=None if ctx is None else ctx.account_id,
+            stable_id=stable_id,
+            version=version,
+            store=_store(request),
+            estimator_profile=query.estimator_profile,
+        )
+    except SelectionNotFound as exc:
+        raise ApiError(ErrorCategory.NOT_FOUND, "catalog object not found") from exc
+    except SelectionInvalid as exc:
+        raise ApiError(ErrorCategory.VALIDATION, str(exc)) from exc
+    return _resource(request, result)
+
+
+@router.get(
+    "/catalog/components/{stable_id}/versions/{version}/context-budget", response_model=None
+)
+async def read_component_context_budget(
+    request: Request,
+    stable_id: str,
+    version: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext | None, Depends(optional_auth)],
+    estimator_profile: Annotated[str, Query()] = "ai-stp:utf8-bytes/1",
+) -> JSONResponse:
+    stable_id = require_component_id(stable_id)
+    version = require_version(version)
+    try:
+        query = SetupContextBudgetQuery(estimator_profile=estimator_profile)  # type: ignore[arg-type]
+    except ValidationError as exc:
+        raise ApiError(
+            ErrorCategory.VALIDATION,
+            "request validation failed",
+            details={"fields": ",".join(str(error["loc"]) for error in exc.errors())},
+        ) from exc
+    try:
+        result = await component_context_budget(
             db,
             account_id=None if ctx is None else ctx.account_id,
             stable_id=stable_id,

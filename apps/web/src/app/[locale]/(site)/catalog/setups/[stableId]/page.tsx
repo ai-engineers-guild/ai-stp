@@ -12,7 +12,6 @@ import { MarkdownDescription } from "@/components/molecules/markdown-description
 import { ObjectRelationships } from "@/components/molecules/object-relationships";
 import { ObjectTechnicalDetails } from "@/components/molecules/object-technical-details";
 import { ObjectVersionHistory } from "@/components/molecules/object-version-history";
-import { OsBadgeList } from "@/components/molecules/os-badge-list";
 import { PassportJsonViewer } from "@/components/molecules/passport-json-viewer";
 import {
   mergeRequirements,
@@ -38,7 +37,7 @@ import { listCatalogReactions } from "@/lib/api/reactions";
 import { readPublisherProfile, type PublicProfileProjection } from "@/lib/api/public-profile";
 import { sessionCookieValue } from "@/lib/auth/require-session";
 import { asAccountId, asComponentId, asVersionId, tryAsSetupId } from "@/lib/brands";
-import { namedHarnesses, namedOperatingSystems } from "@/lib/catalog-harnesses";
+import { namedHarnesses } from "@/lib/catalog-harnesses";
 import { registryVersion, selectImpact } from "@/lib/cli-copy";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { publicOrigin } from "@/lib/site";
@@ -47,6 +46,7 @@ import { SeoJsonLd } from "@/components/molecules/seo-json-ld";
 import { readSeoProfile } from "@/lib/api/seo";
 import { metadataFromSeo } from "@/lib/seo/metadata";
 import { UI } from "@/lib/ui-selectors";
+import { sourceLinksFor } from "@/lib/source-url";
 import { Icon } from "@/theme/icons";
 
 type PageProps = { params: Promise<{ locale: string; stableId: string }> };
@@ -95,7 +95,7 @@ export default async function SetupDetailPage({ params }: PageProps) {
     latest = null;
   }
   const passport = latest?.passport;
-  const componentRequirements = passport
+  const catalogComponents = passport
     ? await Promise.all(
         passport.components.map(async (ref) => {
           try {
@@ -103,15 +103,25 @@ export default async function SetupDetailPage({ params }: PageProps) {
               asComponentId(ref.stable_id),
               asVersionId(ref.version),
             );
-            return component.passport;
+            const componentAuthor = await readAuthor(component.passport.owner_id);
+            return {
+              stableId: ref.stable_id,
+              version: ref.version,
+              componentType: component.passport.component_type,
+              ownerId: component.passport.owner_id,
+              authorName: componentAuthor?.display_name,
+              sourceUrl: sourceLinksFor(component.passport.source, component.passport.facts)[0]
+                ?.href,
+              passport: component.passport,
+            };
           } catch {
             return null;
           }
         }),
-      )
+      ).then((items) => items.filter((item) => item !== null))
     : [];
   const aggregatedRequirements = passport
-    ? mergeRequirements([passport, ...componentRequirements.filter((item) => item !== null)])
+    ? mergeRequirements([passport, ...catalogComponents.map((item) => item.passport)])
     : null;
   const ownerId = passport?.owner_id || summary.publisher_id;
   const author = await readAuthor(ownerId);
@@ -223,21 +233,8 @@ export default async function SetupDetailPage({ params }: PageProps) {
                 summary={summary.latest_lifecycle}
                 facts={[
                   { label: t("lifecycle"), value: summary.latest_lifecycle },
-                  {
-                    label: t("requiresCredentials"),
-                    value: passport.requires_credentials ? tc("yes") : tc("no"),
-                  },
-                  { label: t("requiresAuthorization"), value: passport.requires_authorization },
                   { label: t("publishedAt"), value: summary.latest_published_at },
                   { label: t("harness"), value: summary.latest_harness_id },
-                  { label: t("purpose"), value: summary.latest_purpose },
-                  // The posture is the axis a user chooses along — four setups
-                  // per harness differ by it — so it sits above the role. The
-                  // role is empty on first-party setups by `ADR-0130`: nobody
-                  // publishes one, and an empty row says that where an invented
-                  // value said something false.
-                  { label: t("posture"), value: summary.latest_posture ?? "" },
-                  { label: t("targetRole"), value: summary.latest_target_role ?? "" },
                 ]}
                 licenseId={passport.license.spdx_id}
                 licenseLabel={t("license")}
@@ -247,10 +244,12 @@ export default async function SetupDetailPage({ params }: PageProps) {
               <SetupComposition
                 passport={passport}
                 components={summary.latest_checks?.components ?? []}
+                catalogComponents={catalogComponents}
+                setupAuthor={{ accountId: ownerId, displayName: author?.display_name }}
+                budget={budget}
                 t={t}
               />
             ) : null}
-            {passport ? <Compatibility passport={passport} t={t} /> : null}
             {aggregatedRequirements ? (
               <RequirementsSummary
                 requirements={aggregatedRequirements}
@@ -320,53 +319,6 @@ export default async function SetupDetailPage({ params }: PageProps) {
         }
       />
     </article>
-  );
-}
-
-function Compatibility({
-  passport,
-  t,
-}: {
-  passport: NonNullable<Awaited<ReturnType<typeof readSetupVersion>>["passport"]>;
-  t: (key: string) => string;
-}) {
-  const evidence =
-    [
-      passport.install_evidence_ref,
-      passport.launch_evidence_ref,
-      ...passport.compatibility_evidence_refs,
-    ]
-      .filter(Boolean)
-      .join(", ") || t("noEvidence");
-  return (
-    <DetailAccordion title={t("compatibility")}>
-      <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="bg-muted/30 min-w-0 rounded-sm p-3">
-          <dt className="text-muted-foreground text-sm">{t("supportedOs")}</dt>
-          <dd className="mt-1 font-medium break-words">
-            <OsBadgeList values={namedOperatingSystems(passport)} empty={t("noneListed")} />
-          </dd>
-        </div>
-        <Fact
-          label={t("supportedArch")}
-          value={passport.supported_arch.join(", ") || t("noneListed")}
-        />
-        <Fact
-          label={t("supportedHarnessVersions")}
-          value={passport.supported_harness_versions.join(", ") || t("noneListed")}
-        />
-        <Fact label={t("evidenceSummary")} value={evidence} />
-      </dl>
-    </DetailAccordion>
-  );
-}
-
-function Fact({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="bg-muted/30 min-w-0 rounded-sm p-3">
-      <dt className="text-muted-foreground text-sm">{label}</dt>
-      <dd className="mt-1 font-medium break-words">{value}</dd>
-    </div>
   );
 }
 

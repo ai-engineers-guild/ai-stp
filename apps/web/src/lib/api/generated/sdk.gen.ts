@@ -105,6 +105,9 @@ import type {
   ReadComponentArtifactData,
   ReadComponentArtifactErrors,
   ReadComponentArtifactResponses,
+  ReadComponentContextBudgetData,
+  ReadComponentContextBudgetErrors,
+  ReadComponentContextBudgetResponses,
   ReadComponentData,
   ReadComponentErrors,
   ReadComponentGithubMetadataData,
@@ -494,6 +497,22 @@ export const readComponentArtifact = <ThrowOnError extends boolean = false>(
     ReadComponentArtifactErrors,
     ThrowOnError
   >({ url: "/v1/catalog/components/{stable_id}/versions/{version}/artifact", ...options });
+
+/**
+ * Read the context budget of one visible exact component.
+ */
+export const readComponentContextBudget = <ThrowOnError extends boolean = false>(
+  options: Options<ReadComponentContextBudgetData, ThrowOnError>,
+): RequestResult<
+  ReadComponentContextBudgetResponses,
+  ReadComponentContextBudgetErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ReadComponentContextBudgetResponses,
+    ReadComponentContextBudgetErrors,
+    ThrowOnError
+  >({ url: "/v1/catalog/components/{stable_id}/versions/{version}/context-budget", ...options });
 
 /**
  * Read on-demand GitHub stars and archive state for one exact component.
