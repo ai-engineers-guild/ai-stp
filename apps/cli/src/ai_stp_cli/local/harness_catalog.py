@@ -79,6 +79,15 @@ class HarnessDefinition:
     npm_packages: tuple[str, ...] = ()
     scoop_app: str | None = None
 
+    #: Other command names the vendor installs for the same product, beside
+    #: the primary. Cursor ships two — `binNames: ["agent", "cursor-agent"]`
+    #: from the installer object in the pinned bundle — into one directory,
+    #: and the pair is the attribution: measured on a live machine,
+    #: `~/.grok/bin/agent` answers the grok banner, so an alias standing alone
+    #: is another product's command that happens to share a word, never an
+    #: installation of this one.
+    executable_aliases: tuple[str, ...] = ()
+
     @property
     def support(self) -> HarnessSupport:
         """The declared support level, read from its owner rather than restated.
@@ -280,6 +289,16 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
             "plugins/cache",
             "plugins/data",
             "plugins/marketplaces",
+            # Measured 2026-09-01 on a live home rather than a page: the
+            # product keeps its OAuth tokens (`.credentials.json`), updater
+            # state, feedback queue, its own plan files and two caches inside
+            # the configuration root, all with importable suffixes.
+            ".credentials.json",
+            ".last-update-result.json",
+            "feedback",
+            "gh-pr-status-cache.json",
+            "mcp-needs-auth-cache.json",
+            "plans",
         ),
     ),
     HarnessDefinition(
@@ -365,7 +384,22 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
         frozenset({"native_files", "plugin_manifest", "hooks_directory"}),
         root_override="CODEX_HOME",
         npm_packages=("@openai/codex",),
-        state_paths=("cache", "logs", "sessions", "packages"),
+        state_paths=(
+            "cache",
+            "logs",
+            "sessions",
+            "packages",
+            # Measured 2026-09-01 on a live `~/.codex`: OAuth tokens in
+            # `auth.json`, a models cache, OAuth lock files, a bin directory
+            # and a `.tmp` staging dir — product state, not authored
+            # configuration, and `auth.json` is the one that must never read
+            # as somebody's setup.
+            ".tmp",
+            "auth.json",
+            "bin",
+            "mcp-oauth-locks",
+            "models_cache.json",
+        ),
     ),
     HarnessDefinition(
         "pi",
@@ -411,6 +445,9 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
             "@earendil-works/pi-coding-agent",
             "@mariozechner/pi-coding-agent",
         ),
+        # Measured 2026-09-01 on a live `~/.pi/agent`: the product keeps its
+        # OAuth tokens and its model store beside the settings it documents.
+        state_paths=("auth.json", "models-store.json"),
     ),
     HarnessDefinition(
         "opencode",
@@ -547,6 +584,34 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
         frozenset({"native_files"}),
         gaps=("marketplace_provenance_not_public",),
         root_override="GROK_HOME",
+        # Measured 2026-09-01 on a live `~/.grok`, which is the busiest state
+        # root of the seven: vendor docs and changelogs, session and campaign
+        # records, caches, downloads, bundled runtime, completions, memory
+        # traces and OAuth tokens all live beside `config.toml` with
+        # importable suffixes.
+        state_paths=(
+            "CHANGELOG.json",
+            "CHANGELOG.md",
+            "README.md",
+            "active_sessions.json",
+            "auth.json",
+            "bin",
+            "bundled",
+            "campaigns_state.json",
+            "completions",
+            "docs",
+            "downloads",
+            "logs",
+            "marketplace-cache",
+            "memtrace",
+            "models_cache.json",
+            "relocations",
+            "sessions",
+            "slash-mru.json",
+            "tip_cursor.json",
+            "vendor",
+            "version.json",
+        ),
     ),
     HarnessDefinition(
         "cursor",
@@ -570,8 +635,21 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
         ".cursor",
         f"{CURSOR}/cli/reference/configuration",
         (
+            # The one cursor surface built by calling the config resolver
+            # (`CURSOR_CONFIG_DIR`, then `$XDG_CONFIG_HOME/cursor`, else
+            # `~/.cursor`); the other global surfaces are literal `~/.cursor`
+            # joins in the pinned bundle. The long note below measured this and
+            # said a per-surface root was "not worth inventing for a single
+            # file until something depends on it" — discovery now does: with
+            # the variable set, a whole-harness override sent six literal
+            # surfaces to a directory the product never reads them from.
             _layout(
-                "setting", "cli-config.json", "file", f"{CURSOR}/cli/reference/configuration", G
+                "setting",
+                "cli-config.json",
+                "file",
+                f"{CURSOR}/cli/reference/configuration",
+                G,
+                root="cursor_config",
             ),
             # Cursor carries components inside a plugin rather than in sibling
             # directories: `.cursor-plugin/plugin.json` declares `commands`,
@@ -589,6 +667,12 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
             # looks authoritative for a thing does not name its placement.
             _layout("plugin", "plugins/local", "directory", f"{CURSOR}/plugins", G),
             _layout("instruction", ".cursor/rules", "directory", f"{CURSOR}/rules", P),
+            # The project half of the `agents` surface above: the bundle's
+            # discovery glob is `**/`-anchored, so it reads the workspace's
+            # `.cursor/agents` exactly as it reads the home's.
+            _layout(
+                "agent", ".cursor/agents", "directory", f"{CURSOR}/agents", P, evidence="bytes"
+            ),
             _layout("plugin", ".cursor/plugins", "directory", f"{CURSOR}/reference/plugins", P),
             # Five user-scope surfaces the docs page does not mention and the
             # product reads. `mcp.json` was confirmed by running the product,
@@ -596,6 +680,26 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
             # The `rules` row below is the User Rule scope, a sibling of the
             # project one two lines up rather than a correction of it.
             _layout("skill", "skills", "directory", f"{CURSOR}/skills", G),
+            # The product's second first-party skills surface, read off the
+            # shipped 2026.08.11 bundle bytes: its skill matcher lists both
+            # `/.cursor/skills/` and `/.cursor/skills-cursor/` with
+            # `requiresThirdParty:!1`, and a discovery glob
+            # `**/.cursor/skills-cursor/**/SKILL.md` consumes it. A live
+            # machine confirms: user skills sit here while `skills` does not
+            # exist. (`/.claude/skills/` and `/.codex/skills/` appear in the
+            # same matcher as third-party interop — deliberately not rows of
+            # this harness.)
+            _layout("skill", "skills-cursor", "directory", f"{CURSOR}/skills", G, evidence="bytes"),
+            # Agent definitions, read off the same pinned bundle: the config
+            # matcher lists `**/.cursor/agents/**/*.md` (also `.mdc` and
+            # `.markdown`) beside the rules and skills globs, and workspace
+            # indexing carves `!**/.cursor/agents/**` out exactly as it does
+            # for skills. No vendor page names the placement — the fourth
+            # Cursor surface where the product's own bytes are the only
+            # authority. The provider estate does not manage it yet
+            # (0.0.53 declares no `agents` namespace); discovery must still
+            # see it, or a person's agent files read as loose notes.
+            _layout("agent", "agents", "directory", f"{CURSOR}/agents", G, evidence="bytes"),
             _layout("instruction", "rules", "directory", f"{CURSOR}/rules", G, evidence="bytes"),
             _layout("command", "commands", "directory", CURSOR_COMMANDS, G, evidence="bytes"),
             _layout("hook", "hooks.json", "file", f"{CURSOR}/hooks", G, evidence="bytes"),
@@ -645,7 +749,21 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
         # "reads like data" would have put `plugins` under `CURSOR_DATA_DIR`,
         # and "comes off the config resolver" would have kept all seven on XDG.
         # Only following each surface's own construction answered it.
-        root_override="CURSOR_CONFIG_DIR",
+        #
+        # The per-surface root exists now (`cli-config.json` above carries
+        # `root="cursor_config"`), so the whole-harness override is gone: it
+        # moved six literal surfaces whenever the variable was set.
+        executable_aliases=("agent",),
+        # Measured 2026-09-01 on a live `~/.cursor`: chat transcripts, project
+        # records, telemetry caches and the agent's own state file sit beside
+        # `cli-config.json` — the data-dir surfaces default into the home.
+        state_paths=(
+            "agent-cli-state.json",
+            "ai-tracking",
+            "chats",
+            "projects",
+            "statsig-cache.json",
+        ),
     ),
     HarnessDefinition(
         "antigravity",

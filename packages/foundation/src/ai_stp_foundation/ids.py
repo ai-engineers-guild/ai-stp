@@ -30,6 +30,7 @@ ID_PREFIXES: Final[Mapping[str, str]] = MappingProxyType(
         "invite": "access grant invitation",
         "operation": "durable mutating operation",
         "plan": "publication plan",
+        "prevision": "profile revision",
         "project": "project passport",
         "report": "private report case",
         # Valid only inside one recommendation session (`ADR-0027`). Typed and

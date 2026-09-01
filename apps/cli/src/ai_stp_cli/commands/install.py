@@ -57,7 +57,6 @@ from ai_stp_cli.provider import (
     bundle_protocol,
     conformance,
     invocation,
-    network_launcher,
     operation_v3,
     protocol,
     protocol_v2,
@@ -1813,7 +1812,10 @@ def _provider_target(parameters: Mapping[str, object], logical: str, version: in
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
             "provider protocol v2/v3 requires an existing absolute target directory",
-            next_actions=["install plan --target <directory> --protocol-version 3 --json"],
+            next_actions=[
+                "install plan --target <directory> --protocol-version 3 --json",
+                "target status --provider <path> --target <directory> --json",
+            ],
         )
     place = Path(given).expanduser()
     if place.is_symlink() or not place.is_absolute() or not place.is_dir():
@@ -1967,7 +1969,10 @@ def _project_id(connection: sqlite3.Connection, given: str) -> str:
 
 
 def _observe_target(
-    parameters: Mapping[str, object], project_id: str, harness: str
+    connection: sqlite3.Connection,
+    parameters: Mapping[str, object],
+    project_id: str,
+    harness: str,
 ) -> tuple[
     str,
     provider_status.AuthorizationEvidence | None,
@@ -1979,42 +1984,167 @@ def _observe_target(
     a thing to remember in two places. It is one place now, for the same reason
     every other duplicate here was collapsed.
 
-    The reason is the operator's own and only Windows can act on one. These
-    commands install nothing, but that is not why they may ask: `ADR-0126` puts
-    the gate on whose executable it is, and `--unverified-provider` is the
-    operator saying whose. Without it they refuse where isolation is absent,
-    exactly as before.
+    `ADR-0126` puts the gate on whose executable it is. A read establishes
+    that the way a write does — a signed release, or an operator saying
+    `--unverified-provider` — and where isolation is absent it refuses only
+    when neither can be established, exactly as an install would.
     """
-    invoke = _optional_invoker(parameters, project_id, harness)
+    invoke = _optional_invoker(connection, parameters, project_id, harness)
     if invoke is None:
         return "", None, ()
     return _provider_observation(invoke)
 
 
+def _observation_protocol(
+    parameters: Mapping[str, object], trusted_release: release.ReleaseManifest | None = None
+) -> int:
+    """The protocol for a read-only look at a provider the caller named.
+
+    A signed release states the protocol its provider speaks, and a read that
+    established one asks in it, the way an install does. Without one, the old
+    fallback — frozen v1 — is a protocol no released provider speaks: measured
+    on a live pair, a managed file was edited, the provider's own status named
+    the drift, and `target status` without `--protocol-version` answered
+    `installed` with an empty observed digest, because the v1 conversation
+    carried no target identity. An unqualified observation asks in v3, the
+    protocol released providers actually speak; `--protocol-version` still
+    selects any supported protocol, and one that contradicts the manifest is
+    refused rather than preferred.
+    """
+    if parameters.get("protocol-version") or trusted_release is not None:
+        return _protocol_version(parameters, trusted_release)
+    return protocol_v3.VERSION
+
+
+def _observation_trust(
+    connection: sqlite3.Connection,
+    parameters: Mapping[str, object],
+    executable: str,
+    *,
+    project_id: str,
+    harness: str,
+) -> release.ReleaseManifest | None:
+    """The signed release a read-only look at a target runs under, if any.
+
+    `#65`: on a machine where no launcher can deny the network, `install
+    plan/approve/apply` went through on the strength of a trusted release and
+    `target status/diff/backups` refused one command later — the observer was
+    the single caller that never consulted a release, and the three commands
+    declared no way to be handed one. A read is strictly weaker than the write
+    it observes; the exception a write may use is not withheld from it.
+
+    Three sources, in the writers' order. A manifest the caller names is
+    verified exactly as `install plan` verifies one. An operator who says
+    `--unverified-provider` has decided, and nothing is derived behind that
+    word. Otherwise the release this pair was last verified under counts,
+    provided these are its exact bytes — which is what the plan bound and the
+    apply re-checked, read from the journal rather than asserted again.
+    """
+    if parameters.get("provider-manifest"):
+        evidence = trust.trusted_manifest(
+            connection, parameters, executable, recovery_requested=False
+        )
+        trust.no_contradiction(parameters, evidence.manifest)
+        return evidence.manifest
+    if bool(parameters.get("unverified-provider", False)):
+        return None
+    return _recorded_release(connection, executable, project_id=project_id, harness=harness)
+
+
+def _recorded_release(
+    connection: sqlite3.Connection, executable: str, *, project_id: str, harness: str
+) -> release.ReleaseManifest | None:
+    """The release this pair was verified under, when these are its bytes.
+
+    Newest verified operation first, because a pair moves forward: the release
+    that wrote what stands in the target is the one a reader of that target
+    has grounds to trust. Bytes are compared before anything else — a manifest
+    describes one artifact, and a different executable at the same path is a
+    different provider whatever its neighbour once was. The pinned policy is
+    re-read rather than remembered, so a release revoked since the install is
+    refused here the way `install apply` would refuse it.
+
+    The build attestation is not re-run. It is a property of the exact bytes,
+    those bytes were attested at plan time and re-checked at apply time, and
+    this reads nothing that could have changed it; asking GitHub again on every
+    `target status` would make a daily read need the network the write did.
+    """
+    digest, size = release.artifact_identity(Path(executable))
+    policy = release.pinned_policy()
+    for record in reversed(targets.verified(connection, project_id=project_id, harness_id=harness)):
+        held = installation.plan(connection, record.operation_id)
+        if not held.provider_release_manifest or held.provider_release_trust == "unverified":
+            continue
+        manifest = release.parse_manifest(held.provider_release_manifest)
+        if digest != manifest.artifact_digest or size != manifest.artifact_size:
+            continue
+        known_sequence = provider_releases.minimum_sequence(connection, manifest.provider_id)
+        verdict = (
+            release.verify_attested(
+                manifest,
+                policy,
+                known_sequence=known_sequence,
+                observed_digest=digest,
+                observed_size=size,
+                platform=_release_platform(),
+            )
+            if manifest.repository in policy.build_attestations
+            else release.verify(
+                manifest,
+                policy,
+                known_sequence=known_sequence,
+                observed_digest=digest,
+                observed_size=size,
+                platform=_release_platform(),
+            )
+        )
+        return manifest if verdict.accepted else None
+    return None
+
+
+def _observation_warnings(parameters: Mapping[str, object], observed: str) -> tuple[str, ...]:
+    """Say when a provider was asked and its answer carried no target identity.
+
+    An empty observation and no observation used to render the same survey,
+    and the clean shape is exactly what an agent acts on. The journal half is
+    still answered; the envelope names the missing live half.
+    """
+    if parameters.get("provider") and not observed:
+        return (
+            "the named provider answered no target identity; drift was not "
+            "assessed, and this pair is described from the journal alone",
+        )
+    return ()
+
+
 def _optional_invoker(
-    parameters: Mapping[str, object], project_id: str, harness: str
+    connection: sqlite3.Connection,
+    parameters: Mapping[str, object],
+    project_id: str,
+    harness: str,
 ) -> conformance.Invoker | None:
     """Build an invoker for the provider the caller named, or `None` for none.
 
-    Three read commands now reach a provider only when asked to. The
-    construction is here rather than in each of them because it carries the
-    Windows decision above, and a decision remembered in three places is a
-    decision that will be remembered in two.
+    Three read commands reach a provider only when asked to. The construction
+    is here rather than in each of them because it carries the trust decision
+    above, and a decision remembered in three places is a decision that will
+    be remembered in two. The reason handed to the launcher comes from
+    `trust.unisolated_reason`, the same function every writer reads it from.
     """
     if not parameters.get("provider"):
         return None
-    version = _protocol_version(parameters)
+    executable = _executable(parameters)
+    trusted_release = _observation_trust(
+        connection, parameters, executable, project_id=project_id, harness=harness
+    )
+    version = _observation_protocol(parameters, trusted_release)
     logical = f"{project_id}:{harness}"
     target = _provider_target(parameters, logical, version)
     return invocation.provider_invoker(
-        _executable(parameters),
+        executable,
         target,
         version,
-        unisolated_reason=(
-            network_launcher.EXPLICIT_UNVERIFIED_PROVIDER
-            if parameters.get("unverified-provider") is True
-            else None
-        ),
+        unisolated_reason=trust.unisolated_reason(trusted_release, parameters),
     )
 
 
@@ -2034,12 +2164,15 @@ def target_status(parameters: Mapping[str, object]) -> Answer[TargetSurvey]:
     registry = configured_path()
     if not registry.exists():
         return Answer(_survey(targets.Survey(project_id=project_id, harness_id=harness)))
-    observed, authorization_evidence, shadowed = _observe_target(parameters, project_id, harness)
 
     with closing(open_readonly(registry)) as connection:
+        resolved = _project_id(connection, project_id)
+        observed, authorization_evidence, shadowed = _observe_target(
+            connection, parameters, resolved, harness
+        )
         found = targets.survey(
             connection,
-            project_id=_project_id(connection, project_id),
+            project_id=resolved,
             harness_id=harness,
             observed_target_digest=observed,
             present_env=frozenset(os.environ),
@@ -2047,7 +2180,10 @@ def target_status(parameters: Mapping[str, object]) -> Answer[TargetSurvey]:
             authorization_evidence=authorization_evidence,
             catalog_version=str(parameters.get("catalog-version") or ""),
         )
-        return Answer(_survey(found, shadowed=shadowed))
+        return Answer(
+            _survey(found, shadowed=shadowed),
+            warnings=_observation_warnings(parameters, observed),
+        )
 
 
 def target_diff(parameters: Mapping[str, object]) -> Answer[TargetDiff]:
@@ -2070,15 +2206,17 @@ def target_diff(parameters: Mapping[str, object]) -> Answer[TargetDiff]:
                 managed_detail="not_applicable",
             )
         )
-    # A shadow does not change what an install would write, only what the
-    # product reads afterwards, so it is `target status`'s answer and not
-    # this one's. Named rather than silently dropped so the choice is visible.
-    observed, authorization_evidence, _shadowed = _observe_target(parameters, project_id, harness)
-
     with closing(open_readonly(registry)) as connection:
+        resolved = _project_id(connection, project_id)
+        # A shadow does not change what an install would write, only what the
+        # product reads afterwards, so it is `target status`'s answer and not
+        # this one's. Named rather than silently dropped so the choice is visible.
+        observed, authorization_evidence, _shadowed = _observe_target(
+            connection, parameters, resolved, harness
+        )
         found = targets.survey(
             connection,
-            project_id=_project_id(connection, project_id),
+            project_id=resolved,
             harness_id=harness,
             observed_target_digest=observed,
             present_env=frozenset(os.environ),
@@ -2099,7 +2237,8 @@ def target_diff(parameters: Mapping[str, object]) -> Answer[TargetDiff]:
                 changes=list(targets.pending_changes(found)),
                 managed_detail=managed_detail,  # pyright: ignore[reportArgumentType]
                 managed_changes=managed_changes,
-            )
+            ),
+            warnings=_observation_warnings(parameters, observed),
         )
 
 
@@ -2183,11 +2322,10 @@ def target_backups(parameters: Mapping[str, object]) -> Answer[TargetBackups]:
                 harness_id=harness,  # pyright: ignore[reportArgumentType]
             )
         )
-    observed = _observe_backups(parameters, project_id, harness)
     with closing(open_readonly(registry)) as connection:
-        found = targets.backups(
-            connection, project_id=_project_id(connection, project_id), harness_id=harness
-        )
+        resolved = _project_id(connection, project_id)
+        observed = _observe_backups(connection, parameters, resolved, harness)
+        found = targets.backups(connection, project_id=resolved, harness_id=harness)
         journalled = {item.backup_ref for item in found}
         return Answer(
             TargetBackups(
@@ -2216,7 +2354,10 @@ def target_backups(parameters: Mapping[str, object]) -> Answer[TargetBackups]:
 
 
 def _observe_backups(
-    parameters: Mapping[str, object], project_id: str, harness: str
+    connection: sqlite3.Connection,
+    parameters: Mapping[str, object],
+    project_id: str,
+    harness: str,
 ) -> dict[str, provider_status.BackupObservation] | None:
     """What the provider says it owns right now, or `None` if none was named.
 
@@ -2230,7 +2371,7 @@ def _observe_backups(
     and it produces the same `held: null` as not asking — correctly, because
     neither answered the question.
     """
-    invoke = _optional_invoker(parameters, project_id, harness)
+    invoke = _optional_invoker(connection, parameters, project_id, harness)
     if invoke is None:
         return None
     reported = provider_status.backups(_object(invoke("status", ())))

@@ -39,12 +39,17 @@ The browser device cookie outlives the login session and is refreshed after ever
 successful OAuth callback. Its lifetime is set by `AI_STP_AUTH_DEVICE_COOKIE_TTL_SECONDS`;
 the default is 400 days, the maximum lifetime supported by modern browsers.
 
-Approximate location is read from the `x-vercel-ip-city` and `x-vercel-ip-country`
-request headers when a CDN in front of the deployment supplies them, and is otherwise
-unknown; login works either way. The application stores only city and country, not the
-source IP or precise coordinates.
+Approximate location does not depend on an external service. The host's nginx sets
+`X-AI-STP-Client-IP` to the connecting address, replacing whatever the client sent,
+and the API resolves city and country against a local City Lite MMDB at
+`AI_STP_AUTH_GEOIP_CITY_DB_PATH`. The production compose mounts `deploy/geoip`
+read-only; the database file and its update policy belong to the operator and are not
+committed to Git. A private or loopback address resolves to nothing, as does a missing
+or unreadable database, and login continues to work in either case.
 
-`SPEC-023` `REQ-2314` describes a different mechanism — a local City Lite MMDB looked
-up from a client-address header the edge proxy sets. That mechanism is not built: no
-database, env variable, mount or lookup code exists. The requirement stands as intent;
-this page describes what currently runs.
+When the lookup yields nothing, `x-vercel-ip-city`, `x-vercel-ip-country` and
+`cf-ipcountry` are read as a fallback for a deployment behind a CDN that supplies
+them. No CDN sits in front of this one, so those headers reach the API only if a
+visitor sends them: the fallback can therefore mislabel the visitor's own device row
+and nothing else. The application stores only city and country, never the address it
+resolved them from or precise coordinates.

@@ -123,9 +123,9 @@ No upload token exists here, on the host, or in repository or organization secre
 Trusted Publishing issues an OIDC identity for the run. There is no credential to
 look for.
 
-Live index on 2026-08-26: all five projects were published as `0.0.6` (candidate
-`33020095240`, tag `v0.0.6`, commit `58225868`). Before that, `0.0.5` came from
-candidate `33008640398`.
+Live index on 2026-09-02: all five projects are published as `0.0.14` (candidate
+`33561783162`, tag `v0.0.14`, commit `a4572d55`), by `publish_pypi.py` unattended.
+Earlier: `0.0.6` from candidate `33020095240`, `0.0.5` from `33008640398`.
 
 Verified **with PyPI**, not from a green run:
 

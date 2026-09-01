@@ -12,6 +12,7 @@ from typing import Final, cast
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import harness_catalog
+from ai_stp_cli.paths import redact_home
 from ai_stp_contracts.authoring import (
     AUTHORING_LANGUAGES,
     AUTHORING_TYPE_LANGUAGE_MATRIX,
@@ -580,10 +581,22 @@ def read_template(path: Path) -> str:
     try:
         link_state = path.lstat()
         if stat.S_ISLNK(link_state.st_mode):
-            raise _failure("the authoring template could not be opened safely")
+            # The sentence stays static; the subject and the cause travel in
+            # details. Measured without them: a mistyped --template path
+            # answered only "could not be opened safely", naming neither the
+            # file it meant nor that the file simply was not there.
+            raise _failure(
+                "the authoring template could not be opened safely",
+                template=redact_home(path),
+                reason="symlink",
+            )
         descriptor = os.open(path, flags)
     except OSError as error:
-        raise _failure("the authoring template could not be opened safely") from error
+        raise _failure(
+            "the authoring template could not be opened safely",
+            template=redact_home(path),
+            reason=type(error).__name__,
+        ) from error
     try:
         before = os.fstat(descriptor)
         if (
@@ -631,5 +644,5 @@ def _relative_path(value: str) -> str:
     return path.as_posix()
 
 
-def _failure(message: str) -> CliFailure:
-    return CliFailure("AI_STP_VALIDATION_ERROR", message)
+def _failure(message: str, **details: str) -> CliFailure:
+    return CliFailure("AI_STP_VALIDATION_ERROR", message, details=dict(details))

@@ -1,6 +1,6 @@
 ---
 description: "Current ai_stp status and the ordered plan for remaining work."
-last_verified: "2026-08-31"
+last_verified: "2026-09-01"
 ---
 
 # Current status and plan
@@ -17,10 +17,11 @@ plans are not continued literally after the implementation changes.
   exact plan, never through silent ownership.
 - The current component vocabulary has eight kinds and may be extended by a new
   specification when a proven native form exists.
-- The release target is Linux, Windows, and macOS on both architectures with
-  real-product evidence; bundles remain portable between operating systems.
-- Until that exact evidence is complete, package classifiers remain Linux-only;
-  update them after the evidence is complete.
+- The release target is Linux, Windows, and macOS on both architectures —
+  `x86_64`/`arm64` — with real-product evidence; bundles remain portable between
+  operating systems.
+- Package classifiers name all three operating systems; the six-leg evidence
+  that gated them exists and is re-run on every release candidate.
 - The agent chooses the engineering path within the task. Digest, rollback,
   provenance, and compatibility remain mechanical integrity constraints without
   creating an additional approval round.
@@ -33,82 +34,123 @@ plans are not continued literally after the implementation changes.
 | Platform | `/v1`, PostgreSQL, object storage, queue, authentication/devices, sync, publication, grants/reports, public catalog, article, and SEO projections |
 | Web | Landing, catalog/detail, account/device/owner surfaces, content hub, machine projections, and a three-OS test matrix |
 | Providers | Seven protocol-v3 systems, native configuration layouts, backup/recovery, software lifecycle capabilities, and five complete launch capabilities |
-| Release | All five Python packages published as `0.0.10`; public `check` and CodeQL green on the verified main; the host pulls `deploy/prod` |
+| Release | All five Python packages published through Trusted Publishing (the exact version is in the snapshot below); public `check` and CodeQL green on the verified main; the host pulls `deploy/prod` |
 | Catalog | Seven harness families and four postures published; review tasks `#408`, `#456`, `#460`, and `#461` closed by implementation |
 
-## Verified snapshot: 2026-08-31
+## Verified snapshot: 2026-09-01, updated at the 0.0.14 cut
 
-- The canonical development checkout is `ai-engineers-guild/ai-stp`; the
-  private underscore tree imports it through the standard `public-sync` path
-  and separately retains private deployment history.
-- Published Python packages are `0.0.11`, five exact distributions delivered
-  through PyPI Trusted Publishing with attestations, SBOMs/checksums, and a
-  clean-install smoke check.
-- The active provider release is `0.0.48`, with seven releases containing six
-  native binaries and `SHA256SUMS`.
-- The core provider surface has 7 × 6 Linux/Windows/macOS × `x86_64`/`arm64`
-  lines.
-- Software lifecycle and exact-current provider operations are seven systems ×
-  6/6.
-- Live deployment was restored after `AI_STP_CONTENT_IMPORT_FORBIDDEN`: the
-  internal token is owner-only, content import is complete, and the API/web are
-  ready. The deployer now checks the token before build/migrate/recreate, so the
-  same omission does not stop the running web.
+- The canonical development checkout is `ai-engineers-guild/ai-stp`. The private
+  underscore tree is an archive: it runs no workflows, promotes nothing, and its
+  README names where the work went.
+- Published Python packages are `0.0.14` — five exact distributions through PyPI
+  Trusted Publishing with attestations, SBOMs/checksums and a clean-install smoke
+  check, cut from tag `v0.0.14` and proven on that exact SHA by the six-leg
+  configuration and program slices (42 of 42 rows each).
+- The active provider release is `0.0.53` across all seven public setup-system
+  repositories, each with six native binaries and `SHA256SUMS`. Provider kit
+  `0.2.8` (it opens `plan_request_fields` to `end_state`), protocol 3.
+- `software-evidence` — the consumer driving `harness install/status/update/
+  remove` through `ai-stp` itself — is green on **all six native legs** against
+  `0.0.53`, seven harnesses each. The one-leg limitation this document carried
+  since August is closed.
+- Package OS classifiers are Linux, macOS and Windows in all five distributions;
+  the evidence that gated them exists.
+- The first-party corpus is published whole: 99 of 99 objects, zero blockers,
+  and `just evidence-live` exits 0 against the served generation.
+- The account-bound slices ran with a real browser device-code login:
+  `evidence-sync` 5/5 verified on two devices, `evidence-publication` verified on
+  both its reading and its writing half.
+- `nginx` is the only edge proxy (`ADR-0135`); Caddy is gone from the host and
+  from every active configuration.
+- Isolation launchers exist on all three operating systems: Bubblewrap on Linux,
+  an AppContainer launcher on Windows (`ADR-0133`), `sandbox-exec` on macOS.
 
-Exact SHAs and run IDs intentionally remain in GitHub, Git, and evidence
+Exact SHAs and run IDs intentionally remain in GitHub, Git and evidence
 artifacts. This dated section is replaced at the next audit rather than
 accumulating snapshots.
 
 ## Remaining work
 
-### P0. Provider release 0.0.49 closes the `plan_digest` echo gap
+### P0. The configuration lifecycle on the other five native legs
 
-`apply-operation` in released `0.0.48` does not return `plan_digest` for
-`software_*`, although configuration apply does and
-`docs/contracts/provider-protocol.md` requires the same journal, backup, and
-plan digest. The consumer required the echo for every operation, so each
-`harness install/update/remove` through `ai-stp` failed **after** the program
-had already been installed, leaving an `applied_unverified` operation over the
-working prefix.
+`software-evidence` proves the **program** lifecycle on six legs. The
+**configuration** lifecycle — the arc this product exists for — was proven by
+hand on `linux/x86_64` alone:
 
-No producer test caught this because the provider did exactly what its own test
-suite asserted. The missing consumer-path slice has now been found.
+```text
+seed a native surface → component adopt → component version release
+→ select propose → select confirm → install plan → install approve
+→ install apply → target status/backups
+→ install plan --action remove → approve → apply → the surface is gone
+```
 
-The order is tolerate-then-emit and has already started: the consumer accepts a
-missing echo for software operations but still rejects a mismatch. The provider
-side belongs to the closed setup-system authoring environment: `0.0.49` adds the
-echo to both response forms, after which it will be checked in practice.
+`just evidence-config <tag>` and the `config-evidence` workflow drive it, one row
+per harness, with the verdict read from the target rather than from the
+provider's reply.
 
-The provider side has now shipped as `0.0.49`. `evidence-software` against it
-reported 7/7 `passed` and `clean`, with `plan_digest` present in **21 of
-21** software results, compared with zero of 21 for `0.0.48`. Tolerance is
-no longer load-bearing: every present echo was checked against the plan digest,
-and all 21 matched.
+Measured on `0.0.53`, run `33561657609`, read from the six artifacts rather
+than the badge — 42 of 42 rows and 84 of 84 observe stages passed:
 
-After `0.0.49`, the catalog must be reimported: 15 of 28 published setups lag
-their source (all seven `nddev-builder` setups and all `full-auto` setups except
-Antigravity), so `install plan` still shows posture descriptions that request
-additional confirmations.
+| leg | rows | isolation |
+|---|---|---|
+| linux `x86_64` / `arm64` | **7/7** | `enforced` (Bubblewrap) |
+| macOS `x86_64` / `arm64` | **7/7** | `enforced` (`sandbox-exec`) |
+| windows `x86_64` / `arm64` | **7/7** | `unavailable`, `unisolated_by_trust` |
 
-### P1. Account-dependent live evidence
+The first run of this slice reported success on all six legs while four of them
+had proven nothing: `clean` asked "did nothing fail" rather than "did everything
+pass", which a run of pure `inconclusive` rows satisfies. Fixed in all three
+slices, and a refusal now carries its message and details so a leg diagnoses
+itself. The Linux legs then wanted Bubblewrap plus the unprivileged user
+namespace Ubuntu 24.04 restricts; both are in the workflow and both legs are
+green.
 
-1. Complete the real browser device flow for two separate file credential
-   stores and run the fast-forward, replay, conflict, and merge sync scenarios.
-2. With the same account, verify the owner/publication/grant/report read
-   surface and local attestation/preview/reachability scenarios.
-3. Check catalog installation for seven harnesses/postures and record content
-   gaps without fictional objects. Anonymous live, provider `0.0.48`, citation,
-   and six-native-release evidence are already complete.
+Windows was a product finding rather than an environment one (`#65`, closed):
+the AppContainer probe fails on a hosted runner, `install plan/approve/apply`
+proceeded through the trusted-release exception, and `target
+status/diff/backups` refused — the read path was stricter than the write it
+observed, because the observer was the one caller that never consulted a
+trusted release. The three reads now establish trust the way the writers do:
+a named `--provider-manifest`, the operator's `--unverified-provider`, or the
+release the pair was last verified under when the named executable is its
+exact bytes (`docs/contracts/provider-release.md`). Both Windows legs read
+their targets back under the same trust the install used, and the isolation
+record still says the launcher was unavailable.
 
-### P2. Native evidence for implemented but unmeasured behavior
+The slice also drives the import capture path (`from_import=1`), so the
+round trip `#63` closed is proven by the same slice as the ordinary path.
+Remaining: the aggregated run on each release candidate's exact SHA (`#56`).
 
-1. Run `just evidence-software <tag>` through the consumer path
-   (`harness install/status/update/remove`) for seven released providers. It has
-   run against both `0.0.48` and `0.0.49` on Linux `x86_64` with 7/7
-   `passed` and `clean`, but not on the other five native lines.
-2. Windows job objects and grant sweeping are implemented and tested, but have
+### P1. The last link of the capture round-trip (`#63`)
+
+The path from an imported draft to an installable version exists command by
+command — `component version release` on each draft, `select propose` and
+`select confirm` over those exact versions — and the wall was one layer down:
+the importer stored every member at its harness-root-relative path, so the
+compiler met a file-shaped component as a named member and re-rooted a
+directory-shaped one under itself. Registration now packages members relative
+to the component boundary in adoption's own formats and records the same
+`source_name`, `content_format` and `managed_paths` facts, so an imported
+setup compiles into the bundle an adopted one would
+(`docs/contracts/setup-import.md`). Remaining: a `--from-import` row in the
+configuration slice, so the round trip is proven by the same slice that proves
+the ordinary path.
+
+### P2. `end_state` on the consumer side (`#54`)
+
+`ADR-0125` fixes the order: this CLI accepts the field, the CLI is released, kit
+`0.2.8` declares it, providers implement it. The first two steps are done —
+`end_state` is accepted and kit `0.2.8` publishes it in `plan_request_fields`.
+The argv and schema through which a remove plan carries a per-path end state
+belong to the kit revision the provider estate introduces; the consumer's
+withdraw reconstruction lands in one change once a provider declares the
+field, and a provider that does not declare it keeps today's honest behaviour.
+
+### P3. Native evidence for implemented but unmeasured behaviour
+
+1. Windows job objects and grant sweeping are implemented and tested, but have
    not been measured on a native runner during a real parent kill.
-3. The macOS deny-write profile has not been run against seven real providers on
+2. The macOS deny-write profile has not been run against seven real providers on
    either architecture.
 
 ### P4. Agent-first cleanup as a continuing practice
@@ -117,8 +159,11 @@ additional confirmations.
 2. A local reversible operation uses the exact expected value as confirmation; a
    new boolean is added only for a risk class covered by `ADR-0118`.
 3. Do not copy old plans or reviews into active documentation. A new session
-   reads this roadmap, the specifications, and machine help, then checks them
+   reads this roadmap, the specifications and machine help, then checks them
    against the current bytes.
+4. Every evidence script has a recipe that names it. A script nobody can invoke
+   is not a check; `verify_contribution_slice` sat unreferenced for a day and its
+   first real run found three defects in itself.
 
 ## Explicitly out of scope for this pass
 

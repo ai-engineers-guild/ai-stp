@@ -104,6 +104,10 @@ services:
         required: false
     volumes:
       - logs:/var/log/ai_stp
+      # Coarse-location database (SPEC-023 REQ-2314). Read-only, and empty in the
+      # repository: the file and its update policy belong to the operator. Absent,
+      # the lookup returns nothing and login is unaffected.
+      - ./deploy/geoip:/srv/geoip:ro
     ports:
       - "${AI_STP_API_BIND:-127.0.0.1:58082}:8000"
     networks: [internal, edge]

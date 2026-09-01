@@ -12,6 +12,7 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import components, content, lifecycle, mcp_clients
 from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_contracts.sync_payload import check_sync_payload
+from ai_stp_foundation.canonical import JsonValue
 
 SECRET = "AKIAIOSFODNN7EXAMPLE"
 MOMENT = "2026-01-01T00:00:00.000Z"
@@ -1268,3 +1269,116 @@ def test_a_plugin_under_the_skills_directory_is_not_offered_as_a_skill(
         if item.harness_id == "claude-code" and item.component_type == "skill"
     }
     assert "bare" in bare
+
+
+def test_an_unknown_consent_scope_is_named_before_coverage_is_answered() -> None:
+    """The scope guard must fire first, or the refusal misleads.
+
+    Measured: `consent allow --scope publication` — a scope this contract does
+    not define — answered "no registered object matches that target", sending
+    the operator to hunt for a registration problem when the actual mistake
+    was the scope word. `consent.record` holds the right refusal; the handler
+    just asked the coverage question first.
+    """
+    from ai_stp_cli.commands import component as command
+
+    with pytest.raises(CliFailure) as refused:
+        command.consent_allow({"scope": "publication", "target": "component_x@1"})
+
+    assert refused.value.code == "AI_STP_VALIDATION_ERROR"
+    assert "scope" in refused.value.message
+
+
+def test_a_path_two_surfaces_claim_is_a_decision_not_a_silent_pick(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`.agents/skills` answers to two documented surfaces at once.
+
+    Measured live: the portable cross-product skills convention and
+    antigravity's own project skills both claim the same directory, discovery
+    honestly reports both candidates — and `component adopt --path` took the
+    first one without a word. The adopted component then carried an empty
+    `harness_id`, `select propose --harness antigravity` refused it as
+    `harness_mismatch`, and no flag existed to adopt the antigravity claim at
+    all. The house rule is the provider-resolution one: more than one answer
+    is a decision, and picking silently is the failure.
+    """
+    from ai_stp_cli.commands import component as command
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    root = tmp_path / "work"
+    skill = root / ".agents" / "skills" / "probe"
+    skill.mkdir(parents=True)
+    (skill / "SKILL.md").write_text("# Probe\nshared-surface skill.\n", encoding="utf-8")
+
+    with pytest.raises(CliFailure) as undecided:
+        command.adopt({"path": str(skill), "root": str(root)})
+    assert undecided.value.code == "AI_STP_USER_DECISION_REQUIRED"
+    assert "antigravity" in str(undecided.value.details)
+
+    def harness_of(facts: "dict[str, JsonValue]") -> "JsonValue":
+        fact = facts["harness_id"]
+        assert isinstance(fact, dict)
+        return fact["value"]
+
+    chosen = command.adopt(
+        {"path": str(skill), "root": str(root), "harness": "antigravity"}
+    ).payload
+    assert harness_of(chosen.facts) == "antigravity"
+
+    portable = command.adopt({"path": str(skill), "root": str(root), "harness": "portable"}).payload
+    assert harness_of(portable.facts) == ""
+
+
+def test_a_path_two_kinds_claim_is_the_same_decision_as_two_harnesses(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One file, one harness, two kinds — and the second was unreachable.
+
+    Measured on a real codex home: `~/.codex/config.toml` answers to two
+    documented layouts at once, the `mcp` claim over the `mcp_servers` key and
+    the `setting` claim over the whole file. Discovery reports both. `component
+    adopt --path` took the first, so a codex user whose settings live beside
+    their MCP servers could not adopt the settings half **at all** — there was
+    no flag naming a kind, and `--harness codex` matches both.
+
+    The sibling of the harness case shipped in `eec26bfd`, and the same rule
+    applies: more than one answer is a decision, and picking silently is the
+    failure. Every `declared_key` harness has this shape — codex and grok-build
+    over `config.toml`, opencode over `opencode.json`, claude-code over
+    `settings.json`.
+    """
+    from ai_stp_cli.commands import component as command
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    monkeypatch.delenv("CODEX_HOME", raising=False)
+    configuration = tmp_path / ".codex" / "config.toml"
+    configuration.parent.mkdir(parents=True)
+    configuration.write_text(
+        '[mcp_servers.probe]\ncommand = "probe-server"\n',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(CliFailure) as undecided:
+        command.adopt({"path": str(configuration)})
+    assert undecided.value.code == "AI_STP_USER_DECISION_REQUIRED"
+    assert "mcp" in str(undecided.value.details)
+    assert "setting" in str(undecided.value.details)
+
+    def kind_of(facts: "dict[str, JsonValue]") -> "JsonValue":
+        fact = facts["component_type"]
+        assert isinstance(fact, dict)
+        return fact["value"]
+
+    assert kind_of(
+        command.adopt({"path": str(configuration), "kind": "setting"}).payload.facts
+    ) == ("setting")
+    assert (
+        kind_of(command.adopt({"path": str(configuration), "kind": "mcp"}).payload.facts) == "mcp"
+    )
+
+    with pytest.raises(CliFailure) as absent:
+        command.adopt({"path": str(configuration), "kind": "hook"})
+    assert absent.value.code == "AI_STP_NOT_FOUND"

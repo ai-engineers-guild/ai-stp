@@ -274,6 +274,24 @@
           "repeatable": false,
           "summary": "Project root the component was discovered under.",
           "choices": []
+        },
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Harness whose claim of this path to adopt; `portable` selects the shared cross-product claim.",
+          "choices": []
+        },
+        {
+          "name": "kind",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Component kind whose claim of this path to adopt, for a file one harness claims as two kinds.",
+          "choices": []
         }
       ],
       "parameter_rules": [],
@@ -595,9 +613,9 @@
           "name": "for-publication",
           "kind": "option",
           "value_type": "boolean",
-          "required": true,
+          "required": false,
           "repeatable": false,
-          "summary": "Select the strict public-publication readiness profile.",
+          "summary": "The public-publication readiness profile, which is the profile this command applies; accepted so an older caller's spelling still parses.",
           "choices": []
         }
       ],
@@ -1224,15 +1242,6 @@
           "required": false,
           "repeatable": false,
           "summary": "Open the next major line instead of the next minor.",
-          "choices": []
-        },
-        {
-          "name": "confirm",
-          "kind": "option",
-          "value_type": "boolean",
-          "required": false,
-          "repeatable": false,
-          "summary": "The explicit decision a major line requires.",
           "choices": []
         }
       ],
@@ -2434,9 +2443,9 @@
           "name": "agent",
           "kind": "option",
           "value_type": "boolean",
-          "required": true,
+          "required": false,
           "repeatable": false,
-          "summary": "Required. Selects the machine registry rather than usage text.",
+          "summary": "Names the caller. The machine registry is the only answer this command has, with or without it.",
           "choices": []
         }
       ],
@@ -3429,7 +3438,7 @@
       ],
       "summary": "Carry out exactly the provider reinstallation a plan described.",
       "mutability": "apply",
-      "confirmation": "none",
+      "confirmation": "plan_digest",
       "parameters": [
         {
           "name": "harness",
@@ -3473,15 +3482,6 @@
           "required": true,
           "repeatable": false,
           "summary": "Exact digest returned by the plan.",
-          "choices": []
-        },
-        {
-          "name": "confirm",
-          "kind": "option",
-          "value_type": "boolean",
-          "required": true,
-          "repeatable": false,
-          "summary": "Confirm the exact replacement the plan described.",
           "choices": []
         },
         {
@@ -3596,7 +3596,7 @@
       ],
       "summary": "Carry out exactly the provider replacement a plan described.",
       "mutability": "apply",
-      "confirmation": "none",
+      "confirmation": "plan_digest",
       "parameters": [
         {
           "name": "harness",
@@ -3640,15 +3640,6 @@
           "required": true,
           "repeatable": false,
           "summary": "Exact digest returned by the plan.",
-          "choices": []
-        },
-        {
-          "name": "confirm",
-          "kind": "option",
-          "value_type": "boolean",
-          "required": true,
-          "repeatable": false,
-          "summary": "Confirm the exact replacement the plan described.",
           "choices": []
         }
       ],
@@ -4487,6 +4478,15 @@
           "repeatable": false,
           "summary": "Project root whose facts the target is built from.",
           "choices": []
+        },
+        {
+          "name": "target",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Existing absolute provider target directory. Needed when a member contributes a key to a file the provider owns there: the host file's current bytes exist only on the target.",
+          "choices": []
         }
       ],
       "parameter_rules": [],
@@ -4527,7 +4527,7 @@
       ],
       "summary": "Freeze one proposal as a private setup version, its trace and its pin.",
       "mutability": "apply",
-      "confirmation": "explicit_flag",
+      "confirmation": "none",
       "parameters": [
         {
           "name": "proposal",
@@ -4536,15 +4536,6 @@
           "required": true,
           "repeatable": false,
           "summary": "The proposal being confirmed.",
-          "choices": []
-        },
-        {
-          "name": "confirm",
-          "kind": "option",
-          "value_type": "boolean",
-          "required": true,
-          "repeatable": false,
-          "summary": "Confirm freezing this exact proposal as a setup version.",
           "choices": []
         }
       ],
@@ -5143,6 +5134,15 @@
           "repeatable": false,
           "summary": "Which target the backup was taken from.",
           "choices": []
+        },
+        {
+          "name": "partial",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Register even though some files were left out; the passport records the mode and the exact paths.",
+          "choices": []
         }
       ],
       "parameter_rules": [],
@@ -5432,7 +5432,7 @@
           "name": "target",
           "kind": "option",
           "value_type": "string",
-          "required": false,
+          "required": true,
           "repeatable": false,
           "summary": "Directory the harness reads its native skill from.",
           "choices": []
@@ -5466,7 +5466,7 @@
           "name": "target",
           "kind": "option",
           "value_type": "string",
-          "required": false,
+          "required": true,
           "repeatable": false,
           "summary": "Directory the harness reads its native skill from.",
           "choices": []
@@ -5491,7 +5491,7 @@
           "name": "target",
           "kind": "option",
           "value_type": "string",
-          "required": false,
+          "required": true,
           "repeatable": false,
           "summary": "Directory the harness reads its native skill from.",
           "choices": []
@@ -5687,12 +5687,21 @@
           "choices": []
         },
         {
+          "name": "provider-manifest",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Signed provider release manifest proving these exact bytes. Optional: the release this pair was last verified under is read from the journal when the named executable is its exact bytes.",
+          "choices": []
+        },
+        {
           "name": "protocol-version",
           "kind": "option",
           "value_type": "integer",
           "required": false,
           "repeatable": false,
-          "summary": "Provider protocol selected before invocation. A trusted release manifest selects it; without one this defaults to frozen v1.",
+          "summary": "Provider protocol selected before invocation. A signed release selects it, named or recorded; without one the read asks in v3, the protocol released providers speak.",
           "choices": []
         },
         {
@@ -5701,7 +5710,7 @@
           "value_type": "boolean",
           "required": false,
           "repeatable": false,
-          "summary": "Read through an executable no signed or attested release covers. On Windows this is also what lets the read run at all, since no launcher there can deny the network. Elsewhere it changes nothing.",
+          "summary": "Read through an executable no signed or attested release covers. It does not relax isolation: the read still runs under the launcher its system proved.",
           "choices": []
         },
         {
@@ -5765,12 +5774,21 @@
           "choices": []
         },
         {
+          "name": "provider-manifest",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Signed provider release manifest proving these exact bytes. Optional: the release this pair was last verified under is read from the journal when the named executable is its exact bytes.",
+          "choices": []
+        },
+        {
           "name": "protocol-version",
           "kind": "option",
           "value_type": "integer",
           "required": false,
           "repeatable": false,
-          "summary": "Provider protocol selected before invocation. A trusted release manifest selects it; without one this defaults to frozen v1.",
+          "summary": "Provider protocol selected before invocation. A signed release selects it, named or recorded; without one the read asks in v3, the protocol released providers speak.",
           "choices": []
         },
         {
@@ -5904,12 +5922,21 @@
           "choices": []
         },
         {
+          "name": "provider-manifest",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Signed provider release manifest proving these exact bytes. Optional: the release this pair was last verified under is read from the journal when the named executable is its exact bytes.",
+          "choices": []
+        },
+        {
           "name": "protocol-version",
           "kind": "option",
           "value_type": "integer",
           "required": false,
           "repeatable": false,
-          "summary": "Provider protocol selected before invocation. A trusted release manifest selects it; without one this defaults to frozen v1.",
+          "summary": "Provider protocol selected before invocation. A signed release selects it, named or recorded; without one the read asks in v3, the protocol released providers speak.",
           "choices": []
         },
         {

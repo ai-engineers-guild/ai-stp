@@ -403,3 +403,22 @@ def test_a_windows_cmd_exposure_still_finds_its_marker(
     assert report.state == "present"  # type: ignore[attr-defined]
     assert "1.18.23" in report.reason  # type: ignore[attr-defined]
     assert "marker" in report.reason  # type: ignore[attr-defined]
+
+
+def test_resume_tells_a_missing_operation_apart_from_a_settled_one() -> None:
+    """Measured in the functional sweep of 2026-09-02.
+
+    `harness resume --operation <id that does not exist>` answered
+    `AI_STP_PRECONDITION_FAILED — that program operation is not waiting on a
+    postcondition`, with `details.state` an empty string: a claim about the
+    state of something that has no state, pointing the caller at
+    `harness status` when the identifier itself was the problem. Its sibling
+    `install cancel` answers `AI_STP_NOT_FOUND — no operation with that
+    identifier is recorded` for the same input.
+    """
+    from ai_stp_cli.commands import harness as command
+
+    with pytest.raises(CliFailure) as absent:
+        command.resume({"operation": "operation_01MISSINGMISSINGMISSING1"})
+    assert absent.value.code == "AI_STP_NOT_FOUND"
+    assert "state" not in absent.value.details

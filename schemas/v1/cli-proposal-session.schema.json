@@ -191,6 +191,18 @@
       "title": "Project Id",
       "type": "string"
     },
+    "proposal_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Proposal Id"
+    },
     "proposals": {
       "default": [],
       "items": {
@@ -250,6 +262,7 @@
     "harness_id",
     "policy_version",
     "project_id",
+    "proposal_id",
     "proposals",
     "schema_version",
     "selected_stable_id",

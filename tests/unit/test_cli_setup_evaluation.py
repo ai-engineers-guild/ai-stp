@@ -1,12 +1,15 @@
 """Exact setup evaluation profiles and local evidence (issue #308)."""
 
+import json
 from contextlib import closing
+from pathlib import Path
 
 import pytest
 
+from ai_stp_cli.commands import component as component_command
 from ai_stp_cli.commands import evaluation as command
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import content, evaluation, revisions, versions
+from ai_stp_cli.local import components, content, evaluation, revisions, versions
 from ai_stp_cli.local.database import configured_path, open_readonly, open_registry, transaction
 from ai_stp_contracts.evaluation import EvaluationBudget, EvaluationCheck
 from ai_stp_contracts.first_party import FirstPartyVersion
@@ -196,3 +199,100 @@ def test_run_refuses_a_different_plan_digest() -> None:
             }
         )
     assert mismatch.value.code == "AI_STP_PRECONDITION_FAILED"
+
+
+def test_an_adopted_draft_component_is_loaded_through_the_one_passport_owner(
+    tmp_path: Path,
+) -> None:
+    """`#385`, the half `eval` still had: an adopted draft failed its loader.
+
+    Measured live: a setup that had passed adopt, release, propose, confirm,
+    bundle, install and verify was refused by `eval plan` with "a recorded
+    component passport is invalid" — empty details, no next action. The stored
+    envelope of an adopted component is the draft, narrower than
+    `ComponentVersionPassport`; `select impact` already falls back to
+    `component_passports.version_passport`, the one owner that synthesises the
+    public passport from the draft's facts, and the evaluation loader did not.
+    """
+    project = tmp_path / "repository"
+    skill = project / ".claude" / "skills" / "probe"
+    skill.mkdir(parents=True)
+    (skill / "SKILL.md").write_text("# Probe\nA skill under evaluation.\n", encoding="utf-8")
+
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        found = next(
+            item for item in components.discover(project=project) if item.absolute == skill
+        )
+        stored = components.adopt(connection, found, device_id="device_test")
+        connection.commit()
+
+    patch = tmp_path / "authoring.json"
+    patch.write_text(
+        json.dumps(
+            {
+                "name": "probe",
+                "description": "A skill under evaluation.",
+                "tags": ["probe"],
+                "license": {"spdx_id": "MIT", "redistribution_allowed": True},
+                "projection_kind": "native_files",
+                "source": {
+                    "repository": "https://github.com/example/component",
+                    "commit": "a" * 40,
+                    "path": "skills/probe",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    component_command.passport_update(
+        {"id": stored.stable_id, "expected-revision": stored.revision_id, "from": str(patch)}
+    )
+    component_command.version_release({"id": stored.stable_id})
+
+    with closing(open_readonly(configured_path())) as connection:
+        recorded = versions.held(connection, stored.stable_id, "1.0")
+        assert recorded is not None
+        loaded = evaluation._component(  # pyright: ignore[reportPrivateUsage]
+            connection, stored.stable_id, "1.0", recorded.passport_digest
+        )
+
+    assert loaded.coordinate.component_type == "skill"
+    assert loaded.coordinate.passport_digest == recorded.passport_digest
+
+
+def test_an_adopted_draft_is_evaluated_from_its_own_facts_without_publication_fields(
+    tmp_path: Path,
+) -> None:
+    """`#66`, the evaluator's half: a draft nobody enriched still evaluates.
+
+    The test above enriches the draft with name, licence and tags first,
+    because the loader once demanded the publication profile. Every
+    `component adopt` produces a draft without them, and `propose → confirm →
+    install` accepts it; the evaluation reads the declared surfaces from the
+    draft's own facts and needs nothing the install path does not.
+    """
+    project = tmp_path / "repository"
+    skill = project / ".claude" / "skills" / "plain"
+    skill.mkdir(parents=True)
+    (skill / "SKILL.md").write_text(
+        "# Plain\nAdopted and released, nothing more.\n", encoding="utf-8"
+    )
+
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        found = next(
+            item for item in components.discover(project=project) if item.absolute == skill
+        )
+        stored = components.adopt(connection, found, device_id="device_test")
+        connection.commit()
+    component_command.version_release({"id": stored.stable_id})
+
+    with closing(open_readonly(configured_path())) as connection:
+        recorded = versions.held(connection, stored.stable_id, "1.0")
+        assert recorded is not None
+        loaded = evaluation._component(  # pyright: ignore[reportPrivateUsage]
+            connection, stored.stable_id, "1.0", recorded.passport_digest
+        )
+
+    assert loaded.coordinate.component_type == "skill"
+    assert loaded.surfaces["managed_paths"], "adoption declares the managed path the check reads"
+    assert evaluation._static_contract(loaded)  # pyright: ignore[reportPrivateUsage]

@@ -211,10 +211,26 @@ def test_the_outcome_map_is_the_closed_one_rather_than_a_word_comparison() -> No
         assert protocol.operation_state(reported)
 
 
-def test_resume_refuses_an_operation_that_is_not_waiting_on_a_postcondition(
+def test_resume_refuses_an_operation_the_journal_does_not_hold(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Settling is for an operation that stopped, not a way to redo a finished one."""
+    """This test's name said one thing and its body exercised another.
+
+    It was called "…is not waiting on a postcondition" and passed an identifier
+    the journal had never been given, so what it actually drove was a **missing**
+    operation — and it went green because the handler answered both situations
+    the same way: `state` fell through as `""` and every id that was not
+    unsettled, existing or not, got `PRECONDITION_FAILED`.
+
+    The sweep of 2026-09-02 named that: a missing operation is now
+    `AI_STP_NOT_FOUND — no operation with that identifier is recorded`, matching
+    what `install cancel` has always said for the same input. So this test keeps
+    the subject it really had, under a name that admits it.
+
+    The half it never covered — an operation that exists and is already
+    settled — is a different fixture and is not smuggled in here under a name
+    that would hide it a second time.
+    """
     recorder = _Recorder()
     monkeypatch.setattr(invocation, "provider_invoker", recorder.invoker)
     parameters = {
@@ -226,7 +242,7 @@ def test_resume_refuses_an_operation_that_is_not_waiting_on_a_postcondition(
     with pytest.raises(CliFailure) as caught:
         harness_commands.resume(parameters)
 
-    assert caught.value.code == "AI_STP_PRECONDITION_FAILED"
+    assert caught.value.code == "AI_STP_NOT_FOUND"
     # And nothing was spawned to find that out: the journal answers it.
     assert recorder.spawned == [], recorder.spawned
 

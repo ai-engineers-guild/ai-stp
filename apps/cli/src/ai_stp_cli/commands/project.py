@@ -9,7 +9,14 @@ from typing import cast
 from ai_stp_cli import identity
 from ai_stp_cli.answer import Answer
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import importing, project_index, project_passport, projects, symbols
+from ai_stp_cli.local import (
+    harnesses,
+    importing,
+    project_index,
+    project_passport,
+    projects,
+    symbols,
+)
 from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_cli.local.passports import moment, owner
 from ai_stp_cli.paths import redact_home
@@ -271,6 +278,19 @@ def import_register(parameters: Mapping[str, object]) -> Answer[ImportedSetup]:
     def work(connection: sqlite3.Connection) -> ImportedSetup:
         at = moment()
         found = importing.inspect(root, harness_id=harness)
+        # Pin what the capture was captured against. One detection, best
+        # answer wins: the normalized token when the harness spoke, the raw
+        # line when it spoke unparseably, and honestly empty when this machine
+        # holds no answering installation — an imported tree from elsewhere is
+        # exactly that case.
+        detector = next((item for item in harnesses.DETECTORS if item.harness_id == harness), None)
+        harness_version = ""
+        if detector is not None:
+            detected = harnesses.detect(detector)
+            if detected.installations:
+                first = detected.installations[0]
+                if first.version != "unknown":
+                    harness_version = first.normalized_version or first.version
         current, _warning = identity.load_or_create()
         imported = importing.register_graph(
             connection,
@@ -278,6 +298,8 @@ def import_register(parameters: Mapping[str, object]) -> Answer[ImportedSetup]:
             expected_plan_digest=plan_digest,
             target_id=str(parameters.get("target") or root.name),
             provider_ref=provider_ref,
+            partial=bool(parameters.get("partial", False)),
+            harness_version=harness_version,
             owner_id=owner().account_id,
             device_id=current.device_id,
             at=at,

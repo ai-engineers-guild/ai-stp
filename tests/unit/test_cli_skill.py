@@ -109,3 +109,22 @@ def test_status_creates_nothing_at_all(tmp_path: Path) -> None:
     absent = tmp_path / "never-made"
     assert skill_commands.status({"target": str(absent)}).payload.state == "absent"
     assert not absent.exists()
+
+
+def test_the_skill_destination_is_declared_as_mandatory_as_it_behaves() -> None:
+    """Machine help said optional; the handler had always refused without it.
+
+    Measured in the functional sweep of 2026-09-02: `skill install`,
+    `skill status` and `skill remove` declared `--target` optional with an empty
+    `parameter_rules`, and `_target` answers `AI_STP_VALIDATION_ERROR — a
+    destination directory is required` the moment it is absent, with no
+    configured fallback. An agent that builds argv from the declaration — which
+    is the whole point of the declaration — met a stop the declaration had told
+    it could not happen. The hidden-`confirm` shape, one field over.
+    """
+    from ai_stp_cli import registry
+
+    for path in (["skill", "install"], ["skill", "status"], ["skill", "remove"]):
+        declared = next(item for item in registry.DECLARATIONS if item.path == path)
+        target = next(item for item in declared.parameters if item.name == "target")
+        assert target.required, f"{' '.join(path)} refuses without --target"

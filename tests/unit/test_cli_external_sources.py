@@ -38,8 +38,9 @@ def test_only_a_full_commit_promotes_github_intent_to_exact(tmp_path: Path) -> N
     assert exact.repository == "https://github.com/owner/repo"
 
     for revision in ("main", "v1.0.0", "a" * 39, "A" * 40):
-        with pytest.raises(CliFailure):
+        with pytest.raises(CliFailure) as caught:
             external_sources.resolve_exact(intent, commit=revision)
+        assert caught.value.code == "AI_STP_VALIDATION_ERROR"
 
 
 @pytest.mark.parametrize(
@@ -54,11 +55,13 @@ def test_only_a_full_commit_promotes_github_intent_to_exact(tmp_path: Path) -> N
     ],
 )
 def test_ambiguous_or_unsafe_sources_fail_closed(tmp_path: Path, value: str) -> None:
-    with pytest.raises(CliFailure):
+    with pytest.raises(CliFailure) as caught:
         external_sources.parse(value, cwd=tmp_path)
+    assert caught.value.code == "AI_STP_VALIDATION_ERROR"
 
 
 def test_non_github_intents_cannot_be_promoted(tmp_path: Path) -> None:
     for value in ("./local", "@author/skill", "col:owner/team"):
-        with pytest.raises(CliFailure):
+        with pytest.raises(CliFailure) as caught:
             external_sources.resolve_exact(external_sources.parse(value, cwd=tmp_path), commit=SHA)
+        assert caught.value.code == "AI_STP_VALIDATION_ERROR"

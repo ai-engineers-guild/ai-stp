@@ -45,6 +45,7 @@ Includes installation and initial setup, strict JSON, feature and schema help, p
 - `REQ-1121`: Recommendation session, suggestion display and confirmation are declared in machine help; creation of `SetupVersion` from a proposal is only available through the confirmation action of `docs/contracts/selection-proposal.md`.
 - `REQ-1122`: The complaint command is declared in the machine help, collects only the mechanical fields of the allowed list `docs/contracts/report-case.md`, shows a full preview and submits the case only after the user's explicit consent.
 - `REQ-1124`: Diagnostics reports the preconditions for creating a setup with a separate check, the state of which remains `ready` in their absence, and `detail` names the exact commands for creating missing passports. The list of these commands has one owner and matches the list named by the corresponding command's refusal.
+- `REQ-1125`: Diagnostics names registered objects that hold no head revision, because every command reaches an object through its head and such an object is addressable by none of them; the check reports them and changes nothing, and the state remains `ready` because the installation is sound.
 - `REQ-1123`: For integration scenarios, machine help allows you to build argv without parsing prose: mandatory, type, repeatability and private parameter values ​​are structured, and each payload is associated with a published schema; the update is expressed by an exact version selection and `install plan` with `action=update`, rather than a hidden automatic command.
 
 ## States and errors
@@ -86,4 +87,5 @@ Machine JSON, help and skill projection have versions. Unknown optional fields a
 | `REQ-1121` | Contract checking does not find a way to create a version from a proposal past the confirmation action. |
 | `REQ-1122` | The complaint record shows a preview, rejects submissions without consent, and does not contain fields outside the allowed list. |
 | `REQ-1124` | The test proves that the installation without passports gives `ready` with `detail` calling both commands, and that there is only one owner of the command list. |
+| `REQ-1125` | A registry holding an entity without a head revision reports it by count and kind in the `addressable_objects` check, the check stays `ready`, and the row is still there afterwards. |
 | `REQ-1123` | The contract test for search, discover, adopt, status, diff and rollback builds the required parameters and enum from machine help only, checks the existence of each `result_schema`; update plan only accepts the declared value `action=update`. |

@@ -93,10 +93,16 @@ def test_prefer_browser_redirect_uses_client_hint_then_accept() -> None:
     assert _prefer_browser_redirect(html_req, None) is True
 
 
+def _asked_from(origin: str) -> Request:
+    """A request whose URL says which origin the browser is on."""
+    scheme, _, netloc = origin.partition("://")
+    return cast(Request, SimpleNamespace(url=SimpleNamespace(scheme=scheme, netloc=netloc)))
+
+
 def test_callback_and_return_locations_use_configured_origins() -> None:
     auth = _auth(oauth_redirect_base_url="https://api.example.test:8000")
     assert (
-        _callback_uri(cast(Request, SimpleNamespace()), auth, "github")
+        _callback_uri(_asked_from("https://elsewhere.test"), auth, "github")
         == "https://api.example.test:8000/v1/auth/github/callback"
     )
 
@@ -109,4 +115,47 @@ def test_callback_and_return_locations_use_configured_origins() -> None:
     assert (
         _web_login_status_location(auth, return_to=None, status="error")
         == f"{_PUBLIC_BASE}/ru/login?status=error"
+    )
+
+
+def test_a_second_declared_origin_keeps_its_own_callback() -> None:
+    """`#62`, measured to the mechanism and fixed at it.
+
+    The handshake state lives in a session cookie on the origin that started the
+    flow. One pinned callback with two served domains meant a sign-in begun on
+    the canonical domain landed on the other, `authorize_access_token` found no
+    state, and the browser showed "Sign-in failed" — twice in one production log,
+    both attempts from the canonical domain.
+
+    The origin is *selected* from what the deployment declares, never introduced
+    by the request: a forged `Host` can pick another declared origin, which is
+    already registered in the provider console, and nothing else.
+    """
+    auth = _auth(
+        oauth_redirect_base_url="https://nddev.asia",
+        oauth_callback_origins="https://ai-stp.aiguild.space/, https://nddev.asia",
+    )
+    assert auth.oauth_callback_bases() == ("https://nddev.asia", "https://ai-stp.aiguild.space")
+
+    assert (
+        _callback_uri(_asked_from("https://ai-stp.aiguild.space"), auth, "google")
+        == "https://ai-stp.aiguild.space/v1/auth/google/callback"
+    )
+    assert (
+        _callback_uri(_asked_from("https://nddev.asia"), auth, "google")
+        == "https://nddev.asia/v1/auth/google/callback"
+    )
+    # Undeclared, so the flow falls back to the single origin it always used.
+    assert (
+        _callback_uri(_asked_from("https://forged.example"), auth, "google")
+        == "https://nddev.asia/v1/auth/google/callback"
+    )
+
+
+def test_a_deployment_declaring_no_extra_origin_behaves_exactly_as_before() -> None:
+    auth = _auth(oauth_redirect_base_url="https://only.example")
+    assert auth.oauth_callback_bases() == ("https://only.example",)
+    assert (
+        _callback_uri(_asked_from("https://only.example"), auth, "github")
+        == "https://only.example/v1/auth/github/callback"
     )

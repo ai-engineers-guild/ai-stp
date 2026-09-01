@@ -5,7 +5,7 @@
       "relative": "cli-config.json",
       "shape": "file",
       "scope": "global",
-      "root": "config",
+      "root": "cursor_config",
       "source": "cursor.com/docs/cli/reference/configuration",
       "declared_key": ""
     },
@@ -28,6 +28,15 @@
       "declared_key": ""
     },
     {
+      "component_type": "agent",
+      "relative": ".cursor/agents",
+      "shape": "directory",
+      "scope": "project",
+      "root": "config",
+      "source": "cursor.com/docs/agents",
+      "declared_key": ""
+    },
+    {
       "component_type": "plugin",
       "relative": ".cursor/plugins",
       "shape": "directory",
@@ -43,6 +52,24 @@
       "scope": "global",
       "root": "config",
       "source": "cursor.com/docs/skills",
+      "declared_key": ""
+    },
+    {
+      "component_type": "skill",
+      "relative": "skills-cursor",
+      "shape": "directory",
+      "scope": "global",
+      "root": "config",
+      "source": "cursor.com/docs/skills",
+      "declared_key": ""
+    },
+    {
+      "component_type": "agent",
+      "relative": "agents",
+      "shape": "directory",
+      "scope": "global",
+      "root": "config",
+      "source": "cursor.com/docs/agents",
       "declared_key": ""
     },
     {

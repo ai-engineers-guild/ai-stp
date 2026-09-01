@@ -30,7 +30,7 @@ from pathlib import Path
 #: Measured on 2026-08-28, after naming the refusal in the five that the
 #: provider-trust and v3-conformance work had just written. Lower it when you
 #: tighten one; it may never be raised.
-BUDGET = 40
+BUDGET = 38
 
 
 def _loose(path: Path) -> list[int]:

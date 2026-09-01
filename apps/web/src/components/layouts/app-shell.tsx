@@ -3,7 +3,10 @@ import { getTranslations } from "next-intl/server";
 
 import { SiteHeader } from "@/components/layouts/site-header";
 import { ProjectionDock } from "@/components/molecules/projection-dock";
+import { ConsentedAnalytics } from "@/components/organisms/consented-analytics";
+import { CookieConsent } from "@/components/organisms/cookie-consent";
 import { getEnv } from "@/lib/env";
+import { publicAnalyticsConfig } from "@/lib/public-analytics";
 import { Link } from "@/lib/i18n/navigation";
 import { UI } from "@/lib/ui-selectors";
 import { isFeatureEnabled } from "@/lib/features/gate";
@@ -17,6 +20,7 @@ type AppShellProps = {
 export async function AppShell({ children, locale }: AppShellProps) {
   const t = await getTranslations("a11y");
   const tf = await getTranslations("footer");
+  const tc = await getTranslations("consent");
   const tm = await getTranslations("machine");
   const docsHref = getEnv().AI_STP_USER_DOCS_URL;
   const saasPublicPages = isFeatureEnabled("saas_public_pages");
@@ -127,6 +131,24 @@ export async function AppShell({ children, locale }: AppShellProps) {
       <Suspense fallback={null}>
         <ProjectionDock locale={locale} />
       </Suspense>
+      <ConsentedAnalytics {...publicAnalyticsConfig()} />
+      {process.env.NEXT_PUBLIC_COOKIE_CONSENT_ENABLED !== "false" ? (
+        <CookieConsent
+          privacyHref={`/${locale}/legal/privacy`}
+          labels={{
+            title: tc("title"),
+            body: tc("body"),
+            necessary: tc("necessary"),
+            analytics: tc("analytics"),
+            marketing: tc("marketing"),
+            accept: tc("accept"),
+            reject: tc("reject"),
+            save: tc("save"),
+            manage: tc("manage"),
+            privacy: tc("privacy"),
+          }}
+        />
+      ) : null}
     </div>
   );
 }

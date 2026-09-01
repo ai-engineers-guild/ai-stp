@@ -1,5 +1,5 @@
 ---
-description: "Accepted architectural decisions and their consequences."
+description: "Принятые архитектурные решения и их последствия."
 last_verified: "2026-08-03"
 ---
 
@@ -116,7 +116,7 @@ last_verified: "2026-08-03"
 | [ADR-0115-the-repository-does-not-guard-the-people-working-in-it.md](ADR-0115-the-repository-does-not-guard-the-people-working-in-it.md) | Decision not to place protections on repository contributors: the gate proves the tree rather than authorizing a person. | 2026-08-22 |
 | [ADR-0116-the-gate-spends-runners-on-os-and-shards.md](ADR-0116-the-gate-spends-runners-on-os-and-shards.md) | Decision to run CLI and web tests concurrently on three operating systems, and the server suite only on Linux, split into shards without conserving runners. | 2026-08-29 |
 | [ADR-0117-the-test-run-does-not-repeat-expensive-work.md](ADR-0117-the-test-run-does-not-repeat-expensive-work.md) | Decision not to repeat expensive work in a run: migrations are applied once per process, and coverage tracing uses sys.monitoring. | 2026-08-29 |
-| [ADR-0118-the-agent-decides-inside-the-vision.md](ADR-0118-the-agent-decides-inside-the-vision.md) | Decision to treat option selection, publication, and code promotion as part of the agent's authority, reserving a separate decision only for irreversible and external actions. | 2026-08-30 |
+| [ADR-0118-the-agent-decides-inside-the-vision.md](ADR-0118-the-agent-decides-inside-the-vision.md) | Decision to treat option selection, publication, and code promotion as part of the agent's authority, reserving a separate decision only for irreversible and external actions. | 2026-09-01 |
 | [ADR-0119-the-fifth-harness-is-cursor.md](ADR-0119-the-fifth-harness-is-cursor.md) | Decision to replace opencode with cursor in the closed set of supported harnesses following the provider estate migration. | 2026-08-23 |
 | [ADR-0120-the-supported-set-is-seven.md](ADR-0120-the-supported-set-is-seven.md) | Decision to expand the closed set of supported harnesses from five to seven: opencode remains, cursor and antigravity are added. | 2026-08-24 |
 | [ADR-0121-provider-release-trust-levels.md](ADR-0121-provider-release-trust-levels.md) | Decision to distinguish verified-publisher, signed, build-attested, and unverified provider releases. | 2026-08-24 |
@@ -124,10 +124,10 @@ last_verified: "2026-08-03"
 | [ADR-0123-the-catalog-does-not-borrow-the-kit-vocabulary.md](ADR-0123-the-catalog-does-not-borrow-the-kit-vocabulary.md) | Decision to rename projection_capabilities to native_authoring so the harness catalog does not look like a closed provider-kit set. | 2026-08-26 |
 | [ADR-0124-a-setup-may-declare-no-components.md](ADR-0124-a-setup-may-declare-no-components.md) | Decision to allow a setup to declare zero components, separating managed emptiness from removal from management. | 2026-08-26 |
 | [ADR-0125-a-provider-may-own-more-than-one-projection-scope.md](ADR-0125-a-provider-may-own-more-than-one-projection-scope.md) | Decision to allow a provider to declare a projection for project scope in a separate optional list without changing the existing profile or its digest. | 2026-08-26 |
-| [ADR-0126-conformance-earns-the-windows-exception-by-the-same-gate.md](ADR-0126-conformance-earns-the-windows-exception-by-the-same-gate.md) | Decision to extend the Windows exception to provider conformance through the same trust signal, not because it is read-only. | 2026-08-30 |
+| [ADR-0126-conformance-earns-the-windows-exception-by-the-same-gate.md](ADR-0126-conformance-earns-the-windows-exception-by-the-same-gate.md) | Decision to extend the Windows exception to provider conformance through the same trust signal, not because it is read-only. | 2026-09-01 |
 | [ADR-0127-a-projection-surface-names-the-root-it-hangs-off.md](ADR-0127-a-projection-surface-names-the-root-it-hangs-off.md) | Decision to make the projection root a declared bundle fact rather than a call-site assumption, and to recognize shared conventions as a separate installation scope. | 2026-08-28 |
 | [ADR-0128-in-process-dual-window-http-rate-limiter.md](ADR-0128-in-process-dual-window-http-rate-limiter.md) | Decision to enforce a single node's HTTP rate limit with two sliding windows in the API process rather than Redis, SlowAPI, or Caddy. | 2026-08-28 |
-| [ADR-0129-a-component-landing-inside-an-owned-file-is-a-contribution-to-it.md](ADR-0129-a-component-landing-inside-an-owned-file-is-a-contribution-to-it.md) | Decision to compile a component whose landing place is a key inside a provider-owned file as a contribution to that file, reconstructed by the consumer. | 2026-08-30 |
+| [ADR-0129-a-component-landing-inside-an-owned-file-is-a-contribution-to-it.md](ADR-0129-a-component-landing-inside-an-owned-file-is-a-contribution-to-it.md) | Decision to compile a component whose landing place is a key inside a provider-owned file as a contribution to that file, reconstructed by the consumer. | 2026-09-01 |
 | [ADR-0130-a-posture-is-sourceable-a-role-is-not.md](ADR-0130-a-posture-is-sourceable-a-role-is-not.md) | Decision to make target_role optional and introduce posture as a first-class setup passport field, because a posture can be sourced while a role cannot. | 2026-08-30 |
 | [ADR-0131-server-owned-seo-projections-with-optional-model-enrichment.md](ADR-0131-server-owned-seo-projections-with-optional-model-enrichment.md) | Decision to materialize SEO as a server-side projection of published facts and permit optional model enrichment only after deterministic publication. | 2026-08-29 |
 | [ADR-0132-one-server-owned-article-publication-stream.md](ADR-0132-one-server-owned-article-publication-stream.md) | Decision to converge repository import and the staff API into one server-side article publication stream. | 2026-08-29 |
@@ -136,8 +136,9 @@ last_verified: "2026-08-03"
 | [ADR-0135-nginx-is-the-only-edge-proxy.md](ADR-0135-nginx-is-the-only-edge-proxy.md) | Decision to drop the in-stack Caddy container and let the deployment host's nginx be the only edge proxy, with the route split owned by a template in this repository. | 2026-08-31 |
 | [ADR-0136-one-user-facing-content-root.md](ADR-0136-one-user-facing-content-root.md) | Decision to keep articles, product documentation, and legal source under one public repository root. | 2026-08-31 |
 | [ADR-0137-versioned-legal-onboarding.md](ADR-0137-versioned-legal-onboarding.md) | Decision to activate new accounts only after exact immutable service-rules and personal-data-consent revisions are accepted. | 2026-08-31 |
-| [ADR-0138-official-upstream-component-snapshots.md](ADR-0138-official-upstream-component-snapshots.md) | Decision to publish attributed snapshots of selected public upstream components from the AI STP Official account. | 2026-09-01 |
-| [ADR-0139-embedded-component-source-snapshots.md](ADR-0139-embedded-component-source-snapshots.md) | Decision to materialize exact external and local component snapshots inside setup definitions. | 2026-08-31 |
+| [ADR-0138-the-catalog-is-the-one-owner-of-native-meaning.md](ADR-0138-the-catalog-is-the-one-owner-of-native-meaning.md) | Decision to make the harness catalog the single semantic owner for every capture path, replacing setup import's private classification table. | 2026-09-01 |
+| [ADR-0139-official-upstream-component-snapshots.md](ADR-0139-official-upstream-component-snapshots.md) | Decision to publish attributed snapshots of selected public upstream components from the AI STP Official account. | 2026-09-01 |
+| [ADR-0140-embedded-component-source-snapshots.md](ADR-0140-embedded-component-source-snapshots.md) | Decision to materialize exact external and local component snapshots inside setup definitions. | 2026-08-31 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 
 <!-- END CONTENTS -->

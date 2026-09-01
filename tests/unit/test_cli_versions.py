@@ -186,17 +186,13 @@ def test_a_major_line_needs_an_explicit_decision(registry: sqlite3.Connection) -
         revision_id=_revision(registry, "a"),
         at=MOMENT,
     )
-    # `REQ-507`: a new major line is a separate access boundary. Computing it
-    # silently is how a minor change becomes one nobody chose.
-    with pytest.raises(CliFailure, match="explicit decision") as raised:
-        versions.next_major(registry, HELD, decided=False)
-    assert raised.value.code == "AI_STP_USER_DECISION_REQUIRED"
-
-    assert versions.next_major(registry, HELD, decided=True) == "2.0"
+    # `REQ-507`: a new major line is a separate access boundary, reached only
+    # through the `--major` decision; nothing computes it by default.
+    assert versions.next_major(registry, HELD) == "2.0"
 
 
 def test_the_first_major_line_of_a_new_object_is_one(registry: sqlite3.Connection) -> None:
-    assert versions.next_major(registry, HELD, decided=True) == "1.0"
+    assert versions.next_major(registry, HELD) == "1.0"
 
 
 # --- forks ----------------------------------------------------------------
@@ -430,14 +426,12 @@ def test_releasing_the_same_head_twice_is_refused_as_a_reused_number(adopted: st
     assert second.versions[0].passport_digest == second.versions[1].passport_digest
 
 
-def test_a_major_release_needs_the_decision_flag(adopted: str) -> None:
+def test_a_major_release_is_the_decision_flag_and_nothing_more(adopted: str) -> None:
+    """`--major` is the decision `REQ-507` asks for; a second flag repeated it."""
     from ai_stp_cli.commands import component as command
 
     command.version_release({"id": adopted})
-    with pytest.raises(CliFailure, match="explicit decision"):
-        command.version_release({"id": adopted, "major": True})
-
-    opened = command.version_release({"id": adopted, "major": True, "confirm": True}).payload
+    opened = command.version_release({"id": adopted, "major": True}).payload
     assert [item.version for item in opened.versions] == ["1.0", "2.0"]
     assert opened.next_minor == "2.1"
 
@@ -502,3 +496,72 @@ def test_a_version_cannot_be_recorded_under_something_that_is_not_a_digest(
                 at=MOMENT,
             )
         assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+
+
+def test_a_fork_is_an_object_its_owner_can_actually_edit_and_release(adopted: str) -> None:
+    """A copy with no content is not a copy.
+
+    Measured live: `component fork` answered `ok` with a new identity, and then
+    every follow-up refused it — `passport show`, `suggest`, `quality` and
+    `update` with "that component has no local passport", `version release`
+    with "no revision to release", even `forget` with "no revisions to report".
+    The command wrote `entity` and `fork_origin` and no first revision, so the
+    object `REQ-521` calls a copy held nothing to edit toward `REQ-522`'s
+    meaningful change.
+    """
+    from ai_stp_cli.commands import component as command
+
+    command.version_release({"id": adopted})
+    copy = command.fork({"id": adopted, "version": "1.0"}).payload
+
+    held = command.passport_show({"id": copy.stable_id}).payload
+    assert held.kind == "component"
+
+    released = command.version_release({"id": copy.stable_id}).payload
+    assert [item.version for item in released.versions] == ["1.0"]
+
+
+def test_two_concurrent_releases_serialize_instead_of_crashing_the_loser(adopted: str) -> None:
+    """Measured in six process-level rounds: one loser answered `AI_STP_INTERNAL`.
+
+    Both releases read the next free number in autocommit, one recorded it, and
+    the other's insert died on the UNIQUE constraint — a crash where a caller
+    expects either a version or a typed refusal. Under `BEGIN IMMEDIATE` the
+    second release starts after the first commits, reads the line it left, and
+    mints the next number — exactly what the sequential contract already says
+    a second release of the same head does.
+    """
+    from ai_stp_cli.commands import component as command
+    from ai_stp_cli.local.database import transaction
+
+    outcome: dict[str, object] = {}
+
+    def second() -> None:
+        outcome["versions"] = [
+            item.version for item in command.version_release({"id": adopted}).payload.versions
+        ]
+
+    with closing(open_registry(configured_path(), create=False)) as connection:
+        with transaction(connection):
+            contender = threading.Thread(target=second)
+            contender.start()
+            contender.join(timeout=0.5)
+            assert contender.is_alive(), "the second release must wait for the write lock"
+            # The first release, on this locked connection, through the same
+            # local machinery the command drives.
+            stored = revisions.head(connection, adopted)
+            assert stored is not None
+            versions.record(
+                connection,
+                stable_id=adopted,
+                version=versions.next_minor(connection, adopted),
+                passport_digest="sha256:" + "a" * 64,
+                revision_id=stored.revision_id,
+                at="2026-09-01T00:00:00.000Z",
+            )
+        contender.join(timeout=30)
+        assert not contender.is_alive()
+
+    assert outcome["versions"] == ["1.0", "1.1"], (
+        "the loser serializes onto the next number; it does not crash"
+    )

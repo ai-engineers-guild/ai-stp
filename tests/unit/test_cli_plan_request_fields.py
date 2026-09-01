@@ -113,3 +113,24 @@ def _info(**overrides: object) -> dict[str, object]:
     }
     info.update(overrides)
     return info
+
+
+def test_end_state_is_accepted_before_anything_sends_it() -> None:
+    """`#54`'s field name, in the build that must not refuse a provider carrying it.
+
+    The order in `ADR-0125` is not a courtesy. `plan_request_fields` is compared
+    by exact membership against a closed set, and `provider-info` is refused
+    *whole* when a member is unknown — so the first provider to declare
+    `end_state` would take `fetch`, `conformance`, `plan`, `apply` and `status`
+    down with it on every consumer released before this one, for all seven
+    harnesses at once.
+
+    Accepting the name is therefore the release that has to come first. Sending
+    the bundle it names comes later, and only to a provider that declares it: a
+    released `0.0.52` answers a bundle on `remove` with `unsupported_operation`.
+    """
+    capabilities = protocol_v3.parse_capabilities(_info(plan_request_fields=["end_state"]))
+    assert capabilities.plan_request_fields == frozenset({"end_state"})
+
+    both = protocol_v3.parse_capabilities(_info(plan_request_fields=["end_state", "target_scope"]))
+    assert both.plan_request_fields == frozenset({"end_state", "target_scope"})

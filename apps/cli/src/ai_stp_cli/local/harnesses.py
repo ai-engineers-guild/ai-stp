@@ -42,6 +42,21 @@ VERSION_TIMEOUT_SECONDS: Final[float] = 5.0
 VERSION_OUTPUT_LIMIT: Final[int] = 4096
 METADATA_OUTPUT_LIMIT: Final[int] = 65_536
 VERSION_PATTERN: Final[re.Pattern[str]] = re.compile(r"^[0-9A-Za-z][0-9A-Za-z.+_-]{0,63}$")
+
+#: The version-shaped token inside a banner line: `1.2.3`, `0.151.0`,
+#: `2026.08.25-3e8eec8`. Bounded the same way `VERSION_PATTERN` is, and used
+#: only to derive `normalized_version` beside the raw line, never instead of it.
+VERSION_TOKEN: Final[re.Pattern[str]] = re.compile(
+    r"\d+(?:\.\d+)+(?:[.+-][0-9A-Za-z][0-9A-Za-z.]{0,31})*"
+)
+
+
+def normalized_version(raw: str) -> str:
+    """The comparable token inside a raw version answer, or empty."""
+    matched = VERSION_TOKEN.search(raw[:256])
+    return matched.group(0) if matched else ""
+
+
 WINDOWS_CODEX_PACKAGE: Final[re.Pattern[str]] = re.compile(
     r"^OpenAI\.Codex_(?P<version>[0-9]+(?:\.[0-9]+){1,3})_(?:x64|x86|arm64)__[A-Za-z0-9]+$",
     re.IGNORECASE,
@@ -95,6 +110,10 @@ class Detector:
     npm_packages: tuple[str, ...] = ()
     scoop_app: str | None = None
 
+    #: Other command names the vendor installs for the same product, resolved
+    #: exactly like the primary and deduplicated against it by resolved path.
+    executable_aliases: tuple[str, ...] = ()
+
 
 DETECTORS: Final[tuple[Detector, ...]] = tuple(
     Detector(
@@ -110,6 +129,7 @@ DETECTORS: Final[tuple[Detector, ...]] = tuple(
         source=item.source,
         npm_packages=item.npm_packages,
         scoop_app=item.scoop_app,
+        executable_aliases=item.executable_aliases,
     )
     for item in harness_catalog.DEFINITIONS
     if item.executable is not None and item.config_root is not None
@@ -126,6 +146,12 @@ class Installation:
     surface: str = "cli"
     version_source: str = "process"
     diagnostic: str = "version_reported"
+
+    #: The version-shaped token inside the raw answer, or empty when none was
+    #: found. `version` keeps the whole first line — "Claude Code 1.2.3" — and
+    #: comparing or sorting those means parsing a banner; this is the same
+    #: fact with the banner removed, never a replacement for the raw record.
+    normalized_version: str = ""
 
 
 @dataclass(frozen=True)
@@ -211,14 +237,31 @@ def executables(
     return tuple(found)
 
 
-def ask_version(executable: Path, arguments: tuple[str, ...]) -> tuple[str, str]:
+def ask_version(
+    executable: Path,
+    arguments: tuple[str, ...],
+    environment: dict[str, str] | None = None,
+    *,
+    system_name: str | None = None,
+) -> tuple[str, str]:
     """Ask a harness its version, safely. Returns the version and a reason.
 
     `REQ-1409` in full: an argument array, no shell, a filtered environment, a
     time limit and a bound on how much is read. The answer is untrusted input —
     it is a subprocess this CLI did not write — so only its first line is kept
     and it is never interpreted as anything but text.
+
+    The filter reads from the environment the *detector* was given, not from
+    the ambient one: a detector fed an isolated environment used to find the
+    executable there and then query it with the process's own `PATH` and
+    `HOME` — two different worlds in one answer. On Windows the allowlist also
+    carries the system variables a wrapper script cannot start without.
     """
+    held = os.environ if environment is None else environment
+    allowed = ["PATH", "HOME"]
+    if (system_name or platform.system()) == "Windows":
+        allowed += ["SYSTEMROOT", "COMSPEC", "PATHEXT", "TEMP", "TMP", "USERPROFILE"]
+    filtered = {name: held[name] for name in allowed if held.get(name)}
     try:
         # An argument array and no shell: `REQ-1409` asks for exactly this, and
         # a string command would have to be split by something that is not us.
@@ -234,9 +277,9 @@ def ask_version(executable: Path, arguments: tuple[str, ...]) -> tuple[str, str]
             encoding="utf-8",
             timeout=VERSION_TIMEOUT_SECONDS,
             check=False,
-            # A version query needs nothing from the environment, and passing
-            # the whole of it would hand a subprocess whatever is in it.
-            env={"PATH": os.environ.get("PATH", ""), "HOME": os.environ.get("HOME", "")},
+            # A version query needs nothing more from the environment, and
+            # passing the whole of it would hand a subprocess whatever is in it.
+            env=filtered,
         )
     except (OSError, subprocess.SubprocessError) as error:
         return "unknown", f"the version query failed: {type(error).__name__}"
@@ -346,14 +389,47 @@ def detect(
     not control.
     """
     system = system_name or platform.system()
-    places = (
-        (explicit,)
-        if explicit is not None
-        else executables(detector.executable, environment, system_name=system)
-    )
+    if explicit is not None:
+        places: tuple[Path, ...] = (explicit,)
+    else:
+        named: list[Path] = []
+        identities: set[Path] = set()
+        directories: set[Path] = set()
+
+        def identity(place: Path) -> Path:
+            resolved = place.resolve()
+            return Path(str(resolved).casefold()) if system == "Windows" else resolved
+
+        for place in executables(detector.executable, environment, system_name=system):
+            held = identity(place)
+            if held in identities:
+                continue
+            identities.add(held)
+            directories.add(identity(place.parent))
+            named.append(place)
+        for name in detector.executable_aliases:
+            for place in executables(name, environment, system_name=system):
+                held = identity(place)
+                if held in identities or identity(place.parent) in directories:
+                    continue
+                # An alias name belongs to more products than this one —
+                # measured: `~/.grok/bin/agent` answers the grok banner, and
+                # counting it as cursor would record another product's binary
+                # as this harness. The vendor installs the two names side by
+                # side, so the primary name standing beside the alias is what
+                # proves the alias is this product's; an alias standing alone
+                # is somebody else's command that happens to share a word.
+                if shutil.which(detector.executable, path=str(place.parent)) is None:
+                    continue
+                identities.add(held)
+                directories.add(identity(place.parent))
+                named.append(place)
+        places = tuple(named)
     installations: list[Installation] = []
     for place in places:
-        version, reason = ask_version(place, detector.version_arguments)
+        version, reason = ask_version(
+            place, detector.version_arguments, environment, system_name=system
+        )
         source = "process" if version != "unknown" else "unavailable"
         diagnostic = _diagnostic(reason)
         if version == "unknown" and system == "Windows":
@@ -370,13 +446,20 @@ def detect(
                 surface=_surface(detector, place),
                 version_source=source,
                 diagnostic=diagnostic,
+                normalized_version="" if version == "unknown" else normalized_version(version),
             )
         )
 
     installations.sort(key=lambda item: (item.surface != "cli", item.path.casefold()))
 
     root = config_root(detector, environment)
-    configured = root.is_dir()
+    # A directory that exists and holds nothing is an installer's footprint,
+    # not somebody's configuration; `configured` used to mean `is_dir()`, and
+    # an empty `~/.claude` read as "holding user configuration".
+    try:
+        configured = root.is_dir() and any(root.iterdir())
+    except OSError:
+        configured = False
 
     if not installations:
         return Found(

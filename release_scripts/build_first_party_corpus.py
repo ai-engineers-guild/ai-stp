@@ -468,7 +468,13 @@ def held_identities(
     return components, setups
 
 
-def build(harnesses: Sequence[str], *, out: Path, bump_all: bool = False) -> dict[str, Any]:
+def build(
+    harnesses: Sequence[str],
+    *,
+    out: Path,
+    bump_all: bool = False,
+    bump_ids: frozenset[str] = frozenset(),
+) -> dict[str, Any]:
     from ai_stp_foundation.ids import new_id
 
     known_components, known_setups = held_identities(out)
@@ -540,7 +546,11 @@ def build(harnesses: Sequence[str], *, out: Path, bump_all: bool = False) -> dic
                 component["stable_id"] = held
                 component["version"] = next_version(
                     known_versions.get(held),
+                    # A named bump exists for the immutability wall: a version
+                    # the server already holds under different bytes cannot be
+                    # republished, only succeeded (`SPEC-005`).
                     moved=bump_all
+                    or held in bump_ids
                     or previous_trees.get(held, component["source_tree"])
                     != component["source_tree"],
                 )
@@ -578,6 +588,7 @@ def build(harnesses: Sequence[str], *, out: Path, bump_all: bool = False) -> dic
                     "setup_version": next_version(
                         known_versions.get(setup_id),
                         moved=bump_all
+                        or setup_id in bump_ids
                         or previous_setup_blobs.get(setup_id, setup["sha"]) != setup["sha"],
                     ),
                     "setup_path": path,
@@ -654,6 +665,16 @@ def main(arguments: Sequence[str] | None = None) -> int:
         ),
     )
     parser.add_argument(
+        "--bump-id",
+        action="append",
+        default=[],
+        help=(
+            "Stable id whose next version is forced to bump. For an object the "
+            "server already holds under the same version with different bytes: "
+            "an immutable X.Y cannot be republished, only succeeded."
+        ),
+    )
+    parser.add_argument(
         "--drift",
         action="store_true",
         help="report what moved in the content since --out was built, and build nothing",
@@ -672,7 +693,10 @@ def main(arguments: Sequence[str] | None = None) -> int:
         return 0
     options.out.mkdir(parents=True, exist_ok=True)
     report = build(
-        options.harness or sorted(REPOSITORIES), out=options.out, bump_all=options.bump_all
+        options.harness or sorted(REPOSITORIES),
+        out=options.out,
+        bump_all=options.bump_all,
+        bump_ids=frozenset(options.bump_id),
     )
     (options.out / "corpus-sources.json").write_text(
         json.dumps(

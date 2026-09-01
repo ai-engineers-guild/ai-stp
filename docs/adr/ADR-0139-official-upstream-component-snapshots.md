@@ -3,7 +3,7 @@ description: "Decision to publish attributed snapshots of selected public upstre
 last_verified: "2026-09-01"
 ---
 
-# ADR-0138: Official upstream component snapshots
+# ADR-0139: Official upstream component snapshots
 
 Status: accepted.
 

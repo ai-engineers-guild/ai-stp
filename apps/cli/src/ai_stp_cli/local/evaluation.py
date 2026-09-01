@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Final, cast
 
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import content, revisions, versions
+from ai_stp_cli.local import component_passports, content, revisions, versions
 from ai_stp_contracts.evaluation import (
     EvalComponentCoordinate,
     EvaluationBudget,
@@ -54,7 +54,10 @@ _SURFACES: Final[dict[ComponentType, tuple[str, ...]]] = {
 @dataclass(frozen=True)
 class _Loaded:
     coordinate: EvalComponentCoordinate
-    passport: ComponentVersionPassport
+
+    #: The declared static surfaces `_SURFACES` names, read from either stored
+    #: shape: a public passport's fields, or an adopted draft's facts.
+    surfaces: dict[str, tuple[str, ...]]
     artifact: bytes
 
 
@@ -344,25 +347,79 @@ def _component(
     stored = revisions.get(connection, recorded.revision_id)
     if stored is None:
         raise CliFailure("AI_STP_CONFLICT", "a component version points to a missing passport")
-    try:
-        passport = ComponentVersionPassport.model_validate(stored.envelope.model_dump(mode="json"))
-    except ValueError as error:
-        raise CliFailure("AI_STP_CONFLICT", "a recorded component passport is invalid") from error
-    if not verify_revision_id(passport) or _passport_digest(passport) != expected:
+    document = cast(JsonValue, stored.envelope.model_dump(mode="json"))
+    if digest_bytes("ai-stp:passport:v1", canonize(document)) != expected:
         raise CliFailure(
             "AI_STP_CONFLICT", "a component passport no longer matches its exact digest"
         )
-    artifact = content.get(connection, passport.artifact.digest)
+    # Two stored shapes, exactly as `impact.py` records: a first-party
+    # component is a complete public passport and validates directly, an
+    # adopted component is stored as the draft it was adopted into. The draft
+    # used to be pushed through the *publication* profile here, which refused
+    # every plain adopted component for fields the evaluation never reads
+    # (`#66`); the declared surfaces are read from the draft's own facts, and
+    # the digest above already proved the stored bytes are the recorded ones.
+    try:
+        passport: ComponentVersionPassport | None = ComponentVersionPassport.model_validate(
+            document
+        )
+    except ValueError:
+        passport = None
+    if passport is None:
+        kind, digest, surfaces = _draft_surfaces(
+            stable_id, version, cast(dict[str, JsonValue], document)
+        )
+    else:
+        if not verify_revision_id(passport):
+            raise CliFailure(
+                "AI_STP_CONFLICT", "a component passport no longer matches its exact digest"
+            )
+        kind = passport.component_type
+        digest = passport.artifact.digest
+        # `entry_points` is a draft fact adoption records and not a public
+        # passport field; a public passport simply has none to declare.
+        surfaces = {
+            field: tuple(str(item) for item in getattr(passport, field, ()))
+            for field in _SURFACES[kind]
+        }
+    artifact = content.get(connection, digest)
     return _Loaded(
         EvalComponentCoordinate(
             stable_id=stable_id,
             version=version,
             passport_digest=expected,
-            artifact_digest=passport.artifact.digest,
-            component_type=passport.component_type,
+            artifact_digest=digest,
+            component_type=kind,
         ),
-        passport,
+        surfaces,
         artifact,
+    )
+
+
+def _draft_surfaces(
+    stable_id: str, version: str, document: dict[str, JsonValue]
+) -> tuple[ComponentType, str, dict[str, tuple[str, ...]]]:
+    """An adopted draft's kind, content digest and declared static surfaces."""
+    values = component_passports.declared_values(document)
+    component_type = values.get("component_type")
+    artifact_digest = values.get("content_digest")
+    missing = ""
+    if not isinstance(component_type, str) or component_type not in _TYPES:
+        missing = "component_type"
+    elif not isinstance(artifact_digest, str) or not artifact_digest:
+        missing = "content_digest"
+    if missing:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "a recorded component passport lacks a fact this evaluation needs",
+            details={"stable_id": stable_id, "version": version, "field": missing},
+            next_actions=[f"component passport show --id {stable_id} --json"],
+        )
+    kind = cast(ComponentType, component_type)
+    return (
+        kind,
+        str(artifact_digest),
+        {field: component_passports.names_of(values.get(field)) for field in _SURFACES[kind]},
     )
 
 
@@ -375,5 +432,6 @@ def _passport_digest(passport: ComponentVersionPassport | SetupVersionPassport) 
 def _static_contract(item: _Loaded) -> bool:
     if not item.artifact:
         return False
-    passport = item.passport
-    return any(bool(getattr(passport, field)) for field in _SURFACES[passport.component_type])
+    return any(
+        bool(item.surfaces.get(field)) for field in _SURFACES[item.coordinate.component_type]
+    )

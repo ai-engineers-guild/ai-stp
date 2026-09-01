@@ -18,7 +18,7 @@ const routes = [
 ] as const;
 
 test.describe("hydration", () => {
-  test("first visit without a consent cookie hydrates the landing page without a banner", async ({
+  test("first visit without a consent cookie hydrates the landing page", async ({
     page,
     context,
   }) => {
@@ -32,7 +32,10 @@ test.describe("hydration", () => {
     page.on("pageerror", (error) => runtimeErrors.push(error.message));
 
     await page.goto("/en", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("dialog")).toHaveCount(0);
+    // A visitor who has chosen nothing is asked. This asserted the opposite for
+    // one commit, having been adapted to a shell that had stopped rendering the
+    // banner at all — which is how a removed banner and a green gate coexisted.
+    await expect(page.getByRole("dialog")).toBeVisible();
     expect(runtimeErrors).toEqual([]);
   });
 

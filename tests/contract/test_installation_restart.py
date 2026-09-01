@@ -191,7 +191,7 @@ def ready(tmp_path_factory: pytest.TempPathFactory) -> Ready:
         "component", "adopt", "--path", str(work / "CLAUDE.md"), "--root", str(work), home=home
     )
     component_id = str(adopted["stable_id"])
-    _ok("component", "version", "release", "--id", component_id, "--confirm", home=home)
+    _ok("component", "version", "release", "--id", component_id, home=home)
 
     started = root / "provider-was-reached"
     return Ready(
@@ -224,7 +224,7 @@ def _installable(ready: Ready) -> str:
         home=ready.home,
     )
     proposal_id = str(proposed["proposals"][0]["proposal_id"])
-    _ok("select", "confirm", "--proposal", proposal_id, "--confirm", home=ready.home)
+    _ok("select", "confirm", "--proposal", proposal_id, home=ready.home)
     _ok(
         "select",
         "bundle",

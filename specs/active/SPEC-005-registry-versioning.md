@@ -29,7 +29,7 @@ The scope includes stable identifiers, native component implementations, `X.Y` v
 - `REQ-504`: A version number cannot be reused for a different hash.
 - `REQ-505`: `SetupVersion` pins exact `ComponentVersion` references and, when a component has native implementations, their identifiers.
 - `REQ-506`: Any change to composition, an exact reference, or a materialized overlay automatically creates the setup's next minor version.
-- `REQ-507`: Moving to a new major line requires an explicit user decision and creates a separate access boundary.
+- `REQ-507`: Moving to a new major line happens only on an explicit decision — the `--major` flag of `component version release`, never by default — and creates a separate access boundary.
 - `REQ-508`: A public component or setup version originates from a public GitHub repository, exact commit, and subpath; a private draft may originate from a hashed local artifact.
 - `REQ-509`: An incomplete draft may be synchronized privately but is not registered, ranked, or shown in search.
 - `REQ-510`: `component_type` accepts exactly eight values: `instruction`, `skill`, `mcp`, `hook`, `command`, `agent`, `plugin`, `setting`.
@@ -82,7 +82,7 @@ Minor versions are available to the owner of the major line; a new major line is
 | `REQ-504` | A uniqueness constraint rejects reuse of `X.Y` with a new hash. |
 | `REQ-505` | The golden setup version passport contains exact component references and hashes. |
 | `REQ-506` | The change detector proposes the next minor version and prohibits number reuse. |
-| `REQ-507` | A major-version plan requires separate user confirmation. |
+| `REQ-507` | A release without `--major` never opens a major line; one with it opens the next major line and asks nothing further. |
 | `REQ-508` | Publication without a repository, commit, or subpath is rejected; a branch, tag, and `latest` are rejected separately. |
 | `REQ-509` | Search and ranking do not see an incomplete cloud draft. |
 | `REQ-510` | Enum validation accepts exactly eight values and rejects `marketplace`. |

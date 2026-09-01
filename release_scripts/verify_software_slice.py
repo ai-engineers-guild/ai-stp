@@ -38,7 +38,14 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Final
 
-from release_scripts._evidence import EvidenceError, cli, data, error_code
+from release_scripts._evidence import (
+    EvidenceError,
+    cli,
+    data,
+    error_code,
+    error_details,
+    error_message,
+)
 
 #: The seven harnesses, in the order the estate names them.
 HARNESSES: Final[tuple[str, ...]] = (
@@ -116,7 +123,19 @@ def _stage(
         outcome = NOT_APPLICABLE
     else:
         outcome = FAILED
-    return {"stage": name, "outcome": outcome, "code": code}
+    # The code names the class; the message names the instance; the details
+    # name the evidence. The cursor-on-windows row proved each layer earns its
+    # keep: the code has over twenty sources, the message was one generic
+    # sentence shared by all postcondition misses, and the observed reason —
+    # which half of the settlement failed — travels only in the details.
+    row: dict[str, Any] = {"stage": name, "outcome": outcome, "code": code}
+    message = error_message(envelope)
+    if message:
+        row["message"] = message
+    details = error_details(envelope)
+    if details:
+        row["details"] = details
+    return row
 
 
 def _row(
@@ -234,7 +253,11 @@ def verify_software_slice(
         "rows": rows,
         "counts": counts,
         "missing": missing,
-        "clean": not missing and counts[FAILED] == 0,
+        # Every asked row passed. "No row failed" is satisfied by a run where
+        # every row is `inconclusive`, which is a green that examined nothing;
+        # the config slice beside this one produced exactly that on four legs
+        # before the rule was tightened here too.
+        "clean": not missing and counts[PASSED] == len(rows) and len(rows) > 0,
     }
 
 

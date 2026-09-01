@@ -325,7 +325,7 @@ def test_proposing_and_confirming_through_the_command_surface(
     proposal_id = session.proposals[0].proposal_id
     assert session.proposals[0].members[0].stable_id == stable_id
 
-    confirmed = select.confirm({"proposal": proposal_id, "confirm": True}).payload
+    confirmed = select.confirm({"proposal": proposal_id}).payload
     assert confirmed.created
     assert confirmed.state == "pending_install"
     assert confirmed.trace["policy_version"] == session.policy_version
@@ -346,8 +346,8 @@ def test_a_repeat_confirmation_returns_the_same_version(
     ).payload
     proposal_id = session.proposals[0].proposal_id
 
-    first = select.confirm({"proposal": proposal_id, "confirm": True}).payload
-    second = select.confirm({"proposal": proposal_id, "confirm": True}).payload
+    first = select.confirm({"proposal": proposal_id}).payload
+    second = select.confirm({"proposal": proposal_id}).payload
     assert (second.stable_id, second.version) == (first.stable_id, first.version)
     assert first.created and not second.created
 
@@ -572,7 +572,7 @@ def test_a_bundle_compiles_from_adopted_content(
     session = select.propose(
         {"harness": "claude-code", "project": str(tmp_path), "member": [f"{stable_id}@1.0"]}
     ).payload
-    select.confirm({"proposal": session.proposals[0].proposal_id, "confirm": True})
+    select.confirm({"proposal": session.proposals[0].proposal_id})
 
     compiled = select.harness_bundle(
         {
@@ -760,7 +760,7 @@ def test_a_bundle_preserves_every_file_and_mode_from_an_adopted_skill_tree(
         {"harness": "claude-code", "project": str(tmp_path), "member": [f"{stable_id}@1.0"]}
     ).payload
     proposal_id = session.proposals[0].proposal_id
-    select.confirm({"proposal": proposal_id, "confirm": True})
+    select.confirm({"proposal": proposal_id})
 
     compiled = select.compile_harness_bundle(registry, proposal_id, "claude-code")
     assert compiled.compiled
@@ -792,7 +792,7 @@ def test_a_confirmed_bundle_reads_the_exact_graph_revision_not_a_later_head(
         {"harness": "claude-code", "project": str(tmp_path), "member": [f"{stable_id}@1.0"]}
     ).payload
     proposal_id = session.proposals[0].proposal_id
-    select.confirm({"proposal": proposal_id, "confirm": True})
+    select.confirm({"proposal": proposal_id})
 
     released = revisions.head(registry, stable_id)
     assert released is not None
@@ -850,9 +850,7 @@ def test_compiling_the_same_composition_twice_gives_one_digest(
     session = select.propose(
         {"harness": "claude-code", "project": str(tmp_path), "member": [f"{stable_id}@1.0"]}
     ).payload
-    confirmed = select.confirm(
-        {"proposal": session.proposals[0].proposal_id, "confirm": True}
-    ).payload
+    confirmed = select.confirm({"proposal": session.proposals[0].proposal_id}).payload
     parameters = {
         "harness": "claude-code",
         "project": str(tmp_path),
@@ -919,10 +917,11 @@ def test_select_confirm_declares_a_flag_it_can_actually_check() -> None:
     `_require_declared_flags` skips confirmation flags on purpose: a missing
     confirmation is `AI_STP_USER_DECISION_REQUIRED` and exit class 4, not a
     malformed call, so the use case that knows what is being confirmed raises
-    it. `select confirm` declared `explicit_flag` and carried no flag to check,
-    so the one command whose whole purpose is the user's decision was the only
-    one of seventeen that never asked, and a bare call froze an immutable
-    setup version.
+    it. A command that declares `explicit_flag` and carries no flag to check
+    promises a decision it never asks for; every one that declares it must
+    carry the flag. (`select confirm` once declared it with no flag, then
+    gained one, then lost the declaration on 2026-09-02: naming the exact
+    proposal is the decision, `ADR-0118`.)
     """
     from ai_stp_cli.registry import COMMANDS
 
@@ -931,7 +930,9 @@ def test_select_confirm_declares_a_flag_it_can_actually_check() -> None:
         for command in COMMANDS
         if command.descriptor.confirmation == "explicit_flag"
     }
-    assert "select confirm" in declared
+    assert declared, (
+        "the registry must still carry explicit-flag commands for this to prove anything"
+    )
     for name, descriptor in declared.items():
         booleans = {
             parameter.name
@@ -959,14 +960,20 @@ def test_every_destructive_command_asks_for_a_decision_of_its_own() -> None:
         )
 
 
-def test_confirming_without_the_flag_is_a_user_decision_not_a_validation_error() -> None:
-    """Exit class 4 says "ask the user"; class 2 says "you called it wrong"."""
+def test_confirming_names_the_proposal_and_asks_for_nothing_else() -> None:
+    """Naming the exact proposal is the decision (`ADR-0118`, amendment of 2026-09-02).
+
+    A bare call used to stop with `AI_STP_USER_DECISION_REQUIRED` and a next
+    action telling the caller to add `--confirm` — a second question about the
+    one answer already given. The first refusal a well-formed call can meet
+    now is about the proposal itself.
+    """
     from ai_stp_cli.commands import select as select_command
 
     with pytest.raises(CliFailure) as raised:
         select_command.confirm({"proposal": "proposal_01ARZ3NDEKTSV4RRFFQ69G5FAV"})
-    assert raised.value.code == "AI_STP_USER_DECISION_REQUIRED"
-    assert any("--confirm" in action for action in raised.value.next_actions)
+    assert raised.value.code == "AI_STP_NOT_FOUND"
+    assert not any("--confirm" in action for action in raised.value.next_actions)
 
 
 def test_a_proposal_with_no_members_is_refused_unless_the_emptiness_is_named(
@@ -1018,9 +1025,8 @@ def test_a_named_empty_setup_is_proposed_confirmed_and_immutable(
 ) -> None:
     """`REQ-630` end to end: the emptiness is named, the freeze is still decided.
 
-    Two gates rather than one, and they say different things. `--empty` says
-    zero members is the composition; `--confirm` says freeze this exact one.
-    Neither implies the other, which is why the second is not weakened here.
+    `--empty` says zero members is the composition; naming the proposal to
+    `select confirm` says freeze this exact one. Neither implies the other.
     """
     _ready(registry, tmp_path)
 
@@ -1031,15 +1037,11 @@ def test_a_named_empty_setup_is_proposed_confirmed_and_immutable(
     assert session.proposals[0].members == []
 
     proposal_id = session.proposals[0].proposal_id
-    with pytest.raises(CliFailure) as raised:
-        select.confirm({"proposal": proposal_id})
-    assert raised.value.code == "AI_STP_USER_DECISION_REQUIRED"
-
-    confirmed = select.confirm({"proposal": proposal_id, "confirm": True}).payload
+    confirmed = select.confirm({"proposal": proposal_id}).payload
     assert confirmed.created
     assert confirmed.state == "pending_install"
 
-    again = select.confirm({"proposal": proposal_id, "confirm": True}).payload
+    again = select.confirm({"proposal": proposal_id}).payload
     assert (again.stable_id, again.version) == (confirmed.stable_id, confirmed.version)
     assert not again.created, "an empty version is as immutable as any other"
 
@@ -1080,7 +1082,7 @@ def test_a_resolved_component_with_no_digest_refuses_instead_of_vanishing(
     session = select.propose(
         {"harness": "claude-code", "project": str(tmp_path), "member": [f"{stable_id}@1.0"]}
     ).payload
-    select.confirm({"proposal": session.proposals[0].proposal_id, "confirm": True})
+    select.confirm({"proposal": session.proposals[0].proposal_id})
 
     real = revisions.get
 
@@ -1150,7 +1152,7 @@ def test_a_component_needing_an_unset_variable_still_compiles(
     session = select.propose(
         {"harness": "claude-code", "project": str(tmp_path), "member": [f"{stable_id}@1.1"]}
     ).payload
-    select.confirm({"proposal": session.proposals[0].proposal_id, "confirm": True})
+    select.confirm({"proposal": session.proposals[0].proposal_id})
 
     compiled = select.harness_bundle(
         {
@@ -1377,3 +1379,117 @@ def test_a_permission_grown_since_the_consent_is_refused_and_the_field_named(
     )
     registry.commit()
     assert "unverified_without_consent" in _codes(_report(tmp_path), stable_id)
+
+
+def test_the_matrix_accepts_the_empty_tuple_click_delivers_for_no_harness(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """`#384`'s lesson, missed here: a repeatable option omitted is `()`, not None.
+
+    Measured through the real CLI: `select eligibility-matrix` without
+    `--harness` — the exact invocation the all-harness matrix exists for —
+    refused with "a supported harness identifier is required", because the
+    handler tested `is None` while Click delivers an empty tuple. The direct
+    calls in this file passed no key at all, so the pair agreed with each
+    other and with nothing else.
+    """
+    _register(registry, "T", harness_id="claude-code")
+
+    matrix = _matrix(tmp_path, **{"harness": ()})
+
+    assert [report.harness_id for report in matrix.harnesses] == sorted(HARNESS_IDS)
+
+
+def test_a_project_stable_id_where_a_root_belongs_is_refused_by_name(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`--project` is a directory here and a stable id in `target`. Same flag, two types.
+
+    Measured in the functional sweep of 2026-09-02. `select session --project
+    project_01M1F6BZ… --harness claude-code` answered:
+
+        AI_STP_PRECONDITION_FAILED
+        "this project has no passport, so there is nothing to compose against"
+        details.root: /home/…/ai-stp/project_01M1F6BZ…
+        next_actions: ["project passport --root project_01M1F6BZ… --json"]
+
+    Three wrongs from one missing check. `Path(value)` turned an identifier into
+    a relative path and `.resolve()` anchored it to the working directory, so the
+    refusal named a directory nobody mentioned and that never existed; and the
+    next action echoed the same unusable value into a command that fails
+    identically — a pointer the `next_actions` lint passes, because the command
+    and its flags are real and only the argument cannot work.
+
+    The confusion is not exotic: `target status --project` genuinely takes a
+    stable id, and an agent building argv from machine help meets the same word
+    twice with two meanings.
+    """
+    from ai_stp_cli.commands import select as command
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+
+    with pytest.raises(CliFailure) as refused:
+        command.session({"harness": "claude-code", "project": "project_01M1F6BZ0AP7K6CHGBPGJ7JCTR"})
+    assert refused.value.code == "AI_STP_VALIDATION_ERROR"
+    assert "directory" in refused.value.message
+    # The invented path must not appear anywhere in the answer.
+    assert "project_01M1F6BZ0AP7K6CHGBPGJ7JCTR" not in str(refused.value.details.get("root", ""))
+    assert all(
+        "project_01M1F6BZ0AP7K6CHGBPGJ7JCTR" not in action for action in refused.value.next_actions
+    )
+
+    # A directory that exists but holds no passport keeps the old, correct answer.
+    real = tmp_path / "work"
+    real.mkdir()
+    with pytest.raises(CliFailure) as absent:
+        command.session({"harness": "claude-code", "project": str(real)})
+    assert absent.value.code == "AI_STP_PRECONDITION_FAILED"
+
+
+def test_propose_names_the_proposal_it_recorded_among_the_open_ones(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """Several proposals may be open for one pair; the answer says which is new.
+
+    Measured in a functional sweep: `select propose` answered with the whole
+    session, the caller took the first row, confirmed an older empty proposal
+    and installed nothing. `proposal_id` is the one this call recorded;
+    `select session`, which records none, leaves it empty.
+    """
+    _ready(registry, tmp_path)
+    first = select.propose(
+        {"harness": "claude-code", "project": str(tmp_path), "empty": True}
+    ).payload
+    second = select.propose(
+        {"harness": "claude-code", "project": str(tmp_path), "empty": True}
+    ).payload
+
+    assert first.proposal_id == first.proposals[0].proposal_id
+    assert second.proposal_id is not None
+    assert second.proposal_id != first.proposal_id
+    assert second.proposal_id in {item.proposal_id for item in second.proposals}
+    assert len(second.proposals) == 2
+
+    session = select.session({"harness": "claude-code", "project": str(tmp_path)}).payload
+    assert session.proposal_id is None
+
+
+def test_bundle_takes_the_target_a_contribution_needs(tmp_path: Path) -> None:
+    """`select bundle --target` is the same shape `install plan --target` accepts.
+
+    A composition holding a contribution to a provider-owned file could be
+    planned and installed but never bundled on its own, because `install plan`
+    took a target and `select bundle` declared none.
+    """
+    target = tmp_path / "target"
+    target.mkdir()
+    assert select._bundle_host_root({}) is None  # pyright: ignore[reportPrivateUsage]
+    assert select._bundle_host_root({"target": str(target)}) == target.resolve()  # pyright: ignore[reportPrivateUsage]
+
+    link = tmp_path / "link"
+    link.symlink_to(target)
+    for given in ("relative/place", str(tmp_path / "absent"), str(link)):
+        with pytest.raises(CliFailure) as raised:
+            select._bundle_host_root({"target": given})  # pyright: ignore[reportPrivateUsage]
+        assert raised.value.code == "AI_STP_VALIDATION_ERROR"

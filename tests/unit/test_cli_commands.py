@@ -3,6 +3,7 @@
 import json
 import os
 import sys
+from contextlib import closing
 from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 from typing import cast
@@ -49,6 +50,7 @@ def test_doctor_reports_a_fresh_installation_as_needing_action_not_as_broken() -
         "interrupted_operations",
         "component_layouts",
         "composition_passports",
+        "addressable_objects",
         "provider_binding",
     }
 
@@ -407,11 +409,28 @@ def test_the_device_passport_holds_the_environment_and_the_developer_does_not() 
     # `SPEC-014` REQ-1418 puts the harness survey here and nowhere else.
     assert sorted(device.facts) == [
         "architecture",
+        "harness_installations",
         "harness_versions",
         "installed_harnesses",
         "operating_system",
         "tool_versions",
     ]
+    # Every installation, structurally: the flat `harness_versions` line keeps
+    # only the first, and a machine with two installs of one harness answered
+    # by hiding one. Paths travel `~`-relative — this passport syncs.
+    held_installations = cast(
+        list[dict[str, object]],
+        cast(dict[str, object], device.facts["harness_installations"])["value"],
+    )
+    from pathlib import Path as _Path
+
+    acting_home = str(_Path.home())
+    for row in held_installations:
+        for item in cast(list[dict[str, object]], row["installations"]):
+            # `~`-relative under the acting home; a binary outside it keeps its
+            # own path, which is not this machine's home identity.
+            assert not str(item["path"]).startswith(acting_home + "/")
+            assert "selected" in item and "version_source" in item
     tool_versions = cast(dict[str, object], device.facts["tool_versions"])["value"]
     assert cast(list[str], tool_versions)[0].startswith("ai-stp-cli=")
 
@@ -687,3 +706,34 @@ def test_validating_a_broken_configuration_file_names_where_it_is() -> None:
     with pytest.raises(CliFailure, match="unknown configuration key") as raised:
         config_show.validate({})
     assert raised.value.details["at"] == "catalog.urll"
+
+
+def test_doctor_names_objects_no_command_can_reach() -> None:
+    """An entity with no head revision is registered and addressable by nothing.
+
+    Measured on 2026-09-01 during the functional sweep: `component fork` wrote an
+    entity and its `fork_origin` without a first revision, and the object it
+    answered `ok` about was refused by `show`, `update`, `release` and `forget`
+    alike — every one of them reaches an object through its head. A failed bundle
+    probe left the same shape. Both producers were closed the same day; the rows
+    they had already written stayed, unreachable and unnamed.
+
+    `ready`, not `partial`: the installation is sound and nothing a caller does
+    is affected. And reported rather than repaired — `doctor` is declared `read`,
+    and a read-only command that deletes registry rows is a different defect.
+    """
+    from ai_stp_cli.local.database import configured_path, open_registry
+
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        connection.execute(
+            "INSERT INTO entity (stable_id, kind, created_at) VALUES (?, ?, ?)",
+            ("component_01ORPHANORPHANORPHANORPHAN", "component", "2026-09-01T00:00:00Z"),
+        )
+        connection.commit()
+
+    check = next(
+        item for item in doctor.run({}).payload.checks if item.name == "addressable_objects"
+    )
+    assert check.state == "ready"
+    assert "1 object(s)" in check.detail
+    assert "component" in check.detail

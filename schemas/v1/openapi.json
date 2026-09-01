@@ -12820,6 +12820,33 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "readComponentContextBudget.estimated": {
+                    "summary": "A component context budget reports the bounded estimate and loading mode.",
+                    "value": {
+                      "component_type": "skill",
+                      "coordinate": {
+                        "passport_digest": "sha256:a0b29e900e8e1f0a5269a5094500cebc1829dc346b1f0147c5e6603eeddb79c5",
+                        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "version": "1.2"
+                      },
+                      "estimator": {
+                        "accuracy": "estimated",
+                        "local_only": true,
+                        "method": "unicode_codepoints_div_4",
+                        "model": null,
+                        "profile": "ai-stp:unicode-chars-div4/1",
+                        "schema_version": 1
+                      },
+                      "loading": "conditional",
+                      "reason": null,
+                      "schema_version": 1,
+                      "status": "estimated",
+                      "tokens": 256,
+                      "utf8_bytes": 1024
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/ComponentContextBudget"
                 }

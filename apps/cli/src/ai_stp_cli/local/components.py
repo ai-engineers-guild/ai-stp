@@ -24,9 +24,11 @@ import os
 import sqlite3
 import stat
 import zipfile
+from base64 import b64decode
+from binascii import Error as Base64Error
 from dataclasses import KW_ONLY, dataclass, replace
 from itertools import islice
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Final
 
 from ai_stp_cli.errors import CliFailure
@@ -86,6 +88,17 @@ CLAUDE_MCP_SOURCE: Final[str] = "code.claude.com/docs/en/mcp"
 CURSOR_PLUGIN_SOURCE: Final[str] = "cursor.com/docs/reference/plugins"
 COMPONENT_FILE_FORMAT: Final[str] = "ai-stp-component-file/1"
 COMPONENT_TREE_FORMAT: Final[str] = "ai-stp-component-tree/1"
+#: What `setup import register` stored until 2026-09-02: a canonical JSON
+#: envelope of scrubbed members at their harness-root-relative paths. It
+#: reached `select impact` and stopped there, then reached the compiler and
+#: stopped again — a file-shaped component arrived as a named member and a
+#: directory-shaped one re-rooted under itself, because the members were
+#: relative to a root the envelope never carried (`#63`).
+#:
+#: The importer now stores the two formats above, members relative to the
+#: component boundary. This name stays decodable so a draft registered before
+#: that rule is not orphaned; nothing produces it any more.
+IMPORTED_COMPONENT_FORMAT: Final[str] = "ai-stp-imported-component/1"
 COMPONENT_TREE_TIMESTAMP: Final[tuple[int, int, int, int, int, int]] = (
     1980,
     1,
@@ -703,6 +716,25 @@ class Discovery:
     diagnostics: tuple[component_sources.Diagnostic, ...]
 
 
+def cursor_config_root(environment: dict[str, str] | None, home: Path) -> Path:
+    """Cursor's config *resolver*, for the one surface built by calling it.
+
+    `CURSOR_CONFIG_DIR`, then `$XDG_CONFIG_HOME/cursor`, else `~/.cursor` —
+    measured off the pinned bundle. Exactly one of cursor's surfaces
+    (`cli-config.json`) is constructed through this; the rest are literal
+    `~/.cursor` joins, which is why this is a layout root and not the
+    harness's.
+    """
+    held = os.environ if environment is None else environment
+    override = held.get("CURSOR_CONFIG_DIR")
+    if override:
+        return Path(override).expanduser()
+    xdg = held.get("XDG_CONFIG_HOME")
+    if xdg:
+        return Path(xdg).expanduser() / "cursor"
+    return home / ".cursor"
+
+
 def discover(
     *,
     project: Path | None = None,
@@ -730,6 +762,8 @@ def discover_report(
     for rule in GLOBAL_RULES:
         if rule.root == "home":
             base = home
+        elif rule.root == "cursor_config":
+            base = cursor_config_root(environment, home)
         else:
             detector = next(
                 (item for item in harnesses.DETECTORS if item.harness_id == rule.harness_id), None
@@ -1684,7 +1718,7 @@ def _read_regular(place: Path, held: os.stat_result) -> bytes:
 
 
 def _tree_artifact(root: Path) -> bytes:
-    return _encode_tree_artifact(_tree_files(root), root)
+    return encode_tree_artifact(_tree_files(root), root)
 
 
 def _hook_tree_artifact(manifest: Path, siblings: Path, manifest_stat: os.stat_result) -> bytes:
@@ -1693,7 +1727,7 @@ def _hook_tree_artifact(manifest: Path, siblings: Path, manifest_stat: os.stat_r
         ComponentFile("hooks.json", _read_regular(manifest, manifest_stat), manifest_mode),
         *_tree_files(siblings, prefix="hooks"),
     ]
-    return _encode_tree_artifact(files, manifest.parent)
+    return encode_tree_artifact(files, manifest.parent)
 
 
 def _tree_files(root: Path, *, prefix: str = "") -> list[ComponentFile]:
@@ -1739,7 +1773,13 @@ def _tree_files(root: Path, *, prefix: str = "") -> list[ComponentFile]:
     return files
 
 
-def _encode_tree_artifact(files: list[ComponentFile], source_root: Path) -> bytes:
+def encode_tree_artifact(files: list[ComponentFile], source_root: Path) -> bytes:
+    """Seal member files into the closed tree artifact adoption stores.
+
+    Public because the importer packages a captured directory through the
+    same encoder: one artifact format per shape, whichever capture path found
+    it (`ADR-0138`), so the compiler meets one thing rather than two.
+    """
     manifest_names = {
         "SKILL.md",
         "AGENTS.md",
@@ -1784,10 +1824,58 @@ def _encode_tree_artifact(files: list[ComponentFile], source_root: Path) -> byte
     return output.getvalue()
 
 
+def _expand_imported(payload: bytes) -> tuple[ComponentFile, ...]:
+    """The captured envelope, decoded under the same bounds as a stored tree.
+
+    Bounds rather than trust: this artifact is built from bytes found on a
+    machine, so the per-member and total limits that guard an adopted tree guard
+    it too, and a member path is refused when it is absolute, escapes, or
+    repeats. A `declared_key` member keeps its `path#key` spelling, which is the
+    same shape the adopt path already hands the compiler.
+    """
+    try:
+        document = from_json_bytes(payload)
+        if not isinstance(document, dict) or set(document) != {"format", "files"}:
+            raise ValueError("imported component envelope is not closed")
+        raw_files = document.get("files")
+        if document.get("format") != IMPORTED_COMPONENT_FORMAT or not isinstance(raw_files, list):
+            raise ValueError("imported component format differs")
+        answer: list[ComponentFile] = []
+        seen: set[str] = set()
+        total = 0
+        for raw in raw_files:
+            if not isinstance(raw, dict) or set(raw) != {"path", "content_base64"}:
+                raise ValueError("imported component member is invalid")
+            path = raw.get("path")
+            encoded = raw.get("content_base64")
+            if (
+                not isinstance(path, str)
+                or not path
+                or path in seen
+                or path.startswith(("/", "~"))
+                or any(part in {"", ".", ".."} for part in PurePosixPath(path).parts)
+                or not isinstance(encoded, str)
+            ):
+                raise ValueError("imported component member identity is invalid")
+            seen.add(path)
+            content_bytes = b64decode(encoded, validate=True)
+            total += len(content_bytes)
+            if len(content_bytes) > MAX_COMPONENT_BYTES or total > MAX_COMPONENT_TREE_BYTES:
+                raise ValueError("imported component member is larger than one may be")
+            answer.append(ComponentFile(path, content_bytes, 0o644))
+        if len(answer) > MAX_COMPONENT_FILES:
+            raise ValueError("imported component has more members than one may hold")
+        return tuple(answer)
+    except (UnicodeError, ValueError, Base64Error) as error:
+        raise CliFailure("AI_STP_CONFLICT", "the stored imported component is corrupt") from error
+
+
 def expand(payload: bytes, content_format: str) -> tuple[ComponentFile, ...]:
     """Expand only the closed component artifact formats stored at adoption."""
     if content_format == COMPONENT_FILE_FORMAT:
         return (ComponentFile("", payload, 0o644),)
+    if content_format == IMPORTED_COMPONENT_FORMAT:
+        return _expand_imported(payload)
     if content_format != COMPONENT_TREE_FORMAT:
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED",
@@ -1880,8 +1968,10 @@ def declared_consistently() -> tuple[str, ...]:
             problems.append(f"{rule.relative}: no detector finds harness {rule.harness_id}")
         if not rule.source:
             problems.append(f"{rule.relative}: no documentation recorded for this layout")
-        if rule.root not in {"config", "home"}:
+        if rule.root not in {"config", "home", "cursor_config"}:
             problems.append(f"{rule.relative}: unknown global root {rule.root}")
+        if rule.root == "cursor_config" and rule.harness_id != "cursor":
+            problems.append(f"{rule.relative}: cursor_config root on {rule.harness_id}")
         if rule.root == "home" and rule.harness_id:
             problems.append(f"{rule.relative}: a shared home layout names one harness")
     return tuple(problems)

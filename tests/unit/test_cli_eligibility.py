@@ -524,3 +524,39 @@ def test_a_kind_the_provider_cannot_project_is_refused_before_selection() -> Non
         TARGET,
     )
     assert "provider_surface_unavailable" not in {r.code for r in setup.refusals}
+
+
+def test_a_portable_component_fits_every_harness_with_a_surface_for_its_kind() -> None:
+    """`#64`: the portable claim is proposable, not four fake harness claims.
+
+    A repository-root `AGENTS.md` answers to the cross-product convention and
+    to no single harness, so its adopted component names none. `harness_mismatch`
+    compared that empty name to the target and refused it everywhere, leaving an
+    author with no path from a project file to a harness-bound instruction. A
+    portable component fits any harness whose provider declares a surface for
+    its kind; where none does, the refusal names the surface, exactly as it does
+    for a harness-bound object of that kind.
+    """
+    from ai_stp_cli.local.composition import native_surface
+
+    assert native_surface("instruction", TARGET.harness_id)
+    portable = eligibility.assess(
+        _candidate(harness_id="", component_type="instruction", owned_or_pinned=True), TARGET
+    )
+    assert "harness_mismatch" not in _codes(portable)
+    assert "provider_surface_unavailable" not in _codes(portable)
+    assert portable.admissible
+
+    assert not native_surface("mcp", TARGET.harness_id)
+    surfaceless = eligibility.assess(
+        _candidate(harness_id="", component_type="mcp", owned_or_pinned=True), TARGET
+    )
+    assert "provider_surface_unavailable" in _codes(surfaceless)
+    assert "harness_mismatch" not in _codes(surfaceless)
+    assert not surfaceless.admissible
+
+    # A named harness other than the target is still a mismatch, unchanged.
+    foreign = eligibility.assess(
+        _candidate(harness_id="codex", component_type="instruction", owned_or_pinned=True), TARGET
+    )
+    assert "harness_mismatch" in _codes(foreign)

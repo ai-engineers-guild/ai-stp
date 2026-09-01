@@ -262,3 +262,35 @@ def test_apm_duplicate_yaml_key_is_rejected_without_retry_or_guessing(tmp_path: 
         store_ports.inspect(tmp_path, "apm")
 
     assert caught.value.code == "AI_STP_VALIDATION_ERROR"
+
+
+def test_an_empty_store_root_is_named_rather_than_an_internal_failure(tmp_path: Path) -> None:
+    """`discover` accepts the directory and `inspect` used to explode on it.
+
+    Measured in the functional sweep of 2026-09-02:
+
+        registry port discover --root <empty dir>            → ok
+        registry port inspect  --root <empty dir> --adapter sx
+            → AI_STP_INTERNAL "unexpected internal failure"
+
+    A bare `FileNotFoundError` from `_read_regular` on the absent `sx.toml`
+    reached the envelope mapper, and `AI_STP_INTERNAL` says the product broke
+    when the truth is that the caller named a directory holding no manifest —
+    an entirely ordinary input for a command whose job is to look. The pair also
+    disagreed about the same directory, which is the dead end between commands
+    this estate keeps paying for.
+    """
+    from ai_stp_cli.local import store_ports
+
+    root = tmp_path / "store"
+    root.mkdir()
+
+    with pytest.raises(CliFailure) as refused:
+        store_ports.inspect(root, "sx")
+    assert refused.value.code == "AI_STP_NOT_FOUND"
+    assert "sx.toml" in str(refused.value.details)
+
+    with pytest.raises(CliFailure) as apm:
+        store_ports.inspect(root, "apm")
+    assert apm.value.code == "AI_STP_NOT_FOUND"
+    assert "apm.lock.yaml" in str(apm.value.details)

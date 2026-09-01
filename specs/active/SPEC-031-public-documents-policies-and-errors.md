@@ -82,7 +82,7 @@ Repository `docs-user-facing/docs/**` becomes the canonical public technical sou
 does not replace the source checkout. Policy tables and public APIs are added
 additively. No mandatory acceptance of a new policy is introduced without a
 separate ADR and product decision. `SPEC-055` and `ADR-0137` record that
-decision for new-account onboarding only (`ADR-0137`).
+decision for new-account onboarding only.
 
 ## Acceptance criteria
 

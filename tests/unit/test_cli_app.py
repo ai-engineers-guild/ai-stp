@@ -59,7 +59,7 @@ def test_the_flag_may_be_written_before_the_command(capsys: pytest.CaptureFixtur
     ("argv", "message"),
     [
         (["--json"], "no command given"),
-        (["help", "--json"], "help requires --agent"),
+        (["registry", "show", "--json"], "Missing option"),
         (["nope", "--json"], "No such command"),
         (["version", "--nosuch", "--json"], "No such option"),
         (["config", "--json"], "Missing command"),
@@ -384,7 +384,10 @@ def test_every_declared_option_arrives_under_the_name_it_was_declared_with() -> 
 #: Declared parameters no handler reads, each for a stated reason. An entry here
 #: is a claim; the test below is what keeps it honest.
 UNREAD_BY_DESIGN: dict[str, str] = {
-    "help --agent": "a required flag whose only job is to be present, enforced by dispatch",
+    "help --agent": "names the caller; the registry is the command's only answer either way",
+    "component passport validate --for-publication": (
+        "names the only profile the command has; accepted so an older spelling still parses"
+    ),
 }
 
 
@@ -587,3 +590,30 @@ def test_output_survives_a_stream_that_defaults_to_a_legacy_code_page(
     # Decodes as UTF-8, which cp1252 output would not.
     envelope = json.loads(written.decode("utf-8"))
     assert envelope["ok"] is True
+
+
+def test_a_damaged_registry_is_named_not_reported_as_an_internal_fault(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Corruption of the local store is the operator's state, not our bug.
+
+    Measured: a registry file truncated mid-byte answered every read and write
+    with `AI_STP_INTERNAL: unexpected internal failure` — no file named, no
+    hint that local state (not the tool) is damaged, and `internal` telling an
+    agent to retry the same dead end. sqlite reports this as its own error
+    class; the answer must carry the registry path and read as state to
+    reconcile.
+    """
+    from ai_stp_cli.local.database import configured_path
+
+    place = configured_path()
+    place.parent.mkdir(parents=True, exist_ok=True)
+    place.write_bytes(b"this is not a database, and it is short")
+
+    code = app.main(["component", "find", "--prefix", "component", "--json"])
+    answer = json.loads(capsys.readouterr().out)
+
+    assert answer["ok"] is False
+    assert answer["error"]["code"] == "AI_STP_PRECONDITION_FAILED"
+    assert "registry" in answer["error"]["details"]
+    assert code == 4

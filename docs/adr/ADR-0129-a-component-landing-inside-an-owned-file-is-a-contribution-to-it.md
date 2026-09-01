@@ -1,11 +1,12 @@
 ---
 description: "Decision to compile a component whose landing place is a key inside a provider-owned file as a contribution to that file, reconstructed by the consumer."
-last_verified: "2026-08-30"
+last_verified: "2026-09-01"
 ---
 
 # ADR-0129: A component landing inside another party's file is a contribution to that file
 
-Status: proposed.
+Status: accepted. The install half shipped in `0.0.13`; the removal verb is
+settled below (2026-09-01).
 
 ## Context
 
@@ -179,6 +180,110 @@ exactly.
 Reconstruction must be deterministic: identical input produces identical
 bytes, or `plan` and `apply` diverge in formatting and the target appears
 changed when it is not.
+
+## Removal takes the key, not the file
+
+`#54` tracks the implementation. The consumer half below was settled first; the
+verb question it left open — protocol v3 carries one verb per apply, so a
+removal of a setup that holds both a contribution and its own files has to
+choose one, and the choice is visible to every provider already shipped — is
+settled in its own subsection at the end of this section.
+
+The decision above says how a contribution lands and said nothing about how it
+goes. That silence had a shape: a contribution's passport declares
+`managed_paths: ['config.toml']`, the provider is told it owns that file, and it
+removes exactly what it was told. A user who installed one MCP server got back a
+target with no `config.toml` at all — their `model` and their `[sandbox]` gone
+with it.
+
+Measured before deciding, because the severity decided how much this is worth:
+the plan does warn, naming `config.toml` among the entries that go whole and
+saying the backup slot holds them; the removal is recoverable byte for byte
+through `restore`. So the failure is not silent destruction. It is a plan that
+tells the truth in the vocabulary of a different ownership model — "this file
+goes whole" is exact for a setup that owns the file and misleading for a
+component that owns one key of it.
+
+**Removing a contribution is a replace of the host file without that key.** The
+consumer already reconstructs on the way in; it reconstructs on the way out by
+the same route, and the provider receives a `replace` carrying the remaining
+bytes rather than a `remove` naming the file.
+
+Three consequences follow, and none of them needs the protocol to change.
+
+The provider stays bytes-in, bytes-out. It is not taught what a key is, which
+the objection list of `#450` forbids and which the reconsideration condition
+below still governs.
+
+A host file with nothing left in it after the key is taken is written empty
+rather than deleted. Deleting it would be the consumer deciding that a file the
+product reads should stop existing, which is a different act from removing what
+this component put there — and a product that reads a missing file differently
+from an empty one would notice.
+
+The last contribution to leave does not restore the file to what it was before
+the first one arrived. Nothing records that state, and inventing it would be a
+third source of truth about a file whose owner is the user.
+
+### The verb: `remove`, with the plan taught to leave a file behind
+
+Decided 2026-09-01 under the owner's standing delegation, after measuring what
+the current wire can and cannot say.
+
+Measured first. A removal plan is built without a bundle — `_plan_v3` passes no
+bytes for `remove` — so the provider plans deletion from its own recorded
+state, and `written_paths` is exactly the list it deletes from. After a
+contribution install the provider *wrote* the host file, so that list contains
+it. Nothing in the plan request can currently say "this path is not yours to
+delete; it outlives the setup at these bytes." The end state a contribution
+demands — setup ended, host file present with the user's remaining bytes — is
+therefore inexpressible today, by mechanism and not merely by reading.
+
+Two applies do not express it either, in either order. A `replace` down to a
+reduced state either converges by deleting the host file or strands the key in
+it, depending on which the provider does with a path that left the payload; a
+following `remove` deletes what the provider wrote, which by then includes the
+host file. Both orders end wrong against the same state model that lets
+`written_paths` scope a removal.
+
+The decision: the verb stays `remove`. The missing sentence becomes a plan
+extension, not a second verb: a remove-plan entry gains a per-path end state —
+gone, or present at named final bytes. The first shape of this record carried a
+digest and no bytes, and the provider estate's measured reply found the hole
+before it shipped: a remove plan is built without a bundle, so a digest there
+is an assertion without a carrier. The agreed shape closes it with machinery
+both sides already released: `remove` accepts an optional bundle through the
+same arguments `replace` uses, and the plan entry names the bundle member
+whose bytes survive — so artifact digests, member digests, limits and
+`validate-bundle` all apply unchanged. One net, not two, and this is measured
+rather than assumed: released `0.0.50` providers *accept and silently ignore*
+a full bundle handed to `remove` — exit 0 on plan and apply, digests echoed
+unread, the removal executed whole — and refuse loudly only a partial flag
+set. So the `plan_request_fields` declaration is the only thing standing
+between a final-bytes intent and a whole-file removal with a green echo, and
+the consumer half must gate on it absolutely. The provider estate closed its
+half of that hole in `0.0.52`, measured on the released binaries: a remove
+plan naming a full bundle now answers `state: refused` with reason
+`unsupported_operation` at exit 0 — an answered refusal, like the rest of the
+v3 wire — while a partial flag set keeps its loud exit 1. Both measured forms
+belong in the consumer test when the half lands: accept-and-ignore at
+`0.0.51` and below, answered refusal from `0.0.52`. This broke no one: no
+released consumer sends a bundle with remove. The provider side also confirmed the write is a
+variation of an effect it already has (bundle materialization under
+capture-before-effect), not a new write path. The field
+is declared through `plan_request_fields`, so introduction follows the
+`ADR-0125` order: this consumer accepts the field, ships, and only then a
+provider declares it. The exact field name and schema belong to the
+provider-kit revision that introduces them, not to this record; the estates'
+shared candidate is an end-state noun over a verb, `removed` or final bytes
+with their member and digest.
+
+Until a provider declares the field, behavior stays exactly today's — the plan
+truthfully warns that the host file goes whole and `restore` returns it byte
+for byte. No approval step is added on either path. The consumer half — the
+withdraw reconstruction wired into removal planning — arrives in one change
+together with the rule, per the order-within-one-change clause above, gated on
+the provider's declaration rather than on a question to anyone.
 
 ## Reconsideration conditions
 

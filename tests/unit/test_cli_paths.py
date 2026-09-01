@@ -313,3 +313,73 @@ def test_the_machine_pathext_is_honoured_over_the_default(
 
     monkeypatch.setenv("PATHEXT", ".COM;.EXE;.PSM")
     assert paths.is_executable_file(place) is True
+
+
+@pytest.mark.skipif(paths.POSIX, reason="the ACL invariant is asserted on Windows")
+def test_the_private_data_directory_is_owner_only_on_windows(tmp_path: Path) -> None:
+    """`return True` stood here for months; this is the measurement it lacked.
+
+    `ensure_directory` stamps a protected owner-only DACL the way it re-applies
+    the POSIX mode, and the file written under it inherits the same answer.
+    """
+    private = paths.ensure_directory(tmp_path / "private")
+    assert paths.is_private(private)
+
+    place = private / "held.json"
+    paths.write_private(place, "{}")
+    assert paths.is_private(place)
+    assert paths.read_private(place) == "{}"
+
+
+@pytest.mark.skipif(paths.POSIX, reason="the ACL invariant is asserted on Windows")
+def test_a_widened_windows_grant_is_seen_and_refused(tmp_path: Path) -> None:
+    """A grant to Everyone is exactly what the invariant exists to rule out."""
+    import subprocess
+
+    private = paths.ensure_directory(tmp_path / "private")
+    place = private / "held.json"
+    paths.write_private(place, "{}")
+
+    finished = subprocess.run(
+        ["icacls", str(place), "/grant", "*S-1-1-0:(R)"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert finished.returncode == 0, finished.stderr
+
+    assert not paths.is_private(place)
+    with pytest.raises(CliFailure) as refused:
+        paths.read_private(place)
+    assert refused.value.code == "AI_STP_PRECONDITION_FAILED"
+
+
+def test_the_windows_privacy_module_imports_on_every_platform() -> None:
+    """POSIX imports it too: the guard is at the call, not at the import."""
+    from ai_stp_cli import windows_private
+
+    assert callable(windows_private.is_private)
+    assert callable(windows_private.make_private)
+
+
+def test_any_user_home_is_folded_out_of_stored_material(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`redact_home` answers for this process's home; stored facts need more.
+
+    Measured in a live registry: a device passport refreshed under a synthetic
+    HOME (an evidence slice, an isolated probe home) discovered executables
+    through PATH inside the real account's home, `redact_home` folded nothing,
+    and the stored `harness_installations` fact carried
+    `/home/<account>/.local/bin/...` — the account-name material a synced
+    passport exists to not carry.
+    """
+    from ai_stp_cli.paths import redact_any_home
+
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: Path("/tmp/synthetic-home")))
+
+    assert redact_any_home(Path("/home/someone/.local/bin/claude")) == "~/.local/bin/claude"
+    assert redact_any_home(Path("/Users/someone/.local/bin/pi")) == "~/.local/bin/pi"
+    assert redact_any_home("C:/Users/someone/AppData/Local/x") == "~/AppData/Local/x"
+    assert redact_any_home(Path("/root/.local/bin/codex")) == "~/.local/bin/codex"
+    # The process home still folds first, and impersonal paths stay whole.
+    assert redact_any_home(Path("/tmp/synthetic-home/data")) == "~/data"
+    assert redact_any_home(Path("/usr/local/bin/claude")) == "/usr/local/bin/claude"

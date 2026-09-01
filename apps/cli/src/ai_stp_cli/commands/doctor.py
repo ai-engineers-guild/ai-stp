@@ -340,6 +340,60 @@ def _provider_binding_check() -> DoctorCheck:
     )
 
 
+def _addressable_objects_check() -> DoctorCheck:
+    """Entities with no head revision: registered, and reachable by no command.
+
+    Every command that shows, edits, releases or forgets an object reaches it
+    through its head revision, so an entity minted without one is addressable by
+    nothing at all — `show` says it has no passport, `forget` says the same, and
+    the row stays in the registry forever. Two producers made them before
+    2026-09-01: `component fork` wrote an entity and its origin without a first
+    revision, and a bundle probe that failed between the mint and the write. Both
+    are closed; the rows they left are not.
+
+    Reported rather than repaired, and `ready` rather than `partial`, for the
+    reason `composition_passports` gives: the installation is sound, nothing a
+    caller does is affected, and a summary word that goes yellow for a harmless
+    leftover stops carrying information. Deleting them belongs to a command the
+    owner runs, not to a diagnostic — `doctor` is declared `read`, and a
+    read-only command that mutates local state is a defect this estate has
+    already paid for.
+    """
+    path = database.configured_path()
+    if not path.exists():
+        return DoctorCheck(
+            name="addressable_objects", state="ready", detail="no local registry yet"
+        )
+    try:
+        with closing(database.open_readonly(path)) as connection:
+            rows = connection.execute(
+                """
+                SELECT entity.stable_id, entity.kind
+                FROM entity
+                LEFT JOIN head ON head.stable_id = entity.stable_id
+                WHERE head.stable_id IS NULL
+                ORDER BY entity.created_at
+                """
+            ).fetchall()
+    except (CliFailure, sqlite3.Error) as failure:
+        return DoctorCheck(
+            name="addressable_objects", state="failed", detail=type(failure).__name__
+        )
+    if not rows:
+        return DoctorCheck(
+            name="addressable_objects", state="ready", detail="every object has a head revision"
+        )
+    kinds = sorted({str(row[1]) for row in rows})
+    return DoctorCheck(
+        name="addressable_objects",
+        state="ready",
+        detail=(
+            f"{len(rows)} object(s) hold no head revision and no command can reach them "
+            f"({', '.join(kinds)}); they are inert leftovers of producers closed on 2026-09-01"
+        ),
+    )
+
+
 def run(_parameters: Mapping[str, object]) -> Answer[DoctorReport]:
     """Look at everything this build can look at, and say what was found."""
     checks = [
@@ -353,6 +407,7 @@ def run(_parameters: Mapping[str, object]) -> Answer[DoctorReport]:
         _interrupted_operations_check(),
         _component_layout_check(),
         _composition_passports_check(),
+        _addressable_objects_check(),
         _provider_binding_check(),
     ]
     return Answer(DoctorReport(state=worst([check.state for check in checks]), checks=checks))

@@ -33,6 +33,10 @@ server {
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
+    # The client address the API resolves a coarse location from (SPEC-023
+    # REQ-2314). Set rather than forwarded: this directive replaces whatever the
+    # client sent, so the value cannot be chosen by the visitor it describes.
+    proxy_set_header X-AI-STP-Client-IP $remote_addr;
     proxy_read_timeout 300s;
     proxy_send_timeout 300s;
 

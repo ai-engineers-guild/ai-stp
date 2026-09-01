@@ -129,7 +129,7 @@ def eligible(parameters: Mapping[str, object]) -> Answer[EligibilityReport]:
             next_actions=["toolchain harnesses --json"],
         )
 
-    root = Path(str(parameters.get("project") or Path.cwd()))
+    root = _project_root(parameters)
     registry = configured_path()
     redistribution = bool(parameters.get("for-redistribution"))
     if not registry.exists():
@@ -172,8 +172,11 @@ def eligible_everywhere(parameters: Mapping[str, object]) -> Answer[EligibilityM
     silence. Installation is an input to running something, not to whether it
     may be composed.
     """
+    # `not named`, not `is None`: the option is repeatable, so Click delivers
+    # an omitted `--harness` as an empty tuple (`#384`), and the empty tuple
+    # means the same thing absence means — every supported harness.
     named = parameters.get("harness")
-    if named is None:
+    if not named:
         requested = tuple(sorted(HARNESS_IDS))
     else:
         supplied: tuple[object, ...] = (
@@ -195,7 +198,7 @@ def eligible_everywhere(parameters: Mapping[str, object]) -> Answer[EligibilityM
             )
         requested = tuple(sorted(set(requested)))
 
-    root = Path(str(parameters.get("project") or Path.cwd()))
+    root = _project_root(parameters)
     registry = configured_path()
     redistribution = bool(parameters.get("for-redistribution"))
     flagged = bool(parameters.get("include-unverified"))
@@ -266,7 +269,12 @@ def blast_radius(parameters: Mapping[str, object]) -> Answer[BlastRadiusReport]:
     component_version = str(parameters.get("component-version") or "")
     if not component_id or not component_version:
         raise CliFailure(
-            "AI_STP_VALIDATION_ERROR", "an exact component id and version are required"
+            "AI_STP_VALIDATION_ERROR",
+            "an exact component id and version are required",
+            next_actions=[
+                "component version list --id <stable_id> --json",
+                "select blast-radius --component-id <stable_id> --component-version <X.Y> --json",
+            ],
         )
     with closing(open_readonly(registry)) as connection:
         return Answer(
@@ -573,7 +581,7 @@ def propose(parameters: Mapping[str, object]) -> Answer[ProposalSession]:
     supplies the decision that freezes it.
     """
     harness = _harness_of(parameters)
-    root = Path(str(parameters.get("project") or Path.cwd()))
+    root = _project_root(parameters)
     wanted = _members_named(parameters)
     empty = parameters.get("empty") is True
 
@@ -581,7 +589,7 @@ def propose(parameters: Mapping[str, object]) -> Answer[ProposalSession]:
         context = context_for_project(connection, harness, root)
         at = moment()
         members = _resolve(connection, wanted, harness=harness, root=root)
-        selection.propose(
+        recorded = selection.propose(
             connection,
             context=context,
             members=members,
@@ -589,7 +597,7 @@ def propose(parameters: Mapping[str, object]) -> Answer[ProposalSession]:
             expires_at=_plus(at, PROPOSAL_TTL_SECONDS),
             empty=empty,
         )
-        return _session(connection, context, at)
+        return _session(connection, context, at, recorded=recorded.proposal_id)
 
     with closing(open_registry(configured_path(), create=True)) as connection:
         return Answer(work(connection))
@@ -602,13 +610,10 @@ def confirm(parameters: Mapping[str, object]) -> Answer[ConfirmationView]:
     returns the version already created rather than making a second one, which
     `REQ-624` makes a success and not a conflict.
 
-    The confirmation flag is checked here because `_require_declared_flags`
-    deliberately does not: a missing confirmation is a decision the user has not
-    made, which is `AI_STP_USER_DECISION_REQUIRED` and exit class 4, not a
-    malformed call. This command declared `explicit_flag` and then carried no
-    flag to check, so the one command whose whole purpose is the user's decision
-    was the only one of seventeen that never asked for it, and a bare call froze
-    an immutable version.
+    Naming the exact proposal is the decision. What this freezes is private,
+    local and reversible by composing again, so the `--confirm` flag it once
+    demanded beside the proposal was a second question about one answer — the
+    class `ADR-0118` removes rather than adds to.
     """
     proposal_id = str(parameters.get("proposal") or "")
     if not proposal_id:
@@ -616,14 +621,6 @@ def confirm(parameters: Mapping[str, object]) -> Answer[ConfirmationView]:
             "AI_STP_VALIDATION_ERROR",
             "the proposal being confirmed must be named",
             next_actions=["select propose --harness <id> --json"],
-        )
-    # After the proposal is known, not before: a call naming nothing is
-    # malformed, and only a well-formed call can be a decision left unmade.
-    if parameters.get("confirm") is not True:
-        raise CliFailure(
-            "AI_STP_USER_DECISION_REQUIRED",
-            "select confirm requires explicit confirmation",
-            next_actions=[f"select confirm --proposal {proposal_id} --confirm --json"],
         )
 
     def work(connection: sqlite3.Connection) -> ConfirmationView:
@@ -684,7 +681,7 @@ def cancel(parameters: Mapping[str, object]) -> Answer[ProposalSession]:
 def session(parameters: Mapping[str, object]) -> Answer[ProposalSession]:
     """What one project and harness currently has open, and what is selected."""
     harness = _harness_of(parameters)
-    root = Path(str(parameters.get("project") or Path.cwd()))
+    root = _project_root(parameters)
 
     def work(connection: sqlite3.Connection) -> ProposalSession:
         return _session(connection, context_for_project(connection, harness, root), moment())
@@ -699,6 +696,42 @@ def session(parameters: Mapping[str, object]) -> Answer[ProposalSession]:
         )
     with closing(open_readonly(registry)) as connection:
         return Answer(work(connection))
+
+
+def _project_root(parameters: Mapping[str, object]) -> Path:
+    """The directory `--project` names here, refused by name when it is not one.
+
+    `--project` is a **directory root** in this group and a **stable id** in
+    `target status/diff/backups/rollback`. One flag name, two types, and machine
+    help spells both with the same word — so an agent that has just read a
+    project's id and reaches for the next command has a natural way to be wrong.
+
+    Without this check that mistake produced an invented fact rather than a
+    refusal: `Path("project_01M1F…")` is a relative path, `.resolve()` anchored it
+    to the working directory, and the answer named
+    `<cwd>/project_01M1F…` as a project without a passport — a directory nobody
+    mentioned and that never existed — then offered
+    `project passport --root project_01M1F… --json`, which fails the same way.
+    Measured in the functional sweep of 2026-09-02.
+
+    An absent `--project` still means the working directory, which is the
+    ordinary case and stays untouched.
+    """
+    named = parameters.get("project")
+    if named is None or str(named) == "":
+        return Path.cwd()
+    root = Path(str(named))
+    if root.is_dir():
+        return root
+    raise CliFailure(
+        "AI_STP_VALIDATION_ERROR",
+        "this option names the project directory, not its stable id",
+        details={"project": str(named)},
+        next_actions=[
+            "select session --project <directory> --harness <id> --json",
+            "target status --project <stable id> --harness <id> --json",
+        ],
+    )
 
 
 def _harness_of(parameters: Mapping[str, object]) -> str:
@@ -875,7 +908,11 @@ def _root_of(connection: sqlite3.Connection, proposal: selection.Proposal) -> Pa
 
 
 def _session(
-    connection: sqlite3.Connection, context: selection.Context, now: str
+    connection: sqlite3.Connection,
+    context: selection.Context,
+    now: str,
+    *,
+    recorded: str | None = None,
 ) -> ProposalSession:
     pinned = selection.selected(
         connection, project_id=context.project_id, harness_id=context.harness_id
@@ -887,6 +924,7 @@ def _session(
         project_id=context.project_id,
         harness_id=context.harness_id,  # pyright: ignore[reportArgumentType]
         policy_version=context.policy_version,
+        proposal_id=recorded,
         proposals=[_proposal(item, now) for item in open_now],
         selected_stable_id=None if pinned is None else pinned[0],
         selected_version=None if pinned is None else pinned[1],
@@ -1294,12 +1332,38 @@ def harness_bundle(parameters: Mapping[str, object]) -> Answer[HarnessBundle]:
             "the composition being bundled must be named",
             next_actions=["select session --harness <id> --json"],
         )
+    host_root = _bundle_host_root(parameters)
 
     def work(connection: sqlite3.Connection) -> HarnessBundle:
-        return _bundle_view(compile_harness_bundle(connection, proposal_id, harness), harness)
+        return _bundle_view(
+            compile_harness_bundle(connection, proposal_id, harness, host_root=host_root), harness
+        )
 
     with closing(open_readonly(configured_path())) as connection:
         return Answer(work(connection))
+
+
+def _bundle_host_root(parameters: Mapping[str, object]) -> Path | None:
+    """The installing machine's target, when the caller names one.
+
+    A composition holding a contribution to a file the provider owns needs
+    that file's current bytes, and they exist only on the target (`ADR-0129`).
+    `install plan` has always taken one; `select bundle` declared none, so a
+    composition with an `mcp` server for codex could be planned and installed
+    but never bundled on its own — a dead end between two commands. The same
+    shape `install plan` accepts: an existing absolute directory, not a link.
+    """
+    given = str(parameters.get("target") or "")
+    if not given:
+        return None
+    place = Path(given).expanduser()
+    if place.is_symlink() or not place.is_absolute() or not place.is_dir():
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "the provider target must be an existing absolute directory, not a symlink",
+            details={"target": redact_home(place)},
+        )
+    return place.resolve()
 
 
 def compile_harness_bundle(
@@ -1724,7 +1788,10 @@ def _bundle_sources(
                         "host": rule.relative,
                         "key": rule.declared_key,
                     },
-                    next_actions=["install plan --target <directory> --json"],
+                    next_actions=[
+                        "select bundle --target <directory> --json",
+                        "install plan --target <directory> --json",
+                    ],
                 )
             contributions.append((rule, item.stable_id, expanded[0]))
             continue

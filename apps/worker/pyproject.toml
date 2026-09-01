@@ -1,6 +1,6 @@
 [project]
 name = "ai-stp-worker"
-version = "0.0.13"
+version = "0.0.14"
 description = "Background worker: custom PostgreSQL job queue runner with bounded polling and graceful drain."
 requires-python = ">=3.12"
 dependencies = [

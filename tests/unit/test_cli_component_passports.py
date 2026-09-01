@@ -515,7 +515,9 @@ def test_the_passport_commands_refuse_before_they_open_the_registry(tmp_path: Pa
         )
     assert refused.value.code == "AI_STP_NOT_FOUND"
 
-    with pytest.raises(CliFailure, match="profile must be selected"):
+    # `--for-publication` names the only profile and is no longer demanded;
+    # the first refusal is the registry that is not there.
+    with pytest.raises(CliFailure, match="registry does not exist"):
         command.passport_validate({"id": stable_id})
 
 
@@ -591,13 +593,13 @@ def test_impact_loads_a_released_draft_shaped_passport_instead_of_refusing_it(
     # are `selection_report` and `blast_radius`, and both need a whole setup
     # graph to say anything about one component's passport. Suppressed the way
     # the rest of the suite does it.
-    coordinate, passport, _payload, _format = impact._component(  # pyright: ignore[reportPrivateUsage]
+    coordinate, facts, _payload = impact._component(  # pyright: ignore[reportPrivateUsage]
         registry, original.stable_id, "1.0", None
     )
 
     assert coordinate.version == "1.0"
-    assert passport.version == "1.0"
-    assert verify_revision_id(passport)
+    assert facts.component_type == "skill"
+    assert facts.artifact_digest.startswith("sha256:")
 
 
 def test_a_publication_passport_is_built_from_the_exact_released_revision(

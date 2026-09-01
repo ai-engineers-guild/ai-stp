@@ -135,14 +135,13 @@ _REPLACEMENT_OPTIONS: Final[tuple[CommandParameter, ...]] = (
     ),
 )
 
-#: What `apply` adds: the plan's exact digest and an explicit confirmation. Both
-#: required, so a confirmation can only ever be of something already described.
+#: What `apply` adds: the plan's exact digest, required, so what is carried out
+#: can only ever be something already described. The digest is the confirmation
+#: (`ADR-0118`): it says *which* replacement, where a boolean beside it said
+#: only "yes" and asked a second time for the same decision.
 _CONFIRMED_OPTIONS: Final[tuple[CommandParameter, ...]] = (
     *_REPLACEMENT_OPTIONS,
     option("expected-plan-digest", "string", "Exact digest returned by the plan.", required=True),
-    option(
-        "confirm", "boolean", "Confirm the exact replacement the plan described.", required=True
-    ),
 )
 
 _VERSION_OPTION: Final[CommandParameter] = option(
@@ -837,6 +836,18 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         parameters=(
             option("path", "string", "Exact path discovery reported.", required=True),
             option("root", "string", "Project root the component was discovered under."),
+            option(
+                "harness",
+                "string",
+                "Harness whose claim of this path to adopt; "
+                "`portable` selects the shared cross-product claim.",
+            ),
+            option(
+                "kind",
+                "string",
+                "Component kind whose claim of this path to adopt, "
+                "for a file one harness claims as two kinds.",
+            ),
         ),
         next_actions=("component passport show", "component discover"),
     ),
@@ -889,8 +900,8 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "for-publication",
                 "boolean",
-                "Select the strict public-publication readiness profile.",
-                required=True,
+                "The public-publication readiness profile, which is the profile this "
+                "command applies; accepted so an older caller's spelling still parses.",
             ),
         ),
         next_actions=("component passport update", "component version release"),
@@ -970,11 +981,11 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         handler="component:version_release",
         mutability="apply",
         # A major line is a separate access boundary, so asking for one needs a
-        # decision rather than a flag that defaults to yes.
+        # decision rather than a flag that defaults to yes. `--major` is that
+        # decision; a second flag repeating it asked the same question twice.
         parameters=(
             option("id", "string", "Stable identifier of a registered object.", required=True),
             option("major", "boolean", "Open the next major line instead of the next minor."),
-            option("confirm", "boolean", "The explicit decision a major line requires."),
         ),
         next_actions=("component version list",),
     ),
@@ -1132,8 +1143,8 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "agent",
                 "boolean",
-                "Required. Selects the machine registry rather than usage text.",
-                required=True,
+                "Names the caller. The machine registry is the only answer this "
+                "command has, with or without it.",
             ),
         ),
         next_actions=("capabilities",),
@@ -1773,19 +1784,12 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         summary="Freeze one proposal as a private setup version, its trace and its pin.",
         result_schema="urn:ai-stp:schema:v1:cli-confirmation",
         handler="select:confirm",
-        # The only path from a shown composition to a stored object, and the
-        # user's decision is what authorises it.
+        # The only path from a shown composition to a stored object. Calling it
+        # with the exact proposal is the decision: what it freezes is private,
+        # local and reversible by composing again, so a flag repeating the
+        # verb was a second question about one answer (`ADR-0118`).
         mutability="apply",
-        confirmation="explicit_flag",
-        parameters=(
-            option("proposal", "string", "The proposal being confirmed.", required=True),
-            option(
-                "confirm",
-                "boolean",
-                "Confirm freezing this exact proposal as a setup version.",
-                required=True,
-            ),
-        ),
+        parameters=(option("proposal", "string", "The proposal being confirmed.", required=True),),
         next_actions=("select session",),
     ),
     Declaration(
@@ -1836,6 +1840,13 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("harness", "string", "The harness being composed for.", required=True),
             option("proposal", "string", "The composition being bundled.", required=True),
             option("project", "string", "Project root whose facts the target is built from."),
+            option(
+                "target",
+                "string",
+                "Existing absolute provider target directory. Needed when a member "
+                "contributes a key to a file the provider owns there: the host file's "
+                "current bytes exist only on the target.",
+            ),
         ),
         next_actions=("select reports",),
     ),
@@ -2006,11 +2017,18 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
             option("provider", "string", "Provider executable, to read the target as it is now."),
             option(
+                "provider-manifest",
+                "string",
+                "Signed provider release manifest proving these exact bytes. "
+                "Optional: the release this pair was last verified under is read "
+                "from the journal when the named executable is its exact bytes.",
+            ),
+            option(
                 "protocol-version",
                 "integer",
-                "Provider protocol selected before invocation. A trusted "
-                "release manifest selects it; without one this defaults to "
-                "frozen v1.",
+                "Provider protocol selected before invocation. A signed release "
+                "selects it, named or recorded; without one the read asks in v3, "
+                "the protocol released providers speak.",
             ),
             option(
                 "unverified-provider",
@@ -2112,11 +2130,18 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
             option("provider", "string", "Provider executable, to read the target as it is now."),
             option(
+                "provider-manifest",
+                "string",
+                "Signed provider release manifest proving these exact bytes. "
+                "Optional: the release this pair was last verified under is read "
+                "from the journal when the named executable is its exact bytes.",
+            ),
+            option(
                 "protocol-version",
                 "integer",
-                "Provider protocol selected before invocation. A trusted "
-                "release manifest selects it; without one this defaults to "
-                "frozen v1.",
+                "Provider protocol selected before invocation. A signed release "
+                "selects it, named or recorded; without one the read asks in v3, "
+                "the protocol released providers speak.",
             ),
             option(
                 "unverified-provider",
@@ -2187,18 +2212,25 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "Provider executable, to also report which copies still exist and are held.",
             ),
             option(
+                "provider-manifest",
+                "string",
+                "Signed provider release manifest proving these exact bytes. "
+                "Optional: the release this pair was last verified under is read "
+                "from the journal when the named executable is its exact bytes.",
+            ),
+            option(
                 "protocol-version",
                 "integer",
-                "Provider protocol selected before invocation. A trusted "
-                "release manifest selects it; without one this defaults to "
-                "frozen v1.",
+                "Provider protocol selected before invocation. A signed release "
+                "selects it, named or recorded; without one the read asks in v3, "
+                "the protocol released providers speak.",
             ),
             option(
                 "unverified-provider",
                 "boolean",
                 "Read through an executable no signed or attested release covers. "
-                "On Windows this is also what lets the read run at all, since no "
-                "launcher there can deny the network. Elsewhere it changes nothing.",
+                "It does not relax isolation: the read still runs under the "
+                "launcher its system proved.",
             ),
             option(
                 "target",
@@ -2456,6 +2488,12 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 required=True,
             ),
             option("target", "string", "Which target the backup was taken from."),
+            option(
+                "partial",
+                "boolean",
+                "Register even though some files were left out; the passport records "
+                "the mode and the exact paths.",
+            ),
         ),
         next_actions=("component find",),
     ),
@@ -2536,6 +2574,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-provider-replacement-result",
         handler="provider:update_apply",
         mutability="apply",
+        confirmation="plan_digest",
         parameters=_CONFIRMED_OPTIONS,
         next_actions=("provider check", "provider conformance"),
     ),
@@ -2555,6 +2594,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-provider-replacement-result",
         handler="provider:reinstall_apply",
         mutability="apply",
+        confirmation="plan_digest",
         parameters=(*_CONFIRMED_OPTIONS, _VERSION_OPTION),
         next_actions=("provider check", "provider conformance"),
     ),
@@ -2652,7 +2692,19 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         # skill this installation did not write.
         mutability="apply",
         parameters=(
-            option("target", "string", "Directory the harness reads its native skill from."),
+            option(
+                "target",
+                "string",
+                "Directory the harness reads its native skill from.",
+                # Declared required because the handler has always treated it so:
+                # `_target` refuses `AI_STP_VALIDATION_ERROR` the moment it is
+                # absent, with no configured fallback to fall back to. Machine
+                # help said optional, so an agent building argv from the
+                # declaration met a stop the declaration had told it could not
+                # happen — the hidden-`confirm` shape, one field over. Behaviour
+                # is unchanged; only the declaration stops lying.
+                required=True,
+            ),
             option(
                 "harness",
                 "string",
@@ -2668,7 +2720,19 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         handler="skill:remove",
         mutability="apply",
         parameters=(
-            option("target", "string", "Directory the harness reads its native skill from."),
+            option(
+                "target",
+                "string",
+                "Directory the harness reads its native skill from.",
+                # Declared required because the handler has always treated it so:
+                # `_target` refuses `AI_STP_VALIDATION_ERROR` the moment it is
+                # absent, with no configured fallback to fall back to. Machine
+                # help said optional, so an agent building argv from the
+                # declaration met a stop the declaration had told it could not
+                # happen — the hidden-`confirm` shape, one field over. Behaviour
+                # is unchanged; only the declaration stops lying.
+                required=True,
+            ),
         ),
         next_actions=("skill status",),
     ),
@@ -2678,7 +2742,19 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-skill-delivery",
         handler="skill:status",
         parameters=(
-            option("target", "string", "Directory the harness reads its native skill from."),
+            option(
+                "target",
+                "string",
+                "Directory the harness reads its native skill from.",
+                # Declared required because the handler has always treated it so:
+                # `_target` refuses `AI_STP_VALIDATION_ERROR` the moment it is
+                # absent, with no configured fallback to fall back to. Machine
+                # help said optional, so an agent building argv from the
+                # declaration met a stop the declaration had told it could not
+                # happen — the hidden-`confirm` shape, one field over. Behaviour
+                # is unchanged; only the declaration stops lying.
+                required=True,
+            ),
         ),
         next_actions=("capabilities",),
     ),

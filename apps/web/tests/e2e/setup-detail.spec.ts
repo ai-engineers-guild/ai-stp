@@ -78,15 +78,15 @@ test.describe("setup detail composition", () => {
     ).toBeVisible();
   });
 
-  test("groups identity, pinned composition, compatibility, author and history", async ({
+  test("groups identity, components, context budget, author and history", async ({
     page,
     context,
   }) => {
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     await expect(page.getByRole("heading", { name: "Description" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: /Pinned components/ })).toBeVisible();
-    await page.getByRole("button", { name: /Pinned components/ }).click();
-    await expect(page.getByRole("heading", { name: /Compatibility/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Components" })).toBeVisible();
+    await page.getByRole("button", { name: "Components" }).click();
+    await expect(page.getByRole("heading", { name: /Compatibility/ })).toHaveCount(0);
     await expectContextBudgetInRightRail(page);
     await expect(page.getByText("ai-stp select impact")).toHaveCount(0);
     await expect(page.locator('a[href^="/en/catalog/components/"]')).toHaveCount(4);

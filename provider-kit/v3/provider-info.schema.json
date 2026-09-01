@@ -18,6 +18,7 @@
     "plan_request_fields": {
       "items": {
         "enum": [
+          "end_state",
           "target_scope"
         ],
         "type": "string"

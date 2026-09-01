@@ -629,6 +629,44 @@
         "stars": null,
         "archived": null
       }
+    },
+    {
+      "case_id": "readComponentContextBudget.estimated",
+      "operation_id": "readComponentContextBudget",
+      "kind": "positive",
+      "why": "A component context budget reports the bounded estimate and loading mode.",
+      "request": {
+        "path_params": {
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.2"
+        },
+        "query": {
+          "estimator_profile": "ai-stp:unicode-chars-div4/1"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "coordinate": {
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.2",
+          "passport_digest": "sha256:a0b29e900e8e1f0a5269a5094500cebc1829dc346b1f0147c5e6603eeddb79c5"
+        },
+        "estimator": {
+          "schema_version": 1,
+          "profile": "ai-stp:unicode-chars-div4/1",
+          "accuracy": "estimated",
+          "method": "unicode_codepoints_div_4",
+          "model": null,
+          "local_only": true
+        },
+        "component_type": "skill",
+        "loading": "conditional",
+        "tokens": 256,
+        "utf8_bytes": 1024,
+        "status": "estimated",
+        "reason": null
+      }
     }
   ]
 }

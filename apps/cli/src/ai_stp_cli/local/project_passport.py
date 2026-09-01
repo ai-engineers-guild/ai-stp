@@ -27,8 +27,9 @@ from pathlib import Path
 from typing import Final, cast
 
 from ai_stp_cli.local import journal, project_index, revisions, symbols
+from ai_stp_cli.local.database import transaction
 from ai_stp_cli.local.passports import carry_unchanged, moment, owner
-from ai_stp_cli.paths import redact_home
+from ai_stp_cli.paths import redact_any_home
 from ai_stp_cli.toolchain import install
 from ai_stp_cli.toolchain import load as load_manifest
 from ai_stp_foundation.canonical import JsonValue
@@ -88,17 +89,25 @@ def scan(connection: sqlite3.Connection, root: Path) -> Scan:
         index.root, [(item.path, item.language) for item in index.entries if item.language]
     )
 
-    known = stable_id_for(connection, index.root)
-    if known is None:
-        known = new_id("project")
-        connection.execute(
-            "INSERT INTO entity (stable_id, kind, created_at) VALUES (?, 'project', ?)",
-            (known, moment()),
-        )
-        connection.execute(
-            "INSERT INTO project_root (root, stable_id) VALUES (?, ?)",
-            (str(index.root), known),
-        )
+    # The filesystem reading above runs outside any lock — it is slow and
+    # touches no shared state. The identity claim below runs under
+    # `BEGIN IMMEDIATE`: two concurrent scans of one root used to both find no
+    # mapping, both mint, and the loser died on the naked PRIMARY KEY conflict
+    # as `AI_STP_INTERNAL` — leaving its entity row behind as an orphan no
+    # command can address. Under the write lock the second scan's lookup runs
+    # after the first one's commit and adopts the same identity.
+    with transaction(connection):
+        known = stable_id_for(connection, index.root)
+        if known is None:
+            known = new_id("project")
+            connection.execute(
+                "INSERT INTO entity (stable_id, kind, created_at) VALUES (?, 'project', ?)",
+                (known, moment()),
+            )
+            connection.execute(
+                "INSERT INTO project_root (root, stable_id) VALUES (?, ?)",
+                (str(index.root), known),
+            )
 
     return Scan(
         root=index.root,
@@ -123,34 +132,58 @@ def record(
     disagree with the store and this cannot.
     """
     at = moment()
-    previous = revisions.head(connection, found.stable_id)
-    content = _content(found, at, previous)
-    if (
-        previous is not None
-        and previous.envelope.model_dump(mode="json")["facts"] == (content["facts"])
-    ):
-        # Nothing observed has changed. Committing anyway would store a revision
-        # whose only difference is when it was written, and `SPEC-003` REQ-312
-        # is explicit that a re-scan must not manufacture history.
-        return previous
-
-    operation_id = journal.begin(connection, "passport.project.record", at)
+    # One write transaction from reading the heads to committing the child.
+    # Read outside it, two concurrent recorders both saw no head and both
+    # committed a parentless root — a fork nothing raced for. Under
+    # `BEGIN IMMEDIATE` the second recorder reads the first one's head and
+    # threads it as a parent, which is the whole point of the parent chain.
     try:
-        stored = revisions.commit(
-            connection,
-            content,
-            device_id=device_id,
-            operation_id=operation_id,
-        )
+        with transaction(connection):
+            # Every head, not `head()`: that helper refuses a forked object,
+            # and a scan is exactly the thing that can converge one — it
+            # states the whole current truth of the filesystem, so it
+            # supersedes every open line at once.
+            current = revisions.heads(connection, found.stable_id)
+            previous = current[-1] if current else None
+            content = _content(found, at, previous, parents=[item.revision_id for item in current])
+            if (
+                len(current) == 1
+                and previous is not None
+                and previous.envelope.model_dump(mode="json")["facts"] == (content["facts"])
+            ):
+                # Nothing observed has changed. Committing anyway would store
+                # a revision whose only difference is when it was written, and
+                # `SPEC-003` REQ-312 is explicit that a re-scan must not
+                # manufacture history. With more than one head the commit
+                # happens even for equal facts, because its purpose is then
+                # the convergence itself.
+                return previous
+
+            operation_id = journal.begin(connection, "passport.project.record", at)
+            stored = revisions.commit(
+                connection,
+                content,
+                device_id=device_id,
+                operation_id=operation_id,
+            )
+            journal.settle(connection, operation_id, "verified", moment())
+            return stored
     except BaseException as error:
-        journal.settle(connection, operation_id, "failed", moment(), type(error).__name__)
+        # The transaction rolled the attempt back, the begun operation row
+        # included. Record the failure durably on its own: an operation that
+        # started and neither finished nor failed is worse than one that
+        # failed, because a later reader cannot tell it from one still running.
+        failed = journal.begin(connection, "passport.project.record", at)
+        journal.settle(connection, failed, "failed", moment(), type(error).__name__)
         raise
-    journal.settle(connection, operation_id, "verified", moment())
-    return stored
 
 
 def _content(
-    found: Scan, at: str, previous: revisions.StoredRevision | None
+    found: Scan,
+    at: str,
+    previous: revisions.StoredRevision | None,
+    *,
+    parents: list[str],
 ) -> dict[str, JsonValue]:
     """The passport content itself, which stays on this machine.
 
@@ -165,7 +198,7 @@ def _content(
     something a project's identity needs to carry.
     """
     facts: dict[str, JsonValue] = {
-        "root": _fact(redact_home(found.root), at),
+        "root": _fact(redact_any_home(found.root), at),
         "index_digest": _fact(found.index_digest, at),
         "toolchain_digest": _fact(found.toolchain_digest, at),
         "configuration_digest": _fact(found.configuration_digest, at),
@@ -184,7 +217,11 @@ def _content(
         "owner_id": owner().account_id,
         "created_at": at,
         "visibility": "private",
-        "parent_revision_ids": [],
+        # The heads this scan supersedes. This used to be hardcoded empty, so
+        # the first legitimate change committed a second parentless root: two
+        # heads, composition refused with "needs a merge", and no command able
+        # to perform one for a project.
+        "parent_revision_ids": cast(JsonValue, parents),
         "facts": facts,
     }
 

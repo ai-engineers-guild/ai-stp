@@ -121,6 +121,38 @@ def error_code(envelope: Mapping[str, Any]) -> str:
     return code if isinstance(code, str) else ""
 
 
+def error_details(envelope: Mapping[str, Any]) -> dict[str, Any]:
+    """The refusal's typed details, or an empty mapping when there are none.
+
+    Details are where a refusal carries its evidence — for a postcondition
+    miss, *which* reading disagreed — and they are typed product output that
+    redacts home paths at the source, same as the message beside them.
+    """
+    held = envelope.get("error")
+    if not isinstance(held, dict):
+        return {}
+    details = cast(dict[str, Any], held).get("details")
+    return cast(dict[str, Any], details) if isinstance(details, dict) else {}
+
+
+def error_message(envelope: Mapping[str, Any]) -> str:
+    """The refusal's sentence, or an empty string when the call succeeded.
+
+    A code names the class and the message names the instance. The first
+    windows/x86_64 consumer run failed one harness with a bare
+    `AI_STP_PRECONDITION_FAILED` — a code with over twenty sources in the
+    install path — and the row could not say which one, so the diagnosis had
+    to wait for a second run. Messages are typed product output and redact
+    home paths at the source; keeping them costs nothing a report may not
+    hold, and `without_credentials` still refuses anything that slips.
+    """
+    held = envelope.get("error")
+    if not isinstance(held, dict):
+        return ""
+    message = cast(dict[str, Any], held).get("message")
+    return message if isinstance(message, str) else ""
+
+
 def without_credentials(report: dict[str, Any]) -> dict[str, Any]:
     """Refuse to print a report that gained something no artefact may hold."""
     serialised = json.dumps(report).lower()

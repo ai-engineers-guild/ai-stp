@@ -3,7 +3,7 @@ description: "Decision to materialize exact external and local component snapsho
 last_verified: "2026-08-31"
 ---
 
-# ADR-0139: Embedded component source snapshots
+# ADR-0140: Embedded component source snapshots
 
 Status: accepted.
 

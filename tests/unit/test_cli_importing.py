@@ -1,6 +1,7 @@
 """Importing native configuration: read-only, secret-free, and honest about it."""
 
 import json
+import os
 import sqlite3
 from collections.abc import Iterator
 from contextlib import closing
@@ -9,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import importing, revisions
+from ai_stp_cli.local import importing, revisions, versions
 from ai_stp_cli.local.database import configured_path, open_registry
 
 AT = "2026-08-08T10:00:00.000Z"
@@ -62,7 +63,7 @@ def _backup(connection: sqlite3.Connection, harness_id: str = "claude-code") -> 
         connection,
         harness_id=harness_id,
         target_id="pair_1",
-        provider_ref="provider://backup/2026-08-08",
+        provider_ref="slot-202608080000",
         at=AT,
     ).backup_id
 
@@ -225,7 +226,7 @@ def test_a_backup_holds_a_reference_and_never_bytes(registry: sqlite3.Connection
     backup_id = _backup(registry)
     held = importing.backup(registry, backup_id)
     assert held is not None
-    assert held.provider_ref == "provider://backup/2026-08-08"
+    assert held.provider_ref == "slot-202608080000"
     columns = {str(row[1]) for row in registry.execute("PRAGMA table_info(backup_ref)").fetchall()}
     assert "bytes" not in columns, "the provider owns the backup; two owners cannot both restore"
 
@@ -384,10 +385,10 @@ def test_a_configuration_with_an_unread_file_is_not_registered(
     assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
 
 
-def test_an_oversized_file_does_not_prevent_registration(
+def test_a_capture_that_leaves_files_out_is_complete_or_refused(
     registry: sqlite3.Connection, native: Path
 ) -> None:
-    """The size bound is a declared exclusion, not a gap in what was seen."""
+    """Registering part of a configuration as the whole of one needs saying so."""
     huge = native / "huge.json"
     huge.write_text("x" * (importing.MAX_FILE_BYTES + 1), encoding="utf-8")
     backup_id = _backup(registry)
@@ -395,13 +396,72 @@ def test_an_oversized_file_does_not_prevent_registration(
     assert found.oversized == ("huge.json",)
     assert found.unreadable == ()
 
+    with pytest.raises(CliFailure) as refused:
+        importing.register(
+            registry, found, backup_id=backup_id, owner_id=OWNER, device_id=DEVICE, at=AT
+        )
+    assert refused.value.code == "AI_STP_PRECONDITION_FAILED"
+    assert "huge.json" in str(refused.value.details.get("skipped", ""))
+
+
+def test_a_partial_capture_registers_and_records_what_it_left_out(
+    registry: sqlite3.Connection, native: Path
+) -> None:
+    """`partial` is the operator saying it out loud, and the passport keeps it."""
+    huge = native / "huge.json"
+    huge.write_text("x" * (importing.MAX_FILE_BYTES + 1), encoding="utf-8")
+    backup_id = _backup(registry)
+    found = importing.inspect(native, harness_id="claude-code")
+
+    imported = importing.register(
+        registry,
+        found,
+        backup_id=backup_id,
+        owner_id=OWNER,
+        device_id=DEVICE,
+        at=AT,
+        partial=True,
+    )
+    assert imported.stable_id
+    stored = revisions.head(registry, imported.stable_id)
+    assert stored is not None
+    facts = stored.envelope.model_dump(mode="json")["facts"]
+    assert facts["capture_mode"]["value"] == "partial"
+    assert facts["excluded_paths"]["value"] == ["huge.json"]
+
+
+def test_a_complete_capture_says_so_in_its_passport(
+    registry: sqlite3.Connection, native: Path
+) -> None:
+    backup_id = _backup(registry)
+    found = importing.inspect(native, harness_id="claude-code")
     imported = importing.register(
         registry, found, backup_id=backup_id, owner_id=OWNER, device_id=DEVICE, at=AT
     )
-    # Previously this raised AI_STP_PRECONDITION_FAILED, which made any harness
-    # root holding a cache blob impossible to import at all.
-    assert imported.stable_id
-    assert imported.backup_id == backup_id
+    stored = revisions.head(registry, imported.stable_id)
+    assert stored is not None
+    facts = stored.envelope.model_dump(mode="json")["facts"]
+    assert facts["capture_mode"]["value"] == "complete"
+    assert "excluded_paths" not in facts
+    # The versions the capture was captured with and against are pinned facts:
+    # the instrument always, the harness build when one answered, and an empty
+    # harness version is the honest record of a tree imported where the
+    # harness itself is not installed.
+    assert facts["capture_tool_version"]["value"].startswith("ai-stp-cli=")
+    assert facts["harness_version"]["value"] == ""
+    imported_again = importing.register(
+        registry,
+        found,
+        backup_id=_backup(registry),
+        owner_id=OWNER,
+        device_id=DEVICE,
+        at=AT,
+        harness_version="2.1.223",
+    )
+    pinned = revisions.head(registry, imported_again.stable_id)
+    assert pinned is not None
+    held = pinned.envelope.model_dump(mode="json")["facts"]
+    assert held["harness_version"]["value"] == "2.1.223"
 
 
 def test_an_unreadable_file_is_not_the_same_as_a_clean_one(native: Path, unreadable: None) -> None:
@@ -495,7 +555,7 @@ def test_the_register_command_stores_no_secret(registry: sqlite3.Connection, nat
         {
             "root": str(native),
             "harness": "claude-code",
-            "backup-ref": "provider://backup/2026-08-08",
+            "backup-ref": "slot-202608080000",
             "plan-digest": digest,
             "confirm": True,
         }
@@ -527,7 +587,7 @@ def test_graph_registration_refuses_a_changed_plan_and_leaves_no_backup(
             {
                 "root": str(native),
                 "harness": "claude-code",
-                "backup-ref": "provider://backup/stale",
+                "backup-ref": "slot-000000000009",
                 "plan-digest": digest,
                 "confirm": True,
             }
@@ -553,7 +613,7 @@ def test_graph_registration_requires_the_exact_plan_digest(native: Path) -> None
     base = {
         "root": str(native),
         "harness": "claude-code",
-        "backup-ref": "provider://backup/unconfirmed",
+        "backup-ref": "slot-000000000007",
     }
     with pytest.raises(CliFailure) as missing:
         project.import_register(base)
@@ -741,3 +801,516 @@ def test_an_environment_block_keeps_its_names_and_loses_every_value() -> None:
     # And the command beside it is untouched: this is a rule about one map.
     assert document["mcpServers"]["demo"]["command"] == "node"
     assert "mcpServers.demo.env.GITHUB_TOKEN" in names
+
+
+# The catalogue is the one owner of what a native path means (`ADR-0138`).
+# Every row here was a real misclassification before import consumed it: the
+# review of 2026-09-01 tabled them, and each was verified against the code
+# before the resolver replaced the five-name guess.
+def _classified(root: Path, harness_id: str) -> dict[str, str]:
+    planned = importing.plan(importing.inspect(root, harness_id=harness_id))
+    return {path: item.component_type for item in planned.components for path in item.paths}
+
+
+def test_codex_surfaces_classify_by_the_catalogue(tmp_path: Path) -> None:
+    root = tmp_path / "codex"
+    (root / "prompts").mkdir(parents=True)
+    (root / "prompts" / "deploy.md").write_text("ship\n", encoding="utf-8")
+    (root / "agents").mkdir()
+    (root / "agents" / "reviewer.toml").write_text('description = "r"\n', encoding="utf-8")
+    (root / "AGENTS.md").write_text("# floor\n", encoding="utf-8")
+    (root / "config.toml").write_text(
+        'model = "gpt"\n[mcp_servers.github]\ncommand = "gh-mcp"\n', encoding="utf-8"
+    )
+
+    kinds = _classified(root, "codex")
+    assert kinds["prompts/deploy.md"] == "command"
+    assert kinds["agents/reviewer.toml"] == "agent"
+    assert kinds["AGENTS.md"] == "instruction"
+
+    planned = importing.plan(importing.inspect(root, harness_id="codex"))
+    types = sorted((item.component_type, item.declared_key) for item in planned.components)
+    assert ("setting", "") in types
+    assert ("mcp", "mcp_servers") in types
+    mcp = next(item for item in planned.components if item.component_type == "mcp")
+    assert mcp.entry_names == ("github",)
+    assert mcp.paths == ("config.toml",)
+
+
+def test_claude_rules_and_hooks_in_settings_classify_by_the_catalogue(tmp_path: Path) -> None:
+    root = tmp_path / "claude"
+    (root / "rules").mkdir(parents=True)
+    (root / "rules" / "style.md").write_text("no hacks\n", encoding="utf-8")
+    (root / "settings.json").write_text(
+        json.dumps({"model": "claude", "hooks": {"PreToolUse": []}}), encoding="utf-8"
+    )
+
+    kinds = _classified(root, "claude-code")
+    assert kinds["rules/style.md"] == "instruction"
+    planned = importing.plan(importing.inspect(root, harness_id="claude-code"))
+    settings_kinds = {
+        item.component_type for item in planned.components if "settings.json" in item.paths
+    }
+    assert settings_kinds == {"setting", "hook"}
+    hook = next(item for item in planned.components if item.component_type == "hook")
+    assert hook.declared_key == "hooks"
+    assert hook.entry_names == ("PreToolUse",)
+
+
+def test_pi_extensions_and_prompts_classify_by_the_catalogue(tmp_path: Path) -> None:
+    root = tmp_path / "pi"
+    (root / "extensions" / "bridge").mkdir(parents=True)
+    (root / "extensions" / "bridge" / "manifest.json").write_text("{}", encoding="utf-8")
+    (root / "prompts").mkdir()
+    (root / "prompts" / "fix.md").write_text("fix\n", encoding="utf-8")
+
+    kinds = _classified(root, "pi")
+    assert kinds["extensions/bridge/manifest.json"] == "plugin"
+    assert kinds["prompts/fix.md"] == "command"
+
+
+def test_antigravity_workflows_and_hooks_classify_by_the_catalogue(tmp_path: Path) -> None:
+    root = tmp_path / "gemini"
+    (root / "config" / "global_workflows").mkdir(parents=True)
+    (root / "config" / "global_workflows" / "release.md").write_text("go\n", encoding="utf-8")
+    (root / "config" / "hooks.json").write_text("{}", encoding="utf-8")
+
+    kinds = _classified(root, "antigravity")
+    assert kinds["config/global_workflows/release.md"] == "command"
+    assert kinds["config/hooks.json"] == "hook"
+
+
+def test_cursor_local_plugins_are_one_component_each(tmp_path: Path) -> None:
+    root = tmp_path / "cursor"
+    for name in ("alpha", "beta"):
+        place = root / "plugins" / "local" / name / ".cursor-plugin"
+        place.mkdir(parents=True)
+        (place / "plugin.json").write_text("{}", encoding="utf-8")
+    (root / "rules").mkdir()
+    (root / "rules" / "tone.mdc").write_text("calm\n", encoding="utf-8")
+    (root / "hooks.json").write_text("{}", encoding="utf-8")
+
+    planned = importing.plan(importing.inspect(root, harness_id="cursor"))
+    plugins = [item for item in planned.components if item.component_type == "plugin"]
+    assert len(plugins) == 2
+    assert {item.paths[0].split("/")[2] for item in plugins} == {"alpha", "beta"}
+    kinds = _classified(root, "cursor")
+    assert kinds["rules/tone.mdc"] == "instruction"
+    assert kinds["hooks.json"] == "hook"
+
+
+def test_grok_toml_mcp_is_a_contribution_and_its_artifact_is_the_key(
+    registry: sqlite3.Connection, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The registered artifact holds the servers, scrubbed — never the file."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    root = tmp_path / "grok"
+    root.mkdir()
+    (root / "config.toml").write_text(
+        "# the person's own comment\n"
+        'model = "grok-4"\n'
+        "[mcp_servers.github]\n"
+        'command = "gh-mcp"\n'
+        "[mcp_servers.github.env]\n"
+        f'GITHUB_TOKEN = "{SECRET}"\n',
+        encoding="utf-8",
+    )
+    found = importing.inspect(root, harness_id="grok-build")
+    planned = importing.plan(found)
+    imported = importing.register_graph(
+        registry,
+        found,
+        expected_plan_digest=planned.plan_digest,
+        target_id="pair_grok",
+        provider_ref="slot-202609010000",
+        owner_id=OWNER,
+        device_id=DEVICE,
+        at=AT,
+    )
+    assert len(imported.component_ids) == 2
+
+    from ai_stp_cli.local import content as content_store
+
+    artifacts: dict[str, str] = {}
+    for component_id in imported.component_ids:
+        stored = revisions.head(registry, component_id)
+        assert stored is not None
+        facts = stored.envelope.model_dump(mode="json")["facts"]
+        digest = facts["content_digest"]["value"]
+        payload = content_store.get(registry, digest)
+        assert payload is not None
+        artifacts[facts["component_type"]["value"]] = payload.decode("utf-8")
+        if facts["component_type"]["value"] == "mcp":
+            assert facts["native_ids"]["value"] == ["github"]
+            assert facts["declared_key"]["value"] == "mcp_servers"
+            assert facts["source_locator"]["value"] == "config.toml#mcp_servers"
+            assert facts["scope"]["value"] == "global"
+            assert str(facts["source_root"]["value"]) == "~/grok"
+
+    assert SECRET not in artifacts["mcp"]
+    assert SECRET not in artifacts["setting"]
+    # The artifact *is* the key's value in the host's own format — the shape
+    # adoption stores and the compiler parses — rather than an envelope around
+    # it (`#63`).
+    value = artifacts["mcp"]
+    assert "github" in value
+    assert "model" not in value
+    assert importing.REDACTED in value
+
+
+def test_toml_scrub_keeps_comments_and_removes_environment_values() -> None:
+    raw = b'# keep me\nmodel = "grok-4"\n[mcp_servers.x.env]\nA_TOKEN = "live"\nMODEL = "sonnet"\n'
+    cleaned, names = importing.scrub(raw, suffix=".toml")
+    text = cleaned.decode("utf-8")
+    assert "# keep me" in text
+    assert "live" not in text
+    assert "sonnet" not in text
+    assert 'model = "grok-4"' in text
+    assert set(names) == {"mcp_servers.x.env.A_TOKEN", "mcp_servers.x.env.MODEL"}
+
+
+def test_jsonc_scrub_reads_the_dialect_and_removes_the_secret() -> None:
+    raw = b'{\n  // a comment\n  "api_key": "live",\n  "model": "big"\n}\n'
+    cleaned, names = importing.scrub(raw, suffix=".jsonc")
+    document = json.loads(cleaned)
+    assert document["api_key"] == importing.REDACTED
+    assert document["model"] == "big"
+    assert names == ("api_key",)
+
+
+def test_yaml_scrub_removes_the_secret_and_keeps_the_rest() -> None:
+    raw = b"model: big\nauth:\n  token: live\n"
+    cleaned, names = importing.scrub(raw, suffix=".yaml")
+    assert b"live" not in cleaned
+    assert b"model: big" in cleaned
+    assert names == ("auth.token",)
+
+
+def test_a_malformed_structured_file_is_honest_about_not_being_scrubbed(tmp_path: Path) -> None:
+    root = tmp_path / "codex"
+    root.mkdir()
+    (root / "config.toml").write_text("= not toml", encoding="utf-8")
+    found = importing.inspect(root, harness_id="codex")
+    item = next(entry for entry in found.findings if entry.path == "config.toml")
+    assert item.scrub_format == "none"
+
+
+@pytest.mark.skipif(os.name == "nt", reason="symlink creation needs privilege on Windows")
+def test_a_symlink_is_refused_and_blocks_a_complete_capture(
+    registry: sqlite3.Connection, native: Path, tmp_path: Path
+) -> None:
+    outside = tmp_path / "outside.json"
+    outside.write_text(json.dumps({"secret": "outside"}), encoding="utf-8")
+    (native / "linked.json").symlink_to(outside)
+
+    found = importing.inspect(native, harness_id="claude-code")
+    item = next(entry for entry in found.findings if entry.path == "linked.json")
+    assert item.refused == "link"
+    assert item.digest == ""
+
+    backup_id = _backup(registry)
+    with pytest.raises(CliFailure) as refused:
+        importing.register(
+            registry, found, backup_id=backup_id, owner_id=OWNER, device_id=DEVICE, at=AT
+        )
+    assert "linked.json" in str(refused.value.details.get("skipped", ""))
+
+
+def test_a_hardlink_is_refused_rather_than_captured(native: Path) -> None:
+    target = native / "settings.json"
+    try:
+        os.link(target, native / "twin.json")
+    except OSError:
+        pytest.skip("this filesystem refuses hardlinks")
+    found = importing.inspect(native, harness_id="claude-code")
+    refused = {entry.path: entry.refused for entry in found.findings if entry.refused}
+    assert refused.get("twin.json") == "hardlink"
+    assert refused.get("settings.json") == "hardlink"
+
+
+@pytest.mark.skipif(os.name == "nt", reason="symlink creation needs privilege on Windows")
+def test_a_symlinked_directory_is_not_descended_into(native: Path, tmp_path: Path) -> None:
+    outside = tmp_path / "elsewhere"
+    outside.mkdir()
+    (outside / "leak.json").write_text(json.dumps({"secret": "outside"}), encoding="utf-8")
+    (native / "portal").symlink_to(outside, target_is_directory=True)
+
+    found = importing.inspect(native, harness_id="claude-code")
+    assert all("leak.json" not in item.path for item in found.findings)
+
+
+@pytest.mark.parametrize(
+    ("harness_id", "state_file"),
+    [
+        ("claude-code", ".credentials.json"),
+        ("codex", "auth.json"),
+        ("pi", "auth.json"),
+        ("grok-build", "auth.json"),
+        ("grok-build", "sessions/2026-09-01.json"),
+        ("cursor", "chats/one.json"),
+        ("cursor", "agent-cli-state.json"),
+    ],
+)
+def test_product_state_and_credential_files_are_not_configuration(
+    tmp_path: Path, harness_id: str, state_file: str
+) -> None:
+    """Measured 2026-09-01 on live homes: products keep credentials and
+    runtime state inside the configuration root, and import used to capture
+    them as authored configuration — `~/.codex/auth.json` holds OAuth tokens.
+    """
+    root = tmp_path / "home"
+    place = root / state_file
+    place.parent.mkdir(parents=True, exist_ok=True)
+    place.write_text(json.dumps({"access_token": SECRET}), encoding="utf-8")
+    (root / "kept.json").write_text("{}", encoding="utf-8")
+
+    found = importing.inspect(root, harness_id=harness_id)
+    assert [item.path for item in found.findings] == ["kept.json"]
+
+
+def test_a_backup_reference_must_have_the_providers_shape(
+    registry: sqlite3.Connection,
+) -> None:
+    """`slot-############` is the vendored kit's own pattern for a BackupRef.
+
+    The reference used to be checked for nothing but non-emptiness, so a typo
+    registered a recovery path that no provider would ever answer for.
+    """
+    with pytest.raises(CliFailure) as refused:
+        importing.record_backup(
+            registry,
+            harness_id="claude-code",
+            target_id="pair_1",
+            provider_ref="provider://backup/typo",
+            at=AT,
+        )
+    assert refused.value.code == "AI_STP_VALIDATION_ERROR"
+    assert "slot-" in str(refused.value.details.get("expected", ""))
+
+
+def test_the_setup_passport_says_the_backup_was_recorded_not_verified(
+    registry: sqlite3.Connection, native: Path
+) -> None:
+    backup_id = _backup(registry)
+    found = importing.inspect(native, harness_id="claude-code")
+    imported = importing.register(
+        registry, found, backup_id=backup_id, owner_id=OWNER, device_id=DEVICE, at=AT
+    )
+    stored = revisions.head(registry, imported.stable_id)
+    assert stored is not None
+    facts = stored.envelope.model_dump(mode="json")["facts"]
+    assert facts["backup_verification"]["value"] == "recorded_unverified"
+
+
+def test_replaying_the_same_confirmed_plan_returns_the_same_setup(
+    registry: sqlite3.Connection, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Idempotency is part of the operation, not a courtesy.
+
+    Measured with five kill-and-retry rounds against one root: every retry of
+    the exact same confirmed `plan_digest` minted a fresh setup identity and a
+    fresh copy of every component — four complete setups for one directory,
+    with nothing saying which one is *the* one. A client that dies after the
+    commit and before the answer retries the same digest; the retry must
+    return the graph that already exists, not another one beside it.
+    """
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    root = tmp_path / "claude"
+    (root / "skills" / "one").mkdir(parents=True)
+    (root / "skills" / "one" / "SKILL.md").write_text("# One\ncontent.\n", encoding="utf-8")
+
+    found = importing.inspect(root, harness_id="claude-code")
+    planned = importing.plan(found)
+    first = importing.register_graph(
+        registry,
+        found,
+        expected_plan_digest=planned.plan_digest,
+        target_id="pair_claude",
+        provider_ref="slot-202609010001",
+        owner_id=OWNER,
+        device_id=DEVICE,
+        at=AT,
+    )
+    second = importing.register_graph(
+        registry,
+        importing.inspect(root, harness_id="claude-code"),
+        expected_plan_digest=planned.plan_digest,
+        target_id="pair_claude",
+        provider_ref="slot-202609010001",
+        owner_id=OWNER,
+        device_id=DEVICE,
+        at=AT,
+    )
+
+    assert second.stable_id == first.stable_id
+    assert second.component_ids == first.component_ids
+    setups = registry.execute("SELECT COUNT(*) FROM entity WHERE kind = 'setup'").fetchone()[0]
+    assert setups == 1, "one root, one confirmed plan, one setup"
+
+
+def test_the_imported_envelope_expands_through_the_one_decoder() -> None:
+    """`#63`: the format `impact` could read and the compiler could not.
+
+    `setup import register` stores a captured component as
+    `ai-stp-imported-component/1`. `impact._files` held a reader for it;
+    `components.expand` — the owner of "what a stored artifact contains" — had
+    never been taught the name. So an imported setup released its components,
+    composed, confirmed into a real `SetupVersion`, and then refused at
+    `install plan` with `the component content format is unsupported`. One
+    decoding with two readers, and only one of them taught.
+
+    The bounds are the ones a stored tree already has, because this artifact is
+    built from bytes found on somebody's machine.
+    """
+    from base64 import b64encode
+
+    from ai_stp_cli.local import components, impact
+
+    def envelope(files: list[dict[str, str]]) -> bytes:
+        return json.dumps(
+            {"format": components.IMPORTED_COMPONENT_FORMAT, "files": files},
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+
+    payload = envelope(
+        [
+            {"path": "AGENTS.md", "content_base64": b64encode(b"# Agents\n").decode("ascii")},
+            {
+                "path": "config.toml#mcp_servers",
+                "content_base64": b64encode(b'[probe]\ncommand = "p"\n').decode("ascii"),
+            },
+        ]
+    )
+    expanded = components.expand(payload, components.IMPORTED_COMPONENT_FORMAT)
+    assert [item.path for item in expanded] == ["AGENTS.md", "config.toml#mcp_servers"]
+    assert expanded[0].content == b"# Agents\n"
+
+    # The second reader is now the same reader: `impact` re-exports the name
+    # from its owner instead of holding a second copy of the decoding.
+    assert impact.IMPORTED_COMPONENT_FORMAT == components.IMPORTED_COMPONENT_FORMAT
+
+    for refused in (
+        [{"path": "/etc/passwd", "content_base64": b64encode(b"x").decode("ascii")}],
+        [{"path": "../escape", "content_base64": b64encode(b"x").decode("ascii")}],
+        [
+            {"path": "twice", "content_base64": b64encode(b"x").decode("ascii")},
+            {"path": "twice", "content_base64": b64encode(b"y").decode("ascii")},
+        ],
+    ):
+        with pytest.raises(CliFailure) as corrupt:
+            components.expand(envelope(refused), components.IMPORTED_COMPONENT_FORMAT)
+        assert corrupt.value.code == "AI_STP_CONFLICT"
+
+
+def test_an_imported_setup_compiles_into_the_bundle_an_adopted_one_would(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """`#63`, the last link: an imported draft graph reaches a bundle a provider can write.
+
+    The envelope stored every member at its harness-root-relative path, so a
+    file-shaped component reached the compiler as a named member and a
+    directory-shaped one re-rooted under itself. Members are now relative to
+    the component boundary and sealed in adoption's formats; the compiler meets
+    the same three shapes whichever capture path found them.
+    """
+    from ai_stp_cli.commands import component as component_command
+    from ai_stp_cli.commands import select as select_command
+    from ai_stp_cli.local import passports, project_passport, selection
+
+    home = tmp_path / "codex"
+    home.mkdir()
+    (home / "AGENTS.md").write_text("# House rules\n", encoding="utf-8")
+    (home / "config.toml").write_text(
+        'model = "o3"\n\n[mcp_servers.github]\ncommand = "gh-mcp"\n', encoding="utf-8"
+    )
+    (home / "prompts").mkdir()
+    (home / "prompts" / "ship.md").write_text("Ship it.\n", encoding="utf-8")
+
+    found = importing.inspect(home, harness_id="codex")
+    proposed = importing.plan(found)
+    passports.init_developer(registry, device_id=DEVICE)
+    passports.ensure_device(registry, device_id=DEVICE)
+    imported = importing.register_graph(
+        registry,
+        found,
+        expected_plan_digest=proposed.plan_digest,
+        target_id="pair_codex",
+        provider_ref="slot-202609020000",
+        owner_id=passports.owner().account_id,
+        device_id=DEVICE,
+        at=AT,
+    )
+    assert {item.component_type for item in proposed.components} == {
+        "instruction",
+        "setting",
+        "mcp",
+        "command",
+    }
+    registry.commit()
+
+    members: list[selection.Member] = []
+    for component_id in imported.component_ids:
+        line = component_command.version_release({"id": component_id}).payload
+        version = line.versions[-1].version
+        recorded = versions.held(registry, component_id, version)
+        assert recorded is not None
+        members.append(
+            selection.Member(
+                component_id, version, recorded.passport_digest, "local_owner_or_pinned", "own"
+            )
+        )
+    scanned = project_passport.scan(registry, tmp_path)
+    project_passport.record(registry, scanned, device_id=DEVICE)
+    developer_id = passports.developer_stable_id(registry)
+    device_id = passports.device_stable_id(registry)
+    assert developer_id is not None and device_id is not None
+    heads = [
+        revisions.head(registry, item) for item in (developer_id, device_id, scanned.stable_id)
+    ]
+    assert all(head is not None for head in heads)
+    context = selection.Context(
+        project_id=scanned.stable_id,
+        harness_id="codex",
+        developer_revision=heads[0].revision_id,  # type: ignore[union-attr]
+        device_revision=heads[1].revision_id,  # type: ignore[union-attr]
+        project_revision=heads[2].revision_id,  # type: ignore[union-attr]
+        policy_version="selection-policy/1;result_limit=20",
+    )
+    proposal = selection.propose(
+        registry,
+        context=context,
+        members=tuple(members),
+        at=AT,
+        expires_at="2099-01-01T00:00:00.000Z",
+    )
+    confirmed = selection.confirm(
+        registry,
+        proposal.proposal_id,
+        context=context,
+        owner_id=passports.owner().account_id,
+        device_id=DEVICE,
+        at=AT,
+    )
+    registry.commit()
+
+    target = tmp_path / "target"
+    target.mkdir()
+    (target / "config.toml").write_text('approval = "never"\n', encoding="utf-8")
+    compiled = select_command.compile_setup_version_bundle(
+        registry, confirmed.stable_id, confirmed.version, expected_harness="codex", host_root=target
+    )
+
+    assert compiled.compiled, compiled.refusals
+    paths = sorted(item.path for item in compiled.files)
+    assert paths == ["AGENTS.md", "config.toml", "prompts/ship.md"]
+    import io
+    import zipfile
+
+    with zipfile.ZipFile(io.BytesIO(compiled.archive)) as archive:
+        written = archive.read("files/config.toml").decode("utf-8")
+    assert "[mcp_servers.github]" in written
+    assert 'model = "o3"' in written

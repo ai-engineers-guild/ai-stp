@@ -279,7 +279,10 @@ def _with_provider(monkeypatch: pytest.MonkeyPatch, reported: JsonValue) -> dict
     """Answer `target backups` as if a provider had been named and had replied."""
 
     def fake(
-        parameters: Mapping[str, object], project_id: str, harness: str
+        connection: sqlite3.Connection,
+        parameters: Mapping[str, object],
+        project_id: str,
+        harness: str,
     ) -> conformance.Invoker:
         return _answering({"backups": reported})
 
@@ -363,7 +366,10 @@ def test_a_provider_older_than_the_field_is_not_read_as_an_empty_pool(
     _take_copy(registry, "1.0", backup_ref="backup-a", at="2026-01-01T00:00:00.000Z")
 
     def fake(
-        parameters: Mapping[str, object], project_id: str, harness: str
+        connection: sqlite3.Connection,
+        parameters: Mapping[str, object],
+        project_id: str,
+        harness: str,
     ) -> conformance.Invoker:
         return _answering({"state": "verified"})
 

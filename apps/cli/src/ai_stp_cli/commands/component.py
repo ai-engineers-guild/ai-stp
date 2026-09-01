@@ -32,7 +32,7 @@ from ai_stp_cli.local import (
     source_discovery,
     versions,
 )
-from ai_stp_cli.local.database import configured_path, open_readonly, open_registry
+from ai_stp_cli.local.database import configured_path, open_readonly, open_registry, transaction
 from ai_stp_cli.local.passports import moment, owner
 from ai_stp_cli.paths import redact_home
 from ai_stp_contracts.authoring import ComponentScaffoldPlan, ComponentScaffoldResult
@@ -326,16 +326,79 @@ def adopt(parameters: Mapping[str, object]) -> Answer[PassportView]:
         if named is not None
         else (wanted.parent if wanted.parent.is_dir() else None)
     )
-    found = next(
-        (item for item in components.discover(project=project) if item.absolute == wanted), None
-    )
-    if found is None:
+    matches = [item for item in components.discover(project=project) if item.absolute == wanted]
+    if not matches:
         raise CliFailure(
             "AI_STP_NOT_FOUND",
             "no discovered component sits at that path",
             details={"path": str(wanted), "root": str(project) if project else "none"},
             next_actions=["component discover --root <path> --json"],
         )
+    # One path can answer to more than one documented surface: `.agents/skills`
+    # is both the portable cross-product convention and antigravity's own
+    # project skills. Taking the first claim silently gave the adopted
+    # component an empty `harness_id` that `select propose` then refused as
+    # `harness_mismatch`, with no flag anywhere to name the other claim. More
+    # than one answer is a decision — the provider-resolution rule, applied
+    # here.
+    claimed = str(parameters.get("harness") or "")
+    if claimed:
+        wanted_harness = "" if claimed == "portable" else claimed
+        matches = [item for item in matches if item.harness_id == wanted_harness]
+        if not matches:
+            raise CliFailure(
+                "AI_STP_NOT_FOUND",
+                "no surface of that harness claims this path",
+                details={"path": str(wanted), "harness": claimed},
+                next_actions=["component discover --root <path> --json"],
+            )
+    # A kind is the second axis of the same decision, and one harness can hold
+    # both: `~/.codex/config.toml` answers to the `mcp` layout over its
+    # `mcp_servers` key and to the `setting` layout over the whole file, so
+    # `--harness codex` narrows nothing. Every `declared_key` harness has this
+    # shape. Without the selector the `setting` half of such a file was
+    # unreachable — `matches[0]` is the `mcp` claim, and no flag named the
+    # other.
+    kind = str(parameters.get("kind") or "")
+    if kind:
+        matches = [item for item in matches if item.component_type == kind]
+        if not matches:
+            raise CliFailure(
+                "AI_STP_NOT_FOUND",
+                "no surface of that kind claims this path",
+                details={"path": str(wanted), "kind": kind},
+                next_actions=["component discover --root <path> --json"],
+            )
+    # Distinct harnesses, not raw claim count: `~/.claude/CLAUDE.md` is claimed
+    # by claude-code's global layout and by its project layout at once, and
+    # that is one answer twice, not a decision. The decision exists exactly
+    # when the claims name different harnesses — which is what the adopted
+    # passport's `harness_id` fact will carry forward.
+    if len({item.harness_id for item in matches}) > 1:
+        raise CliFailure(
+            "AI_STP_USER_DECISION_REQUIRED",
+            "that path answers to more than one surface; name the harness to adopt it for",
+            details={
+                "path": str(wanted),
+                "claims": ", ".join(sorted({item.harness_id or "portable" for item in matches})),
+            },
+            next_actions=[
+                "component adopt --path <path> --root <root> --harness <id> --json",
+            ],
+        )
+    if len({item.component_type for item in matches}) > 1:
+        raise CliFailure(
+            "AI_STP_USER_DECISION_REQUIRED",
+            "that path answers to more than one kind; name the kind to adopt",
+            details={
+                "path": str(wanted),
+                "kinds": ", ".join(sorted({item.component_type for item in matches})),
+            },
+            next_actions=[
+                "component adopt --path <path> --root <root> --kind <kind> --json",
+            ],
+        )
+    found = matches[0]
 
     current, _warning = identity.load_or_create()
     with closing(open_registry(configured_path(), create=True)) as connection:
@@ -408,12 +471,9 @@ def passport_suggest(parameters: Mapping[str, object]) -> Answer[ComponentPasspo
 def passport_validate(parameters: Mapping[str, object]) -> Answer[ComponentPassportValidation]:
     """List every local structural blocker to a future public publication plan."""
     stable_id = _required(parameters, "id", "a component stable id is required")
-    if not bool(parameters.get("for-publication")):
-        raise CliFailure(
-            "AI_STP_VALIDATION_ERROR",
-            "the validation profile must be selected explicitly",
-            next_actions=[f"component passport validate --id {stable_id} --for-publication --json"],
-        )
+    # `--for-publication` names the only profile this command has, so it is
+    # accepted and changes nothing: refusing without it asked the caller to
+    # repeat the command's one meaning back before being answered.
     with closing(open_readonly(configured_path())) as connection:
         readiness = component_passports.validate_for_publication(connection, stable_id)
     return Answer(
@@ -505,6 +565,15 @@ def consent_allow(parameters: Mapping[str, object]) -> Answer[ConsentRecord]:
             "both a scope and a target are required",
             details={"scopes": ", ".join(sorted(consent.SCOPES))},
         )
+    # Before anything else is asked about the target. An unknown scope used to
+    # fall through to that later question's refusal, sending the operator to
+    # hunt a registration problem when the mistake was the scope word itself.
+    if str(scope) not in consent.SCOPES:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "that consent scope is not one this contract defines",
+            details={"scope": str(scope), "allowed": ", ".join(sorted(consent.SCOPES))},
+        )
 
     def work(connection: sqlite3.Connection) -> ConsentRecord:
         # The contract asks for "the fingerprint of the candidate at the moment
@@ -572,6 +641,15 @@ def consent_revoke(parameters: Mapping[str, object]) -> Answer[ConsentRecord]:
             "AI_STP_VALIDATION_ERROR",
             "both a scope and a target are required",
             details={"scopes": ", ".join(sorted(consent.SCOPES))},
+        )
+    # Before anything else is asked about the target. An unknown scope used to
+    # fall through to that later question's refusal, sending the operator to
+    # hunt a registration problem when the mistake was the scope word itself.
+    if str(scope) not in consent.SCOPES:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "that consent scope is not one this contract defines",
+            details={"scope": str(scope), "allowed": ", ".join(sorted(consent.SCOPES))},
         )
 
     def work(connection: sqlite3.Connection) -> ConsentRecord:
@@ -642,7 +720,6 @@ def version_release(parameters: Mapping[str, object]) -> Answer[VersionLine]:
     """
     stable_id = _required(parameters, "id", "a stable id is required")
     wants_major = bool(parameters.get("major"))
-    confirmed = bool(parameters.get("confirm"))
 
     def work(connection: sqlite3.Connection) -> VersionLine:
         stored = revisions.head(connection, stable_id)
@@ -654,7 +731,7 @@ def version_release(parameters: Mapping[str, object]) -> Answer[VersionLine]:
                 next_actions=["component adopt --path <path> --json"],
             )
         number = (
-            versions.next_major(connection, stable_id, decided=confirmed)
+            versions.next_major(connection, stable_id)
             if wants_major
             else versions.next_minor(connection, stable_id)
         )
@@ -676,7 +753,14 @@ def version_release(parameters: Mapping[str, object]) -> Answer[VersionLine]:
             next_minor=versions.next_minor(connection, stable_id),
         )
 
-    with closing(open_registry(configured_path(), create=True)) as connection:
+    # One write transaction from reading the next free number to recording it.
+    # In autocommit, two concurrent releases both read the same number and the
+    # loser died on the UNIQUE constraint as `AI_STP_INTERNAL` (measured); under
+    # `BEGIN IMMEDIATE` it starts after the winner commits and mints the next.
+    with (
+        closing(open_registry(configured_path(), create=True)) as connection,
+        transaction(connection),
+    ):
         return Answer(work(connection))
 
 
@@ -703,14 +787,40 @@ def fork(parameters: Mapping[str, object]) -> Answer[VersionLine]:
         row = connection.execute(
             "SELECT kind FROM entity WHERE stable_id = ?", (stable_id,)
         ).fetchone()
+        at = moment()
         copy = versions.fork(
             connection,
             source_stable_id=stable_id,
             source_version=version,
             source_digest=source.passport_digest,
             kind=str(row["kind"]),
-            at=moment(),
+            at=at,
         )
+        # The copy's content, not just its lineage. Without this first revision
+        # the fork answered `ok` and then every follow-up refused it — passport
+        # show, update, release and even forget all found nothing — so the
+        # object `REQ-521` calls a copy held nothing to edit toward `REQ-522`'s
+        # meaningful change.
+        stored = revisions.get(connection, source.revision_id)
+        if stored is None:
+            raise CliFailure(
+                "AI_STP_CONFLICT",
+                "a component version points to a missing passport",
+                details={"id": stable_id, "version": version},
+            )
+        seeded = cast(dict[str, JsonValue], stored.envelope.model_dump(mode="json"))
+        seeded.pop("revision_id", None)
+        current, _warning = identity.load_or_create()
+        seeded.update(
+            {
+                "stable_id": copy.stable_id,
+                "owner_id": owner().account_id,
+                "created_at": at,
+                "visibility": "private",
+                "parent_revision_ids": [],
+            }
+        )
+        revisions.commit(connection, seeded, device_id=current.device_id)
         verdict = versions.publishable(
             connection, copy.stable_id, passport_digest=source.passport_digest, public=True
         )
@@ -724,7 +834,13 @@ def fork(parameters: Mapping[str, object]) -> Answer[VersionLine]:
             publish_reason=verdict.reason,
         )
 
-    with closing(open_registry(configured_path(), create=True)) as connection:
+    # Atomic and serialized like the release above: the fork writes an entity,
+    # its lineage row and its first revision, and either all of them exist or
+    # none do.
+    with (
+        closing(open_registry(configured_path(), create=True)) as connection,
+        transaction(connection),
+    ):
         return Answer(work(connection))
 
 

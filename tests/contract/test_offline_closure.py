@@ -39,6 +39,7 @@ from typing import Any
 
 import pytest
 
+from ai_stp_cli import paths
 from ai_stp_cli.provider import conformance, protocol
 
 #: Raised by the guard, and distinctive enough that a test can tell our refusal
@@ -304,15 +305,13 @@ def warm(tmp_path_factory: pytest.TempPathFactory) -> Warm:
         home=home,
     )
     component_id = str(component["stable_id"])
-    released = _ok(
-        "component", "version", "release", "--id", component_id, "--confirm", "--json", home=home
-    )
+    released = _ok("component", "version", "release", "--id", component_id, "--json", home=home)
 
     # Compiled once here so that the offline compile has something exact to be
     # compared against. A bundle that merely compiles offline proves nothing
     # about which bytes went into it.
     proposal = _proposal(home, work, component_id)
-    _ok("select", "confirm", "--proposal", proposal, "--confirm", "--json", home=home)
+    _ok("select", "confirm", "--proposal", proposal, "--json", home=home)
     bundle = _ok(
         "select",
         "bundle",
@@ -370,6 +369,17 @@ def private(warm: Warm, tmp_path: Path) -> Warm:
     """
     home = tmp_path / "home"
     shutil.copytree(warm.home, home)
+    if not paths.POSIX:
+        # `copytree` carries POSIX modes through `copystat` and carries no
+        # Windows DACL at all, so the copy of a private home inherits the
+        # temp directory's default grants — and `read_private` then refuses
+        # it, correctly: the copy really is readable by more than its owner.
+        # Re-stamp what the real first run stamps.
+        from ai_stp_cli import windows_private
+
+        for place in sorted(home.rglob("*")):
+            windows_private.make_private(place)
+        windows_private.make_private(home)
     log = tmp_path / "provider.log"
     return Warm(
         home=home,
@@ -561,7 +571,6 @@ def test_composition_and_compilation_run_offline(warm: Warm) -> None:
         "confirm",
         "--proposal",
         proposal,
-        "--confirm",
         "--json",
         home=warm.home,
         guard=warm.guard,
@@ -622,7 +631,6 @@ def test_applying_state_and_recovery_run_offline(private: Warm) -> None:
         "confirm",
         "--proposal",
         proposal,
-        "--confirm",
         "--json",
         home=home,
         guard=private.guard,
@@ -693,6 +701,11 @@ def test_applying_state_and_recovery_run_offline(private: Warm) -> None:
         HARNESS,
         "--provider",
         str(private.provider),
+        # The fake provider here answers the frozen v1 conversation, and the
+        # read says so: an unqualified observation speaks v3, the protocol
+        # released providers actually speak.
+        "--protocol-version",
+        "1",
         "--json",
         home=home,
         guard=private.guard,

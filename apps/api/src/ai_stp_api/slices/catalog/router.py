@@ -734,7 +734,7 @@ async def read_setup_context_budget(
     version: str,
     db: Annotated[AsyncSession, Depends(get_db)],
     ctx: Annotated[AuthContext | None, Depends(optional_auth)],
-    estimator_profile: Annotated[str, Query()] = "ai-stp:utf8-bytes/1",
+    estimator_profile: Annotated[str, Query()] = "ai-stp:unicode-chars-div4/1",
 ) -> JSONResponse:
     stable_id = require_setup_id(stable_id)
     version = require_version(version)
@@ -771,7 +771,7 @@ async def read_component_context_budget(
     version: str,
     db: Annotated[AsyncSession, Depends(get_db)],
     ctx: Annotated[AuthContext | None, Depends(optional_auth)],
-    estimator_profile: Annotated[str, Query()] = "ai-stp:utf8-bytes/1",
+    estimator_profile: Annotated[str, Query()] = "ai-stp:unicode-chars-div4/1",
 ) -> JSONResponse:
     stable_id = require_component_id(stable_id)
     version = require_version(version)
