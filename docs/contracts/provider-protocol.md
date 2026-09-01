@@ -191,9 +191,13 @@ AppContainer denies network but cannot reach an arbitrary target without changin
 parent ACLs; `CreateProcessInSandbox` and Windows Sandbox are unavailable or a
 separate component. Therefore the v3 local phase runs there **without isolation**:
 deliberate debt under `ADR-0126`, allowed for exactly two reasons: a trusted
-release or explicit `--unverified-provider`. No other surface receives this
-exception: v2, `target status`, `diff`, and any spawn outside install plan refuse
-before invocation.
+release or explicit `--unverified-provider`. The rule is about whose executable
+runs, not about whether the command writes: `target status`, `target diff` and
+`target backups` establish the same two signals — a named `--provider-manifest`,
+the operator's `--unverified-provider`, or the release the pair was last
+verified under when the named executable is its exact bytes, read from the
+journal without re-running the build attestation. Protocol v2 receives no
+exception by construction and refuses before invocation.
 
 `network_enforcement` **never** becomes `enforced` in this case, or the sole
 output by which the debt is found would hide it. `provider network --json`

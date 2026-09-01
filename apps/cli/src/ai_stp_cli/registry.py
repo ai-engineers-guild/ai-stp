@@ -1969,11 +1969,18 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
             option("provider", "string", "Provider executable, to read the target as it is now."),
             option(
+                "provider-manifest",
+                "string",
+                "Signed provider release manifest proving these exact bytes. "
+                "Optional: the release this pair was last verified under is read "
+                "from the journal when the named executable is its exact bytes.",
+            ),
+            option(
                 "protocol-version",
                 "integer",
-                "Provider protocol selected before invocation. A trusted "
-                "release manifest selects it; without one this defaults to "
-                "frozen v1.",
+                "Provider protocol selected before invocation. A signed release "
+                "selects it, named or recorded; without one the read asks in v3, "
+                "the protocol released providers speak.",
             ),
             option(
                 "unverified-provider",
@@ -2075,11 +2082,18 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
             option("provider", "string", "Provider executable, to read the target as it is now."),
             option(
+                "provider-manifest",
+                "string",
+                "Signed provider release manifest proving these exact bytes. "
+                "Optional: the release this pair was last verified under is read "
+                "from the journal when the named executable is its exact bytes.",
+            ),
+            option(
                 "protocol-version",
                 "integer",
-                "Provider protocol selected before invocation. A trusted "
-                "release manifest selects it; without one this defaults to "
-                "frozen v1.",
+                "Provider protocol selected before invocation. A signed release "
+                "selects it, named or recorded; without one the read asks in v3, "
+                "the protocol released providers speak.",
             ),
             option(
                 "unverified-provider",
@@ -2150,18 +2164,25 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "Provider executable, to also report which copies still exist and are held.",
             ),
             option(
+                "provider-manifest",
+                "string",
+                "Signed provider release manifest proving these exact bytes. "
+                "Optional: the release this pair was last verified under is read "
+                "from the journal when the named executable is its exact bytes.",
+            ),
+            option(
                 "protocol-version",
                 "integer",
-                "Provider protocol selected before invocation. A trusted "
-                "release manifest selects it; without one this defaults to "
-                "frozen v1.",
+                "Provider protocol selected before invocation. A signed release "
+                "selects it, named or recorded; without one the read asks in v3, "
+                "the protocol released providers speak.",
             ),
             option(
                 "unverified-provider",
                 "boolean",
                 "Read through an executable no signed or attested release covers. "
-                "On Windows this is also what lets the read run at all, since no "
-                "launcher there can deny the network. Elsewhere it changes nothing.",
+                "It does not relax isolation: the read still runs under the "
+                "launcher its system proved.",
             ),
             option(
                 "target",

@@ -123,9 +123,18 @@ which pinned policy exists. What changes is that this no longer happens by
 default. The plan reports `provider_release_trusted` as `false`, and approval is
 given against the plan digest that states this.
 
-The rule applies to the mutating path. `install target-status` and `diff` run the
-caller-named executable to observe and install nothing; the release trust
-boundary protects what is written into the harness.
+The requirement to name a release applies to the mutating path. `target
+status`, `target diff` and `target backups` run the caller-named executable to
+observe and install nothing, so a read without a manifest is not refused. The
+trust a read runs under is nevertheless established the way a write establishes
+it, in the writers' order: a `--provider-manifest` the caller names is verified
+exactly as `install plan` verifies one; `--unverified-provider` is the
+operator's decision and nothing is derived behind it; otherwise the release this
+pair was last verified under counts when the named executable is its exact
+bytes — the manifest the plan bound and the apply re-checked, read from the
+journal. The pinned policy is re-read, so a release revoked since the install no
+longer trusts the read; the build attestation is not re-run, because it is a
+property of bytes that were attested at plan time and have not changed.
 
 Protocols v1 and v2 predate the signed-release line and are unaffected by the
 rule.

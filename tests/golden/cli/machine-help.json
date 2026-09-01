@@ -5313,12 +5313,21 @@
           "choices": []
         },
         {
+          "name": "provider-manifest",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Signed provider release manifest proving these exact bytes. Optional: the release this pair was last verified under is read from the journal when the named executable is its exact bytes.",
+          "choices": []
+        },
+        {
           "name": "protocol-version",
           "kind": "option",
           "value_type": "integer",
           "required": false,
           "repeatable": false,
-          "summary": "Provider protocol selected before invocation. A trusted release manifest selects it; without one this defaults to frozen v1.",
+          "summary": "Provider protocol selected before invocation. A signed release selects it, named or recorded; without one the read asks in v3, the protocol released providers speak.",
           "choices": []
         },
         {
@@ -5327,7 +5336,7 @@
           "value_type": "boolean",
           "required": false,
           "repeatable": false,
-          "summary": "Read through an executable no signed or attested release covers. On Windows this is also what lets the read run at all, since no launcher there can deny the network. Elsewhere it changes nothing.",
+          "summary": "Read through an executable no signed or attested release covers. It does not relax isolation: the read still runs under the launcher its system proved.",
           "choices": []
         },
         {
@@ -5391,12 +5400,21 @@
           "choices": []
         },
         {
+          "name": "provider-manifest",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Signed provider release manifest proving these exact bytes. Optional: the release this pair was last verified under is read from the journal when the named executable is its exact bytes.",
+          "choices": []
+        },
+        {
           "name": "protocol-version",
           "kind": "option",
           "value_type": "integer",
           "required": false,
           "repeatable": false,
-          "summary": "Provider protocol selected before invocation. A trusted release manifest selects it; without one this defaults to frozen v1.",
+          "summary": "Provider protocol selected before invocation. A signed release selects it, named or recorded; without one the read asks in v3, the protocol released providers speak.",
           "choices": []
         },
         {
@@ -5530,12 +5548,21 @@
           "choices": []
         },
         {
+          "name": "provider-manifest",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Signed provider release manifest proving these exact bytes. Optional: the release this pair was last verified under is read from the journal when the named executable is its exact bytes.",
+          "choices": []
+        },
+        {
           "name": "protocol-version",
           "kind": "option",
           "value_type": "integer",
           "required": false,
           "repeatable": false,
-          "summary": "Provider protocol selected before invocation. A trusted release manifest selects it; without one this defaults to frozen v1.",
+          "summary": "Provider protocol selected before invocation. A signed release selects it, named or recorded; without one the read asks in v3, the protocol released providers speak.",
           "choices": []
         },
         {

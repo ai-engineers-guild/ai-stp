@@ -103,14 +103,17 @@ itself. The Linux legs then wanted Bubblewrap plus the unprivileged user
 namespace Ubuntu 24.04 restricts; both are in the workflow and both legs are
 green.
 
-Windows is a product finding rather than an environment one, and it has its own
-issue (`#65`): the AppContainer probe fails on a hosted runner, `install
-plan/approve/apply` proceed through the trusted-release exception, and
-`target status/diff/backups` refuse — the read path is stricter than the write
-it observes, because `_optional_invoker` is the one caller that never consults a
-trusted release and the observation commands declare no `--provider-manifest`.
+Windows was a product finding rather than an environment one (`#65`): the
+AppContainer probe fails on a hosted runner, `install plan/approve/apply`
+proceeded through the trusted-release exception, and `target
+status/diff/backups` refused — the read path was stricter than the write it
+observed, because the observer was the one caller that never consulted a
+trusted release. The three reads now establish trust the way the writers do:
+a named `--provider-manifest`, the operator's `--unverified-provider`, or the
+release the pair was last verified under when the named executable is its
+exact bytes (`docs/contracts/provider-release.md`).
 
-Remaining: `#65`, then the six-leg run on the release candidate's exact SHA.
+Remaining: the six-leg run on the release candidate's exact SHA.
 
 ### P1. The last link of the capture round-trip (`#63`)
 

@@ -535,7 +535,10 @@ def test_an_observation_that_answers_no_identity_is_a_warning_not_a_clean_pair(
     ]
 
     def blank(
-        parameters: Mapping[str, object], project_id: str, harness: str
+        connection: sqlite3.Connection,
+        parameters: Mapping[str, object],
+        project_id: str,
+        harness: str,
     ) -> conformance.Invoker:
         def invoke(command: str, arguments: Sequence[str]) -> JsonValue:
             return {"state": "unknown"}
@@ -554,6 +557,226 @@ def test_an_observation_that_answers_no_identity_is_a_warning_not_a_clean_pair(
 
     unasked = install.target_status({"project": project_id, "harness": "claude-code"})
     assert unasked.warnings == (), "not asking a provider is the caller's stated intent"
+
+
+def _verified_under(
+    registry: sqlite3.Connection, tmp_path: Path, executable: str, manifest: Path
+) -> str:
+    """A pair verified under a signed release, recorded the way `install apply` records one.
+
+    The plan carries the manifest text and the trust level the writer
+    established; the journal advances to `verified`. This is the state every
+    installed target is in one command before somebody reads it.
+    """
+    _confirmed(registry, tmp_path, "Z")
+    project_id = registry.execute("SELECT stable_id FROM entity WHERE kind = 'project'").fetchone()[
+        0
+    ]
+    plan = installation.propose(
+        registry,
+        action="install",
+        author="account_test",
+        target_id=f"{project_id}:claude-code",
+        expected_target_digest=TARGET,
+        provider_version="1.0.0",
+        provider_protocol_version=1,
+        provider_target=str(tmp_path / "verified-target"),
+        provider_release_manifest=manifest.read_text(encoding="utf-8"),
+        provider_release_trust="signed",
+        effects=("write exact HarnessBundle",),
+        recovery_action="restore",
+        idempotency_key=f"verified-under-{Path(executable).name}",
+        at=MOMENT,
+        expires_at="2099-01-01T00:00:00.000Z",
+        setup_stable_id="setup_01J0000000000000000000000A",
+        setup_version="1.0",
+    )
+    installation.approve(registry, plan.operation_id, plan_digest=plan.digest, at=MOMENT)
+    installation.begin(registry, plan.operation_id, observed_target_digest=TARGET, at=MOMENT)
+    installation.applied(registry, plan.operation_id, at=MOMENT)
+    installation.verify(
+        registry,
+        plan.operation_id,
+        postconditions_met=True,
+        observed_target_digest=TARGET_AFTER,
+        at=MOMENT,
+    )
+    return str(project_id)
+
+
+def _capturing_invoker(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
+    """Replace the launcher seam and keep what the observer handed it."""
+    asked: dict[str, object] = {}
+
+    def capturing(
+        executable: str,
+        target: str,
+        version: int,
+        *,
+        unisolated_reason: str | None = None,
+        writable: tuple[Path, ...] = (),
+    ) -> conformance.Invoker:
+        asked["reason"] = unisolated_reason
+        asked["version"] = version
+
+        def invoke(command: str, arguments: Sequence[str]) -> JsonValue:
+            return {"state": "managed", "target_digest": TARGET, "backups": []}
+
+        return invoke
+
+    monkeypatch.setattr(invocation, "provider_invoker", capturing)
+    return asked
+
+
+@pytest.mark.parametrize(
+    "read", [install.target_status, install.target_diff, install.target_backups]
+)
+def test_a_read_runs_under_the_release_its_pair_was_verified_with(
+    registry: sqlite3.Connection,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    read: Callable[[Mapping[str, object]], object],
+) -> None:
+    """`#65`: a target that could be installed could not be observed.
+
+    Where no launcher denies the network, `install plan/approve/apply` went
+    through on a trusted release and `target status/diff/backups` refused one
+    command later, because the observer was the one caller that never consulted
+    a release and had no argument to be handed one. The release the pair was
+    verified under is in the journal; when the named executable is its exact
+    bytes, the read runs under it — the same reason, from the same function,
+    that every writer reads.
+    """
+    executable = _provider(tmp_path, "observed-under-trust")
+    manifest = _signed_release(executable, tmp_path / "release.json")
+    monkeypatch.setattr(release, "pinned_policy", _pinning(executable))
+    project_id = _verified_under(registry, tmp_path, executable, manifest)
+    target = tmp_path / "observed-target"
+    target.mkdir()
+    asked = _capturing_invoker(monkeypatch)
+
+    read(
+        {
+            "project": project_id,
+            "harness": "claude-code",
+            "provider": executable,
+            "target": str(target),
+        }
+    )
+
+    assert asked["reason"] == network_launcher.TRUSTED_RELEASE
+    # The manifest states the protocol its provider speaks; the read asks in
+    # it rather than in the fallback a manifest-less read uses.
+    assert asked["version"] == 1
+
+
+def test_other_bytes_than_the_verified_release_are_read_without_its_trust(
+    registry: sqlite3.Connection, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A manifest describes one artifact; a different executable is a different provider."""
+    executable = _provider(tmp_path, "the-verified-one")
+    manifest = _signed_release(executable, tmp_path / "release.json")
+    monkeypatch.setattr(release, "pinned_policy", _pinning(executable))
+    project_id = _verified_under(registry, tmp_path, executable, manifest)
+    # A different script, not a different name: the fake writes identical
+    # bytes for every name, and identical bytes *are* the verified release.
+    other = _provider(
+        tmp_path,
+        "some-other-provider",
+        answers={"status": {"state": "verified", "target_digest": TARGET_AFTER}},
+    )
+    target = tmp_path / "observed-target"
+    target.mkdir()
+    asked = _capturing_invoker(monkeypatch)
+
+    install.target_status(
+        {"project": project_id, "harness": "claude-code", "provider": other, "target": str(target)}
+    )
+
+    assert asked["reason"] is None
+    assert asked["version"] == protocol_v3.VERSION
+
+
+def test_a_release_revoked_since_the_install_no_longer_trusts_the_read(
+    registry: sqlite3.Connection, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The policy is re-read, not remembered: what `install apply` would refuse, a read refuses too."""
+    executable = _provider(tmp_path, "revoked-since")
+    manifest = _signed_release(executable, tmp_path / "release.json")
+    monkeypatch.setattr(release, "pinned_policy", _pinning(executable))
+    project_id = _verified_under(registry, tmp_path, executable, manifest)
+    unpinned = replace(_release_policy(executable), pinned_releases=frozenset())
+    monkeypatch.setattr(release, "pinned_policy", lambda: unpinned)
+    target = tmp_path / "observed-target"
+    target.mkdir()
+    asked = _capturing_invoker(monkeypatch)
+
+    install.target_status(
+        {
+            "project": project_id,
+            "harness": "claude-code",
+            "provider": executable,
+            "target": str(target),
+        }
+    )
+
+    assert asked["reason"] is None
+
+
+def test_a_named_manifest_trusts_a_read_and_contradicting_it_is_refused(
+    registry: sqlite3.Connection, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`--provider-manifest` on a read is verified exactly as `install plan` verifies it."""
+    executable = _provider(tmp_path, "named-manifest")
+    manifest = _signed_release(executable, tmp_path / "release.json")
+    monkeypatch.setattr(release, "pinned_policy", _pinning(executable))
+    _confirmed(registry, tmp_path, "Z")
+    project_id = registry.execute("SELECT stable_id FROM entity WHERE kind = 'project'").fetchone()[
+        0
+    ]
+    target = tmp_path / "observed-target"
+    target.mkdir()
+    asked = _capturing_invoker(monkeypatch)
+    named = {
+        "project": project_id,
+        "harness": "claude-code",
+        "provider": executable,
+        "provider-manifest": str(manifest),
+        "target": str(target),
+    }
+
+    install.target_status(named)
+    assert asked["reason"] == network_launcher.TRUSTED_RELEASE
+
+    with pytest.raises(CliFailure) as raised:
+        install.target_status({**named, "unverified-provider": True})
+    assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+    assert "contradict" in raised.value.message
+
+
+def test_the_operators_word_is_not_second_guessed_by_the_journal(
+    registry: sqlite3.Connection, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`--unverified-provider` is a decision; a recorded release does not override it."""
+    executable = _provider(tmp_path, "explicitly-unverified")
+    manifest = _signed_release(executable, tmp_path / "release.json")
+    monkeypatch.setattr(release, "pinned_policy", _pinning(executable))
+    project_id = _verified_under(registry, tmp_path, executable, manifest)
+    target = tmp_path / "observed-target"
+    target.mkdir()
+    asked = _capturing_invoker(monkeypatch)
+
+    install.target_status(
+        {
+            "project": project_id,
+            "harness": "claude-code",
+            "provider": executable,
+            "target": str(target),
+            "unverified-provider": True,
+        }
+    )
+
+    assert asked["reason"] == network_launcher.EXPLICIT_UNVERIFIED_PROVIDER
 
 
 def _bundle_response(command: str, arguments: Sequence[str], state: str = "verified") -> JsonValue:

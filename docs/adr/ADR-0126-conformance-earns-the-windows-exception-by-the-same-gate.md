@@ -1,6 +1,6 @@
 ---
 description: "Decision to extend the Windows exception to provider conformance through the same trust signal, not because it is read-only."
-last_verified: "2026-08-30"
+last_verified: "2026-09-02"
 ---
 
 # ADR-0126: Conformance earns the Windows exception through the same signal
@@ -153,6 +153,28 @@ concession. The same consumer-controlled launcher will remove it; for macOS,
 the candidate is `sandbox-exec`, and until something proves it **on the
 platform itself**, it must not be written: an unverified launcher is a green
 guard over nothing.
+
+## Amendment of 2026-09-02: the first signal reaches the reads too
+
+The amendment above gave `target status` and `target diff` "the same flag under
+the same signal" — and only the second signal ever reached them. The writers
+read both signals through one function, `trust.unisolated_reason`, whose first
+argument is the verified release; the observer built its reason from
+`--unverified-provider` alone and declared no argument through which a release
+could be named. Measured by the six-leg configuration slice (`#65`): on both
+Windows legs `install plan/approve/apply` went through on `trusted_release`,
+and `target status` refused one command later on the same bytes.
+
+**Rule, restated.** The reads establish the same two signals the writers do, in
+the writers' order: a `--provider-manifest` the caller names is verified as
+`install plan` verifies one; `--unverified-provider` is the operator's decision
+and nothing is derived behind it; otherwise the release the pair was last
+verified under counts when the named executable is its exact bytes, read from
+the journal. The pinned policy is re-read, so a revocation since the install is
+honoured. The build attestation is not re-run for a read: it is a property of
+bytes that were attested at plan time and re-checked at apply time, and asking
+GitHub again on every `target status` would make a daily read need the network
+the write did.
 
 ## Review conditions
 

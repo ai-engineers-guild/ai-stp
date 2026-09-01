@@ -54,6 +54,23 @@ def unisolated_reason(
     return None
 
 
+def no_contradiction(
+    parameters: Mapping[str, object], trusted_release: release.ReleaseManifest | None
+) -> None:
+    """A signed manifest and `--unverified-provider` cannot both be meant.
+
+    Shared by the writers and the readers: a `target status` handed both would
+    otherwise pick one silently, and whichever it picked would be a decision
+    the caller did not make.
+    """
+    if bool(parameters.get("unverified-provider", False)) and trusted_release is not None:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "a signed release manifest and unverified-provider contradict each other",
+            next_actions=["install plan --provider-manifest <path> --json"],
+        )
+
+
 def release_required(
     parameters: Mapping[str, object],
     protocol_version: int,
@@ -78,13 +95,8 @@ def release_required(
     nothing; `provider-release.md` records that scope rather than leaving it to
     be inferred from which function happens to call this one.
     """
+    no_contradiction(parameters, trusted_release)
     unverified = bool(parameters.get("unverified-provider", False))
-    if unverified and trusted_release is not None:
-        raise CliFailure(
-            "AI_STP_VALIDATION_ERROR",
-            "a signed release manifest and unverified-provider contradict each other",
-            next_actions=["install plan --provider-manifest <path> --json"],
-        )
     if protocol_version != protocol_v3.VERSION or trusted_release is not None or unverified:
         return
     raise CliFailure(
