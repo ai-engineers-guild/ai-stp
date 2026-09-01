@@ -17,6 +17,11 @@ on:
         description: "Exact provider release tag to drive (for example 0.0.50)"
         required: true
         type: string
+      harness:
+        description: "One harness id to drive alone (empty means all seven)"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -56,6 +61,7 @@ jobs:
       AI_STP_FORCE_FILE_CREDENTIAL_STORE: "1"
       GH_TOKEN: ${{ github.token }}
       PROVIDER_TAG: ${{ inputs.tag }}
+      PROVIDER_HARNESS: ${{ inputs.harness }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -89,9 +95,12 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p evidence
+          arguments=(--tag "${PROVIDER_TAG}")
+          if [ -n "${PROVIDER_HARNESS}" ]; then
+            arguments+=(--harness "${PROVIDER_HARNESS}")
+          fi
           uv run --locked --package ai-stp-cli \
-            python -m release_scripts.verify_software_slice \
-            --tag "${PROVIDER_TAG}" \
+            python -m release_scripts.verify_software_slice "${arguments[@]}" \
             | tee "evidence/software-${{ matrix.id }}.json"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()

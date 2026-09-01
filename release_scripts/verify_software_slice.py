@@ -38,7 +38,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Final
 
-from release_scripts._evidence import EvidenceError, cli, data, error_code
+from release_scripts._evidence import EvidenceError, cli, data, error_code, error_message
 
 #: The seven harnesses, in the order the estate names them.
 HARNESSES: Final[tuple[str, ...]] = (
@@ -116,7 +116,9 @@ def _stage(
         outcome = NOT_APPLICABLE
     else:
         outcome = FAILED
-    return {"stage": name, "outcome": outcome, "code": code}
+    # The code names the class; the message names the instance. A failed row
+    # without the sentence sends the reader back for a second run.
+    return {"stage": name, "outcome": outcome, "code": code, "message": error_message(envelope)}
 
 
 def _row(
