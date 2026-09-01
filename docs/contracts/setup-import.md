@@ -53,6 +53,13 @@ registration re-reads every packed file without following links, re-checks the
 inode it classified, and demands the bytes still hash to what the confirmed
 plan recorded.
 
+The setup passport pins the versions the capture was made with and against:
+`capture_tool_version` always names the exact CLI, and `harness_version`
+carries the detected installation's version — empty is the honest record of a
+tree imported on a machine where the harness itself did not answer, never an
+omission. `backup_verification` states `recorded_unverified` until a provider
+status read actually confirms the reference.
+
 Registration is complete by default: a plan whose inventory left anything out —
 oversized, refused — is refused until the operator passes `partial`, and a
 partial registration records `capture_mode` and the exact `excluded_paths` in

@@ -443,6 +443,25 @@ def test_a_complete_capture_says_so_in_its_passport(
     facts = stored.envelope.model_dump(mode="json")["facts"]
     assert facts["capture_mode"]["value"] == "complete"
     assert "excluded_paths" not in facts
+    # The versions the capture was captured with and against are pinned facts:
+    # the instrument always, the harness build when one answered, and an empty
+    # harness version is the honest record of a tree imported where the
+    # harness itself is not installed.
+    assert facts["capture_tool_version"]["value"].startswith("ai-stp-cli=")
+    assert facts["harness_version"]["value"] == ""
+    imported_again = importing.register(
+        registry,
+        found,
+        backup_id=_backup(registry),
+        owner_id=OWNER,
+        device_id=DEVICE,
+        at=AT,
+        harness_version="2.1.223",
+    )
+    pinned = revisions.head(registry, imported_again.stable_id)
+    assert pinned is not None
+    held = pinned.envelope.model_dump(mode="json")["facts"]
+    assert held["harness_version"]["value"] == "2.1.223"
 
 
 def test_an_unreadable_file_is_not_the_same_as_a_clean_one(native: Path, unreadable: None) -> None:

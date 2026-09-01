@@ -789,6 +789,7 @@ def record_backup(
             "AI_STP_VALIDATION_ERROR",
             "that is not the shape of a provider backup reference",
             details={"expected": protocol_v3.BACKUP_REF_PATTERN.pattern},
+            next_actions=["setup import register --backup-ref slot-<twelve digits> ... --json"],
         )
     backup_id = new_id("backup")
     connection.execute(
@@ -828,6 +829,7 @@ def register(
     components: list[dict[str, JsonValue]] | None = None,
     operation_id: str | None = None,
     partial: bool = False,
+    harness_version: str = "",
 ) -> Imported:
     """Register the inspected configuration as the user's own setup.
 
@@ -907,9 +909,18 @@ def register(
                     components or [],
                     at,
                     partial=partial,
+                    harness_version=harness_version,
                 )
                 if plan_digest
-                else _content(inspection, stable_id, held, owner_id, at, partial=partial),
+                else _content(
+                    inspection,
+                    stable_id,
+                    held,
+                    owner_id,
+                    at,
+                    partial=partial,
+                    harness_version=harness_version,
+                ),
                 device_id=device_id,
                 operation_id=operation_id,
             )
@@ -933,6 +944,7 @@ def register_graph(
     device_id: str,
     at: str,
     partial: bool = False,
+    harness_version: str = "",
 ) -> Imported:
     """Atomically materialize the exact confirmed import plan.
 
@@ -1054,6 +1066,7 @@ def register_graph(
                 components=components,
                 operation_id=operation_id,
                 partial=partial,
+                harness_version=harness_version,
             )
     except BaseException as error:
         journal.settle(connection, operation_id, "failed", at, type(error).__name__)
@@ -1084,6 +1097,7 @@ def _reread(root: Path, relative: str, expected_digest: str) -> bytes:
             "AI_STP_CONFLICT",
             "a native file changed shape while the import was being registered",
             details={"path": relative, "found": kind},
+            next_actions=["setup import plan --root <root> --harness <harness> --json"],
         )
     raw = reading.read_regular(place, held, limit=MAX_FILE_BYTES, subject="import")
     if content.address_of(raw) != expected_digest:
@@ -1091,6 +1105,7 @@ def _reread(root: Path, relative: str, expected_digest: str) -> bytes:
             "AI_STP_CONFLICT",
             "a native file changed while the import was being registered",
             details={"path": relative},
+            next_actions=["setup import plan --root <root> --harness <harness> --json"],
         )
     return raw
 
@@ -1152,8 +1167,11 @@ def _graph_content(
     at: str,
     *,
     partial: bool = False,
+    harness_version: str = "",
 ) -> dict[str, JsonValue]:
-    document = _content(inspection, stable_id, held, owner_id, at, partial=partial)
+    document = _content(
+        inspection, stable_id, held, owner_id, at, partial=partial, harness_version=harness_version
+    )
     facts = cast(dict[str, JsonValue], document["facts"])
     facts["plan_digest"] = _fact(plan_digest, at)
     facts["components"] = _fact(cast(list[JsonValue], components), at)
@@ -1168,6 +1186,7 @@ def _content(
     at: str,
     *,
     partial: bool = False,
+    harness_version: str = "",
 ) -> dict[str, JsonValue]:
     """The imported setup's passport, built by naming every field it may hold.
 
@@ -1202,6 +1221,13 @@ def _content(
         # one names what it left out, so the incompleteness travels with the
         # object rather than with the operator's memory.
         "capture_mode": _fact("partial" if partial else "complete", at),
+        # The exact instrument, always, and the harness build when one was
+        # detectable: a captured setup without the versions it was captured
+        # against cannot answer later whether it still applies. An empty
+        # harness version is a statement — the tree was imported on a machine
+        # where that harness did not answer — not an omission.
+        "capture_tool_version": _fact(f"ai-stp-cli={_cli_version()}", at),
+        "harness_version": _fact(harness_version, at),
     }
     if partial:
         facts["excluded_paths"] = _fact(list(inspection.skipped), at)
@@ -1275,6 +1301,12 @@ def _environment(block: dict[object, object], names: set[str], prefix: str) -> J
         names.add(f"{prefix}.{variable}")
         kept[variable] = REDACTED
     return kept
+
+
+def _cli_version() -> str:
+    from ai_stp_cli.runtime import cli_version
+
+    return cli_version()
 
 
 def _fact(value: JsonValue, at: str) -> JsonValue:

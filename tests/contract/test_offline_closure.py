@@ -39,6 +39,7 @@ from typing import Any
 
 import pytest
 
+from ai_stp_cli import paths
 from ai_stp_cli.provider import conformance, protocol
 
 #: Raised by the guard, and distinctive enough that a test can tell our refusal
@@ -370,6 +371,17 @@ def private(warm: Warm, tmp_path: Path) -> Warm:
     """
     home = tmp_path / "home"
     shutil.copytree(warm.home, home)
+    if not paths.POSIX:
+        # `copytree` carries POSIX modes through `copystat` and carries no
+        # Windows DACL at all, so the copy of a private home inherits the
+        # temp directory's default grants — and `read_private` then refuses
+        # it, correctly: the copy really is readable by more than its owner.
+        # Re-stamp what the real first run stamps.
+        from ai_stp_cli import windows_private
+
+        for place in sorted(home.rglob("*")):
+            windows_private.make_private(place)
+        windows_private.make_private(home)
     log = tmp_path / "provider.log"
     return Warm(
         home=home,
