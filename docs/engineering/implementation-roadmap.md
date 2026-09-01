@@ -20,8 +20,8 @@ plans are not continued literally after the implementation changes.
 - The release target is Linux, Windows, and macOS on both architectures —
   `x86_64`/`arm64` — with real-product evidence; bundles remain portable between
   operating systems.
-- Until that exact evidence is complete, package classifiers remain Linux-only;
-  update them after the evidence is complete.
+- Package classifiers name all three operating systems; the six-leg evidence
+  that gated them exists and is re-run on every release candidate.
 - The agent chooses the engineering path within the task. Digest, rollback,
   provenance, and compatibility remain mechanical integrity constraints without
   creating an additional approval round.
@@ -34,7 +34,7 @@ plans are not continued literally after the implementation changes.
 | Platform | `/v1`, PostgreSQL, object storage, queue, authentication/devices, sync, publication, grants/reports, public catalog, article, and SEO projections |
 | Web | Landing, catalog/detail, account/device/owner surfaces, content hub, machine projections, and a three-OS test matrix |
 | Providers | Seven protocol-v3 systems, native configuration layouts, backup/recovery, software lifecycle capabilities, and five complete launch capabilities |
-| Release | All five Python packages published as `0.0.10`; public `check` and CodeQL green on the verified main; the host pulls `deploy/prod` |
+| Release | All five Python packages published through Trusted Publishing (the exact version is in the snapshot below); public `check` and CodeQL green on the verified main; the host pulls `deploy/prod` |
 | Catalog | Seven harness families and four postures published; review tasks `#408`, `#456`, `#460`, and `#461` closed by implementation |
 
 ## Verified snapshot: 2026-09-01
@@ -47,7 +47,7 @@ plans are not continued literally after the implementation changes.
   check.
 - The active provider release is `0.0.53` across all seven public setup-system
   repositories, each with six native binaries and `SHA256SUMS`. Provider kit
-  `0.2.7`, protocol 3.
+  `0.2.8` (it opens `plan_request_fields` to `end_state`), protocol 3.
 - `software-evidence` — the consumer driving `harness install/status/update/
   remove` through `ai-stp` itself — is green on **all six native legs** against
   `0.0.53`, seven harnesses each. The one-leg limitation this document carried
