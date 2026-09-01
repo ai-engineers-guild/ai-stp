@@ -53,7 +53,7 @@ last_verified: "2026-08-03"
 | [setup-import.md](setup-import.md) | Machine boundary for discovering and registering an existing native setup. | 2026-09-01 |
 | [setup-store-ports.md](setup-store-ports.md) | Contract for local discovery, preview, and component import from SX and APM. | 2026-08-13 |
 | [skill-authoring.md](skill-authoring.md) | Skill package structure, required and optional fields, and rejection codes. | 2026-08-29 |
-| [sync-event.md](sync-event.md) | Synchronization event fields, responses, retries, and conflicts. | 2026-08-15 |
+| [sync-event.md](sync-event.md) | Synchronization event fields, responses, retries, and conflicts. | 2026-09-01 |
 | [tag-vocabulary.md](tag-vocabulary.md) | Tag vocabulary format, normalization, limit, and search behavior. | 2026-08-04 |
 | [unverified-consent.md](unverified-consent.md) | Session-scoped consent marker for unverified objects and durable exception records by publisher and major line. | 2026-08-29 |
 | [validation-policy.md](validation-policy.md) | Mandatory checks by component type, MCP class, and setup. | 2026-08-23 |

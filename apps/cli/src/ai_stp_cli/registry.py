@@ -2058,6 +2058,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "skip-event",
                 "string",
                 "Exact id of a refused event to walk past, abandoning its revision. "
+                "Remembered by this device, so a later pull walks past it unasked. "
                 "Repeat to name several.",
                 repeatable=True,
             ),

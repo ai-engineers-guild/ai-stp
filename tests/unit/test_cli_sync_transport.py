@@ -1033,9 +1033,83 @@ def test_a_version_whose_revision_this_device_never_received_is_a_named_refusal(
         assert raised.value.details["event_id"] == prepared.event_id
         assert raised.value.details["version"] == "1.0"
         assert raised.value.details["version_revision_id"] == first.revision_id
-        assert raised.value.next_actions == ["sync pull --skip-event <event_id> --confirm --json"]
-        # The page rolled back whole: nothing of the child landed either.
+        assert raised.value.next_actions == [
+            f"sync pull --skip-event {prepared.event_id} --confirm --json"
+        ]
+        # The page rolled back whole: nothing of the second root landed either.
         assert revisions.head(target, stable_id) is None
+    finally:
+        source.close()
+        target.close()
+
+
+def test_an_abandoned_event_is_remembered_and_the_refusal_names_the_way_past(
+    tmp_path: Path,
+) -> None:
+    """Naming an abandoned event once is the decision; later pulls honour it unasked.
+
+    Measured on a real account: five abandoned events had to travel as flags
+    through every later invocation, and the refusal's next action was a
+    template the caller had to complete from `details`. The id is recorded on
+    the device the first time it is named, and the refusal that leads there
+    carries the exact command.
+    """
+    source = open_registry(tmp_path / "source.sqlite")
+    target = open_registry(tmp_path / "target.sqlite")
+    stable_id = new_id("developer")
+    try:
+        local = revisions.commit(source, _content(stable_id), device_id=DEVICE_A)
+        prepared = sync_state.prepare(
+            source, account_id=ACCOUNT, device_id=DEVICE_A, stored=local
+        ).request
+        event = prepared.model_dump(
+            exclude={"idempotency_key", "expected_head_revision_id"}, mode="python"
+        )
+        payload = dict(cast(dict[str, object], event["payload"]))
+        payload["revision_id"] = f"revision_{'0' * 64}"
+        event["payload"] = payload
+        sealed: dict[str, JsonValue] = {
+            "schema_version": 1,
+            "entity_id": event["entity_id"],
+            "entity_kind": event["entity_kind"],
+            "parent_revision_ids": event["parent_revision_ids"],
+            "operation": event["operation"],
+            "payload": cast(JsonValue, payload),
+            "device_id": event["device_id"],
+            "actor_id": event["actor_id"],
+            "created_at": event["created_at"],
+        }
+        event["revision_id"] = revision_id(sealed)
+        event["content_digest"] = digest_canonical("ai-stp:revision:v1", cast(JsonValue, payload))
+        first_page = SyncPullResponse(
+            items=[SyncStreamEvent(**event, sequence=1)],
+            page=PageInfo(next_cursor="cursor-1", page_size=20),
+        )
+
+        with pytest.raises(CliFailure) as raised:
+            sync_state.apply_page(target, account_id=ACCOUNT, response=first_page, at=AT)
+        assert raised.value.next_actions[0] == (
+            f"sync pull --skip-event {prepared.event_id} --confirm --json"
+        )
+
+        named = sync_state.apply_page(
+            target,
+            account_id=ACCOUNT,
+            response=first_page,
+            at=AT,
+            skip_event_ids=frozenset({prepared.event_id}),
+        )
+        assert named == (0, 0, [prepared.event_id])
+        assert sync_state.abandoned_events(target, ACCOUNT) == frozenset({prepared.event_id})
+
+        # The same event again — a re-read page — with nothing named this time.
+        again = SyncPullResponse(
+            items=[SyncStreamEvent(**event, sequence=1)],
+            page=PageInfo(next_cursor="cursor-2", page_size=20),
+        )
+        unasked = sync_state.apply_page(target, account_id=ACCOUNT, response=again, at=AT)
+        assert unasked == (0, 0, [prepared.event_id])
+        assert sync_state.cursor(target, ACCOUNT) == "cursor-2"
     finally:
         source.close()
         target.close()

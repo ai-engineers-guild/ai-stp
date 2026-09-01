@@ -5186,7 +5186,7 @@
           "value_type": "string",
           "required": false,
           "repeatable": true,
-          "summary": "Exact id of a refused event to walk past, abandoning its revision. Repeat to name several.",
+          "summary": "Exact id of a refused event to walk past, abandoning its revision. Remembered by this device, so a later pull walks past it unasked. Repeat to name several.",
           "choices": []
         },
         {
