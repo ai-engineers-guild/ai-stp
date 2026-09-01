@@ -122,11 +122,30 @@ def test_a_configured_harness_is_distinguished_from_a_merely_installed_one(
     _fake(binaries, "claude")
     home = tmp_path / "home"
     (home / ".claude").mkdir(parents=True)
+    (home / ".claude" / "settings.json").write_text("{}", encoding="utf-8")
     environment = {"PATH": str(binaries), "HOME": str(home)}
 
     found = harnesses.detect(harnesses.DETECTORS[0], environment=environment)
     assert found.state == "configured"
     assert found.configuration == str(home / ".claude")
+
+
+def test_an_empty_configuration_directory_is_not_configuration(tmp_path: Path) -> None:
+    """An installer's footprint is not somebody's configuration.
+
+    `configured` used to mean `is_dir()`, so an empty `~/.claude` — created by
+    an installer, or by a person who never came back — read as "installed and
+    holding user configuration", which claims content nobody wrote.
+    """
+    binaries = tmp_path / "bin"
+    _fake(binaries, "claude")
+    home = tmp_path / "home"
+    (home / ".claude").mkdir(parents=True)
+    environment = {"PATH": str(binaries), "HOME": str(home)}
+
+    found = harnesses.detect(harnesses.DETECTORS[0], environment=environment)
+    assert found.state == "installed"
+    assert found.configuration is None
 
 
 def test_a_harness_that_will_not_say_its_version_is_unknown_not_guessed(
@@ -427,3 +446,69 @@ def test_the_command_reports_every_harness_without_the_home_path() -> None:
         assert item.support in {"primary", "beta"}
         for installation in item.installations:
             assert str(Path.home()) not in installation.path
+
+
+def test_cursor_is_detected_by_either_vendor_name(tmp_path: Path) -> None:
+    """The vendor installs two names, and neither is more canonical.
+
+    `binNames: ["agent", "cursor-agent"]` from the installer object in the
+    pinned bundle. The definition carried that sentence for days while the
+    detector resolved only `cursor-agent` — a machine holding only `agent`
+    was invisible.
+    """
+    binaries = tmp_path / "bin"
+    _fake(binaries, "agent", answer="2026.01.01-abc")
+    home = tmp_path / "home"
+    home.mkdir()
+    environment = {"PATH": str(binaries), "HOME": str(home)}
+    cursor = next(item for item in harnesses.DETECTORS if item.harness_id == "cursor")
+
+    found = harnesses.detect(cursor, environment=environment)
+    assert found.state != "available"
+    assert len(found.installations) == 1
+
+
+def test_two_names_for_one_binary_are_one_installation(tmp_path: Path) -> None:
+    binaries = tmp_path / "bin"
+    real = _fake(binaries, "agent", answer="2026.01.01-abc")
+    if os.name == "nt":
+        pytest.skip("symlink creation needs privilege on Windows")
+    (binaries / "cursor-agent").symlink_to(real)
+    home = tmp_path / "home"
+    home.mkdir()
+    environment = {"PATH": str(binaries), "HOME": str(home)}
+    cursor = next(item for item in harnesses.DETECTORS if item.harness_id == "cursor")
+
+    found = harnesses.detect(cursor, environment=environment)
+    assert len(found.installations) == 1
+
+
+def test_the_version_query_runs_in_the_environment_discovery_was_given(tmp_path: Path) -> None:
+    """One world per detection: found there means asked there."""
+    if os.name == "nt":
+        pytest.skip("the printf probe is a POSIX shell script")
+    binaries = tmp_path / "bin"
+    binaries.mkdir(parents=True)
+    place = binaries / "claude"
+    place.write_text('#!/bin/sh\necho "home=$HOME"\n', encoding="utf-8")
+    place.chmod(place.stat().st_mode | stat.S_IXUSR)
+    home = tmp_path / "elsewhere"
+    home.mkdir()
+    environment = {"PATH": str(binaries), "HOME": str(home)}
+
+    found = harnesses.detect(harnesses.DETECTORS[0], environment=environment)
+    assert found.installations[0].version == f"home={home}"
+
+
+def test_the_normalized_version_sits_beside_the_raw_line(tmp_path: Path) -> None:
+    binaries = tmp_path / "bin"
+    _fake(binaries, "claude", answer="Claude Code 2.1.223 (build)")
+    home = tmp_path / "home"
+    home.mkdir()
+    environment = {"PATH": str(binaries), "HOME": str(home)}
+
+    found = harnesses.detect(harnesses.DETECTORS[0], environment=environment)
+    held = found.installations[0]
+    assert held.version == "Claude Code 2.1.223 (build)"
+    assert held.normalized_version == "2.1.223"
+    assert harnesses.normalized_version("no digits here") == ""

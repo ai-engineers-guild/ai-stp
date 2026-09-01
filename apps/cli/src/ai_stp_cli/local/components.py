@@ -703,6 +703,25 @@ class Discovery:
     diagnostics: tuple[component_sources.Diagnostic, ...]
 
 
+def cursor_config_root(environment: dict[str, str] | None, home: Path) -> Path:
+    """Cursor's config *resolver*, for the one surface built by calling it.
+
+    `CURSOR_CONFIG_DIR`, then `$XDG_CONFIG_HOME/cursor`, else `~/.cursor` —
+    measured off the pinned bundle. Exactly one of cursor's surfaces
+    (`cli-config.json`) is constructed through this; the rest are literal
+    `~/.cursor` joins, which is why this is a layout root and not the
+    harness's.
+    """
+    held = os.environ if environment is None else environment
+    override = held.get("CURSOR_CONFIG_DIR")
+    if override:
+        return Path(override).expanduser()
+    xdg = held.get("XDG_CONFIG_HOME")
+    if xdg:
+        return Path(xdg).expanduser() / "cursor"
+    return home / ".cursor"
+
+
 def discover(
     *,
     project: Path | None = None,
@@ -730,6 +749,8 @@ def discover_report(
     for rule in GLOBAL_RULES:
         if rule.root == "home":
             base = home
+        elif rule.root == "cursor_config":
+            base = cursor_config_root(environment, home)
         else:
             detector = next(
                 (item for item in harnesses.DETECTORS if item.harness_id == rule.harness_id), None
@@ -1880,8 +1901,10 @@ def declared_consistently() -> tuple[str, ...]:
             problems.append(f"{rule.relative}: no detector finds harness {rule.harness_id}")
         if not rule.source:
             problems.append(f"{rule.relative}: no documentation recorded for this layout")
-        if rule.root not in {"config", "home"}:
+        if rule.root not in {"config", "home", "cursor_config"}:
             problems.append(f"{rule.relative}: unknown global root {rule.root}")
+        if rule.root == "cursor_config" and rule.harness_id != "cursor":
+            problems.append(f"{rule.relative}: cursor_config root on {rule.harness_id}")
         if rule.root == "home" and rule.harness_id:
             problems.append(f"{rule.relative}: a shared home layout names one harness")
     return tuple(problems)

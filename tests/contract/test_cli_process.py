@@ -628,6 +628,7 @@ def test_two_homes_keep_separate_device_passports_and_separate_owners(tmp_path: 
         == sorted(second["facts"])
         == [
             "architecture",
+            "harness_installations",
             "harness_versions",
             "installed_harnesses",
             "operating_system",

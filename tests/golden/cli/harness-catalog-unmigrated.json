@@ -5,7 +5,7 @@
       "relative": "cli-config.json",
       "shape": "file",
       "scope": "global",
-      "root": "config",
+      "root": "cursor_config",
       "source": "cursor.com/docs/cli/reference/configuration",
       "declared_key": ""
     },

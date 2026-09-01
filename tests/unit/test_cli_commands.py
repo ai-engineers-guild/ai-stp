@@ -407,11 +407,28 @@ def test_the_device_passport_holds_the_environment_and_the_developer_does_not() 
     # `SPEC-014` REQ-1418 puts the harness survey here and nowhere else.
     assert sorted(device.facts) == [
         "architecture",
+        "harness_installations",
         "harness_versions",
         "installed_harnesses",
         "operating_system",
         "tool_versions",
     ]
+    # Every installation, structurally: the flat `harness_versions` line keeps
+    # only the first, and a machine with two installs of one harness answered
+    # by hiding one. Paths travel `~`-relative — this passport syncs.
+    held_installations = cast(
+        list[dict[str, object]],
+        cast(dict[str, object], device.facts["harness_installations"])["value"],
+    )
+    from pathlib import Path as _Path
+
+    acting_home = str(_Path.home())
+    for row in held_installations:
+        for item in cast(list[dict[str, object]], row["installations"]):
+            # `~`-relative under the acting home; a binary outside it keeps its
+            # own path, which is not this machine's home identity.
+            assert not str(item["path"]).startswith(acting_home + "/")
+            assert "selected" in item and "version_source" in item
     tool_versions = cast(dict[str, object], device.facts["tool_versions"])["value"]
     assert cast(list[str], tool_versions)[0].startswith("ai-stp-cli=")
 

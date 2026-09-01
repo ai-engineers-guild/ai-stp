@@ -241,10 +241,16 @@ def test_cursor_ignores_xdg_because_seven_of_its_eight_surfaces_do() -> None:
 
     Asserted with the variable *set*, since that is the branch the mistake lived
     in and the one a passing test would otherwise never enter.
+
+    The next correction split the root per surface: the harness root is now
+    literal `~/.cursor` under every variable — a whole-harness override moved
+    the six literal surfaces whenever `CURSOR_CONFIG_DIR` was set — and the
+    one resolver-built surface (`cli-config.json`) carries its own layout root,
+    resolved override-first exactly as the pinned bundle does.
     """
     from pathlib import Path
 
-    from ai_stp_cli.local import harnesses
+    from ai_stp_cli.local import components, harnesses
 
     cursor = next(item for item in harnesses.DETECTORS if item.harness_id == "cursor")
     home = {"HOME": "/home/u"}
@@ -253,7 +259,23 @@ def test_cursor_ignores_xdg_because_seven_of_its_eight_surfaces_do() -> None:
     assert harnesses.config_root(cursor, {**home, "XDG_CONFIG_HOME": "/elsewhere"}) == Path(
         "/home/u/.cursor"
     )
-    assert harnesses.config_root(cursor, {**home, "CURSOR_CONFIG_DIR": "/opt/c"}) == Path("/opt/c")
+    assert harnesses.config_root(cursor, {**home, "CURSOR_CONFIG_DIR": "/opt/c"}) == Path(
+        "/home/u/.cursor"
+    )
+
+    resolver = components.cursor_config_root
+    assert resolver({**home, "CURSOR_CONFIG_DIR": "/opt/c"}, Path("/home/u")) == Path("/opt/c")
+    assert resolver({**home, "XDG_CONFIG_HOME": "/elsewhere"}, Path("/home/u")) == Path(
+        "/elsewhere/cursor"
+    )
+    assert resolver(home, Path("/home/u")) == Path("/home/u/.cursor")
+
+    catalog_cursor = harness_catalog.BY_ID["cursor"]
+    resolver_rooted = [
+        layout.relative for layout in catalog_cursor.layouts if layout.root == "cursor_config"
+    ]
+    assert resolver_rooted == ["cli-config.json"]
+    assert catalog_cursor.root_override is None
 
 
 def test_opencode_is_xdg_on_every_system_including_windows() -> None:

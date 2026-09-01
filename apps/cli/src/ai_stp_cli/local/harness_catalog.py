@@ -79,6 +79,13 @@ class HarnessDefinition:
     npm_packages: tuple[str, ...] = ()
     scoop_app: str | None = None
 
+    #: Other command names the vendor installs for the same product. Cursor
+    #: ships two — `binNames: ["agent", "cursor-agent"]` from the installer
+    #: object in the pinned bundle — and "neither is more canonical, so either
+    #: detects an installation" was written above the executable field long
+    #: before detection could actually do it.
+    executable_aliases: tuple[str, ...] = ()
+
     @property
     def support(self) -> HarnessSupport:
         """The declared support level, read from its owner rather than restated.
@@ -570,8 +577,21 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
         ".cursor",
         f"{CURSOR}/cli/reference/configuration",
         (
+            # The one cursor surface built by calling the config resolver
+            # (`CURSOR_CONFIG_DIR`, then `$XDG_CONFIG_HOME/cursor`, else
+            # `~/.cursor`); the other global surfaces are literal `~/.cursor`
+            # joins in the pinned bundle. The long note below measured this and
+            # said a per-surface root was "not worth inventing for a single
+            # file until something depends on it" — discovery now does: with
+            # the variable set, a whole-harness override sent six literal
+            # surfaces to a directory the product never reads them from.
             _layout(
-                "setting", "cli-config.json", "file", f"{CURSOR}/cli/reference/configuration", G
+                "setting",
+                "cli-config.json",
+                "file",
+                f"{CURSOR}/cli/reference/configuration",
+                G,
+                root="cursor_config",
             ),
             # Cursor carries components inside a plugin rather than in sibling
             # directories: `.cursor-plugin/plugin.json` declares `commands`,
@@ -645,7 +665,11 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
         # "reads like data" would have put `plugins` under `CURSOR_DATA_DIR`,
         # and "comes off the config resolver" would have kept all seven on XDG.
         # Only following each surface's own construction answered it.
-        root_override="CURSOR_CONFIG_DIR",
+        #
+        # The per-surface root exists now (`cli-config.json` above carries
+        # `root="cursor_config"`), so the whole-harness override is gone: it
+        # moved six literal surfaces whenever the variable was set.
+        executable_aliases=("agent",),
     ),
     HarnessDefinition(
         "antigravity",

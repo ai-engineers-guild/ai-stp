@@ -16,11 +16,12 @@ import platform
 import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Final, cast
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import harnesses, journal, revisions
-from ai_stp_cli.paths import bootstrap_lock, data_dir, read_private, write_private
+from ai_stp_cli.paths import bootstrap_lock, data_dir, read_private, redact_home, write_private
 from ai_stp_cli.runtime import cli_version
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.ids import is_valid_id, new_id
@@ -326,11 +327,34 @@ def observed_environment(at: str) -> dict[str, JsonValue]:
         for item in present_found
         if item.installations
     ]
+    # Every installation, structurally, because the flat line above keeps only
+    # the first: a machine with two codex installs answered which version it
+    # had by hiding one of them. Paths travel `~`-relative — a device passport
+    # syncs, and an absolute path is this machine's identity.
+    installations: list[JsonValue] = [
+        {
+            "harness_id": item.harness_id,
+            "installations": [
+                {
+                    "path": redact_home(Path(held.path)),
+                    "version": held.version,
+                    "normalized_version": held.normalized_version,
+                    "version_source": held.version_source,
+                    "surface": held.surface,
+                    "selected": index == 0,
+                }
+                for index, held in enumerate(item.installations)
+            ],
+        }
+        for item in present_found
+        if item.installations
+    ]
     return {
         "operating_system": _fact(system, "observed", at),
         "architecture": _fact(machine, "observed", at),
         "installed_harnesses": _fact(present, "observed", at),
         "harness_versions": _fact(versions, "observed", at),
+        "harness_installations": _fact(installations, "observed", at),
         "tool_versions": _fact([f"ai-stp-cli={cli_version()}"], "observed", at),
     }
 
