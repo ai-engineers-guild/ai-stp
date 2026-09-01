@@ -70,7 +70,25 @@ jobs:
             gh api --method POST "repos/${REPOSITORY}/git/refs" \
               -f ref=refs/heads/deploy/prod -f sha="${HEAD_SHA}" >/dev/null
           fi
-          promoted="$(gh api "repos/${REPOSITORY}/git/ref/heads/deploy/prod" --jq .object.sha)"
+          # Read back with a bounded retry rather than once. The write above
+          # succeeded and this read disagreed with it on 2026-09-01: the job
+          # exited 1 while `deploy/prod` was in fact already at `HEAD_SHA`, so
+          # the ref advanced, `verify-public` was skipped as a dependent of a
+          # failed job, and nothing watched production roll forward. That is the
+          # red-run-for-a-healthy-deployment this workflow elsewhere says is
+          # worse than no check, arriving through the one call that cannot fail
+          # slowly — a read of a ref moments after writing it.
+          #
+          # Five attempts over roughly ten seconds. A ref that is still wrong
+          # after that is a real disagreement and still fails.
+          promoted=""
+          for attempt in 1 2 3 4 5; do
+            promoted="$(gh api "repos/${REPOSITORY}/git/ref/heads/deploy/prod" --jq .object.sha)"
+            if [ "${promoted}" = "${HEAD_SHA}" ]; then
+              break
+            fi
+            sleep 2
+          done
           test "${promoted}" = "${HEAD_SHA}"
 
   verify-public:
