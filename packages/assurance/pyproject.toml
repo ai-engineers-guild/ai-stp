@@ -1,6 +1,6 @@
 [project]
 name = "ai-stp-assurance"
-version = "0.0.13"
+version = "0.0.14"
 description = "Evidence records: the signed author attestation for credential-dependent checks."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -20,8 +20,8 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "ai-stp-foundation==0.0.13",
-    "ai-stp-passports==0.0.13",
+    "ai-stp-foundation==0.0.14",
+    "ai-stp-passports==0.0.14",
     "pydantic>=2.9",
 ]
 
