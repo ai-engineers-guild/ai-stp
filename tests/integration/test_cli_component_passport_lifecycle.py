@@ -82,6 +82,11 @@ redistribution_allowed = true
         str(candidate["source_path"]),
         "--root",
         str(project),
+        # `.agents/skills` is claimed by the portable cross-product surface and
+        # by antigravity at once; adopting it is a decision now, not a silent
+        # first pick, and this lifecycle exercises the portable claim.
+        "--harness",
+        "portable",
     )
     stable_id = str(adopted["stable_id"])
     original_revision = str(adopted["revision_id"])

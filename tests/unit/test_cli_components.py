@@ -12,6 +12,7 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import components, content, lifecycle, mcp_clients
 from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_contracts.sync_payload import check_sync_payload
+from ai_stp_foundation.canonical import JsonValue
 
 SECRET = "AKIAIOSFODNN7EXAMPLE"
 MOMENT = "2026-01-01T00:00:00.000Z"
@@ -1286,3 +1287,45 @@ def test_an_unknown_consent_scope_is_named_before_coverage_is_answered() -> None
 
     assert refused.value.code == "AI_STP_VALIDATION_ERROR"
     assert "scope" in refused.value.message
+
+
+def test_a_path_two_surfaces_claim_is_a_decision_not_a_silent_pick(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`.agents/skills` answers to two documented surfaces at once.
+
+    Measured live: the portable cross-product skills convention and
+    antigravity's own project skills both claim the same directory, discovery
+    honestly reports both candidates — and `component adopt --path` took the
+    first one without a word. The adopted component then carried an empty
+    `harness_id`, `select propose --harness antigravity` refused it as
+    `harness_mismatch`, and no flag existed to adopt the antigravity claim at
+    all. The house rule is the provider-resolution one: more than one answer
+    is a decision, and picking silently is the failure.
+    """
+    from ai_stp_cli.commands import component as command
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    root = tmp_path / "work"
+    skill = root / ".agents" / "skills" / "probe"
+    skill.mkdir(parents=True)
+    (skill / "SKILL.md").write_text("# Probe\nshared-surface skill.\n", encoding="utf-8")
+
+    with pytest.raises(CliFailure) as undecided:
+        command.adopt({"path": str(skill), "root": str(root)})
+    assert undecided.value.code == "AI_STP_USER_DECISION_REQUIRED"
+    assert "antigravity" in str(undecided.value.details)
+
+    def harness_of(facts: "dict[str, JsonValue]") -> "JsonValue":
+        fact = facts["harness_id"]
+        assert isinstance(fact, dict)
+        return fact["value"]
+
+    chosen = command.adopt(
+        {"path": str(skill), "root": str(root), "harness": "antigravity"}
+    ).payload
+    assert harness_of(chosen.facts) == "antigravity"
+
+    portable = command.adopt({"path": str(skill), "root": str(root), "harness": "portable"}).payload
+    assert harness_of(portable.facts) == ""

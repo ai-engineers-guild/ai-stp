@@ -274,6 +274,15 @@
           "repeatable": false,
           "summary": "Project root the component was discovered under.",
           "choices": []
+        },
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Harness whose claim of this path to adopt; `portable` selects the shared cross-product claim.",
+          "choices": []
         }
       ],
       "parameter_rules": [],

@@ -788,6 +788,12 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         parameters=(
             option("path", "string", "Exact path discovery reported.", required=True),
             option("root", "string", "Project root the component was discovered under."),
+            option(
+                "harness",
+                "string",
+                "Harness whose claim of this path to adopt; "
+                "`portable` selects the shared cross-product claim.",
+            ),
         ),
         next_actions=("component passport show", "component discover"),
     ),

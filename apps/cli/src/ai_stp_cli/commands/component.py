@@ -292,16 +292,50 @@ def adopt(parameters: Mapping[str, object]) -> Answer[PassportView]:
         if named is not None
         else (wanted.parent if wanted.parent.is_dir() else None)
     )
-    found = next(
-        (item for item in components.discover(project=project) if item.absolute == wanted), None
-    )
-    if found is None:
+    matches = [item for item in components.discover(project=project) if item.absolute == wanted]
+    if not matches:
         raise CliFailure(
             "AI_STP_NOT_FOUND",
             "no discovered component sits at that path",
             details={"path": str(wanted), "root": str(project) if project else "none"},
             next_actions=["component discover --root <path> --json"],
         )
+    # One path can answer to more than one documented surface: `.agents/skills`
+    # is both the portable cross-product convention and antigravity's own
+    # project skills. Taking the first claim silently gave the adopted
+    # component an empty `harness_id` that `select propose` then refused as
+    # `harness_mismatch`, with no flag anywhere to name the other claim. More
+    # than one answer is a decision — the provider-resolution rule, applied
+    # here.
+    claimed = str(parameters.get("harness") or "")
+    if claimed:
+        wanted_harness = "" if claimed == "portable" else claimed
+        matches = [item for item in matches if item.harness_id == wanted_harness]
+        if not matches:
+            raise CliFailure(
+                "AI_STP_NOT_FOUND",
+                "no surface of that harness claims this path",
+                details={"path": str(wanted), "harness": claimed},
+                next_actions=["component discover --root <path> --json"],
+            )
+    # Distinct harnesses, not raw claim count: `~/.claude/CLAUDE.md` is claimed
+    # by claude-code's global layout and by its project layout at once, and
+    # that is one answer twice, not a decision. The decision exists exactly
+    # when the claims name different harnesses — which is what the adopted
+    # passport's `harness_id` fact will carry forward.
+    if len({item.harness_id for item in matches}) > 1:
+        raise CliFailure(
+            "AI_STP_USER_DECISION_REQUIRED",
+            "that path answers to more than one surface; name the harness to adopt it for",
+            details={
+                "path": str(wanted),
+                "claims": ", ".join(sorted({item.harness_id or "portable" for item in matches})),
+            },
+            next_actions=[
+                "component adopt --path <path> --root <root> --harness <id> --json",
+            ],
+        )
+    found = matches[0]
 
     current, _warning = identity.load_or_create()
     with closing(open_registry(configured_path(), create=True)) as connection:
