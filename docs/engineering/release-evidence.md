@@ -40,10 +40,32 @@ PostgreSQL migrations, user isolation, object authorization, RustFS operation, j
 
 The exact public source, release artifact and manifest, trust policy, signature, hash, rollback protection, public checks, closed conformance verification, malicious packages, no-change plan, apply, launch, status, and restore are required.
 
-Linux x86_64 is required for all five providers. Claude Code and Codex block the main
-release; the three beta lines complete the same safe lifecycle but do not strengthen
-their support label. A platform that was not exercised is not called supported;
-macOS receives `not_verified` and does not block the current release.
+All **seven** `NDDev-OpenNetwork/*-setup-system` providers are in scope, each
+release carrying six native binaries and `SHA256SUMS`. A platform that was not
+exercised is not called supported.
+
+### The evidence slices, and who invokes each
+
+A script nobody can run is not a check. Every slice below has a recipe, and the
+recipe is where a reader learns the slice exists; none of them enters
+`just check`, because the repository gate may not depend on another party's
+release network or on a deployed environment being reachable.
+
+| recipe | question it answers |
+|---|---|
+| `just evidence-live` | the deployed catalogue, anonymously, with no credential |
+| `just evidence-providers <tag>` | does the projection table still agree with the providers **as released** |
+| `just evidence-software <tag>` | can a consumer drive a released provider through `harness install/status/update/remove` |
+| `just evidence-config <tag>` | can a native surface be captured, installed into a target, observed and removed again — one row per harness |
+| `just evidence-contribution <tag>` | `#54`'s acceptance: one MCP component in each of its three native forms, and the refusal that is also an answer |
+| `just evidence-citations` | is every source link the harness catalogue cites still alive |
+| `just evidence-sync <home_a> <home_b>` | two devices, rewind, conflict and merge — needs a real browser login |
+| `just evidence-publication <home>` | publication, grants, reports and owner reads — needs a real browser login |
+
+`software-evidence` and `config-evidence` are the two workflows that run their
+slice on all six native legs (`ubuntu-24.04`, `ubuntu-24.04-arm`,
+`macos-15-intel`, `macos-15`, `windows-2025`, `windows-11-arm`). They are
+`workflow_dispatch` only and take the exact provider tag as input.
 
 ## First public catalog
 
