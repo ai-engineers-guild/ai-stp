@@ -77,15 +77,20 @@ jobs:
           echo "UV_PYTHON=${python_path}" >> "${GITHUB_ENV}"
           echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/software-${{ matrix.id }}" \
             >> "${GITHUB_ENV}"
-      - name: Install locked dependencies
+      - name: Install the consumer and nothing else
+        # The slice drives `ai-stp` the way a user's machine does, and a user's
+        # machine holds no server. A workspace-wide sync would also demand a
+        # cryptography build on windows/arm64, where the locked version ships
+        # no wheel — a fact about the server's dependencies, not this slice's.
         run: |
           set -euo pipefail
-          uv sync --locked --group dev
+          uv sync --locked --package ai-stp-cli
       - name: Drive every released provider through the consumer path
         run: |
           set -euo pipefail
           mkdir -p evidence
-          uv run --locked python -m release_scripts.verify_software_slice \
+          uv run --locked --package ai-stp-cli \
+            python -m release_scripts.verify_software_slice \
             --tag "${PROVIDER_TAG}" \
             | tee "evidence/software-${{ matrix.id }}.json"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
