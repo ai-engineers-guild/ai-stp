@@ -1,11 +1,12 @@
 ---
 description: "Decision to compile a component whose landing place is a key inside a provider-owned file as a contribution to that file, reconstructed by the consumer."
-last_verified: "2026-08-30"
+last_verified: "2026-09-01"
 ---
 
 # ADR-0129: A component landing inside another party's file is a contribution to that file
 
-Status: proposed.
+Status: accepted. The install half shipped in `0.0.13`; the removal verb is
+settled below (2026-09-01).
 
 ## Context
 
@@ -182,12 +183,11 @@ changed when it is not.
 
 ## Removal takes the key, not the file
 
-Recorded, not built. `#54` tracks the implementation, and it is open on a
-question this record does not settle: protocol v3 carries one verb per apply, so
-a removal of a setup that holds both a contribution and its own files has to
-choose one, and what a released provider does with that choice is visible to
-every provider already shipped. The consumer half below is settled; the verb is
-not, and guessing it would change a contract seven vendored providers speak.
+`#54` tracks the implementation. The consumer half below was settled first; the
+verb question it left open — protocol v3 carries one verb per apply, so a
+removal of a setup that holds both a contribution and its own files has to
+choose one, and the choice is visible to every provider already shipped — is
+settled in its own subsection at the end of this section.
 
 The decision above says how a contribution lands and said nothing about how it
 goes. That silence had a shape: a contribution's passport declares
@@ -224,6 +224,43 @@ from an empty one would notice.
 The last contribution to leave does not restore the file to what it was before
 the first one arrived. Nothing records that state, and inventing it would be a
 third source of truth about a file whose owner is the user.
+
+### The verb: `remove`, with the plan taught to leave a file behind
+
+Decided 2026-09-01 under the owner's standing delegation, after measuring what
+the current wire can and cannot say.
+
+Measured first. A removal plan is built without a bundle — `_plan_v3` passes no
+bytes for `remove` — so the provider plans deletion from its own recorded
+state, and `written_paths` is exactly the list it deletes from. After a
+contribution install the provider *wrote* the host file, so that list contains
+it. Nothing in the plan request can currently say "this path is not yours to
+delete; it outlives the setup at these bytes." The end state a contribution
+demands — setup ended, host file present with the user's remaining bytes — is
+therefore inexpressible today, by mechanism and not merely by reading.
+
+Two applies do not express it either, in either order. A `replace` down to a
+reduced state either converges by deleting the host file or strands the key in
+it, depending on which the provider does with a path that left the payload; a
+following `remove` deletes what the provider wrote, which by then includes the
+host file. Both orders end wrong against the same state model that lets
+`written_paths` scope a removal.
+
+The decision: the verb stays `remove`. The missing sentence becomes a plan
+extension, not a second verb: a remove-plan entry gains a per-path disposition —
+today's deletion, or final bytes to leave behind, digest- and length-bound the
+way software artifacts already are. The field is declared through
+`plan_request_fields`, so introduction follows the `ADR-0125` order: this
+consumer accepts the field, ships, and only then a provider declares it. The
+exact field name and schema belong to the provider-kit revision that introduces
+them, not to this record.
+
+Until a provider declares the field, behavior stays exactly today's — the plan
+truthfully warns that the host file goes whole and `restore` returns it byte
+for byte. No approval step is added on either path. The consumer half — the
+withdraw reconstruction wired into removal planning — arrives in one change
+together with the rule, per the order-within-one-change clause above, gated on
+the provider's declaration rather than on a question to anyone.
 
 ## Reconsideration conditions
 
