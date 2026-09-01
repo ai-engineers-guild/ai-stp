@@ -471,6 +471,15 @@ def consent_allow(parameters: Mapping[str, object]) -> Answer[ConsentRecord]:
             "both a scope and a target are required",
             details={"scopes": ", ".join(sorted(consent.SCOPES))},
         )
+    # Before anything else is asked about the target. An unknown scope used to
+    # fall through to that later question's refusal, sending the operator to
+    # hunt a registration problem when the mistake was the scope word itself.
+    if str(scope) not in consent.SCOPES:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "that consent scope is not one this contract defines",
+            details={"scope": str(scope), "allowed": ", ".join(sorted(consent.SCOPES))},
+        )
 
     def work(connection: sqlite3.Connection) -> ConsentRecord:
         # The contract asks for "the fingerprint of the candidate at the moment
@@ -538,6 +547,15 @@ def consent_revoke(parameters: Mapping[str, object]) -> Answer[ConsentRecord]:
             "AI_STP_VALIDATION_ERROR",
             "both a scope and a target are required",
             details={"scopes": ", ".join(sorted(consent.SCOPES))},
+        )
+    # Before anything else is asked about the target. An unknown scope used to
+    # fall through to that later question's refusal, sending the operator to
+    # hunt a registration problem when the mistake was the scope word itself.
+    if str(scope) not in consent.SCOPES:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "that consent scope is not one this contract defines",
+            details={"scope": str(scope), "allowed": ", ".join(sorted(consent.SCOPES))},
         )
 
     def work(connection: sqlite3.Connection) -> ConsentRecord:
@@ -669,14 +687,40 @@ def fork(parameters: Mapping[str, object]) -> Answer[VersionLine]:
         row = connection.execute(
             "SELECT kind FROM entity WHERE stable_id = ?", (stable_id,)
         ).fetchone()
+        at = moment()
         copy = versions.fork(
             connection,
             source_stable_id=stable_id,
             source_version=version,
             source_digest=source.passport_digest,
             kind=str(row["kind"]),
-            at=moment(),
+            at=at,
         )
+        # The copy's content, not just its lineage. Without this first revision
+        # the fork answered `ok` and then every follow-up refused it — passport
+        # show, update, release and even forget all found nothing — so the
+        # object `REQ-521` calls a copy held nothing to edit toward `REQ-522`'s
+        # meaningful change.
+        stored = revisions.get(connection, source.revision_id)
+        if stored is None:
+            raise CliFailure(
+                "AI_STP_CONFLICT",
+                "a component version points to a missing passport",
+                details={"id": stable_id, "version": version},
+            )
+        seeded = cast(dict[str, JsonValue], stored.envelope.model_dump(mode="json"))
+        seeded.pop("revision_id", None)
+        current, _warning = identity.load_or_create()
+        seeded.update(
+            {
+                "stable_id": copy.stable_id,
+                "owner_id": owner().account_id,
+                "created_at": at,
+                "visibility": "private",
+                "parent_revision_ids": [],
+            }
+        )
+        revisions.commit(connection, seeded, device_id=current.device_id)
         verdict = versions.publishable(
             connection, copy.stable_id, passport_digest=source.passport_digest, public=True
         )

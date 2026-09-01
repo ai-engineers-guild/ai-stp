@@ -164,8 +164,11 @@ def eligible_everywhere(parameters: Mapping[str, object]) -> Answer[EligibilityM
     silence. Installation is an input to running something, not to whether it
     may be composed.
     """
+    # `not named`, not `is None`: the option is repeatable, so Click delivers
+    # an omitted `--harness` as an empty tuple (`#384`), and the empty tuple
+    # means the same thing absence means — every supported harness.
     named = parameters.get("harness")
-    if named is None:
+    if not named:
         requested = tuple(sorted(HARNESS_IDS))
     else:
         supplied: tuple[object, ...] = (
@@ -258,7 +261,12 @@ def blast_radius(parameters: Mapping[str, object]) -> Answer[BlastRadiusReport]:
     component_version = str(parameters.get("component-version") or "")
     if not component_id or not component_version:
         raise CliFailure(
-            "AI_STP_VALIDATION_ERROR", "an exact component id and version are required"
+            "AI_STP_VALIDATION_ERROR",
+            "an exact component id and version are required",
+            next_actions=[
+                "component version list --id <stable_id> --json",
+                "select blast-radius --component-id <stable_id> --component-version <X.Y> --json",
+            ],
         )
     with closing(open_readonly(registry)) as connection:
         return Answer(

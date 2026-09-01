@@ -123,15 +123,22 @@ def record(
     disagree with the store and this cannot.
     """
     at = moment()
-    previous = revisions.head(connection, found.stable_id)
-    content = _content(found, at, previous)
+    # Every head, not `head()`: that helper refuses a forked object, and a scan
+    # is exactly the thing that can converge one — it states the whole current
+    # truth of the filesystem, so it supersedes every open line at once.
+    current = revisions.heads(connection, found.stable_id)
+    previous = current[-1] if current else None
+    content = _content(found, at, previous, parents=[item.revision_id for item in current])
     if (
-        previous is not None
+        len(current) == 1
+        and previous is not None
         and previous.envelope.model_dump(mode="json")["facts"] == (content["facts"])
     ):
         # Nothing observed has changed. Committing anyway would store a revision
         # whose only difference is when it was written, and `SPEC-003` REQ-312
-        # is explicit that a re-scan must not manufacture history.
+        # is explicit that a re-scan must not manufacture history. With more
+        # than one head the commit happens even for equal facts, because its
+        # purpose is then the convergence itself.
         return previous
 
     operation_id = journal.begin(connection, "passport.project.record", at)
@@ -150,7 +157,11 @@ def record(
 
 
 def _content(
-    found: Scan, at: str, previous: revisions.StoredRevision | None
+    found: Scan,
+    at: str,
+    previous: revisions.StoredRevision | None,
+    *,
+    parents: list[str],
 ) -> dict[str, JsonValue]:
     """The passport content itself, which stays on this machine.
 
@@ -184,7 +195,11 @@ def _content(
         "owner_id": owner().account_id,
         "created_at": at,
         "visibility": "private",
-        "parent_revision_ids": [],
+        # The heads this scan supersedes. This used to be hardcoded empty, so
+        # the first legitimate change committed a second parentless root: two
+        # heads, composition refused with "needs a merge", and no command able
+        # to perform one for a project.
+        "parent_revision_ids": cast(JsonValue, parents),
         "facts": facts,
     }
 

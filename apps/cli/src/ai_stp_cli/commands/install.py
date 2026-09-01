@@ -1813,7 +1813,10 @@ def _provider_target(parameters: Mapping[str, object], logical: str, version: in
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
             "provider protocol v2/v3 requires an existing absolute target directory",
-            next_actions=["install plan --target <directory> --protocol-version 3 --json"],
+            next_actions=[
+                "install plan --target <directory> --protocol-version 3 --json",
+                "target status --provider <path> --target <directory> --json",
+            ],
         )
     place = Path(given).expanduser()
     if place.is_symlink() or not place.is_absolute() or not place.is_dir():
@@ -1991,6 +1994,38 @@ def _observe_target(
     return _provider_observation(invoke)
 
 
+def _observation_protocol(parameters: Mapping[str, object]) -> int:
+    """The protocol for a read-only look at a provider the caller named.
+
+    Installs learn the protocol from the signed release manifest, and these
+    reads hold no manifest. Their old fallback — frozen v1 — is a protocol no
+    released provider speaks: measured on a live pair, a managed file was
+    edited, the provider's own status named the drift, and `target status`
+    without `--protocol-version` answered `installed` with an empty observed
+    digest, because the v1 conversation carried no target identity. An
+    unqualified observation asks in v3, the protocol released providers
+    actually speak; `--protocol-version` still selects any supported protocol.
+    """
+    if parameters.get("protocol-version"):
+        return _protocol_version(parameters)
+    return protocol_v3.VERSION
+
+
+def _observation_warnings(parameters: Mapping[str, object], observed: str) -> tuple[str, ...]:
+    """Say when a provider was asked and its answer carried no target identity.
+
+    An empty observation and no observation used to render the same survey,
+    and the clean shape is exactly what an agent acts on. The journal half is
+    still answered; the envelope names the missing live half.
+    """
+    if parameters.get("provider") and not observed:
+        return (
+            "the named provider answered no target identity; drift was not "
+            "assessed, and this pair is described from the journal alone",
+        )
+    return ()
+
+
 def _optional_invoker(
     parameters: Mapping[str, object], project_id: str, harness: str
 ) -> conformance.Invoker | None:
@@ -2003,7 +2038,7 @@ def _optional_invoker(
     """
     if not parameters.get("provider"):
         return None
-    version = _protocol_version(parameters)
+    version = _observation_protocol(parameters)
     logical = f"{project_id}:{harness}"
     target = _provider_target(parameters, logical, version)
     return invocation.provider_invoker(
@@ -2047,7 +2082,10 @@ def target_status(parameters: Mapping[str, object]) -> Answer[TargetSurvey]:
             authorization_evidence=authorization_evidence,
             catalog_version=str(parameters.get("catalog-version") or ""),
         )
-        return Answer(_survey(found, shadowed=shadowed))
+        return Answer(
+            _survey(found, shadowed=shadowed),
+            warnings=_observation_warnings(parameters, observed),
+        )
 
 
 def target_diff(parameters: Mapping[str, object]) -> Answer[TargetDiff]:
@@ -2099,7 +2137,8 @@ def target_diff(parameters: Mapping[str, object]) -> Answer[TargetDiff]:
                 changes=list(targets.pending_changes(found)),
                 managed_detail=managed_detail,  # pyright: ignore[reportArgumentType]
                 managed_changes=managed_changes,
-            )
+            ),
+            warnings=_observation_warnings(parameters, observed),
         )
 
 

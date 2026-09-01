@@ -9,7 +9,7 @@ import stat
 import subprocess
 import tempfile
 import zipfile
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import closing
 from dataclasses import replace
 from pathlib import Path
@@ -453,11 +453,107 @@ def test_target_status_uses_provider_observation_for_authorization_readiness(
         },
     )
 
+    # The fake answers the frozen v1 conversation, so the read says so: an
+    # unqualified observation speaks v3, the protocol released providers speak.
     view = install.target_status(
-        {"project": project_id, "harness": "claude-code", "provider": executable}
+        {
+            "project": project_id,
+            "harness": "claude-code",
+            "provider": executable,
+            "protocol-version": 1,
+        }
     ).payload
 
     assert view.pending_authorization == pending
+
+
+def test_an_unqualified_observation_speaks_the_protocol_released_providers_speak(
+    registry: sqlite3.Connection, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`--provider` without `--protocol-version` must not fall back to frozen v1.
+
+    Measured on a live pair before the fix: a managed file was edited, the
+    provider's own `status` said the target had changed, and `target status`
+    without `--protocol-version` answered `installed` with an empty
+    `observed_target_digest` — the v1 default asked a v3-only provider a v1
+    question, the conversation carried no target identity, and drift detection
+    was silently inert. Released providers speak v3, so the unqualified read
+    asks in v3; `--protocol-version` still selects any supported protocol.
+    """
+    _confirmed(registry, tmp_path, "Z")
+    project_id = registry.execute("SELECT stable_id FROM entity WHERE kind = 'project'").fetchone()[
+        0
+    ]
+    executable = _provider(tmp_path, "unqualified-observer")
+    target = tmp_path / "observed-target"
+    target.mkdir()
+    asked: dict[str, object] = {}
+
+    def capturing(
+        executable: str,
+        target: str,
+        version: int,
+        *,
+        unisolated_reason: str | None = None,
+        writable: tuple[Path, ...] = (),
+    ) -> conformance.Invoker:
+        asked["version"] = version
+
+        def invoke(command: str, arguments: Sequence[str]) -> JsonValue:
+            assert command == "status", command
+            return {"state": "managed", "target_digest": TARGET}
+
+        return invoke
+
+    monkeypatch.setattr(invocation, "provider_invoker", capturing)
+
+    install.target_status(
+        {
+            "project": project_id,
+            "harness": "claude-code",
+            "provider": executable,
+            "target": str(target),
+        }
+    )
+
+    assert asked["version"] == protocol_v3.VERSION
+
+
+def test_an_observation_that_answers_no_identity_is_a_warning_not_a_clean_pair(
+    registry: sqlite3.Connection, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A named provider that reports no target identity must be told loudly.
+
+    Before the fix an empty observation and no observation rendered the same
+    survey, and the shape of a clean answer is exactly what an agent acts on:
+    drift silently unassessed read as a pair in order. The pair is still
+    answered from the journal; the envelope now says the live half is missing.
+    """
+    _confirmed(registry, tmp_path, "Z")
+    project_id = registry.execute("SELECT stable_id FROM entity WHERE kind = 'project'").fetchone()[
+        0
+    ]
+
+    def blank(
+        parameters: Mapping[str, object], project_id: str, harness: str
+    ) -> conformance.Invoker:
+        def invoke(command: str, arguments: Sequence[str]) -> JsonValue:
+            return {"state": "unknown"}
+
+        return invoke
+
+    monkeypatch.setattr(install, "_optional_invoker", blank)
+
+    named = {"project": project_id, "harness": "claude-code", "provider": "/usr/bin/true"}
+    status = install.target_status(named)
+    assert status.payload.observed_target_digest == ""
+    assert status.warnings, "an empty observation must be reported, not shown as clean"
+
+    diff = install.target_diff(named)
+    assert diff.warnings, "the diff acted on the same empty observation"
+
+    unasked = install.target_status({"project": project_id, "harness": "claude-code"})
+    assert unasked.warnings == (), "not asking a provider is the caller's stated intent"
 
 
 def _bundle_response(command: str, arguments: Sequence[str], state: str = "verified") -> JsonValue:

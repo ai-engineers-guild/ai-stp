@@ -1268,3 +1268,21 @@ def test_a_plugin_under_the_skills_directory_is_not_offered_as_a_skill(
         if item.harness_id == "claude-code" and item.component_type == "skill"
     }
     assert "bare" in bare
+
+
+def test_an_unknown_consent_scope_is_named_before_coverage_is_answered() -> None:
+    """The scope guard must fire first, or the refusal misleads.
+
+    Measured: `consent allow --scope publication` — a scope this contract does
+    not define — answered "no registered object matches that target", sending
+    the operator to hunt for a registration problem when the actual mistake
+    was the scope word. `consent.record` holds the right refusal; the handler
+    just asked the coverage question first.
+    """
+    from ai_stp_cli.commands import component as command
+
+    with pytest.raises(CliFailure) as refused:
+        command.consent_allow({"scope": "publication", "target": "component_x@1"})
+
+    assert refused.value.code == "AI_STP_VALIDATION_ERROR"
+    assert "scope" in refused.value.message

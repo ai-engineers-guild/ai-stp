@@ -705,6 +705,11 @@ def test_applying_state_and_recovery_run_offline(private: Warm) -> None:
         HARNESS,
         "--provider",
         str(private.provider),
+        # The fake provider here answers the frozen v1 conversation, and the
+        # read says so: an unqualified observation speaks v3, the protocol
+        # released providers actually speak.
+        "--protocol-version",
+        "1",
         "--json",
         home=home,
         guard=private.guard,

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Final, cast
 
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import content, revisions, versions
+from ai_stp_cli.local import component_passports, content, revisions, versions
 from ai_stp_contracts.evaluation import (
     EvalComponentCoordinate,
     EvaluationBudget,
@@ -344,11 +344,32 @@ def _component(
     stored = revisions.get(connection, recorded.revision_id)
     if stored is None:
         raise CliFailure("AI_STP_CONFLICT", "a component version points to a missing passport")
+    document = cast(JsonValue, stored.envelope.model_dump(mode="json"))
+    if digest_bytes("ai-stp:passport:v1", canonize(document)) != expected:
+        raise CliFailure(
+            "AI_STP_CONFLICT", "a component passport no longer matches its exact digest"
+        )
+    # Two stored shapes, exactly as `impact.py` records for `#385`: a
+    # first-party component is a complete public passport and validates
+    # directly, an adopted component is stored as the draft it was adopted
+    # into. The draft failed this loader with empty details after the same
+    # setup had passed adopt, release, propose, confirm and install.
+    # `component_passports.version_passport` is the one owner of "the public
+    # passport of this local version"; the digest above already proved the
+    # stored bytes are the recorded ones.
     try:
-        passport = ComponentVersionPassport.model_validate(stored.envelope.model_dump(mode="json"))
-    except ValueError as error:
-        raise CliFailure("AI_STP_CONFLICT", "a recorded component passport is invalid") from error
-    if not verify_revision_id(passport) or _passport_digest(passport) != expected:
+        passport = ComponentVersionPassport.model_validate(document)
+    except ValueError:
+        try:
+            passport = component_passports.version_passport(connection, stable_id, version)
+        except CliFailure as failure:
+            raise CliFailure(
+                "AI_STP_CONFLICT",
+                "a recorded component passport is invalid",
+                details={"stable_id": stable_id, "version": version, **failure.details},
+                next_actions=failure.next_actions,
+            ) from failure
+    if not verify_revision_id(passport):
         raise CliFailure(
             "AI_STP_CONFLICT", "a component passport no longer matches its exact digest"
         )

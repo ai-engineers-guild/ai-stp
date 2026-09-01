@@ -1377,3 +1377,22 @@ def test_a_permission_grown_since_the_consent_is_refused_and_the_field_named(
     )
     registry.commit()
     assert "unverified_without_consent" in _codes(_report(tmp_path), stable_id)
+
+
+def test_the_matrix_accepts_the_empty_tuple_click_delivers_for_no_harness(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """`#384`'s lesson, missed here: a repeatable option omitted is `()`, not None.
+
+    Measured through the real CLI: `select eligibility-matrix` without
+    `--harness` — the exact invocation the all-harness matrix exists for —
+    refused with "a supported harness identifier is required", because the
+    handler tested `is None` while Click delivers an empty tuple. The direct
+    calls in this file passed no key at all, so the pair agreed with each
+    other and with nothing else.
+    """
+    _register(registry, "T", harness_id="claude-code")
+
+    matrix = _matrix(tmp_path, **{"harness": ()})
+
+    assert [report.harness_id for report in matrix.harnesses] == sorted(HARNESS_IDS)

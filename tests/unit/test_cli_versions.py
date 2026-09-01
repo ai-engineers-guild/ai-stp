@@ -502,3 +502,26 @@ def test_a_version_cannot_be_recorded_under_something_that_is_not_a_digest(
                 at=MOMENT,
             )
         assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+
+
+def test_a_fork_is_an_object_its_owner_can_actually_edit_and_release(adopted: str) -> None:
+    """A copy with no content is not a copy.
+
+    Measured live: `component fork` answered `ok` with a new identity, and then
+    every follow-up refused it — `passport show`, `suggest`, `quality` and
+    `update` with "that component has no local passport", `version release`
+    with "no revision to release", even `forget` with "no revisions to report".
+    The command wrote `entity` and `fork_origin` and no first revision, so the
+    object `REQ-521` calls a copy held nothing to edit toward `REQ-522`'s
+    meaningful change.
+    """
+    from ai_stp_cli.commands import component as command
+
+    command.version_release({"id": adopted})
+    copy = command.fork({"id": adopted, "version": "1.0"}).payload
+
+    held = command.passport_show({"id": copy.stable_id}).payload
+    assert held.kind == "component"
+
+    released = command.version_release({"id": copy.stable_id}).payload
+    assert [item.version for item in released.versions] == ["1.0"]

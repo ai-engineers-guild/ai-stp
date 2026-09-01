@@ -210,6 +210,7 @@
   "that backup is for another harness": "that backup is for another harness",
   "that component has no local passport": "that component has no local passport",
   "that component has no such released local version": "that component has no such released local version",
+  "that consent scope is not one this contract defines": "that consent scope is not one this contract defines",
   "that discovery root is not a directory": "that discovery root is not a directory",
   "that identifier does not name a component passport": "that identifier does not name a component passport",
   "that identifier has no local revision head": "that identifier has no local revision head",

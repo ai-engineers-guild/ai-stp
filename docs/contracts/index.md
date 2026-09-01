@@ -9,7 +9,7 @@ last_verified: "2026-08-03"
 
 | Document | Description | Verified |
 | -------- | ----- | ------- |
-| [access-grants-and-forks.md](access-grants-and-forks.md) | Access grant target, recipient actions, forks, derivative publication, and revocation consequences. | 2026-08-04 |
+| [access-grants-and-forks.md](access-grants-and-forks.md) | Access grant target, recipient actions, forks, derivative publication, and revocation consequences. | 2026-09-01 |
 | [article-publication.md](article-publication.md) | Machine contract for repository import, staff publication, and public article reads. | 2026-08-29 |
 | [canonical-data.md](canonical-data.md) | Canonical identifiers, serialization, references, hashes, and signatures. | 2026-08-29 |
 | [capability-vocabulary.md](capability-vocabulary.md) | Closed vocabulary of required capabilities, its growth rule, and the distinction between unknown and missing capabilities. | 2026-08-08 |
@@ -41,7 +41,7 @@ last_verified: "2026-08-03"
 | [operation.md](operation.md) | States, plan, journal, and recovery of a mutating operation. | 2026-08-09 |
 | [passport-envelope.md](passport-envelope.md) | Canonical passport envelope and fact provenance. | 2026-08-04 |
 | [project-discovery.md](project-discovery.md) | Machine form of complete project discovery within an explicitly named scope. | 2026-08-09 |
-| [provider-protocol.md](provider-protocol.md) | Commands, execution boundary, and state mapping of a public provider. | 2026-08-28 |
+| [provider-protocol.md](provider-protocol.md) | Commands, execution boundary, and state mapping of a public provider. | 2026-09-01 |
 | [provider-release.md](provider-release.md) | Provider release manifest, trust, verification, and rollback protection. | 2026-08-25 |
 | [public-profile.md](public-profile.md) | Public profile fields, revisions, avatar, and separation from the developer passport. | 2026-08-08 |
 | [report-case.md](report-case.md) | Private report case: allowed content, preview, states, and auditable moderator actions. | 2026-08-13 |

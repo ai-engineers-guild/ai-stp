@@ -1,6 +1,6 @@
 ---
 description: "Commands, execution boundary, and state mapping of a public provider."
-last_verified: "2026-08-28"
+last_verified: "2026-09-01"
 ---
 
 # Provider protocol
@@ -354,6 +354,21 @@ The machine declaration and closed wire schema belong to
 separately from the private control plane and contains exact schemas, examples,
 hostile corpus, and expected digests; a public provider's runtime dependency on
 a private repository is prohibited.
+
+## Read-only observation
+
+`target status`, `target diff`, and `target backups` reach a provider only when
+the caller names one with `--provider`. These reads carry no release manifest
+to select the protocol from: an explicit `--protocol-version` wins, and without
+it the observation speaks protocol v3 — the protocol released providers
+actually speak. The former fallback to frozen v1 produced a conversation that
+succeeded while carrying no target identity, so drift went unreported exactly
+where the command exists to report it.
+
+A named provider whose status answer carries no target identity is reported as
+an envelope warning rather than rendered as a clean pair: the journal half of
+the survey is still answered, and the missing live half is stated instead of
+implied.
 
 ## Observing external authorization
 

@@ -210,6 +210,7 @@
   "that backup is for another harness": "эта резервная копия для другой упряжки",
   "that component has no local passport": "у этого компонента нет локального паспорта",
   "that component has no such released local version": "у этого компонента нет такой выпущенной локальной версии",
+  "that consent scope is not one this contract defines": "такой области согласия нет в этом контракте",
   "that discovery root is not a directory": "этот корень обнаружения не является каталогом",
   "that identifier does not name a component passport": "этот идентификатор не называет паспорт компонента",
   "that identifier has no local revision head": "у этого идентификатора нет локальной головы ревизии",

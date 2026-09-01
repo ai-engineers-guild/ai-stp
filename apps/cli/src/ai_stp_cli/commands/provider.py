@@ -447,7 +447,7 @@ def _replace(
 
         target = Path(found.path)
         current = _identity(target)
-        foreign = not _is_managed(target)
+        foreign = not _is_managed(connection, target)
         if foreign and not adopt:
             # A file this tool did not place is not silently overwritten
             # (`#452`). The refusal names the flag rather than the impossibility
@@ -583,12 +583,32 @@ def _identity(executable: Path) -> Identity:
     return Identity(capabilities.provider_version, digest)
 
 
-def _is_managed(executable: Path) -> bool:
-    """Whether this executable sits where `provider fetch` puts what it fetches."""
+def _is_managed(connection: sqlite3.Connection, executable: Path) -> bool:
+    """Whether ai-stp itself placed these exact bytes at this path.
+
+    Two ways that is true. The file sits in the store `provider fetch` owns —
+    location is the proof. Or the registry remembers this path as the chosen
+    installation — the row an adopted `update apply` writes — and the file
+    still hashes to the digest that row recorded. Bound to bytes, not to the
+    path alone: a file someone replaced afterwards is foreign again, and the
+    adoption question returns exactly when its premise does. Before the second
+    half existed, an adopted replacement was re-asked for adoption on its very
+    next operation, with a premise the previous apply had already made false.
+    """
     try:
-        return executable.resolve().is_relative_to(installations.managed_root().resolve())
+        resolved = executable.resolve()
+        if resolved.is_relative_to(installations.managed_root().resolve()):
+            return True
     except OSError:  # pragma: no cover - resolve on a vanished path
         return False
+    for held in installations.all_remembered(connection):
+        if held.source != installations.SOURCE_CHOSEN or not held.artifact_digest:
+            continue
+        if Path(held.path) != resolved and Path(held.path).resolve() != resolved:
+            continue
+        digest, _size = release.artifact_identity(resolved)
+        return digest == held.artifact_digest
+    return False
 
 
 def _backup_path(executable: Path, digest: str) -> Path:

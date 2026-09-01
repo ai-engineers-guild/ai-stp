@@ -1,6 +1,6 @@
 ---
 description: "Access grant target, recipient actions, forks, derivative publication, and revocation consequences."
-last_verified: "2026-08-04"
+last_verified: "2026-09-01"
 ---
 
 # Access grants, forks, and derivative publication
@@ -50,6 +50,10 @@ A fork creates a new private object owned by the recipient **of the same kind**:
 - a new stable identifier; the original identifier is not reused;
 - the recipient is the owner; the default mode is private;
 - provenance is recorded as a reference to the source object and version;
+- the copied object carries the source version's passport content as its own
+  first revision, under the new identity and ownership — a fork with lineage
+  but no content would be an object no follow-up command can edit, release,
+  or even forget;
 - the fork may be synchronized to the recipient's private cloud registry.
 
 The constrained component overlay with `derived_from` under `component-setup-passports.md` remains a separate mechanism for small changes and is not replaced by a fork.

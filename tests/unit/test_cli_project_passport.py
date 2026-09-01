@@ -217,3 +217,56 @@ def test_a_failed_record_settles_the_journal_rather_than_leaving_it_open(
     # running, and recovery has to guess.
     rows = registry.execute("SELECT state FROM operation ORDER BY started_at DESC").fetchall()
     assert rows and rows[0]["state"] == "failed"
+
+
+def test_a_changed_project_extends_its_history_rather_than_starting_a_second_one(
+    registry: sqlite3.Connection, project: Path
+) -> None:
+    """A re-scan that saw change is the next revision, not a second root.
+
+    Measured on a live registry: `_content` hardcoded `parent_revision_ids: []`,
+    so the first legitimate change after the first scan committed a second
+    parentless root. The object then had two heads, `select session` refused
+    composition with "needs a merge", `sync merge` declined (it merges only
+    developer passports), and `revisions.head` made the next re-scan itself
+    raise — a project bricked by being scanned twice around one edit.
+    """
+    from ai_stp_cli.local import revisions
+
+    first = project_passport.record(
+        registry, project_passport.scan(registry, project), device_id="device_test"
+    )
+    (project / "src" / "app.py").write_text("def main() -> None:\n    pass\n", encoding="utf-8")
+    second = project_passport.record(
+        registry, project_passport.scan(registry, project), device_id="device_test"
+    )
+
+    assert second.revision_id != first.revision_id
+    assert list(second.envelope.parent_revision_ids) == [first.revision_id]
+    assert len(revisions.heads(registry, first.stable_id)) == 1
+
+
+def test_a_scan_converges_a_forked_project_back_to_one_head(
+    registry: sqlite3.Connection, project: Path
+) -> None:
+    """A scan states the whole current truth, so it supersedes every open line."""
+    from ai_stp_cli.local import revisions
+
+    first = project_passport.record(
+        registry, project_passport.scan(registry, project), device_id="device_test"
+    )
+    # The fork the old writer created: a second parentless root beside the
+    # first, exactly what a pre-fix registry still holds.
+    document = first.envelope.model_dump(mode="json")
+    document["facts"]["file_count"]["value"] = 99
+    document.pop("revision_id")
+    revisions.commit(registry, document, device_id="device_test")
+    assert len(revisions.heads(registry, first.stable_id)) == 2
+
+    (project / "src" / "app.py").write_text("def main() -> None:\n    pass\n", encoding="utf-8")
+    healed = project_passport.record(
+        registry, project_passport.scan(registry, project), device_id="device_test"
+    )
+
+    assert len(revisions.heads(registry, first.stable_id)) == 1
+    assert len(healed.envelope.parent_revision_ids) == 2
