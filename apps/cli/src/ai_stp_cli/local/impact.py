@@ -3,7 +3,7 @@
 import io
 import sqlite3
 import zipfile
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 from typing import Literal, cast
@@ -44,10 +44,35 @@ type ImpactScenario = Literal["update", "deprecation", "blocked", "expired_evide
 
 
 @dataclass(frozen=True)
+class _ComponentFacts:
+    """What the two reports read of a component, from either stored shape.
+
+    A first-party corpus component is stored as a complete public passport; a
+    locally adopted one is stored as the draft adoption produced, with its
+    kind, content and access facts in `facts` and no publication metadata at
+    all. `select impact` estimates tokens and capabilities from the files and
+    these declarations, and `select blast-radius` lists local references — so
+    this is the whole of what either needs, and neither reads a licence, a tag
+    or a description (`#66`).
+    """
+
+    component_type: str
+    native_ids: tuple[str, ...]
+    external_endpoints: tuple[str, ...]
+    requires_credentials: bool
+    required_env: tuple[str, ...]
+    filesystem: tuple[str, ...]
+    network: tuple[str, ...]
+    process: tuple[str, ...]
+    artifact_digest: str
+    content_format: str
+
+
+@dataclass(frozen=True)
 class _Graph:
     coordinate: ExactCoordinate
     setup: SetupVersionPassport
-    components: tuple[tuple[ExactCoordinate, ComponentVersionPassport, bytes, str], ...]
+    components: tuple[tuple[ExactCoordinate, _ComponentFacts, bytes], ...]
 
 
 def selection_report(
@@ -240,7 +265,7 @@ def _graph(connection: sqlite3.Connection, stable_id: str, version: str) -> _Gra
 
 def _component(
     connection: sqlite3.Connection, stable_id: str, version: str, expected: str | None
-) -> tuple[ExactCoordinate, ComponentVersionPassport, bytes, str]:
+) -> tuple[ExactCoordinate, _ComponentFacts, bytes]:
     recorded = versions.held(connection, stable_id, version)
     if recorded is None or (expected is not None and recorded.passport_digest != expected):
         raise CliFailure("AI_STP_CONFLICT", "an exact setup component is missing or changed")
@@ -255,55 +280,82 @@ def _component(
     digest = cache.digest_of(cast(JsonValue, document))
     if digest != recorded.passport_digest:
         raise CliFailure("AI_STP_CONFLICT", "a component passport no longer matches its digest")
-    # Two stored shapes, and this used to handle one. A first-party corpus
-    # component is stored as a complete public passport and validates directly.
-    # An adopted component is stored as the draft it was adopted into: narrower
-    # than `ComponentVersionPassport`, with its digest, length and source in
-    # `facts` rather than in an `artifact` block. Validating that draft raised
-    # `a recorded component passport is invalid` with empty `details`, so
-    # `select impact`, `select blast-radius` and `eval` all died on a setup that
-    # had passed propose, confirm, bundle, graph and reports (`#385`).
+    # Two stored shapes. A first-party corpus component is a complete public
+    # passport and validates directly. An adopted component is the draft it
+    # was adopted into — narrower than `ComponentVersionPassport`, with its
+    # digest, kind and access facts in `facts` and no publication metadata.
     #
-    # The draft is not repaired here. `component_passports.version_passport` is
-    # the one owner of "the public passport of this local version" and already
-    # synthesises it from those facts; a second synthesis in this module would
-    # be a second answer to the same question.
+    # The draft used to be pushed through `component_passports.version_passport`
+    # here, which applies the *publication* profile and refused every plain
+    # adopted component for `description, license, name, projection_kind,
+    # tags` — fields neither report reads. A component that `propose →
+    # confirm → install plan → apply` accepts was refused by two analyses
+    # strictly weaker than installing it, with `AI_STP_CONFLICT` for a state
+    # that conflicted with nothing (`#66`). The facts are read for what they
+    # are, and the one thing a report cannot do without is named when absent.
     try:
         passport = ComponentVersionPassport.model_validate(document)
     except ValidationError:
-        try:
-            passport = component_passports.version_passport(connection, stable_id, version)
-        except CliFailure as failure:
-            raise CliFailure(
-                "AI_STP_CONFLICT",
-                "a recorded component passport is invalid",
-                # Carried, not swallowed. The previous refusal named no field
-                # and offered no next action, so the only way forward was to
-                # guess which of forty fields was wrong.
-                details={"stable_id": stable_id, "version": version, **failure.details},
-                next_actions=failure.next_actions,
-            ) from failure
-    if not verify_revision_id(passport):
-        raise CliFailure("AI_STP_CONFLICT", "a component passport no longer matches its digest")
-    facts = cast(dict[str, JsonValue], document.get("facts") or {})
-    format_fact = facts.get("content_format")
-    content_format = ""
-    if isinstance(format_fact, dict):
-        format_value = format_fact.get("value")
-        if isinstance(format_value, str):
-            content_format = format_value
-    payload = content.get(connection, passport.artifact.digest)
-    if not content_format:
-        content_format = (
-            components.COMPONENT_TREE_FORMAT
-            if zipfile.is_zipfile(io.BytesIO(payload))
-            else components.COMPONENT_FILE_FORMAT
-        )
+        facts = _draft_facts(stable_id, version, cast(dict[str, JsonValue], document))
+    else:
+        if not verify_revision_id(passport):
+            raise CliFailure("AI_STP_CONFLICT", "a component passport no longer matches its digest")
+        facts = _public_facts(passport)
+    payload = content.get(connection, facts.artifact_digest)
+    content_format = facts.content_format or (
+        components.COMPONENT_TREE_FORMAT
+        if zipfile.is_zipfile(io.BytesIO(payload))
+        else components.COMPONENT_FILE_FORMAT
+    )
     return (
         ExactCoordinate(stable_id=stable_id, version=version, passport_digest=digest),
-        passport,
+        replace(facts, content_format=content_format),
         payload,
-        content_format,
+    )
+
+
+def _public_facts(passport: ComponentVersionPassport) -> _ComponentFacts:
+    return _ComponentFacts(
+        component_type=passport.component_type,
+        native_ids=tuple(passport.native_ids),
+        external_endpoints=tuple(passport.external_endpoints),
+        requires_credentials=passport.requires_credentials,
+        required_env=tuple(item.name for item in passport.required_env),
+        filesystem=tuple(passport.permissions.filesystem),
+        network=tuple(passport.permissions.network),
+        process=tuple(passport.permissions.process),
+        artifact_digest=passport.artifact.digest,
+        content_format="",
+    )
+
+
+def _draft_facts(stable_id: str, version: str, document: dict[str, JsonValue]) -> _ComponentFacts:
+    """Read an adopted draft for the facts the reports use, and nothing more."""
+    values = component_passports.declared_values(document)
+    component_type = values.get("component_type")
+    artifact_digest = values.get("content_digest")
+    for field, held in (("component_type", component_type), ("content_digest", artifact_digest)):
+        if not isinstance(held, str) or not held:
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "a recorded component passport lacks a fact this report needs",
+                details={"stable_id": stable_id, "version": version, "field": field},
+                next_actions=[f"component passport show --id {stable_id} --json"],
+            )
+    permissions = values.get("permissions")
+    granted = cast(dict[str, JsonValue], permissions) if isinstance(permissions, dict) else {}
+    names = component_passports.names_of
+    return _ComponentFacts(
+        component_type=str(component_type),
+        native_ids=names(values.get("native_ids")),
+        external_endpoints=names(values.get("external_endpoints")),
+        requires_credentials=values.get("requires_credentials") is True,
+        required_env=names(values.get("required_env")),
+        filesystem=names(granted.get("filesystem")),
+        network=names(granted.get("network")),
+        process=names(granted.get("process")),
+        artifact_digest=str(artifact_digest),
+        content_format=str(values.get("content_format") or ""),
     )
 
 
@@ -315,12 +367,12 @@ def _passport_digest(passport: ComponentVersionPassport | SetupVersionPassport) 
 
 def _budget(graph: _Graph, estimator: TokenEstimator) -> ContextBudget:
     inputs: list[EstimatorInput] = []
-    for coordinate, passport, payload, content_format in graph.components:
-        files = tuple(item.content for item in _files(payload, content_format))
+    for coordinate, facts, payload in graph.components:
+        files = tuple(item.content for item in _files(payload, facts.content_format))
         inputs.append(
             EstimatorInput(
                 coordinate=coordinate,
-                component_type=passport.component_type,
+                component_type=facts.component_type,  # pyright: ignore[reportArgumentType]
                 files=files,
             )
         )
@@ -342,7 +394,7 @@ def _files(payload: bytes, content_format: str) -> tuple[components.ComponentFil
 
 def _capabilities(graph: _Graph) -> CapabilitySnapshot:
     values: dict[str, set[str]] = {name: set() for name in CapabilitySnapshot.model_fields}
-    for coordinate, item, _payload, _content_format in graph.components:
+    for coordinate, item, _payload in graph.components:
         label = f"{coordinate.stable_id}@{coordinate.version}"
         if item.component_type == "command":
             values["tools"].update(item.native_ids or [label])
@@ -353,9 +405,9 @@ def _capabilities(graph: _Graph) -> CapabilitySnapshot:
         values["network_requirements"].update(item.external_endpoints)
         if item.requires_credentials or item.required_env:
             values["credential_requirements"].add(label)
-        values["filesystem_permissions"].update(item.permissions.filesystem)
-        values["network_permissions"].update(item.permissions.network)
-        values["process_permissions"].update(item.permissions.process)
+        values["filesystem_permissions"].update(item.filesystem)
+        values["network_permissions"].update(item.network)
+        values["process_permissions"].update(item.process)
     return CapabilitySnapshot(**{name: sorted(value) for name, value in values.items()})
 
 

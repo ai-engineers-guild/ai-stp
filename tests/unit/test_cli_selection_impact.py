@@ -1,6 +1,7 @@
 """Context, capability and local blast-radius reports (issue #307)."""
 
 import json
+import sqlite3
 from contextlib import closing
 from pathlib import Path
 from typing import cast
@@ -305,3 +306,159 @@ def test_imported_component_envelope_is_decoded_and_corruption_is_refused() -> N
             impact.IMPORTED_COMPONENT_FORMAT,
         )
     assert corrupt.value.code == "AI_STP_CONFLICT"
+
+
+def _adopted_draft(
+    connection: sqlite3.Connection, suffix: str, *, component_type: str = "skill"
+) -> tuple[str, str]:
+    """A component exactly as `component adopt` leaves it, released to `1.0`.
+
+    Kind, content and source facts and nothing else: no name, no description,
+    no licence, no tags, no projection kind. This is the state every adopted
+    component is in, and the state `propose → confirm → install` accepts.
+    """
+    from ai_stp_cli.local import cache, passports
+
+    stable_id = f"component_01J0000000000000000000000{suffix}"
+    artifact = content.put(connection, b"# adopted skill\n", at=AT)
+    connection.execute(
+        "INSERT INTO entity (stable_id, kind, created_at) VALUES (?, 'component', ?)",
+        (stable_id, AT),
+    )
+
+    def fact(value: JsonValue) -> JsonValue:
+        return {"value": value, "origin": "observed", "confirmation": "none", "observed_at": AT}
+
+    document: dict[str, JsonValue] = {
+        "schema_version": 1,
+        "kind": "component",
+        "stable_id": stable_id,
+        "owner_id": passports.owner().account_id,
+        "created_at": AT,
+        "visibility": "private",
+        "parent_revision_ids": [],
+        "facts": {
+            "harness_id": fact("claude-code"),
+            "component_type": fact(component_type),
+            "content_digest": fact(artifact.digest),
+            "content_format": fact("ai-stp-component-file/1"),
+            "source_name": fact("probe"),
+            "native_ids": fact(["probe"]),
+            "required_env": fact([{"name": "PROBE_TOKEN", "sensitive": True}]),
+        },
+    }
+    stored = revisions.commit(connection, document, device_id="device_test")
+    digest = cache.digest_of(stored.envelope.model_dump(mode="json"))
+    versions.record(
+        connection,
+        stable_id=stable_id,
+        version="1.0",
+        passport_digest=digest,
+        revision_id=stored.revision_id,
+        at=AT,
+    )
+    return stable_id, digest
+
+
+def _confirmed_over(
+    connection: sqlite3.Connection, root: Path, stable_id: str, digest: str
+) -> tuple[str, str]:
+    """A private SetupVersion pinning exactly that adopted component."""
+    from ai_stp_cli.local import passports, project_passport, selection
+
+    passports.init_developer(connection, device_id="device_test")
+    passports.ensure_device(connection, device_id="device_test")
+    found = project_passport.scan(connection, root)
+    project_passport.record(connection, found, device_id="device_test")
+    developer_id = passports.developer_stable_id(connection)
+    device_id = passports.device_stable_id(connection)
+    assert developer_id is not None and device_id is not None
+    developer = revisions.head(connection, developer_id)
+    device = revisions.head(connection, device_id)
+    project = revisions.head(connection, found.stable_id)
+    assert developer is not None and device is not None and project is not None
+    context = selection.Context(
+        project_id=found.stable_id,
+        harness_id="claude-code",
+        developer_revision=developer.revision_id,
+        device_revision=device.revision_id,
+        project_revision=project.revision_id,
+        policy_version="selection-policy/1;result_limit=20",
+    )
+    member = selection.Member(stable_id, "1.0", digest, "local_owner_or_pinned", "own")
+    proposal = selection.propose(
+        connection,
+        context=context,
+        members=(member,),
+        at=AT,
+        expires_at="2099-01-01T00:00:00.000Z",
+    )
+    confirmed = selection.confirm(
+        connection,
+        proposal.proposal_id,
+        context=context,
+        owner_id=passports.owner().account_id,
+        device_id="device_test",
+        at=AT,
+    )
+    connection.commit()
+    return confirmed.stable_id, confirmed.version
+
+
+def test_a_locally_adopted_draft_is_reported_without_publication_fields(tmp_path: Path) -> None:
+    """`#66`: two read-only reports demanded what the install path does not.
+
+    A component adopted and released locally goes through `propose → confirm
+    → install plan → apply`. The same version was refused by `select impact`
+    and `select blast-radius` with `AI_STP_CONFLICT` naming `description,
+    license, name, projection_kind, tags` — publication metadata that neither
+    report reads. Both answer now, from the draft's own facts.
+    """
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        stable_id, digest = _adopted_draft(connection, "B")
+        setup_id, setup_version = _confirmed_over(connection, tmp_path, stable_id, digest)
+
+        radius = impact.blast_radius(
+            connection,
+            component_id=stable_id,
+            component_version="1.0",
+            scenario="update",
+            at=AT,
+        )
+        report = impact.selection_report(
+            connection,
+            setup_id=setup_id,
+            setup_version=setup_version,
+            baseline_id="",
+            baseline_version="",
+            project_id="",
+            estimator_profile="ai-stp:unicode-chars-div4/1",
+            price_profile_path=None,
+            at=AT,
+        )
+
+    assert radius.component.stable_id == stable_id
+    assert [item.stable_id for item in radius.setup_versions] == [setup_id]
+    assert report.candidate_context.conditional_tokens > 0
+    # The access facts the draft does carry are read, not defaulted away.
+    label = f"{stable_id}@1.0"
+    assert report.candidate_capabilities.credential_requirements == [label]
+
+
+def test_a_draft_without_its_kind_names_the_missing_fact(tmp_path: Path) -> None:
+    """What a report genuinely cannot do without is a precondition, not a conflict."""
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        stable_id, _digest = _adopted_draft(connection, "C", component_type="")
+
+        with pytest.raises(CliFailure) as raised:
+            impact.blast_radius(
+                connection,
+                component_id=stable_id,
+                component_version="1.0",
+                scenario="update",
+                at=AT,
+            )
+
+    assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
+    assert raised.value.details["field"] == "component_type"
+    assert raised.value.next_actions == [f"component passport show --id {stable_id} --json"]

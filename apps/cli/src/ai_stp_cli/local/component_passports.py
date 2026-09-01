@@ -13,6 +13,7 @@ import os
 import sqlite3
 import stat
 import tomllib
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, cast
@@ -596,6 +597,38 @@ def validate_for_publication(
         missing_fields=missing,
         invalid_fields=tuple(sorted(invalid)),
     )
+
+
+def declared_values(document: Mapping[str, JsonValue]) -> dict[str, JsonValue]:
+    """The `value` of every fact in a stored draft, by name.
+
+    A draft carries `{name: {value, origin, confirmation, observed_at}}`; the
+    readers that only need what was declared read this map. Shared by the two
+    reports and the evaluator so that "what a draft says" is answered once.
+    """
+    raw = document.get("facts")
+    values: dict[str, JsonValue] = {}
+    if isinstance(raw, dict):
+        for name, fact in cast(dict[str, JsonValue], raw).items():
+            values[name] = (
+                cast(dict[str, JsonValue], fact).get("value") if isinstance(fact, dict) else fact
+            )
+    return values
+
+
+def names_of(value: JsonValue | None) -> tuple[str, ...]:
+    """Strings out of a declared list that may hold names or `{name: ...}` objects."""
+    if not isinstance(value, list):
+        return ()
+    found: list[str] = []
+    for item in cast(list[JsonValue], value):
+        if isinstance(item, str) and item:
+            found.append(item)
+        elif isinstance(item, dict):
+            name = cast(dict[str, JsonValue], item).get("name")
+            if isinstance(name, str) and name:
+                found.append(name)
+    return tuple(found)
 
 
 def version_passport(

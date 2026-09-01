@@ -258,3 +258,41 @@ def test_an_adopted_draft_component_is_loaded_through_the_one_passport_owner(
 
     assert loaded.coordinate.component_type == "skill"
     assert loaded.coordinate.passport_digest == recorded.passport_digest
+
+
+def test_an_adopted_draft_is_evaluated_from_its_own_facts_without_publication_fields(
+    tmp_path: Path,
+) -> None:
+    """`#66`, the evaluator's half: a draft nobody enriched still evaluates.
+
+    The test above enriches the draft with name, licence and tags first,
+    because the loader once demanded the publication profile. Every
+    `component adopt` produces a draft without them, and `propose → confirm →
+    install` accepts it; the evaluation reads the declared surfaces from the
+    draft's own facts and needs nothing the install path does not.
+    """
+    project = tmp_path / "repository"
+    skill = project / ".claude" / "skills" / "plain"
+    skill.mkdir(parents=True)
+    (skill / "SKILL.md").write_text(
+        "# Plain\nAdopted and released, nothing more.\n", encoding="utf-8"
+    )
+
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        found = next(
+            item for item in components.discover(project=project) if item.absolute == skill
+        )
+        stored = components.adopt(connection, found, device_id="device_test")
+        connection.commit()
+    component_command.version_release({"id": stored.stable_id})
+
+    with closing(open_readonly(configured_path())) as connection:
+        recorded = versions.held(connection, stored.stable_id, "1.0")
+        assert recorded is not None
+        loaded = evaluation._component(  # pyright: ignore[reportPrivateUsage]
+            connection, stored.stable_id, "1.0", recorded.passport_digest
+        )
+
+    assert loaded.coordinate.component_type == "skill"
+    assert loaded.surfaces["managed_paths"], "adoption declares the managed path the check reads"
+    assert evaluation._static_contract(loaded)  # pyright: ignore[reportPrivateUsage]
