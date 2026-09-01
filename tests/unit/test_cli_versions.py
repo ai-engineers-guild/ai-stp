@@ -192,7 +192,7 @@ def test_a_major_line_needs_an_explicit_decision(registry: sqlite3.Connection) -
 
 
 def test_the_first_major_line_of_a_new_object_is_one(registry: sqlite3.Connection) -> None:
-    assert versions.next_major(registry, HELD, decided=True) == "1.0"
+    assert versions.next_major(registry, HELD) == "1.0"
 
 
 # --- forks ----------------------------------------------------------------

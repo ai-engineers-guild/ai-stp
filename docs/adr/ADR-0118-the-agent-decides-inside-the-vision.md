@@ -1,6 +1,6 @@
 ---
 description: "Decision to treat option selection, publication, and code promotion as part of the agent's authority, reserving a separate decision only for irreversible and external actions."
-last_verified: "2026-09-02"
+last_verified: "2026-09-01"
 ---
 
 # ADR-0118: The agent decides within the vision

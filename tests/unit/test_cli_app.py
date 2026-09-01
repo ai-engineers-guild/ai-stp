@@ -59,7 +59,7 @@ def test_the_flag_may_be_written_before_the_command(capsys: pytest.CaptureFixtur
     ("argv", "message"),
     [
         (["--json"], "no command given"),
-        (["help", "--json"], "help requires --agent"),
+        (["registry", "show", "--json"], "Missing option"),
         (["nope", "--json"], "No such command"),
         (["version", "--nosuch", "--json"], "No such option"),
         (["config", "--json"], "Missing command"),
@@ -384,7 +384,10 @@ def test_every_declared_option_arrives_under_the_name_it_was_declared_with() -> 
 #: Declared parameters no handler reads, each for a stated reason. An entry here
 #: is a claim; the test below is what keeps it honest.
 UNREAD_BY_DESIGN: dict[str, str] = {
-    "help --agent": "a required flag whose only job is to be present, enforced by dispatch",
+    "help --agent": "names the caller; the registry is the command's only answer either way",
+    "component passport validate --for-publication": (
+        "names the only profile the command has; accepted so an older spelling still parses"
+    ),
 }
 
 

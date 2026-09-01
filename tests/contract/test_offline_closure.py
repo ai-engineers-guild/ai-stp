@@ -305,15 +305,13 @@ def warm(tmp_path_factory: pytest.TempPathFactory) -> Warm:
         home=home,
     )
     component_id = str(component["stable_id"])
-    released = _ok(
-        "component", "version", "release", "--id", component_id, "--confirm", "--json", home=home
-    )
+    released = _ok("component", "version", "release", "--id", component_id, "--json", home=home)
 
     # Compiled once here so that the offline compile has something exact to be
     # compared against. A bundle that merely compiles offline proves nothing
     # about which bytes went into it.
     proposal = _proposal(home, work, component_id)
-    _ok("select", "confirm", "--proposal", proposal, "--confirm", "--json", home=home)
+    _ok("select", "confirm", "--proposal", proposal, "--json", home=home)
     bundle = _ok(
         "select",
         "bundle",
@@ -573,7 +571,6 @@ def test_composition_and_compilation_run_offline(warm: Warm) -> None:
         "confirm",
         "--proposal",
         proposal,
-        "--confirm",
         "--json",
         home=warm.home,
         guard=warm.guard,
@@ -634,7 +631,6 @@ def test_applying_state_and_recovery_run_offline(private: Warm) -> None:
         "confirm",
         "--proposal",
         proposal,
-        "--confirm",
         "--json",
         home=home,
         guard=private.guard,

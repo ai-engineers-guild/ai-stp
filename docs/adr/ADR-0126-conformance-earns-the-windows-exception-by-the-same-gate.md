@@ -1,6 +1,6 @@
 ---
 description: "Decision to extend the Windows exception to provider conformance through the same trust signal, not because it is read-only."
-last_verified: "2026-09-02"
+last_verified: "2026-09-01"
 ---
 
 # ADR-0126: Conformance earns the Windows exception through the same signal

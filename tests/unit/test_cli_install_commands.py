@@ -700,7 +700,10 @@ def test_other_bytes_than_the_verified_release_are_read_without_its_trust(
 def test_a_release_revoked_since_the_install_no_longer_trusts_the_read(
     registry: sqlite3.Connection, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The policy is re-read, not remembered: what `install apply` would refuse, a read refuses too."""
+    """The policy is re-read, not remembered.
+
+    What `install apply` would refuse since the install, a read refuses too.
+    """
     executable = _provider(tmp_path, "revoked-since")
     manifest = _signed_release(executable, tmp_path / "release.json")
     monkeypatch.setattr(release, "pinned_policy", _pinning(executable))
