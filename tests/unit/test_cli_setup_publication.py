@@ -52,10 +52,8 @@ class _Platform:
         self.confirmed: list[str] = []
         self.bound: list[str] = []
 
-    def version_detail(
-        self, _where: object, _token: str, object_kind: str, stable_id: str, version: str
-    ) -> Any:
-        del object_kind, version
+    def version_detail(self, _where: object, _kind: str, stable_id: str, version: str) -> Any:
+        del version
         if stable_id not in self.public:
             raise CliFailure("AI_STP_NOT_FOUND", "version not found")
         return _Detail("public")
@@ -101,7 +99,7 @@ class _Session:
 def _install(monkeypatch: pytest.MonkeyPatch, fake: _Platform) -> None:
     monkeypatch.setattr(setup_publication, "_session", _Session)
     monkeypatch.setattr(setup_publication, "endpoint", object)
-    monkeypatch.setattr(setup_publication.owner_reads, "version_detail", fake.version_detail)
+    monkeypatch.setattr(setup_publication.catalog, "version", fake.version_detail)
     monkeypatch.setattr(setup_publication.publication, "create", fake.create)
     monkeypatch.setattr(setup_publication.publication, "status", fake.status)
     monkeypatch.setattr(setup_publication.publication, "bind", fake.bind)

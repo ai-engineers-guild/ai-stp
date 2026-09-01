@@ -840,3 +840,57 @@ def test_a_publication_refusal_names_the_fields_it_counted(
     # Not a bare count: the paths themselves, so the next step is obvious.
     assert not named.isdigit(), f"the refusal still reports only a count: {named!r}"
     assert "name" in named, named
+
+
+def test_a_complete_catalog_snapshot_is_not_rebuilt_from_draft_facts(
+    registry: sqlite3.Connection,
+) -> None:
+    """Acquired catalog versions keep their top-level artifact reference."""
+    stable_id = new_id("component")
+    document: dict[str, JsonValue] = {
+        "schema_version": 1,
+        "kind": "component",
+        "stable_id": stable_id,
+        "owner_id": new_id("account"),
+        "created_at": CREATED,
+        "visibility": "public",
+        "parent_revision_ids": [],
+        "facts": {},
+        "name": "catalog-snapshot",
+        "description": "A complete catalog snapshot.",
+        "version": "1.1",
+        "tags": ["catalog"],
+        "source": {
+            "repository": "https://github.com/example/component",
+            "commit": COMMIT,
+            "path": "components/catalog-snapshot",
+        },
+        "artifact": {
+            "digest": digest_bytes("ai-stp:artifact:v1", b"snapshot"),
+            "size_bytes": 8,
+        },
+        "harness_id": "codex",
+        "license": {"spdx_id": "MIT", "redistribution_allowed": True},
+        "component_type": "skill",
+        "projection_kind": "native_files",
+        "artifact_format": "ai-stp-component-file/1",
+    }
+    stored = revisions.commit(registry, document, device_id="device_test")
+    versions.record(
+        registry,
+        stable_id=stable_id,
+        version="1.1",
+        passport_digest=digest_canonical(
+            "ai-stp:passport:v1",
+            cast(dict[str, JsonValue], stored.envelope.model_dump(mode="json")),
+        ),
+        revision_id=stored.revision_id,
+        at=CREATED,
+    )
+
+    passport = component_passports.version_passport(registry, stable_id, "1.1")
+
+    assert passport.name == "catalog-snapshot"
+    assert passport.artifact.digest == document["artifact"]["digest"]  # type: ignore[index]
+    assert passport.artifact.size_bytes == 8
+    assert verify_revision_id(passport)
