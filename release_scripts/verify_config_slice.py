@@ -83,17 +83,23 @@ def _environment(home: Path) -> dict[str, str]:
     return held
 
 
+def _config_root(harness_id: str, home: Path) -> Path:
+    """The harness's global configuration root inside this home, from the catalog."""
+    from ai_stp_cli.local import harnesses
+
+    detector = next(item for item in harnesses.DETECTORS if item.harness_id == harness_id)
+    return harnesses.config_root(detector, _environment(home))
+
+
 def _surface(harness_id: str, home: Path) -> tuple[Path, str, str]:
     """Where to seed, what kind it will be adopted as, and the layout's relative.
 
     Read from the catalog, not written here: a hand-written path is a second
     copy of a normative fact, and this estate has paid for that twice.
     """
-    from ai_stp_cli.local import components, harnesses
+    from ai_stp_cli.local import components
 
-    environment = _environment(home)
-    detector = next(item for item in harnesses.DETECTORS if item.harness_id == harness_id)
-    base = harnesses.config_root(detector, environment)
+    base = _config_root(harness_id, home)
     rules = [rule for rule in components.GLOBAL_RULES if rule.harness_id == harness_id]
     skills = [
         rule for rule in rules if rule.component_type == "skill" and rule.shape == "directory"
@@ -193,8 +199,81 @@ def _apply(
     return applied["outcome"] == PASSED
 
 
-def _row(harness_id: str, *, root: Path, tag: str, python: str) -> dict[str, Any]:
-    """One harness, taken from its own native bytes to a clean target and back."""
+def _adopted(
+    stages: list[dict[str, Any]],
+    harness_id: str,
+    seeded: Path,
+    kind: str,
+    *,
+    home: Path,
+    python: str,
+) -> list[str] | None:
+    """The seeded surface alone, as one adopted draft."""
+    adopted = _stage(
+        "adopt",
+        ["component", "adopt", "--path", str(seeded), "--kind", kind, "--harness", harness_id],
+        home=home,
+        python=python,
+    )
+    stages.append(adopted)
+    if adopted["outcome"] != PASSED:
+        return None
+    return [str(adopted["data"].get("stable_id", ""))]
+
+
+def _imported(
+    stages: list[dict[str, Any]], harness_id: str, *, home: Path, python: str
+) -> list[str] | None:
+    """The whole configuration root, as the drafts `setup import` decomposes it into."""
+    base = str(_config_root(harness_id, home))
+    planned = _stage(
+        "import:plan",
+        ["setup", "import", "plan", "--root", base, "--harness", harness_id],
+        home=home,
+        python=python,
+    )
+    stages.append(planned)
+    if planned["outcome"] != PASSED:
+        return None
+    registered = _stage(
+        "import:register",
+        [
+            "setup",
+            "import",
+            "register",
+            "--root",
+            base,
+            "--harness",
+            harness_id,
+            # A synthetic reference: the slice seeds the root itself and holds no
+            # provider copy of it. The passport records `recorded_unverified`,
+            # which is the honest word for exactly this.
+            "--backup-ref",
+            "slot-000000000000",
+            "--plan-digest",
+            str(planned["data"].get("plan_digest", "")),
+        ],
+        home=home,
+        python=python,
+    )
+    stages.append(registered)
+    if registered["outcome"] != PASSED:
+        return None
+    identifiers = [str(item) for item in registered["data"].get("component_ids") or []]
+    return identifiers or None
+
+
+def _row(
+    harness_id: str, *, root: Path, tag: str, python: str, from_import: bool = False
+) -> dict[str, Any]:
+    """One harness, taken from its own native bytes to a clean target and back.
+
+    Two capture paths reach the same confirmed version. `component adopt`
+    takes the seeded surface alone; `setup import` takes the whole
+    configuration root the surface sits in and releases every draft it made
+    (`#63`). Both must end in the same observed target, which is why the
+    stages after `confirm` are shared rather than copied.
+    """
     home = root / f"home-{harness_id}"
     (home / "config").mkdir(parents=True)
     (home / "data").mkdir(parents=True)
@@ -246,49 +325,42 @@ def _row(harness_id: str, *, root: Path, tag: str, python: str) -> dict[str, Any
             stages.append(anchored)
             return _settle(harness_id, kind, relative, stages, seeded, target)
 
-    adopted = _stage(
-        "adopt",
-        ["component", "adopt", "--path", str(seeded), "--kind", kind, "--harness", harness_id],
-        home=home,
-        python=python,
-    )
-    stages.append(adopted)
-    if adopted["outcome"] != PASSED:
+    if from_import:
+        identifiers = _imported(stages, harness_id, home=home, python=python)
+    else:
+        identifiers = _adopted(stages, harness_id, seeded, kind, home=home, python=python)
+    if identifiers is None:
         return _settle(harness_id, kind, relative, stages, seeded, target)
-    identifier = str(adopted["data"].get("stable_id", ""))
 
-    released = _stage(
-        "release",
-        ["component", "version", "release", "--id", identifier, "--major"],
-        home=home,
-        python=python,
-    )
-    stages.append(released)
-    if released["outcome"] != PASSED:
-        return _settle(harness_id, kind, relative, stages, seeded, target)
-    versions = released["data"].get("versions") or [{}]
-    reference = f"{identifier}@{versions[-1].get('version', '')}"
+    references: list[str] = []
+    for identifier in identifiers:
+        released = _stage(
+            f"release:{identifier[-6:]}",
+            ["component", "version", "release", "--id", identifier, "--major"],
+            home=home,
+            python=python,
+        )
+        stages.append(released)
+        if released["outcome"] != PASSED:
+            return _settle(harness_id, kind, relative, stages, seeded, target)
+        versions = released["data"].get("versions") or [{}]
+        references.append(f"{identifier}@{versions[-1].get('version', '')}")
 
+    members: list[str] = []
+    for reference in references:
+        members += ["--member", reference]
     proposed = _stage(
         "propose",
-        [
-            "select",
-            "propose",
-            "--harness",
-            harness_id,
-            "--project",
-            str(project),
-            "--member",
-            reference,
-        ],
+        ["select", "propose", "--harness", harness_id, "--project", str(project), *members],
         home=home,
         python=python,
     )
     stages.append(proposed)
     if proposed["outcome"] != PASSED:
         return _settle(harness_id, kind, relative, stages, seeded, target)
-    offers = proposed["data"].get("proposals") or [{}]
-    proposal = str(offers[0].get("proposal_id", ""))
+    # The proposal this call recorded, never the first open row: several may
+    # be open for one pair, and the first was once an older empty one.
+    proposal = str(proposed["data"].get("proposal_id") or "")
 
     confirmed = _stage(
         "confirm",
@@ -430,7 +502,9 @@ def _isolation(home: Path, python: str) -> dict[str, Any]:
     return data(envelope, "provider network")
 
 
-def verify_config_slice(harnesses: Sequence[str], *, tag: str, python: str) -> dict[str, Any]:
+def verify_config_slice(
+    harnesses: Sequence[str], *, tag: str, python: str, from_import: bool = False
+) -> dict[str, Any]:
     rows: list[dict[str, Any]] = []
     with tempfile.TemporaryDirectory(prefix="ai-stp-config-slice-") as scratch:
         root = Path(scratch)
@@ -439,7 +513,9 @@ def verify_config_slice(harnesses: Sequence[str], *, tag: str, python: str) -> d
         (probe_home / "data").mkdir(parents=True)
         isolation = _isolation(probe_home, python)
         for harness_id in harnesses:
-            rows.append(_row(harness_id, root=root, tag=tag, python=python))
+            rows.append(
+                _row(harness_id, root=root, tag=tag, python=python, from_import=from_import)
+            )
     counts = {
         state: sum(1 for row in rows if row["outcome"] == state)
         for state in (PASSED, FAILED, INCONCLUSIVE)
@@ -448,6 +524,7 @@ def verify_config_slice(harnesses: Sequence[str], *, tag: str, python: str) -> d
     return {
         "schema_version": 1,
         "slice": "config",
+        "capture": "import" if from_import else "adopt",
         "tag": tag,
         "isolation": isolation,
         "rows": rows,
@@ -471,6 +548,11 @@ def _parser() -> argparse.ArgumentParser:
         help="Drive one harness alone. Repeat for several; empty means all seven.",
     )
     parser.add_argument("--python", default=sys.executable, help="Interpreter running the CLI.")
+    parser.add_argument(
+        "--from-import",
+        action="store_true",
+        help="Capture through `setup import` of the whole root instead of `component adopt`.",
+    )
     return parser
 
 
@@ -480,7 +562,9 @@ def main(arguments: Sequence[str] | None = None) -> int:
     unknown = sorted(set(chosen) - set(HARNESSES))
     if unknown:
         raise SystemExit(f"unknown harness: {', '.join(unknown)}")
-    report = verify_config_slice(chosen, tag=parsed.tag, python=parsed.python)
+    report = verify_config_slice(
+        chosen, tag=parsed.tag, python=parsed.python, from_import=parsed.from_import
+    )
     print(json.dumps(report, indent=2, sort_keys=True))
     return 0 if report["clean"] else 1
 

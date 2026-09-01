@@ -31,6 +31,11 @@ on:
         required: false
         default: ""
         type: string
+      from_import:
+        description: "Capture through setup import of the whole root instead of component adopt"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -71,6 +76,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       PROVIDER_TAG: ${{ inputs.tag }}
       PROVIDER_HARNESS: ${{ inputs.harness }}
+      PROVIDER_FROM_IMPORT: ${{ inputs.from_import }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -127,6 +133,9 @@ jobs:
           arguments=(--tag "${PROVIDER_TAG}")
           if [ -n "${PROVIDER_HARNESS}" ]; then
             arguments+=(--harness "${PROVIDER_HARNESS}")
+          fi
+          if [ "${PROVIDER_FROM_IMPORT}" = "true" ]; then
+            arguments+=(--from-import)
           fi
           uv run --locked --package ai-stp-cli \
             python -m release_scripts.verify_config_slice "${arguments[@]}" \

@@ -56,7 +56,7 @@ release network or on a deployed environment being reachable.
 | `just evidence-live` | the deployed catalogue, anonymously, with no credential |
 | `just evidence-providers <tag>` | does the projection table still agree with the providers **as released** |
 | `just evidence-software <tag>` | can a consumer drive a released provider through `harness install/status/update/remove` |
-| `just evidence-config <tag>` | can a native surface be captured, installed into a target, observed and removed again — one row per harness |
+| `just evidence-config <tag>` | can a native surface be captured, installed into a target, observed and removed again — one row per harness; `from_import=1` captures the whole root through `setup import` instead of `component adopt`, and both paths must end in the same observed target |
 | `just evidence-contribution <tag>` | `#54`'s acceptance: one MCP component in each of its three native forms, and the refusal that is also an answer |
 | `just evidence-citations` | is every source link the harness catalogue cites still alive |
 | `just evidence-sync <home_a> <home_b>` | two devices, rewind, conflict and merge — needs a real browser login |
@@ -65,7 +65,8 @@ release network or on a deployed environment being reachable.
 `software-evidence` and `config-evidence` are the two workflows that run their
 slice on all six native legs (`ubuntu-24.04`, `ubuntu-24.04-arm`,
 `macos-15-intel`, `macos-15`, `windows-2025`, `windows-11-arm`). They are
-`workflow_dispatch` only and take the exact provider tag as input.
+`workflow_dispatch` only and take the exact provider tag as input;
+`config-evidence` also takes `from_import` to drive the import capture path.
 
 ## First public catalog
 
