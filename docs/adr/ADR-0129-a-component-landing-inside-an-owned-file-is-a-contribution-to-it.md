@@ -247,13 +247,24 @@ host file. Both orders end wrong against the same state model that lets
 `written_paths` scope a removal.
 
 The decision: the verb stays `remove`. The missing sentence becomes a plan
-extension, not a second verb: a remove-plan entry gains a per-path disposition —
-today's deletion, or final bytes to leave behind, digest- and length-bound the
-way software artifacts already are. The field is declared through
-`plan_request_fields`, so introduction follows the `ADR-0125` order: this
-consumer accepts the field, ships, and only then a provider declares it. The
-exact field name and schema belong to the provider-kit revision that introduces
-them, not to this record.
+extension, not a second verb: a remove-plan entry gains a per-path end state —
+gone, or present at named final bytes. The first shape of this record carried a
+digest and no bytes, and the provider estate's measured reply found the hole
+before it shipped: a remove plan is built without a bundle, so a digest there
+is an assertion without a carrier. The agreed shape closes it with machinery
+both sides already released: `remove` accepts an optional bundle through the
+same arguments `replace` uses, and the plan entry names the bundle member
+whose bytes survive — so artifact digests, member digests, limits and
+`validate-bundle` all apply unchanged, and a provider too old for the field
+refuses loudly on the unexpected bundle rather than guessing. The provider
+side confirmed the write is a variation of an effect it already has (bundle
+materialization under capture-before-effect), not a new write path. The field
+is declared through `plan_request_fields`, so introduction follows the
+`ADR-0125` order: this consumer accepts the field, ships, and only then a
+provider declares it. The exact field name and schema belong to the
+provider-kit revision that introduces them, not to this record; the estates'
+shared candidate is an end-state noun over a verb, `removed` or final bytes
+with their member and digest.
 
 Until a provider declares the field, behavior stays exactly today's — the plan
 truthfully warns that the host file goes whole and `restore` returns it byte
