@@ -2516,7 +2516,19 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         # skill this installation did not write.
         mutability="apply",
         parameters=(
-            option("target", "string", "Directory the harness reads its native skill from."),
+            option(
+                "target",
+                "string",
+                "Directory the harness reads its native skill from.",
+                # Declared required because the handler has always treated it so:
+                # `_target` refuses `AI_STP_VALIDATION_ERROR` the moment it is
+                # absent, with no configured fallback to fall back to. Machine
+                # help said optional, so an agent building argv from the
+                # declaration met a stop the declaration had told it could not
+                # happen — the hidden-`confirm` shape, one field over. Behaviour
+                # is unchanged; only the declaration stops lying.
+                required=True,
+            ),
             option(
                 "harness",
                 "string",
@@ -2532,7 +2544,19 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         handler="skill:remove",
         mutability="apply",
         parameters=(
-            option("target", "string", "Directory the harness reads its native skill from."),
+            option(
+                "target",
+                "string",
+                "Directory the harness reads its native skill from.",
+                # Declared required because the handler has always treated it so:
+                # `_target` refuses `AI_STP_VALIDATION_ERROR` the moment it is
+                # absent, with no configured fallback to fall back to. Machine
+                # help said optional, so an agent building argv from the
+                # declaration met a stop the declaration had told it could not
+                # happen — the hidden-`confirm` shape, one field over. Behaviour
+                # is unchanged; only the declaration stops lying.
+                required=True,
+            ),
         ),
         next_actions=("skill status",),
     ),
@@ -2542,7 +2566,19 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-skill-delivery",
         handler="skill:status",
         parameters=(
-            option("target", "string", "Directory the harness reads its native skill from."),
+            option(
+                "target",
+                "string",
+                "Directory the harness reads its native skill from.",
+                # Declared required because the handler has always treated it so:
+                # `_target` refuses `AI_STP_VALIDATION_ERROR` the moment it is
+                # absent, with no configured fallback to fall back to. Machine
+                # help said optional, so an agent building argv from the
+                # declaration met a stop the declaration had told it could not
+                # happen — the hidden-`confirm` shape, one field over. Behaviour
+                # is unchanged; only the declaration stops lying.
+                required=True,
+            ),
         ),
         next_actions=("capabilities",),
     ),

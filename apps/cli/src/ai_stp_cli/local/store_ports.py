@@ -210,7 +210,22 @@ def _snapshot(root: Path, adapter: str) -> Snapshot:
             details={"allowed": "sx, apm"},
         )
     relative = "sx.toml" if adapter == "sx" else "apm.lock.yaml"
-    payload = _read_regular(root / relative)
+    manifest = root / relative
+    # An absent manifest is the ordinary answer for a command whose job is to
+    # look, and it must be said rather than raised. Without this, `_read_regular`
+    # let a bare `FileNotFoundError` reach the envelope mapper and the caller was
+    # told `AI_STP_INTERNAL: unexpected internal failure` — the product claiming
+    # it broke over a directory the caller was entitled to name. `port discover`
+    # accepted the same directory happily, so the two commands disagreed about
+    # it, which is how it stayed unnoticed.
+    if not manifest.exists():
+        raise CliFailure(
+            "AI_STP_NOT_FOUND",
+            "this directory holds no manifest for that setup-store adapter",
+            details={"root": redact_home(root), "adapter": adapter, "expected": relative},
+            next_actions=["registry port discover --root <path> --json"],
+        )
+    payload = _read_regular(manifest)
     try:
         if adapter == "sx":
             document = cast(dict[str, object], tomllib.loads(payload.decode("utf-8")))

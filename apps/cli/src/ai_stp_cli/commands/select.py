@@ -121,7 +121,7 @@ def eligible(parameters: Mapping[str, object]) -> Answer[EligibilityReport]:
             next_actions=["toolchain harnesses --json"],
         )
 
-    root = Path(str(parameters.get("project") or Path.cwd()))
+    root = _project_root(parameters)
     registry = configured_path()
     redistribution = bool(parameters.get("for-redistribution"))
     if not registry.exists():
@@ -190,7 +190,7 @@ def eligible_everywhere(parameters: Mapping[str, object]) -> Answer[EligibilityM
             )
         requested = tuple(sorted(set(requested)))
 
-    root = Path(str(parameters.get("project") or Path.cwd()))
+    root = _project_root(parameters)
     registry = configured_path()
     redistribution = bool(parameters.get("for-redistribution"))
     flagged = bool(parameters.get("include-unverified"))
@@ -573,7 +573,7 @@ def propose(parameters: Mapping[str, object]) -> Answer[ProposalSession]:
     supplies the decision that freezes it.
     """
     harness = _harness_of(parameters)
-    root = Path(str(parameters.get("project") or Path.cwd()))
+    root = _project_root(parameters)
     wanted = _members_named(parameters)
     empty = parameters.get("empty") is True
 
@@ -684,7 +684,7 @@ def cancel(parameters: Mapping[str, object]) -> Answer[ProposalSession]:
 def session(parameters: Mapping[str, object]) -> Answer[ProposalSession]:
     """What one project and harness currently has open, and what is selected."""
     harness = _harness_of(parameters)
-    root = Path(str(parameters.get("project") or Path.cwd()))
+    root = _project_root(parameters)
 
     def work(connection: sqlite3.Connection) -> ProposalSession:
         return _session(connection, context_for_project(connection, harness, root), moment())
@@ -699,6 +699,42 @@ def session(parameters: Mapping[str, object]) -> Answer[ProposalSession]:
         )
     with closing(open_readonly(registry)) as connection:
         return Answer(work(connection))
+
+
+def _project_root(parameters: Mapping[str, object]) -> Path:
+    """The directory `--project` names here, refused by name when it is not one.
+
+    `--project` is a **directory root** in this group and a **stable id** in
+    `target status/diff/backups/rollback`. One flag name, two types, and machine
+    help spells both with the same word — so an agent that has just read a
+    project's id and reaches for the next command has a natural way to be wrong.
+
+    Without this check that mistake produced an invented fact rather than a
+    refusal: `Path("project_01M1F…")` is a relative path, `.resolve()` anchored it
+    to the working directory, and the answer named
+    `<cwd>/project_01M1F…` as a project without a passport — a directory nobody
+    mentioned and that never existed — then offered
+    `project passport --root project_01M1F… --json`, which fails the same way.
+    Measured in the functional sweep of 2026-09-02.
+
+    An absent `--project` still means the working directory, which is the
+    ordinary case and stays untouched.
+    """
+    named = parameters.get("project")
+    if named is None or str(named) == "":
+        return Path.cwd()
+    root = Path(str(named))
+    if root.is_dir():
+        return root
+    raise CliFailure(
+        "AI_STP_VALIDATION_ERROR",
+        "this option names the project directory, not its stable id",
+        details={"project": str(named)},
+        next_actions=[
+            "select session --project <directory> --harness <id> --json",
+            "target status --project <stable id> --harness <id> --json",
+        ],
+    )
 
 
 def _harness_of(parameters: Mapping[str, object]) -> str:

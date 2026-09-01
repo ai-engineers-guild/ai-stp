@@ -5058,7 +5058,7 @@
           "name": "target",
           "kind": "option",
           "value_type": "string",
-          "required": false,
+          "required": true,
           "repeatable": false,
           "summary": "Directory the harness reads its native skill from.",
           "choices": []
@@ -5092,7 +5092,7 @@
           "name": "target",
           "kind": "option",
           "value_type": "string",
-          "required": false,
+          "required": true,
           "repeatable": false,
           "summary": "Directory the harness reads its native skill from.",
           "choices": []
@@ -5117,7 +5117,7 @@
           "name": "target",
           "kind": "option",
           "value_type": "string",
-          "required": false,
+          "required": true,
           "repeatable": false,
           "summary": "Directory the harness reads its native skill from.",
           "choices": []

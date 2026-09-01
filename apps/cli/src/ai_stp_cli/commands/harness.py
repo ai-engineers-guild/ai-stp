@@ -937,7 +937,21 @@ def resume(parameters: Mapping[str, object]) -> Answer[HarnessProgram]:
 
     with open_registry(configured_path()) as connection:
         current = journal.get(connection, operation_id)
-        state = "" if current is None else current.state
+        if current is None:
+            # A missing operation and a settled one are different situations and
+            # used to get the same answer: `state` fell through as `""`, the
+            # refusal said the operation "is not waiting on a postcondition" —
+            # a claim about the state of something that does not exist — and
+            # `details.state` was empty. Its sibling `install cancel` already
+            # says "no operation with that identifier is recorded", which is the
+            # answer that sends the caller somewhere useful.
+            raise CliFailure(
+                "AI_STP_NOT_FOUND",
+                "no operation with that identifier is recorded",
+                details={"operation": operation_id},
+                next_actions=["install status --json"],
+            )
+        state = current.state
         if state not in _UNSETTLED:
             raise CliFailure(
                 "AI_STP_PRECONDITION_FAILED",

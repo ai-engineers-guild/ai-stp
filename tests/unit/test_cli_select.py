@@ -1396,3 +1396,50 @@ def test_the_matrix_accepts_the_empty_tuple_click_delivers_for_no_harness(
     matrix = _matrix(tmp_path, **{"harness": ()})
 
     assert [report.harness_id for report in matrix.harnesses] == sorted(HARNESS_IDS)
+
+
+def test_a_project_stable_id_where_a_root_belongs_is_refused_by_name(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`--project` is a directory here and a stable id in `target`. Same flag, two types.
+
+    Measured in the functional sweep of 2026-09-02. `select session --project
+    project_01M1F6BZ… --harness claude-code` answered:
+
+        AI_STP_PRECONDITION_FAILED
+        "this project has no passport, so there is nothing to compose against"
+        details.root: /home/…/ai-stp/project_01M1F6BZ…
+        next_actions: ["project passport --root project_01M1F6BZ… --json"]
+
+    Three wrongs from one missing check. `Path(value)` turned an identifier into
+    a relative path and `.resolve()` anchored it to the working directory, so the
+    refusal named a directory nobody mentioned and that never existed; and the
+    next action echoed the same unusable value into a command that fails
+    identically — a pointer the `next_actions` lint passes, because the command
+    and its flags are real and only the argument cannot work.
+
+    The confusion is not exotic: `target status --project` genuinely takes a
+    stable id, and an agent building argv from machine help meets the same word
+    twice with two meanings.
+    """
+    from ai_stp_cli.commands import select as command
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+
+    with pytest.raises(CliFailure) as refused:
+        command.session({"harness": "claude-code", "project": "project_01M1F6BZ0AP7K6CHGBPGJ7JCTR"})
+    assert refused.value.code == "AI_STP_VALIDATION_ERROR"
+    assert "directory" in refused.value.message
+    # The invented path must not appear anywhere in the answer.
+    assert "project_01M1F6BZ0AP7K6CHGBPGJ7JCTR" not in str(refused.value.details.get("root", ""))
+    assert all(
+        "project_01M1F6BZ0AP7K6CHGBPGJ7JCTR" not in action for action in refused.value.next_actions
+    )
+
+    # A directory that exists but holds no passport keeps the old, correct answer.
+    real = tmp_path / "work"
+    real.mkdir()
+    with pytest.raises(CliFailure) as absent:
+        command.session({"harness": "claude-code", "project": str(real)})
+    assert absent.value.code == "AI_STP_PRECONDITION_FAILED"

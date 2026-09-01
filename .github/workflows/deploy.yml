@@ -82,7 +82,7 @@ jobs:
           # Five attempts over roughly ten seconds. A ref that is still wrong
           # after that is a real disagreement and still fails.
           promoted=""
-          for attempt in 1 2 3 4 5; do
+          for _ in 1 2 3 4 5; do
             promoted="$(gh api "repos/${REPOSITORY}/git/ref/heads/deploy/prod" --jq .object.sha)"
             if [ "${promoted}" = "${HEAD_SHA}" ]; then
               break
