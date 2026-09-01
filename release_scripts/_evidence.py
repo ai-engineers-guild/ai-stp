@@ -121,6 +121,20 @@ def error_code(envelope: Mapping[str, Any]) -> str:
     return code if isinstance(code, str) else ""
 
 
+def error_details(envelope: Mapping[str, Any]) -> dict[str, Any]:
+    """The refusal's typed details, or an empty mapping when there are none.
+
+    Details are where a refusal carries its evidence — for a postcondition
+    miss, *which* reading disagreed — and they are typed product output that
+    redacts home paths at the source, same as the message beside them.
+    """
+    held = envelope.get("error")
+    if not isinstance(held, dict):
+        return {}
+    details = cast(dict[str, Any], held).get("details")
+    return cast(dict[str, Any], details) if isinstance(details, dict) else {}
+
+
 def error_message(envelope: Mapping[str, Any]) -> str:
     """The refusal's sentence, or an empty string when the call succeeded.
 

@@ -38,7 +38,14 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Final
 
-from release_scripts._evidence import EvidenceError, cli, data, error_code, error_message
+from release_scripts._evidence import (
+    EvidenceError,
+    cli,
+    data,
+    error_code,
+    error_details,
+    error_message,
+)
 
 #: The seven harnesses, in the order the estate names them.
 HARNESSES: Final[tuple[str, ...]] = (
@@ -116,9 +123,19 @@ def _stage(
         outcome = NOT_APPLICABLE
     else:
         outcome = FAILED
-    # The code names the class; the message names the instance. A failed row
-    # without the sentence sends the reader back for a second run.
-    return {"stage": name, "outcome": outcome, "code": code, "message": error_message(envelope)}
+    # The code names the class; the message names the instance; the details
+    # name the evidence. The cursor-on-windows row proved each layer earns its
+    # keep: the code has over twenty sources, the message was one generic
+    # sentence shared by all postcondition misses, and the observed reason —
+    # which half of the settlement failed — travels only in the details.
+    row: dict[str, Any] = {"stage": name, "outcome": outcome, "code": code}
+    message = error_message(envelope)
+    if message:
+        row["message"] = message
+    details = error_details(envelope)
+    if details:
+        row["details"] = details
+    return row
 
 
 def _row(
