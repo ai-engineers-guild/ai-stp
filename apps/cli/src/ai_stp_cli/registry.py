@@ -794,6 +794,12 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "Harness whose claim of this path to adopt; "
                 "`portable` selects the shared cross-product claim.",
             ),
+            option(
+                "kind",
+                "string",
+                "Component kind whose claim of this path to adopt, "
+                "for a file one harness claims as two kinds.",
+            ),
         ),
         next_actions=("component passport show", "component discover"),
     ),

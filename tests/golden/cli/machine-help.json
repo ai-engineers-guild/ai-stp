@@ -283,6 +283,15 @@
           "repeatable": false,
           "summary": "Harness whose claim of this path to adopt; `portable` selects the shared cross-product claim.",
           "choices": []
+        },
+        {
+          "name": "kind",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Component kind whose claim of this path to adopt, for a file one harness claims as two kinds.",
+          "choices": []
         }
       ],
       "parameter_rules": [],

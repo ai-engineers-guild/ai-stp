@@ -1329,3 +1329,56 @@ def test_a_path_two_surfaces_claim_is_a_decision_not_a_silent_pick(
 
     portable = command.adopt({"path": str(skill), "root": str(root), "harness": "portable"}).payload
     assert harness_of(portable.facts) == ""
+
+
+def test_a_path_two_kinds_claim_is_the_same_decision_as_two_harnesses(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One file, one harness, two kinds — and the second was unreachable.
+
+    Measured on a real codex home: `~/.codex/config.toml` answers to two
+    documented layouts at once, the `mcp` claim over the `mcp_servers` key and
+    the `setting` claim over the whole file. Discovery reports both. `component
+    adopt --path` took the first, so a codex user whose settings live beside
+    their MCP servers could not adopt the settings half **at all** — there was
+    no flag naming a kind, and `--harness codex` matches both.
+
+    The sibling of the harness case shipped in `eec26bfd`, and the same rule
+    applies: more than one answer is a decision, and picking silently is the
+    failure. Every `declared_key` harness has this shape — codex and grok-build
+    over `config.toml`, opencode over `opencode.json`, claude-code over
+    `settings.json`.
+    """
+    from ai_stp_cli.commands import component as command
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    monkeypatch.delenv("CODEX_HOME", raising=False)
+    configuration = tmp_path / ".codex" / "config.toml"
+    configuration.parent.mkdir(parents=True)
+    configuration.write_text(
+        '[mcp_servers.probe]\ncommand = "probe-server"\n',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(CliFailure) as undecided:
+        command.adopt({"path": str(configuration)})
+    assert undecided.value.code == "AI_STP_USER_DECISION_REQUIRED"
+    assert "mcp" in str(undecided.value.details)
+    assert "setting" in str(undecided.value.details)
+
+    def kind_of(facts: "dict[str, JsonValue]") -> "JsonValue":
+        fact = facts["component_type"]
+        assert isinstance(fact, dict)
+        return fact["value"]
+
+    assert kind_of(
+        command.adopt({"path": str(configuration), "kind": "setting"}).payload.facts
+    ) == ("setting")
+    assert (
+        kind_of(command.adopt({"path": str(configuration), "kind": "mcp"}).payload.facts) == "mcp"
+    )
+
+    with pytest.raises(CliFailure) as absent:
+        command.adopt({"path": str(configuration), "kind": "hook"})
+    assert absent.value.code == "AI_STP_NOT_FOUND"

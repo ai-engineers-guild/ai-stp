@@ -318,6 +318,23 @@ def adopt(parameters: Mapping[str, object]) -> Answer[PassportView]:
                 details={"path": str(wanted), "harness": claimed},
                 next_actions=["component discover --root <path> --json"],
             )
+    # A kind is the second axis of the same decision, and one harness can hold
+    # both: `~/.codex/config.toml` answers to the `mcp` layout over its
+    # `mcp_servers` key and to the `setting` layout over the whole file, so
+    # `--harness codex` narrows nothing. Every `declared_key` harness has this
+    # shape. Without the selector the `setting` half of such a file was
+    # unreachable — `matches[0]` is the `mcp` claim, and no flag named the
+    # other.
+    kind = str(parameters.get("kind") or "")
+    if kind:
+        matches = [item for item in matches if item.component_type == kind]
+        if not matches:
+            raise CliFailure(
+                "AI_STP_NOT_FOUND",
+                "no surface of that kind claims this path",
+                details={"path": str(wanted), "kind": kind},
+                next_actions=["component discover --root <path> --json"],
+            )
     # Distinct harnesses, not raw claim count: `~/.claude/CLAUDE.md` is claimed
     # by claude-code's global layout and by its project layout at once, and
     # that is one answer twice, not a decision. The decision exists exactly
@@ -333,6 +350,18 @@ def adopt(parameters: Mapping[str, object]) -> Answer[PassportView]:
             },
             next_actions=[
                 "component adopt --path <path> --root <root> --harness <id> --json",
+            ],
+        )
+    if len({item.component_type for item in matches}) > 1:
+        raise CliFailure(
+            "AI_STP_USER_DECISION_REQUIRED",
+            "that path answers to more than one kind; name the kind to adopt",
+            details={
+                "path": str(wanted),
+                "kinds": ", ".join(sorted({item.component_type for item in matches})),
+            },
+            next_actions=[
+                "component adopt --path <path> --root <root> --kind <kind> --json",
             ],
         )
     found = matches[0]
