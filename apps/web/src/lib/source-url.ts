@@ -3,6 +3,49 @@ import type { GitSource } from "@/lib/api/generated/types.gen";
 const GITHUB_HOST = "github.com";
 const EXACT_COMMIT = /^[0-9a-f]{40}$/i;
 
+export type PublicSourceLink = {
+  href: string;
+  provider: string;
+  exact: boolean;
+};
+
+type SourceFacts = {
+  source_links?: { value: unknown };
+};
+
+function safeSourceUrl(raw: string | undefined): string | null {
+  if (!raw) return null;
+  try {
+    const url = new URL(raw);
+    if (
+      url.protocol !== "https:" ||
+      !url.hostname ||
+      url.username ||
+      url.password ||
+      url.search ||
+      url.hash
+    ) {
+      return null;
+    }
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function sourceProvider(href: string): string {
+  const host = new URL(href).hostname.toLowerCase();
+  if (host === "github.com") return "GitHub";
+  if (host === "pypi.org" || host === "files.pythonhosted.org") return "PyPI";
+  if (host === "npmjs.com" || host.endsWith(".npmjs.com") || host === "registry.npmjs.org") {
+    return "npm";
+  }
+  if (host === "crates.io") return "crates.io";
+  if (host === "pkg.go.dev" || host === "proxy.golang.org") return "Go";
+  if (host === "pub.dev") return "pub.dev";
+  return "Source";
+}
+
 function githubRepositoryParts(
   source: GitSource | null | undefined,
 ): { owner: string; name: string } | null {
@@ -49,4 +92,29 @@ export function exactSourceUrl(source: GitSource | null | undefined): string | n
 
 export function githubSourceUrl(source: GitSource | null | undefined): string | null {
   return exactSourceUrl(source) ?? githubRepositoryUrl(source);
+}
+
+export function sourceLinksFor(
+  source: GitSource | null | undefined,
+  facts?: SourceFacts | null,
+): PublicSourceLink[] {
+  const declared = facts?.source_links?.value;
+  const declaredLinks = Array.isArray(declared)
+    ? declared
+        .filter((value): value is string => typeof value === "string")
+        .map((value) => safeSourceUrl(value))
+        .filter((value): value is string => value !== null)
+    : [];
+  const links = declaredLinks.length
+    ? declaredLinks
+    : (() => {
+        const exact = exactSourceUrl(source);
+        const generic = safeSourceUrl(source?.repository);
+        return exact ? [exact] : generic ? [generic] : [];
+      })();
+  return [...new Set(links)].map((href) => ({
+    href,
+    provider: sourceProvider(href),
+    exact: href === exactSourceUrl(source),
+  }));
 }

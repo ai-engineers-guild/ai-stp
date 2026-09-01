@@ -3,6 +3,8 @@ import type { ExternalProduct, Country } from "@/lib/api/catalog";
 import { namedHarnesses } from "@/lib/catalog-harnesses";
 import { registryCommand } from "@/lib/cli-copy";
 import { isComponentType, type ComponentTypeId } from "@/lib/projection/inventory";
+import { sourceLinksFor, type PublicSourceLink } from "@/lib/source-url";
+import type { GitSource } from "@/lib/api/generated/types.gen";
 
 type TrustLike = {
   trust_lane: string;
@@ -89,6 +91,7 @@ export type PublicObjectFacts = {
   publishedAt?: string;
   versions: readonly string[];
   sourceUrl?: string | null;
+  sourceLinks?: readonly PublicSourceLink[] | undefined;
   githubStars?: number | null;
   githubArchived?: boolean | null;
   checksSummary?: string | null;
@@ -110,6 +113,7 @@ export type ComponentPublicExtras = {
   publishedAt?: string | undefined;
   versions?: readonly string[] | undefined;
   sourceUrl?: string | null | undefined;
+  sourceLinks?: readonly PublicSourceLink[] | undefined;
   githubStars?: number | null | undefined;
   githubArchived?: boolean | null | undefined;
   checksSummary?: string | null | undefined;
@@ -128,6 +132,8 @@ export type ComponentPassportFactsInput = {
   requires_components: ReadonlyArray<{ stable_id: string; version: string }>;
   requires_capabilities?: readonly string[];
   compatibility_evidence_refs?: readonly string[];
+  source?: GitSource | null;
+  facts?: Record<string, { value: unknown }>;
 };
 
 export type CountryFacts = {
@@ -238,6 +244,7 @@ export function componentPublicFacts(
     compatibilityEvidence: extras?.compatibilityEvidence ?? [],
     versions: extras?.versions ?? [summary.latest_version],
     sourceUrl: extras?.sourceUrl ?? null,
+    sourceLinks: extras?.sourceLinks ?? [],
     githubStars: extras?.githubStars ?? null,
     githubArchived: extras?.githubArchived ?? null,
     checksSummary: extras?.checksSummary ?? null,
@@ -298,6 +305,7 @@ export function componentFactsFromLoaders(input: {
     publishedAt: input.publishedAt ?? input.summary.latest_published_at,
     versions: input.versions,
     sourceUrl: input.sourceUrl,
+    sourceLinks: sourceLinksFor(input.passport?.source, input.passport?.facts),
     githubStars: input.github?.stars,
     githubArchived: input.github?.archived,
     checksSummary: input.checks

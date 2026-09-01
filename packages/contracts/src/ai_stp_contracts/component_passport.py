@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Annotated, Final, Literal
+from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -95,8 +96,17 @@ class ComponentPassportPatch(BaseModel):
         for name in self.model_fields_set:
             if getattr(self, name) is None:
                 raise ValueError(f"declared field {name!r} may not be null")
-        if self.source is not None and not self.source.repository.startswith("https://github.com/"):
-            raise ValueError("publication source must be an exact GitHub HTTPS repository")
+        if self.source is not None:
+            parsed = urlsplit(self.source.repository)
+            if (
+                parsed.scheme != "https"
+                or not parsed.hostname
+                or parsed.username
+                or parsed.password
+                or parsed.query
+                or parsed.fragment
+            ):
+                raise ValueError("publication source must be an exact HTTPS repository")
         for path in self.managed_paths or []:
             if (
                 path.startswith(("/", "\\"))

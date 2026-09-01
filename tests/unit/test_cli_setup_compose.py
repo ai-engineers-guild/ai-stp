@@ -6,7 +6,10 @@ import json
 from contextlib import closing
 from pathlib import Path
 
+import pytest
+
 from ai_stp_cli.commands import setup_compose as command
+from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import content, revisions, setup_compose, versions
 from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_contracts.machine_help import SetupComposePlan
@@ -17,6 +20,49 @@ SETUP = "setup_01ARZ3NDEKTSV4RRFFQ69G5FAV"
 OWNER = "account_01ARZ3NDEKTSV4RRFFQ69G5FAV"
 DEVICE = "device_01ARZ3NDEKTSV4RRFFQ69G5FAV"
 AT = "2026-09-01T00:00:00.000Z"
+
+
+def test_compose_accepts_an_explicit_public_source_page() -> None:
+    manifest = setup_compose.parse_manifest(
+        {
+            "schema_version": 1,
+            "name": "Sourced setup",
+            "description": "A setup with an explicit source page.",
+            "harness_id": "codex",
+            "tags": ["source"],
+            "components": [
+                {
+                    "source": {"kind": "path", "relative_path": "skill"},
+                    "component_type": "skill",
+                    "name": "skill",
+                    "description": "A local skill.",
+                    "license_spdx": "MIT",
+                    "source_url": "https://pypi.org/project/example/",
+                }
+            ],
+        }
+    )
+    assert manifest.components[0].source_url == "https://pypi.org/project/example/"
+    with pytest.raises(CliFailure):
+        setup_compose.parse_manifest(
+            {
+                "schema_version": 1,
+                "name": "Unsafe setup",
+                "description": "A setup with an unsafe source page.",
+                "harness_id": "codex",
+                "tags": ["source"],
+                "components": [
+                    {
+                        "source": {"kind": "path", "relative_path": "skill"},
+                        "component_type": "skill",
+                        "name": "skill",
+                        "description": "A local skill.",
+                        "license_spdx": "MIT",
+                        "source_url": "http://example.test/",
+                    }
+                ],
+            }
+        )
 
 
 def test_path_component_composes_and_records_a_publishable_setup() -> None:

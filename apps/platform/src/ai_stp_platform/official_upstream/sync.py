@@ -46,6 +46,7 @@ from ai_stp_platform.queue.states import JobType
 from ai_stp_platform.safety.artifact_fetch import close_env_object_store, open_env_object_store
 from ai_stp_platform.safety.policy import POLICY_VERSION
 from ai_stp_platform.storage.object_store import ARTIFACT_DIGEST_DOMAIN, ImmutableObjectStore
+from ai_stp_sources.definition import source_links_for_snapshot
 from ai_stp_sources.models import SourceSnapshot
 
 _PACKAGE_ORIGINS = {
@@ -348,6 +349,7 @@ def _passport(
     license_spdx: str,
     created_at: str,
 ) -> dict[str, object]:
+    source_links = source_links_for_snapshot(snapshot)
     passport: dict[str, object] = {
         "schema_version": 1,
         "kind": "component",
@@ -363,7 +365,19 @@ def _passport(
                 "origin": "observed",
                 "confirmation": "none",
                 "observed_at": created_at,
-            }
+            },
+            **(
+                {
+                    "source_links": {
+                        "value": list(source_links),
+                        "origin": "observed",
+                        "confirmation": "none",
+                        "observed_at": created_at,
+                    }
+                }
+                if source_links
+                else {}
+            ),
         },
         "name": source.name,
         "description": description,

@@ -22,6 +22,7 @@ from ai_stp_sources import (
     SourceError,
     SourceSnapshot,
     freeze_setup_definition,
+    source_links_for_snapshot,
     validate_setup_definition,
 )
 from ai_stp_sources.definition import MAX_DEFINITION_BYTES
@@ -215,6 +216,20 @@ def test_mixed_freeze_uses_definition_version_2_and_exact_refs() -> None:
     assert "files" not in snapshot
     assert "\\" not in str(snapshot["canonical_coordinate"])
     validate_setup_definition(frozen.payload, catalog_ids=frozenset({CATALOG_ID}))
+
+
+def test_package_snapshot_exposes_upstream_and_registry_source_pages() -> None:
+    snapshot = _package_snapshot().model_copy(
+        update={
+            "package_evidence": NpmEvidence(repository="https://github.com/acme/demo"),
+        }
+    )
+    assert source_links_for_snapshot(snapshot, explicit_url="https://example.test/source") == (
+        "https://example.test/source",
+        "https://github.com/acme/demo",
+        "https://www.npmjs.com/package/demo/v/1.2.3",
+    )
+    assert source_links_for_snapshot(_path_snapshot()) == ()
 
 
 @pytest.mark.parametrize("component_type", KINDS)

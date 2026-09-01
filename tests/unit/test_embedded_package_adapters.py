@@ -219,7 +219,10 @@ async def test_pypi_requires_filename_and_platform_when_multiple_files() -> None
     sdist = b"sdist-bytes"
     registry = Registry()
     meta = {
-        "info": {"requires_dist": ["httpx (>=0.27)"]},
+        "info": {
+            "requires_dist": ["httpx (>=0.27)"],
+            "project_urls": {"Repository": "https://github.com/acme/demo"},
+        },
         "urls": [
             {
                 "filename": "demo-1.0.0-py3-none-any.whl",
@@ -258,6 +261,7 @@ async def test_pypi_requires_filename_and_platform_when_multiple_files() -> None
     assert evidence.platform == "py3-none-any"
     assert evidence.registry_sha256 == _sha256_hex(wheel)
     assert evidence.requires_dist == ("httpx (>=0.27)",)
+    assert evidence.repository == "https://github.com/acme/demo"
     assert snapshot.files == {}
     assert snapshot.canonical_coordinate.endswith(":demo-1.0.0-py3-none-any.whl")
     assert registry.hosts() <= {"pypi.org", "files.pythonhosted.org"}

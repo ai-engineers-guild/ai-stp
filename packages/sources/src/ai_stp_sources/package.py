@@ -272,10 +272,10 @@ async def _resolve_pypi(
     if _sha256_hex(archive) != expected:
         raise SourceError(INTEGRITY_MISMATCH, "PyPI file digest does not match registry sha256")
     info_raw = body.get("info")
+    info = cast(dict[str, object], info_raw) if isinstance(info_raw, dict) else {}
+    repository = _pypi_repository(info)
     requires: list[str] = []
-    if isinstance(info_raw, dict):
-        dist = cast(dict[str, object], info_raw).get("requires_dist")
-        requires = _string_list(dist)[:MAX_GRAPH_ENTRIES]
+    requires = _string_list(info.get("requires_dist"))[:MAX_GRAPH_ENTRIES]
     platform = intent.platform or "any"
     extra = f":{filename}"
     evidence = PypiEvidence(
@@ -283,8 +283,30 @@ async def _resolve_pypi(
         platform=platform,
         registry_sha256=expected,
         requires_dist=tuple(requires),
+        repository=repository,
     )
     return _snapshot(intent, archive=archive, files={}, evidence=evidence, extra=extra, now=now)
+
+
+def _pypi_repository(info: dict[str, object]) -> str | None:
+    """Select a safe upstream project URL from PyPI's observed metadata."""
+    project_urls = info.get("project_urls")
+    if isinstance(project_urls, dict):
+        values = cast(dict[str, object], project_urls)
+        preferred = sorted(
+            values.items(),
+            key=lambda item: (
+                0
+                if any(marker in item[0].lower() for marker in ("repository", "source", "github"))
+                else 1,
+                item[0].lower(),
+            ),
+        )
+        for _label, value in preferred:
+            repository = _https_repository(value)
+            if repository is not None:
+                return repository
+    return _https_repository(info.get("home_page"))
 
 
 async def _resolve_crates(

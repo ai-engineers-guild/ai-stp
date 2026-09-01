@@ -13,6 +13,7 @@ import zipfile
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Final, cast
+from urllib.parse import quote, urlsplit
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
@@ -78,6 +79,7 @@ class EmbeddedDraft:
     upstream_project: str | None = None
     upstream_maintainers: tuple[str, ...] = ()
     projection_kind: ProjectionKind = "native_files"
+    source_url: str | None = None
 
 
 @dataclass(frozen=True)
@@ -269,6 +271,52 @@ def _fact(value: JsonValue, *, at: str, origin: str = "derived") -> JsonValue:
     return {"value": value, "origin": origin, "confirmation": "none", "observed_at": at}
 
 
+def source_links_for_snapshot(
+    snapshot: SourceSnapshot, *, explicit_url: str | None = None
+) -> tuple[str, ...]:
+    """Return public source pages without changing trust semantics."""
+    links: list[str] = []
+    if explicit_url is not None and _safe_public_https(explicit_url):
+        links.append(explicit_url)
+    if snapshot.kind == "package":
+        evidence = snapshot.package_evidence
+        repository = getattr(evidence, "repository", None)
+        if isinstance(repository, str) and repository:
+            links.append(repository)
+        coordinate = snapshot.canonical_coordinate.removeprefix("package:")
+        try:
+            ecosystem, remainder = coordinate.split(":", 1)
+            name, _version = remainder.rsplit("@", 1)
+        except ValueError:
+            ecosystem, name = "", ""
+        version = quote(snapshot.exact_identity, safe="")
+        if ecosystem == "npm":
+            links.append(f"https://www.npmjs.com/package/{quote(name, safe='@/')}/v/{version}")
+        elif ecosystem == "pypi":
+            links.append(f"https://pypi.org/project/{quote(name, safe='')}/{version}/")
+        elif ecosystem == "crates.io":
+            links.append(f"https://crates.io/crates/{quote(name, safe='')}/{version}")
+        elif ecosystem == "go":
+            links.append(f"https://pkg.go.dev/{quote(name, safe='/')}@{version}")
+        elif ecosystem == "pub.dev":
+            links.append(f"https://pub.dev/packages/{quote(name, safe='@/')}/versions/{version}")
+    return tuple(dict.fromkeys(links))
+
+
+def _safe_public_https(value: str | None) -> bool:
+    if not value:
+        return False
+    parsed = urlsplit(value)
+    return bool(
+        parsed.scheme == "https"
+        and parsed.hostname
+        and not parsed.username
+        and not parsed.password
+        and not parsed.query
+        and not parsed.fragment
+    )
+
+
 def _build_passport(
     draft: EmbeddedDraft,
     *,
@@ -283,6 +331,9 @@ def _build_passport(
             draft.snapshot.canonical_coordinate, at=created_at, origin="observed"
         ),
     }
+    source_links = source_links_for_snapshot(draft.snapshot, explicit_url=draft.source_url)
+    if source_links:
+        facts["source_links"] = _fact(list(source_links), at=created_at)
     if draft.upstream_project is not None:
         facts["upstream_project"] = _fact(draft.upstream_project, at=created_at, origin="observed")
     if draft.upstream_maintainers:

@@ -264,6 +264,20 @@ def _complete_patch() -> ComponentPassportPatch:
     )
 
 
+def test_component_patch_accepts_a_non_github_https_source() -> None:
+    patch = ComponentPassportPatch.model_validate(
+        {
+            "source": {
+                "repository": "https://pypi.org/project/example/",
+                "commit": COMMIT,
+                "path": "project",
+            }
+        }
+    )
+    assert patch.source is not None
+    assert patch.source.repository == "https://pypi.org/project/example/"
+
+
 @pytest.mark.parametrize(
     ("component_type", "surface"),
     [

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { exactSourceUrl, githubRepositoryUrl, githubSourceUrl } from "@/lib/source-url";
+import {
+  exactSourceUrl,
+  githubRepositoryUrl,
+  githubSourceUrl,
+  sourceLinksFor,
+} from "@/lib/source-url";
 
 const commit = "a".repeat(40);
 
@@ -48,5 +53,39 @@ describe("exactSourceUrl", () => {
     };
     expect(githubRepositoryUrl(source)).toBe("https://github.com/example/project");
     expect(githubSourceUrl(source)).toBe("https://github.com/example/project");
+  });
+
+  it("keeps a package source visible without pretending it is GitHub", () => {
+    expect(
+      sourceLinksFor({
+        repository: "https://pypi.org/project/serena-agent/",
+        commit,
+        path: "serena_agent",
+      }),
+    ).toEqual([{ href: "https://pypi.org/project/serena-agent/", provider: "PyPI", exact: false }]);
+  });
+
+  it("renders observed upstream and registry pages, filtering unsafe links", () => {
+    expect(
+      sourceLinksFor(
+        {
+          repository: "https://registry.npmjs.org/example",
+          commit,
+          path: "",
+        },
+        {
+          source_links: {
+            value: [
+              "https://github.com/acme/example",
+              "https://www.npmjs.com/package/example",
+              "http://evil.test/",
+            ],
+          },
+        },
+      ),
+    ).toEqual([
+      { href: "https://github.com/acme/example", provider: "GitHub", exact: false },
+      { href: "https://www.npmjs.com/package/example", provider: "npm", exact: false },
+    ]);
   });
 });

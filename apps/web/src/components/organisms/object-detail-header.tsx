@@ -7,7 +7,7 @@ import {
   type ObjectActionProps,
 } from "@/components/organisms/component-actions";
 import type { GitSource } from "@/lib/api/generated/types.gen";
-import { githubSourceUrl } from "@/lib/source-url";
+import { sourceLinksFor, type PublicSourceLink } from "@/lib/source-url";
 import { UI } from "@/lib/ui-selectors";
 import { Icon } from "@/theme/icons";
 
@@ -21,6 +21,7 @@ export function ObjectDetailHeader({
   archived,
   archivedLabel,
   source,
+  sourceLinks,
   viewSourceLabel,
   like,
   actions,
@@ -34,11 +35,14 @@ export function ObjectDetailHeader({
   archived?: boolean | null;
   archivedLabel: string;
   source: GitSource | null | undefined;
+  sourceLinks?: readonly (PublicSourceLink & { label: string })[];
   viewSourceLabel: string;
   like: ObjectActionProps;
   actions?: ReactNode;
 }) {
-  const sourceHref = githubSourceUrl(source ?? null);
+  const links =
+    sourceLinks ??
+    sourceLinksFor(source ?? null).map((item) => ({ ...item, label: viewSourceLabel }));
 
   return (
     <ObjectLikeProvider {...like}>
@@ -80,17 +84,20 @@ export function ObjectDetailHeader({
                   <span className="text-muted-foreground">{githubStarsLabel}</span>
                 </span>
               ) : null}
-              {sourceHref ? (
+              {links.length ? (
                 <span className="inline-flex min-w-0 flex-wrap items-center gap-2">
-                  <a
-                    href={sourceHref}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="focus-visible:ring-ring inline-flex min-h-11 min-w-0 items-center gap-1.5 text-sm font-medium break-words underline underline-offset-4 focus-visible:ring-2 focus-visible:outline-none"
-                  >
-                    <Icon name="github" size="sm" />
-                    {viewSourceLabel}
-                  </a>
+                  {links.map((item) => (
+                    <a
+                      key={item.href}
+                      href={item.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="focus-visible:ring-ring inline-flex min-h-11 min-w-0 items-center gap-1.5 text-sm font-medium break-words underline underline-offset-4 focus-visible:ring-2 focus-visible:outline-none"
+                    >
+                      <Icon name={item.provider === "GitHub" ? "github" : "link"} size="sm" />
+                      {item.label}
+                    </a>
+                  ))}
                   {archived === true ? (
                     <span className="border-border bg-muted inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium">
                       {archivedLabel}

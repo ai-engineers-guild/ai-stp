@@ -22,6 +22,7 @@ import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { publicOrigin } from "@/lib/site";
 import { versionPageMetadata } from "@/lib/seo/metadata";
 import { Link } from "@/lib/i18n/navigation";
+import { sourceLinksFor } from "@/lib/source-url";
 
 type PageProps = {
   params: Promise<{ locale: string; stableId: string; version: string }>;
@@ -59,6 +60,10 @@ export default async function ComponentVersionPage({ params }: PageProps) {
   const tCli = await getTranslations("cli");
 
   const passport = response.passport;
+  const sourceLinks = sourceLinksFor(passport.source, passport.facts).map((item) => ({
+    ...item,
+    label: item.provider === "Source" ? t("viewSource") : `${t("viewSourceOn")} ${item.provider}`,
+  }));
   const metadata = await readComponentGithubMetadata(componentId, asVersionId(version)).catch(
     () => ({ schema_version: 1 as const, stars: null, archived: null }),
   );
@@ -167,7 +172,7 @@ export default async function ComponentVersionPage({ params }: PageProps) {
           <dd>{response.trust.component_verified ? tc("yes") : tc("no")}</dd>
         </div>
       </dl>
-      <ExactSourceLink source={passport.source} label={t("viewSource")} />
+      <ExactSourceLink source={passport.source} links={sourceLinks} label={t("viewSource")} />
       <CatalogUsageStats
         metrics={response.usage_metrics}
         locale={locale}

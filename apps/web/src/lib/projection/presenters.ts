@@ -264,7 +264,9 @@ function presentComponentObject(
   if (facts.publisher) {
     doc.push(link("Publisher", `/publishers/${facts.publisher}`));
   }
-  if (facts.sourceUrl) {
+  if (facts.sourceLinks?.length) {
+    doc.push(...facts.sourceLinks.map((item) => link(item.provider, item.href)));
+  } else if (facts.sourceUrl) {
     doc.push(link("GitHub", facts.sourceUrl));
   }
   doc.push(

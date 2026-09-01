@@ -87,6 +87,7 @@ class PypiEvidence(BaseModel):
     platform: Annotated[str, Field(min_length=1, max_length=64)]
     registry_sha256: Annotated[str, Field(min_length=64, max_length=64)]
     requires_dist: tuple[str, ...] = ()
+    repository: str | None = None
 
 
 class CratesEvidence(BaseModel):

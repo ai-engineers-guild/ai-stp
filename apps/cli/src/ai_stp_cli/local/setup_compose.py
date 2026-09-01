@@ -7,6 +7,7 @@ import sqlite3
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Annotated, Literal, cast
+from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError, model_validator
 from ulid import ULID
@@ -57,6 +58,7 @@ class ComposeComponent(BaseModel):
     upstream_project: str | None = None
     upstream_maintainers: tuple[str, ...] = ()
     runtime_requirements: tuple[str, ...] = ()
+    source_url: Annotated[str, Field(min_length=1, max_length=2048)] | None = None
 
     @model_validator(mode="after")
     def _embedded_metadata(self) -> ComposeComponent:
@@ -66,6 +68,17 @@ class ComposeComponent(BaseModel):
             raise ValueError(
                 "non-catalog components require component_type, name, description and license_spdx"
             )
+        if self.source_url is not None:
+            parsed = urlsplit(self.source_url)
+            if (
+                parsed.scheme != "https"
+                or not parsed.hostname
+                or parsed.username
+                or parsed.password
+                or parsed.query
+                or parsed.fragment
+            ):
+                raise ValueError("source_url must be a public HTTPS URL without credentials")
         return self
 
 
@@ -150,6 +163,7 @@ def compose(
             managed_paths=item.managed_paths,
             upstream_project=item.upstream_project,
             upstream_maintainers=item.upstream_maintainers,
+            source_url=item.source_url,
             runtime_requirements=tuple(
                 sorted(set(item.runtime_requirements) | set(_source_runtime_requirements(snapshot)))
             ),

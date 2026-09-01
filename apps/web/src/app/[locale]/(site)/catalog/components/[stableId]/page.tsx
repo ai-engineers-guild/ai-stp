@@ -44,6 +44,7 @@ import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { publicOrigin } from "@/lib/site";
 import { Link } from "@/lib/i18n/navigation";
 import { UI } from "@/lib/ui-selectors";
+import { sourceLinksFor } from "@/lib/source-url";
 import { SeoJsonLd } from "@/components/molecules/seo-json-ld";
 import { readSeoProfile } from "@/lib/api/seo";
 import { metadataFromSeo } from "@/lib/seo/metadata";
@@ -87,6 +88,10 @@ export default async function ComponentDetailPage({ params }: PageProps) {
   const summary = detail.summary;
   const latest = await readLatestComponentVersion(stableId, summary.latest_version);
   const passport = latest?.passport;
+  const sourceLinks = sourceLinksFor(passport?.source, passport?.facts).map((item) => ({
+    ...item,
+    label: item.provider === "Source" ? t("viewSource") : `${t("viewSourceOn")} ${item.provider}`,
+  }));
   const ownerId = passport?.owner_id || summary.publisher_id;
   const author = await readAuthor(ownerId);
   const token = await sessionCookieValue();
@@ -139,6 +144,7 @@ export default async function ComponentDetailPage({ params }: PageProps) {
         archived={metadata.archived}
         archivedLabel={t("githubArchived")}
         source={passport?.source}
+        sourceLinks={sourceLinks}
         viewSourceLabel={t("viewSourceOnGithub")}
         like={{
           stableId,
