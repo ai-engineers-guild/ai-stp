@@ -261,10 +261,14 @@ a full bundle handed to `remove` — exit 0 on plan and apply, digests echoed
 unread, the removal executed whole — and refuse loudly only a partial flag
 set. So the `plan_request_fields` declaration is the only thing standing
 between a final-bytes intent and a whole-file removal with a green echo, and
-the consumer half must gate on it absolutely. The provider estate is closing
-its half of that hole in its next wave by refusing a remove plan that names a
-bundle until the end state is implemented — breaking no one, since no
-released consumer sends one. The provider side also confirmed the write is a
+the consumer half must gate on it absolutely. The provider estate closed its
+half of that hole in `0.0.52`, measured on the released binaries: a remove
+plan naming a full bundle now answers `state: refused` with reason
+`unsupported_operation` at exit 0 — an answered refusal, like the rest of the
+v3 wire — while a partial flag set keeps its loud exit 1. Both measured forms
+belong in the consumer test when the half lands: accept-and-ignore at
+`0.0.51` and below, answered refusal from `0.0.52`. This broke no one: no
+released consumer sends a bundle with remove. The provider side also confirmed the write is a
 variation of an effect it already has (bundle materialization under
 capture-before-effect), not a new write path. The field
 is declared through `plan_request_fields`, so introduction follows the

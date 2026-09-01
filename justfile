@@ -245,11 +245,12 @@ evidence-citations:
 # Verifies publication, grants, reports and owner reads against the deployed
 # environment (#182). Read-only by default: publishing an immutable version and
 # changing somebody else's access both need an explicit decision by the operator.
-evidence-publication home origin="https://ai-stp.aiguild.space" writes="":
+evidence-publication home origin="https://ai-stp.aiguild.space" writes="" invite="":
     uv run --locked python -m release_scripts.verify_publication_slice \
         --origin "{{origin}}" \
         --home "{{home}}" \
-        {{ if writes == "" { "" } else { "--allow-writes" } }}
+        {{ if writes == "" { "" } else { "--allow-writes" } }} \
+        {{ if invite == "" { "" } else { prepend("--invite-email ", invite) } }}
 
 # --- docs ---------------------------------------------------------------
 
