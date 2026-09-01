@@ -61,7 +61,22 @@ OPTIONAL_INFO_FIELDS: Final[frozenset[str]] = frozenset(
 #:
 #: Closed, so a provider naming a field this build cannot send is a refusal
 #: rather than a silently ignored promise.
-PLAN_REQUEST_FIELDS: Final[frozenset[str]] = frozenset({"target_scope"})
+#:
+#: `end_state` is the second member and it is here **before** anything sends it,
+#: which is the whole of `ADR-0125`'s request-side order. The comparison above is
+#: exact equality over the closed set: the day a provider declares `end_state`,
+#: every consumer that does not know the name refuses the entire `provider-info`
+#: — not the field, the whole document, and with it `fetch`, `conformance`,
+#: `plan`, `apply` and `status` for that harness. So the name is accepted one
+#: release before the kit declares it and two before a provider does.
+#:
+#: What it will carry is settled in `#54` and `ADR-0129`: a `remove` plan gains a
+#: per-path end state, `removed | final_bytes{member, sha256, byte_length}`, and
+#: the bytes travel in an optional bundle through the same arguments `replace`
+#: already uses. The consumer does not send that bundle yet — a released
+#: `0.0.52` answers a bundle on `remove` with `unsupported_operation`, correctly
+#: — and it will not until a provider declares this name.
+PLAN_REQUEST_FIELDS: Final[frozenset[str]] = frozenset({"target_scope", "end_state"})
 
 #: Target scopes a projection may own. `global` and `project` are spelled as the
 #: harness catalog already spells them (`local/harness_catalog.py`).

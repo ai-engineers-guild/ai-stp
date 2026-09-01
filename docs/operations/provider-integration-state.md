@@ -1,6 +1,6 @@
 ---
 description: "Public compatibility snapshot for seven provider systems and ai_stp."
-last_verified: "2026-08-31"
+last_verified: "2026-09-01"
 ---
 
 # Provider integration state
@@ -12,7 +12,7 @@ release, capability, and evidence facts.
 ## Active release
 
 The active public tag for the seven `NDDev-OpenNetwork/*-setup-system`
-repositories is `0.0.48`. Each release contains six native binaries and
+repositories is `0.0.53`. Each release contains six native binaries and
 `SHA256SUMS`, read back from GitHub.
 
 ## Capabilities
@@ -24,6 +24,10 @@ repositories is `0.0.48`. Each release contains six native binaries and
   Cursor and Antigravity do not.
 - Provider-kit `0.2.7` publishes a closed status-response schema; the consumer
   validates the complete envelope at the single invocation boundary.
+- Provider-kit `0.2.8` opens `plan_request_fields` to `end_state` (`#54`).
+  Nothing sends the field yet: the consumer accepts the name one release
+  before a provider may declare it, because `provider-info` is compared by
+  exact membership and an unknown member refuses the whole document.
 
 ## Evidence
 
@@ -41,4 +45,7 @@ and explicitly named caller paths.
 
 Provider implementation/release and consumer enforcement are separate commits
 and change boundaries. The consumer status-response enforcement schema is
-complete; the next step is cross-repository evidence on the consumer path.
+complete, and cross-repository consumer evidence now exists on both subjects:
+`evidence-software` for the program lifecycle and `evidence-config` for the
+configuration lifecycle, seven rows each, plus `evidence-contribution` for the
+three native MCP forms.

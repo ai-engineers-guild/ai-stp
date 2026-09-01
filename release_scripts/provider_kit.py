@@ -36,7 +36,13 @@ KIT_IDENTITY_SCHEMA: Final[str] = "ai-stp-provider-kit-identity/1"
 #: six-key reader ledger and a measured 33-key JSON note. All three could drift
 #: while provider-info conformance stayed green; the status schema is now a
 #: checksummed member of the kit they already vendor.
-KIT_VERSION: Final[str] = "0.2.7"
+#: 0.2.8 opens `plan_request_fields` to `end_state` (`#54`, `ADR-0129`). The
+#: enum the schema publishes is the parser's own set, so the name could not be
+#: accepted without moving these bytes; that is the version, and the aggregate
+#: digest moves with it exactly as `0.2.4` did. Nothing sends the field yet —
+#: this release is what lets a provider declare it without every older consumer
+#: refusing its whole `provider-info`.
+KIT_VERSION: Final[str] = "0.2.8"
 
 #: The kit's only artifact with no source to re-derive it from, and therefore
 #: the exact limit of what `--check` can see. Everything else here is rendered
