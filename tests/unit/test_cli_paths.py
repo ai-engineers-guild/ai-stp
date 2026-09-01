@@ -313,3 +313,50 @@ def test_the_machine_pathext_is_honoured_over_the_default(
 
     monkeypatch.setenv("PATHEXT", ".COM;.EXE;.PSM")
     assert paths.is_executable_file(place) is True
+
+
+@pytest.mark.skipif(paths.POSIX, reason="the ACL invariant is asserted on Windows")
+def test_the_private_data_directory_is_owner_only_on_windows(tmp_path: Path) -> None:
+    """`return True` stood here for months; this is the measurement it lacked.
+
+    `ensure_directory` stamps a protected owner-only DACL the way it re-applies
+    the POSIX mode, and the file written under it inherits the same answer.
+    """
+    private = paths.ensure_directory(tmp_path / "private")
+    assert paths.is_private(private)
+
+    place = private / "held.json"
+    paths.write_private(place, "{}")
+    assert paths.is_private(place)
+    assert paths.read_private(place) == "{}"
+
+
+@pytest.mark.skipif(paths.POSIX, reason="the ACL invariant is asserted on Windows")
+def test_a_widened_windows_grant_is_seen_and_refused(tmp_path: Path) -> None:
+    """A grant to Everyone is exactly what the invariant exists to rule out."""
+    import subprocess
+
+    private = paths.ensure_directory(tmp_path / "private")
+    place = private / "held.json"
+    paths.write_private(place, "{}")
+
+    finished = subprocess.run(
+        ["icacls", str(place), "/grant", "*S-1-1-0:(R)"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert finished.returncode == 0, finished.stderr
+
+    assert not paths.is_private(place)
+    with pytest.raises(CliFailure) as refused:
+        paths.read_private(place)
+    assert refused.value.code == "AI_STP_PRECONDITION_FAILED"
+
+
+def test_the_windows_privacy_module_imports_on_every_platform() -> None:
+    """POSIX imports it too: the guard is at the call, not at the import."""
+    from ai_stp_cli import windows_private
+
+    assert callable(windows_private.is_private)
+    assert callable(windows_private.make_private)

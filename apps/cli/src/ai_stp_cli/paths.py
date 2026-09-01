@@ -71,6 +71,13 @@ def ensure_directory(path: Path) -> Path:
     path.mkdir(parents=True, exist_ok=True, mode=DIRECTORY_MODE)
     if POSIX:
         path.chmod(DIRECTORY_MODE)
+    else:
+        # The Windows analog of re-applying the mode: a protected owner-only
+        # DACL, stamped on every ensure the way `chmod` is, so a directory
+        # created under permissive inheritance does not stay that way.
+        from ai_stp_cli import windows_private
+
+        windows_private.make_private(path)
     return path
 
 
@@ -123,6 +130,16 @@ def read_private(path: Path) -> str:
                 },
                 next_actions=["doctor --json"],
             )
+    else:  # pragma: no cover - asserted on the Windows leg of the matrix
+        from ai_stp_cli import windows_private
+
+        if not windows_private.is_private(path):
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "a private file is readable by more than its owner",
+                details={"path": redact_home(path)},
+                next_actions=["doctor --json"],
+            )
     return path.read_text(encoding="utf-8")
 
 
@@ -168,8 +185,14 @@ def is_private(path: Path) -> bool:
     """Whether `path` exists with owner-only permissions."""
     if not path.exists():
         return False
-    if not POSIX:  # pragma: no cover - asserted on the POSIX legs of the matrix
-        return True
+    if not POSIX:  # pragma: no cover - asserted on the Windows leg of the matrix
+        from ai_stp_cli import windows_private
+
+        # Measured, not promised: the owner must be the current user and the
+        # DACL may grant nobody else. `return True` stood here for months —
+        # a privacy invariant that was vacuously green on one platform of
+        # three.
+        return windows_private.is_private(path)
     return not stat.S_IMODE(path.stat().st_mode) & 0o077
 
 
