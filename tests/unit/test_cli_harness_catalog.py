@@ -378,6 +378,11 @@ def test_every_exercised_row_is_one_somebody_actually_exercised() -> None:
         ("cursor", "command", "commands", "bytes"),
         ("cursor", "hook", "hooks.json", "bytes"),
         ("cursor", "instruction", "rules", "bytes"),
+        # The shipped 2026.08.11 bundle lists `/.cursor/skills-cursor/` in its
+        # first-party skill matcher beside `/.cursor/skills/` and consumes it
+        # with `**/.cursor/skills-cursor/**/SKILL.md`; a live machine holds
+        # user skills there while `skills` does not exist.
+        ("cursor", "skill", "skills-cursor", "bytes"),
         # `antigravity plugin install` creates `~/.gemini/config/plugins/` and
         # validates the plugin; no `antigravity-cli/plugins` is created at all.
         ("antigravity", "plugin", "config/plugins", "ran"),

@@ -448,16 +448,16 @@ def test_the_command_reports_every_harness_without_the_home_path() -> None:
             assert str(Path.home()) not in installation.path
 
 
-def test_cursor_is_detected_by_either_vendor_name(tmp_path: Path) -> None:
-    """The vendor installs two names, and neither is more canonical.
+def test_cursor_is_detected_by_its_vendor_pair(tmp_path: Path) -> None:
+    """The vendor installs two names side by side, and the pair is the proof.
 
     `binNames: ["agent", "cursor-agent"]` from the installer object in the
-    pinned bundle. The definition carried that sentence for days while the
-    detector resolved only `cursor-agent` — a machine holding only `agent`
-    was invisible.
+    pinned bundle — into one directory. One installation is reported for the
+    pair, under the primary name, not two rows for one product.
     """
     binaries = tmp_path / "bin"
     _fake(binaries, "agent", answer="2026.01.01-abc")
+    _fake(binaries, "cursor-agent", answer="2026.01.01-abc")
     home = tmp_path / "home"
     home.mkdir()
     environment = {"PATH": str(binaries), "HOME": str(home)}
@@ -466,6 +466,9 @@ def test_cursor_is_detected_by_either_vendor_name(tmp_path: Path) -> None:
     found = harnesses.detect(cursor, environment=environment)
     assert found.state != "available"
     assert len(found.installations) == 1
+    assert found.installations[0].path.endswith(
+        "cursor-agent.cmd" if os.name == "nt" else "cursor-agent"
+    )
 
 
 def test_two_names_for_one_binary_are_one_installation(tmp_path: Path) -> None:
@@ -512,3 +515,31 @@ def test_the_normalized_version_sits_beside_the_raw_line(tmp_path: Path) -> None
     assert held.version == "Claude Code 2.1.223 (build)"
     assert held.normalized_version == "2.1.223"
     assert harnesses.normalized_version("no digits here") == ""
+
+
+def test_an_alias_alone_is_not_an_installation_of_this_harness(tmp_path: Path) -> None:
+    """`agent` is cursor's second name and other products' first.
+
+    Measured on a live machine: `~/.grok/bin/agent` answers the grok banner,
+    and the alias resolution of wave 2 would have recorded it as a cursor
+    installation. The vendor installs cursor's two names side by side —
+    `binNames: ["agent", "cursor-agent"]` into one directory — so an
+    alias-resolved candidate counts only when the primary name sits beside it
+    or resolves to the same file.
+    """
+    decoy = tmp_path / "grokbin"
+    _fake(decoy, "agent", answer="grok 1.2.3")
+    home = tmp_path / "home"
+    home.mkdir()
+    cursor = next(item for item in harnesses.DETECTORS if item.harness_id == "cursor")
+
+    found = harnesses.detect(cursor, environment={"PATH": str(decoy), "HOME": str(home)})
+    assert found.state == "available"
+    assert found.installations == ()
+
+    vendor = tmp_path / "vendorbin"
+    _fake(vendor, "agent", answer="2026.08.11-e8db854")
+    _fake(vendor, "cursor-agent", answer="2026.08.11-e8db854")
+    both = harnesses.detect(cursor, environment={"PATH": str(vendor), "HOME": str(home)})
+    assert both.state != "available"
+    assert len(both.installations) == 1

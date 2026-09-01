@@ -394,16 +394,35 @@ def detect(
     else:
         named: list[Path] = []
         identities: set[Path] = set()
-        for name in (detector.executable, *detector.executable_aliases):
+        directories: set[Path] = set()
+
+        def identity(place: Path) -> Path:
+            resolved = place.resolve()
+            return Path(str(resolved).casefold()) if system == "Windows" else resolved
+
+        for place in executables(detector.executable, environment, system_name=system):
+            held = identity(place)
+            if held in identities:
+                continue
+            identities.add(held)
+            directories.add(identity(place.parent))
+            named.append(place)
+        for name in detector.executable_aliases:
             for place in executables(name, environment, system_name=system):
-                resolved = (
-                    Path(str(place.resolve()).casefold())
-                    if system == "Windows"
-                    else (place.resolve())
-                )
-                if resolved in identities:
+                held = identity(place)
+                if held in identities or identity(place.parent) in directories:
                     continue
-                identities.add(resolved)
+                # An alias name belongs to more products than this one —
+                # measured: `~/.grok/bin/agent` answers the grok banner, and
+                # counting it as cursor would record another product's binary
+                # as this harness. The vendor installs the two names side by
+                # side, so the primary name standing beside the alias is what
+                # proves the alias is this product's; an alias standing alone
+                # is somebody else's command that happens to share a word.
+                if shutil.which(detector.executable, path=str(place.parent)) is None:
+                    continue
+                identities.add(held)
+                directories.add(identity(place.parent))
                 named.append(place)
         places = tuple(named)
     installations: list[Installation] = []

@@ -79,11 +79,13 @@ class HarnessDefinition:
     npm_packages: tuple[str, ...] = ()
     scoop_app: str | None = None
 
-    #: Other command names the vendor installs for the same product. Cursor
-    #: ships two — `binNames: ["agent", "cursor-agent"]` from the installer
-    #: object in the pinned bundle — and "neither is more canonical, so either
-    #: detects an installation" was written above the executable field long
-    #: before detection could actually do it.
+    #: Other command names the vendor installs for the same product, beside
+    #: the primary. Cursor ships two — `binNames: ["agent", "cursor-agent"]`
+    #: from the installer object in the pinned bundle — into one directory,
+    #: and the pair is the attribution: measured on a live machine,
+    #: `~/.grok/bin/agent` answers the grok banner, so an alias standing alone
+    #: is another product's command that happens to share a word, never an
+    #: installation of this one.
     executable_aliases: tuple[str, ...] = ()
 
     @property
@@ -672,6 +674,16 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
             # The `rules` row below is the User Rule scope, a sibling of the
             # project one two lines up rather than a correction of it.
             _layout("skill", "skills", "directory", f"{CURSOR}/skills", G),
+            # The product's second first-party skills surface, read off the
+            # shipped 2026.08.11 bundle bytes: its skill matcher lists both
+            # `/.cursor/skills/` and `/.cursor/skills-cursor/` with
+            # `requiresThirdParty:!1`, and a discovery glob
+            # `**/.cursor/skills-cursor/**/SKILL.md` consumes it. A live
+            # machine confirms: user skills sit here while `skills` does not
+            # exist. (`/.claude/skills/` and `/.codex/skills/` appear in the
+            # same matcher as third-party interop — deliberately not rows of
+            # this harness.)
+            _layout("skill", "skills-cursor", "directory", f"{CURSOR}/skills", G, evidence="bytes"),
             _layout("instruction", "rules", "directory", f"{CURSOR}/rules", G, evidence="bytes"),
             _layout("command", "commands", "directory", CURSOR_COMMANDS, G, evidence="bytes"),
             _layout("hook", "hooks.json", "file", f"{CURSOR}/hooks", G, evidence="bytes"),
