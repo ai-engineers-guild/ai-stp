@@ -44,6 +44,7 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import content, harness_catalog, journal, mcp_clients, reading, revisions
 from ai_stp_cli.local.database import transaction
 from ai_stp_cli.paths import redact_home
+from ai_stp_cli.provider import protocol_v3
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import digest_canonical
 from ai_stp_foundation.ids import new_id
@@ -778,6 +779,17 @@ def record_backup(
             # is advice it has no way to follow.
             next_actions=["setup import register --backup-ref <ref from the provider> --json"],
         )
+    if not protocol_v3.BACKUP_REF_PATTERN.fullmatch(provider_ref):
+        # The vendored kit's own shape. A reference is checked for form here
+        # and for existence nowhere yet — recording a typo would write a
+        # recovery path no provider will ever answer for, and the passport
+        # below says `recorded_unverified` precisely because form is all this
+        # proves.
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "that is not the shape of a provider backup reference",
+            details={"expected": protocol_v3.BACKUP_REF_PATTERN.pattern},
+        )
     backup_id = new_id("backup")
     connection.execute(
         """
@@ -1181,6 +1193,11 @@ def _content(
         # `REQ-815`: names, and only names.
         "redacted_keys": _fact(list(inspection.redacted_keys), at),
         "detection_rule": _fact(inspection.detection_rule, at),
+        # Form-checked against the kit's own pattern and taken from the
+        # operator; no provider was asked whether it exists. The value changes
+        # to `provider_status` only when a status read actually confirms the
+        # reference — a passport must not claim a verification nobody ran.
+        "backup_verification": _fact("recorded_unverified", at),
         # Whether this snapshot claims to be the whole configuration. A partial
         # one names what it left out, so the incompleteness travels with the
         # object rather than with the operator's memory.

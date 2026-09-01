@@ -8,6 +8,7 @@ it never probes unsupported behavior by attempting a mutation.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
@@ -124,6 +125,11 @@ READ_COMMANDS: Final[frozenset[str]] = frozenset(
     {"provider-info", "validate-bundle", "plan-operation", "status"}
 )
 APPLY_COMMANDS: Final[frozenset[str]] = frozenset({"apply-operation", "recover-operation"})
+
+#: The shape of a provider BackupRef, from the vendored kit's status schema.
+#: Named once so a consumer that records a reference can refuse a typo with
+#: the same pattern the wire enforces, instead of checking for non-emptiness.
+BACKUP_REF_PATTERN: Final[re.Pattern[str]] = re.compile(r"^slot-[0-9]{12}$")
 
 
 class Operation(StrEnum):
@@ -831,7 +837,7 @@ def _status_provider_state_schema() -> dict[str, object]:
             "setup_stable_id": _nullable({"type": "string", "minLength": 1}),
             "setup_version": _nullable({"type": "string", "minLength": 1}),
             "operation_id": {"type": "string", "minLength": 1},
-            "backup_ref": _nullable({"type": "string", "pattern": r"^slot-[0-9]{12}$"}),
+            "backup_ref": _nullable({"type": "string", "pattern": BACKUP_REF_PATTERN.pattern}),
             "recorded_identity": {"$ref": "#/$defs/digest"},
             "drift_state": {"type": "string", "enum": list(DRIFT_STATES)},
         },
@@ -855,7 +861,7 @@ def _status_backup_schema() -> dict[str, object]:
     return {
         "type": "object",
         "properties": {
-            "backup_ref": {"type": "string", "pattern": r"^slot-[0-9]{12}$"},
+            "backup_ref": {"type": "string", "pattern": BACKUP_REF_PATTERN.pattern},
             "operation": {"type": "string", "minLength": 1},
             "setup_id": _nullable({"type": "string", "minLength": 1}),
             "held": {"type": "boolean"},
@@ -941,7 +947,7 @@ def _build_status_wire_schema() -> dict[str, object]:
             "type": "array",
             "items": {"type": "string", "minLength": 1},
         },
-        "backup_ref": _nullable({"type": "string", "pattern": r"^slot-[0-9]{12}$"}),
+        "backup_ref": _nullable({"type": "string", "pattern": BACKUP_REF_PATTERN.pattern}),
         "previous_verified_identity": nullable_digest,
         "drift_state": {"type": "string", "enum": list(DRIFT_STATES)},
     }

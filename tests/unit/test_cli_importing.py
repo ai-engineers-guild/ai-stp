@@ -63,7 +63,7 @@ def _backup(connection: sqlite3.Connection, harness_id: str = "claude-code") -> 
         connection,
         harness_id=harness_id,
         target_id="pair_1",
-        provider_ref="provider://backup/2026-08-08",
+        provider_ref="slot-202608080000",
         at=AT,
     ).backup_id
 
@@ -226,7 +226,7 @@ def test_a_backup_holds_a_reference_and_never_bytes(registry: sqlite3.Connection
     backup_id = _backup(registry)
     held = importing.backup(registry, backup_id)
     assert held is not None
-    assert held.provider_ref == "provider://backup/2026-08-08"
+    assert held.provider_ref == "slot-202608080000"
     columns = {str(row[1]) for row in registry.execute("PRAGMA table_info(backup_ref)").fetchall()}
     assert "bytes" not in columns, "the provider owns the backup; two owners cannot both restore"
 
@@ -536,7 +536,7 @@ def test_the_register_command_stores_no_secret(registry: sqlite3.Connection, nat
         {
             "root": str(native),
             "harness": "claude-code",
-            "backup-ref": "provider://backup/2026-08-08",
+            "backup-ref": "slot-202608080000",
             "plan-digest": digest,
             "confirm": True,
         }
@@ -568,7 +568,7 @@ def test_graph_registration_refuses_a_changed_plan_and_leaves_no_backup(
             {
                 "root": str(native),
                 "harness": "claude-code",
-                "backup-ref": "provider://backup/stale",
+                "backup-ref": "slot-000000000009",
                 "plan-digest": digest,
                 "confirm": True,
             }
@@ -594,7 +594,7 @@ def test_graph_registration_requires_the_exact_plan_digest(native: Path) -> None
     base = {
         "root": str(native),
         "harness": "claude-code",
-        "backup-ref": "provider://backup/unconfirmed",
+        "backup-ref": "slot-000000000007",
     }
     with pytest.raises(CliFailure) as missing:
         project.import_register(base)
@@ -885,6 +885,7 @@ def test_grok_toml_mcp_is_a_contribution_and_its_artifact_is_the_key(
 ) -> None:
     """The registered artifact holds the servers, scrubbed — never the file."""
     monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
     root = tmp_path / "grok"
     root.mkdir()
     (root / "config.toml").write_text(
@@ -903,7 +904,7 @@ def test_grok_toml_mcp_is_a_contribution_and_its_artifact_is_the_key(
         found,
         expected_plan_digest=planned.plan_digest,
         target_id="pair_grok",
-        provider_ref="provider://backup/grok",
+        provider_ref="slot-202609010000",
         owner_id=OWNER,
         device_id=DEVICE,
         at=AT,
@@ -1019,3 +1020,66 @@ def test_a_symlinked_directory_is_not_descended_into(native: Path, tmp_path: Pat
 
     found = importing.inspect(native, harness_id="claude-code")
     assert all("leak.json" not in item.path for item in found.findings)
+
+
+@pytest.mark.parametrize(
+    ("harness_id", "state_file"),
+    [
+        ("claude-code", ".credentials.json"),
+        ("codex", "auth.json"),
+        ("pi", "auth.json"),
+        ("grok-build", "auth.json"),
+        ("grok-build", "sessions/2026-09-01.json"),
+        ("cursor", "chats/one.json"),
+        ("cursor", "agent-cli-state.json"),
+    ],
+)
+def test_product_state_and_credential_files_are_not_configuration(
+    tmp_path: Path, harness_id: str, state_file: str
+) -> None:
+    """Measured 2026-09-01 on live homes: products keep credentials and
+    runtime state inside the configuration root, and import used to capture
+    them as authored configuration — `~/.codex/auth.json` holds OAuth tokens.
+    """
+    root = tmp_path / "home"
+    place = root / state_file
+    place.parent.mkdir(parents=True, exist_ok=True)
+    place.write_text(json.dumps({"access_token": SECRET}), encoding="utf-8")
+    (root / "kept.json").write_text("{}", encoding="utf-8")
+
+    found = importing.inspect(root, harness_id=harness_id)
+    assert [item.path for item in found.findings] == ["kept.json"]
+
+
+def test_a_backup_reference_must_have_the_providers_shape(
+    registry: sqlite3.Connection,
+) -> None:
+    """`slot-############` is the vendored kit's own pattern for a BackupRef.
+
+    The reference used to be checked for nothing but non-emptiness, so a typo
+    registered a recovery path that no provider would ever answer for.
+    """
+    with pytest.raises(CliFailure) as refused:
+        importing.record_backup(
+            registry,
+            harness_id="claude-code",
+            target_id="pair_1",
+            provider_ref="provider://backup/typo",
+            at=AT,
+        )
+    assert refused.value.code == "AI_STP_VALIDATION_ERROR"
+    assert "slot-" in str(refused.value.details.get("expected", ""))
+
+
+def test_the_setup_passport_says_the_backup_was_recorded_not_verified(
+    registry: sqlite3.Connection, native: Path
+) -> None:
+    backup_id = _backup(registry)
+    found = importing.inspect(native, harness_id="claude-code")
+    imported = importing.register(
+        registry, found, backup_id=backup_id, owner_id=OWNER, device_id=DEVICE, at=AT
+    )
+    stored = revisions.head(registry, imported.stable_id)
+    assert stored is not None
+    facts = stored.envelope.model_dump(mode="json")["facts"]
+    assert facts["backup_verification"]["value"] == "recorded_unverified"

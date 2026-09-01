@@ -221,6 +221,7 @@
   "that is not a reason a local phase may run without network isolation": "это не причина, по которой локальная фаза может идти без сетевой изоляции",
   "that is not an action a plan may ask for": "это не действие, которое может запросить план",
   "that is not the provider this operation was planned with": "эта операция была запланирована другим провайдером",
+  "that is not the shape of a provider backup reference": "это не форма ссылки на резервную копию провайдера",
   "that object has no such recorded version": "у этого объекта нет такой записанной версии",
   "that operation cannot move to that state": "эту операцию нельзя перевести в то состояние",
   "that operation is a setup installation, not a program one": "эта операция — установка сетапа, а не программы",

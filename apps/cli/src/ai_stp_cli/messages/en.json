@@ -221,6 +221,7 @@
   "that is not a reason a local phase may run without network isolation": "that is not a reason a local phase may run without network isolation",
   "that is not an action a plan may ask for": "that is not an action a plan may ask for",
   "that is not the provider this operation was planned with": "that is not the provider this operation was planned with",
+  "that is not the shape of a provider backup reference": "that is not the shape of a provider backup reference",
   "that object has no such recorded version": "that object has no such recorded version",
   "that operation cannot move to that state": "that operation cannot move to that state",
   "that operation is a setup installation, not a program one": "that operation is a setup installation, not a program one",

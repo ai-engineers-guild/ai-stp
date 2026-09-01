@@ -287,6 +287,16 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
             "plugins/cache",
             "plugins/data",
             "plugins/marketplaces",
+            # Measured 2026-09-01 on a live home rather than a page: the
+            # product keeps its OAuth tokens (`.credentials.json`), updater
+            # state, feedback queue, its own plan files and two caches inside
+            # the configuration root, all with importable suffixes.
+            ".credentials.json",
+            ".last-update-result.json",
+            "feedback",
+            "gh-pr-status-cache.json",
+            "mcp-needs-auth-cache.json",
+            "plans",
         ),
     ),
     HarnessDefinition(
@@ -372,7 +382,22 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
         frozenset({"native_files", "plugin_manifest", "hooks_directory"}),
         root_override="CODEX_HOME",
         npm_packages=("@openai/codex",),
-        state_paths=("cache", "logs", "sessions", "packages"),
+        state_paths=(
+            "cache",
+            "logs",
+            "sessions",
+            "packages",
+            # Measured 2026-09-01 on a live `~/.codex`: OAuth tokens in
+            # `auth.json`, a models cache, OAuth lock files, a bin directory
+            # and a `.tmp` staging dir — product state, not authored
+            # configuration, and `auth.json` is the one that must never read
+            # as somebody's setup.
+            ".tmp",
+            "auth.json",
+            "bin",
+            "mcp-oauth-locks",
+            "models_cache.json",
+        ),
     ),
     HarnessDefinition(
         "pi",
@@ -418,6 +443,9 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
             "@earendil-works/pi-coding-agent",
             "@mariozechner/pi-coding-agent",
         ),
+        # Measured 2026-09-01 on a live `~/.pi/agent`: the product keeps its
+        # OAuth tokens and its model store beside the settings it documents.
+        state_paths=("auth.json", "models-store.json"),
     ),
     HarnessDefinition(
         "opencode",
@@ -554,6 +582,34 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
         frozenset({"native_files"}),
         gaps=("marketplace_provenance_not_public",),
         root_override="GROK_HOME",
+        # Measured 2026-09-01 on a live `~/.grok`, which is the busiest state
+        # root of the seven: vendor docs and changelogs, session and campaign
+        # records, caches, downloads, bundled runtime, completions, memory
+        # traces and OAuth tokens all live beside `config.toml` with
+        # importable suffixes.
+        state_paths=(
+            "CHANGELOG.json",
+            "CHANGELOG.md",
+            "README.md",
+            "active_sessions.json",
+            "auth.json",
+            "bin",
+            "bundled",
+            "campaigns_state.json",
+            "completions",
+            "docs",
+            "downloads",
+            "logs",
+            "marketplace-cache",
+            "memtrace",
+            "models_cache.json",
+            "relocations",
+            "sessions",
+            "slash-mru.json",
+            "tip_cursor.json",
+            "vendor",
+            "version.json",
+        ),
     ),
     HarnessDefinition(
         "cursor",
@@ -670,6 +726,16 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
         # `root="cursor_config"`), so the whole-harness override is gone: it
         # moved six literal surfaces whenever the variable was set.
         executable_aliases=("agent",),
+        # Measured 2026-09-01 on a live `~/.cursor`: chat transcripts, project
+        # records, telemetry caches and the agent's own state file sit beside
+        # `cli-config.json` — the data-dir surfaces default into the home.
+        state_paths=(
+            "agent-cli-state.json",
+            "ai-tracking",
+            "chats",
+            "projects",
+            "statsig-cache.json",
+        ),
     ),
     HarnessDefinition(
         "antigravity",
