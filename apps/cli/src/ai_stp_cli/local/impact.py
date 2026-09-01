@@ -3,11 +3,9 @@
 import io
 import sqlite3
 import zipfile
-from base64 import b64decode
-from binascii import Error as Base64Error
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Literal, cast
 
 from pydantic import ValidationError
@@ -35,11 +33,13 @@ from ai_stp_contracts.impact import (
     TokenCost,
     TokenEstimator,
 )
-from ai_stp_foundation.canonical import JsonValue, canonize, from_json_bytes
+from ai_stp_foundation.canonical import JsonValue, canonize
 from ai_stp_foundation.digests import digest_bytes
 from ai_stp_passports import ComponentVersionPassport, SetupVersionPassport, verify_revision_id
 
-IMPORTED_COMPONENT_FORMAT = "ai-stp-imported-component/1"
+#: Re-exported from the owner rather than restated. It lived here first, back
+#: when `impact` was the only reader that had been taught the format.
+IMPORTED_COMPONENT_FORMAT = components.IMPORTED_COMPONENT_FORMAT
 type ImpactScenario = Literal["update", "deprecation", "blocked", "expired_evidence", "advisory"]
 
 
@@ -328,36 +328,16 @@ def _budget(graph: _Graph, estimator: TokenEstimator) -> ContextBudget:
 
 
 def _files(payload: bytes, content_format: str) -> tuple[components.ComponentFile, ...]:
-    if content_format != IMPORTED_COMPONENT_FORMAT:
-        return components.expand(payload, content_format)
-    try:
-        document = from_json_bytes(payload)
-        if not isinstance(document, dict) or set(document) != {"format", "files"}:
-            raise ValueError("imported component envelope is not closed")
-        raw_files = document.get("files")
-        if document.get("format") != IMPORTED_COMPONENT_FORMAT or not isinstance(raw_files, list):
-            raise ValueError("imported component format differs")
-        result: list[components.ComponentFile] = []
-        paths: set[str] = set()
-        for raw in raw_files:
-            if not isinstance(raw, dict) or set(raw) != {"path", "content_base64"}:
-                raise ValueError("imported component member is invalid")
-            path = raw.get("path")
-            encoded = raw.get("content_base64")
-            if (
-                not isinstance(path, str)
-                or not path
-                or path in paths
-                or PurePosixPath(path).is_absolute()
-                or any(part in {"", ".", ".."} for part in PurePosixPath(path).parts)
-                or not isinstance(encoded, str)
-            ):
-                raise ValueError("imported component member identity is invalid")
-            paths.add(path)
-            result.append(components.ComponentFile(path, b64decode(encoded, validate=True), 0o644))
-        return tuple(result)
-    except (UnicodeError, ValueError, Base64Error) as error:
-        raise CliFailure("AI_STP_CONFLICT", "the stored imported component is corrupt") from error
+    """One decoder, asked by name.
+
+    This function used to hold its own reader for the imported envelope, and
+    `components.expand` — the owner of "what a stored artifact contains" — did
+    not know the format at all. So an imported setup could be estimated and
+    could not be installed: it composed, confirmed into a real `SetupVersion`,
+    and refused at `install plan`. A second copy of a decoding is a second
+    answer waiting to differ.
+    """
+    return components.expand(payload, content_format)
 
 
 def _capabilities(graph: _Graph) -> CapabilitySnapshot:

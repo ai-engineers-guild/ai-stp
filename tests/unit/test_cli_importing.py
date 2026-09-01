@@ -1149,3 +1149,59 @@ def test_replaying_the_same_confirmed_plan_returns_the_same_setup(
     assert second.component_ids == first.component_ids
     setups = registry.execute("SELECT COUNT(*) FROM entity WHERE kind = 'setup'").fetchone()[0]
     assert setups == 1, "one root, one confirmed plan, one setup"
+
+
+def test_the_imported_envelope_expands_through_the_one_decoder() -> None:
+    """`#63`: the format `impact` could read and the compiler could not.
+
+    `setup import register` stores a captured component as
+    `ai-stp-imported-component/1`. `impact._files` held a reader for it;
+    `components.expand` — the owner of "what a stored artifact contains" — had
+    never been taught the name. So an imported setup released its components,
+    composed, confirmed into a real `SetupVersion`, and then refused at
+    `install plan` with `the component content format is unsupported`. One
+    decoding with two readers, and only one of them taught.
+
+    The bounds are the ones a stored tree already has, because this artifact is
+    built from bytes found on somebody's machine.
+    """
+    from base64 import b64encode
+
+    from ai_stp_cli.local import components, impact
+
+    def envelope(files: list[dict[str, str]]) -> bytes:
+        return json.dumps(
+            {"format": components.IMPORTED_COMPONENT_FORMAT, "files": files},
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+
+    payload = envelope(
+        [
+            {"path": "AGENTS.md", "content_base64": b64encode(b"# Agents\n").decode("ascii")},
+            {
+                "path": "config.toml#mcp_servers",
+                "content_base64": b64encode(b'[probe]\ncommand = "p"\n').decode("ascii"),
+            },
+        ]
+    )
+    expanded = components.expand(payload, components.IMPORTED_COMPONENT_FORMAT)
+    assert [item.path for item in expanded] == ["AGENTS.md", "config.toml#mcp_servers"]
+    assert expanded[0].content == b"# Agents\n"
+
+    # The second reader is now the same reader: `impact` re-exports the name
+    # from its owner instead of holding a second copy of the decoding.
+    assert impact.IMPORTED_COMPONENT_FORMAT == components.IMPORTED_COMPONENT_FORMAT
+
+    for refused in (
+        [{"path": "/etc/passwd", "content_base64": b64encode(b"x").decode("ascii")}],
+        [{"path": "../escape", "content_base64": b64encode(b"x").decode("ascii")}],
+        [
+            {"path": "twice", "content_base64": b64encode(b"x").decode("ascii")},
+            {"path": "twice", "content_base64": b64encode(b"y").decode("ascii")},
+        ],
+    ):
+        with pytest.raises(CliFailure) as corrupt:
+            components.expand(envelope(refused), components.IMPORTED_COMPONENT_FORMAT)
+        assert corrupt.value.code == "AI_STP_CONFLICT"

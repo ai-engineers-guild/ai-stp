@@ -24,9 +24,11 @@ import os
 import sqlite3
 import stat
 import zipfile
+from base64 import b64decode
+from binascii import Error as Base64Error
 from dataclasses import KW_ONLY, dataclass, replace
 from itertools import islice
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Final
 
 from ai_stp_cli.errors import CliFailure
@@ -86,6 +88,16 @@ CLAUDE_MCP_SOURCE: Final[str] = "code.claude.com/docs/en/mcp"
 CURSOR_PLUGIN_SOURCE: Final[str] = "cursor.com/docs/reference/plugins"
 COMPONENT_FILE_FORMAT: Final[str] = "ai-stp-component-file/1"
 COMPONENT_TREE_FORMAT: Final[str] = "ai-stp-component-tree/1"
+#: What `setup import register` stores: a canonical JSON envelope of scrubbed
+#: members, where a `declared_key` contribution is one member at `path#key`
+#: holding the extracted value rather than the whole host file.
+#:
+#: It reached `select impact` and stopped there. `impact._files` could read it
+#: and `expand` — the owner of "what a stored artifact contains" — could not, so
+#: an imported setup composed and confirmed into a real `SetupVersion` and then
+#: refused at `install plan` with `the component content format is unsupported`.
+#: One decoding with two readers, and only one of them taught.
+IMPORTED_COMPONENT_FORMAT: Final[str] = "ai-stp-imported-component/1"
 COMPONENT_TREE_TIMESTAMP: Final[tuple[int, int, int, int, int, int]] = (
     1980,
     1,
@@ -1805,10 +1817,58 @@ def _encode_tree_artifact(files: list[ComponentFile], source_root: Path) -> byte
     return output.getvalue()
 
 
+def _expand_imported(payload: bytes) -> tuple[ComponentFile, ...]:
+    """The captured envelope, decoded under the same bounds as a stored tree.
+
+    Bounds rather than trust: this artifact is built from bytes found on a
+    machine, so the per-member and total limits that guard an adopted tree guard
+    it too, and a member path is refused when it is absolute, escapes, or
+    repeats. A `declared_key` member keeps its `path#key` spelling, which is the
+    same shape the adopt path already hands the compiler.
+    """
+    try:
+        document = from_json_bytes(payload)
+        if not isinstance(document, dict) or set(document) != {"format", "files"}:
+            raise ValueError("imported component envelope is not closed")
+        raw_files = document.get("files")
+        if document.get("format") != IMPORTED_COMPONENT_FORMAT or not isinstance(raw_files, list):
+            raise ValueError("imported component format differs")
+        answer: list[ComponentFile] = []
+        seen: set[str] = set()
+        total = 0
+        for raw in raw_files:
+            if not isinstance(raw, dict) or set(raw) != {"path", "content_base64"}:
+                raise ValueError("imported component member is invalid")
+            path = raw.get("path")
+            encoded = raw.get("content_base64")
+            if (
+                not isinstance(path, str)
+                or not path
+                or path in seen
+                or path.startswith(("/", "~"))
+                or any(part in {"", ".", ".."} for part in PurePosixPath(path).parts)
+                or not isinstance(encoded, str)
+            ):
+                raise ValueError("imported component member identity is invalid")
+            seen.add(path)
+            content_bytes = b64decode(encoded, validate=True)
+            total += len(content_bytes)
+            if len(content_bytes) > MAX_COMPONENT_BYTES or total > MAX_COMPONENT_TREE_BYTES:
+                raise ValueError("imported component member is larger than one may be")
+            answer.append(ComponentFile(path, content_bytes, 0o644))
+        if len(answer) > MAX_COMPONENT_FILES:
+            raise ValueError("imported component has more members than one may hold")
+        return tuple(answer)
+    except (UnicodeError, ValueError, Base64Error) as error:
+        raise CliFailure("AI_STP_CONFLICT", "the stored imported component is corrupt") from error
+
+
 def expand(payload: bytes, content_format: str) -> tuple[ComponentFile, ...]:
     """Expand only the closed component artifact formats stored at adoption."""
     if content_format == COMPONENT_FILE_FORMAT:
         return (ComponentFile("", payload, 0o644),)
+    if content_format == IMPORTED_COMPONENT_FORMAT:
+        return _expand_imported(payload)
     if content_format != COMPONENT_TREE_FORMAT:
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED",
