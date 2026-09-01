@@ -296,3 +296,49 @@ def test_an_adopted_draft_is_evaluated_from_its_own_facts_without_publication_fi
     assert loaded.coordinate.component_type == "skill"
     assert loaded.surfaces["managed_paths"], "adoption declares the managed path the check reads"
     assert evaluation._static_contract(loaded)  # pyright: ignore[reportPrivateUsage]
+
+
+def test_a_draft_without_its_kind_is_named_as_a_precondition_for_evaluation(
+    tmp_path: Path,
+) -> None:
+    """What the evaluator genuinely cannot do without is named, with a next action."""
+    from ai_stp_cli.local import cache, passports
+
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        stable_id = "component_01J0000000000000000000000E"
+        artifact = content.put(connection, b"# kindless\n", at=AT)
+        connection.execute(
+            "INSERT INTO entity (stable_id, kind, created_at) VALUES (?, 'component', ?)",
+            (stable_id, AT),
+        )
+        fact = {"origin": "observed", "confirmation": "none", "observed_at": AT}
+        document: dict[str, object] = {
+            "schema_version": 1,
+            "kind": "component",
+            "stable_id": stable_id,
+            "owner_id": passports.owner().account_id,
+            "created_at": AT,
+            "visibility": "private",
+            "parent_revision_ids": [],
+            "facts": {
+                "harness_id": {"value": "claude-code", **fact},
+                "content_digest": {"value": artifact.digest, **fact},
+            },
+        }
+        stored = revisions.commit(connection, document, device_id="device_test")  # type: ignore[arg-type]
+        digest = cache.digest_of(stored.envelope.model_dump(mode="json"))
+        versions.record(
+            connection,
+            stable_id=stable_id,
+            version="1.0",
+            passport_digest=digest,
+            revision_id=stored.revision_id,
+            at=AT,
+        )
+
+        with pytest.raises(CliFailure) as raised:
+            evaluation._component(connection, stable_id, "1.0", digest)  # pyright: ignore[reportPrivateUsage]
+
+    assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
+    assert raised.value.details["field"] == "component_type"
+    assert raised.value.next_actions == [f"component passport show --id {stable_id} --json"]

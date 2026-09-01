@@ -335,3 +335,56 @@ def test_missing_public_github_source_is_refused_before_http() -> None:
         )
     assert raised.value.code == "AI_STP_VALIDATION_ERROR"
     assert called is False
+
+
+def test_a_version_without_a_declared_source_is_refused_with_the_way_to_declare_one() -> None:
+    """A draft that declares no source has no GitHub evidence.
+
+    The refusal names the version and the command that declares a source.
+    """
+    from contextlib import closing
+
+    from ai_stp_cli.local import cache, content, passports, revisions, versions
+    from ai_stp_cli.local.database import configured_path, open_registry
+
+    at = "2026-09-02T00:00:00.000Z"
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        stable_id = "component_01J0000000000000000000000S"
+        artifact = content.put(connection, b"# sourceless\n", at=at)
+        connection.execute(
+            "INSERT INTO entity (stable_id, kind, created_at) VALUES (?, 'component', ?)",
+            (stable_id, at),
+        )
+        fact = {"origin": "observed", "confirmation": "none", "observed_at": at}
+        stored = revisions.commit(
+            connection,
+            {
+                "schema_version": 1,
+                "kind": "component",
+                "stable_id": stable_id,
+                "owner_id": passports.owner().account_id,
+                "created_at": at,
+                "visibility": "private",
+                "parent_revision_ids": [],
+                "facts": {
+                    "harness_id": {"value": "claude-code", **fact},
+                    "component_type": {"value": "skill", **fact},
+                    "content_digest": {"value": artifact.digest, **fact},
+                },
+            },
+            device_id="device_test",
+        )
+        versions.record(
+            connection,
+            stable_id=stable_id,
+            version="1.0",
+            passport_digest=cache.digest_of(stored.envelope.model_dump(mode="json")),
+            revision_id=stored.revision_id,
+            at=at,
+        )
+        with pytest.raises(CliFailure) as raised:
+            github_evidence.show(connection, stable_id, "1.0", at=at)
+
+    assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+    assert raised.value.details == {"id": stable_id, "version": "1.0"}
+    assert raised.value.next_actions == [f"component passport suggest --id {stable_id} --json"]
