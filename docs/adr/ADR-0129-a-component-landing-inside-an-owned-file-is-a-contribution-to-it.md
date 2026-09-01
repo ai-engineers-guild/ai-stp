@@ -255,10 +255,18 @@ is an assertion without a carrier. The agreed shape closes it with machinery
 both sides already released: `remove` accepts an optional bundle through the
 same arguments `replace` uses, and the plan entry names the bundle member
 whose bytes survive — so artifact digests, member digests, limits and
-`validate-bundle` all apply unchanged, and a provider too old for the field
-refuses loudly on the unexpected bundle rather than guessing. The provider
-side confirmed the write is a variation of an effect it already has (bundle
-materialization under capture-before-effect), not a new write path. The field
+`validate-bundle` all apply unchanged. One net, not two, and this is measured
+rather than assumed: released `0.0.50` providers *accept and silently ignore*
+a full bundle handed to `remove` — exit 0 on plan and apply, digests echoed
+unread, the removal executed whole — and refuse loudly only a partial flag
+set. So the `plan_request_fields` declaration is the only thing standing
+between a final-bytes intent and a whole-file removal with a green echo, and
+the consumer half must gate on it absolutely. The provider estate is closing
+its half of that hole in its next wave by refusing a remove plan that names a
+bundle until the end state is implemented — breaking no one, since no
+released consumer sends one. The provider side also confirmed the write is a
+variation of an effect it already has (bundle materialization under
+capture-before-effect), not a new write path. The field
 is declared through `plan_request_fields`, so introduction follows the
 `ADR-0125` order: this consumer accepts the field, ships, and only then a
 provider declares it. The exact field name and schema belong to the
