@@ -360,3 +360,26 @@ def test_the_windows_privacy_module_imports_on_every_platform() -> None:
 
     assert callable(windows_private.is_private)
     assert callable(windows_private.make_private)
+
+
+def test_any_user_home_is_folded_out_of_stored_material(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`redact_home` answers for this process's home; stored facts need more.
+
+    Measured in a live registry: a device passport refreshed under a synthetic
+    HOME (an evidence slice, an isolated probe home) discovered executables
+    through PATH inside the real account's home, `redact_home` folded nothing,
+    and the stored `harness_installations` fact carried
+    `/home/<account>/.local/bin/...` — the account-name material a synced
+    passport exists to not carry.
+    """
+    from ai_stp_cli.paths import redact_any_home
+
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: Path("/tmp/synthetic-home")))
+
+    assert redact_any_home(Path("/home/someone/.local/bin/claude")) == "~/.local/bin/claude"
+    assert redact_any_home(Path("/Users/someone/.local/bin/pi")) == "~/.local/bin/pi"
+    assert redact_any_home("C:/Users/someone/AppData/Local/x") == "~/AppData/Local/x"
+    assert redact_any_home(Path("/root/.local/bin/codex")) == "~/.local/bin/codex"
+    # The process home still folds first, and impersonal paths stay whole.
+    assert redact_any_home(Path("/tmp/synthetic-home/data")) == "~/data"
+    assert redact_any_home(Path("/usr/local/bin/claude")) == "/usr/local/bin/claude"

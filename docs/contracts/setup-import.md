@@ -29,6 +29,11 @@ component artifacts, their individual passports, and the setup's own passport wi
 exact references to the created revisions. An error at any stage leaves neither part
 of the graph nor an orphaned backup reference.
 
+Registration is idempotent per plan digest: replaying the same confirmed
+`plan-digest` — a client that died after the commit and before reading the
+answer retries exactly this way — returns the graph the first run created,
+never a second setup beside it.
+
 An unread file is not silently skipped. It is listed in both `excluded` and `blocked_by`;
 registering the complete setup is impossible until the cause is resolved. Secret values,
 runtime cache, session state, and backup bytes are not transferred into the registry.

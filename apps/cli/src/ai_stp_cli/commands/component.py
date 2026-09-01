@@ -31,7 +31,7 @@ from ai_stp_cli.local import (
     skill_package,
     versions,
 )
-from ai_stp_cli.local.database import configured_path, open_readonly, open_registry
+from ai_stp_cli.local.database import configured_path, open_readonly, open_registry, transaction
 from ai_stp_cli.local.passports import moment, owner
 from ai_stp_cli.paths import redact_home
 from ai_stp_contracts.authoring import ComponentScaffoldPlan, ComponentScaffoldResult
@@ -660,7 +660,14 @@ def version_release(parameters: Mapping[str, object]) -> Answer[VersionLine]:
             next_minor=versions.next_minor(connection, stable_id),
         )
 
-    with closing(open_registry(configured_path(), create=True)) as connection:
+    # One write transaction from reading the next free number to recording it.
+    # In autocommit, two concurrent releases both read the same number and the
+    # loser died on the UNIQUE constraint as `AI_STP_INTERNAL` (measured); under
+    # `BEGIN IMMEDIATE` it starts after the winner commits and mints the next.
+    with (
+        closing(open_registry(configured_path(), create=True)) as connection,
+        transaction(connection),
+    ):
         return Answer(work(connection))
 
 
@@ -734,7 +741,13 @@ def fork(parameters: Mapping[str, object]) -> Answer[VersionLine]:
             publish_reason=verdict.reason,
         )
 
-    with closing(open_registry(configured_path(), create=True)) as connection:
+    # Atomic and serialized like the release above: the fork writes an entity,
+    # its lineage row and its first revision, and either all of them exist or
+    # none do.
+    with (
+        closing(open_registry(configured_path(), create=True)) as connection,
+        transaction(connection),
+    ):
         return Answer(work(connection))
 
 

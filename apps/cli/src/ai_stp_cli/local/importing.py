@@ -43,7 +43,7 @@ import yaml
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import content, harness_catalog, journal, mcp_clients, reading, revisions
 from ai_stp_cli.local.database import transaction
-from ai_stp_cli.paths import redact_home
+from ai_stp_cli.paths import redact_any_home
 from ai_stp_cli.provider import protocol_v3
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import digest_canonical
@@ -964,6 +964,14 @@ def register_graph(
                 f"--root {inspection.root} --harness {inspection.harness_id} --json"
             ],
         )
+    # Idempotent replay before any effect. A client that dies after the commit
+    # and before the answer retries the same confirmed digest; without this,
+    # five kill-and-retry rounds registered four complete setups for one
+    # directory. The plan digest binds root, inventory and decomposition, so a
+    # graph recorded under it *is* this registration's outcome.
+    already = _already_registered(connection, expected_plan_digest)
+    if already is not None:
+        return already
     if proposed.blocked_by:
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED",
@@ -1081,6 +1089,45 @@ def register_graph(
     )
 
 
+def _already_registered(connection: sqlite3.Connection, plan_digest: str) -> Imported | None:
+    """The graph a previous run of this exact confirmed plan already created.
+
+    Read from the setup passports themselves: the revision records the plan
+    digest, the component ids and the backup, which is everything the original
+    answer carried. A linear scan over local setup revisions is fine — the
+    table is small and the alternative is a second index for one replay path.
+    """
+    rows = connection.execute(
+        "SELECT revision_id, content FROM revision WHERE stable_id LIKE 'setup_%'"
+    ).fetchall()
+
+    def value_of(facts: dict[str, JsonValue], name: str) -> JsonValue:
+        fact = facts.get(name)
+        if not isinstance(fact, dict):
+            return None
+        return cast(dict[str, JsonValue], fact).get("value")
+
+    for row in rows:
+        document = cast(dict[str, JsonValue], json.loads(str(row["content"])))
+        facts = cast(dict[str, JsonValue], document.get("facts") or {})
+        if value_of(facts, "plan_digest") != plan_digest:
+            continue
+        members = value_of(facts, "components")
+        listed = cast(list[JsonValue], members) if isinstance(members, list) else []
+        return Imported(
+            stable_id=str(document["stable_id"]),
+            revision_id=str(row["revision_id"]),
+            backup_id=str(value_of(facts, "backup_id") or ""),
+            plan_digest=plan_digest,
+            component_ids=tuple(
+                str(cast(dict[str, JsonValue], item).get("stable_id", ""))
+                for item in listed
+                if isinstance(item, dict)
+            ),
+        )
+    return None
+
+
 def _reread(root: Path, relative: str, expected_digest: str) -> bytes:
     """The registration-time read: no link followed, no substitution accepted.
 
@@ -1130,7 +1177,7 @@ def _component_content(
         # The `~`-relative spelling, never the absolute one: an absolute root
         # is one machine's identity, and this passport is a revision that can
         # travel. The exact absolute path stays in the command's own output.
-        "source_root": _fact(redact_home(Path(inspection.root)), at),
+        "source_root": _fact(redact_any_home(Path(inspection.root)), at),
         "source_paths": _fact(list(candidate.paths), at),
         "candidate_id": _fact(candidate.candidate_id, at),
         "file_set_digest": _fact(candidate.file_set_digest, at),
@@ -1205,7 +1252,7 @@ def _content(
         # against its source rather than taken on trust. The `~`-relative
         # spelling: an absolute root is one machine's identity, and a passport
         # travels.
-        "source_root": _fact(redact_home(Path(inspection.root)), at),
+        "source_root": _fact(redact_any_home(Path(inspection.root)), at),
         "files": _fact(files, at),
         # A reference to a separate object (`REQ-814`), never its identity.
         "backup_id": _fact(held.backup_id, at),

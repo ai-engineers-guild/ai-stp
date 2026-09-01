@@ -17,6 +17,7 @@ exiting, and this module decides what the caller actually sees.
 """
 
 import io
+import sqlite3
 import sys
 from collections.abc import Mapping, Sequence
 from typing import Any, Final
@@ -381,6 +382,35 @@ def _use_utf8_streams() -> None:
             stream.reconfigure(encoding="utf-8")
 
 
+def _registry_failure(error: sqlite3.DatabaseError) -> CliFailure | None:
+    """Translate sqlite's two operator-state shapes; leave the rest internal.
+
+    The messages are sqlite's canonical error strings, stable across versions.
+    `OperationalError` is a subclass of `DatabaseError`, so a lock that outlived
+    the busy timeout arrives here too — that one is retryable, because waiting
+    is exactly what resolves it.
+    """
+    from ai_stp_cli.local.database import configured_path
+    from ai_stp_cli.paths import redact_home
+
+    text = str(error).lower()
+    place = redact_home(configured_path())
+    if "database is locked" in text or "database table is locked" in text:
+        return CliFailure(
+            "AI_STP_CONFLICT",
+            "another process holds the local registry; retry when it finishes",
+            retryable=True,
+            details={"registry": place},
+        )
+    if "file is not a database" in text or "database disk image is malformed" in text:
+        return CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the local registry file cannot be read as a database",
+            details={"registry": place, "reason": type(error).__name__},
+        )
+    return None
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Run one invocation and return its exit code without exiting the process."""
     _use_utf8_streams()
@@ -409,6 +439,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         # input with a field name attached, not an internal fault, and it must
         # not arrive as one.
         return render_failure(invalid_parameters(error), machine=machine, request_id=request_id)
+    except sqlite3.DatabaseError as error:
+        # A damaged or contended registry is the operator's state, not our
+        # bug: a truncated file used to answer `AI_STP_INTERNAL` with no file
+        # named and nothing saying local state (not the tool) is at fault.
+        # Only sqlite's own two shapes are translated; everything else stays
+        # an internal fault, because it is one.
+        translated = _registry_failure(error)
+        if translated is None:
+            return render_failure(internal_failure(error), machine=machine, request_id=request_id)
+        return render_failure(translated, machine=machine, request_id=request_id)
     except Exception as error:
         return render_failure(internal_failure(error), machine=machine, request_id=request_id)
 

@@ -122,7 +122,10 @@ def test_runtime_enforces_the_same_closed_schema() -> None:
     assert raised.value.code == "AI_STP_SCHEMA_UNSUPPORTED"
     assert raised.value.details["field"] == "$"
     assert raised.value.next_actions == [
-        "toolchain install --harness <id> --json",
+        # The old pointer named `toolchain install` with a flag it does not
+        # take; a schema mismatch means the provider is behind or foreign,
+        # and the way out is a released one.
+        "provider fetch --harness <id> --json",
         "provider conformance --harness <id> --executable <path> --json",
     ]
 

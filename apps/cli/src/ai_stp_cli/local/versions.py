@@ -198,7 +198,9 @@ def next_major(connection: sqlite3.Connection, stable_id: str, *, decided: bool)
             "AI_STP_USER_DECISION_REQUIRED",
             "a new major line needs the user's explicit decision",
             details={"stable_id": stable_id},
-            next_actions=["registry version next --id <stable_id> --major --confirm"],
+            # This used to say `registry version next` — a command that never
+            # existed; the decision lives on the release command's flags.
+            next_actions=["component version release --id <stable_id> --major --confirm --json"],
         )
     recorded = line(connection, stable_id)
     highest = max((item.major for item in recorded), default=0)

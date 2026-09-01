@@ -32,8 +32,11 @@ def require_wire(answer: Mapping[str, JsonValue]) -> dict[str, JsonValue]:
                 "field": path,
                 "validator": str(first.validator),
             },
+            # `toolchain install` used to be named here with a `--harness` flag
+            # it does not take; a schema mismatch means the provider itself is
+            # behind or foreign, and the way out is a released one.
             next_actions=[
-                "toolchain install --harness <id> --json",
+                "provider fetch --harness <id> --json",
                 "provider conformance --harness <id> --executable <path> --json",
             ],
         )

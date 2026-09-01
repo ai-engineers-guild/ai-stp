@@ -587,3 +587,30 @@ def test_output_survives_a_stream_that_defaults_to_a_legacy_code_page(
     # Decodes as UTF-8, which cp1252 output would not.
     envelope = json.loads(written.decode("utf-8"))
     assert envelope["ok"] is True
+
+
+def test_a_damaged_registry_is_named_not_reported_as_an_internal_fault(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Corruption of the local store is the operator's state, not our bug.
+
+    Measured: a registry file truncated mid-byte answered every read and write
+    with `AI_STP_INTERNAL: unexpected internal failure` — no file named, no
+    hint that local state (not the tool) is damaged, and `internal` telling an
+    agent to retry the same dead end. sqlite reports this as its own error
+    class; the answer must carry the registry path and read as state to
+    reconcile.
+    """
+    from ai_stp_cli.local.database import configured_path
+
+    place = configured_path()
+    place.parent.mkdir(parents=True, exist_ok=True)
+    place.write_bytes(b"this is not a database, and it is short")
+
+    code = app.main(["component", "find", "--prefix", "component", "--json"])
+    answer = json.loads(capsys.readouterr().out)
+
+    assert answer["ok"] is False
+    assert answer["error"]["code"] == "AI_STP_PRECONDITION_FAILED"
+    assert "registry" in answer["error"]["details"]
+    assert code == 4

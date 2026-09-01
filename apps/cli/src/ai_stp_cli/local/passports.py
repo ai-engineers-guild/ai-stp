@@ -21,7 +21,13 @@ from typing import Final, cast
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import harnesses, journal, revisions
-from ai_stp_cli.paths import bootstrap_lock, data_dir, read_private, redact_home, write_private
+from ai_stp_cli.paths import (
+    bootstrap_lock,
+    data_dir,
+    read_private,
+    redact_any_home,
+    write_private,
+)
 from ai_stp_cli.runtime import cli_version
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.ids import is_valid_id, new_id
@@ -336,7 +342,10 @@ def observed_environment(at: str) -> dict[str, JsonValue]:
             "harness_id": item.harness_id,
             "installations": [
                 {
-                    "path": redact_home(Path(held.path)),
+                    # `redact_any_home`, not `redact_home`: under a synthetic HOME the
+                    # binary is discovered in the real account's home, and the
+                    # precise fold would keep the account name (measured live).
+                    "path": redact_any_home(Path(held.path)),
                     "version": held.version,
                     "normalized_version": held.normalized_version,
                     "version_source": held.version_source,

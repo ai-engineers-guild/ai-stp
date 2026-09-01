@@ -13,6 +13,7 @@ from ai_stp_cli.local import journal, passports, revisions
 from ai_stp_cli.local.database import (
     MIGRATIONS,
     SCHEMA_VERSION,
+    configured_path,
     downgrade,
     file_schema_version,
     open_readonly,
@@ -827,3 +828,45 @@ def test_every_declared_state_has_a_row_in_the_table() -> None:
 def test_an_unknown_state_allows_nothing() -> None:
     assert not journal.allowed("invented", "verified")
     assert not journal.allowed("verified", "invented")
+
+
+@pytest.mark.unprivileged
+def test_a_wal_registry_in_an_unwritable_directory_still_answers_reads(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`open_readonly` must not need to write the directory it reads from.
+
+    Measured across the read surface: `component find`, `target status`,
+    `install status`, `select eligibility-matrix` and `harness status` all
+    answered `AI_STP_INTERNAL` against a data directory without write
+    permission. `open_registry` had left the database in WAL mode; a read-only
+    connection then has to create the `-shm` index beside it, and the
+    directory refused. The passive-check test never caught it because a fresh
+    check answers without any registry at all. With no `-wal` present and the
+    directory unwritable no writer can start a WAL session, so falling back to
+    an immutable open changes nothing about what the reader can observe.
+    """
+    home = tmp_path / "home"
+    (home / "data").mkdir(parents=True)
+    (home / "config").mkdir(parents=True)
+    monkeypatch.setenv("XDG_DATA_HOME", str(home / "data"))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(home / "config"))
+    place = configured_path()
+    connection = open_registry(place, create=True)
+    connection.execute(
+        "INSERT INTO entity (stable_id, kind, created_at) VALUES ('component_x', 'component', 't')"
+    )
+    connection.commit()
+    connection.close()
+
+    place.parent.chmod(0o500)
+    try:
+        held = open_readonly(place)
+        try:
+            count = held.execute("SELECT COUNT(*) FROM entity").fetchone()[0]
+        finally:
+            held.close()
+    finally:
+        place.parent.chmod(0o700)
+
+    assert count == 1

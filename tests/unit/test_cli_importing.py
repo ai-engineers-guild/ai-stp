@@ -1102,3 +1102,50 @@ def test_the_setup_passport_says_the_backup_was_recorded_not_verified(
     assert stored is not None
     facts = stored.envelope.model_dump(mode="json")["facts"]
     assert facts["backup_verification"]["value"] == "recorded_unverified"
+
+
+def test_replaying_the_same_confirmed_plan_returns_the_same_setup(
+    registry: sqlite3.Connection, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Idempotency is part of the operation, not a courtesy.
+
+    Measured with five kill-and-retry rounds against one root: every retry of
+    the exact same confirmed `plan_digest` minted a fresh setup identity and a
+    fresh copy of every component — four complete setups for one directory,
+    with nothing saying which one is *the* one. A client that dies after the
+    commit and before the answer retries the same digest; the retry must
+    return the graph that already exists, not another one beside it.
+    """
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    root = tmp_path / "claude"
+    (root / "skills" / "one").mkdir(parents=True)
+    (root / "skills" / "one" / "SKILL.md").write_text("# One\ncontent.\n", encoding="utf-8")
+
+    found = importing.inspect(root, harness_id="claude-code")
+    planned = importing.plan(found)
+    first = importing.register_graph(
+        registry,
+        found,
+        expected_plan_digest=planned.plan_digest,
+        target_id="pair_claude",
+        provider_ref="slot-202609010001",
+        owner_id=OWNER,
+        device_id=DEVICE,
+        at=AT,
+    )
+    second = importing.register_graph(
+        registry,
+        importing.inspect(root, harness_id="claude-code"),
+        expected_plan_digest=planned.plan_digest,
+        target_id="pair_claude",
+        provider_ref="slot-202609010001",
+        owner_id=OWNER,
+        device_id=DEVICE,
+        at=AT,
+    )
+
+    assert second.stable_id == first.stable_id
+    assert second.component_ids == first.component_ids
+    setups = registry.execute("SELECT COUNT(*) FROM entity WHERE kind = 'setup'").fetchone()[0]
+    assert setups == 1, "one root, one confirmed plan, one setup"

@@ -15,6 +15,7 @@ state.
 """
 
 import os
+import re
 import stat
 import tempfile
 import threading
@@ -179,6 +180,32 @@ def redact_home(path: Path | str) -> str:
         rest = text[len(home) :].lstrip("\\/")
         return "~/" + _forward_slashes(rest)
     return _forward_slashes(text)
+
+
+#: A path under *some* account's home, whichever account that is. The three
+#: shapes are the platform conventions; a match is replaced as a whole prefix,
+#: never inside the path.
+_ANY_USER_HOME: Final = re.compile(
+    r"^(?:/home/[^/]+|/Users/[^/]+|/root|[A-Za-z]:/[Uu]sers/[^/]+)(?=/|$)"
+)
+
+
+def redact_any_home(path: Path | str) -> str:
+    """Render a path with *any* user home prefix as `~`, not only this process's.
+
+    `redact_home` folds `Path.home()`, which is the wrong question for stored
+    facts: a refresh under a synthetic HOME (an evidence slice, an isolated
+    probe home) discovers executables through PATH inside the real account's
+    home, the precise fold matches nothing, and the stored passport then
+    carries `/home/<account>/...` — the account-name material a synced record
+    exists to not carry. The precise fold still runs first, so the process
+    home and separator normalization behave exactly as `redact_home` does.
+    """
+    text = redact_home(path)
+    if text.startswith("~"):
+        return text
+    folded = _ANY_USER_HOME.sub("~", text)
+    return folded if folded.startswith("~") else text
 
 
 def is_private(path: Path) -> bool:

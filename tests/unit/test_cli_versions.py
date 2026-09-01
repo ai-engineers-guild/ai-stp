@@ -525,3 +525,49 @@ def test_a_fork_is_an_object_its_owner_can_actually_edit_and_release(adopted: st
 
     released = command.version_release({"id": copy.stable_id}).payload
     assert [item.version for item in released.versions] == ["1.0"]
+
+
+def test_two_concurrent_releases_serialize_instead_of_crashing_the_loser(adopted: str) -> None:
+    """Measured in six process-level rounds: one loser answered `AI_STP_INTERNAL`.
+
+    Both releases read the next free number in autocommit, one recorded it, and
+    the other's insert died on the UNIQUE constraint — a crash where a caller
+    expects either a version or a typed refusal. Under `BEGIN IMMEDIATE` the
+    second release starts after the first commits, reads the line it left, and
+    mints the next number — exactly what the sequential contract already says
+    a second release of the same head does.
+    """
+    from ai_stp_cli.commands import component as command
+    from ai_stp_cli.local.database import transaction
+
+    outcome: dict[str, object] = {}
+
+    def second() -> None:
+        outcome["versions"] = [
+            item.version for item in command.version_release({"id": adopted}).payload.versions
+        ]
+
+    with closing(open_registry(configured_path(), create=False)) as connection:
+        with transaction(connection):
+            contender = threading.Thread(target=second)
+            contender.start()
+            contender.join(timeout=0.5)
+            assert contender.is_alive(), "the second release must wait for the write lock"
+            # The first release, on this locked connection, through the same
+            # local machinery the command drives.
+            stored = revisions.head(connection, adopted)
+            assert stored is not None
+            versions.record(
+                connection,
+                stable_id=adopted,
+                version=versions.next_minor(connection, adopted),
+                passport_digest="sha256:" + "a" * 64,
+                revision_id=stored.revision_id,
+                at="2026-09-01T00:00:00.000Z",
+            )
+        contender.join(timeout=30)
+        assert not contender.is_alive()
+
+    assert outcome["versions"] == ["1.0", "1.1"], (
+        "the loser serializes onto the next number; it does not crash"
+    )

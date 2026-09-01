@@ -9,7 +9,7 @@ import pytest
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import project_passport
-from ai_stp_cli.local.database import configured_path, open_registry
+from ai_stp_cli.local.database import configured_path, open_registry, transaction
 
 SECRET = "AKIAIOSFODNN7EXAMPLE"
 
@@ -270,3 +270,59 @@ def test_a_scan_converges_a_forked_project_back_to_one_head(
 
     assert len(revisions.heads(registry, first.stable_id)) == 1
     assert len(healed.envelope.parent_revision_ids) == 2
+
+
+def test_two_concurrent_scans_settle_on_one_identity_and_one_head(
+    registry: sqlite3.Connection, project: Path
+) -> None:
+    """The race the write lock exists for, measured before the fix.
+
+    Eight rounds of two parallel `project passport` processes produced, in
+    three of them: two entity rows for one root (the loser's orphan — an
+    unforgettable zero-revision entity — plus `AI_STP_INTERNAL` from the
+    naked PRIMARY KEY conflict), or one identity with two parentless heads
+    (both read no head, both committed a root). `scan` and `record` ran in
+    autocommit; `transaction()`'s BEGIN IMMEDIATE is documented for exactly
+    "two processes cannot both read, both decide, and then both write" and
+    neither called it.
+
+    Here the second writer is a thread on its own connection, entering while
+    the first holds the write lock: it must wait, then adopt the winner's
+    identity and thread the winner's head — not mint beside it.
+    """
+    import threading
+
+    from ai_stp_cli.local.database import configured_path, open_registry
+
+    outcome: dict[str, object] = {}
+
+    def second() -> None:
+        late = open_registry(configured_path(), create=False)
+        try:
+            found = project_passport.scan(late, project)
+            stored = project_passport.record(late, found, device_id="device_other")
+            outcome["stable_id"] = found.stable_id
+            outcome["revision_id"] = stored.revision_id
+        finally:
+            late.close()
+
+    with transaction(registry):
+        first = project_passport.scan(registry, project)
+        contender = threading.Thread(target=second)
+        contender.start()
+        contender.join(timeout=0.5)
+        assert contender.is_alive(), "the second writer must wait for the lock, not race it"
+    recorded = project_passport.record(registry, first, device_id="device_test")
+    contender.join(timeout=30)
+    assert not contender.is_alive(), "the lock was released; the second writer must finish"
+
+    assert outcome["stable_id"] == first.stable_id, "one root, one identity"
+    entities = registry.execute("SELECT COUNT(*) FROM entity WHERE kind = 'project'").fetchone()[0]
+    assert entities == 1
+    heads = registry.execute(
+        "SELECT COUNT(*) FROM head WHERE stable_id = ?", (first.stable_id,)
+    ).fetchone()[0]
+    assert heads == 1
+    assert outcome["revision_id"] == recorded.revision_id, (
+        "nothing changed between the two scans, so the store answers one revision"
+    )

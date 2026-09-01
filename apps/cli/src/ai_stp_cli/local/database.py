@@ -939,6 +939,30 @@ def open_readonly(path: Path) -> sqlite3.Connection:
     connection = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
     connection.row_factory = sqlite3.Row
     connection.execute(f"PRAGMA busy_timeout={BUSY_TIMEOUT_MILLISECONDS}")
+    try:
+        # The first read is what initializes WAL access, and in WAL mode it
+        # needs the `-shm` index created beside the file — a directory write.
+        # Probed here so the fallback below is taken while the failure is
+        # still this function's to explain.
+        connection.execute("SELECT 1 FROM sqlite_schema LIMIT 1").fetchone()
+    except sqlite3.OperationalError as error:
+        text = str(error).lower()
+        if "readonly database" not in text and "unable to open database file" not in text:
+            raise
+        connection.close()
+        if (path.parent / (path.name + "-wal")).exists():
+            # A live WAL session exists that this reader cannot join without
+            # the shared index; pretending the file is frozen would read a
+            # state no writer ever committed.
+            raise
+        # No `-wal` and no way to create one in this directory: nothing can
+        # start a write session here, so the file is immutable in fact, and
+        # saying so is what lets sqlite read it without touching the
+        # directory. Measured across the read surface before this branch:
+        # five read commands answered `AI_STP_INTERNAL` against a data
+        # directory without write permission.
+        connection = sqlite3.connect(f"file:{path}?mode=ro&immutable=1", uri=True)
+        connection.row_factory = sqlite3.Row
     return connection
 
 
