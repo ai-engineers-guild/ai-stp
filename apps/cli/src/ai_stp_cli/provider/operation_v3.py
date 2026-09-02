@@ -268,6 +268,52 @@ def load_plan(path: Path, expected_digest: str) -> ProviderPlan:
     )
 
 
+@dataclass(frozen=True)
+class Surviving:
+    """One member of a removal bundle: the bytes a host file keeps."""
+
+    path: str
+    digest: str
+    byte_length: int
+
+
+def require_end_state(artifact: dict[str, JsonValue], surviving: tuple[Surviving, ...]) -> None:
+    """A removal plan carrying a bundle names every surviving member as final bytes.
+
+    The provider's plan lists, per path it will touch, `removed` or
+    `final_bytes` with the bundle member, its digest and its length
+    (`ADR-0129`, kit 0.2.8). Every member this consumer packed must appear as
+    `final_bytes` with exactly its digest and length, or the removal would
+    delete a host file whose surviving bytes were handed over.
+    """
+    raw = artifact.get("end_state")
+    entries = raw if isinstance(raw, list) else []
+    named: dict[str, dict[str, JsonValue]] = {}
+    for entry in entries:
+        if isinstance(entry, dict) and isinstance(entry.get("path"), str):
+            named[str(entry["path"])] = cast(dict[str, JsonValue], entry)
+    for member in surviving:
+        entry = named.get(member.path)
+        if entry is None:
+            raise _refused(
+                "the provider plan names no end state for a surviving host file",
+                path=member.path,
+            )
+        expected: dict[str, JsonValue] = {
+            "end_state": "final_bytes",
+            "member": f"files/{member.path}",
+            "sha256": member.digest,
+            "byte_length": member.byte_length,
+        }
+        wrong = [key for key, value in expected.items() if entry.get(key) != value]
+        if wrong:
+            raise _refused(
+                "the provider plan does not keep a surviving host file's exact bytes",
+                path=member.path,
+                fields=", ".join(wrong),
+            )
+
+
 def profile_digest(capabilities: protocol_v3.ProviderCapabilities, target_scope: str) -> str:
     """The digest of the declared profile a plan at this scope binds.
 
@@ -297,6 +343,7 @@ def require_plan(
     permission_profile: str | None,
     expires_at: str,
     target_scope: str = "global",
+    surviving: tuple[Surviving, ...] | None = None,
 ) -> ProviderPlan:
     """Require the provider's exact canonical plan and its redundant echoes."""
     if answer.get("state") != "planned":
@@ -350,6 +397,8 @@ def require_plan(
     effects = _strings(artifact.get("effects"), "provider plan effects")
     if not effects or answer.get("effects") != list(effects):
         raise _refused("the provider plan does not enumerate exact effects")
+    if surviving:
+        require_end_state(artifact, surviving)
     if answer.get("expected_target_digest") != expected_target_digest:
         raise _refused("the provider plan echo names a different target snapshot")
     if bundle is not None:

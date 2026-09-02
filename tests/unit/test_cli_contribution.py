@@ -114,3 +114,65 @@ def test_a_contribution_must_name_its_key() -> None:
     """An empty key would replace nothing while reporting that it had."""
     with pytest.raises(CliFailure, match="name the key"):
         contribution.assemble(host="config.toml", current=None, key="", value={})
+
+
+def test_withdraw_takes_one_key_out_and_keeps_the_rest_of_the_host() -> None:
+    """`ADR-0129`'s removal half: the bytes that survive a contribution's removal."""
+    toml_host = (
+        b"# kept comment\n"
+        b'model = "gpt"\n\n'
+        b'[mcp_servers.probe]\ncommand = "probe"\n\n'
+        b"[other]\nx = 1\n"
+    )
+    survived = contribution.withdraw(host="config.toml", current=toml_host, key="mcp_servers")
+    assert survived is not None
+    assert b"# kept comment" in survived
+    assert b'model = "gpt"' in survived
+    assert b"[other]" in survived and b"x = 1" in survived
+    assert b"mcp_servers" not in survived
+    # Only the key: nothing survives, and the plan records the file as removed.
+    assert (
+        contribution.withdraw(
+            host="config.toml", current=b"[mcp_servers.probe]\ncommand = 'p'\n", key="mcp_servers"
+        )
+        is None
+    )
+    # JSON hosts, the same rule, and a host without the key is returned intact.
+    json_host = b'{"mcpServers": {"probe": {"command": "probe"}}, "theme": "dark"}\n'
+    survived = contribution.withdraw(host="mcp.json", current=json_host, key="mcpServers")
+    assert survived == b'{\n  "theme": "dark"\n}\n'
+    assert (
+        contribution.withdraw(host="mcp.json", current=b'{"theme": "dark"}\n', key="mcpServers")
+        == b'{\n  "theme": "dark"\n}\n'
+    )
+    assert (
+        contribution.withdraw(host="mcp.json", current=b'{"mcpServers": {}}\n', key="mcpServers")
+        is None
+    )
+
+
+def test_a_comment_alone_is_still_the_persons_and_survives_a_withdrawal() -> None:
+    """Emptiness is judged on the bytes, not on the key count: a TOML host that
+    keeps nothing but a comment after the contributed key is taken out is a
+    file the person wrote, and it stays. A host that renders to whitespace
+    is no file at all."""
+    survived = contribution.withdraw(
+        host="config.toml",
+        current=b'# kept by the person\n[mcp_servers.mcp01]\ncommand = "x"\n',
+        key="mcp_servers",
+    )
+    assert survived is not None
+    assert b"# kept by the person" in survived
+    assert b"mcp01" not in survived
+    assert (
+        contribution.withdraw(
+            host="config.toml", current=b'[mcp_servers.mcp01]\ncommand = "x"\n', key="mcp_servers"
+        )
+        is None
+    )
+    assert (
+        contribution.withdraw(
+            host="mcp.json", current=b'{"mcpServers": {"a": {}}}', key="mcpServers"
+        )
+        is None
+    )
