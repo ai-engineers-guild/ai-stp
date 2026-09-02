@@ -13,10 +13,12 @@ import hashlib
 import json
 import os
 import platform
+import shutil
 import socket
 import stat
 import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, cast
@@ -60,6 +62,23 @@ _DEVICE_WRITES: Final[tuple[str, ...]] = (
 )
 
 _PROBE_TIMEOUT: Final[float] = 3.0
+
+#: The write half of the profile, probed the way the network half is. The same
+#: child writes under `inside`, the one subtree the profile reopens, and under
+#: `outside`, its sibling; the positive control runs it with no profile at all.
+WRITE_PROBE: Final[str] = """
+import json, pathlib, sys
+results = {}
+for name in ("inside", "outside"):
+    place = pathlib.Path(sys.argv[1]) / name / "probe"
+    try:
+        place.write_text("ai-stp-write-probe", encoding="utf-8")
+    except OSError:
+        results[name] = "denied"
+    else:
+        results[name] = "written"
+print(json.dumps(results, sort_keys=True))
+"""
 
 
 def _forbidden(rendered: str) -> bool:
@@ -234,6 +253,59 @@ def _probe(executable: Path) -> tuple[bool, tuple[str, ...]]:
         dns_udp.close()
 
 
+def _answer(argv: tuple[str, ...]) -> dict[str, object]:
+    """Run one probe child and read its one-line JSON answer, or refuse."""
+    result = subprocess.run(
+        argv,
+        check=False,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=_PROBE_TIMEOUT,
+        env={"PATH": os.environ.get("PATH", "")},
+    )
+    if result.returncode != 0:
+        detail = result.stderr.strip().splitlines()
+        raise ValueError(detail[-1] if detail else "probe child returned non-zero")
+    try:
+        return cast(dict[str, object], json.loads(result.stdout))
+    except (json.JSONDecodeError, TypeError) as error:
+        raise ValueError(f"probe child returned invalid JSON: {error}") from error
+
+
+def _write_probe(executable: Path) -> tuple[bool, tuple[str, ...]]:
+    """Prove the profile bounds writes, or refuse to claim it.
+
+    `discover_sandbox_exec` used to say "every write outside the target is
+    denied" on the strength of the network probe alone: the sentence was in
+    the evidence and nothing had measured it. Same shape as `_probe` — a
+    positive control first, then the identical child under the profile — and
+    the same rule: a control that did not pass makes the reading unavailable.
+    """
+    root = Path(tempfile.mkdtemp(prefix="ai-stp-sandbox-write-"))
+    inside, outside = root / "inside", root / "outside"
+    try:
+        inside.mkdir()
+        outside.mkdir()
+        child = (sys.executable, "-c", WRITE_PROBE, root.resolve().as_posix())
+        control = _answer(child)
+        if control != {"inside": "written", "outside": "written"}:
+            return False, (f"write positive control failed: {control}",)
+        for place in (inside, outside):
+            (place / "probe").unlink(missing_ok=True)
+        observed = _answer((executable.as_posix(), "-p", profile_for(inside, ()), *child))
+        if observed != {"inside": "written", "outside": "denied"}:
+            return False, (f"writes were not bounded by the profile: {observed}",)
+        return True, (
+            "positive control wrote inside and outside the target",
+            "sandbox-exec allowed the write inside the target and denied the one outside",
+        )
+    except (OSError, ValueError, subprocess.TimeoutExpired) as error:
+        return False, (f"sandbox-exec write probe failed: {error}",)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def discover_sandbox_exec() -> tuple[SandboxExecLauncher | None, NetworkCapability]:
     """Discover and prove the current host's launcher, or remain unavailable."""
     os_name = platform.system().casefold()
@@ -251,6 +323,9 @@ def discover_sandbox_exec() -> tuple[SandboxExecLauncher | None, NetworkCapabili
     passed, evidence = _probe(executable)
     if not passed:
         return None, network_launcher.unavailable(os_name, evidence[0])
+    bounded, writes = _write_probe(executable)
+    if not bounded:
+        return None, network_launcher.unavailable(os_name, writes[0])
     capability = NetworkCapability(
         enforcement=NetworkEnforcement.ENFORCED,
         os_name=os_name,
@@ -260,6 +335,7 @@ def discover_sandbox_exec() -> tuple[SandboxExecLauncher | None, NetworkCapabili
             "profile denies network* and every write outside the target and "
             "the paths the caller named writable",
             *evidence,
+            *writes,
         ),
     )
     return SandboxExecLauncher(executable, capability), capability
