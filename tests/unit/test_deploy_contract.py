@@ -169,6 +169,10 @@ def test_target_side_deployer_preserves_the_host_state_and_monotonicity() -> Non
     fetch_prefix = "\n".join(fetch)
     assert "GIT_TERMINAL_PROMPT=0" in fetch_prefix
     assert "-c credential.helper=" in fetch_prefix
+    # GitHub's HTTP/2 upload-pack POST returned 401 from the production host
+    # while the same anonymous request over HTTP/1.1 and the public archive
+    # endpoint both answered. Keep this transport fact local to the fetch.
+    assert "-c http.version=HTTP/1.1" in fetch_prefix
 
     service = Path("deploy/ai-stp-pull-deploy.service").read_text(encoding="utf-8")
     executable = "\n".join(

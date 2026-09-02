@@ -31,7 +31,8 @@ fi
 # it behaved when the source moved to this repository.
 git --git-dir="${mirror}" remote set-url origin "${repository}"
 
-GIT_TERMINAL_PROMPT=0 git -c credential.helper= --git-dir="${mirror}" \
+GIT_TERMINAL_PROMPT=0 git -c credential.helper= -c http.version=HTTP/1.1 \
+  --git-dir="${mirror}" \
   fetch --quiet --no-tags origin \
   "+${deploy_ref}:refs/remotes/origin/deploy/prod"
 candidate=$(git --git-dir="${mirror}" rev-parse --verify 'refs/remotes/origin/deploy/prod^{commit}')
