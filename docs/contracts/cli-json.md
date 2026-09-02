@@ -1,6 +1,6 @@
 ---
 description: "JSON envelope, error classes, and CLI machine-output rules."
-last_verified: "2026-08-13"
+last_verified: "2026-09-01"
 ---
 
 # JSON CLI
@@ -47,6 +47,12 @@ contains no secrets.
 A warning does not change `ok` when the requested result was obtained in full.
 A partially completed mutating operation returns an error and `operation_id`
 rather than being masked as a warning.
+
+Each element of `next_actions` is a command of this CLI, runnable as written
+with `--json` and carrying every option the command requires. A value the
+caller must supply stands in angle brackets; `...` stands for the caller's own
+invocation, to be repeated with the options written beside it. A report never
+answers with state names or prose in that field.
 
 ## Exit codes
 

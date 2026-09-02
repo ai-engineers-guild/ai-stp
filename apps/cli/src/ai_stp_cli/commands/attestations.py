@@ -76,7 +76,7 @@ def sign(parameters: Mapping[str, object]) -> Answer[CliSignedAttestation]:
         raise CliFailure(
             "AI_STP_USER_DECISION_REQUIRED",
             "attestation signing requires confirmation of the exact local evidence",
-            next_actions=["attestation sign --confirm --json"],
+            next_actions=["attestation sign ... --confirm --json"],
         )
     if output.exists() or output.is_symlink():
         raise CliFailure(

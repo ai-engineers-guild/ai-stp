@@ -270,7 +270,7 @@ def import_register(parameters: Mapping[str, object]) -> Answer[ImportedSetup]:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
             "the exact import plan digest is required",
-            next_actions=["setup import register --plan-digest <digest> --backup-ref <ref> --json"],
+            next_actions=["setup import register ... --plan-digest <digest> --json"],
         )
     harness = _harness(parameters)
     root = _root(parameters)

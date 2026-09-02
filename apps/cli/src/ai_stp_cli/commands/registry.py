@@ -618,7 +618,7 @@ def _artifact_of(view: CatalogVersionView) -> ArtifactRef:
             "AI_STP_PRECONDITION_FAILED",
             "this version's passport declares no artifact",
             details={"version": view.passport_digest},
-            next_actions=["registry version --json"],
+            next_actions=["registry version --kind <kind> --id <id> --version <version> --json"],
         )
     try:
         return ArtifactRef.model_validate(held)
@@ -626,5 +626,5 @@ def _artifact_of(view: CatalogVersionView) -> ArtifactRef:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
             "this version's passport declares an artifact this build cannot read",
-            next_actions=["registry version --json"],
+            next_actions=["registry version --kind <kind> --id <id> --version <version> --json"],
         ) from error

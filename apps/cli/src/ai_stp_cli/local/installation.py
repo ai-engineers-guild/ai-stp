@@ -238,6 +238,17 @@ class Recovery:
     next_actions: tuple[str, ...]
 
 
+def target_identity(project_id: str, harness_id: str) -> str:
+    """The identifier an operation plan records for one project on one harness."""
+    return f"{project_id}:{harness_id}"
+
+
+def target_pair(target_id: str) -> tuple[str, str]:
+    """The project and harness a plan's target identifier names."""
+    project_id, _, harness_id = target_id.partition(":")
+    return project_id, harness_id
+
+
 def propose(
     connection: sqlite3.Connection,
     *,
@@ -450,7 +461,7 @@ def approve(
                 "AI_STP_PRECONDITION_FAILED",
                 "that approval is for a different plan",
                 details={"operation_id": operation_id, "expected": plan.digest},
-                next_actions=["select bundle --json"],
+                next_actions=["select bundle --harness <id> --proposal <id> --json"],
             )
         else:
             _move(connection, operation_id, STATE_APPROVED, "approved by the user", at)
@@ -694,19 +705,27 @@ def recovery(connection: sqlite3.Connection, operation_id: str) -> Recovery:
             details={"operation_id": operation_id},
         )
     row = connection.execute(
-        "SELECT backup_ref FROM operation_plan WHERE operation_id = ?", (operation_id,)
+        "SELECT target_id, plan_digest, backup_ref FROM operation_plan WHERE operation_id = ?",
+        (operation_id,),
     ).fetchone()
     done = tuple(
         item.result
         for item in events(connection, operation_id)
         if item.state_after in {STATE_APPLIED_UNVERIFIED, STATE_APPLYING}
     )
+    backup_ref = None if row is None or row["backup_ref"] is None else str(row["backup_ref"])
     return Recovery(
         operation_id=operation_id,
         state=current.state,
         effects_recorded=done,
-        backup_ref=None if row is None or row["backup_ref"] is None else str(row["backup_ref"]),
-        next_actions=_next_actions(current.state),
+        backup_ref=backup_ref,
+        next_actions=_next_actions(
+            current.state,
+            operation_id=operation_id,
+            target_id="" if row is None else str(row["target_id"]),
+            plan_digest="" if row is None else str(row["plan_digest"]),
+            backup_ref=backup_ref,
+        ),
     )
 
 
@@ -809,14 +828,62 @@ def resumable(connection: sqlite3.Connection) -> tuple[Recovery, ...]:
     return tuple(recovery(connection, item) for item in identifiers)
 
 
-def _next_actions(state: str) -> tuple[str, ...]:
-    """What may follow, derived from the transition table rather than restated."""
-    if state == STATE_PARTIAL:
-        # Terminal, and the one that needs a person. The next step is a new plan
-        # built from the recovery report, not a retry of this operation.
-        return ("inspect the target", "plan a recovery operation")
+#: The command that takes an operation into each successor state the journal
+#: allows. A successor absent here is an outcome the provider reports, not a
+#: step the caller takes.
+_RESUME: Final[str] = "install resume --operation {operation} --provider <executable> --json"
+_STEP_TO: Final[dict[str, str]] = {
+    STATE_APPROVED: "install approve --operation {operation} --plan-digest {digest} --json",
+    STATE_APPLYING: "install apply --operation {operation} --provider <executable> --json",
+    STATE_APPLIED_UNVERIFIED: _RESUME,
+    STATE_VERIFIED: _RESUME,
+    STATE_CANCELLED: "install cancel --operation {operation} --json",
+}
+_STEP_ORDER: Final[tuple[str, ...]] = (
+    STATE_APPROVED,
+    STATE_APPLYING,
+    STATE_APPLIED_UNVERIFIED,
+    STATE_VERIFIED,
+    STATE_CANCELLED,
+)
+
+
+def _next_actions(
+    state: str,
+    *,
+    operation_id: str,
+    target_id: str,
+    plan_digest: str,
+    backup_ref: str | None,
+) -> tuple[str, ...]:
+    """Commands that may follow, derived from the transition table.
+
+    Every other `next_actions` in this CLI is a command the caller runs as
+    written; a recovery report that answered with state names left the caller
+    to translate them. Each allowed successor maps to the command that reaches
+    it. A terminal `partial` or `failed` operation has no successor: it points
+    at the target and, when a backup exists, at the rollback plan built from it.
+    """
     allowed = journal.TRANSITIONS.get(state, frozenset())
-    return tuple(sorted(allowed))
+    actions: list[str] = []
+    for successor in _STEP_ORDER:
+        if successor not in allowed:
+            continue
+        command = _STEP_TO[successor].format(
+            operation=operation_id, digest=plan_digest or "<plan_digest>"
+        )
+        if command not in actions:
+            actions.append(command)
+    if state in {STATE_PARTIAL, STATE_FAILED}:
+        project_id, harness_id = target_pair(target_id)
+        pair = f"--project {project_id or '<project>'} --harness {harness_id or '<harness>'}"
+        actions.append(f"target status {pair} --json")
+        if backup_ref:
+            actions.append(
+                f"install plan --action rollback --backup-ref {backup_ref} {pair} "
+                "--provider <executable> --json"
+            )
+    return tuple(actions)
 
 
 def _record(

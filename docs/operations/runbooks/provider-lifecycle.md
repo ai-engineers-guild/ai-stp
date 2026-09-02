@@ -63,7 +63,7 @@ the parser does not understand is never declared outdated—the honest answer is
 ```bash
 ai-stp provider update plan --harness codex --json
 ai-stp provider update apply --harness codex \
-  --expected-plan-digest <digest> --confirm --json
+  --expected-plan-digest <digest> --json
 ```
 
 Planning and applying are two commands, as with `install plan` and `install apply`.
@@ -71,9 +71,10 @@ A single command that sometimes returns a plan and sometimes a result exposes tw
 different schemas under one declaration, and the agent validating the response checks it
 against the wrong one.
 
-A plan without confirmation installs nothing and—more importantly—changes
-nothing: downloaded bytes go to a temporary directory, not the discovery
-directory. When they went there, the plan itself created a second installation, after
+A plan on its own installs nothing and—more importantly—changes nothing:
+downloaded bytes go to a temporary directory, not the discovery directory.
+The exact plan digest is the confirmation `apply` takes (`ADR-0118`); there
+is no second flag beside it. When they went there, the plan itself created a second installation, after
 which the machine became ambiguous and the newly planned update
 refused to run.
 
@@ -94,7 +95,7 @@ under a name containing their digest.
 ```bash
 ai-stp provider reinstall plan --harness codex --version 0.0.32 --json
 ai-stp provider reinstall apply --harness codex --version 0.0.32 \
-  --expected-plan-digest <digest> --confirm --json
+  --expected-plan-digest <digest> --json
 ```
 
 Without `--version`, the currently installed version is reinstalled. Moving to the

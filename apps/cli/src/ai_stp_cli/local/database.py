@@ -816,6 +816,28 @@ MIGRATIONS: Final[tuple[Migration, ...]] = (
             "ALTER TABLE operation_plan DROP COLUMN program_harness_id",
         ),
     ),
+    Migration(
+        version=28,
+        summary="a device remembers the sync events it was told to abandon",
+        # `--skip-event` names an exact event a device walks past, abandoning
+        # its revision. Naming it once used to mean naming it on every later
+        # pull as well: the ids were flags and nothing kept them, so a device
+        # recovering from an abandoned lineage had to carry a growing list
+        # across invocations. An abandonment is a decision this device made
+        # about this account's stream; it is recorded here and honoured by
+        # every later pull without being repeated.
+        up=(
+            """
+            CREATE TABLE sync_abandoned_event (
+                account_id   TEXT NOT NULL,
+                event_id     TEXT NOT NULL,
+                abandoned_at TEXT NOT NULL,
+                PRIMARY KEY (account_id, event_id)
+            ) STRICT
+            """,
+        ),
+        down=("DROP TABLE sync_abandoned_event",),
+    ),
 )
 
 #: Names for nested savepoints. A counter rather than a fixed name: two nested

@@ -67,7 +67,7 @@ def no_contradiction(
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
             "a signed release manifest and unverified-provider contradict each other",
-            next_actions=["install plan --provider-manifest <path> --json"],
+            next_actions=["install plan ... --provider-manifest <path> --json"],
         )
 
 
@@ -105,8 +105,8 @@ def release_required(
         details={"protocol_version": str(protocol_version)},
         next_actions=[
             "provider fetch --harness <id> --json",
-            "install plan --provider-manifest <path> --json",
-            "install plan --unverified-provider --json",
+            "install plan ... --provider-manifest <path> --json",
+            "install plan ... --unverified-provider --json",
         ],
     )
 
@@ -125,7 +125,7 @@ def trusted_manifest(
             raise CliFailure(
                 "AI_STP_VALIDATION_ERROR",
                 "provider release recovery requires the exact signed release manifest",
-                next_actions=["install plan --provider-manifest <path> --json"],
+                next_actions=["install plan ... --provider-manifest <path> --json"],
             )
         return ReleaseEvidence(None)
     place = Path(given).expanduser()

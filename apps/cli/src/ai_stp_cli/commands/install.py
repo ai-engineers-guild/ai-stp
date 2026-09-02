@@ -276,7 +276,7 @@ def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
             if held is not None
             else _Pair(_required(parameters, "project"), _required(parameters, "harness"))
         )
-        target = f"{pair.project_id}:{pair.harness_id}"
+        target = installation.target_identity(pair.project_id, pair.harness_id)
         release_recovery = bool(parameters.get("provider-release-recovery", False))
         release_evidence = trust.trusted_manifest(
             connection,
@@ -465,7 +465,10 @@ def _plan_v3(
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
             "rollback requires the exact provider-owned BackupRef",
-            next_actions=["install plan --action rollback --backup-ref <ref> --json"],
+            next_actions=[
+                "install plan --action rollback --backup-ref <ref> --project <id> "
+                "--harness <id> --provider <executable> --json"
+            ],
         )
 
     compiled: bundle.Bundle | None = None
@@ -530,7 +533,7 @@ def _plan_v3(
             # source it does not have; the key already carries `backup_ref`
             # and the target digest below.
             "" if proposal is None else proposal.proposal_id,
-            f"{pair.project_id}:{pair.harness_id}",
+            installation.target_identity(pair.project_id, pair.harness_id),
             action,
             str(protocol_v3.VERSION),
             provider_version,
@@ -571,7 +574,7 @@ def _plan_v3(
                     "longest": overlong[-1],
                     "limit": str(windows_paths.MAX_PATH_CHARACTERS),
                 },
-                next_actions=["install plan --target <shorter path> --json"],
+                next_actions=["install plan ... --target <shorter path> --json"],
             )
     arguments = operation_v3.plan_operation_arguments(
         operation=operation,
@@ -602,7 +605,7 @@ def _plan_v3(
         connection,
         action=action,
         author=owner().account_id,
-        target_id=f"{pair.project_id}:{pair.harness_id}",
+        target_id=installation.target_identity(pair.project_id, pair.harness_id),
         expected_target_digest=expected_target_digest,
         provider_version=provider_version,
         provider_protocol_version=protocol_v3.VERSION,
@@ -695,7 +698,7 @@ def apply(parameters: Mapping[str, object]) -> Answer[InstallationView]:
                 executable=executable,
             )
         assert bound_bundle is not None
-        _supports_bundle(info, held.target_id.rsplit(":", 1)[-1], held.bundle_format)
+        _supports_bundle(info, installation.target_pair(held.target_id)[1], held.bundle_format)
 
         installation.begin(
             connection,
@@ -805,7 +808,9 @@ def _apply_v3(
     trusted_release: release.ReleaseManifest | None,
     executable: str,
 ) -> InstallationView:
-    capabilities = _v3_capabilities(info, held.target_id.rsplit(":", 1)[-1], held.bundle_format)
+    capabilities = _v3_capabilities(
+        info, installation.target_pair(held.target_id)[1], held.bundle_format
+    )
     operation = _v3_operation(held.action)
     plan_path = cache.stored_provider_plan(held.provider_plan_digest)
     if plan_path is None:
@@ -813,7 +818,7 @@ def _apply_v3(
             "AI_STP_PRECONDITION_FAILED",
             "the exact approved provider plan artifact is absent or corrupt",
             details={"provider_plan_digest": held.provider_plan_digest},
-            next_actions=["install plan --json"],
+            next_actions=["install plan --proposal <id> --provider <executable> --json"],
         )
     provider_plan = operation_v3.load_plan(plan_path, held.provider_plan_digest)
     if provider_plan.effects != held.effects:
@@ -1019,7 +1024,7 @@ def resume(parameters: Mapping[str, object]) -> Answer[InstallationView]:
         if held.provider_protocol_version == protocol_v3.VERSION:
             capabilities = _v3_capabilities(
                 info,
-                held.target_id.rsplit(":", 1)[-1],
+                installation.target_pair(held.target_id)[1],
                 held.bundle_format,
             )
             operation = _v3_operation(held.action)
@@ -1030,7 +1035,7 @@ def resume(parameters: Mapping[str, object]) -> Answer[InstallationView]:
                     "AI_STP_PRECONDITION_FAILED",
                     "the exact approved provider plan artifact is absent or corrupt",
                     details={"provider_plan_digest": held.provider_plan_digest},
-                    next_actions=["install plan --json"],
+                    next_actions=["install plan --proposal <id> --provider <executable> --json"],
                 )
             provider_plan = operation_v3.load_plan(plan_path, held.provider_plan_digest)
             bound_bundle = _bound_bundle_v3(held)
@@ -1096,7 +1101,7 @@ def resume(parameters: Mapping[str, object]) -> Answer[InstallationView]:
             return _view(connection, held)
         _supports_bundle(
             info,
-            held.target_id.rsplit(":", 1)[-1],
+            installation.target_pair(held.target_id)[1],
             held.bundle_format,
         )
 
@@ -1183,7 +1188,7 @@ def _report_installation_unguarded(connection: sqlite3.Connection, plan: install
     if not url:
         return
 
-    _, _, harness_id = plan.target_id.partition(":")
+    _, harness_id = installation.target_pair(plan.target_id)
     harness_version = _observed_harness_version(harness_id)
     if not harness_version:
         # A version nobody observed is not one to guess at, and a ping missing
@@ -1631,7 +1636,7 @@ def _bound_bundle(plan: installation.Plan) -> bundle_protocol.Binding:
         raise CliFailure(
             "AI_STP_SCHEMA_UNSUPPORTED",
             "this legacy installation plan does not bind exact HarnessBundle bytes",
-            next_actions=["install plan --json"],
+            next_actions=["install plan --proposal <id> --provider <executable> --json"],
         )
     path = cache.stored_raw_artifact(plan.bundle_artifact_digest)
     if path is None:
@@ -1639,7 +1644,7 @@ def _bound_bundle(plan: installation.Plan) -> bundle_protocol.Binding:
             "AI_STP_PRECONDITION_FAILED",
             "the exact HarnessBundle bytes approved by this plan are not in the verified cache",
             details={"artifact_digest": plan.bundle_artifact_digest},
-            next_actions=["install plan --json"],
+            next_actions=["install plan --proposal <id> --provider <executable> --json"],
         )
     return bundle_protocol.binding(
         path,
@@ -1813,8 +1818,9 @@ def _provider_target(parameters: Mapping[str, object], logical: str, version: in
             "AI_STP_VALIDATION_ERROR",
             "provider protocol v2/v3 requires an existing absolute target directory",
             next_actions=[
-                "install plan --target <directory> --protocol-version 3 --json",
-                "target status --provider <path> --target <directory> --json",
+                "install plan ... --target <directory> --protocol-version 3 --json",
+                "target status --project <id> --harness <id> --provider <path> "
+                "--target <directory> --json",
             ],
         )
     place = Path(given).expanduser()
@@ -2138,7 +2144,7 @@ def _optional_invoker(
         connection, parameters, executable, project_id=project_id, harness=harness
     )
     version = _observation_protocol(parameters, trusted_release)
-    logical = f"{project_id}:{harness}"
+    logical = installation.target_identity(project_id, harness)
     target = _provider_target(parameters, logical, version)
     return invocation.provider_invoker(
         executable,
@@ -2421,7 +2427,7 @@ def _required(parameters: Mapping[str, object], name: str) -> str:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
             f"the {name} must be named",
-            next_actions=["select session --harness <id> --json"],
+            next_actions=[f"... --{name} <id>"],
         )
     return given
 

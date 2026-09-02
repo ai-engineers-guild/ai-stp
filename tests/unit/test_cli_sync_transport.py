@@ -936,3 +936,180 @@ def test_a_server_reported_revocation_offers_the_same_recovery_as_a_local_one(
     assert refused.value.retryable is False
     assert refused.value.next_actions, "a revoked device was given no way back"
     assert any("auth login" in action for action in refused.value.next_actions)
+
+
+def _component_content(
+    stable_id: str, *, parents: list[str] | None = None, name: str = "probe"
+) -> dict[str, JsonValue]:
+    return {
+        "schema_version": 1,
+        "kind": "component",
+        "stable_id": stable_id,
+        "owner_id": ACCOUNT,
+        "created_at": AT,
+        "visibility": "private",
+        "parent_revision_ids": cast(list[JsonValue], parents or []),
+        "facts": {
+            "component_type": {
+                "value": "skill",
+                "origin": "observed",
+                "confirmation": "none",
+                "source_refs": [],
+                "observed_at": AT,
+                "confirmed_at": None,
+                "confidence": None,
+            },
+            "source_name": {
+                "value": name,
+                "origin": "observed",
+                "confirmation": "none",
+                "source_refs": [],
+                "observed_at": AT,
+                "confirmed_at": None,
+                "confidence": None,
+            },
+        },
+    }
+
+
+def test_a_version_whose_revision_this_device_never_received_is_a_named_refusal(
+    tmp_path: Path,
+) -> None:
+    """After `--skip-event`, a number that pointed at the skipped revision arrives alone.
+
+    Measured on a real account: device B walked past an abandoned revision as
+    told, and a later root event for the same component — no parents, so the
+    parent check had nothing to say — carried a released `1.0` pointing at
+    exactly the revision B never received. The recorder's foreign key refused,
+    and the refusal reached the operator as `AI_STP_INTERNAL: IntegrityError`,
+    a defect report about the decision they had just made. It is a conflict,
+    it names the version and the revision, and the loop above adds the event
+    id `--skip-event` needs.
+    """
+    from ai_stp_cli.local import versions
+
+    source = open_registry(tmp_path / "source.sqlite")
+    target = open_registry(tmp_path / "target.sqlite")
+    stable_id = new_id("component")
+    try:
+        first = revisions.commit(source, _component_content(stable_id), device_id=DEVICE_A)
+        # The first revision was pushed and accepted; only its *event* never
+        # reached the target, which is what walking past it with
+        # `--skip-event` produces.
+        root = sync_state.prepare(source, account_id=ACCOUNT, device_id=DEVICE_A, stored=first)
+        sync_state.record_receipt(
+            source,
+            account_id=ACCOUNT,
+            receipt=_accepted(root.request.event_id, root.request.revision_id, "cursor-root"),
+        )
+        versions.record(
+            source,
+            stable_id=stable_id,
+            version="1.0",
+            passport_digest=digest_canonical(
+                "ai-stp:passport:v1", cast(JsonValue, first.envelope.model_dump(mode="json"))
+            ),
+            revision_id=first.revision_id,
+            at=AT,
+        )
+        # A second root for the same object, the shape the account carried:
+        # no parents, so nothing about ancestry can refuse it first.
+        second_root = revisions.commit(
+            source, _component_content(stable_id, name="probe-2"), device_id=DEVICE_A
+        )
+        prepared = sync_state.prepare(
+            source, account_id=ACCOUNT, device_id=DEVICE_A, stored=second_root
+        ).request
+        assert prepared.payload["sync_released_versions"], "the child carries the released number"
+        response = SyncPullResponse(
+            items=[_stream(prepared, 1)], page=PageInfo(next_cursor="opaque-cursor", page_size=20)
+        )
+
+        with pytest.raises(CliFailure) as raised:
+            sync_state.apply_page(target, account_id=ACCOUNT, response=response, at=AT)
+
+        assert raised.value.code == "AI_STP_CONFLICT"
+        assert "does not hold" in raised.value.message
+        assert raised.value.details["event_id"] == prepared.event_id
+        assert raised.value.details["version"] == "1.0"
+        assert raised.value.details["version_revision_id"] == first.revision_id
+        assert raised.value.next_actions == [
+            f"sync pull --skip-event {prepared.event_id} --confirm --json"
+        ]
+        # The page rolled back whole: nothing of the second root landed either.
+        assert revisions.head(target, stable_id) is None
+    finally:
+        source.close()
+        target.close()
+
+
+def test_an_abandoned_event_is_remembered_and_the_refusal_names_the_way_past(
+    tmp_path: Path,
+) -> None:
+    """Naming an abandoned event once is the decision; later pulls honour it unasked.
+
+    Measured on a real account: five abandoned events had to travel as flags
+    through every later invocation, and the refusal's next action was a
+    template the caller had to complete from `details`. The id is recorded on
+    the device the first time it is named, and the refusal that leads there
+    carries the exact command.
+    """
+    source = open_registry(tmp_path / "source.sqlite")
+    target = open_registry(tmp_path / "target.sqlite")
+    stable_id = new_id("developer")
+    try:
+        local = revisions.commit(source, _content(stable_id), device_id=DEVICE_A)
+        prepared = sync_state.prepare(
+            source, account_id=ACCOUNT, device_id=DEVICE_A, stored=local
+        ).request
+        event = prepared.model_dump(
+            exclude={"idempotency_key", "expected_head_revision_id"}, mode="python"
+        )
+        payload = dict(cast(dict[str, object], event["payload"]))
+        payload["revision_id"] = f"revision_{'0' * 64}"
+        event["payload"] = payload
+        sealed: dict[str, JsonValue] = {
+            "schema_version": 1,
+            "entity_id": event["entity_id"],
+            "entity_kind": event["entity_kind"],
+            "parent_revision_ids": event["parent_revision_ids"],
+            "operation": event["operation"],
+            "payload": cast(JsonValue, payload),
+            "device_id": event["device_id"],
+            "actor_id": event["actor_id"],
+            "created_at": event["created_at"],
+        }
+        event["revision_id"] = revision_id(sealed)
+        event["content_digest"] = digest_canonical("ai-stp:revision:v1", cast(JsonValue, payload))
+        first_page = SyncPullResponse(
+            items=[SyncStreamEvent(**event, sequence=1)],
+            page=PageInfo(next_cursor="cursor-1", page_size=20),
+        )
+
+        with pytest.raises(CliFailure) as raised:
+            sync_state.apply_page(target, account_id=ACCOUNT, response=first_page, at=AT)
+        assert raised.value.next_actions[0] == (
+            f"sync pull --skip-event {prepared.event_id} --confirm --json"
+        )
+
+        named = sync_state.apply_page(
+            target,
+            account_id=ACCOUNT,
+            response=first_page,
+            at=AT,
+            skip_event_ids=frozenset({prepared.event_id}),
+        )
+        assert named == (0, 0, [prepared.event_id])
+        assert sync_state.abandoned_events(target, ACCOUNT) == frozenset({prepared.event_id})
+
+        # The same event again — a re-read page — with nothing named this time.
+        again = SyncPullResponse(
+            items=[SyncStreamEvent(**event, sequence=1)],
+            page=PageInfo(next_cursor="cursor-2", page_size=20),
+        )
+        unasked = sync_state.apply_page(target, account_id=ACCOUNT, response=again, at=AT)
+        assert unasked == (0, 0, [prepared.event_id])
+        assert sync_state.cursor(target, ACCOUNT) == "cursor-2"
+    finally:
+        source.close()
+        target.close()

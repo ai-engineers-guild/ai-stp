@@ -1,6 +1,6 @@
 ---
 description: "SPEC-013: User data governance."
-last_verified: "2026-08-16"
+last_verified: "2026-09-01"
 ---
 
 # SPEC-013: User data governance
@@ -75,7 +75,7 @@ Changing a data class or retention period requires a policy version and migratio
 | `REQ-1313` | A device-passport fixture containing paths and environment values syncs a revision without them. |
 | `REQ-1314` | The authorization matrix hides the reporter's identity from the author, and moderation-log fixtures contain no private bytes. |
 | `REQ-1315` | Privacy tests confirm a keyed digest without raw IP, user-agent, account/device data, and a short dedup-evidence lifetime; only the aggregate is public. |
-| `REQ-1316` | Without consent, an installation fixture produces no outgoing request; `config set telemetry.enabled=true` without consent is rejected with a typed error; refusal and `not_asked` have identical network observability. |
+| `REQ-1316` | Without consent, an installation fixture produces no outgoing request; `config set --set telemetry.enabled=true` without consent is rejected with a typed error; refusal and `not_asked` have identical network observability. |
 | `REQ-1317` | The captured request contains exactly the listed fields and none outside the list; fixtures with a local path, private repository, and environment variable either produce no request or do not expose those values. |
 | `REQ-1318` | Collector failure and timeout leave the operation `verified`; `backup`, `rollback`, `remove`, and reads produce no request; a three-component setup produces three requests. |
 | `REQ-1319` | Refusal and disabling delete the identifier; renewed consent creates a different one; it differs from `device_id` and does not appear in ordinary state output. |

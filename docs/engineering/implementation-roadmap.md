@@ -153,6 +153,17 @@ field, and a provider that does not declare it keeps today's honest behaviour.
 2. The macOS deny-write profile has not been run against seven real providers on
    either architecture.
 
+### P3b. The host's roll time
+
+One roll of the production host — pull, image build, migrate, bring-up —
+measured 29 minutes on 2026-09-01 (run `33562822602`, promote 21:46:04 → host
+serving 22:15:03), dominated by building the images on the host. The public
+verification now waits for two rolls, because the host deploys serially and
+always takes the newest ref. The time itself is the thing to act on next:
+images built once in CI and pulled by the host would turn a roll into
+minutes, but that moves where bytes are built and needs its own decision
+beside `ADR-0103` rather than a bigger wait.
+
 ### P4. Agent-first cleanup as a continuing practice
 
 1. Any handler that reads a hidden `confirm` must break the registry-parity test.

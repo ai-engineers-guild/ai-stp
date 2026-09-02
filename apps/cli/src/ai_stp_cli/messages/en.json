@@ -65,6 +65,7 @@
   "a pulled event fails its content-addressed account binding": "a pulled event fails its content-addressed account binding",
   "a pulled released version is incomplete": "a pulled released version is incomplete",
   "a pulled released version is not an object": "a pulled released version is not an object",
+  "a pulled released version points at a revision this device does not hold": "a pulled released version points at a revision this device does not hold",
   "a pulled sync payload does not match its exact event coordinates": "a pulled sync payload does not match its exact event coordinates",
   "a pulled sync payload is not a passport envelope": "a pulled sync payload is not a passport envelope",
   "a recorded component passport is invalid": "a recorded component passport is invalid",

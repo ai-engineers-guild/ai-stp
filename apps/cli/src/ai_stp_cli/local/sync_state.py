@@ -430,18 +430,41 @@ def _apply_event(connection: sqlite3.Connection, *, account_id: str, event: Sync
                 )
             item = cast(dict[str, object], raw)
             try:
-                versions.record(
-                    connection,
-                    stable_id=event.entity_id,
-                    version=str(item["version"]),
-                    passport_digest=str(item["passport_digest"]),
-                    revision_id=str(item["revision_id"]),
-                    at=str(item["created_at"]),
-                )
+                version = str(item["version"])
+                passport_digest = str(item["passport_digest"])
+                version_revision = str(item["revision_id"])
+                created_at = str(item["created_at"])
             except KeyError as error:
                 raise CliFailure(
                     "AI_STP_VALIDATION_ERROR", "a pulled released version is incomplete"
                 ) from error
+            # A released number points at a revision, and this device may not
+            # hold it: the revision's own event was walked past with
+            # `--skip-event`, so its number arrives with nothing to stand on.
+            # Measured on a real account after such a skip, the recorder's
+            # foreign key refused and the refusal reached the caller as
+            # `AI_STP_INTERNAL: IntegrityError` — a defect report about a
+            # decision the operator had just made. Named here instead, with
+            # the way past it, which is the same one that led here.
+            if revisions.get(connection, version_revision) is None:
+                raise CliFailure(
+                    "AI_STP_CONFLICT",
+                    "a pulled released version points at a revision this device does not hold",
+                    details={
+                        "stable_id": event.entity_id,
+                        "version": version,
+                        "version_revision_id": version_revision,
+                    },
+                    next_actions=["sync pull --skip-event <event_id> --confirm --json"],
+                )
+            versions.record(
+                connection,
+                stable_id=event.entity_id,
+                version=version,
+                passport_digest=passport_digest,
+                revision_id=version_revision,
+                at=created_at,
+            )
     else:
         lifecycle.entomb(
             connection,
@@ -474,6 +497,14 @@ def _apply_event(connection: sqlite3.Connection, *, account_id: str, event: Sync
     return "applied"
 
 
+def abandoned_events(connection: sqlite3.Connection, account_id: str) -> frozenset[str]:
+    """Every event this device was told to walk past for this account."""
+    rows = connection.execute(
+        "SELECT event_id FROM sync_abandoned_event WHERE account_id = ?", (account_id,)
+    ).fetchall()
+    return frozenset(str(row[0]) for row in rows)
+
+
 def apply_page(
     connection: sqlite3.Connection,
     *,
@@ -503,6 +534,20 @@ def apply_page(
     applied = replayed = 0
     skipped: list[str] = []
     with transaction(connection):
+        # An abandonment is remembered. The ids named on this call join the
+        # ones this device recorded before, so a lineage walked past once is
+        # not named again on every later pull — measured on a real account,
+        # five events had to travel as flags through every invocation, and a
+        # device that forgot one stopped exactly where it had already decided
+        # to move on.
+        remembered = abandoned_events(connection, account_id)
+        for event_id in sorted(skip_event_ids - remembered):
+            connection.execute(
+                "INSERT OR IGNORE INTO sync_abandoned_event (account_id, event_id, abandoned_at) "
+                "VALUES (?, ?, ?)",
+                (account_id, event_id, at),
+            )
+        walk_past = skip_event_ids | remembered
         for event in response.items:
             # Named, one exact id at a time, and never inferred. An event that
             # fails validation stops this account's pulls on every device and
@@ -515,7 +560,7 @@ def apply_page(
             # and nothing else: there is deliberately no "skip whatever is
             # broken", because that would silently drop a real revision the
             # moment a different defect made one unreadable.
-            if event.event_id in skip_event_ids:
+            if event.event_id in walk_past:
                 skipped.append(event.event_id)
                 continue
             try:
@@ -536,7 +581,18 @@ def apply_page(
                         "entity_kind": event.entity_kind,
                         "revision_id": event.revision_id,
                     },
-                    next_actions=failure.next_actions,
+                    # The one action that moves past this event, with the id
+                    # filled in: a template the caller has to complete from
+                    # `details` is a second question about an answer already
+                    # in hand.
+                    next_actions=[
+                        f"sync pull --skip-event {event.event_id} --confirm --json",
+                        *[
+                            action
+                            for action in failure.next_actions
+                            if "--skip-event" not in action
+                        ],
+                    ],
                 ) from failure
             applied += outcome == "applied"
             replayed += outcome == "replayed"

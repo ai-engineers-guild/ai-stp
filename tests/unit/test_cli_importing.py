@@ -1297,6 +1297,18 @@ def test_an_imported_setup_compiles_into_the_bundle_an_adopted_one_would(
     )
     registry.commit()
 
+    # Without a target the contribution has no host bytes to assemble over,
+    # and the refusal names both commands that take one.
+    with pytest.raises(CliFailure) as refused:
+        select_command.compile_setup_version_bundle(
+            registry, confirmed.stable_id, confirmed.version, expected_harness="codex"
+        )
+    assert refused.value.code == "AI_STP_PRECONDITION_FAILED"
+    assert refused.value.next_actions == [
+        "select bundle --harness codex --proposal <id> --target <directory> --json",
+        "install plan --proposal <id> --provider <executable> --target <directory> --json",
+    ]
+
     target = tmp_path / "target"
     target.mkdir()
     (target / "config.toml").write_text('approval = "never"\n', encoding="utf-8")
@@ -1314,3 +1326,34 @@ def test_an_imported_setup_compiles_into_the_bundle_an_adopted_one_would(
         written = archive.read("files/config.toml").decode("utf-8")
     assert "[mcp_servers.github]" in written
     assert 'model = "o3"' in written
+
+
+def test_a_member_outside_its_boundary_is_a_conflict_not_a_silent_root(tmp_path: Path) -> None:
+    """Packaging trusts the plan's grouping and still checks it: a stray path is refused."""
+    root = tmp_path / "root"
+    (root / "skills" / "review").mkdir(parents=True)
+    # Bytes, not text: the digests below are computed from these exact bytes,
+    # and text mode on Windows would write `\r\n` and move them.
+    (root / "skills" / "review" / "SKILL.md").write_bytes(b"# Review\n")
+    (root / "stray.md").write_bytes(b"elsewhere\n")
+    from ai_stp_cli.local import content as content_store
+
+    digests = {
+        "skills/review/SKILL.md": content_store.address_of(b"# Review\n"),
+        "stray.md": content_store.address_of(b"elsewhere\n"),
+    }
+    candidate = importing.ProposedComponent(
+        candidate_id="c",
+        component_type="skill",
+        native_role="skill",
+        paths=("skills/review/SKILL.md", "stray.md"),
+        file_set_digest="sha256:" + "0" * 64,
+        byte_length=0,
+        boundary="skills/review",
+    )
+
+    with pytest.raises(CliFailure) as raised:
+        importing._package(root, candidate, digests)  # pyright: ignore[reportPrivateUsage]
+
+    assert raised.value.code == "AI_STP_CONFLICT"
+    assert raised.value.details == {"path": "stray.md", "boundary": "skills/review"}

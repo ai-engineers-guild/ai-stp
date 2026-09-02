@@ -1,6 +1,6 @@
 ---
 description: "Synchronization event fields, responses, retries, and conflicts."
-last_verified: "2026-08-15"
+last_verified: "2026-09-01"
 ---
 
 # Synchronization event
@@ -88,6 +88,17 @@ list of released-version metadata without artifact bytes. A collision between
 one `X.Y` and another passport digest rolls back the entire page. Durable
 continuation after the last nonempty server page uses that position's cursor.
 The client does not manufacture a signed cursor itself.
+
+## Abandoning an event
+
+A pulled event that fails validation, or that no longer has the ground it
+needs — a released version pointing at a revision this device does not hold —
+stops the walk: the page rolls back whole, the cursor stays, and the refusal
+names the event. `sync pull --skip-event <event_id>` walks past exactly that
+event, abandoning its revision on this device; there is no "skip whatever is
+broken". An abandonment is remembered by the device for the account, so a
+lineage walked past once is not named again on every later pull, and each
+pull's answer lists the events it skipped, remembered or newly named.
 
 ## What the payload may carry
 

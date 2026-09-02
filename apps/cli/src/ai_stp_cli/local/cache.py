@@ -127,7 +127,7 @@ def _damaged(error: BaseException) -> CliFailure:
         "AI_STP_VALIDATION_ERROR",
         "a cache entry is unreadable",
         details={"exception": type(error).__name__},
-        next_actions=["registry search --json"],
+        next_actions=["registry search --kind <kind> --json"],
     )
 
 
@@ -328,7 +328,7 @@ def _artifact_refused(message: str, details: dict[str, str]) -> CliFailure:
         "AI_STP_PRECONDITION_FAILED",
         message,
         details=details,
-        next_actions=["registry version --json"],
+        next_actions=["registry version --kind <kind> --id <id> --version <version> --json"],
     )
 
 

@@ -13,7 +13,7 @@ last_verified: "2026-08-03"
 | [DESIGN.md](DESIGN.md) | The visual design system for the web MVP: tokens, typography, components, and modes. | 2026-08-22 |
 | [feature-list.md](feature-list.md) | MVP functional areas and their observable outcomes. | 2026-08-04 |
 | [glossary.md](glossary.md) | Canonical domain glossary. | 2026-08-24 |
-| [privacy.md](privacy.md) | What leaves the user's machine, what never leaves it, and how to answer questions about telemetry. | 2026-08-21 |
+| [privacy.md](privacy.md) | What leaves the user's machine, what never leaves it, and how to answer questions about telemetry. | 2026-09-01 |
 | [scope.md](scope.md) | Required MVP capabilities, harness statuses, and explicit exclusions. | 2026-08-25 |
 | [user-flows.md](user-flows.md) | Primary user flows and system behavior on errors. | 2026-08-04 |
 | [vision.md](vision.md) | The problem, users, value, and positioning of ai_stp. | 2026-08-29 |

@@ -1002,8 +1002,8 @@ def test_v3_refuses_to_install_a_provider_no_signed_release_covers(
     assert raised.value.code == "AI_STP_VALIDATION_ERROR"
     assert raised.value.next_actions == [
         "provider fetch --harness <id> --json",
-        "install plan --provider-manifest <path> --json",
-        "install plan --unverified-provider --json",
+        "install plan ... --provider-manifest <path> --json",
+        "install plan ... --unverified-provider --json",
     ]
 
 
@@ -3000,7 +3000,10 @@ def test_a_rollback_without_a_backup_ref_is_refused(
 
     assert raised.value.code == "AI_STP_VALIDATION_ERROR"
     assert "BackupRef" in str(raised.value)
-    assert raised.value.next_actions == ["install plan --action rollback --backup-ref <ref> --json"]
+    assert raised.value.next_actions == [
+        "install plan --action rollback --backup-ref <ref> --project <id> "
+        "--harness <id> --provider <executable> --json"
+    ]
 
 
 @pytest.mark.parametrize("action", ["backup", "rollback"])
@@ -3063,3 +3066,61 @@ def test_target_backups_reaches_a_real_provider_when_one_is_wired(
         assert item.present is not None
         if item.present is False:
             assert item.held is None
+
+
+def test_a_newer_unverified_plan_does_not_hide_the_release_an_older_one_bound(
+    registry: sqlite3.Connection, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The journal is read newest first, and a record that binds no release is skipped.
+
+    A pair verified under a signed release and then re-verified with
+    `--unverified-provider` still has the release in its history; the read
+    walks past the unverified record to the bound one, and only its exact
+    bytes earn the reason.
+    """
+    executable = _provider(tmp_path, "bound-earlier")
+    manifest = _signed_release(executable, tmp_path / "release.json")
+    monkeypatch.setattr(release, "pinned_policy", _pinning(executable))
+    project_id = _verified_under(registry, tmp_path, executable, manifest)
+    later = installation.propose(
+        registry,
+        action="install",
+        author="account_test",
+        target_id=f"{project_id}:claude-code",
+        expected_target_digest=TARGET_AFTER,
+        provider_version="1.0.0",
+        provider_protocol_version=1,
+        provider_target=str(tmp_path / "verified-target"),
+        provider_release_trust="unverified",
+        effects=("write exact HarnessBundle",),
+        recovery_action="restore",
+        idempotency_key="verified-later-unverified",
+        at=MOMENT,
+        expires_at="2099-01-01T00:00:00.000Z",
+        setup_stable_id="setup_01J0000000000000000000000A",
+        setup_version="1.1",
+    )
+    installation.approve(registry, later.operation_id, plan_digest=later.digest, at=MOMENT)
+    installation.begin(registry, later.operation_id, observed_target_digest=TARGET_AFTER, at=MOMENT)
+    installation.applied(registry, later.operation_id, at=MOMENT)
+    installation.verify(
+        registry,
+        later.operation_id,
+        postconditions_met=True,
+        observed_target_digest=TARGET,
+        at=MOMENT,
+    )
+    target = tmp_path / "observed-target"
+    target.mkdir()
+    asked = _capturing_invoker(monkeypatch)
+
+    install.target_status(
+        {
+            "project": project_id,
+            "harness": "claude-code",
+            "provider": executable,
+            "target": str(target),
+        }
+    )
+
+    assert asked["reason"] == network_launcher.TRUSTED_RELEASE

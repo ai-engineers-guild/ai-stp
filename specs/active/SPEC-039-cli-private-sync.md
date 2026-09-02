@@ -60,6 +60,7 @@ and automatic value selection during conflict resolution.
   together with the private revision. The same `stable_id + X.Y` with a
   different digest rejects the entire page as `AI_STP_CONFLICT`; the version
   number is not reassigned.
+- `REQ-3909`: An event named to `sync pull --skip-event` is abandoned on this device for the account and honoured by every later pull without being named again; the answer lists what a page skipped, and a refusal that stops the walk names the exact command that moves past the event.
 - `REQ-3908`: Sync is disabled by default; network commands require explicit
   confirmation and an active session, and transmit the bearer token only to a
   verified endpoint. Preview and local merge do not modify the harness target.
@@ -99,3 +100,4 @@ decodes nor creates the server cursor.
 | `REQ-3906` | A tombstone retries the same event, has a remote parent, and a repeated pull does not alter the initial deletion mark. |
 | `REQ-3907` | Two databases record different digests under the same X.Y; pull rolls back the page and cursor. |
 | `REQ-3908` | Registry/process tests verify confirmations, the disabled guard, the bearer boundary, and the absence of prohibited data. |
+| `REQ-3909` | A transport test names an event once, re-reads the same page with nothing named, and finds it skipped; the refusal's first next action carries the exact event id. |

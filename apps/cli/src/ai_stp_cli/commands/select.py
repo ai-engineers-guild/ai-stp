@@ -1789,8 +1789,10 @@ def _bundle_sources(
                         "key": rule.declared_key,
                     },
                     next_actions=[
-                        "select bundle --target <directory> --json",
-                        "install plan --target <directory> --json",
+                        f"select bundle --harness {target.harness_id} --proposal <id> "
+                        "--target <directory> --json",
+                        "install plan --proposal <id> --provider <executable> "
+                        "--target <directory> --json",
                     ],
                 )
             contributions.append((rule, item.stable_id, expanded[0]))
