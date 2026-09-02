@@ -700,7 +700,13 @@ class AppContainerLauncher:
         wanted: tuple[tuple[Path, str], ...] = (
             (target.resolve(), "(M)"),
             *((Path(item).resolve(), "(M)") for item in writable),
-            (runtime, "(RX)"),
+            # The system's own directories already carry an ACE for ALL
+            # APPLICATION PACKAGES, and `icacls` refuses to add one under
+            # `System32` even to an administrator: measured on `windows-latest`
+            # as "the container could not be granted
+            # C:\Windows\System32\WindowsPowerShell\v1.0". A provider that
+            # lives there is reachable without a grant, so none is attempted.
+            *(() if _system_owned(runtime) else ((runtime, "(RX)"),)),
         )
         granted: list[Path] = []
         try:
@@ -803,6 +809,18 @@ def encoded_command(script: str) -> list[str]:
         "-EncodedCommand",
         encoded,
     ]
+
+
+def _system_owned(path: Path) -> bool:
+    """Whether a path sits under the Windows directory the system already shares."""
+    root = os.environ.get("SYSTEMROOT")
+    if not root:
+        return False
+    try:
+        path.resolve().relative_to(Path(root).resolve())
+    except ValueError:
+        return False
+    return True
 
 
 def _probe(api: _Api, sid: ctypes.c_void_p, package: str) -> tuple[bool, tuple[str, ...]]:
