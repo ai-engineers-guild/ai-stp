@@ -1236,8 +1236,6 @@ def _surfaces(
             scope=scope,
         )
         source_name = str(_value(facts.get("source_name")) or source_path.rsplit("/", 1)[-1])
-        if source_name in {"", "."} and managed_paths:
-            source_name = managed_paths[0].rstrip("/").rsplit("/", 1)[-1]
         surfaces.append(
             composition.Surface(
                 stable_id=node.stable_id,
