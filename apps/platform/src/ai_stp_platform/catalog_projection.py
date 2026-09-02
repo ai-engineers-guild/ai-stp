@@ -78,8 +78,21 @@ def project_trust(row: PublicVersionRow) -> CatalogTrust:
     )
 
 
-def project_checks_summary(row: PublicVersionRow) -> SafetyChecksSummary | None:
-    """Return stored safety checks summary for card/detail (#270), if present."""
+def project_checks_summary(
+    row: PublicVersionRow, *, include_components: bool = False
+) -> SafetyChecksSummary | None:
+    """Return stored safety checks summary for card/detail (#270), if present.
+
+    `include_components` is off for a card. The per-member list is read by one
+    surface — the setup detail page — and a card that carried it was answering
+    a question nobody on that projection asked. It cost more than the bytes:
+    the field arrived in the search response on 2026-09-02 and every released
+    CLI refused the whole body, because their `SafetyChecksSummary` forbade
+    extras. The models now allow additions, as their published schema always
+    said they did, but a client already installed cannot be changed — so the
+    projection that broke stops sending what it never needed, and the detail
+    keeps the field it does.
+    """
     raw_summary = getattr(row.metadata, "checks_summary", None)
     if not isinstance(raw_summary, dict):
         return None
@@ -214,7 +227,7 @@ def project_checks_summary(row: PublicVersionRow) -> SafetyChecksSummary | None:
             not_run=0 if is_setup else int(summary.get("not_run") or 0),
             total_countable=0 if is_setup else int(summary.get("total_countable") or 0),
             checks=[] if is_setup else entries,
-            components=components,
+            components=components if include_components else [],
         )
     except Exception:
         return None
@@ -259,7 +272,9 @@ def verify_passport_integrity(row: PublicVersionRow) -> bytes:
     return payload
 
 
-def component_summary(row: PublicVersionRow, *, now: datetime | None = None) -> ComponentSummary:
+def component_summary(
+    row: PublicVersionRow, *, now: datetime | None = None, include_components: bool = False
+) -> ComponentSummary:
     """Card projection: latest_* fields from the version passport (REQ-2103)."""
     verify_passport_integrity(row)
     passport = ComponentVersionPassport.model_validate(row.passport)
@@ -286,7 +301,7 @@ def component_summary(row: PublicVersionRow, *, now: datetime | None = None) -> 
         latest_trust=project_trust(row),
         latest_support=support,
         latest_published_at=format_timestamp(row.published_at),  # type: ignore[arg-type]
-        latest_checks=project_checks_summary(row),
+        latest_checks=project_checks_summary(row, include_components=include_components),
     )
 
 
@@ -312,7 +327,9 @@ def _card_excerpt(source: str) -> str:
     return project_safe_markdown(source).excerpt
 
 
-def setup_summary(row: PublicVersionRow, *, now: datetime | None = None) -> SetupSummary:
+def setup_summary(
+    row: PublicVersionRow, *, now: datetime | None = None, include_components: bool = False
+) -> SetupSummary:
     """Setup card projection from the version passport."""
     verify_passport_integrity(row)
     passport = SetupVersionPassport.model_validate(row.passport)
@@ -340,7 +357,7 @@ def setup_summary(row: PublicVersionRow, *, now: datetime | None = None) -> Setu
         latest_trust=project_trust(row),
         latest_support=support,
         latest_published_at=format_timestamp(row.published_at),  # type: ignore[arg-type]
-        latest_checks=project_checks_summary(row),
+        latest_checks=project_checks_summary(row, include_components=include_components),
     )
 
 
@@ -393,7 +410,7 @@ def component_detail(
         raise CatalogIntegrityError("no public versions")
     latest = max(versions, key=lambda r: _version_key(r.version))
     return ComponentDetail(
-        summary=component_summary(latest, now=now),
+        summary=component_summary(latest, now=now, include_components=True),
         versions=[version_list_entry(v, now=now) for v in versions],
     )
 
@@ -403,7 +420,7 @@ def setup_detail(versions: list[PublicVersionRow], *, now: datetime | None = Non
         raise CatalogIntegrityError("no public versions")
     latest = max(versions, key=lambda r: _version_key(r.version))
     return SetupDetail(
-        summary=setup_summary(latest, now=now),
+        summary=setup_summary(latest, now=now, include_components=True),
         versions=[version_list_entry(v, now=now) for v in versions],
     )
 

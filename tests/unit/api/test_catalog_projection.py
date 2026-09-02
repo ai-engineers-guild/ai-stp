@@ -473,3 +473,43 @@ def test_a_card_carries_an_excerpt_and_never_the_whole_description() -> None:
     assert summary.latest_description.endswith("…")
     # The excerpt is the head of the text, not an arbitrary slice of Markdown.
     assert summary.latest_description.startswith("word0 word1 ")
+
+
+def _row_with_member_checks() -> PublicVersionRow:
+    """A row whose stored summary carries per-member checks, as a setup's does."""
+    row = _row_from_seed()
+    row.metadata.checks_summary = {  # pyright: ignore[reportAttributeAccessIssue]
+        "status": "empty",
+        "components": [
+            {
+                "stable_id": "component_01J0000000000000000000000A",
+                "name": "a member",
+                "version": "1.0",
+                "embedded": False,
+            }
+        ],
+    }
+    return row
+
+
+def test_a_card_does_not_carry_the_per_member_checks_only_a_detail_reads() -> None:
+    """The field that broke every released client leaves the search projection.
+
+    One surface reads `latest_checks.components` — the setup detail page — and
+    the card carried it anyway. On 2026-09-02 the deployed platform answered
+    `registry search` with it and the released `0.0.14` and `0.0.15` clients
+    refused the whole body, because their `SafetyChecksSummary` forbade extras.
+    The models now allow additions, as their schema always promised, but bytes
+    already installed cannot be changed, so the card stops sending what nothing
+    on it reads. The detail keeps it, and the feature is unaffected.
+    """
+    row = _row_with_member_checks()
+    card = component_summary(row)
+    assert card.latest_checks is not None
+    assert card.latest_checks.components == []
+    detail = component_detail([row])
+    held = detail.summary.latest_checks
+    assert held is not None
+    assert [item.stable_id for item in held.components or []] == [
+        "component_01J0000000000000000000000A"
+    ]

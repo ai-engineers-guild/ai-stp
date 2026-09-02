@@ -696,7 +696,11 @@ def test_project_checks_summary_on_catalog_card() -> None:
         version="1.0",
         object_kind="component",
     )
-    summary = project_checks_summary(row)
+    # The member list belongs to the detail projection: a card never carried a
+    # reader for it, and stopped sending it after a released client refused the
+    # whole search body over that one field. What these two tests are about is
+    # unchanged — how the members are read and shaped.
+    summary = project_checks_summary(row, include_components=True)
     assert summary is not None
     assert summary.checks_passed_percent == 80
     assert summary.status == "available"
@@ -748,7 +752,11 @@ def test_project_checks_summary_exposes_setup_members_without_an_aggregate() -> 
         object_kind="setup",
     )
 
-    summary = project_checks_summary(row)
+    # The member list belongs to the detail projection: a card never carried a
+    # reader for it, and stopped sending it after a released client refused the
+    # whole search body over that one field. What these two tests are about is
+    # unchanged — how the members are read and shaped.
+    summary = project_checks_summary(row, include_components=True)
 
     assert summary is not None
     assert summary.checks_passed_percent is None
@@ -796,7 +804,11 @@ def test_project_checks_summary_backfills_legacy_setup_presentations() -> None:
         object_kind="setup",
     )
 
-    summary = project_checks_summary(row)
+    # The member list belongs to the detail projection: a card never carried a
+    # reader for it, and stopped sending it after a released client refused the
+    # whole search body over that one field. What these two tests are about is
+    # unchanged — how the members are read and shaped.
+    summary = project_checks_summary(row, include_components=True)
 
     assert summary is not None
     assert summary.components is not None
