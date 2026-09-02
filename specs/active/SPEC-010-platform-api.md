@@ -24,7 +24,7 @@ The mechanics of the execution layer, background worker, and deployment are deta
 ## Requirements
 
 - `REQ-1001`: The platform uses FastAPI `/v1`, PostgreSQL, PostgreSQL-backed jobs, and RustFS/S3.
-- `REQ-1002`: Sign-in supports Google and GitHub with a separate account-linking flow.
+- `REQ-1002`: Sign-in supports Google and GitHub with a separate account-linking flow. OAuth callbacks use an exact same-origin path registered at the provider; the versioned API path is the default, and a deployment may declare a provider-registered compatibility path without accepting a foreign origin, query, fragment, or path separator.
 - `REQ-1003`: Authorization is checked for every object and action; an account identifier alone does not grant access.
 - `REQ-1004`: Private artifacts are not directly accessible from storage and are served only after object authorization is checked.
 - `REQ-1005`: Mutating requests use idempotency keys and optimistic concurrency through a revision or ETag.
@@ -56,7 +56,7 @@ Database changes use an expand, migrate, switch, and contract sequence. API fiel
 | Requirement | Executable verification method |
 |---|---|
 | `REQ-1001` | A clean integration environment starts the API, database, job processor, and object storage. |
-| `REQ-1002` | Authentication tests cover sign-in, linking, conflict, revocation, and sign-out. |
+| `REQ-1002` | Authentication tests cover sign-in, linking, conflict, revocation, sign-out, exact redirect construction, and a configured same-origin compatibility callback path. |
 | `REQ-1003` | The authorization matrix covers the owner, a permission recipient, an unrelated user, and an administrator. |
 | `REQ-1004` | A direct object address without an authorized API request is rejected. |
 | `REQ-1005` | A repeated request and stale ETag do not create duplicate effects. |

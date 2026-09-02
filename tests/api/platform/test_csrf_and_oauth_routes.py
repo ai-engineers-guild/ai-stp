@@ -375,6 +375,54 @@ async def test_oauth_callback_browser_error_redirects_to_login_not_json(
             assert "status=error" in location
 
 
+async def test_configured_google_compatibility_callback_reaches_the_same_flow(
+    migrated_database_url: str,
+    settings_factory: Callable[..., Settings],
+) -> None:
+    """A provider-registered compatibility path must not fall through to web/404."""
+    from authlib.integrations.base_client import OAuthError
+    from tests.api.platform.conftest import make_test_auth
+
+    callback_path = "/api/auth/callback/google"
+    settings = settings_factory(
+        database_url=migrated_database_url,
+        auth=make_test_auth(google_callback_path=callback_path),
+    )
+    app = create_app(settings)
+
+    async with app.router.lifespan_context(app):
+        google = app.state.oauth.create_client("google")  # type: ignore[attr-defined]
+        assert google is not None
+        captured: dict[str, str] = {}
+
+        async def capture_redirect(request: object, redirect_uri: str) -> RedirectResponse:
+            del request
+            captured["redirect_uri"] = redirect_uri
+            return RedirectResponse(url="https://accounts.google.com/o/oauth2")
+
+        google.authorize_redirect = capture_redirect  # type: ignore[method-assign]
+        google.authorize_access_token = AsyncMock(  # type: ignore[method-assign]
+            side_effect=OAuthError("invalid_grant", "test refusal")
+        )
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            started = await client.get(
+                "/v1/auth/google/login",
+                params={"client": "web"},
+                follow_redirects=False,
+            )
+            assert started.status_code in {302, 307}
+            assert captured["redirect_uri"] == f"http://test{callback_path}"
+
+            callback = await client.get(
+                callback_path,
+                headers={"Accept": "text/html"},
+                follow_redirects=False,
+            )
+            assert callback.status_code == 303
+            assert "status=error" in callback.headers["location"]
+
+
 async def test_login_passes_oauth_redirect_base_as_redirect_uri(
     migrated_database_url: str,
     settings_factory: Callable[..., Settings],

@@ -261,6 +261,15 @@ def test_deployment_verification_reports_only_declared_probe_origins() -> None:
     assert "${BASE}" not in success
 
 
+def test_edge_routes_the_google_compatibility_callback_to_the_api() -> None:
+    config = Path("deploy/nginx/ai-stp.conf.template").read_text(encoding="utf-8")
+    block = config.split("location = /api/auth/callback/google", maxsplit=1)[1].split(
+        "}", maxsplit=1
+    )[0]
+
+    assert "proxy_pass http://@@API_BIND@@" in block
+
+
 def test_no_workflow_carries_a_deployment_credential_or_reaches_the_target() -> None:
     """Untrusted pull-request code and the deployment share no job at all.
 
