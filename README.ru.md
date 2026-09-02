@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img src="assets/readme/ru/hero.png" width="100%" alt="ai_stp: соберите, проверьте и установите полный сетап через вашего агента. Пять рук замыкают петлю вокруг знака продукта.">
+  <img src="assets/readme/ru/hero.png" width="100%" alt="ai-stp: подберите, проверьте и установите полный сетап через агента.">
 </p>
 
 <p align="center">
@@ -13,64 +13,68 @@
   <a href="https://ai-stp.aiguild.space"><img src="https://img.shields.io/badge/catalog-ai--stp.aiguild.space-black" alt="catalog"></a>
 </p>
 
-Проект [AI Engineers Guild](https://github.com/ai-engineers-guild). Первичный
-потребитель — **агент** пользователя через строгий машинный CLI. Каждая
-команда отвечает одним JSON-конвертом с типизированными ошибками и явными
-следующими шагами. Веб владеет учётной записью и публичным каталогом и
-показывает результаты. Создание паспортов, индекс, подбор, сборка, проверка и
-установка принадлежат CLI и агенту.
+Команда — `ai-stp`. Дистрибутив на PyPI — `ai-stp-cli`. Первичный потребитель —
+агент пользователя: каждая команда отвечает одним JSON-конвертом. `ai-stp` не
+вызывает API модели и не требует ключа модели.
 
 <p align="center">
-  <img src="assets/readme/shared/kinds.png" width="100%" alt="Восемь видов компонентов в одном сетапе: instruction, skill, mcp, hook, command, agent, plugin, setting.">
+  <img src="assets/readme/ru/section-what.svg" width="100%" alt="01 Один сетап, восемь видов, точные версии">
 </p>
 
 <p align="center">
-  <img src="assets/readme/ru/section-what.svg" width="100%" alt="01 Что это">
-</p>
-
-**Сетап** — полная конфигурация одного харнесса: `instruction`, `skill`,
-`mcp`, `hook`, `command`, `agent`, `plugin` и `setting`. Память, правила и
-вспомогательные инструменты живут внутри этих видов. Каждая устанавливаемая
-версия привязана к харнессу, версии харнесса, операционной системе, точным
-версиям компонентов и результатам проверки.
-
-`ai-stp` не вызывает API модели и не требует ключа модели. Итоговое нативное
-состояние харнесса пишет только его публичный **провайдер** — выпущенный и
-подписанный исполняемый setup-system. `ai-stp` проверяет граф компонентов,
-собирает детерминированный пакет и ведёт провайдера по плану с digest,
-резервной копией и откатом. Провайдеры живут в
-[NDDev-OpenNetwork](https://github.com/NDDev-OpenNetwork) под своими
-лицензиями.
-
-<p align="center">
-  <img src="assets/readme/ru/section-how.svg" width="100%" alt="02 Как это работает">
+  <img src="assets/readme/shared/setup-core.png" width="100%" alt="Сетап — связанный граф компонентов вокруг ядра одного харнесса.">
 </p>
 
 <p align="center">
-  <img src="assets/readme/shared/workflow.svg" width="100%" alt="Жизненный цикл: install, passports, select, plan, apply, restore.">
+  <img src="assets/readme/shared/kinds.png" width="100%" alt="Восемь видов: instruction, skill, mcp, hook, command, agent, plugin, setting.">
 </p>
 
-```text
-установка CLI
-→ паспорта разработчика и устройства
-→ индекс проекта
-→ поиск и сборка сетапа
-→ проверки
-→ план установки и резервная копия
-→ apply через провайдера харнесса
-→ проверка состояния; restore при отказе
-→ необязательная облачная синхронизация
-```
-
-Без аккаунта: локальный реестр, паспорта, индекс проекта, анонимное чтение
-публичного каталога, подбор и установка публичных объектов.
-
-После входа через Google или GitHub: облачная копия личного реестра,
-приватные объекты, публикация, устройства и их ключи, выдачи доступа и
-отчёты.
+**Сетап** с создания принадлежит одному харнессу. Восемь видов:
+`instruction`, `skill`, `mcp`, `hook`, `command`, `agent`, `plugin`,
+`setting`. Память и правила — содержимое этих видов, не отдельные виды.
+Опубликованная версия закрепляет точные версии компонентов и неизменяема.
 
 <p align="center">
-  <img src="assets/readme/ru/section-use.svg" width="100%" alt="03 Первый запуск">
+  <img src="assets/readme/ru/section-how.svg" width="100%" alt="02 CLI собирает. Провайдер пишет.">
+</p>
+
+<p align="center">
+  <img src="assets/readme/ru/roles.svg" width="100%" alt="CLI и агент подбирают и собирают пакет. Веб владеет аккаунтом и каталогом. Нативное состояние харнесса пишет только провайдер.">
+</p>
+
+<p align="center">
+  <img src="assets/readme/shared/workflow.svg" width="100%" alt="install, passports, select, план с digest и backup, apply провайдера, restore при отказе.">
+</p>
+
+<p align="center">
+  <img src="assets/readme/shared/trust-boundary.svg" width="100%" alt="Граница доверия: origin, version, consent.">
+</p>
+
+<p align="center">
+  <img src="assets/readme/shared/compatibility-gate.svg" width="100%" alt="Шлюз совместимости: graph, target и policy решают до apply.">
+</p>
+
+<p align="center">
+  <img src="assets/readme/shared/immutable-artifact.svg" width="100%" alt="Опубликованные байты проходят digest и хранятся как неизменяемый артефакт.">
+</p>
+
+<p align="center">
+  <img src="assets/readme/shared/signed-publication.svg" width="100%" alt="Публикация связывает digest, версию объекта, политику и устройство.">
+</p>
+
+<p align="center">
+  <img src="assets/readme/shared/sync-cursor.svg" width="100%" alt="Синхронизация продолжается с последнего подтверждённого cursor.">
+</p>
+
+Подтверждение автора — это происхождение, а не вердикт о безопасности байтов.
+`author_verified` и `component_verified` независимы.
+
+<p align="center">
+  <img src="assets/readme/ru/modes.svg" width="100%" alt="Локально без аккаунта, анонимное чтение каталога, после входа — приватная синхронизация и публикация.">
+</p>
+
+<p align="center">
+  <img src="assets/readme/ru/section-use.svg" width="100%" alt="03 Поставьте CLI, дальше ведёт агент">
 </p>
 
 ```bash
@@ -78,7 +82,8 @@ uv tool install ai-stp-cli
 ai-stp doctor --json
 ```
 
-Затем отдайте агенту машинный реестр:
+<details>
+<summary>Следующие команды агент должен взять из машинного реестра</summary>
 
 ```bash
 ai-stp help --agent --json
@@ -86,8 +91,10 @@ ai-stp passport developer init --json
 ai-stp device init --json
 ```
 
-Каждая команда принимает `--json`. Тот же реестр питает человеческую справку.
-Исполняемый файл — `ai-stp`; имя дистрибутива — `ai-stp-cli`.
+`ai-stp` — имя исполняемого файла. `ai-stp-cli` — имя пакета. Команда
+`uv tool install ai-stp` ставит дистрибутив, который этот проект не публикует.
+
+</details>
 
 ## Поддерживаемые харнессы
 
@@ -97,6 +104,8 @@ ai-stp device init --json
 | Бета | Pi, OpenCode, Cursor, Antigravity |
 | ограниченный режим | `undefined` для неизвестного харнесса |
 
+Неизвестный харнесс автоматически не устанавливается.
+
 ## Стратегическое направление: Rust и plugin-архитектура в духе Pi
 
 **By 31 December 2026, `ai-stp` will be rewritten in Rust and migrated to a
@@ -105,26 +114,16 @@ public CLI and API contracts while separating a lightweight, deterministic
 core from versioned plugins for harnesses, components, projections, and
 provider-specific integrations.
 
-## Стадия
+<details>
+<summary>Стадия, участие, документация</summary>
 
-Единственный владелец текущего статуса фазы —
-[`docs/engineering/implementation-roadmap.md`](docs/engineering/implementation-roadmap.md).
-Этот README не копирует его таблицу: CLI, платформа и evidence выпуска
-двигаются с разной скоростью, и одно слово «готово» спрятало бы незакрытые
-внешние доказательства.
+Статус фазы принадлежит
+[`docs/engineering/implementation-roadmap.md`](docs/engineering/implementation-roadmap.md):
+это файл, который нужно открыть за текущим evidence, а не краткое изложение здесь.
 
-## Разработка
-
-Участники работают в личных ветках и открывают pull request в `main`. `main`
-— единственная линия. Процесс описан в
-[`docs/engineering/git-workflow.md`](docs/engineering/git-workflow.md).
-
-- [CONTRIBUTING.md](CONTRIBUTING.md): как изменения попадают в репозиторий.
-- [SECURITY.md](SECURITY.md): как сообщить об уязвимости.
-- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md): правила участия.
-
-## Документация
-
+- [CONTRIBUTING.md](CONTRIBUTING.md): how changes enter this repository.
+- [SECURITY.md](SECURITY.md): how to report a vulnerability.
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md): expectations for participation.
 - [AGENTS.md](AGENTS.md): rules for people and agents. Read before any repository change.
 - [docs/index.md](docs/index.md): map of product, architecture, contract, engineering, and operations documentation.
 - [docs/product/vision.md](docs/product/vision.md): the problem, users, value, and positioning of ai_stp.
@@ -133,16 +132,19 @@ provider-specific integrations.
 - [specs/index.md](specs/index.md): versioned requirements that the code must satisfy.
 - User docs: [English](https://ai-stp.aiguild.space/en/docs) · [Русский](https://ai-stp.aiguild.space/ru/docs)
 
-## Лицензия
+</details>
 
-AGPL-3.0-or-later. Лицензия покрывает и сетевое использование платформы: если
-`ai-stp` предлагается пользователям как сервис, исходный код изменённой версии
-остаётся им доступен.
+<details>
+<summary>Лицензия</summary>
 
-Каталог принадлежит гильдии. NDDev предоставляет публичные провайдеры
-харнессов; они остаются отдельными проектами под своими лицензиями и этим
-репозиторием не перелицензируются.
+AGPL-3.0-or-later. Сетевое использование платформы покрыто: если `ai-stp`
+предлагается как сервис, исходный код изменённой версии остаётся доступен
+этим пользователям.
 
-Компоненты и сетапы, опубликованные пользователями, — самостоятельные
-произведения под лицензиями своих авторов; лицензия платформы на них не
-распространяется.
+Каталог принадлежит гильдии. Публичные провайдеры харнессов — отдельные
+проекты под своими лицензиями.
+
+Компоненты и сетапы пользователей — самостоятельные произведения под
+лицензиями авторов; лицензия платформы на них не распространяется.
+
+</details>
