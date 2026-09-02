@@ -37,7 +37,7 @@ on:
         default: false
         type: boolean
       scope:
-        description: "Projection scope to drive: global (the harness home) or project (the indexed workspace)"
+        description: "Projection scope to drive: global (harness home) or project (workspace)"
         required: false
         default: "global"
         type: choice

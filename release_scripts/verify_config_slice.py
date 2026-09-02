@@ -105,7 +105,12 @@ def _surface(harness_id: str, home: Path, *, scope: str = "global") -> tuple[Pat
     from ai_stp_cli.local import components, composition
 
     if scope == "project":
-        base = home / "project"
+        # Seeded in a workspace of its own, not in the one the row installs
+        # into: capturing from the target and installing back into it is a
+        # no-op the provider rightly records as nothing written, and nothing to
+        # remove. The row models the real arc — one repository's surface,
+        # carried into another.
+        base = home / "seed"
         rules = [rule for rule in components.PROJECT_RULES if rule.harness_id == harness_id]
         rules = [
             rule
@@ -238,7 +243,7 @@ def _adopted(
         harness_id,
     ]
     if scope == "project":
-        arguments += ["--root", str(home / "project")]
+        arguments += ["--root", str(home / "seed")]
     adopted = _stage("adopt", arguments, home=home, python=python)
     stages.append(adopted)
     if adopted["outcome"] != PASSED:
@@ -483,15 +488,22 @@ def _project_id(home: Path, python: str) -> str:
 
 
 def _landed(target: Path, relative: str, kind: str) -> bool:
-    """Whether the native surface under the target holds the seeded component now."""
+    """Whether the native surface under the target holds the seeded component now.
+
+    A file, never a directory: a provider removes the files it wrote and leaves
+    an empty `probe/` behind, and a check that counted the directory reported
+    a removal as not having happened.
+    """
     place = target / relative
     if kind == "instruction" and place.is_file():
         return "Probe" in place.read_text(encoding="utf-8", errors="replace")
     if not place.is_dir():
         return False
-    # A directory surface: the seeded skill directory, or one instruction
-    # entry such as `probe.mdc` under a rules directory.
-    return any(item.name.split(".")[0] == "probe" for item in place.iterdir())
+    candidates = [place / "probe" / "SKILL.md", *place.glob("probe.*")]
+    return any(
+        item.is_file() and "Probe" in item.read_text(encoding="utf-8", errors="replace")
+        for item in candidates
+    )
 
 
 def _settle(
