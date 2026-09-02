@@ -80,17 +80,22 @@ def test_off_windows_discovery_is_unavailable_and_names_why() -> None:
     assert "Windows-only" in capability.evidence[0]
 
 
-def test_the_probe_child_is_the_same_text_the_linux_launcher_uses() -> None:
-    """`#51` requires the same class of probe, and this is how that is kept true.
+def test_the_windows_probe_child_answers_in_the_shared_vocabulary() -> None:
+    """Not the same text as the Linux child, and the same reading.
 
-    Two texts that resemble each other drift; one text cannot. If this ever
-    fails it means someone gave Windows its own child, and the claim that the
-    two denials are established the same way stopped being true at that commit.
+    The Windows child is PowerShell for the reason `WINDOWS_CHILD_PROBE` gives.
+    What must not drift is the answer: the three keys and the words the parent
+    compares against, so `_probe` on both platforms is one reading of one
+    vocabulary rather than two probes that happen to agree today.
     """
+    for word in ("ipv4", "ipv6", "dns_udp", "reachable", "denied", "sent", "send_failed"):
+        assert f"'{word}'" in windows_launcher.WINDOWS_CHILD_PROBE, word
+        assert f'"{word}"' in CHILD_PROBE, word
+    assert "ai-stp-dns-probe" in windows_launcher.WINDOWS_CHILD_PROBE
     assert "ai-stp-dns-probe" in CHILD_PROBE
-    # Reaching through the Windows module on purpose: that the name it holds
-    # is the Linux module's object is the assertion, not an accident of import.
-    assert CHILD_PROBE is windows_launcher.CHILD_PROBE  # pyright: ignore[reportPrivateImportUsage]
+    tail = windows_launcher.encoded_command("Write-Output 1")
+    assert tail[-2] == "-EncodedCommand"
+    assert "Write-Output 1".encode("utf-16-le") == __import__("base64").b64decode(tail[-1])
 
 
 @pytest.mark.skipif(not WINDOWS, reason="exercises the real isolation boundary")
@@ -109,22 +114,19 @@ def test_the_isolated_spawn_reaches_the_target_and_not_the_network() -> None:
 
     target = Path(os.environ["TEMP"]) / "ai-stp-appcontainer-run"
     target.mkdir(parents=True, exist_ok=True)
-    child = (
-        "import json, pathlib, sys\n"
-        "place = pathlib.Path(sys.argv[1]) / 'written-inside'\n"
-        "place.write_text('inside', encoding='utf-8')\n"
-        "print(json.dumps({'written': place.read_text(encoding='utf-8')}))\n"
+    place = target / "written-inside"
+    script = (
+        f"Set-Content -LiteralPath '{place}' -Value 'inside' -NoNewline -Encoding ascii\n"
+        f"$written = Get-Content -LiteralPath '{place}' -Raw\n"
+        "Write-Output (ConvertTo-Json @{written = $written} -Compress)\n"
     )
     answer = launcher.run(
-        (_base_python(), "-c", child, str(target)), target=target, command="probe"
+        (str(windows_launcher.powershell()), *windows_launcher.encoded_command(script)),
+        target=target,
+        command="probe",
     )
     assert answer == {"written": "inside"}, answer
-    assert (target / "written-inside").read_text(encoding="utf-8") == "inside"
-
-
-def _base_python() -> str:
-    """The interpreter a container can run: the base one, not a venv launcher."""
-    return str(getattr(sys, "_base_executable", None) or sys.executable)
+    assert place.read_text(encoding="utf-8") == "inside"
 
 
 def _unproved(reason: str) -> NoReturn:
@@ -150,9 +152,9 @@ if launcher is None:
     print("UNPROVED " + capability.evidence[0], flush=True)
     sys.exit(3)
 print("READY", flush=True)
-python = str(getattr(sys, "_base_executable", None) or sys.executable)
+sleeper = windows_launcher.encoded_command("Start-Sleep -Seconds 120")
 launcher.run(
-    (python, "-c", "import time; time.sleep(120)"),
+    (str(windows_launcher.powershell()), *sleeper),
     target=Path(sys.argv[1]),
     command="sleep",
 )
