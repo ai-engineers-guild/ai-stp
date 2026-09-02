@@ -17,6 +17,11 @@ from ai_stp_contracts.machine_help import SetupUpdatePlan, SetupUpdateResult
 from ai_stp_foundation.harnesses import HARNESS_IDS
 from ai_stp_sources.models import SourceSnapshot
 
+_UPDATE_PLAN_ACTION = (
+    "setup update plan --id <id> --version <X.Y> --component-id <component_id> "
+    "--harness <harness> --source <source> --json"
+)
+
 
 @dataclass(frozen=True)
 class _Request:
@@ -78,20 +83,20 @@ def _request(parameters: Mapping[str, object]) -> _Request:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
             "a setup identifier and exact version are both required",
-            next_actions=["setup update plan --id <id> --version <X.Y> --json"],
+            next_actions=[_UPDATE_PLAN_ACTION],
         )
     harness = str(parameters.get("harness") or "")
     if harness not in HARNESS_IDS:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
             "a supported harness identifier is required",
-            next_actions=["setup update plan --harness <id> --json"],
+            next_actions=[_UPDATE_PLAN_ACTION],
         )
     if not source:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
             "an exact update snapshot is required",
-            next_actions=["setup update plan --id <id> --version <X.Y> --json"],
+            next_actions=[_UPDATE_PLAN_ACTION],
         )
     intent = embedded_update.parse_source(
         source,

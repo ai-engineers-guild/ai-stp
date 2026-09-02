@@ -39,6 +39,10 @@ from ai_stp_sources.resolve import resolve_source
 
 PLAN_DOMAIN: Final[str] = "ai-stp:plan:v1"
 Resolver = Callable[[SourceIntent], SourceSnapshot]
+_UPDATE_PLAN_ACTION = (
+    "setup update plan --id <id> --version <X.Y> --component-id <component_id> "
+    "--harness <harness> --source <source> --json"
+)
 
 
 def plan(
@@ -112,7 +116,7 @@ def apply(
         raise CliFailure(
             "AI_STP_USER_DECISION_REQUIRED",
             "setup update apply requires explicit confirmation",
-            next_actions=["setup update plan --id <id> --version <X.Y> --json"],
+            next_actions=[_UPDATE_PLAN_ACTION],
         )
     _require_component_id(component_id)
     frozen, from_version, selected = _freeze_replacement(
@@ -141,14 +145,14 @@ def apply(
             "AI_STP_PLAN_STALE",
             "the update plan digest changed before apply",
             details={"expected": expected_plan_digest, "found": digest},
-            next_actions=["setup update plan --id <id> --version <X.Y> --json"],
+            next_actions=[_UPDATE_PLAN_ACTION],
         )
     current = selection.selected(connection, project_id=project_id, harness_id=harness_id)
     if (selected or ()) != (current or ()):
         raise CliFailure(
             "AI_STP_PLAN_STALE",
             "the selected setup changed before the update was confirmed",
-            next_actions=["setup update plan --id <id> --version <X.Y> --json"],
+            next_actions=[_UPDATE_PLAN_ACTION],
         )
 
     recorded = versions.held(connection, setup_id, version)
@@ -232,7 +236,7 @@ def parse_source(source: str, *, commit: str | None, subpath: str | None) -> Sou
             raise CliFailure(
                 "AI_STP_VALIDATION_ERROR",
                 "an exact update snapshot is required",
-                next_actions=["setup update plan --id <id> --version <X.Y> --json"],
+                next_actions=[_UPDATE_PLAN_ACTION],
             )
         return PathIntent(relative_path=relative)
     if value.startswith("package:"):
@@ -243,7 +247,7 @@ def parse_source(source: str, *, commit: str | None, subpath: str | None) -> Sou
             raise CliFailure(
                 "AI_STP_VALIDATION_ERROR",
                 "an exact update snapshot is required",
-                next_actions=["setup update plan --id <id> --version <X.Y> --json"],
+                next_actions=[_UPDATE_PLAN_ACTION],
             )
         return PackageIntent(
             ecosystem=ecosystem,  # pyright: ignore[reportArgumentType]
@@ -254,7 +258,7 @@ def parse_source(source: str, *, commit: str | None, subpath: str | None) -> Sou
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
             "an exact update snapshot is required",
-            next_actions=["setup update plan --id <id> --version <X.Y> --json"],
+            next_actions=[_UPDATE_PLAN_ACTION],
         )
     repository = (
         value
@@ -282,7 +286,7 @@ def _require_component_id(component_id: str) -> None:
             "AI_STP_VALIDATION_ERROR",
             "the update requires an exact component identifier, not a name",
             details={"given": component_id},
-            next_actions=["setup update plan --id <id> --component-id <component_…> --json"],
+            next_actions=[_UPDATE_PLAN_ACTION],
         )
 
 
@@ -365,7 +369,7 @@ def _freeze_replacement(
             "AI_STP_NOT_FOUND",
             "the named embedded component is not in this setup",
             details={"component_id": component_id},
-            next_actions=["setup update plan --id <id> --version <X.Y> --json"],
+            next_actions=[_UPDATE_PLAN_ACTION],
         )
 
     catalog_members = _catalog_members(
