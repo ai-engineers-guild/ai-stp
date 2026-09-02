@@ -96,6 +96,17 @@ _JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE: Final[int] = 0x00002000
 
 _PROBE_TIMEOUT: Final[float] = 20.0
 
+#: What Windows itself reads from a child's environment block before the child
+#: runs a single instruction, whatever the provider boundary lets through.
+#: `SystemRoot` is the one the loader resolves at `CreateProcessW`; a block
+#: without it is answered with `ERROR_ENVVAR_NOT_FOUND` (203), which is the
+#: "[Errno 203] the provider could not be started isolated" every hosted-runner
+#: probe reported after the allowlist arrived, while `ADR-0133`'s own
+#: measurement passed because it inherited the whole environment. Taken from
+#: this process, never from the caller: these are the system's names, not the
+#: boundary's, and the allowlist in `protocol.Boundary` stays what it is.
+_SYSTEM_ENVIRONMENT: Final[tuple[str, ...]] = ("SystemRoot",)
+
 
 def _windows() -> bool:
     return platform.system().casefold() == "windows"
@@ -354,7 +365,9 @@ class AppContainerProcess:
         start.hStdInput = None
         start.lpAttributeList = ctypes.cast(self._attributes, ctypes.c_void_p)
         information = _ProcessInformation()
-        block = "\0".join(f"{name}={value}" for name, value in sorted(env.items())) + "\0\0"
+        system = {name: os.environ[name] for name in _SYSTEM_ENVIRONMENT if name in os.environ}
+        merged = {**system, **env}
+        block = "\0".join(f"{name}={value}" for name, value in sorted(merged.items())) + "\0\0"
         created = api.kernel.CreateProcessW(
             None,
             ctypes.create_unicode_buffer(subprocess.list2cmdline(argv)),
@@ -373,6 +386,9 @@ class AppContainerProcess:
             self._close_job()
             raise OSError(ctypes.get_last_error(), "the provider could not be started isolated")
         self._handle = ctypes.c_void_p(information.hProcess)
+        #: The child's identifier, for the one caller that must find it from
+        #: outside: the measurement of what happens to it when this process dies.
+        self.pid = int(information.dwProcessId)
         thread = ctypes.c_void_p(information.hThread)
         # Assigned while suspended, so there is no interval in which the
         # provider is running and outside the job. A failure here is fatal
