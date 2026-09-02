@@ -479,6 +479,42 @@ def test_an_answer_inside_the_limit_is_read_normally(tmp_path: Path) -> None:
     assert answer == {"state": "verified"}
 
 
+def test_a_provider_answer_split_across_pipe_reads_is_complete() -> None:
+    """Windows pipes may return the bytes currently available before EOF."""
+
+    class Stream:
+        chunks = iter((b'{"state":', b'"verified"}', b""))
+
+        def read(self, _size: int) -> bytes:
+            return next(self.chunks)
+
+    class Process:
+        stdout = Stream()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args: object) -> None:
+            return None
+
+        def kill(self) -> None:
+            return None
+
+        def wait(self) -> int:
+            return 0
+
+    raw, over_limit = conformance._bounded_output(  # pyright: ignore[reportPrivateUsage]
+        ["provider", "status"],
+        limit=1024,
+        timeout_seconds=1,
+        environment={},
+        spawn=lambda _argv, _environment: cast(conformance.ProcessLike, Process()),
+    )
+
+    assert raw == b'{"state":"verified"}'
+    assert over_limit is False
+
+
 def test_a_provider_that_never_answers_is_killed_and_raises_the_timeout(
     tmp_path: Path,
 ) -> None:

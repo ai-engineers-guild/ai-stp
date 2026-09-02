@@ -1229,6 +1229,13 @@ def _surfaces(
             document.get("component_type") or _value(facts.get("component_type")) or ""
         )
         harness_id = str(document.get("harness_id") or _value(facts.get("harness_id")) or "")
+        managed_paths = composition.rerooted(
+            component_type,
+            harness_id,
+            _document_strings(document, facts, "managed_paths"),
+            scope=scope,
+        )
+        source_name = str(_value(facts.get("source_name")) or source_path.rsplit("/", 1)[-1])
         surfaces.append(
             composition.Surface(
                 stable_id=node.stable_id,
@@ -1236,16 +1243,11 @@ def _surfaces(
                 component_type=component_type,
                 harness_id=harness_id,
                 revision_id=node.revision_id,
-                source_name=str(_value(facts.get("source_name")) or source_path.rsplit("/", 1)[-1]),
+                source_name=source_name,
                 content_format=str(
                     document.get("artifact_format") or _value(facts.get("content_format")) or ""
                 ),
-                managed_paths=composition.rerooted(
-                    component_type,
-                    harness_id,
-                    _document_strings(document, facts, "managed_paths"),
-                    scope=scope,
-                ),
+                managed_paths=managed_paths,
                 native_ids=_document_strings(document, facts, "native_ids"),
                 permissions=_document_permissions(document, facts),
                 required_env=_document_required_env(document, facts),

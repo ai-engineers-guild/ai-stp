@@ -302,7 +302,13 @@ def _bounded_output(
         watchdog = threading.Timer(timeout_seconds, _stop)
         watchdog.start()
         try:
-            raw = stream.read(limit + 1)
+            output = bytearray()
+            while len(output) <= limit:
+                chunk = stream.read(min(64 * 1024, limit + 1 - len(output)))
+                if not chunk:
+                    break
+                output.extend(chunk)
+            raw = bytes(output)
         finally:
             watchdog.cancel()
 

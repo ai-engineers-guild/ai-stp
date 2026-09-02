@@ -55,6 +55,23 @@ compose() {
   docker compose "${args[@]}" "$@"
 }
 
+compose_service_volume() {
+  local service="$1"
+  local destination="$2"
+  local container volume
+  container="$(compose ps -q --all "${service}" | head -n1)"
+  [[ -n "${container}" ]] || die "${service}_container_not_found"
+  volume="$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "'"${destination}"'"}}{{.Name}}{{end}}{{end}}' "${container}")"
+  [[ -n "${volume}" ]] || die "${service}_volume_not_found"
+  printf '%s\n' "${volume}"
+}
+
+oauth_identity_fingerprint() {
+  compose exec -T postgres sh -c \
+    'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -AtF "|" -c "SELECT provider, provider_subject, account_id, state FROM oauth_identity ORDER BY provider, provider_subject"' \
+    | tr -d '\r' | sha256sum | awk '{print $1}'
+}
+
 ensure_state_dir() {
   mkdir -p "${AI_STP_STATE_DIR}" "${AI_STP_BACKUP_DIR}"
 }

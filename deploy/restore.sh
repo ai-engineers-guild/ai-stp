@@ -46,8 +46,10 @@ done
 [[ "${YES}" -eq 1 ]] || die "refusing restore without --yes"
 [[ -f "${FROM}/postgres/ai_stp.dump" ]] || die "missing postgres dump in backup"
 [[ -d "${FROM}/rustfs" ]] || die "missing rustfs directory in backup"
+[[ -f "${FROM}/MANIFEST.txt" ]] || die "missing backup manifest"
 
 require_cmd docker
+require_cmd sha256sum
 log info "restore_start"
 
 # Stop writers that depend on database/storage identity before restore.
@@ -56,15 +58,40 @@ compose stop api worker web seed migrate content-import >/dev/null 2>&1 || true
 # Restore PostgreSQL.
 compose cp "${FROM}/postgres/ai_stp.dump" postgres:/tmp/ai_stp.dump >/dev/null
 if ! compose exec -T postgres sh -c \
+  'pg_restore --list /tmp/ai_stp.dump | awk '\''$4 == "TABLE" && $5 == "DATA" && $6 == "public" && $7 == "oauth_identity" { found=1 } END { exit !found }'\'''; then
+  die "postgres_dump_missing_oauth_identity"
+fi
+if ! compose exec -T postgres sh -c \
+  'pg_restore --list /tmp/ai_stp.dump | awk '\''$4 == "SEQUENCE" && $5 == "SET" && $6 == "public" && $7 == "oauth_identity_id_seq" { found=1 } END { exit !found }'\'''; then
+  die "postgres_dump_missing_oauth_identity_sequence"
+fi
+if ! compose exec -T postgres sh -c \
   'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner /tmp/ai_stp.dump'; then
   die "postgres_restore_failed"
 fi
 compose exec -T postgres rm -f /tmp/ai_stp.dump >/dev/null 2>&1 || true
+EXPECTED_ACCOUNT_COUNT="$(state_field "${FROM}/MANIFEST.txt" account_count)"
+EXPECTED_OAUTH_IDENTITY_COUNT="$(state_field "${FROM}/MANIFEST.txt" oauth_identity_count)"
+EXPECTED_OAUTH_IDENTITY_FINGERPRINT="$(state_field "${FROM}/MANIFEST.txt" oauth_identity_fingerprint)"
+RESTORED_ACCOUNT_COUNT="$(compose exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atqc "SELECT count(*) FROM account"')"
+RESTORED_OAUTH_IDENTITY_COUNT="$(compose exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atqc "SELECT count(*) FROM oauth_identity"')"
+RESTORED_OAUTH_IDENTITY_FINGERPRINT="$(oauth_identity_fingerprint)"
+[[ "${RESTORED_ACCOUNT_COUNT}" =~ ^[0-9]+$ ]] || die "postgres_account_count_failed"
+[[ "${RESTORED_OAUTH_IDENTITY_COUNT}" =~ ^[0-9]+$ ]] || die "postgres_oauth_identity_count_failed"
+[[ "${RESTORED_OAUTH_IDENTITY_FINGERPRINT}" =~ ^[0-9a-f]{64}$ ]] || die "postgres_oauth_identity_fingerprint_failed"
+if [[ -n "${EXPECTED_ACCOUNT_COUNT}" && "${RESTORED_ACCOUNT_COUNT}" != "${EXPECTED_ACCOUNT_COUNT}" ]]; then
+  die "postgres_account_count_mismatch"
+fi
+if [[ -n "${EXPECTED_OAUTH_IDENTITY_COUNT}" && "${RESTORED_OAUTH_IDENTITY_COUNT}" != "${EXPECTED_OAUTH_IDENTITY_COUNT}" ]]; then
+  die "postgres_oauth_identity_count_mismatch"
+fi
+if [[ -n "${EXPECTED_OAUTH_IDENTITY_FINGERPRINT}" && "${RESTORED_OAUTH_IDENTITY_FINGERPRINT}" != "${EXPECTED_OAUTH_IDENTITY_FINGERPRINT}" ]]; then
+  die "postgres_oauth_identity_fingerprint_mismatch"
+fi
 log info "postgres_restore_ok"
 
 # Restore RustFS volume contents.
-RUSTFS_VOLUME="$(docker volume ls -q | grep -E 'rustfs$' | head -n1 || true)"
-[[ -n "${RUSTFS_VOLUME}" ]] || die "rustfs_volume_not_found"
+RUSTFS_VOLUME="$(compose_service_volume rustfs /data)"
 compose stop rustfs >/dev/null 2>&1 || true
 if ! docker run --rm \
   -v "${RUSTFS_VOLUME}:/dest" \

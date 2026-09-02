@@ -85,6 +85,33 @@ def test_deploy_scripts_always_rerun_content_import() -> None:
         )
 
 
+def test_storage_backup_and_restore_resolve_the_compose_service_volume() -> None:
+    helper = _read("deploy/lib.sh")
+    assert "compose_service_volume()" in helper
+    assert "docker inspect --format" in helper
+    for name in ("deploy/backup.sh", "deploy/restore.sh"):
+        executable = _executable(name)
+        assert "compose_service_volume rustfs /data" in executable
+        assert "docker volume ls" not in executable
+
+
+def test_backup_and_restore_preserve_oauth_identity_data() -> None:
+    helper = _read("deploy/lib.sh")
+    backup = _read("deploy/backup.sh")
+    restore = _read("deploy/restore.sh")
+    assert "compose pause api worker" in backup
+    assert "compose unpause api worker" in backup
+    for text in (backup, restore):
+        assert 'TABLE" && $5 == "DATA"' in text
+        assert "oauth_identity" in text
+        assert "oauth_identity_id_seq" in text
+    assert "oauth_identity_count=" in backup
+    assert "oauth_identity_fingerprint=" in backup
+    assert "postgres_oauth_identity_count_mismatch" in restore
+    assert "postgres_oauth_identity_fingerprint_mismatch" in restore
+    assert "tr -d '\\r'" in helper
+
+
 def test_prod_compose_worker_safety_and_rustfs_health() -> None:
     text = _read("docker-compose.prod.yml")
     assert "Dockerfile.worker-safety" in text

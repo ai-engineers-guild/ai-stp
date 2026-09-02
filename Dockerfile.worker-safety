@@ -78,19 +78,23 @@ ENV PYTHONUNBUFFERED=1 \
 # gate installs, so what production resolves the lockfile with is what CI
 # proved it with; a contract test holds the two together.
 COPY --from=ghcr.io/astral-sh/uv:0.12.1@sha256:cf4eedcaa81655197f625739489effcbe71b61ceb1506f332c3facae5deceded /uv /bin/uv
-WORKDIR /app
-COPY pyproject.toml uv.lock ./
-COPY packages ./packages
-COPY apps/api ./apps/api
-COPY apps/cli ./apps/cli
-COPY apps/platform ./apps/platform
-COPY apps/worker ./apps/worker
-RUN uv sync --locked --no-dev --all-packages
-COPY migrations ./migrations
-COPY alembic.ini ./
 RUN useradd --create-home --uid 10001 appuser \
-    && mkdir -p /var/log/ai_stp /var/lib/ai_stp/osv \
-    && chown -R appuser:appuser /app /var/log/ai_stp /var/lib/ai_stp
+    && mkdir /app \
+    && chown appuser:appuser /app
+WORKDIR /app
+COPY --chown=appuser:appuser pyproject.toml uv.lock ./
+COPY --chown=appuser:appuser packages ./packages
+COPY --chown=appuser:appuser apps/api ./apps/api
+COPY --chown=appuser:appuser apps/cli ./apps/cli
+COPY --chown=appuser:appuser apps/platform ./apps/platform
+COPY --chown=appuser:appuser apps/worker ./apps/worker
+USER appuser
+RUN uv sync --locked --no-dev --all-packages --no-cache
+COPY --chown=appuser:appuser migrations ./migrations
+COPY --chown=appuser:appuser alembic.ini ./
+USER root
+RUN mkdir -p /var/log/ai_stp /var/lib/ai_stp/osv \
+    && chown appuser:appuser /var/log/ai_stp /var/lib/ai_stp /var/lib/ai_stp/osv
 
 # -----------------------------------------------------------------------------
 # worker-safety: app + tools
@@ -110,12 +114,11 @@ RUN sed -i \
       yara=4.5.2-1 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=tools /opt/safety-bin /opt/safety-bin
-COPY --from=tools /opt/safety-venv /opt/safety-venv
-COPY scripts/safety /opt/ai_stp/scripts/safety
+COPY --chown=appuser:appuser --from=tools /opt/safety-bin /opt/safety-bin
+COPY --chown=appuser:appuser --from=tools /opt/safety-venv /opt/safety-venv
+COPY --chown=appuser:appuser scripts/safety /opt/ai_stp/scripts/safety
 RUN chmod +x /opt/ai_stp/scripts/safety/*.sh \
-    && mkdir -p /var/lib/ai_stp/osv \
-    && chown -R appuser:appuser /opt/safety-bin /opt/safety-venv /var/lib/ai_stp /opt/ai_stp
+    && mkdir -p /var/lib/ai_stp/osv
 
 # safety-bin holds native CLIs + symlinks to bandit/pip-audit in safety-venv.
 # Do not put safety-venv/bin ahead of the app venv (would shadow `python`).

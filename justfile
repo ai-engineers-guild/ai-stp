@@ -191,6 +191,7 @@ evidence-sync home_a home_b origin="https://ai-stp.aiguild.space" skip="":
 # `gh`, который в изоляции не находит конфигурацию и сообщает об отсутствии
 # метаданных релиза — не о причине.
 evidence-providers tag harness="":
+    GH_CONFIG_DIR="${GH_CONFIG_DIR:-${APPDATA:+$APPDATA/GitHub CLI}}"; \
     GH_CONFIG_DIR="${GH_CONFIG_DIR:-$HOME/.config/gh}" \
     uv run --locked python -m release_scripts.verify_provider_slice \
         --tag "{{tag}}" \
@@ -209,6 +210,7 @@ evidence-providers tag harness="":
 # Строка на харнесс, исход из пяти, и отсутствующая строка — ошибка, а не ноль
 # отказов. `GH_CONFIG_DIR` нужен по той же причине, что и соседу.
 evidence-software tag harness="":
+    GH_CONFIG_DIR="${GH_CONFIG_DIR:-${APPDATA:+$APPDATA/GitHub CLI}}"; \
     GH_CONFIG_DIR="${GH_CONFIG_DIR:-$HOME/.config/gh}" \
     uv run --locked python -m release_scripts.verify_software_slice \
         --tag "{{tag}}" \
@@ -227,6 +229,7 @@ evidence-software tag harness="":
 # В `just check` не входит по той же причине, что и соседи: гейт не вправе
 # зависеть от чужого релиза. `GH_CONFIG_DIR` нужен `provider fetch`.
 evidence-config tag harness="" from_import="" scope="":
+    GH_CONFIG_DIR="${GH_CONFIG_DIR:-${APPDATA:+$APPDATA/GitHub CLI}}"; \
     GH_CONFIG_DIR="${GH_CONFIG_DIR:-$HOME/.config/gh}" \
     uv run --locked python -m release_scripts.verify_config_slice \
         --tag "{{tag}}" \
@@ -242,6 +245,7 @@ evidence-config tag harness="" from_import="" scope="":
 # дефекта — усыновление из произвольного каталога, версия, которой adopt не
 # возвращает, и контроль claude-code, зеленевший на чужом отказе.
 evidence-contribution tag:
+    GH_CONFIG_DIR="${GH_CONFIG_DIR:-${APPDATA:+$APPDATA/GitHub CLI}}"; \
     GH_CONFIG_DIR="${GH_CONFIG_DIR:-$HOME/.config/gh}" \
     uv run --locked python -m release_scripts.verify_contribution_slice \
         --tag "{{tag}}"

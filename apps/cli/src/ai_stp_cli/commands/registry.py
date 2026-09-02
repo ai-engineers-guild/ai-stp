@@ -596,13 +596,32 @@ def _require_definition_identity(
         or document.get("stable_id") != acquired.passport.stable_id
         or document.get("version") != acquired.passport.version
         or document.get("harness_id") != acquired.passport.harness_id
-        or document.get("components") != expected_refs
+        or _component_ref_tuples(document.get("components")) != _component_ref_tuples(expected_refs)
     ):
         raise CliFailure(
             "AI_STP_CATALOG_INTEGRITY",
             "the setup definition does not match its published passport",
             details={"stable_id": acquired.passport.stable_id},
         )
+
+
+def _component_ref_tuples(value: object) -> tuple[tuple[str, str, str, str], ...] | None:
+    if not isinstance(value, list):
+        return None
+    refs: list[tuple[str, str, str, str]] = []
+    for raw_item in cast(list[object], value):
+        if not isinstance(raw_item, dict):
+            return None
+        item = cast(dict[str, object], raw_item)
+        refs.append(
+            (
+                str(item.get("stable_id") or ""),
+                str(item.get("variant_id") or ""),
+                str(item.get("version") or ""),
+                str(item.get("passport_digest") or ""),
+            )
+        )
+    return tuple(refs)
 
 
 def _artifact_of(view: CatalogVersionView) -> ArtifactRef:

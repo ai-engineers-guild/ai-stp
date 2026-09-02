@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import re
+import tomllib
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any, cast
@@ -52,8 +53,7 @@ ARGUMENT_HIJACK = re.compile(
 
 
 def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome:
-    del manifest
-    findings: list[Finding] = []
+    findings = _validate_contribution(tree, manifest, spec)
     candidates = list(tree.rglob("*"))
     for path in candidates:
         if not path.is_file():
@@ -71,6 +71,83 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
         tool_name="mcp_config_static",
         severity_max="high" if findings else "info",
         findings=findings,
+    )
+
+
+def _validate_contribution(
+    tree: Path, manifest: ArtifactManifest, spec: CheckSpec
+) -> list[Finding]:
+    """Reject MCP bytes that the target harness cannot place in its host config."""
+    if manifest.harness_id not in {"codex", "grok-build", "opencode"}:
+        return []
+    files = [path for path in tree.rglob("*") if path.is_file() and path.name != "component.json"]
+    if len(files) != 1:
+        return [
+            _f(spec, "mcp_contribution_shape", "MCP contribution must contain one file", "", "high")
+        ]
+    path = files[0]
+    rel = path.relative_to(tree).as_posix()
+    try:
+        payload = path.read_text(encoding="utf-8")
+        parsed = (
+            json.loads(payload) if manifest.harness_id == "opencode" else tomllib.loads(payload)
+        )
+    except (OSError, UnicodeError, ValueError):
+        return [
+            _f(
+                spec,
+                "mcp_contribution_format",
+                "MCP contribution does not parse in the harness host format",
+                rel,
+                "high",
+            )
+        ]
+    if not isinstance(parsed, dict) or not parsed:
+        return [
+            _f(
+                spec,
+                "mcp_contribution_shape",
+                "MCP contribution must be a non-empty object",
+                rel,
+                "high",
+            )
+        ]
+    owned_key = "mcp" if manifest.harness_id == "opencode" else "mcp_servers"
+    if owned_key in parsed:
+        return [
+            _f(
+                spec,
+                "mcp_contribution_nested_host",
+                "MCP contribution contains its host key instead of the key value",
+                rel,
+                "high",
+            )
+        ]
+    servers = cast(dict[str, Any], parsed)
+    if not all(bool(name.strip()) and _has_endpoint(server) for name, server in servers.items()):
+        return [
+            _f(
+                spec,
+                "mcp_contribution_server",
+                "MCP contribution must map server names to a command or URL",
+                rel,
+                "high",
+            )
+        ]
+    return []
+
+
+def _has_endpoint(server: object) -> bool:
+    if not isinstance(server, dict):
+        return False
+    value = cast(dict[str, Any], server)
+    url = value.get("url")
+    command = value.get("command")
+    parts = cast(list[Any], command) if isinstance(command, list) else []
+    return (
+        (isinstance(url, str) and bool(url.strip()))
+        or (isinstance(command, str) and bool(command.strip()))
+        or (bool(parts) and all(isinstance(part, str) and bool(part) for part in parts))
     )
 
 

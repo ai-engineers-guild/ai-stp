@@ -1951,3 +1951,54 @@ def test_an_artefact_with_no_manifest_anywhere_is_still_not_applicable(
     )
 
     assert outcome.result == "not_applicable"
+
+
+def test_mcp_config_rejects_uninstallable_codex_package(tmp_path: Path) -> None:
+    from ai_stp_platform.safety.adapters import mcp_config
+
+    (tmp_path / "component.json").write_text("{}", encoding="utf-8")
+    files = tmp_path / "files"
+    files.mkdir()
+    (files / "package.json").write_text('{"name":"context-mode"}', encoding="utf-8")
+
+    outcome = mcp_config.run(
+        tmp_path,
+        ArtifactManifest(component_type="mcp", harness_id="codex"),
+        _spec("mcp_config"),
+    )
+
+    assert outcome.result == "failed"
+    assert {finding.rule_id for finding in outcome.findings} == {"mcp_contribution_format"}
+
+
+def test_mcp_config_accepts_codex_table_contribution(tmp_path: Path) -> None:
+    from ai_stp_platform.safety.adapters import mcp_config
+
+    files = tmp_path / "files"
+    files.mkdir()
+    (files / "context-mode.toml").write_text(
+        '[context-mode]\ncommand = "context-mode"\n', encoding="utf-8"
+    )
+
+    outcome = mcp_config.run(
+        tmp_path,
+        ArtifactManifest(component_type="mcp", harness_id="codex"),
+        _spec("mcp_config"),
+    )
+
+    assert outcome.result == "passed"
+
+
+def test_mcp_config_rejects_toml_that_is_not_a_server_map(tmp_path: Path) -> None:
+    from ai_stp_platform.safety.adapters import mcp_config
+
+    (tmp_path / "package.toml").write_text('[package]\nname = "context-mode"\n', encoding="utf-8")
+
+    outcome = mcp_config.run(
+        tmp_path,
+        ArtifactManifest(component_type="mcp", harness_id="codex"),
+        _spec("mcp_config"),
+    )
+
+    assert outcome.result == "failed"
+    assert {finding.rule_id for finding in outcome.findings} == {"mcp_contribution_server"}

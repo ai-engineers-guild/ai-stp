@@ -50,6 +50,8 @@ docs
 !docs-user-facing/**
 
 # Research / plans / local env
+.backups
+.tmp
 research_sources
 plans
 specs

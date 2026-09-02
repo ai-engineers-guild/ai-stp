@@ -113,7 +113,11 @@ and escaping the root. It does not attempt to semantically assess whether a
 component acts in good faith. `mcp_config_static` separately parses
 tool/schema/resource/prompt/output metadata, name collisions and shadowing,
 dangerous capability chains, and changes to the canonical tool definition
-between approved and current snapshots.
+between approved and current snapshots. For Codex, Grok Build, and OpenCode
+configuration contributions it also rejects package archives, whole host files,
+and arbitrary TOML/JSON: the artifact must be one parseable map from non-empty
+server names to command or URL definitions that can be inserted under the
+harness-owned MCP key.
 
 Public audit: `GET /v1/catalog/{components|setups}/{id}/versions/{version}/checks`.
 
