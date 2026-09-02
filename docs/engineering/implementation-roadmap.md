@@ -50,16 +50,19 @@ plans are not continued literally after the implementation changes.
   Windows row, which is the first measurement of the AppContainer holding a real
   provider and is recorded under P0 below. `0.0.14` remains the last version
   whose six legs were all green.
-- The active provider releases are `0.0.55` and `0.0.56` across all seven
-  public setup-system repositories, each with six native binaries and
-  `SHA256SUMS`, cut on 2026-09-02 by the provider estate's own agent session
-  in step with this side: `0.0.54` declared `plan_request_fields =
-  [target_scope, end_state]` and cursor's `project` profile beside
-  antigravity's; `0.0.55` made `status` accept `--target-scope` and refuse by
-  name a plan whose scope contradicts the target's record; `0.0.56` declares
-  `status_request_fields: [target_scope]` on provider kit `0.2.9`. `just
-  evidence-providers 0.0.55`: seven conformant, no projection disagreement
-  against the rules below.
+- The active provider release is `0.0.57` across all seven public setup-system
+  repositories, each with six native binaries and `SHA256SUMS`, cut on
+  2026-09-02 by the provider estate's own agent session in step with this
+  side. Four releases landed that day, each answering something measured
+  here: `0.0.54` declared `plan_request_fields = [target_scope, end_state]`
+  and cursor's `project` profile beside antigravity's; `0.0.55` made `status`
+  accept `--target-scope` and refuse by name a plan whose scope contradicts
+  the target's record; `0.0.56` declared `status_request_fields:
+  [target_scope]` on provider kit `0.2.9`; `0.0.57` validates a kind declared
+  only at a scope under that scope, and falls back when `canonicalize` cannot
+  answer inside an AppContainer, which is what turned both Windows legs green.
+  `just evidence-providers 0.0.55`: seven conformant, no projection
+  disagreement against the rules below.
 - `software-evidence` — the consumer driving `harness install/status/update/
   remove` through `ai-stp` itself — is green on **all six native legs** against
   `0.0.53`, seven harnesses each. The one-leg limitation this document carried
@@ -83,7 +86,25 @@ plans are not continued literally after the implementation changes.
   measured on `macos-latest`.
 - A bundle and a plan are compiled for one chosen projection scope
   (`REQ-632`): `--scope project` routes onto the workspace surfaces antigravity
-  and cursor declare, and a home compile is byte-identical to before.
+  and cursor declare, `--scope user_root` onto the shared `~/.agents/skills`
+  root pi, opencode, cursor and grok-build declare, and a home compile is
+  byte-identical to before. Both scopes are measured against `0.0.57` on every
+  leg: `project` 12 of 12 rows, `user_root` 30 of 30.
+- A `/v1` response model accepts the additions its own published schema
+  promises. Twenty-six did not, and the first optional field the platform
+  added to a card made every released client refuse the whole search body —
+  a defect an installed CLI cannot be rescued from, only upgraded past. The
+  rule is now a contract test rather than a docstring.
+- A contribution's removal hands the provider the bytes that survive it
+  (`ADR-0129`, `#54`, closed): the host file without the contributed key,
+  packed as a bundle the remove plan must name as that path's `final_bytes`.
+  Measured against codex `0.0.57`: the person's own key and comment stayed in
+  `config.toml` while the contribution left it.
+- The first-party corpus is read at one resolved commit per provider
+  repository. These repositories are rendered from a monorepo, so `main` is
+  republished whole on every release; a build that read it once per repository
+  captured two provider generations while a render was landing, and its own
+  drift check agreed with it because both dereferenced the same moving ref.
 
 Exact SHAs and run IDs intentionally remain in GitHub, Git and evidence
 artifacts. This dated section is replaced at the next audit rather than
@@ -91,7 +112,7 @@ accumulating snapshots.
 
 ## Remaining work
 
-### P0. The configuration lifecycle on the other five native legs
+### P0. The configuration lifecycle on all six native legs — measured
 
 `software-evidence` proves the **program** lifecycle on six legs. The
 **configuration** lifecycle — the arc this product exists for — was proven by
@@ -108,14 +129,20 @@ seed a native surface → component adopt → component version release
 per harness, with the verdict read from the target rather than from the
 provider's reply.
 
-Measured on `0.0.53`, run `33561657609`, read from the six artifacts rather
-than the badge — 42 of 42 rows and 84 of 84 observe stages passed:
+Measured against providers `0.0.57`, run `33623425620`, read from the six
+artifacts rather than the badge — 42 of 42 rows and 84 of 84 observe stages
+passed, with a real isolation launcher named on every leg:
 
 | leg | rows | isolation |
 |---|---|---|
-| linux `x86_64` / `arm64` | **7/7** | `enforced` (Bubblewrap) |
-| macOS `x86_64` / `arm64` | **7/7** | `enforced` (`sandbox-exec`) |
-| windows `x86_64` / `arm64` | **7/7** | `unavailable`, `unisolated_by_trust` |
+| linux `x86_64` / `arm64` | **7/7** | Bubblewrap |
+| macOS `x86_64` / `arm64` | **7/7** | `sandbox-exec` |
+| windows `x86_64` / `arm64` | **7/7** | AppContainer, and it is doing its job: the positive control reached IPv4, IPv6 and DNS UDP, the container denied all three, and the provider ran in a job object that kills its tree |
+
+That last row is the one this section existed for. It was `unavailable` in
+every earlier measurement, then red for two provider releases after the
+launcher was proved on a hosted runner. The arc below is what the three
+Windows failures were, in the order they were found.
 
 The first run of this slice reported success on all six legs while four of them
 had proven nothing: `clean` asked "did nothing fail" rather than "did everything
@@ -139,9 +166,9 @@ record still says the launcher was unavailable.
 
 The slice also drives the import capture path (`from_import=1`), so the
 round trip `#63` closed is proven by the same slice as the ordinary path, and
-the workspace scope (`scope=project`, `REQ-632`) for the harnesses whose
-provider declares one — 2 of 2 rows on every Linux and macOS leg against
-`0.0.55`.
+the two chosen projection scopes (`REQ-632`) for the harnesses whose provider
+declares a rule at them: `scope=project` measured 2 of 2 rows on **every** leg
+against `0.0.57` (run `33624726045`), Windows included.
 
 The first runs with the Windows AppContainer `enforced` on hosted runners
 (after the launcher was proved there) failed every Windows row of every slice
@@ -152,11 +179,24 @@ answer while the consumer's invoker reported "did not answer with JSON": the
 container's pipe was opened unbuffered, so the bounded single read returned
 the child's first chunk, and the child's stderr shared the answer pipe where
 every other platform discards it. Both fixed in one change; the native test's
-child now answers in two writes with noise on stderr. The Windows legs are
-re-measured on that fix, and `0.0.15` on PyPI carries the defect for any
-Windows machine whose AppContainer probe passes — `0.0.16` follows the
-measurement. Remaining: the aggregated run on each release candidate's exact
-SHA (`#56`).
+child now answers in two writes with noise on stderr.
+
+That fix moved the failure one step along rather than removing it, and the
+step it moved to was not ours. Re-measured against `0.0.55` and `0.0.56`,
+every Windows row still failed, for a structural reason: inside an
+AppContainer `std::fs::canonicalize` cannot resolve a path, because the DOS
+device name it resolves through lives under `\GLOBAL??`, which the
+container's device map does not expose. No consumer change can reach that —
+the call is the provider's. The provider estate shipped the fallback in
+`0.0.57`: canonicalize when it answers, the joined absolute path without the
+`\\?\` prefix when it does not, and the operating-system error in `detail`.
+Both Windows legs went green on it, in the configuration slice, the program
+slice and the workspace scope. `0.0.15` on PyPI still carries the consumer
+half of the pipe defect for any Windows machine whose AppContainer probe
+passes, so `0.0.16` follows this measurement.
+
+Remaining in this section: the aggregated run on each release candidate's
+exact SHA (`#56`).
 
 ### P1. The last link of the capture round-trip (`#63`)
 
