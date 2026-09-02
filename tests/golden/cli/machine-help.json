@@ -2625,6 +2625,18 @@
           "repeatable": false,
           "summary": "Provider-declared execution posture, separate from setup identity.",
           "choices": []
+        },
+        {
+          "name": "scope",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Projection scope the plan installs into: the harness home (global) or the workspace named by --target (project). Default global.",
+          "choices": [
+            "global",
+            "project"
+          ]
         }
       ],
       "parameter_rules": [
@@ -2656,6 +2668,16 @@
           "when_values": [
             "2",
             "3"
+          ]
+        },
+        {
+          "kind": "required_when",
+          "parameters": [
+            "target"
+          ],
+          "when_parameter": "scope",
+          "when_values": [
+            "project"
           ]
         }
       ],
@@ -4398,6 +4420,18 @@
           "repeatable": false,
           "summary": "Existing absolute provider target directory. Needed when a member contributes a key to a file the provider owns there: the host file's current bytes exist only on the target.",
           "choices": []
+        },
+        {
+          "name": "scope",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Projection scope the package is compiled for: the harness home (global) or a workspace root (project). Default global.",
+          "choices": [
+            "global",
+            "project"
+          ]
         }
       ],
       "parameter_rules": [],

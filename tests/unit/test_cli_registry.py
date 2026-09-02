@@ -153,6 +153,12 @@ def test_update_plan_cross_parameter_rules_are_structured() -> None:
             "when_parameter": "protocol-version",
             "when_values": ["2", "3"],
         },
+        {
+            "kind": "required_when",
+            "parameters": ["target"],
+            "when_parameter": "scope",
+            "when_values": ["project"],
+        },
     ]
 
 

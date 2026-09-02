@@ -504,6 +504,7 @@ def _plan_v3(
             proposal.confirmed_version,
             expected_harness=pair.harness_id,
             host_root=Path(provider_target),
+            scope=str(parameters.get("scope") or "global"),
         )
         planned_scope = _v3_profile_accepts(capabilities, compiled).scope
         bundle_path = cache.store_raw_artifact_bytes(compiled.archive, compiled.artifact_digest)
@@ -1476,7 +1477,9 @@ def _v3_capabilities(
 
 
 def _profile_for_graph(
-    capabilities: protocol_v3.ProviderCapabilities, component_kinds: list[str]
+    capabilities: protocol_v3.ProviderCapabilities,
+    component_kinds: list[str],
+    compiled_for: str = "global",
 ) -> protocol_v3.ProjectionProfile:
     """The declared profile this graph is compiled against (`ADR-0127`).
 
@@ -1498,9 +1501,9 @@ def _profile_for_graph(
     scopes = {
         rule.target_scope
         for kind in component_kinds
-        for rule in [composition.rule_for(kind, capabilities.harness_id)]
+        for rule in [composition.rule_for(kind, capabilities.harness_id, scope=compiled_for)]
         if rule is not None
-    } or {"global"}
+    } or {compiled_for}
     if len(scopes) > 1:
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED",
@@ -1550,7 +1553,11 @@ def _v3_profile_accepts(
         component_kinds.append(str(item.get("provider_kind") or item.get("component_type", "")))
         native_surfaces.append(str(item.get("native_surface", "")))
         projection_kinds.append(str(item.get("projection_kind", "native_files")))
-    profile = _profile_for_graph(capabilities, component_kinds)
+    # The scope the bundle was compiled for is in its manifest, absent when
+    # `global`: it is the caller's choice at `select bundle`/`install plan`,
+    # and re-deriving it from the kinds would answer a settled question again.
+    compiled_for = str(compiled.manifest.get("target_scope") or "global")
+    profile = _profile_for_graph(capabilities, component_kinds, compiled_for)
     try:
         protocol_v3.validate_profile_for_components(profile, component_kinds)
     except ValueError as error:

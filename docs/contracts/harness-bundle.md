@@ -1,6 +1,6 @@
 ---
 description: "Bounded deterministic package for a public harness provider."
-last_verified: "2026-08-28"
+last_verified: "2026-09-01"
 ---
 
 # Harness bundle
@@ -39,6 +39,13 @@ not included in the bundle.
 reference to `SetupVersion`, `harness_id`, the setup-compiler version, input hash,
 the managed-path set, file manifest, metadata for the three required documents,
 common limits, and `bundle_digest`.
+
+`target_scope` names the projection scope the bundle was compiled for and is
+present only when it is not `global`: a bundle compiled for the harness
+configuration home is byte-identical to one compiled before scopes were chosen,
+so every digest a released plan already binds stays what it was. A `project`
+bundle's paths are relative to a workspace root, and the plan that installs it
+hands the provider that root as its target and the scope as `--target-scope`.
 
 A file record contains a normalized relative path, SHA-256, size, permitted mode, and surface owner. The contents of `files/` must match the manifest exactly.
 

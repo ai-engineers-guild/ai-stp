@@ -1147,7 +1147,7 @@ def reports(parameters: Mapping[str, object]) -> Answer[CompositionReports]:
 
 
 def _composition_target(
-    harness: str, surfaces: tuple[composition.Surface, ...] = ()
+    harness: str, surfaces: tuple[composition.Surface, ...] = (), *, scope: str = "global"
 ) -> composition.Target:
     """What this machine allows a composition to need.
 
@@ -1178,6 +1178,7 @@ def _composition_target(
             endpoint for item in surfaces for endpoint in item.external_endpoints
         ),
         supported_platforms=frozenset(),
+        scope=scope,
         for_redistribution=False,
     )
 
@@ -1186,6 +1187,8 @@ def _surfaces(
     connection: sqlite3.Connection,
     closure: graph.Closure,
     members: Sequence[selection.Member] = (),
+    *,
+    scope: str = "global",
 ) -> tuple[composition.Surface, ...]:
     """Read what each node in the closure contributes, from its passport.
 
@@ -1214,20 +1217,27 @@ def _surfaces(
             lane = "local_owner_or_pinned"
             lane_reason = "your own or exactly pinned; installable after local checks"
             consented = False
+        component_type = str(
+            document.get("component_type") or _value(facts.get("component_type")) or ""
+        )
+        harness_id = str(document.get("harness_id") or _value(facts.get("harness_id")) or "")
         surfaces.append(
             composition.Surface(
                 stable_id=node.stable_id,
                 version=node.version,
-                component_type=str(
-                    document.get("component_type") or _value(facts.get("component_type")) or ""
-                ),
-                harness_id=str(document.get("harness_id") or _value(facts.get("harness_id")) or ""),
+                component_type=component_type,
+                harness_id=harness_id,
                 revision_id=node.revision_id,
                 source_name=str(_value(facts.get("source_name")) or source_path.rsplit("/", 1)[-1]),
                 content_format=str(
                     document.get("artifact_format") or _value(facts.get("content_format")) or ""
                 ),
-                managed_paths=_document_strings(document, facts, "managed_paths"),
+                managed_paths=composition.rerooted(
+                    component_type,
+                    harness_id,
+                    _document_strings(document, facts, "managed_paths"),
+                    scope=scope,
+                ),
                 native_ids=_document_strings(document, facts, "native_ids"),
                 permissions=_document_permissions(document, facts),
                 required_env=_document_required_env(document, facts),
@@ -1325,14 +1335,27 @@ def harness_bundle(parameters: Mapping[str, object]) -> Answer[HarnessBundle]:
             next_actions=["select session --harness <id> --json"],
         )
     host_root = _bundle_host_root(parameters)
+    scope = _scope_of(parameters)
 
     def work(connection: sqlite3.Connection) -> HarnessBundle:
         return _bundle_view(
-            compile_harness_bundle(connection, proposal_id, harness, host_root=host_root), harness
+            compile_harness_bundle(
+                connection, proposal_id, harness, host_root=host_root, scope=scope
+            ),
+            harness,
         )
 
     with closing(open_readonly(configured_path())) as connection:
         return Answer(work(connection))
+
+
+def _scope_of(parameters: Mapping[str, object]) -> str:
+    """The projection scope a caller chose, `global` when it chose none.
+
+    A choice, not an inference from the components: the registry declares the
+    closed set, so an unknown value never reaches here.
+    """
+    return str(parameters.get("scope") or "global")
 
 
 def _bundle_host_root(parameters: Mapping[str, object]) -> Path | None:
@@ -1363,6 +1386,8 @@ def compile_harness_bundle(
     proposal_id: str,
     harness: str,
     host_root: Path | None = None,
+    *,
+    scope: str = "global",
 ) -> bundle.Bundle:
     """Compile exact bytes for a confirmed proposal without opening another registry."""
     proposal = selection.held(connection, proposal_id)
@@ -1392,6 +1417,7 @@ def compile_harness_bundle(
         expected_harness=harness,
         members=proposal.members,
         host_root=host_root,
+        scope=scope,
     )
 
 
@@ -1403,6 +1429,7 @@ def compile_setup_version_bundle(
     expected_harness: str | None = None,
     members: tuple[selection.Member, ...] = (),
     host_root: Path | None = None,
+    scope: str = "global",
 ) -> bundle.Bundle:
     """Compile one stored immutable SetupVersion through the canonical bundle path.
 
@@ -1463,8 +1490,8 @@ def compile_setup_version_bundle(
             details={"refusals": ", ".join(item.code for item in closure.refusals)},
         )
 
-    surfaces = _surfaces(connection, closure, members)
-    target = _composition_target(harness, surfaces)
+    surfaces = _surfaces(connection, closure, members, scope=scope)
+    target = _composition_target(harness, surfaces, scope=scope)
     composed = composition.compose(surfaces, target)
     if composed.blocked:
         raise CliFailure(
@@ -1498,12 +1525,15 @@ def compile_setup_version_bundle(
         composition_report=_as_json(composed),
         conversion_report=_conversion_json(converted),
         input_digest=snapshot,
+        target_scope=scope,
     )
 
 
 def _bundle_view(compiled: bundle.Bundle, harness: str) -> HarnessBundle:
+    scope = str(compiled.manifest.get("target_scope") or "global")
     return HarnessBundle(
         compiled=compiled.compiled,
+        target_scope="project" if scope == "project" else "global",
         harness_id=harness,  # pyright: ignore[reportArgumentType]
         bundle_format=bundle.BUNDLE_FORMAT,
         digest=compiled.digest,
@@ -1584,7 +1614,7 @@ def _bundle_sources(
                 "a resolved component carries no artifact digest to bundle",
                 details={"stable_id": item.stable_id, "revision_id": item.revision_id},
             )
-        rule = composition.rule_for(item.component_type, target.harness_id)
+        rule = composition.rule_for(item.component_type, target.harness_id, scope=target.scope)
         if rule is None:
             # `native_surface_lost` blocks this at composition — but only when
             # the component is `required`, so an optional member of a kind this

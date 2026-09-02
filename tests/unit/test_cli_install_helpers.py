@@ -466,3 +466,59 @@ def test_a_bundle_over_the_declared_limits_is_refused_by_name() -> None:
     with pytest.raises(CliFailure) as bytes_caught:
         install_commands._v3_profile_accepts(byte_bound, _bundle((_entry("AGENTS.md"),), b"xx"))  # pyright: ignore[reportPrivateUsage]
     assert "exceeds provider-declared limits" in bytes_caught.value.message
+
+
+def test_a_project_compile_is_validated_against_the_project_profile() -> None:
+    """The scope the bundle was compiled for chooses the profile, not the kinds.
+
+    A skill compiled for a workspace and the same skill compiled for the
+    harness home are two plans against two profiles; before the scope was a
+    choice, both resolved to whichever rule came first.
+    """
+    from ai_stp_cli.commands import install as install_commands
+    from ai_stp_cli.provider import protocol_v3
+
+    workspace = protocol_v3.ProjectionProfile(
+        profile_id="antigravity/native-files/project/1",
+        digest="sha256:" + "a" * 64,
+        component_kinds=(protocol_v3.ComponentKind.SKILL,),
+        projection_kinds=(protocol_v3.ProjectionKind.NATIVE_FILES,),
+        native_namespaces=(".agents/skills",),
+        bundle_formats=("ai-stp-bundle/1",),
+        max_files=100,
+        max_bytes=1_000_000,
+        scope="project",
+    )
+    home = protocol_v3.ProjectionProfile(
+        profile_id="antigravity/native-files/1",
+        digest="sha256:" + "b" * 64,
+        component_kinds=(protocol_v3.ComponentKind.SKILL,),
+        projection_kinds=(protocol_v3.ProjectionKind.NATIVE_FILES,),
+        native_namespaces=("config/skills",),
+        bundle_formats=("ai-stp-bundle/1",),
+        max_files=100,
+        max_bytes=1_000_000,
+    )
+    capabilities = protocol_v3.ProviderCapabilities(
+        provider_id="antigravity-setup-system",
+        harness_id="antigravity",
+        provider_version="0.0.54",
+        provider_build_digest="sha256:" + "e" * 64,
+        commands=frozenset(protocol_v3.CORE_COMMANDS),
+        operations=frozenset(protocol_v3.CORE_OPERATIONS),
+        supported_os=("linux",),
+        supported_arch=("x86_64",),
+        permission_profiles=("default",),
+        projection=home,
+        scoped_projections=(workspace,),
+    )
+    assert install_commands._profile_for_graph(capabilities, ["skill"]).scope == "global"  # pyright: ignore[reportPrivateUsage]
+    chosen = install_commands._profile_for_graph(capabilities, ["skill"], "project")  # pyright: ignore[reportPrivateUsage]
+    assert chosen.scope == "project"
+    assert chosen.native_namespaces == (".agents/skills",)
+    # A provider without a workspace profile is refused by name for a workspace
+    # compile, exactly as for a `user_root` graph it does not declare.
+    without = dataclasses.replace(capabilities, scoped_projections=())
+    with pytest.raises(CliFailure) as missing:
+        install_commands._profile_for_graph(without, ["skill"], "project")  # pyright: ignore[reportPrivateUsage]
+    assert "no projection profile for the scope" in missing.value.message

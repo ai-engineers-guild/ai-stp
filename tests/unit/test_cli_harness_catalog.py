@@ -390,6 +390,18 @@ def test_every_exercised_row_is_one_somebody_actually_exercised() -> None:
         # surface in both the home and the project.
         ("cursor", "agent", "agents", "bytes"),
         ("cursor", "agent", ".cursor/agents", "bytes"),
+        # Read by the provider estate on 2026-09-02 off every member of the
+        # 2026.08.31-4057e58 package, not `index.js` alone, and declared by
+        # `cursor-setup-system` 0.0.54 at project scope: `.cursor/commands` is
+        # `loadCommandsFromDirectory(join(e, ".cursor", "commands"),
+        # "workspace")`, `.cursor/hooks.json` is `projectConfigPath`,
+        # `.cursor/mcp.json` is `join(projectRoot, ".cursor", "mcp.json")`,
+        # `.cursor/skills` is the skill-root row with `scope: "project"`. An
+        # invented name searched the same way returned nothing.
+        ("cursor", "command", ".cursor/commands", "bytes"),
+        ("cursor", "hook", ".cursor/hooks.json", "bytes"),
+        ("cursor", "mcp", ".cursor/mcp.json", "bytes"),
+        ("cursor", "skill", ".cursor/skills", "bytes"),
         # `antigravity plugin install` creates `~/.gemini/config/plugins/` and
         # validates the plugin; no `antigravity-cli/plugins` is created at all.
         ("antigravity", "plugin", "config/plugins", "ran"),

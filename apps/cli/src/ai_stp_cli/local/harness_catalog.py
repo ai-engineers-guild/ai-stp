@@ -674,6 +674,22 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
                 "agent", ".cursor/agents", "directory", f"{CURSOR}/agents", P, evidence="bytes"
             ),
             _layout("plugin", ".cursor/plugins", "directory", f"{CURSOR}/reference/plugins", P),
+            # Four more workspace surfaces, read off the product's bytes by the
+            # provider estate on 2026-09-02 (2026.08.31-4057e58, every member
+            # of the package) and declared by `cursor-setup-system` 0.0.54 at
+            # project scope: `loadCommandsFromDirectory(join(e, ".cursor",
+            # "commands"), "workspace")`; `projectConfigPath: join(e,
+            # ".cursor", "hooks.json")`; `join(projectRoot, ".cursor",
+            # "mcp.json")`; the skill-root table's `.cursor/skills` row with
+            # `scope: "project"`. No vendor page names any of the four.
+            _layout(
+                "command", ".cursor/commands", "directory", CURSOR_COMMANDS, P, evidence="bytes"
+            ),
+            _layout("hook", ".cursor/hooks.json", "file", f"{CURSOR}/hooks", P, evidence="bytes"),
+            _layout("mcp", ".cursor/mcp.json", "file", f"{CURSOR}/mcp", P, evidence="bytes"),
+            _layout(
+                "skill", ".cursor/skills", "directory", f"{CURSOR}/skills", P, evidence="bytes"
+            ),
             # Five user-scope surfaces the docs page does not mention and the
             # product reads. `mcp.json` was confirmed by running the product,
             # with both controls; the rest at the line in the pinned bundle.
