@@ -210,6 +210,22 @@ def plan_operation_arguments(
     return arguments
 
 
+def status_arguments(
+    capabilities: protocol_v3.ProviderCapabilities, target_scope: str
+) -> tuple[str, ...]:
+    """`status`'s argv tail: `--target-scope` when the target is a workspace and
+    the provider declares it accepts the flag there.
+
+    Same rule as `_scope_argument` for `plan-operation`, gated on
+    `status_request_fields` rather than `plan_request_fields`: a provider that
+    never declared the flag would refuse the invocation whole, and its home
+    view is still the honest answer for a home target.
+    """
+    if target_scope == "global" or "target_scope" not in capabilities.status_request_fields:
+        return ()
+    return ("--target-scope", target_scope)
+
+
 def _scope_argument(target_scope: str, accepted_request_fields: frozenset[str]) -> tuple[str, ...]:
     """`--target-scope`, when the target is not the harness home and it is safe to say so.
 

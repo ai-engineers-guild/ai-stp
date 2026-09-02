@@ -45,7 +45,7 @@ INFO_FIELDS: Final[tuple[str, ...]] = (
 #: optional name here rather than as a new shape for something that already
 #: exists (`ADR-0125`).
 OPTIONAL_INFO_FIELDS: Final[frozenset[str]] = frozenset(
-    {"scoped_projection_profiles", "plan_request_fields"}
+    {"scoped_projection_profiles", "plan_request_fields", "status_request_fields"}
 )
 
 #: Request-side arguments a provider says it accepts on `plan-operation`.
@@ -77,6 +77,16 @@ OPTIONAL_INFO_FIELDS: Final[frozenset[str]] = frozenset(
 #: `0.0.52` answers a bundle on `remove` with `unsupported_operation`, correctly
 #: — and it will not until a provider declares this name.
 PLAN_REQUEST_FIELDS: Final[frozenset[str]] = frozenset({"target_scope", "end_state"})
+
+#: Request-side arguments a provider says it accepts on `status`, by the same
+#: rule as `PLAN_REQUEST_FIELDS` and for the same reason. Measured on 0.0.54:
+#: `plan-operation` digests the target's owned paths at the requested scope
+#: while `status` has no scope and digests the home view, so a workspace plan
+#: could bind only an empty target — the install passed and the removal was
+#: refused on `expected_target_digest`. The consumer sends `--target-scope`
+#: to `status` only to a provider that declares it here; the name is accepted
+#: one CLI release before any provider may declare it (`ADR-0125`).
+STATUS_REQUEST_FIELDS: Final[frozenset[str]] = frozenset({"target_scope"})
 
 #: Target scopes a projection may own. `global` and `project` are spelled as the
 #: harness catalog already spells them (`local/harness_catalog.py`).
@@ -364,6 +374,7 @@ class ProviderCapabilities:
     #: `plan-operation` arguments this release accepts. Empty means the closed
     #: v3 argv and nothing more, which is every provider released so far.
     plan_request_fields: frozenset[str] = frozenset()
+    status_request_fields: frozenset[str] = frozenset()
 
     def __post_init__(self) -> None:
         if not self.provider_id or not self.harness_id or not self.provider_version:
@@ -626,6 +637,21 @@ def parse_capabilities(value: Mapping[str, object]) -> ProviderCapabilities:
             + ", ".join(sorted(unknown_request))
             + f", which this build cannot send; it knows {', '.join(sorted(PLAN_REQUEST_FIELDS))}"
         )
+    raw_status_fields = value.get("status_request_fields", [])
+    if not isinstance(raw_status_fields, list):
+        raise ValueError("provider-info status_request_fields must be a string array")
+    status_fields: frozenset[str] = (
+        frozenset(strings("status_request_fields", nonempty=True))
+        if raw_status_fields
+        else frozenset()
+    )
+    unknown_status = status_fields - STATUS_REQUEST_FIELDS
+    if unknown_status:
+        raise ValueError(
+            "provider-info status_request_fields names "
+            + ", ".join(sorted(unknown_status))
+            + f", which this build cannot send; it knows {', '.join(sorted(STATUS_REQUEST_FIELDS))}"
+        )
 
     commands = frozenset(strings("supported_commands"))
     operations = normalize_operations(strings("supported_operations"))
@@ -651,6 +677,7 @@ def parse_capabilities(value: Mapping[str, object]) -> ProviderCapabilities:
         projection=profile,
         scoped_projections=tuple(scoped),
         plan_request_fields=request_fields,
+        status_request_fields=status_fields,
     )
 
 
@@ -809,6 +836,11 @@ def _build_wire_schema() -> dict[str, object]:
             "plan_request_fields": {
                 "type": "array",
                 "items": {"type": "string", "enum": sorted(PLAN_REQUEST_FIELDS)},
+                "uniqueItems": True,
+            },
+            "status_request_fields": {
+                "type": "array",
+                "items": {"type": "string", "enum": sorted(STATUS_REQUEST_FIELDS)},
                 "uniqueItems": True,
             },
         },

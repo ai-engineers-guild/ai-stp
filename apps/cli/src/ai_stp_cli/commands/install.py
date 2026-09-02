@@ -476,7 +476,13 @@ def _plan_v3(
     # `global` until a graph says otherwise. The operations that bind to a
     # target and a backup rather than to a component graph have no rules to
     # resolve a scope from, and their target is the harness home.
-    planned_scope = "global"
+    # The caller's scope applies to every action, not only to the ones that
+    # compile a bundle: a removal planned without it was sent to the provider
+    # as a home plan, which digested the workspace's home view and refused the
+    # consumer's workspace observation — measured on 0.0.54, and read off our
+    # own lines by the provider estate.
+    planned_scope = str(parameters.get("scope") or "global")
+    status_tail: tuple[str, ...] = ()
     if operation in {protocol_v3.Operation.INSTALL, protocol_v3.Operation.REPLACE}:
         if (
             proposal is None
@@ -507,6 +513,7 @@ def _plan_v3(
             scope=str(parameters.get("scope") or "global"),
         )
         planned_scope = _v3_profile_accepts(capabilities, compiled).scope
+        status_tail = operation_v3.status_arguments(capabilities, planned_scope)
         bundle_path = cache.store_raw_artifact_bytes(compiled.archive, compiled.artifact_digest)
         bound_bundle = bundle_protocol.binding(
             bundle_path,
@@ -520,7 +527,9 @@ def _plan_v3(
             bound_bundle,
         )
 
-    expected_target_digest = _target_digest(invoke)
+    if not status_tail:
+        status_tail = operation_v3.status_arguments(capabilities, planned_scope)
+    expected_target_digest = _target_digest(invoke, status_tail)
     release_digest = (
         trusted_release.artifact_digest
         if trusted_release is not None
@@ -909,7 +918,7 @@ def _apply_v3(
         at=moment(),
         backup_ref=str(answer.get("backup_ref", "")) or None,
     )
-    status_answer = _object(invoke("status", ()))
+    status_answer = _object(invoke("status", _status_tail(capabilities, held)))
     observed = operation_v3.require_verified_status(
         status_answer,
         capabilities=capabilities,
@@ -1046,7 +1055,7 @@ def resume(parameters: Mapping[str, object]) -> Answer[InstallationView]:
                 if trusted_release is not None
                 else release.artifact_identity(Path(executable))[0]
             )
-            status_answer = _object(invoke("status", ()))
+            status_answer = _object(invoke("status", _status_tail(capabilities, held)))
             recovery_state = str(status_answer.get("state", ""))
             cleanup_state = str(status_answer.get("cleanup_state", ""))
             if (
@@ -1063,7 +1072,7 @@ def resume(parameters: Mapping[str, object]) -> Answer[InstallationView]:
                         reason="the provider recovered its durable pre-operation target",
                     )
                     return _view(connection, held)
-                status_answer = _object(invoke("status", ()))
+                status_answer = _object(invoke("status", _status_tail(capabilities, held)))
             if state == installation.STATE_APPLYING:
                 installation.applied(connection, operation_id, at=moment())
             try:
@@ -1350,9 +1359,9 @@ def _verify(
             )
 
 
-def _target_digest(invoke: conformance.Invoker) -> str:
+def _target_digest(invoke: conformance.Invoker, arguments: tuple[str, ...] = ()) -> str:
     """What the provider says the target is right now."""
-    digest, _authorization, _shadowed = _provider_observation(invoke)
+    digest, _authorization, _shadowed = _provider_observation(invoke, arguments)
     if not digest:
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED",
@@ -1364,6 +1373,7 @@ def _target_digest(invoke: conformance.Invoker) -> str:
 
 def _provider_observation(
     invoke: conformance.Invoker,
+    arguments: tuple[str, ...] = (),
 ) -> tuple[
     str,
     provider_status.AuthorizationEvidence | None,
@@ -1377,12 +1387,50 @@ def _provider_observation(
     Taking the digest and dropping the shadow list reported such a target as
     clean, which is the answer somebody acts on.
     """
-    answer = _object(invoke("status", ()))
+    answer = _object(invoke("status", arguments))
     return (
         str(answer.get("target_digest", "")),
         provider_status.authorization(answer),
         provider_status.shadowed(answer) or (),
     )
+
+
+def _held_scope(held: installation.Plan) -> str:
+    """The projection scope the held plan's bundle was compiled for."""
+    if not held.bundle_artifact_digest:
+        return "global"
+    archive = cache.stored_raw_artifact(held.bundle_artifact_digest)
+    if archive is None:
+        return "global"
+    return managed_diff.bundle_manifest(archive).target_scope
+
+
+def _status_tail(
+    capabilities: protocol_v3.ProviderCapabilities, held: installation.Plan
+) -> tuple[str, ...]:
+    """`status`'s argv tail for the scope an approved plan was compiled for."""
+    return operation_v3.status_arguments(capabilities, _held_scope(held))
+
+
+def _pair_status_tail(
+    connection: sqlite3.Connection, invoke: conformance.Invoker, project_id: str, harness: str
+) -> tuple[str, ...]:
+    """`status`'s argv tail for what this pair last verified.
+
+    An observer reads the target the way the last verified install wrote it:
+    a workspace pair asks for the workspace view. The provider's declaration
+    is consulted only then, so a home pair costs no extra invocation.
+    """
+    history = targets.verified(connection, project_id=project_id, harness_id=harness)
+    if not history:
+        return ()
+    held = installation.plan(connection, history[-1].operation_id)
+    scope = _held_scope(held)
+    if scope == "global":
+        return ()
+    info = _object(invoke("provider-info", ()))
+    capabilities = protocol_v3.parse_capabilities(cast(Mapping[str, object], info))
+    return operation_v3.status_arguments(capabilities, scope)
 
 
 def _speaks(info: dict[str, JsonValue], expected: int) -> None:
@@ -2006,7 +2054,7 @@ def _observe_target(
     invoke = _optional_invoker(connection, parameters, project_id, harness)
     if invoke is None:
         return "", None, ()
-    return _provider_observation(invoke)
+    return _provider_observation(invoke, _pair_status_tail(connection, invoke, project_id, harness))
 
 
 def _observation_protocol(
@@ -2388,7 +2436,8 @@ def _observe_backups(
     invoke = _optional_invoker(connection, parameters, project_id, harness)
     if invoke is None:
         return None
-    reported = provider_status.backups(_object(invoke("status", ())))
+    tail = _pair_status_tail(connection, invoke, project_id, harness)
+    reported = provider_status.backups(_object(invoke("status", tail)))
     if reported is None:
         return None
     return {item.backup_ref: item for item in reported}
