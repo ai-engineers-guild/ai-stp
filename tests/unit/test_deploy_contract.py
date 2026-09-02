@@ -162,6 +162,13 @@ def test_target_side_deployer_preserves_the_host_state_and_monotonicity() -> Non
     # and nothing after it, so changing the source changed nothing. This is the
     # assertion that would have caught it.
     assert 'remote set-url origin "${repository}"' in script
+    # A host user's optional `gh auth setup-git` helper must not turn the
+    # public fetch into an authenticated request. A stale token produced HTTP
+    # 401 while curl and a helper-free fetch both read the same public ref.
+    fetch = script.split("fetch --quiet --no-tags origin", maxsplit=1)[0].rsplit("\n", maxsplit=2)
+    fetch_prefix = "\n".join(fetch)
+    assert "GIT_TERMINAL_PROMPT=0" in fetch_prefix
+    assert "-c credential.helper=" in fetch_prefix
 
     service = Path("deploy/ai-stp-pull-deploy.service").read_text(encoding="utf-8")
     executable = "\n".join(
