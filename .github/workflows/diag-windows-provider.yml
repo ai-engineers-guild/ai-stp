@@ -3,12 +3,8 @@
 name: diag-windows-provider
 
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: "Provider release tag"
-        required: true
-        default: "0.0.55"
+  push:
+    branches: [diag-windows-provider]
 
 permissions:
   contents: read
@@ -50,7 +46,7 @@ jobs:
           export HOME="${RUNNER_TEMP}/home"; mkdir -p "$HOME/config" "$HOME/data"
           export XDG_CONFIG_HOME="$HOME/config" XDG_DATA_HOME="$HOME/data"
           mkdir -p "${RUNNER_TEMP}/provider" "${RUNNER_TEMP}/target"
-          uv run --locked --package ai-stp-cli ai-stp provider fetch --harness codex --tag "${{ inputs.tag }}" --directory "${RUNNER_TEMP}/provider" --json | head -c 600; echo
+          uv run --locked --package ai-stp-cli ai-stp provider fetch --harness codex --tag "0.0.55" --directory "${RUNNER_TEMP}/provider" --json | head -c 600; echo
           exe=$(ls "${RUNNER_TEMP}/provider" | grep -v 'release.json\|SHA256' | head -1)
           echo "exe=$exe"
           echo "=== provider network"
