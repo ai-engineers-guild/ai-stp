@@ -114,30 +114,44 @@ def test_the_isolated_spawn_reaches_the_target_and_not_the_network() -> None:
 
     target = Path(os.environ["TEMP"]) / "ai-stp-appcontainer-run"
     target.mkdir(parents=True, exist_ok=True)
+    # Two files the argv names, outside the target and the runtime, as the
+    # bundle handed to `validate-bundle` is: the script itself, run with
+    # `-File` so it takes an argument, and the file that argument names. The
+    # container must be able to read both, and only because they were named.
+    # (`-EncodedCommand` takes no trailing argument; a first attempt passed
+    # one and PowerShell answered a usage error instead of the script.)
+    named_root = Path(os.environ["TEMP"]) / "ai-stp-appcontainer-named"
+    named_root.mkdir(parents=True, exist_ok=True)
+    named = named_root / "bundle.bin"
+    named.write_text("named-bytes", encoding="utf-8")
     place = target / "written-inside"
-    # .NET calls only: the container's PowerShell has no `PSModulePath`, so
-    # `Set-Content` and its siblings do not exist there (see the launcher).
-    # The child also writes a line of diagnostics to standard error, as a real
-    # provider may: it must not reach the answer. Both hosted Windows legs of
-    # every slice failed on that the day the container first held a provider.
-    # The answer arrives in two writes with a pause between them, as a real
-    # provider's does: a read that took the first chunk for the whole answer
-    # reported valid JSON as truncated on every hosted Windows leg.
-    script = (
+    script = named_root / "probe.ps1"
+    script.write_text(
         f"[System.IO.File]::WriteAllText('{place}', 'inside')\n"
         f"$written = [System.IO.File]::ReadAllText('{place}')\n"
+        "$named = [System.IO.File]::ReadAllText($args[0])\n"
         "[System.Console]::Error.WriteLine('diagnostic noise that is not the answer')\n"
         "[System.Console]::Out.Write('{\"written\":')\n"
         "[System.Console]::Out.Flush()\n"
         "[System.Threading.Thread]::Sleep(400)\n"
-        "[System.Console]::Out.WriteLine('\"' + $written + '\"}')\n"
+        "[System.Console]::Out.WriteLine('\"' + $written + '\",\"named\":\"' + $named + '\"}')\n",
+        encoding="utf-8",
     )
     answer = launcher.run(
-        (str(windows_launcher.powershell()), *windows_launcher.encoded_command(script)),
+        (
+            str(windows_launcher.powershell()),
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(script),
+            str(named),
+        ),
         target=target,
         command="probe",
     )
-    assert answer == {"written": "inside"}, answer
+    assert answer == {"written": "inside", "named": "named-bytes"}, answer
     assert place.read_text(encoding="utf-8") == "inside"
 
 
