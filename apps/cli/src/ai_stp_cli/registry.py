@@ -1802,8 +1802,9 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "scope",
                 "string",
                 "Projection scope the package is compiled for: the harness home "
-                "(global) or a workspace root (project). Default global.",
-                choices=("global", "project"),
+                "(global), a workspace root (project) or the shared ~/.agents root "
+                "(user_root). Default global.",
+                choices=("global", "project", "user_root"),
             ),
         ),
         next_actions=("select reports",),
@@ -1904,9 +1905,10 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "scope",
                 "string",
-                "Projection scope the plan installs into: the harness home (global) "
-                "or the workspace named by --target (project). Default global.",
-                choices=("global", "project"),
+                "Projection scope the plan installs into: the harness home (global), "
+                "the workspace named by --target (project) or the shared ~/.agents "
+                "root named by --target (user_root). Default global.",
+                choices=("global", "project", "user_root"),
             ),
         ),
         parameter_rules=(
@@ -1927,7 +1929,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 kind="required_when",
                 parameters=["target"],
                 when_parameter="scope",
-                when_values=["project"],
+                when_values=["project", "user_root"],
             ),
         ),
         next_actions=("install approve",),

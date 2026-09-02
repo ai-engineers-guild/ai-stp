@@ -245,6 +245,12 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     # *should you?*, and whether these four should move is a decision about who
     # sees what.
     Rule("skill", "skills", "directory", "pi"),
+    # The shared root's half, declared as `pi/native-files/user-root/1`:
+    # `skills` relative to `~/.agents`, the same one row of the skill-root
+    # table every product that reads the convention carries. Routed only when
+    # a caller asks for `--scope user_root`; the home's `skills` stays the
+    # default. Read off the released provider's own declaration.
+    Rule("skill", "skills", "directory", "pi", target_scope="user_root"),
     # Native path is `extensions/`; the package family is `package`
     # (`docs/contracts/component-setup-passports.md`, first-party Pi plugin
     # passports, OpenNetwork Pi `projection_kinds`). `extension` is not a
@@ -276,6 +282,7 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     Rule("command", "prompts", "directory", "pi"),
     Rule("instruction", "AGENTS.md", "file", "opencode"),
     Rule("skill", "skills", "directory", "opencode"),
+    Rule("skill", "skills", "directory", "opencode", target_scope="user_root"),
     Rule("command", "commands", "directory", "opencode"),
     Rule("agent", "agents", "directory", "opencode"),
     Rule("plugin", "plugins", "directory", "opencode", projection_kind="plugin"),
@@ -368,6 +375,7 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     # only from `0.0.13`. Verified against that tag before landing here.
     Rule("instruction", "rules", "directory", "cursor"),
     Rule("skill", "skills", "directory", "cursor"),
+    Rule("skill", "skills", "directory", "cursor", target_scope="user_root"),
     Rule("command", "commands", "directory", "cursor"),
     Rule("hook", "hooks.json", "file", "cursor"),
     Rule("mcp", "mcp.json", "file", "cursor"),
@@ -463,6 +471,7 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     Rule("mcp", ".agents/mcp_config.json", "file", "antigravity", target_scope="project"),
     Rule("instruction", "AGENTS.md", "file", "grok-build"),
     Rule("skill", "skills", "directory", "grok-build"),
+    Rule("skill", "skills", "directory", "grok-build", target_scope="user_root"),
     # No `mcp` rule, exactly as `codex` has none, and for the same reason: both
     # spell their MCP servers as an `mcp_servers` table *inside* `config.toml`
     # (`local/harness_catalog.py`, cited to `docs.x.ai/build/settings`). There
@@ -574,9 +583,10 @@ class Target:
 
     #: Which projection scope this composition is compiled for. `global` is the
     #: harness configuration home; `project` is a workspace root, where the
-    #: same kinds live under other names (`ADR-0125`). The scope is chosen per
-    #: bundle and per plan, not read off the components: a rule file adopted
-    #: from one repository is content, and where it lands next is a decision.
+    #: same kinds live under other names; `user_root` is the shared `~/.agents`
+    #: root (`ADR-0125`, `ADR-0127`). The scope is chosen per bundle and per
+    #: plan, not read off the components: a rule file adopted from one
+    #: repository is content, and where it lands next is a decision.
     scope: str = "global"
 
 
@@ -660,16 +670,27 @@ def rule_for(component_type: str, harness_id: str, *, scope: str = "global") -> 
     """Return the target-relative provider projection for one component kind.
 
     One kind, one harness, one scope. `project` answers only with a rule whose
-    target is a workspace root; every other scope answers with the harness
-    home's rules, `user_root` among them — that scope is the provider's own
-    arrangement of one home surface (`ADR-0127`), not a second place to install.
+    target is a workspace root; `user_root` only with a rule whose target is
+    the shared `~/.agents` root; `global` answers with the harness home's
+    rules first and falls back to a `user_root` rule where the home has none
+    of that kind — codex keeps its skills under `~/.agents` and nowhere else
+    (`ADR-0127`), so a home compile of a codex skill lands there.
     """
+    fallback: Rule | None = None
     for rule in PROVIDER_RULES:
         if rule.component_type != component_type or rule.harness_id != harness_id:
             continue
-        if (rule.target_scope == "project") == (scope == "project"):
+        if scope == "project":
+            if rule.target_scope == "project":
+                return rule
+        elif scope == "user_root":
+            if rule.target_scope == "user_root":
+                return rule
+        elif rule.target_scope == "global":
             return rule
-    return None
+        elif rule.target_scope == "user_root" and fallback is None:
+            fallback = rule
+    return fallback
 
 
 def adopted_covers(item: Found) -> tuple[str, ...]:
