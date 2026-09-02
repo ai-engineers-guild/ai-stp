@@ -39,6 +39,7 @@ STRUCTURE_EXEMPT: list[str] = []
 # links should not pass merely because it has not been expanded.
 ROOT_DOCS = [
     "README.md",
+    "README.ru.md",
     "AGENTS.md",
     "CLAUDE.md",
     "SECURITY.md",
@@ -48,6 +49,11 @@ ROOT_DOCS = [
     "CLAUDE.template.md",
     "QUICKSTART.template.md",
 ]
+
+# GitHub homepages that are an explicit locale of README.md. English remains
+# the default; these files are the localized pair, not a second requirements
+# store. See docs/documentation/writing.md.
+LOCALIZED_ROOT_READMES = frozenset({"README.ru.md"})
 
 REQUIRED_FRONTMATTER = {"description", "last_verified"}
 
@@ -462,8 +468,11 @@ class Linter:
         """Documentation prose is written in English.
 
         Only prose is counted. Code, links, and markup are removed because paths,
-        commands, and identifiers are Latin by definition.
+        commands, and identifiers are Latin by definition. An explicit localized
+        GitHub homepage is the exception named in LOCALIZED_ROOT_READMES.
         """
+        if path.name in LOCALIZED_ROOT_READMES:
+            return
         # Skip frontmatter: it contains service fields rather than reader prose.
         m = FRONTMATTER_RE.match(text)
         skip_until = text[: m.end()].count("\n") if m else 0

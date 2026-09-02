@@ -26,7 +26,14 @@ ROOT = Path(__file__).resolve().parent.parent
 # Normative roots. docs/adr describes decision history and is excluded here.
 NORMATIVE_GLOBS = ("docs/**/*.md", "specs/**/*.md")
 HISTORY_DIR = "docs/adr"
-ROOT_DOCS = ("README.md", "AGENTS.md", "QUICKSTART.md", "SECURITY.md", "CONTRIBUTING.md")
+ROOT_DOCS = (
+    "README.md",
+    "README.ru.md",
+    "AGENTS.md",
+    "QUICKSTART.md",
+    "SECURITY.md",
+    "CONTRIBUTING.md",
+)
 
 # Eight component types under ADR-0015. Each must have a matrix row.
 COMPONENT_TYPES = (

@@ -1,0 +1,11 @@
+Canonical README subject for ai_stp (Grok Images 2).
+
+Asset type: photographic still for a GitHub README hero, composed later under SVG/HTML typography.
+Composition: five human forearms and hands forming a closed pentagon loop, seen from above, anonymous, no faces in frame.
+Color palette: near-black machine canvas #101010; rim light from signal orange #fb631b through plum #b0486e to deep violet #62347a.
+Constraints: unmarked skin and dark workwear; generous padding; no letters; no numbers; no logos; no watermark; no user interface.
+Background: flat dark field matching the product canvas.
+
+Prompt used:
+
+A cinematic still of five human forearms and hands forming a closed pentagon loop on a perfectly flat near-black machine canvas the color of #101010. Each wrist grips the next, a compact crew seen from slightly above, anonymous and precise, no faces in frame. Soft signal-orange rim light on the left fades through plum into deep violet on the right, matching a dark engineering brand. Sparse composition, generous padding around the loop, unmarked skin and dark workwear fabric, no letters, no numbers, no logos, no watermark, no user interface.

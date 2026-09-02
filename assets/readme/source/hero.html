@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>ai_stp README boards</title>
+    <style>
+      @font-face {
+        font-family: "Plex Sans";
+        font-weight: 400;
+        src: url("../../../apps/web/public/fonts/plex-sans-latin-400.woff2") format("woff2");
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+          U+2000-206F, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: "Plex Sans";
+        font-weight: 500;
+        src: url("../../../apps/web/public/fonts/plex-sans-latin-500.woff2") format("woff2");
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+          U+2000-206F, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: "Plex Sans";
+        font-weight: 400;
+        src: url("../../../apps/web/public/fonts/plex-sans-cyrillic-400.woff2") format("woff2");
+        unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+      }
+      @font-face {
+        font-family: "Plex Sans";
+        font-weight: 500;
+        src: url("../../../apps/web/public/fonts/plex-sans-cyrillic-500.woff2") format("woff2");
+        unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+      }
+      @font-face {
+        font-family: "Plex Mono";
+        font-weight: 400;
+        src: url("../../../apps/web/public/fonts/plex-mono-latin-400.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: "Plex Mono";
+        font-weight: 500;
+        src: url("../../../apps/web/public/fonts/plex-mono-latin-500.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: "Plex Mono";
+        font-weight: 400;
+        src: url("../../../apps/web/public/fonts/plex-mono-cyrillic-400.woff2") format("woff2");
+        unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+      }
+      html,
+      body {
+        margin: 0;
+        background: #0a0a0a;
+      }
+      .stack {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        padding: 24px;
+      }
+      .board {
+        width: 1200px;
+        height: 400px;
+        box-sizing: border-box;
+        background: #101010;
+        border: 1px solid #434343;
+        border-radius: 26px;
+        display: grid;
+        grid-template-columns: minmax(0, 1.15fr) 380px;
+        align-items: center;
+        padding: 0 48px 0 56px;
+        overflow: hidden;
+        position: relative;
+      }
+      .copy {
+        min-width: 0;
+        padding-right: 28px;
+      }
+      .eyebrow {
+        font-family: "Plex Mono", ui-monospace, monospace;
+        font-size: 15px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #fb631b;
+        margin: 0 0 14px;
+      }
+      h1 {
+        font-family: "Plex Sans", system-ui, sans-serif;
+        font-weight: 500;
+        font-size: 72px;
+        line-height: 0.92;
+        letter-spacing: -0.04em;
+        color: #ffffff;
+        margin: 0 0 18px;
+      }
+      .rule {
+        width: 56px;
+        height: 2px;
+        background: #fb631b;
+        margin: 0 0 18px;
+      }
+      .lede {
+        font-family: "Plex Sans", system-ui, sans-serif;
+        font-weight: 400;
+        font-size: 22px;
+        line-height: 1.35;
+        color: #ffffff;
+        max-width: 34rem;
+        margin: 0 0 18px;
+      }
+      .meta {
+        font-family: "Plex Mono", ui-monospace, monospace;
+        font-size: 14px;
+        color: #858483;
+        margin: 0;
+      }
+      .proof {
+        width: 340px;
+        height: 340px;
+        border-radius: 28px;
+        position: relative;
+        overflow: hidden;
+        justify-self: end;
+        border: 1px solid #434343;
+      }
+      .proof img.subject {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .proof img.mark {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 86px;
+        height: 86px;
+        transform: translate(-50%, -50%);
+        filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.55));
+      }
+      .kinds {
+        width: 1200px;
+        box-sizing: border-box;
+        background: #101010;
+        border: 1px solid #434343;
+        border-radius: 26px;
+        padding: 28px 32px 32px;
+      }
+      .kinds-head {
+        font-family: "Plex Mono", ui-monospace, monospace;
+        font-size: 14px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #858483;
+        margin: 0 0 18px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+      }
+      .tile {
+        background: #181818;
+        border: 1px solid #434343;
+        border-radius: 16px;
+        overflow: hidden;
+      }
+      .tile img {
+        width: 100%;
+        aspect-ratio: 1;
+        object-fit: cover;
+        display: block;
+        background: #101010;
+      }
+      .tile span {
+        display: block;
+        font-family: "Plex Mono", ui-monospace, monospace;
+        font-size: 15px;
+        color: #ffffff;
+        padding: 10px 12px 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="stack">
+      <div class="board" id="hero-en">
+        <div class="copy">
+          <p class="eyebrow">AI harness setups</p>
+          <h1>ai_stp</h1>
+          <div class="rule"></div>
+          <p class="lede">Build, verify and install a complete setup for your coding agent.</p>
+          <p class="meta">AGPL-3.0 &nbsp;·&nbsp; agent-first CLI &nbsp;·&nbsp; no model key</p>
+        </div>
+        <div class="proof">
+          <img class="subject" src="subject.png" alt="" />
+          <img class="mark" src="../../../docs/product/logos/logo-mark.png" alt="" />
+        </div>
+      </div>
+
+      <div class="board" id="hero-ru">
+        <div class="copy">
+          <p class="eyebrow">Сетапы AI-харнессов</p>
+          <h1>ai_stp</h1>
+          <div class="rule"></div>
+          <p class="lede">Соберите, проверьте и установите полный сетап через вашего агента.</p>
+          <p class="meta">AGPL-3.0 &nbsp;·&nbsp; agent-first CLI &nbsp;·&nbsp; без ключа модели</p>
+        </div>
+        <div class="proof">
+          <img class="subject" src="subject.png" alt="" />
+          <img class="mark" src="../../../docs/product/logos/logo-mark.png" alt="" />
+        </div>
+      </div>
+
+      <div class="kinds" id="kinds">
+        <p class="kinds-head">Eight component kinds · one setup</p>
+        <div class="grid">
+          <div class="tile">
+            <img src="../../../apps/web/public/catalog-art/instruction.webp" alt="" />
+            <span>instruction</span>
+          </div>
+          <div class="tile">
+            <img src="../../../apps/web/public/catalog-art/skill.webp" alt="" />
+            <span>skill</span>
+          </div>
+          <div class="tile">
+            <img src="../../../apps/web/public/catalog-art/mcp.webp" alt="" />
+            <span>mcp</span>
+          </div>
+          <div class="tile">
+            <img src="../../../apps/web/public/catalog-art/hook.webp" alt="" />
+            <span>hook</span>
+          </div>
+          <div class="tile">
+            <img src="../../../apps/web/public/catalog-art/command.webp" alt="" />
+            <span>command</span>
+          </div>
+          <div class="tile">
+            <img src="../../../apps/web/public/catalog-art/agent.webp" alt="" />
+            <span>agent</span>
+          </div>
+          <div class="tile">
+            <img src="../../../apps/web/public/catalog-art/plugin.webp" alt="" />
+            <span>plugin</span>
+          </div>
+          <div class="tile">
+            <img src="../../../apps/web/public/catalog-art/setting.webp" alt="" />
+            <span>setting</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
