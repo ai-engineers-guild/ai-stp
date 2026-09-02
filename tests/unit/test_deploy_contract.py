@@ -251,6 +251,16 @@ def test_a_deployment_check_that_cannot_answer_does_not_stop_the_deployment() ->
     assert "failed=1" not in undetermined
 
 
+def test_deployment_verification_reports_only_declared_probe_origins() -> None:
+    """The success line must also work when no legacy deploy environment exists."""
+    script = Path("deploy/verify.sh").read_text(encoding="utf-8")
+    success = script.splitlines()[-1]
+
+    assert "${API_BASE}" in success
+    assert "${WEB_BASE}" in success
+    assert "${BASE}" not in success
+
+
 def test_no_workflow_carries_a_deployment_credential_or_reaches_the_target() -> None:
     """Untrusted pull-request code and the deployment share no job at all.
 

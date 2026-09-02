@@ -107,4 +107,4 @@ if [[ "${failed}" -ne 0 ]]; then
   echo "verify: the deployed stack did not answer as expected" >&2
   exit 1
 fi
-echo "verify: api, web and worker are current at ${BASE}"
+echo "verify: api and worker are current at ${API_BASE}; web is current at ${WEB_BASE}"
