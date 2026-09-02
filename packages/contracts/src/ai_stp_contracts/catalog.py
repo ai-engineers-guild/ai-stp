@@ -54,7 +54,7 @@ from ai_stp_contracts.impact import (
     ExactCoordinate,
     TokenEstimator,
 )
-from ai_stp_contracts.safety_checks import SafetyChecksSummary
+from ai_stp_contracts.safety_checks import SafetyChecksSummary, SetupComponentChecks
 from ai_stp_foundation.digests import DIGEST_PATTERN
 from ai_stp_foundation.harnesses import HarnessId
 from ai_stp_foundation.ids import stable_id_pattern
@@ -118,7 +118,7 @@ def reject_reversed_updated_range(updated_from: date | None, updated_to: date | 
 class ExternalProductObject(BaseModel):
     """Public catalog object attached to a service."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=open_wire_object)
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     object_kind: Literal["component", "setup"]
     stable_id: Annotated[str, Field(min_length=8, max_length=64)]
     name: Annotated[str, Field(min_length=1, max_length=200)]
@@ -127,7 +127,7 @@ class ExternalProductObject(BaseModel):
 class ExternalProductSummary(BaseModel):
     """Curated external service, keyed by its registrable domain."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=open_wire_object)
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     name: Annotated[str, Field(min_length=1, max_length=160)]
     canonical_domain: Annotated[str, Field(min_length=3, max_length=253)]
@@ -142,7 +142,7 @@ class ExternalProductDetail(ExternalProductSummary):
 
 
 class ExternalProductListResponse(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=open_wire_object)
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     items: list[ExternalProductSummary] = Field(default_factory=list[ExternalProductSummary])
 
@@ -150,7 +150,7 @@ class ExternalProductListResponse(BaseModel):
 class CountrySummary(BaseModel):
     """Stable country roof; localized display name belongs to Web."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=open_wire_object)
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     code: CountryCode
     services_count: Annotated[int, Field(ge=0)] = 0
@@ -163,7 +163,7 @@ class CountryDetail(CountrySummary):
 
 
 class CountryListResponse(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=open_wire_object)
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     items: list[CountrySummary] = Field(default_factory=list[CountrySummary])
 
@@ -171,7 +171,7 @@ class CountryListResponse(BaseModel):
 class ComponentMediaItem(BaseModel):
     """Safe public component media projection (SPEC-035)."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=open_wire_object)
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
     id: Annotated[str, Field(min_length=1, max_length=64)]
@@ -213,7 +213,7 @@ class CatalogPageInfo(BaseModel):
 class CatalogSupportEvidence(BaseModel):
     """Safe public summary of one provider support check (SPEC-033, ADR-0072)."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=open_wire_object)
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
     check_id: Annotated[str, Field(min_length=1, max_length=64)]
@@ -233,7 +233,7 @@ class CatalogSupportEvidence(BaseModel):
 class CatalogSupport(BaseModel):
     """Provider support status, separate from object trust and verification."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=open_wire_object)
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
     tier: SupportTier
@@ -255,7 +255,7 @@ class CatalogSupport(BaseModel):
 class GitHubMetadata(BaseModel):
     """Best-effort on-demand stars and archive state (SPEC-049)."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=open_wire_object)
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
     stars: Annotated[int, Field(ge=0)] | None = None
@@ -269,7 +269,7 @@ class CatalogUsageMetrics(BaseModel):
     not zero. Download is not install success.
     """
 
-    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=open_wire_object)
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
     detail_views_count: Annotated[int, Field(ge=0)]
@@ -661,6 +661,11 @@ class SetupDetail(BaseModel):
     services: Annotated[list[ExternalProductSummary], Field(max_length=32)] = Field(
         default_factory=list[ExternalProductSummary]
     )
+    #: Per-member checks of the latest version. On the detail read only: this
+    #: list used to sit inside `summary.latest_checks`, which is also the card
+    #: `registry search` returns, and every released client refused a card
+    #: carrying a name it did not know.
+    component_checks: Annotated[list[SetupComponentChecks], Field(max_length=500)]
 
 
 def _require_published(visibility: str) -> None:
@@ -719,6 +724,10 @@ class SetupVersionResponse(BaseModel):
     support: CatalogSupport
     published_at: Timestamp
     checks: SafetyChecksSummary | None = None
+    #: Per-member checks of this exact version. Beside `checks` rather than
+    #: inside it: `SafetyChecksSummary` is also the card `registry search`
+    #: returns, and a name added there is refused by every released client.
+    component_checks: Annotated[list[SetupComponentChecks], Field(max_length=500)]
     #: Public usage aggregate; omitted when the feature is disabled.
     usage_metrics: CatalogUsageMetrics | None = None
 
@@ -742,7 +751,7 @@ class SetupContextBudgetQuery(BaseModel):
 class SetupContextBudget(BaseModel):
     """Absolute context estimate of one visible exact setup (SPEC-049)."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=open_wire_object)
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
     coordinate: ExactCoordinate
@@ -758,7 +767,7 @@ class SetupContextBudget(BaseModel):
 class ComponentContextBudget(BaseModel):
     """Context estimate of one visible exact component (SPEC-049)."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=open_wire_object)
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
     coordinate: ExactCoordinate

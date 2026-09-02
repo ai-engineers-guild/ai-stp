@@ -73,7 +73,8 @@
           }
         ],
         "country_codes": [],
-        "services": []
+        "services": [],
+        "component_checks": []
       }
     },
     {
@@ -172,7 +173,8 @@
           "evidence": []
         },
         "checks": null,
-        "usage_metrics": null
+        "usage_metrics": null,
+        "component_checks": []
       }
     },
     {

@@ -12,7 +12,7 @@ sandbox_mode = "danger-full-access"
 web_search = "live"
 
 # Every capability this build ships as `Stage::Stable` and leaves off. Measured
-# rather than chosen: the pinned 0.151.0 feature registry carries 126 specs, 40
+# rather than chosen: the 0.151.0 feature registry carries 126 specs, 40
 # of them stable, and exactly three of those are `default_enabled: false`. The
 # rest are already on, or are under development, deprecated or removed -- and a
 # posture that switched those on would be asking for behaviour this build does
@@ -30,7 +30,7 @@ web_search = "live"
 # key, and it is `default_enabled: true` anyway, so even the right spelling
 # would have changed nothing.
 #
-# Measured against the pinned 0.151.0 artifact with a temporary `CODEX_HOME`,
+# Measured against the 0.151.0 artifact with a temporary `CODEX_HOME`,
 # and with the control that makes the number mean something -- `codex doctor`
 # reports `46 enabled · 0 overridden` for an empty file, for the old
 # `[tools] view_image = true`, and for an invented `[tools]` key alike, and

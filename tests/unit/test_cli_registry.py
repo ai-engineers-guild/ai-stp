@@ -173,7 +173,7 @@ def test_update_plan_cross_parameter_rules_are_structured() -> None:
             "kind": "required_when",
             "parameters": ["target"],
             "when_parameter": "scope",
-            "when_values": ["project"],
+            "when_values": ["project", "user_root"],
         },
     ]
 

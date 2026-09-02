@@ -131,7 +131,11 @@ def _seed(home: Path, harness_id: str) -> tuple[Path, str]:
         place = base / rule.relative
         place.parent.mkdir(parents=True, exist_ok=True)
         if rule.declared_key:
+            # A sibling key beside the contributed one, so the removal half can
+            # prove the host survives with everything it did not contribute.
             place.write_text(
+                "# kept by the person\n"
+                'model = "sibling"\n\n'
                 f'[{rule.declared_key}.mcp01]\ncommand = "mcp01-server"\nargs = ["--stdio"]\n',
                 encoding="utf-8",
             )
@@ -301,6 +305,15 @@ def _row(form: str, harness_id: str, *, root: Path, tag: str, python: str) -> di
         "--harness",
         harness_id,
     ]
+    if rule is not None and getattr(rule, "declared_key", ""):
+        # The target already holds the person's own key in the host file the
+        # contribution lands in. The install merges into it, and the removal
+        # half must hand back exactly this line — a target that held nothing
+        # but the contribution has nothing to keep, and its whole-file removal
+        # would prove nothing about `end_state`.
+        host = target / rule.relative
+        host.parent.mkdir(parents=True, exist_ok=True)
+        host.write_text('# kept by the person\nmodel = "sibling"\n', encoding="utf-8")
     planned = _stage(
         "plan", ["install", "plan", "--proposal", proposal, *common], home=home, python=python
     )
@@ -331,7 +344,77 @@ def _row(form: str, harness_id: str, *, root: Path, tag: str, python: str) -> di
                 python=python,
             )
         )
-    return _settle(form, harness_id, rule, stages, target)
+    installed = _holds_mcp01(target, rule)
+    survivor_before = _sibling_present(target, rule)
+    removed = False
+    survivor_after = False
+    if stages[-1]["outcome"] == PASSED and installed:
+        # `#54`'s removal half: a provider declaring `end_state` is handed the
+        # bytes the host keeps, and the key leaves while the person's own
+        # sibling key stays. A provider declaring nothing takes the host whole,
+        # which the row reports rather than hides.
+        removal = _stage(
+            "remove:plan",
+            ["install", "plan", "--action", "remove", "--proposal", proposal, *common],
+            home=home,
+            python=python,
+        )
+        stages.append(removal)
+        if removal["outcome"] == PASSED:
+            held = removal["data"]
+            operation = str(held.get("operation_id", ""))
+            stages.append(
+                _stage(
+                    "remove:approve",
+                    [
+                        "install",
+                        "approve",
+                        "--operation",
+                        operation,
+                        "--plan-digest",
+                        str(held.get("plan_digest", "")),
+                    ],
+                    home=home,
+                    python=python,
+                )
+            )
+            stages.append(
+                _stage(
+                    "remove:apply",
+                    ["install", "apply", "--operation", operation, "--provider", executable],
+                    home=home,
+                    python=python,
+                )
+            )
+            removed = stages[-1]["outcome"] == PASSED and not _holds_mcp01(target, rule)
+            survivor_after = _sibling_present(target, rule)
+    return _settle(
+        form,
+        harness_id,
+        rule,
+        stages,
+        target,
+        installed=installed,
+        removed=removed,
+        survivor=(survivor_before, survivor_after),
+    )
+
+
+def _holds_mcp01(target: Path, rule: Any) -> bool:
+    host = target / rule.relative if rule is not None else None
+    if host is None or not host.exists():
+        return False
+    if host.is_file():
+        return "mcp01" in host.read_text(encoding="utf-8", errors="replace")
+    return any("mcp01" in item.name for item in host.rglob("*"))
+
+
+def _sibling_present(target: Path, rule: Any) -> bool:
+    """Whether the person's own key still sits in a contributed host file."""
+    if rule is None or not getattr(rule, "declared_key", ""):
+        return False
+    host = target / rule.relative
+    return host.is_file() and "sibling" in host.read_text(encoding="utf-8", errors="replace")
 
 
 def _settle(
@@ -340,6 +423,10 @@ def _settle(
     rule: Any,
     stages: list[dict[str, Any]],
     target: Path,
+    *,
+    installed: bool | None = None,
+    removed: bool = False,
+    survivor: tuple[bool, bool] = (False, False),
 ) -> dict[str, Any]:
     """The verdict, read from the target rather than from the last stage's reply.
 
@@ -354,11 +441,15 @@ def _settle(
         contains = "mcp01" in host.read_text(encoding="utf-8", errors="replace")
     elif landed and host is not None:
         contains = any("mcp01" in item.name for item in host.rglob("*"))
+    contributed = bool(getattr(rule, "declared_key", "")) if rule is not None else False
     if any(item["outcome"] == FAILED for item in stages):
         outcome = FAILED
     elif any(item["outcome"] == INCONCLUSIVE for item in stages):
         outcome = INCONCLUSIVE
-    elif not contains:
+    elif not (contains if installed is None else installed) or not removed:
+        outcome = FAILED
+    elif contributed and not (survivor[0] and survivor[1]):
+        # The person's own key must outlive the contribution's removal.
         outcome = FAILED
     else:
         outcome = PASSED
@@ -369,7 +460,12 @@ def _settle(
         "native_surface": getattr(rule, "relative", ""),
         "declared_key": key,
         "provider_kind": getattr(rule, "provider_kind", "") or "mcp",
-        "observed": {"path_present": landed, "carries_mcp01": contains},
+        "observed": {
+            "path_present": landed,
+            "carries_mcp01": contains,
+            "removed": removed,
+            "sibling_key_survived": survivor[1] if contributed else None,
+        },
         "stages": stages,
     }
 

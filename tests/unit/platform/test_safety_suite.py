@@ -648,7 +648,9 @@ async def test_execute_validate_idempotent_second_call_skips_rescan(
 def test_project_checks_summary_on_catalog_card() -> None:
     from datetime import UTC, datetime
 
-    from ai_stp_platform.catalog_projection import project_checks_summary
+    from ai_stp_platform.catalog_projection import (
+        project_checks_summary,
+    )
     from ai_stp_platform.catalog_read import PublicVersionRow
 
     meta = SimpleNamespace(
@@ -709,7 +711,10 @@ def test_project_checks_summary_on_catalog_card() -> None:
 def test_project_checks_summary_exposes_setup_members_without_an_aggregate() -> None:
     from datetime import UTC, datetime
 
-    from ai_stp_platform.catalog_projection import project_checks_summary
+    from ai_stp_platform.catalog_projection import (
+        project_checks_summary,
+        project_component_checks,
+    )
     from ai_stp_platform.catalog_read import PublicVersionRow
 
     meta = SimpleNamespace(
@@ -749,20 +754,27 @@ def test_project_checks_summary_exposes_setup_members_without_an_aggregate() -> 
     )
 
     summary = project_checks_summary(row)
+    members = project_component_checks(row)
 
     assert summary is not None
     assert summary.checks_passed_percent is None
     assert summary.checks == []
     assert summary.total_countable == 0
-    assert summary.components is not None
-    assert summary.components[0].name == "Readable component"
-    assert summary.components[0].checks[0].check_id == "path_denylist"
+    # The members are the detail's, not the card's: `SafetyChecksSummary` is
+    # also what `registry search` returns, and a name added there broke every
+    # released client.
+    assert "components" not in summary.model_dump()
+    assert members[0].name == "Readable component"
+    assert members[0].checks[0].check_id == "path_denylist"
 
 
 def test_project_checks_summary_backfills_legacy_setup_presentations() -> None:
     from datetime import UTC, datetime
 
-    from ai_stp_platform.catalog_projection import project_checks_summary
+    from ai_stp_platform.catalog_projection import (
+        project_checks_summary,
+        project_component_checks,
+    )
     from ai_stp_platform.catalog_read import PublicVersionRow
 
     row = PublicVersionRow(
@@ -797,13 +809,13 @@ def test_project_checks_summary_backfills_legacy_setup_presentations() -> None:
     )
 
     summary = project_checks_summary(row)
+    members = project_component_checks(row)
 
     assert summary is not None
-    assert summary.components is not None
-    assert summary.components[0].name == "Legacy component"
-    assert summary.components[0].embedded is True
-    assert summary.components[0].source_coordinate == "package:npm:legacy@1.0.0"
-    assert summary.components[0].checks == []
+    assert members[0].name == "Legacy component"
+    assert members[0].embedded is True
+    assert members[0].source_coordinate == "package:npm:legacy@1.0.0"
+    assert members[0].checks == []
 
 
 def test_doctor_tools_returns_map() -> None:

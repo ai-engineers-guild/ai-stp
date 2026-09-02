@@ -527,6 +527,40 @@ def _plan_v3(
             bound_bundle,
         )
 
+    if (
+        operation is protocol_v3.Operation.REMOVE
+        and "end_state" in capabilities.plan_request_fields
+        and proposal is not None
+        and proposal.confirmed_stable_id is not None
+        and proposal.confirmed_version is not None
+    ):
+        # `ADR-0129`'s removal half: a provider that declares `end_state` may
+        # be handed the bytes that survive a contribution's removal — the host
+        # file with the contributed key taken out — and its plan names each
+        # such member as that file's final bytes. A provider that declares
+        # nothing keeps today's whole-file removal, and a graph that contributes
+        # to no owned file sends no bundle at all.
+        compiled = select_command.compile_withdrawal_bundle(
+            connection,
+            proposal.confirmed_stable_id,
+            proposal.confirmed_version,
+            expected_harness=pair.harness_id,
+            host_root=Path(provider_target),
+            scope=planned_scope,
+        )
+        if compiled is not None:
+            bundle_path = cache.store_raw_artifact_bytes(compiled.archive, compiled.artifact_digest)
+            bound_bundle = bundle_protocol.binding(
+                bundle_path,
+                bundle_format=bundle.BUNDLE_FORMAT,
+                bundle_digest=compiled.digest,
+                artifact_digest=compiled.artifact_digest,
+                bundle_size=len(compiled.archive),
+            )
+            bundle_protocol.require_validated(
+                _object(invoke("validate-bundle", bound_bundle.common_arguments())),
+                bound_bundle,
+            )
     if not status_tail:
         status_tail = operation_v3.status_arguments(capabilities, planned_scope)
     expected_target_digest = _target_digest(invoke, status_tail)
@@ -610,6 +644,7 @@ def _plan_v3(
         permission_profile=permission_profile,
         expires_at=expires_at,
         target_scope=planned_scope,
+        surviving=_surviving(compiled) if operation is protocol_v3.Operation.REMOVE else None,
     )
     cache.store_provider_plan(provider_plan.artifact, provider_plan.digest)
     recorded = installation.propose(
@@ -1711,8 +1746,23 @@ def _bound_bundle(plan: installation.Plan) -> bundle_protocol.Binding:
     )
 
 
+def _surviving(compiled: bundle.Bundle | None) -> tuple[operation_v3.Surviving, ...]:
+    """The members a removal bundle carries, as the end states the plan must name."""
+    if compiled is None:
+        return ()
+    return tuple(
+        operation_v3.Surviving(path=item.path, digest=item.digest, byte_length=item.byte_length)
+        for item in compiled.files
+    )
+
+
 def _bound_bundle_v3(plan: installation.Plan) -> bundle_protocol.Binding | None:
     operation = _v3_operation(plan.action)
+    if operation is protocol_v3.Operation.REMOVE and plan.bundle_artifact_digest:
+        # A removal that carries the bytes surviving a contribution's removal
+        # (`ADR-0129`): the apply hands the provider the same bundle the plan
+        # named, through the same five arguments `replace` takes.
+        return _bound_bundle(plan)
     if operation not in {protocol_v3.Operation.INSTALL, protocol_v3.Operation.REPLACE}:
         if any(
             (

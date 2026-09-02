@@ -117,6 +117,17 @@ def _surface(harness_id: str, home: Path, *, scope: str = "global") -> tuple[Pat
             for rule in rules
             if composition.rule_for(rule.component_type, harness_id, scope="project") is not None
         ]
+    elif scope == "user_root":
+        # The shared convention's one row: `$HOME/.agents/skills`, read by every
+        # product that declares the `user_root` scope. Seeded under the home
+        # the row is relative to and installed into a separate directory
+        # standing for another machine's `~/.agents`.
+        if composition.rule_for("skill", harness_id, scope="user_root") is None:
+            raise EvidenceError(f"{harness_id} declares no user_root surface")
+        place = home / ".agents" / "skills" / "probe"
+        place.mkdir(parents=True, exist_ok=True)
+        (place / "SKILL.md").write_text(SEED_BODY, encoding="utf-8")
+        return place, "skill", "skills"
     else:
         base = _config_root(harness_id, home)
         rules = [rule for rule in components.GLOBAL_RULES if rule.harness_id == harness_id]
@@ -232,16 +243,14 @@ def _adopted(
     scope: str = "global",
 ) -> list[str] | None:
     """The seeded surface alone, as one adopted draft."""
-    arguments = [
-        "component",
-        "adopt",
-        "--path",
-        str(seeded),
-        "--kind",
-        kind,
-        "--harness",
-        harness_id,
-    ]
+    arguments = ["component", "adopt", "--path", str(seeded), "--kind", kind]
+    if scope == "user_root":
+        # The shared root belongs to no harness: `.agents/skills` is the
+        # convention's own surface, so the skill is adopted portable and
+        # proposed for the harness afterwards (`REQ-631`).
+        pass
+    else:
+        arguments += ["--harness", harness_id]
     if scope == "project":
         arguments += ["--root", str(home / "seed")]
     adopted = _stage("adopt", arguments, home=home, python=python)
@@ -601,13 +610,11 @@ def verify_config_slice(
     }
 
 
-def _workspace_harnesses() -> tuple[str, ...]:
-    """The harnesses this consumer routes at project scope, in catalogue order."""
+def _scoped_harnesses(scope: str) -> tuple[str, ...]:
+    """The harnesses this consumer routes at the scope, in catalogue order."""
     from ai_stp_cli.local import composition
 
-    routed = {
-        rule.harness_id for rule in composition.PROVIDER_RULES if rule.target_scope == "project"
-    }
+    routed = {rule.harness_id for rule in composition.PROVIDER_RULES if rule.target_scope == scope}
     return tuple(item for item in HARNESSES if item in routed)
 
 
@@ -628,11 +635,11 @@ def _parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--scope",
-        choices=("global", "project"),
+        choices=("global", "project", "user_root"),
         default="global",
-        help="Projection scope to drive: the harness home, or the indexed workspace. "
-        "At project scope the default harness set is those whose released provider "
-        "declares a workspace rule.",
+        help="Projection scope to drive: the harness home, the indexed workspace, or the "
+        "shared ~/.agents root. Away from global the default harness set is those whose "
+        "released provider declares a rule at that scope.",
     )
     return parser
 
@@ -640,7 +647,7 @@ def _parser() -> argparse.ArgumentParser:
 def main(arguments: Sequence[str] | None = None) -> int:
     parsed = _parser().parse_args(arguments)
     chosen = tuple(parsed.harness) or (
-        _workspace_harnesses() if parsed.scope == "project" else HARNESSES
+        HARNESSES if parsed.scope == "global" else _scoped_harnesses(parsed.scope)
     )
     unknown = sorted(set(chosen) - set(HARNESSES))
     if unknown:

@@ -1692,11 +1692,111 @@ def _verify_catalog_cache_bytes(
             )
 
 
+def compile_withdrawal_bundle(
+    connection: sqlite3.Connection,
+    stable_id: str,
+    version: str,
+    *,
+    expected_harness: str,
+    host_root: Path,
+    scope: str = "global",
+) -> bundle.Bundle | None:
+    """The bytes that survive removing this SetupVersion's contributions.
+
+    `ADR-0129`'s removal half. A remove plan used to carry no bytes, so a
+    provider took a contribution's host file whole; with `end_state` a remove
+    plan may hand the provider a bundle whose members are the host files with
+    the contributed keys taken out, and the plan names each such member as
+    the file's final bytes. `None` when the graph contributes to no owned file,
+    or when every contributed host would end empty: then nothing survives and
+    a bundle-less removal says exactly that.
+
+    The host bytes come from the target the removal is planned against, as
+    the install's did (`_bundle_sources`), and only hosts that exist there are
+    withdrawn from — a host the target no longer holds has nothing to keep.
+    """
+    setup_version = versions.held(connection, stable_id, version)
+    if setup_version is None:
+        raise CliFailure(
+            "AI_STP_NOT_FOUND",
+            "the exact prepared SetupVersion is not held by this registry",
+            details={"stable_id": stable_id, "version": version},
+        )
+    setup_revision = revisions.get(connection, setup_version.revision_id)
+    if setup_revision is None:
+        raise CliFailure(
+            "AI_STP_CONFLICT",
+            "the exact prepared SetupVersion has no passport revision",
+            details={"stable_id": stable_id, "version": version},
+        )
+    setup_document = cast(dict[str, JsonValue], setup_revision.envelope.model_dump(mode="json"))
+    harness = str(setup_document.get("harness_id") or "")
+    if harness != expected_harness:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the prepared SetupVersion belongs to another harness",
+            details={"expected": expected_harness, "reported": harness},
+        )
+    raw_components = setup_document.get("components")
+    roots = [
+        graph.Reference(
+            stable_id=str(item.get("stable_id") or ""),
+            version=str(item.get("version") or ""),
+            passport_digest=str(item.get("passport_digest") or ""),
+        )
+        for item in (raw_components if isinstance(raw_components, list) else [])
+        if isinstance(item, dict)
+    ]
+    closure = graph.resolve(connection, tuple(roots))
+    if not closure.resolved:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the prepared SetupVersion no longer resolves to its exact component graph",
+            details={"refusals": ", ".join(item.code for item in closure.refusals)},
+        )
+    surfaces = _surfaces(connection, closure, scope=scope)
+    target = _composition_target(harness, surfaces, scope=scope)
+    sources: list[bundle.Source] = []
+    withdrawn: set[str] = set()
+    for item in surfaces:
+        rule = composition.rule_for(item.component_type, harness, scope=scope)
+        if rule is None or not rule.declared_key or rule.relative in withdrawn:
+            continue
+        host = host_root / rule.relative
+        if not host.is_file():
+            continue
+        survived = contribution.withdraw(
+            host=rule.relative, current=host.read_bytes(), key=rule.declared_key
+        )
+        withdrawn.add(rule.relative)
+        if survived is None:
+            continue
+        sources.append(
+            bundle.Source(path=rule.relative, content=survived, owner=item.stable_id, mode=0o644)
+        )
+    if not sources:
+        return None
+    converted = composition.convert(surfaces, target)
+    return bundle.compile_bundle(
+        tuple(sources),
+        setup_stable_id=setup_version.stable_id,
+        setup_version=setup_version.version,
+        setup_digest=setup_version.passport_digest,
+        harness_id=harness,
+        declared_paths=frozenset(source.path for source in sources),
+        setup_passport=cast(JsonValue, setup_revision.envelope.model_dump(mode="json")),
+        composition_report=_as_json(composition.compose(surfaces, target)),
+        conversion_report=_conversion_json(converted),
+        input_digest="",
+        target_scope=scope,
+    )
+
+
 def _bundle_view(compiled: bundle.Bundle, harness: str) -> HarnessBundle:
     scope = str(compiled.manifest.get("target_scope") or "global")
     return HarnessBundle(
         compiled=compiled.compiled,
-        target_scope="project" if scope == "project" else "global",
+        target_scope=scope if scope in ("project", "user_root") else "global",
         harness_id=harness,  # pyright: ignore[reportArgumentType]
         bundle_format=bundle.BUNDLE_FORMAT,
         digest=compiled.digest,

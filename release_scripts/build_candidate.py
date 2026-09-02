@@ -35,6 +35,7 @@ PUBLISHABLE: Final[dict[str, Path]] = {
     "ai-stp-passports": ROOT / "packages" / "passports" / "pyproject.toml",
     "ai-stp-assurance": ROOT / "packages" / "assurance" / "pyproject.toml",
     "ai-stp-contracts": ROOT / "packages" / "contracts" / "pyproject.toml",
+    "ai-stp-sources": ROOT / "packages" / "sources" / "pyproject.toml",
     "ai-stp-cli": ROOT / "apps" / "cli" / "pyproject.toml",
 }
 INTERNAL_DEPENDENCIES: Final[dict[str, frozenset[str]]] = {
@@ -42,7 +43,19 @@ INTERNAL_DEPENDENCIES: Final[dict[str, frozenset[str]]] = {
     "ai-stp-passports": frozenset({"ai-stp-foundation"}),
     "ai-stp-assurance": frozenset({"ai-stp-foundation", "ai-stp-passports"}),
     "ai-stp-contracts": frozenset({"ai-stp-assurance", "ai-stp-foundation", "ai-stp-passports"}),
-    "ai-stp-cli": frozenset({"ai-stp-contracts", "ai-stp-foundation", "ai-stp-passports"}),
+    "ai-stp-sources": frozenset({"ai-stp-foundation", "ai-stp-passports"}),
+    # `ai-stp-assurance` and `ai-stp-sources` were both absent here while the
+    # manifest required them, so neither pin was ever checked. A dependency the
+    # map does not name is a dependency the release does not verify.
+    "ai-stp-cli": frozenset(
+        {
+            "ai-stp-assurance",
+            "ai-stp-contracts",
+            "ai-stp-foundation",
+            "ai-stp-passports",
+            "ai-stp-sources",
+        }
+    ),
 }
 
 

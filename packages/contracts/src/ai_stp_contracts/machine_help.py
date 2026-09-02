@@ -604,7 +604,7 @@ class ComponentQualityReport(BaseModel):
 class ComponentPassportSuggestion(BaseModel):
     """One exact fact copied from named immutable evidence, awaiting confirmation."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=open_wire_object)
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
     field: Annotated[str, Field(min_length=1, max_length=64)]
@@ -1886,7 +1886,7 @@ class HarnessBundle(BaseModel):
     harness_id: HarnessId
     #: The projection scope the package was compiled for: the harness home
     #: (`global`) or a workspace root (`project`), chosen at `select bundle`.
-    target_scope: Literal["global", "project"] = "global"
+    target_scope: Literal["global", "project", "user_root"] = "global"
     bundle_format: Literal["ai-stp-bundle/1"] = "ai-stp-bundle/1"
 
     #: Domain-separated over the manifest, which covers every file by content.

@@ -189,6 +189,10 @@ type SetupDetailFixture = {
   schema_version: 1;
   summary: SetupSummaryFixture;
   versions: ReturnType<typeof versionEntry>[];
+  // Per-member checks belong to the detail read. They used to sit inside
+  // `summary.latest_checks`, which is also the card `registry search`
+  // returns, where the name alone was refused by every released client.
+  component_checks: [];
 };
 
 function componentDetailFrom(
@@ -226,6 +230,7 @@ function setupDetailFrom(
   return {
     schema_version: 1,
     summary,
+    component_checks: [],
     versions: offered.map((version) =>
       versionEntry(
         version,

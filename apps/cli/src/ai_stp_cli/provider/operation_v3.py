@@ -268,6 +268,52 @@ def load_plan(path: Path, expected_digest: str) -> ProviderPlan:
     )
 
 
+@dataclass(frozen=True)
+class Surviving:
+    """One member of a removal bundle: the bytes a host file keeps."""
+
+    path: str
+    digest: str
+    byte_length: int
+
+
+def require_end_state(artifact: dict[str, JsonValue], surviving: tuple[Surviving, ...]) -> None:
+    """A removal plan carrying a bundle names every surviving member as final bytes.
+
+    The provider's plan lists, per path it will touch, `removed` or
+    `final_bytes` with the bundle member, its digest and its length
+    (`ADR-0129`, kit 0.2.8). Every member this consumer packed must appear as
+    `final_bytes` with exactly its digest and length, or the removal would
+    delete a host file whose surviving bytes were handed over.
+    """
+    raw = artifact.get("end_state")
+    entries = raw if isinstance(raw, list) else []
+    named: dict[str, dict[str, JsonValue]] = {}
+    for entry in entries:
+        if isinstance(entry, dict) and isinstance(entry.get("path"), str):
+            named[str(entry["path"])] = cast(dict[str, JsonValue], entry)
+    for member in surviving:
+        entry = named.get(member.path)
+        if entry is None:
+            raise _refused(
+                "the provider plan names no end state for a surviving host file",
+                path=member.path,
+            )
+        expected: dict[str, JsonValue] = {
+            "end_state": "final_bytes",
+            "member": f"files/{member.path}",
+            "sha256": member.digest,
+            "byte_length": member.byte_length,
+        }
+        wrong = [key for key, value in expected.items() if entry.get(key) != value]
+        if wrong:
+            raise _refused(
+                "the provider plan does not keep a surviving host file's exact bytes",
+                path=member.path,
+                fields=", ".join(wrong),
+            )
+
+
 def profile_digest(capabilities: protocol_v3.ProviderCapabilities, target_scope: str) -> str:
     """The digest of the declared profile a plan at this scope binds.
 
@@ -297,9 +343,22 @@ def require_plan(
     permission_profile: str | None,
     expires_at: str,
     target_scope: str = "global",
+    surviving: tuple[Surviving, ...] | None = None,
 ) -> ProviderPlan:
     """Require the provider's exact canonical plan and its redundant echoes."""
     if answer.get("state") != "planned":
+        # An answered refusal is not a broken provider, and saying only that
+        # the answer "was not planned" throws away the one part of it a person
+        # can act on. The v3 wire refuses at exit 0 with a stable reason, and
+        # the neighbouring estate is about to add one — a `remove` aimed at a
+        # target the provider never managed — so a caller must be able to read
+        # *why* rather than be told the shape was wrong.
+        if answer.get("state") == "refused":
+            raise _refused(
+                "the provider refused the operation",
+                reason=str(answer.get("reason") or "unstated"),
+                detail=str(answer.get("detail") or ""),
+            )
         raise _refused("the provider did not return a planned v3 operation")
     raw = answer.get("plan")
     if not isinstance(raw, dict):
@@ -350,6 +409,8 @@ def require_plan(
     effects = _strings(artifact.get("effects"), "provider plan effects")
     if not effects or answer.get("effects") != list(effects):
         raise _refused("the provider plan does not enumerate exact effects")
+    if surviving:
+        require_end_state(artifact, surviving)
     if answer.get("expected_target_digest") != expected_target_digest:
         raise _refused("the provider plan echo names a different target snapshot")
     if bundle is not None:
@@ -399,6 +460,21 @@ def require_applied(
     never the reverse.
     """
     state = _reported_operation_state(answer)
+    if state == "refused":
+        # The mirror of the plan path. `reason=stale` already maps to `stale`
+        # above — no effect after the lock — and every other answered refusal
+        # used to arrive as "an unknown operation state", which describes a
+        # provider that answered nonsense rather than one that declined and
+        # said why. It is reachable: a provider's own record is deliberately
+        # outside the target's identity, so it can disappear between a plan and
+        # the apply that plan authorised, without moving the digest that bound
+        # them. The refusal is then the correct answer, and its reason is the
+        # part a person acts on.
+        raise _refused(
+            "the provider refused to apply the operation",
+            reason=str(answer.get("reason") or "unstated"),
+            detail=str(answer.get("detail") or ""),
+        )
     if state not in protocol.STATE_MAP:
         raise _refused("the provider returned an unknown operation state", state=state)
     if state == "stale":

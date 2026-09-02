@@ -146,12 +146,42 @@ def _tree(repository: str) -> list[dict[str, Any]]:
 
     So the provenance names the last commit that touched the captured path. It
     is the honest answer to "which commit produced these bytes", it changes when
-    and only when they do, and git already holds it. The tree itself is still
-    read at `main`: that is the state being captured.
+    and only when they do, and git already holds it.
+
+    The tree is read at one **resolved commit**, not at the moving `main` ref.
+    These repositories are rendered from a monorepo, so `main` is republished
+    whole on every release, and a build that reads `main` several times reads
+    several states: on 2026-09-02 a build begun while the `0.0.57` render was
+    still landing captured cursor at its new head and codex, claude-code,
+    antigravity and opencode at their previous one, and produced a corpus that
+    was internally consistent, agreed with its own drift check, and described a
+    mixture of two generations. Resolving the head once and reading that exact
+    tree makes a build a snapshot of one state, and `READ_HEADS` records which
+    state, so the answer can be compared against the release the providers
+    named rather than trusted.
     """
-    raw = _gh(f"repos/{ORGANISATION}/{repository}/git/trees/main?recursive=1", ".tree")
+    head = _head(repository)
+    raw = _gh(f"repos/{ORGANISATION}/{repository}/git/trees/{head}?recursive=1", ".tree")
     entries: list[dict[str, Any]] = json.loads(raw)
     return entries
+
+
+#: The commit each repository's tree was read at, in call order. Not part of any
+#: passport — provenance inside a passport is the per-path commit above — but the
+#: build's own answer to "which state did I capture", reported beside the counts.
+READ_HEADS: dict[str, str] = {}
+
+
+def _head(repository: str) -> str:
+    """The commit `main` names right now, resolved once per repository per run."""
+    held = READ_HEADS.get(repository)
+    if held is not None:
+        return held
+    head = _gh(f"repos/{ORGANISATION}/{repository}/commits/main", ".sha")
+    if not head:
+        raise RuntimeError(f"{repository}: main names no commit")
+    READ_HEADS[repository] = head
+    return head
 
 
 #: The asset every setup-system publishes for the platform this script runs on.
@@ -598,6 +628,7 @@ def build(
             if unrouted:
                 report["unrouted"][f"{harness_id}/{posture}"] = unrouted
     report["manifest"] = {"harnesses": manifest, "schema_version": 1}
+    report["heads"] = dict(READ_HEADS)
     return report
 
 
@@ -682,14 +713,12 @@ def main(arguments: Sequence[str] | None = None) -> int:
     options = parser.parse_args(arguments)
     if options.drift:
         manifest = json.loads((options.out / "corpus-sources.json").read_text(encoding="utf-8"))
-        print(
-            json.dumps(
-                drift(manifest, options.harness or sorted(REPOSITORIES)),
-                indent=2,
-                sort_keys=True,
-                ensure_ascii=False,
-            )
-        )
+        measured = drift(manifest, options.harness or sorted(REPOSITORIES))
+        # Beside the counts, the state they were measured against: a drift of
+        # zero read at a head that is not the release under discussion answers
+        # a different question than the one asked.
+        measured["heads"] = dict(READ_HEADS)
+        print(json.dumps(measured, indent=2, sort_keys=True, ensure_ascii=False))
         return 0
     options.out.mkdir(parents=True, exist_ok=True)
     report = build(

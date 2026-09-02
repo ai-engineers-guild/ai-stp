@@ -37,7 +37,16 @@ import urllib.request
 REPO = "ai-engineers-guild/ai-stp"
 
 #: Dependency order. `cli` last: it pins the other four.
-PACKAGES: tuple[str, ...] = ("foundation", "passports", "assurance", "contracts", "cli")
+#: Publication order is dependency order: a project is uploaded only after
+#: everything its metadata pins is already on the index.
+PACKAGES: tuple[str, ...] = (
+    "foundation",
+    "passports",
+    "assurance",
+    "contracts",
+    "sources",
+    "cli",
+)
 
 POLL_SECONDS = 10
 RUN_TIMEOUT_SECONDS = 1200

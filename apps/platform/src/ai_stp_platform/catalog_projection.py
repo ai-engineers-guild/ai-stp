@@ -79,7 +79,13 @@ def project_trust(row: PublicVersionRow) -> CatalogTrust:
 
 
 def project_checks_summary(row: PublicVersionRow) -> SafetyChecksSummary | None:
-    """Return stored safety checks summary for card/detail (#270), if present."""
+    """Return stored safety checks summary for card/detail (#270), if present.
+
+    The per-member checks are not here. They are one surface's question — the
+    setup detail page's — and this document is also the card that `registry
+    search` returns, where the name alone broke every released client on
+    2026-09-02. See `project_component_checks`.
+    """
     raw_summary = getattr(row.metadata, "checks_summary", None)
     if not isinstance(raw_summary, dict):
         return None
@@ -106,6 +112,55 @@ def project_checks_summary(row: PublicVersionRow) -> SafetyChecksSummary | None:
                         finding_summary=item.get("finding_summary"),  # type: ignore[arg-type]
                     )
                 )
+        # A setup is a composition, not one scannable component. Its stored
+        # aggregate remains an internal publication gate; public clients get
+        # only the exact members and each member's own checks.
+        is_setup = row.object_kind == "setup"
+        percent = None if is_setup else summary.get("checks_passed_percent")
+        status_raw = str(summary.get("status") or "empty")
+        if is_setup:
+            status_raw = "empty"
+        if status_raw not in {"pending", "available", "empty", "incomplete"}:
+            status_raw = "empty"
+        coverage = summary.get("coverage_complete")
+        if coverage is None:
+            coverage = status_raw == "available"
+        if is_setup:
+            coverage = False
+        return SafetyChecksSummary(
+            status=status_raw,  # type: ignore[arg-type]
+            checks_passed_percent=int(percent) if isinstance(percent, int) else None,
+            coverage_complete=bool(coverage),
+            passed=0 if is_setup else int(summary.get("passed") or 0),
+            failed=0 if is_setup else int(summary.get("failed") or 0),
+            warning=0 if is_setup else int(summary.get("warning") or 0),
+            not_run=0 if is_setup else int(summary.get("not_run") or 0),
+            total_countable=0 if is_setup else int(summary.get("total_countable") or 0),
+            checks=[] if is_setup else entries,
+        )
+    except Exception:
+        return None
+
+
+# Fixture corpus uses an all-zero digest placeholder; the revision seal is the
+# real content integrity check for those rows (see seed + #71 fixtures).
+_PLACEHOLDER_DIGEST = "sha256:" + ("0" * 64)
+
+
+def project_component_checks(row: PublicVersionRow) -> list[SetupComponentChecks]:
+    """The per-member checks of one setup, for its detail read only.
+
+    This used to live inside `SafetyChecksSummary`, which is the *card*
+    document as well as the detail's. A card is returned by `registry search`,
+    and adding a field to it broke every released client at once: their models
+    forbade unknown names, and a key is a key whether or not its list is empty
+    — emptying it in the card was not enough, the name had to leave the card's
+    model. One surface reads these members, the setup detail page, so they
+    belong to the detail response and to nothing else.
+    """
+    raw_summary = getattr(row.metadata, "checks_summary", None)
+    summary = cast(dict[str, Any], raw_summary) if isinstance(raw_summary, dict) else {}
+    try:
         components: list[SetupComponentChecks] = []
         components_raw = summary.get("components")
         if isinstance(components_raw, list):
@@ -189,40 +244,9 @@ def project_checks_summary(row: PublicVersionRow) -> SafetyChecksSummary | None:
                         checks=[],
                     )
                 )
-        # A setup is a composition, not one scannable component. Its stored
-        # aggregate remains an internal publication gate; public clients get
-        # only the exact members and each member's own checks.
-        is_setup = row.object_kind == "setup"
-        percent = None if is_setup else summary.get("checks_passed_percent")
-        status_raw = str(summary.get("status") or "empty")
-        if is_setup:
-            status_raw = "empty"
-        if status_raw not in {"pending", "available", "empty", "incomplete"}:
-            status_raw = "empty"
-        coverage = summary.get("coverage_complete")
-        if coverage is None:
-            coverage = status_raw == "available"
-        if is_setup:
-            coverage = False
-        return SafetyChecksSummary(
-            status=status_raw,  # type: ignore[arg-type]
-            checks_passed_percent=int(percent) if isinstance(percent, int) else None,
-            coverage_complete=bool(coverage),
-            passed=0 if is_setup else int(summary.get("passed") or 0),
-            failed=0 if is_setup else int(summary.get("failed") or 0),
-            warning=0 if is_setup else int(summary.get("warning") or 0),
-            not_run=0 if is_setup else int(summary.get("not_run") or 0),
-            total_countable=0 if is_setup else int(summary.get("total_countable") or 0),
-            checks=[] if is_setup else entries,
-            components=components,
-        )
+        return components
     except Exception:
-        return None
-
-
-# Fixture corpus uses an all-zero digest placeholder; the revision seal is the
-# real content integrity check for those rows (see seed + #71 fixtures).
-_PLACEHOLDER_DIGEST = "sha256:" + ("0" * 64)
+        return []
 
 
 def verify_passport_integrity(row: PublicVersionRow) -> bytes:
@@ -405,6 +429,7 @@ def setup_detail(versions: list[PublicVersionRow], *, now: datetime | None = Non
     return SetupDetail(
         summary=setup_summary(latest, now=now),
         versions=[version_list_entry(v, now=now) for v in versions],
+        component_checks=project_component_checks(latest),
     )
 
 
@@ -444,6 +469,7 @@ def setup_version_response(
         support=support,
         published_at=format_timestamp(row.published_at),  # type: ignore[arg-type]
         checks=project_checks_summary(row),
+        component_checks=project_component_checks(row),
         published_passport=cast(dict[str, JsonValue], row.passport),
     )
 

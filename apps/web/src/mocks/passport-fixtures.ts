@@ -199,5 +199,8 @@ export function setupVersionResponse(stableId: string, version: string) {
     trust: experimentalTrust,
     support: summary.latest_support,
     published_at: summary.latest_published_at,
+    // A version read is a detail read, so it carries the per-member checks
+    // that the card deliberately does not.
+    component_checks: [],
   };
 }
