@@ -459,9 +459,17 @@ class AppContainerProcess:
             raise OSError(reason, "the provider could not be placed under a job object")
         api.kernel.ResumeThread(thread)
         api.kernel.CloseHandle(thread)
-        self.stdout = cast(
-            "IO[bytes]", os.fdopen(msvcrt_open_osfhandle(read_end.value or 0), "rb", 0)
-        )
+        # Buffered, as `subprocess.Popen(stdout=PIPE)` is on every other
+        # platform. `conformance._bounded_output` reads `limit + 1` bytes in one
+        # call; on an unbuffered pipe that is a single `ReadFile` returning the
+        # first chunk the child wrote, and a provider that answers in more than
+        # one write — every real one, unlike the launcher's own probe — was read
+        # as truncated JSON: "the provider did not answer with JSON" from a
+        # child that had exited 0 with a complete answer, measured on
+        # `windows-latest` against codex 0.0.55. A buffered reader keeps
+        # reading until the bound or end of file, which is the contract the
+        # bounded read was written against.
+        self.stdout = cast("IO[bytes]", os.fdopen(msvcrt_open_osfhandle(read_end.value or 0), "rb"))
 
     def kill(self) -> None:
         """End the whole tree, not just the process this holds a handle to.
