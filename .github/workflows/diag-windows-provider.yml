@@ -79,17 +79,33 @@ jobs:
                       print(argv[1], "->", json.dumps(answer)[:1200])
                   except Exception:
                       traceback.print_exc()
-              print("=== raw status bytes inside the container, stderr kept in a file")
-              api = windows_launcher._Api.load()
-              sid, package = windows_launcher._profile(api)
-              runtime = Path(exe).resolve().parent
-              for path, rights in ((target.resolve(), "(M)"), (runtime, "(RX)")):
-                  print("grant", path, rights, windows_launcher._icacls(package, path, rights, inherit=True))
-              with windows_launcher.AppContainerProcess(api, sid, [exe, "status", "--target", str(target), "--json"], {"PATH": "", "SystemRoot": __import__("os").environ["SystemRoot"]}) as child:
+              print("=== raw status inside the container: ancestors and roots")
+          import os
+          api = windows_launcher._Api.load()
+          sid, package = windows_launcher._profile(api)
+          runtime = Path(exe).resolve().parent
+          def raw_status(where: Path, extra_grants):
+              granted = []
+              for path, rights, inherit in ((where.resolve(), "(M)", True), (runtime, "(RX)", True), *extra_grants):
+                  ok = windows_launcher._icacls(package, path, rights, inherit=inherit)
+                  granted.append(path)
+                  print("  grant", path, rights, "inherit" if inherit else "leaf", ok)
+              with windows_launcher.AppContainerProcess(api, sid, [exe, "status", "--target", str(where), "--json"], {"PATH": ""}) as child:
                   raw = child.stdout.read() if child.stdout else b""
                   code = child.wait()
-              print("raw exit", hex(code), "bytes", len(raw))
-              print(raw[:1500])
-              for path in (target.resolve(), runtime):
+              print("  ->", hex(code), raw[:300])
+              for path in granted:
                   windows_launcher._revoke(package, path)
+          print("A. RUNNER_TEMP target, no ancestor grants")
+          raw_status(target, ())
+          print("B. RUNNER_TEMP target, (RX) leaf on each ancestor")
+          ancestors = [p for p in target.resolve().parents if p != p.anchor and str(p) != p.anchor]
+          raw_status(target, tuple((p, "(RX)", False) for p in ancestors))
+          print("C. %TEMP% target, no ancestor grants")
+          temp_target = Path(os.environ["TEMP"]) / "ai-stp-diag-target"
+          temp_target.mkdir(parents=True, exist_ok=True)
+          raw_status(temp_target, ())
+          print("D. %TEMP% target, (RX) leaf on each ancestor")
+          ancestors = [p for p in temp_target.resolve().parents if str(p) != p.anchor]
+          raw_status(temp_target, tuple((p, "(RX)", False) for p in ancestors))
           PY
