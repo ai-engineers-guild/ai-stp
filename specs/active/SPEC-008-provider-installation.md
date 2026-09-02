@@ -1,6 +1,6 @@
 ---
 description: "SPEC-008: Providers, installation and recovery."
-last_verified: "2026-08-27"
+last_verified: "2026-09-02"
 ---
 
 # SPEC-008: Providers, installation and recovery
@@ -75,6 +75,9 @@ The closed authoring loop of setup systems is a check and coordination loop: it 
 - `REQ-846`: The trust level, identity attestation and digest of the used bundle are included in the immutable install plan, re-checked before apply and stored in the local history. The repeated check feeds the `gh attestation verify --bundle` Sigstore bundle extracted from the saved JSON GitHub CLI response, rather than the `attestation` wrapper with `bundle_url`. The compatible field `provider_release_trusted` is output as `level != unverified` but is not a level source.
 - `REQ-847`: The consumer materializes the private release manifest from the attested artifact, exact tag, source commit, and `provider-info` of these bytes when the publisher did not include JSON. Sequence is encoded from the exact semver tag. This is not a second trust anchor and does not add bytes to `releases`. The executable file does not run until the attestation check is successful.
 - `REQ-848`: The setup plan names the selected setup - its name and its own description - along with a list of effects. The list of effects is specific to the files the provider will record and says nothing about what it means to change them; for a setup whose content is disabled, these are different questions. The description is taken from the exact SetupVersion passport, which the plan already allows, and is not abbreviated.
+- `REQ-849`: A provider executable delivered as a Python distribution is accepted through provenance, never through the channel (`ADR-0141`). The distribution carries the native binary as package data at a stable relative path with the canonical release manifest beside it, and the manifest `entry_point` names that binary. A console-script entry is refused: it is a shim, and the digest and name checked here must belong to the bytes that run.
+- `REQ-850`: Before such a binary runs, the index's PEP 740 provenance for that exact file is fetched and its Sigstore bundle verified over the file digest. The publisher triple — repository, workflow, environment — is matched against locally pinned policy carrying the same fields as `build_attestations`, and only a match reports `verified_publisher`. The channel earns an existing level; it does not introduce one.
+- `REQ-851`: A missing provenance document, a bundle that does not verify, a publisher outside policy, and an index that serves no provenance are one outcome, `unverified`, not four gradations. With no index publisher rule pinned, every distribution-delivered provider is `unverified`, which is the behaviour that predates this requirement, so the absence of policy is the rollback.
 
 ## States and errors
 
@@ -140,3 +143,6 @@ The version of the contract is agreed upon before the operation. The old provide
 | `REQ-846` | Changing the level, attestation identity or bundle digest changes the plan digest; apply repeats the exact bytes and evidence checks, while history and machine output keep the level without secrets. A separate test confirms that `verify_stored` fetches the Sigstore bundle from the JSON GitHub CLI and fails if `--bundle` is left with a wrapper without `dsseEnvelope`. |
 | `REQ-847` | The `provider fetch` fixture, after successful GitHub attestation, writes a private JSON, which `verify_attested` accepts; `provider-info` is called only after attestation; tag `latest` and open pre-release are rejected; the bytes do not end up in `releases`. |
 | `REQ-848` | The plan of the selected setup carries its name and full description; a qualified description retains the disclaimer, not just the first phrase. |
+| `REQ-849` | A wheel whose manifest `entry_point` names a console script is refused, and one naming the packaged binary is accepted; the fixture proves the refusal is over the entry shape by keeping every other field equal. |
+| `REQ-850` | A provenance document verifying against a pinned publisher raises the level to `verified_publisher`; the executable does not run before the verification completes, measured the way the GitHub path is measured — by ordering the spawn after the check and failing the fixture when it is reordered. |
+| `REQ-851` | Four fixtures — absent provenance, a bundle that fails verification, a publisher outside policy, an index answering 404 for every file — each report `unverified`, and each runs beside a passing control in the same test, so a check that accepted everything would fail rather than pass silently. |
