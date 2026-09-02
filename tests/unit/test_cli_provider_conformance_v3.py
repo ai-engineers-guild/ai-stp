@@ -1471,3 +1471,103 @@ def test_a_fact_stated_twice_must_agree_with_itself(tmp_path: Path) -> None:
                 bundle=None,
                 operation=protocol_v3.Operation.INSTALL,
             )
+
+
+def test_an_answered_refusal_carries_the_reason_the_provider_gave(tmp_path: Path) -> None:
+    """A refusal is an answer, and its reason is the part a caller can act on.
+
+    The v3 wire refuses at exit 0 with a stable reason. Every such answer used
+    to reach the caller as one sentence — that the provider "did not return a
+    planned v3 operation" — which is true of a crash, a wrong shape and a
+    considered refusal alike, and tells apart none of them. The provider estate
+    is adding a refusal this consumer will meet: a `remove` aimed at a target
+    the provider never managed, where taking the declared namespaces whole
+    would be a guess about someone else's files.
+    """
+    _answer, bound, expiry, _digest_value = _plan_answer(tmp_path)
+    refused: dict[str, JsonValue] = {
+        "state": "refused",
+        "reason": protocol_v3.UnsupportedReason.OPERATION.value,
+        "detail": "this build does not know what it wrote to this target",
+    }
+    with pytest.raises(CliFailure) as raised:
+        operation_v3.require_plan(
+            refused,
+            capabilities=_capabilities(),
+            release_digest=_digest("d"),
+            operation_id="operation_test_v3",
+            operation=protocol_v3.Operation.REMOVE,
+            target=tmp_path,
+            expected_target_digest=_digest("a"),
+            bundle=bound,
+            backup_ref=None,
+            permission_profile=None,
+            expires_at=expiry,
+        )
+    assert raised.value.details["reason"] == "unsupported_operation"
+    assert "does not know what it wrote" in raised.value.details["detail"]
+    # A shape that is not an answer keeps the sentence about shapes.
+    with pytest.raises(CliFailure) as broken:
+        operation_v3.require_plan(
+            {"state": "planned_maybe"},
+            capabilities=_capabilities(),
+            release_digest=_digest("d"),
+            operation_id="operation_test_v3",
+            operation=protocol_v3.Operation.REMOVE,
+            target=tmp_path,
+            expected_target_digest=_digest("a"),
+            bundle=bound,
+            backup_ref=None,
+            permission_profile=None,
+            expires_at=expiry,
+        )
+    assert "planned v3 operation" in broken.value.message
+
+
+def test_an_apply_refusal_is_a_decision_with_a_reason_not_an_unknown_state(
+    tmp_path: Path,
+) -> None:
+    """The same rule on the apply path, where the race actually puts it.
+
+    A provider's own record sits outside the target's identity on purpose, so
+    it can disappear between a plan and the apply that plan authorised without
+    moving the digest that bound them. The apply is then refused, correctly,
+    and calling that "an unknown operation state" describes a provider that
+    answered nonsense instead of one that declined and said why.
+
+    `reason=stale` keeps its own meaning — no effect after the lock — and is
+    not a failure at all.
+    """
+    answer, bound, expiry, _digest_value = _plan_answer(tmp_path)
+    plan = operation_v3.require_plan(
+        answer,
+        capabilities=_capabilities(),
+        release_digest=_digest("d"),
+        operation_id="operation_test_v3",
+        operation=protocol_v3.Operation.INSTALL,
+        target=tmp_path,
+        expected_target_digest=_digest("a"),
+        bundle=bound,
+        backup_ref=None,
+        permission_profile=None,
+        expires_at=expiry,
+    )
+    with pytest.raises(CliFailure) as raised:
+        operation_v3.require_applied(
+            {
+                "state": "refused",
+                "rejected": True,
+                "reason": protocol_v3.UnsupportedReason.OPERATION.value,
+                "detail": "has applied no setup at this target",
+            },
+            plan=plan,
+            bundle=bound,
+        )
+    assert raised.value.details["reason"] == "unsupported_operation"
+    assert "no setup" in raised.value.details["detail"]
+    assert (
+        operation_v3.require_applied(
+            {"state": "refused", "reason": "stale"}, plan=plan, bundle=bound
+        )
+        == "stale"
+    )

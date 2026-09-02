@@ -347,6 +347,18 @@ def require_plan(
 ) -> ProviderPlan:
     """Require the provider's exact canonical plan and its redundant echoes."""
     if answer.get("state") != "planned":
+        # An answered refusal is not a broken provider, and saying only that
+        # the answer "was not planned" throws away the one part of it a person
+        # can act on. The v3 wire refuses at exit 0 with a stable reason, and
+        # the neighbouring estate is about to add one — a `remove` aimed at a
+        # target the provider never managed — so a caller must be able to read
+        # *why* rather than be told the shape was wrong.
+        if answer.get("state") == "refused":
+            raise _refused(
+                "the provider refused the operation",
+                reason=str(answer.get("reason") or "unstated"),
+                detail=str(answer.get("detail") or ""),
+            )
         raise _refused("the provider did not return a planned v3 operation")
     raw = answer.get("plan")
     if not isinstance(raw, dict):
@@ -448,6 +460,21 @@ def require_applied(
     never the reverse.
     """
     state = _reported_operation_state(answer)
+    if state == "refused":
+        # The mirror of the plan path. `reason=stale` already maps to `stale`
+        # above — no effect after the lock — and every other answered refusal
+        # used to arrive as "an unknown operation state", which describes a
+        # provider that answered nonsense rather than one that declined and
+        # said why. It is reachable: a provider's own record is deliberately
+        # outside the target's identity, so it can disappear between a plan and
+        # the apply that plan authorised, without moving the digest that bound
+        # them. The refusal is then the correct answer, and its reason is the
+        # part a person acts on.
+        raise _refused(
+            "the provider refused to apply the operation",
+            reason=str(answer.get("reason") or "unstated"),
+            detail=str(answer.get("detail") or ""),
+        )
     if state not in protocol.STATE_MAP:
         raise _refused("the provider returned an unknown operation state", state=state)
     if state == "stale":
