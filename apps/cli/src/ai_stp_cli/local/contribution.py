@@ -67,6 +67,62 @@ def assemble(*, host: str, current: bytes | None, key: str, value: JsonValue) ->
     return _json(host=host, current=current, key=key, value=value)
 
 
+def withdraw(*, host: str, current: bytes, key: str) -> bytes | None:
+    """The host file's full bytes with one key taken out, or `None` when nothing
+    is left to keep.
+
+    The removal half of `assemble` (`ADR-0129`): a contribution's removal used
+    to take the host file whole, because a remove plan carried no bytes and a
+    provider deletes what it wrote. With `end_state` a remove plan may name
+    the member whose bytes survive, and these are those bytes — every other
+    key, every comment in a TOML host, exactly as `assemble` would have kept
+    them. A host without the key is returned as it is; a host holding nothing
+    but the key ends as no file at all, which the plan then records as
+    `removed` rather than as an empty document nobody wrote.
+    """
+    suffix = PurePosixPath(host).suffix.casefold()
+    if suffix not in SUPPORTED:
+        raise _refused(
+            "this host file format cannot be assembled",
+            host=host,
+            detail=f"supported: {', '.join(sorted(SUPPORTED))}",
+        )
+    if not key:
+        raise _refused("a contribution must name the key it owns", host=host, detail="empty key")
+    if suffix == TOML:
+        try:
+            document = tomlkit.parse(current.decode("utf-8"))
+        except (UnicodeDecodeError, ValueError) as error:
+            raise _refused(
+                "the host file is not readable TOML", host=host, detail=type(error).__name__
+            ) from error
+        if key in document:
+            del document[key]
+        rendered = tomlkit.dumps(document)
+        if not rendered.strip():
+            # Judged on the bytes, not on the key count: a host that keeps
+            # only the person's comment still keeps something of theirs.
+            return None
+        return rendered.encode("utf-8")
+    try:
+        loaded = json.loads(current.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError) as error:
+        raise _refused(
+            "the host file is not readable JSON", host=host, detail=type(error).__name__
+        ) from error
+    if not isinstance(loaded, dict):
+        raise _refused(
+            "the host file is JSON but not an object", host=host, detail=type(loaded).__name__
+        )
+    remaining = cast("dict[str, JsonValue]", loaded)
+    remaining.pop(key, None)
+    if not remaining:
+        return None
+    return (json.dumps(remaining, indent=2, ensure_ascii=False, sort_keys=True) + "\n").encode(
+        "utf-8"
+    )
+
+
 def extract_value(*, host: str, content: bytes, key: str) -> bytes:
     """One key's value, lifted out of a host file, as a contributing component's bytes.
 

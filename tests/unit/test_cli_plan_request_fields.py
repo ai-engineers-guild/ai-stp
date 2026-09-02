@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import pytest
 
+from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local.bundle import BUNDLE_FORMAT
 from ai_stp_cli.provider import operation_v3, protocol_v3
 from ai_stp_foundation.canonical import JsonValue
@@ -134,3 +135,54 @@ def test_end_state_is_accepted_before_anything_sends_it() -> None:
 
     both = protocol_v3.parse_capabilities(_info(plan_request_fields=["end_state", "target_scope"]))
     assert both.plan_request_fields == frozenset({"end_state", "target_scope"})
+
+
+def test_a_removal_plan_must_keep_every_surviving_member_as_final_bytes() -> None:
+    """`ADR-0129`'s removal half, checked on the plan the provider answers.
+
+    The consumer packs the bytes a host file keeps after a contribution is
+    withdrawn; the provider's plan names each such member as that path's
+    `final_bytes` with the member, its digest and its length. A plan that
+    names the path as `removed`, names another digest, or does not name the
+    path at all would delete bytes that were handed over to survive.
+    """
+    surviving = (
+        operation_v3.Surviving(path="config.toml", digest="sha256:" + "a" * 64, byte_length=12),
+    )
+    good: dict[str, JsonValue] = {
+        "end_state": [
+            {"path": "hooks.json", "end_state": "removed"},
+            {
+                "path": "config.toml",
+                "end_state": "final_bytes",
+                "member": "files/config.toml",
+                "sha256": "sha256:" + "a" * 64,
+                "byte_length": 12,
+            },
+        ]
+    }
+    operation_v3.require_end_state(good, surviving)
+    broken_plans: list[tuple[dict[str, JsonValue], str]] = [
+        ({"end_state": [{"path": "config.toml", "end_state": "removed"}]}, "end_state"),
+        ({"end_state": []}, "no end state"),
+        (
+            {
+                "end_state": [
+                    {
+                        "path": "config.toml",
+                        "end_state": "final_bytes",
+                        "member": "files/config.toml",
+                        "sha256": "sha256:" + "b" * 64,
+                        "byte_length": 12,
+                    }
+                ]
+            },
+            "sha256",
+        ),
+    ]
+    for broken, wrong in broken_plans:
+        with pytest.raises(CliFailure) as refused:
+            operation_v3.require_end_state(broken, surviving)
+        assert wrong in refused.value.message or wrong in str(refused.value.details)
+    # A plan carrying no bundle has nothing to keep and is not asked.
+    operation_v3.require_end_state({"end_state": []}, ())

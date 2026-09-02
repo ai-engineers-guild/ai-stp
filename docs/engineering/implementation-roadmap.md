@@ -173,20 +173,25 @@ setup compiles into the bundle an adopted one would
 configuration slice, so the round trip is proven by the same slice that proves
 the ordinary path.
 
-### P2. `end_state` on the consumer side (`#54`)
+### P2. `end_state` on the consumer side (`#54`) — done, measured
 
 `ADR-0125` fixes the order: this CLI accepts the field, the CLI is released, kit
-`0.2.8` declares it, providers implement it. All four steps are now true:
-`0.0.54` declares `end_state` on all seven and carries the remove plan's
-`end_state` entries — `{path, end_state: removed}` and `{path, end_state:
-final_bytes, member, sha256, byte_length}`, present only when the plan was
-built with a bundle — with `remove` accepting the same bundle arguments as
-`replace` and refusing, by name, a bundle the plan did not describe. What
-remains is ours and is the next change: `contribution.withdraw()`
-reconstructs the host file without the key by the install's own route, packs
-the surviving bytes into the optional bundle, and the plan entry carries
-`final_bytes`; a provider that does not declare the field keeps today's
-truthful warning. The three measured refusal forms of `0.0.54` —
+`0.2.8` declares it, providers implement it. All four steps are true, and the
+consumer half landed on 2026-09-02: `contribution.withdraw()` reconstructs the
+host file without the contributed key by the install's own route (TOML through
+`tomlkit`, so the person's comments and order survive; JSON as the object
+without the key), `select.compile_withdrawal_bundle()` packs the surviving
+bytes of every contributed host the target still holds, and `install plan
+--action remove` hands that bundle to a provider whose `plan_request_fields`
+declares `end_state` — the plan is then required to name each packed member as
+`final_bytes` with its member, digest and length. A host that would end empty
+is not packed and goes `removed`; a provider that declares nothing keeps
+today's whole-file removal; a graph that contributes to no owned file sends no
+bundle. Measured by `just evidence-contribution 0.0.56`, whose removal half
+seeds the target's `config.toml` with the person's own key before the install:
+codex's plan answered «leave config.toml», apply verified, and the file stayed
+with that key and without the contribution; cursor's own file and pi's
+extension went whole. The three measured refusal forms of `0.0.54` —
 `unsupported_operation`, `unsupported_bundle_format`, `digest_mismatch` — are
 the shapes the consumer tests pin.
 
