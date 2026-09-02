@@ -1,0 +1,90 @@
+# Temporary diagnostic: what a real provider binary answers inside the
+# AppContainer on a hosted Windows runner. Not a gate; deleted with its branch.
+name: diag-windows-provider
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Provider release tag"
+        required: true
+        default: "0.0.55"
+
+permissions:
+  contents: read
+
+env:
+  UV_VERSION: "0.12.1"
+
+jobs:
+  probe:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    env:
+      AI_STP_FORCE_FILE_CREDENTIAL_STORE: "1"
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.14"
+      - name: Install pinned uv
+        run: |
+          set -euo pipefail
+          python_path="$(python -c 'import sys; print(sys.executable)')"
+          echo "UV_PYTHON=${python_path}" >> "${GITHUB_ENV}"
+          bash .github/scripts/install-uv.sh "${UV_VERSION}" "${RUNNER_TEMP}/uv"
+          echo "${RUNNER_TEMP}/uv" >> "${GITHUB_PATH}"
+      - name: Sync the consumer
+        run: |
+          set -euo pipefail
+          uv sync --locked --package ai-stp-cli
+      - name: Fetch codex and answer inside the container
+        run: |
+          set -euo pipefail
+          export HOME="${RUNNER_TEMP}/home"; mkdir -p "$HOME/config" "$HOME/data"
+          export XDG_CONFIG_HOME="$HOME/config" XDG_DATA_HOME="$HOME/data"
+          mkdir -p "${RUNNER_TEMP}/provider" "${RUNNER_TEMP}/target"
+          uv run --locked --package ai-stp-cli ai-stp provider fetch --harness codex --tag "${{ inputs.tag }}" --directory "${RUNNER_TEMP}/provider" --json | head -c 600; echo
+          exe=$(ls "${RUNNER_TEMP}/provider" | grep -v 'release.json\|SHA256' | head -1)
+          echo "exe=$exe"
+          echo "=== provider network"
+          uv run --locked --package ai-stp-cli ai-stp provider network --json | head -c 1500; echo
+          echo "=== provider-info direct (no container)"
+          "${RUNNER_TEMP}/provider/$exe" provider-info --target "${RUNNER_TEMP}/target" --json | head -c 400; echo
+          echo "=== conformance through the invoker"
+          uv run --locked --package ai-stp-cli ai-stp provider conformance --harness codex --executable "${RUNNER_TEMP}/provider/$exe" --json | head -c 3000; echo
+          echo "=== launcher.run directly, with the exception"
+          uv run --locked --package ai-stp-cli python - "${RUNNER_TEMP}/provider/$exe" "${RUNNER_TEMP}/target" <<'PY'
+          import sys, traceback, json
+          from pathlib import Path
+          from ai_stp_cli.provider import windows_launcher
+          exe, target = sys.argv[1], Path(sys.argv[2])
+          launcher, capability = windows_launcher.discover_appcontainer()
+          print("launcher", launcher is not None, capability.evidence[:2])
+          if launcher is None:
+              sys.exit(0)
+          for command in ("provider-info", "status"):
+              try:
+                  answer = launcher.run((exe, command, "--target", str(target), "--json"), target=target, command=command)
+                  print(command, "->", json.dumps(answer)[:600])
+              except Exception:
+                  traceback.print_exc()
+          # And the raw child, bypassing the JSON boundary: exit code and bytes.
+          api = windows_launcher._Api.load()
+          sid, package = windows_launcher._profile(api)
+          runtime = Path(exe).resolve().parent
+          for path, rights in ((target.resolve(), "(M)"), (runtime, "(RX)")):
+              print("grant", path, rights, windows_launcher._icacls(package, path, rights, inherit=True))
+          with windows_launcher.AppContainerProcess(api, sid, [exe, "provider-info", "--target", str(target), "--json"], {"PATH": ""}) as child:
+              raw = child.stdout.read() if child.stdout else b""
+              code = child.wait()
+          print("raw exit", hex(code), "bytes", len(raw), raw[:800])
+          for path in (target.resolve(), runtime):
+              windows_launcher._revoke(package, path)
+          PY
