@@ -259,7 +259,24 @@ _KERNEL_SIGNATURES: Final[dict[str, tuple[list[Any], Any]]] = {
     "WaitForSingleObject": ([ctypes.c_void_p, ctypes.c_uint32], ctypes.c_uint32),
     "GetExitCodeProcess": ([ctypes.c_void_p, ctypes.c_void_p], ctypes.c_int32),
     "SetHandleInformation": ([ctypes.c_void_p, ctypes.c_uint32, ctypes.c_uint32], ctypes.c_int32),
+    "CreateFileW": (
+        [
+            ctypes.c_wchar_p,
+            ctypes.c_uint32,
+            ctypes.c_uint32,
+            ctypes.c_void_p,
+            ctypes.c_uint32,
+            ctypes.c_uint32,
+            ctypes.c_void_p,
+        ],
+        ctypes.c_void_p,
+    ),
 }
+
+_GENERIC_WRITE: Final[int] = 0x40000000
+_FILE_SHARE_READ_WRITE: Final[int] = 0x00000003
+_OPEN_EXISTING: Final[int] = 3
+_INVALID_HANDLE_VALUE: Final[int] = 2**64 - 1
 
 
 def _declare_kernel(kernel: Any) -> None:
@@ -367,11 +384,36 @@ class AppContainerProcess:
             api.kernel.CloseHandle(write_end)
             raise OSError(ctypes.get_last_error(), "the isolation attributes were refused")
 
+        # Standard error goes to the NUL device, as `conformance._popen` sends
+        # it to `DEVNULL` on every other platform. It went into the same pipe
+        # as standard output, so the first provider that wrote one line of
+        # diagnostics from inside the container broke the JSON boundary for
+        # every answer after it: both hosted Windows legs of every slice read
+        # `provider-info` without a `protocol_version` the day the container
+        # first held a real provider, while the launcher's own tests, whose
+        # child wrote nothing to stderr, stayed green.
+        discard = ctypes.c_void_p(
+            api.kernel.CreateFileW(
+                "NUL",
+                _GENERIC_WRITE,
+                _FILE_SHARE_READ_WRITE,
+                ctypes.byref(attributes),
+                _OPEN_EXISTING,
+                0,
+                None,
+            )
+        )
+        if not discard.value or discard.value == _INVALID_HANDLE_VALUE:
+            api.kernel.CloseHandle(read_end)
+            api.kernel.CloseHandle(write_end)
+            raise OSError(
+                ctypes.get_last_error(), "the isolation sink for stderr could not be opened"
+            )
         start = _StartupInfoEx()
         start.cb = ctypes.sizeof(_StartupInfoEx)
         start.dwFlags = _STARTF_USESTDHANDLES
         start.hStdOutput = write_end
-        start.hStdError = write_end
+        start.hStdError = discard
         start.hStdInput = None
         start.lpAttributeList = ctypes.cast(self._attributes, ctypes.c_void_p)
         information = _ProcessInformation()
@@ -391,6 +433,7 @@ class AppContainerProcess:
             ctypes.byref(information),
         )
         api.kernel.CloseHandle(write_end)
+        api.kernel.CloseHandle(discard)
         if not created:
             api.kernel.CloseHandle(read_end)
             self._close_job()

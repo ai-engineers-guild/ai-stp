@@ -117,9 +117,13 @@ def test_the_isolated_spawn_reaches_the_target_and_not_the_network() -> None:
     place = target / "written-inside"
     # .NET calls only: the container's PowerShell has no `PSModulePath`, so
     # `Set-Content` and its siblings do not exist there (see the launcher).
+    # The child also writes a line of diagnostics to standard error, as a real
+    # provider may: it must not reach the answer. Both hosted Windows legs of
+    # every slice failed on that the day the container first held a provider.
     script = (
         f"[System.IO.File]::WriteAllText('{place}', 'inside')\n"
         f"$written = [System.IO.File]::ReadAllText('{place}')\n"
+        "[System.Console]::Error.WriteLine('diagnostic noise that is not the answer')\n"
         "[System.Console]::Out.WriteLine('{\"written\":\"' + $written + '\"}')\n"
     )
     answer = launcher.run(
