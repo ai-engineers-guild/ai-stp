@@ -25,6 +25,9 @@
           "latest_name": "fixture-setup",
           "latest_description": "fixture-setup-description",
           "latest_harness_id": "claude-code",
+          "latest_harness_ids": [
+            "claude-code"
+          ],
           "latest_purpose": "fixture-purpose",
           "latest_target_role": "fixture-role",
           "latest_posture": "baseline",

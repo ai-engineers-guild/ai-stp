@@ -25,8 +25,7 @@ from contextlib import closing
 from typing import Final, Literal, cast
 
 from ai_stp_cli.answer import Answer
-from ai_stp_cli.cloud import login, publication, session
-from ai_stp_cli.cloud import owner as owner_reads
+from ai_stp_cli.cloud import catalog, login, publication, session
 from ai_stp_cli.cloud.client import Endpoint
 from ai_stp_cli.commands import cloud_auth
 from ai_stp_cli.commands.auth import endpoint
@@ -81,7 +80,7 @@ def plan(parameters: Mapping[str, object]) -> Answer[PublicationSetView]:
 
     with closing(open_readonly(configured_path())) as connection:
         setup = _setup_passport(connection, stable_id, version)
-        pins = _pins(setup)
+        pins = _catalog_pins(connection, setup)
         artifacts = {
             item[0]: _artifact(connection, item[1]) for item in _digests(connection, setup, pins)
         }
@@ -295,18 +294,16 @@ def _already_public(
 
     Local visibility cannot answer it: a passport says what this machine
     believes, and what is public is a fact about the platform. Absent is not
-    public — an object this account has never pushed reads as a 404, which is
-    exactly the case a plan exists for.
+    public — a catalog 404 is exactly the case a plan exists for. The owner
+    endpoint cannot answer this for components published by another account.
     """
     try:
-        detail = owner_reads.version_detail(
-            where, held.access_token, object_kind, stable_id, version
-        )
+        catalog.version(where, object_kind, stable_id, version)
     except CliFailure as failure:
         if failure.code == "AI_STP_NOT_FOUND":
             return False
         raise
-    return detail.visibility == "public"
+    return True
 
 
 def _view(stored: publication_sets.StoredSet) -> PublicationSetView:
@@ -348,9 +345,16 @@ def _setup_passport(
     return SetupVersionPassport.model_validate(stored.envelope.model_dump(mode="json"))
 
 
-def _pins(setup: SetupVersionPassport) -> tuple[tuple[str, str], ...]:
-    """The exact component versions this setup pins, in passport order."""
-    return tuple((ref.stable_id, ref.version) for ref in setup.components)
+def _catalog_pins(
+    connection: sqlite3.Connection, setup: SetupVersionPassport
+) -> tuple[tuple[str, str], ...]:
+    """Catalog pins only. Embedded members stay in the definition (REQ-5714)."""
+    from ai_stp_cli.local.embedded_promotion import embedded_component_ids
+
+    embedded = embedded_component_ids(connection, setup.artifact.digest)
+    return tuple(
+        (ref.stable_id, ref.version) for ref in setup.components if ref.stable_id not in embedded
+    )
 
 
 def _digests(

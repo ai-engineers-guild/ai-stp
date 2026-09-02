@@ -44,6 +44,7 @@ from ai_stp_contracts.catalog import (
     CatalogReactionList,
     CatalogReactionState,
     CatalogUsageMetrics,
+    ComponentContextBudget,
     ComponentDetail,
     ComponentListResponse,
     ComponentSearchRequest,
@@ -125,6 +126,14 @@ from ai_stp_contracts.owner import (
     StaffReportListQuery,
     StaffReportListResponse,
     StaffReportSummary,
+)
+from ai_stp_contracts.ownership import (
+    OwnershipClaimCreateRequest,
+    OwnershipClaimDecisionRequest,
+    OwnershipClaimPreview,
+    OwnershipClaimResponse,
+    OwnershipRevisionListResponse,
+    OwnershipRevisionView,
 )
 from ai_stp_contracts.publication import (
     AuthorAttestation,
@@ -401,6 +410,16 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         response=GitHubMetadata,
         path_params=(_OBJECT_ID, _VERSION),
         errors=("AI_STP_NOT_FOUND", "AI_STP_CATALOG_INTEGRITY"),
+    ),
+    Operation(
+        method="get",
+        path="/catalog/components/{stable_id}/versions/{version}/context-budget",
+        operation_id="readComponentContextBudget",
+        summary="Read the context budget of one visible exact component.",
+        response=ComponentContextBudget,
+        query=SetupContextBudgetQuery,
+        path_params=(_OBJECT_ID, _VERSION),
+        errors=("AI_STP_NOT_FOUND", "AI_STP_CATALOG_INTEGRITY", "AI_STP_VALIDATION_ERROR"),
     ),
     Operation(
         method="get",
@@ -788,6 +807,99 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         body=StaffAuthorVerifiedRequest,
         authenticated=True,
         idempotent_mutation=True,
+        errors=("AI_STP_NOT_FOUND", "AI_STP_PERMISSION_DENIED"),
+    ),
+    Operation(
+        method="post",
+        path="/ownership-claims",
+        operation_id="createOwnershipClaim",
+        summary="Request transfer of an official catalog component to a verified maintainer.",
+        response=OwnershipClaimResponse,
+        body=OwnershipClaimCreateRequest,
+        authenticated=True,
+        status=201,
+        idempotent_mutation=True,
+        errors=(
+            "AI_STP_NOT_FOUND",
+            "AI_STP_PERMISSION_DENIED",
+            "AI_STP_PRECONDITION_FAILED",
+            "AI_STP_CONFLICT",
+        ),
+    ),
+    Operation(
+        method="get",
+        path="/ownership-claims/{claim_id}",
+        operation_id="readOwnershipClaim",
+        summary="Read one ownership claim and its staff preview.",
+        response=OwnershipClaimResponse,
+        path_params=(
+            PathParam(
+                name="claim_id",
+                description="Typed operation identifier of the ownership claim.",
+                pattern=stable_id_pattern("operation"),
+            ),
+        ),
+        authenticated=True,
+        errors=("AI_STP_NOT_FOUND", "AI_STP_PERMISSION_DENIED"),
+    ),
+    Operation(
+        method="post",
+        path="/staff/ownership-claims/{claim_id}/approve",
+        operation_id="approveOwnershipClaim",
+        summary="Approve a verified-maintainer claim without rewriting published passports.",
+        response=OwnershipClaimResponse,
+        body=OwnershipClaimDecisionRequest,
+        path_params=(
+            PathParam(
+                name="claim_id",
+                description="Typed operation identifier of the ownership claim.",
+                pattern=stable_id_pattern("operation"),
+            ),
+        ),
+        authenticated=True,
+        idempotent_mutation=True,
+        errors=(
+            "AI_STP_NOT_FOUND",
+            "AI_STP_PERMISSION_DENIED",
+            "AI_STP_CONFLICT",
+        ),
+    ),
+    Operation(
+        method="post",
+        path="/staff/ownership-claims/{claim_id}/deny",
+        operation_id="denyOwnershipClaim",
+        summary="Deny a verified-maintainer claim with no catalog effect.",
+        response=OwnershipClaimResponse,
+        body=OwnershipClaimDecisionRequest,
+        path_params=(
+            PathParam(
+                name="claim_id",
+                description="Typed operation identifier of the ownership claim.",
+                pattern=stable_id_pattern("operation"),
+            ),
+        ),
+        authenticated=True,
+        idempotent_mutation=True,
+        errors=(
+            "AI_STP_NOT_FOUND",
+            "AI_STP_PERMISSION_DENIED",
+            "AI_STP_CONFLICT",
+        ),
+    ),
+    Operation(
+        method="get",
+        path="/owner/objects/component/{stable_id}/ownership-revisions",
+        operation_id="listOwnershipRevisions",
+        summary="List immutable ownership revisions for one catalog component.",
+        response=OwnershipRevisionListResponse,
+        path_params=(
+            PathParam(
+                name="stable_id",
+                description="Typed stable identifier of the catalog component.",
+                pattern=stable_id_pattern("component"),
+            ),
+        ),
+        authenticated=True,
         errors=("AI_STP_NOT_FOUND", "AI_STP_PERMISSION_DENIED"),
     ),
     Operation(
@@ -1181,6 +1293,8 @@ NESTED_ONLY_MODELS: Final[tuple[type[BaseModel], ...]] = (
     ContentSnapshotEntry,
     StaffContentTranslation,
     StaffContentTranslations,
+    OwnershipClaimPreview,
+    OwnershipRevisionView,
 )
 
 

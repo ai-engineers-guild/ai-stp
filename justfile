@@ -387,7 +387,7 @@ back-static:
 
 # Порог покрытия задан в pyproject и является частью этого рецепта.
 back-test:
-    {{run}} pytest {{ if test_workers == "0" { "" } else { "-n " + test_workers } }} --dist={{test_dist}}
+    {{run}} python -m pytest {{ if test_workers == "0" { "" } else { "-n " + test_workers } }} --dist={{test_dist}}
     # Порог проверяется второй раз, по записанным данным покрытия. Причина не
     # теоретическая: прогон CI на letya999@6a41c28 напечатал ровно строку
     # `FAIL Required test coverage of 95% not reached. Total coverage: 94.55%`,
@@ -397,21 +397,21 @@ back-test:
     # механизм расхождения не воспроизведён. Пока он неизвестен, гейт не должен
     # зависеть только от кода возврата pytest: этот вызов перечитывает данные и
     # отказывает сам.
-    {{run}} coverage report --precision=2 --fail-under=90
+    {{run}} python -m coverage report --precision=2 --fail-under=90
 
 # Итерационный прогон без покрытия. Сбор покрытия стоит около трети времени
 # гейта (ADR-0104: 325 с с ним против 252 с без), и в петле правка-запуск он не
 # отвечает ни на один вопрос, который не ответил бы падающий тест. Гейтом не
 # является: порог здесь не проверяется и проверяться не должен.
 back-test-fast *args:
-    {{run}} pytest --no-cov {{ if test_workers == "0" { "" } else { "-n " + test_workers } }} --dist={{test_dist}} {{args}}
+    {{run}} python -m pytest --no-cov {{ if test_workers == "0" { "" } else { "-n " + test_workers } }} --dist={{test_dist}} {{args}}
 
 # Полный однопроцессный прогон с записью длительностей каждого теста в
 # .test_durations. Файл питает duration-based шардирование, когда оно будет
 # включено; без него шардирование падает на выравнивание по количеству тестов.
 # Обновлять после крупных сдвигов состава набора, а не каждый прогон.
 back-durations:
-    {{run}} pytest -n 0 --no-cov -q \
+    {{run}} python -m pytest -n 0 --no-cov -q \
         --store-durations --durations-path .test_durations
 
 # SQLite emits its direct ResourceWarning only on Python 3.13+ finalization.
@@ -419,7 +419,7 @@ back-durations:
 # the broad suite also owns platform logging handlers, whose lifecycle belongs
 # to the platform track and must not weaken this CLI-specific acceptance gate.
 back-resource:
-    {{run}} pytest --no-cov -q \
+    {{run}} python -m pytest --no-cov -q \
         -W error::ResourceWarning \
         -W error::pytest.PytestUnraisableExceptionWarning \
         tests/contract/test_cli_resource_lifecycle.py
@@ -431,7 +431,7 @@ back-resource:
 # which is how three CI runs died on their own timeout without saying why.
 # Local runs on one OS exercise the same invocation the three-OS matrix runs.
 back-cli-suite suite:
-    {{run}} pytest "tests/{{suite}}" --no-cov -vv \
+    {{run}} python -m pytest "tests/{{suite}}" --no-cov -vv \
         -o faulthandler_timeout=300 {{ if test_workers == "0" { "" } else { "-n " + test_workers } }} --dist={{test_dist}} \
         {{ if suite == "unit" { "--ignore=tests/unit/platform --ignore=tests/unit/api" } else { "" } }}
 

@@ -1,0 +1,147 @@
+{
+  "$defs": {
+    "SourceSearchCandidate": {
+      "additionalProperties": true,
+      "description": "One name-query hit. Source, catalog status, and trust stay separate.",
+      "properties": {
+        "author_verified": {
+          "title": "Author Verified",
+          "type": "boolean"
+        },
+        "catalog_status": {
+          "enum": [
+            "catalog",
+            "not_in_catalog"
+          ],
+          "title": "Catalog Status",
+          "type": "string"
+        },
+        "component_verified": {
+          "title": "Component Verified",
+          "type": "boolean"
+        },
+        "exact_coordinate": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "title": "Exact Coordinate",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source": {
+          "enum": [
+            "catalog",
+            "package",
+            "git"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "stable_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Stable Id"
+        },
+        "trust_lane": {
+          "enum": [
+            "authoritative",
+            "experimental",
+            "local_owner_or_pinned"
+          ],
+          "title": "Trust Lane",
+          "type": "string"
+        }
+      },
+      "required": [
+        "author_verified",
+        "catalog_status",
+        "component_verified",
+        "exact_coordinate",
+        "name",
+        "schema_version",
+        "source",
+        "stable_id",
+        "trust_lane"
+      ],
+      "title": "SourceSearchCandidate",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-source-search",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Name-only discovery. The resolver never selects a candidate.",
+  "properties": {
+    "candidates": {
+      "items": {
+        "$ref": "#/$defs/SourceSearchCandidate"
+      },
+      "title": "Candidates",
+      "type": "array"
+    },
+    "query": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Query",
+      "type": "string"
+    },
+    "registry_discovery": {
+      "title": "Registry Discovery",
+      "type": "boolean"
+    },
+    "resolution": {
+      "enum": [
+        "unresolved",
+        "needs_selection",
+        "resolved",
+        "failed"
+      ],
+      "title": "Resolution",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "selected": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SourceSearchCandidate"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "candidates",
+    "query",
+    "registry_discovery",
+    "resolution",
+    "schema_version",
+    "selected"
+  ],
+  "title": "SourceSearchResult",
+  "type": "object"
+}

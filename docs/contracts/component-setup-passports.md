@@ -34,6 +34,8 @@ confirmation. Every change creates a child revision; a stale patch fails closed.
 Patch fields become declared/user-confirmed facts, while observed facts retain their
 provenance. Secret-bearing keys, null, unknown fields, unsafe markdown, absolute or
 root-escaping managed paths, and an inexact public source are rejected before writing.
+The public source repository may be any credential-free HTTPS repository; GitHub is
+not a required host.
 The patch file has a size limit and is read without following a symbolic link.
 
 Before patching, `component passport suggest` may read only the component's already
@@ -48,7 +50,7 @@ dependencies do not become component requirements, and the presence of an SDK do
 not prove a capability, authorization, or permission.
 
 The `validate --for-publication` profile aggregates all missing and invalid fields and
-checks whether a formal `ComponentVersionPassport` can be built with an exact GitHub
+checks whether a formal `ComponentVersionPassport` can be built with an exact HTTPS
 commit and artifact digest/size. Its `ready: true` means only local structural
 completeness of the named revision. Cloud publication remains a separate authenticated
 plan/apply state machine and is not replaced by local validation.
@@ -128,6 +130,10 @@ path, command, hook, MCP, agent, and plugin conflicts; managed paths and native
 identifiers; entry points, runtime requirements, harness variants, and supported
 harness versions; file, network, and process permissions; external connection points;
 license and redistributability; links to compatibility evidence; and access mode.
+The `facts.source_links` observation may additionally list safe public source pages,
+such as a package's upstream repository and its PyPI, npm, crates.io, Go, or pub.dev
+release page. A setup compose manifest may provide one explicit `source_url` for an
+embedded component; local-path components receive no invented external link.
 
 ## Version description
 

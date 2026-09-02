@@ -307,7 +307,7 @@
   "$id": "urn:ai-stp:schema:v1:setup-version-passport",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "Immutable setup version passport: exactly one harness, no variant axis.",
+  "description": "Immutable setup version passport with one native harness and projections.",
   "properties": {
     "artifact": {
       "$ref": "#/$defs/ArtifactRef"

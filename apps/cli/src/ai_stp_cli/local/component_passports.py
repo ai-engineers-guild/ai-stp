@@ -654,6 +654,17 @@ def version_passport(
             details={"id": stable_id, "version": version},
         )
     document = cast(dict[str, JsonValue], stored.envelope.model_dump(mode="json"))
+    # Catalog acquisition stores the complete immutable snapshot. Keep that
+    # shape intact; only adopted local drafts need reconstruction from facts.
+    try:
+        complete = ComponentVersionPassport.model_validate(document)
+    except ValidationError:
+        complete = None
+    if complete is not None and complete.version == version:
+        sealed = cast(dict[str, JsonValue], complete.model_dump(mode="json"))
+        sealed["revision_id"] = derive_revision_id(sealed)
+        return ComponentVersionPassport.model_validate(sealed)
+
     raw_facts = cast(dict[str, JsonValue], document["facts"])
     values = {
         name: cast(dict[str, JsonValue], fact).get("value")

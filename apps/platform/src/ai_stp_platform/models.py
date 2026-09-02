@@ -7,13 +7,14 @@ objects.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     JSON,
     BigInteger,
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -1033,3 +1034,148 @@ class CatalogUsageDedup(Base):
 
     dedup_key: Mapped[str] = mapped_column(String(64), primary_key=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class OfficialUpstreamSource(Base):
+    """Operator-managed Git or package component source (SPEC-056 REQ-5608)."""
+
+    __tablename__ = "official_upstream_source"
+    __table_args__ = (
+        CheckConstraint(
+            "component_type in ("
+            "'instruction', 'skill', 'mcp', 'hook', 'command', 'agent', 'plugin', 'setting')",
+            name="ck_official_upstream_source_component_type",
+        ),
+        CheckConstraint(
+            "projection_kind in ('marketplace', 'plugin', 'native_files', 'package')",
+            name="ck_official_upstream_source_projection_kind",
+        ),
+        CheckConstraint("kind in ('git', 'package')", name="ck_official_upstream_source_kind"),
+        CheckConstraint(
+            "("
+            "kind = 'git' AND repository_url IS NOT NULL AND tracked_ref IS NOT NULL "
+            "AND component_subpath IS NOT NULL"
+            ") OR ("
+            "kind = 'package' AND ecosystem IS NOT NULL AND package_name IS NOT NULL "
+            "AND package_version IS NOT NULL"
+            ")",
+            name="ck_official_upstream_source_kind_fields",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    slot: Mapped[str] = mapped_column(String(16), default="official", server_default="official")
+    kind: Mapped[str] = mapped_column(String(16), default="git", server_default="git")
+    repository_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    tracked_ref: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    component_subpath: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    ecosystem: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    package_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    package_version: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    package_filename: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    package_platform: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    component_type: Mapped[str] = mapped_column(String(32))
+    projection_kind: Mapped[str] = mapped_column(
+        String(32), default="native_files", server_default="native_files"
+    )
+    harness_id: Mapped[str] = mapped_column(String(32))
+    owner_account_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("account.id", ondelete="RESTRICT"), index=True
+    )
+    actor_device_id: Mapped[str] = mapped_column(String(64))
+    stable_id: Mapped[str] = mapped_column(String(64), unique=True)
+    name: Mapped[str] = mapped_column(String(200))
+    upstream_project_name: Mapped[str] = mapped_column(String(200))
+    upstream_maintainer: Mapped[str] = mapped_column(String(200))
+    reviewed_description: Mapped[str] = mapped_column(Text)
+    reviewed_license: Mapped[str] = mapped_column(String(64))
+    tags: Mapped[list[str]] = mapped_column(JSON, default=list)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    last_github_repo_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    last_commit: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    last_canonical_coordinate: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    last_archive_digest: Mapped[str | None] = mapped_column(String(71), nullable=True)
+    last_component_digest: Mapped[str | None] = mapped_column(String(71), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class OfficialUpstreamSync(Base):
+    """One UTC-day outcome for the official upstream source (SPEC-056)."""
+
+    __tablename__ = "official_upstream_sync"
+    __table_args__ = (
+        UniqueConstraint("source_id", "utc_day", name="uq_official_upstream_sync_source_day"),
+        CheckConstraint(
+            "result in ('unchanged', 'publication_started', 'failed')",
+            name="ck_official_upstream_sync_result",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    source_id: Mapped[str] = mapped_column(String(64), index=True)
+    utc_day: Mapped[date] = mapped_column(Date)
+    result: Mapped[str] = mapped_column(String(32))
+    commit: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    archive_digest: Mapped[str | None] = mapped_column(String(71), nullable=True)
+    component_digest: Mapped[str | None] = mapped_column(String(71), nullable=True)
+    observed_license: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    github_owner: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    github_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    github_repo_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    plan_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class OwnershipClaim(Base):
+    """Verified-maintainer request to receive an official catalog component."""
+
+    __tablename__ = "ownership_claim"
+    __table_args__ = (
+        CheckConstraint(
+            "state in ('requested', 'approved', 'denied')",
+            name="ck_ownership_claim_state",
+        ),
+        CheckConstraint("object_kind = 'component'", name="ck_ownership_claim_object_kind"),
+        UniqueConstraint("idempotency_key", name="uq_ownership_claim_idempotency_key"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    object_kind: Mapped[str] = mapped_column(String(32), default="component")
+    stable_id: Mapped[str] = mapped_column(String(64), index=True)
+    requester_account_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("account.id", ondelete="RESTRICT"), index=True
+    )
+    from_account_id: Mapped[str] = mapped_column(String(64), index=True)
+    to_account_id: Mapped[str] = mapped_column(String(64), index=True)
+    reason: Mapped[str] = mapped_column(Text)
+    evidence: Mapped[str] = mapped_column(Text)
+    state: Mapped[str] = mapped_column(String(32), default="requested")
+    preview: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)
+    idempotency_key: Mapped[str] = mapped_column(String(128))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    staff_account_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    decision_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class OwnershipRevision(Base):
+    """Append-only ownership revision. Published version passports stay as written."""
+
+    __tablename__ = "ownership_revision"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    claim_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("ownership_claim.id", ondelete="RESTRICT"), index=True
+    )
+    stable_id: Mapped[str] = mapped_column(String(64), index=True)
+    from_account_id: Mapped[str] = mapped_column(String(64))
+    to_account_id: Mapped[str] = mapped_column(String(64))
+    major_lines: Mapped[list[int]] = mapped_column(JSON, default=list)
+    reason: Mapped[str] = mapped_column(Text)
+    evidence: Mapped[str] = mapped_column(Text)
+    staff_account_id: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

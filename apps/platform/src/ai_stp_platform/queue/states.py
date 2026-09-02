@@ -37,6 +37,7 @@ class JobType(StrEnum):
     CATALOG_ENRICHMENT = "catalog_enrichment"
     SEO_BUILD = "seo_build"
     SEO_ENRICH = "seo_enrich"
+    OFFICIAL_UPSTREAM_SYNC = "official_upstream_sync"
 
 
 class Visibility(StrEnum):

@@ -55,6 +55,7 @@ export const componentSummaryFixture = makeComponentSummary({
   latest_description:
     "Runs focused pytest subsets, surfaces failing assertions, and proposes minimal fixes for Claude Code sessions.",
   latest_harness_id: "claude-code",
+  latest_harness_ids: ["claude-code", "codex"],
   latest_component_type: "skill",
   latest_projection_kind: "native_files",
   latest_tags: ["python", "tests"],
@@ -70,6 +71,7 @@ export const componentSummaryFixture = makeComponentSummary({
     warning: 0,
     not_run: 0,
     total_countable: 7,
+    components: [],
     checks: [
       {
         schema_version: 1,

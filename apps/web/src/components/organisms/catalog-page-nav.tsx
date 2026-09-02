@@ -15,13 +15,13 @@ export function PageNav({
 }) {
   return (
     <nav
-      className="border-border mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-4"
+      className="border-border mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-4 sm:flex-nowrap"
       aria-label={label}
     >
       <span className="text-muted-foreground font-mono text-xs">
         {pageNumber} / {totalPages}
       </span>
-      <div className="flex flex-wrap gap-1">
+      <div className="flex max-w-full flex-wrap justify-end gap-1">
         {pageWindow(pageNumber, totalPages).map((entry, index) =>
           entry === "gap" ? (
             <span

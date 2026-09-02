@@ -97,7 +97,7 @@ class PublicationPlanCreateRequest(BaseModel):
     stable_id: Annotated[str, Field(min_length=8, max_length=64)]
     version: Version
     content_digest: ContentDigest
-    policy_version: PolicyVersion = "1"
+    policy_version: PolicyVersion = "safety-3"
     passport: dict[str, object]
     attestations: Annotated[list[AuthorAttestation], Field(default_factory=list, max_length=32)]
     idempotency_key: IdempotencyKey

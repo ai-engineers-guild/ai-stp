@@ -30,7 +30,6 @@ export function ObjectAuthorRail({
         avatarUrl={avatarUrl}
         verified={verified}
         verifiedLabel={verifiedLabel}
-        authorLabel={authorLabel}
       />
     </section>
   );
@@ -42,16 +41,14 @@ export function CatalogAuthorLink({
   avatarUrl,
   verified,
   verifiedLabel,
-  authorLabel,
 }: {
   accountId: string;
   displayName: string | null | undefined;
   avatarUrl: string | null | undefined;
   verified: boolean;
   verifiedLabel: string;
-  authorLabel: string;
 }) {
-  const name = displayName?.trim() || authorLabel;
+  const name = displayName?.trim() || accountId;
   return (
     <Link
       href={`/publishers/${accountId}`}

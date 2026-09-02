@@ -38,6 +38,7 @@ test.describe("landing → search → detail smoke (REQ-2213)", () => {
       .getByRole("button", { name: /^(Close|\u0417\u0430\u043a\u0440\u044b\u0442\u044c)$/ })
       .click();
 
+    await page.goto("/en/catalog?resource=components");
     const firstCard = page.locator("article[data-kind='component']").first();
     await expect(firstCard).toBeVisible({ timeout: 15_000 });
     await firstCard.locator("h3 a").click();
@@ -57,7 +58,7 @@ test.describe("landing → search → detail smoke (REQ-2213)", () => {
   });
 
   test("three-dots catalog menu does not lock page scroll", async ({ page }) => {
-    await page.goto("/en/catalog");
+    await page.goto("/en/catalog?resource=components");
     const firstCard = page.locator("article[data-kind='component']").first();
     await expect(firstCard).toBeVisible({ timeout: 15_000 });
     await firstCard.getByRole("button", { name: "More actions" }).click();

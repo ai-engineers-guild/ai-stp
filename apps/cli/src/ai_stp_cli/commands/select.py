@@ -32,6 +32,7 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import (
     acquired_trust,
     bundle,
+    cache,
     components,
     composition,
     consent,
@@ -100,9 +101,16 @@ from ai_stp_contracts.machine_help import (
     SetupGraph,
     TrustedBuildAttestation,
 )
-from ai_stp_foundation.canonical import JsonValue
+from ai_stp_foundation.canonical import JsonValue, from_json_bytes
+from ai_stp_foundation.digests import digest_bytes
 from ai_stp_foundation.harnesses import HARNESS_IDS
 from ai_stp_foundation.timestamps import format_timestamp, parse_timestamp
+from ai_stp_sources.definition import (
+    DEFINITION_V2,
+    decode_embedded_artifact,
+    try_parse_setup_definition,
+)
+from ai_stp_sources.errors import SourceError
 
 
 def eligible(parameters: Mapping[str, object]) -> Answer[EligibilityReport]:
@@ -1453,6 +1461,7 @@ def compile_setup_version_bundle(
         )
 
     setup_document = cast(dict[str, JsonValue], setup_revision.envelope.model_dump(mode="json"))
+    _verify_acquired_setup_bytes(connection, setup_document)
     harness = str(setup_document.get("harness_id") or "")
     if not harness or (expected_harness is not None and harness != expected_harness):
         raise CliFailure(
@@ -1527,6 +1536,156 @@ def compile_setup_version_bundle(
         input_digest=snapshot,
         target_scope=scope,
     )
+
+
+def _verify_acquired_setup_bytes(
+    connection: sqlite3.Connection, setup_document: dict[str, JsonValue]
+) -> None:
+    """Refuse changed definition, cache, or embedded bytes before provider planning."""
+    artifact = setup_document.get("artifact")
+    if not isinstance(artifact, dict):
+        return
+    digest = artifact.get("digest")
+    if not isinstance(digest, str) or not digest:
+        return
+    payload = content.get(connection, digest)
+    parsed = try_parse_setup_definition(payload)
+    embedded_ids: set[str] = set()
+    if parsed is None:
+        if _definition_format(payload) == DEFINITION_V2:
+            raise CliFailure(
+                "AI_STP_CATALOG_INTEGRITY",
+                "the setup definition is not a valid version 2 document",
+                details={"stable_id": str(setup_document.get("stable_id") or "")},
+            )
+    else:
+        if (
+            parsed.get("stable_id") != setup_document.get("stable_id")
+            or parsed.get("version") != setup_document.get("version")
+            or parsed.get("harness_id") != setup_document.get("harness_id")
+            or _component_ref_tuples(parsed.get("components"))
+            != _component_ref_tuples(setup_document.get("components"))
+        ):
+            raise CliFailure(
+                "AI_STP_CATALOG_INTEGRITY",
+                "the setup definition does not match its published passport",
+                details={"stable_id": str(setup_document.get("stable_id") or "")},
+            )
+        raw = parsed.get("embedded")
+        if isinstance(raw, list):
+            for record in raw:
+                if not isinstance(record, dict):
+                    raise CliFailure(
+                        "AI_STP_CATALOG_INTEGRITY",
+                        "the setup definition embedded index is malformed",
+                    )
+                ref = record.get("ref")
+                if not isinstance(ref, dict):
+                    raise CliFailure(
+                        "AI_STP_CATALOG_INTEGRITY",
+                        "the setup definition embedded index is malformed",
+                    )
+                stable_id = str(ref.get("stable_id") or "")
+                artifact_digest = str(record.get("artifact_digest") or "")
+                try:
+                    decoded = decode_embedded_artifact(str(record.get("artifact_b64") or ""))
+                except (SourceError, TypeError, ValueError) as error:
+                    raise CliFailure(
+                        "AI_STP_CATALOG_INTEGRITY",
+                        "an embedded component record is not complete",
+                        details={"stable_id": stable_id},
+                    ) from error
+                stored = content.get(connection, artifact_digest)
+                expected_size = record.get("artifact_size_bytes")
+                if stored != decoded or (
+                    not isinstance(expected_size, int)
+                    or len(decoded) != expected_size
+                    or digest_bytes("ai-stp:artifact:v1", decoded) != artifact_digest
+                ):
+                    raise CliFailure(
+                        "AI_STP_CATALOG_INTEGRITY",
+                        "embedded component bytes changed before provider planning",
+                        details={"stable_id": stable_id},
+                    )
+                embedded_ids.add(stable_id)
+    _verify_catalog_cache_bytes(connection, setup_document, frozenset(embedded_ids))
+
+
+def _component_ref_tuples(value: object) -> tuple[tuple[str, str, str], ...] | None:
+    if not isinstance(value, list):
+        return None
+    rows: list[tuple[str, str, str]] = []
+    for item in cast(list[object], value):
+        if not isinstance(item, dict):
+            return None
+        held = cast(dict[str, object], item)
+        rows.append(
+            (
+                str(held.get("stable_id") or ""),
+                str(held.get("version") or ""),
+                str(held.get("passport_digest") or ""),
+            )
+        )
+    return tuple(sorted(rows))
+
+
+def _definition_format(payload: bytes) -> str:
+    try:
+        value = from_json_bytes(payload)
+    except (ValueError, TypeError, UnicodeDecodeError):
+        return ""
+    if not isinstance(value, dict):
+        return ""
+    format_name = value.get("format")
+    return format_name if isinstance(format_name, str) else ""
+
+
+def _verify_catalog_cache_bytes(
+    connection: sqlite3.Connection,
+    setup_document: dict[str, JsonValue],
+    embedded_ids: frozenset[str],
+) -> None:
+    raw = setup_document.get("components")
+    if not isinstance(raw, list):
+        return
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        stable_id = str(item.get("stable_id") or "")
+        version = str(item.get("version") or "")
+        if not stable_id or stable_id in embedded_ids:
+            continue
+        recorded = versions.held(connection, stable_id, version)
+        if recorded is None:
+            continue
+        stored = revisions.get(connection, recorded.revision_id)
+        if stored is None:
+            continue
+        document = cast(dict[str, JsonValue], stored.envelope.model_dump(mode="json"))
+        artifact = document.get("artifact")
+        if not isinstance(artifact, dict):
+            continue
+        digest = artifact.get("digest")
+        size = artifact.get("size_bytes")
+        if not isinstance(digest, str) or not isinstance(size, int):
+            continue
+        path = cache.version_artifact_path(digest)
+        if not path.exists():
+            continue
+        payload = path.read_bytes()
+        if len(payload) != size or digest_bytes("ai-stp:artifact:v1", payload) != digest:
+            raise CliFailure(
+                "AI_STP_CATALOG_INTEGRITY",
+                "the cached version artifact no longer matches its published passport",
+                details={"stable_id": stable_id, "version": version},
+            )
+        local = content.get(connection, digest)
+        if local != payload:
+            raise CliFailure(
+                "AI_STP_CATALOG_INTEGRITY",
+                "verified catalogue bytes changed before provider planning",
+                details={"stable_id": stable_id},
+            )
 
 
 def compile_withdrawal_bundle(

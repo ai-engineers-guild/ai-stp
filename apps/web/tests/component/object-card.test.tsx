@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { ComponentSummary } from "@/lib/api/generated/types.gen";
+import type { ComponentSummary, SetupSummary } from "@/lib/api/generated/types.gen";
 import { componentSummaryFixture } from "@/mocks/fixtures/catalog";
 
 vi.mock("@/lib/features/gate", () => ({
@@ -54,6 +54,7 @@ function checks(warning: number, failed = 0) {
     not_run: 0,
     passed: 0,
     total_countable: warning + failed,
+    components: [],
     warning,
   };
 }
@@ -242,6 +243,7 @@ describe("ObjectCard compact catalog presentation (REQ-3411)", () => {
             warning: 1,
             not_run: 2,
             total_countable: 6,
+            components: [],
             checks: [],
           },
         }}
@@ -287,6 +289,7 @@ describe("ObjectCard compact catalog presentation (REQ-3411)", () => {
             warning: 0,
             not_run: 0,
             total_countable: 0,
+            components: [],
             checks: [],
           },
         }}
@@ -297,6 +300,20 @@ describe("ObjectCard compact catalog presentation (REQ-3411)", () => {
     );
     expect(screen.getByText("Not scanned")).toBeVisible();
     expect(screen.queryByText("0/0")).not.toBeInTheDocument();
+  });
+
+  it("does not reduce setup component checks to one percentage", () => {
+    render(
+      <ObjectCard
+        kind="setup"
+        item={componentSummaryFixture as unknown as SetupSummary}
+        href="/catalog/setups/x"
+        labels={labels}
+        view="cards"
+      />,
+    );
+    expect(screen.queryByRole("meter")).not.toBeInTheDocument();
+    expect(screen.queryByText("100%")).not.toBeInTheDocument();
   });
 
   it("adds a short why-open line when checks failed and keeps likes in both views", () => {
@@ -314,6 +331,7 @@ describe("ObjectCard compact catalog presentation (REQ-3411)", () => {
         not_run: 0,
         passed: 4,
         total_countable: 6,
+        components: [],
         checks_passed_percent: 67,
       },
     };
@@ -403,7 +421,7 @@ describe("ObjectCard compact catalog presentation (REQ-3411)", () => {
     expect(screen.queryByText("short why")).not.toBeInTheDocument();
   });
 
-  it("uses fallback report and derived safety percent for setups", () => {
+  it("uses fallback report without a synthetic safety percent for setups", () => {
     render(
       <ObjectCard
         kind="setup"
@@ -419,6 +437,7 @@ describe("ObjectCard compact catalog presentation (REQ-3411)", () => {
             warning: 0,
             not_run: 0,
             total_countable: 2,
+            components: [],
             checks: [
               {
                 schema_version: 1,
@@ -448,11 +467,7 @@ describe("ObjectCard compact catalog presentation (REQ-3411)", () => {
         view="cards"
       />,
     );
-    expect(
-      screen.getByRole("meter", {
-        name: /Safety check: a set of automated checks that this component does not threaten the user's agent or device\. 50%/,
-      }),
-    ).toBeInTheDocument();
+    expect(screen.queryByRole("meter")).not.toBeInTheDocument();
   });
 
   it("shows every named harness on the card", () => {

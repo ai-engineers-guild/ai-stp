@@ -629,6 +629,59 @@
     {
       "path": [
         "component",
+        "publish"
+      ],
+      "summary": "Extract one embedded component into the ordinary publication plan.",
+      "mutability": "plan",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "from-setup",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Setup that holds the embedded component.",
+          "choices": []
+        },
+        {
+          "name": "setup-version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact local setup X.Y version.",
+          "choices": []
+        },
+        {
+          "name": "component-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact embedded component identifier, never a display name.",
+          "choices": []
+        },
+        {
+          "name": "attestation-file",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "Full locally signed attestation bound to the promoted version.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-component-promotion-plan",
+      "next_actions": [
+        "publication confirm",
+        "publication status"
+      ]
+    },
+    {
+      "path": [
+        "component",
         "scaffold",
         "apply"
       ],
@@ -1037,6 +1090,42 @@
       "next_actions": [
         "component discover",
         "component adopt"
+      ]
+    },
+    {
+      "path": [
+        "component",
+        "source",
+        "search"
+      ],
+      "summary": "Search catalog names; package and GitHub hits need --registry-discovery.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "query",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Name-only query. Never selects a candidate.",
+          "choices": []
+        },
+        {
+          "name": "registry-discovery",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Also search supported package names and known GitHub candidates.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-source-search",
+      "next_actions": [
+        "setup update plan",
+        "component source resolve"
       ]
     },
     {
@@ -4845,6 +4934,122 @@
     {
       "path": [
         "setup",
+        "compose",
+        "apply"
+      ],
+      "summary": "Record the exact still-current mixed setup as one immutable local version.",
+      "mutability": "apply",
+      "confirmation": "explicit_flag",
+      "parameters": [
+        {
+          "name": "manifest",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "JSON composition manifest to resolve.",
+          "choices": []
+        },
+        {
+          "name": "root",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Root that bounds path: sources.",
+          "choices": []
+        },
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact setup id returned by plan.",
+          "choices": []
+        },
+        {
+          "name": "created-at",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact timestamp returned by plan.",
+          "choices": []
+        },
+        {
+          "name": "expected-plan-digest",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact digest returned by plan.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": true,
+          "repeatable": false,
+          "summary": "Confirm recording this exact composition.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-setup-compose-result",
+      "next_actions": [
+        "setup publish plan",
+        "select session"
+      ]
+    },
+    {
+      "path": [
+        "setup",
+        "compose",
+        "plan"
+      ],
+      "summary": "Resolve and freeze a new setup from exact catalog, Git, package and local sources.",
+      "mutability": "plan",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "manifest",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "JSON composition manifest to resolve.",
+          "choices": []
+        },
+        {
+          "name": "root",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Root that bounds path: sources.",
+          "choices": []
+        },
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Setup id returned by an earlier plan.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-setup-compose-plan",
+      "next_actions": [
+        "setup compose apply"
+      ]
+    },
+    {
+      "path": [
+        "setup",
         "import",
         "inspect"
       ],
@@ -5053,6 +5258,202 @@
       "next_actions": [
         "setup publish confirm",
         "publication status"
+      ]
+    },
+    {
+      "path": [
+        "setup",
+        "update",
+        "apply"
+      ],
+      "summary": "Confirm one exact embedded update and create a new immutable setup version.",
+      "mutability": "apply",
+      "confirmation": "explicit_flag",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable identifier of the setup being updated.",
+          "choices": []
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact currently selected X.Y version.",
+          "choices": []
+        },
+        {
+          "name": "component-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact embedded component identifier, never a display name.",
+          "choices": []
+        },
+        {
+          "name": "source",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact git, package:ecosystem:name@version, or path:relative source.",
+          "choices": []
+        },
+        {
+          "name": "commit",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Exact lowercase 40-character Git commit SHA.",
+          "choices": []
+        },
+        {
+          "name": "subpath",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Safe repository subpath for a Git source.",
+          "choices": []
+        },
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Harness whose selected setup is checked.",
+          "choices": []
+        },
+        {
+          "name": "project",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Project root whose selected setup is checked.",
+          "choices": []
+        },
+        {
+          "name": "expected-plan-digest",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact digest returned by setup update plan.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": true,
+          "repeatable": false,
+          "summary": "Confirm creating this exact new setup version.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-setup-update-result",
+      "next_actions": [
+        "select session"
+      ]
+    },
+    {
+      "path": [
+        "setup",
+        "update",
+        "plan"
+      ],
+      "summary": "Preview replacing one embedded component with a newer exact snapshot.",
+      "mutability": "plan",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable identifier of the setup being updated.",
+          "choices": []
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact currently selected X.Y version.",
+          "choices": []
+        },
+        {
+          "name": "component-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact embedded component identifier, never a display name.",
+          "choices": []
+        },
+        {
+          "name": "source",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact git, package:ecosystem:name@version, or path:relative source.",
+          "choices": []
+        },
+        {
+          "name": "commit",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Exact lowercase 40-character Git commit SHA.",
+          "choices": []
+        },
+        {
+          "name": "subpath",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Safe repository subpath for a Git source.",
+          "choices": []
+        },
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Harness whose selected setup is checked.",
+          "choices": []
+        },
+        {
+          "name": "project",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Project root whose selected setup is checked.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-setup-update-plan",
+      "next_actions": [
+        "setup update apply"
       ]
     },
     {

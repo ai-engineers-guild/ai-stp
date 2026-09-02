@@ -12,6 +12,7 @@ members = [
     "ai-stp-foundation",
     "ai-stp-passports",
     "ai-stp-platform",
+    "ai-stp-sources",
     "ai-stp-worker",
 ]
 
@@ -27,6 +28,7 @@ dependencies = [
     { name = "ai-stp-foundation" },
     { name = "ai-stp-passports" },
     { name = "ai-stp-platform" },
+    { name = "ai-stp-sources" },
     { name = "ai-stp-worker" },
 ]
 
@@ -94,6 +96,7 @@ requires-dist = [
     { name = "ai-stp-foundation", editable = "packages/foundation" },
     { name = "ai-stp-passports", editable = "packages/passports" },
     { name = "ai-stp-platform", editable = "apps/platform" },
+    { name = "ai-stp-sources", editable = "packages/sources" },
     { name = "ai-stp-worker", editable = "apps/worker" },
 ]
 
@@ -219,12 +222,14 @@ dependencies = [
     { name = "ai-stp-contracts" },
     { name = "ai-stp-foundation" },
     { name = "ai-stp-passports" },
+    { name = "ai-stp-sources" },
     { name = "click" },
     { name = "httpx" },
     { name = "jsonschema" },
     { name = "keyring" },
     { name = "pydantic" },
     { name = "pynacl" },
+    { name = "python-ulid" },
     { name = "pyyaml" },
     { name = "tomlkit" },
 ]
@@ -235,12 +240,14 @@ requires-dist = [
     { name = "ai-stp-contracts", editable = "packages/contracts" },
     { name = "ai-stp-foundation", editable = "packages/foundation" },
     { name = "ai-stp-passports", editable = "packages/passports" },
+    { name = "ai-stp-sources", editable = "packages/sources" },
     { name = "click", specifier = ">=8.1" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "jsonschema", specifier = ">=4.26" },
     { name = "keyring", specifier = ">=25.6" },
     { name = "pydantic", specifier = ">=2.9" },
     { name = "pynacl", specifier = ">=1.6.2" },
+    { name = "python-ulid", specifier = ">=3.0" },
     { name = "pyyaml", specifier = ">=6" },
     { name = "tomlkit", specifier = ">=0.13" },
 ]
@@ -314,6 +321,7 @@ dependencies = [
     { name = "ai-stp-contracts" },
     { name = "ai-stp-foundation" },
     { name = "ai-stp-passports" },
+    { name = "ai-stp-sources" },
     { name = "aiobotocore" },
     { name = "alembic" },
     { name = "asyncpg" },
@@ -330,6 +338,7 @@ requires-dist = [
     { name = "ai-stp-contracts", editable = "packages/contracts" },
     { name = "ai-stp-foundation", editable = "packages/foundation" },
     { name = "ai-stp-passports", editable = "packages/passports" },
+    { name = "ai-stp-sources", editable = "packages/sources" },
     { name = "aiobotocore", specifier = ">=3.9.0" },
     { name = "alembic", specifier = ">=1.13" },
     { name = "asyncpg", specifier = ">=0.30" },
@@ -338,6 +347,23 @@ requires-dist = [
     { name = "pydantic-settings", specifier = ">=2.5" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.36" },
     { name = "structlog", specifier = ">=24.4" },
+]
+
+[[package]]
+name = "ai-stp-sources"
+version = "0.0.15"
+source = { editable = "packages/sources" }
+dependencies = [
+    { name = "ai-stp-foundation" },
+    { name = "ai-stp-passports" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "ai-stp-foundation", editable = "packages/foundation" },
+    { name = "ai-stp-passports", editable = "packages/passports" },
+    { name = "pydantic", specifier = ">=2.9" },
 ]
 
 [[package]]

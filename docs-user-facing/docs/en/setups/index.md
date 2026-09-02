@@ -5,6 +5,66 @@ description: "How ai_stp assembles a complete setup from exact component version
 
 # Setups
 
+## Compose from catalog and external sources
+
+`setup compose` creates one exact setup from catalog components and embedded
+GitHub, package-registry, or local components. External components do not need a
+catalog listing. Put the reviewed metadata and sources in a JSON manifest:
+
+```json
+{
+  "schema_version": 1,
+  "name": "Frontend developer",
+  "description": "Playwright automation with local project checks.",
+  "harness_id": "codex",
+  "components": [
+    {
+      "source": {
+        "kind": "catalog",
+        "stable_id": "component_...",
+        "version": "1.0",
+        "passport_digest": "sha256:..."
+      }
+    },
+    {
+      "source": {
+        "kind": "git",
+        "repository_url": "https://github.com/example/context7",
+        "tracked_ref": "main",
+        "subpath": "."
+      },
+      "component_type": "mcp",
+      "name": "Context7 MCP",
+      "description": "Upstream Context7 MCP snapshot.",
+      "license_spdx": "MIT",
+      "redistribution_allowed": true,
+      "upstream_project": "Context7"
+    },
+    {
+      "source": {"kind": "path", "relative_path": "hooks/check"},
+      "component_type": "hook",
+      "name": "Project check",
+      "description": "Locally authored project check.",
+      "license_spdx": "LicenseRef-Proprietary",
+      "redistribution_allowed": true
+    }
+  ]
+}
+```
+
+Plan first, then pass the returned setup id, timestamp, and plan digest to apply:
+
+```text
+ai-stp setup compose plan --manifest setup.json --root . --json
+ai-stp setup compose apply --manifest setup.json --root . --id <setup_id> --created-at <created_at> --expected-plan-digest <digest> --confirm --json
+ai-stp setup publish plan --id <setup_id> --version 1.0 --json
+```
+
+Git refs are resolved to commits, package sources require exact versions, and
+local paths stay within `--root`. Apply repeats resolution and refuses changed
+bytes. Embedded members are published only inside the setup; catalog members
+retain their existing publisher and identity.
+
 A setup is the final configuration of one harness. It pins exact component
 versions and is applied only through that harness's public provider.
 

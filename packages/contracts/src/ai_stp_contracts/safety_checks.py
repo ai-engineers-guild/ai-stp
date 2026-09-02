@@ -48,6 +48,21 @@ class SafetyCheckEntry(BaseModel):
     finding_summary: SafetyFindingSummary | None = None
 
 
+class SetupComponentChecks(BaseModel):
+    """Checks for one exact component snapshot inside a setup."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=open_wire_object)
+
+    stable_id: Annotated[str, Field(min_length=1, max_length=128)]
+    name: Annotated[str, Field(min_length=1, max_length=160)]
+    version: Annotated[str, Field(min_length=1, max_length=128)]
+    embedded: bool
+    source_coordinate: Annotated[str, Field(min_length=1, max_length=1024)] | None = None
+    digest_matches: bool
+    failed_mandatory: bool
+    checks: list[SafetyCheckEntry] = Field(default_factory=list[SafetyCheckEntry])
+
+
 class SafetyChecksSummary(BaseModel):
     """Card/detail projection for checks percent and status."""
 
@@ -65,3 +80,4 @@ class SafetyChecksSummary(BaseModel):
     checks: Annotated[list[SafetyCheckEntry], Field(max_length=128)] = Field(
         default_factory=list[SafetyCheckEntry]
     )
+    components: Annotated[list[SetupComponentChecks], Field(max_length=500)] | None = None

@@ -22,7 +22,7 @@ Included:
 - a single minimal `stars` + `archived` response, without polling/history UI;
 - removal of the server/Web blast-radius projection while preserving the CLI contract;
 - a shared deterministic estimator for CLI and server projection;
-- a public/owner exact setup context-budget endpoint and Web panel;
+- public/owner exact setup and component context-budget endpoints and Web panels;
 - a client-only cost calculator with an explicitly entered rate;
 - owner Git identity/signing policy in `AGENTS.md`.
 
@@ -115,6 +115,21 @@ only where they are not explicitly superseded by this specification.
   effective author/committer must match them, and the agent does not change
   identity/signing config or substitute the author.
 
+- `REQ-4913`: Exact component detail exposes the same deterministic estimate
+  for textual `instruction`, `skill`, `agent`, and `command` artifacts. Other
+  component kinds return an explicit `not_applicable` state because runtime
+  schemas and behavior, rather than package bytes, determine their model
+  context. An embedded setup member is measured from the validated bytes in
+  its immutable setup-definition record; it is not required to exist as a
+  standalone catalog row.
+
+- `REQ-4914`: Public Web estimates default to the approximate Unicode
+  codepoint-divided-by-four profile and present only potential total and the
+  subset loaded when used. Raw UTF-8 byte counts, per-component coordinates,
+  price calculators, and safety details do not appear in the compact setup
+  composition. Mixed catalog results use one page sequence: setup pages first,
+  then component pages, with one page navigator and no repeated boundary page.
+
 ## States and errors
 
 - GitHub: `ready`, `unavailable`; UI distinguishes only the presence of stars
@@ -164,3 +179,5 @@ only where they are not explicitly superseded by this specification.
 | `REQ-4910` | Browser/unit tests verify the formula, rounding, empty/invalid input, and absence of network/storage writes. |
 | `REQ-4911` | Web does not read installed/selected state; the copy command is visible only after the nested disclosure is opened. |
 | `REQ-4912` | Policy test/agent review verifies global/effective identity parity and prohibits hardcoding/overrides; signing behavior is inherited unchanged. |
+| `REQ-4913` | API tests cover a textual component, a runtime-derived MCP state, and an embedded setup component resolved from setup-definition bytes; Web shows the component estimate or the explicit reason. |
+| `REQ-4914` | Web component tests cover the two-value context panel and catalog-like setup composition; pagination tests cover the setup-to-component boundary and one combined navigator. |

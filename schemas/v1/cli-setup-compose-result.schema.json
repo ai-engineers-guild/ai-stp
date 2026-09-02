@@ -1,0 +1,59 @@
+{
+  "$id": "urn:ai-stp:schema:v1:cli-setup-compose-result",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A newly recorded immutable mixed setup version.",
+  "properties": {
+    "created": {
+      "title": "Created",
+      "type": "boolean"
+    },
+    "created_at": {
+      "minLength": 1,
+      "title": "Created At",
+      "type": "string"
+    },
+    "definition_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Definition Digest",
+      "type": "string"
+    },
+    "passport_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Passport Digest",
+      "type": "string"
+    },
+    "plan_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Plan Digest",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "setup_id": {
+      "minLength": 1,
+      "title": "Setup Id",
+      "type": "string"
+    },
+    "version": {
+      "pattern": "^\\d+\\.\\d+$",
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "setup_id",
+    "version",
+    "created_at",
+    "passport_digest",
+    "definition_digest",
+    "plan_digest",
+    "created"
+  ],
+  "title": "SetupComposeResult",
+  "type": "object"
+}

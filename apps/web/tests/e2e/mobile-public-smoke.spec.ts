@@ -150,7 +150,7 @@ test.describe("mobile public smoke (issue 266)", () => {
           fullPage: true,
         });
 
-        await page.goto(`/${locale}/catalog`);
+        await page.goto(`/${locale}/catalog?resource=components`);
         await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
         await assertNoDocumentOverflow(page);
         await assertRefinementKeyboardAndBackdrop(page);

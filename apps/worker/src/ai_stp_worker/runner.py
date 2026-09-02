@@ -5,10 +5,12 @@ from __future__ import annotations
 import asyncio
 import time
 from contextlib import suppress
+from datetime import UTC, date, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ai_stp_platform.logging import get_logger
+from ai_stp_platform.official_upstream.enqueue import enqueue_daily
 from ai_stp_platform.queue.engine import (
     DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
     DEFAULT_LEASE_TIMEOUT_SECONDS,
@@ -39,6 +41,7 @@ class Worker:
         drain_timeout_seconds: float = 30.0,
         lease_timeout_seconds: float = DEFAULT_LEASE_TIMEOUT_SECONDS,
         heartbeat_interval_seconds: float = DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
+        schedule_official_upstream: bool = True,
     ) -> None:
         self._sessionmaker = sessionmaker
         self._worker_id = worker_id
@@ -50,6 +53,7 @@ class Worker:
         self._lease_timeout = lease_timeout_seconds
         self._heartbeat_interval = heartbeat_interval_seconds
         self._stopping = asyncio.Event()
+        self._official_enqueue_day: date | None = date.min if schedule_official_upstream else None
 
     def request_stop(self) -> None:
         """Signal the run loop to stop claiming and drain."""
@@ -105,7 +109,12 @@ class Worker:
 
     async def run_once(self) -> int:
         """Reclaim expired leases, claim one job and process it."""
+        enqueued_for: date | None = None
         async with self._sessionmaker() as session, session.begin():
+            today = datetime.now(UTC).date()
+            if self._official_enqueue_day is not None and self._official_enqueue_day != today:
+                await enqueue_daily(session)
+                enqueued_for = today
             await requeue_stale(session, lease_timeout_seconds=self._lease_timeout)
             claimed = await claim(
                 session,
@@ -113,6 +122,8 @@ class Worker:
                 batch=self._batch_size,
             )
             job_id = claimed[0].id if claimed else None
+        if enqueued_for is not None:
+            self._official_enqueue_day = enqueued_for
         if job_id is None:
             return 0
         await self._process(job_id)

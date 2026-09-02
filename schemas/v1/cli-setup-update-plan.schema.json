@@ -1,0 +1,93 @@
+{
+  "$id": "urn:ai-stp:schema:v1:cli-setup-update-plan",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Preview of one explicit embedded-component update. Selection is unchanged.",
+  "properties": {
+    "component_id": {
+      "minLength": 1,
+      "title": "Component Id",
+      "type": "string"
+    },
+    "from_version": {
+      "pattern": "^\\d+\\.\\d+$",
+      "title": "From Version",
+      "type": "string"
+    },
+    "plan_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Plan Digest",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "selected_stable_id": {
+      "default": "",
+      "title": "Selected Stable Id",
+      "type": "string"
+    },
+    "selected_version": {
+      "default": "",
+      "title": "Selected Version",
+      "type": "string"
+    },
+    "setup_id": {
+      "minLength": 1,
+      "title": "Setup Id",
+      "type": "string"
+    },
+    "snapshot_coordinate": {
+      "maxLength": 1024,
+      "minLength": 1,
+      "title": "Snapshot Coordinate",
+      "type": "string"
+    },
+    "snapshot_identity": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Snapshot Identity",
+      "type": "string"
+    },
+    "suggested_catalog_dismissible": {
+      "default": false,
+      "title": "Suggested Catalog Dismissible",
+      "type": "boolean"
+    },
+    "suggested_catalog_stable_id": {
+      "default": "",
+      "title": "Suggested Catalog Stable Id",
+      "type": "string"
+    },
+    "suggested_catalog_version": {
+      "default": "",
+      "title": "Suggested Catalog Version",
+      "type": "string"
+    },
+    "to_version": {
+      "pattern": "^\\d+\\.\\d+$",
+      "title": "To Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "component_id",
+    "from_version",
+    "plan_digest",
+    "schema_version",
+    "selected_stable_id",
+    "selected_version",
+    "setup_id",
+    "snapshot_coordinate",
+    "snapshot_identity",
+    "suggested_catalog_dismissible",
+    "suggested_catalog_stable_id",
+    "suggested_catalog_version",
+    "to_version"
+  ],
+  "title": "SetupUpdatePlan",
+  "type": "object"
+}

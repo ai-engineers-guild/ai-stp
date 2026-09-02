@@ -397,6 +397,9 @@ class SetupSummary(BaseModel):
     #: Deterministic plain-text `safe_markdown_v1` excerpt, never raw Markdown or HTML.
     latest_description: DescriptionExcerpt
     latest_harness_id: HarnessId
+    latest_harness_ids: Annotated[list[HarnessId], Field(max_length=7)] = Field(
+        default_factory=list[HarnessId]
+    )
     latest_purpose: str
     #: Optional for the same reason the passport field is (`ADR-0130`): a role
     #: has no source, so first-party setups carry none and the card shows the
@@ -732,7 +735,7 @@ class SetupContextBudgetQuery(BaseModel):
 
     schema_version: Literal[1] = 1
     estimator_profile: Literal["ai-stp:utf8-bytes/1", "ai-stp:unicode-chars-div4/1"] = (
-        "ai-stp:utf8-bytes/1"
+        "ai-stp:unicode-chars-div4/1"
     )
 
 
@@ -750,3 +753,19 @@ class SetupContextBudget(BaseModel):
     unavailable_components: Annotated[int, Field(ge=0)]
     status: Literal["ready", "unavailable", "invalid_graph"]
     components: list[ComponentTokenMeasurement]
+
+
+class ComponentContextBudget(BaseModel):
+    """Context estimate of one visible exact component (SPEC-049)."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    coordinate: ExactCoordinate
+    estimator: TokenEstimator
+    component_type: str
+    loading: Literal["always", "conditional"] | None = None
+    tokens: Annotated[int, Field(ge=0)] | None = None
+    utf8_bytes: Annotated[int, Field(ge=0)] | None = None
+    status: Literal["exact", "estimated", "unavailable", "not_applicable"]
+    reason: str | None = None

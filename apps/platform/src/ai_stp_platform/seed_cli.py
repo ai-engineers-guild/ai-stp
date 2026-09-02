@@ -22,10 +22,20 @@ import asyncio
 import os
 from pathlib import Path
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from ai_stp_contracts.first_party import OWNER_ID as OFFICIAL_ACCOUNT_ID
+from ai_stp_contracts.public_profile import ProfileFields, ProfileLink, content_digest
 from ai_stp_platform.catalog_reconcile import reconcile_catalog_integrity
 from ai_stp_platform.catalog_seed import SeedResult, load_first_party_seed
 from ai_stp_platform.db import make_engine, make_sessionmaker
 from ai_stp_platform.logging import configure_logging, get_logger
+from ai_stp_platform.models import (
+    Account,
+    AccountAuthorVerification,
+    ProfileRevision,
+    PublicProfile,
+)
 from ai_stp_platform.safety.artifact_fetch import close_env_object_store, open_env_object_store
 from ai_stp_platform.settings import DatabaseSettings
 
@@ -54,6 +64,59 @@ def fixtures_wanted() -> bool:
     return os.environ.get("AI_STP_API_ENVIRONMENT", "dev").strip().lower() == "dev"
 
 
+async def ensure_official_publisher(session: AsyncSession) -> bool:
+    """Idempotently bootstrap the real publisher in every environment."""
+    fields = ProfileFields(
+        display_name="AI STP Official",
+        bio=(
+            "Curated, security-checked snapshots of public open-source components. "
+            "Upstream authorship and ownership remain with each named project."
+        ),
+        links=[ProfileLink(label="AI STP", url="https://ai-stp.com")],
+    )
+    revision_id = "profile_revision_ai_stp_official_v1"
+    owner = await session.get(Account, OFFICIAL_ACCOUNT_ID)
+    created = owner is None
+    if owner is None:
+        owner = Account(id=OFFICIAL_ACCOUNT_ID)
+        session.add(owner)
+    owner.status = "active"
+    owner.show_profile_publicly = True
+    owner.allow_publisher_listing = True
+    if await session.get(ProfileRevision, revision_id) is None:
+        session.add(
+            ProfileRevision(
+                id=revision_id,
+                account_id=OFFICIAL_ACCOUNT_ID,
+                lifecycle="published",
+                display_name=fields.display_name,
+                bio=fields.bio,
+                links=[item.model_dump(mode="json") for item in fields.links],
+                avatar_asset_id=None,
+                content_digest=content_digest(fields),
+            )
+        )
+    profile = await session.get(PublicProfile, OFFICIAL_ACCOUNT_ID)
+    if profile is None:
+        profile = PublicProfile(account_id=OFFICIAL_ACCOUNT_ID)
+        session.add(profile)
+    profile.published_revision_id = revision_id
+    verification = await session.get(AccountAuthorVerification, OFFICIAL_ACCOUNT_ID)
+    if verification is None:
+        session.add(
+            AccountAuthorVerification(
+                account_id=OFFICIAL_ACCOUNT_ID,
+                verified=True,
+                reason="Platform-operated AI STP Official publisher",
+                issued_by_account_id=OFFICIAL_ACCOUNT_ID,
+            )
+        )
+    else:
+        verification.verified = True
+    await session.flush()
+    return created
+
+
 async def _run() -> int:
     configure_logging_from_env()
     log = get_logger("seed")
@@ -65,6 +128,7 @@ async def _run() -> int:
         store = await open_env_object_store()
         try:
             async with sessionmaker() as session:
+                official_created = await ensure_official_publisher(session)
                 result = (
                     await load_first_party_seed(session, store=store)
                     if seeding
@@ -77,7 +141,7 @@ async def _run() -> int:
         log.info(
             "seed_complete",
             fixtures_seeded=seeding,
-            created_accounts=result.created_accounts,
+            created_accounts=result.created_accounts + int(official_created),
             created_versions=result.created_versions,
             reused_versions=result.reused_versions,
             artifacts_written=result.artifacts_written,

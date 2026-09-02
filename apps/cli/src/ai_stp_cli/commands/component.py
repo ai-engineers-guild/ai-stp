@@ -29,6 +29,7 @@ from ai_stp_cli.local import (
     revisions,
     search,
     skill_package,
+    source_discovery,
     versions,
 )
 from ai_stp_cli.local.database import configured_path, open_readonly, open_registry, transaction
@@ -57,10 +58,43 @@ from ai_stp_contracts.machine_help import (
     SearchHit,
     SkillPackageFinding,
     SkillPackageReport,
+    SourceSearchResult,
     VersionLine,
 )
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.ids import new_id
+
+
+def source_search(parameters: Mapping[str, object]) -> Answer[SourceSearchResult]:
+    """Name-only discovery. Package and GitHub hits require the opt-in flag."""
+    from ai_stp_cli.cloud import catalog as cloud_catalog
+    from ai_stp_cli.commands.auth import endpoint
+
+    query = str(parameters.get("query") or "")
+    flag = bool(parameters.get("registry-discovery"))
+
+    def catalog_search(needle: str) -> object:
+        return cloud_catalog.search(endpoint(), "component", query=needle)
+
+    path = configured_path()
+    if path.exists():
+        with closing(open_readonly(path)) as connection:
+            return Answer(
+                source_discovery.discover(
+                    query,
+                    registry_discovery=flag,
+                    catalog_search=catalog_search,  # pyright: ignore[reportArgumentType]
+                    connection=connection,
+                )
+            )
+    return Answer(
+        source_discovery.discover(
+            query,
+            registry_discovery=flag,
+            catalog_search=catalog_search,  # pyright: ignore[reportArgumentType]
+            connection=None,
+        )
+    )
 
 
 def source_parse(parameters: Mapping[str, object]) -> Answer[ExternalSourceIdentity]:

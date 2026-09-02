@@ -5,7 +5,7 @@
   "description": "Optional estimator choice for one exact setup context budget.",
   "properties": {
     "estimator_profile": {
-      "default": "ai-stp:utf8-bytes/1",
+      "default": "ai-stp:unicode-chars-div4/1",
       "enum": [
         "ai-stp:utf8-bytes/1",
         "ai-stp:unicode-chars-div4/1"

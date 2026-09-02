@@ -1,0 +1,77 @@
+{
+  "$id": "urn:ai-stp:schema:v1:cli-component-promotion-plan",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Ordinary publication plan produced from one embedded component (REQ-5714).",
+  "properties": {
+    "catalog_stable_id": {
+      "minLength": 1,
+      "title": "Catalog Stable Id",
+      "type": "string"
+    },
+    "catalog_version": {
+      "pattern": "^\\d+\\.\\d+$",
+      "title": "Catalog Version",
+      "type": "string"
+    },
+    "plan_hash": {
+      "default": "",
+      "title": "Plan Hash",
+      "type": "string"
+    },
+    "plan_id": {
+      "default": "",
+      "title": "Plan Id",
+      "type": "string"
+    },
+    "reused_passport": {
+      "title": "Reused Passport",
+      "type": "boolean"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "setup_id": {
+      "minLength": 1,
+      "title": "Setup Id",
+      "type": "string"
+    },
+    "setup_version": {
+      "pattern": "^\\d+\\.\\d+$",
+      "title": "Setup Version",
+      "type": "string"
+    },
+    "source_component_id": {
+      "minLength": 1,
+      "title": "Source Component Id",
+      "type": "string"
+    },
+    "state": {
+      "default": "",
+      "title": "State",
+      "type": "string"
+    },
+    "still_embedded": {
+      "title": "Still Embedded",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "catalog_stable_id",
+    "catalog_version",
+    "plan_hash",
+    "plan_id",
+    "reused_passport",
+    "schema_version",
+    "setup_id",
+    "setup_version",
+    "source_component_id",
+    "state",
+    "still_embedded"
+  ],
+  "title": "ComponentPromotionPlan",
+  "type": "object"
+}

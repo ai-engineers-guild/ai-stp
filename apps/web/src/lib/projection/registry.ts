@@ -49,7 +49,6 @@ import {
 } from "@/lib/projection/page-facts";
 import { isExternalCatalogEnabled } from "@/lib/projection/inventory";
 import { orNotFound } from "@/lib/projection/not-found";
-import { githubSourceUrl } from "@/lib/source-url";
 import { listPublishedContent, readPublishedContent } from "@/lib/api/content";
 import { presentContentEntry, presentContentIndex } from "@/lib/content/presenter";
 import { isFeatureEnabled } from "@/lib/features/gate";
@@ -194,7 +193,6 @@ const PUBLIC_ROUTES: MachineRoute[] = [
           passport: latest?.passport ?? null,
           publishedAt: latest?.published_at ?? detail.summary.latest_published_at,
           versions: detail.versions.map((item) => item.version),
-          sourceUrl: latest ? githubSourceUrl(latest.passport.source) : null,
           github,
           checks: latest?.checks ?? detail.summary.latest_checks,
           usage: detail.summary.usage_metrics,
@@ -236,7 +234,6 @@ const PUBLIC_ROUTES: MachineRoute[] = [
           passport,
           publishedAt: response.published_at,
           versions: [passport.version],
-          sourceUrl: githubSourceUrl(passport.source),
           github,
           checks: response.checks,
           usage: response.usage_metrics,

@@ -66,6 +66,7 @@ export type SetupSummaryFixture = {
   latest_target_role: string | null;
   latest_posture: string | null;
   latest_harness_id: "claude-code" | "codex" | "pi" | "opencode" | "grok-build";
+  latest_harness_ids: Array<"claude-code" | "codex" | "pi" | "opencode" | "grok-build">;
   latest_tags: string[];
   latest_lifecycle: "active" | "deprecated" | "blocked";
   latest_trust: typeof experimentalTrust;
@@ -149,11 +150,13 @@ export function makeSetupSummary(
     | "latest_requirements_count"
     | "latest_requires_credentials"
     | "updated_at"
+    | "latest_harness_ids"
   > & {
     latest_lifecycle?: SetupSummaryFixture["latest_lifecycle"];
     latest_trust?: typeof experimentalTrust;
     latest_support?: SupportFixture;
     latest_checks?: null;
+    latest_harness_ids?: SetupSummaryFixture["latest_harness_ids"];
   },
 ): SetupSummaryFixture {
   return {
@@ -169,6 +172,7 @@ export function makeSetupSummary(
     latest_requirements_count: 0,
     latest_requires_credentials: false,
     updated_at: partial.latest_published_at,
+    latest_harness_ids: [partial.latest_harness_id],
     ...partial,
   };
 }

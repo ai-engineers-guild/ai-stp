@@ -10,6 +10,7 @@ from ai_stp_platform.queue.states import JobType
 from ai_stp_worker.handlers.catalog_enrichment import handle_catalog_enrichment
 from ai_stp_worker.handlers.deliver_invitation import handle_deliver_invitation
 from ai_stp_worker.handlers.github_archive import handle_github_archive
+from ai_stp_worker.handlers.official_upstream import handle_official_upstream_sync
 from ai_stp_worker.handlers.publish import handle_publish
 from ai_stp_worker.handlers.reevaluate import handle_reevaluate
 from ai_stp_worker.handlers.repository_metrics import handle_repository_metrics
@@ -44,6 +45,7 @@ REGISTRY: Mapping[JobType, JobHandler] = {
     JobType.CATALOG_ENRICHMENT: handle_catalog_enrichment,
     JobType.SEO_BUILD: handle_seo_build,
     JobType.SEO_ENRICH: handle_seo_enrich,
+    JobType.OFFICIAL_UPSTREAM_SYNC: handle_official_upstream_sync,
 }
 
 

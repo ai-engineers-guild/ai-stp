@@ -406,7 +406,7 @@
       "items": {
         "$ref": "#/$defs/HarnessId"
       },
-      "maxItems": 6,
+      "maxItems": 7,
       "title": "Harness Ids",
       "type": "array"
     },

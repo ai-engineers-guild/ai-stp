@@ -18,6 +18,7 @@ test.describe("locale parity (REQ-2203, REQ-2311)", () => {
       .click();
     await expect(page).toHaveURL(/\/ru\/catalog/);
 
+    await page.goto("/ru/catalog?resource=components");
     const card = page.getByRole("link", {
       name: /fixture-component|firstparty-security-skill|pytest-guard-skill/i,
     });

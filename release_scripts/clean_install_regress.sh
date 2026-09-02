@@ -38,6 +38,7 @@ uv pip install --python "$work/venv" -q \
     "$dist"/ai_stp_passports-*.whl \
     "$dist"/ai_stp_assurance-*.whl \
     "$dist"/ai_stp_contracts-*.whl \
+    "$dist"/ai_stp_sources-*.whl \
     "$dist"/ai_stp_cli-*.whl
 
 # The virtual environment layout differs: bin/ on POSIX, Scripts/ and .exe on Windows.
@@ -74,7 +75,8 @@ uv tool install -q "$dist"/ai_stp_cli-*.whl \
     --with "$dist"/ai_stp_foundation-*.whl \
     --with "$dist"/ai_stp_passports-*.whl \
     --with "$dist"/ai_stp_assurance-*.whl \
-    --with "$dist"/ai_stp_contracts-*.whl
+    --with "$dist"/ai_stp_contracts-*.whl \
+    --with "$dist"/ai_stp_sources-*.whl
 cd "$tool"
 "$tool/bin/ai-stp$exe" doctor --json > /dev/null
 "$tool/bin/ai-stp$exe" help --agent --json > /dev/null

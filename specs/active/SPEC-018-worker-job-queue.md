@@ -1,6 +1,6 @@
 ---
 description: "SPEC-018: Background worker and PostgreSQL job queue."
-last_verified: "2026-08-29"
+last_verified: "2026-08-31"
 ---
 
 # SPEC-018: Background worker and PostgreSQL job queue
@@ -23,7 +23,7 @@ Includes the job model, a closed job-type registry, states and transitions, clai
 ## Requirements
 
 - `REQ-1801`: A single `job` table stores type, payload, state, attempt count, attempt limit, next-run time, unique idempotency key, priority, lock owner, lock time, last error, and timestamps.
-- `REQ-1802`: The job-type registry is closed and contains: `upload` with a `visibility` parameter whose values are `public` and `private`; `update`; `validate`; `publish`; `reevaluate_eligibility`; `deliver_invitation`; `repository_metrics`; `github_archive`; `catalog_enrichment`; `seo_build`; `seo_enrich`. Signing or writing an object to `S3` is a step within `upload`, `update`, or `publish`, not a separate type. An unregistered type is rejected; SEO handler semantics belong to `SPEC-053`.
+- `REQ-1802`: The job-type registry is closed and contains: `upload` with a `visibility` parameter whose values are `public` and `private`; `update`; `validate`; `publish`; `reevaluate_eligibility`; `deliver_invitation`; `repository_metrics`; `github_archive`; `catalog_enrichment`; `seo_build`; `seo_enrich`; `official_upstream_sync`. Signing or writing an object to `S3` is a step within `upload`, `update`, or `publish`, not a separate type. An unregistered type is rejected; SEO handler semantics belong to `SPEC-053`; official upstream semantics belong to `SPEC-056`.
 - `REQ-1803`: Job states `queued`, `running`, `retry_scheduled`, `dead_letter`, `succeeded`, and `cancelled` change only through permitted events, a terminal state is durably recorded before the response, and this state machine is separate from the mutation-operation state machine in `docs/contracts/operation.md`.
 - `REQ-1804`: A worker claims a bounded batch of jobs through `FOR UPDATE SKIP LOCKED` when their state is `queued` or `retry_scheduled` and their run time has arrived; concurrent workers do not claim the same row.
 - `REQ-1805`: A job is enqueued in the same transaction as the domain record, without a separate relay, and a retry with the same idempotency key does not create a second job.
@@ -52,7 +52,7 @@ The queue schema evolves through the expand, migrate, switch, and contract seque
 | Requirement | Executable verification method |
 |---|---|
 | `REQ-1801` | The migration and model create the `job` table with all required fields and a unique idempotency key. |
-| `REQ-1802` | A registry test accepts every listed type, including `seo_build`/`seo_enrich`, and rejects an unregistered type and signing as a separate type. |
+| `REQ-1802` | A registry test accepts every listed type, including `seo_build`/`seo_enrich`/`official_upstream_sync`, and rejects an unregistered type and signing as a separate type. |
 | `REQ-1803` | A transition test permits only allowed events and separates queue states from operation states. |
 | `REQ-1804` | An integration test with concurrent workers confirms that exactly one worker claims a row. |
 | `REQ-1805` | A shared-transaction enqueue test confirms atomicity and the absence of a second job for the same key. |

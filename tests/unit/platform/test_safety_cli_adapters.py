@@ -103,6 +103,28 @@ def test_agentic_behavior_detects_delegation_persistence_and_unsafe_flow(tmp_pat
     assert outcome.result == "failed"
 
 
+def test_agentic_behavior_distinguishes_repository_metadata_from_git_dependency(
+    tmp_path: Path,
+) -> None:
+    from ai_stp_platform.safety.adapters import agentic_behavior
+
+    payload = tmp_path / "package.json"
+    payload.write_text(
+        '{"repository":{"url":"git+https://github.com/acme/tool.git"}}', encoding="utf-8"
+    )
+    manifest = ArtifactManifest(component_type="mcp", text_files=["package.json"])
+    spec = _spec("agentic_behavior", family="agentic_behavior", mandatory=True)
+
+    assert agentic_behavior.run(tmp_path, manifest, spec).result == "passed"
+
+    payload.write_text(
+        '{"dependencies":{"tool":"git+https://github.com/acme/tool.git"}}', encoding="utf-8"
+    )
+    assert {
+        finding.rule_id for finding in agentic_behavior.run(tmp_path, manifest, spec).findings
+    } == {"dependency_floating"}
+
+
 def test_mcp_config_sees_a_credential_in_the_shape_mcp_configs_are_written_in(
     tmp_path: Path,
 ) -> None:

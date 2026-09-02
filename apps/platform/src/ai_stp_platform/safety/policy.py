@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Literal
 
-POLICY_VERSION = "safety-2"
+POLICY_VERSION = "safety-3"
 
 CheckResultName = Literal[
     "passed", "warning", "failed", "degraded", "not_run", "not_applicable", "skipped"

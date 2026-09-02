@@ -25,6 +25,7 @@ dependencies = [
     "ai-stp-contracts==0.0.15",
     "ai-stp-foundation==0.0.15",
     "ai-stp-passports==0.0.15",
+    "ai-stp-sources==0.0.15",
     "click>=8.1",
     "pynacl>=1.6.2",
     "httpx>=0.28",
@@ -32,6 +33,7 @@ dependencies = [
     "keyring>=25.6",
     "pydantic>=2.9",
     "pyyaml>=6",
+    "python-ulid>=3.0",
     # Format-preserving TOML writing, for `ADR-0129`: a component whose landing
     # is a key inside a host file the provider owns is compiled as a
     # contribution to that file, and the consumer assembles the full bytes.
@@ -57,6 +59,7 @@ Issues = "https://github.com/ai-engineers-guild/ai-stp/issues"
 ai-stp-assurance = { workspace = true }
 ai-stp-contracts = { workspace = true }
 ai-stp-foundation = { workspace = true }
+ai-stp-sources = { workspace = true }
 
 [build-system]
 requires = ["uv_build>=0.11,<0.13"]

@@ -91,7 +91,6 @@ function AuthorRail({
       <Author
         item={item}
         author={author}
-        label={labels.publisher ?? "Publisher"}
         verifiedLabel={verifiedLabel(labels.authorVerifiedDescription)}
       />
     </div>
@@ -129,12 +128,10 @@ function CatalogMetrics({
 function Author({
   item,
   author,
-  label,
   verifiedLabel,
 }: {
   item: ComponentSummary | SetupSummary;
   author: CatalogAuthor | undefined;
-  label: string;
   verifiedLabel: string;
 }) {
   return (
@@ -149,7 +146,7 @@ function Author({
         verifiedLabel={verifiedLabel}
         size="sm"
       />
-      <span className="truncate text-sm">{author?.displayName?.trim() || label}</span>
+      <span className="truncate text-sm">{author?.displayName?.trim() || item.publisher_id}</span>
     </Link>
   );
 }
@@ -294,7 +291,7 @@ export function ObjectCard({
             {metrics}
           </div>
           <div className="col-start-2 row-start-3 min-w-0 md:col-start-4 md:row-start-1">
-            <SafetyScore item={item} labels={labels} compact />
+            {kind === "component" ? <SafetyScore item={item} labels={labels} compact /> : null}
           </div>
           <div className="relative z-20 col-span-2 col-start-2 row-start-4 min-w-0 md:col-span-1 md:col-start-5 md:row-start-1 md:justify-self-end">
             {authorBlock}
@@ -352,7 +349,7 @@ export function ObjectCard({
       </p>
       <div className="flex flex-wrap items-center justify-between gap-3 py-1">
         {metrics}
-        <SafetyScore item={item} labels={labels} />
+        {kind === "component" ? <SafetyScore item={item} labels={labels} /> : null}
       </div>
       <div className="flex flex-wrap gap-1">
         {item.latest_tags.map((tag) => (

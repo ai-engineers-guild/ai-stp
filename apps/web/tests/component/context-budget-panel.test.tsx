@@ -1,156 +1,121 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
-
-vi.mock("@/lib/i18n/navigation", () => ({
-  Link: ({ children, href, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
-    <a href={href} {...props}>
-      {children}
-    </a>
-  ),
-}));
-
-vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
-}));
+import { describe, expect, it } from "vitest";
 
 import {
+  ComponentContextBudgetPanel,
   ContextBudgetPanel,
   type ContextBudgetLabels,
 } from "@/components/organisms/context-budget-panel";
-import type { SetupContextBudget } from "@/lib/api/catalog";
-import en from "../../messages/en.json";
-import ru from "../../messages/ru.json";
+import type { ComponentContextBudget, SetupContextBudget } from "@/lib/api/catalog";
 
-const labels: ContextBudgetLabels = {
+const labels = {
   title: "Context budget",
-  lead: "Potential context this setup can add, not actual model usage.",
+  lead: "Potential context",
+  runtimeDerived: "Runtime schemas are not available.",
   always: "Always loaded",
-  alwaysHint: "Included every time the setup loads.",
+  alwaysHint: "Always",
   conditional: "Loaded when used",
-  conditionalHint: "Added only when the agent uses that component.",
+  conditionalHint: "When used",
   total: "Potential total",
   unavailable: "Unavailable components",
-  empty: "No tokenized components",
-  error: "The exact setup graph cannot be measured.",
+  empty: "Empty",
+  error: "Cannot estimate",
   tokens: "tokens",
   checkLocally: "Check locally",
-  localCommandTitle: "Local full report",
-  localCommandBody: "Run this locally",
+  localCommandTitle: "Local report",
+  localCommandBody: "Run locally",
   copy: "Copy",
   copied: "Copied",
   copyError: "Copy failed",
   docs: "Docs",
   cost: {
-    title: "Cost estimate",
-    rateLabel: "Input price per million tokens",
-    estimate: "Estimated cost",
-    empty: "Enter a rate to estimate cost. This is not actual usage.",
-    invalid: "The rate must be a non-negative number.",
-    hint: "Calculated only in this browser.",
+    title: "Cost",
+    rateLabel: "Rate",
+    estimate: "Estimate",
+    empty: "Empty",
+    invalid: "Invalid",
+    hint: "Hint",
   },
+} satisfies ContextBudgetLabels;
+
+const estimator = {
+  profile: "ai-stp:unicode-chars-div4/1" as const,
+  accuracy: "estimated" as const,
+  method: "unicode_codepoints_div_4" as const,
 };
 
-const command = "ai-stp select impact --setup-id setup_a --setup-version 1.0";
-
-const budget: SetupContextBudget = {
+const setupBudget: SetupContextBudget = {
   schema_version: 1,
   coordinate: { stable_id: "setup_a", version: "1.0", passport_digest: "sha256:aa" },
-  estimator: {
-    profile: "ai-stp:utf8-bytes/1",
-    accuracy: "exact",
-    method: "utf8_byte_count",
-  },
-  always_tokens: 1000,
-  conditional_tokens: 1000,
-  total_tokens: 2000,
+  estimator,
+  always_tokens: 250,
+  conditional_tokens: 750,
+  total_tokens: 1000,
   unavailable_components: 0,
   status: "ready",
-  components: [
-    {
-      component: { stable_id: "component_a", version: "1.0", passport_digest: "sha256:bb" },
-      component_type: "instruction",
-      loading: "always",
-      status: "exact",
-      tokens: 1000,
-      utf8_bytes: 1000,
-    },
-  ],
+  components: [],
 };
 
 describe("ContextBudgetPanel", () => {
-  it("keeps RU and EN distilled labels equivalent", () => {
-    expect(en.catalog.contextBudgetCheckLocally).toBe("Check locally");
-    expect(ru.catalog.contextBudgetCheckLocally).toBe(
-      "\u041f\u0440\u043e\u0432\u0435\u0440\u0438\u0442\u044c \u043b\u043e\u043a\u0430\u043b\u044c\u043d\u043e",
-    );
-    expect(en.catalog.contextBudgetAlways).toBe("Always loaded");
-    expect(ru.catalog.contextBudgetAlways).toBe(
-      "\u0412\u0441\u0435\u0433\u0434\u0430 \u0437\u0430\u0433\u0440\u0443\u0436\u0430\u0435\u0442\u0441\u044f",
-    );
-    expect(en.catalog.contextBudgetConditional).toBe("Loaded when used");
-    expect(ru.catalog.contextBudgetConditional).toBe(
-      "\u0417\u0430\u0433\u0440\u0443\u0436\u0430\u0435\u0442\u0441\u044f \u043f\u0440\u0438 \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u043d\u0438\u0438",
-    );
-  });
-
-  it("keeps the collapsed surface to title, lead and potential total", () => {
-    render(<ContextBudgetPanel budget={budget} command={command} labels={labels} />);
-    expect(screen.getByRole("button", { name: /Context budget/ })).toHaveAttribute(
-      "aria-expanded",
-      "false",
-    );
-    expect(screen.getByText(/Potential context this setup can add/)).toBeVisible();
-    expect(screen.getByText(/2000 tokens/)).toBeVisible();
+  it("shows only potential total and loaded-when-used estimates", async () => {
+    const user = userEvent.setup();
+    render(<ContextBudgetPanel budget={setupBudget} labels={labels} />);
+    expect(screen.getByText(/1,?000 tokens/)).toBeVisible();
+    await user.click(screen.getByRole("button", { name: /Context budget/ }));
+    expect(screen.getByText("Potential total").parentElement).toHaveTextContent(/1[\s,]?000/);
+    expect(screen.getByText("Loaded when used").parentElement).toHaveTextContent("750");
     expect(screen.queryByText("Always loaded")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Input price per million tokens")).not.toBeInTheDocument();
-    expect(screen.queryByText(command)).not.toBeInTheDocument();
-    expect(screen.queryByText("ai-stp:utf8-bytes/1")).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
 
-  it("reveals the breakdown and cost only after the first disclosure", async () => {
+  it("shows the explicit unavailable state", () => {
+    render(<ContextBudgetPanel budget={null} labels={labels} />);
+    expect(screen.getByText("Cannot estimate")).toBeVisible();
+  });
+});
+
+describe("ComponentContextBudgetPanel", () => {
+  it("shows the two estimates for a conditional component", async () => {
     const user = userEvent.setup();
-    render(<ContextBudgetPanel budget={budget} command={command} labels={labels} />);
+    const budget: ComponentContextBudget = {
+      schema_version: 1,
+      coordinate: { stable_id: "component_a", version: "1.0", passport_digest: "sha256:aa" },
+      estimator,
+      component_type: "skill",
+      loading: "conditional",
+      tokens: 640,
+      utf8_bytes: 2560,
+      status: "estimated",
+      reason: null,
+    };
+    render(<ComponentContextBudgetPanel budget={budget} labels={labels} />);
     await user.click(screen.getByRole("button", { name: /Context budget/ }));
-    expect(screen.getByText("Always loaded")).toBeVisible();
-    expect(screen.getByText("Loaded when used")).toBeVisible();
-    expect(screen.getByText("Potential total").parentElement).toHaveTextContent("2000");
-    expect(screen.getByLabelText("Input price per million tokens")).toBeVisible();
-    expect(screen.queryByText(command)).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Check locally" })).toHaveAttribute(
-      "aria-expanded",
-      "false",
-    );
+    expect(screen.getByText("Potential total").parentElement).toHaveTextContent("640");
+    expect(screen.getByText("Loaded when used").parentElement).toHaveTextContent("640");
   });
 
-  it("hides the local impact command until the nested disclosure opens", async () => {
-    const user = userEvent.setup();
-    render(<ContextBudgetPanel budget={budget} command={command} labels={labels} />);
-    await user.click(screen.getByRole("button", { name: /Context budget/ }));
-    await user.click(screen.getByText("Check locally"));
-    expect(screen.getByText(command)).toBeVisible();
-  });
-
-  it("computes a client-only cost after the first disclosure", async () => {
-    const user = userEvent.setup();
-    const setItem = vi.spyOn(Storage.prototype, "setItem");
-    render(<ContextBudgetPanel budget={budget} command={command} labels={labels} />);
-    await user.click(screen.getByRole("button", { name: /Context budget/ }));
-    await user.type(screen.getByLabelText("Input price per million tokens"), "3");
-    expect(screen.getByText(/Estimated cost: 0.00600000/)).toBeVisible();
-    expect(setItem).not.toHaveBeenCalled();
-    setItem.mockRestore();
-  });
-
-  it("shows the error on the collapsed surface when the graph is invalid", () => {
+  it("does not pretend package bytes are MCP schema tokens", () => {
     render(
-      <ContextBudgetPanel
-        budget={{ ...budget, status: "invalid_graph" }}
-        command={command}
+      <ComponentContextBudgetPanel
+        budget={{
+          schema_version: 1,
+          coordinate: {
+            stable_id: "component_mcp",
+            version: "1.0",
+            passport_digest: "sha256:bb",
+          },
+          estimator,
+          component_type: "mcp",
+          loading: null,
+          tokens: null,
+          utf8_bytes: null,
+          status: "not_applicable",
+          reason: "runtime_context_not_statically_measurable",
+        }}
         labels={labels}
       />,
     );
-    expect(screen.getByText("The exact setup graph cannot be measured.")).toBeVisible();
-    expect(screen.queryByText(/2000 tokens/)).not.toBeInTheDocument();
+    expect(screen.getByText("Runtime schemas are not available.")).toBeVisible();
   });
 });
