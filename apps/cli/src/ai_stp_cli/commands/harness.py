@@ -123,7 +123,7 @@ def remove(parameters: Mapping[str, object]) -> Answer[HarnessProgram]:
             "AI_STP_PRECONDITION_FAILED",
             "removing a harness program requires explicit confirmation",
             details={"prefix": str(parameters.get("prefix") or "")},
-            next_actions=["harness remove --confirm --json"],
+            next_actions=["harness remove ... --confirm --json"],
         )
     return _perform("remove", parameters)
 
@@ -430,7 +430,11 @@ def _resolve_provider(
             "AI_STP_USER_DECISION_REQUIRED",
             "more than one provider serves this harness here",
             details={"harness": harness_id, "candidates": ", ".join(found.candidates)},
-            next_actions=["provider check --json", "harness install --provider <path> --json"],
+            next_actions=[
+                "provider check --json",
+                f"harness install --harness {harness_id} --prefix <directory> "
+                "--target <directory> --provider <path> --json",
+            ],
         )
     if not found.path:
         raise CliFailure(
@@ -971,7 +975,9 @@ def resume(parameters: Mapping[str, object]) -> Answer[HarnessProgram]:
                 "AI_STP_PRECONDITION_FAILED",
                 "that operation is a setup installation, not a program one",
                 details={"operation": operation_id, "action": held.action},
-                next_actions=[f"install resume --operation {operation_id} --json"],
+                next_actions=[
+                    f"install resume --operation {operation_id} --provider <executable> --json"
+                ],
             )
         harness_id = held.program_harness_id
         prefix = Path(held.target_id)

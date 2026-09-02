@@ -1002,8 +1002,8 @@ def test_v3_refuses_to_install_a_provider_no_signed_release_covers(
     assert raised.value.code == "AI_STP_VALIDATION_ERROR"
     assert raised.value.next_actions == [
         "provider fetch --harness <id> --json",
-        "install plan --provider-manifest <path> --json",
-        "install plan --unverified-provider --json",
+        "install plan ... --provider-manifest <path> --json",
+        "install plan ... --unverified-provider --json",
     ]
 
 
@@ -3000,7 +3000,10 @@ def test_a_rollback_without_a_backup_ref_is_refused(
 
     assert raised.value.code == "AI_STP_VALIDATION_ERROR"
     assert "BackupRef" in str(raised.value)
-    assert raised.value.next_actions == ["install plan --action rollback --backup-ref <ref> --json"]
+    assert raised.value.next_actions == [
+        "install plan --action rollback --backup-ref <ref> --project <id> "
+        "--harness <id> --provider <executable> --json"
+    ]
 
 
 @pytest.mark.parametrize("action", ["backup", "rollback"])

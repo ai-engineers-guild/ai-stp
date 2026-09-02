@@ -353,5 +353,5 @@ def _oversized(declared: int, received: int) -> CliFailure:
         "AI_STP_PRECONDITION_FAILED",
         "the artifact is larger than its passport declares",
         details={"expected": str(declared), "received_at_least": str(received)},
-        next_actions=["registry version --json"],
+        next_actions=["registry version --kind <kind> --id <id> --version <version> --json"],
     )

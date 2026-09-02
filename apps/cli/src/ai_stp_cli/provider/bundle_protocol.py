@@ -184,5 +184,5 @@ def _refused(message: str, **details: str) -> CliFailure:
         "AI_STP_PRECONDITION_FAILED",
         message,
         details=details,
-        next_actions=["provider conformance --json"],
+        next_actions=["provider conformance --harness <id> --executable <path> --json"],
     )

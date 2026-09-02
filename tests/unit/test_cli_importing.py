@@ -1305,8 +1305,8 @@ def test_an_imported_setup_compiles_into_the_bundle_an_adopted_one_would(
         )
     assert refused.value.code == "AI_STP_PRECONDITION_FAILED"
     assert refused.value.next_actions == [
-        "select bundle --target <directory> --json",
-        "install plan --target <directory> --json",
+        "select bundle --harness codex --proposal <id> --target <directory> --json",
+        "install plan --proposal <id> --provider <executable> --target <directory> --json",
     ]
 
     target = tmp_path / "target"

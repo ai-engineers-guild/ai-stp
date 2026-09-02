@@ -178,7 +178,7 @@ def _fact(value: JsonValue, origin: str, at: str) -> dict[str, JsonValue]:
 CREATES_PASSPORT: Final[dict[str, str]] = {
     "developer": "passport developer init --json",
     "device": "passport device refresh --json",
-    "project": "project passport --json",
+    "project": "project passport --root <directory> --json",
 }
 
 #: The two a composition anchors to that belong to the installation rather than

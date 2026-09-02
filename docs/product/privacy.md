@@ -1,6 +1,6 @@
 ---
 description: "What leaves the user's machine, what never leaves it, and how to answer questions about telemetry."
-last_verified: "2026-08-21"
+last_verified: "2026-09-01"
 ---
 
 # CLI privacy
@@ -55,7 +55,7 @@ an accidental refusal would be recorded as the response and nothing would ask ag
 ## How to change your mind
 
 ```bash
-ai-stp config set telemetry.enabled=false
+ai-stp config set --set telemetry.enabled=false
 ```
 
 Disables sending and deletes the anonymous identifier. The recorded response is

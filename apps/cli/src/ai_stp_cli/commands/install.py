@@ -465,7 +465,10 @@ def _plan_v3(
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
             "rollback requires the exact provider-owned BackupRef",
-            next_actions=["install plan --action rollback --backup-ref <ref> --json"],
+            next_actions=[
+                "install plan --action rollback --backup-ref <ref> --project <id> "
+                "--harness <id> --provider <executable> --json"
+            ],
         )
 
     compiled: bundle.Bundle | None = None
@@ -571,7 +574,7 @@ def _plan_v3(
                     "longest": overlong[-1],
                     "limit": str(windows_paths.MAX_PATH_CHARACTERS),
                 },
-                next_actions=["install plan --target <shorter path> --json"],
+                next_actions=["install plan ... --target <shorter path> --json"],
             )
     arguments = operation_v3.plan_operation_arguments(
         operation=operation,
@@ -813,7 +816,7 @@ def _apply_v3(
             "AI_STP_PRECONDITION_FAILED",
             "the exact approved provider plan artifact is absent or corrupt",
             details={"provider_plan_digest": held.provider_plan_digest},
-            next_actions=["install plan --json"],
+            next_actions=["install plan --proposal <id> --provider <executable> --json"],
         )
     provider_plan = operation_v3.load_plan(plan_path, held.provider_plan_digest)
     if provider_plan.effects != held.effects:
@@ -1030,7 +1033,7 @@ def resume(parameters: Mapping[str, object]) -> Answer[InstallationView]:
                     "AI_STP_PRECONDITION_FAILED",
                     "the exact approved provider plan artifact is absent or corrupt",
                     details={"provider_plan_digest": held.provider_plan_digest},
-                    next_actions=["install plan --json"],
+                    next_actions=["install plan --proposal <id> --provider <executable> --json"],
                 )
             provider_plan = operation_v3.load_plan(plan_path, held.provider_plan_digest)
             bound_bundle = _bound_bundle_v3(held)
@@ -1631,7 +1634,7 @@ def _bound_bundle(plan: installation.Plan) -> bundle_protocol.Binding:
         raise CliFailure(
             "AI_STP_SCHEMA_UNSUPPORTED",
             "this legacy installation plan does not bind exact HarnessBundle bytes",
-            next_actions=["install plan --json"],
+            next_actions=["install plan --proposal <id> --provider <executable> --json"],
         )
     path = cache.stored_raw_artifact(plan.bundle_artifact_digest)
     if path is None:
@@ -1639,7 +1642,7 @@ def _bound_bundle(plan: installation.Plan) -> bundle_protocol.Binding:
             "AI_STP_PRECONDITION_FAILED",
             "the exact HarnessBundle bytes approved by this plan are not in the verified cache",
             details={"artifact_digest": plan.bundle_artifact_digest},
-            next_actions=["install plan --json"],
+            next_actions=["install plan --proposal <id> --provider <executable> --json"],
         )
     return bundle_protocol.binding(
         path,
@@ -1813,8 +1816,9 @@ def _provider_target(parameters: Mapping[str, object], logical: str, version: in
             "AI_STP_VALIDATION_ERROR",
             "provider protocol v2/v3 requires an existing absolute target directory",
             next_actions=[
-                "install plan --target <directory> --protocol-version 3 --json",
-                "target status --provider <path> --target <directory> --json",
+                "install plan ... --target <directory> --protocol-version 3 --json",
+                "target status --project <id> --harness <id> --provider <path> "
+                "--target <directory> --json",
             ],
         )
     place = Path(given).expanduser()
@@ -2421,7 +2425,7 @@ def _required(parameters: Mapping[str, object], name: str) -> str:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
             f"the {name} must be named",
-            next_actions=["select session --harness <id> --json"],
+            next_actions=[f"... --{name} <id>"],
         )
     return given
 

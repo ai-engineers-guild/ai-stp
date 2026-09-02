@@ -21,7 +21,7 @@ last_verified: "2026-08-03"
 | [SPEC-010-platform-api.md](SPEC-010-platform-api.md) | SPEC-010: Server platform and API. | 2026-08-28 |
 | [SPEC-011-cli-agent-skill.md](SPEC-011-cli-agent-skill.md) | SPEC-011: CLI, machine help and agent skill. | 2026-08-29 |
 | [SPEC-012-uninstall-recovery.md](SPEC-012-uninstall-recovery.md) | SPEC-012: Uninstallation, full cleanup, and recovery. | 2026-08-03 |
-| [SPEC-013-data-governance.md](SPEC-013-data-governance.md) | SPEC-013: User data governance. | 2026-08-16 |
+| [SPEC-013-data-governance.md](SPEC-013-data-governance.md) | SPEC-013: User data governance. | 2026-09-01 |
 | [SPEC-014-toolchain-bootstrap.md](SPEC-014-toolchain-bootstrap.md) | SPEC-014: Managed toolchain and bootstrap. | 2026-08-04 |
 | [SPEC-015-canonical-contracts.md](SPEC-015-canonical-contracts.md) | SPEC-015: Canonical data, identifiers, and hashes. | 2026-08-03 |
 | [SPEC-016-reports-moderation.md](SPEC-016-reports-moderation.md) | SPEC-016: Object reports and moderation. | 2026-08-04 |

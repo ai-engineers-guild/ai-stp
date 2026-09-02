@@ -402,7 +402,7 @@ def rollback_target(
                 "harness_id": harness_id,
                 "verified": str(len(history)),
             },
-            next_actions=["target status --harness <id> --json"],
+            next_actions=[f"target status --project {project_id} --harness {harness_id} --json"],
         )
     return history[-2]
 

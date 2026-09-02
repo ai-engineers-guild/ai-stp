@@ -795,7 +795,7 @@ def record_backup(
             # A command, not a sentence. `next_actions` is read by an agent that
             # runs what it finds there, and "run the provider's backup command"
             # is advice it has no way to follow.
-            next_actions=["setup import register --backup-ref <ref from the provider> --json"],
+            next_actions=["setup import register ... --backup-ref <ref from the provider> --json"],
         )
     if not protocol_v3.BACKUP_REF_PATTERN.fullmatch(provider_ref):
         # The vendored kit's own shape. A reference is checked for form here

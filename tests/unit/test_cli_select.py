@@ -907,7 +907,8 @@ def test_every_named_passport_command_is_a_real_command() -> None:
     known = {command.name for command in COMMANDS}
     creates = passports.CREATES_PASSPORT
     for action in creates.values():
-        path = action.removesuffix(" --json")
+        words = action.split()
+        path = " ".join(words[: next(i for i, w in enumerate(words) if w.startswith("--"))])
         assert path in known, f"{path!r} is not a declared command"
 
 

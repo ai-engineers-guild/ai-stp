@@ -195,5 +195,5 @@ def _refused(message: str, *, host: str, detail: str) -> CliFailure:
         "AI_STP_PRECONDITION_FAILED",
         message,
         details={"host": host, "detail": detail},
-        next_actions=["install plan --json"],
+        next_actions=["install plan --proposal <id> --provider <executable> --json"],
     )

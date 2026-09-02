@@ -125,7 +125,7 @@ def record(
                 "recorded": existing.passport_digest,
                 "offered": passport_digest,
             },
-            next_actions=["registry version next --id <stable_id>"],
+            next_actions=["component version list --id <stable_id> --json"],
         )
 
     connection.execute(

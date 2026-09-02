@@ -197,7 +197,7 @@ def _malformed_shadow(field: str) -> CliFailure:
         "AI_STP_SCHEMA_UNSUPPORTED",
         "the provider status carries a malformed shadow list",
         details={"field": field},
-        next_actions=["provider conformance --json"],
+        next_actions=["provider conformance --harness <id> --executable <path> --json"],
     )
 
 

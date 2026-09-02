@@ -19,7 +19,7 @@ last_verified: "2026-08-03"
 | [cli-config.md](cli-config.md) | Global CLI configuration fields, defaults, and source precedence. | 2026-08-29 |
 | [cli-copy-templates.md](cli-copy-templates.md) | Canonical CLI templates for web UI copy blocks (SPEC-037). | 2026-08-13 |
 | [cli-grants.md](cli-grants.md) | Client sequence for issuing, accepting, and revoking access grants. | 2026-08-13 |
-| [cli-json.md](cli-json.md) | JSON envelope, error classes, and CLI machine-output rules. | 2026-08-13 |
+| [cli-json.md](cli-json.md) | JSON envelope, error classes, and CLI machine-output rules. | 2026-09-01 |
 | [cli-owner-objects.md](cli-owner-objects.md) | Authorized reading of owner objects through the CLI. | 2026-08-13 |
 | [cli-publication.md](cli-publication.md) | Client-side publication plan sequence and the boundary of transmitted data. | 2026-08-25 |
 | [cli-telemetry.md](cli-telemetry.md) | Closed list of anonymous telemetry ping fields, sending conditions, and excluded data. | 2026-08-21 |

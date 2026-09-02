@@ -216,7 +216,7 @@ def _enabled() -> None:
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED",
             "cloud synchronisation is disabled in local configuration",
-            next_actions=["config set sync.enabled=true --json"],
+            next_actions=["config set --set sync.enabled=true --json"],
         )
 
 
