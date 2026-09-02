@@ -1533,7 +1533,7 @@ def _bundle_view(compiled: bundle.Bundle, harness: str) -> HarnessBundle:
     scope = str(compiled.manifest.get("target_scope") or "global")
     return HarnessBundle(
         compiled=compiled.compiled,
-        target_scope="project" if scope == "project" else "global",
+        target_scope=scope if scope in ("project", "user_root") else "global",
         harness_id=harness,  # pyright: ignore[reportArgumentType]
         bundle_format=bundle.BUNDLE_FORMAT,
         digest=compiled.digest,

@@ -1126,3 +1126,25 @@ def test_a_project_compile_converts_onto_workspace_surfaces() -> None:
     assert by_kind["skill"].state == composition.STATE_COMPLETE
     assert by_kind["instruction"].native_surface == ""
     assert by_kind["instruction"].state == composition.STATE_UNSUPPORTED
+
+
+def test_user_root_is_a_chosen_scope_and_the_home_falls_back_to_it_only_when_it_must() -> None:
+    """Four providers declare `skills` under the shared `~/.agents` root beside
+    their own home's `skills`; codex declares only the shared one.
+
+    A `user_root` compile routes to the shared root; a `global` compile keeps
+    the product's own home and falls back to the shared root only where the
+    home has no rule of that kind. Both are the providers' declarations
+    (`<harness>/native-files/user-root/1`), not a guess about their products.
+    """
+    for harness in ("pi", "opencode", "cursor", "grok-build"):
+        home = composition.rule_for("skill", harness)
+        shared = composition.rule_for("skill", harness, scope="user_root")
+        assert home is not None and home.target_scope == "global", harness
+        assert shared is not None and shared.target_scope == "user_root", harness
+        assert shared.relative == "skills"
+    codex_home = composition.rule_for("skill", "codex")
+    assert codex_home is not None and codex_home.target_scope == "user_root"
+    assert composition.rule_for("skill", "codex", scope="user_root") is codex_home
+    assert composition.rule_for("instruction", "codex", scope="user_root") is None
+    assert composition.rule_for("skill", "claude-code", scope="user_root") is None

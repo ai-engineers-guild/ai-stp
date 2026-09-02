@@ -44,8 +44,9 @@ common limits, and `bundle_digest`.
 present only when it is not `global`: a bundle compiled for the harness
 configuration home is byte-identical to one compiled before scopes were chosen,
 so every digest a released plan already binds stays what it was. A `project`
-bundle's paths are relative to a workspace root, and the plan that installs it
-hands the provider that root as its target and the scope as `--target-scope`.
+bundle's paths are relative to a workspace root and a `user_root` bundle's to
+the shared `~/.agents` root; the plan that installs either hands the provider
+that root as its target and the scope as `--target-scope`.
 
 A file record contains a normalized relative path, SHA-256, size, permitted mode, and surface owner. The contents of `files/` must match the manifest exactly.
 
