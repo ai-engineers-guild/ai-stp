@@ -116,10 +116,15 @@ def test_the_isolated_spawn_reaches_the_target_and_not_the_network() -> None:
         "print(json.dumps({'written': place.read_text(encoding='utf-8')}))\n"
     )
     answer = launcher.run(
-        (sys.executable, "-c", child, str(target)), target=target, command="probe"
+        (_base_python(), "-c", child, str(target)), target=target, command="probe"
     )
     assert answer == {"written": "inside"}, answer
     assert (target / "written-inside").read_text(encoding="utf-8") == "inside"
+
+
+def _base_python() -> str:
+    """The interpreter a container can run: the base one, not a venv launcher."""
+    return str(getattr(sys, "_base_executable", None) or sys.executable)
 
 
 def _unproved(reason: str) -> NoReturn:
@@ -145,8 +150,9 @@ if launcher is None:
     print("UNPROVED " + capability.evidence[0], flush=True)
     sys.exit(3)
 print("READY", flush=True)
+python = str(getattr(sys, "_base_executable", None) or sys.executable)
 launcher.run(
-    (sys.executable, "-c", "import time; time.sleep(120)"),
+    (python, "-c", "import time; time.sleep(120)"),
     target=Path(sys.argv[1]),
     command="sleep",
 )

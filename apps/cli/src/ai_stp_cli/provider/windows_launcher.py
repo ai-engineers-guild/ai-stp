@@ -720,6 +720,20 @@ class AppContainerLauncher:
                 _revoke(package, path)
 
 
+def _base_interpreter() -> Path:
+    """The Python that can run inside the container on one granted directory.
+
+    Under a virtual environment `sys.executable` is a launcher that reads
+    `pyvenv.cfg` and loads the base installation's DLLs and `Lib` from
+    somewhere else entirely; granting its own directory leaves the child unable
+    to start, and it dies before it can say so. The base interpreter carries
+    everything beneath its own root, which is the one directory the probe
+    grants. This is where the hosted-runner probe stopped after the
+    environment was fixed: an empty answer at a non-zero exit, under `uv run`.
+    """
+    return Path(getattr(sys, "_base_executable", None) or sys.executable)
+
+
 def _probe(api: _Api, sid: ctypes.c_void_p, package: str) -> tuple[bool, tuple[str, ...]]:
     """Prove the denial the same way Linux does, or refuse to claim it.
 
@@ -749,20 +763,25 @@ def _probe(api: _Api, sid: ctypes.c_void_p, package: str) -> tuple[bool, tuple[s
         home.mkdir(parents=True, exist_ok=True)
         script = home / "probe.py"
         script.write_text(CHILD_PROBE, encoding="utf-8")
-        runtime = Path(sys.executable).resolve().parent
+        interpreter = _base_interpreter()
+        runtime = interpreter.resolve().parent
         if not _icacls(package, home, "(M)", inherit=True) or not _icacls(
             package, runtime, "(RX)", inherit=True
         ):
             return False, ("the container could not be granted its probe and runtime",)
-        argv = [sys.executable, str(script), json.dumps(ports, sort_keys=True)]
+        argv = [str(interpreter), str(script), json.dumps(ports, sort_keys=True)]
         with AppContainerProcess(api, sid, argv, {"PATH": os.environ.get("PATH", "")}) as child:
             stream = child.stdout
             raw = stream.read() if stream is not None else b""
-            child.wait()
+            exit_code = child.wait()
         try:
             observed = cast(dict[str, object], json.loads(raw.decode("utf-8").strip()))
         except (UnicodeDecodeError, json.JSONDecodeError, TypeError) as error:
-            return False, (f"the isolated probe returned no usable answer: {error}",)
+            tail = raw.decode("utf-8", errors="replace").strip()[-300:]
+            return False, (
+                "the isolated probe returned no usable answer: "
+                f"{error} (exit {exit_code:#x}, output {tail!r})",
+            )
 
         # Arrival decides the datagram, never the sender's return value:
         # `sendto` succeeds on a datagram the filter drops, so the child saying
@@ -791,7 +810,7 @@ def _probe(api: _Api, sid: ctypes.c_void_p, package: str) -> tuple[bool, tuple[s
         ipv6.close()
         dns_udp.close()
         _revoke(package, home)
-        _revoke(package, Path(sys.executable).resolve().parent)
+        _revoke(package, _base_interpreter().resolve().parent)
 
 
 def discover_appcontainer() -> tuple[AppContainerLauncher | None, NetworkCapability]:
