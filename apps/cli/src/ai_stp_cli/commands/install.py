@@ -600,6 +600,7 @@ def _plan_v3(
         backup_ref=backup_ref,
         permission_profile=permission_profile,
         expires_at=expires_at,
+        target_scope=planned_scope,
     )
     cache.store_provider_plan(provider_plan.artifact, provider_plan.digest)
     recorded = installation.propose(

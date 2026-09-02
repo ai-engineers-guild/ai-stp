@@ -252,6 +252,21 @@ def load_plan(path: Path, expected_digest: str) -> ProviderPlan:
     )
 
 
+def profile_digest(capabilities: protocol_v3.ProviderCapabilities, target_scope: str) -> str:
+    """The digest of the declared profile a plan at this scope binds.
+
+    A workspace plan is checked against the workspace profile; comparing it
+    with the home profile refused every project plan as "differs from exact
+    consumer inputs" while the provider was answering exactly what was asked.
+    """
+    if target_scope == capabilities.projection.scope:
+        return capabilities.projection.digest
+    for scoped in capabilities.scoped_projections:
+        if scoped.scope == target_scope:
+            return scoped.digest
+    raise _refused("the provider declares no projection profile for this scope", scope=target_scope)
+
+
 def require_plan(
     answer: dict[str, JsonValue],
     *,
@@ -265,6 +280,7 @@ def require_plan(
     backup_ref: str | None,
     permission_profile: str | None,
     expires_at: str,
+    target_scope: str = "global",
 ) -> ProviderPlan:
     """Require the provider's exact canonical plan and its redundant echoes."""
     if answer.get("state") != "planned":
@@ -293,7 +309,7 @@ def require_plan(
         "operation": operation.value,
         "canonical_target": str(target.resolve()),
         "expected_target_digest": expected_target_digest,
-        "projection_profile_digest": capabilities.projection.digest,
+        "projection_profile_digest": profile_digest(capabilities, target_scope),
         "bundle": None if bundle is None else _bundle_echo(bundle),
         "backup_ref": backup_ref,
         "restore_target_digest": restore_target_digest,
@@ -595,7 +611,13 @@ def _require_operation_binding(
         "provider_version": capabilities.provider_version,
         "provider_build_digest": capabilities.provider_build_digest,
         "provider_release_digest": release_digest,
-        "projection_profile_digest": capabilities.projection.digest,
+        # The profile the approved plan was checked against — a workspace
+        # plan binds the workspace profile's digest (`REQ-632`). The plan
+        # artifact is bound by its own digest, so the value it carries is the
+        # one `require_plan` already compared with the chosen profile.
+        "projection_profile_digest": plan.artifact.get(
+            "projection_profile_digest", capabilities.projection.digest
+        ),
         **binding,
     }
     if bundle is not None:

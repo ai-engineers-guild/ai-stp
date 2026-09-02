@@ -1520,26 +1520,23 @@ def test_a_bundle_compiled_for_a_workspace_lands_on_workspace_surfaces(
     session = select.propose(
         {"harness": "cursor", "project": str(tmp_path), "member": [f"{stable_id}@1.0"]}
     ).payload
-    select.confirm({"proposal": session.proposal_id})
+    proposal = session.proposal_id
+    assert proposal is not None
+    select.confirm({"proposal": proposal})
 
     home = select.harness_bundle(
-        {"harness": "cursor", "project": str(tmp_path), "proposal": session.proposal_id}
+        {"harness": "cursor", "project": str(tmp_path), "proposal": proposal}
     ).payload
     workspace = select.harness_bundle(
-        {
-            "harness": "cursor",
-            "project": str(tmp_path),
-            "proposal": session.proposal_id,
-            "scope": "project",
-        }
+        {"harness": "cursor", "project": str(tmp_path), "proposal": proposal, "scope": "project"}
     ).payload
     assert [item.path for item in home.files] == ["rules/review.mdc"]
     assert [item.path for item in workspace.files] == [".cursor/rules/review.mdc"]
     assert home.digest != workspace.digest
     assert home.target_scope == "global"
     assert workspace.target_scope == "project"
-    compiled = select.compile_harness_bundle(registry, session.proposal_id, "cursor")
+    compiled = select.compile_harness_bundle(registry, proposal, "cursor")
     assert "target_scope" not in compiled.manifest
     assert compiled.digest == home.digest
-    scoped = select.compile_harness_bundle(registry, session.proposal_id, "cursor", scope="project")
+    scoped = select.compile_harness_bundle(registry, proposal, "cursor", scope="project")
     assert scoped.manifest["target_scope"] == "project"
