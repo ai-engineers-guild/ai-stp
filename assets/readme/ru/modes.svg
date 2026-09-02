@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="240" viewBox="0 0 1200 240" role="img" aria-labelledby="t d">
+  <title id="t">Локально, каталог, после входа</title>
+  <desc id="d">Локальная работа без аккаунта. Анонимное чтение каталога. Google или GitHub — для приватных объектов, синхронизации, публикации, устройств и grants.</desc>
+  <rect width="1200" height="240" rx="22" fill="#101010"/>
+  <g>
+    <rect x="28" y="28" width="368" height="184" rx="18" fill="#181818" stroke="#434343"/>
+    <text x="52" y="72" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" fill="#fb631b">LOCAL</text>
+    <text x="52" y="118" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="22" fill="#ffffff">Без аккаунта</text>
+    <text x="52" y="156" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="17" fill="#858483">Реестр, паспорта, индекс,</text>
+    <text x="52" y="184" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="17" fill="#858483">подбор, установка публичного.</text>
+  </g>
+  <g>
+    <rect x="416" y="28" width="368" height="184" rx="18" fill="#181818" stroke="#434343"/>
+    <text x="440" y="72" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" fill="#fb631b">CATALOG</text>
+    <text x="440" y="118" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="22" fill="#ffffff">Анонимное чтение</text>
+    <text x="440" y="156" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="17" fill="#858483">Публичные сетапы и компоненты.</text>
+    <text x="440" y="184" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="17" fill="#858483">Вход, чтобы смотреть, не нужен.</text>
+  </g>
+  <g>
+    <rect x="804" y="28" width="368" height="184" rx="18" fill="#181818" stroke="#434343"/>
+    <text x="828" y="72" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" fill="#fb631b">SIGNED IN</text>
+    <text x="828" y="118" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="22" fill="#ffffff">Google или GitHub</text>
+    <text x="828" y="156" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="17" fill="#858483">Приватные объекты, sync, публикация,</text>
+    <text x="828" y="184" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="17" fill="#858483">устройства, grants, отчёты.</text>
+  </g>
+</svg>
