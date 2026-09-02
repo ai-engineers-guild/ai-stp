@@ -392,6 +392,10 @@ def test_the_setup_route_refuses_a_private_passport_too() -> None:
         "trust": AUTHORITATIVE,
         "support": SUPPORT_MISSING,
         "published_at": "2026-08-05T00:00:00.000Z",
+        # Required, like every declared field of a `/v1` response: the schema
+        # this model publishes marks them all required, so a Python default
+        # here would accept a document the schema rejects.
+        "component_checks": [],
     }
     assert SetupVersionResponse.model_validate(fields).passport.visibility == "public"
     private = published_passport("setup-version.json", visibility="private")

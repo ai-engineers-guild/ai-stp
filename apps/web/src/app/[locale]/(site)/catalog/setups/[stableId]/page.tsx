@@ -242,7 +242,7 @@ export default async function SetupDetailPage({ params }: PageProps) {
             {passport ? (
               <SetupComposition
                 passport={passport}
-                components={summary.latest_checks?.components ?? []}
+                components={detail.component_checks}
                 catalogComponents={catalogComponents}
                 setupAuthor={{ accountId: ownerId, displayName: author?.display_name }}
                 t={t}

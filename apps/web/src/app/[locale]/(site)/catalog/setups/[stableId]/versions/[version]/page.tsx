@@ -148,7 +148,7 @@ export default async function SetupVersionPage({ params }: PageProps) {
       <ContextBudgetPanel budget={budget} labels={contextBudgetLabels(t, tCli)} />
       <SetupComposition
         passport={passport}
-        components={response.checks?.components ?? []}
+        components={response.component_checks}
         catalogComponents={[]}
         setupAuthor={{ accountId: passport.owner_id }}
         t={t}

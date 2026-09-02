@@ -78,20 +78,13 @@ def project_trust(row: PublicVersionRow) -> CatalogTrust:
     )
 
 
-def project_checks_summary(
-    row: PublicVersionRow, *, include_components: bool = False
-) -> SafetyChecksSummary | None:
+def project_checks_summary(row: PublicVersionRow) -> SafetyChecksSummary | None:
     """Return stored safety checks summary for card/detail (#270), if present.
 
-    `include_components` is off for a card. The per-member list is read by one
-    surface — the setup detail page — and a card that carried it was answering
-    a question nobody on that projection asked. It cost more than the bytes:
-    the field arrived in the search response on 2026-09-02 and every released
-    CLI refused the whole body, because their `SafetyChecksSummary` forbade
-    extras. The models now allow additions, as their published schema always
-    said they did, but a client already installed cannot be changed — so the
-    projection that broke stops sending what it never needed, and the detail
-    keeps the field it does.
+    The per-member checks are not here. They are one surface's question — the
+    setup detail page's — and this document is also the card that `registry
+    search` returns, where the name alone broke every released client on
+    2026-09-02. See `project_component_checks`.
     """
     raw_summary = getattr(row.metadata, "checks_summary", None)
     if not isinstance(raw_summary, dict):
@@ -119,6 +112,55 @@ def project_checks_summary(
                         finding_summary=item.get("finding_summary"),  # type: ignore[arg-type]
                     )
                 )
+        # A setup is a composition, not one scannable component. Its stored
+        # aggregate remains an internal publication gate; public clients get
+        # only the exact members and each member's own checks.
+        is_setup = row.object_kind == "setup"
+        percent = None if is_setup else summary.get("checks_passed_percent")
+        status_raw = str(summary.get("status") or "empty")
+        if is_setup:
+            status_raw = "empty"
+        if status_raw not in {"pending", "available", "empty", "incomplete"}:
+            status_raw = "empty"
+        coverage = summary.get("coverage_complete")
+        if coverage is None:
+            coverage = status_raw == "available"
+        if is_setup:
+            coverage = False
+        return SafetyChecksSummary(
+            status=status_raw,  # type: ignore[arg-type]
+            checks_passed_percent=int(percent) if isinstance(percent, int) else None,
+            coverage_complete=bool(coverage),
+            passed=0 if is_setup else int(summary.get("passed") or 0),
+            failed=0 if is_setup else int(summary.get("failed") or 0),
+            warning=0 if is_setup else int(summary.get("warning") or 0),
+            not_run=0 if is_setup else int(summary.get("not_run") or 0),
+            total_countable=0 if is_setup else int(summary.get("total_countable") or 0),
+            checks=[] if is_setup else entries,
+        )
+    except Exception:
+        return None
+
+
+# Fixture corpus uses an all-zero digest placeholder; the revision seal is the
+# real content integrity check for those rows (see seed + #71 fixtures).
+_PLACEHOLDER_DIGEST = "sha256:" + ("0" * 64)
+
+
+def project_component_checks(row: PublicVersionRow) -> list[SetupComponentChecks]:
+    """The per-member checks of one setup, for its detail read only.
+
+    This used to live inside `SafetyChecksSummary`, which is the *card*
+    document as well as the detail's. A card is returned by `registry search`,
+    and adding a field to it broke every released client at once: their models
+    forbade unknown names, and a key is a key whether or not its list is empty
+    — emptying it in the card was not enough, the name had to leave the card's
+    model. One surface reads these members, the setup detail page, so they
+    belong to the detail response and to nothing else.
+    """
+    raw_summary = getattr(row.metadata, "checks_summary", None)
+    summary = cast(dict[str, Any], raw_summary) if isinstance(raw_summary, dict) else {}
+    try:
         components: list[SetupComponentChecks] = []
         components_raw = summary.get("components")
         if isinstance(components_raw, list):
@@ -202,40 +244,9 @@ def project_checks_summary(
                         checks=[],
                     )
                 )
-        # A setup is a composition, not one scannable component. Its stored
-        # aggregate remains an internal publication gate; public clients get
-        # only the exact members and each member's own checks.
-        is_setup = row.object_kind == "setup"
-        percent = None if is_setup else summary.get("checks_passed_percent")
-        status_raw = str(summary.get("status") or "empty")
-        if is_setup:
-            status_raw = "empty"
-        if status_raw not in {"pending", "available", "empty", "incomplete"}:
-            status_raw = "empty"
-        coverage = summary.get("coverage_complete")
-        if coverage is None:
-            coverage = status_raw == "available"
-        if is_setup:
-            coverage = False
-        return SafetyChecksSummary(
-            status=status_raw,  # type: ignore[arg-type]
-            checks_passed_percent=int(percent) if isinstance(percent, int) else None,
-            coverage_complete=bool(coverage),
-            passed=0 if is_setup else int(summary.get("passed") or 0),
-            failed=0 if is_setup else int(summary.get("failed") or 0),
-            warning=0 if is_setup else int(summary.get("warning") or 0),
-            not_run=0 if is_setup else int(summary.get("not_run") or 0),
-            total_countable=0 if is_setup else int(summary.get("total_countable") or 0),
-            checks=[] if is_setup else entries,
-            components=components if include_components else [],
-        )
+        return components
     except Exception:
-        return None
-
-
-# Fixture corpus uses an all-zero digest placeholder; the revision seal is the
-# real content integrity check for those rows (see seed + #71 fixtures).
-_PLACEHOLDER_DIGEST = "sha256:" + ("0" * 64)
+        return []
 
 
 def verify_passport_integrity(row: PublicVersionRow) -> bytes:
@@ -272,9 +283,7 @@ def verify_passport_integrity(row: PublicVersionRow) -> bytes:
     return payload
 
 
-def component_summary(
-    row: PublicVersionRow, *, now: datetime | None = None, include_components: bool = False
-) -> ComponentSummary:
+def component_summary(row: PublicVersionRow, *, now: datetime | None = None) -> ComponentSummary:
     """Card projection: latest_* fields from the version passport (REQ-2103)."""
     verify_passport_integrity(row)
     passport = ComponentVersionPassport.model_validate(row.passport)
@@ -301,7 +310,7 @@ def component_summary(
         latest_trust=project_trust(row),
         latest_support=support,
         latest_published_at=format_timestamp(row.published_at),  # type: ignore[arg-type]
-        latest_checks=project_checks_summary(row, include_components=include_components),
+        latest_checks=project_checks_summary(row),
     )
 
 
@@ -327,9 +336,7 @@ def _card_excerpt(source: str) -> str:
     return project_safe_markdown(source).excerpt
 
 
-def setup_summary(
-    row: PublicVersionRow, *, now: datetime | None = None, include_components: bool = False
-) -> SetupSummary:
+def setup_summary(row: PublicVersionRow, *, now: datetime | None = None) -> SetupSummary:
     """Setup card projection from the version passport."""
     verify_passport_integrity(row)
     passport = SetupVersionPassport.model_validate(row.passport)
@@ -357,7 +364,7 @@ def setup_summary(
         latest_trust=project_trust(row),
         latest_support=support,
         latest_published_at=format_timestamp(row.published_at),  # type: ignore[arg-type]
-        latest_checks=project_checks_summary(row, include_components=include_components),
+        latest_checks=project_checks_summary(row),
     )
 
 
@@ -410,7 +417,7 @@ def component_detail(
         raise CatalogIntegrityError("no public versions")
     latest = max(versions, key=lambda r: _version_key(r.version))
     return ComponentDetail(
-        summary=component_summary(latest, now=now, include_components=True),
+        summary=component_summary(latest, now=now),
         versions=[version_list_entry(v, now=now) for v in versions],
     )
 
@@ -420,8 +427,9 @@ def setup_detail(versions: list[PublicVersionRow], *, now: datetime | None = Non
         raise CatalogIntegrityError("no public versions")
     latest = max(versions, key=lambda r: _version_key(r.version))
     return SetupDetail(
-        summary=setup_summary(latest, now=now, include_components=True),
+        summary=setup_summary(latest, now=now),
         versions=[version_list_entry(v, now=now) for v in versions],
+        component_checks=project_component_checks(latest),
     )
 
 
@@ -461,6 +469,7 @@ def setup_version_response(
         support=support,
         published_at=format_timestamp(row.published_at),  # type: ignore[arg-type]
         checks=project_checks_summary(row),
+        component_checks=project_component_checks(row),
         published_passport=cast(dict[str, JsonValue], row.passport),
     )
 

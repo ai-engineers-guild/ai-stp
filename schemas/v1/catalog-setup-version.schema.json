@@ -583,22 +583,6 @@
           "default": null,
           "title": "Checks Passed Percent"
         },
-        "components": {
-          "anyOf": [
-            {
-              "items": {
-                "$ref": "#/$defs/SetupComponentChecks"
-              },
-              "maxItems": 500,
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Components"
-        },
         "coverage_complete": {
           "default": true,
           "title": "Coverage Complete",
@@ -647,7 +631,6 @@
       "required": [
         "checks",
         "checks_passed_percent",
-        "components",
         "coverage_complete",
         "failed",
         "not_run",
@@ -1208,6 +1191,14 @@
       ],
       "default": null
     },
+    "component_checks": {
+      "items": {
+        "$ref": "#/$defs/SetupComponentChecks"
+      },
+      "maxItems": 500,
+      "title": "Component Checks",
+      "type": "array"
+    },
     "lifecycle": {
       "$ref": "#/$defs/PublicLifecycle"
     },
@@ -1246,6 +1237,7 @@
   },
   "required": [
     "checks",
+    "component_checks",
     "lifecycle",
     "passport",
     "passport_digest",
