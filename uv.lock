@@ -18,7 +18,7 @@ members = [
 
 [[package]]
 name = "ai-stp"
-version = "0.0.14"
+version = "0.0.15"
 source = { virtual = "." }
 dependencies = [
     { name = "ai-stp-api" },
@@ -157,7 +157,7 @@ docs = [
 
 [[package]]
 name = "ai-stp-api"
-version = "0.0.14"
+version = "0.0.15"
 source = { editable = "apps/api" }
 dependencies = [
     { name = "ai-stp-contracts" },
@@ -198,7 +198,7 @@ requires-dist = [
 
 [[package]]
 name = "ai-stp-assurance"
-version = "0.0.14"
+version = "0.0.15"
 source = { editable = "packages/assurance" }
 dependencies = [
     { name = "ai-stp-foundation" },
@@ -215,7 +215,7 @@ requires-dist = [
 
 [[package]]
 name = "ai-stp-cli"
-version = "0.0.14"
+version = "0.0.15"
 source = { editable = "apps/cli" }
 dependencies = [
     { name = "ai-stp-assurance" },
@@ -254,7 +254,7 @@ requires-dist = [
 
 [[package]]
 name = "ai-stp-contracts"
-version = "0.0.14"
+version = "0.0.15"
 source = { editable = "packages/contracts" }
 dependencies = [
     { name = "ai-stp-assurance" },
@@ -280,7 +280,7 @@ provides-extras = ["mock"]
 
 [[package]]
 name = "ai-stp-foundation"
-version = "0.0.14"
+version = "0.0.15"
 source = { editable = "packages/foundation" }
 dependencies = [
     { name = "pydantic" },
@@ -297,7 +297,7 @@ requires-dist = [
 
 [[package]]
 name = "ai-stp-passports"
-version = "0.0.14"
+version = "0.0.15"
 source = { editable = "packages/passports" }
 dependencies = [
     { name = "ai-stp-foundation" },
@@ -314,7 +314,7 @@ requires-dist = [
 
 [[package]]
 name = "ai-stp-platform"
-version = "0.0.14"
+version = "0.0.15"
 source = { editable = "apps/platform" }
 dependencies = [
     { name = "ai-stp-assurance" },
@@ -351,7 +351,7 @@ requires-dist = [
 
 [[package]]
 name = "ai-stp-sources"
-version = "0.0.14"
+version = "0.0.15"
 source = { editable = "packages/sources" }
 dependencies = [
     { name = "ai-stp-foundation" },
@@ -368,7 +368,7 @@ requires-dist = [
 
 [[package]]
 name = "ai-stp-worker"
-version = "0.0.14"
+version = "0.0.15"
 source = { editable = "apps/worker" }
 dependencies = [
     { name = "ai-stp-foundation" },

@@ -1,6 +1,6 @@
 [project]
 name = "ai-stp-cli"
-version = "0.0.14"
+version = "0.0.15"
 description = "The ai_stp command line interface: a strict machine contract an agent drives."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -21,11 +21,11 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "ai-stp-assurance==0.0.14",
-    "ai-stp-contracts==0.0.14",
-    "ai-stp-foundation==0.0.14",
-    "ai-stp-passports==0.0.14",
-    "ai-stp-sources==0.0.14",
+    "ai-stp-assurance==0.0.15",
+    "ai-stp-contracts==0.0.15",
+    "ai-stp-foundation==0.0.15",
+    "ai-stp-passports==0.0.15",
+    "ai-stp-sources==0.0.15",
     "click>=8.1",
     "pynacl>=1.6.2",
     "httpx>=0.28",

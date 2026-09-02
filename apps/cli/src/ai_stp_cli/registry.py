@@ -1847,6 +1847,13 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "contributes a key to a file the provider owns there: the host file's "
                 "current bytes exist only on the target.",
             ),
+            option(
+                "scope",
+                "string",
+                "Projection scope the package is compiled for: the harness home "
+                "(global) or a workspace root (project). Default global.",
+                choices=("global", "project"),
+            ),
         ),
         next_actions=("select reports",),
     ),
@@ -1943,6 +1950,13 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "string",
                 "Provider-declared execution posture, separate from setup identity.",
             ),
+            option(
+                "scope",
+                "string",
+                "Projection scope the plan installs into: the harness home (global) "
+                "or the workspace named by --target (project). Default global.",
+                choices=("global", "project"),
+            ),
         ),
         parameter_rules=(
             CommandParameterRule(kind="exactly_one", parameters=["proposal", "setup"]),
@@ -1957,6 +1971,12 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 parameters=["target"],
                 when_parameter="protocol-version",
                 when_values=["2", "3"],
+            ),
+            CommandParameterRule(
+                kind="required_when",
+                parameters=["target"],
+                when_parameter="scope",
+                when_values=["project"],
             ),
         ),
         next_actions=("install approve",),

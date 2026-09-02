@@ -1884,6 +1884,9 @@ class HarnessBundle(BaseModel):
     schema_version: Literal[1] = 1
     compiled: bool
     harness_id: HarnessId
+    #: The projection scope the package was compiled for: the harness home
+    #: (`global`) or a workspace root (`project`), chosen at `select bundle`.
+    target_scope: Literal["global", "project"] = "global"
     bundle_format: Literal["ai-stp-bundle/1"] = "ai-stp-bundle/1"
 
     #: Domain-separated over the manifest, which covers every file by content.

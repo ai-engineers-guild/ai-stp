@@ -25,6 +25,12 @@ repositories is `0.0.53`. Each release contains six native binaries and
 - Provider-kit `0.2.7` publishes a closed status-response schema; the consumer
   validates the complete envelope at the single invocation boundary.
 - Provider-kit `0.2.8` opens `plan_request_fields` to `end_state` (`#54`).
+- Provider-kit `0.2.9` opens `provider-info` to `status_request_fields`, with
+  `target_scope` as its only member: `status --target-scope <scope>` lets a
+  provider digest an unmanaged workspace the way its workspace plan does.
+  Accepted by the consumer first, published by the kit, then declared by a
+  provider — the `ADR-0125` order, because `provider-info` is compared by exact
+  membership.
   Nothing sends the field yet: the consumer accepts the name one release
   before a provider may declare it, because `provider-info` is compared by
   exact membership and an unknown member refuses the whole document.

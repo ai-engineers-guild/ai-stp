@@ -1,6 +1,6 @@
 ---
 description: "Decision to allow a provider to declare a projection for project scope in a separate optional list without changing the existing profile or its digest."
-last_verified: "2026-08-26"
+last_verified: "2026-09-01"
 ---
 
 # ADR-0125: A provider may own more than one projection scope
@@ -184,3 +184,24 @@ and it is better to know that before work begins. Measurement details are in
 - If two profiles of one provider begin to overlap in managed paths, the
   assumption of non-overlapping ownership will cease to hold, and scope
   separation will require separate analysis.
+
+## Amendment of 2026-09-02: the consumer chooses the scope per plan
+
+The provider half landed a release at a time; the consumer half did not exist:
+`rule_for` answered by kind and harness alone, the catalog recorded a
+component's discovery scope that nothing read, and every install compiled for
+the harness home. Antigravity has declared a `project` profile since `0.0.53`
+and cursor since `0.0.54`, so the missing half was ours.
+
+The scope is a **choice made per bundle and per plan**, not a property read off
+the components: `select bundle --scope` and `install plan --scope` take
+`global` (default) or `project`, a `project` plan requires an explicit
+`--target` naming the workspace, and the compiled bundle records a non-default
+scope in its manifest. A rule file adopted from one repository is content;
+where it lands next is a decision, and defaulting that decision from where the
+file was found would install a project's rules into a home because they were
+discovered there. Rules exist per kind, harness and scope; a kind the provider
+declares at no such scope is `unsupported` at that scope rather than routed to
+the home surface of the same kind. `user_root` stays a member of the home
+family: it is the provider's arrangement of one home surface (`ADR-0127`),
+not a second place to install. Owned by `SPEC-006` `REQ-632`.

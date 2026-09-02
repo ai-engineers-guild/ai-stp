@@ -14,7 +14,13 @@ probe.
 
 from __future__ import annotations
 
+import os
 import platform
+import subprocess
+import sys
+import time
+from pathlib import Path
+from typing import NoReturn
 
 import pytest
 
@@ -74,17 +80,22 @@ def test_off_windows_discovery_is_unavailable_and_names_why() -> None:
     assert "Windows-only" in capability.evidence[0]
 
 
-def test_the_probe_child_is_the_same_text_the_linux_launcher_uses() -> None:
-    """`#51` requires the same class of probe, and this is how that is kept true.
+def test_the_windows_probe_child_answers_in_the_shared_vocabulary() -> None:
+    """Not the same text as the Linux child, and the same reading.
 
-    Two texts that resemble each other drift; one text cannot. If this ever
-    fails it means someone gave Windows its own child, and the claim that the
-    two denials are established the same way stopped being true at that commit.
+    The Windows child is PowerShell for the reason `WINDOWS_CHILD_PROBE` gives.
+    What must not drift is the answer: the three keys and the words the parent
+    compares against, so `_probe` on both platforms is one reading of one
+    vocabulary rather than two probes that happen to agree today.
     """
+    for word in ("ipv4", "ipv6", "dns_udp", "reachable", "denied", "sent", "send_failed"):
+        assert f"'{word}'" in windows_launcher.WINDOWS_CHILD_PROBE, word
+        assert f'"{word}"' in CHILD_PROBE, word
+    assert "ai-stp-dns-probe" in windows_launcher.WINDOWS_CHILD_PROBE
     assert "ai-stp-dns-probe" in CHILD_PROBE
-    # Reaching through the Windows module on purpose: that the name it holds
-    # is the Linux module's object is the assertion, not an accident of import.
-    assert CHILD_PROBE is windows_launcher.CHILD_PROBE  # pyright: ignore[reportPrivateImportUsage]
+    tail = windows_launcher.encoded_command("Write-Output 1")
+    assert tail[-2] == "-EncodedCommand"
+    assert "Write-Output 1".encode("utf-16-le") == __import__("base64").b64decode(tail[-1])
 
 
 @pytest.mark.skipif(not WINDOWS, reason="exercises the real isolation boundary")
@@ -96,7 +107,142 @@ def test_the_isolated_spawn_reaches_the_target_and_not_the_network() -> None:
     the target and the runtime and their removal afterwards.
     """
     launcher, capability = windows_launcher.discover_appcontainer()
-    if launcher is None:  # An unproved host is a legitimate outcome, not a failure.
-        pytest.skip(f"no proved AppContainer here: {capability.evidence[0]}")
+    if launcher is None:
+        _unproved(capability.evidence[0])
     assert capability.enforcement is NetworkEnforcement.ENFORCED
     assert capability.launcher_id == f"appcontainer:{launcher.package_sid}"
+
+    target = Path(os.environ["TEMP"]) / "ai-stp-appcontainer-run"
+    target.mkdir(parents=True, exist_ok=True)
+    place = target / "written-inside"
+    # .NET calls only: the container's PowerShell has no `PSModulePath`, so
+    # `Set-Content` and its siblings do not exist there (see the launcher).
+    script = (
+        f"[System.IO.File]::WriteAllText('{place}', 'inside')\n"
+        f"$written = [System.IO.File]::ReadAllText('{place}')\n"
+        "[System.Console]::Out.WriteLine('{\"written\":\"' + $written + '\"}')\n"
+    )
+    answer = launcher.run(
+        (str(windows_launcher.powershell()), *windows_launcher.encoded_command(script)),
+        target=target,
+        command="probe",
+    )
+    assert answer == {"written": "inside"}, answer
+    assert place.read_text(encoding="utf-8") == "inside"
+
+
+def _unproved(reason: str) -> NoReturn:
+    """A hosted runner that cannot prove the AppContainer is a red result.
+
+    This test skipped on every `windows-latest` run for a month while the
+    launcher answered `[Errno 203]`, and a skip reads as green. Off CI an
+    unproved host stays a legitimate outcome — a developer's box need not be
+    elevated — but a GitHub runner is the environment `ADR-0133` measured, and
+    there the only honest reading of "unproved" is a failure.
+    """
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        pytest.fail(f"a hosted Windows runner did not prove the AppContainer: {reason}")
+    pytest.skip(f"no proved AppContainer here: {reason}")
+
+
+_HELPER = """
+import sys
+from pathlib import Path
+from ai_stp_cli.provider import windows_launcher
+launcher, capability = windows_launcher.discover_appcontainer()
+if launcher is None:
+    print("UNPROVED " + capability.evidence[0], flush=True)
+    sys.exit(3)
+print("READY", flush=True)
+sleeper = windows_launcher.encoded_command("[System.Threading.Thread]::Sleep(120000)")
+launcher.run(
+    (str(windows_launcher.powershell()), *sleeper),
+    target=Path(sys.argv[1]),
+    command="sleep",
+)
+"""
+
+
+def _children_of(pid: int) -> list[int]:
+    found = subprocess.run(
+        [
+            "powershell",
+            "-NoProfile",
+            "-Command",
+            f"Get-CimInstance Win32_Process -Filter 'ParentProcessId={pid}' "
+            "| Select-Object -ExpandProperty ProcessId",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+    return [int(line) for line in found.stdout.split() if line.strip().isdigit()]
+
+
+def _alive(pid: int) -> bool:
+    found = subprocess.run(
+        [
+            "powershell",
+            "-NoProfile",
+            "-Command",
+            f"(Get-CimInstance Win32_Process -Filter 'ProcessId={pid}') -ne $null",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+    return found.stdout.strip().casefold() == "true"
+
+
+@pytest.mark.skipif(not WINDOWS, reason="exercises the real job object and the grant lease")
+def test_a_killed_parent_takes_its_isolated_tree_and_its_grants_with_it(
+    tmp_path: Path,
+) -> None:
+    """`ADR-0133`'s two obligations, measured under a real parent kill.
+
+    The job object carries `KILL_ON_JOB_CLOSE`, so a parent that dies without
+    running any cleanup still takes the provider tree with it; and the grant
+    lease written before `icacls` runs lets the next discovery take back an ACE
+    the dead parent never revoked. Both were implemented and unit-tested with
+    fakes; this is the first run of either against the operating system.
+    """
+    target = tmp_path / "target"
+    target.mkdir()
+    script = tmp_path / "parent.py"
+    script.write_text(_HELPER, encoding="utf-8")
+    parent = subprocess.Popen(
+        [sys.executable, str(script), str(target)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        encoding="utf-8",
+    )
+    try:
+        assert parent.stdout is not None
+        first = parent.stdout.readline().strip()
+        if first.startswith("UNPROVED"):
+            parent.kill()
+            _unproved(first.removeprefix("UNPROVED").strip())
+        assert first == "READY", first
+        deadline = time.monotonic() + 60
+        grandchildren: list[int] = []
+        while time.monotonic() < deadline and not grandchildren:
+            grandchildren = _children_of(parent.pid)
+            if not grandchildren:
+                time.sleep(0.5)
+        assert grandchildren, "the parent never started its isolated child"
+        child = grandchildren[0]
+        assert _alive(child)
+    finally:
+        parent.kill()
+        parent.wait(timeout=60)
+
+    gone = time.monotonic() + 30
+    while time.monotonic() < gone and _alive(child):
+        time.sleep(0.5)
+    assert not _alive(child), "the isolated child outlived its parent"
+
+    swept = windows_launcher.sweep_abandoned_grants()
+    assert str(target.resolve()) in swept, swept

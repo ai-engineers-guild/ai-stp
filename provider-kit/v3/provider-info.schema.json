@@ -217,6 +217,16 @@
       "type": "array",
       "uniqueItems": true
     },
+    "status_request_fields": {
+      "items": {
+        "enum": [
+          "target_scope"
+        ],
+        "type": "string"
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
     "supported_arch": {
       "items": {
         "minLength": 1,

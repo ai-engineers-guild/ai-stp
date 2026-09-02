@@ -1494,3 +1494,49 @@ def test_bundle_takes_the_target_a_contribution_needs(tmp_path: Path) -> None:
         with pytest.raises(CliFailure) as raised:
             select._bundle_host_root({"target": given})  # pyright: ignore[reportPrivateUsage]
         assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+
+
+def test_a_bundle_compiled_for_a_workspace_lands_on_workspace_surfaces(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """`REQ-632`: the scope is chosen at compile time, and the paths follow it.
+
+    The same confirmed composition compiles twice: once for cursor's home,
+    where rules live under `rules/`, and once for a workspace, where the
+    provider's 0.0.54 declaration puts them under `.cursor/rules`. Only the
+    workspace manifest names its scope, so the home bundle's digest is the one
+    it always was.
+    """
+    from ai_stp_cli.commands import component as command
+
+    _ready(registry, tmp_path)
+    place = tmp_path / ".cursor" / "rules"
+    place.mkdir(parents=True)
+    (place / "review.mdc").write_text("# review\n", encoding="utf-8")
+    stable_id = command.adopt(
+        {"path": str(place / "review.mdc"), "root": str(tmp_path)}
+    ).payload.stable_id
+    command.version_release({"id": stable_id})
+    session = select.propose(
+        {"harness": "cursor", "project": str(tmp_path), "member": [f"{stable_id}@1.0"]}
+    ).payload
+    proposal = session.proposal_id
+    assert proposal is not None
+    select.confirm({"proposal": proposal})
+
+    home = select.harness_bundle(
+        {"harness": "cursor", "project": str(tmp_path), "proposal": proposal}
+    ).payload
+    workspace = select.harness_bundle(
+        {"harness": "cursor", "project": str(tmp_path), "proposal": proposal, "scope": "project"}
+    ).payload
+    assert [item.path for item in home.files] == ["rules/review.mdc"]
+    assert [item.path for item in workspace.files] == [".cursor/rules/review.mdc"]
+    assert home.digest != workspace.digest
+    assert home.target_scope == "global"
+    assert workspace.target_scope == "project"
+    compiled = select.compile_harness_bundle(registry, proposal, "cursor")
+    assert "target_scope" not in compiled.manifest
+    assert compiled.digest == home.digest
+    scoped = select.compile_harness_bundle(registry, proposal, "cursor", scope="project")
+    assert scoped.manifest["target_scope"] == "project"

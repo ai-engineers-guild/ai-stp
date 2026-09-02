@@ -42,7 +42,7 @@ KIT_IDENTITY_SCHEMA: Final[str] = "ai-stp-provider-kit-identity/1"
 #: digest moves with it exactly as `0.2.4` did. Nothing sends the field yet —
 #: this release is what lets a provider declare it without every older consumer
 #: refusing its whole `provider-info`.
-KIT_VERSION: Final[str] = "0.2.8"
+KIT_VERSION: Final[str] = "0.2.9"
 
 #: The kit's only artifact with no source to re-derive it from, and therefore
 #: the exact limit of what `--check` can see. Everything else here is rendered

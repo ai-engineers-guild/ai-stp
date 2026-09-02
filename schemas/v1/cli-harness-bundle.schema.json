@@ -183,6 +183,15 @@
       "default": 1,
       "title": "Schema Version",
       "type": "integer"
+    },
+    "target_scope": {
+      "default": "global",
+      "enum": [
+        "global",
+        "project"
+      ],
+      "title": "Target Scope",
+      "type": "string"
     }
   },
   "required": [
@@ -199,7 +208,8 @@
     "max_files",
     "protocol_version",
     "refusals",
-    "schema_version"
+    "schema_version",
+    "target_scope"
   ],
   "title": "HarnessBundle",
   "type": "object"

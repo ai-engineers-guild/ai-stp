@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+import platform
 import subprocess
 import sys
 from collections.abc import Callable
@@ -44,6 +46,25 @@ def _digest(_path: Path) -> str:
 
 def _passed_probe(_path: Path) -> tuple[bool, tuple[str, ...]]:
     return True, ("positive control passed", "network denied")
+
+
+def _passed_write_probe(_path: Path) -> tuple[bool, tuple[str, ...]]:
+    return True, ("write control passed", "write outside denied")
+
+
+def _failed_write_probe(_path: Path) -> tuple[bool, tuple[str, ...]]:
+    return False, ("writes were not bounded by the profile: {...}",)
+
+
+def _answers(*results: dict[str, str]) -> Callable[..., subprocess.CompletedProcess[str]]:
+    """One completed process per call, in order: the control first, then the profiled child."""
+    queue = list(results)
+
+    def run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        del args, kwargs
+        return subprocess.CompletedProcess([], 0, json.dumps(queue.pop(0)), "")
+
+    return run
 
 
 def test_constructor_requires_enforcement_and_matching_identity() -> None:
@@ -136,6 +157,7 @@ def test_passed_probe_constructs_the_enforced_launcher(
     )
     monkeypatch.setattr(macos_launcher, "_digest", _digest)
     monkeypatch.setattr(macos_launcher, "_probe", _passed_probe)
+    monkeypatch.setattr(macos_launcher, "_write_probe", _passed_write_probe)
 
     launcher, capability = macos_launcher.discover_sandbox_exec()
 
@@ -143,6 +165,105 @@ def test_passed_probe_constructs_the_enforced_launcher(
     assert capability.enforcement is protocol_v2.NetworkEnforcement.ENFORCED
     assert capability.launcher_id == "sandbox-exec:/usr/bin/sandbox-exec"
     assert "sha256=" + "a" * 64 in capability.evidence
+    assert "write outside denied" in capability.evidence
+
+
+def test_a_network_probe_alone_does_not_make_the_launcher(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The write claim in the evidence is measured, not inherited from the network one."""
+    monkeypatch.setattr("ai_stp_cli.provider.macos_launcher.platform.system", _darwin)
+    monkeypatch.setattr(
+        macos_launcher,
+        "_trusted_executable",
+        lambda: (macos_launcher.EXECUTABLE, None),
+    )
+    monkeypatch.setattr(macos_launcher, "_digest", _digest)
+    monkeypatch.setattr(macos_launcher, "_probe", _passed_probe)
+    monkeypatch.setattr(macos_launcher, "_write_probe", _failed_write_probe)
+
+    launcher, capability = macos_launcher.discover_sandbox_exec()
+
+    assert launcher is None
+    assert capability.enforcement is protocol_v2.NetworkEnforcement.UNAVAILABLE
+    assert capability.evidence[0].startswith("writes were not bounded")
+
+
+def test_write_probe_requires_the_control_to_write_both_and_the_profile_to_deny_outside(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "ai_stp_cli.provider.macos_launcher.subprocess.run",
+        _answers(
+            {"inside": "written", "outside": "written"},
+            {"inside": "written", "outside": "denied"},
+        ),
+    )
+    passed, evidence = macos_launcher._write_probe(  # pyright: ignore[reportPrivateUsage]
+        macos_launcher.EXECUTABLE
+    )
+    assert passed, evidence
+    assert "denied the one outside" in evidence[1]
+
+    monkeypatch.setattr(
+        "ai_stp_cli.provider.macos_launcher.subprocess.run",
+        _answers(
+            {"inside": "written", "outside": "written"},
+            {"inside": "written", "outside": "written"},
+        ),
+    )
+    passed, evidence = macos_launcher._write_probe(  # pyright: ignore[reportPrivateUsage]
+        macos_launcher.EXECUTABLE
+    )
+    assert not passed
+    assert "writes were not bounded by the profile" in evidence[0]
+
+    monkeypatch.setattr(
+        "ai_stp_cli.provider.macos_launcher.subprocess.run",
+        _answers({"inside": "written", "outside": "denied"}),
+    )
+    passed, evidence = macos_launcher._write_probe(  # pyright: ignore[reportPrivateUsage]
+        macos_launcher.EXECUTABLE
+    )
+    assert not passed
+    assert "write positive control failed" in evidence[0]
+
+
+@pytest.mark.skipif(platform.system().casefold() != "darwin", reason="the real sandbox")
+def test_the_real_sandbox_bounds_a_provider_s_writes_to_its_target(tmp_path: Path) -> None:
+    """`ADR-0126`'s macOS half, measured: the deny-write profile against a real child.
+
+    A hosted macOS runner is the environment the profile was written for, so an
+    unproved launcher there is a red result rather than a skip.
+    """
+    launcher, capability = macos_launcher.discover_sandbox_exec()
+    if launcher is None:
+        reason = capability.evidence[0]
+        if os.environ.get("GITHUB_ACTIONS") == "true":
+            pytest.fail(f"a hosted macOS runner did not prove sandbox-exec: {reason}")
+        pytest.skip(f"no proved sandbox-exec here: {reason}")
+    target = tmp_path / "target"
+    target.mkdir()
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    child = (
+        "import json, pathlib, sys\n"
+        "answer = {}\n"
+        "for name, place in (('inside', sys.argv[1]), ('outside', sys.argv[2])):\n"
+        "    try:\n"
+        "        (pathlib.Path(place) / 'probe').write_text('x', encoding='utf-8')\n"
+        "    except OSError:\n"
+        "        answer[name] = 'denied'\n"
+        "    else:\n"
+        "        answer[name] = 'written'\n"
+        "print(json.dumps(answer))\n"
+    )
+    answer = launcher.run(
+        (sys.executable, "-c", child, str(target), str(elsewhere)), target=target, command="probe"
+    )
+    assert answer == {"inside": "written", "outside": "denied"}, answer
+    assert (target / "probe").exists()
+    assert not (elsewhere / "probe").exists()
 
 
 def test_platform_router_uses_the_macos_launcher(monkeypatch: pytest.MonkeyPatch) -> None:

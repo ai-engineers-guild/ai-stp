@@ -32,6 +32,9 @@ class Change:
 class Manifest:
     expected: dict[str, str]
     roots: tuple[str, ...]
+    #: The projection scope the bundle was compiled for; absent in the
+    #: manifest means `global` (`harness-bundle.md`).
+    target_scope: str = "global"
 
 
 def bundle_manifest(archive: Path) -> Manifest:
@@ -80,7 +83,10 @@ def bundle_manifest(archive: Path) -> Manifest:
         root in records and any(path.startswith(f"{root}/") for path in records) for root in roots
     ):
         raise _failure("the verified HarnessBundle has colliding managed roots")
-    return Manifest(records, roots)
+    scope = held_document.get("target_scope")
+    return Manifest(
+        records, roots, target_scope=scope if isinstance(scope, str) and scope else "global"
+    )
 
 
 def compare(target: Path, manifest: Manifest) -> tuple[Change, ...]:

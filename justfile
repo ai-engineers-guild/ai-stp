@@ -226,12 +226,13 @@ evidence-software tag harness="":
 #
 # В `just check` не входит по той же причине, что и соседи: гейт не вправе
 # зависеть от чужого релиза. `GH_CONFIG_DIR` нужен `provider fetch`.
-evidence-config tag harness="" from_import="":
+evidence-config tag harness="" from_import="" scope="":
     GH_CONFIG_DIR="${GH_CONFIG_DIR:-$HOME/.config/gh}" \
     uv run --locked python -m release_scripts.verify_config_slice \
         --tag "{{tag}}" \
         {{ if harness == "" { "" } else { prepend("--harness ", harness) } }} \
-        {{ if from_import == "" { "" } else { "--from-import" } }}
+        {{ if from_import == "" { "" } else { "--from-import" } }} \
+        {{ if scope == "" { "" } else { "--scope " + scope } }}
 
 # Приёмка `#54`: один MCP-компонент в трёх нативных формах — ключ в чужом
 # файле настроек, собственный файл, и продукт, у которого такого вида нет.
