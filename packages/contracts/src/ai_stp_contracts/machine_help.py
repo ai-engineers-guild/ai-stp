@@ -604,7 +604,7 @@ class ComponentQualityReport(BaseModel):
 class ComponentPassportSuggestion(BaseModel):
     """One exact fact copied from named immutable evidence, awaiting confirmation."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=open_wire_object)
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
     field: Annotated[str, Field(min_length=1, max_length=64)]

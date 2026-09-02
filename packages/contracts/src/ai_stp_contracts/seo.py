@@ -130,7 +130,7 @@ FORBIDDEN_FACT_KEYS: Final[frozenset[str]] = frozenset(
 class SeoSubjectRef(BaseModel):
     """Identity of one SEO subject revision."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=open_wire_object)
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     kind: SeoSubjectKind
     id: Annotated[str, Field(min_length=1, max_length=253)]
     source_revision: Annotated[str, Field(min_length=1, max_length=128)]
@@ -140,7 +140,7 @@ class SeoSubjectRef(BaseModel):
 class SeoIndexDecision(BaseModel):
     """Deterministic index eligibility. Model output never supplies this."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=open_wire_object)
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     eligible: bool
     reasons: Annotated[list[SeoIndexReason], Field(max_length=12)]
 
@@ -157,7 +157,7 @@ class SeoIndexDecision(BaseModel):
 class SeoLink(BaseModel):
     """One crawlable visible link."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=open_wire_object)
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     rel: Annotated[str, Field(min_length=1, max_length=64)]
     href: AbsoluteUrl
     text: Annotated[str, Field(min_length=1, max_length=200)]
@@ -168,7 +168,7 @@ class SeoLink(BaseModel):
 class SeoSection(BaseModel):
     """One visible kind-specific page section."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=open_wire_object)
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     id: Annotated[str, Field(min_length=1, max_length=64)]
     heading: Annotated[str, Field(min_length=1, max_length=200)]
     body: Annotated[str, Field(min_length=1, max_length=8000)]
@@ -178,7 +178,7 @@ class SeoSection(BaseModel):
 class SeoSocial(BaseModel):
     """Open Graph / Twitter preview facts."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=open_wire_object)
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     title: SafeText160
     description: SafeText320
     image_url: AbsoluteUrl
@@ -189,7 +189,7 @@ class SeoSocial(BaseModel):
 class SeoGenerator(BaseModel):
     """Provenance of one SEO revision. Model alias is operator-facing only."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=open_wire_object)
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     kind: SeoGeneratorKind
     template_version: Annotated[str, Field(min_length=1, max_length=64)]
     prompt_version: Annotated[str, Field(min_length=1, max_length=64)] | None = None
@@ -199,7 +199,7 @@ class SeoGenerator(BaseModel):
 class SeoProfileDocument(BaseModel):
     """Closed profile document v1 stored on a revision."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=open_wire_object)
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     subject: SeoSubjectRef
     locale: SeoLocale
@@ -246,7 +246,7 @@ class SeoSubjectQuery(BaseModel):
 class SeoSitemapUrl(BaseModel):
     """One eligible canonical URL in a sitemap shard."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=open_wire_object)
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     loc: AbsoluteUrl
     lastmod: Timestamp
     alternates: dict[str, AbsoluteUrl]
@@ -293,7 +293,7 @@ class SeoCatalogQuery(BaseModel):
 class SeoCatalogEntry(BaseModel):
     """One LLM catalog manifest row."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=open_wire_object)
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     kind: SeoSubjectKind
     subject_id: Annotated[str, Field(min_length=1, max_length=253)]
     locale: SeoLocale

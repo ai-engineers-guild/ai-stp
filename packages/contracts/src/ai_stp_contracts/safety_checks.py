@@ -19,7 +19,7 @@ type FindingSeverity = Literal["info", "low", "medium", "high", "critical"]
 class SafetyFindingSummary(BaseModel):
     """Bounded public identifiers for findings; never scanned content."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=open_wire_object)
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
     count: Annotated[int, Field(ge=1)]
@@ -36,7 +36,7 @@ class SafetyFindingSummary(BaseModel):
 class SafetyCheckEntry(BaseModel):
     """One check line on an audit list."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=open_wire_object)
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
     check_id: Annotated[str, Field(min_length=1, max_length=64)]
@@ -51,7 +51,7 @@ class SafetyCheckEntry(BaseModel):
 class SetupComponentChecks(BaseModel):
     """Checks for one exact component snapshot inside a setup."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=open_wire_object)
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     stable_id: Annotated[str, Field(min_length=1, max_length=128)]
     name: Annotated[str, Field(min_length=1, max_length=160)]
@@ -66,7 +66,7 @@ class SetupComponentChecks(BaseModel):
 class SafetyChecksSummary(BaseModel):
     """Card/detail projection for checks percent and status."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=open_wire_object)
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
     status: ChecksStatus
