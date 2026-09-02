@@ -51,13 +51,11 @@ import os
 import platform
 import socket
 import subprocess
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Any, Final, Self, cast
 
 from ai_stp_cli.provider.network_launcher import (
-    CHILD_PROBE,
     listener,
     port,
     positive_control,
@@ -95,6 +93,29 @@ _JOB_OBJECT_EXTENDED_LIMIT_INFORMATION: Final[int] = 9
 _JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE: Final[int] = 0x00002000
 
 _PROBE_TIMEOUT: Final[float] = 20.0
+
+#: What Windows itself reads from a child's environment block before the child
+#: runs a single instruction, whatever the provider boundary lets through.
+#: Starting a process in an AppContainer rewrites the block it is given: the
+#: loader resolves `SystemRoot`, and the container extension derives the
+#: redirected `LOCALAPPDATA`, `TEMP` and `TMP` under the package's profile
+#: folder from the user's own values. A block that lacks one of them is
+#: answered with `ERROR_ENVVAR_NOT_FOUND` (203) — the "[Errno 203] the
+#: provider could not be started isolated" every hosted-runner probe reported
+#: after the allowlist arrived, while `ADR-0133`'s own measurement passed
+#: because it inherited the whole environment. `SystemRoot` alone was measured
+#: insufficient on `windows-latest` (PR #68, first run). Taken from this
+#: process, never from the caller: these are the system's names, not the
+#: boundary's, and the allowlist in `protocol.Boundary` stays what it is.
+_SYSTEM_ENVIRONMENT: Final[tuple[str, ...]] = (
+    "SystemRoot",
+    "windir",
+    "USERPROFILE",
+    "LOCALAPPDATA",
+    "APPDATA",
+    "TEMP",
+    "TMP",
+)
 
 
 def _windows() -> bool:
@@ -354,7 +375,9 @@ class AppContainerProcess:
         start.hStdInput = None
         start.lpAttributeList = ctypes.cast(self._attributes, ctypes.c_void_p)
         information = _ProcessInformation()
-        block = "\0".join(f"{name}={value}" for name, value in sorted(env.items())) + "\0\0"
+        system = {name: os.environ[name] for name in _SYSTEM_ENVIRONMENT if name in os.environ}
+        merged = {**system, **env}
+        block = "\0".join(f"{name}={value}" for name, value in sorted(merged.items())) + "\0\0"
         created = api.kernel.CreateProcessW(
             None,
             ctypes.create_unicode_buffer(subprocess.list2cmdline(argv)),
@@ -373,6 +396,9 @@ class AppContainerProcess:
             self._close_job()
             raise OSError(ctypes.get_last_error(), "the provider could not be started isolated")
         self._handle = ctypes.c_void_p(information.hProcess)
+        #: The child's identifier, for the one caller that must find it from
+        #: outside: the measurement of what happens to it when this process dies.
+        self.pid = int(information.dwProcessId)
         thread = ctypes.c_void_p(information.hThread)
         # Assigned while suspended, so there is no interval in which the
         # provider is running and outside the job. A failure here is fatal
@@ -674,7 +700,13 @@ class AppContainerLauncher:
         wanted: tuple[tuple[Path, str], ...] = (
             (target.resolve(), "(M)"),
             *((Path(item).resolve(), "(M)") for item in writable),
-            (runtime, "(RX)"),
+            # The system's own directories already carry an ACE for ALL
+            # APPLICATION PACKAGES, and `icacls` refuses to add one under
+            # `System32` even to an administrator: measured on `windows-latest`
+            # as "the container could not be granted
+            # C:\Windows\System32\WindowsPowerShell\v1.0". A provider that
+            # lives there is reachable without a grant, so none is attempted.
+            *(() if _system_owned(runtime) else ((runtime, "(RX)"),)),
         )
         granted: list[Path] = []
         try:
@@ -692,13 +724,113 @@ class AppContainerLauncher:
                 _revoke(package, path)
 
 
+#: The probe child on Windows, in the language of a runtime every AppContainer
+#: can already read. It is the same class of probe as `network_launcher.
+#: CHILD_PROBE` and answers in the same vocabulary — `reachable`/`denied` for
+#: the two loopback connects, `sent`/`send_failed` for the datagram, with
+#: arrival judged by the parent — but it is not the same text, and that is a
+#: measured choice rather than drift. A Python child needs its whole
+#: installation readable from inside the container, and granting that meant
+#: `icacls` walking every file of the interpreter with an inheritable ACE:
+#: on `windows-latest` the revoke alone timed out at twenty seconds, and in
+#: production it would rewrite the ACLs of whatever Python this CLI runs under
+#: on every discovery. `powershell.exe` under `%SystemRoot%` carries an ACE
+#: for ALL APPLICATION PACKAGES like the rest of the system, so the probe
+#: grants nothing, touches nothing, and passes its script encoded on the
+#: command line rather than through a file the container would have to reach.
+#:
+#: No cmdlets, by measurement: the child's environment carries no
+#: `PSModulePath`, so `ConvertTo-Json` — and `New-Object`, `Write-Output`,
+#: everything auto-loaded from a module — answered `CommandNotFoundException`
+#: inside the container on `windows-latest`. The language itself and .NET
+#: are always there; the answer line is spelled out by hand.
+WINDOWS_CHILD_PROBE: Final[str] = """
+$ErrorActionPreference = 'Continue'
+$ipv4 = __IPV4__
+$ipv6 = __IPV6__
+$dnsUdp = __DNS_UDP__
+$results = @{}
+foreach ($probe in @(
+    @('ipv4', '127.0.0.1', [System.Net.Sockets.AddressFamily]::InterNetwork, $ipv4),
+    @('ipv6', '::1', [System.Net.Sockets.AddressFamily]::InterNetworkV6, $ipv6)
+)) {
+    $name, $address, $family, $port = $probe
+    $client = [System.Net.Sockets.TcpClient]::new($family)
+    try {
+        $pending = $client.BeginConnect($address, [int]$port, $null, $null)
+        if ($pending.AsyncWaitHandle.WaitOne(500) -and $client.Connected) {
+            $results[$name] = 'reachable'
+        } else {
+            $results[$name] = 'denied'
+        }
+    } catch {
+        $results[$name] = 'denied'
+    } finally {
+        $client.Close()
+    }
+}
+$udp = [System.Net.Sockets.UdpClient]::new()
+try {
+    $bytes = [System.Text.Encoding]::ASCII.GetBytes('ai-stp-dns-probe')
+    [void]$udp.Send($bytes, $bytes.Length, '127.0.0.1', [int]$dnsUdp)
+    $results['dns_udp'] = 'sent'
+} catch {
+    $results['dns_udp'] = 'send_failed'
+} finally {
+    $udp.Close()
+}
+$line = '{"dns_udp":"' + $results['dns_udp'] + '",'
+$line += '"ipv4":"' + $results['ipv4'] + '","ipv6":"' + $results['ipv6'] + '"}'
+[System.Console]::Out.WriteLine($line)
+"""
+
+
+def powershell() -> Path:
+    """Windows PowerShell, where every supported Windows keeps it."""
+    return (
+        Path(os.environ.get("SYSTEMROOT", r"C:\Windows"))
+        / "System32"
+        / "WindowsPowerShell"
+        / "v1.0"
+        / "powershell.exe"
+    )
+
+
+def encoded_command(script: str) -> list[str]:
+    """The argv tail that runs one script without a file: `-EncodedCommand`."""
+    import base64
+
+    encoded = base64.b64encode(script.encode("utf-16-le")).decode("ascii")
+    return [
+        "-NoProfile",
+        "-NonInteractive",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-EncodedCommand",
+        encoded,
+    ]
+
+
+def _system_owned(path: Path) -> bool:
+    """Whether a path sits under the Windows directory the system already shares."""
+    root = os.environ.get("SYSTEMROOT")
+    if not root:
+        return False
+    try:
+        path.resolve().relative_to(Path(root).resolve())
+    except ValueError:
+        return False
+    return True
+
+
 def _probe(api: _Api, sid: ctypes.c_void_p, package: str) -> tuple[bool, tuple[str, ...]]:
     """Prove the denial the same way Linux does, or refuse to claim it.
 
-    Same shape and the same child text: loopback listeners, a positive control
-    proving this process reaches them, then the identical connect from inside.
-    `#51` requires the claim to rest on the same class of probe, and sharing the
-    literal is the only version of that which cannot drift.
+    Same shape: loopback listeners, a positive control proving this process
+    reaches them, then the identical connects from inside. `#51` requires the
+    claim to rest on the same class of probe; the child is PowerShell rather
+    than the shared Python text, for the reason `WINDOWS_CHILD_PROBE` gives,
+    and it answers in the same vocabulary so the reading below is one reading.
 
     The control carries more weight here than it does on Linux. A namespace
     refuses immediately; an AppContainer's block sits at the accept layer and
@@ -714,27 +846,27 @@ def _probe(api: _Api, sid: ctypes.c_void_p, package: str) -> tuple[bool, tuple[s
     except OSError as error:
         return False, (f"positive-control socket unavailable: {error}",)
 
-    home = Path(os.environ.get("TEMP", ".")) / f"{PROFILE_NAME}-probe"
     try:
         positive_control(ipv4, ipv6, dns_udp)
         ports = {"ipv4": port(ipv4), "ipv6": port(ipv6), "dns_udp": port(dns_udp)}
-        home.mkdir(parents=True, exist_ok=True)
-        script = home / "probe.py"
-        script.write_text(CHILD_PROBE, encoding="utf-8")
-        runtime = Path(sys.executable).resolve().parent
-        if not _icacls(package, home, "(M)", inherit=True) or not _icacls(
-            package, runtime, "(RX)", inherit=True
-        ):
-            return False, ("the container could not be granted its probe and runtime",)
-        argv = [sys.executable, str(script), json.dumps(ports, sort_keys=True)]
+        script = (
+            WINDOWS_CHILD_PROBE.replace("__IPV4__", str(ports["ipv4"]))
+            .replace("__IPV6__", str(ports["ipv6"]))
+            .replace("__DNS_UDP__", str(ports["dns_udp"]))
+        )
+        argv = [str(powershell()), *encoded_command(script)]
         with AppContainerProcess(api, sid, argv, {"PATH": os.environ.get("PATH", "")}) as child:
             stream = child.stdout
             raw = stream.read() if stream is not None else b""
-            child.wait()
+            exit_code = child.wait()
         try:
             observed = cast(dict[str, object], json.loads(raw.decode("utf-8").strip()))
         except (UnicodeDecodeError, json.JSONDecodeError, TypeError) as error:
-            return False, (f"the isolated probe returned no usable answer: {error}",)
+            tail = raw.decode("utf-8", errors="replace").strip()[-300:]
+            return False, (
+                "the isolated probe returned no usable answer: "
+                f"{error} (exit {exit_code:#x}, output {tail!r})",
+            )
 
         # Arrival decides the datagram, never the sender's return value:
         # `sendto` succeeds on a datagram the filter drops, so the child saying
@@ -762,8 +894,6 @@ def _probe(api: _Api, sid: ctypes.c_void_p, package: str) -> tuple[bool, tuple[s
         ipv4.close()
         ipv6.close()
         dns_udp.close()
-        _revoke(package, home)
-        _revoke(package, Path(sys.executable).resolve().parent)
 
 
 def discover_appcontainer() -> tuple[AppContainerLauncher | None, NetworkCapability]:
