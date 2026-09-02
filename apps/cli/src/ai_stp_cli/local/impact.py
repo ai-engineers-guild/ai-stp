@@ -16,6 +16,7 @@ from ai_stp_cli.local import (
     component_passports,
     components,
     content,
+    installation,
     passports,
     revisions,
     versions,
@@ -151,7 +152,7 @@ def selection_report(
 def _current_baseline(
     connection: sqlite3.Connection, project_id: str, harness_id: str
 ) -> tuple[str, str, Literal["installed", "selected"]] | None:
-    target_id = f"{project_id}:{harness_id}"
+    target_id = installation.target_identity(project_id, harness_id)
     row = connection.execute(
         """
         SELECT p.setup_stable_id, p.setup_version

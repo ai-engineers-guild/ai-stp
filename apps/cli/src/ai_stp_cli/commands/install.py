@@ -276,7 +276,7 @@ def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
             if held is not None
             else _Pair(_required(parameters, "project"), _required(parameters, "harness"))
         )
-        target = f"{pair.project_id}:{pair.harness_id}"
+        target = installation.target_identity(pair.project_id, pair.harness_id)
         release_recovery = bool(parameters.get("provider-release-recovery", False))
         release_evidence = trust.trusted_manifest(
             connection,
@@ -533,7 +533,7 @@ def _plan_v3(
             # source it does not have; the key already carries `backup_ref`
             # and the target digest below.
             "" if proposal is None else proposal.proposal_id,
-            f"{pair.project_id}:{pair.harness_id}",
+            installation.target_identity(pair.project_id, pair.harness_id),
             action,
             str(protocol_v3.VERSION),
             provider_version,
@@ -605,7 +605,7 @@ def _plan_v3(
         connection,
         action=action,
         author=owner().account_id,
-        target_id=f"{pair.project_id}:{pair.harness_id}",
+        target_id=installation.target_identity(pair.project_id, pair.harness_id),
         expected_target_digest=expected_target_digest,
         provider_version=provider_version,
         provider_protocol_version=protocol_v3.VERSION,
@@ -698,7 +698,7 @@ def apply(parameters: Mapping[str, object]) -> Answer[InstallationView]:
                 executable=executable,
             )
         assert bound_bundle is not None
-        _supports_bundle(info, held.target_id.rsplit(":", 1)[-1], held.bundle_format)
+        _supports_bundle(info, installation.target_pair(held.target_id)[1], held.bundle_format)
 
         installation.begin(
             connection,
@@ -808,7 +808,9 @@ def _apply_v3(
     trusted_release: release.ReleaseManifest | None,
     executable: str,
 ) -> InstallationView:
-    capabilities = _v3_capabilities(info, held.target_id.rsplit(":", 1)[-1], held.bundle_format)
+    capabilities = _v3_capabilities(
+        info, installation.target_pair(held.target_id)[1], held.bundle_format
+    )
     operation = _v3_operation(held.action)
     plan_path = cache.stored_provider_plan(held.provider_plan_digest)
     if plan_path is None:
@@ -1022,7 +1024,7 @@ def resume(parameters: Mapping[str, object]) -> Answer[InstallationView]:
         if held.provider_protocol_version == protocol_v3.VERSION:
             capabilities = _v3_capabilities(
                 info,
-                held.target_id.rsplit(":", 1)[-1],
+                installation.target_pair(held.target_id)[1],
                 held.bundle_format,
             )
             operation = _v3_operation(held.action)
@@ -1099,7 +1101,7 @@ def resume(parameters: Mapping[str, object]) -> Answer[InstallationView]:
             return _view(connection, held)
         _supports_bundle(
             info,
-            held.target_id.rsplit(":", 1)[-1],
+            installation.target_pair(held.target_id)[1],
             held.bundle_format,
         )
 
@@ -1186,7 +1188,7 @@ def _report_installation_unguarded(connection: sqlite3.Connection, plan: install
     if not url:
         return
 
-    _, _, harness_id = plan.target_id.partition(":")
+    _, harness_id = installation.target_pair(plan.target_id)
     harness_version = _observed_harness_version(harness_id)
     if not harness_version:
         # A version nobody observed is not one to guess at, and a ping missing
@@ -2142,7 +2144,7 @@ def _optional_invoker(
         connection, parameters, executable, project_id=project_id, harness=harness
     )
     version = _observation_protocol(parameters, trusted_release)
-    logical = f"{project_id}:{harness}"
+    logical = installation.target_identity(project_id, harness)
     target = _provider_target(parameters, logical, version)
     return invocation.provider_invoker(
         executable,

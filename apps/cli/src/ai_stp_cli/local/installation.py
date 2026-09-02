@@ -238,6 +238,17 @@ class Recovery:
     next_actions: tuple[str, ...]
 
 
+def target_identity(project_id: str, harness_id: str) -> str:
+    """The identifier an operation plan records for one project on one harness."""
+    return f"{project_id}:{harness_id}"
+
+
+def target_pair(target_id: str) -> tuple[str, str]:
+    """The project and harness a plan's target identifier names."""
+    project_id, _, harness_id = target_id.partition(":")
+    return project_id, harness_id
+
+
 def propose(
     connection: sqlite3.Connection,
     *,
@@ -864,7 +875,7 @@ def _next_actions(
         if command not in actions:
             actions.append(command)
     if state in {STATE_PARTIAL, STATE_FAILED}:
-        project_id, _, harness_id = target_id.partition(":")
+        project_id, harness_id = target_pair(target_id)
         pair = f"--project {project_id or '<project>'} --harness {harness_id or '<harness>'}"
         actions.append(f"target status {pair} --json")
         if backup_ref:

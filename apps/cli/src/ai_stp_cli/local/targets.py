@@ -318,7 +318,7 @@ def verified(
         """,
         (
             installation.STATE_VERIFIED,
-            f"{project_id}:{harness_id}",
+            installation.target_identity(project_id, harness_id),
             installation.STATE_VERIFIED,
         ),
     ).fetchall()
@@ -365,7 +365,7 @@ def backups(
         """,
         (
             installation.STATE_VERIFIED,
-            f"{project_id}:{harness_id}",
+            installation.target_identity(project_id, harness_id),
             installation.STATE_VERIFIED,
         ),
     ).fetchall()
