@@ -91,16 +91,30 @@ def _config_root(harness_id: str, home: Path) -> Path:
     return harnesses.config_root(detector, _environment(home))
 
 
-def _surface(harness_id: str, home: Path) -> tuple[Path, str, str]:
+def _surface(harness_id: str, home: Path, *, scope: str = "global") -> tuple[Path, str, str]:
     """Where to seed, what kind it will be adopted as, and the layout's relative.
 
     Read from the catalog, not written here: a hand-written path is a second
-    copy of a normative fact, and this estate has paid for that twice.
+    copy of a normative fact, and this estate has paid for that twice. At
+    `project` scope the surface is seeded in the workspace the row indexes,
+    from the catalog's project rows — but only where the released provider
+    declares a workspace rule for the kind (`REQ-632`), since a surface the
+    provider does not own at that scope is a row that cannot pass for a
+    reason that is not the arc's.
     """
-    from ai_stp_cli.local import components
+    from ai_stp_cli.local import components, composition
 
-    base = _config_root(harness_id, home)
-    rules = [rule for rule in components.GLOBAL_RULES if rule.harness_id == harness_id]
+    if scope == "project":
+        base = home / "project"
+        rules = [rule for rule in components.PROJECT_RULES if rule.harness_id == harness_id]
+        rules = [
+            rule
+            for rule in rules
+            if composition.rule_for(rule.component_type, harness_id, scope="project") is not None
+        ]
+    else:
+        base = _config_root(harness_id, home)
+        rules = [rule for rule in components.GLOBAL_RULES if rule.harness_id == harness_id]
     skills = [
         rule for rule in rules if rule.component_type == "skill" and rule.shape == "directory"
     ]
@@ -113,14 +127,17 @@ def _surface(harness_id: str, home: Path) -> tuple[Path, str, str]:
     instructions = [
         rule
         for rule in rules
-        if rule.component_type == "instruction"
-        and rule.shape == "file"
-        and "override" not in rule.relative
+        if rule.component_type == "instruction" and "override" not in rule.relative
     ]
     if not instructions:
-        raise EvidenceError(f"{harness_id} declares no seedable global surface")
+        raise EvidenceError(f"{harness_id} declares no seedable {scope} surface")
     rule = instructions[0]
-    place = base / rule.relative
+    if rule.shape == "directory":
+        # One entry of the directory is one component; cursor's workspace rules
+        # are `.mdc` files under `.cursor/rules`.
+        place = base / rule.relative / "probe.mdc"
+    else:
+        place = base / rule.relative
     place.parent.mkdir(parents=True, exist_ok=True)
     place.write_text(SEED_BODY, encoding="utf-8")
     return place, "instruction", rule.relative
@@ -207,14 +224,22 @@ def _adopted(
     *,
     home: Path,
     python: str,
+    scope: str = "global",
 ) -> list[str] | None:
     """The seeded surface alone, as one adopted draft."""
-    adopted = _stage(
+    arguments = [
+        "component",
         "adopt",
-        ["component", "adopt", "--path", str(seeded), "--kind", kind, "--harness", harness_id],
-        home=home,
-        python=python,
-    )
+        "--path",
+        str(seeded),
+        "--kind",
+        kind,
+        "--harness",
+        harness_id,
+    ]
+    if scope == "project":
+        arguments += ["--root", str(home / "project")]
+    adopted = _stage("adopt", arguments, home=home, python=python)
     stages.append(adopted)
     if adopted["outcome"] != PASSED:
         return None
@@ -264,7 +289,13 @@ def _imported(
 
 
 def _row(
-    harness_id: str, *, root: Path, tag: str, python: str, from_import: bool = False
+    harness_id: str,
+    *,
+    root: Path,
+    tag: str,
+    python: str,
+    from_import: bool = False,
+    scope: str = "global",
 ) -> dict[str, Any]:
     """One harness, taken from its own native bytes to a clean target and back.
 
@@ -280,8 +311,10 @@ def _row(
     project = home / "project"
     project.mkdir()
     (project / "README.md").write_text("# probe\n", encoding="utf-8")
-    target = root / f"target-{harness_id}"
-    target.mkdir()
+    # At `project` scope the target *is* the workspace the row indexes: the
+    # provider is handed the same root the passport was taken from.
+    target = project if scope == "project" else root / f"target-{harness_id}"
+    target.mkdir(exist_ok=True)
     directory = root / f"provider-{harness_id}"
     directory.mkdir()
 
@@ -301,7 +334,7 @@ def _row(
             home=home,
             python=python,
         )
-        seeded, kind, relative = _surface(harness_id, home)
+        seeded, kind, relative = _surface(harness_id, home, scope=scope)
     except EvidenceError as error:
         return {
             "harness_id": harness_id,
@@ -328,7 +361,9 @@ def _row(
     if from_import:
         identifiers = _imported(stages, harness_id, home=home, python=python)
     else:
-        identifiers = _adopted(stages, harness_id, seeded, kind, home=home, python=python)
+        identifiers = _adopted(
+            stages, harness_id, seeded, kind, home=home, python=python, scope=scope
+        )
     if identifiers is None:
         return _settle(harness_id, kind, relative, stages, seeded, target)
 
@@ -381,6 +416,7 @@ def _row(
         str(target),
         "--harness",
         harness_id,
+        *(["--scope", scope] if scope != "global" else []),
     ]
     planned = _stage(
         "plan", ["install", "plan", "--proposal", proposal, *common], home=home, python=python
@@ -449,11 +485,13 @@ def _project_id(home: Path, python: str) -> str:
 def _landed(target: Path, relative: str, kind: str) -> bool:
     """Whether the native surface under the target holds the seeded component now."""
     place = target / relative
-    if kind == "instruction":
-        return place.is_file() and "Probe" in place.read_text(encoding="utf-8", errors="replace")
+    if kind == "instruction" and place.is_file():
+        return "Probe" in place.read_text(encoding="utf-8", errors="replace")
     if not place.is_dir():
         return False
-    return any(item.name == "probe" for item in place.iterdir())
+    # A directory surface: the seeded skill directory, or one instruction
+    # entry such as `probe.mdc` under a rules directory.
+    return any(item.name.split(".")[0] == "probe" for item in place.iterdir())
 
 
 def _settle(
@@ -503,7 +541,12 @@ def _isolation(home: Path, python: str) -> dict[str, Any]:
 
 
 def verify_config_slice(
-    harnesses: Sequence[str], *, tag: str, python: str, from_import: bool = False
+    harnesses: Sequence[str],
+    *,
+    tag: str,
+    python: str,
+    from_import: bool = False,
+    scope: str = "global",
 ) -> dict[str, Any]:
     rows: list[dict[str, Any]] = []
     with tempfile.TemporaryDirectory(prefix="ai-stp-config-slice-") as scratch:
@@ -514,7 +557,14 @@ def verify_config_slice(
         isolation = _isolation(probe_home, python)
         for harness_id in harnesses:
             rows.append(
-                _row(harness_id, root=root, tag=tag, python=python, from_import=from_import)
+                _row(
+                    harness_id,
+                    root=root,
+                    tag=tag,
+                    python=python,
+                    from_import=from_import,
+                    scope=scope,
+                )
             )
     counts = {
         state: sum(1 for row in rows if row["outcome"] == state)
@@ -525,6 +575,7 @@ def verify_config_slice(
         "schema_version": 1,
         "slice": "config",
         "capture": "import" if from_import else "adopt",
+        "scope": scope,
         "tag": tag,
         "isolation": isolation,
         "rows": rows,
@@ -536,6 +587,16 @@ def verify_config_slice(
         # a control that cannot fail, written by copying the shape beside it.
         "clean": not missing and counts[PASSED] == len(rows) and len(rows) > 0,
     }
+
+
+def _workspace_harnesses() -> tuple[str, ...]:
+    """The harnesses this consumer routes at project scope, in catalogue order."""
+    from ai_stp_cli.local import composition
+
+    routed = {
+        rule.harness_id for rule in composition.PROVIDER_RULES if rule.target_scope == "project"
+    }
+    return tuple(item for item in HARNESSES if item in routed)
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -553,17 +614,31 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Capture through `setup import` of the whole root instead of `component adopt`.",
     )
+    parser.add_argument(
+        "--scope",
+        choices=("global", "project"),
+        default="global",
+        help="Projection scope to drive: the harness home, or the indexed workspace. "
+        "At project scope the default harness set is those whose released provider "
+        "declares a workspace rule.",
+    )
     return parser
 
 
 def main(arguments: Sequence[str] | None = None) -> int:
     parsed = _parser().parse_args(arguments)
-    chosen = tuple(parsed.harness) or HARNESSES
+    chosen = tuple(parsed.harness) or (
+        _workspace_harnesses() if parsed.scope == "project" else HARNESSES
+    )
     unknown = sorted(set(chosen) - set(HARNESSES))
     if unknown:
         raise SystemExit(f"unknown harness: {', '.join(unknown)}")
     report = verify_config_slice(
-        chosen, tag=parsed.tag, python=parsed.python, from_import=parsed.from_import
+        chosen,
+        tag=parsed.tag,
+        python=parsed.python,
+        from_import=parsed.from_import,
+        scope=parsed.scope,
     )
     print(json.dumps(report, indent=2, sort_keys=True))
     return 0 if report["clean"] else 1

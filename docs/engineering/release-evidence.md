@@ -1,6 +1,6 @@
 ---
 description: "Required release evidence for the CLI, platform, and providers."
-last_verified: "2026-08-04"
+last_verified: "2026-09-01"
 ---
 
 # Release evidence
@@ -56,7 +56,7 @@ release network or on a deployed environment being reachable.
 | `just evidence-live` | the deployed catalogue, anonymously, with no credential |
 | `just evidence-providers <tag>` | does the projection table still agree with the providers **as released** |
 | `just evidence-software <tag>` | can a consumer drive a released provider through `harness install/status/update/remove` |
-| `just evidence-config <tag>` | can a native surface be captured, installed into a target, observed and removed again — one row per harness; `from_import=1` captures the whole root through `setup import` instead of `component adopt`, and both paths must end in the same observed target |
+| `just evidence-config <tag>` | can a native surface be captured, installed into a target, observed and removed again — one row per harness; `from_import=1` captures the whole root through `setup import` instead of `component adopt`, and both paths must end in the same observed target; `scope=project` seeds the indexed workspace instead of the harness home and installs with `--scope project`, for the harnesses whose released provider declares a workspace rule |
 | `just evidence-contribution <tag>` | `#54`'s acceptance: one MCP component in each of its three native forms, and the refusal that is also an answer |
 | `just evidence-citations` | is every source link the harness catalogue cites still alive |
 | `just evidence-sync <home_a> <home_b>` | two devices, rewind, conflict and merge — needs a real browser login |
