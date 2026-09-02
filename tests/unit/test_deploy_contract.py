@@ -271,6 +271,13 @@ def test_deployment_verification_reports_only_declared_probe_origins() -> None:
     assert "${WEB_BASE}" in success
     assert "${BASE}" not in success
 
+    # Compose reports the web container started before its first HTTP accept.
+    # Two real rolls hit connection reset/empty reply at this exact probe and
+    # were marked failed although the same URL answered moments later.
+    web_probe = script.split('web="$(', maxsplit=1)[1].split(')"', maxsplit=1)[0]
+    assert "--retry-all-errors" in web_probe
+    assert "--retry-max-time" in web_probe
+
 
 def test_edge_routes_the_google_compatibility_callback_to_the_api() -> None:
     config = Path("deploy/nginx/ai-stp.conf.template").read_text(encoding="utf-8")
