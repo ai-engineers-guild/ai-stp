@@ -748,9 +748,24 @@ class AppContainerLauncher:
             raise ValueError("the derived package SID is not the one this launcher proved")
 
         runtime = Path(argv[0]).resolve().parent
+        # Every file the argv names is one the provider was told to read —
+        # the HarnessBundle handed to `validate-bundle`, a program artifact
+        # handed to `apply-operation` — and it lives in this consumer's data
+        # home, which the container cannot open. On Linux the whole filesystem
+        # is mounted read-only into the namespace, so nothing there had to be
+        # named; here a leaf needs its own ACE, and the first enforced Windows
+        # legs answered `digest_mismatch` from `validate-bundle` on every row
+        # because the provider could not read the bundle it was asked to
+        # check. Read only, no inheritance, and taken back with the rest.
+        named = tuple(
+            place
+            for place in (Path(token) for token in argv[1:])
+            if place.is_absolute() and place.is_file()
+        )
         wanted: tuple[tuple[Path, str], ...] = (
             (target.resolve(), "(M)"),
             *((Path(item).resolve(), "(M)") for item in writable),
+            *((place.resolve(), "(R)") for place in named),
             # The system's own directories already carry an ACE for ALL
             # APPLICATION PACKAGES, and `icacls` refuses to add one under
             # `System32` even to an administrator: measured on `windows-latest`
@@ -762,7 +777,7 @@ class AppContainerLauncher:
         granted: list[Path] = []
         try:
             for path, rights in wanted:
-                if not _icacls(package, path, rights, inherit=True):
+                if not _icacls(package, path, rights, inherit=path.is_dir()):
                     raise OSError(f"the container could not be granted {path}")
                 granted.append(path)
 

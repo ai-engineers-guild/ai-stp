@@ -114,6 +114,12 @@ def test_the_isolated_spawn_reaches_the_target_and_not_the_network() -> None:
 
     target = Path(os.environ["TEMP"]) / "ai-stp-appcontainer-run"
     target.mkdir(parents=True, exist_ok=True)
+    # A file the argv names, outside the target and the runtime, as the
+    # bundle handed to `validate-bundle` is: the container must be able to
+    # read it, and only because it was named.
+    named = Path(os.environ["TEMP"]) / "ai-stp-appcontainer-named" / "bundle.bin"
+    named.parent.mkdir(parents=True, exist_ok=True)
+    named.write_text("named-bytes", encoding="utf-8")
     place = target / "written-inside"
     # .NET calls only: the container's PowerShell has no `PSModulePath`, so
     # `Set-Content` and its siblings do not exist there (see the launcher).
@@ -126,18 +132,19 @@ def test_the_isolated_spawn_reaches_the_target_and_not_the_network() -> None:
     script = (
         f"[System.IO.File]::WriteAllText('{place}', 'inside')\n"
         f"$written = [System.IO.File]::ReadAllText('{place}')\n"
+        f"$named = [System.IO.File]::ReadAllText('{named}')\n"
         "[System.Console]::Error.WriteLine('diagnostic noise that is not the answer')\n"
         "[System.Console]::Out.Write('{\"written\":')\n"
         "[System.Console]::Out.Flush()\n"
         "[System.Threading.Thread]::Sleep(400)\n"
-        "[System.Console]::Out.WriteLine('\"' + $written + '\"}')\n"
+        "[System.Console]::Out.WriteLine('\"' + $written + '\",\"named\":\"' + $named + '\"}')\n"
     )
     answer = launcher.run(
-        (str(windows_launcher.powershell()), *windows_launcher.encoded_command(script)),
+        (str(windows_launcher.powershell()), *windows_launcher.encoded_command(script), str(named)),
         target=target,
         command="probe",
     )
-    assert answer == {"written": "inside"}, answer
+    assert answer == {"written": "inside", "named": "named-bytes"}, answer
     assert place.read_text(encoding="utf-8") == "inside"
 
 
