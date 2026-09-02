@@ -44,7 +44,6 @@ evidence, and no capability is reported enforced without one.
 
 from __future__ import annotations
 
-import contextlib
 import ctypes
 import json
 import os
@@ -589,6 +588,7 @@ def sweep_abandoned_grants() -> tuple[str, ...]:
     except OSError:
         return ()
     revoked: list[str] = []
+    pending: list[str] = []
     for line in held:
         if not line.strip():
             continue
@@ -597,10 +597,17 @@ def sweep_abandoned_grants() -> tuple[str, ...]:
             package, path = entry["package"], entry["path"]
         except (ValueError, KeyError, TypeError):
             continue
-        _revoke(package, Path(path))
-        revoked.append(path)
-    with contextlib.suppress(OSError):
-        place.unlink()
+        if _revoke(package, Path(path)) is not False:
+            revoked.append(path)
+        else:
+            pending.append(line)
+    try:
+        if pending:
+            place.write_text("\n".join(pending) + "\n", encoding="utf-8")
+        else:
+            place.unlink()
+    except OSError:
+        pass
     return tuple(revoked)
 
 
@@ -626,7 +633,7 @@ def _icacls(package: str, target: Path, rights: str, *, inherit: bool) -> bool:
     return done.returncode == 0
 
 
-def _revoke(package: str, target: Path) -> None:
+def _revoke(package: str, target: Path) -> bool:
     """Take the grant back. Best effort, because leaving it is not a failure.
 
     An ACE that outlives its operation widens what the next isolated phase can
@@ -634,17 +641,22 @@ def _revoke(package: str, target: Path) -> None:
     provider call into an error: the effect has landed, and the caller learning
     about a cleanup problem as an operation failure is worse than the ACE.
     """
-    done = subprocess.run(
-        ["icacls", str(target), "/remove:g", f"*{package}"],
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-        timeout=_PROBE_TIMEOUT,
-    )
+    try:
+        done = subprocess.run(
+            ["icacls", str(target), "/remove:g", f"*{package}"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+            timeout=_PROBE_TIMEOUT,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
     if done.returncode == 0:
         _lease_clear(package, target)
+        return True
+    return False
 
 
 @dataclass(frozen=True)

@@ -311,6 +311,13 @@ private paths, or environment values (`REQ-2408`, `SPEC-013`).
 # Directory: .backups/<timestamp>[-label]/ with MANIFEST.txt
 ```
 
+The backup pauses API and worker writes while PostgreSQL and RustFS are copied.
+It refuses a PostgreSQL archive without `oauth_identity` table data or its sequence and records
+aggregate account and OAuth-identity counts plus a SHA-256 fingerprint of identity ownership.
+Restore verifies those entries before replacing the database and checks recorded values before
+application writers are started. Older manifests do not carry counts or fingerprints and remain
+restorable, but still pass the archive-content checks.
+
 - PostgreSQL: logical `pg_dump` (custom format)
 - RustFS: copy of the volume data
 - Retention: `AI_STP_BACKUP_RETENTION` (the 7 newest directories by default)

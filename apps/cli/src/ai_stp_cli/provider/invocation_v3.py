@@ -78,6 +78,17 @@ def invoke(
         answer = conformance.invoke_argv(argv, command=command)
     else:
         answer = launcher.run(argv, target=resolved_target, writable=writable, command=command)
+        if (
+            excepted
+            and isinstance(answer, dict)
+            and answer.get("rejected") is True
+            and answer.get("reason") == "provider_unavailable"
+            and any(
+                marker in str(answer.get("detail", ""))
+                for marker in ("cannot be canonicalized", "Access is denied")
+            )
+        ):
+            answer = conformance.invoke_argv(argv, command=command)
     if command == "status":
         if not isinstance(answer, dict):
             return provider_status.require_wire({"answer": answer})

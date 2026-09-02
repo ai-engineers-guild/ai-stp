@@ -124,6 +124,7 @@ class ArtifactManifest:
     """Detected features of an unpacked artifact tree."""
 
     component_type: str
+    harness_id: str = ""
     languages: set[str] = field(default_factory=set[str])
     flags: set[str] = field(default_factory=set[str])
     file_count: int = 0

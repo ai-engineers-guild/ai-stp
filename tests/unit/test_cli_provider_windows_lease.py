@@ -15,6 +15,7 @@ what an earlier one wrote, and that is ordinary file handling.
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -115,6 +116,21 @@ def test_an_unreadable_lease_line_does_not_stop_the_rest(
     windows_launcher.sweep_abandoned_grants()
 
     assert revoked == [str(tmp_path / "good")]
+
+
+def test_a_timed_out_revoke_stays_leased_for_the_next_sweep(
+    data_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target = tmp_path / "large-tree"
+    windows_launcher._lease_write("S-1-15-2-1", target)  # pyright: ignore[reportPrivateUsage]
+
+    def timeout(*_args: object, **_kwargs: object) -> None:
+        raise subprocess.TimeoutExpired("icacls", 20)
+
+    monkeypatch.setattr(subprocess, "run", timeout)
+
+    assert windows_launcher.sweep_abandoned_grants() == ()
+    assert windows_launcher._lease_path().exists()  # pyright: ignore[reportPrivateUsage]
 
 
 def test_the_job_kills_on_close_rather_than_on_a_remembered_call() -> None:

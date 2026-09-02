@@ -153,6 +153,7 @@ def detect_manifest(root: Path, *, passport: dict[str, object]) -> ArtifactManif
 
     return ArtifactManifest(
         component_type=ctype,
+        harness_id=str(passport.get("harness_id") or ""),
         languages=languages,
         flags=flags,
         file_count=file_count,

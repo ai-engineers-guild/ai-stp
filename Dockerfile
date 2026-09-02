@@ -24,27 +24,31 @@ ENV PYTHONUNBUFFERED=1 \
 # gate installs, so what production resolves the lockfile with is what CI
 # proved it with; a contract test holds the two together.
 COPY --from=ghcr.io/astral-sh/uv:0.12.1@sha256:cf4eedcaa81655197f625739489effcbe71b61ceb1506f332c3facae5deceded /uv /bin/uv
+RUN useradd --create-home --uid 10001 appuser \
+    && mkdir /app \
+    && chown appuser:appuser /app
 WORKDIR /app
 
 # Manifests first for layer caching, then sources.
 # apps/web is excluded via .dockerignore (Node image has its own context).
-COPY pyproject.toml uv.lock ./
-COPY packages ./packages
-COPY apps/api ./apps/api
-COPY apps/cli ./apps/cli
-COPY apps/platform ./apps/platform
-COPY apps/worker ./apps/worker
-COPY docs-user-facing/legal ./docs-user-facing/legal
-RUN uv sync --locked --no-dev --all-packages
+COPY --chown=appuser:appuser pyproject.toml uv.lock ./
+COPY --chown=appuser:appuser packages ./packages
+COPY --chown=appuser:appuser apps/api ./apps/api
+COPY --chown=appuser:appuser apps/cli ./apps/cli
+COPY --chown=appuser:appuser apps/platform ./apps/platform
+COPY --chown=appuser:appuser apps/worker ./apps/worker
+COPY --chown=appuser:appuser docs-user-facing/legal ./docs-user-facing/legal
+USER appuser
+RUN uv sync --locked --no-dev --all-packages --no-cache
 
-COPY migrations ./migrations
-COPY alembic.ini ./
+COPY --chown=appuser:appuser migrations ./migrations
+COPY --chown=appuser:appuser alembic.ini ./
 
 # Non-root runtime user; the log volume is mounted at /var/log/ai_stp.
 # chown only runtime paths — never a multi-hundred-MB tree (was the hung step).
-RUN useradd --create-home --uid 10001 appuser \
-    && mkdir -p /var/log/ai_stp \
-    && chown -R appuser:appuser /app /var/log/ai_stp
+USER root
+RUN mkdir -p /var/log/ai_stp \
+    && chown appuser:appuser /var/log/ai_stp
 USER appuser
 
 FROM base AS api
@@ -78,8 +82,7 @@ RUN python -m ai_stp_platform.content.snapshot_cli \
 FROM base AS content-import
 USER root
 COPY --from=content-snapshot /tmp/content-snapshot.json /app/content-snapshot.json
-RUN test -s /app/content-snapshot.json \
-    && chown appuser:appuser /app/content-snapshot.json
+RUN test -s /app/content-snapshot.json
 USER appuser
 ENV AI_STP_CONTENT_SNAPSHOT=/app/content-snapshot.json
 CMD ["python", "-m", "ai_stp_platform.content.importer"]

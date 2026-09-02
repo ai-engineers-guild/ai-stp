@@ -162,6 +162,10 @@ dependency whose reason is then recorded.
 
 ## Consequences
 
+Publication safety validates hosted MCP contributions in the target host format. A Codex or
+Grok Build MCP artifact is a non-empty TOML table value, and an OpenCode MCP artifact is a
+non-empty JSON object value; an artifact containing the owned host key itself is rejected.
+
 One type gains three delivery methods, not three types: `provider_kind`
 (`#454`) already separates the provider-facing type from the logical type,
 while `hosted_in` / `hosted_key` add the third case—landing inside another

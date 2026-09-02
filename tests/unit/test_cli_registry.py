@@ -5,6 +5,9 @@ import pytest
 
 from ai_stp_cli import app, registry
 from ai_stp_cli.commands import machine_help
+from ai_stp_cli.commands.registry import (
+    _component_ref_tuples,  # pyright: ignore[reportPrivateUsage]
+)
 from ai_stp_cli.registry import (
     COMMANDS,
     command_paths,
@@ -14,6 +17,19 @@ from ai_stp_cli.registry import (
 from ai_stp_contracts.machine_help import CommandParameter
 from ai_stp_foundation.errors import ERROR_CODES
 from ai_stp_foundation.harnesses import HARNESS_IDS
+
+
+def test_component_refs_ignore_an_omitted_null_variant() -> None:
+    compact = [{"stable_id": "component_01TEST", "version": "1.0", "passport_digest": "d"}]
+    expanded = [
+        {
+            "stable_id": "component_01TEST",
+            "variant_id": None,
+            "version": "1.0",
+            "passport_digest": "d",
+        }
+    ]
+    assert _component_ref_tuples(compact) == _component_ref_tuples(expanded)
 
 
 def _leaf(root: click.Group, path: list[str]) -> click.Command:
