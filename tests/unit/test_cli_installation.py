@@ -29,7 +29,7 @@ def _plan(connection: sqlite3.Connection, key: str, **overrides: object) -> inst
     facts: dict[str, object] = {
         "action": "install",
         "author": "account_01J0000000000000000000000A",
-        "target_id": "pair_project_claude-code",
+        "target_id": "project_01J0000000000000000000000B:claude-code",
         "expected_target_digest": HELD,
         "provider_version": "1.0.0",
         "effects": ("write .claude/skills/review.md",),
@@ -419,8 +419,52 @@ def test_a_partial_operation_is_not_retried_and_needs_a_new_plan(
     installation.applied(registry, plan.operation_id, at=AT)
     installation.interrupted(registry, plan.operation_id, at=AT, reason="unknown")
     report = installation.recovery(registry, plan.operation_id)
-    assert "plan a recovery operation" in report.next_actions
+    assert report.next_actions == (
+        "target status --project project_01J0000000000000000000000B --harness claude-code --json",
+    )
     assert journal.TRANSITIONS[installation.STATE_PARTIAL] == frozenset()
+
+
+def test_recovery_next_actions_are_the_commands_that_reach_each_allowed_state(
+    registry: sqlite3.Connection,
+) -> None:
+    """A report names commands runnable as written, not journal state names."""
+    planned = _plan(registry, "k1")
+    operation = f"--operation {planned.operation_id}"
+    assert installation.recovery(registry, planned.operation_id).next_actions == (
+        f"install approve {operation} --plan-digest {planned.digest} --json",
+        f"install cancel {operation} --json",
+    )
+    approved = _approved(registry, "k2")
+    operation = f"--operation {approved.operation_id}"
+    assert installation.recovery(registry, approved.operation_id).next_actions == (
+        f"install apply {operation} --provider <executable> --json",
+        f"install cancel {operation} --json",
+    )
+    applying = _applying(registry, "k3")
+    assert installation.recovery(registry, applying.operation_id).next_actions == (
+        f"install resume --operation {applying.operation_id} --provider <executable> --json",
+    )
+    installation.applied(registry, applying.operation_id, at=AT, backup_ref="backup_3")
+    assert installation.recovery(registry, applying.operation_id).next_actions == (
+        f"install resume --operation {applying.operation_id} --provider <executable> --json",
+    )
+    installation.verify(registry, applying.operation_id, postconditions_met=True, at=AT)
+    assert installation.recovery(registry, applying.operation_id).next_actions == ()
+
+
+def test_a_partial_operation_with_a_backup_points_at_the_rollback_plan(
+    registry: sqlite3.Connection,
+) -> None:
+    plan = _applying(registry, "k1")
+    installation.applied(registry, plan.operation_id, at=AT, backup_ref="backup_1")
+    installation.interrupted(registry, plan.operation_id, at=AT, reason="unknown")
+    pair = "--project project_01J0000000000000000000000B --harness claude-code"
+    assert installation.recovery(registry, plan.operation_id).next_actions == (
+        f"target status {pair} --json",
+        f"install plan --action rollback --backup-ref backup_1 {pair} "
+        "--provider <executable> --json",
+    )
 
 
 def test_a_stopped_operation_is_resumable_and_a_finished_one_is_not(
