@@ -66,20 +66,30 @@ jobs:
                   print(command, "->", json.dumps(answer)[:700])
               except Exception:
                   traceback.print_exc()
-          print("=== raw child inside the container")
+          print("=== status through launcher.run (parsed, unvalidated)")
           launcher, capability = windows_launcher.discover_appcontainer()
           print("launcher", launcher is not None, capability.evidence[:1])
           if launcher is not None:
+              for argv in (
+                  (exe, "status", "--target", str(target), "--json"),
+                  (exe, "provider-info"),
+              ):
+                  try:
+                      answer = launcher.run(argv, target=target, command=argv[1])
+                      print(argv[1], "->", json.dumps(answer)[:1200])
+                  except Exception:
+                      traceback.print_exc()
+              print("=== raw status bytes inside the container, stderr kept in a file")
               api = windows_launcher._Api.load()
               sid, package = windows_launcher._profile(api)
               runtime = Path(exe).resolve().parent
               for path, rights in ((target.resolve(), "(M)"), (runtime, "(RX)")):
                   print("grant", path, rights, windows_launcher._icacls(package, path, rights, inherit=True))
-              with windows_launcher.AppContainerProcess(api, sid, [exe, "provider-info"], {"PATH": ""}) as child:
+              with windows_launcher.AppContainerProcess(api, sid, [exe, "status", "--target", str(target), "--json"], {"PATH": "", "SystemRoot": __import__("os").environ["SystemRoot"]}) as child:
                   raw = child.stdout.read() if child.stdout else b""
                   code = child.wait()
               print("raw exit", hex(code), "bytes", len(raw))
-              print(raw[:1200])
+              print(raw[:1500])
               for path in (target.resolve(), runtime):
                   windows_launcher._revoke(package, path)
           PY
