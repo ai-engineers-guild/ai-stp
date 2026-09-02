@@ -193,19 +193,48 @@ def _row(
         str(target),
     ]
 
-    stages: list[dict[str, Any]] = [
-        _stage("install", ["harness", "install", *common], home=home, python=python),
-        # Reads the prefix and nothing else, so it is the independent view of
-        # what install actually left behind.
-        _stage(
-            "status",
-            ["harness", "status", "--harness", harness_id, "--prefix", str(prefix)],
-            home=home,
-            python=python,
-        ),
-        _stage("update", ["harness", "update", *common], home=home, python=python),
-        _stage("remove", ["harness", "remove", "--confirm", *common], home=home, python=python),
-    ]
+    install = _stage("install", ["harness", "install", *common], home=home, python=python)
+    stages: list[dict[str, Any]] = [install]
+    if install["outcome"] != PASSED:
+        # Status, update and remove are questions about an installation. If the
+        # vendor bytes never arrived, asking them manufactures downstream
+        # failures from the same environmental refusal (and can leave an
+        # approved operation that update correctly refuses to cross). Keep the
+        # causal outcome and make the unasked stages explicit instead.
+        stages.extend(
+            {
+                "stage": name,
+                "outcome": NOT_EXERCISED,
+                "reason": "install did not pass",
+            }
+            for name in ("status", "update", "remove")
+        )
+        return {
+            "harness_id": harness_id,
+            "outcome": install["outcome"],
+            "provider_artifact": Path(executable).name,
+            "stages": stages,
+        }
+
+    stages.extend(
+        [
+            # Reads the prefix and nothing else, so it is the independent view
+            # of what install actually left behind.
+            _stage(
+                "status",
+                ["harness", "status", "--harness", harness_id, "--prefix", str(prefix)],
+                home=home,
+                python=python,
+            ),
+            _stage("update", ["harness", "update", *common], home=home, python=python),
+            _stage(
+                "remove",
+                ["harness", "remove", "--confirm", *common],
+                home=home,
+                python=python,
+            ),
+        ]
+    )
 
     outcomes = {item["outcome"] for item in stages}
     if FAILED in outcomes:
