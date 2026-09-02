@@ -25,8 +25,8 @@ seven arrive in waves.
 Nothing in this consumer forbids that today, and that is the problem worth
 stating precisely. Planning and applying do not read GitHub: they take
 `--provider-manifest`, and the manifest binds the executable by digest. A wheel
-that carries the native binary as package data with `release.json` beside it
-is therefore already drivable. What the wheel does *not* carry is the fact that
+that carries the native binary as package data is therefore already drivable,
+through a manifest this consumer writes for itself. What the wheel does *not* carry is the fact that
 `attested_bind` establishes — that these exact bytes were built by a named
 workflow in a named repository — so every such provider would land as
 `unverified` and need `--unverified-provider` on each call. That is a delivery
@@ -73,21 +73,27 @@ A provider executable delivered as a Python distribution is accepted, and its
 trust level is decided by provenance, not by the channel:
 
 1. The distribution carries the native binary as package data at a stable
-   relative path and the canonical `release.json` beside it. The manifest's
-   `entry_point` names that binary. Console scripts are not used: a script
-   entry is a Python shim, and the digest and name this consumer checks must
-   belong to the executed bytes.
-2. Before the binary runs, the consumer fetches PyPI's provenance for the exact
+   relative path, and nothing else is required of it. It does **not** carry a
+   release manifest: this consumer materialises one, as `attested_bind` already
+   does for a GitHub release, with `signing_key = "attested"` and an empty
+   signature, from facts the verification itself proves. The estate has never
+   published a signed manifest and is not asked to start — the three signature
+   fields of that schema belong to the Ed25519 path, whose `releases` list is
+   empty for these providers on purpose.
+2. `entry_point` in the materialised manifest names the packaged binary.
+   Console scripts are not used: a script entry is a Python shim, and the
+   digest and name this consumer checks must belong to the executed bytes.
+3. Before the binary runs, the consumer fetches PyPI's provenance for the exact
    file it installed and verifies the Sigstore bundle over that file's digest.
    The publisher triple — repository, workflow, environment — is matched
    against locally pinned policy, the same shape as `build_attestations`.
-3. A distribution whose provenance verifies against a pinned publisher reports
+4. A distribution whose provenance verifies against a pinned publisher reports
    `verified_publisher`, for the same reason the GitHub path does: exact bytes
    bound to a named build, and a publisher pinned by local policy.
-4. Anything less reports `unverified`. A missing provenance document, a bundle
+5. Anything less reports `unverified`. A missing provenance document, a bundle
    that does not verify, a publisher outside policy, or an index that does not
    serve provenance at all are one outcome, not four gradations.
-5. **Order.** This consumer verifies provenance before the estate is advised to
+6. **Order.** This consumer verifies provenance before the estate is advised to
    publish providers to the index, and the index is a second path rather than a
    replacement for GitHub releases. Until the verification ships, a provider
    from a wheel is `unverified` and the operator must say so explicitly on each
@@ -103,6 +109,13 @@ an existing level rather than inventing one.
 The trust policy grows index publisher rules alongside `build_attestations`,
 carrying the same fields, so a rule is readable by whoever reads the existing
 one.
+
+Asking the estate to publish a signed manifest was considered and rejected
+before it was built. It would need either this side signing every provider
+release with its offline key — a step in this pipeline per release of theirs —
+or their own key pinned here as a publisher, which is a trust decision made to
+avoid a packaging question. Neither is necessary, because the manifest is
+already something this consumer writes from what it verified.
 
 A verification dependency is required and is not yet chosen. `gh attestation
 verify` serves the GitHub path; the index path needs a Sigstore verifier that

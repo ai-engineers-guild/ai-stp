@@ -40,10 +40,12 @@ delivery channel, not a fourth level: the bytes earn `verified_publisher` when
 the index's PEP 740 provenance for that exact file verifies and names a
 publisher — repository, workflow, environment — pinned by local policy, and
 report `unverified` otherwise, including when the index serves no provenance at
-all (`ADR-0141`). The distribution carries the native binary as package data
-with this manifest beside it, and `entry_point` names that binary; a console
-script is refused, because the digest and name checked here must belong to the
-bytes that run.
+all (`ADR-0141`). The distribution carries the native binary as package data and no manifest:
+the consumer materialises this document from what it verified, the way it does
+for an attested GitHub release, with `signing_key = "attested"` and an empty
+signature. The materialised `entry_point` names that binary; a console script
+is refused, because the digest and name checked here must belong to the bytes
+that run.
 
 The shipped policy marks `build_attestations` rules for
 `NDDev-OpenNetwork/*-setup-system` as `verified_publisher`. After successful
