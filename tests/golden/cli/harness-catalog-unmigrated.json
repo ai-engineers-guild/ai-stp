@@ -46,6 +46,42 @@
       "declared_key": ""
     },
     {
+      "component_type": "command",
+      "relative": ".cursor/commands",
+      "shape": "directory",
+      "scope": "project",
+      "root": "config",
+      "source": "docs.cursor.com/en/cli/reference/slash-commands",
+      "declared_key": ""
+    },
+    {
+      "component_type": "hook",
+      "relative": ".cursor/hooks.json",
+      "shape": "file",
+      "scope": "project",
+      "root": "config",
+      "source": "cursor.com/docs/hooks",
+      "declared_key": ""
+    },
+    {
+      "component_type": "mcp",
+      "relative": ".cursor/mcp.json",
+      "shape": "file",
+      "scope": "project",
+      "root": "config",
+      "source": "cursor.com/docs/mcp",
+      "declared_key": ""
+    },
+    {
+      "component_type": "skill",
+      "relative": ".cursor/skills",
+      "shape": "directory",
+      "scope": "project",
+      "root": "config",
+      "source": "cursor.com/docs/skills",
+      "declared_key": ""
+    },
+    {
       "component_type": "skill",
       "relative": "skills",
       "shape": "directory",

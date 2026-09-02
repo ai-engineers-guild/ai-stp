@@ -616,29 +616,41 @@ def test_where_the_two_tables_both_speak_they_name_the_same_path() -> None:
     Only `root="config"` layouts are compared, because those are the ones
     relative to the target a provider is handed. `undefined` is the shared
     conventions entry rather than a harness and has no provider at all.
+
+    Per scope, since project rules exist: a `project` rule is compared with the
+    catalog's project rows, every other rule with its global rows. Keying by
+    harness and kind alone let the last rule written win, and the first
+    project rule silently replaced the global one it was compared beside.
     """
     from ai_stp_cli.local import harness_catalog
     from ai_stp_foundation.harnesses import UNDEFINED_HARNESS
 
-    rules = {(rule.harness_id, rule.component_type): rule for rule in composition.PROVIDER_RULES}
+    def family(target_scope: str) -> str:
+        return "project" if target_scope == "project" else "global"
+
+    rules = {
+        (rule.harness_id, rule.component_type, family(rule.target_scope)): rule
+        for rule in composition.PROVIDER_RULES
+    }
     disagreements: list[str] = []
     for definition in harness_catalog.DEFINITIONS:
         if definition.harness_id == UNDEFINED_HARNESS:
             continue
         for kind in {item.component_type for item in definition.layouts}:
-            rule = rules.get((definition.harness_id, kind))
-            if rule is None:
-                continue
-            declared = {
-                item.relative
-                for item in definition.layouts
-                if item.component_type == kind and item.scope == "global" and item.root == "config"
-            }
-            if declared and rule.relative not in declared:
-                disagreements.append(
-                    f"{definition.harness_id}/{kind}: rule says {rule.relative!r}, "
-                    f"catalog says {sorted(declared)}"
-                )
+            for scope in ("global", "project"):
+                rule = rules.get((definition.harness_id, kind, scope))
+                if rule is None:
+                    continue
+                declared = {
+                    item.relative
+                    for item in definition.layouts
+                    if item.component_type == kind and item.scope == scope and item.root == "config"
+                }
+                if declared and rule.relative not in declared:
+                    disagreements.append(
+                        f"{definition.harness_id}/{kind}@{scope}: rule says "
+                        f"{rule.relative!r}, catalog says {sorted(declared)}"
+                    )
 
     assert not disagreements, sorted(disagreements)
 
@@ -1061,3 +1073,56 @@ def test_a_kind_with_no_rule_makes_no_claim_about_its_paths() -> None:
         composition.Target(harness_id="cursor", os="linux", arch="x86_64"),
     )
     assert "managed_path_outside_projection" not in _codes(report)
+
+
+def test_a_rule_is_looked_up_at_the_scope_the_composition_is_compiled_for() -> None:
+    """One kind, one harness, one scope — the consumer half of `ADR-0125`.
+
+    `rule_for` answered by kind and harness alone, so the first project rule
+    would have replaced the global one for every caller. A `project` lookup
+    answers only with a workspace rule; every other scope answers with the
+    harness home's rules, `user_root` among them.
+    """
+    assert composition.rule_for("skill", "antigravity").relative == "config/skills"  # pyright: ignore[reportOptionalMemberAccess]
+    project = composition.rule_for("skill", "antigravity", scope="project")
+    assert project is not None
+    assert project.relative == ".agents/skills"
+    assert project.target_scope == "project"
+    # A kind the provider does not own at workspace scope has no route there,
+    # and does not fall back to the home surface of the same kind.
+    assert composition.rule_for("instruction", "antigravity", scope="project") is None
+    assert composition.rule_for("command", "antigravity", scope="project") is None
+    # `user_root` belongs to the home family: a global compile still finds it.
+    assert composition.rule_for("skill", "codex", scope="global").target_scope == "user_root"  # pyright: ignore[reportOptionalMemberAccess]
+    assert composition.rule_for("skill", "codex", scope="project") is None
+    # cursor's six workspace surfaces, exactly the provider's 0.0.54 declaration.
+    assert {
+        (kind, composition.rule_for(kind, "cursor", scope="project").relative)  # pyright: ignore[reportOptionalMemberAccess]
+        for kind in ("instruction", "command", "hook", "mcp", "agent", "skill")
+    } == {
+        ("instruction", ".cursor/rules"),
+        ("command", ".cursor/commands"),
+        ("hook", ".cursor/hooks.json"),
+        ("mcp", ".cursor/mcp.json"),
+        ("agent", ".cursor/agents"),
+        ("skill", ".cursor/skills"),
+    }
+    assert composition.rule_for("plugin", "cursor", scope="project") is None
+
+
+def test_a_project_compile_converts_onto_workspace_surfaces() -> None:
+    workspace = composition.Target(
+        harness_id="antigravity", os="linux", arch="x86_64", scope="project"
+    )
+    entries = composition.convert(
+        (
+            _surface("component_a", component_type="skill"),
+            _surface("component_b", component_type="instruction"),
+        ),
+        workspace,
+    ).entries
+    by_kind = {entry.component_type: entry for entry in entries}
+    assert by_kind["skill"].native_surface == ".agents/skills"
+    assert by_kind["skill"].state == composition.STATE_COMPLETE
+    assert by_kind["instruction"].native_surface == ""
+    assert by_kind["instruction"].state == composition.STATE_UNSUPPORTED

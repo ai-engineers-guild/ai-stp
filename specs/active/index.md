@@ -14,7 +14,7 @@ last_verified: "2026-08-03"
 | [SPEC-003-developer-passport.md](SPEC-003-developer-passport.md) | SPEC-003: Developer passport and public projection. | 2026-08-29 |
 | [SPEC-004-project-index-passport.md](SPEC-004-project-index-passport.md) | SPEC-004: Project index and passport. | 2026-08-03 |
 | [SPEC-005-registry-versioning.md](SPEC-005-registry-versioning.md) | SPEC-005: Registry, variants, and object versions. | 2026-08-24 |
-| [SPEC-006-search-and-setup-compiler.md](SPEC-006-search-and-setup-compiler.md) | SPEC-006: Search, candidate selection, and setup compiler. | 2026-08-26 |
+| [SPEC-006-search-and-setup-compiler.md](SPEC-006-search-and-setup-compiler.md) | SPEC-006: Search, candidate selection, and setup compiler. | 2026-09-01 |
 | [SPEC-007-validation-publishing.md](SPEC-007-validation-publishing.md) | SPEC-007: Tests, evidence and publication. | 2026-08-13 |
 | [SPEC-008-provider-installation.md](SPEC-008-provider-installation.md) | SPEC-008: Providers, installation and recovery. | 2026-08-27 |
 | [SPEC-009-local-registry-sync.md](SPEC-009-local-registry-sync.md) | SPEC-009: Local registry and synchronization. | 2026-08-04 |

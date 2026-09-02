@@ -204,6 +204,7 @@ def compile_bundle(
     composition_report: JsonValue,
     conversion_report: JsonValue,
     input_digest: str,
+    target_scope: str = "global",
 ) -> Bundle:
     """Compile one bundle, or refuse with every reason it cannot be compiled.
 
@@ -431,6 +432,7 @@ def compile_bundle(
         composition_report=composition_report,
         conversion_report=conversion_report,
         input_digest=input_digest,
+        target_scope=target_scope,
     )
     digest = digest_canonical(BUNDLE_DOMAIN, identity_manifest)
     manifest = {**identity_manifest, "bundle_digest": digest}
@@ -478,6 +480,7 @@ def _manifest(
     composition_report: JsonValue,
     conversion_report: JsonValue,
     input_digest: str,
+    target_scope: str = "global",
 ) -> dict[str, JsonValue]:
     """The manifest, built by naming every field it may hold.
 
@@ -485,12 +488,19 @@ def _manifest(
     build time, local paths and model explanations in the hashed content, and a
     removal has to be right about every field invented later.
     """
+    # Present only away from the default. A bundle compiled for the harness
+    # home is byte-identical to one compiled before scopes were chosen, so
+    # every digest a released plan already binds stays what it was.
+    scoped: dict[str, JsonValue] = (
+        {} if target_scope == "global" else {"target_scope": target_scope}
+    )
     return {
         "schema_version": 1,
         "bundle_format": BUNDLE_FORMAT,
         "protocol_version": PROTOCOL_VERSION,
         "builder_version": BUILDER_VERSION,
         "harness_id": harness_id,
+        **scoped,
         "setup": {
             "stable_id": setup_stable_id,
             "version": setup_version,

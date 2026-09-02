@@ -371,6 +371,24 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     Rule("command", "commands", "directory", "cursor"),
     Rule("hook", "hooks.json", "file", "cursor"),
     Rule("mcp", "mcp.json", "file", "cursor"),
+    # The workspace half, declared by the released provider from `0.0.54` as
+    # `cursor/native-files/project/1` and read off the product's own bytes
+    # (2026.08.31-4057e58, every member of the package): `.cursor/rules` is
+    # joined to each workspace by `LocalCursorRulesService`; `.cursor/commands`
+    # by `loadCommandsFromDirectory(..., "workspace")`; `.cursor/hooks.json`
+    # is `projectConfigPath`; `.cursor/mcp.json` is read beside the home file;
+    # `.cursor/agents` is `computeAgentsDirs()`, which joins the workspace and
+    # nothing else — the reason cursor#94's home `agents` stayed no; and
+    # `.cursor/skills` is the skill-root table's row with `scope: "project"`.
+    # Relative to the workspace, the `.cursor` segment part of the path, as
+    # antigravity's `.agents` is. Six kinds, no `plugin` and no `setting`:
+    # exactly the declaration, and the six catalogue rows discover the same.
+    Rule("instruction", ".cursor/rules", "directory", "cursor", target_scope="project"),
+    Rule("command", ".cursor/commands", "directory", "cursor", target_scope="project"),
+    Rule("hook", ".cursor/hooks.json", "file", "cursor", target_scope="project"),
+    Rule("mcp", ".cursor/mcp.json", "file", "cursor", target_scope="project"),
+    Rule("agent", ".cursor/agents", "directory", "cursor", target_scope="project"),
+    Rule("skill", ".cursor/skills", "directory", "cursor", target_scope="project"),
     # Antigravity's home belongs to Gemini: `antigravity-cli/` is its own and
     # `config/` is shared, so both prefixes are part of the relative path rather
     # than something a target adds.
@@ -422,6 +440,27 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     Rule("agent", "config/agents", "directory", "antigravity"),
     Rule("hook", "config/hooks.json", "file", "antigravity"),
     Rule("mcp", "config/mcp_config.json", "file", "antigravity"),
+    # The workspace half. Antigravity keeps a copy of five surfaces under a
+    # root its provider can be pointed at, and the released binary declares
+    # them as `antigravity/native-files/project/1`: kinds `skill`, `agent`,
+    # `hook`, `mcp`, `plugin`, namespaces relative to the workspace with the
+    # `.agents` segment as part of the path. Read off the provider's own
+    # declaration rather than a page, and the same five rows the catalogue
+    # already discovers at project scope. `instruction` and `command` are
+    # deliberately absent: no vendor page names a project-scoped directory for
+    # either, and a declared kind is a promise of a rollback.
+    Rule("skill", ".agents/skills", "directory", "antigravity", target_scope="project"),
+    Rule("agent", ".agents/agents", "directory", "antigravity", target_scope="project"),
+    Rule(
+        "plugin",
+        ".agents/plugins",
+        "directory",
+        "antigravity",
+        projection_kind="plugin",
+        target_scope="project",
+    ),
+    Rule("hook", ".agents/hooks.json", "file", "antigravity", target_scope="project"),
+    Rule("mcp", ".agents/mcp_config.json", "file", "antigravity", target_scope="project"),
     Rule("instruction", "AGENTS.md", "file", "grok-build"),
     Rule("skill", "skills", "directory", "grok-build"),
     # No `mcp` rule, exactly as `codex` has none, and for the same reason: both
@@ -533,6 +572,13 @@ class Target:
     supported_platforms: frozenset[str] = frozenset()
     for_redistribution: bool = False
 
+    #: Which projection scope this composition is compiled for. `global` is the
+    #: harness configuration home; `project` is a workspace root, where the
+    #: same kinds live under other names (`ADR-0125`). The scope is chosen per
+    #: bundle and per plan, not read off the components: a rule file adopted
+    #: from one repository is content, and where it lands next is a decision.
+    scope: str = "global"
+
 
 @dataclass(frozen=True)
 class Conflict:
@@ -610,10 +656,18 @@ class ConversionReport:
         return tuple(loss for item in self.entries for loss in item.losses)
 
 
-def rule_for(component_type: str, harness_id: str) -> Rule | None:
-    """Return the target-relative provider projection for one component kind."""
+def rule_for(component_type: str, harness_id: str, *, scope: str = "global") -> Rule | None:
+    """Return the target-relative provider projection for one component kind.
+
+    One kind, one harness, one scope. `project` answers only with a rule whose
+    target is a workspace root; every other scope answers with the harness
+    home's rules, `user_root` among them — that scope is the provider's own
+    arrangement of one home surface (`ADR-0127`), not a second place to install.
+    """
     for rule in PROVIDER_RULES:
-        if rule.component_type == component_type and rule.harness_id == harness_id:
+        if rule.component_type != component_type or rule.harness_id != harness_id:
+            continue
+        if (rule.target_scope == "project") == (scope == "project"):
             return rule
     return None
 
@@ -633,7 +687,9 @@ def adopted_covers(item: Found) -> tuple[str, ...]:
     return covers(item.component_type, item.harness_id, name)
 
 
-def covers(component_type: str, harness_id: str, name: str) -> tuple[str, ...]:
+def covers(
+    component_type: str, harness_id: str, name: str, *, scope: str = "global"
+) -> tuple[str, ...]:
     """Target-relative roots a component of this kind and name owns.
 
     The rule both capture paths record: adoption names the component from its
@@ -641,7 +697,7 @@ def covers(component_type: str, harness_id: str, name: str) -> tuple[str, ...]:
     roots each writes into `managed_paths` are the same roots the compiler
     checks the projection against.
     """
-    rule = rule_for(component_type, harness_id)
+    rule = rule_for(component_type, harness_id, scope=scope)
     if rule is None:
         return (f"skills/{name}",) if component_type == "skill" and name else ()
     if rule.shape == "file":
@@ -651,9 +707,37 @@ def covers(component_type: str, harness_id: str, name: str) -> tuple[str, ...]:
     return (f"{rule.relative}/{name}",)
 
 
-def native_surface(component_type: str, harness_id: str) -> str:
+def rerooted(
+    component_type: str, harness_id: str, paths: tuple[str, ...], *, scope: str
+) -> tuple[str, ...]:
+    """A component's managed paths, expressed against the compile scope's root.
+
+    Passports record managed paths against the harness home — the root every
+    capture path writes them for, whatever scope the file was found at — so a
+    passport is one object however it is later installed. A workspace compile
+    re-roots them: the prefix that is the kind's home surface becomes the
+    kind's workspace surface, and a path that sits under neither is left as it
+    is, for the projection check to name. `hooks.json#hooks` re-roots like a
+    file, because the `#key` suffix is not a path segment.
+    """
+    if scope == "global":
+        return paths
+    home = rule_for(component_type, harness_id)
+    there = rule_for(component_type, harness_id, scope=scope)
+    if home is None or there is None or home.relative == there.relative:
+        return paths
+    moved: list[str] = []
+    for path in paths:
+        if path == home.relative or path.startswith((f"{home.relative}/", f"{home.relative}#")):
+            moved.append(there.relative + path[len(home.relative) :])
+        else:
+            moved.append(path)
+    return tuple(moved)
+
+
+def native_surface(component_type: str, harness_id: str, *, scope: str = "global") -> str:
     """Where a component of this kind lives, or empty when nowhere."""
-    rule = rule_for(component_type, harness_id)
+    rule = rule_for(component_type, harness_id, scope=scope)
     return "" if rule is None else rule.relative
 
 
@@ -736,7 +820,7 @@ def convert(surfaces: tuple[Surface, ...], target: Target) -> ConversionReport:
 
     entries: list[ConversionEntry] = []
     for item in ordered:
-        rule = rule_for(item.component_type, target.harness_id)
+        rule = rule_for(item.component_type, target.harness_id, scope=target.scope)
         if rule is None:
             # A passport with no declared kind lands here too, and says so. It
             # is malformed, and the report is where a person finds that out.
@@ -778,7 +862,7 @@ def convert(surfaces: tuple[Surface, ...], target: Target) -> ConversionReport:
 
 
 def _projected_root(item: Surface, target: Target) -> str:
-    rule = rule_for(item.component_type, target.harness_id)
+    rule = rule_for(item.component_type, target.harness_id, scope=target.scope)
     if rule is None:
         return ""
     if rule.shape == "directory":
@@ -786,8 +870,8 @@ def _projected_root(item: Surface, target: Target) -> str:
     return rule.relative
 
 
-def _projection_root_of(component_type: str, harness_id: str) -> str:
-    rule = rule_for(component_type, harness_id)
+def _projection_root_of(component_type: str, harness_id: str, scope: str) -> str:
+    rule = rule_for(component_type, harness_id, scope=scope)
     return rule.relative if rule is not None else ""
 
 
@@ -902,7 +986,9 @@ def _paths(surfaces: tuple[Surface, ...], target: Target) -> list[Conflict]:
         paths = set(item.managed_paths)
         if projected:
             paths.add(projected)
-        outside = _outside_projection(item, rule_for(item.component_type, target.harness_id))
+        outside = _outside_projection(
+            item, rule_for(item.component_type, target.harness_id, scope=target.scope)
+        )
         for path in sorted(outside):
             conflicts.append(
                 Conflict(
@@ -912,7 +998,7 @@ def _paths(surfaces: tuple[Surface, ...], target: Target) -> list[Conflict]:
                         "stable_id": item.stable_id,
                         "path": path,
                         "projection_root": _projection_root_of(
-                            item.component_type, target.harness_id
+                            item.component_type, target.harness_id, target.scope
                         ),
                     },
                 )
@@ -937,7 +1023,7 @@ def _paths(surfaces: tuple[Surface, ...], target: Target) -> list[Conflict]:
             # neither is a `/`-rooted prefix of the other, while two components
             # contributing the same key claim the identical string and still
             # collide — which is the case that must keep failing.
-            contributing = rule_for(item.component_type, target.harness_id)
+            contributing = rule_for(item.component_type, target.harness_id, scope=target.scope)
             if contributing is not None and contributing.declared_key:
                 claims: tuple[str, ...] = (f"{path}#{contributing.declared_key}",)
             elif item.component_type == "hook":
@@ -1067,7 +1153,8 @@ def _surfaces(surfaces: tuple[Surface, ...], target: Target) -> list[Conflict]:
             },
         )
         for item in sorted(surfaces, key=lambda item: item.stable_id)
-        if item.required and not native_surface(item.component_type, target.harness_id)
+        if item.required
+        and not native_surface(item.component_type, target.harness_id, scope=target.scope)
     ]
 
 
