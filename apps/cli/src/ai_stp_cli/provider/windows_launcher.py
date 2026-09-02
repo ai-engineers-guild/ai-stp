@@ -98,14 +98,26 @@ _PROBE_TIMEOUT: Final[float] = 20.0
 
 #: What Windows itself reads from a child's environment block before the child
 #: runs a single instruction, whatever the provider boundary lets through.
-#: `SystemRoot` is the one the loader resolves at `CreateProcessW`; a block
-#: without it is answered with `ERROR_ENVVAR_NOT_FOUND` (203), which is the
-#: "[Errno 203] the provider could not be started isolated" every hosted-runner
-#: probe reported after the allowlist arrived, while `ADR-0133`'s own
-#: measurement passed because it inherited the whole environment. Taken from
-#: this process, never from the caller: these are the system's names, not the
+#: Starting a process in an AppContainer rewrites the block it is given: the
+#: loader resolves `SystemRoot`, and the container extension derives the
+#: redirected `LOCALAPPDATA`, `TEMP` and `TMP` under the package's profile
+#: folder from the user's own values. A block that lacks one of them is
+#: answered with `ERROR_ENVVAR_NOT_FOUND` (203) — the "[Errno 203] the
+#: provider could not be started isolated" every hosted-runner probe reported
+#: after the allowlist arrived, while `ADR-0133`'s own measurement passed
+#: because it inherited the whole environment. `SystemRoot` alone was measured
+#: insufficient on `windows-latest` (PR #68, first run). Taken from this
+#: process, never from the caller: these are the system's names, not the
 #: boundary's, and the allowlist in `protocol.Boundary` stays what it is.
-_SYSTEM_ENVIRONMENT: Final[tuple[str, ...]] = ("SystemRoot",)
+_SYSTEM_ENVIRONMENT: Final[tuple[str, ...]] = (
+    "SystemRoot",
+    "windir",
+    "USERPROFILE",
+    "LOCALAPPDATA",
+    "APPDATA",
+    "TEMP",
+    "TMP",
+)
 
 
 def _windows() -> bool:
