@@ -1540,3 +1540,89 @@ def test_a_bundle_compiled_for_a_workspace_lands_on_workspace_surfaces(
     assert compiled.digest == home.digest
     scoped = select.compile_harness_bundle(registry, proposal, "cursor", scope="project")
     assert scoped.manifest["target_scope"] == "project"
+
+
+def _contributed(tmp_path: Path) -> tuple[str, str]:
+    """One `mcp` component adopted from codex's owned `config.toml`, proposed and confirmed."""
+    import os
+
+    from ai_stp_cli.commands import component as command
+    from ai_stp_cli.local import harnesses
+
+    detector = next(item for item in harnesses.DETECTORS if item.harness_id == "codex")
+    place = harnesses.config_root(detector, dict(os.environ)) / "config.toml"
+    place.parent.mkdir(parents=True, exist_ok=True)
+    place.write_text(
+        '[mcp_servers.mcp01]\ncommand = "mcp01-server"\nargs = ["--stdio"]\n', encoding="utf-8"
+    )
+    stable_id = command.adopt(
+        {"path": str(place), "kind": "mcp", "harness": "codex"}
+    ).payload.stable_id
+    command.version_release({"id": stable_id})
+    session = select.propose(
+        {"harness": "codex", "project": str(tmp_path), "member": [f"{stable_id}@1.0"]}
+    ).payload
+    assert session.proposal_id is not None
+    confirmed = select.confirm({"proposal": session.proposal_id}).payload
+    return confirmed.stable_id, confirmed.version
+
+
+def test_a_withdrawal_bundle_keeps_what_the_person_wrote_beside_the_contribution(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """`ADR-0129`'s removal half, on the bytes the target holds.
+
+    The host file the contribution landed in keeps the person's own key and
+    comment, and loses exactly the contributed table; the bundle names that
+    file as the one member whose bytes survive.
+    """
+    _ready(registry, tmp_path)
+    stable_id, version = _contributed(tmp_path)
+    host_root = tmp_path / "target"
+    host_root.mkdir()
+    (host_root / "config.toml").write_text(
+        '# kept by the person\nmodel = "sibling"\n\n'
+        '[mcp_servers.mcp01]\ncommand = "mcp01-server"\nargs = ["--stdio"]\n',
+        encoding="utf-8",
+    )
+    with closing(open_readonly(configured_path())) as connection:
+        compiled = select.compile_withdrawal_bundle(
+            connection, stable_id, version, expected_harness="codex", host_root=host_root
+        )
+    assert compiled is not None
+    assert [item.path for item in compiled.files] == ["config.toml"]
+    with zipfile.ZipFile(io.BytesIO(compiled.archive), "r") as archive:
+        survived = archive.read("files/config.toml")
+    assert b"# kept by the person" in survived
+    assert b'model = "sibling"' in survived
+    assert b"mcp01" not in survived
+    assert compiled.files[0].byte_length == len(survived)
+    assert compiled.manifest.get("target_scope") in (None, "global")
+
+
+def test_a_host_that_would_end_empty_is_not_packed(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """Nothing survives: the removal goes whole and no bundle says otherwise."""
+    _ready(registry, tmp_path)
+    stable_id, version = _contributed(tmp_path)
+    host_root = tmp_path / "target"
+    host_root.mkdir()
+    (host_root / "config.toml").write_text(
+        '[mcp_servers.mcp01]\ncommand = "mcp01-server"\nargs = ["--stdio"]\n', encoding="utf-8"
+    )
+    with closing(open_readonly(configured_path())) as connection:
+        assert (
+            select.compile_withdrawal_bundle(
+                connection, stable_id, version, expected_harness="codex", host_root=host_root
+            )
+            is None
+        )
+        # A host the target no longer holds has nothing to keep either.
+        (host_root / "config.toml").unlink()
+        assert (
+            select.compile_withdrawal_bundle(
+                connection, stable_id, version, expected_harness="codex", host_root=host_root
+            )
+            is None
+        )

@@ -289,3 +289,19 @@ the provider's declaration rather than on a question to anyone.
 
 The decision is reconsidered if the provider protocol begins expressing
 ownership of a key inside a file; reconstruction then moves to the writing side.
+
+## Amendment 2026-09-02
+
+The consumer half landed and was measured on released bytes from both sides.
+`contribution.withdraw()` reconstructs the host without the declared key,
+`select.compile_withdrawal_bundle()` packs the surviving bytes of every
+contributed host the target still holds, and removal planning hands that
+bundle to a provider whose `plan_request_fields` declares `end_state`,
+requiring the plan to name each packed member as `final_bytes` with its
+member, digest and length (`operation_v3.require_end_state`). A host that
+would end empty is not packed and goes `removed`; a provider that declares
+nothing keeps the whole-file removal this record described. Against codex
+`0.0.56`, `just evidence-contribution` seeds the target's `config.toml` with
+the person's own key, installs the contribution into it, and removes it: the
+plan answered «leave config.toml», the apply verified, and the file remained
+with the key and without the contribution.

@@ -188,7 +188,8 @@
       "default": "global",
       "enum": [
         "global",
-        "project"
+        "project",
+        "user_root"
       ],
       "title": "Target Scope",
       "type": "string"

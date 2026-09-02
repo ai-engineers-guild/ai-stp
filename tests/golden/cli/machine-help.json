@@ -2721,10 +2721,11 @@
           "value_type": "string",
           "required": false,
           "repeatable": false,
-          "summary": "Projection scope the plan installs into: the harness home (global) or the workspace named by --target (project). Default global.",
+          "summary": "Projection scope the plan installs into: the harness home (global), the workspace named by --target (project) or the shared ~/.agents root named by --target (user_root). Default global.",
           "choices": [
             "global",
-            "project"
+            "project",
+            "user_root"
           ]
         }
       ],
@@ -2766,7 +2767,8 @@
           ],
           "when_parameter": "scope",
           "when_values": [
-            "project"
+            "project",
+            "user_root"
           ]
         }
       ],
@@ -4516,10 +4518,11 @@
           "value_type": "string",
           "required": false,
           "repeatable": false,
-          "summary": "Projection scope the package is compiled for: the harness home (global) or a workspace root (project). Default global.",
+          "summary": "Projection scope the package is compiled for: the harness home (global), a workspace root (project) or the shared ~/.agents root (user_root). Default global.",
           "choices": [
             "global",
-            "project"
+            "project",
+            "user_root"
           ]
         }
       ],

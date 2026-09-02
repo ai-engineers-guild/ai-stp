@@ -259,7 +259,24 @@ _KERNEL_SIGNATURES: Final[dict[str, tuple[list[Any], Any]]] = {
     "WaitForSingleObject": ([ctypes.c_void_p, ctypes.c_uint32], ctypes.c_uint32),
     "GetExitCodeProcess": ([ctypes.c_void_p, ctypes.c_void_p], ctypes.c_int32),
     "SetHandleInformation": ([ctypes.c_void_p, ctypes.c_uint32, ctypes.c_uint32], ctypes.c_int32),
+    "CreateFileW": (
+        [
+            ctypes.c_wchar_p,
+            ctypes.c_uint32,
+            ctypes.c_uint32,
+            ctypes.c_void_p,
+            ctypes.c_uint32,
+            ctypes.c_uint32,
+            ctypes.c_void_p,
+        ],
+        ctypes.c_void_p,
+    ),
 }
+
+_GENERIC_WRITE: Final[int] = 0x40000000
+_FILE_SHARE_READ_WRITE: Final[int] = 0x00000003
+_OPEN_EXISTING: Final[int] = 3
+_INVALID_HANDLE_VALUE: Final[int] = 2**64 - 1
 
 
 def _declare_kernel(kernel: Any) -> None:
@@ -367,11 +384,36 @@ class AppContainerProcess:
             api.kernel.CloseHandle(write_end)
             raise OSError(ctypes.get_last_error(), "the isolation attributes were refused")
 
+        # Standard error goes to the NUL device, as `conformance._popen` sends
+        # it to `DEVNULL` on every other platform. It went into the same pipe
+        # as standard output, so the first provider that wrote one line of
+        # diagnostics from inside the container broke the JSON boundary for
+        # every answer after it: both hosted Windows legs of every slice read
+        # `provider-info` without a `protocol_version` the day the container
+        # first held a real provider, while the launcher's own tests, whose
+        # child wrote nothing to stderr, stayed green.
+        discard = ctypes.c_void_p(
+            api.kernel.CreateFileW(
+                "NUL",
+                _GENERIC_WRITE,
+                _FILE_SHARE_READ_WRITE,
+                ctypes.byref(attributes),
+                _OPEN_EXISTING,
+                0,
+                None,
+            )
+        )
+        if not discard.value or discard.value == _INVALID_HANDLE_VALUE:
+            api.kernel.CloseHandle(read_end)
+            api.kernel.CloseHandle(write_end)
+            raise OSError(
+                ctypes.get_last_error(), "the isolation sink for stderr could not be opened"
+            )
         start = _StartupInfoEx()
         start.cb = ctypes.sizeof(_StartupInfoEx)
         start.dwFlags = _STARTF_USESTDHANDLES
         start.hStdOutput = write_end
-        start.hStdError = write_end
+        start.hStdError = discard
         start.hStdInput = None
         start.lpAttributeList = ctypes.cast(self._attributes, ctypes.c_void_p)
         information = _ProcessInformation()
@@ -391,6 +433,7 @@ class AppContainerProcess:
             ctypes.byref(information),
         )
         api.kernel.CloseHandle(write_end)
+        api.kernel.CloseHandle(discard)
         if not created:
             api.kernel.CloseHandle(read_end)
             self._close_job()
@@ -416,9 +459,17 @@ class AppContainerProcess:
             raise OSError(reason, "the provider could not be placed under a job object")
         api.kernel.ResumeThread(thread)
         api.kernel.CloseHandle(thread)
-        self.stdout = cast(
-            "IO[bytes]", os.fdopen(msvcrt_open_osfhandle(read_end.value or 0), "rb", 0)
-        )
+        # Buffered, as `subprocess.Popen(stdout=PIPE)` is on every other
+        # platform. `conformance._bounded_output` reads `limit + 1` bytes in one
+        # call; on an unbuffered pipe that is a single `ReadFile` returning the
+        # first chunk the child wrote, and a provider that answers in more than
+        # one write — every real one, unlike the launcher's own probe — was read
+        # as truncated JSON: "the provider did not answer with JSON" from a
+        # child that had exited 0 with a complete answer, measured on
+        # `windows-latest` against codex 0.0.55. A buffered reader keeps
+        # reading until the bound or end of file, which is the contract the
+        # bounded read was written against.
+        self.stdout = cast("IO[bytes]", os.fdopen(msvcrt_open_osfhandle(read_end.value or 0), "rb"))
 
     def kill(self) -> None:
         """End the whole tree, not just the process this holds a handle to.
@@ -697,9 +748,24 @@ class AppContainerLauncher:
             raise ValueError("the derived package SID is not the one this launcher proved")
 
         runtime = Path(argv[0]).resolve().parent
+        # Every file the argv names is one the provider was told to read —
+        # the HarnessBundle handed to `validate-bundle`, a program artifact
+        # handed to `apply-operation` — and it lives in this consumer's data
+        # home, which the container cannot open. On Linux the whole filesystem
+        # is mounted read-only into the namespace, so nothing there had to be
+        # named; here a leaf needs its own ACE, and the first enforced Windows
+        # legs answered `digest_mismatch` from `validate-bundle` on every row
+        # because the provider could not read the bundle it was asked to
+        # check. Read only, no inheritance, and taken back with the rest.
+        named = tuple(
+            place
+            for place in (Path(token) for token in argv[1:])
+            if place.is_absolute() and place.is_file()
+        )
         wanted: tuple[tuple[Path, str], ...] = (
             (target.resolve(), "(M)"),
             *((Path(item).resolve(), "(M)") for item in writable),
+            *((place.resolve(), "(R)") for place in named),
             # The system's own directories already carry an ACE for ALL
             # APPLICATION PACKAGES, and `icacls` refuses to add one under
             # `System32` even to an administrator: measured on `windows-latest`
@@ -711,7 +777,7 @@ class AppContainerLauncher:
         granted: list[Path] = []
         try:
             for path, rights in wanted:
-                if not _icacls(package, path, rights, inherit=True):
+                if not _icacls(package, path, rights, inherit=path.is_dir()):
                     raise OSError(f"the container could not be granted {path}")
                 granted.append(path)
 

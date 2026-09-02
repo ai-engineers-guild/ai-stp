@@ -1,6 +1,6 @@
 ---
 description: "Build, verify, publish, yank, and recover a Python release."
-last_verified: "2026-08-26"
+last_verified: "2026-09-01"
 ---
 
 # Python package release
@@ -123,8 +123,10 @@ No upload token exists here, on the host, or in repository or organization secre
 Trusted Publishing issues an OIDC identity for the run. There is no credential to
 look for.
 
-Live index on 2026-09-02: all five projects are published as `0.0.14` (candidate
-`33561783162`, tag `v0.0.14`, commit `a4572d55`), by `publish_pypi.py` unattended.
+Live index on 2026-09-02: all five projects are published as `0.0.15` (candidate
+`33585264747`, tag `v0.0.15`, commit `2af9122b`), by `publish_pypi.py` unattended;
+the wheel's attestation verifies against `release-candidate.yml@refs/tags/v0.0.15`
+and a random file is refused.
 Earlier: `0.0.6` from candidate `33020095240`, `0.0.5` from `33008640398`.
 
 Verified **with PyPI**, not from a green run:

@@ -202,6 +202,9 @@ where it lands next is a decision, and defaulting that decision from where the
 file was found would install a project's rules into a home because they were
 discovered there. Rules exist per kind, harness and scope; a kind the provider
 declares at no such scope is `unsupported` at that scope rather than routed to
-the home surface of the same kind. `user_root` stays a member of the home
-family: it is the provider's arrangement of one home surface (`ADR-0127`),
-not a second place to install. Owned by `SPEC-006` `REQ-632`.
+the home surface of the same kind. `user_root` is a third choice: five
+providers declare `skills` under the shared `~/.agents` root beside their own
+home's `skills`, codex under the shared root alone, so `--scope user_root`
+routes there on request, and a `global` compile falls back to it only where
+the home has no rule of that kind — which is how a codex skill has always
+reached the shared root (`ADR-0127`). Owned by `SPEC-006` `REQ-632`.
