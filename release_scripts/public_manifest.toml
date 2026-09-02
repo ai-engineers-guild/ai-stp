@@ -48,6 +48,8 @@ roots = [
   "CODE_OF_CONDUCT.md",
   "LICENSE",
   "README.md",
+  "README.ru.md",
+  "assets",
   "SECURITY.md",
   "CONTRIBUTING.md",
   "PRODUCT.md",

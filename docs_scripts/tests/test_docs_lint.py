@@ -78,6 +78,23 @@ class LanguageTests(unittest.TestCase):
 
         self.assertEqual([issue.code for issue in linter.issues], ["EN001"])
 
+    def test_localized_github_homepage_may_be_russian(self) -> None:
+        linter = Linter(template_mode=False, max_age=90)
+
+        linter.check_language(
+            Path("README.ru.md"),
+            "\u042d\u0442\u0430 "
+            "\u0441\u0442\u0440\u043e\u043a\u0430 "
+            "\u0434\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u0430\u0446\u0438\u0438 "
+            "\u043f\u043e\u043b\u043d\u043e\u0441\u0442\u044c\u044e "
+            "\u043d\u0430\u043f\u0438\u0441\u0430\u043d\u0430 "
+            "\u043d\u0430 \u0440\u0443\u0441\u0441\u043a\u043e\u043c "
+            "\u044f\u0437\u044b\u043a\u0435 \u0434\u043b\u044f "
+            "\u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0438.",
+        )
+
+        self.assertEqual(linter.issues, [])
+
 
 class BacktickedDocumentTests(unittest.TestCase):
     """A backticked document name must point to an existing file.

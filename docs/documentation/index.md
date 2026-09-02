@@ -9,12 +9,12 @@ last_verified: "2026-08-03"
 
 | Document | Description | Verified |
 | -------- | ----- | ------- |
-| [checks.md](checks.md) | Automated checks for documentation and work packages. | 2026-08-03 |
+| [checks.md](checks.md) | Automated checks for documentation and work packages. | 2026-09-02 |
 | [indexes.md](indexes.md) | Rules for index.md files and generated content tables. | 2026-08-03 |
 | [maintenance.md](maintenance.md) | Required documentation updates alongside behavior, schemas, and operations. | 2026-08-03 |
 | [public-user-docs.md](public-user-docs.md) | Boundary, directory, and build process for public user documentation. | 2026-08-10 |
 | [site.md](site.md) | MkDocs build and navigation rules. | 2026-08-03 |
-| [writing.md](writing.md) | Rules for writing precise, maintainable documentation. | 2026-08-03 |
+| [writing.md](writing.md) | Rules for writing precise, maintainable documentation. | 2026-09-02 |
 | [zones.md](zones.md) | Knowledge zones and their update rules. | 2026-08-03 |
 
 <!-- END CONTENTS -->

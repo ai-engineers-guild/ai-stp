@@ -1,11 +1,13 @@
 ---
 description: "Rules for writing precise, maintainable documentation."
-last_verified: "2026-08-03"
+last_verified: "2026-09-02"
 ---
 
 # Writing Rules
 
-- Documentation is written in English.
+- Documentation is written in English. `README.ru.md` is an explicit localized
+  GitHub homepage whose meaning matches `README.md`; it is not a second source
+  of requirements.
 - A technical identifier is preserved in its original form.
 - One term is used for one concept.
 - Facts, decisions, recommendations, and unknown states are not conflated.
