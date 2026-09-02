@@ -37,22 +37,29 @@ plans are not continued literally after the implementation changes.
 | Release | All five Python packages published through Trusted Publishing (the exact version is in the snapshot below); public `check` and CodeQL green on the verified main; the host pulls `deploy/prod` |
 | Catalog | Seven harness families and four postures published; review tasks `#408`, `#456`, `#460`, and `#461` closed by implementation |
 
-## Verified snapshot: 2026-09-01, updated at the 0.0.14 cut
+## Verified snapshot: 2026-09-02, updated at the 0.0.15 cut
 
 - The canonical development checkout is `ai-engineers-guild/ai-stp`. The private
   underscore tree is an archive: it runs no workflows, promotes nothing, and its
   README names where the work went.
-- Published Python packages are `0.0.14` — five exact distributions through PyPI
+- Published Python packages are `0.0.15` — five exact distributions through PyPI
   Trusted Publishing with attestations, SBOMs/checksums and a clean-install smoke
-  check, cut from tag `v0.0.14` and proven on that exact SHA by the six-leg
-  configuration and program slices (42 of 42 rows each).
-- The active provider release is `0.0.54` across all seven public setup-system
-  repositories, each with six native binaries and `SHA256SUMS`, cut on
-  2026-09-02 by the provider estate's own agent session. All seven declare
-  `plan_request_fields = [target_scope, end_state]` on provider kit `0.2.8`,
-  and cursor declares a `project` projection profile beside antigravity's.
-  `just evidence-providers 0.0.54`: seven conformant, no projection
-  disagreement against the rules below.
+  check, cut from tag `v0.0.15` (commit `2af9122b`). The six-leg slices on that
+  exact SHA against providers `0.0.55` passed every Linux and macOS row — 7 of 7
+  in configuration and program, 2 of 2 at workspace scope — and failed every
+  Windows row, which is the first measurement of the AppContainer holding a real
+  provider and is recorded under P0 below. `0.0.14` remains the last version
+  whose six legs were all green.
+- The active provider releases are `0.0.55` and `0.0.56` across all seven
+  public setup-system repositories, each with six native binaries and
+  `SHA256SUMS`, cut on 2026-09-02 by the provider estate's own agent session
+  in step with this side: `0.0.54` declared `plan_request_fields =
+  [target_scope, end_state]` and cursor's `project` profile beside
+  antigravity's; `0.0.55` made `status` accept `--target-scope` and refuse by
+  name a plan whose scope contradicts the target's record; `0.0.56` declares
+  `status_request_fields: [target_scope]` on provider kit `0.2.9`. `just
+  evidence-providers 0.0.55`: seven conformant, no projection disagreement
+  against the rules below.
 - `software-evidence` — the consumer driving `harness install/status/update/
   remove` through `ai-stp` itself — is green on **all six native legs** against
   `0.0.53`, seven harnesses each. The one-leg limitation this document carried
@@ -131,8 +138,25 @@ their targets back under the same trust the install used, and the isolation
 record still says the launcher was unavailable.
 
 The slice also drives the import capture path (`from_import=1`), so the
-round trip `#63` closed is proven by the same slice as the ordinary path.
-Remaining: the aggregated run on each release candidate's exact SHA (`#56`).
+round trip `#63` closed is proven by the same slice as the ordinary path, and
+the workspace scope (`scope=project`, `REQ-632`) for the harnesses whose
+provider declares one — 2 of 2 rows on every Linux and macOS leg against
+`0.0.55`.
+
+The first runs with the Windows AppContainer `enforced` on hosted runners
+(after the launcher was proved there) failed every Windows row of every slice
+against `0.0.55`: `provider-info` read as answering no `protocol_version`,
+program installs ended in an internal failure. A branch-only diagnostic run
+showed the provider inside the container exiting 0 with a complete JSON
+answer while the consumer's invoker reported "did not answer with JSON": the
+container's pipe was opened unbuffered, so the bounded single read returned
+the child's first chunk, and the child's stderr shared the answer pipe where
+every other platform discards it. Both fixed in one change; the native test's
+child now answers in two writes with noise on stderr. The Windows legs are
+re-measured on that fix, and `0.0.15` on PyPI carries the defect for any
+Windows machine whose AppContainer probe passes — `0.0.16` follows the
+measurement. Remaining: the aggregated run on each release candidate's exact
+SHA (`#56`).
 
 ### P1. The last link of the capture round-trip (`#63`)
 
