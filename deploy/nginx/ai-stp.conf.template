@@ -45,6 +45,11 @@ server {
     location /v1/ {
         proxy_pass http://@@API_BIND@@;
     }
+    # Google requires an exact redirect URI match. A client registered before
+    # the versioned API callback may retain this same-origin compatibility path.
+    location = /api/auth/callback/google {
+        proxy_pass http://@@API_BIND@@;
+    }
     location /docs {
         proxy_pass http://@@API_BIND@@;
     }
