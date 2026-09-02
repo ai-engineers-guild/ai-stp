@@ -223,58 +223,16 @@ def test_windows_with_the_exception_reaches_the_spawn_unwrapped(
     assert "--target" in argv and "--json" in argv
 
 
-def test_windows_trusted_release_falls_back_when_the_container_cannot_canonicalize_target(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    from ai_stp_cli.provider import conformance, invocation_v3
-
-    _on(monkeypatch, "Windows")
-    monkeypatch.setattr("ai_stp_cli.provider.invocation_v3.platform.system", lambda: "Windows")
-    target = tmp_path / "target"
-    target.mkdir()
-    executable = _stub(tmp_path)
-
-    class Launcher:
-        capability = protocol_v2.NetworkCapability(
-            enforcement=protocol_v2.NetworkEnforcement.ENFORCED,
-            os_name="windows",
-            launcher_id="appcontainer:test",
-            evidence=("proved",),
-        )
-
-        def run(self, *_args: object, **_kwargs: object) -> JsonValue:
-            return {
-                "state": "refused",
-                "rejected": True,
-                "reason": "provider_unavailable",
-                "detail": f"target {target} cannot be canonicalized",
-            }
-
-    seen: list[tuple[str, ...]] = []
-
-    def spawn(argv: tuple[str, ...], *, command: str) -> JsonValue:
-        seen.append(tuple(argv))
-        del command
-        return {"protocol_version": 3}
-
-    def resolve_executable(value: str) -> str:
-        return str(Path(value).resolve())
-
-    monkeypatch.setattr(conformance, "invoke_argv", spawn)
-    monkeypatch.setattr(conformance, "resolve_executable", resolve_executable)
-    launcher = Launcher()
-
-    answer = invocation_v3.invoke(
-        str(executable),
-        str(target),
-        "provider-info",
-        launcher=launcher,
-        capability=launcher.capability,
-        unisolated=network_launcher.unisolated_local_phase("trusted_release"),
-    )
-
-    assert answer == {"protocol_version": 3}
-    assert len(seen) == 1
+# A test asserting that a trusted release on Windows falls back to an
+# unisolated run when the container answers "cannot be canonicalized" stood
+# here until 2026-09-02. It was written while `0.0.56` could not canonicalize
+# a path inside an AppContainer; the provider estate fixed that in `0.0.57`
+# and all seven ship `0.0.58`. The rule this module states is that the
+# exception exists when the native probe is *unavailable* — a decision made
+# before the call — and a working container refusing one invocation is not
+# that. The replacement lives in `test_cli_provider_invocation_v3.py`:
+# `test_a_container_refusal_is_answered_not_escaped`, which drives the same
+# conditions and requires the refusal to reach the caller instead.
 
 
 def test_a_program_operation_binds_its_prefix_writable(tmp_path: Path) -> None:

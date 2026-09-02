@@ -77,18 +77,23 @@ def invoke(
     if launcher is None:
         answer = conformance.invoke_argv(argv, command=command)
     else:
+        # No fallback out of the container on what the provider says went
+        # wrong. A retry that ran unisolated when `detail` contained "cannot be
+        # canonicalized" or "Access is denied" was added while `0.0.56` could
+        # not canonicalize inside an AppContainer; the estate fixed that in
+        # `0.0.57` and all seven now ship `0.0.58`, so the defect it worked
+        # around is gone. What it left behind was worse than the bug: `detail`
+        # is the provider's own text, so any provider could leave the container
+        # by writing one of two phrases, and the run's own evidence would still
+        # name the AppContainer — `provider network` is asked once about the
+        # machine, not per invocation, and the configuration slice records that
+        # answer beside every row.
+        #
+        # An unisolated phase stays possible and stays a decision made before
+        # the call: `excepted` above, from a trusted release or the operator's
+        # `--unverified-provider`, which `provider network` reports. A container
+        # that refuses is a typed failure an operator can act on.
         answer = launcher.run(argv, target=resolved_target, writable=writable, command=command)
-        if (
-            excepted
-            and isinstance(answer, dict)
-            and answer.get("rejected") is True
-            and answer.get("reason") == "provider_unavailable"
-            and any(
-                marker in str(answer.get("detail", ""))
-                for marker in ("cannot be canonicalized", "Access is denied")
-            )
-        ):
-            answer = conformance.invoke_argv(argv, command=command)
     if command == "status":
         if not isinstance(answer, dict):
             return provider_status.require_wire({"answer": answer})
