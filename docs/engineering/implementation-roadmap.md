@@ -46,9 +46,13 @@ plans are not continued literally after the implementation changes.
   Trusted Publishing with attestations, SBOMs/checksums and a clean-install smoke
   check, cut from tag `v0.0.14` and proven on that exact SHA by the six-leg
   configuration and program slices (42 of 42 rows each).
-- The active provider release is `0.0.53` across all seven public setup-system
-  repositories, each with six native binaries and `SHA256SUMS`. Provider kit
-  `0.2.8` (it opens `plan_request_fields` to `end_state`), protocol 3.
+- The active provider release is `0.0.54` across all seven public setup-system
+  repositories, each with six native binaries and `SHA256SUMS`, cut on
+  2026-09-02 by the provider estate's own agent session. All seven declare
+  `plan_request_fields = [target_scope, end_state]` on provider kit `0.2.8`,
+  and cursor declares a `project` projection profile beside antigravity's.
+  `just evidence-providers 0.0.54`: seven conformant, no projection
+  disagreement against the rules below.
 - `software-evidence` — the consumer driving `harness install/status/update/
   remove` through `ai-stp` itself — is green on **all six native legs** against
   `0.0.53`, seven harnesses each. The one-leg limitation this document carried
@@ -62,8 +66,17 @@ plans are not continued literally after the implementation changes.
   both its reading and its writing half.
 - `nginx` is the only edge proxy (`ADR-0135`); Caddy is gone from the host and
   from every active configuration.
-- Isolation launchers exist on all three operating systems: Bubblewrap on Linux,
-  an AppContainer launcher on Windows (`ADR-0133`), `sandbox-exec` on macOS.
+- Isolation launchers exist and are proved on all three operating systems:
+  Bubblewrap on Linux; the AppContainer launcher on Windows (`ADR-0133`), now
+  proved on a hosted `windows-latest` runner rather than only on the elevated
+  machine of the ADR's measurement — the native spawn test drives the real
+  `run`, and a parent killed mid-run loses its isolated tree to the job object
+  and its grants to the next discovery's sweep; `sandbox-exec` on macOS, whose
+  deny-write half is probed with a positive control on every discovery and
+  measured on `macos-latest`.
+- A bundle and a plan are compiled for one chosen projection scope
+  (`REQ-632`): `--scope project` routes onto the workspace surfaces antigravity
+  and cursor declare, and a home compile is byte-identical to before.
 
 Exact SHAs and run IDs intentionally remain in GitHub, Git and evidence
 artifacts. This dated section is replaced at the next audit rather than
@@ -139,19 +152,36 @@ the ordinary path.
 ### P2. `end_state` on the consumer side (`#54`)
 
 `ADR-0125` fixes the order: this CLI accepts the field, the CLI is released, kit
-`0.2.8` declares it, providers implement it. The first two steps are done —
-`end_state` is accepted and kit `0.2.8` publishes it in `plan_request_fields`.
-The argv and schema through which a remove plan carries a per-path end state
-belong to the kit revision the provider estate introduces; the consumer's
-withdraw reconstruction lands in one change once a provider declares the
-field, and a provider that does not declare it keeps today's honest behaviour.
+`0.2.8` declares it, providers implement it. All four steps are now true:
+`0.0.54` declares `end_state` on all seven and carries the remove plan's
+`end_state` entries — `{path, end_state: removed}` and `{path, end_state:
+final_bytes, member, sha256, byte_length}`, present only when the plan was
+built with a bundle — with `remove` accepting the same bundle arguments as
+`replace` and refusing, by name, a bundle the plan did not describe. What
+remains is ours and is the next change: `contribution.withdraw()`
+reconstructs the host file without the key by the install's own route, packs
+the surviving bytes into the optional bundle, and the plan entry carries
+`final_bytes`; a provider that does not declare the field keeps today's
+truthful warning. The three measured refusal forms of `0.0.54` —
+`unsupported_operation`, `unsupported_bundle_format`, `digest_mismatch` — are
+the shapes the consumer tests pin.
 
-### P3. Native evidence for implemented but unmeasured behaviour
+### P3. Native evidence, now measured
 
-1. Windows job objects and grant sweeping are implemented and tested, but have
-   not been measured on a native runner during a real parent kill.
-2. The macOS deny-write profile has not been run against seven real providers on
-   either architecture.
+1. Windows job objects and grant sweeping: measured on `windows-latest` in
+   `test_a_killed_parent_takes_its_isolated_tree_and_its_grants_with_it` — a
+   parent killed inside `run` loses its AppContainer child to
+   `KILL_ON_JOB_CLOSE`, and `sweep_abandoned_grants` takes back the ACE the
+   dead parent never revoked. On the way there the hosted-runner probe was
+   found to have failed since the environment allowlist arrived (`[Errno 203]`,
+   no `SystemRoot`/`LOCALAPPDATA`/`TEMP`/`TMP` in the child's block), and the
+   native spawn test to have skipped on every green `check`; both are fixed
+   and the test fails, not skips, on a GitHub runner.
+2. The macOS deny-write profile: the launcher's write probe runs a positive
+   control and then the identical child under `profile_for(target)` on every
+   discovery, and `test_the_real_sandbox_bounds_a_provider_s_writes_to_its_target`
+   drives the public `run` on `macos-latest`. The seven real providers under
+   that profile are the macOS legs of the configuration slice, 7/7 each.
 
 ### P3b. The host's roll time
 
