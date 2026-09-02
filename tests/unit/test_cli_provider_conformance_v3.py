@@ -291,6 +291,36 @@ def test_the_reverse_route_check_asks_about_the_kind_the_provider_is_told(
     assert "compiler_route_is_declared:instruction" in names
 
 
+def test_a_declared_route_is_matched_under_the_scope_that_declares_it() -> None:
+    """Cursor's agent exists at a workspace and nowhere in its global home."""
+    info = _info(harness_id="cursor", native_namespace="rules")
+    scoped: dict[str, JsonValue] = {
+        "profile_id": "cursor/native-files/project/1",
+        "target_scope": "project",
+        "component_kinds": ["agent"],
+        "projection_kinds": ["native_files"],
+        "native_namespaces": [".cursor/agents"],
+        "bundle_formats": ["ai-stp-bundle/1"],
+        "max_files": 2000,
+        "max_bytes": 64 * 1024 * 1024,
+    }
+    scoped["digest"] = digest_canonical(protocol_v3.PROJECTION_DOMAIN, scoped)
+    info["scoped_projection_profiles"] = [scoped]
+    capabilities = protocol_v3.parse_capabilities(cast(dict[str, object], info))
+
+    cases = {
+        case.name: case
+        for case in conformance_v3._route_coverage(  # pyright: ignore[reportPrivateUsage]
+            capabilities
+        )
+    }
+
+    assert cases["declared_route_is_compilable:agent"].passed
+    assert cases["declared_route_is_compilable:agent"].detail == (
+        "agent projects to '.cursor/agents'"
+    )
+
+
 def test_cli_v3_conformance_fails_before_spawn_without_network_isolation(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
