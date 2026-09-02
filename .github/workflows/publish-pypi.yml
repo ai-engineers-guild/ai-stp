@@ -39,6 +39,7 @@ on:
           - passports
           - assurance
           - contracts
+          - sources
           - cli
 
 permissions:

@@ -80,4 +80,3 @@ class SafetyChecksSummary(BaseModel):
     checks: Annotated[list[SafetyCheckEntry], Field(max_length=128)] = Field(
         default_factory=list[SafetyCheckEntry]
     )
-    components: Annotated[list[SetupComponentChecks], Field(max_length=500)] | None = None

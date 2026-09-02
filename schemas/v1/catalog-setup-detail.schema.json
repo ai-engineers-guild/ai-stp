@@ -426,22 +426,6 @@
           "default": null,
           "title": "Checks Passed Percent"
         },
-        "components": {
-          "anyOf": [
-            {
-              "items": {
-                "$ref": "#/$defs/SetupComponentChecks"
-              },
-              "maxItems": 500,
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Components"
-        },
         "coverage_complete": {
           "default": true,
           "title": "Coverage Complete",
@@ -490,7 +474,6 @@
       "required": [
         "checks",
         "checks_passed_percent",
-        "components",
         "coverage_complete",
         "failed",
         "not_run",
@@ -915,6 +898,14 @@
   "additionalProperties": true,
   "description": "Exact read of one public setup and the versions it offers.",
   "properties": {
+    "component_checks": {
+      "items": {
+        "$ref": "#/$defs/SetupComponentChecks"
+      },
+      "maxItems": 500,
+      "title": "Component Checks",
+      "type": "array"
+    },
     "country_codes": {
       "items": {
         "$ref": "#/$defs/CountryCode"
@@ -950,6 +941,7 @@
     }
   },
   "required": [
+    "component_checks",
     "country_codes",
     "schema_version",
     "services",

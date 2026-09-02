@@ -3249,10 +3249,6 @@ export type SafetyChecksSummary = {
    */
   checks_passed_percent: number | null;
   /**
-   * Components
-   */
-  components: Array<SetupComponentChecks> | null;
-  /**
    * Coverage Complete
    */
   coverage_complete: boolean;
@@ -3837,6 +3833,10 @@ export type SetupContextBudgetQuery = {
  */
 export type SetupDetail = {
   /**
+   * Component Checks
+   */
+  component_checks: Array<SetupComponentChecks>;
+  /**
    * Country Codes
    */
   country_codes: Array<CountryCode>;
@@ -4176,6 +4176,10 @@ export type SetupVersionPassport = {
  */
 export type SetupVersionResponse = {
   checks: SafetyChecksSummary | null;
+  /**
+   * Component Checks
+   */
+  component_checks: Array<SetupComponentChecks>;
   lifecycle: PublicLifecycle;
   passport: SetupVersionPassport;
   passport_digest: PassportDigest;

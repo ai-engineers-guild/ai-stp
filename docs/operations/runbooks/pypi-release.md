@@ -7,7 +7,7 @@ last_verified: "2026-09-01"
 
 ## Candidate preparation
 
-On a clean exact SHA, all five published `project.version` values must match, and
+On a clean exact SHA, all six published `project.version` values must match, and
 their internal `Requires-Dist` entries must pin that exact version. Local checks
 without publication:
 
@@ -17,7 +17,7 @@ just release-candidate
 just release-candidate-install
 ```
 
-`dist/release-candidate/` contains ten distributions, deterministic
+`dist/release-candidate/` contains twelve distributions, deterministic
 `ai-stp-cli.cdx.json`, `release-manifest.json`, and `SHA256SUMS`. The builder creates
 artifacts twice in temporary directories and fails on any mismatch. The archive
 gate normalizes separators and Unicode identically for wheel and sdist, rejecting
@@ -29,7 +29,7 @@ The `--replace` flag replaces only a previously created candidate whose manifest
 `SHA256SUMS` fully cover unchanged regular files. An arbitrary, incomplete, or
 modified directory is not release output and is not removed.
 
-`release-candidate-install` runs outside the source tree, passes all five internal
+`release-candidate-install` runs outside the source tree, passes all six internal
 wheels as direct sources, checks their URLs through PEP 610 and SHA-256, runs
 `version`, `capabilities`, and `help --agent`, then removes the program.
 `--find-links` without a direct binding is not evidence: with a matching version,
@@ -97,7 +97,7 @@ time. It skips an already published package, so rerunning is safe.
 
 Three things it handles that were previously done incorrectly by hand:
 
-- **Five dispatches cannot run simultaneously.** `publish-pypi` has one
+- **Dispatches cannot run simultaneously.** `publish-pypi` has one
   `concurrency` group: each new run takes it, and the waiting run dies. On August
   25, three of five runs were lost this way.
 - **`run_id`, not version, determines which bytes are uploaded.** One version may
@@ -123,15 +123,26 @@ No upload token exists here, on the host, or in repository or organization secre
 Trusted Publishing issues an OIDC identity for the run. There is no credential to
 look for.
 
-Live index on 2026-09-02: all five projects are published as `0.0.15` (candidate
+Live index on 2026-09-02: five projects are published as `0.0.15` (candidate
 `33585264747`, tag `v0.0.15`, commit `2af9122b`), by `publish_pypi.py` unattended;
 the wheel's attestation verifies against `release-candidate.yml@refs/tags/v0.0.15`
 and a random file is refused.
+
+**`ai-stp-sources` is the sixth project and does not exist on the index yet.**
+It was added to the workspace on 2026-09-02 and `ai-stp-cli` imports it from ten
+modules, pinned exactly like the rest, so a release cut before the project
+exists would publish a `ai-stp-cli` wheel that cannot resolve. Creating a
+project on PyPI is not something a release run can do for itself: the project
+and its trusted publisher — this repository, `publish-pypi.yml`, environment
+`pypi-sources` — are registered once, by a person, on the index. Until then
+`publish_pypi.py --packages sources` is the step that will fail, and it fails
+before `cli`, which is the order that keeps a broken `ai-stp-cli` off the
+index.
 Earlier: `0.0.6` from candidate `33020095240`, `0.0.5` from `33008640398`.
 
 Verified **with PyPI**, not from a green run:
 
-- five projects, each with a wheel and sdist;
+- five projects, each with a wheel and sdist (`ai-stp-sources` joins them at the first release cut after its PyPI project exists);
 - attestation of the published wheel succeeds and names its source—workflow
   `release-candidate.yml@refs/tags/v0.0.5`, commit `6514a36b…`. The negative
   control (random bytes) returns 404, so the check distinguishes them;

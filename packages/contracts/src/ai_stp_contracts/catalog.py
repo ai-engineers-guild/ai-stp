@@ -54,7 +54,7 @@ from ai_stp_contracts.impact import (
     ExactCoordinate,
     TokenEstimator,
 )
-from ai_stp_contracts.safety_checks import SafetyChecksSummary
+from ai_stp_contracts.safety_checks import SafetyChecksSummary, SetupComponentChecks
 from ai_stp_foundation.digests import DIGEST_PATTERN
 from ai_stp_foundation.harnesses import HarnessId
 from ai_stp_foundation.ids import stable_id_pattern
@@ -661,6 +661,11 @@ class SetupDetail(BaseModel):
     services: Annotated[list[ExternalProductSummary], Field(max_length=32)] = Field(
         default_factory=list[ExternalProductSummary]
     )
+    #: Per-member checks of the latest version. On the detail read only: this
+    #: list used to sit inside `summary.latest_checks`, which is also the card
+    #: `registry search` returns, and every released client refused a card
+    #: carrying a name it did not know.
+    component_checks: Annotated[list[SetupComponentChecks], Field(max_length=500)]
 
 
 def _require_published(visibility: str) -> None:
@@ -719,6 +724,10 @@ class SetupVersionResponse(BaseModel):
     support: CatalogSupport
     published_at: Timestamp
     checks: SafetyChecksSummary | None = None
+    #: Per-member checks of this exact version. Beside `checks` rather than
+    #: inside it: `SafetyChecksSummary` is also the card `registry search`
+    #: returns, and a name added there is refused by every released client.
+    component_checks: Annotated[list[SetupComponentChecks], Field(max_length=500)]
     #: Public usage aggregate; omitted when the feature is disabled.
     usage_metrics: CatalogUsageMetrics | None = None
 

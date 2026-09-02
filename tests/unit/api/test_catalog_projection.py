@@ -18,6 +18,7 @@ from ai_stp_platform.catalog_projection import (
     component_summary,
     component_version_response,
     passport_matches_filters,
+    project_component_checks,
     project_trust,
     setup_detail,
     verify_passport_integrity,
@@ -506,10 +507,9 @@ def test_a_card_does_not_carry_the_per_member_checks_only_a_detail_reads() -> No
     row = _row_with_member_checks()
     card = component_summary(row)
     assert card.latest_checks is not None
-    assert card.latest_checks.components == []
-    detail = component_detail([row])
-    held = detail.summary.latest_checks
-    assert held is not None
-    assert [item.stable_id for item in held.components or []] == [
+    # The name itself must be absent, not merely empty: a released client
+    # refused the card over the key, whatever its value.
+    assert "components" not in card.latest_checks.model_dump()
+    assert [item.stable_id for item in project_component_checks(row)] == [
         "component_01J0000000000000000000000A"
     ]

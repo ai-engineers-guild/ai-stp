@@ -5955,22 +5955,6 @@
             "default": null,
             "title": "Checks Passed Percent"
           },
-          "components": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/SetupComponentChecks"
-                },
-                "maxItems": 500,
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Components"
-          },
           "coverage_complete": {
             "default": true,
             "title": "Coverage Complete",
@@ -6019,7 +6003,6 @@
         "required": [
           "checks",
           "checks_passed_percent",
-          "components",
           "coverage_complete",
           "failed",
           "not_run",
@@ -7034,6 +7017,14 @@
         "additionalProperties": true,
         "description": "Exact read of one public setup and the versions it offers.",
         "properties": {
+          "component_checks": {
+            "items": {
+              "$ref": "#/components/schemas/SetupComponentChecks"
+            },
+            "maxItems": 500,
+            "title": "Component Checks",
+            "type": "array"
+          },
           "country_codes": {
             "items": {
               "$ref": "#/components/schemas/CountryCode"
@@ -7069,6 +7060,7 @@
           }
         },
         "required": [
+          "component_checks",
           "country_codes",
           "schema_version",
           "services",
@@ -7852,6 +7844,14 @@
             ],
             "default": null
           },
+          "component_checks": {
+            "items": {
+              "$ref": "#/components/schemas/SetupComponentChecks"
+            },
+            "maxItems": 500,
+            "title": "Component Checks",
+            "type": "array"
+          },
           "lifecycle": {
             "$ref": "#/components/schemas/PublicLifecycle"
           },
@@ -7890,6 +7890,7 @@
         },
         "required": [
           "checks",
+          "component_checks",
           "lifecycle",
           "passport",
           "passport_digest",
@@ -13582,6 +13583,7 @@
                   "readSetup.singleVersion": {
                     "summary": "A setup is a separate resource from a component: its card carries purpose and target role, and it has no variant axis because a setup belongs to one harness from creation (ADR-0014).",
                     "value": {
+                      "component_checks": [],
                       "country_codes": [],
                       "schema_version": 1,
                       "services": [],
@@ -13806,6 +13808,7 @@
                     "summary": "A setup version pins its components by exact reference, never a range or latest, and the revision id is a real content seal over this exact body.",
                     "value": {
                       "checks": null,
+                      "component_checks": [],
                       "lifecycle": "active",
                       "passport": {
                         "artifact": {

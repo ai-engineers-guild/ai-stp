@@ -99,12 +99,15 @@ def test_every_request_object_refuses_what_its_schema_refuses() -> None:
 
 @pytest.mark.parametrize("kind", ["component", "setup"])
 def test_a_newer_server_may_add_a_field_to_the_checks_summary(kind: str) -> None:
-    """The exact document that broke every released client, accepted.
+    """A field a later server adds to this document is accepted and kept.
 
-    Not a general property restated: this is the shape the deployed platform
-    answered with on 2026-09-02 — an optional list inside `latest_checks` that
-    no released model declared — and the unknown value is preserved rather than
-    dropped, which is what `schema-evolution.md` asks of a reader.
+    Not a general property restated. On 2026-09-02 the deployed platform added
+    an optional list to this exact document and every released client refused
+    the whole body. That list has since left the card entirely — a card is what
+    `registry search` returns, and the refusal was over the name, not the value
+    — but the next addition will be some other name, and this is the rule that
+    decides whether it costs anything. The unknown value is preserved rather
+    than dropped, which is what `schema-evolution.md` asks of a reader.
     """
     summary = safety_checks.SafetyChecksSummary.model_validate(
         {
@@ -118,7 +121,6 @@ def test_a_newer_server_may_add_a_field_to_the_checks_summary(kind: str) -> None
             "not_run": 0,
             "total_countable": 0,
             "checks": [],
-            "components": [],
             "a_field_from_a_later_server": {"kind": kind},
         }
     )
