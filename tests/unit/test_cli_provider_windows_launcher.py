@@ -115,10 +115,12 @@ def test_the_isolated_spawn_reaches_the_target_and_not_the_network() -> None:
     target = Path(os.environ["TEMP"]) / "ai-stp-appcontainer-run"
     target.mkdir(parents=True, exist_ok=True)
     place = target / "written-inside"
+    # .NET calls only: the container's PowerShell has no `PSModulePath`, so
+    # `Set-Content` and its siblings do not exist there (see the launcher).
     script = (
-        f"Set-Content -LiteralPath '{place}' -Value 'inside' -NoNewline -Encoding ascii\n"
-        f"$written = Get-Content -LiteralPath '{place}' -Raw\n"
-        "Write-Output (ConvertTo-Json @{written = $written} -Compress)\n"
+        f"[System.IO.File]::WriteAllText('{place}', 'inside')\n"
+        f"$written = [System.IO.File]::ReadAllText('{place}')\n"
+        "[System.Console]::Out.WriteLine('{\"written\":\"' + $written + '\"}')\n"
     )
     answer = launcher.run(
         (str(windows_launcher.powershell()), *windows_launcher.encoded_command(script)),
@@ -152,7 +154,7 @@ if launcher is None:
     print("UNPROVED " + capability.evidence[0], flush=True)
     sys.exit(3)
 print("READY", flush=True)
-sleeper = windows_launcher.encoded_command("Start-Sleep -Seconds 120")
+sleeper = windows_launcher.encoded_command("[System.Threading.Thread]::Sleep(120000)")
 launcher.run(
     (str(windows_launcher.powershell()), *sleeper),
     target=Path(sys.argv[1]),

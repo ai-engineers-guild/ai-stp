@@ -732,16 +732,24 @@ class AppContainerLauncher:
 #: for ALL APPLICATION PACKAGES like the rest of the system, so the probe
 #: grants nothing, touches nothing, and passes its script encoded on the
 #: command line rather than through a file the container would have to reach.
+#:
+#: No cmdlets, by measurement: the child's environment carries no
+#: `PSModulePath`, so `ConvertTo-Json` — and `New-Object`, `Write-Output`,
+#: everything auto-loaded from a module — answered `CommandNotFoundException`
+#: inside the container on `windows-latest`. The language itself and .NET
+#: are always there; the answer line is spelled out by hand.
 WINDOWS_CHILD_PROBE: Final[str] = """
 $ErrorActionPreference = 'Continue'
-$ports = ConvertFrom-Json '__PORTS__'
+$ipv4 = __IPV4__
+$ipv6 = __IPV6__
+$dnsUdp = __DNS_UDP__
 $results = @{}
 foreach ($probe in @(
-    @('ipv4', '127.0.0.1', [System.Net.Sockets.AddressFamily]::InterNetwork, $ports.ipv4),
-    @('ipv6', '::1', [System.Net.Sockets.AddressFamily]::InterNetworkV6, $ports.ipv6)
+    @('ipv4', '127.0.0.1', [System.Net.Sockets.AddressFamily]::InterNetwork, $ipv4),
+    @('ipv6', '::1', [System.Net.Sockets.AddressFamily]::InterNetworkV6, $ipv6)
 )) {
     $name, $address, $family, $port = $probe
-    $client = New-Object System.Net.Sockets.TcpClient($family)
+    $client = [System.Net.Sockets.TcpClient]::new($family)
     try {
         $pending = $client.BeginConnect($address, [int]$port, $null, $null)
         if ($pending.AsyncWaitHandle.WaitOne(500) -and $client.Connected) {
@@ -755,17 +763,19 @@ foreach ($probe in @(
         $client.Close()
     }
 }
-$udp = New-Object System.Net.Sockets.UdpClient
+$udp = [System.Net.Sockets.UdpClient]::new()
 try {
     $bytes = [System.Text.Encoding]::ASCII.GetBytes('ai-stp-dns-probe')
-    [void]$udp.Send($bytes, $bytes.Length, '127.0.0.1', [int]$ports.dns_udp)
+    [void]$udp.Send($bytes, $bytes.Length, '127.0.0.1', [int]$dnsUdp)
     $results['dns_udp'] = 'sent'
 } catch {
     $results['dns_udp'] = 'send_failed'
 } finally {
     $udp.Close()
 }
-Write-Output (ConvertTo-Json $results -Compress)
+$line = '{"dns_udp":"' + $results['dns_udp'] + '",'
+$line += '"ipv4":"' + $results['ipv4'] + '","ipv6":"' + $results['ipv6'] + '"}'
+[System.Console]::Out.WriteLine($line)
 """
 
 
@@ -821,7 +831,11 @@ def _probe(api: _Api, sid: ctypes.c_void_p, package: str) -> tuple[bool, tuple[s
     try:
         positive_control(ipv4, ipv6, dns_udp)
         ports = {"ipv4": port(ipv4), "ipv6": port(ipv6), "dns_udp": port(dns_udp)}
-        script = WINDOWS_CHILD_PROBE.replace("__PORTS__", json.dumps(ports, sort_keys=True))
+        script = (
+            WINDOWS_CHILD_PROBE.replace("__IPV4__", str(ports["ipv4"]))
+            .replace("__IPV6__", str(ports["ipv6"]))
+            .replace("__DNS_UDP__", str(ports["dns_udp"]))
+        )
         argv = [str(powershell()), *encoded_command(script)]
         with AppContainerProcess(api, sid, argv, {"PATH": os.environ.get("PATH", "")}) as child:
             stream = child.stdout
