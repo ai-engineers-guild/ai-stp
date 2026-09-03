@@ -499,7 +499,7 @@ def compile_bundle(
             for path in binding.member_paths
         }
         file_paths = {(entry.owner, entry.path) for entry in entries}
-        if {entry.owner for entry in entries} != bound_owners or not file_paths.issubset(
+        if not {entry.owner for entry in entries}.issubset(bound_owners) or not file_paths.issubset(
             bound_paths
         ):
             refusals.append(

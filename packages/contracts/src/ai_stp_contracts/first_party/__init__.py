@@ -12,7 +12,7 @@ from pydantic import BaseModel, ConfigDict
 
 from ai_stp_foundation.canonical import JsonValue, canonize, from_json_bytes
 from ai_stp_foundation.digests import digest_bytes, digest_canonical
-from ai_stp_foundation.provider_surfaces import PROVIDER_SURFACES
+from ai_stp_foundation.provider_surfaces import provider_surface
 from ai_stp_passports.envelope import seal_envelope, verify_revision_id
 from ai_stp_passports.projections import build_projection
 from ai_stp_passports.versions import (
@@ -270,7 +270,7 @@ def _adaptation(
 ) -> tuple[bytes, JsonValue]:
     """Build one native, scope-explicit adaptation and its canonical projection."""
     members = _source_members(component_source, source_artifact)
-    surface = PROVIDER_SURFACES[source.harness_id]  # type: ignore[index]
+    surface = provider_surface(source.harness_id, _scopes()[source.harness_id])  # type: ignore[arg-type, index]
     native_id = component_source.native_id or component_source.slug
     member_documents: list[JsonValue] = [
         {

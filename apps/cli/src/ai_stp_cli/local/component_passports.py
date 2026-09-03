@@ -27,7 +27,7 @@ from ai_stp_contracts.component_passport import ComponentPassportPatch
 from ai_stp_foundation.canonical import JsonValue, from_json_bytes
 from ai_stp_foundation.digests import digest_bytes
 from ai_stp_foundation.harnesses import HarnessId
-from ai_stp_foundation.provider_surfaces import PROVIDER_SURFACES
+from ai_stp_foundation.provider_surfaces import PROVIDER_SURFACES, provider_surface
 from ai_stp_passports import ScopeAdaptation, build_projection, seal_adaptation
 from ai_stp_passports.envelope import seal_envelope
 from ai_stp_passports.versions import (
@@ -577,7 +577,7 @@ def validate_for_publication(
     if not missing:
         harness_id = values.get("harness_id")
         scope = values.get("scope")
-        if harness_id not in PROVIDER_SURFACES:
+        if (harness_id, scope) not in PROVIDER_SURFACES:
             invalid.add("harness_id")
         if scope not in {"global", "user_root", "project"}:
             invalid.add("scope")
@@ -695,7 +695,7 @@ def materialize_version_passport(
     component_type = cast(ComponentType, values["component_type"])
     projection_kind = cast(ProjectionKind, values["projection_kind"])
     scope_name = cast(TargetScope, values.get("scope") or "")
-    if harness_id not in PROVIDER_SURFACES or scope_name not in {"global", "user_root", "project"}:
+    if (harness_id, scope_name) not in PROVIDER_SURFACES:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
             "the component draft has no supported explicit harness scope",
@@ -750,7 +750,7 @@ def materialize_version_passport(
         }
         for path, payload in sorted(projected.items())
     ]
-    surface = PROVIDER_SURFACES[harness_id]
+    surface = provider_surface(harness_id, scope_name)
     permissions = values.get("permissions") or {"filesystem": [], "network": [], "process": []}
     scope_document: dict[str, JsonValue] = {
         "scope": scope_name,

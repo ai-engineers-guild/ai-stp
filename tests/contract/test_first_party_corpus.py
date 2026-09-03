@@ -212,46 +212,11 @@ def test_a_setup_publishes_the_platform_set_its_provider_declared() -> None:
         assert systems and machines
 
 
-def test_a_republished_object_carries_a_new_version_and_a_new_one_does_not() -> None:
-    """A single corpus-wide version stood here and was true only while nothing was reused.
-
-    Three per-family constants — `pi` 1.1, `codex` 1.1, `cursor` 1.1 — existed
-    because a published `X.Y` is immutable (`REQ-2606`) and three families had a
-    projection corrected. They were replaced by one `1.0` for every member, on
-    the argument that a rebuild from a different repository mints fresh
-    identifiers and so nothing could be a second attempt at an id somebody held.
-
-    Identity continuity made that false without changing the sentence. Measured
-    against the deployed catalogue on 2026-08-30: 40 of 98 objects were held
-    identities standing at `1.0`, already published, and all 40 had different
-    passport bytes.
-
-    So the assertion is no longer "one version" — it is that both cases exist and
-    neither has swallowed the other. A corpus with a single version now means
-    either nothing was ever republished or nothing new was ever added, and both
-    would be worth failing on.
-    """
-    # The property, not the snapshot. This pinned `{"1.0", "1.1"}` exactly, and a
-    # third rebuild produced `1.2` for objects whose bytes had moved again — which
-    # is the immutability rule working, not a regression. An exact set turns every
-    # future republication into a failure whose message says nothing about why.
-    #
-    # What must stay true is what the docstring above already argues: both cases
-    # exist. A corpus with one version means either nothing was ever republished
-    # or nothing new was ever added.
+def test_republished_objects_advance_without_flattening_version_lines() -> None:
+    """A corpus-wide profile cutover advances every independently evolving line."""
     seen = {item.passport.version for item in versions()}
-    assert "1.0" in seen, seen
-    assert seen - {"1.0"}, seen
-
-    held = {item.passport.stable_id for item in versions() if item.passport.version != "1.0"}
-    fresh = {item.passport.stable_id for item in versions() if item.passport.version == "1.0"}
-    # A new object's first version is `1.0` (`versions.FIRST_VERSION`), and a bump
-    # it did not earn would put it in the catalogue as a second attempt at itself.
-    # Counted rather than pinned: the number moves with every rebuild that finds
-    # changed bytes, and a constant here would have to be edited by whoever ran
-    # the rebuild — which makes it a record of the last run, not a check on it.
-    assert held and fresh, (len(held), len(fresh))
-    assert not held & fresh, held & fresh
+    assert all(int(version.split(".", 1)[1]) >= 1 for version in seen), seen
+    assert len(seen) > 1, seen
 
 
 def test_first_party_source_manifest_is_canonical_closed_and_unique() -> None:

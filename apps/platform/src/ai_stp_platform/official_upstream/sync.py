@@ -14,7 +14,7 @@ from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import digest_bytes
 from ai_stp_foundation.harnesses import HarnessId
 from ai_stp_foundation.ids import new_id
-from ai_stp_foundation.provider_surfaces import PROVIDER_SURFACES
+from ai_stp_foundation.provider_surfaces import TargetScope, provider_surface
 from ai_stp_foundation.timestamps import format_timestamp
 from ai_stp_foundation.versioning import format_version, parse_version
 from ai_stp_passports import ScopeAdaptation, build_projection, seal_adaptation
@@ -161,12 +161,14 @@ def _projection(
     target_scope = source.target_scope or ""
     projection_root = source.projection_root or ""
     projection_shape = source.projection_shape or ""
-    if target_scope != "global" or not projection_root or projection_shape not in {"file", "tree"}:
+    if not projection_root or projection_shape not in {"file", "tree"}:
         raise OfficialUpstreamError(
             FAILED_VALIDATION, "official source has no supported explicit projection target"
         )
     try:
-        surface = PROVIDER_SURFACES[cast(HarnessId, source.harness_id)]
+        surface = provider_surface(
+            cast(HarnessId, source.harness_id), cast(TargetScope, target_scope)
+        )
     except KeyError as error:
         raise OfficialUpstreamError(
             FAILED_VALIDATION, "official source harness is unsupported"

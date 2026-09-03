@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from typing import cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_foundation.harnesses import HARNESS_IDS
 from ai_stp_foundation.ids import new_id
+from ai_stp_foundation.provider_surfaces import TargetScope, provider_surface
 from ai_stp_passports.markdown import validate_safe_markdown
 from ai_stp_passports.versions import TAG_PATTERN
 from ai_stp_platform.github_metadata import canonical_github_source
@@ -75,6 +77,12 @@ def _common_fields(command: SourceUpsert) -> None:
         raise OfficialUpstreamError(INVALID_SOURCE, "projection_kind is unknown")
     if command.target_scope not in {"global", "user_root", "project"}:
         raise OfficialUpstreamError(INVALID_SOURCE, "target_scope is unknown")
+    try:
+        provider_surface(command.harness_id, cast(TargetScope, command.target_scope))
+    except KeyError as error:
+        raise OfficialUpstreamError(
+            INVALID_SOURCE, "target_scope is unsupported for this harness"
+        ) from error
     if command.projection_shape not in {"file", "tree"}:
         raise OfficialUpstreamError(INVALID_SOURCE, "projection_shape is unknown")
     root = command.projection_root

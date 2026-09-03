@@ -112,7 +112,7 @@ PROVIDER_ANSWERS: dict[str, object] = {
         "harness_id": HARNESS,
         "provider_version": "1.0.0",
         "supported_actions": list(protocol.COMMANDS),
-        "bundle_formats": ["ai-stp-bundle/1"],
+        "bundle_formats": ["ai-stp-bundle/1", "ai-stp-bundle/2"],
         # Host platform included so Windows and Linux CI both pass the OS gate.
         "supported_os": ["linux", "macos", "windows"],
         "supported_arch": ["x86_64", "arm64"],

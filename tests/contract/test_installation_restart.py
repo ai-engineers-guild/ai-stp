@@ -54,7 +54,7 @@ ANSWERS: dict[str, object] = {
         "harness_id": HARNESS,
         "provider_version": "1.0.0",
         "supported_actions": list(protocol.COMMANDS),
-        "bundle_formats": ["ai-stp-bundle/1"],
+        "bundle_formats": ["ai-stp-bundle/1", "ai-stp-bundle/2"],
         "supported_os": ["linux", "macos"],
         "supported_arch": ["x86_64", "arm64"],
         "limits": {},

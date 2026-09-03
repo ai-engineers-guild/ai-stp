@@ -21,7 +21,7 @@ from ai_stp_foundation.canonical import CanonicalizationError, JsonValue, canoni
 from ai_stp_foundation.digests import digest_bytes
 from ai_stp_foundation.harnesses import HarnessId
 from ai_stp_foundation.ids import new_id
-from ai_stp_foundation.provider_surfaces import PROVIDER_SURFACES
+from ai_stp_foundation.provider_surfaces import provider_surface
 from ai_stp_foundation.refs import ComponentRef
 from ai_stp_passports import (
     ArtifactRef,
@@ -340,7 +340,7 @@ def _projection(draft: EmbeddedDraft) -> tuple[bytes, JsonValue]:
         for part in managed_path.split("/"):
             reject_secret_name(part)
     try:
-        surface = PROVIDER_SURFACES[cast(HarnessId, draft.harness_id)]
+        surface = provider_surface(cast(HarnessId, draft.harness_id), draft.target_scope)
     except KeyError as error:
         raise SourceError(
             INCOMPLETE_PASSPORT, "embedded component harness is unsupported"

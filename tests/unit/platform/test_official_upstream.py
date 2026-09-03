@@ -93,6 +93,7 @@ def test_source_rejects_unsafe_coordinates_and_non_official_owner() -> None:
         {"component_subpath": ""},
         {"component_subpath": "../escape"},
         {"component_type": "marketplace"},
+        {"harness_id": "claude-code", "target_scope": "user_root"},
         {"owner_account_id": "account_01ARZ3NDEKTSV4RRFFQ69G5FAV"},
         {"upstream_project_name": " "},
         {"reviewed_description": ""},
