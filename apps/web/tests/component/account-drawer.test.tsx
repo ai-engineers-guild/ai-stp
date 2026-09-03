@@ -68,7 +68,7 @@ describe("AccountControl", () => {
     );
     expect(screen.getByRole("menuitem", { name: "Devices" })).toHaveAttribute("href", "/devices");
     expect(screen.getByRole("menuitem", { name: "Access" })).toHaveAttribute("href", "/access");
-    expect(screen.getByRole("button", { name: "Sign out" })).toHaveClass("text-destructive");
+    expect(screen.getByRole("menuitem", { name: "Sign out" })).toHaveClass("text-destructive");
     expect(screen.getByRole("menuitem", { name: "Profile" })).toHaveClass("min-h-11");
     expect(screen.getByRole("menu").className).toContain("w-[min(14rem,calc(100vw-1.5rem))]");
     expect(document.querySelector(".fixed.inset-0")).toBeNull();
@@ -120,6 +120,43 @@ describe("AccountControl", () => {
     expect(screen.getByRole("link", { name: "catalog" })).toHaveClass("min-h-11");
     await user.keyboard("{Escape}");
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("posts logout from a form that survives the menu unmount", async () => {
+    const user = userEvent.setup();
+    render(<AccountControl signedIn />);
+    await user.click(screen.getByRole("button", { name: "Account" }));
+    const menu = screen.getByRole("menu");
+    const form = document.querySelector("form[action='/api/auth/logout?locale=en']");
+    expect(form).toBeInstanceOf(HTMLFormElement);
+    if (!(form instanceof HTMLFormElement)) {
+      return;
+    }
+    expect(form).toHaveAttribute("method", "post");
+    expect(menu.contains(form)).toBe(false);
+    const requestSubmit = vi.spyOn(form, "requestSubmit").mockImplementation(() => undefined);
+    await user.click(screen.getByRole("menuitem", { name: "Sign out" }));
+    expect(requestSubmit).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(form).toBeInTheDocument();
+    requestSubmit.mockRestore();
+  });
+
+  it("posts logout when the sign-out item is activated from the keyboard", async () => {
+    const user = userEvent.setup();
+    render(<AccountControl signedIn />);
+    await user.click(screen.getByRole("button", { name: "Account" }));
+    const form = document.querySelector("form[action='/api/auth/logout?locale=en']");
+    expect(form).toBeInstanceOf(HTMLFormElement);
+    if (!(form instanceof HTMLFormElement)) {
+      return;
+    }
+    const requestSubmit = vi.spyOn(form, "requestSubmit").mockImplementation(() => undefined);
+    screen.getByRole("menuitem", { name: "Sign out" }).focus();
+    await user.keyboard("{Enter}");
+    expect(requestSubmit).toHaveBeenCalledOnce();
+    expect(form).toBeInTheDocument();
+    requestSubmit.mockRestore();
   });
 
   it("closes on outside click and returns keyboard focus to the trigger", async () => {

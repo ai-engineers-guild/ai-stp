@@ -117,6 +117,21 @@ test.describe("account profile (SPEC-028)", () => {
     ).toBeVisible();
   });
 
+  test("account menu sign-out posts logout and lands on login", async ({ page }) => {
+    const accountControl = page.locator('[data-ui="nav-account"]');
+    await expect(accountControl).toBeVisible();
+    await accountControl.click();
+    const menu = page.getByRole("menu");
+    await expect(menu).toBeVisible();
+    await menu.getByRole("menuitem", { name: /Sign out|\u0412\u044b\u0439\u0442\u0438/i }).click();
+    await expect(page).toHaveURL(/\/en\/login/);
+    await expect(
+      page.getByRole("button", {
+        name: /Continue with GitHub|\u0412\u043e\u0439\u0442\u0438 \u0447\u0435\u0440\u0435\u0437 GitHub/i,
+      }),
+    ).toBeVisible();
+  });
+
   test("uploads an avatar and includes its binding in the saved draft", async ({ page }) => {
     await page.goto("/en/account/profile");
     const uploaded = page.waitForResponse(
