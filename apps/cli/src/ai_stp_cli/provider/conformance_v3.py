@@ -55,10 +55,39 @@ def run(
             + ("" if matches else f", expected {harness_id!r}"),
         )
     )
-    route = _literal_route(capabilities)
     cases.extend(_route_coverage(capabilities))
-    first_status = _object(invoke("status", ()))
-    second_status = _object(invoke("status", ()))
+    profiles = (capabilities.projection, *capabilities.scoped_projections)
+    for profile in profiles:
+        cases.extend(
+            _profile_cases(
+                invoke,
+                capabilities=capabilities,
+                profile=profile,
+                harness_id=harness_id,
+                target=target,
+            )
+        )
+    return conformance.Report(
+        harness_id=capabilities.harness_id,
+        protocol_version=protocol_v3.VERSION,
+        cases=tuple(cases),
+    )
+
+
+def _profile_cases(
+    invoke: conformance.Invoker,
+    *,
+    capabilities: protocol_v3.ProviderCapabilities,
+    profile: protocol_v3.ProjectionProfile,
+    harness_id: str,
+    target: Path,
+) -> list[conformance.Case]:
+    """Exercise status, validation and pure planning for one exact scope profile."""
+    cases: list[conformance.Case] = []
+    suffix = "" if profile.scope == "global" else f":{profile.scope}"
+    status_arguments = operation_v3.status_arguments(capabilities, profile.scope)
+    first_status = _object(invoke("status", status_arguments))
+    second_status = _object(invoke("status", status_arguments))
     state = str(first_status.get("state", ""))
     target_digest = str(first_status.get("target_digest", ""))
     status_valid = (
@@ -68,20 +97,18 @@ def run(
     )
     cases.append(
         conformance.Case(
-            "status_is_exact_and_repeatable",
+            f"status_is_exact_and_repeatable{suffix}",
             status_valid,
-            f"reports {state!r} with a canonical digest"
+            f"{profile.scope} reports {state!r} with a canonical digest"
             if status_valid
-            else "status is not a stable exact v3 target observation",
+            else f"{profile.scope} status is not a stable exact v3 target observation",
         )
     )
-    cases.append(_populated_target(target, state))
+    if profile.scope == "global":
+        cases.append(_populated_target(target, state))
+    route = _literal_route(profile, capabilities.harness_id)
     if route is None or not status_valid:
-        return conformance.Report(
-            harness_id=capabilities.harness_id,
-            protocol_version=protocol_v3.VERSION,
-            cases=tuple(cases),
-        )
+        return cases
 
     component_kind, native_surface, target_path = route
     with bundle_corpus.materialized_v3(
@@ -89,21 +116,26 @@ def run(
         component_kind=component_kind,
         native_surface=native_surface,
         target_path=target_path,
+        profile_id=profile.profile_id,
+        profile_digest=profile.digest,
+        target_scope=profile.scope,
     ) as corpus:
         valid_answer = _object(invoke("validate-bundle", corpus.valid.common_arguments()))
         try:
             bundle_protocol.require_validated(valid_answer, corpus.valid)
         except CliFailure as error:
-            cases.append(conformance.Case("valid_v3_bundle_accepted", False, error.message))
+            cases.append(
+                conformance.Case(f"valid_v3_bundle_accepted{suffix}", False, error.message)
+            )
         else:
             cases.append(
                 conformance.Case(
-                    "valid_v3_bundle_accepted",
+                    f"valid_v3_bundle_accepted{suffix}",
                     True,
-                    "accepts an exact compiler/provider-native literal",
+                    f"accepts an exact {profile.scope} compiler/provider-native literal",
                 )
             )
-        cases.extend(_rejections(invoke, corpus))
+        cases.extend(_rejections(invoke, corpus, suffix=suffix))
         operation = (
             protocol_v3.Operation.REPLACE if state == "managed" else protocol_v3.Operation.INSTALL
         )
@@ -113,13 +145,15 @@ def run(
             .replace("+00:00", "Z")
         )
         release_digest = "sha256:" + "d" * 64
-        operation_id = "operation_provider_conformance_v3"
+        operation_id = f"operation_provider_conformance_v3_{profile.scope}"
         arguments = operation_v3.plan_operation_arguments(
             operation=operation,
             release_digest=release_digest,
             operation_id=operation_id,
             expires_at=expiry,
             bundle=corpus.valid,
+            target_scope=profile.scope,
+            accepted_request_fields=capabilities.plan_request_fields,
         )
         first_plan = _object(invoke("plan-operation", arguments))
         second_plan = _object(invoke("plan-operation", arguments))
@@ -136,37 +170,35 @@ def run(
                 backup_ref=None,
                 permission_profile=None,
                 expires_at=expiry,
+                target_scope=profile.scope,
             )
         except CliFailure as error:
-            cases.append(conformance.Case("pure_v3_plan_is_exact", False, error.message))
+            cases.append(conformance.Case(f"pure_v3_plan_is_exact{suffix}", False, error.message))
         else:
             cases.append(
                 conformance.Case(
-                    "pure_v3_plan_is_exact",
+                    f"pure_v3_plan_is_exact{suffix}",
                     first_plan == second_plan,
                     f"plan {parsed.digest} is exact and repeatable"
                     if first_plan == second_plan
                     else "the same pure plan request returned different bytes",
                 )
             )
-        cases.append(_undeclared_operation(invoke, capabilities, arguments))
-        cases.append(_undeclared_permission_profile(invoke, capabilities, arguments))
-        cases.append(_declared_software_artifact(invoke, capabilities, arguments))
+        if profile.scope == "global":
+            cases.append(_undeclared_operation(invoke, capabilities, arguments))
+            cases.append(_undeclared_permission_profile(invoke, capabilities, arguments))
+            cases.append(_declared_software_artifact(invoke, capabilities, arguments))
         repeated_valid = _object(invoke("validate-bundle", corpus.valid.common_arguments()))
         cases.append(
             conformance.Case(
-                "pure_v3_validation_is_repeatable",
+                f"pure_v3_validation_is_repeatable{suffix}",
                 valid_answer == repeated_valid,
                 "the same exact bundle validates identically"
                 if valid_answer == repeated_valid
                 else "validation changed on a second read",
             )
         )
-    return conformance.Report(
-        harness_id=capabilities.harness_id,
-        protocol_version=protocol_v3.VERSION,
-        cases=tuple(cases),
-    )
+    return cases
 
 
 #: Capability refusals this run drives, as opposed to the bundle refusals the
@@ -462,11 +494,12 @@ def _route_coverage(
 
 
 def _literal_route(
-    capabilities: protocol_v3.ProviderCapabilities,
+    profile: protocol_v3.ProjectionProfile,
+    harness_id: str,
 ) -> tuple[str, str, str] | None:
-    for kind in sorted(capabilities.projection.component_kinds, key=lambda item: item.value):
-        rule = composition.rule_for(kind.value, capabilities.harness_id)
-        if rule is None or rule.relative not in capabilities.projection.native_namespaces:
+    for kind in sorted(profile.component_kinds, key=lambda item: item.value):
+        rule = composition.rule_for(kind.value, harness_id, scope=profile.scope)
+        if rule is None or rule.relative not in profile.native_namespaces:
             continue
         target_path = (
             rule.relative if rule.shape == "file" else f"{rule.relative}/provider-conformance.md"
@@ -478,6 +511,8 @@ def _literal_route(
 def _rejections(
     invoke: conformance.Invoker,
     corpus: bundle_corpus.Corpus,
+    *,
+    suffix: str = "",
 ) -> list[conformance.Case]:
     cases: list[conformance.Case] = []
     for malicious in corpus.malicious:
@@ -490,7 +525,7 @@ def _rejections(
             passed = malicious.refusal in protocol_v3.BUNDLE_REJECTIONS
         cases.append(
             conformance.Case(
-                f"rejects_v3_{malicious.name}",
+                f"rejects_v3_{malicious.name}{suffix}",
                 passed,
                 f"returns {answer.get('reason')!r}"
                 if passed
