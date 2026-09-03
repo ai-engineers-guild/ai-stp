@@ -197,6 +197,14 @@ evidence-providers tag harness="":
         --tag "{{tag}}" \
         {{ if harness == "" { "" } else { prepend("--harness ", harness) } }}
 
+# Drives every non-global provider profile through a mutating disposable-target
+# lifecycle with a consumer-produced adaptation-bound bundle v2. This is local
+# source evidence before release; `evidence-providers` remains the released-byte
+# proof after attestation and publication.
+evidence-provider-scopes setup_systems_root:
+    uv run --locked python -m release_scripts.verify_scoped_provider_slice \
+        --setup-systems-root "{{setup_systems_root}}"
+
 # Вторая половина того же вопроса: `evidence-providers` доказывает контракт и
 # байты, а этот срез ведёт каждый выпущенный провайдер через **потребительский**
 # путь — `harness install/status/update/remove` вызовами самого `ai-stp`.

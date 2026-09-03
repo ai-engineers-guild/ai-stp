@@ -1,6 +1,6 @@
 ---
 description: "Discovery, version checking, updating, and reinstalling a setup-system provider."
-last_verified: "2026-08-29"
+last_verified: "2026-09-03"
 ---
 
 # Setup-system provider lifecycle
@@ -12,6 +12,20 @@ exists are facts the user must be shown.
 Replacing a provider changes one executable file and nothing else. What that provider
 then does to the target harness remains its own operation, with its own
 plan and confirmation.
+
+Before publishing a provider generation with scoped profiles, run the local
+consumer/producer boundary against the rendered setup-systems checkout:
+
+```bash
+just evidence-provider-scopes /path/to/setup-systems
+```
+
+The slice creates disposable roots and drives every declared `project` and
+`user_root` profile through bundle validation, install, verified status, backup,
+remove and exact restore. It refuses a missing BackupRef, changed restored bytes,
+or any mismatch between provider status and the consumer's exact plan. It does
+not replace `evidence-providers`, which repeats trust and conformance against
+attested released bytes.
 
 ## Where the path comes from
 
