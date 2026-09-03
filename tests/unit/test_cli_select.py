@@ -1572,6 +1572,60 @@ def test_a_bundle_compiled_for_a_workspace_lands_on_workspace_surfaces(
     assert scoped.manifest["target_scope"] == "project"
 
 
+def test_a_mixed_scope_setup_compiles_one_closed_bundle_per_scope(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """One setup graph may span roots without putting either root's files in the other."""
+    from ai_stp_cli.commands import component as command
+
+    _ready(registry, tmp_path)
+    global_id = _adopted(registry, tmp_path, "global-review.md")
+
+    instruction = tmp_path / "CLAUDE.md"
+    instruction.write_text("# Project rules\n", encoding="utf-8")
+    project_id = command.adopt(
+        {
+            "path": str(instruction),
+            "root": str(tmp_path),
+            "harness": "claude-code",
+            "kind": "instruction",
+        }
+    ).payload.stable_id
+    _complete_adopted(registry, project_id, "CLAUDE.md")
+    project_head = revisions.head(registry, project_id)
+    assert project_head is not None
+    component_passports.update(
+        registry,
+        project_id,
+        project_head.revision_id,
+        ComponentPassportPatch(managed_paths=["CLAUDE.md"]),
+        device_id=DEVICE,
+    )
+    command.version_release({"id": project_id})
+
+    session = select.propose(
+        {
+            "harness": "claude-code",
+            "project": str(tmp_path),
+            "member": [f"{global_id}@1.0", f"{project_id}@1.0"],
+        }
+    ).payload
+    proposal = session.proposal_id
+    assert proposal is not None
+    select.confirm({"proposal": proposal})
+
+    global_bundle = select.compile_harness_bundle(registry, proposal, "claude-code", scope="global")
+    project_bundle = select.compile_harness_bundle(
+        registry, proposal, "claude-code", scope="project"
+    )
+    assert global_bundle.compiled
+    assert project_bundle.compiled
+    assert [item.path for item in global_bundle.files] == ["skills/global-review.md"]
+    assert [item.path for item in project_bundle.files] == ["CLAUDE.md"]
+    assert global_bundle.manifest["bundle_format"] == "ai-stp-bundle/2"
+    assert project_bundle.manifest["bundle_format"] == "ai-stp-bundle/2"
+
+
 def _contributed(registry: sqlite3.Connection, tmp_path: Path) -> tuple[str, str]:
     """One `mcp` component adopted from codex's owned `config.toml`, proposed and confirmed."""
     import os

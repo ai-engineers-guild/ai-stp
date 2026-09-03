@@ -564,5 +564,22 @@
   "an imported component has no declared projection kind": "у импортированного компонента нет объявленного вида проекции",
   "an exact component snapshot is unavailable": "точный снимок компонента недоступен",
   "component adaptations require different provider profiles": "адаптации компонентов требуют разные профили провайдера",
-  "the compiled bundle profile differs from the provider profile": "профиль собранного пакета отличается от профиля провайдера"
+  "the compiled bundle profile differs from the provider profile": "профиль собранного пакета отличается от профиля провайдера",
+  "a child is not the exact unmodified planned operation": "дочерняя операция не является точным неизменённым планом",
+  "a multi-root child operation disappeared from the journal": "дочерняя multi-root операция исчезла из журнала",
+  "a multi-root transaction contains a duplicate scope": "multi-root транзакция содержит повторяющуюся область",
+  "a multi-root transaction contains a duplicate target": "multi-root транзакция содержит повторяющуюся цель",
+  "a multi-root transaction requires at least two scopes": "multi-root транзакция требует минимум две области",
+  "a target already belongs to an active multi-root transaction": "цель уже принадлежит активной multi-root транзакции",
+  "multi-root rollback requires every possible effect to be settled": "multi-root откат требует урегулировать каждый возможный эффект",
+  "multi-root success requires every child postcondition": "успех multi-root требует постусловие каждой дочерней операции",
+  "no multi-root transaction with that identifier is recorded": "multi-root транзакция с таким идентификатором не записана",
+  "only the exact planned multi-root transaction can be approved": "подтвердить можно только точную запланированную multi-root транзакцию",
+  "the component has no adaptation for the requested harness": "у компонента нет адаптации для запрошенного харнесса",
+  "the exact component is not an immutable version passport": "точный компонент не является неизменяемым паспортом версии",
+  "the exact multi-root transaction has not been approved": "точная multi-root транзакция не подтверждена",
+  "the multi-root idempotency key names different exact input": "ключ идемпотентности multi-root называет другой точный вход",
+  "the multi-root transaction is not in the required state": "multi-root транзакция находится не в требуемом состоянии",
+  "the operation is not a child of this transaction": "операция не является дочерней для этой транзакции",
+  "the setup has no components for the requested harness scope": "в сетапе нет компонентов для запрошенной области харнесса"
 }

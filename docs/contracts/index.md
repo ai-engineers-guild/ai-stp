@@ -11,7 +11,7 @@ last_verified: "2026-08-03"
 | -------- | ----- | ------- |
 | [access-grants-and-forks.md](access-grants-and-forks.md) | Access grant target, recipient actions, forks, derivative publication, and revocation consequences. | 2026-09-01 |
 | [article-publication.md](article-publication.md) | Machine contract for repository import, staff publication, and public article reads. | 2026-08-29 |
-| [canonical-data.md](canonical-data.md) | Canonical identifiers, serialization, references, hashes, and signatures. | 2026-08-29 |
+| [canonical-data.md](canonical-data.md) | Canonical identifiers, serialization, references, hashes, and signatures. | 2026-09-03 |
 | [capability-vocabulary.md](capability-vocabulary.md) | Closed vocabulary of required capabilities, its growth rule, and the distinction between unknown and missing capabilities. | 2026-08-08 |
 | [catalog-reactions.md](catalog-reactions.md) | Private account reactions to public catalog components and setups. | 2026-08-17 |
 | [catalog-support-evidence.md](catalog-support-evidence.md) | Safe public projection of harness support evidence in the catalog. | 2026-08-09 |

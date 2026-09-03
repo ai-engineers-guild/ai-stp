@@ -1249,26 +1249,16 @@ def _surfaces(
             selected_scope = next(
                 (item for item in adaptation.scope_adaptations if item.scope == scope), None
             )
-            managed_paths = (
-                ()
-                if selected_scope is None
-                else tuple(item.path for item in selected_scope.members)
+            if selected_scope is None:
+                continue
+            managed_paths = tuple(item.path for item in selected_scope.members)
+            native_ids = tuple(
+                native_id for item in selected_scope.members for native_id in item.native_ids
             )
-            native_ids = (
-                ()
-                if selected_scope is None
-                else tuple(
-                    native_id for item in selected_scope.members for native_id in item.native_ids
-                )
-            )
-            declared_permissions = (
-                ()
-                if selected_scope is None
-                else tuple(
-                    f"{family}:{value}"
-                    for family in ("filesystem", "network", "process")
-                    for value in getattr(selected_scope.permissions, family)
-                )
+            declared_permissions = tuple(
+                f"{family}:{value}"
+                for family in ("filesystem", "network", "process")
+                for value in getattr(selected_scope.permissions, family)
             )
         else:
             managed_paths = composition.rerooted(
@@ -1546,6 +1536,12 @@ def compile_setup_version_bundle(
         )
 
     surfaces = _surfaces(connection, closure, members, scope=scope)
+    if closure.nodes and not surfaces:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the setup has no components for the requested harness scope",
+            details={"harness_id": harness, "scope": scope},
+        )
     target = _composition_target(harness, surfaces, scope=scope)
     composed = composition.compose(surfaces, target)
     if composed.blocked:
@@ -1612,18 +1608,26 @@ def _bundle_contract(
             passport = ComponentVersionPassport.model_validate(
                 stored.envelope.model_dump(mode="json")
             )
-            selected = scope_for(
-                passport,
-                cast(HarnessId, harness_id),
-                cast(TargetScope, scope_name),
-            )
         except ValueError as error:
             raise CliFailure(
                 "AI_STP_PRECONDITION_FAILED",
-                "the component has no adaptation for the requested harness scope",
-                details={"stable_id": node.stable_id, "scope": scope_name},
+                "the exact component is not an immutable version passport",
+                details={"stable_id": node.stable_id},
             ) from error
-        adaptation = next(item for item in passport.adaptations if item.harness_id == harness_id)
+        adaptation = next(
+            (item for item in passport.adaptations if item.harness_id == harness_id), None
+        )
+        if adaptation is None:
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "the component has no adaptation for the requested harness",
+                details={"stable_id": node.stable_id, "harness_id": harness_id},
+            )
+        selected = next(
+            (item for item in adaptation.scope_adaptations if item.scope == scope_name), None
+        )
+        if selected is None:
+            continue
         surface = selected.required_surface
         formats.add(surface.bundle_format)
         profiles.add((surface.profile_id, surface.profile_digest, selected.scope))

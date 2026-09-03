@@ -838,6 +838,75 @@ MIGRATIONS: Final[tuple[Migration, ...]] = (
         ),
         down=("DROP TABLE sync_abandoned_event",),
     ),
+    Migration(
+        version=29,
+        summary="recoverable consumer-owned multi-root installation transactions",
+        up=(
+            """
+            CREATE TABLE installation_transaction (
+                transaction_id      TEXT PRIMARY KEY,
+                idempotency_key     TEXT NOT NULL UNIQUE,
+                transaction_digest TEXT NOT NULL UNIQUE,
+                setup_stable_id     TEXT NOT NULL,
+                setup_version       TEXT NOT NULL,
+                harness_id          TEXT NOT NULL,
+                state               TEXT NOT NULL CHECK (
+                    state IN (
+                        'planned', 'applying', 'compensating',
+                        'recovery_required', 'verified', 'rolled_back'
+                    )
+                ),
+                approved_digest     TEXT,
+                created_at          TEXT NOT NULL,
+                updated_at          TEXT NOT NULL
+            ) STRICT
+            """,
+            """
+            CREATE TABLE installation_transaction_child (
+                transaction_id TEXT NOT NULL
+                    REFERENCES installation_transaction(transaction_id),
+                position       INTEGER NOT NULL,
+                scope          TEXT NOT NULL CHECK (
+                    scope IN ('global', 'user_root', 'project')
+                ),
+                operation_id   TEXT NOT NULL UNIQUE
+                    REFERENCES operation_plan(operation_id),
+                target_id      TEXT NOT NULL,
+                plan_digest    TEXT NOT NULL,
+                state          TEXT NOT NULL,
+                backup_ref     TEXT,
+                PRIMARY KEY (transaction_id, position),
+                UNIQUE (transaction_id, scope),
+                UNIQUE (transaction_id, target_id)
+            ) STRICT
+            """,
+            """
+            CREATE TABLE installation_transaction_target (
+                target_id      TEXT PRIMARY KEY,
+                transaction_id TEXT NOT NULL
+                    REFERENCES installation_transaction(transaction_id)
+            ) STRICT
+            """,
+            """
+            CREATE TABLE installation_transaction_event (
+                transaction_id TEXT NOT NULL
+                    REFERENCES installation_transaction(transaction_id),
+                sequence       INTEGER NOT NULL,
+                at             TEXT NOT NULL,
+                state_before   TEXT NOT NULL,
+                state_after    TEXT NOT NULL,
+                result         TEXT NOT NULL,
+                PRIMARY KEY (transaction_id, sequence)
+            ) STRICT
+            """,
+        ),
+        down=(
+            "DROP TABLE installation_transaction_event",
+            "DROP TABLE installation_transaction_target",
+            "DROP TABLE installation_transaction_child",
+            "DROP TABLE installation_transaction",
+        ),
+    ),
 )
 
 #: Names for nested savepoints. A counter rather than a fixed name: two nested

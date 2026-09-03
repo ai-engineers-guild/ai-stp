@@ -17,67 +17,67 @@ class ProviderSurfaceIdentity(NamedTuple):
 PROVIDER_SURFACES: Final[dict[ProviderSurfaceKey, ProviderSurfaceIdentity]] = {
     ("antigravity", "global"): ProviderSurfaceIdentity(
         "antigravity/native-files/1",
-        "sha256:57f6266b21cc6f67743c00a5351bfa29047dd465343dc6a7b07fe8e0bbb1cc68",
+        "sha256:d46222869ceecea45f4eb42a31e4309d5960e0d366345d1adb0ddc04e33fd5b9",
     ),
     ("antigravity", "project"): ProviderSurfaceIdentity(
         "antigravity/native-files/project/1",
-        "sha256:1373140c6b0b1a75be329cf2b204ea1c8b16841670932b9b11119f3eb77d3cde",
+        "sha256:6709b8225f55d2ce6753850ff80c973bf03959cc4aaba31c4d5fbe8128d5e0ea",
     ),
     ("claude-code", "global"): ProviderSurfaceIdentity(
         "claude/native-and-marketplace/1",
-        "sha256:07275f1e2a6ec41e7578f30d15cafdec8ebaeeffd33766550982000b6c90f4cb",
+        "sha256:c685d34c5386cd16ba27a57a7fd960e788dafa2544cd8f715ad88176c4ede551",
     ),
     ("claude-code", "project"): ProviderSurfaceIdentity(
         "claude/native-files/project/1",
-        "sha256:6da32397d5c35ba0049093c13c2dc27047fc27a0de128c159e82dc2e4405e6c2",
+        "sha256:593fddfbb3d576d5e3e286f7905d8ec0b1dcef074e6da101b7c6c10cbcee75d0",
     ),
     ("codex", "global"): ProviderSurfaceIdentity(
         "codex/native-files/1",
-        "sha256:aab7dd80770b68424c605b58786e685a149af76494fe9ebd6b866290a4f1e4d6",
+        "sha256:0b51b0ddd434f62c11b504102dafb62a28a59a6436104882355632e6d86f2585",
     ),
     ("codex", "user_root"): ProviderSurfaceIdentity(
         "codex/native-files/user-root/1",
-        "sha256:2bb816c4d55e6413bbf1f0903b7c1da1ce7df3a451a6e13a5295d878fdce0caf",
+        "sha256:d4a402e1ecb70feefee4c36e819c15c46dc4bed0d8f022da45e37047dbff0ee2",
     ),
     ("codex", "project"): ProviderSurfaceIdentity(
         "codex/native-files/project/1",
-        "sha256:28d783e5ebd7e960870bcbe3aa98267f94a507efef6dfd31aeab33420b418b8d",
+        "sha256:89ccffaec2c7c7577ee818ca5252d0877b5ad3227fa56461bca5df0280d8ea8f",
     ),
     ("cursor", "global"): ProviderSurfaceIdentity(
         "cursor/native-and-plugins/2",
-        "sha256:4cbd7979c0c4c7b970e77feba54c88292a4916af565ba1619e2ad2c6fe35821a",
+        "sha256:2cae2fea2245f5d816f86baa4843a70bdf915aef1e48e0902a6fd57f2b0fcca6",
     ),
     ("cursor", "user_root"): ProviderSurfaceIdentity(
         "cursor/native-files/user-root/1",
-        "sha256:c4d49fcc664b6d3114f130da31845badfd4bf3dbcce13eafd08e72805bcff774",
+        "sha256:0ef4a2820dc61341e293076c7ef81b4ee989c6c7132ce17d52f07d8e9e0a5c7a",
     ),
     ("cursor", "project"): ProviderSurfaceIdentity(
         "cursor/native-files/project/1",
-        "sha256:32c8e0a629216f9d1292160b24c4b7b3f6e860e0aa95bcab1aa479a5de666108",
+        "sha256:08019697bf8116d466a20188dbadfb5d8d40fd75653179a34a87937a02e2ad77",
     ),
     ("grok-build", "global"): ProviderSurfaceIdentity(
         "grok/native-and-plugins/1",
-        "sha256:2f547e20c9fd04cd3c962e31dc3afae98c206547b43761a8bf3a4fb5ff7a4c37",
+        "sha256:616d9a0667abf01fdf1e8c756bbf9341f23bf57a41c4291b40f33add0b0f7590",
     ),
     ("grok-build", "user_root"): ProviderSurfaceIdentity(
         "grok/native-files/user-root/1",
-        "sha256:fbd42f7df68b93b9f7eb76f4d676cc501d9951e2e250c80b956e36a28115c493",
+        "sha256:53b7a1d11b6e9eafe870bbcd8b6f6a208e89929d674d50e3e436d7b984182845",
     ),
     ("opencode", "global"): ProviderSurfaceIdentity(
         "opencode/native-files/1",
-        "sha256:9cbb0167fd7baac1d5983c0289d6d77ff6b63b4ad5c934ff20a195d923ae5e86",
+        "sha256:3598000e9206586d606faea1d12c1a3f80a0b7f812c350eb9236a44a303e19ac",
     ),
     ("opencode", "user_root"): ProviderSurfaceIdentity(
         "opencode/native-files/user-root/1",
-        "sha256:7c423c5270ed3cf4da89ba7cb3834acbe5e42b51a248e81a156d2c1bcddf6fba",
+        "sha256:89088644bb23d353252a0c01088d7856af878ee10b3fef3097c95fb94d07ea77",
     ),
     ("pi", "global"): ProviderSurfaceIdentity(
         "pi/native-files/2",
-        "sha256:a1ba9ccdc4513e67544e10cdbaa7ce62d173db515ac1c2fb61ac1de1be6d880a",
+        "sha256:7e6131ce8c8386540cbd31c9c82b4e2db3ee865f1d8093ebf10b62337f234062",
     ),
     ("pi", "user_root"): ProviderSurfaceIdentity(
         "pi/native-files/user-root/1",
-        "sha256:7f628953962e922ca42c431ffc37fda28d23334f4cb00b33cb6fcaa988558330",
+        "sha256:f6e6851da4def264317162a6ba7ba11b9c873bf5cf4086694b34185e82bb7237",
     ),
 }
 

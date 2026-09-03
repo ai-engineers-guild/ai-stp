@@ -564,5 +564,22 @@
   "an imported component has no declared projection kind": "an imported component has no declared projection kind",
   "an exact component snapshot is unavailable": "an exact component snapshot is unavailable",
   "component adaptations require different provider profiles": "component adaptations require different provider profiles",
-  "the compiled bundle profile differs from the provider profile": "the compiled bundle profile differs from the provider profile"
+  "the compiled bundle profile differs from the provider profile": "the compiled bundle profile differs from the provider profile",
+  "a child is not the exact unmodified planned operation": "a child is not the exact unmodified planned operation",
+  "a multi-root child operation disappeared from the journal": "a multi-root child operation disappeared from the journal",
+  "a multi-root transaction contains a duplicate scope": "a multi-root transaction contains a duplicate scope",
+  "a multi-root transaction contains a duplicate target": "a multi-root transaction contains a duplicate target",
+  "a multi-root transaction requires at least two scopes": "a multi-root transaction requires at least two scopes",
+  "a target already belongs to an active multi-root transaction": "a target already belongs to an active multi-root transaction",
+  "multi-root rollback requires every possible effect to be settled": "multi-root rollback requires every possible effect to be settled",
+  "multi-root success requires every child postcondition": "multi-root success requires every child postcondition",
+  "no multi-root transaction with that identifier is recorded": "no multi-root transaction with that identifier is recorded",
+  "only the exact planned multi-root transaction can be approved": "only the exact planned multi-root transaction can be approved",
+  "the component has no adaptation for the requested harness": "the component has no adaptation for the requested harness",
+  "the exact component is not an immutable version passport": "the exact component is not an immutable version passport",
+  "the exact multi-root transaction has not been approved": "the exact multi-root transaction has not been approved",
+  "the multi-root idempotency key names different exact input": "the multi-root idempotency key names different exact input",
+  "the multi-root transaction is not in the required state": "the multi-root transaction is not in the required state",
+  "the operation is not a child of this transaction": "the operation is not a child of this transaction",
+  "the setup has no components for the requested harness scope": "the setup has no components for the requested harness scope"
 }

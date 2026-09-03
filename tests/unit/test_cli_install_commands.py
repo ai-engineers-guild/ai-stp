@@ -853,7 +853,7 @@ def _v3_test_invoker(
             list[JsonValue],
             ["CLAUDE.md", "settings.json", "skills", "agents", "commands", "rules", "workflows"],
         ),
-        "bundle_formats": cast(list[JsonValue], ["ai-stp-bundle/1", "ai-stp-bundle/2"]),
+        "bundle_formats": cast(list[JsonValue], ["ai-stp-bundle/2"]),
         "max_files": 8192,
         "max_bytes": 64 * 1024 * 1024,
     }
