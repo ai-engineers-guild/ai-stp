@@ -14,6 +14,7 @@ probe.
 
 from __future__ import annotations
 
+import json
 import os
 import platform
 import subprocess
@@ -286,9 +287,14 @@ def test_a_killed_parent_takes_its_isolated_tree_and_its_grants_with_it(
         target_text = str(target.resolve())
         while time.monotonic() < leased:
             try:
-                if target_text in lease.read_text(encoding="utf-8"):
+                paths = {
+                    json.loads(line).get("path")
+                    for line in lease.read_text(encoding="utf-8").splitlines()
+                    if line.strip()
+                }
+                if target_text in paths:
                     break
-            except OSError:
+            except (OSError, ValueError, AttributeError):
                 pass
             time.sleep(0.25)
         else:
