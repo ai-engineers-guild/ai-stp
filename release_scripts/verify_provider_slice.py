@@ -28,6 +28,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -36,6 +37,10 @@ from pathlib import Path
 from typing import Any
 
 from release_scripts._evidence import EvidenceError, cli, data, without_credentials
+from release_scripts.verify_scoped_provider_slice import (
+    BINARIES as SCOPED_BINARIES,
+)
+from release_scripts.verify_scoped_provider_slice import verify as verify_scoped_lifecycle
 
 #: Every harness whose provider is released, in catalogue order. `undefined` is
 #: a shared convention rather than a product and has no provider to fetch.
@@ -139,6 +144,7 @@ def verify_provider_slice(
     """Fetch each release, then compare its own declaration with our table."""
     reports: dict[str, Any] = {}
     disagreeing: list[str] = []
+    fetched_paths: dict[str, tuple[Path, Path]] = {}
     with tempfile.TemporaryDirectory(prefix="ai-stp-provider-slice-") as scratch:
         root = Path(scratch)
         home = root / "home"
@@ -165,6 +171,7 @@ def verify_provider_slice(
                 "provider fetch",
             )
             executable = _artifact(directory)
+            fetched_paths[harness_id] = (executable, directory / "release.json")
             declared = _declaration(executable)
             # `--protocol-version 3` and a target are both required, and the
             # first run of this slice omitted them. `provider conformance`
@@ -235,6 +242,17 @@ def verify_provider_slice(
                 ),
                 "projection_disagreements": mismatched,
             }
+        global_lifecycle = _released_global_lifecycle(
+            fetched_paths,
+            python=python,
+            root=root,
+        )
+        rendered = root / "released-provider-layout"
+        release_bin = rendered / "target" / "release"
+        release_bin.mkdir(parents=True)
+        for harness_id, (executable, _manifest) in fetched_paths.items():
+            shutil.copy2(executable, release_bin / SCOPED_BINARIES[harness_id])
+        scoped_lifecycle = verify_scoped_lifecycle(rendered)
     return without_credentials(
         {
             "schema_version": 1,
@@ -242,16 +260,64 @@ def verify_provider_slice(
             "tag": tag,
             "harnesses": reports,
             "harnesses_with_projection_disagreements": sorted(disagreeing),
-            # Named so nobody reads a green slice as covering the lifecycle.
-            "not_verified": {
-                "install_update_backup_remove_rollback": (
-                    "the cross-repository tests in tests/unit/test_cli_install_commands.py; "
-                    "they need AI_STP_<HARNESS>_PROVIDER_V3 and _MANIFEST pointed at a "
-                    "fetched artifact and its release.json"
-                ),
+            "released_lifecycle": {
+                "global_profiles_verified": global_lifecycle,
+                "scoped_profiles_verified": scoped_lifecycle["profiles_verified"],
             },
         }
     )
+
+
+def _released_global_lifecycle(
+    fetched: dict[str, tuple[Path, Path]],
+    *,
+    python: str,
+    root: Path,
+) -> int:
+    """Drive the real first-party setup lifecycle through fetched trusted bytes."""
+    environment = {
+        **os.environ,
+        "AI_STP_FORCE_FILE_CREDENTIAL_STORE": "1",
+    }
+    names = {
+        "antigravity": "ANTIGRAVITY",
+        "claude-code": "CLAUDE",
+        "codex": "CODEX",
+        "cursor": "CURSOR",
+        "grok-build": "GROK_BUILD",
+        "opencode": "OPENCODE",
+        "pi": "PI",
+    }
+    for harness_id, (executable, manifest) in fetched.items():
+        prefix = names[harness_id]
+        environment[f"AI_STP_{prefix}_PROVIDER_V3"] = str(executable)
+        environment[f"AI_STP_{prefix}_PROVIDER_V3_MANIFEST"] = str(manifest)
+    finished = subprocess.run(
+        [
+            python,
+            "-m",
+            "pytest",
+            "-q",
+            "--no-cov",
+            "tests/unit/test_cli_install_commands.py::"
+            "test_real_first_party_base_setup_profiles_use_one_exact_bundle_lifecycle",
+        ],
+        cwd=Path(__file__).parents[1],
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=900,
+    )
+    if finished.returncode != 0:
+        raise EvidenceError(
+            "released global provider lifecycle failed: "
+            + (finished.stdout + finished.stderr)[-4000:]
+        )
+    passed = finished.stdout.count(".")
+    if passed < len(fetched):
+        raise EvidenceError("released global provider lifecycle did not exercise every provider")
+    return len(fetched)
 
 
 def _parser() -> argparse.ArgumentParser:
