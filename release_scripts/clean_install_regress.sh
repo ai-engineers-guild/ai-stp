@@ -29,16 +29,10 @@ uv venv "$work/venv" -q
 # that job's interpreter.  It must not redirect this clean-install probe
 # back into the job environment.  `--python` owns the destination
 # explicitly and is portable because uv accepts a venv directory.
-# Every workspace package currently shares the development version 0.1.0.
-# A name-only install may therefore resolve an older public 0.1.0 wheel
-# instead of the wheel built from this checkout. Pass every internal wheel
-# as a direct requirement so this probe verifies one coherent candidate.
+# The public install is one wheel. A name-only install may resolve an older
+# public version instead of the wheel built from this checkout, so pass the
+# exact candidate file. Bundled first-party modules must arrive inside it.
 uv pip install --python "$work/venv" -q \
-    "$dist"/ai_stp_foundation-*.whl \
-    "$dist"/ai_stp_passports-*.whl \
-    "$dist"/ai_stp_assurance-*.whl \
-    "$dist"/ai_stp_contracts-*.whl \
-    "$dist"/ai_stp_sources-*.whl \
     "$dist"/ai_stp_cli-*.whl
 
 # The virtual environment layout differs: bin/ on POSIX, Scripts/ and .exe on Windows.
@@ -48,7 +42,7 @@ else
     venv_bin="$work/venv/bin"; exe=""
 fi
 
-"$venv_bin/python$exe" -c 'import ai_stp_cli'
+"$venv_bin/python$exe" -c 'import ai_stp_cli, ai_stp_foundation, ai_stp_passports, ai_stp_assurance, ai_stp_contracts, ai_stp_sources'
 # SPEC-011 REQ-1118 and the hard invariant in AGENTS.md: ai_stp calls no
 # model interface and needs no model key. Checked against the resolved
 # closure a user actually installs, not against the declared list — a model
@@ -71,12 +65,7 @@ export XDG_CONFIG_HOME="$tool/home/config" XDG_DATA_HOME="$tool/home/data" HOME=
 # platformdirs uses these native locations on Windows instead of XDG_*.
 export APPDATA="$tool/home/AppData/Roaming" LOCALAPPDATA="$tool/home/AppData/Local"
 export USERPROFILE="$tool/home"
-uv tool install -q "$dist"/ai_stp_cli-*.whl \
-    --with "$dist"/ai_stp_foundation-*.whl \
-    --with "$dist"/ai_stp_passports-*.whl \
-    --with "$dist"/ai_stp_assurance-*.whl \
-    --with "$dist"/ai_stp_contracts-*.whl \
-    --with "$dist"/ai_stp_sources-*.whl
+uv tool install -q "$dist"/ai_stp_cli-*.whl
 cd "$tool"
 "$tool/bin/ai-stp$exe" doctor --json > /dev/null
 "$tool/bin/ai-stp$exe" help --agent --json > /dev/null

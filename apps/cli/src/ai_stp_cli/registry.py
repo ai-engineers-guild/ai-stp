@@ -1889,7 +1889,10 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 choices=tuple(sorted(HARNESS_IDS)),
             ),
             option(
-                "provider", "string", "The provider executable that owns the target.", required=True
+                "provider",
+                "string",
+                "Provider executable. Omitted, the CLI uses a configured, remembered "
+                "or managed provider, or acquires the attested OpenNetwork release.",
             ),
             option(
                 "provider-manifest",
@@ -2005,7 +2008,11 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         parameters=(
             option("setup", "string", "Exact SetupVersion as <stable_id>@<X.Y>.", required=True),
             option("project", "string", "Local project root binding the setup.", required=True),
-            option("provider", "string", "Provider executable owning every target.", required=True),
+            option(
+                "provider",
+                "string",
+                "Provider executable. Omitted, the CLI acquires the attested OpenNetwork release.",
+            ),
             option(
                 "scope-target",
                 "string",
@@ -2050,7 +2057,11 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         confirmation="plan_digest",
         parameters=(
             option("transaction", "string", "Approved transaction to apply.", required=True),
-            option("provider", "string", "Exact provider executable.", required=True),
+            option(
+                "provider",
+                "string",
+                "Provider executable. Omitted, the CLI uses the remembered or acquired provider.",
+            ),
             option("provider-manifest", "string", "Exact trusted provider release manifest."),
             option("provider-build-attestation", "boolean", "Verify pinned build attestation."),
             option("provider-attestation-bundle", "string", "Offline attestation bundle."),
@@ -2069,7 +2080,11 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         mutability="apply",
         parameters=(
             option("transaction", "string", "Transaction requiring recovery.", required=True),
-            option("provider", "string", "Exact provider executable.", required=True),
+            option(
+                "provider",
+                "string",
+                "Provider executable. Omitted, the CLI uses the remembered or acquired provider.",
+            ),
             option("provider-manifest", "string", "Exact trusted provider release manifest."),
             option("provider-build-attestation", "boolean", "Verify pinned build attestation."),
             option("provider-attestation-bundle", "string", "Offline attestation bundle."),
@@ -2098,7 +2113,10 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         parameters=(
             option("operation", "string", "The approved operation to apply.", required=True),
             option(
-                "provider", "string", "The provider executable that owns the target.", required=True
+                "provider",
+                "string",
+                "Provider executable. Omitted, the CLI uses a configured, remembered "
+                "or managed provider, or acquires the attested OpenNetwork release.",
             ),
         ),
         next_actions=("install status",),
@@ -2399,7 +2417,11 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         handler="install:resume",
         parameters=(
             option("operation", "string", "The interrupted operation.", required=True),
-            option("provider", "string", "The provider executable to ask.", required=True),
+            option(
+                "provider",
+                "string",
+                "Provider executable. Omitted, the CLI uses the remembered or acquired provider.",
+            ),
         ),
         next_actions=("target status",),
     ),

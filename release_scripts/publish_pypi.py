@@ -1,16 +1,10 @@
 #!/usr/bin/env python3
-"""Publish an attested candidate to PyPI, one package at a time, unattended.
+"""Publish an attested candidate to PyPI, unattended.
 
-Publishing is five `workflow_dispatch` runs that must not overlap: they share
-one `concurrency` group, so a second dispatch while another is pending does not
-queue politely — it takes the group and the earlier one dies. Three runs were
-lost that way on 2026-08-25 by dispatching all five at once. This waits for each
-run to finish before starting the next, which is the only ordering the group
-permits.
-
-Order is the dependency order and `cli` is last on purpose: it pins the other
-four, so publishing it first leaves a window where `uv tool install
-ai-stp-cli==<version>` cannot resolve.
+`0.0.17` publishes one distribution. Historical six-package runs still must not
+overlap: they share one `concurrency` group, so a second dispatch while another
+is pending does not queue politely — it takes the group and the earlier one
+dies. This waits for each requested run to finish before starting the next.
 
 Nothing here uploads anything. The upload is `publish-pypi.yml` using PyPI
 Trusted Publishing, which mints an OIDC identity naming this repository, that
@@ -36,17 +30,9 @@ import urllib.request
 
 REPO = "ai-engineers-guild/ai-stp"
 
-#: Dependency order. `cli` last: it pins the other four.
-#: Publication order is dependency order: a project is uploaded only after
-#: everything its metadata pins is already on the index.
-PACKAGES: tuple[str, ...] = (
-    "foundation",
-    "passports",
-    "assurance",
-    "contracts",
-    "sources",
-    "cli",
-)
+#: The public install is one distribution (`ADR-0146`). Historical names remain
+#: rejected by the `--packages` parser rather than dispatched.
+PACKAGES: tuple[str, ...] = ("cli",)
 
 POLL_SECONDS = 10
 RUN_TIMEOUT_SECONDS = 1200

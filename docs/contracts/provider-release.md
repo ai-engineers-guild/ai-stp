@@ -1,6 +1,6 @@
 ---
 description: "Provider release manifest, trust, verification, and rollback protection."
-last_verified: "2026-08-25"
+last_verified: "2026-09-03"
 ---
 
 # Provider release
@@ -115,9 +115,11 @@ constraint.
 Protocol v3 is installed from a release with a manifest: either Ed25519-signed
 or attested for a repository in `build_attestations`. An `install plan` with
 `protocol-version = 3` and no `provider-manifest` is rejected unless the caller
-explicitly specifies `unverified-provider`. Subsequent actions name
-`provider fetch` as the way to obtain a closed manifest when the publisher did
-not supply one.
+explicitly specifies `unverified-provider`. When no explicit, configured,
+remembered or managed provider exists, `install plan` and `install apply`
+acquire the attested OpenNetwork artifact and materialise this JSON through the
+same path as `provider fetch` (`ADR-0146`). `provider fetch` remains the
+explicit repair and preload command when automatic acquisition cannot complete.
 
 `provider fetch` materializes this JSON from attested bytes, the exact tag,
 source commit, and executable `provider-info`. Sequence is encoded from the

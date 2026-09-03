@@ -1,6 +1,6 @@
 ---
 description: "SPEC-008: Providers, installation and recovery."
-last_verified: "2026-09-02"
+last_verified: "2026-09-03"
 ---
 
 # SPEC-008: Providers, installation and recovery
@@ -79,6 +79,7 @@ The closed authoring loop of setup systems is a check and coordination loop: it 
 - `REQ-850`: Before such a binary runs, the index's PEP 740 provenance for that exact file is fetched and its Sigstore bundle verified over the file digest. The publisher triple — repository, workflow, environment — is matched against locally pinned policy carrying the same fields as `build_attestations`, and only a match reports `verified_publisher`. The channel earns an existing level; it does not introduce one.
 - `REQ-851`: A missing provenance document, a bundle that does not verify, a publisher outside policy, and an index that serves no provenance are one outcome, `unverified`, not four gradations. With no index publisher rule pinned, every distribution-delivered provider is `unverified`, which is the behaviour that predates this requirement, so the absence of policy is the rollback.
 - `REQ-852`: `ai-stp-bundle/2` binds one exact provider profile and one exact scope adaptation per component under `ADR-0144`. The compiler and provider independently reject a missing binding, profile/scope mismatch, unbound owner, path outside its adaptation, changed projection artifact, or component passport mismatch before an operation plan exists. The staged `/1` path stays byte-identical until every provider advertises `/2`, then is removed before the first supported release.
+- `REQ-853`: On the first plan or install operation for a supported harness, if no explicit, configured, remembered-chosen or discovered managed provider exists, the CLI acquires the pinned OpenNetwork provider through `attested_bind.GithubReleases`, writes the consumer-owned `release.json`, remembers the installation and continues. Ambiguity, an explicit foreign path, `--unverified-provider` without a named executable, missing verifier or network, unsupported platform, failed attestation, digest mismatch and policy mismatch remain typed refusals. Auto-acquisition never becomes `--unverified-provider`. `provider fetch` remains the explicit repair and preload command and the next action when automatic acquisition cannot complete (`ADR-0146`).
 
 ## States and errors
 
@@ -148,3 +149,4 @@ The version of the contract is agreed upon before the operation. The old provide
 | `REQ-850` | A provenance document verifying against a pinned publisher raises the level to `verified_publisher`; the executable does not run before the verification completes, measured the way the GitHub path is measured — by ordering the spawn after the check and failing the fixture when it is reordered. |
 | `REQ-851` | Four fixtures — absent provenance, a bundle that fails verification, a publisher outside policy, an index answering 404 for every file — each report `unverified`, and each runs beside a passing control in the same test, so a check that accepted everything would fail rather than pass silently. |
 | `REQ-852` | Golden `/2` vectors bind profile, scope and sorted component adaptations; changing or removing each identity, owner and member path produces its named refusal before serialization, `/1` golden bytes remain unchanged during rollout, and released-provider conformance later repeats every negative vector before `/1` is deleted. |
+| `REQ-853` | Missing-provider plan/install acquires through mocked `GithubReleases` and remembers the bound artifact; explicit, configured, remembered and discovered providers are not fetched; ambiguity, unverified-without-path, attestation failure and platform miss remain typed refusals with `provider fetch` as a next action. |

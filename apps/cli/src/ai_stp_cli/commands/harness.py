@@ -408,42 +408,12 @@ def _resolve_provider(
     """Which provider executable serves this harness, by the precedence of `#452`.
 
     Explicit argument, then configuration, then the remembered choice, then
-    discovery under the managed root. `installations.resolve` owns that order and
-    names which of the four answered; nothing here re-decides it.
-
-    Ambiguity stays a refusal rather than a choice. Two providers for one harness
-    is the one case where picking is deciding, and `#452` leaves that decision
-    with whoever installed both.
+    discovery under the managed root. A missing managed provider is acquired
+    through attested GitHub releases (`REQ-853`). Ambiguity stays a refusal.
     """
-    from ai_stp_cli.config import effective_config
-    from ai_stp_cli.local import provider_installations as installations
+    from ai_stp_cli.provider import acquire
 
-    configured = {item.path: item.value for item in effective_config().values}
-    found = installations.resolve(
-        connection,
-        harness_id,
-        argument=str(parameters.get("provider") or ""),
-        configured=str(configured.get(f"provider.paths.{harness_id}") or ""),
-    )
-    if found.state == installations.STATE_AMBIGUOUS:
-        raise CliFailure(
-            "AI_STP_USER_DECISION_REQUIRED",
-            "more than one provider serves this harness here",
-            details={"harness": harness_id, "candidates": ", ".join(found.candidates)},
-            next_actions=[
-                "provider check --json",
-                f"harness install --harness {harness_id} --prefix <directory> "
-                "--target <directory> --provider <path> --json",
-            ],
-        )
-    if not found.path:
-        raise CliFailure(
-            "AI_STP_NOT_FOUND",
-            "no provider for this harness is installed here",
-            details={"harness": harness_id, "reason": found.reason},
-            next_actions=[f"provider fetch --harness {harness_id} --json"],
-        )
-    return conformance.resolve_executable(found.path)
+    return acquire.ensure_provider(connection, harness_id, parameters)
 
 
 def _planned_entry_point(

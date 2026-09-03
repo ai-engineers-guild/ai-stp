@@ -79,7 +79,7 @@ plans are not continued literally after the implementation changes.
   remove` through `ai-stp` itself — is green on **all six native legs** against
   `0.0.53`, seven harnesses each. The one-leg limitation this document carried
   since August is closed.
-- Package OS classifiers are Linux, macOS and Windows in all six distributions;
+- Package OS classifiers are Linux, macOS and Windows on the published `ai-stp-cli` distribution;
   the evidence that gated them exists.
 - The first-party corpus is published whole: 99 of 99 objects, zero blockers,
   and `just evidence-live` exits 0 against the served generation.

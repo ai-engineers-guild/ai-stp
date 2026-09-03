@@ -20,7 +20,6 @@ from pathlib import Path
 import pytest
 
 from ai_stp_cli.commands import harness as harness_commands
-from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import provider_installations as installations
 from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_cli.local.passports import moment
@@ -93,21 +92,37 @@ def test_an_explicit_path_still_wins(home: Path, tmp_path: Path) -> None:
     assert Path(found) == override.resolve()
 
 
-def test_no_provider_says_how_to_get_one(home: Path) -> None:
-    with (
-        open_registry(configured_path(), create=True) as connection,
-        pytest.raises(CliFailure, match="no provider for this harness") as raised,
-    ):
-        harness_commands._resolve_provider(  # pyright: ignore[reportPrivateUsage]
-            connection, "codex", {}
+def test_no_provider_acquires_the_attested_release(
+    home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fetched = _executable(tmp_path, "fetched")
+    from types import SimpleNamespace
+
+    def fetch(**_kwargs: object) -> SimpleNamespace:
+        return SimpleNamespace(
+            harness_id="codex",
+            artifact=fetched,
+            provider_id="codex-setup-system",
+            provider_version="0.0.60",
+            tag="0.0.60",
+            commit="a" * 40,
+            artifact_digest="sha256:" + "b" * 64,
         )
 
-    assert any("provider fetch" in item for item in raised.value.next_actions)
+    monkeypatch.setattr("ai_stp_cli.provider.acquire.attested_bind.fetch", fetch)
+    with open_registry(configured_path(), create=True) as connection:
+        found = harness_commands._resolve_provider(  # pyright: ignore[reportPrivateUsage]
+            connection, "codex", {}
+        )
+    assert Path(found) == fetched.resolve()
 
 
-def test_a_discovered_observation_does_not_become_the_answer(home: Path, tmp_path: Path) -> None:
+def test_a_discovered_observation_does_not_become_the_answer(
+    home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """`provider check` records what it saw; seeing is not choosing (`#452`)."""
     place = _executable(tmp_path)
+    fetched = _executable(tmp_path, "fetched")
     registry = configured_path()
     registry.parent.mkdir(parents=True, exist_ok=True)
     with open_registry(registry, create=True) as connection:
@@ -128,10 +143,23 @@ def test_a_discovered_observation_does_not_become_the_answer(home: Path, tmp_pat
         )
         connection.commit()
 
-    with (
-        open_registry(registry) as connection,
-        pytest.raises(CliFailure, match="no provider for this harness"),
-    ):
-        harness_commands._resolve_provider(  # pyright: ignore[reportPrivateUsage]
+    from types import SimpleNamespace
+
+    def fetch(**_kwargs: object) -> SimpleNamespace:
+        return SimpleNamespace(
+            harness_id="codex",
+            artifact=fetched,
+            provider_id="codex-setup-system",
+            provider_version="0.0.60",
+            tag="0.0.60",
+            commit="a" * 40,
+            artifact_digest="sha256:" + "b" * 64,
+        )
+
+    monkeypatch.setattr("ai_stp_cli.provider.acquire.attested_bind.fetch", fetch)
+    with open_registry(registry) as connection:
+        found = harness_commands._resolve_provider(  # pyright: ignore[reportPrivateUsage]
             connection, "codex", {}
         )
+    assert Path(found) == fetched.resolve()
+    assert Path(found) != place.resolve()

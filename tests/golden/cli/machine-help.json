@@ -2477,9 +2477,9 @@
           "name": "provider",
           "kind": "option",
           "value_type": "string",
-          "required": true,
+          "required": false,
           "repeatable": false,
-          "summary": "The provider executable that owns the target.",
+          "summary": "Provider executable. Omitted, the CLI uses a configured, remembered or managed provider, or acquires the attested OpenNetwork release.",
           "choices": []
         }
       ],
@@ -2614,9 +2614,9 @@
           "name": "provider",
           "kind": "option",
           "value_type": "string",
-          "required": true,
+          "required": false,
           "repeatable": false,
-          "summary": "The provider executable that owns the target.",
+          "summary": "Provider executable. Omitted, the CLI uses a configured, remembered or managed provider, or acquires the attested OpenNetwork release.",
           "choices": []
         },
         {
@@ -2825,9 +2825,9 @@
           "name": "provider",
           "kind": "option",
           "value_type": "string",
-          "required": true,
+          "required": false,
           "repeatable": false,
-          "summary": "The provider executable to ask.",
+          "summary": "Provider executable. Omitted, the CLI uses the remembered or acquired provider.",
           "choices": []
         }
       ],
@@ -2875,9 +2875,9 @@
           "name": "provider",
           "kind": "option",
           "value_type": "string",
-          "required": true,
+          "required": false,
           "repeatable": false,
-          "summary": "Exact provider executable.",
+          "summary": "Provider executable. Omitted, the CLI uses the remembered or acquired provider.",
           "choices": []
         },
         {
@@ -2999,9 +2999,9 @@
           "name": "provider",
           "kind": "option",
           "value_type": "string",
-          "required": true,
+          "required": false,
           "repeatable": false,
-          "summary": "Provider executable owning every target.",
+          "summary": "Provider executable. Omitted, the CLI acquires the attested OpenNetwork release.",
           "choices": []
         },
         {
@@ -3088,9 +3088,9 @@
           "name": "provider",
           "kind": "option",
           "value_type": "string",
-          "required": true,
+          "required": false,
           "repeatable": false,
-          "summary": "Exact provider executable.",
+          "summary": "Provider executable. Omitted, the CLI uses the remembered or acquired provider.",
           "choices": []
         },
         {

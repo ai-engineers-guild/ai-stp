@@ -8,10 +8,10 @@ from release_scripts.build_candidate import PUBLISHABLE
 def test_product_contract_names_the_candidate_package_closure() -> None:
     specification = Path("specs/active/SPEC-001-product-contract.md").read_text(encoding="utf-8")
 
-    assert len(PUBLISHABLE) == 6
-    for distribution in PUBLISHABLE:
-        assert distribution.removeprefix("ai-stp-") in specification
-    assert "all six distributions" in specification
+    assert list(PUBLISHABLE) == ["ai-stp-cli"]
+    assert "one distribution" in specification
+    assert "ai-stp-cli" in specification
+    assert "Requires-Dist" in specification
 
 
 def test_scaffold_apply_uses_the_exact_digest_as_its_confirmation() -> None:

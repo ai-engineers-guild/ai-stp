@@ -66,74 +66,94 @@ def test_the_wheel_declares_the_project_licence(wheel: Path) -> None:
 #: Import name to distribution name, where the two differ. Everything else is
 #: assumed to match, which is true for every remaining dependency here.
 DISTRIBUTION_OF: Final[dict[str, str]] = {
-    "ai_stp_assurance": "ai-stp-assurance",
     "yaml": "pyyaml",
-    "ai_stp_contracts": "ai-stp-contracts",
-    "ai_stp_foundation": "ai-stp-foundation",
-    "ai_stp_passports": "ai-stp-passports",
-    "ai_stp_sources": "ai-stp-sources",
     "jsonschema": "jsonschema",
+    "markdown_it": "markdown-it-py",
     "nacl": "pynacl",
     "ulid": "python-ulid",
 }
 
+FIRST_PARTY_MODULES: Final[frozenset[str]] = frozenset(
+    {
+        "ai_stp_cli",
+        "ai_stp_foundation",
+        "ai_stp_passports",
+        "ai_stp_assurance",
+        "ai_stp_contracts",
+        "ai_stp_sources",
+    }
+)
+
+FIRST_PARTY_SOURCES: Final[tuple[Path, ...]] = (
+    ROOT / "apps" / "cli" / "src",
+    ROOT / "packages" / "foundation" / "src",
+    ROOT / "packages" / "passports" / "src",
+    ROOT / "packages" / "assurance" / "src",
+    ROOT / "packages" / "contracts" / "src",
+    ROOT / "packages" / "sources" / "src",
+)
+
 #: Reasons on the record: `click` by `ADR-0057`, `pynacl` and `keyring` by
 #: `ADR-0058`, `httpx` by `#75`, `jsonschema` for the closed provider status
 #: boundary, `pyyaml` for the configuration file, `pydantic`
-#: for the wire and report models, `ai-stp-passports` for the passport envelope,
-#: `ai-stp-assurance` for the signed attestation boundary, `ai-stp-sources` by
-#: `ADR-0139` for mixed catalog/Git/package/path setup freeze, and `tomlkit` by
-#: `ADR-0129` for format-preserving writes to a host file a component
-#: contributes one key to — `tomllib` in the standard library only reads, and
-#: writing values back would erase every comment the file's owner put there.
-#: `python-ulid` provides stable IDs for local setup composition.
+#: for the wire and report models, `rfc8785` for canonical JSON in foundation,
+#: `markdown-it-py` for passport markdown, and `tomlkit` by `ADR-0129` for
+#: format-preserving writes to a host file a component contributes one key to
+#: — `tomllib` in the standard library only reads, and writing values back
+#: would erase every comment the file's owner put there. `python-ulid` provides
+#: stable IDs for local setup composition. First-party modules ship inside the
+#: wheel (`ADR-0146`) and are not PyPI requirements.
 #: A name reaching this set without a reason is the thing to argue about.
 ALLOWED_DEPENDENCIES: Final[frozenset[str]] = frozenset(
     {
-        "ai-stp-assurance",
-        "ai-stp-contracts",
-        "ai-stp-foundation",
-        "ai-stp-passports",
-        "ai-stp-sources",
         "click",
         "httpx",
         "jsonschema",
         "keyring",
+        "markdown-it-py",
         "pynacl",
         "pydantic",
         "pyyaml",
         "python-ulid",
+        "rfc8785",
         "tomlkit",
     }
 )
 
 
+def _requirement_name(requirement: str) -> str:
+    for separator in ("==", ">=", "<=", "~=", "!=", ">", "<", ";", "[", " "):
+        requirement = requirement.split(separator)[0]
+    return requirement.strip()
+
+
 def _declared(wheel: Path) -> set[str]:
     return {
-        line.removeprefix("Requires-Dist: ").split(">")[0].split("=")[0].strip()
+        _requirement_name(line.removeprefix("Requires-Dist: "))
         for line in _metadata(wheel).splitlines()
         if line.startswith("Requires-Dist: ")
     }
 
 
 def _directly_imported() -> set[str]:
-    """Every distribution the CLI sources import by name."""
+    """Every third-party distribution the shipped first-party sources import."""
     found: set[str] = set()
-    for source in (ROOT / "apps" / "cli" / "src").rglob("*.py"):
-        tree = ast.parse(source.read_text(encoding="utf-8"))
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Import):
-                names = [alias.name for alias in node.names]
-            elif isinstance(node, ast.ImportFrom):
-                # A relative import is this package talking to itself.
-                names = [node.module or ""] if not node.level else []
-            else:
-                continue
-            for name in names:
-                top = name.split(".", 1)[0]
-                if not top or top in sys.stdlib_module_names or top == "ai_stp_cli":
+    for root in FIRST_PARTY_SOURCES:
+        for source in root.rglob("*.py"):
+            tree = ast.parse(source.read_text(encoding="utf-8"))
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    names = [alias.name for alias in node.names]
+                elif isinstance(node, ast.ImportFrom):
+                    # A relative import is this package talking to itself.
+                    names = [node.module or ""] if not node.level else []
+                else:
                     continue
-                found.add(DISTRIBUTION_OF.get(top, top))
+                for name in names:
+                    top = name.split(".", 1)[0]
+                    if not top or top in sys.stdlib_module_names or top in FIRST_PARTY_MODULES:
+                        continue
+                    found.add(DISTRIBUTION_OF.get(top, top))
     return found
 
 
@@ -190,7 +210,18 @@ def test_the_wheel_ships_the_typing_marker(wheel: Path) -> None:
     # Without it a consumer's type checker treats the package as untyped, and
     # the strict typing the gate enforces stops at the boundary.
     with zipfile.ZipFile(wheel) as archive:
-        assert "ai_stp_cli/py.typed" in archive.namelist()
+        names = archive.namelist()
+    for module in FIRST_PARTY_MODULES:
+        assert f"{module}/py.typed" in names, module
+
+
+def test_the_wheel_bundles_first_party_modules_and_does_not_require_them(wheel: Path) -> None:
+    with zipfile.ZipFile(wheel) as archive:
+        names = archive.namelist()
+    for module in FIRST_PARTY_MODULES:
+        assert any(item.startswith(f"{module}/") for item in names), module
+    declared = _declared(wheel)
+    assert not {item for item in declared if item.startswith("ai-stp-")}
 
 
 def test_the_version_output_identifies_the_build_without_a_path() -> None:

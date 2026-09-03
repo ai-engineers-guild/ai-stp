@@ -30,7 +30,7 @@ def plan(parameters: Mapping[str, object]) -> Answer[MultiRootTransactionView]:
     """Purely plan every named scope before recording one aggregate decision."""
     setup = _required(parameters, "setup")
     project = _required(parameters, "project")
-    provider = _required(parameters, "provider")
+    provider = str(parameters.get("provider") or "")
     targets = _scope_targets(parameters)
     children: list[multi_root.Child] = []
     planned_ids: list[str] = []
@@ -106,7 +106,7 @@ def approve(parameters: Mapping[str, object]) -> Answer[MultiRootTransactionView
 def apply(parameters: Mapping[str, object]) -> Answer[MultiRootTransactionView]:
     """Apply every child in order or compensate every possible effect."""
     transaction_id = _required(parameters, "transaction")
-    provider = _required(parameters, "provider")
+    provider = str(parameters.get("provider") or "")
     with closing(open_registry(configured_path(), create=True)) as connection:
         coordinator = Coordinator(connection)
         held = coordinator.begin(transaction_id, at=moment())
@@ -142,7 +142,7 @@ def apply(parameters: Mapping[str, object]) -> Answer[MultiRootTransactionView]:
 def recover(parameters: Mapping[str, object]) -> Answer[MultiRootTransactionView]:
     """Settle unknown child results, then finish success or reverse compensation."""
     transaction_id = _required(parameters, "transaction")
-    provider = _required(parameters, "provider")
+    provider = str(parameters.get("provider") or "")
     with closing(open_registry(configured_path(), create=True)) as connection:
         coordinator = Coordinator(connection)
         held = multi_root.get(connection, transaction_id)

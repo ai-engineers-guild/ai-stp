@@ -7,13 +7,7 @@ from ai_stp_cli.commands.machine_help import registry
 
 ROADMAP = Path(__file__).parents[2] / "docs" / "engineering" / "implementation-roadmap.md"
 ROOT = Path(__file__).parents[2]
-PUBLISHABLE_PROJECTS = (
-    ROOT / "packages" / "foundation" / "pyproject.toml",
-    ROOT / "packages" / "passports" / "pyproject.toml",
-    ROOT / "packages" / "assurance" / "pyproject.toml",
-    ROOT / "packages" / "contracts" / "pyproject.toml",
-    ROOT / "apps" / "cli" / "pyproject.toml",
-)
+PUBLISHABLE_PROJECTS = (ROOT / "apps" / "cli" / "pyproject.toml",)
 
 IMPLEMENTED_COMMAND_EVIDENCE = {
     ("config", "validate"),

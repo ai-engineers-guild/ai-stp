@@ -215,40 +215,34 @@ requires-dist = [
 
 [[package]]
 name = "ai-stp-cli"
-version = "0.0.16"
+version = "0.0.17"
 source = { editable = "apps/cli" }
 dependencies = [
-    { name = "ai-stp-assurance" },
-    { name = "ai-stp-contracts" },
-    { name = "ai-stp-foundation" },
-    { name = "ai-stp-passports" },
-    { name = "ai-stp-sources" },
     { name = "click" },
     { name = "httpx" },
     { name = "jsonschema" },
     { name = "keyring" },
+    { name = "markdown-it-py" },
     { name = "pydantic" },
     { name = "pynacl" },
     { name = "python-ulid" },
     { name = "pyyaml" },
+    { name = "rfc8785" },
     { name = "tomlkit" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "ai-stp-assurance", editable = "packages/assurance" },
-    { name = "ai-stp-contracts", editable = "packages/contracts" },
-    { name = "ai-stp-foundation", editable = "packages/foundation" },
-    { name = "ai-stp-passports", editable = "packages/passports" },
-    { name = "ai-stp-sources", editable = "packages/sources" },
     { name = "click", specifier = ">=8.1" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "jsonschema", specifier = ">=4.26" },
     { name = "keyring", specifier = ">=25.6" },
+    { name = "markdown-it-py", specifier = ">=4.0,<5" },
     { name = "pydantic", specifier = ">=2.9" },
     { name = "pynacl", specifier = ">=1.6.2" },
     { name = "python-ulid", specifier = ">=3.0" },
     { name = "pyyaml", specifier = ">=6" },
+    { name = "rfc8785", specifier = ">=0.1.4" },
     { name = "tomlkit", specifier = ">=0.13" },
 ]
 

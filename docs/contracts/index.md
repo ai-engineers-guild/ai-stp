@@ -42,7 +42,7 @@ last_verified: "2026-08-03"
 | [passport-envelope.md](passport-envelope.md) | Canonical passport envelope and fact provenance. | 2026-08-04 |
 | [project-discovery.md](project-discovery.md) | Machine form of complete project discovery within an explicitly named scope. | 2026-08-09 |
 | [provider-protocol.md](provider-protocol.md) | Commands, execution boundary, and state mapping of a public provider. | 2026-09-01 |
-| [provider-release.md](provider-release.md) | Provider release manifest, trust, verification, and rollback protection. | 2026-08-25 |
+| [provider-release.md](provider-release.md) | Provider release manifest, trust, verification, and rollback protection. | 2026-09-03 |
 | [public-profile.md](public-profile.md) | Public profile fields, revisions, avatar, and separation from the developer passport. | 2026-08-08 |
 | [report-case.md](report-case.md) | Private report case: allowed content, preview, states, and auditable moderator actions. | 2026-08-13 |
 | [selection-impact.md](selection-impact.md) | Machine contract for the local context budget, capability delta, and blast radius. | 2026-08-15 |

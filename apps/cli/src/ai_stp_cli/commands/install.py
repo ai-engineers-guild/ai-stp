@@ -7,9 +7,11 @@ a single command that did them all would take the user's approval for a plan
 they had not seen.
 
 **`ai_stp` never writes the target.** Every effect goes through the provider
-executable named by the caller, started under the frozen boundary of
-`provider.protocol`. This module records what happened and refuses to record
-what cannot have happened; it does not touch a harness configuration.
+executable, started under the frozen boundary of `provider.protocol`. The
+caller may name one; otherwise a configured, remembered, discovered or
+automatically acquired attested provider is used (`REQ-853`). This module
+records what happened and refuses to record what cannot have happened; it
+does not touch a harness configuration.
 
 **A provider result is mapped, never trusted verbatim.** `protocol.operation_state`
 refuses a state it does not know rather than writing it into the journal, because
@@ -243,7 +245,6 @@ def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
     under the lock, so a target that moves between the two is caught instead of
     being written over.
     """
-    executable = _executable(parameters)
     proposal_id = str(parameters.get("proposal") or "")
     prepared_ref = str(parameters.get("setup") or "")
     action = str(parameters.get("action") or "install")
@@ -300,6 +301,7 @@ def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
             if held is not None
             else _Pair(_required(parameters, "project"), _required(parameters, "harness"))
         )
+        executable = _executable(parameters, connection=connection, harness_id=pair.harness_id)
         target = installation.target_identity(pair.project_id, pair.harness_id)
         release_recovery = bool(parameters.get("provider-release-recovery", False))
         release_evidence = trust.trusted_manifest(
@@ -737,12 +739,13 @@ def apply(parameters: Mapping[str, object]) -> Answer[InstallationView]:
     An interrupted provider call is recorded as `partial`, never as a failure:
     a call that timed out does not prove nothing happened.
     """
-    executable = _executable(parameters)
     operation_id = _operation(parameters)
 
     def work(connection: sqlite3.Connection) -> InstallationView:
         _require_independent_operation(connection, operation_id)
         held = installation._require(connection, operation_id)  # pyright: ignore[reportPrivateUsage]
+        _, harness_id = installation.target_pair(held.target_id)
+        executable = _executable(parameters, connection=connection, harness_id=harness_id)
         trusted_release = _verify_bound_release(connection, held, executable)
         invoke = invocation.provider_invoker(
             executable,
@@ -1065,12 +1068,13 @@ def resume(parameters: Mapping[str, object]) -> Answer[InstallationView]:
     `partial` rather than `failed`: after the call was made, "nothing was done"
     is a claim nobody is in a position to make.
     """
-    executable = _executable(parameters)
     operation_id = _operation(parameters)
 
     def work(connection: sqlite3.Connection) -> InstallationView:
         _require_independent_operation(connection, operation_id)
         held = installation._require(connection, operation_id)  # pyright: ignore[reportPrivateUsage]
+        _, harness_id = installation.target_pair(held.target_id)
+        executable = _executable(parameters, connection=connection, harness_id=harness_id)
         # From the journal, not from the plan: the plan records what was going
         # to be done and never moves, and "where did this stop" is a question
         # only the journal can answer.
@@ -1988,13 +1992,22 @@ def _provider_target(parameters: Mapping[str, object], logical: str, version: in
     return str(place.resolve())
 
 
-def _executable(parameters: Mapping[str, object]) -> str:
+def _executable(
+    parameters: Mapping[str, object],
+    *,
+    connection: sqlite3.Connection | None = None,
+    harness_id: str = "",
+) -> str:
+    if connection is not None and harness_id:
+        from ai_stp_cli.provider import acquire
+
+        return acquire.ensure_provider(connection, harness_id, parameters)
     given = str(parameters.get("provider") or "")
     if not given:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
             "the provider executable must be named; ai_stp never writes a target itself",
-            next_actions=["provider conformance --harness <id> --executable <path> --json"],
+            next_actions=["provider fetch --harness <id> --json"],
         )
     place = Path(given).expanduser()
     try:
