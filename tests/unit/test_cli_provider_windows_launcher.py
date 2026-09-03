@@ -227,14 +227,19 @@ def _children_of(pid: int) -> list[int]:
 
 def _alive(pid: int) -> bool:
     import ctypes
+    from ctypes import wintypes
 
     load_library: Any = vars(ctypes)["WinDLL"]
     kernel: Any = load_library("kernel32", use_last_error=True)
     handle = kernel.OpenProcess(0x1000, False, pid)
     if not handle:
         return False
-    kernel.CloseHandle(handle)
-    return True
+    exit_code = wintypes.DWORD()
+    try:
+        queried = kernel.GetExitCodeProcess(handle, ctypes.byref(exit_code))
+        return bool(queried) and exit_code.value == 259  # STILL_ACTIVE
+    finally:
+        kernel.CloseHandle(handle)
 
 
 @pytest.mark.skipif(not WINDOWS, reason="exercises the real job object and the grant lease")
