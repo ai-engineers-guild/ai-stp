@@ -176,3 +176,13 @@ ai-stp registry search --kind component --query scanner --include-experimental -
 `--include-experimental` only changes that search. Installing still needs a
 durable record. Revoke with `ai-stp consent revoke`. See
 [Trust and safety](../trust-and-safety/index.md).
+
+## Related pages
+
+- [Observe](../cli/observe.md) — `doctor`, `capabilities`, `help --agent`.
+- [Quickstart for people](../quickstart/human.md) — `PATH` and first identity.
+- [Quickstart for agents](../quickstart/agent.md) — what to do with a refusal.
+- [Install](../cli/install.md) — recover, resume, cancel.
+- [Target](../cli/target.md) — backups and named rollback.
+- [Harnesses](../harnesses.md) — `undefined` is not auto-install.
+- [Consent](../cli/consent.md) — experimental objects.

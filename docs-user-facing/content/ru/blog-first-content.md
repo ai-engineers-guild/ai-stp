@@ -54,4 +54,4 @@ Pi, OpenCode, Cursor и Antigravity — бета. Каталог и совмес
 
 Установите из PyPI командой `uv tool install ai-stp-cli`, затем дайте агенту прочитать `doctor` и машинную справку. Сайт — для каталога, аккаунта, устройств и статуса публикаций. Когда нужно изменить target, вы снова в CLI, а писатель — провайдер. Сборка, проверки и установка остаются на машине оператора; веб их не выполняет.
 
-См. также: [Быстрый старт](https://ai-stp.aiguild.space/ru/docs/quickstart) в справочном центре.
+См. также: [Быстрый старт](https://ai-stp.aiguild.space/ru/docs/quickstart) в справочном центре — [для человека](https://ai-stp.aiguild.space/ru/docs/quickstart/human) и [для ИИ-агента](https://ai-stp.aiguild.space/ru/docs/quickstart/agent).

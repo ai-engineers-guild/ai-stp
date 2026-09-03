@@ -192,7 +192,7 @@ rendering is not a different directory on disk.
 | [Select](select.md) | a project passport anchors a session |
 | [Target](target.md) | daily state of one project and harness |
 | [Component commands](component.md) | native components inside a project |
-| [Quickstart](../quickstart.md) | first-run path does not require a project |
+| [Quickstart for people](../quickstart/human.md) | first-run path does not require a project |
 
 !!! note "Flags from `ai-stp help --agent --json`"
     If `help --agent` disagrees with a flag on this page, the CLI wins.

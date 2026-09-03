@@ -4,13 +4,14 @@ import { NextRequest, NextResponse } from "next/server";
 import enMessages from "../messages/en.json";
 import ruMessages from "../messages/ru.json";
 import { SESSION_COOKIE } from "@/lib/auth/cookies";
+import { docsMarkdownRedirectPath } from "@/lib/docs-nav-path";
+import { COMPILED_FEATURES } from "@/lib/features/compiled";
 import { routing } from "@/lib/i18n/routing";
-import { parseProjectionRoute, projectionRequestHeaders } from "@/lib/projection/route";
 import {
   isImpossibleCatalogObjectPath,
   isImpossibleCountryPath,
 } from "@/lib/projection/missing-route";
-import { COMPILED_FEATURES } from "@/lib/features/compiled";
+import { parseProjectionRoute, projectionRequestHeaders } from "@/lib/projection/route";
 
 const intlMiddleware = createMiddleware(routing);
 
@@ -23,6 +24,12 @@ const intlMiddleware = createMiddleware(routing);
  */
 export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const docsMarkdown = docsMarkdownRedirectPath(pathname);
+  if (docsMarkdown) {
+    const url = request.nextUrl.clone();
+    url.pathname = docsMarkdown;
+    return NextResponse.redirect(url);
+  }
   const contentMatch = pathname.match(/^\/(?:ru|en)\/(?:ai\/)?content(?:\/|$)/);
   const disabledSaasPage =
     !COMPILED_FEATURES.saas_public_pages &&

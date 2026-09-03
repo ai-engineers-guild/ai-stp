@@ -182,7 +182,7 @@ a session may not.
 
 | Page | Why |
 | --- | --- |
-| [Quickstart](../quickstart.md) | first-run identity in prose |
+| [Quickstart for people](../quickstart/human.md) | first-run identity in prose |
 | [Observe](observe.md) | `doctor` reports `device_identity` |
 | [Passports](passport.md) | device passport vs identity |
 | [Sign-in](auth.md) | attaching this device to an account |

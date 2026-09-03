@@ -164,3 +164,10 @@ Plugin packs, доказанные точным манифестом, могут
 Линии доверия: [Доверие и безопасность](../trust-and-safety/index.md).
 Инвентарь сканов безопасности: [Проверки безопасности](../security-checks.md).
 CLI discovery: [Обнаружение и adopt](../cli/component-discover.md).
+
+## Связанные страницы
+
+- [Сетапы](../setups/index.md) — точные pins этих видов.
+- [Каталог](../catalog/index.md) — как карточка называет вид.
+- [Быстрый старт для человека](../quickstart/human.md) — первое чтение каталога.
+- [Команды компонента](../cli/component.md) — discover → passport → publish.

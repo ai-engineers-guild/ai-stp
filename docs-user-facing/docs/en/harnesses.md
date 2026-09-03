@@ -129,3 +129,14 @@ ai-stp toolchain harness-capabilities --json
     If you are unsure, start with Claude Code, Codex, or Grok Build. For beta
     lines, keep the install plan and do not delete the backup until you have
     checked the result.
+
+## Related pages
+
+- [Concepts](concepts/index.md) — what a harness is, versus a setup.
+- [Quickstart for people](quickstart/human.md) — first run when the program
+  is missing.
+- [Harness program](cli/harness.md) — install the binary, not the setup.
+- [Provider](cli/provider.md) — the only writer of native state.
+- [Components](components/index.md) — which kinds each harness accepts.
+- [Setups](setups/index.md) — a setup belongs to one harness from creation.
+- [Troubleshooting](troubleshooting/index.md) — `undefined` is not auto-install.

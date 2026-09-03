@@ -148,8 +148,10 @@ ai-stp passport developer init --json
 - [Вход](login.md) — OAuth в браузере и device code.
 - [Эта документация](docs.md) — хост MkDocs против `/{locale}/docs`
   против API `/docs`.
-- [Быстрый старт](../quickstart.md) — та же установка, затем устройство
-  и чтения каталога.
+- [Быстрый старт для человека](../quickstart/human.md) — та же установка,
+  затем устройство и чтения каталога.
+- [Быстрый старт для ИИ-агента](../quickstart/agent.md) — что делает агент,
+  когда бинарник уже есть.
 - [CLI](../cli/index.md) — конверты, mutability, confirmation.
 - [Карта команд](../cli/commands.md) — каждая объявленная команда.
 - [Харнессы](../harnesses.md) — то, что Главная за вас не определяет.

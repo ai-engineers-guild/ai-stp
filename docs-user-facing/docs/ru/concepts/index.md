@@ -166,3 +166,15 @@ ai-stp project passport --root . --json
 именованный откат этой пары — команды [target](../cli/target.md).
 
 Подробности: [Проект](../cli/project.md).
+
+## Связанные страницы
+
+- [Быстрый старт для человека](../quickstart/human.md) — установка и первое
+  чтение каталога.
+- [Быстрый старт для ИИ-агента](../quickstart/agent.md) — ритуал сессии.
+- [Поддерживаемые харнессы](../harnesses.md) — основная, beta, `undefined`.
+- [Компоненты](../components/index.md) — восемь видов.
+- [Сетапы](../setups/index.md) — точные pins, один харнесс.
+- [CLI](../cli/index.md) — конверты и группы команд.
+- [Каталог](../catalog/index.md) — как читать публичный результат.
+- [Доверие и безопасность](../trust-and-safety/index.md) — две оси verification.

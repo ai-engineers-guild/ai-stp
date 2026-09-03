@@ -182,3 +182,13 @@ ai-stp install recover --operation <id> --json
 
 Смежные страницы: [Публикация](../publishing/index.md),
 [Команды сетапа](../cli/setup.md).
+
+## Связанные страницы
+
+- [Понятия](../concepts/index.md) — сетап принадлежит одному харнессу.
+- [Компоненты](../components/index.md) — что сетап закрепляет.
+- [Выбор](../cli/select.md) — eligibility и proposal.
+- [Установка](../cli/install.md) — план, approve, apply.
+- [Каталог](../catalog/index.md) — как читать публичную карточку сетапа.
+- [Доверие и безопасность](../trust-and-safety/index.md) — согласие до
+  experimental pins.

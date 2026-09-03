@@ -12,6 +12,7 @@ import {
 import { registryCommand } from "@/lib/cli-copy";
 import type { PublicObjectFacts } from "@/lib/projection/page-facts";
 import { namedHarnesses } from "@/lib/catalog-harnesses";
+import type { DocsNavNode } from "@/lib/docs-nav";
 import { usageFromCounts, usageMachineFields } from "@/lib/projection/usage-fields";
 
 type TrustLike = {
@@ -452,7 +453,7 @@ export function presentDocs(input: {
   title: string;
   description: string | null;
   bodyText: string;
-  nav: ReadonlyArray<{ title: string; href: string }>;
+  nav: readonly DocsNavNode[];
 }): MachineDocument {
   const doc: MachineDocument = [
     heading(1, input.title),
@@ -464,15 +465,29 @@ export function presentDocs(input: {
   }
   if (input.nav.length > 0) {
     doc.push(heading(2, "Pages"));
-    for (const item of input.nav) {
-      doc.push(link(item.title, item.href));
-    }
+    pushDocsNav(doc, input.nav, 3);
   }
   if (input.bodyText.trim()) {
     doc.push(heading(2, "Content"));
     doc.push(paragraph(input.bodyText.trim()));
   }
   return doc;
+}
+
+function pushDocsNav(doc: MachineDocument, nodes: readonly DocsNavNode[], level: number): void {
+  for (const node of nodes) {
+    if (node.children?.length) {
+      doc.push(heading(Math.min(level, 6), node.title));
+      if (node.href) {
+        doc.push(link(node.title, node.href));
+      }
+      pushDocsNav(doc, node.children, level + 1);
+      continue;
+    }
+    if (node.href) {
+      doc.push(link(node.title, node.href));
+    }
+  }
 }
 
 export function presentLegal(input: {

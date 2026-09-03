@@ -233,7 +233,7 @@ ai-stp harness status --harness codex --prefix <prefix> --json
 | [Target](target.md) | текущее состояние проекта и harness |
 | [Harnesses](../harnesses.md) | основная и бета-поддержка |
 | [Agent Skill CLI](skill.md) | skill, который программа будет читать |
-| [Quickstart](../quickstart.md) | первый запуск, когда программа отсутствует |
+| [Быстрый старт для человека](../quickstart/human.md) | первый запуск, когда программа отсутствует |
 
 !!! note "Флаги из `ai-stp help --agent --json`"
     Если `help --agent` расходится с флагом на этой странице, CLI побеждает.

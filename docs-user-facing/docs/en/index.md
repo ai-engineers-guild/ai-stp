@@ -27,8 +27,10 @@ harness's own public provider.
 
 ## Where to start
 
-- [Quickstart](quickstart.md): install the CLI, check the environment and see
-  the first commands.
+- [Quickstart for people](quickstart/human.md): install the CLI, check the
+  environment and read the catalog.
+- [Quickstart for agents](quickstart/agent.md): start every session from
+  `doctor` and `help --agent`.
 - [CLI](cli/index.md): the working surface — JSON envelopes, plans, and
   confirmation.
 - [Web](web/index.md): account, catalog cards, publications, and reports.
@@ -61,8 +63,9 @@ CLI → passports → project index → search → setup assembly → checks
 ```
 
 ??? question "How to read this documentation"
-    If `ai_stp` is new to you, start with the quickstart and the harnesses
-    page. If you are already assembling a setup, go straight to
+    If `ai_stp` is new to you, start with the [human](quickstart/human.md) or
+    [agent](quickstart/agent.md) quickstart and the harnesses page. If you
+    are already assembling a setup, go straight to
     [components](components/index.md): each page explains what one kind is
     for, where its boundary is, and what it risks. Command flags always come
     from `ai-stp help --agent --json`; this site names commands so a person

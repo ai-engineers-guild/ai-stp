@@ -144,8 +144,10 @@ reports, and publication confirm.
 - [Sign-in](login.md) — OAuth in the browser and the device code.
 - [This documentation](docs.md) — MkDocs host versus `/{locale}/docs`
   versus API `/docs`.
-- [Quickstart](../quickstart.md) — the same install, then device and
-  catalog reads.
+- [Quickstart for people](../quickstart/human.md) — the same install, then
+  device and catalog reads.
+- [Quickstart for agents](../quickstart/agent.md) — what the agent does
+  after the binary is present.
 - [CLI](../cli/index.md) — envelopes, mutability, confirmation.
 - [Command map](../cli/commands.md) — every declared command.
 - [Harnesses](../harnesses.md) — what Home never detects for you.

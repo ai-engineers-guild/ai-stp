@@ -113,4 +113,6 @@ unnecessary. It may not skip a mechanical check.
 | confirmation missing | `explicit_flag` or `plan_digest` was required | read the descriptor; do not invent a flag name |
 | command absent from machine help | this install does not have it | stop; do not substitute a similar command |
 
-The first-run path in prose is the [Quickstart](../quickstart.md).
+The first-run path in prose is [Quickstart for people](../quickstart/human.md).
+The session ritual for an agent is
+[Quickstart for agents](../quickstart/agent.md).

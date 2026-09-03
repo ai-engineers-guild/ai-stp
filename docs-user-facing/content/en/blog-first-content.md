@@ -54,4 +54,4 @@ There is no in-product model API. There are no ratings, no public comment thread
 
 Install from PyPI with `uv tool install ai-stp-cli`, then let the agent read `doctor` and machine help. The website is for the catalog, the account, devices and publication status. When you are ready to change a target, you are back in the CLI, and the writer is the provider.
 
-See also: [Quickstart](https://ai-stp.aiguild.space/en/docs/quickstart) in the help center.
+See also: [Quickstart](https://ai-stp.aiguild.space/en/docs/quickstart) in the help center — [for people](https://ai-stp.aiguild.space/en/docs/quickstart/human) and [for agents](https://ai-stp.aiguild.space/en/docs/quickstart/agent).

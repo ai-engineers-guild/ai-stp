@@ -171,8 +171,10 @@ A 404 never names whether the object is private, draft, or absent.
 
 ## Related pages
 
-- [Quickstart](../quickstart.md) — install the CLI and read the catalog
-  from a shell.
+- [Quickstart for people](../quickstart/human.md) — install the CLI and
+  read the catalog from a shell.
+- [Quickstart for agents](../quickstart/agent.md) — session ritual and
+  machine help.
 - [Concepts](../concepts/index.md) — harness, setup, component, passport,
   trust line.
 - [Catalog (meaning)](../catalog/index.md) — how to read a result before

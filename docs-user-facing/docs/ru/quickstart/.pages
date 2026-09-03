@@ -1,0 +1,4 @@
+nav:
+  - Обзор: index.md
+  - Для человека: human.md
+  - Для ИИ-агента: agent.md

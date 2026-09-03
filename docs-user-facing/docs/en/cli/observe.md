@@ -201,7 +201,7 @@ step from the process exit class alone.
 
 | Page | Why |
 | --- | --- |
-| [Quickstart](../quickstart.md) | the first-run path in prose |
+| [Quickstart for agents](../quickstart/agent.md) | the session ritual |
 | [CLI](index.md) | envelopes, mutability, and the command groups |
 | [Command map](commands.md) | one row per command |
 | [Configuration](config.md) | values this install should honour |

@@ -146,7 +146,7 @@ or a passport.
 - [Home](home.md) — Sign in from the landing page.
 - [CLI sign-in](../cli/auth.md) — envelopes for the same commands.
 - [Device](../cli/device.md) — local identity.
-- [Quickstart](../quickstart.md) — local work without an account.
+- [Quickstart for people](../quickstart/human.md) — local work without an account.
 
 ??? question "Do I need Sign-in to read the catalog?"
     No. Anonymous catalog reads work in the browser and as

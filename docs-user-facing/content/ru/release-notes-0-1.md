@@ -65,4 +65,4 @@ ai-stp capabilities --json
 
 Эта заметка не датирует следующий релиз. Она не документирует staff URL. Она не перечисляет feature flags сайта. Если публичный каталог и эта заметка расходятся по статусу харнесса, карточка каталога — живой объект, а заметка — описание линейки: подайте жалобу на дайджест, не выдумывайте третий статус. Исполняемый файл — `ai-stp`. Дистрибутив — `ai-stp-cli`. Флаги в эту заметку не копируются: они едут с установленным CLI.
 
-См. также: [Быстрый старт](https://ai-stp.aiguild.space/ru/docs/quickstart) в справочном центре.
+См. также: [Быстрый старт](https://ai-stp.aiguild.space/ru/docs/quickstart) в справочном центре — [для человека](https://ai-stp.aiguild.space/ru/docs/quickstart/human) и [для ИИ-агента](https://ai-stp.aiguild.space/ru/docs/quickstart/agent).

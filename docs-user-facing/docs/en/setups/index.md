@@ -181,3 +181,13 @@ ai-stp install recover --operation <id> --json
 
 Related: [Publishing](../publishing/index.md),
 [Setup commands](../cli/setup.md).
+
+## Related pages
+
+- [Concepts](../concepts/index.md) — a setup belongs to one harness.
+- [Components](../components/index.md) — what a setup pins.
+- [Select](../cli/select.md) — eligibility and a proposal.
+- [Install](../cli/install.md) — plan, approve, apply.
+- [Catalog](../catalog/index.md) — how to read a public setup card.
+- [Trust and safety](../trust-and-safety/index.md) — consent before experimental
+  pins.

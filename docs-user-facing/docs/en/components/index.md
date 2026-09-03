@@ -160,3 +160,10 @@ How to prepare a tree: [Authoring](../publishing/authoring.md).
 Trust lines: [Trust and safety](../trust-and-safety/index.md).
 Security scan inventory: [Security checks](../security-checks.md).
 CLI discovery: [Discover and adopt](../cli/component-discover.md).
+
+## Related pages
+
+- [Setups](../setups/index.md) — exact pins of these kinds.
+- [Catalog](../catalog/index.md) — how a card names a kind.
+- [Quickstart for people](../quickstart/human.md) — first catalog read.
+- [Component commands](../cli/component.md) — discover → passport → publish.

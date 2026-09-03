@@ -163,5 +163,10 @@ The executable is `ai-stp`. The PyPI package is `ai-stp-cli`.
 | `ai-stp toolchain profile` | `read` | `none` | [toolchain.md](toolchain.md) | Show the managed toolchain profile as it resolves on this machine. |
 | `ai-stp version` | `read` | `none` | [observe.md](observe.md) | Report the running build and the contract versions it speaks. |
 
+The session ritual that uses this table is
+[Quickstart for agents](../quickstart/agent.md). Envelopes and mutability:
+[CLI](index.md). Observe commands:
+[Observe](observe.md).
+
 !!! note
     If `help --agent` names a command that is missing from this table, the installed CLI is newer than this page: follow the CLI.

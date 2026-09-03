@@ -1,8 +1,9 @@
 nav:
   - Overview: index.md
-  - Quickstart: quickstart.md
+  - Quickstart: quickstart
   - Harnesses: harnesses.md
   - Concepts: concepts
+  - Catalog: catalog
   - CLI: cli
   - Web: web
   - Components: components

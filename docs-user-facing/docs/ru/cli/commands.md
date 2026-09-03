@@ -163,5 +163,10 @@ ai-stp help --agent --json
 | `ai-stp toolchain profile` | `read` | `none` | [toolchain.md](toolchain.md) | показать управляемый профиль toolchain, как он разрешается на этой машине |
 | `ai-stp version` | `read` | `none` | [observe.md](observe.md) | сообщить о запущенном билде и версиях контрактов, на которых он говорит |
 
+Ритуал сессии, который пользуется этой таблицей —
+[Быстрый старт для ИИ-агента](../quickstart/agent.md). Конверты и mutability:
+[CLI](index.md). Команды наблюдения:
+[Наблюдение](observe.md).
+
 !!! note
     Если `help --agent` называет команду, которой нет в таблице, установленный CLI новее этой страницы: следуйте CLI.

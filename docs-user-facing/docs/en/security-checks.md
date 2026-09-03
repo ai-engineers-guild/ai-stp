@@ -79,3 +79,11 @@ Checks are selected by component kind, detected languages and files, and the `mi
 The expanded catalog view shows a sanitized reason next to every failed, warning, degraded, or not-run check. Sensitive values, secret material and local paths are never exposed. Use the check identifier when reporting an issue to the component author.
 
 The normative policy is maintained in `docs/contracts/validation-policy.md`; the catalog page is its reader-oriented projection.
+
+## Related pages
+
+- [Trust and safety](trust-and-safety/index.md) — two verification axes, not this percent.
+- [Catalog](catalog/index.md) — how a card shows the result.
+- [Components](components/index.md) — kinds that select which checks run.
+- [Publishing](publishing/index.md) — required scans that block a public version.
+- [Reports](cli/report.md) — file a case with the check identifier.

@@ -309,7 +309,7 @@ See [Configuration](config.md).
 | [Install](install.md) | plan, approve, apply |
 | [Setup commands](setup.md) | compose and import native configuration |
 | [Sign-in](auth.md) | `link web` for a canonical URL |
-| [Quickstart](../quickstart.md) | first catalog read |
+| [Quickstart for people](../quickstart/human.md) | first catalog read |
 
 !!! note "Flags from `ai-stp help --agent --json`"
     If `help --agent` disagrees with a flag on this page, the CLI wins.

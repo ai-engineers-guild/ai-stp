@@ -167,3 +167,15 @@ A setup is installed into a project-harness pair. Status, diff, backups and
 the named rollback of that pair are [target](../cli/target.md) commands.
 
 Details: [Project](../cli/project.md).
+
+## Related pages
+
+- [Quickstart for people](../quickstart/human.md) — install and first catalog
+  read.
+- [Quickstart for agents](../quickstart/agent.md) — session ritual.
+- [Supported harnesses](../harnesses.md) — primary, beta, `undefined`.
+- [Components](../components/index.md) — the eight kinds.
+- [Setups](../setups/index.md) — exact pins, one harness.
+- [CLI](../cli/index.md) — envelopes and command groups.
+- [Catalog](../catalog/index.md) — how to read a public result.
+- [Trust and safety](../trust-and-safety/index.md) — two verification axes.

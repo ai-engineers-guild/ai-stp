@@ -65,4 +65,4 @@ Doctor tells you whether the local installation can work before you link an acco
 
 This note does not date a next release. It does not document staff URLs. It does not list website feature flags. If the public catalog and this note disagree about a harness status, the catalog card is the live object and this note is the line description — file a report on the digest, do not invent a third status.
 
-See also: [Quickstart](https://ai-stp.aiguild.space/en/docs/quickstart) in the help center.
+See also: [Quickstart](https://ai-stp.aiguild.space/en/docs/quickstart) in the help center — [for people](https://ai-stp.aiguild.space/en/docs/quickstart/human) and [for agents](https://ai-stp.aiguild.space/en/docs/quickstart/agent).

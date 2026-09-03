@@ -224,7 +224,7 @@ Every envelope also carries `ok`, `warnings`, `next_actions`,
 | [Web account](../web/account.md) | the account the session belongs to |
 | [Registry](registry.md) | anonymous catalog reads need no sign-in |
 | [Access grants](grant.md) | major-line access after sign-in |
-| [Quickstart](../quickstart.md) | what you can do before an account |
+| [Quickstart for people](../quickstart/human.md) | what you can do before an account |
 
 !!! note "Flags from `ai-stp help --agent --json`"
     If `help --agent` disagrees with a flag on this page, the CLI wins.

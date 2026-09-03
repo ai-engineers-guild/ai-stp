@@ -105,3 +105,13 @@ writes the harness's final state.
 The one outgoing request the CLI makes on its own behalf is an anonymous
 install ping, and it is off until you say otherwise. What it contains and how
 to turn it off is in [Install telemetry](../cli/telemetry.md).
+
+## Related pages
+
+- [Security checks](../security-checks.md) — what a catalog percent covers.
+- [Consent](../cli/consent.md) — durable records, not a search flag.
+- [Catalog](../catalog/index.md) — how to read trust on a card.
+- [Reports](../cli/report.md) — a closed case, not a comment thread.
+- [Quickstart for agents](../quickstart/agent.md) — do not install from a
+  headline percent.
+- [Publishing](../publishing/index.md) — provenance is not a safety review.

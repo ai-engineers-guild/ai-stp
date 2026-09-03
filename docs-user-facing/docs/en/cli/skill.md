@@ -185,7 +185,7 @@ for reading machine help.
 | [Harness program](harness.md) | the program that will read this file |
 | [Toolchain](toolchain.md) | a different missing-first-run object |
 | [Component commands](component.md) | adopt and publish kind `skill` |
-| [Quickstart](../quickstart.md) | the Agent Skill tab of first run |
+| [Quickstart for agents](../quickstart/agent.md) | the Agent Skill step of first run |
 
 !!! note "Flags from `ai-stp help --agent --json`"
     If `help --agent` disagrees with a flag on this page, the CLI wins.

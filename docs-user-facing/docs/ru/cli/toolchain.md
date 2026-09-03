@@ -219,7 +219,7 @@ target. Этот вопрос принадлежит [Provider](provider.md) и
 | [Provider](provider.md) | бинарник, который пишет нативное состояние |
 | [Harnesses](../harnesses.md) | primary против beta |
 | [Agent Skill CLI](skill.md) | другой отсутствующий объект первого запуска |
-| [Быстрый старт](../quickstart.md) | вкладка toolchain первого запуска |
+| [Быстрый старт для человека](../quickstart/human.md) | вкладка toolchain первого запуска |
 
 !!! note "Флаги из `ai-stp help --agent --json`"
     Если `help --agent` расходится с флагом на этой странице, прав CLI.

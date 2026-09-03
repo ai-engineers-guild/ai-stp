@@ -1,8 +1,9 @@
 nav:
   - Главная: index.md
-  - Быстрый старт: quickstart.md
+  - Быстрый старт: quickstart
   - Харнессы: harnesses.md
   - Понятия: concepts
+  - Каталог: catalog
   - CLI: cli
   - Веб: web
   - Компоненты: components

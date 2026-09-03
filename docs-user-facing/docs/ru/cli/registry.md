@@ -309,7 +309,7 @@ ai-stp registry port import --root <root> --adapter sx --expected-plan-digest <p
 | [Install](install.md) | план, одобрение, применение |
 | [Команды сетапа](setup.md) | композиция и импорт нативной конфигурации |
 | [Вход](auth.md) | `link web` для канонического URL |
-| [Быстрый старт](../quickstart.md) | первое чтение каталога |
+| [Быстрый старт для человека](../quickstart/human.md) | первое чтение каталога |
 
 !!! note "Флаги из `ai-stp help --agent --json`"
     Если `help --agent` расходится с флагом на этой странице, CLI выигрывает.

@@ -66,7 +66,7 @@ Material for MkDocs, two language builds.
 | Control | What it does |
 | --- | --- |
 | Search | indexes the built language line |
-| Left nav | Overview, Quickstart, Harnesses, Concepts, CLI, Web, Components, Setups, Publishing, Trust and safety, Troubleshooting |
+| Left nav | Overview, Quickstart (people / agents), Harnesses, Concepts, Catalog, CLI, Web, Components, Setups, Publishing, Trust and safety, Troubleshooting |
 | Language alternate | Русский at `/`, English at `/en/` |
 | Theme toggle | light / dark from `prefers-color-scheme` |
 | Edit link | GitHub `edit/main/docs-user-facing/docs/{locale}/…` |
@@ -87,7 +87,7 @@ page.
 | Control | What it does |
 | --- | --- |
 | Search documentation | filters titles in this locale |
-| Documentation sections | one link per imported Markdown file |
+| Documentation sections | nested tree from `.pages`, the same structure as MkDocs |
 | Article body | title, description, rendered Markdown |
 
 A missing slug 404s. There is no draft flag on help pages: if the file
@@ -155,7 +155,11 @@ not move with that setting.
 - [Web map](index.md) — which website section is which.
 - [Home](home.md) — where the install command is copied.
 - [Catalog](catalog.md) — the other public surface agents read.
-- [Quickstart](../quickstart.md) — first commands after install.
+- [Quickstart](../quickstart/index.md) — choose the human path or the
+  agent path.
+- [Quickstart for people](../quickstart/human.md) — first commands after
+  install.
+- [Quickstart for agents](../quickstart/agent.md) — session ritual.
 - [CLI](../cli/index.md) — envelopes and mutability.
 - [Command map](../cli/commands.md) — one row per command.
 - [Trust and safety](../trust-and-safety/index.md) — what “verified”

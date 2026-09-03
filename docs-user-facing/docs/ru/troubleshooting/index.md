@@ -179,3 +179,14 @@ ai-stp registry search --kind component --query scanner --include-experimental -
 `--include-experimental` меняет только этот поиск. Для установки по-прежнему
 нужна долговременная запись. Отзыв: `ai-stp consent revoke`. См.
 [Доверие и безопасность](../trust-and-safety/index.md).
+
+## Связанные страницы
+
+- [Наблюдение](../cli/observe.md) — `doctor`, `capabilities`, `help --agent`.
+- [Быстрый старт для человека](../quickstart/human.md) — `PATH` и первая
+  идентичность.
+- [Быстрый старт для ИИ-агента](../quickstart/agent.md) — что делать с отказом.
+- [Установка](../cli/install.md) — recover, resume, cancel.
+- [Target](../cli/target.md) — резервные копии и именованный откат.
+- [Харнессы](../harnesses.md) — `undefined` не ставится сам.
+- [Согласие](../cli/consent.md) — experimental-объекты.

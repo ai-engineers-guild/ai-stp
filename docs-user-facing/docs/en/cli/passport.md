@@ -210,7 +210,7 @@ The envelope also carries `ok`, `warnings`, `next_actions`,
 | [Component passport](component-passport.md) | passports of adopted components |
 | [Sign-in](auth.md) | ownership transfer on first login |
 | [Sync](sync.md) | pushing a developer-passport head |
-| [Quickstart](../quickstart.md) | first-run identity and passports |
+| [Quickstart for people](../quickstart/human.md) | first-run identity and passports |
 
 !!! note "Flags from `ai-stp help --agent --json`"
     If `help --agent` disagrees with a flag on this page, the CLI wins.

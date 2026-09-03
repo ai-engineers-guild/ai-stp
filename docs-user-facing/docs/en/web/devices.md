@@ -152,7 +152,7 @@ Machine Devices is the list. The authorize form is human-only.
 - [CLI device](../cli/device.md) — init, show, reset.
 - [CLI sign-in](../cli/auth.md) — login, complete, status, logout.
 - [Passports](../cli/passport.md) — device passport refresh.
-- [Quickstart](../quickstart.md) — local work before linking.
+- [Quickstart for people](../quickstart/human.md) — local work before linking.
 
 !!! note "Browser vs CLI"
     This tab is a `web` device. `ai-stp` on your laptop is a CLI

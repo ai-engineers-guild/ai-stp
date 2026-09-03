@@ -213,7 +213,7 @@ named in their sections. Every envelope also carries `ok`, `warnings`,
 | [Provider](provider.md) | the binary that writes native state |
 | [Harnesses](../harnesses.md) | primary vs beta support |
 | [Agent Skill CLI](skill.md) | a different missing-first-run object |
-| [Quickstart](../quickstart.md) | the toolchain tab of first run |
+| [Quickstart for people](../quickstart/human.md) | the toolchain tab of first run |
 
 !!! note "Flags from `ai-stp help --agent --json`"
     If `help --agent` disagrees with a flag on this page, the CLI wins.

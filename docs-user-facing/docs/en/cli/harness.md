@@ -235,7 +235,7 @@ prefix”. Do not use one as the other.
 | [Target](target.md) | daily state of a project and harness |
 | [Harnesses](../harnesses.md) | primary vs beta support |
 | [Agent Skill CLI](skill.md) | the skill the program will read |
-| [Quickstart](../quickstart.md) | first-run when the program is missing |
+| [Quickstart for people](../quickstart/human.md) | first-run when the program is missing |
 
 !!! note "Flags from `ai-stp help --agent --json`"
     If `help --agent` disagrees with a flag on this page, the CLI wins.

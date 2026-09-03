@@ -150,3 +150,14 @@ ai-stp report list --json
 ```
 
 Подробности: [Жалобы](../cli/report.md).
+
+## Связанные страницы
+
+- [Авторство](authoring.md) — как подготовить дерево.
+- [Публикация компонента](../cli/component-publish.md) — adopt, release, plan.
+- [Publication](../cli/publication.md) — attest, plan, confirm.
+- [Веб-публикация](../web/publications.md) — подтвердить план, собранный CLI.
+- [Проверки безопасности](../security-checks.md) — обязательные сканы, которые
+  блокируют.
+- [Доверие и безопасность](../trust-and-safety/index.md) — происхождение — не
+  безопасность.

@@ -84,6 +84,12 @@ test("documentation root renders content instead of not-found", async ({ page })
   await page.goto("/en/docs");
   await expect(page.getByRole("heading", { level: 1, name: "Overview" })).toBeVisible();
   await expect(page.getByText("Page not found")).toHaveCount(0);
+  const nav = page.locator('[data-ui="docs-nav"]');
+  await expect(nav.getByRole("link", { name: "For people" })).toBeVisible();
+  await expect(nav.getByRole("link", { name: "For agents" })).toBeVisible();
+  await nav.getByRole("link", { name: "For agents" }).click();
+  await expect(page).toHaveURL(/\/en\/docs\/quickstart\/agent/);
+  await expect(page.getByRole("heading", { level: 1, name: "Quickstart for agents" })).toBeVisible();
 });
 
 test("machine projection screenshot", async ({ page }) => {

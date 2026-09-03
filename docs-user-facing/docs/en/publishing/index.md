@@ -149,3 +149,12 @@ ai-stp report list --json
 ```
 
 Details: [Reports](../cli/report.md).
+
+## Related pages
+
+- [Authoring](authoring.md) — how to prepare the tree.
+- [Publish a component](../cli/component-publish.md) — adopt, release, plan.
+- [Publication](../cli/publication.md) — attest, plan, confirm.
+- [Web publication](../web/publications.md) — confirm a CLI-built plan.
+- [Security checks](../security-checks.md) — required scans that block.
+- [Trust and safety](../trust-and-safety/index.md) — provenance is not safety.
