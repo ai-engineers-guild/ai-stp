@@ -27,6 +27,12 @@ from ai_stp_passports.markdown import (
     project_safe_markdown,
     validate_safe_markdown,
 )
+from ai_stp_passports.projections import (
+    PROJECTION_FORMAT,
+    ProjectionArtifactError,
+    build_projection,
+    verify_projection,
+)
 from ai_stp_passports.versions import (
     ArtifactRef,
     ComponentAdaptation,
@@ -52,6 +58,7 @@ __all__ = [
     "MAX_EXCERPT_CODEPOINTS",
     "MUTABLE_KINDS",
     "PASSPORT_KINDS",
+    "PROJECTION_FORMAT",
     "RENDERER_VERSION",
     "ArtifactRef",
     "ComponentAdaptation",
@@ -65,15 +72,18 @@ __all__ = [
     "PassportEnvelope",
     "Permissions",
     "ProjectedMember",
+    "ProjectionArtifactError",
     "ProviderSurfaceRef",
     "SafeMarkdownProjection",
     "ScopeAdaptation",
     "SetupVersionPassport",
     "TransformRef",
+    "build_projection",
     "derive_revision_id",
     "project_safe_markdown",
     "seal_adaptation",
     "seal_envelope",
     "validate_safe_markdown",
+    "verify_projection",
     "verify_revision_id",
 ]

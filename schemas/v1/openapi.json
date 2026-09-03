@@ -5356,21 +5356,24 @@
               "$ref": "#/components/schemas/PermissionClaim"
             },
             "title": "Filesystem",
-            "type": "array"
+            "type": "array",
+            "uniqueItems": true
           },
           "network": {
             "items": {
               "$ref": "#/components/schemas/PermissionClaim"
             },
             "title": "Network",
-            "type": "array"
+            "type": "array",
+            "uniqueItems": true
           },
           "process": {
             "items": {
               "$ref": "#/components/schemas/PermissionClaim"
             },
             "title": "Process",
-            "type": "array"
+            "type": "array",
+            "uniqueItems": true
           }
         },
         "title": "Permissions",

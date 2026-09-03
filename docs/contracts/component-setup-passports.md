@@ -132,19 +132,27 @@ names; conflicts; entry points and runtime requirements; external connection
 points; license and redistributability; and access mode.
 
 Each adaptation contains a content-derived identity, one harness,
-implementation mode (`derived` or `native`), exact common/adaptation source and
-transform identity when derived, supported harness versions, systems and
-architectures, immutable technical support, semantic losses, and non-empty
-`scope_adaptations`.
+implementation mode (`derived` or `native`), exact common source and transform
+identity when derived, and non-empty `scope_adaptations`.
 
 Each scope adaptation atomically binds one scope to its exact projection
 artifact, provider-native component kind, projection kind, provider profile ID
-and digest, bundle format and limits digest, permissions, and canonical members.
-A member binds path, file/directory type, mode, native IDs, content format,
-parser identity when structured, whole-path or contribution ownership, write
-semantics and withdrawal semantics. These values are not parallel arrays that
+and digest, bundle format, permissions, exact supported harness versions,
+systems and architectures, immutable technical support and reason, semantic
+losses, and canonical members. A member binds path, file/directory type, mode,
+exact content artifact for a file, native IDs, content format, parser identity
+when structured, whole-path or contribution ownership, write semantics and
+withdrawal semantics. These values are not parallel arrays that
 can accidentally combine facts from different scopes. Large bytes live in
 content-addressed storage; their digest and size are inside the passport.
+
+`ai-stp-adaptation-projection/1` is the sole projection byte format. It is a
+ZIP with stored entries in lexical path order, the fixed 1980-01-01 timestamp,
+Unix regular-file/directory kinds and declared modes. The verifier checks the
+outer artifact digest and size, exact member set, every file content digest and
+size, directory emptiness, metadata, and byte-for-byte canonical re-encoding.
+Harness versions are exact opaque product-version identifiers, not ranges; an
+author lists each tested value and a new value requires a new component version.
 
 The first supported form does not contain flat `harness_ids`, a component-level
 `harness_id`, `variant_id`, or shared projection/path/native-ID/platform fields.

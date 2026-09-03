@@ -3,6 +3,7 @@
 from copy import deepcopy
 
 import pytest
+from jsonschema import Draft202012Validator
 from pydantic import ValidationError
 
 from ai_stp_foundation.canonical import JsonValue
@@ -12,6 +13,11 @@ _DIGEST_A = "sha256:" + "a" * 64
 _DIGEST_B = "sha256:" + "b" * 64
 _DIGEST_C = "sha256:" + "c" * 64
 _DIGEST_D = "sha256:" + "d" * 64
+
+
+def _schema_accepts(document: object) -> bool:
+    validator = Draft202012Validator(ComponentAdaptation.model_json_schema())
+    return validator.is_valid(document)  # pyright: ignore[reportUnknownMemberType, reportArgumentType]
 
 
 def _manifest() -> dict[str, JsonValue]:
@@ -43,6 +49,7 @@ def _manifest() -> dict[str, JsonValue]:
                         "path": ".cursor/agents/reviewer.md",
                         "object_type": "file",
                         "mode": 0o644,
+                        "content_artifact": {"digest": _DIGEST_A, "size_bytes": 7},
                         "native_ids": ["reviewer"],
                         "content_format": "commonmark_v1",
                         "parser_id": None,
@@ -52,7 +59,7 @@ def _manifest() -> dict[str, JsonValue]:
                         "withdrawal_semantics": "remove_path",
                     }
                 ],
-                "supported_harness_versions": [">=2026.08"],
+                "supported_harness_versions": ["2026.08"],
                 "supported_os": ["linux", "macos", "windows"],
                 "supported_arch": ["x86_64", "arm64"],
                 "technical_support": "supported",
@@ -82,7 +89,7 @@ def test_adaptation_refuses_an_id_for_different_manifest_bytes() -> None:
     scopes = sealed["scope_adaptations"]
     assert isinstance(scopes, list)
     assert isinstance(scopes[0], dict)
-    scopes[0]["supported_harness_versions"] = [">=2026.08", "<2027.00"]
+    scopes[0]["supported_harness_versions"] = ["2026.08", "2026.09"]
 
     with pytest.raises(ValidationError, match="adaptation_id does not match"):
         ComponentAdaptation.model_validate(sealed)
@@ -181,5 +188,59 @@ def test_projected_members_reject_duplicate_native_ids_and_zero_artifact() -> No
     assert isinstance(empty_scopes, list)
     assert isinstance(empty_scopes[0], dict)
     empty_scopes[0]["projection_artifact"] = {"digest": _DIGEST_C, "size_bytes": 0}
-    with pytest.raises(ValidationError, match="zero artifact bytes"):
+    with pytest.raises(ValidationError, match="greater than or equal to 1"):
         seal_adaptation(empty)
+
+
+@pytest.mark.parametrize(
+    "path",
+    [".", "..", "../escape", "nested/../escape", "a/./b", "a//b", "trailing/"],
+)
+def test_public_schema_rejects_every_noncanonical_projection_path(path: str) -> None:
+    document = seal_adaptation(_manifest()).model_dump(mode="json")
+    document["scope_adaptations"][0]["members"][0]["path"] = path
+    assert not _schema_accepts(document)
+
+
+@pytest.mark.parametrize(
+    ("field", "duplicate"),
+    [
+        ("supported_harness_versions", "2026.08"),
+        ("supported_os", "linux"),
+        ("supported_arch", "x86_64"),
+        ("semantic_losses", "loss"),
+    ],
+)
+def test_public_schema_rejects_duplicate_scope_facts(field: str, duplicate: str) -> None:
+    document = seal_adaptation(_manifest()).model_dump(mode="json")
+    document["scope_adaptations"][0][field] = [duplicate, duplicate]
+    assert not _schema_accepts(document)
+
+
+def test_public_schema_enforces_member_permissions_artifact_and_support_coherence() -> None:
+    schema = ComponentAdaptation.model_json_schema()
+    Draft202012Validator.check_schema(schema)
+    baseline = seal_adaptation(_manifest()).model_dump(mode="json")
+
+    documents: list[object] = []
+    duplicate_id = seal_adaptation(_manifest()).model_dump(mode="json")
+    duplicate_id["scope_adaptations"][0]["members"][0]["native_ids"] = ["x", "x"]
+    documents.append(duplicate_id)
+    duplicate_permission = seal_adaptation(_manifest()).model_dump(mode="json")
+    duplicate_permission["scope_adaptations"][0]["permissions"]["filesystem"] = [
+        "project",
+        "project",
+    ]
+    documents.append(duplicate_permission)
+    empty_artifact = seal_adaptation(_manifest()).model_dump(mode="json")
+    empty_artifact["scope_adaptations"][0]["projection_artifact"]["size_bytes"] = 0
+    documents.append(empty_artifact)
+    supported_reason = seal_adaptation(_manifest()).model_dump(mode="json")
+    supported_reason["scope_adaptations"][0]["technical_support_reason"] = "not exact"
+    documents.append(supported_reason)
+    unsupported_without_reason = seal_adaptation(_manifest()).model_dump(mode="json")
+    unsupported_without_reason["scope_adaptations"][0]["technical_support"] = "unsupported"
+    documents.append(unsupported_without_reason)
+
+    assert _schema_accepts(baseline)
+    assert all(not _schema_accepts(document) for document in documents)

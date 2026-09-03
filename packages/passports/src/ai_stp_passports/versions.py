@@ -46,12 +46,17 @@ type ProjectedObjectType = Literal["file", "directory"]
 type OwnershipMode = Literal["whole", "contribution"]
 type WriteSemantics = Literal["replace", "merge"]
 type WithdrawalSemantics = Literal["remove_path", "preserve_unowned"]
+_PROJECTION_PATH_JSON_PATTERN: Final[str] = (
+    r"^(?!/)(?!.*(?:^|/)\.{1,2}(?:/|$))(?!.*//)(?!.*\\)"
+    r"(?!.*[\u0000-\u001f])[^/].*[^/]$|^[^/\\.\u0000-\u001f]$"
+)
 type RelativeProjectionPath = Annotated[
     str,
     Field(
         min_length=1,
         max_length=4096,
         pattern=r"^[^/\\\x00-\x1f][^\\\x00-\x1f]*$",
+        json_schema_extra={"pattern": _PROJECTION_PATH_JSON_PATTERN},
     ),
 ]
 type BoundedNativeId = Annotated[
@@ -105,6 +110,15 @@ class ArtifactRef(BaseModel):
     size_bytes: Annotated[int, Field(ge=0)]
 
 
+class NonEmptyArtifactRef(BaseModel):
+    """Content-addressed bytes for an artifact that must contain a projection."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    size_bytes: Annotated[int, Field(ge=1)]
+
+
 class TransformRef(BaseModel):
     """Exact deterministic transform used by one derived adaptation."""
 
@@ -133,7 +147,10 @@ class ProjectedMember(BaseModel):
     path: RelativeProjectionPath
     object_type: ProjectedObjectType
     mode: Annotated[int, Field(ge=0, le=0o777)]
-    native_ids: list[BoundedNativeId] = Field(default_factory=list[BoundedNativeId])
+    content_artifact: ArtifactRef | None = None
+    native_ids: list[BoundedNativeId] = Field(
+        default_factory=list[BoundedNativeId], json_schema_extra={"uniqueItems": True}
+    )
     content_format: Annotated[str, Field(min_length=1, max_length=128)]
     parser_id: Annotated[str, Field(min_length=1, max_length=128)] | None = None
     ownership: OwnershipMode
@@ -144,6 +161,10 @@ class ProjectedMember(BaseModel):
     @model_validator(mode="after")
     def _ownership_is_complete(self) -> "ProjectedMember":
         _relative_path(self.path)
+        if self.object_type == "file" and self.content_artifact is None:
+            raise ValueError("a projected file requires its exact content artifact")
+        if self.object_type == "directory" and self.content_artifact is not None:
+            raise ValueError("a projected directory has no content artifact")
         if len(self.native_ids) != len(set(self.native_ids)):
             raise ValueError("native_ids must not contain duplicates")
         if self.ownership == "contribution":
@@ -179,9 +200,15 @@ class Permissions(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    filesystem: list[PermissionClaim] = Field(default_factory=list[PermissionClaim])
-    network: list[PermissionClaim] = Field(default_factory=list[PermissionClaim])
-    process: list[PermissionClaim] = Field(default_factory=list[PermissionClaim])
+    filesystem: list[PermissionClaim] = Field(
+        default_factory=list[PermissionClaim], json_schema_extra={"uniqueItems": True}
+    )
+    network: list[PermissionClaim] = Field(
+        default_factory=list[PermissionClaim], json_schema_extra={"uniqueItems": True}
+    )
+    process: list[PermissionClaim] = Field(
+        default_factory=list[PermissionClaim], json_schema_extra={"uniqueItems": True}
+    )
 
     @model_validator(mode="after")
     def _claims_are_unique(self) -> "Permissions":
@@ -194,22 +221,45 @@ class Permissions(BaseModel):
 class ScopeAdaptation(BaseModel):
     """All native facts for one adaptation at one projection scope."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True)
+    model_config = ConfigDict(
+        extra="forbid",
+        frozen=True,
+        json_schema_extra={
+            "allOf": [
+                {
+                    "if": {"properties": {"technical_support": {"const": "supported"}}},
+                    "then": {"properties": {"technical_support_reason": {"type": "null"}}},
+                    "else": {
+                        "required": ["technical_support_reason"],
+                        "properties": {"technical_support_reason": {"type": "string"}},
+                    },
+                }
+            ]
+        },
+    )
 
     scope: TargetScope
     projection_format: Literal["ai-stp-adaptation-projection/1"]
-    projection_artifact: ArtifactRef
+    projection_artifact: NonEmptyArtifactRef
     provider_component_kind: ComponentType
     projection_kind: ProjectionKind
     required_surface: ProviderSurfaceRef
     permissions: Permissions = Field(default_factory=Permissions)
     members: Annotated[list[ProjectedMember], Field(min_length=1)]
-    supported_harness_versions: list[str] = Field(default_factory=list)
-    supported_os: list[SupportedOs] = Field(default_factory=list[SupportedOs])
-    supported_arch: list[SupportedArch] = Field(default_factory=list[SupportedArch])
+    supported_harness_versions: list[
+        Annotated[str, Field(min_length=1, max_length=128, pattern=r"^[^\s\x00-\x1f]+$")]
+    ] = Field(default_factory=list, json_schema_extra={"uniqueItems": True})
+    supported_os: list[SupportedOs] = Field(
+        default_factory=list[SupportedOs], json_schema_extra={"uniqueItems": True}
+    )
+    supported_arch: list[SupportedArch] = Field(
+        default_factory=list[SupportedArch], json_schema_extra={"uniqueItems": True}
+    )
     technical_support: TechnicalSupport
     technical_support_reason: Annotated[str, Field(min_length=1, max_length=512)] | None = None
-    semantic_losses: list[str] = Field(default_factory=list)
+    semantic_losses: list[str] = Field(
+        default_factory=list, json_schema_extra={"uniqueItems": True}
+    )
 
     @model_validator(mode="after")
     def _paths_are_unique(self) -> "ScopeAdaptation":

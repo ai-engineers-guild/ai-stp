@@ -135,21 +135,24 @@
             "$ref": "#/$defs/PermissionClaim"
           },
           "title": "Filesystem",
-          "type": "array"
+          "type": "array",
+          "uniqueItems": true
         },
         "network": {
           "items": {
             "$ref": "#/$defs/PermissionClaim"
           },
           "title": "Network",
-          "type": "array"
+          "type": "array",
+          "uniqueItems": true
         },
         "process": {
           "items": {
             "$ref": "#/$defs/PermissionClaim"
           },
           "title": "Process",
-          "type": "array"
+          "type": "array",
+          "uniqueItems": true
         }
       },
       "title": "Permissions",

@@ -36,7 +36,7 @@ An adaptation contains:
 - a content-derived `adaptation_id`;
 - one `harness_id`;
 - `derived` or `native` implementation mode;
-- optional common-source and adaptation-source artifact references;
+- an optional common-source artifact reference;
 - an exact projection artifact reference;
 - an exact transform identity for a derived implementation and no transform
   for a native implementation;
@@ -44,9 +44,9 @@ An adaptation contains:
 - non-empty scope adaptations, each binding one scope to its projection,
   provider-surface identity, canonical members, ownership/write/remove
   semantics and permissions;
-- supported harness versions, systems and architectures;
-- immutable technical support declaration;
-- every semantic loss.
+- exact supported harness versions, systems and architectures per scope;
+- immutable technical support declaration and limitation reason per scope;
+- every semantic loss per scope.
 
 **Manifest and bytes have different owners.** The adaptation manifest is part
 of the immutable passport and therefore of the version digest. Common source,
@@ -72,15 +72,20 @@ are empty. Otherwise compilation is blocked.
 **Scope facts are not parallel arrays.** One `scope_adaptation` binds the scope,
 projection artifact, provider-native kind, projection kind and required
 provider surface. Its surface reference includes the exact profile identity and
-digest, bundle format and limits digest. Its projected members bind canonical
-path, object type, file mode, native IDs, content/parser identity, whole-file or
+digest and bundle format; the profile digest already binds the provider limits.
+Its projected members bind canonical path, object type, file mode, exact file
+content artifact, native IDs, content/parser identity, whole-file or
 key-level ownership, write semantics and withdrawal semantics. This prevents a
 project-only Cursor agent or a shared Codex TOML contribution from borrowing a
 path or ownership rule from another scope.
 
 A derived transform binds its deterministic inputs and version. The output is
-closed by the scope projection artifact plus canonical member paths and modes;
-the same transform identity cannot name different provider packages.
+closed by the scope projection artifact plus canonical member paths, modes,
+content digests and sizes. `ai-stp-adaptation-projection/1` is a deterministic,
+stored ZIP: members are lexically ordered, use the fixed DOS epoch, carry Unix
+file kind and mode, contain no undeclared entry, and reproduce byte-for-byte
+through the verifier. The same transform identity cannot name different
+provider packages.
 
 **The flat form is historical.** `harness_ids`, component-level `harness_id`,
 `variant_id`, component-level `projection_kind`, `managed_paths`, `native_ids`

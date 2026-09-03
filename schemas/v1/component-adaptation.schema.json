@@ -60,6 +60,28 @@
       ],
       "type": "string"
     },
+    "NonEmptyArtifactRef": {
+      "additionalProperties": false,
+      "description": "Content-addressed bytes for an artifact that must contain a projection.",
+      "properties": {
+        "digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Digest",
+          "type": "string"
+        },
+        "size_bytes": {
+          "minimum": 1,
+          "title": "Size Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "digest",
+        "size_bytes"
+      ],
+      "title": "NonEmptyArtifactRef",
+      "type": "object"
+    },
     "OwnershipMode": {
       "enum": [
         "whole",
@@ -82,21 +104,24 @@
             "$ref": "#/$defs/PermissionClaim"
           },
           "title": "Filesystem",
-          "type": "array"
+          "type": "array",
+          "uniqueItems": true
         },
         "network": {
           "items": {
             "$ref": "#/$defs/PermissionClaim"
           },
           "title": "Network",
-          "type": "array"
+          "type": "array",
+          "uniqueItems": true
         },
         "process": {
           "items": {
             "$ref": "#/$defs/PermissionClaim"
           },
           "title": "Process",
-          "type": "array"
+          "type": "array",
+          "uniqueItems": true
         }
       },
       "title": "Permissions",
@@ -106,6 +131,17 @@
       "additionalProperties": false,
       "description": "One canonical projected path and the provider semantics it requires.",
       "properties": {
+        "content_artifact": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "content_format": {
           "maxLength": 128,
           "minLength": 1,
@@ -123,7 +159,8 @@
             "$ref": "#/$defs/BoundedNativeId"
           },
           "title": "Native Ids",
-          "type": "array"
+          "type": "array",
+          "uniqueItems": true
         },
         "object_type": {
           "$ref": "#/$defs/ProjectedObjectType"
@@ -228,11 +265,39 @@
     "RelativeProjectionPath": {
       "maxLength": 4096,
       "minLength": 1,
-      "pattern": "^[^/\\\\\\x00-\\x1f][^\\\\\\x00-\\x1f]*$",
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*//)(?!.*\\\\)(?!.*[\\u0000-\\u001f])[^/].*[^/]$|^[^/\\\\.\\u0000-\\u001f]$",
       "type": "string"
     },
     "ScopeAdaptation": {
       "additionalProperties": false,
+      "allOf": [
+        {
+          "else": {
+            "properties": {
+              "technical_support_reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "technical_support_reason"
+            ]
+          },
+          "if": {
+            "properties": {
+              "technical_support": {
+                "const": "supported"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "technical_support_reason": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ],
       "description": "All native facts for one adaptation at one projection scope.",
       "properties": {
         "members": {
@@ -247,7 +312,7 @@
           "$ref": "#/$defs/Permissions"
         },
         "projection_artifact": {
-          "$ref": "#/$defs/ArtifactRef"
+          "$ref": "#/$defs/NonEmptyArtifactRef"
         },
         "projection_format": {
           "const": "ai-stp-adaptation-projection/1",
@@ -271,28 +336,35 @@
             "type": "string"
           },
           "title": "Semantic Losses",
-          "type": "array"
+          "type": "array",
+          "uniqueItems": true
         },
         "supported_arch": {
           "items": {
             "$ref": "#/$defs/SupportedArch"
           },
           "title": "Supported Arch",
-          "type": "array"
+          "type": "array",
+          "uniqueItems": true
         },
         "supported_harness_versions": {
           "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[^\\s\\x00-\\x1f]+$",
             "type": "string"
           },
           "title": "Supported Harness Versions",
-          "type": "array"
+          "type": "array",
+          "uniqueItems": true
         },
         "supported_os": {
           "items": {
             "$ref": "#/$defs/SupportedOs"
           },
           "title": "Supported Os",
-          "type": "array"
+          "type": "array",
+          "uniqueItems": true
         },
         "technical_support": {
           "$ref": "#/$defs/TechnicalSupport"
