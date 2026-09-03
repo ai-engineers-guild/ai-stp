@@ -1,0 +1,162 @@
+{
+  "$defs": {
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build",
+        "cursor",
+        "antigravity"
+      ],
+      "type": "string"
+    },
+    "MultiRootChildView": {
+      "additionalProperties": true,
+      "description": "One scope-specific operation owned by a multi-root transaction.",
+      "properties": {
+        "backup_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Backup Ref"
+        },
+        "operation_id": {
+          "minLength": 1,
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "plan_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Plan Digest",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "scope": {
+          "enum": [
+            "global",
+            "user_root",
+            "project"
+          ],
+          "title": "Scope",
+          "type": "string"
+        },
+        "state": {
+          "minLength": 1,
+          "title": "State",
+          "type": "string"
+        },
+        "target_id": {
+          "minLength": 1,
+          "title": "Target Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "backup_ref",
+        "operation_id",
+        "plan_digest",
+        "schema_version",
+        "scope",
+        "state",
+        "target_id"
+      ],
+      "title": "MultiRootChildView",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-multi-root-transaction",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "One recoverable decision spanning several provider-owned roots.",
+  "properties": {
+    "approved": {
+      "title": "Approved",
+      "type": "boolean"
+    },
+    "children": {
+      "items": {
+        "$ref": "#/$defs/MultiRootChildView"
+      },
+      "maxItems": 3,
+      "minItems": 2,
+      "title": "Children",
+      "type": "array"
+    },
+    "harness_id": {
+      "$ref": "#/$defs/HarnessId"
+    },
+    "next_actions": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Next Actions",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "setup_stable_id": {
+      "minLength": 1,
+      "title": "Setup Stable Id",
+      "type": "string"
+    },
+    "setup_version": {
+      "minLength": 1,
+      "title": "Setup Version",
+      "type": "string"
+    },
+    "state": {
+      "enum": [
+        "planned",
+        "applying",
+        "compensating",
+        "recovery_required",
+        "verified",
+        "rolled_back"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "transaction_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Transaction Digest",
+      "type": "string"
+    },
+    "transaction_id": {
+      "minLength": 1,
+      "title": "Transaction Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "approved",
+    "children",
+    "harness_id",
+    "next_actions",
+    "schema_version",
+    "setup_stable_id",
+    "setup_version",
+    "state",
+    "transaction_digest",
+    "transaction_id"
+  ],
+  "title": "MultiRootTransactionView",
+  "type": "object"
+}

@@ -22,8 +22,9 @@ import platform
 import re
 import sqlite3
 import subprocess
-from collections.abc import Mapping
-from contextlib import closing
+from collections.abc import Generator, Mapping
+from contextlib import closing, contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
@@ -41,6 +42,7 @@ from ai_stp_cli.local import (
     installation,
     journal,
     managed_diff,
+    multi_root,
     project_passport,
     provider_releases,
     revisions,
@@ -97,10 +99,32 @@ PLAN_TTL_SECONDS: int = 900
 _UNFINISHED: Final[frozenset[str]] = frozenset(
     {installation.STATE_APPLYING, installation.STATE_APPLIED_UNVERIFIED}
 )
+_TRANSACTION_CHILD_ACCESS: ContextVar[bool] = ContextVar(
+    "ai_stp_transaction_child_access", default=False
+)
 
 #: The passport contract owns the syntax. Reusing it here prevents a status
 #: override from accepting a value that the persisted passport would refuse.
 _ENV_NAME: Final[re.Pattern[str]] = re.compile(ENV_NAME_PATTERN)
+
+
+@contextmanager
+def transaction_child_access() -> Generator[None]:
+    """Allow the coordinator, and no CLI parameter, to drive its owned children."""
+    token = _TRANSACTION_CHILD_ACCESS.set(True)
+    try:
+        yield
+    finally:
+        _TRANSACTION_CHILD_ACCESS.reset(token)
+
+
+def _require_independent_operation(connection: sqlite3.Connection, operation_id: str) -> None:
+    if multi_root.child_is_owned(connection, operation_id) and not _TRANSACTION_CHILD_ACCESS.get():
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "an active multi-root transaction owns this child operation",
+            details={"operation_id": operation_id},
+        )
 
 
 def _prepared_setup_source(
@@ -697,6 +721,7 @@ def approve(parameters: Mapping[str, object]) -> Answer[InstallationView]:
         )
 
     with closing(open_registry(configured_path(), create=True)) as connection:
+        _require_independent_operation(connection, operation_id)
         installation.approve(connection, operation_id, plan_digest=digest, at=moment())
         return Answer(_view(connection, installation._require(connection, operation_id)))  # pyright: ignore[reportPrivateUsage]
 
@@ -716,6 +741,7 @@ def apply(parameters: Mapping[str, object]) -> Answer[InstallationView]:
     operation_id = _operation(parameters)
 
     def work(connection: sqlite3.Connection) -> InstallationView:
+        _require_independent_operation(connection, operation_id)
         held = installation._require(connection, operation_id)  # pyright: ignore[reportPrivateUsage]
         trusted_release = _verify_bound_release(connection, held, executable)
         invoke = invocation.provider_invoker(
@@ -985,6 +1011,7 @@ def cancel(parameters: Mapping[str, object]) -> Answer[InstallationView]:
     """
     operation_id = _operation(parameters)
     with closing(open_registry(configured_path(), create=True)) as connection:
+        _require_independent_operation(connection, operation_id)
         installation.cancel(
             connection,
             operation_id,
@@ -1042,6 +1069,7 @@ def resume(parameters: Mapping[str, object]) -> Answer[InstallationView]:
     operation_id = _operation(parameters)
 
     def work(connection: sqlite3.Connection) -> InstallationView:
+        _require_independent_operation(connection, operation_id)
         held = installation._require(connection, operation_id)  # pyright: ignore[reportPrivateUsage]
         # From the journal, not from the plan: the plan records what was going
         # to be done and never moves, and "where did this stop" is a question

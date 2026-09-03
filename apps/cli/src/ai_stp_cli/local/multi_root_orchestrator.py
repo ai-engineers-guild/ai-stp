@@ -78,6 +78,19 @@ class Coordinator:
             at=at,
         )
 
+    def record_compensated(
+        self, transaction_id: str, operation_id: str, *, backup_ref: str, at: str
+    ) -> multi_root.MultiRootTransaction:
+        """Record exact restoration of one original child after its rollback verified."""
+        return multi_root.record_child(
+            self.connection,
+            transaction_id,
+            operation_id,
+            state=installation.STATE_ROLLED_BACK,
+            backup_ref=backup_ref,
+            at=at,
+        )
+
     def begin_compensation(
         self, transaction_id: str, *, at: str
     ) -> multi_root.MultiRootTransaction:

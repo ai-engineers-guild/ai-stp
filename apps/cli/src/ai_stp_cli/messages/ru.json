@@ -581,5 +581,10 @@
   "the multi-root idempotency key names different exact input": "ключ идемпотентности multi-root называет другой точный вход",
   "the multi-root transaction is not in the required state": "multi-root транзакция находится не в требуемом состоянии",
   "the operation is not a child of this transaction": "операция не является дочерней для этой транзакции",
-  "the setup has no components for the requested harness scope": "в сетапе нет компонентов для запрошенной области харнесса"
+  "the setup has no components for the requested harness scope": "в сетапе нет компонентов для запрошенной области харнесса",
+  "an active multi-root transaction owns this child operation": "активная multi-root транзакция владеет этой дочерней операцией",
+  "a required multi-root transaction parameter is missing": "обязательный параметр multi-root транзакции отсутствует",
+  "multi-root planning requires at least two scope-target values": "планирование multi-root требует минимум два значения scope-target",
+  "scope-target must be a supported scope and existing absolute directory": "scope-target должен задавать поддерживаемую область и существующий абсолютный каталог",
+  "scope-target repeats a scope": "scope-target повторяет область"
 }

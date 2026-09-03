@@ -581,5 +581,10 @@
   "the multi-root idempotency key names different exact input": "the multi-root idempotency key names different exact input",
   "the multi-root transaction is not in the required state": "the multi-root transaction is not in the required state",
   "the operation is not a child of this transaction": "the operation is not a child of this transaction",
-  "the setup has no components for the requested harness scope": "the setup has no components for the requested harness scope"
+  "the setup has no components for the requested harness scope": "the setup has no components for the requested harness scope",
+  "an active multi-root transaction owns this child operation": "an active multi-root transaction owns this child operation",
+  "a required multi-root transaction parameter is missing": "a required multi-root transaction parameter is missing",
+  "multi-root planning requires at least two scope-target values": "multi-root planning requires at least two scope-target values",
+  "scope-target must be a supported scope and existing absolute directory": "scope-target must be a supported scope and existing absolute directory",
+  "scope-target repeats a scope": "scope-target repeats a scope"
 }

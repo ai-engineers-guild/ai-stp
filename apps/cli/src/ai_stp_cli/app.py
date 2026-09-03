@@ -224,6 +224,7 @@ _GROUP_SUMMARIES: Final[dict[tuple[str, ...], str]] = {
     ("grant",): "Share a private object with another account.",
     ("grant", "invitation"): "Invitations offered but not yet accepted.",
     ("install",): "Plan, apply, resume and recover a setup on a target.",
+    ("install", "transaction"): "Coordinate one setup across several provider-owned roots.",
     ("link",): "Open the matching page on the web.",
     ("owner",): "What this account has published, as its owner sees it.",
     ("owner", "object"): "One owned object across all of its versions.",

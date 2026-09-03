@@ -2422,6 +2422,44 @@ class InstallationStatus(BaseModel):
     stopped: list[RecoveryView] = []
 
 
+class MultiRootChildView(BaseModel):
+    """One scope-specific operation owned by a multi-root transaction."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    scope: Literal["global", "user_root", "project"]
+    operation_id: Annotated[str, Field(min_length=1)]
+    target_id: Annotated[str, Field(min_length=1)]
+    plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    state: Annotated[str, Field(min_length=1)]
+    backup_ref: str | None = None
+
+
+class MultiRootTransactionView(BaseModel):
+    """One recoverable decision spanning several provider-owned roots."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    transaction_id: Annotated[str, Field(min_length=1)]
+    transaction_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    setup_stable_id: Annotated[str, Field(min_length=1)]
+    setup_version: Annotated[str, Field(min_length=1)]
+    harness_id: HarnessId
+    state: Literal[
+        "planned",
+        "applying",
+        "compensating",
+        "recovery_required",
+        "verified",
+        "rolled_back",
+    ]
+    approved: bool
+    children: Annotated[list[MultiRootChildView], Field(min_length=2, max_length=3)]
+    next_actions: list[str] = []
+
+
 class ImportedFile(BaseModel):
     """One configuration file an inspection read."""
 
