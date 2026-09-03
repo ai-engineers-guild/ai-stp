@@ -1,0 +1,14 @@
+README stills, Grok Images 2, style-locked to apps/web/public/catalog-art.
+
+1. loop.jpg — five-node pentagonal ring, dark industrial product still,
+   orange→plum→violet rim light. References: setup.webp, skill.webp, logo-mark.png.
+   No letters, numbers, logos, watermark.
+
+2. setup-wide.jpg — hexagonal core and satellite modules on a 16:9 canvas.
+   References: setup.webp, instruction.webp, agent.webp.
+
+3. passport.jpg — sealed dark metal plate, orange slit, violet node.
+   References: command.webp, plugin.webp, setting.webp.
+
+The photorealistic five-hands still (subject.png) is retired: it did not match
+the catalog-art material language.

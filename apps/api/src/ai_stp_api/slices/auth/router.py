@@ -42,6 +42,7 @@ from ai_stp_platform.logging import get_logger
 from ai_stp_platform.models import Account, Device, OAuthIdentity
 
 router = APIRouter(tags=["auth"])
+compatibility_router = APIRouter(tags=["auth"], include_in_schema=False)
 _log = get_logger("auth")
 
 _SESSION_KEY_LINK_ACCOUNT = "oauth_link_account_id"
@@ -82,7 +83,8 @@ def _callback_uri(request: Request, auth: AuthSettings, provider: str) -> str:
     declared = auth.oauth_callback_bases()
     origin = f"{request.url.scheme}://{request.url.netloc}".rstrip("/")
     base = origin if origin in declared else declared[0]
-    return f"{base}/v1/auth/{provider}/callback"
+    path = auth.google_callback_path if provider == "google" else f"/v1/auth/{provider}/callback"
+    return f"{base}{path}"
 
 
 def _safe_return_to(value: str | None) -> str | None:
@@ -327,6 +329,17 @@ async def oauth_callback(
             max_age=auth.session_ttl_seconds,
         )
     return response
+
+
+@compatibility_router.get("/api/auth/callback/google", response_model=None)
+async def google_oauth_callback_compatibility(
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    auth: Annotated[AuthSettings, Depends(get_auth_settings)],
+    response_mode: str | None = Query(default=None),
+) -> JSONResponse | RedirectResponse:
+    """Receive Google on an exact provider-registered compatibility path."""
+    return await oauth_callback("google", request, db, auth, response_mode)
 
 
 # Two decorators rather than `api_route(methods=["GET", "POST"])`. FastAPI

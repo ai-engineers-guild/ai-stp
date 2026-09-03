@@ -137,6 +137,10 @@ class AuthSettings(BaseSettings):
     cookie_samesite: str = Field(default="lax")
     google_client_id: str = Field(default="")
     google_client_secret: str = Field(default="")
+    # Optional path already registered on a Google web client. The default is
+    # the versioned API route; a deployment may keep a provider-registered
+    # compatibility path without changing its callback origin.
+    google_callback_path: str = Field(default="/v1/auth/google/callback")
     github_client_id: str = Field(default="")
     github_client_secret: str = Field(default="")
     # Comma-separated account ids that may perform audited admin reads.
@@ -184,6 +188,17 @@ class AuthSettings(BaseSettings):
             msg = "cookie_samesite must be lax, strict or none"
             raise ValueError(msg)
         return normalized
+
+    @field_validator("google_callback_path")
+    @classmethod
+    def _google_callback_path_is_local(cls, value: str) -> str:
+        if not value.startswith("/") or value.startswith("//"):
+            msg = "google_callback_path must be an absolute same-origin path"
+            raise ValueError(msg)
+        if any(marker in value for marker in ("?", "#", "\\", "\n", "\r")):
+            msg = "google_callback_path must not contain a query, fragment or separator"
+            raise ValueError(msg)
+        return value
 
     def admin_ids(self) -> frozenset[str]:
         """Return the configured admin account id set."""

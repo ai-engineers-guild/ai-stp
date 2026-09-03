@@ -159,3 +159,29 @@ def test_a_deployment_declaring_no_extra_origin_behaves_exactly_as_before() -> N
         _callback_uri(_asked_from("https://only.example"), auth, "github")
         == "https://only.example/v1/auth/github/callback"
     )
+
+
+def test_google_may_use_an_exact_same_origin_compatibility_path() -> None:
+    path = "/api/auth/callback/google"
+    auth = _auth(google_callback_path=path)
+
+    assert _callback_uri(_asked_from(_PUBLIC_BASE), auth, "google") == f"{_PUBLIC_BASE}{path}"
+    assert (
+        _callback_uri(_asked_from(_PUBLIC_BASE), auth, "github")
+        == f"{_PUBLIC_BASE}/v1/auth/github/callback"
+    )
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "api/auth/callback/google",
+        "//foreign.example/callback",
+        "/api/auth/callback/google?next=/",
+        "/api/auth/callback/google#fragment",
+        "/api/auth/callback\\google",
+    ],
+)
+def test_google_callback_path_refuses_nonlocal_or_ambiguous_values(path: str) -> None:
+    with pytest.raises(ValueError, match="google_callback_path"):
+        _auth(google_callback_path=path)

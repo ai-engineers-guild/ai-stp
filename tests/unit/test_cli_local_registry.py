@@ -11,6 +11,7 @@ import pytest
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import journal, passports, revisions
 from ai_stp_cli.local.database import (
+    BUSY_TIMEOUT_MILLISECONDS,
     MIGRATIONS,
     SCHEMA_VERSION,
     configured_path,
@@ -584,29 +585,51 @@ def test_two_threads_opening_a_clean_registry_both_succeed(tmp_path: Path) -> No
     roughly 150x the work and raising it would be a round number against no
     measurement. What exceeded it was the runner, not the migration chain.
 
-    Left as it is deliberately, with the numbers recorded so a second occurrence
-    has a first to compare against. If it recurs, the thing to measure is how
-    long the *winner* holds the write lock on that platform under parallel load
-    — not how long the loser is willing to wait.
+    **Recurred on `windows-latest`, 2026-09-02** (`33651558201`), on a branch
+    whose only changes were Markdown — so the trigger is the runner, as the
+    first occurrence concluded, and not a code path. Two occurrences in six
+    days, both Windows, none elsewhere.
+
+    The budget is still not the thing to raise: the previous note asked, on a
+    recurrence, for how long the *winner* holds the write lock rather than how
+    long the loser waits, and that number did not exist because nothing
+    measured it. It does now — each thread times its own open and a failure
+    prints both against the budget, so the third occurrence arrives with the
+    evidence instead of another request for it. A green run prints nothing.
     """
     import concurrent.futures
     import threading
+    import time
 
     path = tmp_path / "registry.sqlite"
     ready = threading.Barrier(2)
 
-    def open_it(_index: int) -> int:
+    def open_it(_index: int) -> tuple[int | None, str | None, float]:
         ready.wait(timeout=10)
-        connection = open_registry(path)
+        started = time.perf_counter()
         try:
-            return schema_version(connection)
-        finally:
-            connection.close()
+            connection = open_registry(path)
+            try:
+                version = schema_version(connection)
+            finally:
+                connection.close()
+        except Exception as error:
+            return None, f"{type(error).__name__}: {error}", time.perf_counter() - started
+        return version, None, time.perf_counter() - started
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
-        versions = list(pool.map(open_it, range(2)))
+        outcomes = list(pool.map(open_it, range(2)))
 
-    assert versions == [SCHEMA_VERSION, SCHEMA_VERSION]
+    # The number the docstring asks for on a recurrence, carried by the run
+    # that recurs rather than reconstructed afterwards. `pytest` prints this
+    # only when the assertion below fails, so a green run stays silent.
+    versions = [version for version, _error, _elapsed in outcomes]
+    failures = [error for _version, error, _elapsed in outcomes if error is not None]
+    held = sorted((elapsed for _version, _error, elapsed in outcomes), reverse=True)
+    spent = ", ".join(f"{value * 1000:.0f} ms" for value in held)
+    assert versions == [SCHEMA_VERSION, SCHEMA_VERSION], (
+        f"opens took {spent} against a {BUSY_TIMEOUT_MILLISECONDS} ms budget; failures: {failures}"
+    )
 
 
 def test_an_owner_minted_by_another_process_is_adopted_not_replaced(

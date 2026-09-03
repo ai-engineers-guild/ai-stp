@@ -34,7 +34,10 @@ for path in /v1/health/live /v1/health/ready; do
 done
 
 # The web tier redirects to a locale, so a 2xx only appears after following it.
-web="$(curl -sS --max-time 25 -o /dev/null -w '%{http_code}' -L "${WEB_BASE}/" || echo "000")"
+web="$(
+  curl -sS --max-time 10 --retry 5 --retry-all-errors --retry-delay 2 \
+    --retry-max-time 30 -o /dev/null -w '%{http_code}' -L "${WEB_BASE}/" || echo "000"
+)"
 printf '  %-20s %s\n' "/ (web)" "${web}"
 [[ "${web}" == "200" ]] || failed=1
 
@@ -107,4 +110,4 @@ if [[ "${failed}" -ne 0 ]]; then
   echo "verify: the deployed stack did not answer as expected" >&2
   exit 1
 fi
-echo "verify: api, web and worker are current at ${BASE}"
+echo "verify: api and worker are current at ${API_BASE}; web is current at ${WEB_BASE}"

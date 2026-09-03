@@ -162,6 +162,17 @@ def test_target_side_deployer_preserves_the_host_state_and_monotonicity() -> Non
     # and nothing after it, so changing the source changed nothing. This is the
     # assertion that would have caught it.
     assert 'remote set-url origin "${repository}"' in script
+    # A host user's optional `gh auth setup-git` helper must not turn the
+    # public fetch into an authenticated request. A stale token produced HTTP
+    # 401 while curl and a helper-free fetch both read the same public ref.
+    fetch = script.split("fetch --quiet --no-tags origin", maxsplit=1)[0].rsplit("\n", maxsplit=2)
+    fetch_prefix = "\n".join(fetch)
+    assert "GIT_TERMINAL_PROMPT=0" in fetch_prefix
+    assert "-c credential.helper=" in fetch_prefix
+    # GitHub's HTTP/2 upload-pack POST returned 401 from the production host
+    # while the same anonymous request over HTTP/1.1 and the public archive
+    # endpoint both answered. Keep this transport fact local to the fetch.
+    assert "-c http.version=HTTP/1.1" in fetch_prefix
 
     service = Path("deploy/ai-stp-pull-deploy.service").read_text(encoding="utf-8")
     executable = "\n".join(
@@ -249,6 +260,32 @@ def test_a_deployment_check_that_cannot_answer_does_not_stop_the_deployment() ->
     assert 'if [[ -z "${want}" || -z "${have}" ]]; then' in block
     undetermined = block.split('if [[ -z "${want}"', maxsplit=1)[1].split("elif", maxsplit=1)[0]
     assert "failed=1" not in undetermined
+
+
+def test_deployment_verification_reports_only_declared_probe_origins() -> None:
+    """The success line must also work when no legacy deploy environment exists."""
+    script = Path("deploy/verify.sh").read_text(encoding="utf-8")
+    success = script.splitlines()[-1]
+
+    assert "${API_BASE}" in success
+    assert "${WEB_BASE}" in success
+    assert "${BASE}" not in success
+
+    # Compose reports the web container started before its first HTTP accept.
+    # Two real rolls hit connection reset/empty reply at this exact probe and
+    # were marked failed although the same URL answered moments later.
+    web_probe = script.split('web="$(', maxsplit=1)[1].split(')"', maxsplit=1)[0]
+    assert "--retry-all-errors" in web_probe
+    assert "--retry-max-time" in web_probe
+
+
+def test_edge_routes_the_google_compatibility_callback_to_the_api() -> None:
+    config = Path("deploy/nginx/ai-stp.conf.template").read_text(encoding="utf-8")
+    block = config.split("location = /api/auth/callback/google", maxsplit=1)[1].split(
+        "}", maxsplit=1
+    )[0]
+
+    assert "proxy_pass http://@@API_BIND@@" in block
 
 
 def test_no_workflow_carries_a_deployment_credential_or_reaches_the_target() -> None:

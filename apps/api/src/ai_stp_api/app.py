@@ -21,6 +21,7 @@ from ai_stp_api.observability import configure_observability
 from ai_stp_api.rate_limit import RateLimitMiddleware, build_http_rate_gate
 from ai_stp_api.settings import Settings, load_settings
 from ai_stp_api.slices.auth.oauth import build_oauth
+from ai_stp_api.slices.auth.router import compatibility_router as auth_compatibility_router
 from ai_stp_api.slices.auth.router import router as auth_router
 from ai_stp_api.slices.catalog.router import router as catalog_router
 from ai_stp_api.slices.complaints.router import router as complaints_router
@@ -129,6 +130,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health_router, prefix=_API_PREFIX)
     app.include_router(system_router, prefix=_API_PREFIX)
     app.include_router(auth_router, prefix=_API_PREFIX)
+    app.include_router(auth_compatibility_router)
     app.include_router(devices_router, prefix=_API_PREFIX)
     app.include_router(catalog_router, prefix=_API_PREFIX)
     app.include_router(complaints_router, prefix=_API_PREFIX)

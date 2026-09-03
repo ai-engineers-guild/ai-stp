@@ -50,7 +50,7 @@ plans are not continued literally after the implementation changes.
   Windows row, which is the first measurement of the AppContainer holding a real
   provider and is recorded under P0 below. `0.0.14` remains the last version
   whose six legs were all green.
-- The active provider release is `0.0.57` across all seven public setup-system
+- The active provider release is `0.0.58` across all seven public setup-system
   repositories, each with six native binaries and `SHA256SUMS`, cut on
   2026-09-02 by the provider estate's own agent session in step with this
   side. Four releases landed that day, each answering something measured
@@ -61,8 +61,20 @@ plans are not continued literally after the implementation changes.
   [target_scope]` on provider kit `0.2.9`; `0.0.57` validates a kind declared
   only at a scope under that scope, and falls back when `canonicalize` cannot
   answer inside an AppContainer, which is what turned both Windows legs green.
+  `0.0.58` gives `remove` a three-part rule — a record removes, an empty target
+  is a silent no-op, and declared entries with no record are refused by name
+  with the list of what would have been taken — which this consumer meets in
+  the race the provider's own record makes possible: that record sits outside
+  the target's identity, so it can disappear between a plan and the apply that
+  plan authorised without moving the digest that bound them.
   `just evidence-providers 0.0.55`: seven conformant, no projection
   disagreement against the rules below.
+- All five evidence slices are green against `0.0.58`, read from the artifacts:
+  configuration 42 of 42 with 84 of 84 observe stages, workspace scope 12 of
+  12, `user_root` 30 of 30, program 42 of 42, each on all six native legs; and
+  the contribution slice 4 of 4, where codex keeps the person's own key through
+  the removal. The first-party corpus rebuilt at those seven tag commits moves
+  nothing: `changed 0, unchanged 71`.
 - `software-evidence` — the consumer driving `harness install/status/update/
   remove` through `ai-stp` itself — is green on **all six native legs** against
   `0.0.53`, seven harnesses each. The one-leg limitation this document carried

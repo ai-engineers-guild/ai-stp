@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="150" viewBox="0 0 1200 150" role="img" aria-labelledby="t d">
+  <title id="t">Who does what</title>
+  <desc id="d">CLI and agent assemble; web shows the catalog; only the provider writes native state.</desc>
+  <rect width="1200" height="150" rx="22" fill="#101010"/>
+  <rect x="0" y="40" width="6" height="70" rx="3" fill="#fb631b"/>
+  <text x="48" y="68" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" fill="#fb631b">02</text>
+  <text x="48" y="112" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="36" font-weight="500" fill="#ffffff">CLI assembles. The provider writes.</text>
+</svg>

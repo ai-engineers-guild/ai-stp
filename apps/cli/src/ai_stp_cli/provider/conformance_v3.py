@@ -430,11 +430,15 @@ def _route_coverage(
         if rule.harness_id == capabilities.harness_id
     }
     for kind in sorted(declared):
-        rule = composition.rule_for(kind, capabilities.harness_id)
-        profile = None if rule is None else profiles.get(rule.target_scope)
-        reachable = (
-            rule is not None and profile is not None and rule.relative in profile.native_namespaces
-        )
+        rule = None
+        for scope, profile in profiles.items():
+            if kind not in {item.value for item in profile.component_kinds}:
+                continue
+            candidate = composition.rule_for(kind, capabilities.harness_id, scope=scope)
+            if candidate is not None and candidate.relative in profile.native_namespaces:
+                rule = candidate
+                break
+        reachable = rule is not None
         cases.append(
             conformance.Case(
                 f"declared_route_is_compilable:{kind}",
