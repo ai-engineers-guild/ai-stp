@@ -133,12 +133,18 @@ points; license and redistributability; and access mode.
 
 Each adaptation contains a content-derived identity, one harness,
 implementation mode (`derived` or `native`), exact common/adaptation source and
-projection artifact references, an exact transform identity when derived,
-logical and provider-native component kinds, projection kind, supported scopes,
-managed paths, native identifiers, permissions, supported harness versions,
-systems and architectures, immutable technical support and semantic losses.
-Large bytes live in content-addressed storage; their digest and size are inside
-the passport.
+transform identity when derived, supported harness versions, systems and
+architectures, immutable technical support, semantic losses, and non-empty
+`scope_adaptations`.
+
+Each scope adaptation atomically binds one scope to its exact projection
+artifact, provider-native component kind, projection kind, provider profile ID
+and digest, bundle format and limits digest, permissions, and canonical members.
+A member binds path, file/directory type, mode, native IDs, content format,
+parser identity when structured, whole-path or contribution ownership, write
+semantics and withdrawal semantics. These values are not parallel arrays that
+can accidentally combine facts from different scopes. Large bytes live in
+content-addressed storage; their digest and size are inside the passport.
 
 The first supported form does not contain flat `harness_ids`, a component-level
 `harness_id`, `variant_id`, or shared projection/path/native-ID/platform fields.

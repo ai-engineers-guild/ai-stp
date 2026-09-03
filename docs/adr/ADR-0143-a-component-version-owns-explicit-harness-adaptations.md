@@ -41,8 +41,10 @@ An adaptation contains:
 - an exact transform identity for a derived implementation and no transform
   for a native implementation;
 - logical component type and provider-native component kind;
-- projection kind, supported scopes, managed paths and native IDs;
-- permissions, supported harness versions, systems and architectures;
+- non-empty scope adaptations, each binding one scope to its projection,
+  provider-surface identity, canonical members, ownership/write/remove
+  semantics and permissions;
+- supported harness versions, systems and architectures;
 - immutable technical support declaration;
 - every semantic loss.
 
@@ -67,6 +69,19 @@ Provider-native kind conversion is allowed only when explicitly named by the
 adaptation, the projection preserves the logical function and semantic losses
 are empty. Otherwise compilation is blocked.
 
+**Scope facts are not parallel arrays.** One `scope_adaptation` binds the scope,
+projection artifact, provider-native kind, projection kind and required
+provider surface. Its surface reference includes the exact profile identity and
+digest, bundle format and limits digest. Its projected members bind canonical
+path, object type, file mode, native IDs, content/parser identity, whole-file or
+key-level ownership, write semantics and withdrawal semantics. This prevents a
+project-only Cursor agent or a shared Codex TOML contribution from borrowing a
+path or ownership rule from another scope.
+
+A derived transform binds its deterministic inputs and version. The output is
+closed by the scope projection artifact plus canonical member paths and modes;
+the same transform identity cannot name different provider packages.
+
 **The flat form is historical.** `harness_ids`, component-level `harness_id`,
 `variant_id`, component-level `projection_kind`, `managed_paths`, `native_ids`
 and `supported_os` do not enter the first supported passport form. No reader
@@ -86,6 +101,8 @@ create a new stable component identity and never mutates a published version.
 - Generated projections are reviewable immutable artifacts, not editable
   authoring directories.
 - Assessment freshness can change without changing component-version bytes.
+- A future named setup layer references `adaptation_id` and exact scope; it does
+  not assume that one component adaptation is one transaction root.
 
 ## Reconsideration Conditions
 

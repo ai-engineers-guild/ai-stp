@@ -11,10 +11,12 @@ outside these hashed bytes per SPEC-005: it never changes the snapshot.
 """
 
 import re
-from typing import Annotated, Final, Literal
+from typing import Annotated, Final, Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from ai_stp_foundation.adaptations import ADAPTATION_ID_PATTERN, adaptation_id
+from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import DIGEST_PATTERN
 from ai_stp_foundation.harnesses import HarnessId
 from ai_stp_foundation.ids import stable_id_pattern
@@ -36,6 +38,14 @@ COMMIT_PATTERN: Final[str] = r"^[0-9a-f]{40}$"
 type TagId = Annotated[str, Field(pattern=TAG_PATTERN)]
 type CapabilityId = Annotated[str, Field(pattern=CAPABILITY_PATTERN)]
 type SupportedOs = Literal["linux", "macos", "windows"]
+type SupportedArch = Literal["x86_64", "arm64"]
+type TargetScope = Literal["global", "user_root", "project"]
+type ImplementationMode = Literal["derived", "native"]
+type TechnicalSupport = Literal["unsupported", "experimental", "supported"]
+type ProjectedObjectType = Literal["file", "directory"]
+type OwnershipMode = Literal["whole", "contribution"]
+type WriteSemantics = Literal["replace", "merge"]
+type WithdrawalSemantics = Literal["remove_path", "preserve_unowned"]
 
 #: The closed component taxonomy (AGENTS.md, "Canonical terms"). Named so
 #: the catalog wire contract reuses this one owner instead of restating the
@@ -81,6 +91,65 @@ class ArtifactRef(BaseModel):
     size_bytes: Annotated[int, Field(ge=0)]
 
 
+class TransformRef(BaseModel):
+    """Exact deterministic transform used by one derived adaptation."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    transform_id: Annotated[str, Field(pattern=TAG_PATTERN)]
+    version: Version
+    digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+
+
+class ProviderSurfaceRef(BaseModel):
+    """Exact provider capability identity required by one projection scope."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    profile_id: Annotated[str, Field(pattern=r"^[a-z0-9][a-z0-9._/-]*$")]
+    profile_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    bundle_format: Annotated[str, Field(pattern=r"^[a-z0-9][a-z0-9._/-]*$")]
+    limits_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+
+
+class ProjectedMember(BaseModel):
+    """One canonical projected path and the provider semantics it requires."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    path: str
+    object_type: ProjectedObjectType
+    mode: Annotated[int, Field(ge=0, le=0o777)]
+    native_ids: list[str] = Field(default_factory=list)
+    content_format: Annotated[str, Field(min_length=1, max_length=128)]
+    parser_id: Annotated[str, Field(min_length=1, max_length=128)] | None = None
+    ownership: OwnershipMode
+    ownership_key: Annotated[str, Field(min_length=1, max_length=512)] | None = None
+    write_semantics: WriteSemantics
+    withdrawal_semantics: WithdrawalSemantics
+
+    @model_validator(mode="after")
+    def _ownership_is_complete(self) -> "ProjectedMember":
+        _relative_path(self.path)
+        if self.ownership == "contribution":
+            if self.object_type != "file":
+                raise ValueError("a contribution must target one structured file")
+            if self.ownership_key is None or self.parser_id is None:
+                raise ValueError("a contribution requires ownership_key and parser_id")
+            if self.write_semantics != "merge":
+                raise ValueError("a contribution must use merge write semantics")
+            if self.withdrawal_semantics != "preserve_unowned":
+                raise ValueError("a contribution must preserve unowned host content")
+        else:
+            if self.ownership_key is not None:
+                raise ValueError("whole-path ownership has no ownership_key")
+            if self.write_semantics != "replace":
+                raise ValueError("whole-path ownership must replace its path")
+            if self.withdrawal_semantics != "remove_path":
+                raise ValueError("whole-path ownership removes its path")
+        return self
+
+
 class EnvVarRequirement(BaseModel):
     """Required environment variable: name and purpose, never a value."""
 
@@ -98,6 +167,27 @@ class Permissions(BaseModel):
     filesystem: list[str] = Field(default_factory=list)
     network: list[str] = Field(default_factory=list)
     process: list[str] = Field(default_factory=list)
+
+
+class ScopeAdaptation(BaseModel):
+    """All native facts for one adaptation at one projection scope."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    scope: TargetScope
+    projection_artifact: ArtifactRef
+    provider_component_kind: ComponentType
+    projection_kind: ProjectionKind
+    required_surface: ProviderSurfaceRef
+    permissions: Permissions = Field(default_factory=Permissions)
+    members: Annotated[list[ProjectedMember], Field(min_length=1)]
+
+    @model_validator(mode="after")
+    def _paths_are_unique(self) -> "ScopeAdaptation":
+        paths = [member.path for member in self.members]
+        if len(paths) != len(set(paths)):
+            raise ValueError("projected member paths must be unique within a scope")
+        return self
 
 
 class Conflicts(BaseModel):
@@ -120,6 +210,47 @@ class LicenseInfo(BaseModel):
 
     spdx_id: str
     redistribution_allowed: bool
+
+
+class ComponentAdaptation(BaseModel):
+    """One immutable harness-native implementation of a logical component."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    adaptation_id: Annotated[str, Field(pattern=ADAPTATION_ID_PATTERN)]
+    harness_id: HarnessId
+    implementation_mode: ImplementationMode
+    source_artifact: ArtifactRef | None = None
+    transform: TransformRef | None = None
+    logical_component_type: ComponentType
+    scope_adaptations: Annotated[list[ScopeAdaptation], Field(min_length=1, max_length=3)]
+    supported_harness_versions: list[str] = Field(default_factory=list)
+    supported_os: list[SupportedOs] = Field(default_factory=list[SupportedOs])
+    supported_arch: list[SupportedArch] = Field(default_factory=list[SupportedArch])
+    technical_support: TechnicalSupport
+    semantic_losses: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _coherent_and_content_addressed(self) -> "ComponentAdaptation":
+        scopes = [item.scope for item in self.scope_adaptations]
+        if len(scopes) != len(set(scopes)):
+            raise ValueError("scope adaptations must not contain duplicate scopes")
+        if self.implementation_mode == "derived" and self.transform is None:
+            raise ValueError("a derived adaptation requires an exact transform")
+        if self.implementation_mode == "native" and self.transform is not None:
+            raise ValueError("a native adaptation has no transform")
+        payload = cast(dict[str, JsonValue], self.model_dump(mode="json"))
+        held = payload.pop("adaptation_id")
+        if held != adaptation_id(payload):
+            raise ValueError("adaptation_id does not match the immutable manifest")
+        return self
+
+
+def seal_adaptation(data: dict[str, JsonValue]) -> ComponentAdaptation:
+    """Add the canonical content ID and validate one adaptation manifest."""
+    candidate = dict(data)
+    candidate["adaptation_id"] = adaptation_id(candidate)
+    return ComponentAdaptation.model_validate(candidate)
 
 
 class _VersionPassportBase(PassportEnvelope):

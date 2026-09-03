@@ -46,6 +46,7 @@ Different objects use different domains:
 
 ```text
 ai-stp:artifact:v1
+ai-stp:component-adaptation:v1
 ai-stp:passport:v1
 ai-stp:revision:v1
 ai-stp:plan:v1

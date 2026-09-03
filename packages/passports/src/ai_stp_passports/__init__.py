@@ -29,13 +29,19 @@ from ai_stp_passports.markdown import (
 )
 from ai_stp_passports.versions import (
     ArtifactRef,
+    ComponentAdaptation,
     ComponentVersionPassport,
     Conflicts,
     EnvVarRequirement,
     GitSource,
     LicenseInfo,
     Permissions,
+    ProjectedMember,
+    ProviderSurfaceRef,
+    ScopeAdaptation,
     SetupVersionPassport,
+    TransformRef,
+    seal_adaptation,
 )
 
 __all__ = [
@@ -48,6 +54,7 @@ __all__ = [
     "PASSPORT_KINDS",
     "RENDERER_VERSION",
     "ArtifactRef",
+    "ComponentAdaptation",
     "ComponentVersionPassport",
     "Conflicts",
     "EnvVarRequirement",
@@ -57,10 +64,15 @@ __all__ = [
     "MarkdownPolicyError",
     "PassportEnvelope",
     "Permissions",
+    "ProjectedMember",
+    "ProviderSurfaceRef",
     "SafeMarkdownProjection",
+    "ScopeAdaptation",
     "SetupVersionPassport",
+    "TransformRef",
     "derive_revision_id",
     "project_safe_markdown",
+    "seal_adaptation",
     "seal_envelope",
     "validate_safe_markdown",
     "verify_revision_id",

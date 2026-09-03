@@ -18,6 +18,7 @@ DIGEST_DOMAINS: Final[frozenset[str]] = frozenset(
         "ai-stp:article-active:v1",
         "ai-stp:article-revision:v1",
         "ai-stp:article-snapshot:v1",
+        "ai-stp:component-adaptation:v1",
         "ai-stp:attestation:v1",
         "ai-stp:bundle:v1",
         "ai-stp:native-discovery:v1",
