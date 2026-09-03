@@ -1569,6 +1569,9 @@ def compile_setup_version_bundle(
     if isinstance(setup_facts, dict):
         snapshot = str(_value(setup_facts.get("snapshot")) or "")
     sources = _bundle_sources(connection, surfaces, target, host_root)
+    bundle_format, profile_binding, adaptation_bindings = _bundle_contract(
+        connection, closure, harness, scope
+    )
     return bundle.compile_bundle(
         sources,
         setup_stable_id=setup_version.stable_id,
@@ -1581,6 +1584,77 @@ def compile_setup_version_bundle(
         conversion_report=_conversion_json(converted),
         input_digest=snapshot,
         target_scope=scope,
+        bundle_format=bundle_format,
+        projection_profile=profile_binding,
+        adaptation_bindings=adaptation_bindings,
+    )
+
+
+def _bundle_contract(
+    connection: sqlite3.Connection,
+    closure: graph.Closure,
+    harness_id: str,
+    scope_name: str,
+) -> tuple[
+    str,
+    bundle.ProjectionProfileBinding | None,
+    tuple[bundle.ComponentAdaptationBinding, ...],
+]:
+    """Resolve one exact bundle format/profile from immutable adaptation atoms."""
+    bindings: list[bundle.ComponentAdaptationBinding] = []
+    profiles: set[tuple[str, str, str]] = set()
+    formats: set[str] = set()
+    for node in closure.nodes:
+        stored = revisions.get(connection, node.revision_id)
+        if stored is None:
+            raise CliFailure("AI_STP_CONFLICT", "an exact component snapshot is unavailable")
+        try:
+            passport = ComponentVersionPassport.model_validate(
+                stored.envelope.model_dump(mode="json")
+            )
+            selected = scope_for(
+                passport,
+                cast(HarnessId, harness_id),
+                cast(TargetScope, scope_name),
+            )
+        except ValueError as error:
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "the component has no adaptation for the requested harness scope",
+                details={"stable_id": node.stable_id, "scope": scope_name},
+            ) from error
+        adaptation = next(item for item in passport.adaptations if item.harness_id == harness_id)
+        surface = selected.required_surface
+        formats.add(surface.bundle_format)
+        profiles.add((surface.profile_id, surface.profile_digest, selected.scope))
+        bindings.append(
+            bundle.ComponentAdaptationBinding(
+                stable_id=node.stable_id,
+                version=node.version,
+                passport_digest=node.passport_digest,
+                adaptation_id=adaptation.adaptation_id,
+                projection_artifact_digest=selected.projection_artifact.digest,
+                projection_artifact_size=selected.projection_artifact.size_bytes,
+                provider_component_kind=selected.provider_component_kind,
+                projection_kind=selected.projection_kind,
+                member_paths=tuple(member.path for member in selected.members),
+            )
+        )
+    if not bindings:
+        return bundle.BUNDLE_FORMAT, None, ()
+    if len(formats) != 1 or len(profiles) != 1:
+        raise CliFailure(
+            "AI_STP_CONFLICT",
+            "component adaptations require different provider profiles",
+        )
+    bundle_format = formats.pop()
+    if bundle_format == bundle.BUNDLE_FORMAT:
+        return bundle_format, None, ()
+    profile_id, profile_digest, target_scope = profiles.pop()
+    return (
+        bundle_format,
+        bundle.ProjectionProfileBinding(profile_id, profile_digest, target_scope),
+        tuple(sorted(bindings, key=lambda item: item.stable_id)),
     )
 
 
@@ -1819,6 +1893,11 @@ def compile_withdrawal_bundle(
     if not sources:
         return None
     converted = composition.convert(surfaces, target)
+    bundle_format, profile_binding, all_bindings = _bundle_contract(
+        connection, closure, harness, scope
+    )
+    owners = {source.owner for source in sources}
+    adaptation_bindings = tuple(binding for binding in all_bindings if binding.stable_id in owners)
     return bundle.compile_bundle(
         tuple(sources),
         setup_stable_id=setup_version.stable_id,
@@ -1831,6 +1910,9 @@ def compile_withdrawal_bundle(
         conversion_report=_conversion_json(converted),
         input_digest="",
         target_scope=scope,
+        bundle_format=bundle_format,
+        projection_profile=profile_binding,
+        adaptation_bindings=adaptation_bindings,
     )
 
 
@@ -1840,7 +1922,7 @@ def _bundle_view(compiled: bundle.Bundle, harness: str) -> HarnessBundle:
         compiled=compiled.compiled,
         target_scope=scope if scope in ("project", "user_root") else "global",
         harness_id=harness,  # pyright: ignore[reportArgumentType]
-        bundle_format=bundle.BUNDLE_FORMAT,
+        bundle_format=str(compiled.manifest.get("bundle_format") or bundle.BUNDLE_FORMAT),  # type: ignore[arg-type]
         digest=compiled.digest,
         artifact_digest=compiled.artifact_digest,
         byte_length=len(compiled.archive),

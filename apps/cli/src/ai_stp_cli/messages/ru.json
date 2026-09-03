@@ -561,5 +561,8 @@
   "the released component revision is not an immutable version snapshot": "выпущенная ревизия компонента не является неизменяемым снимком версии",
   "the setup definition has no setup passport": "в определении сетапа нет паспорта сетапа",
   "the stored projection is corrupt": "сохранённая проекция повреждена",
-  "an imported component has no declared projection kind": "у импортированного компонента нет объявленного вида проекции"
+  "an imported component has no declared projection kind": "у импортированного компонента нет объявленного вида проекции",
+  "an exact component snapshot is unavailable": "точный снимок компонента недоступен",
+  "component adaptations require different provider profiles": "адаптации компонентов требуют разные профили провайдера",
+  "the compiled bundle profile differs from the provider profile": "профиль собранного пакета отличается от профиля провайдера"
 }

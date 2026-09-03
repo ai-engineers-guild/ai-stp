@@ -1887,7 +1887,7 @@ class HarnessBundle(BaseModel):
     #: The projection scope the package was compiled for: the harness home
     #: (`global`) or a workspace root (`project`), chosen at `select bundle`.
     target_scope: Literal["global", "project", "user_root"] = "global"
-    bundle_format: Literal["ai-stp-bundle/1"] = "ai-stp-bundle/1"
+    bundle_format: Literal["ai-stp-bundle/1", "ai-stp-bundle/2"] = "ai-stp-bundle/1"
 
     #: Domain-separated over the manifest, which covers every file by content.
     #: Nothing that varies between machines is inside it — no build time, no

@@ -118,8 +118,11 @@
       "type": "string"
     },
     "bundle_format": {
-      "const": "ai-stp-bundle/1",
       "default": "ai-stp-bundle/1",
+      "enum": [
+        "ai-stp-bundle/1",
+        "ai-stp-bundle/2"
+      ],
       "title": "Bundle Format",
       "type": "string"
     },

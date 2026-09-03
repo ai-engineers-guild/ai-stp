@@ -561,5 +561,8 @@
   "the released component revision is not an immutable version snapshot": "the released component revision is not an immutable version snapshot",
   "the setup definition has no setup passport": "the setup definition has no setup passport",
   "the stored projection is corrupt": "the stored projection is corrupt",
-  "an imported component has no declared projection kind": "an imported component has no declared projection kind"
+  "an imported component has no declared projection kind": "an imported component has no declared projection kind",
+  "an exact component snapshot is unavailable": "an exact component snapshot is unavailable",
+  "component adaptations require different provider profiles": "component adaptations require different provider profiles",
+  "the compiled bundle profile differs from the provider profile": "the compiled bundle profile differs from the provider profile"
 }

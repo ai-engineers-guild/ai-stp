@@ -349,17 +349,18 @@ def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
                 details={"action": action, "protocol_version": str(protocol_version)},
                 next_actions=["install plan --protocol-version 3 ..."],
             )
-        _supports_bundle(info, held.harness_id, bundle.BUNDLE_FORMAT)
         # The installing machine's target, because a component contributing a
         # key to an owned file needs that file's current bytes and they exist
         # only here (`ADR-0129`).
         compiled = select_command.compile_harness_bundle(
             connection, proposal_id, held.harness_id, Path(provider_target)
         )
+        compiled_format = str(compiled.manifest.get("bundle_format") or "")
+        _supports_bundle(info, held.harness_id, compiled_format)
         bundle_path = cache.store_raw_artifact_bytes(compiled.archive, compiled.artifact_digest)
         bound_bundle = bundle_protocol.binding(
             bundle_path,
-            bundle_format=bundle.BUNDLE_FORMAT,
+            bundle_format=compiled_format,
             bundle_digest=compiled.digest,
             artifact_digest=compiled.artifact_digest,
             bundle_size=len(compiled.archive),
@@ -440,7 +441,7 @@ def _plan_v3(
     trusted_release: release.ReleaseManifest | None,
 ) -> InstallationView:
     """Plan the existing installation state machine through protocol v3."""
-    capabilities = _v3_capabilities(info, pair.harness_id, bundle.BUNDLE_FORMAT)
+    capabilities = _v3_capabilities(info, pair.harness_id, "")
     operation = _v3_operation(action)
     try:
         capabilities.require(operation)
@@ -513,11 +514,12 @@ def _plan_v3(
             scope=str(parameters.get("scope") or "global"),
         )
         planned_scope = _v3_profile_accepts(capabilities, compiled).scope
+        compiled_format = str(compiled.manifest.get("bundle_format") or "")
         status_tail = operation_v3.status_arguments(capabilities, planned_scope)
         bundle_path = cache.store_raw_artifact_bytes(compiled.archive, compiled.artifact_digest)
         bound_bundle = bundle_protocol.binding(
             bundle_path,
-            bundle_format=bundle.BUNDLE_FORMAT,
+            bundle_format=compiled_format,
             bundle_digest=compiled.digest,
             artifact_digest=compiled.artifact_digest,
             bundle_size=len(compiled.archive),
@@ -552,7 +554,7 @@ def _plan_v3(
             bundle_path = cache.store_raw_artifact_bytes(compiled.archive, compiled.artifact_digest)
             bound_bundle = bundle_protocol.binding(
                 bundle_path,
-                bundle_format=bundle.BUNDLE_FORMAT,
+                bundle_format=str(compiled.manifest.get("bundle_format") or ""),
                 bundle_digest=compiled.digest,
                 artifact_digest=compiled.artifact_digest,
                 bundle_size=len(compiled.archive),
@@ -1642,6 +1644,25 @@ def _v3_profile_accepts(
     # and re-deriving it from the kinds would answer a settled question again.
     compiled_for = str(compiled.manifest.get("target_scope") or "global")
     profile = _profile_for_graph(capabilities, component_kinds, compiled_for)
+    compiled_format = str(compiled.manifest.get("bundle_format") or "")
+    if compiled_format not in profile.bundle_formats:
+        raise CliFailure(
+            "AI_STP_SCHEMA_UNSUPPORTED",
+            "the provider does not support the exact HarnessBundle format",
+            details={"required": compiled_format},
+        )
+    if compiled_format == bundle.BUNDLE_FORMAT_V2:
+        binding = compiled.manifest.get("projection_profile")
+        expected_binding = {
+            "profile_id": profile.profile_id,
+            "profile_digest": profile.digest,
+            "target_scope": profile.scope,
+        }
+        if binding != expected_binding:
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "the compiled bundle profile differs from the provider profile",
+            )
     try:
         protocol_v3.validate_profile_for_components(profile, component_kinds)
     except ValueError as error:

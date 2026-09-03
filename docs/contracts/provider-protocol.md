@@ -268,6 +268,13 @@ builds a projection only for the exact profile, and the provider independently
 validates the bundle. The permission profile is a separate plan input and is not
 part of the setup/component digest.
 
+For `ai-stp-bundle/2`, the provider resolves the profile before bundle
+validation and compares its ID, digest and scope with `bundle.json`'s
+`projection_profile`. It then validates every `component_adaptations` entry and
+owner/path closure before returning a provider plan. A profile advertising only
+`ai-stp-bundle/1` cannot accept `/2`, and a `/2` bundle cannot borrow a different
+scope profile even when its final paths happen to pass the provider allowlist.
+
 The `provider-info` field set is closed and compared for exact equality, so an
 unknown field rejects the entire response, not part of it. The only optional name
 is `scoped_projection_profiles`: an array of profiles, each declaring
