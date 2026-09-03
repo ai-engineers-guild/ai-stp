@@ -46,6 +46,20 @@ type ProjectedObjectType = Literal["file", "directory"]
 type OwnershipMode = Literal["whole", "contribution"]
 type WriteSemantics = Literal["replace", "merge"]
 type WithdrawalSemantics = Literal["remove_path", "preserve_unowned"]
+type RelativeProjectionPath = Annotated[
+    str,
+    Field(
+        min_length=1,
+        max_length=4096,
+        pattern=r"^[^/\\\x00-\x1f][^\\\x00-\x1f]*$",
+    ),
+]
+type BoundedNativeId = Annotated[
+    str, Field(min_length=1, max_length=512, pattern=r"^[^\x00-\x1f]+$")
+]
+type PermissionClaim = Annotated[
+    str, Field(min_length=1, max_length=1024, pattern=r"^[^\x00-\x1f]+$")
+]
 
 #: The closed component taxonomy (AGENTS.md, "Canonical terms"). Named so
 #: the catalog wire contract reuses this one owner instead of restating the
@@ -109,7 +123,6 @@ class ProviderSurfaceRef(BaseModel):
     profile_id: Annotated[str, Field(pattern=r"^[a-z0-9][a-z0-9._/-]*$")]
     profile_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
     bundle_format: Annotated[str, Field(pattern=r"^[a-z0-9][a-z0-9._/-]*$")]
-    limits_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
 
 
 class ProjectedMember(BaseModel):
@@ -117,10 +130,10 @@ class ProjectedMember(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    path: str
+    path: RelativeProjectionPath
     object_type: ProjectedObjectType
     mode: Annotated[int, Field(ge=0, le=0o777)]
-    native_ids: list[str] = Field(default_factory=list)
+    native_ids: list[BoundedNativeId] = Field(default_factory=list[BoundedNativeId])
     content_format: Annotated[str, Field(min_length=1, max_length=128)]
     parser_id: Annotated[str, Field(min_length=1, max_length=128)] | None = None
     ownership: OwnershipMode
@@ -131,6 +144,8 @@ class ProjectedMember(BaseModel):
     @model_validator(mode="after")
     def _ownership_is_complete(self) -> "ProjectedMember":
         _relative_path(self.path)
+        if len(self.native_ids) != len(set(self.native_ids)):
+            raise ValueError("native_ids must not contain duplicates")
         if self.ownership == "contribution":
             if self.object_type != "file":
                 raise ValueError("a contribution must target one structured file")
@@ -164,9 +179,16 @@ class Permissions(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    filesystem: list[str] = Field(default_factory=list)
-    network: list[str] = Field(default_factory=list)
-    process: list[str] = Field(default_factory=list)
+    filesystem: list[PermissionClaim] = Field(default_factory=list[PermissionClaim])
+    network: list[PermissionClaim] = Field(default_factory=list[PermissionClaim])
+    process: list[PermissionClaim] = Field(default_factory=list[PermissionClaim])
+
+    @model_validator(mode="after")
+    def _claims_are_unique(self) -> "Permissions":
+        for claims in (self.filesystem, self.network, self.process):
+            if len(claims) != len(set(claims)):
+                raise ValueError("permission claims must not contain duplicates")
+        return self
 
 
 class ScopeAdaptation(BaseModel):
@@ -175,18 +197,31 @@ class ScopeAdaptation(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     scope: TargetScope
+    projection_format: Literal["ai-stp-adaptation-projection/1"]
     projection_artifact: ArtifactRef
     provider_component_kind: ComponentType
     projection_kind: ProjectionKind
     required_surface: ProviderSurfaceRef
     permissions: Permissions = Field(default_factory=Permissions)
     members: Annotated[list[ProjectedMember], Field(min_length=1)]
+    supported_harness_versions: list[str] = Field(default_factory=list)
+    supported_os: list[SupportedOs] = Field(default_factory=list[SupportedOs])
+    supported_arch: list[SupportedArch] = Field(default_factory=list[SupportedArch])
+    technical_support: TechnicalSupport
+    technical_support_reason: Annotated[str, Field(min_length=1, max_length=512)] | None = None
+    semantic_losses: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _paths_are_unique(self) -> "ScopeAdaptation":
         paths = [member.path for member in self.members]
         if len(paths) != len(set(paths)):
             raise ValueError("projected member paths must be unique within a scope")
+        if self.projection_artifact.size_bytes == 0:
+            raise ValueError("a non-empty projection cannot have zero artifact bytes")
+        if self.technical_support == "supported" and self.technical_support_reason is not None:
+            raise ValueError("a supported scope has no support limitation reason")
+        if self.technical_support != "supported" and self.technical_support_reason is None:
+            raise ValueError("a non-supported scope requires a support reason")
         return self
 
 
@@ -224,11 +259,6 @@ class ComponentAdaptation(BaseModel):
     transform: TransformRef | None = None
     logical_component_type: ComponentType
     scope_adaptations: Annotated[list[ScopeAdaptation], Field(min_length=1, max_length=3)]
-    supported_harness_versions: list[str] = Field(default_factory=list)
-    supported_os: list[SupportedOs] = Field(default_factory=list[SupportedOs])
-    supported_arch: list[SupportedArch] = Field(default_factory=list[SupportedArch])
-    technical_support: TechnicalSupport
-    semantic_losses: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _coherent_and_content_addressed(self) -> "ComponentAdaptation":
@@ -299,7 +329,6 @@ class ComponentVersionPassport(_VersionPassportBase):
     conflicts: Conflicts = Field(default_factory=Conflicts)
     managed_paths: list[str] = Field(default_factory=list)
     native_ids: list[str] = Field(default_factory=list)
-    #: Additional harnesses this version names. Empty means only `harness_id`.
     harness_ids: Annotated[list[HarnessId], Field(max_length=7)] = Field(
         default_factory=list[HarnessId]
     )

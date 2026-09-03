@@ -28,14 +28,14 @@ def _manifest() -> dict[str, JsonValue]:
         "scope_adaptations": [
             {
                 "scope": "project",
+                "projection_format": "ai-stp-adaptation-projection/1",
                 "projection_artifact": {"digest": _DIGEST_C, "size_bytes": 240},
                 "provider_component_kind": "agent",
                 "projection_kind": "native_files",
                 "required_surface": {
-                    "profile_id": "cursor/native-files/project",
+                    "profile_id": "cursor/native-files/project/1",
                     "profile_digest": _DIGEST_D,
                     "bundle_format": "ai-stp-bundle/1",
-                    "limits_digest": _DIGEST_A,
                 },
                 "permissions": {"filesystem": ["project"], "network": [], "process": []},
                 "members": [
@@ -52,13 +52,14 @@ def _manifest() -> dict[str, JsonValue]:
                         "withdrawal_semantics": "remove_path",
                     }
                 ],
+                "supported_harness_versions": [">=2026.08"],
+                "supported_os": ["linux", "macos", "windows"],
+                "supported_arch": ["x86_64", "arm64"],
+                "technical_support": "supported",
+                "technical_support_reason": None,
+                "semantic_losses": [],
             }
         ],
-        "supported_harness_versions": [">=2026.08"],
-        "supported_os": ["linux", "macos", "windows"],
-        "supported_arch": ["x86_64", "arm64"],
-        "technical_support": "supported",
-        "semantic_losses": [],
     }
 
 
@@ -78,7 +79,10 @@ def test_adaptation_identity_is_deterministic_and_covers_every_scope_fact() -> N
 
 def test_adaptation_refuses_an_id_for_different_manifest_bytes() -> None:
     sealed = seal_adaptation(_manifest()).model_dump(mode="json")
-    sealed["technical_support"] = "experimental"
+    scopes = sealed["scope_adaptations"]
+    assert isinstance(scopes, list)
+    assert isinstance(scopes[0], dict)
+    scopes[0]["supported_harness_versions"] = [">=2026.08", "<2027.00"]
 
     with pytest.raises(ValidationError, match="adaptation_id does not match"):
         ComponentAdaptation.model_validate(sealed)
@@ -140,3 +144,42 @@ def test_native_and_derived_transform_rules_are_closed() -> None:
     native["implementation_mode"] = "native"
     with pytest.raises(ValidationError, match="native adaptation has no transform"):
         seal_adaptation(native)
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["", "/absolute", "../escape", "nested/../escape", "windows\\path", "control\npath"],
+)
+def test_projected_member_path_is_rejected_by_wire_or_semantic_validation(path: str) -> None:
+    manifest = _manifest()
+    scopes = manifest["scope_adaptations"]
+    assert isinstance(scopes, list)
+    assert isinstance(scopes[0], dict)
+    members = scopes[0]["members"]
+    assert isinstance(members, list)
+    assert isinstance(members[0], dict)
+    members[0]["path"] = path
+
+    with pytest.raises(ValidationError):
+        seal_adaptation(manifest)
+
+
+def test_projected_members_reject_duplicate_native_ids_and_zero_artifact() -> None:
+    duplicate = _manifest()
+    scopes = duplicate["scope_adaptations"]
+    assert isinstance(scopes, list)
+    assert isinstance(scopes[0], dict)
+    members = scopes[0]["members"]
+    assert isinstance(members, list)
+    assert isinstance(members[0], dict)
+    members[0]["native_ids"] = ["reviewer", "reviewer"]
+    with pytest.raises(ValidationError, match="native_ids must not contain duplicates"):
+        seal_adaptation(duplicate)
+
+    empty = _manifest()
+    empty_scopes = empty["scope_adaptations"]
+    assert isinstance(empty_scopes, list)
+    assert isinstance(empty_scopes[0], dict)
+    empty_scopes[0]["projection_artifact"] = {"digest": _DIGEST_C, "size_bytes": 0}
+    with pytest.raises(ValidationError, match="zero artifact bytes"):
+        seal_adaptation(empty)

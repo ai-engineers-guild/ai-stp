@@ -120,27 +120,33 @@
       "title": "EvaluationCheck",
       "type": "object"
     },
+    "PermissionClaim": {
+      "maxLength": 1024,
+      "minLength": 1,
+      "pattern": "^[^\\x00-\\x1f]+$",
+      "type": "string"
+    },
     "Permissions": {
       "additionalProperties": false,
       "description": "Declared file, network and process permissions.",
       "properties": {
         "filesystem": {
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/PermissionClaim"
           },
           "title": "Filesystem",
           "type": "array"
         },
         "network": {
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/PermissionClaim"
           },
           "title": "Network",
           "type": "array"
         },
         "process": {
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/PermissionClaim"
           },
           "title": "Process",
           "type": "array"

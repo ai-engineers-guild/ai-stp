@@ -22,6 +22,12 @@
       "title": "ArtifactRef",
       "type": "object"
     },
+    "BoundedNativeId": {
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[^\\x00-\\x1f]+$",
+      "type": "string"
+    },
     "ComponentType": {
       "enum": [
         "instruction",
@@ -61,27 +67,33 @@
       ],
       "type": "string"
     },
+    "PermissionClaim": {
+      "maxLength": 1024,
+      "minLength": 1,
+      "pattern": "^[^\\x00-\\x1f]+$",
+      "type": "string"
+    },
     "Permissions": {
       "additionalProperties": false,
       "description": "Declared file, network and process permissions.",
       "properties": {
         "filesystem": {
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/PermissionClaim"
           },
           "title": "Filesystem",
           "type": "array"
         },
         "network": {
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/PermissionClaim"
           },
           "title": "Network",
           "type": "array"
         },
         "process": {
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/PermissionClaim"
           },
           "title": "Process",
           "type": "array"
@@ -108,7 +120,7 @@
         },
         "native_ids": {
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/BoundedNativeId"
           },
           "title": "Native Ids",
           "type": "array"
@@ -148,8 +160,7 @@
           "title": "Parser Id"
         },
         "path": {
-          "title": "Path",
-          "type": "string"
+          "$ref": "#/$defs/RelativeProjectionPath"
         },
         "withdrawal_semantics": {
           "$ref": "#/$defs/WithdrawalSemantics"
@@ -195,11 +206,6 @@
           "title": "Bundle Format",
           "type": "string"
         },
-        "limits_digest": {
-          "pattern": "^sha256:[0-9a-f]{64}$",
-          "title": "Limits Digest",
-          "type": "string"
-        },
         "profile_digest": {
           "pattern": "^sha256:[0-9a-f]{64}$",
           "title": "Profile Digest",
@@ -214,11 +220,16 @@
       "required": [
         "profile_id",
         "profile_digest",
-        "bundle_format",
-        "limits_digest"
+        "bundle_format"
       ],
       "title": "ProviderSurfaceRef",
       "type": "object"
+    },
+    "RelativeProjectionPath": {
+      "maxLength": 4096,
+      "minLength": 1,
+      "pattern": "^[^/\\\\\\x00-\\x1f][^\\\\\\x00-\\x1f]*$",
+      "type": "string"
     },
     "ScopeAdaptation": {
       "additionalProperties": false,
@@ -238,6 +249,11 @@
         "projection_artifact": {
           "$ref": "#/$defs/ArtifactRef"
         },
+        "projection_format": {
+          "const": "ai-stp-adaptation-projection/1",
+          "title": "Projection Format",
+          "type": "string"
+        },
         "projection_kind": {
           "$ref": "#/$defs/ProjectionKind"
         },
@@ -249,15 +265,62 @@
         },
         "scope": {
           "$ref": "#/$defs/TargetScope"
+        },
+        "semantic_losses": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Semantic Losses",
+          "type": "array"
+        },
+        "supported_arch": {
+          "items": {
+            "$ref": "#/$defs/SupportedArch"
+          },
+          "title": "Supported Arch",
+          "type": "array"
+        },
+        "supported_harness_versions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Supported Harness Versions",
+          "type": "array"
+        },
+        "supported_os": {
+          "items": {
+            "$ref": "#/$defs/SupportedOs"
+          },
+          "title": "Supported Os",
+          "type": "array"
+        },
+        "technical_support": {
+          "$ref": "#/$defs/TechnicalSupport"
+        },
+        "technical_support_reason": {
+          "anyOf": [
+            {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Technical Support Reason"
         }
       },
       "required": [
         "scope",
+        "projection_format",
         "projection_artifact",
         "provider_component_kind",
         "projection_kind",
         "required_surface",
-        "members"
+        "members",
+        "technical_support"
       ],
       "title": "ScopeAdaptation",
       "type": "object"
@@ -366,13 +429,6 @@
       "title": "Scope Adaptations",
       "type": "array"
     },
-    "semantic_losses": {
-      "items": {
-        "type": "string"
-      },
-      "title": "Semantic Losses",
-      "type": "array"
-    },
     "source_artifact": {
       "anyOf": [
         {
@@ -383,30 +439,6 @@
         }
       ],
       "default": null
-    },
-    "supported_arch": {
-      "items": {
-        "$ref": "#/$defs/SupportedArch"
-      },
-      "title": "Supported Arch",
-      "type": "array"
-    },
-    "supported_harness_versions": {
-      "items": {
-        "type": "string"
-      },
-      "title": "Supported Harness Versions",
-      "type": "array"
-    },
-    "supported_os": {
-      "items": {
-        "$ref": "#/$defs/SupportedOs"
-      },
-      "title": "Supported Os",
-      "type": "array"
-    },
-    "technical_support": {
-      "$ref": "#/$defs/TechnicalSupport"
     },
     "transform": {
       "anyOf": [
@@ -425,8 +457,7 @@
     "harness_id",
     "implementation_mode",
     "logical_component_type",
-    "scope_adaptations",
-    "technical_support"
+    "scope_adaptations"
   ],
   "title": "ComponentAdaptation",
   "type": "object"
