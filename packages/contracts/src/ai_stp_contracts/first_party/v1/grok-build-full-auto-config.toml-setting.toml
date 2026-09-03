@@ -3,9 +3,10 @@
 # This setup asks for nothing, sandboxes nothing, and turns on every capability
 # this build carries. That is two separate things and they are worth separating:
 # `permission_mode` and the sandbox decide what the product asks you and what it
-# confines; the `[features]` block and the three `enabled` keys below decide what
-# tools exist at all. A posture that only did the first left four tools switched
-# off, because they are off by default.
+# confines; the feature and subsystem tables decide what tools exist at all. A
+# posture that only did the first would leave the availability of web fetch,
+# LSP, active-agent messaging, worktree snapshots, media generation and
+# codebase indexing implicit.
 #
 # Every key here is named by the pinned binary itself. The feature table it
 # carries lists each toggle beside its environment override -- `features.web_fetch`
@@ -13,11 +14,15 @@
 # spellings rather than the ones a documentation page uses.
 #
 # **Which binary is recorded in `references/grok-baseline.json`, not here.** This
-# comment used to name 1.0.5 while the baseline pinned 1.0.13, and a version in
+# comment used to name 1.0.5 while the baseline measured 1.0.13, and a version in
 # prose beside a value is a fact with nothing holding it. The measurement, the
 # artifact it was made against and the control that made it worth anything now
 # live in that baseline's `config.toml` row, where `check_authored_keys.py` can
 # read them.
+
+# The session default is the same posture, including entry points that do not
+# inherit the TUI's current mode.
+default_auto_mode = true
 
 [ui]
 permission_mode = "always-approve"
@@ -35,10 +40,21 @@ auto_allow_bash = true
 [features]
 web_fetch = true
 lsp_tools = true
+active_agent_messages = true
+codebase_indexing = true
+subagent_worktree_snapshot = true
+image_gen = true
+video_gen = true
 session_search = true
 session_recap = true
 ask_user_question = true
 write_file = true
+mcp_auto_restart = true
+mcp_liveness_watchers = true
+mcp_push_server_status = true
+mcp_recursive_config_watch = true
+support_permission = false
+non_git_warning = false
 
 [subagents]
 enabled = true
@@ -48,3 +64,14 @@ enabled = true
 
 [managed_mcps]
 enabled = true
+
+[dashboard]
+enabled = true
+
+[goal]
+enabled = true
+
+[tools]
+# Full-auto may inspect files a repository ignores; git remains the source of
+# truth for what is committed, but ignore rules are not an access boundary.
+respect_gitignore = false

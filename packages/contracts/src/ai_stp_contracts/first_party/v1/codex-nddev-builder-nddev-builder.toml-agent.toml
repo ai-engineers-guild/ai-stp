@@ -297,4 +297,38 @@ restore act on the files this provider recorded writing rather than
 on the directory whole, so a neighbour's files are never captured
 into a slot here and never reverted out of one.
 
+## `target_scope: project`, rooted at `project root`
+
+**`project root` is not this product's configuration home.** It is a
+different target, reached by a consumer naming the scope on the
+request, and every path below is relative to that root rather than
+to the home -- writing the root into the path again would nest it
+twice, which is a mistake this estate has made and shipped.
+
+| path | routes | decided by | exercised by |
+|---|---|---|---|
+| `AGENTS.md` | instruction | <https://developers.openai.com/codex/guides/agents-md; codex-0.153.0-linux-x64.tgz sha256:856f408ea61b44a381b7d6fb7c82365dfcef649ae2a340fc01282cf63c30cd8a> | **ran it** |
+| `.codex/hooks.json` | hook | <https://developers.openai.com/codex/hooks; path and project scope carried by the Codex 0.153.0 hook configuration implementation> | *nothing -- a page* |
+### `AGENTS.md`, as measured
+
+Measured by running the digest-verified 0.153.0 binary with `debug prompt-input` in a temporary project. NDDEV_PROJECT_MARKER_153 in project-root AGENTS.md appeared once; a marker in an invented HOME/AGENTS.md appeared zero times; after moving the project file away its marker appeared zero times. This discriminates the project surface from a broad home scan and from output independent of the file.
+
+### `.codex/hooks.json`, as measured
+
+The project hook manifest retains its .codex parent under the repository root. Trust and handler approval remain product concerns; this provider owns exact bytes and restores them, but does not claim that installing a file grants execution trust.
+
+
+**A setup cannot carry one of these.** A setup is installed into one
+target and its payload is relative to that target, so a component
+for this scope is installed by the consumer against that root -- not
+by a setup aimed at the configuration home. If you are looking for
+where to put one by hand, it is the path above joined to the root
+above, and nowhere under the home.
+
+**The root is shared, and that changes what removal means.** Several
+products read it. Under this scope `remove`, the backup and a
+restore act on the files this provider recorded writing rather than
+on the directory whole, so a neighbour's files are never captured
+into a slot here and never reverted out of one.
+
 '''
