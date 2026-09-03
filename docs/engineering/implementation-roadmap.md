@@ -34,7 +34,7 @@ plans are not continued literally after the implementation changes.
 | Platform | `/v1`, PostgreSQL, object storage, queue, authentication/devices, sync, publication, grants/reports, public catalog, article, and SEO projections |
 | Web | Landing, catalog/detail, account/device/owner surfaces, content hub, machine projections, and a three-OS test matrix |
 | Providers | Seven protocol-v3 systems, native configuration layouts, backup/recovery, software lifecycle capabilities, and five complete launch capabilities |
-| Release | All five Python packages published through Trusted Publishing (the exact version is in the snapshot below); public `check` and CodeQL green on the verified main; the host pulls `deploy/prod` |
+| Release | All six Python packages published through Trusted Publishing (the exact version is in the snapshot below); public `check` and CodeQL green on the verified main; the host pulls `deploy/prod` |
 | Catalog | Seven harness families and four postures published; review tasks `#408`, `#456`, `#460`, and `#461` closed by implementation |
 
 ## Verified snapshot: 2026-09-02, updated at the 0.0.15 cut
@@ -79,7 +79,7 @@ plans are not continued literally after the implementation changes.
   remove` through `ai-stp` itself — is green on **all six native legs** against
   `0.0.53`, seven harnesses each. The one-leg limitation this document carried
   since August is closed.
-- Package OS classifiers are Linux, macOS and Windows in all five distributions;
+- Package OS classifiers are Linux, macOS and Windows in all six distributions;
   the evidence that gated them exists.
 - The first-party corpus is published whole: 99 of 99 objects, zero blockers,
   and `just evidence-live` exits 0 against the served generation.

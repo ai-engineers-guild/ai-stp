@@ -140,6 +140,7 @@ last_verified: "2026-08-03"
 | [ADR-0139-official-upstream-component-snapshots.md](ADR-0139-official-upstream-component-snapshots.md) | Decision to publish attributed snapshots of selected public upstream components from the AI STP Official account. | 2026-09-01 |
 | [ADR-0140-embedded-component-source-snapshots.md](ADR-0140-embedded-component-source-snapshots.md) | Decision to materialize exact external and local component snapshots inside setup definitions. | 2026-08-31 |
 | [ADR-0141-a-provider-may-arrive-through-the-index-if-its-provenance-is-read.md](ADR-0141-a-provider-may-arrive-through-the-index-if-its-provenance-is-read.md) | Decision to accept a provider executable delivered as a Python distribution only when PyPI's PEP 740 provenance is verified, and to keep the level unverified until it is. | 2026-09-02 |
+| [ADR-0142-the-first-supported-line-is-an-alpha-reconstruction.md](ADR-0142-the-first-supported-line-is-an-alpha-reconstruction.md) | Decision to make 0.0.16 the first supported alpha contract without rewriting earlier published evidence. | 2026-09-03 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 
 <!-- END CONTENTS -->

@@ -106,13 +106,13 @@ ai-stp device init --json
 
 Automatic install is refused for an unknown harness.
 
-## Strategic direction: Rust and a Pi-inspired plugin architecture
+## Current direction: complete the first supported alpha
 
-**By 31 December 2026, `ai-stp` will be rewritten in Rust and migrated to a
-plugin-first architecture inspired by Pi.** The migration will preserve the
-public CLI and API contracts while separating a lightweight, deterministic
-core from versioned plugins for harnesses, components, projections, and
-provider-specific integrations.
+`0.0.16` is the first supported alpha contract. The current program completes
+explicit per-harness component adaptations, provider-owned multi-layer setup
+transactions, verified provider delivery and one exact estate release record.
+Rust and new component kinds are deferred; there is no calendar promise for a
+language rewrite.
 
 <details>
 <summary>Stage, contributing, documentation</summary>

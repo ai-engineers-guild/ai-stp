@@ -13,7 +13,7 @@
 # credential is a secret somebody has to keep safe forever, and Trusted
 # Publishing replaces it with an identity PyPI verifies for each run.
 #
-# The candidate carries five distributions plus an SBOM, a release manifest and
+# The candidate carries six distributions plus an SBOM, a release manifest and
 # `SHA256SUMS`. Only the distributions are uploaded, and only after their
 # digests are checked against those sums — uploading whatever the directory
 # happened to contain would make the download the only real check.

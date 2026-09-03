@@ -47,7 +47,7 @@ invoke a package manager, or execute generated code.
   portable descriptor is not misrepresented as a passport for a specific
   harness.
 - `REQ-4106`: Apply rebuilds the plan from the same explicit inputs, requires its
-  exact digest and `--confirm`, creates owner-only files, rolls back its own
+  exact digest, creates owner-only files, rolls back its own
   incomplete result, and fails closed for an existing target, a symlink, or a
   missing parent.
 - `REQ-4107`: The eval skeleton contains a local deterministic check, while
@@ -99,7 +99,7 @@ version. Older descriptors remain validatable against their own schema.
 | `REQ-4103` | A repeated preview matches, and every digest is recomputed from the actual bytes. |
 | `REQ-4104` | For every matrix row, the passport and eval profile pass their respective schemas, and all required files are present. |
 | `REQ-4105` | Fixtures contain no secret values, public source claims, or permission to distribute. |
-| `REQ-4106` | Without confirm, with a stale digest, an existing target, a symlink, or a missing parent, the operation is rejected without modifying files. |
+| `REQ-4106` | Without the exact plan digest, with a stale digest, an existing target, a symlink, or a missing parent, the operation is rejected without modifying files. |
 | `REQ-4107` | The eval profile contains deterministic and model-assisted checks; the shared runner confirms an accurate `not_run`. |
 | `REQ-4108` | Fixtures for native instruction/command/agent/setting components match the registry; an unsupported Codex agent is rejected without writing files. |
 | `REQ-4109` | Hook fixtures preserve the event, order, failure policy, and command; malformed source is rejected by the strict schema. |

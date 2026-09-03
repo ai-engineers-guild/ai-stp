@@ -11,6 +11,11 @@ the preceding job—remains unchanged; only the mechanism enforcing this separat
 changed. The record of the executor change belongs to private infrastructure and is
 not published here.
 
+`ADR-0142` additionally supersedes the five-package/manual orchestration below.
+The historical context remains accurate for the decision when it was made;
+current publication has six distributions and is moving to an exact-plan,
+resumable controller. The build/publish authority separation remains active.
+
 What applies in this tree: both jobs run on GitHub-hosted runners, and separation is
 enforced by the job boundary rather than the machine. The persistent roles named
 below, `guild-ai-stp-release-build` and `guild-ai-stp-release-attest`, were never

@@ -106,13 +106,13 @@ ai-stp device init --json
 
 Неизвестный харнесс автоматически не устанавливается.
 
-## Стратегическое направление: Rust и plugin-архитектура в духе Pi
+## Текущее направление: завершить первую поддерживаемую alpha-версию
 
-**By 31 December 2026, `ai-stp` will be rewritten in Rust and migrated to a
-plugin-first architecture inspired by Pi.** The migration will preserve the
-public CLI and API contracts while separating a lightweight, deterministic
-core from versioned plugins for harnesses, components, projections, and
-provider-specific integrations.
+`0.0.16` — первая поддерживаемая alpha-линия. Текущая программа завершает
+явные адаптации компонентов для каждого харнесса, принадлежащие provider
+многослойные транзакции сетапа, проверенную доставку provider и одну точную
+запись релиза всего estate. Rust и новые виды компонентов отложены; календарного
+обещания переписать систему на другом языке нет.
 
 <details>
 <summary>Стадия, участие, документация</summary>
