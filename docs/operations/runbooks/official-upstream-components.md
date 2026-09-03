@@ -1,6 +1,6 @@
 ---
 description: "Runbook: operator-managed official GitHub and package upstream component snapshots."
-last_verified: "2026-09-01"
+last_verified: "2026-09-03"
 ---
 
 # Official upstream components
@@ -35,7 +35,10 @@ python -m ai_stp_platform.official_upstream upsert \
   --maintainer "Upstream maintainers" \
   --description "Reviewed summary of the snapshot." \
   --license MIT \
-  --harness-id claude-code
+  --harness-id claude-code \
+  --target-scope global \
+  --projection-root skills/example \
+  --projection-shape tree
 
 python -m ai_stp_platform.official_upstream upsert \
   --id npm-example \
@@ -49,13 +52,20 @@ python -m ai_stp_platform.official_upstream upsert \
   --maintainer "Upstream maintainers" \
   --description "Reviewed summary of the snapshot." \
   --license MIT \
-  --harness-id claude-code
+  --harness-id claude-code \
+  --target-scope global \
+  --projection-root skills/example \
+  --projection-shape tree
 ```
 
 The owner defaults to the AI STP Official account. Non-HTTPS GitHub URLs,
 embedded credentials, traversing paths, unknown component types, unknown
-package ecosystems, and a non-Official owner are rejected. Repeating the
-command with the same `--id` updates that row only.
+package ecosystems, unsafe projection roots, unknown projection shapes, and a
+non-Official owner are rejected. `--projection-shape file` requires the resolved
+component root to contain exactly one file; `tree` preserves every safe relative
+member below `--projection-root`. Repeating the command with the same `--id`
+updates that row only. Rows created before the projection-target migration stay
+disabled at synchronization time until they are upserted with these fields.
 
 ## Daily enqueue
 
@@ -86,9 +96,9 @@ suggestion never replaces, promotes, or merges identities.
 2. The worker processed `official_upstream_sync` for today's UTC date per
    enabled source.
 3. Unchanged component bytes leave the last published version in place.
-4. A new digest creates the next unused minor version on that source's own
-   stable line, then `validate` and `publish` jobs from the shared publication
-   pipeline.
+4. A new digest creates a canonical projection artifact and explicit adaptation,
+   then the next unused minor version on that source's own stable line, followed
+   by `validate` and `publish` jobs from the shared publication pipeline.
 5. The published description starts with upstream project, repository or
    package coordinate, license, and maintainer attribution and ends with the
    ownership-claim notice.

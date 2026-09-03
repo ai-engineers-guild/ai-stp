@@ -13,6 +13,7 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from tests.support.component_passports import adaptation_fields
 
 from ai_stp_api.app import create_app
 from ai_stp_api.errors import CATEGORY_STATUS, ErrorCategory
@@ -43,7 +44,6 @@ from ai_stp_platform.storage.object_store import (
 )
 from ai_stp_worker.handlers import resolve
 from ai_stp_worker.handlers.deliver_invitation import MAIL_PORT
-from tests.support.component_passports import adaptation_fields
 
 pytestmark = pytest.mark.platform
 

@@ -41,6 +41,9 @@ class SourceUpsert:
     reviewed_license: str
     harness_id: str
     tags: tuple[str, ...]
+    target_scope: str
+    projection_root: str
+    projection_shape: str
     source_id: str = SOURCE_ID
     kind: str = "git"
     repository_url: str = ""
@@ -70,6 +73,17 @@ def _common_fields(command: SourceUpsert) -> None:
         raise OfficialUpstreamError(INVALID_SOURCE, "harness_id is unknown")
     if command.projection_kind not in {"marketplace", "plugin", "native_files", "package"}:
         raise OfficialUpstreamError(INVALID_SOURCE, "projection_kind is unknown")
+    if command.target_scope not in {"global", "user_root", "project"}:
+        raise OfficialUpstreamError(INVALID_SOURCE, "target_scope is unknown")
+    if command.projection_shape not in {"file", "tree"}:
+        raise OfficialUpstreamError(INVALID_SOURCE, "projection_shape is unknown")
+    root = command.projection_root
+    if (
+        not root
+        or root.startswith(("/", "~"))
+        or any(part in {"", ".", ".."} for part in root.split("/"))
+    ):
+        raise OfficialUpstreamError(INVALID_SOURCE, "projection_root is unsafe")
     for field_name, value in (
         ("name", command.name),
         ("upstream_project_name", command.upstream_project_name),
@@ -152,6 +166,9 @@ async def upsert_source(session: AsyncSession, command: SourceUpsert) -> Officia
     source.component_type = command.component_type
     source.projection_kind = command.projection_kind
     source.harness_id = command.harness_id
+    source.target_scope = command.target_scope
+    source.projection_root = command.projection_root
+    source.projection_shape = command.projection_shape
     source.owner_account_id = command.owner_account_id
     source.name = command.name.strip()
     source.upstream_project_name = command.upstream_project_name.strip()
@@ -171,6 +188,9 @@ async def upsert_source(session: AsyncSession, command: SourceUpsert) -> Officia
                 "repository_url": repository,
                 "tracked_ref": command.tracked_ref.strip() or None,
                 "component_subpath": subpath,
+                "target_scope": command.target_scope,
+                "projection_root": command.projection_root,
+                "projection_shape": command.projection_shape,
                 "ecosystem": source.ecosystem,
                 "package_name": source.package_name,
                 "enabled": command.enabled,

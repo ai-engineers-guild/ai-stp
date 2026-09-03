@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from tests.support.component_passports import adaptation_fields
 
 from ai_stp_api.settings import Settings
 from ai_stp_contracts.catalog import (
@@ -20,7 +21,6 @@ from ai_stp_platform.models import Account, AccountAuthorVerification, CatalogMe
 from ai_stp_platform.official_upstream import OFFICIAL_ACCOUNT_ID
 from ai_stp_platform.official_upstream.attribution import OWNERSHIP_NOTICE, build_description
 from ai_stp_platform.publication_logic import passport_digest
-from tests.support.component_passports import adaptation_fields
 
 pytestmark = pytest.mark.platform
 

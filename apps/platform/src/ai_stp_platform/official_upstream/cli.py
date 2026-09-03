@@ -46,6 +46,9 @@ def _parser() -> argparse.ArgumentParser:
     upsert.add_argument("--harness-id", required=True)
     upsert.add_argument("--tags", default="code-review")
     upsert.add_argument("--projection-kind", default="native_files")
+    upsert.add_argument("--target-scope", choices=("global", "user_root", "project"), required=True)
+    upsert.add_argument("--projection-root", required=True)
+    upsert.add_argument("--projection-shape", choices=("file", "tree"), required=True)
     upsert.add_argument("--device-id")
     upsert.add_argument("--disable", action="store_true")
     disable = sub.add_parser("disable", help="Stop future enqueue without deleting history.")
@@ -91,6 +94,9 @@ async def _execute(args: argparse.Namespace) -> dict[str, object]:
                         harness_id=args.harness_id,
                         tags=tuple(tag.strip() for tag in str(args.tags).split(",") if tag.strip()),
                         projection_kind=args.projection_kind,
+                        target_scope=args.target_scope,
+                        projection_root=args.projection_root,
+                        projection_shape=args.projection_shape,
                         actor_device_id=args.device_id,
                         enabled=not args.disable,
                     ),

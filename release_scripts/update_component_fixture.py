@@ -21,9 +21,21 @@ def main() -> None:
         and passport["stable_id"] == FIXTURE_COMPONENT_ID
         and passport["version"] == "1.2"
     )
+    version_digests = {
+        passport["version"]: digest
+        for kind, passport, _published, digest in seed_corpus()
+        if kind == "component" and passport["stable_id"] == FIXTURE_COMPONENT_ID
+    }
     for raw in document["cases"]:
         body = raw.get("body")
-        if raw.get("operation_id") != "readComponentVersion" or not isinstance(body, dict):
+        if not isinstance(body, dict):
+            continue
+        if raw.get("operation_id") == "readComponent":
+            for entry in body.get("versions", []):
+                if isinstance(entry, dict) and entry.get("version") in version_digests:
+                    entry["passport_digest"] = version_digests[entry["version"]]
+            continue
+        if raw.get("operation_id") != "readComponentVersion":
             continue
         previous = body.get("passport")
         if not isinstance(previous, dict):

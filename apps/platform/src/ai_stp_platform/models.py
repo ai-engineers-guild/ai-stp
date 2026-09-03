@@ -1079,6 +1079,9 @@ class OfficialUpstreamSource(Base):
         String(32), default="native_files", server_default="native_files"
     )
     harness_id: Mapped[str] = mapped_column(String(32))
+    target_scope: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    projection_root: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    projection_shape: Mapped[str | None] = mapped_column(String(16), nullable=True)
     owner_account_id: Mapped[str] = mapped_column(
         String(64), ForeignKey("account.id", ondelete="RESTRICT"), index=True
     )

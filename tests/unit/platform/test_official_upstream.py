@@ -53,6 +53,9 @@ def _command(**overrides: object) -> SourceUpsert:
         "reviewed_description": "Reviewed component body.",
         "reviewed_license": "MIT",
         "harness_id": "claude-code",
+        "target_scope": "global",
+        "projection_root": "skills/demo",
+        "projection_shape": "tree",
         "tags": ("code-review",),
     }
     payload.update(overrides)

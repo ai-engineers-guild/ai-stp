@@ -271,7 +271,7 @@
         "versions": [
           {
             "version": "1.0",
-            "passport_digest": "sha256:5e4b23e230936350a53ab8bdcdcc83b5abe5b6b4cad55ab5063cfe18970b8712",
+            "passport_digest": "sha256:50b6bdc506a595ad182822793d10870247d4cb4654a4294124fae4cbb72b0e2e",
             "lifecycle": "active",
             "trust": {
               "trust_lane": "experimental",
@@ -289,7 +289,7 @@
           },
           {
             "version": "1.2",
-            "passport_digest": "sha256:4df65c32960d9722726bb70b5154837e5d145966575bbdaa56fc6616fb61b2f4",
+            "passport_digest": "sha256:670e7e16c2e594559d84428ea72057f9da6c0bbe888b3a82fe45f7f47a3f8284",
             "lifecycle": "active",
             "trust": {
               "trust_lane": "experimental",
