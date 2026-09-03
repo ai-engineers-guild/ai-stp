@@ -75,7 +75,7 @@ docs = [
     "pytz==2026.3.post1",
     "PyYAML==6.0.2",
     "pyyaml-env-tag==1.1",
-    "regex==2026.7.19",
+    "regex==2026.8.31",
     "requests==2.34.2",
     "six==1.17.0",
     "smmap==5.0.3",
