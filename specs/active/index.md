@@ -66,5 +66,6 @@ last_verified: "2026-08-03"
 | [SPEC-055-legal-account-onboarding.md](SPEC-055-legal-account-onboarding.md) | SPEC-055: Versioned legal policies and required account onboarding. | 2026-08-31 |
 | [SPEC-056-official-upstream-components.md](SPEC-056-official-upstream-components.md) | SPEC-056: Curated GitHub component snapshots published by AI STP Official. | 2026-09-03 |
 | [SPEC-057-embedded-component-sources.md](SPEC-057-embedded-component-sources.md) | SPEC-057: Exact external and local components embedded in setup definitions. | 2026-08-31 |
+| [SPEC-058-multi-root-installation-transactions.md](SPEC-058-multi-root-installation-transactions.md) | SPEC-058: Recoverable consumer coordination of one setup across multiple provider roots. | 2026-09-03 |
 
 <!-- END CONTENTS -->

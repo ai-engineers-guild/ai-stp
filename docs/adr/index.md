@@ -143,6 +143,7 @@ last_verified: "2026-08-03"
 | [ADR-0142-the-first-supported-line-is-an-alpha-reconstruction.md](ADR-0142-the-first-supported-line-is-an-alpha-reconstruction.md) | Decision to make 0.0.16 the first supported alpha contract without rewriting earlier published evidence. | 2026-09-03 |
 | [ADR-0143-a-component-version-owns-explicit-harness-adaptations.md](ADR-0143-a-component-version-owns-explicit-harness-adaptations.md) | Decision to replace flat component harness claims with immutable exact adaptations and separate mutable assessments. | 2026-09-03 |
 | [ADR-0144-bundle-v2-binds-adaptations-to-the-provider-profile.md](ADR-0144-bundle-v2-binds-adaptations-to-the-provider-profile.md) | Decision to make bundle v2 carry exact component adaptation and provider profile bindings. | 2026-09-03 |
+| [ADR-0145-multi-root-installation-is-a-consumer-owned-recoverable-transaction.md](ADR-0145-multi-root-installation-is-a-consumer-owned-recoverable-transaction.md) | Decision to coordinate multiple scope-specific provider operations as one recoverable consumer transaction. | 2026-09-03 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 
 <!-- END CONTENTS -->
