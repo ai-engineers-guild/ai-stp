@@ -1,6 +1,6 @@
 ---
 description: "Mandatory checks by component type, MCP class, and setup."
-last_verified: "2026-09-02"
+last_verified: "2026-09-03"
 ---
 
 # Validation policy
@@ -108,16 +108,27 @@ Gitleaks still force-blocks a secret in the component payload. Hits under `tests
 or `test/` stay in the record as warning-class so a committed skill tree can
 include scanner fixtures without dropping those files from the snapshot.
 
+In-proc scanners (`agentic_behavior`, `network_intent`, `pi_content_pack`,
+`shell_obfuscation`) are line-scoped. A line is not a declaration when it is
+defensive or detector wording (`never`, `avoid`, `detect`, `block`, `unpinned`,
+`example of an attack`), a regex/`re.compile` assignment, a Semgrep/Opengrep
+`pattern:` line, or a named pattern-list entry. Whole files named `*_guard.py`
+or `*scanner*` are not skipped. A `SKILL.md` that instructs an agent to pipe a
+download into a shell, ignore previous instructions, or ship a live key still
+fails. Encoded-layer obfuscation does not treat a decoded fragment that is still
+source or regex as a payload.
+
 `agentic_behavior` covers only mechanically provable declarations: recursive
 delegation, trust in a subagent's result, permission substitution, reading
 adjacent agents, self-modification, persistence, permission masking, argument
 substitution, scope expansion, passing results to the shell, unsafe
 deserialization, floating dependencies, memory poisoning, remote instructions,
-and escaping the root. Matches are line-scoped. Defensive or detector wording
-(`never`, `avoid`, `detect`, `unpinned`) and Semgrep/Opengrep `pattern:` lines
-are not declarations. Unpinned `npx`/`uvx` is checked on agent instruction
+and escaping the root. Unpinned `npx`/`uvx` is checked on agent instruction
 files (`SKILL.md`, `AGENT.md`, and the same family), not on README, scanner
-source, or a pinned `@`/`==` token. It does not attempt to semantically assess
+source, or a pinned `@`/`==` token. An unpinned invoke of the skill's own
+package name from `SKILL.md` frontmatter (hyphen and underscore forms) is the
+skill documenting how to run itself, not a floating third-party dependency.
+It does not attempt to semantically assess
 whether a component acts in good faith. `mcp_config_static` separately parses
 tool/schema/resource/prompt/output metadata, name collisions and shadowing,
 dangerous capability chains, and changes to the canonical tool definition
@@ -148,9 +159,15 @@ reason lies at the method boundary: a keyword scan cannot distinguish a skill
 that exfiltrates credentials from a skill that searches other code for such
 exfiltration, and declaring the latter `critical` on top of a clean engine read
 would make the fallback override what it replaces.
-Card percentage: `passed / (passed+failed+warning)`; statuses `not_applicable`
-and `skipped` are excluded from the denominator. Status is `pending` when any
-applicable mandatory check is `not_run`, `degraded`, or `running`.
+Card percentage: `passed / (passed+failed+warning)`; statuses `not_applicable`,
+`skipped`, `not_run`, `degraded`, and `running` are excluded from the
+denominator. The catalog card and version page list only finished verdicts
+(`passed` / `failed` / `warning`) plus any mandatory unfinished check.
+Optional `not_run` / `degraded` / `not_applicable` / `skipped` remain on the
+machine audit (`GET …/versions/{version}/checks`) and in the stored snapshot.
+Status is `pending` when any applicable mandatory check is `not_run`,
+`degraded`, or `running`. `sca_pip_audit` runs only when a lock or pinned
+requirements file exists; otherwise it is `not_applicable`.
 
 ## Checks by component type
 

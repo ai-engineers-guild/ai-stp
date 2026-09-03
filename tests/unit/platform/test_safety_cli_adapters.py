@@ -145,6 +145,29 @@ def test_agentic_behavior_does_not_treat_a_markdown_list_after_uvx_as_a_package(
     } == {"dependency_floating"}
 
 
+def test_agentic_behavior_allows_unpinned_uvx_of_the_skill_own_name(tmp_path: Path) -> None:
+    from ai_stp_platform.safety.adapters import agentic_behavior
+
+    payload = tmp_path / "SKILL.md"
+    payload.write_text(
+        "---\nname: ai-repo-safety\ndescription: Guardrails.\n---\n\n"
+        "```text\nuvx ai-repo-safety <cmd> --target .\n```\n",
+        encoding="utf-8",
+    )
+    manifest = ArtifactManifest(component_type="skill", text_files=["SKILL.md"])
+    spec = _spec("agentic_behavior", family="agentic_behavior", mandatory=True)
+    assert agentic_behavior.run(tmp_path, manifest, spec).result == "passed"
+
+    payload.write_text(
+        "---\nname: ai-repo-safety\ndescription: Guardrails.\n---\n\n"
+        "uvx ai-repo-safety doctor\nuvx other-scanner doctor\n",
+        encoding="utf-8",
+    )
+    assert {
+        finding.rule_id for finding in agentic_behavior.run(tmp_path, manifest, spec).findings
+    } == {"dependency_floating"}
+
+
 def test_agentic_behavior_accepts_a_committed_github_workflow(tmp_path: Path) -> None:
     from ai_stp_platform.safety.adapters import agentic_behavior
 
@@ -549,6 +572,29 @@ def test_cli_adapters_pass_and_warning(monkeypatch: pytest.MonkeyPatch, tmp_path
     assert "untrusted payload" not in repr(out.as_binding())
 
     monkeypatch.setattr(
+        "ai_stp_platform.safety.adapters.bandit.run_cli",
+        lambda *a, **k: (
+            1,
+            json.dumps(
+                {
+                    "results": [
+                        {
+                            "test_id": "B101",
+                            "issue_severity": "LOW",
+                            "filename": str(tmp_path / "tests" / "test_guard.py"),
+                            "issue_text": "assert used",
+                        }
+                    ]
+                }
+            ),
+            "",
+            12,
+        ),
+    )
+    (tmp_path / "tests").mkdir(exist_ok=True)
+    assert bandit.run(tmp_path, py, _spec()).result == "passed"
+
+    monkeypatch.setattr(
         "ai_stp_platform.safety.adapters.govulncheck.run_cli",
         lambda *a, **k: (1, "vuln", "", 5),
     )
@@ -575,6 +621,20 @@ def test_cli_adapters_pass_and_warning(monkeypatch: pytest.MonkeyPatch, tmp_path
     )
     shell = ArtifactManifest(component_type="skill", shell_files=["a.sh"])
     assert shellcheck.run(tmp_path, shell, _spec("shell_shellcheck")).result == "passed"
+
+    monkeypatch.setattr(
+        "ai_stp_platform.safety.adapters.shellcheck.run_cli",
+        lambda *a, **k: (
+            1,
+            f"{tmp_path / 'a.sh'}:3:1: warning: quote to prevent globbing [SC2086]\n",
+            "",
+            3,
+        ),
+    )
+    gcc = shellcheck.run(tmp_path, shell, _spec("shell_shellcheck"))
+    assert gcc.result == "warning"
+    assert gcc.findings[0].path == "a.sh"
+    assert gcc.findings[0].rule_id == "sc2086"
 
 
 def test_npm_and_pip_and_cargo_adapters(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -605,13 +665,23 @@ def test_npm_and_pip_and_cargo_adapters(monkeypatch: pytest.MonkeyPatch, tmp_pat
         lambda *a, **k: (127, "", "missing", 0),
     )
     assert pip_audit.run(tmp_path, empty, _spec("sca_pip")).result == "not_applicable"
-    assert pip_audit.run(tmp_path, py, _spec("sca_pip")).result == "not_run"
+    assert pip_audit.run(tmp_path, py, _spec("sca_pip")).result == "not_applicable"
+    (tmp_path / "pyproject.toml").write_text("[project]\nname='x'\n", encoding="utf-8")
+    assert pip_audit.run(tmp_path, py, _spec("sca_pip")).result == "not_applicable"
     (tmp_path / "requirements.txt").write_text("requests==2.0\n", encoding="utf-8")
-    monkeypatch.setattr(
-        "ai_stp_platform.safety.adapters.pip_audit.run_cli",
-        lambda *a, **k: (1, "CVE", "", 4),
-    )
+    captured: dict[str, object] = {}
+
+    def fake_pip_audit(argv: list[str], **kwargs: object) -> tuple[int, str, str, int]:
+        del kwargs
+        captured["argv"] = argv
+        return (1, "CVE", "", 4)
+
+    monkeypatch.setattr("ai_stp_platform.safety.adapters.pip_audit.run_cli", fake_pip_audit)
     assert pip_audit.run(tmp_path, py, _spec("sca_pip")).result == "warning"
+    argv = captured["argv"]
+    assert isinstance(argv, list)
+    assert "--disable-pip" in argv
+    assert "-r" in argv
 
     rust = ArtifactManifest(component_type="skill", languages={"rust"})
     assert cargo_audit.run(tmp_path, empty, _spec("sca_cargo_audit")).result == "not_applicable"
@@ -731,6 +801,29 @@ def test_gitleaks_keeps_test_fixtures_as_warning_and_blocks_the_payload(
     fixture = gitleaks.run(tmp_path, empty, spec)
     assert fixture.result == "warning"
     assert fixture.findings[0].path == "tests/test_github_guard.py"
+
+    monkeypatch.setattr(
+        "ai_stp_platform.safety.adapters.gitleaks.run_cli",
+        lambda *a, **k: (
+            1,
+            json.dumps(
+                [
+                    {
+                        "RuleID": "private-key",
+                        "Description": "Identified a Private Key",
+                        "File": str(tmp_path / "tests" / "test_github_guard.py"),
+                    }
+                ]
+            ),
+            "",
+            10,
+        ),
+    )
+    (tmp_path / "tests").mkdir(exist_ok=True)
+    (tmp_path / "tests" / "test_github_guard.py").write_text("k\n", encoding="utf-8")
+    absolute = gitleaks.run(tmp_path, empty, spec)
+    assert absolute.result == "warning"
+    assert absolute.findings[0].path == "tests/test_github_guard.py"
 
     monkeypatch.setattr(
         "ai_stp_platform.safety.adapters.gitleaks.run_cli",

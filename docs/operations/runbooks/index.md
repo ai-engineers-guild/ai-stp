@@ -24,7 +24,7 @@ last_verified: "2026-08-03"
 | [publish-recovery.md](publish-recovery.md) | Runbook: publish recovery. | 2026-08-03 |
 | [pypi-release.md](pypi-release.md) | Build, verify, publish, yank, and recover a Python release. | 2026-09-01 |
 | [report-triage.md](report-triage.md) | Runbook: report case triage. | 2026-08-04 |
-| [safety-scan.md](safety-scan.md) | Runbook: platform safety scan for publication validation. | 2026-08-25 |
+| [safety-scan.md](safety-scan.md) | Runbook: platform safety scan for publication validation. | 2026-09-03 |
 | [security-incident.md](security-incident.md) | Runbook: security incident. | 2026-08-03 |
 | [seo-publication.md](seo-publication.md) | Runbook: server SEO revisions, sitemap, and optional LiteLLM enrichment. | 2026-08-29 |
 | [sync-conflict.md](sync-conflict.md) | Runbook: sync conflict. | 2026-08-03 |

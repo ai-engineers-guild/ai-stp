@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from ai_stp_platform.safety.adapters._cli import classify_cli_exit, run_cli
+from ai_stp_platform.safety.adapters.paths import is_test_path, relative_artifact_path
 from ai_stp_platform.safety.normalize import redact_message
 from ai_stp_platform.safety.policy import CheckSpec
 from ai_stp_platform.safety.types import ArtifactManifest, CheckOutcome, Finding
@@ -52,25 +53,26 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
                 duration_ms=ms,
                 detail={"reason": "invalid_report"},
             )
+        parsed: list[Finding] = []
         for raw in results:
             if not isinstance(raw, dict):
                 continue
             item = cast(dict[str, Any], raw)
             rule_id = str(item.get("test_id") or "bandit").lower()
             severity = str(item.get("issue_severity") or "medium").lower()
-            findings.append(
+            parsed.append(
                 Finding(
                     check_id=spec.check_id,
                     family=spec.family,
                     rule_id=rule_id,
                     severity=severity,
                     title=rule_id,
-                    path=_relative_path(tree, item.get("filename")),
+                    path=relative_artifact_path(tree, item.get("filename")),
                     message=redact_message(rule_id),
                     tool_name="bandit",
                 )
             )
-        if not findings:
+        if not parsed:
             return CheckOutcome(
                 check_id=spec.check_id,
                 family=spec.family,
@@ -79,6 +81,16 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
                 tool_name="bandit",
                 duration_ms=ms,
                 detail={"reason": "empty_finding_report"},
+            )
+        findings = [item for item in parsed if not is_test_path(item.path)]
+        if not findings:
+            return CheckOutcome(
+                check_id=spec.check_id,
+                family=spec.family,
+                result="passed",
+                mandatory=spec.mandatory,
+                tool_name="bandit",
+                duration_ms=ms,
             )
     return CheckOutcome(
         check_id=spec.check_id,
@@ -89,12 +101,3 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
         duration_ms=ms,
         findings=findings,
     )
-
-
-def _relative_path(tree: Path, value: object) -> str | None:
-    if not isinstance(value, str):
-        return None
-    try:
-        return Path(value).resolve().relative_to(tree.resolve()).as_posix()
-    except (OSError, ValueError):
-        return None

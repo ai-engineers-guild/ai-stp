@@ -2,30 +2,36 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from typing import Any, cast
 
-# Results included in the public completion score. An unfinished planned check
-# counts in the denominator while status/coverage still disclose incompleteness.
-_COUNTABLE = frozenset({"passed", "failed", "warning", "not_run", "degraded", "running"})
+# Finished verdicts. The public score is passed / (passed + failed + warning).
+_VERDICT = frozenset({"passed", "failed", "warning"})
 # Results that mean a planned check never produced a verdict.
 _INCOMPLETE = frozenset({"not_run", "degraded", "running"})
 _SKIPPED = frozenset({"not_applicable", "skipped"})
 
 
 def checks_passed_percent(bindings: Iterable[dict[str, Any]]) -> int | None:
-    """Return the passed share of planned checks, or None when none were planned.
+    """Return the passed share of finished verdicts, or None when none exist.
 
-    Denominator: every planned check with a result other than skipped/not_applicable.
-    Excludes not_applicable, skipped.
+    Denominator: passed + failed + warning.
+    Excludes not_applicable, skipped, not_run, degraded, and running.
     Coverage completeness remains a separate status and boolean.
     """
     rows = list(bindings)
-    countable = [r for r in rows if str(r.get("result")) in _COUNTABLE]
-    if not countable:
+    passed = sum(1 for r in rows if str(r.get("result")) == "passed")
+    failed = sum(1 for r in rows if str(r.get("result")) == "failed")
+    warning = sum(1 for r in rows if str(r.get("result")) == "warning")
+    return verdict_percent(passed, failed, warning)
+
+
+def verdict_percent(passed: int, failed: int, warning: int) -> int | None:
+    """Card percent from stored aggregate counts (same formula as row scan)."""
+    denom = passed + failed + warning
+    if denom <= 0:
         return None
-    passed = sum(1 for r in countable if str(r.get("result")) == "passed")
-    return round(100 * passed / len(countable))
+    return round(100 * passed / denom)
 
 
 def checks_status(bindings: Iterable[dict[str, Any]]) -> str:
@@ -44,7 +50,7 @@ def checks_status(bindings: Iterable[dict[str, Any]]) -> str:
         return "pending"
     if _is_incomplete_coverage(rows):
         return "incomplete"
-    if any(str(r.get("result")) in _COUNTABLE for r in rows):
+    if any(str(r.get("result")) in _VERDICT for r in rows):
         return "available"
     return "empty"
 
@@ -52,6 +58,19 @@ def checks_status(bindings: Iterable[dict[str, Any]]) -> str:
 def coverage_complete(bindings: Iterable[dict[str, Any]]) -> bool:
     """True when no planned check is still not_run/degraded/running."""
     return not _is_pending(list(bindings)) and not _is_incomplete_coverage(list(bindings))
+
+
+def is_user_facing_row(row: Mapping[str, Any]) -> bool:
+    """Whether a check belongs on the catalog card and detail list.
+
+    Finished verdicts always show. Optional unfinished/skipped checks stay on
+    the machine audit list only. A mandatory unfinished check stays visible
+    because it still blocks publication (REQ-723).
+    """
+    result = str(row.get("result"))
+    if result in _VERDICT:
+        return True
+    return result in _INCOMPLETE and bool(row.get("mandatory", True))
 
 
 def _is_pending(rows: list[dict[str, Any]]) -> bool:
@@ -77,19 +96,26 @@ def _is_incomplete_coverage(rows: list[dict[str, Any]]) -> bool:
 
 
 def build_checks_summary(bindings: Iterable[dict[str, Any]]) -> dict[str, Any]:
-    """Compact projection blob stored on catalog / returned by audit helpers."""
+    """Compact projection blob stored on catalog / returned by audit helpers.
+
+    The stored ``checks`` list is the full snapshot, including optional
+    unfinished rows. Public catalog projection filters that list at read time.
+    """
     rows = list(bindings)
+    passed = sum(1 for r in rows if str(r.get("result")) == "passed")
+    failed = sum(1 for r in rows if str(r.get("result")) == "failed")
+    warning = sum(1 for r in rows if str(r.get("result")) == "warning")
     not_run = sum(1 for r in rows if str(r.get("result")) == "not_run")
     return {
         "schema_version": 1,
         "status": checks_status(rows),
-        "checks_passed_percent": checks_passed_percent(rows),
+        "checks_passed_percent": verdict_percent(passed, failed, warning),
         "coverage_complete": coverage_complete(rows),
-        "passed": sum(1 for r in rows if str(r.get("result")) == "passed"),
-        "failed": sum(1 for r in rows if str(r.get("result")) == "failed"),
-        "warning": sum(1 for r in rows if str(r.get("result")) == "warning"),
+        "passed": passed,
+        "failed": failed,
+        "warning": warning,
         "not_run": not_run,
-        "total_countable": sum(1 for r in rows if str(r.get("result")) in _COUNTABLE),
+        "total_countable": passed + failed + warning,
         "checks": [
             {
                 "check_id": str(r.get("check_id")),

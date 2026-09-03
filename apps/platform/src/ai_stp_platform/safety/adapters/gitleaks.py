@@ -3,15 +3,14 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import cast
 
 from ai_stp_platform.safety.adapters._cli import classify_cli_exit, run_cli
+from ai_stp_platform.safety.adapters.paths import is_test_path, relative_artifact_path
 from ai_stp_platform.safety.normalize import redact_message
 from ai_stp_platform.safety.policy import CheckSpec
 from ai_stp_platform.safety.types import ArtifactManifest, CheckOutcome, Finding
-
-_TEST_DIR_NAMES = frozenset({"test", "tests"})
 
 
 def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome:
@@ -61,7 +60,7 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
         )
     # Exit 1 means leaks found for gitleaks with --exit-code 1
     if code == 1:
-        findings = _findings_from_report(spec, out)
+        findings = _findings_from_report(spec, tree, out)
         if not findings:
             findings.append(
                 Finding(
@@ -74,7 +73,7 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
                     tool_name="gitleaks",
                 )
             )
-        blocking = [finding for finding in findings if not _test_path(finding.path)]
+        blocking = [finding for finding in findings if not is_test_path(finding.path)]
         return CheckOutcome(
             check_id=spec.check_id,
             family=spec.family,
@@ -105,7 +104,7 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
     )
 
 
-def _findings_from_report(spec: CheckSpec, stdout: str) -> list[Finding]:
+def _findings_from_report(spec: CheckSpec, tree: Path, stdout: str) -> list[Finding]:
     try:
         parsed = json.loads(stdout)
     except json.JSONDecodeError:
@@ -117,10 +116,9 @@ def _findings_from_report(spec: CheckSpec, stdout: str) -> list[Finding]:
         if not isinstance(item, dict):
             continue
         row = cast(dict[str, object], item)
-        path = row.get("File")
         rule = row.get("RuleID")
         title = row.get("Description")
-        relative = path.replace("\\", "/") if isinstance(path, str) else None
+        relative = relative_artifact_path(tree, row.get("File"))
         rule_id = rule[:64] if isinstance(rule, str) and rule else "gitleaks_finding"
         heading = (
             str(title)[:240] if isinstance(title, str) and title else "Gitleaks reported secrets"
@@ -138,9 +136,3 @@ def _findings_from_report(spec: CheckSpec, stdout: str) -> list[Finding]:
             )
         )
     return findings
-
-
-def _test_path(path: str | None) -> bool:
-    if not path:
-        return False
-    return any(part in _TEST_DIR_NAMES for part in PurePosixPath(path.replace("\\", "/")).parts)

@@ -363,6 +363,65 @@ describe("ObjectCard compact catalog presentation (REQ-3411)", () => {
     expect(screen.getByLabelText("GitHub stars: 9")).toBeVisible();
   });
 
+  it("does not use whyFailed when only optional checks failed", () => {
+    render(
+      <ObjectCard
+        kind="component"
+        item={{
+          ...componentSummaryFixture,
+          latest_trust: {
+            ...componentSummaryFixture.latest_trust,
+            component_verified: true,
+          },
+          latest_checks: {
+            schema_version: 1,
+            status: "available",
+            checks_passed_percent: 90,
+            coverage_complete: true,
+            passed: 9,
+            failed: 1,
+            warning: 0,
+            not_run: 0,
+            total_countable: 10,
+            components: [],
+            checks: [
+              {
+                schema_version: 1,
+                check_id: "path_denylist",
+                result: "passed",
+                mandatory: true,
+                source: "platform_safety_scan",
+                family: "path",
+                reason: null,
+                finding_summary: null,
+              },
+              {
+                schema_version: 1,
+                check_id: "network_intent",
+                result: "failed",
+                mandatory: false,
+                source: "platform_safety_scan",
+                family: "network_intent",
+                reason: "url_pipe_shell",
+                finding_summary: null,
+              },
+            ],
+          },
+        }}
+        href="/catalog/x"
+        labels={{
+          ...labels,
+          whyFailed: "Failed checks - review before use",
+          whyOptionalFailed: "Optional findings to review",
+        }}
+        view="cards"
+      />,
+    );
+    expect(screen.queryByText("Failed checks - review before use")).not.toBeInTheDocument();
+    expect(screen.getByText("Optional findings to review")).toBeVisible();
+    expect(screen.getByText("100%")).toBeVisible();
+  });
+
   it("falls back to warning, credentials and list-description why-open copy", () => {
     const { rerender } = render(
       <ObjectCard

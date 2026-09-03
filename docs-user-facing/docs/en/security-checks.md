@@ -10,8 +10,12 @@ ai_stp runs a staged, non-executing safety suite before a public component can b
 - **Passed** — the engine completed without a policy finding.
 - **Failed** — a blocking finding was detected; the catalog shows the sanitized reason.
 - **Warning** — a non-blocking finding needs review.
-- **Not run / degraded** — the engine did not produce a verdict; required coverage remains pending.
+- **Not run / degraded** — the engine did not produce a verdict; required coverage remains pending. Optional unfinished checks stay on the machine audit list and do not enter the catalog percent.
 - **Not applicable / skipped** — the check does not apply and is excluded from the percentage.
+
+The catalog card percent is `passed / (passed + failed + warning)`. Publication
+uses the required checks; extra scanners are shown separately when they produced
+a verdict.
 
 ## Check inventory
 

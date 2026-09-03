@@ -8,6 +8,7 @@ import re
 from pathlib import Path
 from typing import cast
 
+from ai_stp_platform.safety.adapters.detector_lines import is_detector_line
 from ai_stp_platform.safety.normalize import redact_message
 from ai_stp_platform.safety.policy import CheckSpec
 from ai_stp_platform.safety.types import ArtifactManifest, CheckOutcome, Finding
@@ -16,12 +17,6 @@ TEXT_SUFFIXES = frozenset(
     {".md", ".txt", ".json", ".yaml", ".yml", ".toml", ".py", ".js", ".ts", ".sh", ".ps1"}
 )
 MAX_TEXT_BYTES = 1 << 20
-_DEFENSIVE_LINE = re.compile(
-    r"(?i)\b(?:do not|don't|never|avoid|must not|detect|block|forbid(?:den)?|unpinned)\b"
-)
-_SEMGREP_PATTERN_LINE = re.compile(
-    r"(?i)^\s*-?\s*pattern(?:-either|-regex|-not|-inside|-not-regex)?\s*:"
-)
 _NPX_UVX_INSTRUCTION_NAMES = frozenset(
     {"skill.md", "agent.md", "agents.md", "command.md", "hooks.md", "setting.md"}
 )
@@ -29,8 +24,8 @@ _NPX_UVX_FLOATING = re.compile(
     r"(?i)(?:npx|uvx)\s+"
     r"(?!are\b|is\b|or\b|and\b|to\b|for\b|from\b|with\b|when\b|if\b|of\b|"
     r"in\b|on\b|at\b|a\b|an\b|the\b|as\b|by\b|be\b|package\b)"
-    r"(?:@[A-Za-z0-9._-]+/)?"
-    r"[A-Za-z0-9._-]+"
+    r"((?:@[A-Za-z0-9._-]+/)?"
+    r"[A-Za-z0-9._-]+)"
     r"(?!@|==)"
     r"(?:\s|$)"
 )
@@ -108,6 +103,7 @@ RULES: tuple[tuple[str, str], ...] = (
 
 def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome:
     findings: list[Finding] = []
+    self_names = _self_package_names(tree, manifest)
     for rel in manifest.text_files:
         path = tree / rel
         if path.suffix.lower() not in TEXT_SUFFIXES or not path.is_file():
@@ -121,7 +117,7 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
             text = path.read_text(encoding="utf-8", errors="replace")
         except OSError:
             continue
-        findings.extend(_scan_text(spec, rel, path.name, text))
+        findings.extend(_scan_text(spec, rel, path.name, text, self_names))
         if path.name == "package.json" and _has_floating_git_dependency(text):
             findings.append(
                 _finding(
@@ -142,12 +138,18 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
     )
 
 
-def _scan_text(spec: CheckSpec, rel: str, name: str, text: str) -> list[Finding]:
+def _scan_text(
+    spec: CheckSpec,
+    rel: str,
+    name: str,
+    text: str,
+    self_names: frozenset[str],
+) -> list[Finding]:
     findings: list[Finding] = []
     seen: set[str] = set()
     instruction = name.lower() in _NPX_UVX_INSTRUCTION_NAMES
     for line in text.splitlines():
-        if _DEFENSIVE_LINE.search(line) or _SEMGREP_PATTERN_LINE.search(line):
+        if is_detector_line(line):
             continue
         for rule_id, pattern in RULES:
             if rule_id in seen:
@@ -157,17 +159,64 @@ def _scan_text(spec: CheckSpec, rel: str, name: str, text: str) -> list[Finding]
                 findings.append(
                     _finding(spec, rule_id, rel, f"Dangerous agent behavior: {rule_id}")
                 )
-        if instruction and "dependency_floating" not in seen and _NPX_UVX_FLOATING.search(line):
-            seen.add("dependency_floating")
-            findings.append(
-                _finding(
-                    spec,
-                    "dependency_floating",
-                    rel,
-                    "Dangerous agent behavior: dependency_floating",
+        if instruction and "dependency_floating" not in seen:
+            match = _NPX_UVX_FLOATING.search(line)
+            if match is not None and not _is_self_package(match.group(1), self_names):
+                seen.add("dependency_floating")
+                findings.append(
+                    _finding(
+                        spec,
+                        "dependency_floating",
+                        rel,
+                        "Dangerous agent behavior: dependency_floating",
+                    )
                 )
-            )
     return findings
+
+
+def _self_package_names(tree: Path, manifest: ArtifactManifest) -> frozenset[str]:
+    names: set[str] = set()
+    for rel in manifest.text_files:
+        if Path(rel).name.lower() != "skill.md":
+            continue
+        path = tree / rel
+        if not path.is_file():
+            continue
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        declared = _frontmatter_name(text)
+        if declared:
+            names.update(_package_aliases(declared))
+    return frozenset(names)
+
+
+def _frontmatter_name(text: str) -> str | None:
+    if not text.startswith("---"):
+        return None
+    end = text.find("\n---", 3)
+    if end < 0:
+        return None
+    for raw in text[3:end].splitlines():
+        line = raw.strip()
+        if not line.lower().startswith("name:"):
+            continue
+        value = line.split(":", 1)[1].strip().strip("'\"")
+        if value:
+            return value
+    return None
+
+
+def _package_aliases(name: str) -> set[str]:
+    lowered = name.strip().lower()
+    return {lowered, lowered.replace("_", "-"), lowered.replace("-", "_")}
+
+
+def _is_self_package(package: str, self_names: frozenset[str]) -> bool:
+    if not self_names:
+        return False
+    return not _package_aliases(package).isdisjoint(self_names)
 
 
 def _has_floating_git_dependency(text: str) -> bool:

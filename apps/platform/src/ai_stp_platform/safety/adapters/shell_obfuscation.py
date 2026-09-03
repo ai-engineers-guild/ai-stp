@@ -9,6 +9,11 @@ from contextlib import suppress
 from pathlib import Path
 from urllib.parse import unquote
 
+from ai_stp_platform.safety.adapters.detector_lines import (
+    is_detector_line,
+    looks_like_detector_source,
+)
+from ai_stp_platform.safety.adapters.paths import is_test_path
 from ai_stp_platform.safety.normalize import redact_message
 from ai_stp_platform.safety.policy import CheckSpec
 from ai_stp_platform.safety.types import ArtifactManifest, CheckOutcome, Finding
@@ -38,42 +43,58 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
         except OSError:
             manifest.record_read_error(rel)
             continue
-        for pattern, rule, sev in PATTERNS:
-            if pattern.search(text):
-                findings.append(
-                    Finding(
-                        check_id=spec.check_id,
-                        family=spec.family,
-                        rule_id=rule,
-                        severity=sev,
-                        title=f"Shell obfuscation: {rule}",
-                        path=rel,
-                        message=redact_message(rule),
-                        tool_name="shell_obfuscation",
+        seen: set[str] = set()
+        for line in text.splitlines():
+            if is_detector_line(line):
+                continue
+            for pattern, rule, sev in PATTERNS:
+                if rule in seen:
+                    continue
+                if pattern.search(line):
+                    seen.add(rule)
+                    findings.append(
+                        Finding(
+                            check_id=spec.check_id,
+                            family=spec.family,
+                            rule_id=rule,
+                            severity=sev,
+                            title=f"Shell obfuscation: {rule}",
+                            path=rel,
+                            message=redact_message(rule),
+                            tool_name="shell_obfuscation",
+                        )
                     )
-                )
-        for decoded in _decoded_candidates(text):
-            if ENCODED.search(decoded):
-                findings.append(
-                    Finding(
-                        check_id=spec.check_id,
-                        family=spec.family,
-                        # Keep the established rule id for evidence consumers;
-                        # it now also covers other bounded encodings.
-                        rule_id="b64_decoded_shell",
-                        severity="critical",
-                        title="Encoded payload decodes to shell/network command",
-                        path=rel,
-                        message=redact_message(decoded[:120]),
-                        tool_name="shell_obfuscation",
+        if "b64_decoded_shell" not in seen:
+            for decoded in _decoded_candidates(text):
+                if looks_like_detector_source(decoded):
+                    continue
+                if ENCODED.search(decoded):
+                    seen.add("b64_decoded_shell")
+                    findings.append(
+                        Finding(
+                            check_id=spec.check_id,
+                            family=spec.family,
+                            rule_id="b64_decoded_shell",
+                            severity="critical",
+                            title="Encoded payload decodes to shell/network command",
+                            path=rel,
+                            message=redact_message(decoded[:120]),
+                            tool_name="shell_obfuscation",
+                        )
                     )
-                )
+                    break
+    blocking = [item for item in findings if not is_test_path(item.path)]
+    high = any(_rank(item.severity) >= _rank("high") for item in blocking)
+    if findings and high:
+        result = "failed"
+    elif findings:
+        result = "warning"
+    else:
+        result = "passed"
     return CheckOutcome(
         check_id=spec.check_id,
         family=spec.family,
-        result="failed"
-        if any(_rank(f.severity) >= _rank("high") for f in findings)
-        else ("warning" if findings else "passed"),
+        result=result,
         mandatory=spec.mandatory,
         tool_name="shell_obfuscation",
         severity_max=max((f.severity for f in findings), default="info", key=_rank),

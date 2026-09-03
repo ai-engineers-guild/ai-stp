@@ -180,6 +180,7 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
     componentsPagination: t("componentsPagination"),
     whyFailed: t("whyFailed"),
     whyWarning: t("whyWarning"),
+    whyOptionalFailed: t("whyOptionalFailed"),
     safetyChecks: t("safetyChecks"),
     requirements: t("requirements"),
     credentialsRequired: t("credentialsRequired"),

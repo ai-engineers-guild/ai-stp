@@ -29,6 +29,9 @@ const labels = {
   resultFailed: "Failed result",
   resultWarning: "Warning result",
   resultNotRun: "Not-run result",
+  resultDegraded: "Degraded result",
+  gate: "Publication gate",
+  extra: "Extra scanners",
   summary: "Automated checks reduce known risks.",
   checksComplete: "checks passed",
   expand: "Review individual checks",
@@ -88,7 +91,7 @@ describe("SafetyChecksSummaryView", () => {
     );
     await user.click(screen.getByRole("button", { name: /Safety checks/ }));
     expect(screen.getByText("Complete")).toBeInTheDocument();
-    expect(screen.getByText("100%")).toBeInTheDocument();
+    expect(screen.getAllByText("100%").length).toBeGreaterThan(0);
     expect(screen.getByText("1 / 1 checks passed")).toBeInTheDocument();
   });
 
@@ -129,7 +132,7 @@ describe("SafetyChecksSummaryView", () => {
       />,
     );
     await user.click(screen.getByRole("button", { name: /Safety checks/ }));
-    expect(screen.getByText(/unsafe path detected/)).toBeInTheDocument();
+    expect(screen.getAllByText(/unsafe path detected/).length).toBeGreaterThan(0);
   });
 
   it("renders warning reasons, not only a count", async () => {
@@ -197,17 +200,51 @@ describe("SafetyChecksSummaryView", () => {
     expect(screen.getByText("Finding content is hidden.")).toBeVisible();
   });
 
-  it("withholds percent and explains incomplete coverage", async () => {
+  it("shows the percent when coverage is incomplete", async () => {
     const user = userEvent.setup();
     render(
       <SafetyChecksSummaryView
         summary={summary({
           status: "incomplete",
-          checks_passed_percent: null,
+          checks_passed_percent: 71,
           coverage_complete: false,
-          passed: 0,
-          not_run: 1,
-          checks: [],
+          passed: 15,
+          failed: 2,
+          warning: 4,
+          not_run: 0,
+          total_countable: 21,
+          checks: [
+            {
+              schema_version: 1,
+              check_id: "path_denylist",
+              result: "passed",
+              mandatory: true,
+              source: "platform_safety_scan",
+              family: "path",
+              reason: null,
+              finding_summary: null,
+            },
+            {
+              schema_version: 1,
+              check_id: "network_intent",
+              result: "failed",
+              mandatory: false,
+              source: "platform_safety_scan",
+              family: "network_intent",
+              reason: "url_pipe_shell",
+              finding_summary: null,
+            },
+            {
+              schema_version: 1,
+              check_id: "sast_bandit",
+              result: "warning",
+              mandatory: false,
+              source: "platform_safety_scan",
+              family: "sast_python",
+              reason: "b603",
+              finding_summary: null,
+            },
+          ],
         })}
         labels={labels}
       />,
@@ -215,7 +252,103 @@ describe("SafetyChecksSummaryView", () => {
 
     await user.click(screen.getByRole("button", { name: /Safety checks/ }));
     expect(screen.getByText("Optional scanners missing")).toBeInTheDocument();
-    expect(screen.getByText("—")).toBeInTheDocument();
+    expect(screen.getByText("71%")).toBeInTheDocument();
+    expect(screen.getByText("15 / 21 checks passed")).toBeInTheDocument();
+    expect(screen.getByText(/Publication gate/)).toBeInTheDocument();
+    expect(screen.getByText(/Extra scanners/)).toBeInTheDocument();
+    expect(screen.getByText("Network intent")).toBeInTheDocument();
+    expect(screen.getByText("Failed result")).toBeInTheDocument();
+    expect(screen.getByText("Warning result")).toBeInTheDocument();
+    const failed = screen.getByText("Failed result");
+    expect(failed.closest("[data-ui]")).toHaveClass("bg-destructive");
+  });
+
+  it("hides optional unfinished checks and recomputes a stale stored percent", async () => {
+    const user = userEvent.setup();
+    render(
+      <SafetyChecksSummaryView
+        summary={summary({
+          status: "incomplete",
+          checks_passed_percent: 60,
+          coverage_complete: false,
+          passed: 15,
+          failed: 2,
+          warning: 4,
+          not_run: 4,
+          total_countable: 25,
+          checks: [
+            {
+              schema_version: 1,
+              check_id: "path_denylist",
+              result: "passed",
+              mandatory: true,
+              source: "platform_safety_scan",
+              family: "path",
+              reason: null,
+              finding_summary: null,
+            },
+            {
+              schema_version: 1,
+              check_id: "sca_osv",
+              result: "not_run",
+              mandatory: false,
+              source: "platform_safety_scan",
+              family: "sca",
+              reason: "offline_db_missing",
+              finding_summary: null,
+            },
+            {
+              schema_version: 1,
+              check_id: "sca_pip_audit",
+              result: "degraded",
+              mandatory: false,
+              source: "platform_safety_scan",
+              family: "sca_python",
+              reason: "timeout",
+              finding_summary: null,
+            },
+          ],
+        })}
+        labels={labels}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /Safety checks/ }));
+    expect(screen.getByText("71%")).toBeInTheDocument();
+    expect(screen.getByText("15 / 21 checks passed")).toBeInTheDocument();
+    expect(screen.queryByText("OSV Scanner")).not.toBeInTheDocument();
+    expect(screen.queryByText("pip-audit")).not.toBeInTheDocument();
+    expect(screen.queryByText("Degraded result")).not.toBeInTheDocument();
+    expect(screen.getByText("Dangerous paths")).toBeInTheDocument();
+    expect(screen.getByText("path_denylist")).toBeInTheDocument();
+  });
+
+  it("names a degraded result instead of calling it not run", async () => {
+    const user = userEvent.setup();
+    render(
+      <SafetyChecksSummaryView
+        summary={summary({
+          passed: 0,
+          not_run: 0,
+          checks: [
+            {
+              schema_version: 1,
+              check_id: "sca_pip_audit",
+              result: "degraded",
+              mandatory: true,
+              source: "platform_safety_scan",
+              family: "sca_python",
+              reason: "timeout",
+              finding_summary: null,
+            },
+          ],
+        })}
+        labels={labels}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: /Safety checks/ }));
+    expect(screen.getByText("Degraded result")).toBeInTheDocument();
+    expect(screen.queryByText("Not-run result")).not.toBeInTheDocument();
   });
 
   it("uses localized pending and empty labels in compact mode", () => {

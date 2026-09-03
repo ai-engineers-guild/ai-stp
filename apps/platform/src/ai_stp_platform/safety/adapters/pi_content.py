@@ -6,6 +6,10 @@ import base64
 import re
 from pathlib import Path
 
+from ai_stp_platform.safety.adapters.detector_lines import (
+    is_detector_line,
+    looks_like_detector_source,
+)
 from ai_stp_platform.safety.normalize import redact_message
 from ai_stp_platform.safety.policy import CheckSpec
 from ai_stp_platform.safety.types import ArtifactManifest, CheckOutcome, Finding
@@ -49,16 +53,13 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
         except OSError:
             continue
         findings.extend(_scan_text(text, rel, spec))
-        # Decode short base64 side-channels and re-scan
         for match in B64_BLOB.finditer(text):
             blob = match.group(0)
             if len(blob) > 4000:
                 continue
             decoded = _try_b64(blob)
-            if decoded and _looks_text(decoded):
+            if decoded and _looks_text(decoded) and not looks_like_detector_source(decoded):
                 findings.extend(_scan_text(decoded, f"{rel}#base64", spec, encoded=True))
-    # High severity failures block when mandatory; pack is non-mandatory warning
-    # but critical findings still surface as warning (or failed if policy tightens).
     has_high = any(f.severity in {"high", "critical"} for f in findings)
     result = "warning" if findings else "passed"
     if has_high and spec.mandatory:
@@ -78,32 +79,31 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
 
 def _scan_text(text: str, rel: str, spec: CheckSpec, *, encoded: bool = False) -> list[Finding]:
     out: list[Finding] = []
-    for pattern, rule, sev in PI_PATTERNS:
-        match = pattern.search(text)
-        if match and not _defensive_context(text, match.start()):
-            out.append(
-                Finding(
-                    check_id=spec.check_id,
-                    family=spec.family,
-                    rule_id=rule + ("_b64" if encoded else ""),
-                    severity=sev,
-                    title=f"Prompt-injection pattern: {rule}",
-                    path=rel,
-                    message=redact_message(f"matched {rule}" + (" via base64" if encoded else "")),
-                    tool_name="pi_content_pack",
+    seen: set[str] = set()
+    for line in text.splitlines():
+        if is_detector_line(line):
+            continue
+        for pattern, rule, sev in PI_PATTERNS:
+            key = rule + ("_b64" if encoded else "")
+            if key in seen:
+                continue
+            if pattern.search(line):
+                seen.add(key)
+                out.append(
+                    Finding(
+                        check_id=spec.check_id,
+                        family=spec.family,
+                        rule_id=key,
+                        severity=sev,
+                        title=f"Prompt-injection pattern: {rule}",
+                        path=rel,
+                        message=redact_message(
+                            f"matched {rule}" + (" via base64" if encoded else "")
+                        ),
+                        tool_name="pi_content_pack",
+                    )
                 )
-            )
     return out
-
-
-def _defensive_context(text: str, position: int) -> bool:
-    line_start = text.rfind("\n", 0, position) + 1
-    line_end = text.find("\n", position)
-    line = text[line_start : line_end if line_end >= 0 else len(text)]
-    defensive = re.compile(
-        r"(?i)\b(?:do not|don't|never|avoid|must not|detect|block|example of an attack)\b"
-    )
-    return bool(defensive.search(line))
 
 
 def _try_b64(blob: str) -> str | None:

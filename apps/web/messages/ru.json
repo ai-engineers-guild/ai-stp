@@ -268,6 +268,7 @@
     "componentsPagination": "Страницы компонентов",
     "whyFailed": "Есть проваленные проверки — посмотрите до использования",
     "whyWarning": "В последней проверке есть предупреждения",
+    "whyOptionalFailed": "Есть необязательные находки — посмотрите, если это важно",
     "purpose": "Назначение",
     "posture": "Поза",
     "targetRole": "Целевая роль",
@@ -296,7 +297,7 @@
     "safetyFailed": "Проваленные проверки",
     "safetyWarning": "Предупреждения",
     "safetyNotRun": "Не запускались",
-    "safetyIncomplete": "Опциональные сканеры отсутствуют; процент не показывается",
+    "safetyIncomplete": "Необязательные сканеры не запускались; оценка считает только завершённые проверки",
     "safetyEmpty": "Проверки ещё не записаны",
     "safetyNoScan": "Проверок не было",
     "safetyAvailable": "Завершено",
@@ -306,6 +307,9 @@
     "safetyResultFailed": "Провалена",
     "safetyResultWarning": "Предупреждение",
     "safetyResultNotRun": "Не запускалась",
+    "safetyResultDegraded": "Деградация",
+    "safetyGate": "Публикация",
+    "safetyExtra": "Дополнительные сканеры",
     "safetySummary": "Автоматические проверки снижают известные риски, но не гарантируют безопасность компонента.",
     "safetyChecksComplete": "проверок пройдено",
     "safetyExpand": "Посмотреть отдельные проверки",
@@ -316,6 +320,137 @@
     "safetyPaths": "Файлы",
     "safetyPayloadHidden": "Содержимое находок скрыто: оно может включать секреты или вредоносные инструкции.",
     "safetyHelp": "О проверках безопасности",
+    "safetyCheck": {
+      "structure": {
+        "name": "Структура паспорта",
+        "description": "Проверяет схему паспорта и каноническую форму."
+      },
+      "digest": {
+        "name": "Целостность артефакта",
+        "description": "Пересчитывает дайджест, чтобы изменённые байты не прошли как опубликованная версия."
+      },
+      "license": {
+        "name": "Лицензия",
+        "description": "Проверяет, что условия распространения заявлены."
+      },
+      "tags": {
+        "name": "Теги каталога",
+        "description": "Проверяет обязательные нормализованные теги."
+      },
+      "source_repo": {
+        "name": "Происхождение исходников",
+        "description": "Подтверждает точный публичный репозиторий, коммит и путь."
+      },
+      "artifact_unpack": {
+        "name": "Безопасная распаковка",
+        "description": "Распаковывает артефакт в пределах размера и числа файлов."
+      },
+      "path_denylist": {
+        "name": "Опасные пути",
+        "description": "Отклоняет секреты, учётные данные, устройства и небезопасные пути."
+      },
+      "secrets_heuristic": {
+        "name": "Шаблоны секретов",
+        "description": "Ищет вероятные токены, закрытые ключи и учётные данные."
+      },
+      "secrets_gitleaks": {
+        "name": "Gitleaks",
+        "description": "Прогоняет правила Gitleaks по артефакту."
+      },
+      "content_hidden": {
+        "name": "Скрытое содержимое",
+        "description": "Находит скрытые инструкции и подозрительный невидимый текст."
+      },
+      "pi_content_pack": {
+        "name": "Prompt injection",
+        "description": "Ищет инструкции, которые пытаются переопределить агента или вынести данные."
+      },
+      "network_intent": {
+        "name": "Сетевое намерение",
+        "description": "Находит загрузки в shell и опасные URL-схемы без DNS-запросов."
+      },
+      "agentic_behavior": {
+        "name": "Поведение агента",
+        "description": "Отмечает механически доказуемые опасные декларации агента или навыка."
+      },
+      "sast_opengrep": {
+        "name": "Статический анализ",
+        "description": "Ищет небезопасные шаблоны кода своими правилами Opengrep."
+      },
+      "mcp_config_static": {
+        "name": "Конфигурация MCP",
+        "description": "Проверяет карты MCP-серверов, транспорты и опасные цепочки возможностей."
+      },
+      "hook_schema_static": {
+        "name": "Схема хуков",
+        "description": "Проверяет событие, matcher и схему исполнения хука."
+      },
+      "hook_command_argv": {
+        "name": "Команды хуков",
+        "description": "Требует исполнение хука массивом аргументов без небезопасной подстановки."
+      },
+      "skill_static_gate": {
+        "name": "Политика навыка",
+        "description": "Проверяет метаданные навыка, разрешения и вредоносные инструкции."
+      },
+      "shell_obfuscation": {
+        "name": "Обфускация shell",
+        "description": "Находит закодированные полезные нагрузки, которые декодируются в команду shell."
+      },
+      "sast_shellcheck": {
+        "name": "ShellCheck",
+        "description": "Запускает ShellCheck на shell-скриптах артефакта."
+      },
+      "sast_bandit": {
+        "name": "Bandit",
+        "description": "Запускает Bandit на Python-исходниках вне тестовых деревьев."
+      },
+      "sca_pip_audit": {
+        "name": "pip-audit",
+        "description": "Офлайн-аудит закреплённых Python-зависимостей, если есть lock-файл."
+      },
+      "sast_gosec": { "name": "gosec", "description": "Запускает gosec на исходниках Go." },
+      "sca_govulncheck": {
+        "name": "govulncheck",
+        "description": "Проверяет модули Go на известные уязвимости."
+      },
+      "sca_cargo_audit": {
+        "name": "cargo-audit",
+        "description": "Проверяет крейты Rust на известные уязвимости."
+      },
+      "sca_cargo_deny": {
+        "name": "cargo-deny",
+        "description": "Применяет политику cargo-deny к зависимостям Rust."
+      },
+      "sast_eslint_security": {
+        "name": "ESLint security",
+        "description": "Запускает eslint-plugin-security на JavaScript и TypeScript."
+      },
+      "sca_npm_audit": {
+        "name": "npm audit",
+        "description": "Запускает npm audit, если есть JavaScript-манифест."
+      },
+      "document_pdf": {
+        "name": "PDF-документ",
+        "description": "Просматривает PDF JavaScript, OpenAction и строки prompt injection."
+      },
+      "sca_osv": {
+        "name": "OSV Scanner",
+        "description": "Ищет известные уязвимости в офлайн-базе OSV."
+      },
+      "malware_clamav": {
+        "name": "ClamAV",
+        "description": "Сканирует двоичное содержимое сигнатурами ClamAV."
+      },
+      "malware_yara": {
+        "name": "YARA",
+        "description": "Сопоставляет собственные правила YARA с артефактом."
+      },
+      "setup_pin_aggregate": {
+        "name": "Пины сетапа",
+        "description": "Соединяет точные пины компонентов и их опубликованные сводки проверок."
+      }
+    },
     "sourceRepository": "Репозиторий",
     "sourceCommit": "Коммит",
     "sourcePath": "Путь",
