@@ -20,6 +20,7 @@ from ai_stp_platform.models import Account, AccountAuthorVerification, CatalogMe
 from ai_stp_platform.official_upstream import OFFICIAL_ACCOUNT_ID
 from ai_stp_platform.official_upstream.attribution import OWNERSHIP_NOTICE, build_description
 from ai_stp_platform.publication_logic import passport_digest
+from tests.support.component_passports import adaptation_fields
 
 pytestmark = pytest.mark.platform
 
@@ -62,9 +63,7 @@ def _passport() -> dict[str, object]:
             "path": "skills/demo",
         },
         "artifact": {"digest": "sha256:" + "b" * 64, "size_bytes": 12},
-        "harness_id": "claude-code",
-        "harness_ids": [],
-        "supported_os": [],
+        **adaptation_fields(digest="sha256:" + "b" * 64, size=12),
         "required_env": [],
         "requires_credentials": False,
         "requires_authorization": "none",
@@ -72,8 +71,6 @@ def _passport() -> dict[str, object]:
         "external_endpoints": [],
         "compatibility_evidence_refs": [],
         "component_type": "skill",
-        "projection_kind": "native_files",
-        "variant_id": None,
         "provides_capabilities": [],
         "requires_components": [],
         "requires_capabilities": [],
@@ -85,8 +82,6 @@ def _passport() -> dict[str, object]:
             "agents": [],
             "plugins": [],
         },
-        "managed_paths": [],
-        "native_ids": [],
     }
     passport["revision_id"] = derive_revision_id(passport)  # type: ignore[arg-type]
     return passport

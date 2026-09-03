@@ -43,6 +43,7 @@ from ai_stp_platform.storage.object_store import (
 )
 from ai_stp_worker.handlers import resolve
 from ai_stp_worker.handlers.deliver_invitation import MAIL_PORT
+from tests.support.component_passports import adaptation_fields
 
 pytestmark = pytest.mark.platform
 
@@ -153,13 +154,9 @@ def _passport(
         "permissions": {"filesystem": [], "network": [], "process": []},
         "external_endpoints": [],
         "compatibility_evidence_refs": [],
-        "harness_id": "claude-code",
-        "harness_ids": [],
-        "supported_os": [],
+        **adaptation_fields(digest=digest, size=len(payload)),
         "required_env": [],
         "component_type": "skill",
-        "projection_kind": "native_files",
-        "variant_id": None,
         "provides_capabilities": [],
         "requires_components": [],
         "requires_capabilities": [],
@@ -171,8 +168,6 @@ def _passport(
             "agents": [],
             "plugins": [],
         },
-        "managed_paths": [],
-        "native_ids": [],
     }
     passport["revision_id"] = derive_revision_id(passport)  # type: ignore[arg-type]
     return passport
