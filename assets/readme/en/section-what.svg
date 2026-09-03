@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="150" viewBox="0 0 1200 150" role="img" aria-labelledby="t d">
-  <title id="t">A setup is one complete harness configuration</title>
-  <desc id="d">Eight component kinds, exact versions, one harness.</desc>
-  <rect width="1200" height="150" rx="22" fill="#101010"/>
-  <rect x="0" y="40" width="6" height="70" rx="3" fill="#fb631b"/>
-  <text x="48" y="68" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" fill="#fb631b">01</text>
-  <text x="48" y="112" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="36" font-weight="500" fill="#ffffff">One setup, eight kinds, exact versions</text>
-</svg>
