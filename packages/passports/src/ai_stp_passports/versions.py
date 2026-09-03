@@ -116,7 +116,7 @@ class NonEmptyArtifactRef(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    size_bytes: Annotated[int, Field(ge=1)]
+    size_bytes: Annotated[int, Field(ge=1, le=67_108_864)]
 
 
 class TransformRef(BaseModel):
@@ -142,7 +142,22 @@ class ProviderSurfaceRef(BaseModel):
 class ProjectedMember(BaseModel):
     """One canonical projected path and the provider semantics it requires."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True)
+    model_config = ConfigDict(
+        extra="forbid",
+        frozen=True,
+        json_schema_extra={
+            "allOf": [
+                {
+                    "if": {"properties": {"object_type": {"const": "file"}}},
+                    "then": {
+                        "required": ["content_artifact"],
+                        "properties": {"content_artifact": {"type": "object"}},
+                    },
+                    "else": {"properties": {"content_artifact": {"type": "null"}}},
+                }
+            ]
+        },
+    )
 
     path: RelativeProjectionPath
     object_type: ProjectedObjectType
@@ -245,7 +260,7 @@ class ScopeAdaptation(BaseModel):
     projection_kind: ProjectionKind
     required_surface: ProviderSurfaceRef
     permissions: Permissions = Field(default_factory=Permissions)
-    members: Annotated[list[ProjectedMember], Field(min_length=1)]
+    members: Annotated[list[ProjectedMember], Field(min_length=1, max_length=8192)]
     supported_harness_versions: list[
         Annotated[str, Field(min_length=1, max_length=128, pattern=r"^[^\s\x00-\x1f]+$")]
     ] = Field(default_factory=list, json_schema_extra={"uniqueItems": True})
@@ -266,6 +281,9 @@ class ScopeAdaptation(BaseModel):
         paths = [member.path for member in self.members]
         if len(paths) != len(set(paths)):
             raise ValueError("projected member paths must be unique within a scope")
+        folded_paths = [path.casefold() for path in paths]
+        if len(folded_paths) != len(set(folded_paths)):
+            raise ValueError("projected member paths must not collide by case")
         if self.projection_artifact.size_bytes == 0:
             raise ValueError("a non-empty projection cannot have zero artifact bytes")
         if self.technical_support == "supported" and self.technical_support_reason is not None:
@@ -300,7 +318,22 @@ class LicenseInfo(BaseModel):
 class ComponentAdaptation(BaseModel):
     """One immutable harness-native implementation of a logical component."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True)
+    model_config = ConfigDict(
+        extra="forbid",
+        frozen=True,
+        json_schema_extra={
+            "allOf": [
+                {
+                    "if": {"properties": {"implementation_mode": {"const": "derived"}}},
+                    "then": {
+                        "required": ["transform"],
+                        "properties": {"transform": {"type": "object"}},
+                    },
+                    "else": {"properties": {"transform": {"type": "null"}}},
+                }
+            ]
+        },
+    )
 
     adaptation_id: Annotated[str, Field(pattern=ADAPTATION_ID_PATTERN)]
     harness_id: HarnessId

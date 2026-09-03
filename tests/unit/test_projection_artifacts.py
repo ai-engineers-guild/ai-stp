@@ -5,6 +5,7 @@ import zipfile
 
 import pytest
 
+import ai_stp_passports.projections as projections
 from ai_stp_foundation.digests import digest_bytes
 from ai_stp_passports.projections import (
     ProjectionArtifactError,
@@ -119,3 +120,13 @@ def test_projection_verifier_checks_passport_size_and_digest_before_opening() ->
         )
     with pytest.raises(ProjectionArtifactError, match="digest"):
         verify_projection(_scope(size=len(payload)), payload)
+
+
+def test_projection_verifier_refuses_bytes_before_opening_an_oversized_archive(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = build_projection(_scope(), {".cursor/agents/reviewer.md": _CONTENT})
+    monkeypatch.setattr(projections, "MAX_PROJECTION_BYTES", len(payload) - 1)
+
+    with pytest.raises(ProjectionArtifactError, match="consumer byte limit"):
+        verify_projection(_sealed(payload), payload)

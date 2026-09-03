@@ -70,6 +70,7 @@
           "type": "string"
         },
         "size_bytes": {
+          "maximum": 67108864,
           "minimum": 1,
           "title": "Size Bytes",
           "type": "integer"
@@ -129,6 +130,34 @@
     },
     "ProjectedMember": {
       "additionalProperties": false,
+      "allOf": [
+        {
+          "else": {
+            "properties": {
+              "content_artifact": {
+                "type": "null"
+              }
+            }
+          },
+          "if": {
+            "properties": {
+              "object_type": {
+                "const": "file"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "content_artifact": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "content_artifact"
+            ]
+          }
+        }
+      ],
       "description": "One canonical projected path and the provider semantics it requires.",
       "properties": {
         "content_artifact": {
@@ -304,6 +333,7 @@
           "items": {
             "$ref": "#/$defs/ProjectedMember"
           },
+          "maxItems": 8192,
           "minItems": 1,
           "title": "Members",
           "type": "array"
@@ -476,6 +506,34 @@
   "$id": "urn:ai-stp:schema:v1:component-adaptation",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
+  "allOf": [
+    {
+      "else": {
+        "properties": {
+          "transform": {
+            "type": "null"
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "implementation_mode": {
+            "const": "derived"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "transform": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "transform"
+        ]
+      }
+    }
+  ],
   "description": "One immutable harness-native implementation of a logical component.",
   "properties": {
     "adaptation_id": {

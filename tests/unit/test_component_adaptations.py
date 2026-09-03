@@ -241,6 +241,34 @@ def test_public_schema_enforces_member_permissions_artifact_and_support_coherenc
     unsupported_without_reason = seal_adaptation(_manifest()).model_dump(mode="json")
     unsupported_without_reason["scope_adaptations"][0]["technical_support"] = "unsupported"
     documents.append(unsupported_without_reason)
+    file_without_content = seal_adaptation(_manifest()).model_dump(mode="json")
+    file_without_content["scope_adaptations"][0]["members"][0]["content_artifact"] = None
+    documents.append(file_without_content)
+    directory_with_content = seal_adaptation(_manifest()).model_dump(mode="json")
+    directory_with_content["scope_adaptations"][0]["members"][0]["object_type"] = "directory"
+    documents.append(directory_with_content)
+    derived_without_transform = seal_adaptation(_manifest()).model_dump(mode="json")
+    derived_without_transform["transform"] = None
+    documents.append(derived_without_transform)
+    native_with_transform = seal_adaptation(_manifest()).model_dump(mode="json")
+    native_with_transform["implementation_mode"] = "native"
+    documents.append(native_with_transform)
 
     assert _schema_accepts(baseline)
     assert all(not _schema_accepts(document) for document in documents)
+
+
+def test_scope_rejects_paths_that_collide_on_case_insensitive_targets() -> None:
+    document = _manifest()
+    scopes = document["scope_adaptations"]
+    assert isinstance(scopes, list)
+    assert isinstance(scopes[0], dict)
+    members = scopes[0]["members"]
+    assert isinstance(members, list)
+    assert isinstance(members[0], dict)
+    second = deepcopy(members[0])
+    second["path"] = ".cursor/Agents/Reviewer.md"
+    members.append(second)
+
+    with pytest.raises(ValidationError, match="collide by case"):
+        seal_adaptation(document)

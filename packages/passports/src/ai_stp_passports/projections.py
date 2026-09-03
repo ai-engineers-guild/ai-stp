@@ -10,6 +10,8 @@ from ai_stp_foundation.digests import digest_bytes
 from ai_stp_passports.versions import ScopeAdaptation
 
 PROJECTION_FORMAT: Final[str] = "ai-stp-adaptation-projection/1"
+MAX_PROJECTION_FILES: Final[int] = 8192
+MAX_PROJECTION_BYTES: Final[int] = 67_108_864
 _ZIP_TIMESTAMP: Final[tuple[int, int, int, int, int, int]] = (1980, 1, 1, 0, 0, 0)
 
 
@@ -24,6 +26,8 @@ def build_projection(
     """Build the sole canonical ZIP representation of one scope projection."""
     if scope.projection_format != PROJECTION_FORMAT:
         raise ProjectionArtifactError("unsupported projection format")
+    if len(scope.members) > MAX_PROJECTION_FILES:
+        raise ProjectionArtifactError("projection exceeds the consumer member limit")
     expected_files = {member.path for member in scope.members if member.object_type == "file"}
     if set(file_contents) != expected_files:
         raise ProjectionArtifactError("projection file contents differ from declared members")
@@ -36,6 +40,8 @@ def build_projection(
             raise ProjectionArtifactError("projection member size differs")
         if digest_bytes("ai-stp:artifact:v1", content) != expected.digest:
             raise ProjectionArtifactError("projection member digest differs")
+    if sum(len(content) for content in file_contents.values()) > MAX_PROJECTION_BYTES:
+        raise ProjectionArtifactError("projection exceeds the consumer byte limit")
 
     output = io.BytesIO()
     with zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_STORED) as archive:
@@ -52,6 +58,8 @@ def build_projection(
 
 def verify_projection(scope: ScopeAdaptation, payload: bytes) -> None:
     """Reject bytes unless identity, members, metadata and encoding are exact."""
+    if len(payload) > MAX_PROJECTION_BYTES:
+        raise ProjectionArtifactError("projection exceeds the consumer byte limit")
     if len(payload) != scope.projection_artifact.size_bytes:
         raise ProjectionArtifactError("projection artifact size differs")
     if digest_bytes("ai-stp:artifact:v1", payload) != scope.projection_artifact.digest:
