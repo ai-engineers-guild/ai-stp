@@ -1275,7 +1275,7 @@ def test_a_named_version_is_assessed_by_its_own_declared_facts(
         registry,
         stable_id,
         stored.revision_id,
-        ComponentPassportPatch(supported_os=["windows"]),
+        ComponentPassportPatch(supported_os=["linux" if os.name == "nt" else "windows"]),
         device_id=DEVICE,
     )
     from ai_stp_cli.commands import component as command
