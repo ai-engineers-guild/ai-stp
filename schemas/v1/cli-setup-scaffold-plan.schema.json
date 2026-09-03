@@ -1,13 +1,5 @@
 {
   "$defs": {
-    "ComponentGeneratorVersion": {
-      "enum": [
-        "ai-stp/1",
-        "ai-stp/2",
-        "ai-stp/3"
-      ],
-      "type": "string"
-    },
     "ComponentScaffoldFile": {
       "additionalProperties": false,
       "description": "One exact regular file produced by a scaffold plan.",
@@ -43,74 +35,6 @@
       "title": "ComponentScaffoldFile",
       "type": "object"
     },
-    "ComponentTemplateDescriptor": {
-      "additionalProperties": false,
-      "description": "Exact generator choice recorded inside every scaffold.",
-      "properties": {
-        "component_type": {
-          "$ref": "#/$defs/ComponentType"
-        },
-        "executable": {
-          "title": "Executable",
-          "type": "boolean"
-        },
-        "generator_version": {
-          "$ref": "#/$defs/ComponentGeneratorVersion",
-          "default": "ai-stp/3"
-        },
-        "harness_variant": {
-          "anyOf": [
-            {
-              "const": "portable",
-              "type": "string"
-            },
-            {
-              "$ref": "#/$defs/HarnessId"
-            }
-          ],
-          "title": "Harness Variant"
-        },
-        "language": {
-          "enum": [
-            "none",
-            "python",
-            "typescript",
-            "javascript",
-            "rust",
-            "go",
-            "dart-flutter"
-          ],
-          "title": "Language",
-          "type": "string"
-        },
-        "schema_version": {
-          "const": 1,
-          "default": 1,
-          "title": "Schema Version",
-          "type": "integer"
-        },
-        "template_version": {
-          "$ref": "#/$defs/ComponentTemplateVersion",
-          "default": "component-scaffold/3"
-        }
-      },
-      "required": [
-        "component_type",
-        "language",
-        "harness_variant",
-        "executable"
-      ],
-      "title": "ComponentTemplateDescriptor",
-      "type": "object"
-    },
-    "ComponentTemplateVersion": {
-      "enum": [
-        "component-scaffold/1",
-        "component-scaffold/2",
-        "component-scaffold/3"
-      ],
-      "type": "string"
-    },
     "ComponentType": {
       "enum": [
         "instruction",
@@ -135,21 +59,100 @@
         "antigravity"
       ],
       "type": "string"
-    }
-  },
-  "$id": "urn:ai-stp:schema:v1:cli-component-scaffold-plan",
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "additionalProperties": false,
-  "description": "Content-addressed preview of a complete authoring directory.",
-  "properties": {
-    "component_name": {
-      "maxLength": 64,
-      "minLength": 1,
-      "title": "Component Name",
+    },
+    "SetupGeneratorVersion": {
+      "const": "ai-stp/1",
       "type": "string"
     },
+    "SetupMemberDescriptor": {
+      "additionalProperties": false,
+      "description": "One nested component named by setup scaffold.",
+      "properties": {
+        "component_type": {
+          "$ref": "#/$defs/ComponentType"
+        },
+        "language": {
+          "enum": [
+            "none",
+            "python",
+            "typescript",
+            "javascript",
+            "rust",
+            "go",
+            "dart-flutter"
+          ],
+          "title": "Language",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "component_type",
+        "name",
+        "language"
+      ],
+      "title": "SetupMemberDescriptor",
+      "type": "object"
+    },
+    "SetupTemplateDescriptor": {
+      "additionalProperties": false,
+      "description": "Exact generator choice recorded inside every setup scaffold.",
+      "properties": {
+        "generator_version": {
+          "$ref": "#/$defs/SetupGeneratorVersion",
+          "default": "ai-stp/1"
+        },
+        "harness_id": {
+          "$ref": "#/$defs/HarnessId"
+        },
+        "members": {
+          "items": {
+            "$ref": "#/$defs/SetupMemberDescriptor"
+          },
+          "title": "Members",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "setup_name": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Setup Name",
+          "type": "string"
+        },
+        "template_version": {
+          "$ref": "#/$defs/SetupTemplateVersion",
+          "default": "setup-scaffold/1"
+        }
+      },
+      "required": [
+        "harness_id",
+        "setup_name"
+      ],
+      "title": "SetupTemplateDescriptor",
+      "type": "object"
+    },
+    "SetupTemplateVersion": {
+      "const": "setup-scaffold/1",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-setup-scaffold-plan",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Content-addressed preview of a complete setup authoring directory.",
+  "properties": {
     "descriptor": {
-      "$ref": "#/$defs/ComponentTemplateDescriptor"
+      "$ref": "#/$defs/SetupTemplateDescriptor"
     },
     "files": {
       "items": {
@@ -170,7 +173,7 @@
       "type": "string"
     },
     "plan_id": {
-      "pattern": "^scaffold_plan_[0-9a-f]{24}$",
+      "pattern": "^setup_scaffold_[0-9a-f]{24}$",
       "title": "Plan Id",
       "type": "string"
     },
@@ -191,16 +194,22 @@
       "default": 1,
       "title": "Schema Version",
       "type": "integer"
+    },
+    "setup_name": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Setup Name",
+      "type": "string"
     }
   },
   "required": [
     "plan_id",
     "plan_digest",
     "output",
-    "component_name",
+    "setup_name",
     "descriptor",
     "files"
   ],
-  "title": "ComponentScaffoldPlan",
+  "title": "SetupScaffoldPlan",
   "type": "object"
 }

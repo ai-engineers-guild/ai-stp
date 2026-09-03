@@ -69,18 +69,17 @@ playwright-checks/
 
 Когда вы начинаете из `ai_stp`, сначала сделайте scaffold. Авторский
 каталог шире опубликованного пакета: `discover` / `adopt` переносят
-`native/`, а не всё дерево.
+`source/` для portable и `projections/<harness>/` для конкретного харнесса,
+а не всё дерево.
 
 ```text
-playwright-checks/                 # component-scaffold/2
+playwright-checks/                 # component-scaffold/3
 ├── .ai-stp-template.json
-├── authoring-template.md
+├── .gitignore
+├── README.md
 ├── component-passport.json
 ├── eval-profile.json
-├── README.md
-├── SAFETY.md
-├── PUBLICATION.md
-└── native/
+└── source/
     └── SKILL.md
 ```
 
@@ -309,11 +308,11 @@ Skill может быть и embedded-членом compose-манифеста. �
 ## Чеклист автора
 
 1. Сделайте scaffold с `--type skill --language none` и держите
-   `SKILL.md` в корне пакета (в авторском дереве — под `native/`).
+   `SKILL.md` в корне пакета (в авторском дереве — под `source/`).
 2. Заполните `name` и `description`. Ключи конкретного харнесса кладите
    в `metadata`.
 3. Добавляйте `scripts/`, `references/` и `assets/` только когда workflow
-   без них не работает. Что они делают, объявите в `SAFETY.md`.
+   без них не работает. Что они делают, объявите в паспорте.
 4. Запустите `ai-stp component skill validate --path <package> --json` и
    исправьте каждый код `SKxxx`.
 5. Закрепите точный публичный GitHub commit и подпуть. Секретов в дереве

@@ -46,29 +46,37 @@ ai-stp component scaffold apply \
 
 `--harness` — `portable` или один конкретный харнесс. Если у харнесса нет
 самостоятельной нативной формы для этого вида, план отклоняется до любой
-записи.
+записи. `setting` требует конкретный харнесс. Apply инициализирует git,
+если каталог ещё не внутри worktree; git не входит в digest плана.
 
-Каталог `component-scaffold/2` содержит:
+Каталог `component-scaffold/3` содержит:
 
 ```text
 playwright-checks/
 ├── .ai-stp-template.json
-├── authoring-template.md
+├── .gitignore
+├── README.md
 ├── component-passport.json
 ├── eval-profile.json
-├── README.md
-├── SAFETY.md
-├── PUBLICATION.md
-└── native/                  # layout, который transfer'ят discover/adopt
+├── source/                  # канон; portable adopt переносит это
+└── projections/<harness>/   # только если --harness конкретный
 ```
 
-У hook дополнительно есть `hook-source.json` (событие, порядок, блокирующий
-failure, handler) и спроецированный `native/hooks.json`. Plugin с каталогом
-манифеста получает продуктовый манифест. Plugin для OpenCode и Pi — один
-модуль JS/TS, без выдуманного манифеста.
+У hook дополнительно есть `source/hook.json` (событие, порядок, блокирующий
+failure, handler) и спроецированный нативный манифест. Plugin с каталогом
+манифеста получает продуктовый манифест и заметку `skills/`, без заглушки
+`activate_plugin`. Plugin для OpenCode и Pi — один модуль JS/TS, без
+выдуманного манифеста. `setting` требует конкретный харнесс.
 
-`discover` / `adopt` переносят содержимое `native/`, а не весь авторский
+`discover` / `adopt` переносят `source/` для portable и
+`projections/<harness>/` для конкретного харнесса, а не весь авторский
 каталог.
+
+`setup scaffold plan` / `apply` создают физический каталог сетапа для одного
+харнесса: черновик `setup.json`, черновик `setup-passport.json`, вложенные
+`components/<member>/` с одним git-корнем и пустой `projections/<harness>/`
+до отдельной команды экспорта. `setup compose` по-прежнему пишет SQLite.
+Compose — это не install.
 
 ## Паспорт
 
@@ -119,7 +127,7 @@ ai-stp component source evidence refresh --id <stable_id> --version 1.0 --json
 `.env` в:
 
 - паспорт;
-- файлы `native/`, которые будут опубликованы;
+- файлы `source/` или `projections/<harness>/`, которые будут опубликованы;
 - логи, фикстуры или примеры README с живыми значениями.
 
 Если харнессу нужна учётная запись, паспорт может сказать, что требуется

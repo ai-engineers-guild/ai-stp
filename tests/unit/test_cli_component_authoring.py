@@ -2,6 +2,7 @@
 
 import json
 import os
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -19,7 +20,7 @@ from ai_stp_contracts.evaluation import SetupEvalProfile
 from ai_stp_foundation.canonical import from_json_bytes
 from ai_stp_foundation.digests import digest_bytes
 
-SCAFFOLD_GOLDEN = Path(__file__).parents[1] / "golden" / "cli" / "component-scaffold-v2.json"
+SCAFFOLD_GOLDEN = Path(__file__).parents[1] / "golden" / "cli" / "component-scaffold-v3.json"
 REFERENCE_CASES = {
     "instruction-none-portable": ("instruction", "none", "portable"),
     "skill-none-codex": ("skill", "none", "codex"),
@@ -53,6 +54,7 @@ UNSUPPORTED_NATIVE_KINDS = {
     "opencode": {"hook"},
     "grok-build": {"command"},
     "cursor": {"agent"},
+    "claude-code": {"mcp"},
 }
 
 
@@ -179,13 +181,20 @@ def test_template_reader_refuses_links_and_oversize_files(tmp_path: Path) -> Non
 def test_scaffold_matrix_produces_valid_exact_artifacts(
     tmp_path: Path, component_type: str, language: str, harness: str
 ) -> None:
-    unsupported = component_type in UNSUPPORTED_NATIVE_KINDS.get(harness, set()) or (
-        component_type == "plugin"
-        and harness in {"opencode", "pi"}
-        and language not in {"javascript", "typescript"}
+    unsupported = (
+        component_type in UNSUPPORTED_NATIVE_KINDS.get(harness, set())
+        or (
+            component_type == "plugin"
+            and harness in {"opencode", "pi"}
+            and language not in {"javascript", "typescript"}
+        )
+        or (component_type == "setting" and harness == "portable")
     )
     if unsupported:
-        with pytest.raises(CliFailure, match=r"cannot be projected|JavaScript or TypeScript"):
+        with pytest.raises(
+            CliFailure,
+            match=r"cannot be projected|JavaScript or TypeScript|without a concrete harness",
+        ):
             authoring.scaffold_plan(
                 component_type=component_type,
                 name="review-kit",
@@ -214,9 +223,17 @@ def test_scaffold_matrix_produces_valid_exact_artifacts(
     )
     assert plan.publication_ready is False
     assert plan.requires_exact_source_before_publication is True
-    assert plan.descriptor.template_version == "component-scaffold/2"
-    assert plan.descriptor.generator_version == "ai-stp/2"
-    assert any(path.startswith("native/") for path in files)
+    assert plan.descriptor.template_version == "component-scaffold/3"
+    assert plan.descriptor.generator_version == "ai-stp/3"
+    assert any(path.startswith("source/") for path in files)
+    assert not any(path.startswith("native/") for path in files)
+    assert ("authoring-template.md" in files) is False
+    assert ("SAFETY.md" in files) is False
+    assert ("PUBLICATION.md" in files) is False
+    if harness == "portable":
+        assert not any(path.startswith("projections/") for path in files)
+    else:
+        assert any(path.startswith(f"projections/{harness}/") for path in files)
     ComponentPassportPatch.model_validate(from_json_bytes(files["component-passport.json"]))
     profile = SetupEvalProfile.model_validate(from_json_bytes(files["eval-profile.json"]))
     assert profile.component_types == [component_type]
@@ -276,9 +293,16 @@ def test_scaffold_commands_require_exact_plan_and_never_overwrite(tmp_path: Path
     ).payload
     assert result.output == str(output)
     assert result.files_written == len(plan.files)
+    assert result.git_initialized is True or result.git_reason in {
+        "existing_worktree",
+        "git_unavailable",
+        "missing_identity",
+    }
     if os.name != "nt":
         assert all(
-            path.stat().st_mode & 0o777 == 0o600 for path in output.rglob("*") if path.is_file()
+            path.stat().st_mode & 0o777 == 0o600
+            for path in output.rglob("*")
+            if path.is_file() and ".git" not in path.parts
         )
     with pytest.raises(CliFailure, match="must not already exist"):
         component.scaffold_plan(parameters)
@@ -349,8 +373,13 @@ def test_scaffold_skill_declares_the_projection_root_not_the_entry_file(tmp_path
         output=tmp_path / "review-kit",
     )
     passport = json.loads(files["component-passport.json"].decode())
+    skill = files["source/SKILL.md"].decode()
     assert passport["managed_paths"] == ["skills/review-kit"]
     assert passport["entry_points"] == ["SKILL.md"]
+    assert passport["name"] == "review-kit"
+    assert "tags" not in passport
+    assert passport["description"] in skill
+    assert "Authoring draft" not in passport.get("description", "")
 
 
 @pytest.mark.parametrize(
@@ -377,8 +406,14 @@ def test_hook_scaffold_preserves_source_event_order_and_failure_in_native_form(
         output=tmp_path / "review-kit",
     )
 
-    source = json.loads(files["hook-source.json"])
-    manifest = json.loads(files["native/hooks.json"])
+    source = json.loads(files["source/hook.json"])
+    if harness == "claude-code":
+        projected_name = "projections/claude-code/settings.json"
+    elif harness == "grok-build":
+        projected_name = "projections/grok-build/review-kit.json"
+    else:
+        projected_name = f"projections/{harness}/hooks.json"
+    manifest = json.loads(files[projected_name])
     projected = manifest["hooks"][source["event"]]
     assert source == {
         "schema_version": 1,
@@ -388,7 +423,7 @@ def test_hook_scaffold_preserves_source_event_order_and_failure_in_native_form(
         "handler": {"command": command},
     }
     assert projected[0]["hooks"] == [{"type": "command", "command": command}]
-    assert "handle_event" not in files["native/hooks/handler.py"].decode()
+    assert "handle_event" not in files["source/hooks/handler.py"].decode()
     passport = json.loads(files["component-passport.json"])
     assert passport["managed_paths"] == [managed]
     assert passport["entry_points"] == ["hooks/handler.py"]
@@ -396,12 +431,24 @@ def test_hook_scaffold_preserves_source_event_order_and_failure_in_native_form(
 
 def test_plugin_scaffold_uses_manifest_packages_and_bare_modules(tmp_path: Path) -> None:
     cases = {
-        "claude-code": {"native/.claude-plugin/plugin.json", "native/src/main.js"},
-        "cursor": {"native/.cursor-plugin/plugin.json", "native/src/main.js"},
-        "antigravity": {"native/plugin.json", "native/src/main.js"},
-        "grok-build": {"native/plugin.json", "native/src/main.js"},
-        "opencode": {"native/review-kit.js"},
-        "pi": {"native/review-kit.js"},
+        "claude-code": {
+            "projections/claude-code/.claude-plugin/plugin.json",
+            "projections/claude-code/skills/README.md",
+        },
+        "cursor": {
+            "projections/cursor/.cursor-plugin/plugin.json",
+            "projections/cursor/skills/README.md",
+        },
+        "antigravity": {
+            "projections/antigravity/plugin.json",
+            "projections/antigravity/skills/README.md",
+        },
+        "grok-build": {
+            "projections/grok-build/plugin.json",
+            "projections/grok-build/skills/README.md",
+        },
+        "opencode": {"projections/opencode/review-kit.js"},
+        "pi": {"projections/pi/review-kit.js"},
     }
     for harness, native_paths in cases.items():
         _plan, files = authoring.scaffold_plan(
@@ -411,12 +458,17 @@ def test_plugin_scaffold_uses_manifest_packages_and_bare_modules(tmp_path: Path)
             harness_variant=harness,
             output=tmp_path / harness,
         )
-        assert {path for path in files if path.startswith("native/")} == native_paths
+        assert {path for path in files if path.startswith("projections/")} == native_paths
+        assert not any(
+            "activate_plugin" in files[path].decode()
+            for path in files
+            if path.endswith((".js", ".ts", ".py"))
+        )
         passport = json.loads(files["component-passport.json"])
         if harness == "opencode":
             assert passport["managed_paths"] == ["plugins/review-kit.js"]
             assert not any(path.endswith("plugin.json") for path in files)
-        assert "native/settings.json" not in files
+        assert "projections/claude-code/settings.json" not in files or harness != "claude-code"
 
 
 def test_marketplace_registration_belongs_to_setting_not_plugin(tmp_path: Path) -> None:
@@ -435,8 +487,8 @@ def test_marketplace_registration_belongs_to_setting_not_plugin(tmp_path: Path) 
         output=tmp_path / "setting",
     )
 
-    assert "native/settings.json" not in plugin
-    assert json.loads(setting["native/settings.json"]) == {}
+    assert not any(path.endswith("settings.json") for path in plugin)
+    assert json.loads(setting["projections/claude-code/settings.json"]) == {}
     assert json.loads(setting["component-passport.json"])["managed_paths"] == ["settings.json"]
 
 
@@ -461,8 +513,8 @@ def test_scaffold_fails_before_writing_when_native_semantics_do_not_exist(
 
 def test_versioned_reference_scaffolds_match_the_reviewed_golden(tmp_path: Path) -> None:
     golden = json.loads(SCAFFOLD_GOLDEN.read_text(encoding="utf-8"))
-    assert golden["template_version"] == "component-scaffold/2"
-    assert golden["generator_version"] == "ai-stp/2"
+    assert golden["template_version"] == "component-scaffold/3"
+    assert golden["generator_version"] == "ai-stp/3"
     observed: dict[str, dict[str, str]] = {}
     for case, (component_type, language, harness) in REFERENCE_CASES.items():
         plan, _files = authoring.scaffold_plan(
@@ -539,4 +591,71 @@ def test_every_offered_harness_variant_can_actually_be_scaffolded(
     )
 
     assert files, f"{variant} produced no scaffold bytes"
-    assert any(item.path.endswith("authoring-template.md") for item in plan.files)
+    assert any(item.path.startswith("source/") for item in plan.files)
+    assert not any(item.path.endswith("authoring-template.md") for item in plan.files)
+
+
+def test_portable_setting_and_claude_mcp_fail_at_plan(tmp_path: Path) -> None:
+    with pytest.raises(CliFailure, match="without a concrete harness"):
+        authoring.scaffold_plan(
+            component_type="setting",
+            name="review-kit",
+            language="none",
+            harness_variant="portable",
+            output=tmp_path / "setting",
+        )
+    with pytest.raises(CliFailure, match="without losing semantics"):
+        authoring.scaffold_plan(
+            component_type="mcp",
+            name="review-kit",
+            language="python",
+            harness_variant="claude-code",
+            output=tmp_path / "mcp",
+        )
+
+
+def test_codex_agent_is_toml_not_a_rejected_kind(tmp_path: Path) -> None:
+    _plan, files = authoring.scaffold_plan(
+        component_type="agent",
+        name="review-kit",
+        language="none",
+        harness_variant="codex",
+        output=tmp_path / "review-kit",
+    )
+    payload = files["source/review-kit.toml"].decode()
+    assert 'name = "review-kit"' in payload
+    assert "developer_instructions" in payload
+    assert files["projections/codex/review-kit.toml"] == files["source/review-kit.toml"]
+
+
+def test_apply_skips_nested_git_inside_an_existing_worktree(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    init = subprocess.run(
+        ["git", "init"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=30,
+    )
+    if init.returncode != 0:
+        pytest.skip("git is unavailable")
+    output = repo / "review-kit"
+    parameters = {
+        "type": "skill",
+        "name": "review-kit",
+        "language": "none",
+        "harness": "portable",
+        "output": str(output),
+    }
+    plan = component.scaffold_plan(parameters).payload
+    result = component.scaffold_apply(
+        {**parameters, "expected-plan-digest": plan.plan_digest}
+    ).payload
+    assert result.git_initialized is False
+    assert result.git_reason == "existing_worktree"
+    assert result.git_commit is None
+    assert not (output / ".git").exists()
+    assert (output / "source" / "SKILL.md").is_file()
+    assert not any(path.startswith(".git/") for path in {item.path for item in plan.files})

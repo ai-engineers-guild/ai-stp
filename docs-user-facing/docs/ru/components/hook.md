@@ -43,22 +43,20 @@ Handler hook должен быть непосредственно запуска
 Rust и Go отклоняются: provider не делает скрытую сборку исходников.
 
 Переносимый нативный layout — манифест `hooks.json` плюс handler.
-Авторский каталог также держит `hook-source.json` (событие, порядок,
-блокирующий failure, handler). `discover` / `adopt` переносят `native/`,
-а не всё дерево.
+Авторский каталог также держит `source/hook.json` (событие, порядок,
+блокирующий failure, handler). `discover` / `adopt` переносят `source/`
+для portable и `projections/<harness>/` для конкретного харнесса, а не
+всё дерево.
 
 ```text
-pre-tool-check/                    # component-scaffold/2
+pre-tool-check/                    # component-scaffold/3
 ├── .ai-stp-template.json
-├── authoring-template.md
+├── .gitignore
+├── README.md
 ├── component-passport.json
 ├── eval-profile.json
-├── hook-source.json
-├── README.md
-├── SAFETY.md
-├── PUBLICATION.md
-└── native/
-    ├── hooks.json
+└── source/
+    ├── hook.json
     └── hooks/
         └── handler.py
 ```
@@ -271,9 +269,9 @@ Hook может быть embedded-членом compose-манифеста. См.
 1. Сделайте scaffold с `--type hook` и непосредственно запускаемым
    `--language` (`python`, `typescript`, `javascript` или
    `dart-flutter`).
-2. Держите `hooks.json` и handler под `native/`. Заполните
-   `hook-source.json`: событие, порядок, блокирующий failure и handler.
-3. Объявите в `SAFETY.md`, что делает handler, что он читает и как его
+2. Держите `hooks.json` и handler под `source/`. Заполните
+   `source/hook.json`: событие, порядок, блокирующий failure и handler.
+3. Объявите в паспорте, что делает handler, что он читает и как его
    отключить. Секретов нет.
 4. Запустите `ai-stp component discover --root . --json` и прочитайте
    `layout_source` у находки.

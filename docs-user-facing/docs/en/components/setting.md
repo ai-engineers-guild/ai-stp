@@ -59,21 +59,21 @@ Choose `setting` when the provider or the CLI reads a value. Choose
 
 ## Recommended package structure
 
-`setting` is declarative. `--language` is `none`. Portable native output
-is `settings.json` (an empty JSON object in the scaffold). A concrete
-harness may project `config.toml`, `opencode.json` / `opencode.jsonc`,
-or another declared settings file instead.
+`setting` is declarative. `--language` is `none`. A setting requires a
+concrete harness: portable is refused. Claude Code projects
+`settings.json`; Codex and Grok project `config.toml`; OpenCode projects
+`opencode.json`.
 
 ```text
-strict-mode/                       # component-scaffold/2
+strict-mode/                       # component-scaffold/3
 ├── .ai-stp-template.json
-├── authoring-template.md
+├── .gitignore
+├── README.md
 ├── component-passport.json
 ├── eval-profile.json
-├── README.md
-├── SAFETY.md
-├── PUBLICATION.md
-└── native/
+├── source/
+│   └── settings.json
+└── projections/claude-code/
     └── settings.json
 ```
 
@@ -81,7 +81,7 @@ strict-mode/                       # component-scaffold/2
 ai-stp component scaffold plan \
   --type setting \
   --language none \
-  --harness portable \
+  --harness claude-code \
   --name strict-mode \
   --output ./strict-mode \
   --json
@@ -89,7 +89,7 @@ ai-stp component scaffold plan \
 ai-stp component scaffold apply \
   --type setting \
   --language none \
-  --harness portable \
+  --harness claude-code \
   --name strict-mode \
   --output ./strict-mode \
   --expected-plan-digest <digest> \
@@ -288,12 +288,12 @@ A setting can also be an embedded member of a compose manifest. See
 ## Author checklist
 
 1. Scaffold with `--type setting --language none` and keep the native
-   file under `native/`.
+   file under `source/`.
 2. Store only non-secret parameters. Record env *names* in the passport
    if the harness will need a credential later.
 3. If the file also declares MCP servers, treat that as a separate
    [`mcp`](mcp.md) finding. Do not put server values in this artifact.
-4. Declare what the values change in `SAFETY.md`.
+4. Declare what the values change in the passport.
 5. Run `ai-stp component discover --root . --json` and read
    `layout_source`, and `native_role` if a second finding appears.
 6. `component adopt --path <exact source_path>` — add `--kind setting`

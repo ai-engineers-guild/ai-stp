@@ -60,33 +60,31 @@ scripts или references. Выбирайте `command`, когда челове
 [Agent Skills Specification](https://agentskills.io/specification), нет;
 тело — Markdown, который харнесс загрузит как контекст.
 
-Переносимый пакет (то, что `discover` / `adopt` переносят из `native/`):
+Переносимый пакет (то, что `discover` / `adopt` переносят из `source/`):
 
 ```text
 project-conventions/
-└── project-conventions.md    # {name}.md в корне пакета
+└── AGENTS.md
 ```
 
 Когда вы начинаете из `ai_stp`, сначала сделайте scaffold. Авторский
 каталог шире опубликованного пакета: `discover` / `adopt` переносят
-`native/`, а не всё дерево.
+`source/` для portable и `projections/<harness>/` для конкретного харнесса,
+а не всё дерево.
 
 ```text
-project-conventions/                 # component-scaffold/2
+project-conventions/                 # component-scaffold/3
 ├── .ai-stp-template.json
-├── authoring-template.md
+├── .gitignore
+├── README.md
 ├── component-passport.json
 ├── eval-profile.json
-├── README.md
-├── SAFETY.md
-├── PUBLICATION.md
-└── native/
-    └── project-conventions.md
+└── source/
+    └── AGENTS.md
 ```
 
-Если scaffold для конкретного харнесса, у которого layout инструкции —
-один именованный файл, `native/` держит это имя файла (например
-`AGENTS.md`) вместо `{name}.md`. Не выдумывайте второй каталог-обёртку.
+`source/AGENTS.md` — канон. Проекция Claude Code — `CLAUDE.md`; Cursor —
+`rules/<name>.mdc`. Не выдумывайте второй каталог-обёртку.
 
 ```bash
 ai-stp component scaffold plan \
@@ -300,10 +298,10 @@ Instruction может быть embedded-членом compose-манифеста
 ## Чеклист автора
 
 1. Сделайте scaffold с `--type instruction --language none` и держите
-   Markdown в корне пакета (в авторском дереве — под `native/`).
+   Markdown в корне пакета (в авторском дереве — под `source/`).
 2. Пишите только постоянные правила. Процедуру перенесите в
    [`skill`](skill.md); именованный shortcut — в [`command`](command.md).
-3. Объявите в `SAFETY.md`, чего текст требует от агента. Секретов нет.
+3. Объявите в паспорте, чего текст требует от агента. Секретов нет.
 4. Запустите `ai-stp component discover --root . --json` и прочитайте
    `layout_source` у находки.
 5. `component adopt --path <точный source_path>` — добавьте

@@ -84,22 +84,21 @@ Cursor inside a proven pack: `skills`, `agents`, `commands`, and
 adjacent directory.
 
 When you start from `ai_stp`, scaffold first. The authoring directory is
-wider than the published package: `discover` / `adopt` transfer
-`native/`, not the whole tree.
+wider than the published package: `discover` / `adopt` transfer `source/`
+when portable and `projections/<harness>/` when a harness was selected,
+not the whole tree.
 
 ```text
-review-pack/                       # component-scaffold/2
+review-pack/                       # component-scaffold/3
 ├── .ai-stp-template.json
-├── authoring-template.md
+├── .gitignore
+├── README.md
 ├── component-passport.json
 ├── eval-profile.json
-├── README.md
-├── SAFETY.md
-├── PUBLICATION.md
-└── native/
-    ├── .claude-plugin/
-    │   └── plugin.json            # harness-specific; portable uses plugin.json
-    └── src/main.py
+└── source/
+    ├── plugin.json
+    └── skills/
+        └── README.md
 ```
 
 ```bash
@@ -122,7 +121,8 @@ ai-stp component scaffold apply \
 ```
 
 For OpenCode or Pi, scaffold a single `{name}.js` or `{name}.ts` under
-`native/`. Do not invent a `plugin.json` those products do not use.
+`source/` (and `projections/<harness>/`). Do not invent a `plugin.json`
+those products do not use.
 
 Adoption of a directory requires a closed-set manifest. The plugin names
 in that set are `plugin.json`, `.claude-plugin/plugin.json`,
@@ -331,7 +331,7 @@ A plugin can also be an embedded member of a compose manifest. See
 3. Put nested members at the plugin root (`skills/`, `agents/`,
    `commands/`, `hooks/hooks.json`, `.mcp.json`, Cursor `rules/`) only
    when that harness's proven pack actually reads them.
-4. Declare post-install behaviour in `SAFETY.md`. No secrets.
+4. Declare post-install behaviour in the passport. No secrets.
 5. Run `ai-stp component discover --root . --json` and read
    `layout_source` on the plugin finding and on nested members.
 6. `component adopt --path <exact source_path>` — add `--kind plugin`

@@ -13,7 +13,7 @@ last_verified: "2026-08-03"
 | [SPEC-002-identity-devices-access.md](SPEC-002-identity-devices-access.md) | SPEC-002: Accounts, OAuth, devices, and access. | 2026-08-13 |
 | [SPEC-003-developer-passport.md](SPEC-003-developer-passport.md) | SPEC-003: Developer passport and public projection. | 2026-08-29 |
 | [SPEC-004-project-index-passport.md](SPEC-004-project-index-passport.md) | SPEC-004: Project index and passport. | 2026-08-03 |
-| [SPEC-005-registry-versioning.md](SPEC-005-registry-versioning.md) | SPEC-005: Registry, variants, and object versions. | 2026-08-24 |
+| [SPEC-005-registry-versioning.md](SPEC-005-registry-versioning.md) | SPEC-005: Registry, variants, and object versions. | 2026-09-03 |
 | [SPEC-006-search-and-setup-compiler.md](SPEC-006-search-and-setup-compiler.md) | SPEC-006: Search, candidate selection, and setup compiler. | 2026-09-01 |
 | [SPEC-007-validation-publishing.md](SPEC-007-validation-publishing.md) | SPEC-007: Tests, evidence and publication. | 2026-09-03 |
 | [SPEC-008-provider-installation.md](SPEC-008-provider-installation.md) | SPEC-008: Providers, installation and recovery. | 2026-09-02 |
@@ -49,7 +49,7 @@ last_verified: "2026-08-03"
 | [SPEC-038-cli-publication-access-reports.md](SPEC-038-cli-publication-access-reports.md) | SPEC-038: CLI client for publication, access rights, and reports. | 2026-08-13 |
 | [SPEC-039-cli-private-sync.md](SPEC-039-cli-private-sync.md) | SPEC-039: CLI synchronization of the private registry between devices. | 2026-08-13 |
 | [SPEC-040-setup-evaluation-profiles.md](SPEC-040-setup-evaluation-profiles.md) | SPEC-040: Local functional evaluation profiles for an exact setup. | 2026-08-13 |
-| [SPEC-041-component-scaffold-framework.md](SPEC-041-component-scaffold-framework.md) | SPEC-041: Versioned scaffold plans for a component's complete authoring catalog. | 2026-08-29 |
+| [SPEC-041-component-scaffold-framework.md](SPEC-041-component-scaffold-framework.md) | SPEC-041: Versioned scaffold plans for a component's complete authoring catalog. | 2026-09-03 |
 | [SPEC-042-local-setup-store-ports.md](SPEC-042-local-setup-store-ports.md) | SPEC-042: Local versioned ports for controlled SX and APM import. | 2026-08-13 |
 | [SPEC-043-selection-impact-reports.md](SPEC-043-selection-impact-reports.md) | SPEC-043: Local reports for context budget, capability delta, and blast radius. | 2026-08-15 |
 | [SPEC-044-github-archive-evidence.md](SPEC-044-github-archive-evidence.md) | SPEC-044: GitHub archived state as local evidence of obsolescence. | 2026-08-13 |

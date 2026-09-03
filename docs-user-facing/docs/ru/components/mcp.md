@@ -84,19 +84,20 @@ github-issues/                     # пакет сервера TypeScript
 
 Когда вы начинаете из `ai_stp`, сначала сделайте scaffold. Авторский
 каталог шире опубликованного пакета: `discover` / `adopt` переносят
-`native/`, а не всё дерево. Scaffold кладёт handler под `native/`;
+`source/` для portable и `projections/<harness>/` для конкретного харнесса,
+а не всё дерево. Scaffold кладёт `source/mcp.json` и языковой entry;
 обнаруживаемому **серверу** всё равно нужна цепочка манифеста выше.
+Claude Code `mcp` отклоняется: у provider нет собственной MCP-поверхности.
 
 ```text
-github-issues/                     # component-scaffold/2
+github-issues/                     # component-scaffold/3
 ├── .ai-stp-template.json
-├── authoring-template.md
+├── .gitignore
+├── README.md
 ├── component-passport.json
 ├── eval-profile.json
-├── README.md
-├── SAFETY.md
-├── PUBLICATION.md
-└── native/
+└── source/
+    ├── mcp.json
     └── src/main.py                # python handler; добавьте манифест пакета
 ```
 
@@ -323,7 +324,7 @@ MCP-компонент может быть embedded-членом compose-ман�
    сервер, чтобы его «доказать».
 3. Для **клиентского конфига** держите значения с доступом вне артефакта.
    Записывайте только *имена* env.
-4. Объявите в `SAFETY.md` потребности в файловой системе, сети и
+4. Объявите в паспорте потребности в файловой системе, сети и
    учётных данных.
 5. Запустите `ai-stp component discover --root . --json` и прочитайте
    `native_role`, `harness_id` и `layout_source`.

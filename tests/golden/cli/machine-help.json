@@ -5263,6 +5263,138 @@
     {
       "path": [
         "setup",
+        "scaffold",
+        "apply"
+      ],
+      "summary": "Create exactly the confirmed setup scaffold without overwriting a path.",
+      "mutability": "apply",
+      "confirmation": "plan_digest",
+      "parameters": [
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Concrete harness this setup belongs to.",
+          "choices": [
+            "claude-code",
+            "codex",
+            "pi",
+            "opencode",
+            "grok-build",
+            "cursor",
+            "antigravity"
+          ]
+        },
+        {
+          "name": "name",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Lowercase setup slug.",
+          "choices": []
+        },
+        {
+          "name": "output",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "New setup directory to create.",
+          "choices": []
+        },
+        {
+          "name": "components",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Optional nested members as type:name or type:name:language, comma-separated.",
+          "choices": []
+        },
+        {
+          "name": "expected-plan-digest",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact digest returned by setup scaffold plan.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-setup-scaffold-result",
+      "next_actions": [
+        "setup compose plan",
+        "component passport validate"
+      ]
+    },
+    {
+      "path": [
+        "setup",
+        "scaffold",
+        "plan"
+      ],
+      "summary": "Preview exact files and digests for one versioned setup authoring tree.",
+      "mutability": "plan",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Concrete harness this setup belongs to.",
+          "choices": [
+            "claude-code",
+            "codex",
+            "pi",
+            "opencode",
+            "grok-build",
+            "cursor",
+            "antigravity"
+          ]
+        },
+        {
+          "name": "name",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Lowercase setup slug.",
+          "choices": []
+        },
+        {
+          "name": "output",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "New setup directory to preview.",
+          "choices": []
+        },
+        {
+          "name": "components",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Optional nested members as type:name or type:name:language, comma-separated.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-setup-scaffold-plan",
+      "next_actions": [
+        "setup scaffold apply"
+      ]
+    },
+    {
+      "path": [
+        "setup",
         "update",
         "apply"
       ],

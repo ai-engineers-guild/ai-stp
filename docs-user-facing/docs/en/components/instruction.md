@@ -59,33 +59,31 @@ independent instruction specification comparable to the
 [Agent Skills Specification](https://agentskills.io/specification); the
 body is Markdown the harness will load as context.
 
-Portable package (what `discover` / `adopt` transfer from `native/`):
+Portable package (what `discover` / `adopt` transfer from `source/`):
 
 ```text
 project-conventions/
-└── project-conventions.md    # {name}.md at the package root
+└── AGENTS.md
 ```
 
 When you start from `ai_stp`, scaffold first. The authoring directory is
-wider than the published package: `discover` / `adopt` transfer `native/`,
+wider than the published package: `discover` / `adopt` transfer `source/`
+when portable and `projections/<harness>/` when a harness was selected,
 not the whole tree.
 
 ```text
-project-conventions/                 # component-scaffold/2
+project-conventions/                 # component-scaffold/3
 ├── .ai-stp-template.json
-├── authoring-template.md
+├── .gitignore
+├── README.md
 ├── component-passport.json
 ├── eval-profile.json
-├── README.md
-├── SAFETY.md
-├── PUBLICATION.md
-└── native/
-    └── project-conventions.md
+└── source/
+    └── AGENTS.md
 ```
 
-If you scaffold for a concrete harness whose instruction layout is a
-single named file, `native/` holds that filename (for example `AGENTS.md`)
-instead of `{name}.md`. Do not invent a second wrapper directory.
+`source/AGENTS.md` is the canon. Claude Code projections use `CLAUDE.md`;
+Cursor uses `rules/<name>.mdc`. Do not invent a second wrapper directory.
 
 ```bash
 ai-stp component scaffold plan \
@@ -299,10 +297,10 @@ An instruction can also be an embedded member of a compose manifest. See
 ## Author checklist
 
 1. Scaffold with `--type instruction --language none` and keep the
-   Markdown at the package root (under `native/` in the authoring tree).
+   Markdown at the package root (under `source/` in the authoring tree).
 2. Write standing rules only. Move a procedure to a [`skill`](skill.md);
    move a named shortcut to a [`command`](command.md).
-3. Declare what the text asks of the agent in `SAFETY.md`. No secrets.
+3. Declare what the text asks of the agent in the passport. No secrets.
 4. Run `ai-stp component discover --root . --json` and read
    `layout_source` on the finding.
 5. `component adopt --path <exact source_path>` — add `--kind

@@ -57,7 +57,7 @@ Markdown-файл. Claude Code авторит commands как файлы в dire
 layout; adopt принимает этот одиночный файл без дополнительного
 манифеста-обёртки.
 
-Переносимый пакет (то, что `discover` / `adopt` переносят из `native/`):
+Переносимый пакет (то, что `discover` / `adopt` переносят из `source/`):
 
 ```text
 run-tests/
@@ -66,18 +66,17 @@ run-tests/
 
 Когда вы начинаете из `ai_stp`, сначала сделайте scaffold. Авторский
 каталог шире опубликованного пакета: `discover` / `adopt` переносят
-`native/`, а не всё дерево.
+`source/` для portable и `projections/<harness>/` для конкретного харнесса,
+а не всё дерево.
 
 ```text
-run-tests/                         # component-scaffold/2
+run-tests/                         # component-scaffold/3
 ├── .ai-stp-template.json
-├── authoring-template.md
+├── .gitignore
+├── README.md
 ├── component-passport.json
 ├── eval-profile.json
-├── README.md
-├── SAFETY.md
-├── PUBLICATION.md
-└── native/
+└── source/
     └── run-tests.md
 ```
 
@@ -283,11 +282,11 @@ Command может быть embedded-членом compose-манифеста. С
 ## Чеклист автора
 
 1. Сделайте scaffold с `--type command --language none` и держите
-   Markdown в корне пакета (в авторском дереве — под `native/`).
+   Markdown в корне пакета (в авторском дереве — под `source/`).
 2. Дайте короткое имя, описание, которое прочитает человек, и
    ограниченные аргументы. Процедуру с assets положите в
    [`skill`](skill.md).
-3. Объявите в `SAFETY.md`, что command меняет. Секретов нет.
+3. Объявите в паспорте, что command меняет. Секретов нет.
 4. Запустите `ai-stp component discover --root . --json` и прочитайте
    `layout_source` у находки.
 5. `component adopt --path <точный source_path>`.

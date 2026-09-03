@@ -61,7 +61,7 @@ Markdown-файл. Claude Code авторит agents как файлы в direct
 layout; adopt принимает этот одиночный файл без дополнительного
 манифеста-обёртки.
 
-Переносимый пакет (то, что `discover` / `adopt` переносят из `native/`):
+Переносимый пакет (то, что `discover` / `adopt` переносят из `source/`):
 
 ```text
 reviewer/
@@ -70,18 +70,17 @@ reviewer/
 
 Когда вы начинаете из `ai_stp`, сначала сделайте scaffold. Авторский
 каталог шире опубликованного пакета: `discover` / `adopt` переносят
-`native/`, а не всё дерево.
+`source/` для portable и `projections/<harness>/` для конкретного харнесса,
+а не всё дерево. Агенты Codex — TOML под `agents/`.
 
 ```text
-reviewer/                          # component-scaffold/2
+reviewer/                          # component-scaffold/3
 ├── .ai-stp-template.json
-├── authoring-template.md
+├── .gitignore
+├── README.md
 ├── component-passport.json
 ├── eval-profile.json
-├── README.md
-├── SAFETY.md
-├── PUBLICATION.md
-└── native/
+└── source/
     └── reviewer.md
 ```
 
@@ -292,11 +291,11 @@ Agent может быть embedded-членом compose-манифеста. См
 ## Чеклист автора
 
 1. Сделайте scaffold с `--type agent --language none` и держите Markdown
-   в корне пакета (в авторском дереве — под `native/`).
+   в корне пакета (в авторском дереве — под `source/`).
 2. Назовите роль, её ограничения, её tools и как выглядит «готово».
    Постоянные правила положите в [`instruction`](instruction.md),
    процедуры — в [`skill`](skill.md).
-3. Объявите потребности в авторизации в `SAFETY.md`. Секретов нет.
+3. Объявите потребности в авторизации в паспорте. Секретов нет.
 4. Запустите `ai-stp component discover --root . --json` и прочитайте
    `layout_source` у находки.
 5. `component adopt --path <точный source_path>` — добавьте `--kind agent`,

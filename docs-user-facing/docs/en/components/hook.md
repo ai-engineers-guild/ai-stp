@@ -63,22 +63,20 @@ is `python`, `typescript`, `javascript`, or `dart-flutter`. Rust and Go
 are refused: the provider does not perform a hidden source build.
 
 The portable native layout is a `hooks.json` manifest plus a handler.
-The authoring directory also holds `hook-source.json` (event, order,
-blocking failure, handler). `discover` / `adopt` transfer `native/`, not
+The authoring directory also holds `source/hook.json` (event, order,
+blocking failure, handler). `discover` / `adopt` transfer `source/` when
+portable and `projections/<harness>/` when a harness was selected, not
 the whole tree.
 
 ```text
-pre-tool-check/                    # component-scaffold/2
+pre-tool-check/                    # component-scaffold/3
 ├── .ai-stp-template.json
-├── authoring-template.md
+├── .gitignore
+├── README.md
 ├── component-passport.json
 ├── eval-profile.json
-├── hook-source.json
-├── README.md
-├── SAFETY.md
-├── PUBLICATION.md
-└── native/
-    ├── hooks.json
+└── source/
+    ├── hook.json
     └── hooks/
         └── handler.py
 ```
@@ -293,11 +291,11 @@ A hook can also be an embedded member of a compose manifest. See
 
 1. Scaffold with `--type hook` and a directly runnable `--language`
    (`python`, `typescript`, `javascript`, or `dart-flutter`).
-2. Keep `hooks.json` and the handler under `native/`. Fill
-   `hook-source.json` with the event, order, blocking failure, and
+2. Keep `hooks.json` and the handler under `source/`. Fill
+   `source/hook.json` with the event, order, blocking failure, and
    handler.
 3. Declare what the handler does, what it reads, and how to disable it
-   in `SAFETY.md`. No secrets.
+   in the passport. No secrets.
 4. Run `ai-stp component discover --root . --json` and read
    `layout_source` on the finding.
 5. `component adopt --path <exact source_path>`.

@@ -59,7 +59,7 @@ single Markdown file. Claude Code authors agents as files in a
 directory-shaped layout; adoption accepts that single file without an
 extra wrapper manifest.
 
-Portable package (what `discover` / `adopt` transfer from `native/`):
+Portable package (what `discover` / `adopt` transfer from `source/`):
 
 ```text
 reviewer/
@@ -67,19 +67,18 @@ reviewer/
 ```
 
 When you start from `ai_stp`, scaffold first. The authoring directory is
-wider than the published package: `discover` / `adopt` transfer
-`native/`, not the whole tree.
+wider than the published package: `discover` / `adopt` transfer `source/`
+when portable and `projections/<harness>/` when a harness was selected,
+not the whole tree. Codex agents are TOML under `agents/`.
 
 ```text
-reviewer/                          # component-scaffold/2
+reviewer/                          # component-scaffold/3
 ├── .ai-stp-template.json
-├── authoring-template.md
+├── .gitignore
+├── README.md
 ├── component-passport.json
 ├── eval-profile.json
-├── README.md
-├── SAFETY.md
-├── PUBLICATION.md
-└── native/
+└── source/
     └── reviewer.md
 ```
 
@@ -295,11 +294,11 @@ An agent can also be an embedded member of a compose manifest. See
 ## Author checklist
 
 1. Scaffold with `--type agent --language none` and keep the Markdown at
-   the package root (under `native/` in the authoring tree).
+   the package root (under `source/` in the authoring tree).
 2. Name the role, its limits, its tools, and what "done" looks like.
    Put standing rules in [`instruction`](instruction.md) and procedures
    in [`skill`](skill.md).
-3. Declare authorization needs in `SAFETY.md`. No secrets.
+3. Declare authorization needs in the passport. No secrets.
 4. Run `ai-stp component discover --root . --json` and read
    `layout_source` on the finding.
 5. `component adopt --path <exact source_path>` — add `--kind agent` if

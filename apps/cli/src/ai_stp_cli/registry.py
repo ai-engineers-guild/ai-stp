@@ -2312,6 +2312,61 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         next_actions=("target status",),
     ),
     Declaration(
+        path=["setup", "scaffold", "plan"],
+        summary="Preview exact files and digests for one versioned setup authoring tree.",
+        result_schema="urn:ai-stp:schema:v1:cli-setup-scaffold-plan",
+        handler="setup_scaffold:plan",
+        mutability="plan",
+        parameters=(
+            option(
+                "harness",
+                "string",
+                "Concrete harness this setup belongs to.",
+                required=True,
+                choices=HARNESS_ID_ORDER,
+            ),
+            option("name", "string", "Lowercase setup slug.", required=True),
+            option("output", "string", "New setup directory to preview.", required=True),
+            option(
+                "components",
+                "string",
+                "Optional nested members as type:name or type:name:language, comma-separated.",
+            ),
+        ),
+        next_actions=("setup scaffold apply",),
+    ),
+    Declaration(
+        path=["setup", "scaffold", "apply"],
+        summary="Create exactly the confirmed setup scaffold without overwriting a path.",
+        result_schema="urn:ai-stp:schema:v1:cli-setup-scaffold-result",
+        handler="setup_scaffold:apply",
+        mutability="apply",
+        confirmation="plan_digest",
+        parameters=(
+            option(
+                "harness",
+                "string",
+                "Concrete harness this setup belongs to.",
+                required=True,
+                choices=HARNESS_ID_ORDER,
+            ),
+            option("name", "string", "Lowercase setup slug.", required=True),
+            option("output", "string", "New setup directory to create.", required=True),
+            option(
+                "components",
+                "string",
+                "Optional nested members as type:name or type:name:language, comma-separated.",
+            ),
+            option(
+                "expected-plan-digest",
+                "string",
+                "Exact digest returned by setup scaffold plan.",
+                required=True,
+            ),
+        ),
+        next_actions=("setup compose plan", "component passport validate"),
+    ),
+    Declaration(
         path=["setup", "compose", "plan"],
         summary=(
             "Resolve and freeze a new setup from exact catalog, Git, package and local sources."

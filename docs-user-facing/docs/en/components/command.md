@@ -57,7 +57,7 @@ single Markdown file. Claude Code authors commands as files in a
 directory-shaped layout; adoption accepts that single file without an
 extra wrapper manifest.
 
-Portable package (what `discover` / `adopt` transfer from `native/`):
+Portable package (what `discover` / `adopt` transfer from `source/`):
 
 ```text
 run-tests/
@@ -65,19 +65,18 @@ run-tests/
 ```
 
 When you start from `ai_stp`, scaffold first. The authoring directory is
-wider than the published package: `discover` / `adopt` transfer
-`native/`, not the whole tree.
+wider than the published package: `discover` / `adopt` transfer `source/`
+when portable and `projections/<harness>/` when a harness was selected,
+not the whole tree.
 
 ```text
-run-tests/                         # component-scaffold/2
+run-tests/                         # component-scaffold/3
 ├── .ai-stp-template.json
-├── authoring-template.md
+├── .gitignore
+├── README.md
 ├── component-passport.json
 ├── eval-profile.json
-├── README.md
-├── SAFETY.md
-├── PUBLICATION.md
-└── native/
+└── source/
     └── run-tests.md
 ```
 
@@ -291,11 +290,11 @@ A command can also be an embedded member of a compose manifest. See
 ## Author checklist
 
 1. Scaffold with `--type command --language none` and keep the Markdown
-   at the package root (under `native/` in the authoring tree).
+   at the package root (under `source/` in the authoring tree).
 2. Give it a short name, a description a person can read, and bounded
    arguments. Put a procedure with assets in a [`skill`](skill.md)
    instead.
-3. Declare what the command changes in `SAFETY.md`. No secrets.
+3. Declare what the command changes in the passport. No secrets.
 4. Run `ai-stp component discover --root . --json` and read
    `layout_source` on the finding.
 5. `component adopt --path <exact source_path>`.

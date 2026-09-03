@@ -1,6 +1,6 @@
 ---
 description: "Canonical identifiers, serialization, references, hashes, and signatures."
-last_verified: "2026-08-29"
+last_verified: "2026-09-03"
 ---
 
 # Canonical data
@@ -49,6 +49,8 @@ ai-stp:artifact:v1
 ai-stp:passport:v1
 ai-stp:revision:v1
 ai-stp:plan:v1
+ai-stp:scaffold-plan:v1
+ai-stp:setup-scaffold-plan:v1
 ai-stp:bundle:v1
 ai-stp:attestation:v1
 ai-stp:native-discovery:v1

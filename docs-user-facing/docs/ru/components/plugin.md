@@ -82,21 +82,20 @@ Cursor внутри доказанного pack: `skills`, `agents`, `commands` 
 
 Когда вы начинаете из `ai_stp`, сначала сделайте scaffold. Авторский
 каталог шире опубликованного пакета: `discover` / `adopt` переносят
-`native/`, а не всё дерево.
+`source/` для portable и `projections/<harness>/` для конкретного харнесса,
+а не всё дерево.
 
 ```text
-review-pack/                       # component-scaffold/2
+review-pack/                       # component-scaffold/3
 ├── .ai-stp-template.json
-├── authoring-template.md
+├── .gitignore
+├── README.md
 ├── component-passport.json
 ├── eval-profile.json
-├── README.md
-├── SAFETY.md
-├── PUBLICATION.md
-└── native/
-    ├── .claude-plugin/
-    │   └── plugin.json            # специфично для харнесса; portable использует plugin.json
-    └── src/main.py
+└── source/
+    ├── plugin.json
+    └── skills/
+        └── README.md
 ```
 
 ```bash
@@ -119,8 +118,8 @@ ai-stp component scaffold apply \
 ```
 
 Для OpenCode или Pi сделайте scaffold одного `{name}.js` или `{name}.ts`
-под `native/`. Не выдумывайте `plugin.json`, который эти продукты не
-используют.
+под `source/` (и `projections/<harness>/`). Не выдумывайте `plugin.json`,
+который эти продукты не используют.
 
 Adopt каталога требует манифест из закрытого набора. Имена plugin в этом
 наборе: `plugin.json`, `.claude-plugin/plugin.json`,
@@ -331,7 +330,7 @@ Plugin может быть embedded-членом compose-манифеста. С�
 3. Кладите вложенные члены в корень plugin (`skills/`, `agents/`,
    `commands/`, `hooks/hooks.json`, `.mcp.json`, `rules/` Cursor) только
    когда доказанный pack этого харнесса их действительно читает.
-4. Объявите post-install поведение в `SAFETY.md`. Секретов нет.
+4. Объявите post-install поведение в паспорте. Секретов нет.
 5. Запустите `ai-stp component discover --root . --json` и прочитайте
    `layout_source` у находки plugin и у вложенных членов.
 6. `component adopt --path <точный source_path>` — добавьте

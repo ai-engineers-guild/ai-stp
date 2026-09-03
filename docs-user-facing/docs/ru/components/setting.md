@@ -59,21 +59,20 @@ password, private key или credential, оно идёт через поддер
 
 ## Рекомендуемая структура пакета
 
-`setting` декларативен. `--language` — `none`. Переносимый нативный вывод
-— `settings.json` (в scaffold — пустой JSON-объект). Конкретный харнесс
-может спроецировать `config.toml`, `opencode.json` / `opencode.jsonc`
-или другой объявленный файл настроек.
+`setting` декларативен. `--language` — `none`. `setting` требует
+конкретный харнесс: portable отклоняется. Claude Code проецирует
+`settings.json`; Codex и Grok — `config.toml`; OpenCode — `opencode.json`.
 
 ```text
-strict-mode/                       # component-scaffold/2
+strict-mode/                       # component-scaffold/3
 ├── .ai-stp-template.json
-├── authoring-template.md
+├── .gitignore
+├── README.md
 ├── component-passport.json
 ├── eval-profile.json
-├── README.md
-├── SAFETY.md
-├── PUBLICATION.md
-└── native/
+├── source/
+│   └── settings.json
+└── projections/claude-code/
     └── settings.json
 ```
 
@@ -81,7 +80,7 @@ strict-mode/                       # component-scaffold/2
 ai-stp component scaffold plan \
   --type setting \
   --language none \
-  --harness portable \
+  --harness claude-code \
   --name strict-mode \
   --output ./strict-mode \
   --json
@@ -89,7 +88,7 @@ ai-stp component scaffold plan \
 ai-stp component scaffold apply \
   --type setting \
   --language none \
-  --harness portable \
+  --harness claude-code \
   --name strict-mode \
   --output ./strict-mode \
   --expected-plan-digest <digest> \
@@ -287,12 +286,12 @@ Setting может быть embedded-членом compose-манифеста. С
 ## Чеклист автора
 
 1. Сделайте scaffold с `--type setting --language none` и держите
-   нативный файл под `native/`.
+   нативный файл под `source/`.
 2. Храните только несекретные параметры. Записывайте *имена* env в
    паспорт, если харнессу позже понадобится учётная запись.
 3. Если файл также объявляет MCP-серверы, считайте это отдельной находкой
    [`mcp`](mcp.md). Не кладите значения серверов в этот артефакт.
-4. Объявите в `SAFETY.md`, что меняют значения.
+4. Объявите в паспорте, что меняют значения.
 5. Запустите `ai-stp component discover --root . --json` и прочитайте
    `layout_source`, а также `native_role`, если появится вторая находка.
 6. `component adopt --path <точный source_path>` — добавьте

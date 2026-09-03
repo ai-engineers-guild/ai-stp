@@ -45,28 +45,38 @@ perform a hidden source build.
 
 `--harness` is `portable` or one concrete harness. If that harness has no
 independent native form for the type, the plan fails closed before any write.
+`setting` requires a concrete harness. Apply initializes git when the
+destination is not already inside a worktree; git is not part of the plan
+digest.
 
-The `component-scaffold/2` directory contains:
+The `component-scaffold/3` directory contains:
 
 ```text
 playwright-checks/
 ├── .ai-stp-template.json
-├── authoring-template.md
+├── .gitignore
+├── README.md
 ├── component-passport.json
 ├── eval-profile.json
-├── README.md
-├── SAFETY.md
-├── PUBLICATION.md
-└── native/                  # the layout discover/adopt will transfer
+├── source/                  # canon; portable adopt transfers this
+└── projections/<harness>/   # only when --harness is concrete
 ```
 
-A hook also gets `hook-source.json` (event, order, blocking failure, handler)
-and a projected `native/hooks.json`. Manifest-directory plugins get a product
-manifest. OpenCode and Pi plugins are a single JS/TS module, not an invented
-manifest.
+A hook also gets `source/hook.json` (event, order, blocking failure, handler)
+and a projected native manifest. Manifest-directory plugins get a product
+manifest and a `skills/` note, not an `activate_plugin` stub. OpenCode and Pi
+plugins are a single JS/TS module, not an invented manifest. A setting
+requires a concrete harness.
 
-`discover` / `adopt` transfer the contents of `native/`, not the whole
+`discover` / `adopt` transfer `source/` when portable and
+`projections/<harness>/` when a harness was selected, not the whole
 authoring directory.
+
+`setup scaffold plan` / `apply` create a physical setup directory for one
+concrete harness: draft `setup.json`, draft `setup-passport.json`, optional
+nested `components/<member>/` sharing one git root, and empty
+`projections/<harness>/` until a later export. `setup compose` still records
+SQLite. Compose is not install.
 
 ## Passport
 
@@ -115,7 +125,7 @@ Do not put tokens, passwords, private keys, OAuth refresh tokens, or `.env`
 bodies in:
 
 - the passport;
-- `native/` files that will be published;
+- `source/` or `projections/<harness>/` files that will be published;
 - logs, fixtures, or README examples with live values.
 
 If the harness needs a credential, the passport may say that a named

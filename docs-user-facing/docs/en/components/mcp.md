@@ -82,21 +82,21 @@ github-issues/                     # TypeScript server package
 ```
 
 When you start from `ai_stp`, scaffold first. The authoring directory is
-wider than the published package: `discover` / `adopt` transfer
-`native/`, not the whole tree. The scaffold plants a handler under
-`native/`; a discoverable **server** still needs the manifest chain
-above.
+wider than the published package: `discover` / `adopt` transfer `source/`
+when portable and `projections/<harness>/` when a harness was selected,
+not the whole tree. The scaffold plants `source/mcp.json` plus a language
+entry; a discoverable **server** still needs the manifest chain above.
+Claude Code `mcp` is refused: there is no provider-owned MCP surface.
 
 ```text
-github-issues/                     # component-scaffold/2
+github-issues/                     # component-scaffold/3
 ├── .ai-stp-template.json
-├── authoring-template.md
+├── .gitignore
+├── README.md
 ├── component-passport.json
 ├── eval-profile.json
-├── README.md
-├── SAFETY.md
-├── PUBLICATION.md
-└── native/
+└── source/
+    ├── mcp.json
     └── src/main.py                # python handler; add the package manifest
 ```
 
@@ -319,7 +319,7 @@ See [Setups](../setups/index.md).
    server to "prove" it.
 3. For **client config**, keep values that bear access out of the
    artifact. Record env *names* only.
-4. Declare filesystem, network, and credential needs in `SAFETY.md`.
+4. Declare filesystem, network, and credential needs in the passport.
 5. Run `ai-stp component discover --root . --json` and read
    `native_role`, `harness_id`, and `layout_source`.
 6. `component adopt --path <exact source_path>` — add `--kind mcp` when

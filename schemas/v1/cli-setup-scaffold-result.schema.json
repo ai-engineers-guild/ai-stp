@@ -1,21 +1,5 @@
 {
   "$defs": {
-    "ComponentGeneratorVersion": {
-      "enum": [
-        "ai-stp/1",
-        "ai-stp/2",
-        "ai-stp/3"
-      ],
-      "type": "string"
-    },
-    "ComponentTemplateVersion": {
-      "enum": [
-        "component-scaffold/1",
-        "component-scaffold/2",
-        "component-scaffold/3"
-      ],
-      "type": "string"
-    },
     "GitInitReason": {
       "enum": [
         "existing_worktree",
@@ -23,12 +7,20 @@
         "git_unavailable"
       ],
       "type": "string"
+    },
+    "SetupGeneratorVersion": {
+      "const": "ai-stp/1",
+      "type": "string"
+    },
+    "SetupTemplateVersion": {
+      "const": "setup-scaffold/1",
+      "type": "string"
     }
   },
-  "$id": "urn:ai-stp:schema:v1:cli-component-scaffold-result",
+  "$id": "urn:ai-stp:schema:v1:cli-setup-scaffold-result",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "Applied scaffold, bound to the exact preview digest.",
+  "description": "Applied setup scaffold, bound to the exact preview digest.",
   "properties": {
     "files_written": {
       "minimum": 6,
@@ -36,8 +28,8 @@
       "type": "integer"
     },
     "generator_version": {
-      "$ref": "#/$defs/ComponentGeneratorVersion",
-      "default": "ai-stp/3"
+      "$ref": "#/$defs/SetupGeneratorVersion",
+      "default": "ai-stp/1"
     },
     "git_commit": {
       "anyOf": [
@@ -89,8 +81,8 @@
       "type": "integer"
     },
     "template_version": {
-      "$ref": "#/$defs/ComponentTemplateVersion",
-      "default": "component-scaffold/3"
+      "$ref": "#/$defs/SetupTemplateVersion",
+      "default": "setup-scaffold/1"
     }
   },
   "required": [
@@ -100,6 +92,6 @@
     "files_written",
     "git_initialized"
   ],
-  "title": "ComponentScaffoldResult",
+  "title": "SetupScaffoldResult",
   "type": "object"
 }

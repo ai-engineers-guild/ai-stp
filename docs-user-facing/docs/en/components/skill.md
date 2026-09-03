@@ -69,19 +69,18 @@ playwright-checks/
 The directory name must match the `name` field in frontmatter.
 
 When you start from `ai_stp`, scaffold first. The authoring directory is
-wider than the published package: `discover` / `adopt` transfer `native/`,
+wider than the published package: `discover` / `adopt` transfer `source/`
+when portable and `projections/<harness>/` when a harness was selected,
 not the whole tree.
 
 ```text
-playwright-checks/                 # component-scaffold/2
+playwright-checks/                 # component-scaffold/3
 ├── .ai-stp-template.json
-├── authoring-template.md
+├── .gitignore
+├── README.md
 ├── component-passport.json
 ├── eval-profile.json
-├── README.md
-├── SAFETY.md
-├── PUBLICATION.md
-└── native/
+└── source/
     └── SKILL.md
 ```
 
@@ -305,11 +304,11 @@ A skill can also be an embedded member of a compose manifest. See
 ## Author checklist
 
 1. Scaffold with `--type skill --language none` and keep `SKILL.md` at the
-   package root (under `native/` in the authoring tree).
+   package root (under `source/` in the authoring tree).
 2. Fill `name` and `description`. Put harness-specific keys under
    `metadata`.
 3. Add `scripts/`, `references/`, and `assets/` only when the workflow
-   needs them. Declare what they do in `SAFETY.md`.
+   needs them. Declare what they do in the passport.
 4. Run `ai-stp component skill validate --path <package> --json` and fix
    every `SKxxx` code.
 5. Pin an exact public GitHub commit and subpath. No secrets in the tree.

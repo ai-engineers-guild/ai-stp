@@ -1,6 +1,6 @@
 ---
 description: "Machine contract for read-only discovery of native components in supported harnesses."
-last_verified: "2026-08-26"
+last_verified: "2026-09-03"
 ---
 
 # Native component discovery
@@ -225,9 +225,11 @@ adopting someone else's content.
 A single file in a directory-shaped layout needs no manifest—it is the component. This
 is how claude-code agents and commands are authored, and adoption accepts them.
 
-The `component-scaffold/2` scaffold stores authoring metadata next to the exact layout
-under `native/`. `discover`/`adopt` transfers the contents of `native/`, not the entire
-authoring directory. Single-file OpenCode/Pi JS/TS plugins are adopted as files;
+The `component-scaffold/3` scaffold stores authoring metadata next to type-specific
+`source/` and, when a harness was selected, `projections/<harness>/`.
+`discover`/`adopt` transfers `source/` for a portable scaffold and
+`projections/<harness>/` for a concrete harness, not the entire authoring directory.
+Single-file OpenCode/Pi JS/TS plugins are adopted as files;
 manifest-directory plugins only through a manifest from the closed set above.
 
 ## External source identity
