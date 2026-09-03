@@ -117,6 +117,7 @@
   "an operation whose effect already happened cannot be recorded as a plain failure": "операцию, чей эффект уже случился, нельзя записать как простой отказ",
   "an overlay must name both its source and the base it was applied to": "overlay должен назвать и источник, и базу, к которой его применили",
   "an override must be written as path=value": "override нужно писать как path=value",
+  "an unverified provider must be named; automatic acquisition only binds attested OpenNetwork bytes": "непроверенный провайдер нужно назвать; автоматическая загрузка берёт только attested байты OpenNetwork",
   "another ai-stp process is still setting this installation up": "другой процесс ai-stp ещё настраивает эту установку",
   "another process holds the local registry; retry when it finishes": "локальный реестр занят другим процессом; повторите, когда он завершится",
   "answer the telemetry screen with exactly one of accept or decline": "ответьте на экран телеметрии ровно одним из accept или decline",

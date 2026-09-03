@@ -117,6 +117,7 @@
   "an operation whose effect already happened cannot be recorded as a plain failure": "an operation whose effect already happened cannot be recorded as a plain failure",
   "an overlay must name both its source and the base it was applied to": "an overlay must name both its source and the base it was applied to",
   "an override must be written as path=value": "an override must be written as path=value",
+  "an unverified provider must be named; automatic acquisition only binds attested OpenNetwork bytes": "an unverified provider must be named; automatic acquisition only binds attested OpenNetwork bytes",
   "another ai-stp process is still setting this installation up": "another ai-stp process is still setting this installation up",
   "another process holds the local registry; retry when it finishes": "another process holds the local registry; retry when it finishes",
   "answer the telemetry screen with exactly one of accept or decline": "answer the telemetry screen with exactly one of accept or decline",

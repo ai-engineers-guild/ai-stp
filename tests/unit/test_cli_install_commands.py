@@ -2706,17 +2706,45 @@ def test_a_provider_with_no_target_digest_cannot_anchor_a_plan(
     assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
 
 
-def test_a_provider_that_is_not_there_is_not_found(tmp_path: Path) -> None:
+def test_a_provider_that_is_not_there_is_not_found(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    proposal_id = _confirmed(registry, tmp_path, "N")
     with pytest.raises(CliFailure) as raised:
-        install.plan({"proposal": "proposal_x", "provider": str(tmp_path / "absent")})
+        install.plan({"proposal": proposal_id, "provider": str(tmp_path / "absent")})
     assert raised.value.code == "AI_STP_NOT_FOUND"
 
 
-def test_the_provider_must_be_named(tmp_path: Path) -> None:
-    """`ai_stp` never writes a target itself, so there is nothing to default to."""
-    with pytest.raises(CliFailure) as raised:
-        install.plan({"proposal": "proposal_x"})
-    assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+def test_a_missing_managed_provider_is_acquired(
+    registry: sqlite3.Connection, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Omitted `--provider` binds the attested OpenNetwork artifact and continues."""
+    from types import SimpleNamespace
+
+    proposal_id = _confirmed(registry, tmp_path, "P")
+    fetched = _provider(tmp_path, "fetched")
+    calls: list[str] = []
+
+    def fetch(*, harness: str, **_kwargs: object) -> SimpleNamespace:
+        calls.append(harness)
+        return SimpleNamespace(
+            harness_id=harness,
+            artifact=Path(fetched),
+            provider_id="claude-setup-system",
+            provider_version="0.0.60",
+            tag="0.0.60",
+            commit="a" * 40,
+            artifact_digest="sha256:" + "b" * 64,
+        )
+
+    monkeypatch.setattr("ai_stp_cli.provider.acquire.attested_bind.fetch", fetch)
+    planned = install.plan({"proposal": proposal_id}).payload
+    assert planned.state == "planned"
+    assert calls == ["claude-code"]
+    # Remembered: a second plan does not fetch again.
+    second = install.plan({"proposal": proposal_id}).payload
+    assert second.operation_id == planned.operation_id
+    assert calls == ["claude-code"]
 
 
 def test_planning_twice_returns_the_same_plan(registry: sqlite3.Connection, tmp_path: Path) -> None:
