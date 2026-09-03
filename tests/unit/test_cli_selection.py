@@ -6,6 +6,7 @@ from contextlib import closing, contextmanager
 from typing import cast
 
 import pytest
+from tests.support.component_passports import adaptation_fields
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import cache, content, lifecycle, revisions, selection, versions
@@ -146,7 +147,11 @@ def _full_component(connection: sqlite3.Connection, suffix: str) -> str:
             "tags": ["tests"],
             "source": None,
             "artifact": {"digest": "sha256:" + "8" * 64, "size_bytes": 8},
-            "harness_id": "claude-code",
+            **adaptation_fields(
+                digest="sha256:" + "8" * 64,
+                size=8,
+                path=".claude/settings.json",
+            ),
             "required_env": [{"name": "EXAMPLE_TOKEN", "purpose": "Provider test"}],
             "requires_credentials": True,
             "requires_authorization": "user_account",
@@ -159,14 +164,10 @@ def _full_component(connection: sqlite3.Connection, suffix: str) -> str:
             "license": {"spdx_id": "MIT", "redistribution_allowed": True},
             "compatibility_evidence_refs": [],
             "component_type": "skill",
-            "projection_kind": "native_files",
-            "variant_id": None,
             "provides_capabilities": [],
             "requires_components": [],
             "requires_capabilities": [],
             "conflicts": {},
-            "managed_paths": [".claude/settings.json"],
-            "native_ids": [],
         },  # pyright: ignore[reportArgumentType]
         device_id=DEVICE,
     )

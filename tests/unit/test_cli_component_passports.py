@@ -23,6 +23,7 @@ from ai_stp_cli.local import (
 )
 from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_contracts.component_passport import ComponentPassportPatch
+from ai_stp_contracts.first_party import versions as first_party_versions
 from ai_stp_contracts.machine_help import ComponentQualityDimension
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import digest_bytes, digest_canonical
@@ -150,6 +151,8 @@ def test_suggestions_use_only_complete_exact_source_provenance(
             "source_repository": _fact("https://github.com/example/component"),
             "source_revision": _fact(COMMIT),
             "source_subpath": _fact("skills/component"),
+            "scope": _fact("global"),
+            "source_path": _fact("skills/component"),
         }
     )
     document.pop("revision_id")
@@ -572,20 +575,28 @@ def test_impact_loads_a_released_draft_shaped_passport_instead_of_refusing_it(
     already passed propose, confirm, bundle, graph and reports (`#385`).
     """
     original = _draft(registry)
-    enriched = component_passports.update(
+    component_passports.update(
         registry,
         original.stable_id,
         original.revision_id,
         _complete_patch(),
         device_id="device_test",
     )
-    document = cast(dict[str, JsonValue], enriched.envelope.model_dump(mode="json"))
+    passport, revision_id = component_passports.materialize_version_passport(
+        registry,
+        original.stable_id,
+        "1.0",
+        device_id="device_test",
+        at=CREATED,
+    )
     versions.record(
         registry,
         stable_id=original.stable_id,
         version="1.0",
-        passport_digest=digest_canonical("ai-stp:passport:v1", document),
-        revision_id=enriched.revision_id,
+        passport_digest=digest_canonical(
+            "ai-stp:passport:v1", cast(JsonValue, passport.model_dump(mode="json"))
+        ),
+        revision_id=revision_id,
         at=CREATED,
     )
 
@@ -613,13 +624,21 @@ def test_a_publication_passport_is_built_from_the_exact_released_revision(
         _complete_patch(),
         device_id="device_test",
     )
-    document = cast(dict[str, JsonValue], enriched.envelope.model_dump(mode="json"))
+    released, revision_id = component_passports.materialize_version_passport(
+        registry,
+        original.stable_id,
+        "1.0",
+        device_id="device_test",
+        at=CREATED,
+    )
     versions.record(
         registry,
         stable_id=original.stable_id,
         version="1.0",
-        passport_digest=digest_canonical("ai-stp:passport:v1", document),
-        revision_id=enriched.revision_id,
+        passport_digest=digest_canonical(
+            "ai-stp:passport:v1", cast(JsonValue, released.model_dump(mode="json"))
+        ),
+        revision_id=revision_id,
         at=CREATED,
     )
     changed = component_passports.update(
@@ -637,7 +656,7 @@ def test_a_publication_passport_is_built_from_the_exact_released_revision(
     assert passport.version == "1.0"
     assert passport.visibility == "public"
     assert passport.parent_revision_ids == []
-    assert passport.artifact.digest == document["facts"]["content_digest"]["value"]  # type: ignore[index]
+    assert passport.artifact.digest == released.artifact.digest
     # The digest has to describe the passport as the server will see it. The
     # server validates first and then hashes `model_dump(mode="json")`, and
     # validation fills defaults the candidate never carried, so a digest taken
@@ -705,6 +724,8 @@ def test_publication_validation_refuses_a_source_outside_the_declared_forge(
         "source_repository": _fact("https://example.com/component"),
         "source_revision": _fact(COMMIT),
         "source_subpath": _fact("skills/component"),
+        "scope": _fact("global"),
+        "source_path": _fact("skills/component"),
     }
     stored = revisions.commit(
         registry,
@@ -850,52 +871,31 @@ def test_a_publication_refusal_names_the_fields_it_counted(
         component_passports.version_passport(registry, original.stable_id, "1.0")
 
     details = refused.value.details
-    assert refused.value.message == "the released component is not ready for publication"
+    assert (
+        refused.value.message
+        == "the released component revision is not an immutable version snapshot"
+    )
     named = str(details.get("fields", ""))
     assert named, details
     # Not a bare count: the paths themselves, so the next step is obvious.
     assert not named.isdigit(), f"the refusal still reports only a count: {named!r}"
-    assert "name" in named, named
+    assert "adaptations" in named, named
 
 
 def test_a_complete_catalog_snapshot_is_not_rebuilt_from_draft_facts(
     registry: sqlite3.Connection,
 ) -> None:
     """Acquired catalog versions keep their top-level artifact reference."""
-    stable_id = new_id("component")
-    document: dict[str, JsonValue] = {
-        "schema_version": 1,
-        "kind": "component",
-        "stable_id": stable_id,
-        "owner_id": new_id("account"),
-        "created_at": CREATED,
-        "visibility": "public",
-        "parent_revision_ids": [],
-        "facts": {},
-        "name": "catalog-snapshot",
-        "description": "A complete catalog snapshot.",
-        "version": "1.1",
-        "tags": ["catalog"],
-        "source": {
-            "repository": "https://github.com/example/component",
-            "commit": COMMIT,
-            "path": "components/catalog-snapshot",
-        },
-        "artifact": {
-            "digest": digest_bytes("ai-stp:artifact:v1", b"snapshot"),
-            "size_bytes": 8,
-        },
-        "harness_id": "codex",
-        "license": {"spdx_id": "MIT", "redistribution_allowed": True},
-        "component_type": "skill",
-        "projection_kind": "native_files",
-        "artifact_format": "ai-stp-component-file/1",
-    }
+    item = next(item for item in first_party_versions() if item.kind == "component")
+    document = cast(dict[str, JsonValue], item.passport.model_dump(mode="json"))
+    document.pop("revision_id")
+    stable_id = item.passport.stable_id
+    content.put(registry, item.artifact, at=CREATED)
     stored = revisions.commit(registry, document, device_id="device_test")
     versions.record(
         registry,
         stable_id=stable_id,
-        version="1.1",
+        version=item.passport.version,
         passport_digest=digest_canonical(
             "ai-stp:passport:v1",
             cast(dict[str, JsonValue], stored.envelope.model_dump(mode="json")),
@@ -904,9 +904,9 @@ def test_a_complete_catalog_snapshot_is_not_rebuilt_from_draft_facts(
         at=CREATED,
     )
 
-    passport = component_passports.version_passport(registry, stable_id, "1.1")
+    passport = component_passports.version_passport(registry, stable_id, item.passport.version)
 
-    assert passport.name == "catalog-snapshot"
-    assert passport.artifact.digest == document["artifact"]["digest"]  # type: ignore[index]
-    assert passport.artifact.size_bytes == 8
+    assert passport.name == item.passport.name
+    assert passport.artifact.digest == item.passport.artifact.digest
+    assert passport.artifact.size_bytes == len(item.artifact)
     assert verify_revision_id(passport)

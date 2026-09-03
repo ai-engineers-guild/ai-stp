@@ -25,7 +25,17 @@ from ai_stp_cli.local import components, content, journal, revisions
 from ai_stp_cli.local.passports import moment
 from ai_stp_contracts.component_passport import ComponentPassportPatch
 from ai_stp_foundation.canonical import JsonValue, from_json_bytes
-from ai_stp_passports.versions import ComponentType, ComponentVersionPassport
+from ai_stp_foundation.digests import digest_bytes
+from ai_stp_foundation.harnesses import HarnessId
+from ai_stp_foundation.provider_surfaces import PROVIDER_SURFACES
+from ai_stp_passports import ScopeAdaptation, build_projection, seal_adaptation
+from ai_stp_passports.envelope import seal_envelope
+from ai_stp_passports.versions import (
+    ComponentType,
+    ComponentVersionPassport,
+    ProjectionKind,
+    TargetScope,
+)
 
 MAX_PATCH_BYTES: Final[int] = 256 * 1024
 _SECRET_FIELD_NAMES: Final[frozenset[str]] = frozenset(
@@ -553,6 +563,8 @@ def validate_for_publication(
         "license",
         "content_digest",
         "byte_length",
+        "scope",
+        "source_path",
     )
     available = dict(values)
     available["source"] = source
@@ -563,33 +575,19 @@ def validate_for_publication(
         if not isinstance(repository, str) or not repository.startswith("https://github.com/"):
             invalid.add("source.repository")
     if not missing:
-        candidate = {
-            key: value
-            for key, value in document.items()
-            if key not in {"revision_id", "parent_revision_ids"}
-        }
-        candidate.update(values)
-        candidate.update(
-            {
-                "parent_revision_ids": [],
-                "version": "1.0",
-                "source": source,
-                "artifact": {
-                    "digest": values["content_digest"],
-                    "size_bytes": values["byte_length"],
-                },
-            }
-        )
-        from ai_stp_passports.envelope import derive_revision_id
-
-        candidate["revision_id"] = derive_revision_id(candidate)
+        harness_id = values.get("harness_id")
+        scope = values.get("scope")
+        if harness_id not in PROVIDER_SURFACES:
+            invalid.add("harness_id")
+        if scope not in {"global", "user_root", "project"}:
+            invalid.add("scope")
         try:
-            ComponentVersionPassport.model_validate(candidate)
-        except ValidationError as error:
-            invalid.update(
-                ".".join(str(part) for part in item["loc"])
-                for item in error.errors(include_input=False)
-            )
+            payload = content.get(connection, cast(str, values["content_digest"]))
+            expanded = components.expand(payload, cast(str, values.get("content_format") or ""))
+            if not expanded:
+                invalid.add("artifact")
+        except (CliFailure, ValueError):
+            invalid.add("artifact")
     return PublicationReadiness(
         stable_id=stable_id,
         revision_id=current.revision_id,
@@ -665,76 +663,173 @@ def version_passport(
         sealed["revision_id"] = derive_revision_id(sealed)
         return ComponentVersionPassport.model_validate(sealed)
 
-    raw_facts = cast(dict[str, JsonValue], document["facts"])
-    values = {
-        name: cast(dict[str, JsonValue], fact).get("value")
-        for name, fact in raw_facts.items()
-        if isinstance(fact, dict)
-    }
-    source = values.get("source")
-    if source is None and all(
-        values.get(name) for name in ("source_repository", "source_revision", "source_subpath")
-    ):
-        source = {
-            "repository": values["source_repository"],
-            "commit": values["source_revision"],
-            "path": values["source_subpath"],
-        }
-    candidate = {
-        key: value
-        for key, value in document.items()
-        if key not in {"revision_id", "parent_revision_ids"}
-    }
-    candidate.update(values)
-    candidate.update(
-        {
-            "version": version,
-            "visibility": "public",
-            "parent_revision_ids": [],
-            "source": source,
-            "artifact": {
-                "digest": values.get("content_digest"),
-                "size_bytes": values.get("byte_length"),
-            },
-        }
+    raise CliFailure(
+        "AI_STP_VALIDATION_ERROR",
+        "the released component revision is not an immutable version snapshot",
+        details={"id": stable_id, "version": version, "fields": "adaptations"},
+        next_actions=[f"component version release --id {stable_id} --json"],
     )
-    # Provisional only: the model requires the field to be present and shaped,
-    # and `_revision_payload` drops it before hashing, so its value here cannot
-    # affect the digest.
-    candidate["revision_id"] = derive_revision_id(candidate)
-    try:
-        validated = ComponentVersionPassport.model_validate(candidate)
-    except ValidationError as error:
+
+
+def materialize_version_passport(
+    connection: sqlite3.Connection,
+    stable_id: str,
+    version: str,
+    *,
+    device_id: str,
+    at: str,
+) -> tuple[ComponentVersionPassport, str]:
+    """Freeze a draft into one immutable adaptation snapshot and native CAS artifact."""
+    current = _component_head(connection, stable_id)
+    document = cast(dict[str, JsonValue], current.envelope.model_dump(mode="json"))
+    values = declared_values(document)
+    required = ("name", "description", "tags", "harness_id", "component_type", "projection_kind")
+    missing = [name for name in required if values.get(name) is None]
+    if missing:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
-            "the released component is not ready for publication",
-            # The paths, not their count. `validate --for-publication` answers
-            # the same question, and the next action still points at it for the
-            # fuller report — but the operator should not have to spend a
-            # command to learn what this refusal already had in hand.
+            "the component draft is not ready to release",
+            details={"fields": ", ".join(missing)},
+        )
+    harness_id = cast(HarnessId, values["harness_id"])
+    component_type = cast(ComponentType, values["component_type"])
+    projection_kind = cast(ProjectionKind, values["projection_kind"])
+    scope_name = cast(TargetScope, values.get("scope") or "")
+    if harness_id not in PROVIDER_SURFACES or scope_name not in {"global", "user_root", "project"}:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "the component draft has no supported explicit harness scope",
+        )
+    source_digest = str(values.get("content_digest") or "")
+    source_format = str(values.get("content_format") or "")
+    managed_paths = names_of(values.get("managed_paths"))
+    declared_key = str(values.get("declared_key") or "")
+    source_locator = str(values.get("source_locator") or "")
+    source_payload = content.get(connection, source_digest)
+    expanded = components.expand(source_payload, source_format)
+    if (
+        not expanded
+        or (declared_key and len(expanded) != 1)
+        or (not declared_key and len(managed_paths) != 1)
+    ):
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "the component source projection is empty",
             details={
-                "id": stable_id,
-                "version": version,
-                "fields": ", ".join(
-                    sorted({".".join(str(part) for part in item["loc"]) for item in error.errors()})
-                ),
+                "managed_paths": ", ".join(managed_paths),
+                "source_members": str(len(expanded)),
+                "declared_key": declared_key,
             },
-            next_actions=[f"component passport validate --id {stable_id} --for-publication --json"],
-        ) from error
-    # Derived a second time, and this time over the validated dump. Validation
-    # fills defaults the candidate never carried — `required_env`, `conflicts`,
-    # `native_ids`, `external_endpoints`, `compatibility_evidence_refs`,
-    # `variant_id` — so hashing the candidate produces a digest of a document
-    # that no longer exists.
-    #
-    # `verify_revision_id` compares against `model_dump(mode="json")`, and the
-    # server runs exactly that after its own `model_validate`. Hashing anything
-    # else is a passport that answers `400 passport invalid for publication`
-    # while the local `validate --for-publication` stays green, because it
-    # checks a different thing (`#381`).
-    sealed = cast(dict[str, JsonValue], validated.model_dump(mode="json"))
-    sealed["revision_id"] = derive_revision_id(sealed)
-    return ComponentVersionPassport.model_validate(sealed)
+        )
+    projection_root = source_locator.split("#", 1)[0] if declared_key else managed_paths[0]
+    projected: dict[str, bytes] = {}
+    modes: dict[str, int] = {}
+    for member in expanded:
+        path = (
+            projection_root if not member.path else f"{projection_root.rstrip('/')}/{member.path}"
+        )
+        projected[path] = member.content
+        modes[path] = member.mode
+    native_ids = names_of(values.get("native_ids"))
+    members: list[JsonValue] = [
+        {
+            "path": path,
+            "object_type": "file",
+            "mode": modes[path],
+            "content_artifact": {
+                "digest": digest_bytes("ai-stp:artifact:v1", payload),
+                "size_bytes": len(payload),
+            },
+            "native_ids": list(native_ids),
+            "content_format": "application/octet-stream",
+            "parser_id": "toml/1" if declared_key else None,
+            "ownership": "contribution" if declared_key else "whole",
+            "ownership_key": declared_key or None,
+            "write_semantics": "merge" if declared_key else "replace",
+            "withdrawal_semantics": "preserve_unowned" if declared_key else "remove_path",
+        }
+        for path, payload in sorted(projected.items())
+    ]
+    surface = PROVIDER_SURFACES[harness_id]
+    permissions = values.get("permissions") or {"filesystem": [], "network": [], "process": []}
+    scope_document: dict[str, JsonValue] = {
+        "scope": scope_name,
+        "projection_format": "ai-stp-adaptation-projection/1",
+        "projection_artifact": {"digest": "sha256:" + "0" * 64, "size_bytes": 1},
+        "provider_component_kind": component_type,
+        "projection_kind": projection_kind,
+        "required_surface": {
+            "profile_id": surface.profile_id,
+            "profile_digest": surface.profile_digest,
+            "bundle_format": surface.bundle_format,
+        },
+        "permissions": permissions,
+        "members": members,
+        "supported_harness_versions": values.get("supported_harness_versions") or [],
+        "supported_os": values.get("supported_os") or [],
+        "supported_arch": values.get("supported_arch") or [],
+        "technical_support": "experimental",
+        "technical_support_reason": "locally authored component pending assessment",
+        "semantic_losses": [],
+    }
+    provisional = ScopeAdaptation.model_validate(scope_document)
+    projection = build_projection(provisional, projected)
+    stored_artifact = content.put(connection, projection, at=at)
+    scope_document["projection_artifact"] = {
+        "digest": stored_artifact.digest,
+        "size_bytes": stored_artifact.byte_length,
+    }
+    adaptation = seal_adaptation(
+        {
+            "harness_id": harness_id,
+            "implementation_mode": "native",
+            "source_artifact": None,
+            "transform": None,
+            "logical_component_type": component_type,
+            "scope_adaptations": [scope_document],
+        }
+    )
+    body: dict[str, JsonValue] = {
+        "schema_version": 1,
+        "kind": "component",
+        "stable_id": stable_id,
+        "owner_id": document["owner_id"],
+        "created_at": document["created_at"],
+        "visibility": "public",
+        "parent_revision_ids": [],
+        "facts": document.get("facts") or {},
+        "name": values["name"],
+        "description": values["description"],
+        "version": version,
+        "tags": values["tags"],
+        "source": _exact_source(values),
+        "artifact": {"digest": stored_artifact.digest, "size_bytes": stored_artifact.byte_length},
+        "required_env": values.get("required_env") or [],
+        "requires_credentials": values.get("requires_credentials") or False,
+        "requires_authorization": values.get("requires_authorization") or "none",
+        "permissions": permissions,
+        "external_endpoints": values.get("external_endpoints") or [],
+        "license": values.get("license"),
+        "compatibility_evidence_refs": values.get("compatibility_evidence_refs") or [],
+        "component_type": component_type,
+        "origin_harness_id": harness_id,
+        "adaptations": [cast(JsonValue, adaptation.model_dump(mode="json"))],
+        "provides_capabilities": values.get("provides_capabilities") or [],
+        "requires_components": values.get("requires_components") or [],
+        "requires_capabilities": values.get("requires_capabilities") or [],
+        "conflicts": values.get("conflicts") or {},
+        "artifact_format": "ai-stp-adaptation-projection/1",
+        "runtime_requirements": values.get("runtime_requirements") or [],
+    }
+    normalized = ComponentVersionPassport.model_validate(
+        seal_envelope(body).model_dump(mode="json")
+    ).model_dump(mode="json")
+    normalized.pop("revision_id", None)
+    snapshot = revisions.store_snapshot(
+        connection, cast(dict[str, JsonValue], normalized), device_id=device_id
+    )
+    passport = ComponentVersionPassport.model_validate(snapshot.envelope.model_dump(mode="json"))
+    return passport, snapshot.revision_id
 
 
 def _component_head(connection: sqlite3.Connection, stable_id: str) -> revisions.StoredRevision:

@@ -2,15 +2,25 @@
 
 from __future__ import annotations
 
+import io
+import zipfile
 from importlib.resources import files
+from pathlib import PurePosixPath
 from typing import Final, Literal, cast
 
 from pydantic import BaseModel, ConfigDict
 
-from ai_stp_foundation.canonical import JsonValue, canonize
+from ai_stp_foundation.canonical import JsonValue, canonize, from_json_bytes
 from ai_stp_foundation.digests import digest_bytes, digest_canonical
+from ai_stp_foundation.provider_surfaces import PROVIDER_SURFACES
 from ai_stp_passports.envelope import seal_envelope, verify_revision_id
-from ai_stp_passports.versions import ComponentVersionPassport, SetupVersionPassport
+from ai_stp_passports.projections import build_projection
+from ai_stp_passports.versions import (
+    ComponentVersionPassport,
+    ScopeAdaptation,
+    SetupVersionPassport,
+    seal_adaptation,
+)
 
 OWNER_ID: Final[str] = "account_01KZET6ZKJN7S72T5H4WDV62T0"
 # Three constants stood here — `PI_LAYOUT_VERSION`, `CODEX_SKILLS_VERSION`,
@@ -119,6 +129,15 @@ class _SourceManifest(BaseModel):
     harnesses: tuple[_HarnessSource, ...]
 
 
+class _ScopePolicy(BaseModel):
+    """Explicit scope assignment for every harness in this corpus generation."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    schema_version: Literal[1]
+    harness_scopes: dict[str, Literal["global", "user_root", "project"]]
+
+
 #: Built by `release_scripts/build_first_party_corpus.py` from the seven live
 #: `*-setup-system` repositories, at the commit each one's `main` carried when
 #: it ran, with git's own tree and blob SHAs as provenance.
@@ -139,6 +158,11 @@ class _SourceManifest(BaseModel):
 def _sources() -> tuple[_HarnessSource, ...]:
     raw = files(__package__).joinpath("v1/corpus-sources.json").read_bytes()
     return _SourceManifest.model_validate_json(raw).harnesses
+
+
+def _scopes() -> dict[str, Literal["global", "user_root", "project"]]:
+    raw = files(__package__).joinpath("v1/scope-policy.json").read_bytes()
+    return _ScopePolicy.model_validate_json(raw).harness_scopes
 
 
 def _sealed(
@@ -187,7 +211,6 @@ def _common(
             "digest": digest_bytes(ARTIFACT_DIGEST_DOMAIN, artifact),
             "size_bytes": len(artifact),
         },
-        "harness_id": source.harness_id,
         "required_env": [],
         "requires_credentials": False,
         "requires_authorization": "none",
@@ -214,11 +237,110 @@ def _component_name(slug: str, harness_id: str, posture: str) -> str:
     return f"{slug} — {harness_id} {posture}"
 
 
+def _source_members(
+    component_source: _ComponentSource,
+    artifact: bytes,
+) -> tuple[tuple[str, bytes, int], ...]:
+    """Decode the captured source artifact into explicit native projection files."""
+    if component_source.artifact_format == COMPONENT_FILE_FORMAT:
+        return ((component_source.native_path, artifact, 0o644),)
+    with zipfile.ZipFile(io.BytesIO(artifact), mode="r") as archive:
+        manifest = from_json_bytes(archive.read("component.json"))
+        if not isinstance(manifest, dict) or not isinstance(manifest.get("files"), list):
+            raise RuntimeError("a first-party component tree manifest is invalid")
+        answer: list[tuple[str, bytes, int]] = []
+        manifest_files = cast(list[JsonValue], manifest["files"])
+        for raw in manifest_files:
+            if not isinstance(raw, dict):
+                raise RuntimeError("a first-party component tree member is invalid")
+            member = cast(dict[str, JsonValue], raw)
+            path = member.get("path")
+            mode = member.get("mode")
+            if not isinstance(path, str) or not isinstance(mode, int) or isinstance(mode, bool):
+                raise RuntimeError("a first-party component tree member identity is invalid")
+            native_path = str(PurePosixPath(component_source.native_path, path))
+            answer.append((native_path, archive.read(f"files/{path}"), mode))
+        return tuple(answer)
+
+
+def _adaptation(
+    source: _HarnessSource,
+    component_source: _ComponentSource,
+    source_artifact: bytes,
+) -> tuple[bytes, JsonValue]:
+    """Build one native, scope-explicit adaptation and its canonical projection."""
+    members = _source_members(component_source, source_artifact)
+    surface = PROVIDER_SURFACES[source.harness_id]  # type: ignore[index]
+    native_id = component_source.native_id or component_source.slug
+    member_documents: list[JsonValue] = [
+        {
+            "path": path,
+            "object_type": "file",
+            "mode": mode,
+            "content_artifact": {
+                "digest": digest_bytes(ARTIFACT_DIGEST_DOMAIN, content),
+                "size_bytes": len(content),
+            },
+            "native_ids": [native_id],
+            "content_format": "application/octet-stream",
+            "parser_id": None,
+            "ownership": "whole",
+            "ownership_key": None,
+            "write_semantics": "replace",
+            "withdrawal_semantics": "remove_path",
+        }
+        for path, content, mode in members
+    ]
+    scope_document: dict[str, JsonValue] = {
+        "scope": _scopes()[source.harness_id],
+        "projection_format": "ai-stp-adaptation-projection/1",
+        "projection_artifact": {"digest": "sha256:" + "0" * 64, "size_bytes": 1},
+        "provider_component_kind": component_source.component_type,
+        "projection_kind": component_source.projection_kind,
+        "required_surface": {
+            "profile_id": surface.profile_id,
+            "profile_digest": surface.profile_digest,
+            "bundle_format": surface.bundle_format,
+        },
+        "permissions": {"filesystem": [], "network": [], "process": []},
+        "members": member_documents,
+        "supported_harness_versions": [],
+        "supported_os": list(source.supported_os),
+        "supported_arch": list(source.supported_arch),
+        "technical_support": "supported",
+        "technical_support_reason": None,
+        "semantic_losses": [],
+    }
+    contents = {path: content for path, content, _mode in members}
+    provisional = ScopeAdaptation.model_validate(scope_document)
+    projection = build_projection(provisional, contents)
+    scope_document["projection_artifact"] = {
+        "digest": digest_bytes(ARTIFACT_DIGEST_DOMAIN, projection),
+        "size_bytes": len(projection),
+    }
+    scope = ScopeAdaptation.model_validate(scope_document)
+    projection = build_projection(scope, contents)
+    adaptation = seal_adaptation(
+        {
+            "harness_id": source.harness_id,
+            "implementation_mode": "native",
+            "source_artifact": None,
+            "transform": None,
+            "logical_component_type": component_source.component_type,
+            "scope_adaptations": [cast(JsonValue, scope.model_dump(mode="json"))],
+        }
+    )
+    return projection, cast(JsonValue, adaptation.model_dump(mode="json"))
+
+
 def _component(
     source: _HarnessSource,
     component_source: _ComponentSource,
 ) -> FirstPartyVersion:
-    artifact = files(__package__).joinpath(f"v1/{component_source.artifact_name}").read_bytes()
+    source_artifact = (
+        files(__package__).joinpath(f"v1/{component_source.artifact_name}").read_bytes()
+    )
+    artifact, adaptation = _adaptation(source, component_source, source_artifact)
     body = _common(
         source,
         kind="component",
@@ -256,17 +378,13 @@ def _component(
             ),
             "tags": ["code-review", "devops", "planning"],
             "component_type": component_source.component_type,
-            "projection_kind": component_source.projection_kind,
-            "variant_id": None,
+            "origin_harness_id": source.harness_id,
+            "adaptations": [adaptation],
             "provides_capabilities": [],
             "requires_components": [],
             "requires_capabilities": [],
             "conflicts": conflicts,
-            "managed_paths": [native_path],
-            "native_ids": [component_source.native_id or component_source.slug],
-            "harness_ids": [],
-            "supported_os": [],
-            "artifact_format": component_source.artifact_format,
+            "artifact_format": "ai-stp-adaptation-projection/1",
             "source_tree": component_source.source_tree,
         }
     )
@@ -276,7 +394,7 @@ def _component(
         passport=passport,
         passport_digest=_passport_digest(passport),
         artifact=artifact,
-        artifact_format=component_source.artifact_format,
+        artifact_format="ai-stp-adaptation-projection/1",
         source_tree=component_source.source_tree,
     )
 
@@ -334,6 +452,7 @@ def _setup(source: _HarnessSource, components: tuple[FirstPartyVersion, ...]) ->
         cast(
             dict[str, JsonValue],
             {
+                "harness_id": source.harness_id,
                 # Name and description come from the source. They were composed
                 # here until 2026-08-30, and the composition said "NDDev Builder"
                 # about all four postures because only one was ever read.
@@ -410,7 +529,13 @@ def family(harness_id: str, posture: str) -> tuple[FirstPartyVersion, ...]:
     found = tuple(
         item
         for item in versions()
-        if item.passport.harness_id == harness_id
+        if (
+            item.passport.harness_id == harness_id
+            if isinstance(item.passport, SetupVersionPassport)
+            else any(
+                adaptation.harness_id == harness_id for adaptation in item.passport.adaptations
+            )
+        )
         and (
             item.passport.posture == posture
             if isinstance(item.passport, SetupVersionPassport)

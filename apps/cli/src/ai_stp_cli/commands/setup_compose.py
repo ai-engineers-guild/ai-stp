@@ -7,6 +7,7 @@ import json
 from collections.abc import Mapping
 from contextlib import closing
 from pathlib import Path
+from typing import cast
 
 import httpx
 
@@ -17,8 +18,10 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import passports, setup_compose
 from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_contracts.machine_help import SetupComposePlan, SetupComposeResult
+from ai_stp_foundation.harnesses import HarnessId
 from ai_stp_foundation.ids import new_id
 from ai_stp_foundation.refs import ComponentRef
+from ai_stp_passports import ComponentVersionPassport, adaptation_for
 from ai_stp_sources.archive import MAX_ARCHIVE_BYTES
 from ai_stp_sources.errors import SourceError
 from ai_stp_sources.git import GithubHttpResponse
@@ -85,12 +88,18 @@ def _resolve(
                     "the catalog component passport differs from the manifest",
                     details={"stable_id": intent.stable_id},
                 )
-            if acquired.passport.harness_id != manifest.harness_id:
+            if not isinstance(acquired.passport, ComponentVersionPassport):
+                raise CliFailure(
+                    "AI_STP_CATALOG_INTEGRITY", "a component source is not a component"
+                )
+            try:
+                adaptation_for(acquired.passport, cast(HarnessId, manifest.harness_id))
+            except ValueError as error:
                 raise CliFailure(
                     "AI_STP_CONFLICT",
-                    "a catalog component belongs to another harness",
+                    "a catalog component has no adaptation for the setup harness",
                     details={"stable_id": intent.stable_id},
-                )
+                ) from error
             catalog.append(
                 setup_compose.CatalogMaterial(
                     ComponentRef(

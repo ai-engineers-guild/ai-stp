@@ -376,12 +376,20 @@ def _component(
             )
         kind = passport.component_type
         digest = passport.artifact.digest
-        # `entry_points` is a draft fact adoption records and not a public
-        # passport field; a public passport simply has none to declare.
-        surfaces = {
-            field: tuple(str(item) for item in getattr(passport, field, ()))
-            for field in _SURFACES[kind]
+        members = [
+            member
+            for adaptation in passport.adaptations
+            for scope in adaptation.scope_adaptations
+            for member in scope.members
+        ]
+        declared = {
+            "managed_paths": tuple(member.path for member in members),
+            "native_ids": tuple(native_id for member in members for native_id in member.native_ids),
+            "entry_points": tuple(
+                str(item) for item in (passport.model_extra or {}).get("entry_points", [])
+            ),
         }
+        surfaces = {field: declared[field] for field in _SURFACES[kind]}
     artifact = content.get(connection, digest)
     return _Loaded(
         EvalComponentCoordinate(

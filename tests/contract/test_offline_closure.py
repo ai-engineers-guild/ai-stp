@@ -272,6 +272,8 @@ def warm(tmp_path_factory: pytest.TempPathFactory) -> Warm:
     home, work = root / "home", root / "work"
     (work / ".git").mkdir(parents=True)
     home.mkdir()
+    (home / ".claude").mkdir()
+    (home / ".claude" / "CLAUDE.md").write_text("# Global rules\n\nBe careful.\n", encoding="utf-8")
     (work / "pyproject.toml").write_text('[project]\nname = "thing"\n', encoding="utf-8")
     (work / "CLAUDE.md").write_text("# Project rules\n\nBe careful.\n", encoding="utf-8")
     (work / "src").mkdir()
@@ -298,13 +300,36 @@ def warm(tmp_path_factory: pytest.TempPathFactory) -> Warm:
         "component",
         "adopt",
         "--path",
-        str(work / "CLAUDE.md"),
-        "--root",
-        str(work),
+        str(home / ".claude" / "CLAUDE.md"),
         "--json",
         home=home,
     )
     component_id = str(component["stable_id"])
+    component_patch = root / "component-patch.json"
+    component_patch.write_text(
+        json.dumps(
+            {
+                "name": "project-rules",
+                "description": "Project instructions used by the offline closure.",
+                "tags": ["offline"],
+                "license": {"spdx_id": "MIT", "redistribution_allowed": True},
+            }
+        ),
+        encoding="utf-8",
+    )
+    _ok(
+        "component",
+        "passport",
+        "update",
+        "--id",
+        component_id,
+        "--expected-revision",
+        str(component["revision_id"]),
+        "--from",
+        str(component_patch),
+        "--json",
+        home=home,
+    )
     released = _ok("component", "version", "release", "--id", component_id, "--json", home=home)
 
     # Compiled once here so that the offline compile has something exact to be

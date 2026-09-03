@@ -7,6 +7,7 @@ import base64
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+from tests.support.component_passports import adaptation_fields
 
 from ai_stp_assurance import AuthorAttestation, attestation_digest
 from ai_stp_foundation.ids import new_id
@@ -288,9 +289,8 @@ def test_validate_publication_passport_rejects_field_mismatches() -> None:
             "path": ".",
         },
         "artifact": {"digest": digest, "size_bytes": 1},
-        "harness_id": "claude-code",
+        **adaptation_fields(digest=digest, size=1),
         "component_type": "skill",
-        "projection_kind": "native_files",
         "conflicts": {
             "paths": [],
             "commands": [],

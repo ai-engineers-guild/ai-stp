@@ -155,6 +155,7 @@ def test_cli_plan_and_apply_resolve_a_local_component(tmp_path: Path) -> None:
                         "description": "Locally authored validation hook.",
                         "license_spdx": "MIT",
                         "redistribution_allowed": True,
+                        "managed_paths": ["hooks/check.py"],
                     }
                 ],
             }

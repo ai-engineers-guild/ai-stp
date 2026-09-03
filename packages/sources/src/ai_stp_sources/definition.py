@@ -19,7 +19,9 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 
 from ai_stp_foundation.canonical import CanonicalizationError, JsonValue, canonize, from_json_bytes
 from ai_stp_foundation.digests import digest_bytes
+from ai_stp_foundation.harnesses import HarnessId
 from ai_stp_foundation.ids import new_id
+from ai_stp_foundation.provider_surfaces import PROVIDER_SURFACES
 from ai_stp_foundation.refs import ComponentRef
 from ai_stp_passports import (
     ArtifactRef,
@@ -29,10 +31,14 @@ from ai_stp_passports import (
     GitSource,
     LicenseInfo,
     Permissions,
+    ScopeAdaptation,
+    build_projection,
     derive_revision_id,
+    seal_adaptation,
+    verify_projection,
     verify_revision_id,
 )
-from ai_stp_passports.versions import ComponentType, ProjectionKind
+from ai_stp_passports.versions import ComponentType, ProjectionKind, TargetScope
 from ai_stp_sources.archive import MAX_ARCHIVE_BYTES, reject_secret_name
 from ai_stp_sources.errors import (
     CATALOG_COLLISION,
@@ -65,6 +71,7 @@ class EmbeddedDraft:
     description: str
     license_spdx: str
     harness_id: str
+    target_scope: TargetScope
     redistribution_allowed: bool = False
     version: str = "1.0"
     tags: tuple[str, ...] = ("embedded",)
@@ -253,6 +260,7 @@ def _snapshot_record(snapshot: SourceSnapshot) -> dict[str, JsonValue]:
         ):
             raise SourceError(INVALID_SOURCE, "local absolute paths are not accepted")
     dumped = snapshot.model_dump(mode="json", exclude={"files", "fetched_at"})
+    dumped["file_paths"] = sorted(snapshot.files)
     return cast(dict[str, JsonValue], dumped)
 
 
@@ -317,11 +325,96 @@ def _safe_public_https(value: str | None) -> bool:
     )
 
 
+def _projection(draft: EmbeddedDraft) -> tuple[bytes, JsonValue]:
+    """Build the exact native artifact and adaptation for one embedded draft."""
+    source_files = sorted(draft.snapshot.files.items())
+    if len(draft.managed_paths) != len(source_files) or not source_files:
+        raise SourceError(
+            INCOMPLETE_PASSPORT,
+            "embedded components require one explicit managed path per source file",
+        )
+    for source_path, _content in source_files:
+        for part in source_path.split("/"):
+            reject_secret_name(part)
+    for managed_path in draft.managed_paths:
+        for part in managed_path.split("/"):
+            reject_secret_name(part)
+    try:
+        surface = PROVIDER_SURFACES[cast(HarnessId, draft.harness_id)]
+    except KeyError as error:
+        raise SourceError(
+            INCOMPLETE_PASSPORT, "embedded component harness is unsupported"
+        ) from error
+    contents = {
+        path: content
+        for path, (_source_name, content) in zip(draft.managed_paths, source_files, strict=True)
+    }
+    members: list[JsonValue] = [
+        {
+            "path": path,
+            "object_type": "file",
+            "mode": 0o644,
+            "content_artifact": {
+                "digest": digest_bytes(ARTIFACT_DIGEST_DOMAIN, content),
+                "size_bytes": len(content),
+            },
+            "native_ids": [],
+            "content_format": "application/octet-stream",
+            "parser_id": None,
+            "ownership": "whole",
+            "ownership_key": None,
+            "write_semantics": "replace",
+            "withdrawal_semantics": "remove_path",
+        }
+        for path, content in contents.items()
+    ]
+    scope_document: dict[str, JsonValue] = {
+        "scope": draft.target_scope,
+        "projection_format": "ai-stp-adaptation-projection/1",
+        "projection_artifact": {"digest": "sha256:" + "0" * 64, "size_bytes": 1},
+        "provider_component_kind": draft.component_type,
+        "projection_kind": draft.projection_kind,
+        "required_surface": {
+            "profile_id": surface.profile_id,
+            "profile_digest": surface.profile_digest,
+            "bundle_format": surface.bundle_format,
+        },
+        "permissions": (draft.permissions or Permissions()).model_dump(mode="json"),
+        "members": members,
+        "supported_harness_versions": [],
+        "supported_os": [],
+        "supported_arch": [],
+        "technical_support": "experimental",
+        "technical_support_reason": "locally authored embedded component",
+        "semantic_losses": [],
+    }
+    provisional = ScopeAdaptation.model_validate(scope_document)
+    projection = build_projection(provisional, contents)
+    scope_document["projection_artifact"] = {
+        "digest": digest_bytes(ARTIFACT_DIGEST_DOMAIN, projection),
+        "size_bytes": len(projection),
+    }
+    scope = ScopeAdaptation.model_validate(scope_document)
+    projection = build_projection(scope, contents)
+    adaptation = seal_adaptation(
+        {
+            "harness_id": draft.harness_id,
+            "implementation_mode": "native",
+            "source_artifact": None,
+            "transform": None,
+            "logical_component_type": draft.component_type,
+            "scope_adaptations": [cast(JsonValue, scope.model_dump(mode="json"))],
+        }
+    )
+    return projection, cast(JsonValue, adaptation.model_dump(mode="json"))
+
+
 def _build_passport(
     draft: EmbeddedDraft,
     *,
     stable_id: str,
     artifact: ArtifactRef,
+    adaptation: JsonValue,
     publisher_id: str,
     created_at: str,
 ) -> dict[str, JsonValue]:
@@ -355,7 +448,6 @@ def _build_passport(
         "tags": list(draft.tags),
         "source": _git_source(draft.snapshot),
         "artifact": {"digest": artifact.digest, "size_bytes": artifact.size_bytes},
-        "harness_id": draft.harness_id,
         "required_env": [item.model_dump(mode="json") for item in draft.required_env],
         "requires_credentials": False,
         "requires_authorization": "none",
@@ -368,16 +460,13 @@ def _build_passport(
         "compatibility_evidence_refs": [],
         "runtime_requirements": list(draft.runtime_requirements),
         "component_type": draft.component_type,
-        "projection_kind": draft.projection_kind,
-        "variant_id": None,
+        "origin_harness_id": draft.harness_id,
+        "adaptations": [adaptation],
         "provides_capabilities": [],
         "requires_components": [encode_component_ref(item) for item in draft.requires_components],
         "requires_capabilities": [],
         "conflicts": (draft.conflicts or Conflicts()).model_dump(mode="json"),
-        "managed_paths": list(draft.managed_paths),
-        "native_ids": [],
-        "harness_ids": list(draft.harness_ids),
-        "artifact_format": COMPONENT_TREE_FORMAT,
+        "artifact_format": "ai-stp-adaptation-projection/1",
     }
     try:
         candidate = dict(body)
@@ -421,7 +510,7 @@ def freeze_setup_definition(
     for draft in embedded_members:
         validate_frozen_snapshot(draft.snapshot)
         snapshot_record = _snapshot_record(draft.snapshot)
-        packed = pack_component_tree(draft.snapshot.files)
+        packed, adaptation = _projection(draft)
         artifact = ArtifactRef(
             digest=digest_bytes(ARTIFACT_DIGEST_DOMAIN, packed),
             size_bytes=len(packed),
@@ -440,6 +529,7 @@ def freeze_setup_definition(
             draft,
             stable_id=stable_id,
             artifact=artifact,
+            adaptation=adaptation,
             publisher_id=publisher_id,
             created_at=created_at,
         )
@@ -544,9 +634,18 @@ def validate_setup_definition(
         if record.ref.passport_digest != record.passport_digest:
             raise SourceError(INTEGRITY_MISMATCH, "embedded ref digest does not match the passport")
         try:
-            ComponentVersionPassport.model_validate(record.passport)
+            passport = ComponentVersionPassport.model_validate(record.passport)
         except ValidationError as exc:
             raise SourceError(INCOMPLETE_PASSPORT, "embedded passport is incomplete") from exc
+        if len(passport.adaptations) != 1:
+            raise SourceError(INCOMPLETE_PASSPORT, "embedded adaptation must name one scope")
+        adaptation = passport.adaptations[0]
+        if len(adaptation.scope_adaptations) != 1:
+            raise SourceError(INCOMPLETE_PASSPORT, "embedded adaptation must name one scope")
+        try:
+            verify_projection(adaptation.scope_adaptations[0], artifact)
+        except ValueError as exc:
+            raise SourceError(INTEGRITY_MISMATCH, "embedded projection is invalid") from exc
         if any(key in record.passport for key in ("reactions", "publisher_page", "catalog")):
             raise SourceError(
                 INCOMPLETE_PASSPORT, "embedded passport must not carry catalog metadata"

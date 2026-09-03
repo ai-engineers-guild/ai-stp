@@ -9,8 +9,10 @@ from pathlib import Path
 import pytest
 
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import revisions, versions
+from ai_stp_cli.local import component_passports, revisions, versions
 from ai_stp_cli.local.database import configured_path, open_registry
+from ai_stp_contracts.component_passport import ComponentPassportPatch
+from ai_stp_passports import LicenseInfo
 
 MOMENT = "2026-08-07T10:00:00.000Z"
 LATER = "2026-08-07T11:00:00.000Z"
@@ -398,7 +400,24 @@ def adopted(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
     (home / ".claude").mkdir(parents=True)
     (home / ".claude" / "CLAUDE.md").write_text("# instruction\n", encoding="utf-8")
     monkeypatch.setenv("HOME", str(home))
-    return command.adopt({"path": str(home / ".claude" / "CLAUDE.md")}).payload.stable_id
+    stable_id = command.adopt({"path": str(home / ".claude" / "CLAUDE.md")}).payload.stable_id
+    with closing(open_registry(configured_path())) as connection:
+        head = revisions.head(connection, stable_id)
+        assert head is not None
+        component_passports.update(
+            connection,
+            stable_id,
+            head.revision_id,
+            ComponentPassportPatch(
+                name="CLAUDE.md",
+                description="A locally adopted instruction.",
+                tags=["local"],
+                license=LicenseInfo(spdx_id="MIT", redistribution_allowed=True),
+            ),
+            device_id="device_test",
+        )
+        connection.commit()
+    return stable_id
 
 
 def test_the_release_command_numbers_the_head_and_then_the_next(adopted: str) -> None:
@@ -414,16 +433,15 @@ def test_the_release_command_numbers_the_head_and_then_the_next(adopted: str) ->
     assert listed.forked_from is None
 
 
-def test_releasing_the_same_head_twice_is_refused_as_a_reused_number(adopted: str) -> None:
+def test_releasing_the_same_head_twice_mints_two_exact_version_snapshots(adopted: str) -> None:
     from ai_stp_cli.commands import component as command
 
     command.version_release({"id": adopted})
-    # The head has not changed, so the next number would stand for content that
-    # already has one. `REQ-504` refuses the reuse rather than silently
-    # publishing the same bytes under two numbers.
+    # The version is inside the immutable passport, so the next number has its
+    # own digest even when the authoring head did not otherwise change.
     second = command.version_release({"id": adopted}).payload
     assert [item.version for item in second.versions] == ["1.0", "1.1"]
-    assert second.versions[0].passport_digest == second.versions[1].passport_digest
+    assert second.versions[0].passport_digest != second.versions[1].passport_digest
 
 
 def test_a_major_release_is_the_decision_flag_and_nothing_more(adopted: str) -> None:

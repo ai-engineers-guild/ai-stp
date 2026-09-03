@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from tests.support.component_passports import adaptation_fields
+
 from ai_stp_contracts.catalog import (
     CatalogSupport,
     CatalogTrust,
@@ -107,14 +109,13 @@ def test_version_response_keeps_official_publisher_and_upstream_notice() -> None
                 "path": "skills/demo",
             },
             "artifact": {"digest": "sha256:" + "b" * 64, "size_bytes": 12},
-            "harness_id": "claude-code",
+            **adaptation_fields(digest="sha256:" + "b" * 64, size=12),
             "required_env": [],
             "requires_credentials": False,
             "requires_authorization": "none",
             "permissions": {"filesystem": [], "network": [], "process": []},
             "external_endpoints": [],
             "component_type": "skill",
-            "projection_kind": "native_files",
         }
     )
     response = ComponentVersionResponse.model_validate(

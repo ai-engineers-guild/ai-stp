@@ -47,6 +47,8 @@ from ai_stp_passports.versions import (
     ScopeAdaptation,
     SetupVersionPassport,
     TransformRef,
+    adaptation_for,
+    scope_for,
     seal_adaptation,
 )
 
@@ -78,9 +80,11 @@ __all__ = [
     "ScopeAdaptation",
     "SetupVersionPassport",
     "TransformRef",
+    "adaptation_for",
     "build_projection",
     "derive_revision_id",
     "project_safe_markdown",
+    "scope_for",
     "seal_adaptation",
     "seal_envelope",
     "validate_safe_markdown",

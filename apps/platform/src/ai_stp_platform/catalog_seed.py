@@ -23,7 +23,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ai_stp_foundation.digests import digest_bytes, digest_canonical
 from ai_stp_foundation.timestamps import parse_timestamp
 from ai_stp_passports.envelope import derive_revision_id, verify_revision_id
-from ai_stp_passports.versions import ComponentVersionPassport, SetupVersionPassport
+from ai_stp_passports.versions import (
+    ComponentVersionPassport,
+    SetupVersionPassport,
+    seal_adaptation,
+)
 from ai_stp_platform.models import Account, CatalogMetadata, ComponentMedia
 from ai_stp_platform.storage.object_store import ARTIFACT_DIGEST_DOMAIN, ImmutableObjectStore
 
@@ -197,6 +201,44 @@ def _component_body(
     projection_kind: str = "native_files",
     published_at: str = FIXTURE_PUBLISHED_AT,
 ) -> dict[str, Any]:
+    adaptation = seal_adaptation(
+        {
+            "harness_id": harness_id,
+            "implementation_mode": "native",
+            "source_artifact": None,
+            "transform": None,
+            "logical_component_type": component_type,
+            "scope_adaptations": [
+                {
+                    "scope": "global",
+                    "projection_format": "ai-stp-adaptation-projection/1",
+                    "projection_artifact": {"digest": ZERO_DIGEST, "size_bytes": 1024},
+                    "provider_component_kind": component_type,
+                    "projection_kind": projection_kind,
+                    "required_surface": {
+                        "profile_id": f"{harness_id}/fixture/1",
+                        "profile_digest": ZERO_DIGEST,
+                        "bundle_format": "ai-stp-bundle/1",
+                    },
+                    "members": [
+                        {
+                            "path": f"fixtures/{stable_id}",
+                            "object_type": "file",
+                            "mode": 420,
+                            "content_artifact": {"digest": ZERO_DIGEST, "size_bytes": 1024},
+                            "native_ids": [stable_id],
+                            "content_format": "application/octet-stream",
+                            "ownership": "whole",
+                            "write_semantics": "replace",
+                            "withdrawal_semantics": "remove_path",
+                        }
+                    ],
+                    "technical_support": "experimental",
+                    "technical_support_reason": "synthetic catalog seed",
+                }
+            ],
+        }
+    )
     return {
         "schema_version": 1,
         "kind": "component",
@@ -213,7 +255,6 @@ def _component_body(
         "tags": tags,
         "source": None,
         "artifact": {"digest": ZERO_DIGEST, "size_bytes": 1024},
-        "harness_id": harness_id,
         "required_env": [],
         "requires_credentials": False,
         "requires_authorization": "none",
@@ -222,16 +263,12 @@ def _component_body(
         "license": {"spdx_id": "AGPL-3.0-or-later", "redistribution_allowed": True},
         "compatibility_evidence_refs": [],
         "component_type": component_type,
-        "projection_kind": projection_kind,
-        "variant_id": None,
+        "origin_harness_id": harness_id,
+        "adaptations": [adaptation.model_dump(mode="json")],
         "provides_capabilities": [],
         "requires_components": [],
         "requires_capabilities": [],
         "conflicts": _empty_conflicts(),
-        "managed_paths": [],
-        "native_ids": [],
-        "harness_ids": [],
-        "supported_os": [],
     }
 
 

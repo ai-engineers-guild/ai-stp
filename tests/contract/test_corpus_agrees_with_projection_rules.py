@@ -44,19 +44,23 @@ def test_every_corpus_component_projects_where_its_rule_says() -> None:
         # exactly the mistake this file exists to catch elsewhere.
         if not isinstance(passport, ComponentVersionPassport):
             continue
-        rule = composition.rule_for(passport.component_type, passport.harness_id)
-        if rule is None:
-            # A published kind this compiler cannot project is its own defect —
-            # the corpus would be shipping something no target can receive.
-            unruled.append(f"{passport.harness_id}/{passport.component_type}")
-            continue
-        for path in passport.managed_paths:
-            if path != rule.relative and not path.startswith(f"{rule.relative}/"):
-                disagreements.append(
-                    f"{passport.harness_id}/{passport.component_type}: "
-                    f"corpus says {path!r}, rule says {rule.relative!r} "
-                    f"(scope {rule.target_scope})"
+        for adaptation in passport.adaptations:
+            for scope in adaptation.scope_adaptations:
+                rule = composition.rule_for(
+                    passport.component_type, adaptation.harness_id, scope=scope.scope
                 )
+                if rule is None:
+                    unruled.append(
+                        f"{adaptation.harness_id}/{scope.scope}/{passport.component_type}"
+                    )
+                    continue
+                for member in scope.members:
+                    path = member.path
+                    if path != rule.relative and not path.startswith(f"{rule.relative}/"):
+                        disagreements.append(
+                            f"{adaptation.harness_id}/{scope.scope}/{passport.component_type}: "
+                            f"corpus says {path!r}, rule says {rule.relative!r}"
+                        )
     assert not unruled, sorted(set(unruled))
     assert not disagreements, sorted(set(disagreements))
 
@@ -69,5 +73,10 @@ def test_the_corpus_covers_every_harness_the_table_projects_for() -> None:
     the comparison above has something to compare for all of them.
     """
     ruled = {rule.harness_id for rule in composition.PROVIDER_RULES}
-    published = {item.passport.harness_id for item in versions()}
+    published = {
+        adaptation.harness_id
+        for item in versions()
+        if isinstance(item.passport, ComponentVersionPassport)
+        for adaptation in item.passport.adaptations
+    }
     assert ruled <= published, sorted(ruled - published)

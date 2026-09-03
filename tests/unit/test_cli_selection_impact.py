@@ -179,6 +179,7 @@ def test_project_baseline_uses_the_current_local_selection() -> None:
     _materialize(baseline, candidate)
     project_id = "project_01ARZ3NDEKTSV4RRFFQ69G5FAV"
     with closing(open_registry(configured_path())) as connection, transaction(connection):
+        assert isinstance(baseline.passport, SetupVersionPassport)
         connection.execute(
             "INSERT INTO entity (stable_id, kind, created_at) VALUES (?, 'project', ?)",
             (project_id, AT),

@@ -20,7 +20,6 @@ from ai_stp_sources.definition import (
     DEFINITION_V2,
     decode_embedded_artifact,
     try_parse_setup_definition,
-    unpack_component_tree,
     validate_setup_definition,
 )
 from ai_stp_sources.errors import (
@@ -454,10 +453,9 @@ async def _scan_embedded(
     }
     try:
         artifact = decode_embedded_artifact(str(record.get("artifact_b64") or ""))
-        unpack_component_tree(artifact)
-        snapshot = SourceSnapshot.model_validate(
-            {**cast(dict[str, object], record["snapshot"]), "files": {}}
-        )
+        snapshot_document = dict(cast(dict[str, object], record["snapshot"]))
+        snapshot_document.pop("file_paths", None)
+        snapshot = SourceSnapshot.model_validate({**snapshot_document, "files": {}})
         validate_frozen_snapshot(snapshot)
         _reject_secret_coordinate(snapshot)
         passport = ComponentVersionPassport.model_validate(record["passport"])

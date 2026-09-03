@@ -23,6 +23,7 @@ from ai_stp_cli.commands import registry as registry_commands
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import (
     cache,
+    component_passports,
     components,
     content,
     installation,
@@ -261,44 +262,67 @@ def _confirmed(
                 "confirmation": "none",
                 "observed_at": MOMENT,
             },
+            "source_path": {
+                "value": "skills/component.md",
+                "origin": "observed",
+                "confirmation": "none",
+                "observed_at": MOMENT,
+            },
+            "scope": {
+                "value": "global",
+                "origin": "observed",
+                "confirmation": "none",
+                "observed_at": MOMENT,
+            },
+            "projection_kind": {
+                "value": "native_files",
+                "origin": "declared",
+                "confirmation": "user_confirmed",
+                "observed_at": MOMENT,
+            },
+            "name": {
+                "value": "fixture",
+                "origin": "declared",
+                "confirmation": "user_confirmed",
+            },
+            "description": {
+                "value": "A formal install fixture.",
+                "origin": "declared",
+                "confirmation": "user_confirmed",
+            },
+            "tags": {
+                "value": ["tests"],
+                "origin": "declared",
+                "confirmation": "user_confirmed",
+            },
+            "license": {
+                "value": {"spdx_id": "MIT", "redistribution_allowed": False},
+                "origin": "declared",
+                "confirmation": "user_confirmed",
+            },
+            "managed_paths": {
+                "value": ["skills/component.md"],
+                "origin": "declared",
+                "confirmation": "user_confirmed",
+            },
+            "requires_authorization": {
+                "value": requires_authorization,
+                "origin": "declared",
+                "confirmation": "user_confirmed",
+            },
         },
     }
-    if requires_authorization != "none":
-        document.update(
-            {
-                "name": "authorization-fixture",
-                "description": "A formal component with external authorization.",
-                "version": "1.0",
-                "tags": ["tests"],
-                "source": None,
-                "artifact": {"digest": "sha256:" + "8" * 64, "size_bytes": 8},
-                "harness_id": harness_id,
-                "required_env": [],
-                "requires_credentials": False,
-                "requires_authorization": requires_authorization,
-                "permissions": {"filesystem": [], "network": [], "process": []},
-                "external_endpoints": [],
-                "license": {"spdx_id": "MIT", "redistribution_allowed": False},
-                "compatibility_evidence_refs": [],
-                "component_type": component_type,
-                "projection_kind": "native_files",
-                "variant_id": None,
-                "provides_capabilities": [],
-                "requires_components": [],
-                "requires_capabilities": [],
-                "conflicts": {},
-                "managed_paths": [],
-                "native_ids": [],
-            }
-        )
-    stored = revisions.commit(registry, document, device_id=DEVICE)
-    digest = cache.digest_of(stored.envelope.model_dump(mode="json"))
+    revisions.commit(registry, document, device_id=DEVICE)
+    passport, revision_id = component_passports.materialize_version_passport(
+        registry, stable_id, "1.0", device_id=DEVICE, at=MOMENT
+    )
+    digest = cache.digest_of(passport.model_dump(mode="json"))
     versions.record(
         registry,
         stable_id=stable_id,
         version="1.0",
         passport_digest=digest,
-        revision_id=stored.revision_id,
+        revision_id=revision_id,
         at=MOMENT,
     )
 

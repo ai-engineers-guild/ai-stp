@@ -17,6 +17,7 @@ from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import digest_bytes
 from ai_stp_foundation.refs import ComponentRef
 from ai_stp_passports.envelope import derive_revision_id
+from ai_stp_passports.versions import SetupVersionPassport
 from ai_stp_sources.definition import DEFINITION_V2, EmbeddedDraft, freeze_setup_definition
 from ai_stp_sources.models import SourceSnapshot
 
@@ -49,6 +50,7 @@ def _draft(stable_id: str, name: str, body: bytes) -> EmbeddedDraft:
         description="Embedded skill used for explicit update tests.",
         license_spdx="MIT",
         harness_id="grok-build",
+        target_scope="global",
         stable_id=stable_id,
         managed_paths=(f"skills/{name}/SKILL.md",),
     )
@@ -72,6 +74,7 @@ def _store_setup(*, two_named_demo: bool = False) -> tuple[str, str, str]:
         if two_named_demo
         else (_draft(EMBEDDED_A, "demo", b"# Demo A\n"),)
     )
+    assert isinstance(setup.passport, SetupVersionPassport)
     frozen = freeze_setup_definition(
         setup_id=setup.passport.stable_id,
         version=setup.passport.version,

@@ -8,7 +8,9 @@ never a display name.
 
 from __future__ import annotations
 
+import io
 import sqlite3
+import zipfile
 from collections.abc import Callable, Mapping, Sequence
 from typing import Final, cast
 
@@ -31,7 +33,6 @@ from ai_stp_sources.definition import (
     decode_embedded_artifact,
     encode_component_ref,
     freeze_setup_definition,
-    unpack_component_tree,
     validate_setup_definition,
 )
 from ai_stp_sources.models import SourceIntent, SourceSnapshot
@@ -347,6 +348,7 @@ def _freeze_replacement(
                     description=draft.description,
                     license_spdx=draft.license_spdx,
                     harness_id=draft.harness_id,
+                    target_scope=draft.target_scope,
                     redistribution_allowed=draft.redistribution_allowed,
                     version=_next_component_version(draft.version),
                     tags=draft.tags,
@@ -419,16 +421,38 @@ def _draft_from_record(record: Mapping[str, object]) -> EmbeddedDraft:
             "AI_STP_PRECONDITION_FAILED",
             "an embedded component record is not complete",
         )
-    files = unpack_component_tree(decode_embedded_artifact(str(record.get("artifact_b64") or "")))
-    snapshot = SourceSnapshot.model_validate({**snapshot_doc, "files": files})
     license_info = passport.get("license")
     spdx = "LicenseRef-Unknown"
     allowed = False
     if isinstance(license_info, dict):
         spdx = str(license_info.get("spdx_id") or spdx)
         allowed = bool(license_info.get("redistribution_allowed"))
-    managed = passport.get("managed_paths")
-    paths = tuple(str(item) for item in managed) if isinstance(managed, list) else ()
+    adaptations = passport.get("adaptations")
+    if not isinstance(adaptations, list) or len(adaptations) != 1:
+        raise CliFailure("AI_STP_CONFLICT", "an embedded component adaptation is invalid")
+    adaptation = adaptations[0]
+    if not isinstance(adaptation, dict):
+        raise CliFailure("AI_STP_CONFLICT", "an embedded component adaptation is invalid")
+    scopes = adaptation.get("scope_adaptations")
+    if not isinstance(scopes, list) or len(scopes) != 1 or not isinstance(scopes[0], dict):
+        raise CliFailure("AI_STP_CONFLICT", "an embedded component scope is invalid")
+    scope = scopes[0]
+    members = scope.get("members")
+    if not isinstance(members, list):
+        raise CliFailure("AI_STP_CONFLICT", "an embedded component members list is invalid")
+    paths = tuple(str(member.get("path")) for member in members if isinstance(member, dict))
+    source_paths = snapshot_doc.get("file_paths")
+    if not isinstance(source_paths, list) or len(source_paths) != len(paths):
+        raise CliFailure("AI_STP_CONFLICT", "an embedded source path map is invalid")
+    projection = decode_embedded_artifact(str(record.get("artifact_b64") or ""))
+    with zipfile.ZipFile(io.BytesIO(projection), "r") as archive:
+        files = {
+            str(source_path): archive.read(managed_path)
+            for source_path, managed_path in zip(source_paths, paths, strict=True)
+        }
+    snapshot_fields = dict(snapshot_doc)
+    snapshot_fields.pop("file_paths", None)
+    snapshot = SourceSnapshot.model_validate({**snapshot_fields, "files": files})
     tags = passport.get("tags")
     return EmbeddedDraft(
         snapshot=snapshot,
@@ -436,7 +460,8 @@ def _draft_from_record(record: Mapping[str, object]) -> EmbeddedDraft:
         name=str(passport.get("name") or "embedded"),
         description=str(passport.get("description") or "Embedded component."),
         license_spdx=spdx,
-        harness_id=str(passport.get("harness_id") or "claude-code"),
+        harness_id=str(adaptation.get("harness_id") or ""),
+        target_scope=str(scope.get("scope") or ""),  # pyright: ignore[reportArgumentType]
         redistribution_allowed=allowed,
         version=str(passport.get("version") or "1.0"),
         tags=tuple(str(item) for item in tags) if isinstance(tags, list) else ("embedded",),

@@ -361,7 +361,17 @@ class ComponentAdaptation(BaseModel):
 
 def seal_adaptation(data: dict[str, JsonValue]) -> ComponentAdaptation:
     """Add the canonical content ID and validate one adaptation manifest."""
-    candidate = dict(data)
+    candidate: dict[str, JsonValue] = {
+        "harness_id": data.get("harness_id"),
+        "implementation_mode": data.get("implementation_mode"),
+        "source_artifact": data.get("source_artifact"),
+        "transform": data.get("transform"),
+        "logical_component_type": data.get("logical_component_type"),
+        "scope_adaptations": [
+            cast(JsonValue, ScopeAdaptation.model_validate(item).model_dump(mode="json"))
+            for item in cast(list[JsonValue], data.get("scope_adaptations"))
+        ],
+    }
     candidate["adaptation_id"] = adaptation_id(candidate)
     return ComponentAdaptation.model_validate(candidate)
 
@@ -375,7 +385,6 @@ class _VersionPassportBase(PassportEnvelope):
     tags: Annotated[list[TagId], Field(min_length=1, max_length=MAX_TAGS)]
     source: GitSource | None = None
     artifact: ArtifactRef
-    harness_id: HarnessId
     required_env: list[EnvVarRequirement] = Field(default_factory=list[EnvVarRequirement])
     requires_credentials: bool = False
     requires_authorization: Literal["none", "user_account", "external_service"] = "none"
@@ -404,26 +413,59 @@ class ComponentVersionPassport(_VersionPassportBase):
     # Narrowing the envelope kind to one literal is safe on a frozen model.
     kind: Literal["component"] = "component"  # pyright: ignore[reportIncompatibleVariableOverride]
     component_type: ComponentType
-    projection_kind: ProjectionKind
-    variant_id: Annotated[str, Field(pattern=stable_id_pattern("variant"))] | None = None
+    origin_harness_id: HarnessId | None = None
+    adaptations: Annotated[list[ComponentAdaptation], Field(min_length=1, max_length=7)]
     provides_capabilities: list[CapabilityId] = Field(default_factory=list)
     requires_components: list[ComponentRef] = Field(default_factory=list[ComponentRef])
     requires_capabilities: list[CapabilityId] = Field(default_factory=list)
     conflicts: Conflicts = Field(default_factory=Conflicts)
-    managed_paths: list[str] = Field(default_factory=list)
-    native_ids: list[str] = Field(default_factory=list)
-    harness_ids: Annotated[list[HarnessId], Field(max_length=7)] = Field(
-        default_factory=list[HarnessId]
-    )
-    supported_os: list[SupportedOs] = Field(default_factory=list[SupportedOs])
 
     @model_validator(mode="after")
-    def _safe_managed_paths(self) -> "ComponentVersionPassport":
-        for path in self.managed_paths:
-            _relative_path(path)
-        if self.harness_ids and self.harness_id not in self.harness_ids:
-            raise ValueError("harness_ids must include harness_id")
+    def _adaptations_are_unique_and_typed(self) -> "ComponentVersionPassport":
+        flat_fields = {
+            "harness_id",
+            "harness_ids",
+            "managed_paths",
+            "native_ids",
+            "projection_kind",
+            "supported_os",
+            "variant_id",
+        }
+        if flat_fields.intersection(self.model_extra or {}):
+            raise ValueError("the first supported component form has no flat adaptation fields")
+        harnesses = [adaptation.harness_id for adaptation in self.adaptations]
+        if len(harnesses) != len(set(harnesses)):
+            raise ValueError("component adaptations must not repeat a harness")
+        if any(
+            adaptation.logical_component_type != self.component_type
+            for adaptation in self.adaptations
+        ):
+            raise ValueError("every adaptation must preserve the logical component type")
         return self
+
+
+def adaptation_for(
+    passport: ComponentVersionPassport,
+    harness_id: HarnessId,
+) -> ComponentAdaptation:
+    """Select the sole explicit adaptation for a harness; never infer one."""
+    matches = [item for item in passport.adaptations if item.harness_id == harness_id]
+    if len(matches) != 1:
+        raise ValueError(f"component has no unique adaptation for {harness_id}")
+    return matches[0]
+
+
+def scope_for(
+    passport: ComponentVersionPassport,
+    harness_id: HarnessId,
+    scope: TargetScope,
+) -> ScopeAdaptation:
+    """Select one explicit harness/scope atom; never borrow another scope."""
+    adaptation = adaptation_for(passport, harness_id)
+    matches = [item for item in adaptation.scope_adaptations if item.scope == scope]
+    if len(matches) != 1:
+        raise ValueError(f"component has no unique {harness_id}/{scope} adaptation")
+    return matches[0]
 
 
 class SetupVersionPassport(_VersionPassportBase):
@@ -431,6 +473,7 @@ class SetupVersionPassport(_VersionPassportBase):
 
     # Narrowing the envelope kind to one literal is safe on a frozen model.
     kind: Literal["setup"] = "setup"  # pyright: ignore[reportIncompatibleVariableOverride]
+    harness_id: HarnessId
     purpose: str
     #: Optional, and `ADR-0130` says why: a role is a claim about content that no
     #: vendor page can source, so a required field forced whoever imported a

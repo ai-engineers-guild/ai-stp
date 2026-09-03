@@ -154,6 +154,14 @@ size, directory emptiness, metadata, and byte-for-byte canonical re-encoding.
 Harness versions are exact opaque product-version identifiers, not ranges; an
 author lists each tested value and a new value requires a new component version.
 
+`component version release` is the freeze boundary. It refuses an incomplete
+draft, builds and verifies the canonical projection, stores those bytes in the
+local content-addressed store, normalizes the complete passport, and records an
+immutable snapshot without moving or replacing the mutable draft head. A later
+publication reads that exact snapshot; it never rebuilds a different passport
+from draft facts. Releasing the same unchanged draft as another `X.Y` still
+produces a different passport digest because `version` is inside the snapshot.
+
 The first supported form does not contain flat `harness_ids`, a component-level
 `harness_id`, `variant_id`, or shared projection/path/native-ID/platform fields.
 Earlier alpha bytes remain immutable historical evidence and are not converted

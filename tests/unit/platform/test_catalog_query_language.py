@@ -78,7 +78,10 @@ def test_query_language_evaluates_every_field_and_operator(query: str, expected:
 
 
 def test_query_language_matches_any_named_harness() -> None:
-    passport = {**_PASSPORT, "harness_ids": ["codex", "claude-code"]}
+    passport = {
+        **_PASSPORT,
+        "adaptations": [{"harness_id": "codex"}, {"harness_id": "claude-code"}],
+    }
     assert matches(parse_query("HARNESS:claude-code"), passport, author="nddev", verified=True)
     assert matches(
         parse_query("HARNESS IN (claude-code, grok-build)"),

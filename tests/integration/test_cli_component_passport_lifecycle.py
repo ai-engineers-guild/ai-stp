@@ -237,7 +237,9 @@ redistribution_allowed = true
     released = _run(environment, "component", "version", "release", "--id", stable_id)
     versions = cast(list[dict[str, object]], released["versions"])
     assert versions[0]["version"] == "1.0"
-    assert versions[0]["revision_id"] == complete["revision_id"]
+    assert versions[0]["revision_id"] != complete["revision_id"]
+    assert str(versions[0]["passport_digest"]).startswith("sha256:")
+    released_revision = versions[0]["revision_id"]
 
     later_patch = tmp_path / "later.json"
     later_patch.write_text(json.dumps({"description": "Checks quality safely."}), encoding="utf-8")
@@ -256,7 +258,7 @@ redistribution_allowed = true
     assert later["revision_id"] != complete["revision_id"]
     line = _run(environment, "component", "version", "list", "--id", stable_id)
     recorded = cast(list[dict[str, object]], line["versions"])
-    assert recorded[0]["revision_id"] == complete["revision_id"]
+    assert recorded[0]["revision_id"] == released_revision
 
     stale = subprocess.run(
         [

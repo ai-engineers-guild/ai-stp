@@ -587,6 +587,7 @@ def _candidate(
     )
     return components.Found(
         component_type=str(mapping.component_type),
+        projection_kind="native_files",
         native_role=None,
         harness_id="",
         scope=components.SCOPE_PROJECT,

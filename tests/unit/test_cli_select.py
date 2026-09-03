@@ -17,6 +17,7 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import (
     acquired_trust,
     cache,
+    component_passports,
     consent,
     content,
     passports,
@@ -27,9 +28,11 @@ from ai_stp_cli.local import (
 from ai_stp_cli.local.database import configured_path, open_readonly, open_registry
 from ai_stp_cli.local.passports import owner
 from ai_stp_cli.paths import data_dir
+from ai_stp_contracts.component_passport import ComponentPassportPatch
 from ai_stp_contracts.machine_help import EligibilityMatrix, EligibilityReport
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.harnesses import HARNESS_IDS
+from ai_stp_passports import EnvVarRequirement, LicenseInfo
 
 MOMENT = "2026-08-08T10:00:00.000Z"
 DEVICE = "device_test"
@@ -546,6 +549,7 @@ def test_there_are_no_reports_until_the_closure_resolves(
                 "harness": "claude-code",
                 "project": str(tmp_path),
                 "proposal": session.proposals[0].proposal_id,
+                "scope": "project",
             }
         )
     assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
@@ -555,13 +559,33 @@ def test_there_are_no_reports_until_the_closure_resolves(
 def _adopted(registry: sqlite3.Connection, tmp_path: Path, name: str) -> str:
     """One component adopted from a real file, so its bytes are in the store."""
     from ai_stp_cli.commands import component as command
+    from ai_stp_cli.local import harnesses
 
-    place = tmp_path / ".claude" / "skills"
+    detector = next(item for item in harnesses.DETECTORS if item.harness_id == "claude-code")
+    place = harnesses.config_root(detector, dict(os.environ)) / "skills"
     place.mkdir(parents=True, exist_ok=True)
     (place / name).write_text(f"# {name}\n", encoding="utf-8")
-    stable_id = command.adopt({"path": str(place / name), "root": str(tmp_path)}).payload.stable_id
+    stable_id = command.adopt({"path": str(place / name)}).payload.stable_id
+    _complete_adopted(registry, stable_id, name)
     command.version_release({"id": stable_id})
     return stable_id
+
+
+def _complete_adopted(registry: sqlite3.Connection, stable_id: str, name: str) -> None:
+    head = revisions.head(registry, stable_id)
+    assert head is not None
+    component_passports.update(
+        registry,
+        stable_id,
+        head.revision_id,
+        ComponentPassportPatch(
+            name=name,
+            description=f"Locally adopted {name} component.",
+            tags=["local"],
+            license=LicenseInfo(spdx_id="MIT", redistribution_allowed=True),
+        ),
+        device_id=DEVICE,
+    )
 
 
 def test_a_bundle_compiles_from_adopted_content(
@@ -744,9 +768,11 @@ def test_a_bundle_preserves_every_file_and_mode_from_an_adopted_skill_tree(
     registry: sqlite3.Connection, tmp_path: Path
 ) -> None:
     from ai_stp_cli.commands import component as command
+    from ai_stp_cli.local import harnesses
 
     _ready(registry, tmp_path)
-    skill = tmp_path / ".claude" / "skills" / "reviewer"
+    detector = next(item for item in harnesses.DETECTORS if item.harness_id == "claude-code")
+    skill = harnesses.config_root(detector, dict(os.environ)) / "skills" / "reviewer"
     (skill / "references").mkdir(parents=True)
     (skill / "scripts").mkdir()
     (skill / "SKILL.md").write_bytes(b"# reviewer\n")
@@ -754,7 +780,8 @@ def test_a_bundle_preserves_every_file_and_mode_from_an_adopted_skill_tree(
     script = skill / "scripts" / "check.sh"
     script.write_bytes(b"#!/bin/sh\nexit 0\n")
     script.chmod(0o755)
-    stable_id = command.adopt({"path": str(skill), "root": str(tmp_path)}).payload.stable_id
+    stable_id = command.adopt({"path": str(skill)}).payload.stable_id
+    _complete_adopted(registry, stable_id, "reviewer")
     command.version_release({"id": stable_id})
     session = select.propose(
         {"harness": "claude-code", "project": str(tmp_path), "member": [f"{stable_id}@1.0"]}
@@ -1137,14 +1164,20 @@ def test_a_component_needing_an_unset_variable_still_compiles(
     # State the need on the passport the composition reads.
     stored = revisions.head(registry, stable_id)
     assert stored is not None
-    document: dict[str, Any] = stored.envelope.model_dump(mode="json")
-    document["required_env"] = [
-        {"name": "AI_STP_NOT_EXPORTED_ANYWHERE", "purpose": "a key nobody exported"}
-    ]
-    document["external_endpoints"] = ["https://api.example.test"]
-    document.pop("revision_id")
-    document["parent_revision_ids"] = [stored.revision_id]
-    revisions.commit(registry, document, device_id="device_test")
+    component_passports.update(
+        registry,
+        stable_id,
+        stored.revision_id,
+        ComponentPassportPatch(
+            required_env=[
+                EnvVarRequirement(
+                    name="AI_STP_NOT_EXPORTED_ANYWHERE", purpose="a key nobody exported"
+                )
+            ],
+            external_endpoints=["https://api.example.test"],
+        ),
+        device_id=DEVICE,
+    )
     from ai_stp_cli.commands import component as command
 
     command.version_release({"id": stable_id, "version": "1.1"})
@@ -1238,11 +1271,13 @@ def test_a_named_version_is_assessed_by_its_own_declared_facts(
 
     stored = revisions.head(registry, stable_id)
     assert stored is not None
-    document: dict[str, Any] = stored.envelope.model_dump(mode="json")
-    document["supported_os"] = ["plan9"]
-    document.pop("revision_id")
-    document["parent_revision_ids"] = [stored.revision_id]
-    revisions.commit(registry, document, device_id="device_test")
+    component_passports.update(
+        registry,
+        stable_id,
+        stored.revision_id,
+        ComponentPassportPatch(supported_os=["windows"]),
+        device_id=DEVICE,
+    )
     from ai_stp_cli.commands import component as command
 
     command.version_release({"id": stable_id, "version": "1.1"})
@@ -1516,6 +1551,7 @@ def test_a_bundle_compiled_for_a_workspace_lands_on_workspace_surfaces(
     stable_id = command.adopt(
         {"path": str(place / "review.mdc"), "root": str(tmp_path)}
     ).payload.stable_id
+    _complete_adopted(registry, stable_id, "review.mdc")
     command.version_release({"id": stable_id})
     session = select.propose(
         {"harness": "cursor", "project": str(tmp_path), "member": [f"{stable_id}@1.0"]}
@@ -1524,25 +1560,19 @@ def test_a_bundle_compiled_for_a_workspace_lands_on_workspace_surfaces(
     assert proposal is not None
     select.confirm({"proposal": proposal})
 
-    home = select.harness_bundle(
-        {"harness": "cursor", "project": str(tmp_path), "proposal": proposal}
-    ).payload
+    with pytest.raises(CliFailure) as unavailable:
+        select.harness_bundle({"harness": "cursor", "project": str(tmp_path), "proposal": proposal})
+    assert unavailable.value.code == "AI_STP_PRECONDITION_FAILED"
     workspace = select.harness_bundle(
         {"harness": "cursor", "project": str(tmp_path), "proposal": proposal, "scope": "project"}
     ).payload
-    assert [item.path for item in home.files] == ["rules/review.mdc"]
     assert [item.path for item in workspace.files] == [".cursor/rules/review.mdc"]
-    assert home.digest != workspace.digest
-    assert home.target_scope == "global"
     assert workspace.target_scope == "project"
-    compiled = select.compile_harness_bundle(registry, proposal, "cursor")
-    assert "target_scope" not in compiled.manifest
-    assert compiled.digest == home.digest
     scoped = select.compile_harness_bundle(registry, proposal, "cursor", scope="project")
     assert scoped.manifest["target_scope"] == "project"
 
 
-def _contributed(tmp_path: Path) -> tuple[str, str]:
+def _contributed(registry: sqlite3.Connection, tmp_path: Path) -> tuple[str, str]:
     """One `mcp` component adopted from codex's owned `config.toml`, proposed and confirmed."""
     import os
 
@@ -1558,6 +1588,7 @@ def _contributed(tmp_path: Path) -> tuple[str, str]:
     stable_id = command.adopt(
         {"path": str(place), "kind": "mcp", "harness": "codex"}
     ).payload.stable_id
+    _complete_adopted(registry, stable_id, "mcp01")
     command.version_release({"id": stable_id})
     session = select.propose(
         {"harness": "codex", "project": str(tmp_path), "member": [f"{stable_id}@1.0"]}
@@ -1577,7 +1608,7 @@ def test_a_withdrawal_bundle_keeps_what_the_person_wrote_beside_the_contribution
     file as the one member whose bytes survive.
     """
     _ready(registry, tmp_path)
-    stable_id, version = _contributed(tmp_path)
+    stable_id, version = _contributed(registry, tmp_path)
     host_root = tmp_path / "target"
     host_root.mkdir()
     (host_root / "config.toml").write_text(
@@ -1605,7 +1636,7 @@ def test_a_host_that_would_end_empty_is_not_packed(
 ) -> None:
     """Nothing survives: the removal goes whole and no bundle says otherwise."""
     _ready(registry, tmp_path)
-    stable_id, version = _contributed(tmp_path)
+    stable_id, version = _contributed(registry, tmp_path)
     host_root = tmp_path / "target"
     host_root.mkdir()
     (host_root / "config.toml").write_text(

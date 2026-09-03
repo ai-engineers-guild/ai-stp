@@ -13,13 +13,16 @@ MAX_IN_VALUES = 32
 
 
 def named_harness_ids(passport: dict[str, Any]) -> list[str]:
-    """Primary harness plus any extra names, de-duplicated in declaration order."""
+    """Every explicitly named harness, de-duplicated without inventing support."""
     primary = str(passport.get("harness_id") or "")
-    raw = passport.get("harness_ids")
+    raw = passport.get("adaptations")
     extra: list[str] = []
     if isinstance(raw, list):
         for item in cast(list[object], raw):
-            extra.append(str(item))
+            if isinstance(item, dict):
+                harness_id = cast(dict[str, object], item).get("harness_id")
+                if isinstance(harness_id, str):
+                    extra.append(harness_id)
     ordered: list[str] = []
     for value in [primary, *extra]:
         if value and value not in ordered:

@@ -260,17 +260,10 @@ def test_an_adopted_draft_component_is_loaded_through_the_one_passport_owner(
     assert loaded.coordinate.passport_digest == recorded.passport_digest
 
 
-def test_an_adopted_draft_is_evaluated_from_its_own_facts_without_publication_fields(
+def test_an_incomplete_adopted_draft_must_be_enriched_before_version_evaluation(
     tmp_path: Path,
 ) -> None:
-    """`#66`, the evaluator's half: a draft nobody enriched still evaluates.
-
-    The test above enriches the draft with name, licence and tags first,
-    because the loader once demanded the publication profile. Every
-    `component adopt` produces a draft without them, and `propose → confirm →
-    install` accepts it; the evaluation reads the declared surfaces from the
-    draft's own facts and needs nothing the install path does not.
-    """
+    """An evaluation names an immutable version, so an incomplete draft cannot enter it."""
     project = tmp_path / "repository"
     skill = project / ".claude" / "skills" / "plain"
     skill.mkdir(parents=True)
@@ -284,18 +277,10 @@ def test_an_adopted_draft_is_evaluated_from_its_own_facts_without_publication_fi
         )
         stored = components.adopt(connection, found, device_id="device_test")
         connection.commit()
-    component_command.version_release({"id": stored.stable_id})
-
-    with closing(open_readonly(configured_path())) as connection:
-        recorded = versions.held(connection, stored.stable_id, "1.0")
-        assert recorded is not None
-        loaded = evaluation._component(  # pyright: ignore[reportPrivateUsage]
-            connection, stored.stable_id, "1.0", recorded.passport_digest
-        )
-
-    assert loaded.coordinate.component_type == "skill"
-    assert loaded.surfaces["managed_paths"], "adoption declares the managed path the check reads"
-    assert evaluation._static_contract(loaded)  # pyright: ignore[reportPrivateUsage]
+    with pytest.raises(CliFailure) as incomplete:
+        component_command.version_release({"id": stored.stable_id})
+    assert incomplete.value.code == "AI_STP_VALIDATION_ERROR"
+    assert "name" in str(incomplete.value.details.get("fields"))
 
 
 def test_a_draft_without_its_kind_is_named_as_a_precondition_for_evaluation(

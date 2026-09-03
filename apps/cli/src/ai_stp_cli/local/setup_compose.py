@@ -158,6 +158,7 @@ def compose(
             description=cast(str, item.description),
             license_spdx=cast(str, item.license_spdx),
             harness_id=manifest.harness_id,
+            target_scope="global",
             redistribution_allowed=item.redistribution_allowed,
             version=item.version,
             managed_paths=item.managed_paths,

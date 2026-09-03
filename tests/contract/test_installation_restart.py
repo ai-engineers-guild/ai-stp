@@ -175,6 +175,8 @@ def ready(tmp_path_factory: pytest.TempPathFactory) -> Ready:
     root = tmp_path_factory.mktemp("restart")
     home, work = root / "home", root / "work"
     home.mkdir()
+    (home / ".claude").mkdir()
+    (home / ".claude" / "CLAUDE.md").write_text("# Global rules\n\nBe careful.\n", encoding="utf-8")
     (work / ".git").mkdir(parents=True)
     (work / "pyproject.toml").write_text('[project]\nname = "thing"\n', encoding="utf-8")
     (work / "CLAUDE.md").write_text("# Project rules\n\nBe careful.\n", encoding="utf-8")
@@ -187,10 +189,32 @@ def ready(tmp_path_factory: pytest.TempPathFactory) -> Ready:
         _ok(*argv, home=home)
     _ok("project", "passport", "--root", str(work), home=home)
 
-    adopted = _ok(
-        "component", "adopt", "--path", str(work / "CLAUDE.md"), "--root", str(work), home=home
-    )
+    adopted = _ok("component", "adopt", "--path", str(home / ".claude" / "CLAUDE.md"), home=home)
     component_id = str(adopted["stable_id"])
+    component_patch = root / "component-patch.json"
+    component_patch.write_text(
+        json.dumps(
+            {
+                "name": "project-rules",
+                "description": "Project instructions used by restart recovery.",
+                "tags": ["restart"],
+                "license": {"spdx_id": "MIT", "redistribution_allowed": True},
+            }
+        ),
+        encoding="utf-8",
+    )
+    _ok(
+        "component",
+        "passport",
+        "update",
+        "--id",
+        component_id,
+        "--expected-revision",
+        str(adopted["revision_id"]),
+        "--from",
+        str(component_patch),
+        home=home,
+    )
     _ok("component", "version", "release", "--id", component_id, home=home)
 
     started = root / "provider-was-reached"

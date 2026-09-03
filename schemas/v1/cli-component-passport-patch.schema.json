@@ -240,6 +240,21 @@
       ],
       "type": "string"
     },
+    "SupportedArch": {
+      "enum": [
+        "x86_64",
+        "arm64"
+      ],
+      "type": "string"
+    },
+    "SupportedOs": {
+      "enum": [
+        "linux",
+        "macos",
+        "windows"
+      ],
+      "type": "string"
+    },
     "TagId": {
       "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
       "type": "string"
@@ -548,6 +563,21 @@
       ],
       "default": null
     },
+    "supported_arch": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/SupportedArch"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Supported Arch"
+    },
     "supported_harness_versions": {
       "anyOf": [
         {
@@ -563,6 +593,21 @@
       ],
       "default": null,
       "title": "Supported Harness Versions"
+    },
+    "supported_os": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/SupportedOs"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Supported Os"
     },
     "tags": {
       "anyOf": [

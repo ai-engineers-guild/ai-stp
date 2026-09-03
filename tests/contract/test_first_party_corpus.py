@@ -3,6 +3,7 @@
 import hashlib
 import io
 import json
+import posixpath
 import zipfile
 from importlib.resources import files
 from typing import cast
@@ -10,14 +11,11 @@ from typing import cast
 from release_scripts import build_first_party_corpus as builder
 
 from ai_stp_cli.local import composition
-from ai_stp_contracts.first_party import (
-    COMPONENT_FORMAT,
-    SETUP_FORMAT,
-    versions,
-)
+from ai_stp_contracts.first_party import SETUP_FORMAT, versions
 from ai_stp_foundation.canonical import JsonValue, canonize
 from ai_stp_foundation.digests import digest_bytes
 from ai_stp_passports.envelope import verify_revision_id
+from ai_stp_passports.projections import verify_projection
 from ai_stp_passports.versions import ComponentVersionPassport, SetupVersionPassport
 
 
@@ -67,6 +65,11 @@ REPOSITORIES = {
 }
 
 
+def _component_harness(passport: ComponentVersionPassport) -> str:
+    assert len(passport.adaptations) == 1
+    return passport.adaptations[0].harness_id
+
+
 def test_every_first_party_object_names_the_live_repository_of_its_harness() -> None:
     """The corpus this replaced cited an estate transferred and archived.
 
@@ -82,7 +85,11 @@ def test_every_first_party_object_names_the_live_repository_of_its_harness() -> 
     setups = [item for item in corpus if item.kind == "setup"]
 
     assert len(corpus) == len(components) + len(setups)
-    assert {item.passport.harness_id for item in setups} == set(REPOSITORIES)
+    assert {
+        item.passport.harness_id
+        for item in setups
+        if isinstance(item.passport, SetupVersionPassport)
+    } == set(REPOSITORIES)
 
     # One setup per harness *per posture*, and the pair is asserted rather than
     # the count. `len(setups) == len(REPOSITORIES)` held while one posture of
@@ -102,7 +109,12 @@ def test_every_first_party_object_names_the_live_repository_of_its_harness() -> 
 
     for item in corpus:
         assert item.passport.source is not None
-        assert item.passport.source.repository == REPOSITORIES[item.passport.harness_id]
+        harness_id = (
+            item.passport.harness_id
+            if isinstance(item.passport, SetupVersionPassport)
+            else _component_harness(item.passport)
+        )
+        assert item.passport.source.repository == REPOSITORIES[harness_id]
         assert len(item.passport.source.commit) == 40
         assert set(item.passport.source.commit) <= set("0123456789abcdef")
         assert item.passport.artifact.digest == digest_bytes("ai-stp:artifact:v1", item.artifact)
@@ -116,7 +128,8 @@ def test_every_first_party_object_names_the_live_repository_of_its_harness() -> 
         members = [
             item
             for item in components
-            if item.passport.harness_id == setup.passport.harness_id
+            if isinstance(item.passport, ComponentVersionPassport)
+            and _component_harness(item.passport) == setup.passport.harness_id
             and item.passport.source is not None
             and item.passport.source.path.split("/", 1)[0] == setup.passport.posture
         ]
@@ -150,17 +163,18 @@ def test_the_corpus_projects_where_the_compiler_projects() -> None:
             continue
         passport = item.passport
         assert isinstance(passport, ComponentVersionPassport)
-        rule = composition.rule_for(passport.component_type, passport.harness_id)
-        assert rule is not None, (passport.harness_id, passport.component_type)
-        managed = list(passport.managed_paths)
-        assert len(managed) == 1
-        path = managed[0]
-        if rule.shape == "file":
-            assert path == rule.relative
-        else:
-            assert path.startswith(f"{rule.relative}/")
-            assert path.count("/") == rule.relative.count("/") + 1
-        assert passport.projection_kind == rule.projection_kind
+        adaptation = passport.adaptations[0]
+        scope = adaptation.scope_adaptations[0]
+        rule = composition.rule_for(
+            passport.component_type, adaptation.harness_id, scope=scope.scope
+        )
+        assert rule is not None, (adaptation.harness_id, passport.component_type)
+        for member in scope.members:
+            if rule.shape == "file":
+                assert member.path == rule.relative
+            else:
+                assert member.path.startswith(f"{rule.relative}/")
+        assert scope.projection_kind == rule.projection_kind
 
 
 def test_a_setup_publishes_the_platform_set_its_provider_declared() -> None:
@@ -264,28 +278,34 @@ def test_first_party_source_manifest_is_canonical_closed_and_unique() -> None:
     assert not files("ai_stp_contracts.first_party").joinpath("v1/role-sources.json").is_file()
 
 
-def test_first_party_component_archives_are_closed_and_match_their_manifests() -> None:
+def test_first_party_component_archives_are_closed_and_match_their_adaptations() -> None:
     for component in (item for item in versions() if item.kind == "component"):
-        if component.artifact_format == "ai-stp-component-file/1":
-            assert _git_object("blob", component.artifact).hex() == component.source_tree
-            continue
-        assert component.artifact_format == COMPONENT_FORMAT
+        assert isinstance(component.passport, ComponentVersionPassport)
+        adaptation = component.passport.adaptations[0]
+        scope = adaptation.scope_adaptations[0]
+        assert component.artifact_format == "ai-stp-adaptation-projection/1"
+        verify_projection(scope, component.artifact)
         with zipfile.ZipFile(io.BytesIO(component.artifact)) as archive:
-            names = archive.namelist()
-            assert names == sorted(names)
-            assert names[0] == "component.json"
-            assert any(name.endswith("plugin.json") or name.endswith("SKILL.md") for name in names)
-            manifest = json.loads(archive.read("component.json"))
-            assert archive.read("component.json") == canonize(cast(JsonValue, manifest))
-            declared = {f"files/{item['path']}" for item in manifest["files"]}
-            assert set(names) == {"component.json", *declared}
+            rule = composition.rule_for(
+                component.passport.component_type, adaptation.harness_id, scope=scope.scope
+            )
+            assert rule is not None
             git_entries: dict[str, tuple[int, bytes]] = {}
-            for item in manifest["files"]:
-                payload = archive.read(f"files/{item['path']}")
-                assert len(payload) == item["byte_length"]
-                assert digest_bytes("ai-stp:artifact:v1", payload) == item["digest"]
-                git_entries[item["path"]] = (item["mode"], payload)
-            assert _git_tree(git_entries) == component.source_tree
+            common_root = posixpath.commonpath([member.path for member in scope.members])
+            if len(scope.members) == 1:
+                common_root = posixpath.dirname(common_root)
+                for member in scope.members:
+                    payload = archive.read(member.path)
+                    if (
+                        len(scope.members) == 1
+                        and _git_object("blob", payload).hex() == component.source_tree
+                    ):
+                        assert _git_object("blob", payload).hex() == component.source_tree
+                    else:
+                        relative = member.path.removeprefix(f"{common_root}/")
+                        git_entries[relative] = (member.mode, payload)
+                if git_entries:
+                    assert _git_tree(git_entries) == component.source_tree
 
 
 def test_first_party_passports_are_complete_public_immutable_snapshots() -> None:

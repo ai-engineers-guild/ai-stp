@@ -10,8 +10,10 @@ from pathlib import Path
 import pytest
 
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import importing, revisions, versions
+from ai_stp_cli.local import component_passports, importing, revisions, versions
 from ai_stp_cli.local.database import configured_path, open_registry
+from ai_stp_contracts.component_passport import ComponentPassportPatch
+from ai_stp_passports import LicenseInfo
 
 AT = "2026-08-08T10:00:00.000Z"
 DEVICE = "device_test"
@@ -1254,6 +1256,21 @@ def test_an_imported_setup_compiles_into_the_bundle_an_adopted_one_would(
 
     members: list[selection.Member] = []
     for component_id in imported.component_ids:
+        head = revisions.head(registry, component_id)
+        assert head is not None
+        component_passports.update(
+            registry,
+            component_id,
+            head.revision_id,
+            ComponentPassportPatch(
+                name=component_id,
+                description="An explicitly imported local component.",
+                tags=["imported"],
+                license=LicenseInfo(spdx_id="MIT", redistribution_allowed=True),
+            ),
+            device_id=DEVICE,
+        )
+        registry.commit()
         line = component_command.version_release({"id": component_id}).payload
         version = line.versions[-1].version
         recorded = versions.held(registry, component_id, version)
@@ -1297,17 +1314,11 @@ def test_an_imported_setup_compiles_into_the_bundle_an_adopted_one_would(
     )
     registry.commit()
 
-    # Without a target the contribution has no host bytes to assemble over,
-    # and the refusal names both commands that take one.
-    with pytest.raises(CliFailure) as refused:
-        select_command.compile_setup_version_bundle(
-            registry, confirmed.stable_id, confirmed.version, expected_harness="codex"
-        )
-    assert refused.value.code == "AI_STP_PRECONDITION_FAILED"
-    assert refused.value.next_actions == [
-        "select bundle --harness codex --proposal <id> --target <directory> --json",
-        "install plan --proposal <id> --provider <executable> --target <directory> --json",
-    ]
+    # The sibling setting owns the complete host file, so the contribution has
+    # an exact base and does not depend on mutable target bytes.
+    portable = select_command.compile_setup_version_bundle(
+        registry, confirmed.stable_id, confirmed.version, expected_harness="codex"
+    )
 
     target = tmp_path / "target"
     target.mkdir()
@@ -1317,6 +1328,7 @@ def test_an_imported_setup_compiles_into_the_bundle_an_adopted_one_would(
     )
 
     assert compiled.compiled, compiled.refusals
+    assert compiled.digest == portable.digest
     paths = sorted(item.path for item in compiled.files)
     assert paths == ["AGENTS.md", "config.toml", "prompts/ship.md"]
     import io

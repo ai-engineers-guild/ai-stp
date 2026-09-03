@@ -29,7 +29,7 @@ from binascii import Error as Base64Error
 from dataclasses import KW_ONLY, dataclass, replace
 from itertools import islice
 from pathlib import Path, PurePosixPath
-from typing import Final
+from typing import Final, cast
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import (
@@ -50,6 +50,7 @@ from ai_stp_cli.paths import redact_home
 from ai_stp_foundation.canonical import JsonValue, canonize, from_json_bytes
 from ai_stp_foundation.digests import digest_bytes, digest_canonical
 from ai_stp_foundation.ids import new_id
+from ai_stp_passports.versions import ProjectionKind
 
 #: The eight kinds, from `packages/passports`. Restated here only as a guard:
 #: a detector naming something outside this set is a bug in this file, and the
@@ -87,6 +88,7 @@ CLAUDE_PLUGIN_SOURCE: Final[str] = "code.claude.com/docs/en/plugins"
 CLAUDE_MCP_SOURCE: Final[str] = "code.claude.com/docs/en/mcp"
 CURSOR_PLUGIN_SOURCE: Final[str] = "cursor.com/docs/reference/plugins"
 COMPONENT_FILE_FORMAT: Final[str] = "ai-stp-component-file/1"
+PROJECTION_FORMAT: Final[str] = "ai-stp-adaptation-projection/1"
 COMPONENT_TREE_FORMAT: Final[str] = "ai-stp-component-tree/1"
 #: What `setup import register` stored until 2026-09-02: a canonical JSON
 #: envelope of scrubbed members at their harness-root-relative paths. It
@@ -171,7 +173,7 @@ class Rule:
     #: Native packaging selected by the target provider.  Discovery rules use
     #: native files unless a provider projection explicitly declares another
     #: package family.
-    projection_kind: str = "native_files"
+    projection_kind: ProjectionKind = "native_files"
 
     #: When set, the file at `relative` is a component only if it structurally
     #: declares at least one entry under this key. Set where a kind lives
@@ -432,7 +434,7 @@ def _declared_rules(scope: str) -> tuple[Rule, ...]:
             layout.source,
             layout.root,
             excluded_names=layout.excluded_names,
-            projection_kind=layout.projection_kind,
+            projection_kind=cast(ProjectionKind, layout.projection_kind),
             declared_key=layout.declared_key,
             excludes_plugin_manifest=layout.excludes_plugin_manifest,
         )
@@ -607,6 +609,7 @@ PROJECT_RULES: Final[tuple[Rule, ...]] = _declared_rules(harness_catalog.P)
 #: about every key a harness invents next.
 ADOPTED_FIELDS: Final[tuple[str, ...]] = (
     "component_type",
+    "projection_kind",
     "native_role",
     "harness_id",
     "scope",
@@ -671,6 +674,7 @@ class Found:
     """One native component, described without its content being read."""
 
     component_type: str
+    projection_kind: ProjectionKind
     native_role: str | None
     harness_id: str
     scope: str
@@ -1024,6 +1028,7 @@ def _passport(
     """A passport built from the allowlist, one fact per adopted field."""
     values: dict[str, JsonValue] = {
         "component_type": item.component_type,
+        "projection_kind": item.projection_kind,
         "native_role": item.native_role,
         "harness_id": item.harness_id,
         "scope": item.scope,
@@ -1598,6 +1603,7 @@ def _describe(
         DISCOVERY_DIGEST_DOMAIN,
         {
             "component_type": rule.component_type,
+            "projection_kind": rule.projection_kind,
             "native_role": native_role
             or ("mcp_client_config" if rule.component_type == "mcp" else None),
             "harness_id": rule.harness_id,
@@ -1621,6 +1627,7 @@ def _describe(
     )
     return Found(
         component_type=rule.component_type,
+        projection_kind=rule.projection_kind,
         native_role=native_role or ("mcp_client_config" if rule.component_type == "mcp" else None),
         harness_id=rule.harness_id,
         scope=scope,
@@ -1876,6 +1883,25 @@ def expand(payload: bytes, content_format: str) -> tuple[ComponentFile, ...]:
         return (ComponentFile("", payload, 0o644),)
     if content_format == IMPORTED_COMPONENT_FORMAT:
         return _expand_imported(payload)
+    if content_format == PROJECTION_FORMAT:
+        try:
+            with zipfile.ZipFile(io.BytesIO(payload), "r") as archive:
+                answer: list[ComponentFile] = []
+                names = archive.namelist()
+                if len(names) != len(set(names)) or len(names) > MAX_COMPONENT_FILES:
+                    raise ValueError("projection members are repeated or excessive")
+                for info in archive.infolist():
+                    mode = info.external_attr >> 16
+                    if info.is_dir():
+                        continue
+                    if info.compress_type != zipfile.ZIP_STORED or not stat.S_ISREG(mode):
+                        raise ValueError("projection member metadata is unsafe")
+                    answer.append(
+                        ComponentFile(info.filename, archive.read(info), stat.S_IMODE(mode))
+                    )
+                return tuple(answer)
+        except (OSError, ValueError, zipfile.BadZipFile) as error:
+            raise CliFailure("AI_STP_CONFLICT", "the stored projection is corrupt") from error
     if content_format != COMPONENT_TREE_FORMAT:
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED",

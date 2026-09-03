@@ -19,6 +19,8 @@ from ai_stp_passports.versions import (
     LicenseInfo,
     Permissions,
     ProjectionKind,
+    SupportedArch,
+    SupportedOs,
     TagId,
 )
 
@@ -85,6 +87,8 @@ class ComponentPassportPatch(BaseModel):
         Annotated[list[BoundedComponentText], Field(max_length=MAX_COMPONENT_PATCH_LIST_ITEMS)]
         | None
     ) = None
+    supported_os: list[SupportedOs] | None = None
+    supported_arch: list[SupportedArch] | None = None
 
     @field_validator("description")
     @classmethod

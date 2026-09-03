@@ -243,6 +243,45 @@ def commit(
     return stored
 
 
+def store_snapshot(
+    connection: sqlite3.Connection,
+    content: dict[str, JsonValue],
+    *,
+    device_id: str,
+    operation_id: str | None = None,
+) -> StoredRevision:
+    """Store an immutable version snapshot without changing the draft head."""
+    sealed = seal_envelope(content)
+    if sealed.parent_revision_ids:
+        raise CliFailure("AI_STP_CONFLICT", "an immutable snapshot cannot name draft parents")
+    document = canonize(cast(dict[str, JsonValue], sealed.model_dump(mode="json"))).decode("utf-8")
+    with transaction(connection):
+        known = get(connection, sealed.revision_id)
+        if known is not None:
+            return known
+        entity = connection.execute(
+            "SELECT kind FROM entity WHERE stable_id = ?", (sealed.stable_id,)
+        ).fetchone()
+        if entity is None or str(entity["kind"]) != sealed.kind:
+            raise CliFailure("AI_STP_CONFLICT", "an immutable snapshot has no matching entity")
+        connection.execute(
+            "INSERT INTO revision "
+            "(revision_id, stable_id, content, device_id, operation_id, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                sealed.revision_id,
+                sealed.stable_id,
+                document,
+                device_id,
+                operation_id,
+                sealed.created_at,
+            ),
+        )
+    stored = get(connection, sealed.revision_id)
+    assert stored is not None
+    return stored
+
+
 def _validate_parents(connection: sqlite3.Connection, sealed: PassportEnvelope) -> None:
     """Every parent must exist and belong to the same entity.
 

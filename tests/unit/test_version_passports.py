@@ -13,6 +13,7 @@ from ai_stp_passports import (
     GitSource,
     LicenseInfo,
     SetupVersionPassport,
+    seal_adaptation,
     seal_envelope,
 )
 
@@ -22,6 +23,43 @@ CREATED = "2026-08-05T10:00:00.000Z"
 
 
 def _component(**overrides: JsonValue) -> dict[str, JsonValue]:
+    adaptation = seal_adaptation(
+        {
+            "harness_id": "claude-code",
+            "implementation_mode": "native",
+            "source_artifact": None,
+            "transform": None,
+            "logical_component_type": "skill",
+            "scope_adaptations": [
+                {
+                    "scope": "global",
+                    "projection_format": "ai-stp-adaptation-projection/1",
+                    "projection_artifact": dict(ARTIFACT),
+                    "provider_component_kind": "skill",
+                    "projection_kind": "native_files",
+                    "required_surface": {
+                        "profile_id": "claude/native-and-marketplace/1",
+                        "profile_digest": ARTIFACT["digest"],
+                        "bundle_format": "ai-stp-bundle/1",
+                    },
+                    "members": [
+                        {
+                            "path": "skills/pytest/SKILL.md",
+                            "object_type": "file",
+                            "mode": 420,
+                            "content_artifact": dict(ARTIFACT),
+                            "native_ids": ["pytest"],
+                            "content_format": "commonmark_v1",
+                            "ownership": "whole",
+                            "write_semantics": "replace",
+                            "withdrawal_semantics": "remove_path",
+                        }
+                    ],
+                    "technical_support": "supported",
+                }
+            ],
+        }
+    )
     data: dict[str, JsonValue] = {
         "kind": "component",
         "stable_id": new_id("component"),
@@ -33,10 +71,10 @@ def _component(**overrides: JsonValue) -> dict[str, JsonValue]:
         "version": "1.0",
         "tags": ["python", "tests"],
         "artifact": dict(ARTIFACT),
-        "harness_id": "claude-code",
         "license": dict(LICENSE),
         "component_type": "skill",
-        "projection_kind": "native_files",
+        "origin_harness_id": "claude-code",
+        "adaptations": [cast(JsonValue, adaptation.model_dump(mode="json"))],
     }
     data.update(overrides)
     return data
@@ -73,7 +111,7 @@ def test_component_passport_seals_with_taxonomy() -> None:
     sealed = seal_envelope(_component())
     passport = ComponentVersionPassport.model_validate(sealed.model_dump(mode="json"))
     assert passport.component_type == "skill"
-    assert passport.projection_kind == "native_files"
+    assert passport.adaptations[0].scope_adaptations[0].projection_kind == "native_files"
 
 
 def test_immutable_version_passports_reject_draft_parents() -> None:
@@ -110,18 +148,20 @@ def test_changing_only_the_description_changes_the_immutable_passport_digest() -
     assert first_digest != changed_digest
 
 
-def test_component_harness_ids_must_include_primary_and_may_name_os() -> None:
-    with pytest.raises(ValidationError, match="harness_ids must include harness_id"):
-        ComponentVersionPassport.model_validate(
-            seal_envelope(_component(harness_ids=["codex"])).model_dump(mode="json")
-        )
-    accepted = ComponentVersionPassport.model_validate(
-        seal_envelope(
-            _component(harness_ids=["claude-code", "codex"], supported_os=["linux", "windows"])
-        ).model_dump(mode="json")
-    )
-    assert list(accepted.harness_ids) == ["claude-code", "codex"]
-    assert list(accepted.supported_os) == ["linux", "windows"]
+def test_component_rejects_every_retired_flat_adaptation_field() -> None:
+    for field, value in {
+        "harness_id": "claude-code",
+        "harness_ids": ["claude-code"],
+        "managed_paths": ["skills/example"],
+        "native_ids": ["example"],
+        "projection_kind": "native_files",
+        "supported_os": ["linux"],
+        "variant_id": None,
+    }.items():
+        with pytest.raises(ValidationError, match="no flat adaptation fields"):
+            ComponentVersionPassport.model_validate(
+                seal_envelope(_component()).model_dump(mode="json") | {field: value}
+            )
 
 
 def test_marketplace_is_not_a_component_type() -> None:
@@ -189,17 +229,14 @@ def test_artifact_and_license_are_strict() -> None:
     assert LicenseInfo(spdx_id="AGPL-3.0-or-later", redistribution_allowed=True).spdx_id
 
 
-def test_managed_paths_reject_traversal_and_absolute_paths() -> None:
-    # A managed path names a file the provider will write inside the target.
-    # `GitSource.path` is guarded and this list was not, so the guard was never
-    # exercised on the field that decides where bytes actually land.
-    for bad in ("../escape", "/etc/passwd", "a/../../b", ""):
-        with pytest.raises(ValidationError):
-            ComponentVersionPassport.model_validate(
-                seal_envelope(_component()).model_dump(mode="json") | {"managed_paths": [bad]}
-            )
-    accepted = ComponentVersionPassport.model_validate(
-        seal_envelope(_component()).model_dump(mode="json")
-        | {"managed_paths": ["skills/example/SKILL.md"]}
-    )
-    assert accepted.managed_paths == ["skills/example/SKILL.md"]
+def test_component_adaptations_must_preserve_type_and_not_repeat_harness() -> None:
+    body = _component()
+    adaptations = body["adaptations"]
+    assert isinstance(adaptations, list)
+    body["adaptations"] = [adaptations[0], adaptations[0]]
+    with pytest.raises(ValidationError, match="must not repeat"):
+        ComponentVersionPassport.model_validate(seal_envelope(body).model_dump(mode="json"))
+
+    mismatched = _component(component_type="agent")
+    with pytest.raises(ValidationError, match="preserve the logical component type"):
+        ComponentVersionPassport.model_validate(seal_envelope(mismatched).model_dump(mode="json"))

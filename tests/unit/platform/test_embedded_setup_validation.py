@@ -143,6 +143,7 @@ def _draft(
         description="Embedded component used in a mixed setup.",
         license_spdx=license_spdx,
         harness_id="claude-code",
+        target_scope="global",
         redistribution_allowed=redistribution_allowed,
         stable_id=stable_id,
         managed_paths=(f"skills/{name}/SKILL.md",),

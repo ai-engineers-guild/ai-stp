@@ -369,12 +369,25 @@ def _capabilities(graph: _SetupGraph) -> CapabilitySnapshot:
     for node in graph.components:
         label = f"{node.coordinate.stable_id}@{node.coordinate.version}"
         item = node.passport
+        adaptation = next(
+            (held for held in item.adaptations if held.harness_id == graph.setup.harness_id), None
+        )
+        native_ids = (
+            []
+            if adaptation is None
+            else [
+                native_id
+                for scope in adaptation.scope_adaptations
+                for member in scope.members
+                for native_id in member.native_ids
+            ]
+        )
         if item.component_type == "command":
-            values["tools"].update(item.native_ids or [label])
+            values["tools"].update(native_ids or [label])
         elif item.component_type == "mcp":
-            values["mcp_servers"].update(item.native_ids or [label])
+            values["mcp_servers"].update(native_ids or [label])
         elif item.component_type == "hook":
-            values["hooks"].update(item.native_ids or [label])
+            values["hooks"].update(native_ids or [label])
         values["network_requirements"].update(item.external_endpoints)
         if item.requires_credentials or item.required_env:
             values["credential_requirements"].add(label)

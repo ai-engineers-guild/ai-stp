@@ -705,7 +705,7 @@ def adopted_covers(item: Found) -> tuple[str, ...]:
         name = PurePosixPath(item.provenance.subpath).name
     if not name:
         name = item.absolute.name
-    return covers(item.component_type, item.harness_id, name)
+    return covers(item.component_type, item.harness_id, name, scope=item.scope)
 
 
 def covers(

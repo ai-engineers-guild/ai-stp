@@ -282,7 +282,7 @@ def test_an_exact_version_is_verified_against_its_published_digest() -> None:
 def test_a_version_digest_is_over_the_wire_passport_not_a_model_dump() -> None:
     """A historical passport omitting later defaults must still verify.
 
-    Dumping the validated model injects empty `harness_ids` and `supported_os`,
+    Dumping the validated model injects an omitted optional provenance field,
     which is a different document from the one the catalogue hashed.
     """
     served = next(
@@ -291,8 +291,7 @@ def test_a_version_digest_is_over_the_wire_passport_not_a_model_dump() -> None:
         if case.operation_id == "readComponentVersion" and case.kind == "positive"
     )
     body = json.loads(json.dumps(served.body))
-    body["passport"].pop("harness_ids", None)
-    body["passport"].pop("supported_os", None)
+    body["passport"].pop("origin_harness_id", None)
     body["passport_digest"] = cache.digest_of(body["passport"])
     dumped = ComponentVersionPassport.model_validate(body["passport"]).model_dump(mode="json")
     assert cache.digest_of(dumped) != body["passport_digest"]
@@ -306,7 +305,7 @@ def test_a_version_digest_is_over_the_wire_passport_not_a_model_dump() -> None:
         str(served.request.path_params["stable_id"]),
         str(served.request.path_params["version"]),
     )
-    assert "harness_ids" not in view.passport
+    assert "origin_harness_id" not in view.passport
     assert cache.digest_of(view.passport) == view.passport_digest
     cached = cache.load(
         cache.key_for(

@@ -103,8 +103,10 @@ from ai_stp_contracts.machine_help import (
 )
 from ai_stp_foundation.canonical import JsonValue, from_json_bytes
 from ai_stp_foundation.digests import digest_bytes
-from ai_stp_foundation.harnesses import HARNESS_IDS
+from ai_stp_foundation.harnesses import HARNESS_IDS, HarnessId
 from ai_stp_foundation.timestamps import format_timestamp, parse_timestamp
+from ai_stp_passports import ComponentVersionPassport, scope_for, verify_projection
+from ai_stp_passports.versions import TargetScope
 from ai_stp_sources.definition import (
     DEFINITION_V2,
     decode_embedded_artifact,
@@ -1229,12 +1231,54 @@ def _surfaces(
             document.get("component_type") or _value(facts.get("component_type")) or ""
         )
         harness_id = str(document.get("harness_id") or _value(facts.get("harness_id")) or "")
-        managed_paths = composition.rerooted(
-            component_type,
-            harness_id,
-            _document_strings(document, facts, "managed_paths"),
-            scope=scope,
-        )
+        passport: ComponentVersionPassport | None
+        try:
+            passport = ComponentVersionPassport.model_validate(document)
+        except ValueError:
+            passport = None
+        if passport is not None:
+            if len(passport.adaptations) != 1:
+                raise CliFailure(
+                    "AI_STP_CONFLICT",
+                    "a setup component reference does not select one adaptation",
+                    details={"stable_id": node.stable_id},
+                )
+            adaptation = passport.adaptations[0]
+            harness_id = adaptation.harness_id
+            component_type = passport.component_type
+            selected_scope = next(
+                (item for item in adaptation.scope_adaptations if item.scope == scope), None
+            )
+            managed_paths = (
+                ()
+                if selected_scope is None
+                else tuple(item.path for item in selected_scope.members)
+            )
+            native_ids = (
+                ()
+                if selected_scope is None
+                else tuple(
+                    native_id for item in selected_scope.members for native_id in item.native_ids
+                )
+            )
+            declared_permissions = (
+                ()
+                if selected_scope is None
+                else tuple(
+                    f"{family}:{value}"
+                    for family in ("filesystem", "network", "process")
+                    for value in getattr(selected_scope.permissions, family)
+                )
+            )
+        else:
+            managed_paths = composition.rerooted(
+                component_type,
+                harness_id,
+                _document_strings(document, facts, "managed_paths"),
+                scope=scope,
+            )
+            native_ids = _document_strings(document, facts, "native_ids")
+            declared_permissions = _document_permissions(document, facts)
         source_name = str(_value(facts.get("source_name")) or source_path.rsplit("/", 1)[-1])
         surfaces.append(
             composition.Surface(
@@ -1248,8 +1292,8 @@ def _surfaces(
                     document.get("artifact_format") or _value(facts.get("content_format")) or ""
                 ),
                 managed_paths=managed_paths,
-                native_ids=_document_strings(document, facts, "native_ids"),
-                permissions=_document_permissions(document, facts),
+                native_ids=native_ids,
+                permissions=declared_permissions,
                 required_env=_document_required_env(document, facts),
                 external_endpoints=_document_strings(document, facts, "external_endpoints"),
                 redistribution=_document_redistribution(document, facts),
@@ -1858,7 +1902,7 @@ def _bundle_sources(
         facts = cast(dict[str, JsonValue], document.get("facts") or {})
         artifact = document.get("artifact")
         direct_digest = artifact.get("digest") if isinstance(artifact, dict) else None
-        digest = str(_value(facts.get("content_digest")) or direct_digest or "")
+        digest = str(direct_digest or _value(facts.get("content_digest")) or "")
         # Both of these were `continue`, and both silently produced a bundle
         # weaker than the report describing it. The closure resolved the node,
         # the composition report names it under `chosen`, and the plan then
@@ -1900,6 +1944,43 @@ def _bundle_sources(
             payload,
             content_format or components.COMPONENT_FILE_FORMAT,
         )
+        if content_format == components.PROJECTION_FORMAT:
+            passport = ComponentVersionPassport.model_validate(document)
+            try:
+                scope = scope_for(
+                    passport,
+                    cast(HarnessId, target.harness_id),
+                    cast(TargetScope, target.scope),
+                )
+            except ValueError as error:
+                raise CliFailure(
+                    "AI_STP_PRECONDITION_FAILED",
+                    "the component has no adaptation for the requested harness scope",
+                    details={"stable_id": item.stable_id, "scope": target.scope},
+                ) from error
+            verify_projection(scope, payload)
+            expanded_by_path = {member.path: member for member in expanded}
+            for declared in scope.members:
+                if declared.object_type != "file":
+                    continue
+                member = expanded_by_path.get(declared.path)
+                if member is None:
+                    raise CliFailure(
+                        "AI_STP_CONFLICT",
+                        "a verified projection member disappeared before bundle assembly",
+                    )
+                if declared.ownership == "contribution":
+                    contributions.append((rule, item.stable_id, member))
+                    continue
+                sources.append(
+                    bundle.Source(
+                        path=declared.path,
+                        content=member.content,
+                        owner=item.stable_id,
+                        mode=member.mode,
+                    )
+                )
+            continue
         if rule.declared_key:
             # `ADR-0129`: this component's landing is a key inside a file the
             # provider already owns, so it compiles into a contribution to that
