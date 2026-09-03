@@ -281,6 +281,18 @@ def test_a_killed_parent_takes_its_isolated_tree_and_its_grants_with_it(
         assert grandchildren, "the parent never started its isolated child"
         child = grandchildren[0]
         assert _alive(child)
+        lease = windows_launcher._lease_path()  # pyright: ignore[reportPrivateUsage]
+        leased = time.monotonic() + 30
+        target_text = str(target.resolve())
+        while time.monotonic() < leased:
+            try:
+                if target_text in lease.read_text(encoding="utf-8"):
+                    break
+            except OSError:
+                pass
+            time.sleep(0.25)
+        else:
+            pytest.fail("the grant was not durably leased before the parent kill")
     finally:
         parent.kill()
         parent.wait(timeout=60)
@@ -291,4 +303,4 @@ def test_a_killed_parent_takes_its_isolated_tree_and_its_grants_with_it(
     assert not _alive(child), "the isolated child outlived its parent"
 
     swept = windows_launcher.sweep_abandoned_grants()
-    assert str(target.resolve()) in swept, swept
+    assert target_text in swept, swept
