@@ -7,7 +7,9 @@ last_verified: "2026-08-22"
 
 A component and a setup each have a stable logical entity and immutable `X.Y` versions. A version is described by its passport under `passport-envelope.md`; no separate manifest exists.
 
-A setup belongs to exactly one harness under `ADR-0014`. A component may have multiple native implementations, so a variant remains a component-only concept.
+A setup belongs to exactly one harness under `ADR-0014`. A component version
+contains explicit native adaptations under `ADR-0143`; a free-standing variant
+axis is not part of the first supported alpha contract.
 
 ## File next to the object
 
@@ -121,15 +123,27 @@ The value belongs to provider metadata and the native implementation. A harness 
 
 ## Component version passport
 
-Contains `stable_id`, optional `variant_id`, `version`, `harness_id`, an optional
-`harness_ids` list (including the primary `harness_id` when specified), `supported_os`,
-`component_type`, and `projection_kind`; a nonempty list of tags from the vocabulary in
-`tag-vocabulary.md`; the exact source repository, commit, and subpath; artifact hash
-and size; provided capabilities; dependencies; required environment variable names;
-path, command, hook, MCP, agent, and plugin conflicts; managed paths and native
-identifiers; entry points, runtime requirements, harness variants, and supported
-harness versions; file, network, and process permissions; external connection points;
-license and redistributability; links to compatibility evidence; and access mode.
+Contains `stable_id`, `version`, one logical `component_type`, optional
+history-only `origin_harness_id`, and a non-empty collection of immutable
+adaptations; a nonempty list of tags from `tag-vocabulary.md`; the exact public
+source repository, commit and subpath; the component artifact hash and size;
+provided capabilities and exact dependencies; required environment variable
+names; conflicts; entry points and runtime requirements; external connection
+points; license and redistributability; and access mode.
+
+Each adaptation contains a content-derived identity, one harness,
+implementation mode (`derived` or `native`), exact common/adaptation source and
+projection artifact references, an exact transform identity when derived,
+logical and provider-native component kinds, projection kind, supported scopes,
+managed paths, native identifiers, permissions, supported harness versions,
+systems and architectures, immutable technical support and semantic losses.
+Large bytes live in content-addressed storage; their digest and size are inside
+the passport.
+
+The first supported form does not contain flat `harness_ids`, a component-level
+`harness_id`, `variant_id`, or shared projection/path/native-ID/platform fields.
+Earlier alpha bytes remain immutable historical evidence and are not converted
+into adaptations by inference.
 The `facts.source_links` observation may additionally list safe public source pages,
 such as a package's upstream repository and its PyPI, npm, crates.io, Go, or pub.dev
 release page. A setup compose manifest may provide one explicit `source_url` for an

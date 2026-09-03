@@ -16,7 +16,8 @@ The scope includes stable identifiers, native component implementations, `X.Y` v
 ## Terms
 
 - `Component` and `Setup` are stable logical entities.
-- `ComponentVariant` is a native implementation of a component for one harness.
+- `ComponentAdaptation` is the immutable native implementation of one component
+  version for one harness.
 - `SetupLineage` is an optional provenance relationship between setups for different harnesses.
 - `DraftRevision` is mutable private history before freezing.
 - `PublishedVersion` is an immutable snapshot with an exact hash.
@@ -27,7 +28,7 @@ The scope includes stable identifiers, native component implementations, `X.Y` v
 - `REQ-502`: A setup belongs to exactly one harness, set at creation and immutable; the native implementation remains a property of the component, not the setup.
 - `REQ-503`: A published version has the `X.Y` format and immutable bytes, a version passport, and exact dependency references; no separate manifest entity exists.
 - `REQ-504`: A version number cannot be reused for a different hash.
-- `REQ-505`: `SetupVersion` pins exact `ComponentVersion` references and, when a component has native implementations, their identifiers.
+- `REQ-505`: `SetupVersion` pins exact `ComponentVersion` and adaptation references for its one harness; every selected adaptation identity is inside the immutable component version.
 - `REQ-506`: Any change to composition, an exact reference, or a materialized overlay automatically creates the setup's next minor version.
 - `REQ-507`: Moving to a new major line happens only on an explicit decision — the `--major` flag of `component version release`, never by default — and creates a separate access boundary.
 - `REQ-508`: A public component or setup version originates from a public GitHub repository, exact commit, and subpath; a private draft may originate from a hashed local artifact.
@@ -52,6 +53,8 @@ The scope includes stable identifiers, native component implementations, `X.Y` v
 - `REQ-527`: One executable table owns the identifier, support level, detection root, global and project layouts, projection capabilities, and known gaps for Claude Code, Codex, Pi, OpenCode, Grok Build, Cursor, Antigravity, and the generic `undefined` row; discovery and survey are derived from it.
 - `REQ-528`: The CLI creates a safe, portable authoring template for each of the eight component types and deterministically projects it for one specific harness. Conditional blocks are bound to the closed harness registry, the path-placeholder accepts only a bounded relative POSIX path, and unknown or ambiguous syntax is rejected before publication; tags inside fenced code remain literal text.
 - `REQ-529`: Within an explicitly named root, the CLI reads `nori.json` and version 3 askill/Vercel-compatible `.agents/.skill-lock.json` in a bounded manner as external metadata ports. Declared components and an exact folder digest become only observed facts of the local draft; repository, commit, trust, and publication readiness are not derived from an external claim. Import executes no script, Git operation, package manager, or network request.
+- `REQ-531`: A component version has one logical type and a non-empty set of exact per-harness adaptations under `ADR-0143`; each adaptation binds its harness, implementation mode, source/projection/transform identities, provider-native kind, scopes, paths, native IDs, permissions, supported product/platform bounds, technical-support declaration and semantic losses. A provider route or a flat harness list never synthesizes an adaptation.
+- `REQ-532`: `origin_harness_id` is optional historical provenance with no effect on eligibility, ordering, verification or recommendation. Adding or changing an adaptation creates a new immutable minor version of the same component.
 - `REQ-530`: A layout may declare the key under which a harness stores client-side MCP entries inside a file also declared as a `setting`. Such a file becomes an `mcp` finding only when at least one server is declared, while the `setting` finding is retained. Only server names are read and added to `evidence_refs`; adjacent values are not read. A file with no key, an empty declaration, malformed content, or a size exceeding the limit produces no findings. A harness without a documented layout declares a verified gap instead.
 
 ## States and errors
@@ -96,6 +99,8 @@ Minor versions are available to the owner of the major line; a new major line is
 | `REQ-527` | Table validation requires eight rows with no duplicate layouts and non-empty sources and projections, compares derived detector/discovery rules with the compatibility oracle, and verifies the complete machine response from `toolchain harness-capabilities`. |
 | `REQ-528` | A table-driven test creates a template for each of the eight types and compares repeated projections for seven specific harnesses; unknown, repeated, and nested conditions, an unsafe path, a symlink, and a size violation fail closed, while tags inside fenced code remain literal. |
 | `REQ-529` | Fixtures for a Nori skill, subagent, and slash command and for version 3 project/global locks each create one observed candidate and a local draft with an evidence ref and exact folder digest, but without a repository/commit claim; a duplicate key, symlink, oversized content, unsafe path, unknown version, and inexact digest produce safe diagnostics, and the canary script does not run. |
+| `REQ-531` | Canonical vectors cover derived and fully native adaptations; negative vectors reject duplicate harness/scope identities, missing projection bytes, mismatched logical type, ambiguous provider-kind conversion, semantic loss, unsafe paths and a route without an adaptation. |
+| `REQ-532` | Changing only `origin_harness_id` never changes resolution or ordering, while adding an adaptation requires a new version and cannot mutate the prior version digest. |
 | `REQ-530` | Fixtures for `config.toml`, `opencode.json`, and `opencode.jsonc` with declared servers produce an `mcp` finding alongside a `setting` finding and an evidence ref for each name; an empty declaration, missing key, malformed file, and oversized file produce no findings; JSONC comments and trailing commas are parsed; a token-bearing value does not appear in output; the machine-readable table reports a gap for a harness without a documented layout. |
 | `REQ-517` | Fixtures for all seven harnesses and the shared `.agents` scope return type, harness, scope, path, and layout-source; Claude GitHub marketplace and Pi Git cache fixtures return exact repository, commit, and package identity, loose/packed refs match, while the npm fixture remains `package/observed` without a remote claim; Python and TypeScript MCP packages require an SDK dependency, declared entry point, and SDK import in the exact source, distinguish stdio/HTTP, and do not classify docs/tests/application hooks; a repeated run returns the same candidate id, and environment overrides lead to relocated roots. |
 | `REQ-518` | The registry snapshot does not change after discovery; the secret fixture does not appear in output; a malformed, oversized, or unknown-version manifest, credential URL, and cache escape fail closed with safe diagnostics and no content leakage. |
