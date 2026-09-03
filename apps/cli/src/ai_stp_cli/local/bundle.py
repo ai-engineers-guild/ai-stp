@@ -49,6 +49,7 @@ BUILDER_VERSION: Final[str] = "1.0"
 #: schema and the ZIP container are versioned together: changing entry names,
 #: ordering or metadata changes the format rather than silently changing v1.
 BUNDLE_FORMAT: Final[Literal["ai-stp-bundle/1"]] = "ai-stp-bundle/1"
+BUNDLE_FORMAT_V2: Final[Literal["ai-stp-bundle/2"]] = "ai-stp-bundle/2"
 
 #: ZIP has no timestamp-free representation. This oldest representable value is
 #: fixed by the format and never taken from the host clock.
@@ -80,6 +81,9 @@ REFUSALS: Final[frozenset[str]] = frozenset(
         "bundle_too_large",
         "too_many_files",
         "setup_passport_mismatch",
+        "adaptation_binding_missing",
+        "adaptation_binding_mismatch",
+        "projection_profile_mismatch",
     }
 )
 
@@ -152,6 +156,52 @@ class FileEntry:
 
 
 @dataclass(frozen=True)
+class ProjectionProfileBinding:
+    """Exact provider surface selected before one v2 bundle is compiled."""
+
+    profile_id: str
+    profile_digest: str
+    target_scope: str
+
+    def as_json(self) -> dict[str, JsonValue]:
+        return {
+            "profile_id": self.profile_id,
+            "profile_digest": self.profile_digest,
+            "target_scope": self.target_scope,
+        }
+
+
+@dataclass(frozen=True)
+class ComponentAdaptationBinding:
+    """One component passport's exact adaptation atom carried into bundle v2."""
+
+    stable_id: str
+    version: str
+    passport_digest: str
+    adaptation_id: str
+    projection_artifact_digest: str
+    projection_artifact_size: int
+    provider_component_kind: str
+    projection_kind: str
+    member_paths: tuple[str, ...]
+
+    def as_json(self) -> dict[str, JsonValue]:
+        return {
+            "stable_id": self.stable_id,
+            "version": self.version,
+            "passport_digest": self.passport_digest,
+            "adaptation_id": self.adaptation_id,
+            "projection_artifact": {
+                "digest": self.projection_artifact_digest,
+                "size_bytes": self.projection_artifact_size,
+            },
+            "provider_component_kind": self.provider_component_kind,
+            "projection_kind": self.projection_kind,
+            "member_paths": list(self.member_paths),
+        }
+
+
+@dataclass(frozen=True)
 class Refusal:
     """One reason this bundle cannot be compiled."""
 
@@ -205,6 +255,9 @@ def compile_bundle(
     conversion_report: JsonValue,
     input_digest: str,
     target_scope: str = "global",
+    bundle_format: str = BUNDLE_FORMAT,
+    projection_profile: ProjectionProfileBinding | None = None,
+    adaptation_bindings: tuple[ComponentAdaptationBinding, ...] = (),
 ) -> Bundle:
     """Compile one bundle, or refuse with every reason it cannot be compiled.
 
@@ -219,6 +272,35 @@ def compile_bundle(
     seen: dict[str, str] = {}
     folded: dict[str, str] = {}
     total = 0
+
+    if bundle_format == BUNDLE_FORMAT_V2:
+        if projection_profile is None or not adaptation_bindings:
+            refusals.append(
+                _refuse(
+                    "adaptation_binding_missing",
+                    "bundle v2 requires one profile and every component adaptation binding",
+                    "bundle.json",
+                    setup_stable_id,
+                )
+            )
+        elif projection_profile.target_scope != target_scope:
+            refusals.append(
+                _refuse(
+                    "projection_profile_mismatch",
+                    "the selected profile scope differs from the bundle target scope",
+                    "bundle.json",
+                    setup_stable_id,
+                )
+            )
+    elif bundle_format != BUNDLE_FORMAT:
+        refusals.append(
+            _refuse(
+                "projection_profile_mismatch",
+                "the requested bundle format is unsupported",
+                "bundle.json",
+                setup_stable_id,
+            )
+        )
 
     passport_digest = digest_canonical(PASSPORT_DOMAIN, setup_passport)
     passport_stable_id = (
@@ -409,6 +491,26 @@ def compile_bundle(
             )
         )
 
+    if bundle_format == BUNDLE_FORMAT_V2 and adaptation_bindings:
+        bound_owners = {binding.stable_id for binding in adaptation_bindings}
+        bound_paths = {
+            (binding.stable_id, path)
+            for binding in adaptation_bindings
+            for path in binding.member_paths
+        }
+        file_paths = {(entry.owner, entry.path) for entry in entries}
+        if {entry.owner for entry in entries} != bound_owners or not file_paths.issubset(
+            bound_paths
+        ):
+            refusals.append(
+                _refuse(
+                    "adaptation_binding_mismatch",
+                    "bundle files do not close over the declared component adaptations",
+                    "bundle.json",
+                    setup_stable_id,
+                )
+            )
+
     refusals.sort(key=lambda item: (item.code, item.details.get("path", "")))
     if refusals:
         # `REQ-608`: a blocked bundle is not a partial one. A manifest beside a
@@ -433,6 +535,9 @@ def compile_bundle(
         conversion_report=conversion_report,
         input_digest=input_digest,
         target_scope=target_scope,
+        bundle_format=bundle_format,
+        projection_profile=projection_profile,
+        adaptation_bindings=adaptation_bindings,
     )
     digest = digest_canonical(BUNDLE_DOMAIN, identity_manifest)
     manifest = {**identity_manifest, "bundle_digest": digest}
@@ -481,6 +586,9 @@ def _manifest(
     conversion_report: JsonValue,
     input_digest: str,
     target_scope: str = "global",
+    bundle_format: str = BUNDLE_FORMAT,
+    projection_profile: ProjectionProfileBinding | None = None,
+    adaptation_bindings: tuple[ComponentAdaptationBinding, ...] = (),
 ) -> dict[str, JsonValue]:
     """The manifest, built by naming every field it may hold.
 
@@ -496,11 +604,22 @@ def _manifest(
     )
     return {
         "schema_version": 1,
-        "bundle_format": BUNDLE_FORMAT,
+        "bundle_format": bundle_format,
         "protocol_version": PROTOCOL_VERSION,
         "builder_version": BUILDER_VERSION,
         "harness_id": harness_id,
         **scoped,
+        **(
+            {
+                "projection_profile": projection_profile.as_json(),
+                "component_adaptations": [
+                    item.as_json()
+                    for item in sorted(adaptation_bindings, key=lambda item: item.stable_id)
+                ],
+            }
+            if bundle_format == BUNDLE_FORMAT_V2 and projection_profile is not None
+            else {}
+        ),
         "setup": {
             "stable_id": setup_stable_id,
             "version": setup_version,
