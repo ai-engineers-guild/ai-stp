@@ -57,6 +57,7 @@ _candidates = st.builds(
     revision_id=st.just("revision_a"),
     version=st.sampled_from(["1.0", "2.3", ""]),
     harness_id=_names,
+    adaptation_harnesses=st.sets(_names, max_size=3).map(frozenset),
     owner_id=st.sampled_from(["account_me", "account_other"]),
     visibility=st.sampled_from(["private", "public"]),
     supported_os=st.sets(_systems, max_size=2).map(frozenset),

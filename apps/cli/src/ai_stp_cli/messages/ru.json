@@ -544,8 +544,6 @@
   "the setup composition changed after it was reviewed": "состав сетапа изменился после проверки",
   "the setup composition manifest cannot be read": "манифест состава сетапа невозможно прочитать",
   "the setup composition manifest is invalid": "манифест состава сетапа некорректен",
-  "a catalog component has no adaptation for the setup harness": "у каталожного компонента нет адаптации для харнесса сетапа",
-  "a component in the setup graph has no adaptation for its harness": "у компонента графа сетапа нет адаптации для его харнесса",
   "a component source is not a component": "источник компонента не является компонентом",
   "a setup component reference does not select one adaptation": "ссылка на компонент сетапа не выбирает одну адаптацию",
   "a verified projection member disappeared before bundle assembly": "проверенный элемент проекции исчез до сборки пакета",

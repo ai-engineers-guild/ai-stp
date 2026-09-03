@@ -97,8 +97,8 @@ def _resolve(
             except ValueError as error:
                 raise CliFailure(
                     "AI_STP_CONFLICT",
-                    "a catalog component has no adaptation for the setup harness",
-                    details={"stable_id": intent.stable_id},
+                    "the component has no adaptation for the requested harness",
+                    details={"stable_id": intent.stable_id, "code": "adaptation_unavailable"},
                 ) from error
             catalog.append(
                 setup_compose.CatalogMaterial(

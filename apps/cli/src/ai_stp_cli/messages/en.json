@@ -544,8 +544,6 @@
   "the setup composition changed after it was reviewed": "the setup composition changed after it was reviewed",
   "the setup composition manifest cannot be read": "the setup composition manifest cannot be read",
   "the setup composition manifest is invalid": "the setup composition manifest is invalid",
-  "a catalog component has no adaptation for the setup harness": "a catalog component has no adaptation for the setup harness",
-  "a component in the setup graph has no adaptation for its harness": "a component in the setup graph has no adaptation for its harness",
   "a component source is not a component": "a component source is not a component",
   "a setup component reference does not select one adaptation": "a setup component reference does not select one adaptation",
   "a verified projection member disappeared before bundle assembly": "a verified projection member disappeared before bundle assembly",
