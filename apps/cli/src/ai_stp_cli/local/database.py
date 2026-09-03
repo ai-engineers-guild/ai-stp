@@ -916,7 +916,10 @@ _SAVEPOINTS: Final[Iterator[int]] = count()
 
 #: How long a statement waits for another process to finish writing. Bootstrap
 #: writes take milliseconds; this is generous enough that a wait means trouble.
-BUSY_TIMEOUT_MILLISECONDS: Final[int] = 5000
+# The third measured Windows runner contention held a first-open migration lock
+# for 6439 ms in run 33790300140. Fifteen seconds is more than twice that
+# observed maximum while remaining a bounded refusal.
+BUSY_TIMEOUT_MILLISECONDS: Final[int] = 15_000
 
 #: How long to keep trying to switch the journal mode while another opener
 #: holds the lock. Short: the switch itself takes microseconds.

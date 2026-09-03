@@ -20,7 +20,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import NoReturn
+from typing import Any, NoReturn
 
 import pytest
 
@@ -188,36 +188,53 @@ launcher.run(
 
 
 def _children_of(pid: int) -> list[int]:
-    found = subprocess.run(
-        [
-            "powershell",
-            "-NoProfile",
-            "-Command",
-            f"Get-CimInstance Win32_Process -Filter 'ParentProcessId={pid}' "
-            "| Select-Object -ExpandProperty ProcessId",
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-        timeout=60,
-    )
-    return [int(line) for line in found.stdout.split() if line.strip().isdigit()]
+    """Read the process tree from Toolhelp without the runner's WMI service."""
+    import ctypes
+    from ctypes import wintypes
+
+    class ProcessEntry(ctypes.Structure):
+        _fields_ = [
+            ("dwSize", wintypes.DWORD),
+            ("cntUsage", wintypes.DWORD),
+            ("th32ProcessID", wintypes.DWORD),
+            ("th32DefaultHeapID", ctypes.c_size_t),
+            ("th32ModuleID", wintypes.DWORD),
+            ("cntThreads", wintypes.DWORD),
+            ("th32ParentProcessID", wintypes.DWORD),
+            ("pcPriClassBase", wintypes.LONG),
+            ("dwFlags", wintypes.DWORD),
+            ("szExeFile", wintypes.WCHAR * 260),
+        ]
+
+    load_library: Any = vars(ctypes)["WinDLL"]
+    kernel: Any = load_library("kernel32", use_last_error=True)
+    snapshot = kernel.CreateToolhelp32Snapshot(0x00000002, 0)
+    if snapshot == ctypes.c_void_p(-1).value:
+        return []
+    entry = ProcessEntry()
+    entry.dwSize = ctypes.sizeof(entry)
+    children: list[int] = []
+    try:
+        present = kernel.Process32FirstW(snapshot, ctypes.byref(entry))
+        while present:
+            if int(entry.th32ParentProcessID) == pid:
+                children.append(int(entry.th32ProcessID))
+            present = kernel.Process32NextW(snapshot, ctypes.byref(entry))
+    finally:
+        kernel.CloseHandle(snapshot)
+    return children
 
 
 def _alive(pid: int) -> bool:
-    found = subprocess.run(
-        [
-            "powershell",
-            "-NoProfile",
-            "-Command",
-            f"(Get-CimInstance Win32_Process -Filter 'ProcessId={pid}') -ne $null",
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-        timeout=60,
-    )
-    return found.stdout.strip().casefold() == "true"
+    import ctypes
+
+    load_library: Any = vars(ctypes)["WinDLL"]
+    kernel: Any = load_library("kernel32", use_last_error=True)
+    handle = kernel.OpenProcess(0x1000, False, pid)
+    if not handle:
+        return False
+    kernel.CloseHandle(handle)
+    return True
 
 
 @pytest.mark.skipif(not WINDOWS, reason="exercises the real job object and the grant lease")
