@@ -4,9 +4,11 @@ nav:
   - Харнессы: harnesses.md
   - Понятия: concepts
   - CLI: cli
-  - Каталог: catalog
+  - Веб: web
   - Компоненты: components
   - Сетапы: setups
   - Публикация: publishing
-  - Доверие и безопасность: trust-and-safety
+  - Доверие и безопасность:
+      - Обзор: trust-and-safety/index.md
+      - Проверки безопасности: security-checks.md
   - Диагностика: troubleshooting

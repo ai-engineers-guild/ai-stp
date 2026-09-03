@@ -1,3 +1,32 @@
 nav:
   - Обзор: index.md
+  - Карта команд: commands.md
+  - Наблюдение: observe.md
+  - Конфигурация: config.md
   - Телеметрия: telemetry.md
+  - Устройство: device.md
+  - Паспорта: passport.md
+  - Вход: auth.md
+  - Согласие: consent.md
+  - Проект: project.md
+  - Toolchain: toolchain.md
+  - Harness: harness.md
+  - Agent Skill CLI: skill.md
+  - Реестр: registry.md
+  - Компонент:
+      - Обзор: component.md
+      - Обнаружение: component-discover.md
+      - Паспорт: component-passport.md
+      - Источник: component-source.md
+      - Публикация: component-publish.md
+  - Выбор: select.md
+  - Установка: install.md
+  - Target: target.md
+  - Setup: setup.md
+  - Provider: provider.md
+  - Синхронизация: sync.md
+  - Доступ: grant.md
+  - Жалобы: report.md
+  - Owner: owner.md
+  - Publication: publication.md
+  - Eval: eval.md

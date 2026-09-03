@@ -36,7 +36,12 @@
     // Table-column alignment is disabled: the rule counts characters, while
     // tables with non-Latin text align by visible width. The rule has no
     // automatic fix, and manual tuning breaks on the first edit.
-    "MD060": false
+    "MD060": false,
+
+    // MkDocs admonitions and `===` tabs indent four spaces. markdownlint
+    // treats that indent as an indented code block, then rejects later
+    // fenced ` ``` ` as a mixed style. The two syntaxes have to coexist.
+    "MD046": false
   },
   "globs": ["**/*.md"],
   "ignores": [

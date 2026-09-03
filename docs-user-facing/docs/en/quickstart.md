@@ -1,74 +1,144 @@
 ---
 title: "Quickstart"
-description: "First run of the ai_stp CLI and the shortest path to a checked environment."
+description: "Install the ai_stp CLI, check the environment, and reach the first catalog read."
 ---
 
 # Quickstart
 
-## Install the CLI
+The shortest path that actually prepares a machine: install the CLI, see what
+is missing, create the local identities, then read the public catalog. Selecting
+and applying a setup is the next chapter, not this one.
 
-The CLI installs as an ordinary `uv` tool:
+The executable is `ai-stp`. The PyPI distribution is `ai-stp-cli`. Copying
+`uv tool install ai-stp` installs a package this project does not publish.
+
+## Install the CLI
 
 ```bash
 uv tool install ai-stp-cli
+ai-stp version --json
 ```
 
-Then check that the command is available:
+If the shell cannot find `ai-stp`, the `uv` tools directory is not on `PATH`.
+See [Troubleshooting](troubleshooting/index.md).
+
+## Ask the installation what it can do
 
 ```bash
-ai-stp version
 ai-stp doctor --json
+ai-stp capabilities --json
 ```
 
-`doctor` reports the state of the environment, what this installation can do,
-and anything that has to be fixed before assembling a setup.
+`doctor` is a read. It does not create a device, a passport, or a project. It
+reports the CLI, the local registry, the device, the toolchain, the Agent Skill,
+and the harnesses this machine already has.
 
-## Prepare the device
+`capabilities` answers a narrower question: which surfaces this build can talk
+to right now. Do not infer harness support from a version string.
 
-For local work without an account, create a developer passport and a device:
+## Create the local identities
+
+Local work does not need an account. It does need a device and a developer
+passport:
 
 ```bash
-ai-stp passport developer init --json
 ai-stp device init --json
+ai-stp device show --json
+ai-stp passport developer init --json
+ai-stp passport device refresh --json
 ```
 
-The device gets a `device_id` and a key. The private key is held in the
-operating system's secret store; where that is unavailable, the CLI says
-plainly that it fell back to file storage.
+`device init` is idempotent: a second run returns the identity the first one
+made. The private key lives in the operating system's secret store; if that
+store is unavailable the CLI says it fell back to a file and does not hide the
+fact.
 
-## Look at the catalog
+`device reset` is a different command. It is destructive, needs `--confirm`, and
+is not a way to retry `doctor`.
 
-Anonymous reading of the public catalog needs no sign-in:
+## Follow what doctor asked for
 
-```bash
-ai-stp registry search --json
-```
+Read the doctor report before inventing the next step.
 
-For one exact object, use `show`. With no network, the CLI may answer from the
-last confirmed local copy and will say when the platform last confirmed it.
+=== "Toolchain missing"
+    The first-run toolset is a pinned profile, not a random `pip install`:
 
-## What comes next
+    ```bash
+    ai-stp toolchain profile --json
+    ai-stp toolchain install --tool <id> --json
+    ```
 
-After the first `doctor`, the agent reads the machine help:
+    `<id>` is a tool the profile pins. Exact names come from
+    `ai-stp help --agent --json`. `toolchain install` writes into the managed
+    directory and runs nothing from the tool it just placed.
+
+=== "Agent Skill missing"
+    This is the CLI's own Agent Skill, not a `skill` component in a setup:
+
+    ```bash
+    ai-stp skill status --json
+    ai-stp skill install --target <dir> --json
+    ```
+
+    `--target` is the directory the harness reads its native skill from.
+
+    After it is present, the agent still starts every session with `doctor` and
+    `help --agent`. See [Agent Skill CLI](cli/skill.md).
+
+=== "Harness program missing"
+    Installing a setup is not the same as installing the harness program.
+    The program itself is `harness install`. The provider that later writes
+    native state is a separate binary. See [Harness program](cli/harness.md)
+    and [Provider](cli/provider.md).
+
+## Read the machine help
 
 ```bash
 ai-stp help --agent --json
 ```
 
-That help is the source of commands for the Agent Skill. An agent should not
-invent commands from memory when the CLI already answers with them.
+That envelope is the command registry of *this* install. Documentation names
+commands so a person can navigate; an agent must not reconstruct flags from
+memory when the CLI already answers with them.
 
-=== "I am choosing a published setup"
-    Open the [catalog](catalog/index.md) and check the trust line, the
-    compatibility with your [harness](harnesses.md), and what the setup is made
-    of.
+## Look at the public catalog
 
-=== "I am assembling my own setup"
-    Start with [components](components/index.md): it helps decide what belongs
-    in a `skill`, what in an `mcp`, and what stays a `setting` or an
-    `instruction`.
+Anonymous reads need no sign-in:
 
-=== "I am publishing a component"
-    See [publishing](publishing/index.md) and the trust rules. A published
-    version is immutable, so it is worth checking the passport before the first
-    release.
+```bash
+ai-stp registry search --json
+ai-stp registry show <stable_id> --json
+```
+
+A result is a candidate, not permission to install. Check the harness, the
+exact `X.Y` version, the trust line, and the two independent verification
+axes before you select anything. How to read a card: [Catalog](catalog/index.md).
+The same objects are on the website: [Web catalog](web/catalog.md).
+
+If the network is down, the CLI may answer from cache and will say when the
+platform last confirmed the bytes.
+
+## What this quickstart does not do
+
+It does not sign you in, compose a setup, or write a harness target. Those
+are separate, digest-bound paths:
+
+| Next job | Page |
+| --- | --- |
+| Choose a composition | [Select](cli/select.md) |
+| Apply it through the provider | [Install](cli/install.md) |
+| Import an existing native config | [Setup commands](cli/setup.md) |
+| Sign in and sync | [Sign-in](cli/auth.md) |
+| Publish a component | [Publish a component](cli/component-publish.md) |
+
+## Typical refusals
+
+| What you see | What it means | What to do |
+| --- | --- | --- |
+| `ai-stp` not found | the tool is missing or not on `PATH` | reinstall with `uv tool install ai-stp-cli`, then check `uv tool list` |
+| doctor reports no device | identity was never created | `ai-stp device init --json` |
+| search returns cache | the platform was not reached | read `checked_at`; do not treat it as a live catalog |
+| capabilities omit a harness | this build cannot drive that target | stay on a primary harness, or read [Harnesses](harnesses.md) |
+
+!!! note "Commands here are a map, not a parser"
+    If `help --agent` disagrees with a flag on this page, the CLI wins.

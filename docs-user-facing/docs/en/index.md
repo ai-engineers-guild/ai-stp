@@ -20,26 +20,38 @@ A setup covers instructions, skills, MCP, hooks, commands, agents, plugins and
 settings. `ai_stp` records provenance, compatibility, exact versions and trust
 decisions so that an agent never has to guess at a configuration.
 
+The website owns the account and the public catalog. It displays results. It
+does not select a composition, assemble a setup, or write native harness
+state. That work belongs to the [CLI](cli/index.md), the agent, and the
+harness's own public provider.
+
 ## Where to start
 
 - [Quickstart](quickstart.md): install the CLI, check the environment and see
   the first commands.
-- [Harnesses](harnesses.md): what the MVP supports, what is in beta, and what
-  the `undefined` mode means.
-- [Concepts](concepts/index.md): harness, setup, component, passport and trust
-  line.
-- [Components](components/index.md): how `skill`, `mcp`, `hook`, `command`,
-  `agent`, `plugin`, `instruction` and `setting` differ.
+- [CLI](cli/index.md): the working surface — JSON envelopes, plans, and
+  confirmation.
+- [Web](web/index.md): account, catalog cards, publications, and reports.
+- [Harnesses](harnesses.md): primary support, beta lines, and `undefined`.
+- [Concepts](concepts/index.md): harness, setup, provider, assembler, device,
+  project, and the three modes.
+- [Components](components/index.md): the eight kinds and how they differ.
+- [Catalog](catalog/index.md): how to read a public result and how the CLI
+  searches it.
 - [Trust and safety](trust-and-safety/index.md): why a verified author is not
   the same thing as safe content.
 - [Troubleshooting](troubleshooting/index.md): recovering when an install or a
   check does not pass.
 
-## What the MVP does
+## What the MVP supports
 
-The MVP supports Claude Code, Codex and Grok Build as primary harnesses. Pi and
-OpenCode are available as beta lines, and an unknown harness falls back to the
-limited `undefined` mode.
+Primary support is for **Claude Code**, **Codex**, and **Grok Build**.
+
+Beta lines are **Pi**, **OpenCode**, **Cursor**, and **Antigravity**. Catalog
+and compatibility work; the provider path may still ask for extra confirmation.
+
+An unknown harness falls back to limited **`undefined`**. Reading, import and
+local checks are allowed. Automatic installation is not considered safe.
 
 The main path looks like this:
 
@@ -48,11 +60,10 @@ CLI → passports → project index → search → setup assembly → checks
 → install plan → backup → apply through the provider → status
 ```
 
-The web surface shows the public catalog and the account. Assembly, checks and
-installation are done by the CLI, the agent and the harness's own provider.
-
 ??? question "How to read this documentation"
     If `ai_stp` is new to you, start with the quickstart and the harnesses
-    page. If you are already assembling a setup, go straight to components:
-    each page explains what one kind is for, where its boundary is, and what it
-    risks.
+    page. If you are already assembling a setup, go straight to
+    [components](components/index.md): each page explains what one kind is
+    for, where its boundary is, and what it risks. Command flags always come
+    from `ai-stp help --agent --json`; this site names commands so a person
+    can find the right page.

@@ -3,6 +3,8 @@ title: Security checks
 description: "What ai_stp checks, which engines it uses, and which risks each check reduces."
 ---
 
+This page is the help-center view of what a catalog card, a publication plan, and a setup pin actually scanned. The eight [component kinds](components/index.md) and [trust lines](trust-and-safety/index.md) point here; they do not repeat the table.
+
 ai_stp runs a staged, non-executing safety suite before a public component can be treated as verified. A passed scan reduces known risk; it is not a guarantee that an artifact is harmless. Required checks block publication when they fail or cannot run. Optional checks produce visible warnings or incomplete coverage.
 
 ## Result states
@@ -16,6 +18,42 @@ ai_stp runs a staged, non-executing safety suite before a public component can b
 The catalog card percent is `passed / (passed + failed + warning)`. Publication
 uses the required checks; extra scanners are shown separately when they produced
 a verdict.
+
+## What the card is telling you
+
+The percent is a coverage of **completed** required-or-shown checks, not a
+score of how safe the bytes are. A 100% card can still be an `experimental`
+object, and a verified author can still own a version whose required check
+failed.
+
+| You see | It means | It does not mean |
+| --- | --- | --- |
+| high percent | most shown checks produced `passed` | the workflow is harmless |
+| `failed` | a blocking finding exists | you should `--confirm` harder |
+| `warning` | review is required | publication is already allowed |
+| `not run` / degraded | the engine gave no verdict | the check passed by absence |
+| `skipped` | the check does not apply | the family was ignored on purpose |
+
+`author_verified` and `component_verified` stay independent of this table.
+A scan percent is not either bit. Pin an exact `X.Y` and read the check
+ids; do not install from the headline number.
+
+## What to do with `not run`
+
+A required check that cannot run **blocks publication**. It is not a
+soft skip. An optional scanner that is not installed stays on the
+machine audit list and never becomes a pass.
+
+If a card shows degraded coverage:
+
+1. copy the check id (the catalog sanitizes the reason);
+2. read this inventory for the family;
+3. file a [report](web/reports.md) against that digest, or wait until
+   the engine is available and the version is scanned again.
+
+Do not treat an unavailable NVIDIA SkillSpector or Cisco Skill Scanner
+run as `skill_static_gate` having passed. Owned rules still run; the
+external engines are extra when present.
 
 ## Check inventory
 

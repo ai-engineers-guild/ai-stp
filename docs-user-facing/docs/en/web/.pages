@@ -1,0 +1,22 @@
+nav:
+  - Overview: index.md
+  - Home: home.md
+  - Catalog: catalog.md
+  - Component card: catalog-component.md
+  - Setup card: catalog-setup.md
+  - Regional services: services.md
+  - Publishers: publishers.md
+  - Content: content.md
+  - This documentation: docs.md
+  - Contact: contact.md
+  - Legal: legal.md
+  - Sign-in: login.md
+  - Account: account.md
+  - Profile: profile.md
+  - Devices: devices.md
+  - Objects: objects.md
+  - Access: access.md
+  - Reports: reports.md
+  - Likes: likes.md
+  - Onboarding: onboarding.md
+  - Publication: publications.md

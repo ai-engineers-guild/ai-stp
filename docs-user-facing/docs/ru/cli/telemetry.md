@@ -50,7 +50,7 @@ ai-stp telemetry consent --decline --confirm --json
 | `os` | `windows` | операционная система |
 | `harness` | `codex` | харнесс, в который ставили |
 | `harness_version` | `0.140.1` | его версия, как её сообщает toolchain |
-| `ai_stp_version` | `0.1.0` | версия CLI |
+| `ai_stp_version` | `0.0.15` | версия CLI |
 | `component_type` | `mcp` | вид компонента |
 | `name` | `serena` | публичное имя компонента |
 | `source` | `platform` | где объект публично назван |

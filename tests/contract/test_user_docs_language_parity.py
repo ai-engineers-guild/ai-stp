@@ -107,3 +107,8 @@ def test_the_two_builds_are_declared_and_ordered() -> None:
             f"{name} builds English before Russian; the Russian build cleans the "
             "site directory and would delete it"
         )
+    dev = (ROOT / "docs_scripts" / "user_docs_dev.py").read_text(encoding="utf-8")
+    assert "user-mkdocs.yml" in dev and "user-mkdocs.en.yml" in dev
+    assert dev.find("user-mkdocs.yml") < dev.find("user-mkdocs.en.yml")
+    dockerfile = (ROOT / "Dockerfile.user-docs").read_text(encoding="utf-8")
+    assert "user_docs_dev.py" in dockerfile

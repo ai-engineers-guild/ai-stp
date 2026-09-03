@@ -111,6 +111,26 @@ Hidden.
     assert "locale parity" in error.value.message
 
 
+def test_quoted_description_does_not_keep_the_quotes() -> None:
+    meta, body = parse_frontmatter(
+        """---
+type: article
+slug: alpha
+locale: en
+title: Alpha EN
+description: "Ships: assembly, checks, and sync."
+published_at: 2026-08-12
+tags: [one]
+draft: false
+---
+
+Body EN.
+"""
+    )
+    assert meta["description"] == "Ships: assembly, checks, and sync."
+    assert body == "Body EN."
+
+
 def test_real_hub_builds_without_drafts() -> None:
     snapshot = build_repository_snapshot(HUB, commit=COMMIT, now=NOW)
     identities = {(entry.type, entry.slug) for entry in snapshot.entries}
