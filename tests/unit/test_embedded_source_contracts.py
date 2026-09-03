@@ -217,6 +217,22 @@ async def test_git_rejects_secret_and_oversize_archive() -> None:
         await resolve_source(_git_intent(), fetch=fetch_secret)
     assert raised.value.code == UNSAFE_ARCHIVE
 
+    template = _tar({"skills/demo/.env.example": "TOKEN=\n", "skills/demo/SKILL.md": "# Demo\n"})
+
+    async def fetch_template(url: str, *, headers: dict[str, str]) -> GithubHttpResponse:
+        del headers
+        path = urlsplit(url).path
+        if path.endswith("/repos/acme/tool"):
+            return GithubHttpResponse(
+                200, json.dumps({"id": 1, "private": False, "license": None}).encode(), {}, url
+            )
+        if "/commits/" in path:
+            return GithubHttpResponse(200, json.dumps({"sha": COMMIT}).encode(), {}, url)
+        return GithubHttpResponse(200, template, {}, url)
+
+    snapshot = await resolve_source(_git_intent(), fetch=fetch_template)
+    assert snapshot.files[".env.example"] == b"TOKEN=\n"
+
     traversal = _tar({"../skills/demo/SKILL.md": "# Demo\n"}, prefix="")
 
     async def fetch_traversal(url: str, *, headers: dict[str, str]) -> GithubHttpResponse:

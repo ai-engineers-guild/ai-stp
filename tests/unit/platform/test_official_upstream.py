@@ -114,6 +114,105 @@ def test_extract_resolves_component_root_and_records_exact_files() -> None:
     assert files == {"SKILL.md": b"# Demo\n"}
 
 
+def test_extract_accepts_a_single_file_component_subpath() -> None:
+    archive = _tar({"SKILL.md": "# Demo\n", "tests/test_github_guard.py": "KEY\n"})
+    files = extract_component_files(archive, subpath="SKILL.md")
+    assert files == {"SKILL.md": b"# Demo\n"}
+
+
+def test_extract_keeps_the_committed_component_tree() -> None:
+    archive = _tar(
+        {
+            "SKILL.md": "# Demo\n",
+            "scripts/scan.py": "print(1)\n",
+            "src/pkg/assets/rules/opengrep/python-dangerous-code.yml": "rules: []\n",
+            "docs/mcp-safety.md": "# refs\n",
+            "tests/test_github_guard.py": "assert True\n",
+            ".github/workflows/ci.yml": "on: push\n",
+            ".gitignore": "dist/\n.venv/\n",
+            "dist/index.js": "export {}\n",
+        }
+    )
+    files = extract_component_files(archive, subpath=".")
+    assert set(files) == {
+        "SKILL.md",
+        "scripts/scan.py",
+        "src/pkg/assets/rules/opengrep/python-dangerous-code.yml",
+        "docs/mcp-safety.md",
+        "tests/test_github_guard.py",
+        ".github/workflows/ci.yml",
+        ".gitignore",
+        "dist/index.js",
+    }
+
+
+def test_extract_keeps_env_templates_and_rejects_real_env_files() -> None:
+    allowed = _tar(
+        {
+            "skills/demo/SKILL.md": "# Demo\n",
+            "skills/demo/.env.example": "TOKEN=\n",
+            "skills/demo/.env.sample": "TOKEN=\n",
+            "skills/demo/.env.template": "TOKEN=\n",
+            "skills/demo/.env.dist": "TOKEN=\n",
+            "skills/demo/env.example": "TOKEN=\n",
+            "skills/demo/.env.prod.example": "SECRET=\n",
+        }
+    )
+    files = extract_component_files(allowed, subpath="skills/demo")
+    assert files[".env.example"] == b"TOKEN=\n"
+    assert files[".env.sample"] == b"TOKEN=\n"
+    assert files[".env.template"] == b"TOKEN=\n"
+    assert files[".env.dist"] == b"TOKEN=\n"
+    assert files["env.example"] == b"TOKEN=\n"
+    assert files[".env.prod.example"] == b"SECRET=\n"
+    with pytest.raises(OfficialUpstreamError) as raised:
+        extract_component_files(
+            _tar({"skills/demo/.env.local": "TOKEN=1\n"}), subpath="skills/demo"
+        )
+    assert raised.value.code == UNSAFE_ARCHIVE
+    assert "secret-like" in raised.value.message
+
+
+def test_enqueue_cli_force_id_prints_json(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from ai_stp_platform.official_upstream import enqueue as enqueue_mod
+
+    async def fake_execute(force: bool, source_id: str | None) -> dict[str, object]:
+        return {
+            "enqueued": 1,
+            "force": force,
+            "job_ids": ["job_1"],
+            "source_ids": [source_id],
+        }
+
+    monkeypatch.setattr(enqueue_mod, "_execute", fake_execute)
+    assert enqueue_mod.main(["--force", "--id", "ai-repo-safety"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload == {
+        "enqueued": 1,
+        "force": True,
+        "job_ids": ["job_1"],
+        "source_ids": ["ai-repo-safety"],
+    }
+
+
+def test_enqueue_cli_missing_source_exits_one(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from ai_stp_platform.official_upstream import enqueue as enqueue_mod
+
+    async def fake_execute(force: bool, source_id: str | None) -> dict[str, object]:
+        del force, source_id
+        raise OfficialUpstreamError(INVALID_SOURCE, "source is missing")
+
+    monkeypatch.setattr(enqueue_mod, "_execute", fake_execute)
+    assert enqueue_mod.main(["--force", "--id", "missing"]) == 1
+    err = capsys.readouterr().err
+    assert INVALID_SOURCE in err
+    assert "source is missing" in err
+
+
 @pytest.mark.parametrize(
     ("mutate", "message"),
     [

@@ -56,7 +56,7 @@ last_verified: "2026-08-03"
 | [sync-event.md](sync-event.md) | Synchronization event fields, responses, retries, and conflicts. | 2026-09-01 |
 | [tag-vocabulary.md](tag-vocabulary.md) | Tag vocabulary format, normalization, limit, and search behavior. | 2026-08-04 |
 | [unverified-consent.md](unverified-consent.md) | Session-scoped consent marker for unverified objects and durable exception records by publisher and major line. | 2026-08-29 |
-| [validation-policy.md](validation-policy.md) | Mandatory checks by component type, MCP class, and setup. | 2026-08-23 |
+| [validation-policy.md](validation-policy.md) | Mandatory checks by component type, MCP class, and setup. | 2026-09-02 |
 | [web-cookie-consent.md](web-cookie-consent.md) | Cookie categories and the rule for starting optional Web integrations. | 2026-08-22 |
 | [web-machine-projection.md](web-machine-projection.md) | Fields of the web machine document, paired URLs, and leak prevention. | 2026-08-16 |
 

@@ -1,6 +1,6 @@
 ---
 description: "Mandatory checks by component type, MCP class, and setup."
-last_verified: "2026-08-23"
+last_verified: "2026-09-02"
 ---
 
 # Validation policy
@@ -88,7 +88,7 @@ safety suite (`policy_version` of the form `safety-2`, registry in
 |---|---|---|---|
 | unpack | `artifact_unpack` | workdir + digest re-verify | yes |
 | path | `path_denylist` | in-proc | yes |
-| secrets | `secrets_heuristic` (+ optional `secrets_gitleaks`) | in-proc / CLI | heuristic yes; gitleaks findings force-block |
+| secrets | `secrets_heuristic` (+ optional `secrets_gitleaks`) | in-proc / CLI | heuristic yes; gitleaks findings outside `tests/` force-block; fixture hits under `tests/` stay warning-class |
 | prompt_injection / stego | `pi_content_pack`, `content_hidden` | in-proc | warning-class by default |
 | network intent | `network_intent` | offline in-proc, without DNS/reputation lookup | warning-class by default |
 | agentic behavior | `agentic_behavior` | bounded offline in-proc patterns | yes |
@@ -104,13 +104,21 @@ safety suite (`policy_version` of the form `safety-2`, registry in
 | document | `document_pdf` | PDF JS/OpenAction/PI strings | policy when pdf |
 | setup | `setup_pin_aggregate` | catalog pin `checks_summary` join, no tree re-scan | yes for setup |
 
+Gitleaks still force-blocks a secret in the component payload. Hits under `tests/`
+or `test/` stay in the record as warning-class so a committed skill tree can
+include scanner fixtures without dropping those files from the snapshot.
+
 `agentic_behavior` covers only mechanically provable declarations: recursive
 delegation, trust in a subagent's result, permission substitution, reading
 adjacent agents, self-modification, persistence, permission masking, argument
 substitution, scope expansion, passing results to the shell, unsafe
 deserialization, floating dependencies, memory poisoning, remote instructions,
-and escaping the root. It does not attempt to semantically assess whether a
-component acts in good faith. `mcp_config_static` separately parses
+and escaping the root. Matches are line-scoped. Defensive or detector wording
+(`never`, `avoid`, `detect`, `unpinned`) and Semgrep/Opengrep `pattern:` lines
+are not declarations. Unpinned `npx`/`uvx` is checked on agent instruction
+files (`SKILL.md`, `AGENT.md`, and the same family), not on README, scanner
+source, or a pinned `@`/`==` token. It does not attempt to semantically assess
+whether a component acts in good faith. `mcp_config_static` separately parses
 tool/schema/resource/prompt/output metadata, name collisions and shadowing,
 dangerous capability chains, and changes to the canonical tool definition
 between approved and current snapshots. For Codex, Grok Build, and OpenCode

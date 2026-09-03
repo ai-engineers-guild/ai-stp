@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+import json
+from pathlib import Path, PurePosixPath
+from typing import cast
 
 from ai_stp_platform.safety.adapters._cli import classify_cli_exit, run_cli
 from ai_stp_platform.safety.normalize import redact_message
 from ai_stp_platform.safety.policy import CheckSpec
 from ai_stp_platform.safety.types import ArtifactManifest, CheckOutcome, Finding
+
+_TEST_DIR_NAMES = frozenset({"test", "tests"})
 
 
 def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome:
@@ -20,9 +24,13 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
             "--source",
             str(tree),
             "--no-git",
+            "--no-banner",
             "--redact",
-            "-f",
+            "--report-format",
             "json",
+            # Current gitleaks writes the report only when --report-path is set.
+            "--report-path",
+            "-",
             "--exit-code",
             "1",
         ],
@@ -51,28 +59,30 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
             # whether the tool ran at all rather than only "timeout".
             detail=classify_cli_exit(code, out, err)[1],
         )
-    findings: list[Finding] = []
     # Exit 1 means leaks found for gitleaks with --exit-code 1
     if code == 1:
-        findings.append(
-            Finding(
-                check_id=spec.check_id,
-                family=spec.family,
-                rule_id="gitleaks_finding",
-                severity="critical",
-                title="Gitleaks reported secrets",
-                message=redact_message((out or err or "secrets found")[:300]),
-                tool_name="gitleaks",
+        findings = _findings_from_report(spec, out)
+        if not findings:
+            findings.append(
+                Finding(
+                    check_id=spec.check_id,
+                    family=spec.family,
+                    rule_id="gitleaks_finding",
+                    severity="critical",
+                    title="Gitleaks reported secrets",
+                    message=redact_message((out or err or "secrets found")[:300]),
+                    tool_name="gitleaks",
+                )
             )
-        )
+        blocking = [finding for finding in findings if not _test_path(finding.path)]
         return CheckOutcome(
             check_id=spec.check_id,
             family=spec.family,
-            result="failed",
+            result="failed" if blocking else "warning",
             mandatory=spec.mandatory,
             tool_name="gitleaks",
             duration_ms=ms,
-            severity_max="critical",
+            severity_max="critical" if blocking else "medium",
             findings=findings,
         )
     if code != 0:
@@ -93,3 +103,44 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
         tool_name="gitleaks",
         duration_ms=ms,
     )
+
+
+def _findings_from_report(spec: CheckSpec, stdout: str) -> list[Finding]:
+    try:
+        parsed = json.loads(stdout)
+    except json.JSONDecodeError:
+        return []
+    if not isinstance(parsed, list):
+        return []
+    findings: list[Finding] = []
+    for item in cast(list[object], parsed):
+        if not isinstance(item, dict):
+            continue
+        row = cast(dict[str, object], item)
+        path = row.get("File")
+        rule = row.get("RuleID")
+        title = row.get("Description")
+        relative = path.replace("\\", "/") if isinstance(path, str) else None
+        rule_id = rule[:64] if isinstance(rule, str) and rule else "gitleaks_finding"
+        heading = (
+            str(title)[:240] if isinstance(title, str) and title else "Gitleaks reported secrets"
+        )
+        findings.append(
+            Finding(
+                check_id=spec.check_id,
+                family=spec.family,
+                rule_id=rule_id,
+                severity="critical",
+                title=heading,
+                path=relative,
+                message=redact_message(rule_id),
+                tool_name="gitleaks",
+            )
+        )
+    return findings
+
+
+def _test_path(path: str | None) -> bool:
+    if not path:
+        return False
+    return any(part in _TEST_DIR_NAMES for part in PurePosixPath(path.replace("\\", "/")).parts)

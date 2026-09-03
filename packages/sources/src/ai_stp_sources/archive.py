@@ -31,6 +31,10 @@ _SECRET_NAMES = frozenset(
     }
 )
 _SECRET_SUFFIXES = (".pem", ".p12", ".pfx", ".key")
+# Committed empty templates. `.env`, `.env.local`, and other `.env.*` stay denied.
+_ENV_TEMPLATE_NAMES = frozenset(
+    {".env.example", ".env.sample", ".env.template", ".env.dist", "env.example"}
+)
 
 
 def extract_component_files(archive_bytes: bytes, *, subpath: str) -> dict[str, bytes]:
@@ -94,6 +98,8 @@ def safe_member_path(member: tarfile.TarInfo) -> str | None:
 
 def reject_secret_name(relative: str) -> None:
     name = Path(relative).name.lower()
+    if name in _ENV_TEMPLATE_NAMES or (name.startswith(".env.") and name.endswith(".example")):
+        return
     if name in _SECRET_NAMES or name.startswith(".env.") or name.endswith(_SECRET_SUFFIXES):
         raise SourceError(UNSAFE_ARCHIVE, "archive contains a secret-like file")
 
@@ -189,8 +195,11 @@ def component_root(files: Mapping[str, bytes], subpath: str) -> dict[str, bytes]
         if prefix == "":
             selected[path] = content
             continue
-        if path == prefix or path.startswith(f"{prefix}/"):
-            relative = "" if path == prefix else path[len(prefix) + 1 :]
+        if path == prefix:
+            selected[PurePosixPath(path).name] = content
+            continue
+        if path.startswith(f"{prefix}/"):
+            relative = path[len(prefix) + 1 :]
             if relative:
                 selected[relative] = content
     if not selected:

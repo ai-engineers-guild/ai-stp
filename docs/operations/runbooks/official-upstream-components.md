@@ -1,6 +1,6 @@
 ---
 description: "Runbook: operator-managed official GitHub and package upstream component snapshots."
-last_verified: "2026-09-01"
+last_verified: "2026-09-02"
 ---
 
 # Official upstream components
@@ -52,6 +52,10 @@ python -m ai_stp_platform.official_upstream upsert \
   --harness-id claude-code
 ```
 
+`--path` is the skill directory, not `SKILL.md` alone. The snapshot is every
+tracked file under that path. Gitignore is the filter; extract does not drop
+tests, CI, or other committed trees.
+
 The owner defaults to the AI STP Official account. Non-HTTPS GitHub URLs,
 embedded credentials, traversing paths, unknown component types, unknown
 package ecosystems, and a non-Official owner are rejected. Repeating the
@@ -60,17 +64,24 @@ command with the same `--id` updates that row only.
 ## Daily enqueue
 
 Every running worker enqueues once when it starts and again after the UTC date
-changes. The queue idempotency key makes multiple workers and restarts safe.
-For an operator-triggered retry, run the same enqueue directly:
+changes. The daily idempotency key makes multiple workers and restarts safe.
+Repeating the scheduler command on the same UTC day returns the existing job
+and does not run the fetch again.
+
+A developer with PostgreSQL access can enqueue a new attempt without an HTTP
+endpoint. `--force` writes a distinct audited queue row; the running worker
+picks it up. Disabled sources are skipped; an explicit `--id` of a missing or
+disabled row is rejected. Payload remains only `source_id`.
 
 ```sh
 python -m ai_stp_platform.official_upstream.enqueue
+python -m ai_stp_platform.official_upstream.enqueue --force
+python -m ai_stp_platform.official_upstream.enqueue --force --id ponytail-skill
 ```
 
-Each job payload is only `source_id`. One source's failure, disable, or
-idempotency key does not affect another enabled source. Disable or delete a
-source to stop later enqueue for that row without deleting published catalog
-versions, audit rows, or sync history.
+One source's failure, disable, or idempotency key does not affect another
+enabled source. Disable or delete a source to stop later enqueue for that row
+without deleting published catalog versions, audit rows, or sync history.
 
 ```sh
 python -m ai_stp_platform.official_upstream disable --id npm-example

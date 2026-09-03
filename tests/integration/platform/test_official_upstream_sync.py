@@ -31,6 +31,7 @@ from ai_stp_platform.official_upstream.artifact import COMPONENT_TREE_FORMAT
 from ai_stp_platform.official_upstream.enqueue import enqueue_daily
 from ai_stp_platform.official_upstream.errors import (
     CHANGED_REPOSITORY_IDENTITY,
+    INVALID_SOURCE,
     OfficialUpstreamError,
 )
 from ai_stp_platform.official_upstream.github import GithubHttpResponse
@@ -180,6 +181,81 @@ async def test_scheduler_enqueues_one_job_per_utc_day(
         assert first[0].job_type == JobType.OFFICIAL_UPSTREAM_SYNC
         jobs = list((await session.scalars(select(Job))).all())
         assert len(jobs) == 2
+
+
+@pytest.mark.asyncio
+async def test_operator_force_enqueues_audited_retry_without_replacing_daily_key(
+    db_sessionmaker: async_sessionmaker[AsyncSession],
+) -> None:
+    now = datetime(2026, 9, 1, 12, 0, tzinfo=UTC)
+    async with db_sessionmaker() as session, session.begin():
+        await _owner(session)
+        await upsert_source(session, _command())
+        daily = await enqueue_daily(session, now=now)
+        forced = await enqueue_daily(session, now=now, force=True)
+        again = await enqueue_daily(session, now=now)
+        assert daily[0].id == again[0].id
+        assert forced[0].id != daily[0].id
+        assert forced[0].payload == {"source_id": SOURCE_ID}
+        assert forced[0].idempotency_key.startswith(f"official-upstream-sync:{SOURCE_ID}:manual:")
+        audits = list(
+            (
+                await session.scalars(
+                    select(AuditEvent).where(AuditEvent.action == "official_upstream.sync_enqueued")
+                )
+            ).all()
+        )
+        assert len(audits) == 1
+        assert audits[0].target_id == SOURCE_ID
+        assert audits[0].payload == {
+            "job_id": forced[0].id,
+            "force": True,
+            "utc_day": "2026-09-01",
+        }
+        with pytest.raises(OfficialUpstreamError) as missing:
+            await enqueue_daily(session, now=now, force=True, source_id="missing-source")
+        assert missing.value.code == INVALID_SOURCE
+        await disable_source(session, SOURCE_ID)
+        with pytest.raises(OfficialUpstreamError) as disabled:
+            await enqueue_daily(session, now=now, force=True, source_id=SOURCE_ID)
+        assert disabled.value.code == INVALID_SOURCE
+
+
+@pytest.mark.asyncio
+async def test_failed_plan_retry_reuses_in_flight_and_fits_idempotency_key(
+    db_sessionmaker: async_sessionmaker[AsyncSession],
+) -> None:
+    store = _store()
+    archive = _tar("# Demo\n")
+    fetch = _fetch(archive)
+    now = datetime(2026, 9, 1, 8, 0, tzinfo=UTC)
+    source_id = "ai-repo-safety"
+    async with db_sessionmaker() as session, session.begin():
+        await _owner(session)
+        await upsert_source(session, _command(source_id=source_id))
+        started = await run_sync(session, source_id, fetch=fetch, store=store, now=now)
+        assert started == "publication_started"
+        plan = (await session.scalars(select(PublicationPlan))).one()
+        assert plan.state == "validating"
+        assert len(plan.idempotency_key) <= 128
+        reused = await run_sync(
+            session, source_id, fetch=fetch, store=store, now=now + timedelta(seconds=1)
+        )
+        assert reused == "publication_started"
+        assert len(list((await session.scalars(select(PublicationPlan))).all())) == 1
+        plan.state = "failed"
+        await session.flush()
+        retry_at = now + timedelta(seconds=2)
+        retried = await run_sync(session, source_id, fetch=fetch, store=store, now=retry_at)
+        assert retried == "publication_started"
+        plans = list((await session.scalars(select(PublicationPlan))).all())
+        assert len(plans) == 2
+        retry_plan = next(item for item in plans if item.id != plan.id)
+        assert retry_plan.state == "validating"
+        assert len(retry_plan.idempotency_key) <= 128
+        stamp = retry_at.strftime("%Y%m%dT%H%M%S")
+        assert retry_plan.idempotency_key.endswith(f":{stamp}")
+        assert retry_plan.idempotency_key.startswith(f"official-upstream:{source_id}:sha256:")
 
 
 @pytest.mark.asyncio

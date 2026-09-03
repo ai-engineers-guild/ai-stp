@@ -125,6 +125,81 @@ def test_agentic_behavior_distinguishes_repository_metadata_from_git_dependency(
     } == {"dependency_floating"}
 
 
+def test_agentic_behavior_does_not_treat_a_markdown_list_after_uvx_as_a_package(
+    tmp_path: Path,
+) -> None:
+    from ai_stp_platform.safety.adapters import agentic_behavior
+
+    payload = tmp_path / "SKILL.md"
+    payload.write_text(
+        "- uv / uvx\n- Git\nIf uv or uvx are missing, install them.\n",
+        encoding="utf-8",
+    )
+    manifest = ArtifactManifest(component_type="skill", text_files=["SKILL.md"])
+    spec = _spec("agentic_behavior", family="agentic_behavior", mandatory=True)
+    assert agentic_behavior.run(tmp_path, manifest, spec).result == "passed"
+
+    payload.write_text("uvx ai-repo-safety doctor\n", encoding="utf-8")
+    assert {
+        finding.rule_id for finding in agentic_behavior.run(tmp_path, manifest, spec).findings
+    } == {"dependency_floating"}
+
+
+def test_agentic_behavior_accepts_a_committed_github_workflow(tmp_path: Path) -> None:
+    from ai_stp_platform.safety.adapters import agentic_behavior
+
+    workflow = tmp_path / ".github" / "workflows"
+    workflow.mkdir(parents=True)
+    (workflow / "ci.yml").write_text(
+        "on:\n  push:\n    branches: [main]\njobs:\n  test:\n    runs-on: ubuntu-latest\n",
+        encoding="utf-8",
+    )
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "test_github_guard.py").write_text("assert True\n", encoding="utf-8")
+    (tmp_path / "SKILL.md").write_text("# Demo skill\n", encoding="utf-8")
+    manifest = ArtifactManifest(
+        component_type="skill",
+        text_files=[".github/workflows/ci.yml", "tests/test_github_guard.py", "SKILL.md"],
+    )
+    spec = _spec("agentic_behavior", family="agentic_behavior", mandatory=True)
+    assert agentic_behavior.run(tmp_path, manifest, spec).result == "passed"
+
+
+def test_agentic_behavior_ignores_scanner_payload_and_unpinned_detector_prose(
+    tmp_path: Path,
+) -> None:
+    from ai_stp_platform.safety.adapters import agentic_behavior
+
+    (tmp_path / "assets").mkdir()
+    (tmp_path / "assets" / "python-dangerous-code.yml").write_text(
+        "      - pattern: pickle.loads(...)\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "scan_mcp_config.py").write_text(
+        'problems.append(f"{path.name}: unpinned uvx package invocation")\n',
+        encoding="utf-8",
+    )
+    (tmp_path / "smoke-wheel.sh").write_text(
+        "# strictly read-only: no git hooks are installed.\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "README.md").write_text("uvx ai-repo-safety doctor\n", encoding="utf-8")
+    (tmp_path / "SKILL.md").write_text("uvx ai-repo-safety==0.1.8 doctor\n", encoding="utf-8")
+    manifest = ArtifactManifest(
+        component_type="skill",
+        text_files=[
+            "assets/python-dangerous-code.yml",
+            "scan_mcp_config.py",
+            "smoke-wheel.sh",
+            "README.md",
+            "SKILL.md",
+        ],
+    )
+    spec = _spec("agentic_behavior", family="agentic_behavior", mandatory=True)
+    assert agentic_behavior.run(tmp_path, manifest, spec).result == "passed"
+
+
 def test_mcp_config_sees_a_credential_in_the_shape_mcp_configs_are_written_in(
     tmp_path: Path,
 ) -> None:
@@ -607,6 +682,126 @@ def test_gitleaks_and_clamav_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     assert gitleaks.run(tmp_path, empty, _spec("secrets_gitleaks", family="secrets")).result == (
         "passed"
     )
+
+
+def test_gitleaks_writes_the_json_report_to_stdout(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_run_cli(argv: list[str], **kwargs: object) -> tuple[int, str, str, int]:
+        del kwargs
+        captured["argv"] = argv
+        return (0, "[]", "", 1)
+
+    monkeypatch.setattr("ai_stp_platform.safety.adapters.gitleaks.run_cli", fake_run_cli)
+    empty = ArtifactManifest(component_type="skill")
+    outcome = gitleaks.run(tmp_path, empty, _spec("secrets_gitleaks", family="secrets"))
+    assert outcome.result == "passed"
+    argv = captured["argv"]
+    assert isinstance(argv, list)
+    assert "--report-format" in argv
+    assert argv[argv.index("--report-format") + 1] == "json"
+    assert "--report-path" in argv
+    assert argv[argv.index("--report-path") + 1] == "-"
+
+
+def test_gitleaks_keeps_test_fixtures_as_warning_and_blocks_the_payload(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    empty = ArtifactManifest(component_type="skill")
+    spec = _spec("secrets_gitleaks", family="secrets")
+    monkeypatch.setattr(
+        "ai_stp_platform.safety.adapters.gitleaks.run_cli",
+        lambda *a, **k: (
+            1,
+            json.dumps(
+                [
+                    {
+                        "RuleID": "private-key",
+                        "Description": "Identified a Private Key",
+                        "File": "tests/test_github_guard.py",
+                    }
+                ]
+            ),
+            "",
+            10,
+        ),
+    )
+    fixture = gitleaks.run(tmp_path, empty, spec)
+    assert fixture.result == "warning"
+    assert fixture.findings[0].path == "tests/test_github_guard.py"
+
+    monkeypatch.setattr(
+        "ai_stp_platform.safety.adapters.gitleaks.run_cli",
+        lambda *a, **k: (
+            1,
+            json.dumps(
+                [
+                    {
+                        "RuleID": "private-key",
+                        "Description": "Identified a Private Key",
+                        "File": "test/fixture.pem",
+                    }
+                ]
+            ),
+            "",
+            10,
+        ),
+    )
+    singular = gitleaks.run(tmp_path, empty, spec)
+    assert singular.result == "warning"
+    assert singular.findings[0].path == "test/fixture.pem"
+
+    monkeypatch.setattr(
+        "ai_stp_platform.safety.adapters.gitleaks.run_cli",
+        lambda *a, **k: (
+            1,
+            json.dumps(
+                [
+                    {
+                        "RuleID": "private-key",
+                        "Description": "Identified a Private Key",
+                        "File": "tests/test_github_guard.py",
+                    },
+                    {
+                        "RuleID": "private-key",
+                        "Description": "Identified a Private Key",
+                        "File": "SKILL.md",
+                    },
+                ]
+            ),
+            "",
+            10,
+        ),
+    )
+    mixed = gitleaks.run(tmp_path, empty, spec)
+    assert mixed.result == "failed"
+    assert {finding.path for finding in mixed.findings} == {
+        "tests/test_github_guard.py",
+        "SKILL.md",
+    }
+
+    monkeypatch.setattr(
+        "ai_stp_platform.safety.adapters.gitleaks.run_cli",
+        lambda *a, **k: (
+            1,
+            json.dumps(
+                [
+                    {
+                        "RuleID": "private-key",
+                        "Description": "Identified a Private Key",
+                        "File": "SKILL.md",
+                    }
+                ]
+            ),
+            "",
+            10,
+        ),
+    )
+    payload = gitleaks.run(tmp_path, empty, spec)
+    assert payload.result == "failed"
+    assert payload.findings[0].path == "SKILL.md"
 
     monkeypatch.setattr(
         "ai_stp_platform.safety.adapters.clamav.run_cli",
