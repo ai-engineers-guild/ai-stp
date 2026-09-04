@@ -49,7 +49,7 @@ last_verified: "2026-08-03"
 | [SPEC-038-cli-publication-access-reports.md](SPEC-038-cli-publication-access-reports.md) | SPEC-038: CLI client for publication, access rights, and reports. | 2026-08-13 |
 | [SPEC-039-cli-private-sync.md](SPEC-039-cli-private-sync.md) | SPEC-039: CLI synchronization of the private registry between devices. | 2026-08-13 |
 | [SPEC-040-setup-evaluation-profiles.md](SPEC-040-setup-evaluation-profiles.md) | SPEC-040: Local functional evaluation profiles for an exact setup. | 2026-08-13 |
-| [SPEC-041-component-scaffold-framework.md](SPEC-041-component-scaffold-framework.md) | SPEC-041: Versioned scaffold plans for a component's complete authoring catalog. | 2026-08-29 |
+| [SPEC-041-component-scaffold-framework.md](SPEC-041-component-scaffold-framework.md) | SPEC-041: Versioned scaffold plans for a component's complete authoring catalog. | 2026-09-04 |
 | [SPEC-042-local-setup-store-ports.md](SPEC-042-local-setup-store-ports.md) | SPEC-042: Local versioned ports for controlled SX and APM import. | 2026-08-13 |
 | [SPEC-043-selection-impact-reports.md](SPEC-043-selection-impact-reports.md) | SPEC-043: Local reports for context budget, capability delta, and blast radius. | 2026-08-15 |
 | [SPEC-044-github-archive-evidence.md](SPEC-044-github-archive-evidence.md) | SPEC-044: GitHub archived state as local evidence of obsolescence. | 2026-08-13 |
@@ -65,7 +65,7 @@ last_verified: "2026-08-03"
 | [SPEC-054-hybrid-article-publication.md](SPEC-054-hybrid-article-publication.md) | SPEC-054: Unified server-side publication of repository- and staff-authored articles. | 2026-08-29 |
 | [SPEC-055-legal-account-onboarding.md](SPEC-055-legal-account-onboarding.md) | SPEC-055: Versioned legal policies and required account onboarding. | 2026-08-31 |
 | [SPEC-056-official-upstream-components.md](SPEC-056-official-upstream-components.md) | SPEC-056: Curated GitHub component snapshots published by AI STP Official. | 2026-09-03 |
-| [SPEC-057-embedded-component-sources.md](SPEC-057-embedded-component-sources.md) | SPEC-057: Exact external and local components embedded in setup definitions. | 2026-08-31 |
+| [SPEC-057-embedded-component-sources.md](SPEC-057-embedded-component-sources.md) | SPEC-057: Exact external and local components embedded in setup definitions. | 2026-09-04 |
 | [SPEC-058-multi-root-installation-transactions.md](SPEC-058-multi-root-installation-transactions.md) | SPEC-058: Recoverable consumer coordination of one setup across multiple provider roots. | 2026-09-03 |
 
 <!-- END CONTENTS -->

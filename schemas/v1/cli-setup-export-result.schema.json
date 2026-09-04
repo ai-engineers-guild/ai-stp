@@ -1,0 +1,72 @@
+{
+  "$id": "urn:ai-stp:schema:v1:cli-setup-export-result",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A review tree of one already-recorded local setup. Not a harness tree.",
+  "properties": {
+    "definition_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Definition Digest",
+      "type": "string"
+    },
+    "files_written": {
+      "minimum": 1,
+      "title": "Files Written",
+      "type": "integer"
+    },
+    "output": {
+      "minLength": 1,
+      "title": "Output",
+      "type": "string"
+    },
+    "passport_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Passport Digest",
+      "type": "string"
+    },
+    "physical_target_tree_created": {
+      "const": false,
+      "default": false,
+      "title": "Physical Target Tree Created",
+      "type": "boolean"
+    },
+    "result": {
+      "const": "local_setup_definition",
+      "default": "local_setup_definition",
+      "title": "Result",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "setup_id": {
+      "minLength": 1,
+      "title": "Setup Id",
+      "type": "string"
+    },
+    "storage": {
+      "const": "local_registry",
+      "default": "local_registry",
+      "title": "Storage",
+      "type": "string"
+    },
+    "version": {
+      "pattern": "^\\d+\\.\\d+$",
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "setup_id",
+    "version",
+    "passport_digest",
+    "definition_digest",
+    "output",
+    "files_written"
+  ],
+  "title": "SetupExportResult",
+  "type": "object"
+}

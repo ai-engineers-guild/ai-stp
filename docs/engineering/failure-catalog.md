@@ -21,7 +21,8 @@ command that can reproduce the refusal.
 | Six published internals are not one product | `uv tool install ai-stp-cli` depended on five other index projects remaining at the same version | `ADR-0146` |
 | `clean` is not `passed` | Evidence that asked "did nothing fail" treated an all-inconclusive matrix as green | `docs/engineering/implementation-roadmap.md`, evidence scripts |
 | Isolation unavailability is not enforcement | Reporting `enforced` when the launcher was absent hid Windows as ready | `docs/contracts/provider-protocol.md` |
-| Experiments are history | Treating `ai-stp-experiments` runs as current six-leg evidence | this catalog |
+| Experiments are history | Treating `ai-stp-experiments` runs as current six-leg evidence | `this catalog` |
+| Scaffold apply is not `--confirm` | A second confirmation flag beside the plan digest would have been a weaker confirmation than the digest itself | `docs/contracts/component-authoring-templates.md`, `SPEC-041` |
 
 Owners named above are the places a regression must break. This file does not
 copy their rules.

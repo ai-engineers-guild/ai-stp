@@ -10,7 +10,7 @@ last_verified: "2026-08-03"
 | Document | Description | Verified |
 | -------- | ----- | ------- |
 | [article-publication-implementation-plan.md](article-publication-implementation-plan.md) | Migration sequence for moving the content hub to unified API serving for repository and staff publications. | 2026-08-29 |
-| [audit-remediation-status.md](audit-remediation-status.md) | Verifiable disposition of findings from the current CLI, CI, and integration audit. | 2026-08-16 |
+| [audit-remediation-status.md](audit-remediation-status.md) | Verifiable disposition of findings from the current CLI, CI, and integration audit. | 2026-09-04 |
 | [cli-performance.md](cli-performance.md) | Measured CLI command costs, resolved bottlenecks, and budgets. | 2026-08-29 |
 | [coding-rules.md](coding-rules.md) | Rules for errors, I/O, security, and predictable behavior. | 2026-08-03 |
 | [dependency-policy.md](dependency-policy.md) | Rules of Python, Node, external tools, and provider dependencies. | 2026-08-15 |

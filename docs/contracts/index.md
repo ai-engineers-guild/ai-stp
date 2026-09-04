@@ -24,7 +24,7 @@ last_verified: "2026-08-03"
 | [cli-publication.md](cli-publication.md) | Client-side publication plan sequence and the boundary of transmitted data. | 2026-08-25 |
 | [cli-telemetry.md](cli-telemetry.md) | Closed list of anonymous telemetry ping fields, sending conditions, and excluded data. | 2026-08-21 |
 | [complaint-intake.md](complaint-intake.md) | Public complaint intake: fields, distinction from a private report case, and configurable limits. | 2026-08-22 |
-| [component-authoring-templates.md](component-authoring-templates.md) | Versioned scaffold plans and safe projection of component authoring templates. | 2026-08-29 |
+| [component-authoring-templates.md](component-authoring-templates.md) | Versioned scaffold plans and safe projection of component authoring templates. | 2026-09-04 |
 | [component-presentation.md](component-presentation.md) | Mutable component presentation in the catalog without changing the version passport. | 2026-08-10 |
 | [component-setup-passports.md](component-setup-passports.md) | Component and setup version passports, component types, and dependencies. | 2026-08-22 |
 | [composition-reports.md](composition-reports.md) | Composition and conversion reports: closed conflict classes, permitted compiler operations, and loss states. | 2026-08-28 |
@@ -37,7 +37,7 @@ last_verified: "2026-08-03"
 | [github-archive-evidence.md](github-archive-evidence.md) | Machine contract for local GitHub archive evidence and observation history. | 2026-08-15 |
 | [harness-bundle.md](harness-bundle.md) | Bounded deterministic package for a public harness provider. | 2026-09-01 |
 | [http-api.md](http-api.md) | HTTP API versioning, authorization, idempotency, and concurrency. | 2026-08-29 |
-| [native-component-discovery.md](native-component-discovery.md) | Machine contract for read-only discovery of native components in supported harnesses. | 2026-08-26 |
+| [native-component-discovery.md](native-component-discovery.md) | Machine contract for read-only discovery of native components in supported harnesses. | 2026-09-04 |
 | [offline-capability.md](offline-capability.md) | What works without the network after initial setup and what requires connectivity. | 2026-08-13 |
 | [operation.md](operation.md) | States, plan, journal, and recovery of a mutating operation. | 2026-08-09 |
 | [passport-envelope.md](passport-envelope.md) | Canonical passport envelope and fact provenance. | 2026-08-04 |

@@ -57,6 +57,7 @@ Plan first, then pass the returned setup id, timestamp, and plan digest to apply
 ```text
 ai-stp setup compose plan --manifest setup.json --root . --json
 ai-stp setup compose apply --manifest setup.json --root . --id <setup_id> --created-at <created_at> --expected-plan-digest <digest> --confirm --json
+ai-stp setup export --id <setup_id> --version 1.0 --output ./exported-setup --json
 ai-stp setup publish plan --id <setup_id> --version 1.0 --json
 ```
 
@@ -64,6 +65,11 @@ Git refs are resolved to commits, package sources require exact versions, and
 local paths stay within `--root`. Apply repeats resolution and refuses changed
 bytes. Embedded members are published only inside the setup; catalog members
 retain their existing publisher and identity.
+
+`setup export` writes a review tree of that recorded definition: passport,
+definition artifact, and a README that says the local registry remains storage
+and that no physical harness tree was created. It refuses an occupied
+destination. Native harness state is not written.
 
 A setup is the final configuration of one harness. It pins exact component
 versions and is applied only through that harness's public provider.

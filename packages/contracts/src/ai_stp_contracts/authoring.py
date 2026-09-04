@@ -47,8 +47,10 @@ AUTHORING_TYPE_LANGUAGE_MATRIX: Final[dict[ComponentType, tuple[AuthoringLanguag
     "setting": ("none",),
 }
 
-type ComponentTemplateVersion = Literal["component-scaffold/1", "component-scaffold/2"]
-type ComponentGeneratorVersion = Literal["ai-stp/1", "ai-stp/2"]
+type ComponentTemplateVersion = Literal[
+    "component-scaffold/1", "component-scaffold/2", "component-scaffold/3"
+]
+type ComponentGeneratorVersion = Literal["ai-stp/1", "ai-stp/2", "ai-stp/3"]
 
 
 class PortableHookHandler(BaseModel):
@@ -77,8 +79,8 @@ class ComponentTemplateDescriptor(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
     schema_version: Literal[1] = 1
-    template_version: ComponentTemplateVersion = "component-scaffold/2"
-    generator_version: ComponentGeneratorVersion = "ai-stp/2"
+    template_version: ComponentTemplateVersion = "component-scaffold/3"
+    generator_version: ComponentGeneratorVersion = "ai-stp/3"
     component_type: ComponentType
     language: AuthoringLanguage
     harness_variant: AuthoringVariant
@@ -149,5 +151,5 @@ class ComponentScaffoldResult(BaseModel):
     plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
     output: Annotated[str, Field(min_length=1)]
     files_written: Annotated[int, Field(ge=6)]
-    template_version: ComponentTemplateVersion = "component-scaffold/2"
-    generator_version: ComponentGeneratorVersion = "ai-stp/2"
+    template_version: ComponentTemplateVersion = "component-scaffold/3"
+    generator_version: ComponentGeneratorVersion = "ai-stp/3"

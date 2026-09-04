@@ -17,6 +17,7 @@ description: "Как ai_stp собирает полный сетап из точ
 ```text
 ai-stp setup compose plan --manifest setup.json --root . --json
 ai-stp setup compose apply --manifest setup.json --root . --id <setup_id> --created-at <created_at> --expected-plan-digest <digest> --confirm --json
+ai-stp setup export --id <setup_id> --version 1.0 --output ./exported-setup --json
 ai-stp setup publish plan --id <setup_id> --version 1.0 --json
 ```
 
@@ -24,6 +25,11 @@ Git ref замораживается в commit, package требует точн�
 ограничен `--root`. `apply` повторно получает источники и откажется, если байты
 изменились. Embedded-компоненты публикуются внутри setup, а каталожные сохраняют
 своего publisher и идентичность.
+
+`setup export` пишет review-дерево уже записанного определения: паспорт, артефакт
+определения и README, где сказано, что хранилище — локальный реестр, а
+физическое дерево харнесса не создаётся. Занятый каталог отвергается. Native
+состояние харнесса не пишется.
 
 Сетап — итоговая конфигурация одного харнесса. Он закрепляет точные версии
 компонентов и применяется только через public provider этого харнесса.

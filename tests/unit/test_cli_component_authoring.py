@@ -19,7 +19,8 @@ from ai_stp_contracts.evaluation import SetupEvalProfile
 from ai_stp_foundation.canonical import from_json_bytes
 from ai_stp_foundation.digests import digest_bytes
 
-SCAFFOLD_GOLDEN = Path(__file__).parents[1] / "golden" / "cli" / "component-scaffold-v2.json"
+SCAFFOLD_GOLDEN = Path(__file__).parents[1] / "golden" / "cli" / "component-scaffold-v3.json"
+HISTORICAL_V2_GOLDEN = Path(__file__).parents[1] / "golden" / "cli" / "component-scaffold-v2.json"
 REFERENCE_CASES = {
     "instruction-none-portable": ("instruction", "none", "portable"),
     "skill-none-codex": ("skill", "none", "codex"),
@@ -214,9 +215,12 @@ def test_scaffold_matrix_produces_valid_exact_artifacts(
     )
     assert plan.publication_ready is False
     assert plan.requires_exact_source_before_publication is True
-    assert plan.descriptor.template_version == "component-scaffold/2"
-    assert plan.descriptor.generator_version == "ai-stp/2"
-    assert any(path.startswith("native/") for path in files)
+    assert plan.descriptor.template_version == "component-scaffold/3"
+    assert plan.descriptor.generator_version == "ai-stp/3"
+    assert any(path.startswith("projections/") for path in files)
+    assert all(not path.startswith("native/") for path in files)
+    assert "component.json" in files
+    assert "source/authoring-template.md" in files
     ComponentPassportPatch.model_validate(from_json_bytes(files["component-passport.json"]))
     profile = SetupEvalProfile.model_validate(from_json_bytes(files["eval-profile.json"]))
     assert profile.component_types == [component_type]
@@ -377,8 +381,8 @@ def test_hook_scaffold_preserves_source_event_order_and_failure_in_native_form(
         output=tmp_path / "review-kit",
     )
 
-    source = json.loads(files["hook-source.json"])
-    manifest = json.loads(files["native/hooks.json"])
+    source = json.loads(files["source/hook-source.json"])
+    manifest = json.loads(files[f"projections/{harness}/hooks.json"])
     projected = manifest["hooks"][source["event"]]
     assert source == {
         "schema_version": 1,
@@ -388,7 +392,7 @@ def test_hook_scaffold_preserves_source_event_order_and_failure_in_native_form(
         "handler": {"command": command},
     }
     assert projected[0]["hooks"] == [{"type": "command", "command": command}]
-    assert "handle_event" not in files["native/hooks/handler.py"].decode()
+    assert "handle_event" not in files[f"projections/{harness}/hooks/handler.py"].decode()
     passport = json.loads(files["component-passport.json"])
     assert passport["managed_paths"] == [managed]
     assert passport["entry_points"] == ["hooks/handler.py"]
@@ -396,12 +400,21 @@ def test_hook_scaffold_preserves_source_event_order_and_failure_in_native_form(
 
 def test_plugin_scaffold_uses_manifest_packages_and_bare_modules(tmp_path: Path) -> None:
     cases = {
-        "claude-code": {"native/.claude-plugin/plugin.json", "native/src/main.js"},
-        "cursor": {"native/.cursor-plugin/plugin.json", "native/src/main.js"},
-        "antigravity": {"native/plugin.json", "native/src/main.js"},
-        "grok-build": {"native/plugin.json", "native/src/main.js"},
-        "opencode": {"native/review-kit.js"},
-        "pi": {"native/review-kit.js"},
+        "claude-code": {
+            "projections/claude-code/.claude-plugin/plugin.json",
+            "projections/claude-code/src/main.js",
+        },
+        "cursor": {
+            "projections/cursor/.cursor-plugin/plugin.json",
+            "projections/cursor/src/main.js",
+        },
+        "antigravity": {
+            "projections/antigravity/plugin.json",
+            "projections/antigravity/src/main.js",
+        },
+        "grok-build": {"projections/grok-build/plugin.json", "projections/grok-build/src/main.js"},
+        "opencode": {"projections/opencode/review-kit.js"},
+        "pi": {"projections/pi/review-kit.js"},
     }
     for harness, native_paths in cases.items():
         _plan, files = authoring.scaffold_plan(
@@ -411,7 +424,9 @@ def test_plugin_scaffold_uses_manifest_packages_and_bare_modules(tmp_path: Path)
             harness_variant=harness,
             output=tmp_path / harness,
         )
-        assert {path for path in files if path.startswith("native/")} == native_paths
+        assert {path for path in files if path.startswith("projections/")} == native_paths | {
+            f"projections/{harness}/GENERATED.md"
+        }
         passport = json.loads(files["component-passport.json"])
         if harness == "opencode":
             assert passport["managed_paths"] == ["plugins/review-kit.js"]
@@ -436,7 +451,7 @@ def test_marketplace_registration_belongs_to_setting_not_plugin(tmp_path: Path) 
     )
 
     assert "native/settings.json" not in plugin
-    assert json.loads(setting["native/settings.json"]) == {}
+    assert json.loads(setting["projections/claude-code/settings.json"]) == {}
     assert json.loads(setting["component-passport.json"])["managed_paths"] == ["settings.json"]
 
 
@@ -461,8 +476,8 @@ def test_scaffold_fails_before_writing_when_native_semantics_do_not_exist(
 
 def test_versioned_reference_scaffolds_match_the_reviewed_golden(tmp_path: Path) -> None:
     golden = json.loads(SCAFFOLD_GOLDEN.read_text(encoding="utf-8"))
-    assert golden["template_version"] == "component-scaffold/2"
-    assert golden["generator_version"] == "ai-stp/2"
+    assert golden["template_version"] == "component-scaffold/3"
+    assert golden["generator_version"] == "ai-stp/3"
     observed: dict[str, dict[str, str]] = {}
     for case, (component_type, language, harness) in REFERENCE_CASES.items():
         plan, _files = authoring.scaffold_plan(
@@ -475,6 +490,32 @@ def test_versioned_reference_scaffolds_match_the_reviewed_golden(tmp_path: Path)
         observed[case] = {item.path: item.digest for item in plan.files}
 
     assert observed == golden["cases"]
+
+
+def test_historical_v2_golden_remains_a_reviewed_snapshot() -> None:
+    golden = json.loads(HISTORICAL_V2_GOLDEN.read_text(encoding="utf-8"))
+    assert golden["template_version"] == "component-scaffold/2"
+    assert golden["generator_version"] == "ai-stp/2"
+    assert any(path.startswith("native/") for case in golden["cases"].values() for path in case)
+
+
+def test_historical_scaffold_descriptor_versions_remain_validatable() -> None:
+    for template, generator in (
+        ("component-scaffold/1", "ai-stp/1"),
+        ("component-scaffold/2", "ai-stp/2"),
+        ("component-scaffold/3", "ai-stp/3"),
+    ):
+        ComponentTemplateDescriptor.model_validate(
+            {
+                "schema_version": 1,
+                "template_version": template,
+                "generator_version": generator,
+                "component_type": "skill",
+                "language": "none",
+                "harness_variant": "portable",
+                "executable": False,
+            }
+        )
 
 
 def test_scaffold_plan_contract_rejects_duplicate_file_paths(tmp_path: Path) -> None:
