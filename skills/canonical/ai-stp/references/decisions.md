@@ -3,8 +3,10 @@
 The user's task is the authority boundary. Local reversible steps inside that
 task run without a fresh question (`ADR-0150`).
 
-`mutability` and `confirmation` are independent. `confirmation: none` is not
-consent. `plan_digest` is a machine binding of exact bytes, not a person.
+`mutability` and `confirmation` are independent.
+
+`confirmation: none` is not consent. `plan_digest` is a machine binding of exact
+bytes, not a person.
 
 - `read` — observe.
 - `plan` — exact subject of a later apply.

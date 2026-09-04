@@ -2028,7 +2028,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
             option("provider-release-recovery", "boolean", "Use a previously verified release."),
         ),
-        next_actions=("install transaction approve",),
+        next_actions=("install transaction approve", "install transaction cancel"),
     ),
     Declaration(
         path=["install", "transaction", "approve"],

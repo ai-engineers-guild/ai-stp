@@ -1,10 +1,14 @@
 /* eslint-disable max-lines -- public catalog facts stay in one owner module */
 import type { ExternalProduct, Country } from "@/lib/api/catalog";
-import { namedHarnesses } from "@/lib/catalog-harnesses";
+import {
+  namedHarnesses,
+  namedPassportHarnesses,
+  namedProjectionKinds,
+} from "@/lib/catalog-harnesses";
 import { registryCommand } from "@/lib/cli-copy";
 import { isComponentType, type ComponentTypeId } from "@/lib/projection/inventory";
 import { sourceLinksFor, type PublicSourceLink } from "@/lib/source-url";
-import type { GitSource } from "@/lib/api/generated/types.gen";
+import type { ComponentVersionPassport, GitSource } from "@/lib/api/generated/types.gen";
 
 type TrustLike = {
   trust_lane: string;
@@ -124,7 +128,13 @@ export type ComponentPublicExtras = {
 };
 
 export type ComponentPassportFactsInput = {
-  projection_kind: string;
+  projection_kind?: string;
+  adaptations?: ReadonlyArray<{
+    harness_id: string;
+    scope_adaptations?: ReadonlyArray<{
+      projection_kind?: string | null;
+    }>;
+  }>;
   license: { spdx_id: string };
   requires_credentials: boolean;
   requires_authorization: string;
@@ -135,6 +145,55 @@ export type ComponentPassportFactsInput = {
   source?: GitSource | null;
   facts?: Record<string, { value: unknown }>;
 };
+
+export function componentPassportFactsInput(
+  passport: ComponentVersionPassport,
+): ComponentPassportFactsInput {
+  return {
+    adaptations: passport.adaptations,
+    license: passport.license,
+    requires_credentials: passport.requires_credentials,
+    requires_authorization: passport.requires_authorization,
+    required_env: passport.required_env,
+    requires_components: passport.requires_components,
+    requires_capabilities: passport.requires_capabilities,
+    compatibility_evidence_refs: passport.compatibility_evidence_refs,
+    source: passport.source,
+    facts: passport.facts,
+  };
+}
+
+function projectionKindOf(
+  passport: ComponentPassportFactsInput | null | undefined,
+): string | undefined {
+  if (passport == null) return undefined;
+  if (passport.adaptations != null) {
+    return namedProjectionKinds({ adaptations: passport.adaptations })[0];
+  }
+  return passport.projection_kind;
+}
+
+export function summaryFactsFromComponentPassport(
+  passport: ComponentVersionPassport,
+  extras: { componentId: string; lifecycle: string; trust: TrustLike },
+): ComponentSummaryFacts {
+  const harnesses = namedPassportHarnesses(passport);
+  const kinds = namedProjectionKinds(passport);
+  return {
+    stable_id: extras.componentId,
+    publisher_id: passport.owner_id,
+    latest_name: passport.name,
+    latest_description: passport.description,
+    latest_version: passport.version,
+    latest_harness_id: harnesses[0] ?? "",
+    latest_harness_ids: harnesses,
+    latest_component_type: passport.component_type,
+    latest_lifecycle: extras.lifecycle,
+    latest_tags: passport.tags,
+    latest_trust: extras.trust,
+    ...(kinds[0] === undefined ? {} : { latest_projection_kind: kinds[0] }),
+  };
+}
 
 export type CountryFacts = {
   code: string;
@@ -290,7 +349,7 @@ export function componentFactsFromLoaders(input: {
   return componentPublicFacts(input.summary, input.digest, {
     countryCodes: input.relations?.countryCodes,
     services: input.relations?.services,
-    projectionKind: passport?.projection_kind ?? input.summary.latest_projection_kind,
+    projectionKind: projectionKindOf(passport) ?? input.summary.latest_projection_kind,
     license: passport?.license.spdx_id,
     requiresCredentials:
       passport?.requires_credentials ?? input.summary.latest_requires_credentials,

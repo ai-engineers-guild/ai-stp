@@ -16,7 +16,11 @@ import { SupportSummary, supportLabels } from "@/components/molecules/support-su
 import { readComponentGithubMetadata, readComponentVersion } from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
 import { asVersionId, tryAsComponentId } from "@/lib/brands";
-import { namedOperatingSystems, namedPassportHarnesses } from "@/lib/catalog-harnesses";
+import {
+  namedOperatingSystems,
+  namedPassportHarnesses,
+  namedProjectionKinds,
+} from "@/lib/catalog-harnesses";
 import { registryVersion } from "@/lib/cli-copy";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { publicOrigin } from "@/lib/site";
@@ -60,6 +64,8 @@ export default async function ComponentVersionPage({ params }: PageProps) {
   const tCli = await getTranslations("cli");
 
   const passport = response.passport;
+  const harnesses = namedPassportHarnesses(passport);
+  const projectionKinds = namedProjectionKinds(passport);
   const sourceLinks = sourceLinksFor(passport.source, passport.facts).map((item) => ({
     ...item,
     label: item.provider === "Source" ? t("viewSource") : `${t("viewSourceOn")} ${item.provider}`,
@@ -92,7 +98,11 @@ export default async function ComponentVersionPage({ params }: PageProps) {
       <div className="flex flex-wrap gap-2">
         <Badge>{response.trust.trust_lane}</Badge>
         <Badge variant="secondary">{passport.component_type}</Badge>
-        <Badge variant="outline">{passport.harness_id}</Badge>
+        {harnesses.map((harness) => (
+          <Badge key={harness} variant="outline">
+            {harness}
+          </Badge>
+        ))}
       </div>
       <dl className="grid gap-3 sm:grid-cols-2">
         <div>
@@ -105,7 +115,7 @@ export default async function ComponentVersionPage({ params }: PageProps) {
         </div>
         <div>
           <dt className="text-muted-foreground text-sm">{t("harness")}</dt>
-          <dd>{namedPassportHarnesses(passport).join(", ")}</dd>
+          <dd>{harnesses.join(", ")}</dd>
         </div>
         <div>
           <dt className="text-muted-foreground text-sm">{t("supportedOs")}</dt>
@@ -119,7 +129,7 @@ export default async function ComponentVersionPage({ params }: PageProps) {
         </div>
         <div>
           <dt className="text-muted-foreground text-sm">{t("projectionKind")}</dt>
-          <dd>{passport.projection_kind}</dd>
+          <dd>{projectionKinds.join(", ") || t("noneListed")}</dd>
         </div>
         <div>
           <dt className="text-muted-foreground text-sm">{t("license")}</dt>
