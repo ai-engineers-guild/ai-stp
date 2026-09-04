@@ -125,6 +125,15 @@ security:
 estate-validate path:
     {{run}} python -m release_scripts.validate_estate_record "{{path}}"
 
+# Build one estate record from local identities. Does not fetch.
+estate-record version commit tag checksums output:
+    {{run}} python -m release_scripts.build_estate_record \
+        --version "{{version}}" \
+        --commit "{{commit}}" \
+        --tag "{{tag}}" \
+        --checksums "{{checksums}}" \
+        --output "{{output}}"
+
 # Deterministic safety evidence; the script disables external CLI and network.
 safety-benchmark *args:
     {{run}} python scripts/safety/benchmark_offline.py {{args}}

@@ -2459,7 +2459,27 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "confirm", "boolean", "Confirm recording this exact composition.", required=True
             ),
         ),
-        next_actions=("setup publish plan", "select session"),
+        next_actions=("setup export", "setup publish plan", "select session"),
+    ),
+    Declaration(
+        path=["setup", "export"],
+        summary=(
+            "Write a review tree of one recorded local setup. Does not create a harness tree."
+        ),
+        result_schema="urn:ai-stp:schema:v1:cli-setup-export-result",
+        handler="setup_compose:export",
+        mutability="apply",
+        parameters=(
+            option("id", "string", "Stable identifier of the recorded setup.", required=True),
+            option("version", "string", "Exact X.Y version. Omitted, the newest recorded version."),
+            option(
+                "output",
+                "string",
+                "New directory that must not already exist.",
+                required=True,
+            ),
+        ),
+        next_actions=("install plan", "setup publish plan"),
     ),
     Declaration(
         path=["setup", "import", "inspect"],

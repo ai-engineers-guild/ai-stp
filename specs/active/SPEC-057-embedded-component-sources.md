@@ -1,6 +1,6 @@
 ---
 description: "SPEC-057: Exact external and local components embedded in setup definitions."
-last_verified: "2026-08-31"
+last_verified: "2026-09-04"
 ---
 
 # SPEC-057: Embedded component sources
@@ -128,6 +128,10 @@ the architecture and extends ADR-0051 without changing `ComponentRef`.
   links catalog members to catalog pages and external members to their canonical
   Git or package source, and shows each member's own safety results. Local members
   have no invented external link.
+- `REQ-5720`: After a mixed setup is recorded locally, `setup export` writes a
+  review tree of the immutable passport and definition artifact to a new unused
+  directory. The result names the local registry as storage and does not create
+  a physical harness tree or write native harness state.
 
 ## States and errors
 
@@ -177,6 +181,7 @@ version 2 bytes and published setup history.
 | `REQ-5717` | Staff/non-staff and approve/deny tests cover claim evidence, preview, audit, ownership revision, and immutable history. |
 | `REQ-5718` | Bounds and secret-redaction tests cover every adapter, archive, graph, document, payload, log, and fixture boundary. |
 | `REQ-5719` | Web/API tests cover projected harnesses, absence of a setup percentage, per-member checks, and catalog/Git/package/local link behavior. |
+| `REQ-5720` | Export of a recorded mixed setup writes passport and definition files to a new directory and refuses an occupied destination without writing harness state. |
 
 ## Required checks
 

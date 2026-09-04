@@ -1,6 +1,6 @@
 ---
 description: "Versioned scaffold plans and safe projection of component authoring templates."
-last_verified: "2026-08-29"
+last_verified: "2026-09-04"
 ---
 
 # Component authoring templates
@@ -18,11 +18,12 @@ A file is hashed in the `ai-stp:artifact:v1` domain; canonical JSON of the plan 
 is hashed in the `ai-stp:scaffold-plan:v1` domain; `plan_id` is derived from the first
 24 hex characters of the plan digest.
 
-`component scaffold apply` accepts the same inputs, the exact
-`--expected-plan-digest`, and `--confirm`. The CLI rebuilds the plan, reserves a new
+`component scaffold apply` accepts the same inputs and the exact
+`--expected-plan-digest`. The CLI rebuilds the plan, reserves a new
 directory without overwriting, and creates files with mode `0600`, rolling back its
 own incomplete result on failure. An existing target—even an empty one—a symlink,
-and a missing parent are rejected; there is no hidden overwrite or merge.
+and a missing parent are rejected; there is no hidden overwrite or merge. The
+plan digest is the confirmation (`ADR-0118`); there is no `--confirm` flag.
 
 Declarative `instruction`, `skill`, `command`, `agent`, and `setting` use
 `--language none`. Executable `mcp` and `plugin` select `python`, `typescript`,
@@ -31,15 +32,17 @@ because the provider does not perform a hidden source build. The variant is `por
 or one of the harnesses in the closed registry. If the selected harness has no
 independent native form for the type, the plan fails closed before any write.
 
-The `component-scaffold/2` version directory contains `component-passport.json`, `eval-profile.json`, a descriptor,
-portable authoring-template.md, README, safety declaration, publication checklist,
-and a ready native layout under `native/`. The passport is a local patch: it contains
+The `component-scaffold/3` version directory contains `component.json`,
+`component-passport.json`, `eval-profile.json`, README, safety declaration,
+publication checklist, portable source under `source/`, one adaptation under
+`adaptations/<harness>/`, and a generated native layout under `projections/<harness>/`.
+The passport is a local patch: it contains
 no invented source, secrets, or permission to redistribute. The author continues via
 `component passport validate`, local registration, and publication plan commands.
 
-For a hook, canonical `hook-source.json` stores the event, order, blocking failure
+For a hook, canonical `source/hook-source.json` stores the event, order, blocking failure
 policy, and handler command; the strict schema prohibits extra fields. It
-deterministically produces `native/hooks.json` and an adjacent executable handler.
+deterministically produces `projections/<harness>/hooks.json` and an adjacent executable handler.
 Manifest-directory plugins receive a product manifest. OpenCode and Pi receive a
 single JS/TS module without an invented manifest. Marketplace registration is not a
 plugin package: it is a separate `setting` that owns an entire native settings file.
@@ -50,7 +53,7 @@ being converted into another type.
 
 1. Run `component scaffold plan`, review the descriptor, every file, and digest,
    then pass unchanged inputs to `component scaffold apply` with the exact plan
-   digest and `--confirm`.
+   digest.
 2. Implement the behavior and fill in only confirmed patch facts. For `required_env`,
    record names and purposes, but not values. Add source only after pinning a public
    GitHub commit.

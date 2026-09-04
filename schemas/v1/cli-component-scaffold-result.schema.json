@@ -3,14 +3,16 @@
     "ComponentGeneratorVersion": {
       "enum": [
         "ai-stp/1",
-        "ai-stp/2"
+        "ai-stp/2",
+        "ai-stp/3"
       ],
       "type": "string"
     },
     "ComponentTemplateVersion": {
       "enum": [
         "component-scaffold/1",
-        "component-scaffold/2"
+        "component-scaffold/2",
+        "component-scaffold/3"
       ],
       "type": "string"
     }
@@ -27,7 +29,7 @@
     },
     "generator_version": {
       "$ref": "#/$defs/ComponentGeneratorVersion",
-      "default": "ai-stp/2"
+      "default": "ai-stp/3"
     },
     "output": {
       "minLength": 1,
@@ -52,7 +54,7 @@
     },
     "template_version": {
       "$ref": "#/$defs/ComponentTemplateVersion",
-      "default": "component-scaffold/2"
+      "default": "component-scaffold/3"
     }
   },
   "required": [

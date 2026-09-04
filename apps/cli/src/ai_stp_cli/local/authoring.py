@@ -256,9 +256,21 @@ def _scaffold_files(name: str, descriptor: ComponentTemplateDescriptor) -> dict[
     patch = ComponentPassportPatch.model_validate(patch_input)
     from ai_stp_cli.local.evaluation import reference_profile
 
+    variant = descriptor.harness_variant
+    projection_root = f"projections/{variant}"
+    adaptation_root = f"adaptations/{variant}"
+    adaptation: dict[str, JsonValue] = {
+        "schema_version": 1,
+        "harness_variant": variant,
+        "implementation_mode": "native",
+        "logical_type": component_type,
+        "projection_kind": projection,
+    }
+    if variant != "portable":
+        adaptation["harness_id"] = variant
     files: dict[str, bytes] = {
-        ".ai-stp-template.json": canonize(cast(JsonValue, descriptor.model_dump(mode="json"))),
-        "authoring-template.md": scaffold(component_type, name).encode(),
+        "component.json": canonize(cast(JsonValue, descriptor.model_dump(mode="json"))),
+        "source/authoring-template.md": scaffold(component_type, name).encode(),
         "component-passport.json": canonize(
             cast(JsonValue, patch.model_dump(mode="json", exclude_none=True))
         ),
@@ -267,7 +279,9 @@ def _scaffold_files(name: str, descriptor: ComponentTemplateDescriptor) -> dict[
         ),
         "README.md": (
             f"# {name}\n\n{component_type} scaffold generated from "
-            f"`{descriptor.template_version}`.\n"
+            f"`{descriptor.template_version}`.\n\n"
+            "Authoring source lives under `source/`. Native bytes under "
+            f"`{projection_root}/` are a generated projection, not the source of truth.\n"
         ).encode(),
         "SAFETY.md": (
             b"# Safety\n\nDeclare bounded filesystem, network, process, credential and "
@@ -276,11 +290,19 @@ def _scaffold_files(name: str, descriptor: ComponentTemplateDescriptor) -> dict[
         "PUBLICATION.md": (
             b"# Publication checklist\n\n- [ ] Add exact public GitHub source commit and path.\n"
             b"- [ ] Replace NOASSERTION with a reviewed redistributable license.\n"
+            b"- [ ] Replace generated stub programs. A no-op that returns 0 is not "
+            b"publication-ready.\n"
             b"- [ ] Run passport validation and the exact SetupEvalProfile.\n"
         ),
+        f"{adaptation_root}/adaptation.json": canonize(cast(JsonValue, adaptation)),
+        f"{projection_root}/GENERATED.md": (
+            b"# Generated projection\n\n"
+            b"Native bytes in this directory are produced by `ai-stp/3` from `source/`.\n"
+            b"Do not treat them as the source of truth.\n"
+        ),
     }
-    files.update({f"native/{path}": payload for path, payload in native.items()})
-    files.update(authoring_source)
+    files.update({f"{projection_root}/{path}": payload for path, payload in native.items()})
+    files.update({f"source/{path}": payload for path, payload in authoring_source.items()})
     return files
 
 
@@ -432,16 +454,19 @@ def _program_entry(name: str, language: str, *, prefix: str = "src/main") -> str
 
 def _program(name: str, language: str, symbol: str) -> bytes:
     del name
+    stub = "STUB: replace before publication. A generated no-op is not a product."
     symbol = {
-        "python": f"def {symbol}() -> int:\n    return 0\n",
-        "typescript": f"export const {symbol} = (): number => 0;\n",
-        "javascript": f"export const {symbol} = () => 0;\n",
-        "rust": f"fn {symbol}() -> i32 {{ 0 }}\n\nfn main() {{ let _ = {symbol}(); }}\n",
+        "python": f"# {stub}\ndef {symbol}() -> int:\n    return 0\n",
+        "typescript": f"// {stub}\nexport const {symbol} = (): number => 0;\n",
+        "javascript": f"// {stub}\nexport const {symbol} = () => 0;\n",
+        "rust": (
+            f"// {stub}\nfn {symbol}() -> i32 {{ 0 }}\n\nfn main() {{ let _ = {symbol}(); }}\n"
+        ),
         "go": (
-            f"package main\n\nfunc {symbol}() int {{ return 0 }}\n\n"
+            f"package main\n\n// {stub}\nfunc {symbol}() int {{ return 0 }}\n\n"
             f"func main() {{ _ = {symbol}() }}\n"
         ),
-        "dart-flutter": f"int {symbol}() => 0;\n",
+        "dart-flutter": f"// {stub}\nint {symbol}() => 0;\n",
     }[language]
     return symbol.encode()
 

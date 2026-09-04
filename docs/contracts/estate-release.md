@@ -62,3 +62,11 @@ cannot yield `complete`.
 `just estate-validate <path>` reads the document and retained metadata only.
 It does not fetch GitHub, PyPI, or the host. Recomputing a digest requires the
 named file to sit beside the record or under `--artifacts`.
+
+## Building a record
+
+`python -m release_scripts.build_estate_record` (or `just estate-record`) writes
+one document from a version, exact consumer commit, SHA256SUMS, and explicit
+provider `repository=tag@commit` identities. It does not fetch. The written
+`verdict` is always `computed_verdict`; an empty evidence matrix or a missing
+six-leg slice cannot become `complete`.

@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import sqlite3
 from collections.abc import Mapping, Sequence
+from contextlib import suppress
 from dataclasses import dataclass
+from pathlib import Path, PurePosixPath
 from typing import Annotated, Literal, cast
 from urllib.parse import urlsplit
 
@@ -16,12 +19,14 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import cache, content, revisions, versions
 from ai_stp_cli.local.composition import rule_for
 from ai_stp_cli.local.database import transaction
+from ai_stp_cli.paths import redact_home
 from ai_stp_contracts.machine_help import (
     SetupComposeMember,
     SetupComposePlan,
     SetupComposeResult,
+    SetupExportResult,
 )
-from ai_stp_foundation.canonical import JsonValue
+from ai_stp_foundation.canonical import JsonValue, canonize
 from ai_stp_foundation.digests import digest_bytes, digest_canonical
 from ai_stp_foundation.harnesses import HARNESS_IDS
 from ai_stp_foundation.ids import is_valid_id
@@ -339,6 +344,141 @@ def apply(
         plan_digest=resolved.plan_digest,
         created=True,
     )
+
+
+_EXPORT_README = """# Exported setup definition
+
+This directory is a review tree of one already-recorded local setup.
+
+- The result is a local immutable setup definition.
+- Storage remains the local registry and content store.
+- A physical harness tree is not created.
+- Native harness state is not written.
+
+Next: `setup publish plan` for catalog publication, or `install plan` through
+the harness provider. Do not copy these files into a harness root.
+"""
+
+
+def export_tree(
+    connection: sqlite3.Connection,
+    *,
+    setup_id: str,
+    version: str | None,
+    output: Path,
+) -> SetupExportResult:
+    """Write the recorded passport and definition to an unused directory."""
+    destination = output.expanduser().resolve(strict=False)
+    _unused_export_destination(destination)
+    recorded = _recorded_setup(connection, setup_id, version)
+    stored = revisions.get(connection, recorded.revision_id)
+    if stored is None:
+        raise CliFailure(
+            "AI_STP_NOT_FOUND",
+            "the recorded setup revision is missing",
+            details={"id": setup_id, "version": recorded.version},
+        )
+    passport = SetupVersionPassport.model_validate(stored.envelope.model_dump(mode="json"))
+    definition = content.get(connection, passport.artifact.digest)
+    files = {
+        "setup-passport.json": canonize(
+            cast(JsonValue, passport.model_dump(mode="json", exclude_none=True))
+        ),
+        "setup-definition.json": definition,
+        "README.md": _EXPORT_README.encode(),
+    }
+    _write_export_tree(destination, files)
+    return SetupExportResult(
+        setup_id=setup_id,
+        version=recorded.version,
+        passport_digest=recorded.passport_digest,
+        definition_digest=passport.artifact.digest,
+        output=redact_home(destination),
+        files_written=len(files),
+    )
+
+
+def _recorded_setup(
+    connection: sqlite3.Connection, setup_id: str, version: str | None
+) -> versions.Recorded:
+    if version:
+        recorded = versions.held(connection, setup_id, version)
+        if recorded is None:
+            raise CliFailure(
+                "AI_STP_NOT_FOUND",
+                "that setup version is not in the local registry",
+                details={"id": setup_id, "version": version},
+            )
+        return recorded
+    held = versions.line(connection, setup_id)
+    if not held:
+        raise CliFailure(
+            "AI_STP_NOT_FOUND",
+            "that setup is not in the local registry",
+            details={"id": setup_id},
+        )
+    return held[-1]
+
+
+def _unused_export_destination(destination: Path) -> None:
+    if destination.is_symlink() or destination.exists():
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the setup export destination must not already exist",
+            details={"output": redact_home(destination)},
+        )
+    if not destination.parent.is_dir() or destination.parent.is_symlink():
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the setup export destination parent must be an existing regular directory",
+            details={"output": redact_home(destination)},
+        )
+
+
+def _write_export_tree(destination: Path, files: Mapping[str, bytes]) -> None:
+    created_files: list[Path] = []
+    created_directories: list[Path] = []
+    directories = sorted(
+        {
+            parent
+            for relative in files
+            for parent in PurePosixPath(relative).parents
+            if str(parent) != "."
+        },
+        key=lambda item: (len(item.parts), item.as_posix()),
+    )
+    try:
+        destination.mkdir(mode=0o700)
+        created_directories.append(destination)
+        for relative in directories:
+            directory = destination / relative.as_posix()
+            directory.mkdir(mode=0o700)
+            created_directories.append(directory)
+        for relative, payload in files.items():
+            target = destination / relative
+            handle = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            created_files.append(target)
+            try:
+                held = memoryview(payload)
+                while held:
+                    written = os.write(handle, held)
+                    if written == 0:
+                        raise CliFailure(
+                            "AI_STP_INTERNAL",
+                            "the setup export file could not be written completely",
+                        )
+                    held = held[written:]
+                os.fsync(handle)
+            finally:
+                os.close(handle)
+    except BaseException:
+        for target in reversed(created_files):
+            with suppress(OSError):
+                target.unlink()
+        for directory in reversed(created_directories):
+            with suppress(OSError):
+                directory.rmdir()
+        raise
 
 
 def _setup_passport(

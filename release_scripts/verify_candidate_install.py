@@ -18,7 +18,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import cast
 from urllib.parse import unquote, urlparse
@@ -188,6 +188,53 @@ def _machine_answer(
     return cast(dict[str, object], answer)
 
 
+def _command_path(raw: object) -> str:
+    if isinstance(raw, list) and all(isinstance(part, str) for part in raw):
+        return " ".join(cast(list[str], raw))
+    if isinstance(raw, str) and raw:
+        return raw
+    raise InstallVerificationError("installed help command has no path")
+
+
+def require_installed_help_parity(
+    capabilities: Mapping[str, object], help_answer: Mapping[str, object]
+) -> None:
+    """Advertised command paths and option names must match the installed help."""
+    cap_data = capabilities.get("data")
+    help_data = help_answer.get("data")
+    if not isinstance(cap_data, dict) or not isinstance(help_data, dict):
+        raise InstallVerificationError("installed capabilities or help has no data")
+    advertised = cap_data.get("command_paths")
+    commands = help_data.get("commands")
+    if not isinstance(advertised, list) or not advertised:
+        raise InstallVerificationError("installed capabilities list no command paths")
+    if not isinstance(commands, list) or not commands:
+        raise InstallVerificationError("installed help lists no commands")
+    help_paths = [
+        _command_path(item.get("path") if isinstance(item, dict) else None) for item in commands
+    ]
+    advertised_paths = [item for item in advertised if isinstance(item, str)]
+    if sorted(advertised_paths) != sorted(help_paths):
+        raise InstallVerificationError("installed capabilities command_paths disagree with help")
+    if len(set(help_paths)) != len(help_paths):
+        raise InstallVerificationError("installed help repeats a command path")
+    for raw in commands:
+        if not isinstance(raw, dict):
+            raise InstallVerificationError("installed help command is not an object")
+        parameters = raw.get("parameters")
+        if not isinstance(parameters, list):
+            raise InstallVerificationError("installed help command has no parameters list")
+        names = {
+            item.get("name")
+            for item in parameters
+            if isinstance(item, dict) and isinstance(item.get("name"), str)
+        }
+        if _command_path(raw.get("path")) == "component scaffold apply" and "confirm" in names:
+            raise InstallVerificationError(
+                "installed help still advertises --confirm on scaffold apply"
+            )
+
+
 def _require_python_version(actual: str, expected: str | None) -> None:
     """Accept an exact version or one patch release under a requested major.minor."""
     if expected is None:
@@ -262,8 +309,13 @@ def verify_install(
         if not isinstance(python_version, str) or not python_version:
             raise InstallVerificationError("installed CLI did not report its Python version")
         _require_python_version(python_version, expected_python)
-        _machine_answer(executable, ("capabilities",), cwd=root, environment=environment)
-        _machine_answer(executable, ("help", "--agent"), cwd=root, environment=environment)
+        capabilities = _machine_answer(
+            executable, ("capabilities",), cwd=root, environment=environment
+        )
+        help_answer = _machine_answer(
+            executable, ("help", "--agent"), cwd=root, environment=environment
+        )
+        require_installed_help_parity(capabilities, help_answer)
         if network_report is not None:
             network_answer = _machine_answer(
                 executable, ("provider", "network"), cwd=root, environment=environment

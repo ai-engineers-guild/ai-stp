@@ -15,8 +15,9 @@ An old CI run on a different SHA is not evidence. A skipped line receives `not_v
 
 A clean installation using the published command, Python 3.12 and 3.14 on Linux
 x86_64, an offline path, removal and reinstallation, reference JSON, and verification
-that no secrets are present are required. Under `ADR-0062`, macOS is not part of the
-current support matrix.
+that no secrets are present are required. The CLI surface is proven on Linux,
+macOS, and Windows (`ADR-0113`). The provider half of `ADR-0062` remains: a
+provider platform that was not exercised is not called supported.
 
 The Python candidate is one `ai-stp-cli` wheel and sdist: first-party modules
 ship inside that wheel, metadata has no `Requires-Dist` for former internal
