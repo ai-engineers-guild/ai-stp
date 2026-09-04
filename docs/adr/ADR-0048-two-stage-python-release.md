@@ -1,6 +1,6 @@
 ---
 description: "Separation of reproducible Python candidate builds from manual OIDC publication."
-last_verified: "2026-08-29"
+last_verified: "2026-09-04"
 ---
 
 # ADR-0048: Two-Stage Python Package Release
@@ -11,10 +11,10 @@ the preceding job—remains unchanged; only the mechanism enforcing this separat
 changed. The record of the executor change belongs to private infrastructure and is
 not published here.
 
-`ADR-0142` additionally supersedes the five-package/manual orchestration below.
-The historical context remains accurate for the decision when it was made;
-current publication has six distributions and is moving to an exact-plan,
-resumable controller. The build/publish authority separation remains active.
+The five-package/manual orchestration below is historical (`ADR-0142`).
+The public install is one `ai-stp-cli` distribution (`ADR-0146`).
+The historical context remains accurate for the decision when it was made.
+The build/publish authority separation remains active.
 
 What applies in this tree: both jobs run on GitHub-hosted runners, and separation is
 enforced by the job boundary rather than the machine. The persistent roles named

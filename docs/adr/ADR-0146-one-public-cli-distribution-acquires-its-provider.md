@@ -1,6 +1,6 @@
 ---
 description: "Decision to ship the user-facing CLI as one Python distribution that acquires its attested provider."
-last_verified: "2026-09-03"
+last_verified: "2026-09-04"
 ---
 
 # ADR-0146: The user-facing CLI is one Python distribution that acquires its provider
@@ -63,11 +63,12 @@ remains the explicit repair and preload command.
 still owns index provenance as a future verified fallback. Locally compiled
 crate bytes are not the attested GitHub asset.
 
-**`0.0.16` remains the first supported alpha line.** `0.0.17` continues it.
-Historical six-package artifacts stay immutable. `ai-stp-sources` is removed
-from the index only after an independent clean install of `ai-stp-cli==0.0.17`
-and provider-acquisition evidence pass. The other four historical projects may
-remain as artifacts.
+**`0.0.16` remains the first supported alpha line.** `0.0.17` continues it as
+the one public distribution. After an independent clean install of
+`ai-stp-cli==0.0.17`, the five former internal PyPI projects are removed from
+the index. Their historical files stay immutable on GitHub candidate artifacts
+and are not republished. `ai-stp-sources` is owned by `rldyourmnd`; the other
+four are owned by `artemletya`.
 
 This supersedes the six-package publication closure in `ADR-0048` and
 `ADR-0142`. It does not supersede two-stage build/publish authority, PEP 740

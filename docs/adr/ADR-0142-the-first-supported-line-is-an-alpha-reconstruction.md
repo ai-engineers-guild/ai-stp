@@ -1,11 +1,12 @@
 ---
 description: "Decision to make 0.0.16 the first supported alpha contract without rewriting earlier published evidence."
-last_verified: "2026-09-03"
+last_verified: "2026-09-04"
 ---
 
 # ADR-0142: The First Supported Line Is an Alpha Reconstruction
 
-Status: accepted.
+Status: accepted. `ADR-0146` supersedes the six-package publication closure;
+the public install is one `ai-stp-cli` distribution.
 
 ## Context
 
@@ -48,8 +49,9 @@ though the hosting platform does not enforce that rule.
 
 **Routine publication becomes automatic after trust bootstrap.** Human action
 is reserved for creating projects, establishing Trusted Publishers and changing
-access. The release controller publishes the six-package dependency closure in
-order, verifies already-present bytes before resuming, publishes the CLI last,
+access. The release controller published the six-package dependency closure in
+order for `0.0.16`. `ADR-0146` replaced that closure: `0.0.17` publishes one
+`ai-stp-cli` distribution, verifies already-present bytes before resuming,
 creates an immutable GitHub Release and records the deployed web identity.
 
 **The initial recommendation policy is full-auto.** AI STP alone may recommend
