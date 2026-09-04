@@ -42,8 +42,8 @@ comes from machine help for the installed version.
 ## Router
 
 Match the user's request to one playbook. If nothing matches, stay on read
-commands from machine help and ask only when `references/decisions.md` requires
-a separate user decision.
+commands from machine help. Ask only for the irreversible or access-expanding
+stops in `references/decisions.md`. Uncertainty is research, not a pause.
 
 | User intent | Open |
 |---|---|
@@ -70,8 +70,8 @@ Named traps: traps.
 - Do not call a command absent from machine help.
 - Do not edit XDG files, pass secrets, or write harness targets.
 - Do not delete this Skill together with a user setup.
-- Default to the `authoritative` trust line. `experimental` needs explicit
-  consent and never enters automatic composition.
+- Default to the `authoritative` trust line. `experimental` may be used under
+  task authority and stays labeled; it is never reported as verified.
 - `author_verified` and `component_verified` are independent; show both.
 - After `install apply`, trust `target status` / `pending_authorization`, not
   the apply exit code.
