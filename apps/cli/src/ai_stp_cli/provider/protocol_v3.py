@@ -165,6 +165,7 @@ class Operation(StrEnum):
     BACKUP = "backup"
     RESTORE = "restore"
     REMOVE = "remove"
+    RESET = "reset"
     SOFTWARE_INSTALL = "software_install"
     SOFTWARE_UPDATE = "software_update"
     SOFTWARE_REMOVE = "software_remove"
@@ -446,6 +447,7 @@ OPERATION_NETWORK: Final[Mapping[Operation, tuple[PhasePolicy, ...]]] = MappingP
         Operation.BACKUP: _LOCAL_PLAN_APPLY,
         Operation.RESTORE: _LOCAL_PLAN_APPLY,
         Operation.REMOVE: _LOCAL_PLAN_APPLY,
+        Operation.RESET: _LOCAL_PLAN_APPLY,
         Operation.SOFTWARE_INSTALL: _DOWNLOAD_PLAN_APPLY,
         Operation.SOFTWARE_UPDATE: _DOWNLOAD_PLAN_APPLY,
         Operation.SOFTWARE_REMOVE: _LOCAL_PLAN_APPLY,

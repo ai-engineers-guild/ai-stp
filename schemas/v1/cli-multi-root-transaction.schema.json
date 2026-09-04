@@ -129,7 +129,8 @@
         "compensating",
         "recovery_required",
         "verified",
-        "rolled_back"
+        "rolled_back",
+        "cancelled"
       ],
       "title": "State",
       "type": "string"

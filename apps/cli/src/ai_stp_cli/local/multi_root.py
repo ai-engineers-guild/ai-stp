@@ -21,11 +21,12 @@ type TransactionState = Literal[
     "recovery_required",
     "verified",
     "rolled_back",
+    "cancelled",
 ]
 
 TRANSACTION_DOMAIN: Final[str] = "ai-stp:multi-root-transaction:v1"
 SCOPE_ORDER: Final[dict[Scope, int]] = {"global": 0, "user_root": 1, "project": 2}
-TERMINAL: Final[frozenset[str]] = frozenset({"verified", "rolled_back"})
+TERMINAL: Final[frozenset[str]] = frozenset({"verified", "rolled_back", "cancelled"})
 
 
 @dataclass(frozen=True)
@@ -36,6 +37,7 @@ class Child:
     plan_digest: str
     state: str = installation.STATE_PLANNED
     backup_ref: str | None = None
+    undo_operation_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -235,6 +237,34 @@ def move(
         return get(connection, transaction_id)
 
 
+def record_undo(
+    connection: sqlite3.Connection,
+    transaction_id: str,
+    operation_id: str,
+    *,
+    undo_operation_id: str,
+    at: str,
+) -> MultiRootTransaction:
+    """Bind the exact undo operation before any compensation effect."""
+    with transaction(connection):
+        held = get(connection, transaction_id)
+        if operation_id not in {child.operation_id for child in held.children}:
+            raise _invalid("the operation is not a child of this transaction")
+        connection.execute(
+            """
+            UPDATE installation_transaction_child
+            SET undo_operation_id = ?
+            WHERE transaction_id = ? AND operation_id = ?
+            """,
+            (undo_operation_id, transaction_id, operation_id),
+        )
+        connection.execute(
+            "UPDATE installation_transaction SET updated_at = ? WHERE transaction_id = ?",
+            (at, transaction_id),
+        )
+        return get(connection, transaction_id)
+
+
 def record_child(
     connection: sqlite3.Connection,
     transaction_id: str,
@@ -261,6 +291,76 @@ def record_child(
             "UPDATE installation_transaction SET updated_at = ? WHERE transaction_id = ?",
             (at, transaction_id),
         )
+        return get(connection, transaction_id)
+
+
+def cancel(
+    connection: sqlite3.Connection,
+    transaction_id: str,
+    *,
+    at: str,
+    reason: str,
+) -> MultiRootTransaction:
+    """Abandon an unapplied plan and release every reserved target.
+
+    Cancellation means no native effect was made. Once application may have
+    started, recovery is the public path; this refuses rather than deleting
+    evidence.
+    """
+    held = get(connection, transaction_id)
+    if held.state == "cancelled":
+        return held
+    if held.state != "planned":
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "only an unapplied multi-root transaction can be cancelled",
+            details={"transaction_id": transaction_id, "state": held.state},
+        )
+    with transaction(connection):
+        held = get(connection, transaction_id)
+        if held.state == "cancelled":
+            return held
+        if held.state != "planned":
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "only an unapplied multi-root transaction can be cancelled",
+                details={"transaction_id": transaction_id, "state": held.state},
+            )
+        for child in held.children:
+            current = journal.get(connection, child.operation_id)
+            if current is not None and current.state in {
+                installation.STATE_PLANNED,
+                installation.STATE_APPROVED,
+            }:
+                installation.cancel(
+                    connection,
+                    child.operation_id,
+                    at=at,
+                    reason=reason,
+                )
+            recorded = journal.get(connection, child.operation_id)
+            connection.execute(
+                """
+                UPDATE installation_transaction_child
+                SET state = ?
+                WHERE transaction_id = ? AND operation_id = ?
+                """,
+                (
+                    installation.STATE_CANCELLED if recorded is None else recorded.state,
+                    transaction_id,
+                    child.operation_id,
+                ),
+            )
+        connection.execute(
+            "UPDATE installation_transaction SET state = ?, updated_at = ? "
+            "WHERE transaction_id = ?",
+            ("cancelled", at, transaction_id),
+        )
+        connection.execute(
+            "DELETE FROM installation_transaction_target WHERE transaction_id = ?",
+            (transaction_id,),
+        )
+        _event(connection, transaction_id, held.state, "cancelled", reason, at)
         return get(connection, transaction_id)
 
 
@@ -295,7 +395,9 @@ def child_is_owned(connection: sqlite3.Connection, operation_id: str) -> bool:
         SELECT 1
         FROM installation_transaction_child AS child
         JOIN installation_transaction AS parent USING (transaction_id)
-        WHERE child.operation_id = ? AND parent.state NOT IN ('verified', 'rolled_back')
+        WHERE child.operation_id = ? AND parent.state NOT IN (
+            'verified', 'rolled_back', 'cancelled'
+        )
         """,
         (operation_id,),
     ).fetchone()
@@ -315,6 +417,9 @@ def _children(connection: sqlite3.Connection, transaction_id: str) -> tuple[Chil
             plan_digest=str(row["plan_digest"]),
             state=str(row["state"]),
             backup_ref=None if row["backup_ref"] is None else str(row["backup_ref"]),
+            undo_operation_id=(
+                None if row["undo_operation_id"] is None else str(row["undo_operation_id"])
+            ),
         )
         for row in rows
     )

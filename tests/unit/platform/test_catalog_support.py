@@ -28,7 +28,7 @@ def evidence(**overrides: object) -> dict[str, object]:
         "provider_id": "opencode",
         "provider_version": "1.17.7",
         "release_reference": "a" * 40,
-        "operating_system": "ubuntu",
+        "operating_system": "linux",
         "architecture": "x86_64",
         "mandatory": True,
         "observed_at": "2026-08-07T12:00:00.000Z",

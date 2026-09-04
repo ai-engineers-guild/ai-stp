@@ -296,6 +296,8 @@ export type AuthorAttestation = {
   };
 };
 
+export type BoundedNativeId = string;
+
 /**
  * CapabilityDelta
  */
@@ -655,6 +657,27 @@ export const ComplaintTargetKind = {
 export type ComplaintTargetKind = (typeof ComplaintTargetKind)[keyof typeof ComplaintTargetKind];
 
 /**
+ * ComponentAdaptation
+ *
+ * One immutable harness-native implementation of a logical component.
+ */
+export type ComponentAdaptation = unknown & {
+  /**
+   * Adaptation Id
+   */
+  adaptation_id: string;
+  harness_id: HarnessId;
+  implementation_mode: ImplementationMode;
+  logical_component_type: ComponentType;
+  /**
+   * Scope Adaptations
+   */
+  scope_adaptations: Array<ScopeAdaptation>;
+  source_artifact?: ArtifactRef | null;
+  transform?: TransformRef | null;
+};
+
+/**
  * ComponentContextBudget
  *
  * Context estimate of one visible exact component (SPEC-049).
@@ -1001,6 +1024,10 @@ export type ComponentType = (typeof ComponentType)[keyof typeof ComponentType];
  * Immutable component version passport.
  */
 export type ComponentVersionPassport = {
+  /**
+   * Adaptations
+   */
+  adaptations: Array<ComponentAdaptation>;
   artifact: ArtifactRef;
   /**
    * Compatibility Evidence Refs
@@ -1023,28 +1050,16 @@ export type ComponentVersionPassport = {
   facts: {
     [key: string]: Fact;
   };
-  harness_id: HarnessId;
-  /**
-   * Harness Ids
-   */
-  harness_ids: Array<HarnessId>;
   /**
    * Kind
    */
   kind: "component";
   license: LicenseInfo;
   /**
-   * Managed Paths
-   */
-  managed_paths: Array<string>;
-  /**
    * Name
    */
   name: string;
-  /**
-   * Native Ids
-   */
-  native_ids: Array<string>;
+  origin_harness_id: HarnessId | null;
   /**
    * Owner Id
    */
@@ -1054,7 +1069,6 @@ export type ComponentVersionPassport = {
    */
   parent_revision_ids: Array<RevisionId>;
   permissions: Permissions;
-  projection_kind: ProjectionKind;
   /**
    * Provides Capabilities
    */
@@ -1090,17 +1104,9 @@ export type ComponentVersionPassport = {
    */
   stable_id: string;
   /**
-   * Supported Os
-   */
-  supported_os: Array<SupportedOs>;
-  /**
    * Tags
    */
   tags: Array<TagId>;
-  /**
-   * Variant Id
-   */
-  variant_id: string | null;
   version: AiStpFoundationRefsVersion;
   /**
    * Visibility
@@ -2172,6 +2178,10 @@ export type HarnessId = (typeof HarnessId)[keyof typeof HarnessId];
 
 export type IdempotencyKey = string;
 
+export const ImplementationMode = { DERIVED: "derived", NATIVE: "native" } as const;
+
+export type ImplementationMode = (typeof ImplementationMode)[keyof typeof ImplementationMode];
+
 export const InvitationState = {
   PENDING: "pending",
   ACCEPTED: "accepted",
@@ -2325,6 +2335,22 @@ export type LivenessResponse = {
    */
   status: "alive";
   [key: string]: unknown;
+};
+
+/**
+ * NonEmptyArtifactRef
+ *
+ * Content-addressed bytes for an artifact that must contain a projection.
+ */
+export type NonEmptyArtifactRef = {
+  /**
+   * Digest
+   */
+  digest: string;
+  /**
+   * Size Bytes
+   */
+  size_bytes: number;
 };
 
 /**
@@ -2799,6 +2825,10 @@ export type OwnershipClaimResponse = {
   [key: string]: unknown;
 };
 
+export const OwnershipMode = { WHOLE: "whole", CONTRIBUTION: "contribution" } as const;
+
+export type OwnershipMode = (typeof OwnershipMode)[keyof typeof OwnershipMode];
+
 /**
  * OwnershipRevisionListResponse
  *
@@ -2891,6 +2921,8 @@ export type PageSize = number;
 
 export type PassportDigest = string;
 
+export type PermissionClaim = string;
+
 /**
  * Permissions
  *
@@ -2900,15 +2932,15 @@ export type Permissions = {
   /**
    * Filesystem
    */
-  filesystem?: Array<string>;
+  filesystem?: Array<PermissionClaim>;
   /**
    * Network
    */
-  network?: Array<string>;
+  network?: Array<PermissionClaim>;
   /**
    * Process
    */
-  process?: Array<string>;
+  process?: Array<PermissionClaim>;
 };
 
 export type PlanId = string;
@@ -2928,6 +2960,44 @@ export type PlanState = (typeof PlanState)[keyof typeof PlanState];
 
 export type PolicyVersion = string;
 
+/**
+ * ProjectedMember
+ *
+ * One canonical projected path and the provider semantics it requires.
+ */
+export type ProjectedMember = unknown & {
+  content_artifact?: ArtifactRef | null;
+  /**
+   * Content Format
+   */
+  content_format: string;
+  /**
+   * Mode
+   */
+  mode: number;
+  /**
+   * Native Ids
+   */
+  native_ids?: Array<BoundedNativeId>;
+  object_type: ProjectedObjectType;
+  ownership: OwnershipMode;
+  /**
+   * Ownership Key
+   */
+  ownership_key?: string | null;
+  /**
+   * Parser Id
+   */
+  parser_id?: string | null;
+  path: RelativeProjectionPath;
+  withdrawal_semantics: WithdrawalSemantics;
+  write_semantics: WriteSemantics;
+};
+
+export const ProjectedObjectType = { FILE: "file", DIRECTORY: "directory" } as const;
+
+export type ProjectedObjectType = (typeof ProjectedObjectType)[keyof typeof ProjectedObjectType];
+
 export const ProjectionKind = {
   MARKETPLACE: "marketplace",
   PLUGIN: "plugin",
@@ -2936,6 +3006,26 @@ export const ProjectionKind = {
 } as const;
 
 export type ProjectionKind = (typeof ProjectionKind)[keyof typeof ProjectionKind];
+
+/**
+ * ProviderSurfaceRef
+ *
+ * Exact provider capability identity required by one projection scope.
+ */
+export type ProviderSurfaceRef = {
+  /**
+   * Bundle Format
+   */
+  bundle_format: string;
+  /**
+   * Profile Digest
+   */
+  profile_digest: string;
+  /**
+   * Profile Id
+   */
+  profile_id: string;
+};
 
 export type PublicKey = string;
 
@@ -3075,6 +3165,8 @@ export type ReadinessResponse = {
   status: "ready" | "not_ready";
   [key: string]: unknown;
 };
+
+export type RelativeProjectionPath = string;
 
 /**
  * ReportCaseCreateRequest
@@ -3308,6 +3400,49 @@ export type SafetyFindingSummary = {
    */
   truncated: boolean;
   [key: string]: unknown;
+};
+
+/**
+ * ScopeAdaptation
+ *
+ * All native facts for one adaptation at one projection scope.
+ */
+export type ScopeAdaptation = unknown & {
+  /**
+   * Members
+   */
+  members: Array<ProjectedMember>;
+  permissions?: Permissions;
+  projection_artifact: NonEmptyArtifactRef;
+  /**
+   * Projection Format
+   */
+  projection_format: "ai-stp-adaptation-projection/1";
+  projection_kind: ProjectionKind;
+  provider_component_kind: ComponentType;
+  required_surface: ProviderSurfaceRef;
+  scope: TargetScope;
+  /**
+   * Semantic Losses
+   */
+  semantic_losses?: Array<string>;
+  /**
+   * Supported Arch
+   */
+  supported_arch?: Array<SupportedArch>;
+  /**
+   * Supported Harness Versions
+   */
+  supported_harness_versions?: Array<string>;
+  /**
+   * Supported Os
+   */
+  supported_os?: Array<SupportedOs>;
+  technical_support: TechnicalSupport;
+  /**
+   * Technical Support Reason
+   */
+  technical_support_reason?: string | null;
 };
 
 /**
@@ -4517,7 +4652,11 @@ export type SupportEvidenceResult =
 
 export type SupportEvidenceSource = "provider_release_evidence";
 
-export const SupportOperatingSystem = { UBUNTU: "ubuntu", MACOS: "macos" } as const;
+export const SupportOperatingSystem = {
+  LINUX: "linux",
+  MACOS: "macos",
+  WINDOWS: "windows",
+} as const;
 
 export type SupportOperatingSystem =
   (typeof SupportOperatingSystem)[keyof typeof SupportOperatingSystem];
@@ -4534,6 +4673,10 @@ export type SupportState = (typeof SupportState)[keyof typeof SupportState];
 export const SupportTier = { PRIMARY: "primary", BETA: "beta" } as const;
 
 export type SupportTier = (typeof SupportTier)[keyof typeof SupportTier];
+
+export const SupportedArch = { X86_64: "x86_64", ARM64: "arm64" } as const;
+
+export type SupportedArch = (typeof SupportedArch)[keyof typeof SupportedArch];
 
 export const SupportedOs = {
   LINUX: "linux",
@@ -4784,6 +4927,22 @@ export type TagId = string;
 
 export type Tags = Array<TagId>;
 
+export const TargetScope = {
+  GLOBAL: "global",
+  USER_ROOT: "user_root",
+  PROJECT: "project",
+} as const;
+
+export type TargetScope = (typeof TargetScope)[keyof typeof TargetScope];
+
+export const TechnicalSupport = {
+  UNSUPPORTED: "unsupported",
+  EXPERIMENTAL: "experimental",
+  SUPPORTED: "supported",
+} as const;
+
+export type TechnicalSupport = (typeof TechnicalSupport)[keyof typeof TechnicalSupport];
+
 export type Timestamp = string;
 
 /**
@@ -4847,6 +5006,23 @@ export type TokenEstimator = {
   schema_version?: 1;
 };
 
+/**
+ * TransformRef
+ *
+ * Exact deterministic transform used by one derived adaptation.
+ */
+export type TransformRef = {
+  /**
+   * Digest
+   */
+  digest: string;
+  /**
+   * Transform Id
+   */
+  transform_id: string;
+  version: AiStpFoundationRefsVersion;
+};
+
 export const TrustLane = { AUTHORITATIVE: "authoritative", EXPERIMENTAL: "experimental" } as const;
 
 export type TrustLane = (typeof TrustLane)[keyof typeof TrustLane];
@@ -4871,6 +5047,17 @@ export type VersionListEntry = {
   version: AiStpContractsCatalogVersion;
   [key: string]: unknown;
 };
+
+export const WithdrawalSemantics = {
+  REMOVE_PATH: "remove_path",
+  PRESERVE_UNOWNED: "preserve_unowned",
+} as const;
+
+export type WithdrawalSemantics = (typeof WithdrawalSemantics)[keyof typeof WithdrawalSemantics];
+
+export const WriteSemantics = { REPLACE: "replace", MERGE: "merge" } as const;
+
+export type WriteSemantics = (typeof WriteSemantics)[keyof typeof WriteSemantics];
 
 export type AiStpContractsCatalogVersion = string;
 

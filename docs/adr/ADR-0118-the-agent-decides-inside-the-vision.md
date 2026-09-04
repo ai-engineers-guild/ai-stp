@@ -5,7 +5,8 @@ last_verified: "2026-09-01"
 
 # ADR-0118: The agent decides within the vision
 
-Status: accepted.
+Status: accepted. Partially superseded by `ADR-0150` for unverified install
+and active-target change.
 
 ## Context
 

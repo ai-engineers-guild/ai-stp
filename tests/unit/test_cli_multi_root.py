@@ -167,6 +167,56 @@ def test_active_targets_are_locked_until_a_proven_terminal_state(
     assert not multi_root.child_is_owned(registry, children[0].operation_id)
 
 
+def test_cancel_releases_targets_and_can_be_replanned(
+    registry: sqlite3.Connection,
+) -> None:
+    children = (_child(registry, "A", "global"), _child(registry, "C", "project"))
+    planned = multi_root.propose(
+        registry,
+        setup_stable_id="setup_01J0000000000000000000000A",
+        setup_version="1.0",
+        harness_id="claude-code",
+        children=children,
+        idempotency_key="cancel-first",
+        at=AT,
+    )
+    cancelled = multi_root.cancel(
+        registry,
+        planned.transaction_id,
+        at=LATER,
+        reason="strategy changed",
+    )
+    assert cancelled.state == "cancelled"
+    again = multi_root.cancel(
+        registry,
+        planned.transaction_id,
+        at=LATER,
+        reason="already gone",
+    )
+    assert again.transaction_id == cancelled.transaction_id
+    replacements = (_child(registry, "D", "global"), _child(registry, "E", "project"))
+    second = multi_root.propose(
+        registry,
+        setup_stable_id=planned.setup_stable_id,
+        setup_version=planned.setup_version,
+        harness_id=planned.harness_id,
+        children=replacements,
+        idempotency_key="cancel-second",
+        at=LATER,
+    )
+    assert second.state == "planned"
+    applying = multi_root.move(
+        registry,
+        second.transaction_id,
+        expected=frozenset({"planned"}),
+        state="applying",
+        result="started",
+        at=LATER,
+    )
+    with pytest.raises(CliFailure, match="unapplied"):
+        multi_root.cancel(registry, applying.transaction_id, at=LATER, reason="too late")
+
+
 def test_coordinator_never_claims_success_before_every_child_is_verified(
     registry: sqlite3.Connection,
 ) -> None:
@@ -376,7 +426,8 @@ def test_compensation_restores_verified_children_in_reverse_safe_state(
     )
     coordinator.observe_child(planned.transaction_id, children[1].operation_id, at=LATER)
 
-    def rollback_plan(_parameters: dict[str, object]) -> Answer[InstallationView]:
+    def rollback_plan(parameters: dict[str, object]) -> Answer[InstallationView]:
+        operation_id = str(parameters.get("operation-id") or "operation_01J0000000000000000000000D")
         held = installation.propose(
             registry,
             action="rollback",
@@ -390,7 +441,7 @@ def test_compensation_restores_verified_children_in_reverse_safe_state(
             at=AT,
             expires_at=EXPIRES,
             provider_protocol_version=3,
-            operation_id="operation_01J0000000000000000000000D",
+            operation_id=operation_id,
         )
         return Answer(
             InstallationView(
@@ -458,3 +509,151 @@ def test_compensation_restores_verified_children_in_reverse_safe_state(
     )
     assert result.state == "rolled_back"
     assert [child.state for child in result.children] == ["rolled_back", "failed"]
+
+
+def test_compensation_reuses_the_bound_undo_after_an_interrupted_acknowledgment(
+    registry: sqlite3.Connection,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    children = (_child(registry, "A", "global"), _child(registry, "C", "project"))
+    coordinator = Coordinator(registry)
+    planned = coordinator.plan(
+        setup_stable_id="setup_01J0000000000000000000000A",
+        setup_version="1.0",
+        harness_id="claude-code",
+        children=children,
+        idempotency_key="compensate-reuse",
+        at=AT,
+    )
+    coordinator.approve(planned.transaction_id, expected_digest=planned.digest, at=LATER)
+    coordinator.begin(planned.transaction_id, at=LATER)
+    first = installation.plan(registry, children[0].operation_id)
+    installation.begin(
+        registry,
+        first.operation_id,
+        observed_target_digest=first.expected_target_digest,
+        at=LATER,
+    )
+    installation.applied(registry, first.operation_id, at=LATER, backup_ref="slot-global")
+    installation.verify(registry, first.operation_id, postconditions_met=True, at=LATER)
+    coordinator.observe_child(planned.transaction_id, first.operation_id, at=LATER)
+    second_child = installation.plan(registry, children[1].operation_id)
+    installation.begin(
+        registry,
+        second_child.operation_id,
+        observed_target_digest=second_child.expected_target_digest,
+        at=LATER,
+    )
+    installation.fail(
+        registry,
+        children[1].operation_id,
+        at=LATER,
+        reason="project refused before effect",
+    )
+    coordinator.observe_child(planned.transaction_id, children[1].operation_id, at=LATER)
+
+    plan_ids: list[str] = []
+
+    def rollback_plan(parameters: dict[str, object]) -> Answer[InstallationView]:
+        operation_id = str(parameters["operation-id"])
+        plan_ids.append(operation_id)
+        held = installation.propose(
+            registry,
+            action="rollback",
+            author="account_test",
+            target_id="project_test:claude-code",
+            expected_target_digest="sha256:" + "d" * 64,
+            provider_version="1.0.0",
+            effects=("restore global",),
+            recovery_action="restore exact backup",
+            idempotency_key=f"rollback-{operation_id}",
+            at=AT,
+            expires_at=EXPIRES,
+            provider_protocol_version=3,
+            operation_id=operation_id,
+        )
+        return Answer(
+            InstallationView(
+                operation_id=held.operation_id,
+                action="rollback",
+                state="planned",
+                plan_digest=held.digest,
+                target_id=held.target_id,
+                expected_target_digest=held.expected_target_digest,
+                expires_at=held.expires_at,
+            )
+        )
+
+    def rollback_approve(parameters: dict[str, object]) -> Answer[InstallationView]:
+        operation_id = str(parameters["operation"])
+        held = installation.approve(
+            registry,
+            operation_id,
+            plan_digest=str(parameters["plan-digest"]),
+            at=LATER,
+        )
+        return Answer(
+            InstallationView(
+                operation_id=held.operation_id,
+                action="rollback",
+                state="approved",
+                plan_digest=held.digest,
+                target_id=held.target_id,
+                expected_target_digest=held.expected_target_digest,
+                expires_at=held.expires_at,
+            )
+        )
+
+    apply_calls = 0
+
+    def rollback_apply(parameters: dict[str, object]) -> Answer[InstallationView]:
+        nonlocal apply_calls
+        apply_calls += 1
+        operation_id = str(parameters["operation"])
+        if apply_calls == 1:
+            raise CliFailure("AI_STP_UNAVAILABLE", "provider lost during rollback apply")
+        held = installation.plan(registry, operation_id)
+        installation.begin(
+            registry,
+            operation_id,
+            observed_target_digest=held.expected_target_digest,
+            at=LATER,
+        )
+        installation.applied(registry, operation_id, at=LATER)
+        installation.verify(registry, operation_id, postconditions_met=True, at=LATER)
+        return Answer(
+            InstallationView(
+                operation_id=operation_id,
+                action="rollback",
+                state="verified",
+                plan_digest=held.digest,
+                target_id=held.target_id,
+                expected_target_digest=held.expected_target_digest,
+                expires_at=held.expires_at,
+            )
+        )
+
+    monkeypatch.setattr("ai_stp_cli.commands.install_transaction.install.plan", rollback_plan)
+    monkeypatch.setattr("ai_stp_cli.commands.install_transaction.install.approve", rollback_approve)
+    monkeypatch.setattr("ai_stp_cli.commands.install_transaction.install.apply", rollback_apply)
+    first_pass = install_transaction._compensate(  # pyright: ignore[reportPrivateUsage]
+        coordinator,
+        planned.transaction_id,
+        provider="/provider",
+        parameters={"unverified-provider": True},
+    )
+    assert first_pass.state == "recovery_required"
+    bound = multi_root.get(registry, planned.transaction_id)
+    assert bound.children[0].undo_operation_id == plan_ids[0]
+    second = install_transaction._compensate(  # pyright: ignore[reportPrivateUsage]
+        coordinator,
+        planned.transaction_id,
+        provider="/provider",
+        parameters={"unverified-provider": True},
+    )
+    assert second.state == "rolled_back"
+    assert plan_ids == [plan_ids[0]]
+    assert (
+        multi_root.get(registry, planned.transaction_id).children[0].undo_operation_id
+        == plan_ids[0]
+    )

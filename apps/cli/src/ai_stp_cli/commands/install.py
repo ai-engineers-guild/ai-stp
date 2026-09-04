@@ -86,7 +86,7 @@ from ai_stp_contracts.machine_help import (
     TargetSurvey,
 )
 from ai_stp_foundation.canonical import JsonValue
-from ai_stp_foundation.ids import new_id
+from ai_stp_foundation.ids import is_valid_id, new_id
 from ai_stp_foundation.timestamps import format_timestamp, parse_timestamp
 from ai_stp_passports.versions import ENV_NAME_PATTERN
 
@@ -631,7 +631,17 @@ def _plan_v3(
     if existing is not None:
         return _view(connection, existing)
 
-    operation_id = new_id("operation")
+    requested_id = str(parameters.get("operation-id") or "").strip()
+    if requested_id:
+        if not is_valid_id(requested_id, "operation"):
+            raise CliFailure(
+                "AI_STP_VALIDATION_ERROR",
+                "the caller-supplied operation id is not canonical",
+                details={"operation_id": requested_id},
+            )
+        operation_id = requested_id
+    else:
+        operation_id = new_id("operation")
     # Before the provider is asked to plan, not after it fails to apply.
     # `MAX_PATH` counts the whole path, so this is the first moment anybody
     # holds both halves of it: the bundle was built without knowing the root,
