@@ -57,7 +57,10 @@ describe("DocsNav", () => {
       "href",
       "/docs/quickstart/human",
     );
-    expect(screen.getByRole("link", { name: "For agents" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "For agents" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
     expect(screen.getByText("Component")).toBeVisible();
     expect(nav.querySelector('a[href="/docs"]')).toHaveTextContent("Overview");
     expect(nav.querySelector('a[href="/docs/cli/component"]')).toHaveTextContent("Overview");

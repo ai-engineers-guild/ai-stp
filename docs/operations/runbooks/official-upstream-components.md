@@ -1,6 +1,6 @@
 ---
 description: "Runbook: operator-managed official GitHub and package upstream component snapshots."
-last_verified: "2026-09-02"
+last_verified: "2026-09-03"
 ---
 
 # Official upstream components
@@ -104,10 +104,16 @@ suggestion never replaces, promotes, or merges identities.
    package coordinate, license, and maintainer attribution and ends with the
    ownership-claim notice.
 
-Optional `AI_STP_WORKER_GITHUB_TOKEN` is sent only to `api.github.com`.
-Redirects are followed only to `api.github.com`, `github.com`, and
-`codeload.github.com`. The token is never written to job payloads, source rows,
-logs, or descriptions.
+`AI_STP_WORKER_GITHUB_TOKEN` is sent only to `api.github.com`. Without it,
+GitHub allows 60 requests per hour per IP. Each git source uses two API
+calls before the archive download, so a catalog of this size exhausts that
+budget in one scheduler pass and jobs fail as `GitHub rate limit exceeded`.
+A fine-grained token with public repository metadata read is enough; write
+access and private repositories are not required. Redirects are followed
+only to `api.github.com`, `github.com`, and `codeload.github.com`. The token
+is never written to job payloads, source rows, logs, or descriptions. In
+local compose it comes from gitignored `.env.dev` (`env_file`); do not set
+an empty override in `environment`, which would wipe that value.
 
 ## Rollback
 

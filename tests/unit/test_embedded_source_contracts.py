@@ -268,6 +268,24 @@ async def test_git_unavailable_repository_fails_closed() -> None:
     with pytest.raises(SourceError) as raised:
         await resolve_source(_git_intent(), fetch=missing)
     assert raised.value.code == UNAVAILABLE_SOURCE
+    assert raised.value.message == "GitHub repository is unavailable"
+
+
+@pytest.mark.asyncio
+async def test_git_rate_limit_is_not_reported_as_a_missing_repository() -> None:
+    async def limited(url: str, *, headers: dict[str, str]) -> GithubHttpResponse:
+        del headers
+        return GithubHttpResponse(
+            403,
+            b'{"message":"API rate limit exceeded"}',
+            {"x-ratelimit-remaining": "0"},
+            url,
+        )
+
+    with pytest.raises(SourceError) as raised:
+        await resolve_source(_git_intent(), fetch=limited)
+    assert raised.value.code == UNAVAILABLE_SOURCE
+    assert raised.value.message == "GitHub rate limit exceeded"
 
 
 @pytest.mark.asyncio

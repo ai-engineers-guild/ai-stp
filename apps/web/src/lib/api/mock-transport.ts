@@ -271,24 +271,25 @@ type MockContent = {
 const MOCK_CONTENT: MockContent[] = [
   {
     type: "article",
-    slug: "safe-setup",
+    slug: "kind-skill",
     locale: "en",
-    title: "Build a setup without hiding its trust boundary",
-    description: "A practical guide to provenance, exact versions and explicit consent in ai_stp.",
-    published_at: "2026-08-12",
-    tags: ["setup", "trust"],
-    body: "An ai_stp setup pins exact component versions and keeps provenance visible.",
+    title: "A skill is a workflow package, not a prompt in a folder",
+    description:
+      "Kind skill is a repeatable agent procedure with a trigger, steps, and optional scripts.",
+    published_at: "2026-08-19",
+    tags: ["component", "skill"],
+    body: "A skill answers how the agent should do this class of task. It is not a prompt folder.",
   },
   {
     type: "article",
-    slug: "safe-setup",
+    slug: "kind-skill",
     locale: "ru",
-    title: "Как собрать сетап, не скрывая границу доверия",
+    title: "Скилл — пакет процесса, а не промпт в папке",
     description:
-      "Практическое руководство о происхождении, точных версиях и явном согласии в ai_stp.",
-    published_at: "2026-08-12",
-    tags: ["setup", "trust"],
-    body: "Сетап ai_stp закрепляет точные версии компонентов и сохраняет видимым их происхождение.",
+      "Вид skill — повторяемая процедура агента: триггер, шаги и необязательные скрипты.",
+    published_at: "2026-08-19",
+    tags: ["component", "skill"],
+    body: "Скилл отвечает, как агент делает этот класс задач. Это не папка с промптом.",
   },
 ];
 

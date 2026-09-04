@@ -51,8 +51,8 @@ describe("public catalog cache policy", () => {
       ),
     ).toBe(true);
     expect(isPublicCatalogGetPath("/v1/content")).toBe(true);
-    expect(isPublicCatalogGetPath("/v1/content/article/safe-setup")).toBe(true);
-    expect(isPublicCatalogGetPath("/v1/content/blog_post/first-content")).toBe(true);
+    expect(isPublicCatalogGetPath("/v1/content/article/kind-skill")).toBe(true);
+    expect(isPublicCatalogGetPath("/v1/content/blog_post/the-agent-is-the-consumer")).toBe(true);
     expect(isPublicCatalogGetPath("/v1/documents/personal-data-consent")).toBe(true);
     expect(isPublicCatalogGetPath("/v1/content/repository/state")).toBe(false);
     expect(isPublicCatalogGetPath("/v1/content/repository/import")).toBe(false);

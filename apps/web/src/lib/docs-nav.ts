@@ -135,9 +135,7 @@ function resolveEntry(label: string, value: unknown, ctx: Ctx): DocsNavNode | nu
 
 function directoryNode(label: string, dir: string, ctx: Ctx): DocsNavNode | null {
   const yaml = ctx.nestedYaml[dir];
-  const children = yaml
-    ? parseNav(parseYamlNav(yaml), { ...ctx, dir })
-    : inferDirectory(dir, ctx);
+  const children = yaml ? parseNav(parseYamlNav(yaml), { ...ctx, dir }) : inferDirectory(dir, ctx);
   return groupNode(label, children, toHref(dir, "index.md"));
 }
 

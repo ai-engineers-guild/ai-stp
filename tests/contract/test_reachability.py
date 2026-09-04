@@ -109,6 +109,16 @@ EXEMPT: dict[str, str] = {
         "staff policy publish SPEC-031 requires, invoked when a published revision "
         "is imported from the repository source"
     ),
+    # ADR-0142 moved component scaffolding to source/projections; scaffold() is
+    # the portable mustache authoring template generator preserved for SPEC-005 REQ-528.
+    "authoring.scaffold": (
+        "portable authoring template generator SPEC-005 REQ-528 and ADR-0142 preserve"
+    ),
+    # Public convenience helper from bindings for the formula #270 defines,
+    # exported by ai_stp_platform.safety for consumers and tests.
+    "percent.checks_passed_percent": (
+        "public passed-share calculator from check bindings (#270) exported by safety"
+    ),
 }
 
 

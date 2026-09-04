@@ -216,6 +216,8 @@ services:
       dockerfile: Dockerfile.worker-safety
       target: worker-safety
     environment: *app-env
+    # AI_STP_WORKER_GITHUB_TOKEN comes from .env.dev. Do not add an empty
+    # environment override here: it would wipe the env_file value.
     env_file:
       - path: .env.dev
         required: false

@@ -15,7 +15,7 @@ from ai_stp_platform.content.snapshot_cli import main as snapshot_cli_main
 
 pytestmark = pytest.mark.platform
 
-NOW = datetime(2026, 8, 29, tzinfo=UTC)
+NOW = datetime(2026, 9, 4, tzinfo=UTC)
 HUB = Path("docs-user-facing/content")
 
 
@@ -134,8 +134,11 @@ Body EN.
 def test_real_hub_builds_without_drafts() -> None:
     snapshot = build_repository_snapshot(HUB, commit=COMMIT, now=NOW)
     identities = {(entry.type, entry.slug) for entry in snapshot.entries}
-    assert ("article", "safe-setup") in identities
+    types = {entry.type for entry in snapshot.entries}
+    assert ("article", "kind-skill") in identities
     assert ("article", "internal-draft") not in identities
+    assert ("article", "safe-setup") not in identities
+    assert types == {"article", "blog_post", "changelog", "release_notes"}
     assert snapshot.commit == COMMIT
     assert snapshot.entries
 
