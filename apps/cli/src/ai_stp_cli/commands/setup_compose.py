@@ -15,6 +15,7 @@ from ai_stp_cli import identity
 from ai_stp_cli.answer import Answer
 from ai_stp_cli.commands import registry as registry_commands
 from ai_stp_cli.errors import CliFailure
+from ai_stp_cli.github_token import github_api_token
 from ai_stp_cli.local import passports, setup_compose
 from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_contracts.machine_help import SetupComposePlan, SetupComposeResult, SetupExportResult
@@ -132,7 +133,14 @@ def _resolve(
             )
             continue
         try:
-            snapshot = asyncio.run(resolve_source(intent, fetch=_fetch, local_root=root))
+            snapshot = asyncio.run(
+                resolve_source(
+                    intent,
+                    fetch=_fetch,
+                    local_root=root,
+                    token=github_api_token(),
+                )
+            )
         except SourceError as exc:
             raise CliFailure(
                 "AI_STP_VALIDATION_ERROR",
