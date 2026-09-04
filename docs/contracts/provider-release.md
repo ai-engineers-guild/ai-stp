@@ -55,6 +55,15 @@ through the attestation path; `provider-build-attestation` remains an explicit
 form of the same choice. An empty `releases` list still installs nothing through
 the Ed25519 path: OpenNetwork bytes are not added there.
 
+The same seven providers are also pinned as `[[index_publishers]]` tables:
+`pypi_project`, PEP 740 `repository` (`owner/name`), `workflow`, `environment`,
+and `verified_publisher`. That pin does not change the default acquire path.
+`provider fetch` still binds a GitHub release unless `--source index` is named.
+Empty `index_publishers` is the rollback: every wheel-delivered provider stays
+`unverified` (`REQ-851`). Cryptographic verification of a PEP 740 bundle uses
+`pypi-attestations` the way GitHub verification uses `gh`; its absence is
+`AI_STP_DEPENDENCY_UNAVAILABLE`, not a trusted level.
+
 ## Trust policy
 
 The client accepts a release only under locally pinned policy. The policy

@@ -100,6 +100,7 @@ from ai_stp_contracts.machine_help import (
     ReleaseRefusal,
     SetupGraph,
     TrustedBuildAttestation,
+    TrustedIndexPublisher,
 )
 from ai_stp_foundation.canonical import JsonValue, from_json_bytes
 from ai_stp_foundation.digests import digest_bytes
@@ -2557,6 +2558,16 @@ def provider_trust(parameters: Mapping[str, object]) -> Answer[ProviderTrust]:
             )
             for _, rule in sorted(policy.build_attestations.items())
         ],
+        index_publishers=[
+            TrustedIndexPublisher(
+                pypi_project=rule.pypi_project,
+                repository=rule.repository,
+                workflow=rule.workflow,
+                environment=rule.environment,
+                verified_publisher=rule.verified_publisher,
+            )
+            for _, rule in sorted(policy.index_publishers.items())
+        ],
     )
 
     given = parameters.get("manifest")
@@ -2607,20 +2618,39 @@ def provider_fetch(parameters: Mapping[str, object]) -> Answer[ProviderBoundRele
     """Materialise a closed release manifest from attested OpenNetwork bytes.
 
     Writes the artifact and the bound JSON. Install still plans against that
-    file; this command does not change a harness target.
+    file; this command does not change a harness target. `--source index` is
+    the PEP 740 path; omitting it keeps GitHub as the default (`ADR-0146`).
     """
     harness = _harness_of(parameters)
     tag = str(parameters.get("tag") or "") or None
     directory_raw = str(parameters.get("directory") or "")
     artifact_raw = str(parameters.get("artifact") or "")
     bundle_raw = str(parameters.get("attestation-bundle") or "")
-    bound = attested_bind.fetch(
-        harness=harness,
-        tag=tag,
-        directory=Path(directory_raw).expanduser() if directory_raw else None,
-        artifact=Path(artifact_raw).expanduser() if artifact_raw else None,
-        attestation_bundle=Path(bundle_raw).expanduser() if bundle_raw else None,
-    )
+    source = str(parameters.get("source") or "github")
+    if source == "index":
+        from ai_stp_cli.provider import index_bind
+
+        bound = index_bind.fetch(
+            harness=harness,
+            tag=tag,
+            directory=Path(directory_raw).expanduser() if directory_raw else None,
+            artifact=Path(artifact_raw).expanduser() if artifact_raw else None,
+            provenance=Path(bundle_raw).expanduser() if bundle_raw else None,
+        )
+    elif source == "github":
+        bound = attested_bind.fetch(
+            harness=harness,
+            tag=tag,
+            directory=Path(directory_raw).expanduser() if directory_raw else None,
+            artifact=Path(artifact_raw).expanduser() if artifact_raw else None,
+            attestation_bundle=Path(bundle_raw).expanduser() if bundle_raw else None,
+        )
+    else:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "provider fetch source must be github or index",
+            details={"source": source},
+        )
     return Answer(
         ProviderBoundRelease(
             harness_id=bound.harness_id,

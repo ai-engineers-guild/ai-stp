@@ -20,7 +20,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:feature-profiles": "node scripts/test-feature-profiles.mjs",
-    "audit": "bun audit --audit-level=high",
+    "audit": "node scripts/audit.mjs",
     "api:generate": "openapi-ts",
     "storybook": "storybook dev -p 6006 --disable-telemetry",
     "build-storybook": "storybook build -o storybook-static --disable-telemetry",

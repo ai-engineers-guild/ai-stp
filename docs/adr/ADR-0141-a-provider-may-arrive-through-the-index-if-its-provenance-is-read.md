@@ -1,6 +1,6 @@
 ---
 description: "Decision to accept a provider executable delivered as a Python distribution only when PyPI's PEP 740 provenance is verified, and to keep the level unverified until it is."
-last_verified: "2026-09-02"
+last_verified: "2026-09-04"
 ---
 
 # ADR-0141: A provider may arrive through the index, if its provenance is read
@@ -117,10 +117,12 @@ or their own key pinned here as a publisher, which is a trust decision made to
 avoid a packaging question. Neither is necessary, because the manifest is
 already something this consumer writes from what it verified.
 
-A verification dependency is required and is not yet chosen. `gh attestation
-verify` serves the GitHub path; the index path needs a Sigstore verifier that
-understands PEP 740 bundles. That choice is a separate change with its own
-measurement, and it is the reason this record does not claim the work is done.
+The index verifier is `pypi-attestations`: the library's `GitHubPublisher`
+policy when the module is importable, otherwise the `pypi-attestations`
+executable on PATH. That is the same class of external verifier as `gh` on the
+GitHub path. The consumer still owns publisher pinning, wheel inspection, and
+the spawn-after-verify order. Absence of the verifier is a typed unavailability,
+not `verified_publisher`.
 
 Rollback is the absence of policy: with no index publisher rules pinned, every
 wheel-delivered provider is `unverified`, which is exactly today's behaviour.

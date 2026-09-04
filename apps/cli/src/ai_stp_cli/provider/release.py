@@ -72,7 +72,7 @@ POLICY_FIELDS: Final[frozenset[str]] = frozenset(
     }
 )
 OPTIONAL_POLICY_FIELDS: Final[frozenset[str]] = frozenset(
-    {"verified_publishers", "build_attestations"}
+    {"verified_publishers", "build_attestations", "index_publishers"}
 )
 #: What one pinned release names. The digest alone would allow a signed manifest
 #: to present one provider's approved bytes as another provider's release, and
@@ -139,6 +139,17 @@ class BuildAttestationRule:
 
 
 @dataclass(frozen=True)
+class IndexPublisherRule:
+    """One PyPI project whose PEP 740 publisher triple this machine will bind."""
+
+    pypi_project: str
+    repository: str
+    workflow: str
+    environment: str
+    verified_publisher: bool = False
+
+
+@dataclass(frozen=True)
 class TrustPolicy:
     """What this machine will accept, pinned locally and never widened.
 
@@ -168,6 +179,9 @@ class TrustPolicy:
     signature_subject: str
     verified_publishers: frozenset[str] = frozenset()
     build_attestations: Mapping[str, BuildAttestationRule] = field(
+        default_factory=lambda: MappingProxyType({})
+    )
+    index_publishers: Mapping[str, IndexPublisherRule] = field(
         default_factory=lambda: MappingProxyType({})
     )
     public_keys: Mapping[str, str] = field(default_factory=lambda: MappingProxyType({}))
@@ -925,6 +939,7 @@ def _policy(document: dict[str, object]) -> TrustPolicy:
             else frozenset()
         ),
         build_attestations=MappingProxyType(_build_attestations(document)),
+        index_publishers=MappingProxyType(_index_publishers(document)),
         allowed_keys=allowed_keys,
         allowed_repositories=allowed_repositories,
         pinned_releases=frozenset(pins),
@@ -1027,6 +1042,51 @@ def _build_attestations(document: dict[str, object]) -> dict[str, BuildAttestati
         if repository in rules:
             _policy_failure("build_attestations", f"duplicate repository {repository}")
         rules[repository] = BuildAttestationRule(repository, workflow, verified)
+    return rules
+
+
+def _index_publishers(document: dict[str, object]) -> dict[str, IndexPublisherRule]:
+    held = document.get("index_publishers", [])
+    if not isinstance(held, list):
+        _policy_failure("index_publishers", "expected a list of project rules")
+    rules: dict[str, IndexPublisherRule] = {}
+    expected = {"pypi_project", "repository", "workflow", "environment", "verified_publisher"}
+    for index, raw in enumerate(cast(list[object], held)):
+        if not isinstance(raw, dict):
+            _policy_failure("index_publishers", f"rule {index} must be a table")
+        item = cast(dict[str, object], raw)
+        if set(item) != expected:
+            _policy_failure(
+                "index_publishers",
+                f"rule {index} must name pypi_project, repository, workflow, "
+                "environment and verified_publisher",
+            )
+        project = item.get("pypi_project")
+        repository = item.get("repository")
+        workflow = item.get("workflow")
+        environment = item.get("environment")
+        verified = item.get("verified_publisher")
+        if (
+            not isinstance(project, str)
+            or not project
+            or not isinstance(repository, str)
+            or not repository
+            or not isinstance(workflow, str)
+            or not workflow
+            or not isinstance(environment, str)
+            or not environment
+            or not isinstance(verified, bool)
+        ):
+            _policy_failure("index_publishers", f"rule {index} has the wrong shape")
+        if project in rules:
+            _policy_failure("index_publishers", f"duplicate project {project}")
+        rules[project] = IndexPublisherRule(
+            pypi_project=project,
+            repository=repository,
+            workflow=workflow,
+            environment=environment,
+            verified_publisher=verified,
+        )
     return rules
 
 

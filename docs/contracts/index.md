@@ -31,6 +31,7 @@ last_verified: "2026-08-03"
 | [deep-links.md](deep-links.md) | Grammar of canonical URLs and CLI references for component, setup, publisher, and report intent. | 2026-08-15 |
 | [device-passport.md](device-passport.md) | Device passport fields, privacy, and the permitted summary for the server and web. | 2026-08-04 |
 | [eligibility-constraints.md](eligibility-constraints.md) | Mechanical constraints before agent selection: a closed list of rejection reasons, check order, and two independent eligibility axes. | 2026-09-03 |
+| [estate-release.md](estate-release.md) | Immutable estate release record binding one consumer cut to exact provider evidence. | 2026-09-04 |
 | [federated-sources.md](federated-sources.md) | Machine contract for shared descriptors used by local ports and metadata adapters. | 2026-08-16 |
 | [fixture-corpus.md](fixture-corpus.md) | Shared /v1 fixture corpus: case kinds, invariants, and usage by both sides. | 2026-08-05 |
 | [github-archive-evidence.md](github-archive-evidence.md) | Machine contract for local GitHub archive evidence and observation history. | 2026-08-15 |

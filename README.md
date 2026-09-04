@@ -108,11 +108,14 @@ Automatic install is refused for an unknown harness.
 
 ## Current direction: complete the first supported alpha
 
-`0.0.16` is the first supported alpha contract. The current program completes
-explicit per-harness component adaptations, provider-owned multi-layer setup
-transactions, verified provider delivery and one exact estate release record.
-Rust and new component kinds are deferred; there is no calendar promise for a
-language rewrite.
+`0.0.16` is the first supported alpha contract. `0.0.17` continues it as one
+public `ai-stp-cli` wheel (`ADR-0146`). The current program finishes verified
+provider delivery — GitHub attested releases by default, PyPI provenance as a
+second path (`ADR-0141`) — the consumer-owned recoverable multi-root install
+over unchanged provider v3 (`ADR-0145`), and one exact estate release record.
+`main` is not branch-protected: the gate proves the tree (`ADR-0115`). Rust and
+new component kinds are deferred; there is no calendar promise for a language
+rewrite.
 
 <details>
 <summary>Stage, contributing, documentation</summary>

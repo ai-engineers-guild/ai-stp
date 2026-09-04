@@ -3714,8 +3714,20 @@
           "value_type": "string",
           "required": false,
           "repeatable": false,
-          "summary": "Optional local GitHub attestation bundle for offline verification.",
+          "summary": "Optional local GitHub attestation bundle or PEP 740 provenance for offline verification.",
           "choices": []
+        },
+        {
+          "name": "source",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "github (default) binds a GitHub release; index binds a PEP 740 wheel.",
+          "choices": [
+            "github",
+            "index"
+          ]
         }
       ],
       "parameter_rules": [],

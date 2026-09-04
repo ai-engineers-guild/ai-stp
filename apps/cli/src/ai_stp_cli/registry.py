@@ -2787,7 +2787,14 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "attestation-bundle",
                 "string",
-                "Optional local GitHub attestation bundle for offline verification.",
+                "Optional local GitHub attestation bundle or PEP 740 provenance "
+                "for offline verification.",
+            ),
+            option(
+                "source",
+                "string",
+                "github (default) binds a GitHub release; index binds a PEP 740 wheel.",
+                choices=("github", "index"),
             ),
         ),
         next_actions=("install plan", "provider trust"),
