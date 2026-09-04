@@ -148,7 +148,7 @@ async def test_git_resolves_branch_to_full_commit_and_records_provenance() -> No
                 {"location": f"https://codeload.github.com/acme/tool/legacy.tar.gz/{COMMIT}"},
                 url,
             )
-        if "codeload.github.com" in url:
+        if urlsplit(url).hostname == "codeload.github.com":
             assert "Authorization" not in headers
             return GithubHttpResponse(200, archive, {}, url)
         raise AssertionError(url)

@@ -309,7 +309,7 @@ async def test_acquire_resolves_commit_and_follows_only_github_redirects() -> No
                 {"location": f"https://codeload.github.com/acme/tool/legacy.tar.gz/{sha}"},
                 url,
             )
-        if "codeload.github.com" in url:
+        if urlsplit(url).hostname == "codeload.github.com":
             return GithubHttpResponse(200, archive, {}, url)
         raise AssertionError(url)
 
@@ -326,7 +326,7 @@ async def test_acquire_resolves_commit_and_follows_only_github_redirects() -> No
     assert snapshot.observed_license == "MIT"
     assert snapshot.files["SKILL.md"] == b"# Demo\n"
     assert snapshot.archive_digest == digest_bytes(ARTIFACT_DIGEST_DOMAIN, archive)
-    assert any("codeload.github.com" in item for item in calls)
+    assert any(urlsplit(item).hostname == "codeload.github.com" for item in calls)
 
 
 @pytest.mark.asyncio
