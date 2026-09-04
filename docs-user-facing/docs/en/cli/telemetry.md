@@ -50,7 +50,7 @@ GitHub authorisation.
 | `os` | `windows` | the operating system |
 | `harness` | `codex` | the harness it was installed into |
 | `harness_version` | `0.140.1` | its version, as the toolchain reports it |
-| `ai_stp_version` | `0.0.2` | the CLI version |
+| `ai_stp_version` | `0.0.15` | the CLI version |
 | `component_type` | `mcp` | the component kind |
 | `name` | `serena` | the component's public name |
 | `source` | `platform` | where the object is publicly named |

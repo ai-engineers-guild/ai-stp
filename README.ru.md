@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img src="assets/readme/ru/hero.png" width="100%" alt="ai-stp: подберите, проверьте и установите полный сетап через агента.">
+  <img src="assets/readme/ru/hero.svg" width="640" alt="ai-stp: подберите, проверьте и установите полный сетап через агента.">
 </p>
 
 <p align="center">
@@ -17,16 +17,10 @@
 агент пользователя: каждая команда отвечает одним JSON-конвертом. `ai-stp` не
 вызывает API модели и не требует ключа модели.
 
-<p align="center">
-  <img src="assets/readme/ru/section-what.svg" width="100%" alt="01 Один сетап, восемь видов, точные версии">
-</p>
+## Один сетап, восемь видов, точные версии
 
 <p align="center">
-  <img src="assets/readme/shared/setup-core.png" width="100%" alt="Сетап — связанный граф компонентов вокруг ядра одного харнесса.">
-</p>
-
-<p align="center">
-  <img src="assets/readme/shared/kinds.png" width="100%" alt="Восемь видов: instruction, skill, mcp, hook, command, agent, plugin, setting.">
+  <img src="assets/readme/shared/kinds.svg" width="640" alt="Восемь видов: instruction, skill, mcp, hook, command, agent, plugin, setting.">
 </p>
 
 **Сетап** с создания принадлежит одному харнессу. Восемь видов:
@@ -34,48 +28,29 @@
 `setting`. Память и правила — содержимое этих видов, не отдельные виды.
 Опубликованная версия закрепляет точные версии компонентов и неизменяема.
 
-<p align="center">
-  <img src="assets/readme/ru/section-how.svg" width="100%" alt="02 CLI собирает. Провайдер пишет.">
-</p>
+## CLI собирает, провайдер пишет
+
+CLI и агент подбирают, проверяют и собирают пакет. Каждая команда — один
+JSON-конверт. CLI не пишет нативные файлы харнесса. Веб владеет аккаунтом и
+публичным каталогом; он не собирает и не устанавливает сетап. Нативное
+состояние харнесса пишет только провайдер.
 
 <p align="center">
-  <img src="assets/readme/ru/roles.svg" width="100%" alt="CLI и агент подбирают и собирают пакет. Веб владеет аккаунтом и каталогом. Нативное состояние харнесса пишет только провайдер.">
+  <img src="assets/readme/shared/workflow.svg" width="640" alt="Восемь видов закрепляются в один сетап одного харнесса. CLI проверяет и собирает пакет. Нативные файлы пишет только провайдер.">
 </p>
 
-<p align="center">
-  <img src="assets/readme/shared/workflow.svg" width="100%" alt="install, passports, select, план с digest и backup, apply провайдера, restore при отказе.">
-</p>
+Доверие — origin, version и consent. Совместимость — graph, target и policy —
+решает до apply. Опубликованная версия — неизменяемый digest, связанный с
+версией объекта, политикой и устройством. Синхронизация продолжается с
+последнего подтверждённого cursor. Подтверждение автора — происхождение, а не
+вердикт о безопасности байтов. `author_verified` и `component_verified`
+независимы.
 
-<p align="center">
-  <img src="assets/readme/shared/trust-boundary.svg" width="100%" alt="Граница доверия: origin, version, consent.">
-</p>
+Локальная работа не требует аккаунта. Публичный каталог читается анонимно.
+Вход через Google или GitHub открывает приватные объекты, синхронизацию,
+публикацию, устройства и grants.
 
-<p align="center">
-  <img src="assets/readme/shared/compatibility-gate.svg" width="100%" alt="Шлюз совместимости: graph, target и policy решают до apply.">
-</p>
-
-<p align="center">
-  <img src="assets/readme/shared/immutable-artifact.svg" width="100%" alt="Опубликованные байты проходят digest и хранятся как неизменяемый артефакт.">
-</p>
-
-<p align="center">
-  <img src="assets/readme/shared/signed-publication.svg" width="100%" alt="Публикация связывает digest, версию объекта, политику и устройство.">
-</p>
-
-<p align="center">
-  <img src="assets/readme/shared/sync-cursor.svg" width="100%" alt="Синхронизация продолжается с последнего подтверждённого cursor.">
-</p>
-
-Подтверждение автора — это происхождение, а не вердикт о безопасности байтов.
-`author_verified` и `component_verified` независимы.
-
-<p align="center">
-  <img src="assets/readme/ru/modes.svg" width="100%" alt="Локально без аккаунта, анонимное чтение каталога, после входа — приватная синхронизация и публикация.">
-</p>
-
-<p align="center">
-  <img src="assets/readme/ru/section-use.svg" width="100%" alt="03 Поставьте CLI, дальше ведёт агент">
-</p>
+## Поставьте CLI, дальше ведёт агент
 
 ```bash
 uv tool install ai-stp-cli
@@ -98,13 +73,22 @@ ai-stp device init --json
 
 ## Поддерживаемые харнессы
 
-| Статус | Харнессы |
-|---|---|
-| Основная поддержка | Claude Code, Codex, Grok Build |
-| Бета | Pi, OpenCode, Cursor, Antigravity |
-| ограниченный режим | `undefined` для неизвестного харнесса |
+`полностью` — нативная поверхность и маршрут провайдера. `частично` — одно из
+двух. `—` — нативной поверхности нет. Матрица — `ai-stp toolchain
+harness-capabilities`.
 
-Неизвестный харнесс автоматически не устанавливается.
+| Харнесс | Статус | instruction | skill | mcp | hook | command | agent | plugin | setting |
+|---|---|---|---|---|---|---|---|---|---|
+| Claude Code | Основная поддержка | полностью | полностью | частично | полностью | полностью | полностью | частично | полностью |
+| Codex | Основная поддержка | полностью | частично | полностью | частично | полностью | полностью | — | полностью |
+| Grok Build | Основная поддержка | полностью | полностью | полностью | полностью | — | частично | полностью | полностью |
+| Pi | Бета | полностью | полностью | частично | — | полностью | — | полностью | полностью |
+| OpenCode | Бета | полностью | полностью | полностью | — | полностью | полностью | полностью | полностью |
+| Cursor | Бета | полностью | полностью | полностью | полностью | полностью | полностью | полностью | полностью |
+| Antigravity | Бета | частично | полностью | полностью | полностью | полностью | полностью | полностью | полностью |
+
+Неизвестный харнесс — `undefined`. Автоматическая установка для него
+отказывается.
 
 ## Текущее направление: завершить первую поддерживаемую alpha-версию
 
@@ -117,17 +101,23 @@ ai-stp device init --json
 доказывает гейт (`ADR-0115`). Rust и новые виды компонентов отложены;
 календарного обещания переписать систему на другом языке нет.
 
-<details>
-<summary>Стадия, участие, документация</summary>
-
 Статус фазы принадлежит
 [`docs/engineering/implementation-roadmap.md`](docs/engineering/implementation-roadmap.md):
 это файл, который нужно открыть за текущим evidence, а не краткое изложение здесь.
+
+<details>
+<summary>Участие</summary>
 
 - [CONTRIBUTING.md](CONTRIBUTING.md): how changes enter this repository.
 - [SECURITY.md](SECURITY.md): how to report a vulnerability.
 - [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md): expectations for participation.
 - [AGENTS.md](AGENTS.md): rules for people and agents. Read before any repository change.
+
+</details>
+
+<details>
+<summary>Документация</summary>
+
 - [docs/index.md](docs/index.md): map of product, architecture, contract, engineering, and operations documentation.
 - [docs/product/vision.md](docs/product/vision.md): the problem, users, value, and positioning of ai_stp.
 - [docs/product/scope.md](docs/product/scope.md): required MVP capabilities, harness statuses, and explicit exclusions.

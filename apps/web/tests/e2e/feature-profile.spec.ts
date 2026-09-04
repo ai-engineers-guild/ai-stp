@@ -9,7 +9,7 @@ test("compiled content profile is consistent across every public projection", as
 }) => {
   const human = await request.get("/en/content");
   const machine = await request.get("/en/ai/content");
-  const detail = await request.get("/en/content/article/safe-setup");
+  const detail = await request.get("/en/content/article/kind-skill");
   const feed = await request.get("/feed.xml");
   const draft = await request.get("/en/content/article/internal-draft");
   const contact = await request.get("/en/contact");
@@ -41,21 +41,21 @@ test("compiled content profile is consistent across every public projection", as
   expect(sitemap.includes("/en/contact")).toBe(saas);
   expect(sitemap.includes("/en/legal/privacy")).toBe(saas);
   expect(llms.includes("/en/content")).toBe(enabled);
-  expect(llmsFull.includes("safe-setup")).toBe(enabled);
+  expect(llmsFull.includes("kind-skill")).toBe(enabled);
   expect(robots.includes("Allow: /en/content")).toBe(enabled);
   expect(robots.includes("Disallow: /en/legal")).toBe(!saas);
 
   if (enabled) {
-    await page.goto("/en/content/article/safe-setup");
-    await expect(page.getByRole("heading", { level: 1 })).toContainText("Build a setup");
+    await page.goto("/en/content/article/kind-skill");
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("workflow package");
     await expect(page.locator('script[type="application/ld+json"]')).toHaveCount(1);
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
       "href",
-      /\/en\/content\/article\/safe-setup$/,
+      /\/en\/content\/article\/kind-skill$/,
     );
     await expect(page.locator('link[hreflang="ru"]')).toHaveAttribute(
       "href",
-      /\/ru\/content\/article\/safe-setup$/,
+      /\/ru\/content\/article\/kind-skill$/,
     );
     await expect(page.locator('meta[property="og:type"]')).toHaveAttribute("content", "article");
     const feedBody = await feed.text();
@@ -66,11 +66,11 @@ test("compiled content profile is consistent across every public projection", as
     await expect(page.locator('[data-ui="human-machine-toggle"]')).toBeVisible();
     await expect(page.locator('[data-ui="projection-machine"]')).toHaveAttribute(
       "href",
-      "/en/ai/content/article/safe-setup",
+      "/en/ai/content/article/kind-skill",
     );
-    await page.goto("/ru/content/article/safe-setup");
+    await page.goto("/ru/content/article/kind-skill");
     await expect(page.getByRole("heading", { level: 1 })).toContainText(
-      "\u041a\u0430\u043a \u0441\u043e\u0431\u0440\u0430\u0442\u044c \u0441\u0435\u0442\u0430\u043f",
+      "\u043f\u0430\u043a\u0435\u0442 \u043f\u0440\u043e\u0446\u0435\u0441\u0441\u0430",
     );
   } else {
     const body = await human.text();

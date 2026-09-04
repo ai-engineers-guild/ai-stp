@@ -1,17 +1,21 @@
-"""Daily enqueue of at most one official_upstream_sync job per source (SPEC-056 REQ-5602)."""
+"""Enqueue official_upstream_sync jobs (SPEC-056 REQ-5602)."""
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import json
 import sys
+from collections.abc import Sequence
 from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_platform.db import make_engine, make_sessionmaker
-from ai_stp_platform.models import OfficialUpstreamSource
+from ai_stp_platform.models import AuditEvent, OfficialUpstreamSource
+from ai_stp_platform.official_upstream import OFFICIAL_ACCOUNT_ID
+from ai_stp_platform.official_upstream.errors import INVALID_SOURCE, OfficialUpstreamError
 from ai_stp_platform.queue.engine import enqueue
 from ai_stp_platform.queue.models import Job
 from ai_stp_platform.queue.states import JobType
@@ -22,47 +26,116 @@ def idempotency_key(source_id: str, utc_day: str) -> str:
     return f"official-upstream-sync:{source_id}:{utc_day}"
 
 
-async def enqueue_daily(session: AsyncSession, *, now: datetime | None = None) -> list[Job]:
-    """Enqueue one independent job per enabled official source and this UTC day."""
+def manual_idempotency_key(source_id: str, moment: datetime) -> str:
+    stamp = moment.strftime("%Y%m%dT%H%M%S%f")
+    return f"official-upstream-sync:{source_id}:manual:{stamp}"
+
+
+async def _enabled_sources(
+    session: AsyncSession, source_id: str | None
+) -> list[OfficialUpstreamSource]:
+    if source_id is None:
+        return list(
+            (
+                await session.scalars(
+                    select(OfficialUpstreamSource).where(OfficialUpstreamSource.enabled.is_(True))
+                )
+            ).all()
+        )
+    source = await session.get(OfficialUpstreamSource, source_id)
+    if source is None:
+        raise OfficialUpstreamError(INVALID_SOURCE, "source is missing")
+    if not source.enabled:
+        raise OfficialUpstreamError(INVALID_SOURCE, "source is disabled")
+    return [source]
+
+
+async def enqueue_daily(
+    session: AsyncSession,
+    *,
+    now: datetime | None = None,
+    source_id: str | None = None,
+    force: bool = False,
+) -> list[Job]:
+    """Enqueue sync jobs. The scheduler path is one job per source and UTC day."""
     moment = now or datetime.now(UTC)
     utc_day = moment.date().isoformat()
-    sources = list(
-        (
-            await session.scalars(
-                select(OfficialUpstreamSource).where(OfficialUpstreamSource.enabled.is_(True))
-            )
-        ).all()
-    )
     jobs: list[Job] = []
-    for source in sources:
+    for source in await _enabled_sources(session, source_id):
+        key = (
+            manual_idempotency_key(source.id, moment)
+            if force
+            else idempotency_key(source.id, utc_day)
+        )
         job = await enqueue(
             session,
             job_type=JobType.OFFICIAL_UPSTREAM_SYNC,
             payload={"source_id": source.id},
-            idempotency_key=idempotency_key(source.id, utc_day),
+            idempotency_key=key,
         )
+        if force:
+            session.add(
+                AuditEvent(
+                    actor_account_id=OFFICIAL_ACCOUNT_ID,
+                    action="official_upstream.sync_enqueued",
+                    target_table="official_upstream_source",
+                    target_id=source.id,
+                    payload={
+                        "job_id": job.id,
+                        "force": True,
+                        "utc_day": utc_day,
+                    },
+                )
+            )
         jobs.append(job)
     return jobs
 
 
-async def _run() -> int:
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Enqueue official upstream sync jobs in PostgreSQL. No HTTP endpoint."
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Enqueue a new audited job even if today's scheduler job already exists.",
+    )
+    parser.add_argument(
+        "--id",
+        dest="source_id",
+        help="Enqueue one enabled source. Omit to enqueue every enabled source.",
+    )
+    return parser
+
+
+async def _execute(force: bool, source_id: str | None) -> dict[str, object]:
     database = DatabaseSettings()  # pyright: ignore[reportCallIssue]
     engine = make_engine(database)
     sessionmaker = make_sessionmaker(engine)
     try:
         async with sessionmaker() as session:
-            jobs = await enqueue_daily(session)
+            jobs = await enqueue_daily(session, force=force, source_id=source_id)
             await session.commit()
     finally:
         await engine.dispose()
-    sys.stdout.write(
-        json.dumps({"enqueued": len(jobs), "job_ids": [job.id for job in jobs]}) + "\n"
-    )
+    return {
+        "enqueued": len(jobs),
+        "force": force,
+        "job_ids": [job.id for job in jobs],
+        "source_ids": [job.payload["source_id"] for job in jobs],
+    }
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = _parser().parse_args(list(argv) if argv is not None else None)
+    source_id = None if args.source_id is None else str(args.source_id)
+    try:
+        result = asyncio.run(_execute(force=bool(args.force), source_id=source_id))
+    except OfficialUpstreamError as error:
+        sys.stderr.write(f"{error.code}: {error.message}\n")
+        return 1
+    sys.stdout.write(json.dumps(result) + "\n")
     return 0
-
-
-def main() -> int:
-    return asyncio.run(_run())
 
 
 if __name__ == "__main__":

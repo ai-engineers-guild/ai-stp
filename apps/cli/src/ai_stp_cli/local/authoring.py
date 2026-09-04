@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import re
 import stat
+import subprocess
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -21,6 +22,7 @@ from ai_stp_contracts.authoring import (
     ComponentScaffoldPlan,
     ComponentScaffoldResult,
     ComponentTemplateDescriptor,
+    GitInitReason,
     PortableHookHandler,
     PortableHookSource,
 )
@@ -52,6 +54,28 @@ _PLACEHOLDERS: Final[frozenset[str]] = frozenset(
 LANGUAGES = AUTHORING_LANGUAGES
 VARIANTS = AUTHORING_VARIANTS
 TYPE_LANGUAGE_MATRIX = AUTHORING_TYPE_LANGUAGE_MATRIX
+DRAFT: Final[str] = "TODO(ai-stp-scaffold):"
+GITIGNORE: Final[bytes] = (
+    b".DS_Store\n"
+    b"Thumbs.db\n"
+    b"Desktop.ini\n"
+    b"__pycache__/\n"
+    b"*.py[cod]\n"
+    b"*.egg-info/\n"
+    b".venv/\n"
+    b"venv/\n"
+    b"node_modules/\n"
+    b".env\n"
+    b".env.*\n"
+    b"!.env.example\n"
+)
+
+
+@dataclass(frozen=True)
+class GitSideEffect:
+    initialized: bool
+    commit: str | None
+    reason: GitInitReason | None
 
 
 @dataclass(frozen=True)
@@ -209,6 +233,125 @@ def apply_scaffold(
         output=str(destination),
         files_written=len(files),
     )
+
+
+def component_scaffold_files(
+    name: str, descriptor: ComponentTemplateDescriptor
+) -> dict[str, bytes]:
+    """Compatibility wrapper for setup scaffolds embedding component trees."""
+    files = _scaffold_files(name, descriptor)
+    if descriptor.component_type == "skill":
+        projection = files.get(f"projections/{descriptor.harness_variant}/SKILL.md")
+        if projection is not None:
+            files["source/SKILL.md"] = projection
+    return files
+
+
+def write_new_tree(destination: Path, files: dict[str, bytes]) -> None:
+    """Write a new tree without replacing an existing path."""
+    directories = sorted(
+        {
+            parent
+            for relative in files
+            for parent in PurePosixPath(relative).parents
+            if str(parent) != "."
+        },
+        key=lambda item: (len(item.parts), item.as_posix()),
+    )
+    created_files: list[Path] = []
+    created_directories: list[Path] = []
+    try:
+        destination.mkdir(mode=0o700)
+        created_directories.append(destination)
+        for relative in directories:
+            directory = destination / relative.as_posix()
+            directory.mkdir(mode=0o700)
+            created_directories.append(directory)
+        for relative, payload in files.items():
+            target = destination / relative
+            descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            created_files.append(target)
+            try:
+                os.write(descriptor, payload)
+                os.fsync(descriptor)
+            finally:
+                os.close(descriptor)
+    except BaseException:
+        for target in reversed(created_files):
+            with suppress(OSError):
+                target.unlink()
+        for directory in reversed(created_directories):
+            with suppress(OSError):
+                directory.rmdir()
+        raise
+
+
+def initialize_authoring_git(destination: Path) -> GitSideEffect:
+    """Initialize a standalone scaffold tree when a usable Git identity exists."""
+    try:
+        inside = subprocess.run(
+            ["git", "-C", str(destination), "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return GitSideEffect(False, None, "git_unavailable")
+    if inside.returncode == 0:
+        return GitSideEffect(False, None, "existing_worktree")
+    try:
+        init = subprocess.run(
+            ["git", "init"],
+            cwd=destination,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+        if init.returncode != 0:
+            return GitSideEffect(False, None, "git_unavailable")
+        identity = all(
+            subprocess.run(
+                ["git", "config", key],
+                cwd=destination,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=False,
+            ).returncode
+            == 0
+            for key in ("user.name", "user.email")
+        )
+        if not identity:
+            return GitSideEffect(True, None, "missing_identity")
+        for command in (("git", "add", "-A"), ("git", "commit", "-m", "Initial ai-stp scaffold")):
+            result = subprocess.run(
+                list(command),
+                cwd=destination,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=False,
+            )
+            if result.returncode != 0:
+                return GitSideEffect(True, None, "git_unavailable")
+        head = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=destination,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+        commit = head.stdout.strip()
+        return (
+            GitSideEffect(True, commit, None)
+            if head.returncode == 0 and re.fullmatch(r"[0-9a-f]{40,64}", commit)
+            else GitSideEffect(True, None, "git_unavailable")
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return GitSideEffect(True, None, "git_unavailable")
 
 
 def _unused_destination(destination: Path) -> None:

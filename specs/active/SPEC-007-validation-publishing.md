@@ -1,6 +1,6 @@
 ---
 description: "SPEC-007: Tests, evidence and publication."
-last_verified: "2026-08-13"
+last_verified: "2026-09-03"
 ---
 
 # SPEC-007: Validation, evidence, and publication
@@ -61,7 +61,7 @@ The proof source accepts exactly five values, and they are not combined into one
 - `REQ-722`: Hiding, blocking, and restoring a version remain explicit, auditable actions by platform owners—based on their own finding, a private vulnerability report, or a reviewed report case under `SPEC-016`; reports themselves and their number do not automatically change the version lifecycle.
 - `REQ-723`: A mandatory check in the `failed`, `degraded`, `not_run`, or `expired` state blocks public publication; a completed `warning`-class check does not block publication.
 - `REQ-724`: Mandatory verification that requires credentials or external authorization is performed by the author locally with his credentials, and the accepted proof is a signed author's confirmation tied to the exact hash, object version, policy version, tool, harness and provider versions, test case identifiers, result, account, device and time; secret values, tokens and issuing addresses are not included in it, and changing any binding or revoking the device invalidates it.
-- `REQ-725`: Card, API response and CLI machine output show the source of evidence and its limitations for each mandatory check; author acknowledgment is not shown as execution by the platform.
+- `REQ-725`: Card, API response and CLI machine output show the source of evidence and its limitations for each mandatory check; author acknowledgment is not shown as execution by the platform. The public catalog card projects finished verdicts (`passed` / `failed` / `warning`); optional unfinished checks (`not_run` / `degraded`) remain on the machine audit list and do not enter the card percent.
 - `REQ-726`: Suitability for installation is derived from the relevance of mandatory evidence: a version without an up-to-date `passed` loses `component_verified` according to any mandatory verification, leaves `authoritative` and is blocked for new installations and updates; the installed target continues to run with a noticeable warning, no remote shutdown is performed, a new pass through `ValidationSnapshot` of the same bytes restores usability, and the standalone client uses the last known state with the check time.
 - `REQ-727`: Before confirmed enrichment, the CLI can only offer fields from the explicit closed block `ai-stp` saved by the immutable manifest or from the full exact source provenance; each sentence names the source, does not write anything down, and does not guess missing, contradictory and irreducible information.
 - `REQ-728`: Local optional quality profile applies only deterministic mechanical checks `safety`, `clarity`, `reusability`, `completeness`, `actionability` with type-specific rules for all eight types of components; the result is a read-only author hint and explicitly does not affect publication readiness, `component_verified`, or trust line.
@@ -108,7 +108,7 @@ Versions of the validation scheme, tools, and policies are recorded. Re-checking
 | `REQ-722` | The multiple complaints fixture does not change the state of the version, but the moderator's action changes it and creates an audit event. |
 | `REQ-723` | Mandatory fixtures `failed`, `degraded`, `not_run` and `expired` block publication, but completed `warning` does not block. |
 | `REQ-724` | The author's confirmation fixture checks the binding to each coordinate, the absence of secrets and invalidity after changing the hash, policy, tools, test cases and device revocation. |
-| `REQ-725` | The card and machine output standard shows the source for each check and distinguishes between server execution and author's confirmation. |
+| `REQ-725` | The card and machine output standard shows the source for each check and distinguishes between server execution and author's confirmation. The card percent and list use finished verdicts; optional unfinished checks remain on the machine audit. |
 | `REQ-726` | The expiration, recheck failure, policy tightening, snapshot restore, modified bytes, and offline client fixtures block and restore only new installations without touching the installed target. |
 | `REQ-727` | The process fixture receives proposals from the exact artifact, confirms them with a separate update, and proves that there is no writing, no guesswork, no leaking of secrets, and no choice between conflicting manifests. |
 | `REQ-728` | A parameterized test builds a profile for each type of component, checks stable codes and type-specific action surface, absence of records and models; an incomplete passport retains publication blockers regardless of `hint`, and machine result contains three obvious negative trust/readiness signs. |

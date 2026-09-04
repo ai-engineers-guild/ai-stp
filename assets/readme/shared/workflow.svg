@@ -1,43 +1,43 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="260" viewBox="0 0 1200 260" role="img" aria-labelledby="t d">
-  <title id="t">Install path</title>
-  <desc id="d">install CLI, passports, select, digest-bound plan and backup, provider apply, restore</desc>
-  <rect width="1200" height="260" rx="22" fill="#101010"/>
-  <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
-    <g>
-      <rect x="24" y="40" width="176" height="180" rx="16" fill="#181818" stroke="#434343"/>
-      <text x="112" y="92" text-anchor="middle" font-size="15" fill="#fb631b">01</text>
-      <text x="112" y="128" text-anchor="middle" font-size="18" fill="#ffffff">install</text>
-      <text x="112" y="158" text-anchor="middle" font-size="14" fill="#858483">uv tool</text>
-    </g>
-    <g>
-      <rect x="220" y="40" width="176" height="180" rx="16" fill="#181818" stroke="#434343"/>
-      <text x="308" y="92" text-anchor="middle" font-size="15" fill="#fb631b">02</text>
-      <text x="308" y="128" text-anchor="middle" font-size="18" fill="#ffffff">passports</text>
-      <text x="308" y="158" text-anchor="middle" font-size="14" fill="#858483">device</text>
-    </g>
-    <g>
-      <rect x="416" y="40" width="176" height="180" rx="16" fill="#181818" stroke="#434343"/>
-      <text x="504" y="92" text-anchor="middle" font-size="15" fill="#fb631b">03</text>
-      <text x="504" y="128" text-anchor="middle" font-size="18" fill="#ffffff">select</text>
-      <text x="504" y="158" text-anchor="middle" font-size="14" fill="#858483">exact graph</text>
-    </g>
-    <g>
-      <rect x="612" y="40" width="176" height="180" rx="16" fill="#181818" stroke="#434343"/>
-      <text x="700" y="92" text-anchor="middle" font-size="15" fill="#fb631b">04</text>
-      <text x="700" y="128" text-anchor="middle" font-size="18" fill="#ffffff">plan</text>
-      <text x="700" y="158" text-anchor="middle" font-size="14" fill="#858483">digest + backup</text>
-    </g>
-    <g>
-      <rect x="808" y="40" width="176" height="180" rx="16" fill="#181818" stroke="#434343"/>
-      <text x="896" y="92" text-anchor="middle" font-size="15" fill="#fb631b">05</text>
-      <text x="896" y="128" text-anchor="middle" font-size="18" fill="#ffffff">apply</text>
-      <text x="896" y="158" text-anchor="middle" font-size="14" fill="#858483">provider</text>
-    </g>
-    <g>
-      <rect x="1004" y="40" width="172" height="180" rx="16" fill="#181818" stroke="#434343"/>
-      <text x="1090" y="92" text-anchor="middle" font-size="15" fill="#fb631b">06</text>
-      <text x="1090" y="128" text-anchor="middle" font-size="18" fill="#ffffff">restore</text>
-      <text x="1090" y="158" text-anchor="middle" font-size="14" fill="#858483">on failure</text>
-    </g>
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="148" viewBox="0 0 640 148" role="img" aria-labelledby="t d">
+  <title id="t">Component to native harness state</title>
+  <desc id="d">Eight kinds pin into one setup for one harness. The CLI validates and bundles. Only the provider writes native files.</desc>
+  <rect x="0.5" y="0.5" width="639" height="147" rx="8" fill="#101010" stroke="#434343"/>
+
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
+    <rect x="16" y="16" width="130" height="116" rx="6" fill="#181818" stroke="#434343"/>
+    <text x="28" y="40" font-size="11" fill="#fb631b">COMPONENTS</text>
+    <text x="28" y="68" font-size="14" fill="#ffffff">eight kinds</text>
+    <text x="28" y="90" font-size="11" fill="#858483">exact versions</text>
+    <text x="28" y="108" font-size="11" fill="#858483">one graph</text>
+  </g>
+  <path d="M152 74h18" stroke="#fb631b" stroke-width="2"/>
+  <path d="m164 68 8 6-8 6" fill="none" stroke="#fb631b" stroke-width="2"/>
+
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
+    <rect x="178" y="16" width="130" height="116" rx="6" fill="#181818" stroke="#434343"/>
+    <text x="190" y="40" font-size="11" fill="#fb631b">SETUP</text>
+    <text x="190" y="68" font-size="14" fill="#ffffff">one harness</text>
+    <text x="190" y="90" font-size="11" fill="#858483">from creation</text>
+    <text x="190" y="108" font-size="11" fill="#858483">immutable pin</text>
+  </g>
+  <path d="M314 74h18" stroke="#fb631b" stroke-width="2"/>
+  <path d="m326 68 8 6-8 6" fill="none" stroke="#fb631b" stroke-width="2"/>
+
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
+    <rect x="340" y="16" width="130" height="116" rx="6" fill="#181818" stroke="#434343"/>
+    <text x="352" y="40" font-size="11" fill="#fb631b">CLI</text>
+    <text x="352" y="68" font-size="14" fill="#ffffff">validate</text>
+    <text x="352" y="90" font-size="11" fill="#858483">JSON plan</text>
+    <text x="352" y="108" font-size="11" fill="#858483">digest + backup</text>
+  </g>
+  <path d="M476 74h18" stroke="#fb631b" stroke-width="2"/>
+  <path d="m488 68 8 6-8 6" fill="none" stroke="#fb631b" stroke-width="2"/>
+
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
+    <rect x="502" y="16" width="130" height="116" rx="6" fill="#181818" stroke="#434343"/>
+    <text x="514" y="40" font-size="11" fill="#fb631b">PROVIDER</text>
+    <text x="514" y="68" font-size="14" fill="#ffffff">writes native</text>
+    <text x="514" y="90" font-size="11" fill="#858483">harness files</text>
+    <text x="514" y="108" font-size="11" fill="#858483">restore if fail</text>
   </g>
 </svg>

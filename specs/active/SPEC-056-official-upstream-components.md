@@ -43,13 +43,22 @@ owns the shared resolver, embedded components, and explicit transfer claim.
   enabled source and UTC day. The job payload contains only the source ID; GitHub
   credentials and mutable descriptive text do not enter the queue payload. The
   worker process runs this idempotent daily scheduler, so no second daemon is
-  required.
+  required. An operator-only local command may enqueue an additional audited
+  retry for enabled sources with a distinct idempotency key; it has no public
+  HTTP endpoint, does not enqueue a disabled or missing source, and does not
+  replace the daily scheduler key.
 - `REQ-5603`: The worker resolves the configured ref to a full 40-character
   commit, downloads from GitHub with bounded time and size, rejects links,
   traversal, secret-like files, binaries, and missing component roots, and
   records the exact repository identity, commit, archive digest, component
-  digest, and observed license. A branch or tag is never persisted as version
-  provenance without its resolved commit.
+  digest, and observed license. The snapshot is the component subpath as
+  committed: a skill includes `SKILL.md` and every other tracked file in that
+  directory. Gitignored paths are absent from the GitHub archive and are not
+  added; extract does not drop tests, CI, or other committed trees. Committed
+  env templates (`.env.example`, `.env.sample`, `.env.template`, `.env.dist`,
+  and `.env.*.example`) are not secret-like; `.env` and other `.env.*` files
+  remain rejected. A branch or tag is never persisted as version provenance
+  without its resolved commit.
 - `REQ-5604`: Unchanged component bytes produce a successful no-op. Changed bytes
   are materialized as the source's declared canonical projection, bound to an
   explicit adaptation and provider profile, create the next unused minor version
@@ -105,9 +114,9 @@ are not rewritten.
 
 | Requirement | Executable verification |
 |---|---|
-| `REQ-5601` | Command/integration tests idempotently upsert two independently identified sources and reject each unsafe coordinate, projection target and non-Official owner. |
-| `REQ-5602` | Two scheduler runs in one UTC day create one job; the next day creates one more; payload inspection finds only the source ID. |
-| `REQ-5603` | A mocked GitHub archive resolves a ref to a commit and records exact digests; redirect, traversal, link, secret, binary, oversize, and missing-root fixtures fail closed. |
+| `REQ-5601` | Command/integration tests idempotently upsert two independently identified sources and reject each unsafe coordinate, projection target, and non-Official owner. |
+| `REQ-5602` | Two scheduler runs in one UTC day create one job; the next day creates one more; a same-day operator force creates a second audited job with a distinct key; a disabled or missing `--id` is rejected; payload inspection finds only the source ID. |
+| `REQ-5603` | A mocked GitHub archive resolves a ref to a commit and records exact digests; redirect, traversal, link, secret, binary, oversize, and missing-root fixtures fail closed; `.env.example` is accepted while `.env` and `.env.local` are rejected; a skill tree keeps every committed path under the component root, including scripts, assets, docs, tests, and CI. |
 | `REQ-5604` | An unchanged snapshot is a no-op; a changed snapshot produces the declared canonical projection and explicit adaptation, enters the existing publication flow, publishes once after accepted validation, and a redelivery has no second effect or skipped barrier. |
 | `REQ-5605` | The published passport fixture contains the required leading attribution and trailing ownership notice and preserves them on exact-version read. |
 | `REQ-5606` | Fetch and validation failures leave the prior version readable; disabling or deleting the source prevents a later enqueue without deleting published versions, audit, or sync history. |

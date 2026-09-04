@@ -1,0 +1,32 @@
+nav:
+  - Overview: index.md
+  - Command map: commands.md
+  - Observe: observe.md
+  - Configuration: config.md
+  - Telemetry: telemetry.md
+  - Device: device.md
+  - Passports: passport.md
+  - Sign-in: auth.md
+  - Consent: consent.md
+  - Project: project.md
+  - Toolchain: toolchain.md
+  - Harness: harness.md
+  - Agent Skill CLI: skill.md
+  - Registry: registry.md
+  - Component:
+      - Overview: component.md
+      - Discovery: component-discover.md
+      - Passport: component-passport.md
+      - Source: component-source.md
+      - Publish: component-publish.md
+  - Select: select.md
+  - Install: install.md
+  - Target: target.md
+  - Setup: setup.md
+  - Provider: provider.md
+  - Sync: sync.md
+  - Access: grant.md
+  - Reports: report.md
+  - Owner: owner.md
+  - Publication: publication.md
+  - Eval: eval.md

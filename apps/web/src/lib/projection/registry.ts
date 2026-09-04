@@ -17,6 +17,7 @@ import { readPublicLegalDocument } from "@/lib/api/legal";
 import { catalogQueryToRecord, parseCatalogSearchParams } from "@/lib/catalog-query";
 import { startCatalogResourceReads } from "@/lib/catalog-load";
 import { INSTALL_CLI } from "@/lib/cli-copy";
+import { loadDocsNav } from "@/lib/docs-nav";
 import { docsSource } from "@/lib/docs-source";
 import type { MachineDocument } from "@/lib/projection/machine-document";
 import { PRIVATE_ROUTES } from "@/lib/projection/routes-private";
@@ -351,13 +352,11 @@ const PUBLIC_ROUTES: MachineRoute[] = [
     resolve: ({ locale, segments }) => {
       const slug = segments.slice(1);
       const page = docsSource.getPage([locale, ...slug]);
-      const nav = docsSource
-        .getPages()
-        .filter((item) => item.slugs[0] === locale)
-        .map((item) => ({
-          title: item.data.title,
-          href: `/docs/${item.slugs.slice(1).join("/")}`,
-        }));
+      const localePages = docsSource.getPages().filter((item) => item.slugs[0] === locale);
+      const nav = loadDocsNav(
+        locale,
+        localePages.map((item) => ({ slugs: item.slugs, title: item.data.title })),
+      );
       if (!page) {
         return presentDocs({ title: "Documentation", description: null, bodyText: "", nav });
       }

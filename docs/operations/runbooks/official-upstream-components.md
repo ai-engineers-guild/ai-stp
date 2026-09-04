@@ -58,6 +58,10 @@ python -m ai_stp_platform.official_upstream upsert \
   --projection-shape tree
 ```
 
+`--path` is the skill directory, not `SKILL.md` alone. The snapshot is every
+tracked file under that path. Gitignore is the filter; extract does not drop
+tests, CI, or other committed trees.
+
 The owner defaults to the AI STP Official account. Non-HTTPS GitHub URLs,
 embedded credentials, traversing paths, unknown component types, unknown
 package ecosystems, unsafe projection roots, unknown projection shapes, and a
@@ -70,17 +74,24 @@ disabled at synchronization time until they are upserted with these fields.
 ## Daily enqueue
 
 Every running worker enqueues once when it starts and again after the UTC date
-changes. The queue idempotency key makes multiple workers and restarts safe.
-For an operator-triggered retry, run the same enqueue directly:
+changes. The daily idempotency key makes multiple workers and restarts safe.
+Repeating the scheduler command on the same UTC day returns the existing job
+and does not run the fetch again.
+
+A developer with PostgreSQL access can enqueue a new attempt without an HTTP
+endpoint. `--force` writes a distinct audited queue row; the running worker
+picks it up. Disabled sources are skipped; an explicit `--id` of a missing or
+disabled row is rejected. Payload remains only `source_id`.
 
 ```sh
 python -m ai_stp_platform.official_upstream.enqueue
+python -m ai_stp_platform.official_upstream.enqueue --force
+python -m ai_stp_platform.official_upstream.enqueue --force --id ponytail-skill
 ```
 
-Each job payload is only `source_id`. One source's failure, disable, or
-idempotency key does not affect another enabled source. Disable or delete a
-source to stop later enqueue for that row without deleting published catalog
-versions, audit rows, or sync history.
+One source's failure, disable, or idempotency key does not affect another
+enabled source. Disable or delete a source to stop later enqueue for that row
+without deleting published catalog versions, audit rows, or sync history.
 
 ```sh
 python -m ai_stp_platform.official_upstream disable --id npm-example
@@ -103,10 +114,16 @@ suggestion never replaces, promotes, or merges identities.
    package coordinate, license, and maintainer attribution and ends with the
    ownership-claim notice.
 
-Optional `AI_STP_WORKER_GITHUB_TOKEN` is sent only to `api.github.com`.
-Redirects are followed only to `api.github.com`, `github.com`, and
-`codeload.github.com`. The token is never written to job payloads, source rows,
-logs, or descriptions.
+`AI_STP_WORKER_GITHUB_TOKEN` is sent only to `api.github.com`. Without it,
+GitHub allows 60 requests per hour per IP. Each git source uses two API
+calls before the archive download, so a catalog of this size exhausts that
+budget in one scheduler pass and jobs fail as `GitHub rate limit exceeded`.
+A fine-grained token with public repository metadata read is enough; write
+access and private repositories are not required. Redirects are followed
+only to `api.github.com`, `github.com`, and `codeload.github.com`. The token
+is never written to job payloads, source rows, logs, or descriptions. In
+local compose it comes from gitignored `.env.dev` (`env_file`); do not set
+an empty override in `environment`, which would wipe that value.
 
 ## Rollback
 

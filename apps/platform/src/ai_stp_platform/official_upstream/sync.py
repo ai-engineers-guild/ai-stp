@@ -287,14 +287,18 @@ async def _start_publication(
     store: ImmutableObjectStore,
     now: datetime,
 ) -> PublicationPlan:
-    existing = await session.scalar(
-        select(PublicationPlan).where(
-            PublicationPlan.actor_account_id == source.owner_account_id,
-            PublicationPlan.idempotency_key == f"official-upstream:{source.id}:{component_digest}",
+    existing_plans = (
+        await session.scalars(
+            select(PublicationPlan).where(
+                PublicationPlan.actor_account_id == source.owner_account_id,
+                PublicationPlan.stable_id == source.stable_id,
+                PublicationPlan.content_digest == component_digest,
+            )
         )
-    )
-    if existing is not None and existing.state not in {"failed", "cancelled", "stale", "published"}:
-        return existing
+    ).all()
+    for existing in existing_plans:
+        if existing.state not in {"failed", "cancelled", "stale", "published"}:
+            return existing
     version = await _next_unused_minor(session, source.stable_id)
     license_spdx = snapshot.observed_license or source.reviewed_license
     origin = _attribution_origin(source, snapshot)
@@ -330,8 +334,13 @@ async def _start_publication(
         )
     sealed = model.model_dump(mode="json")
     plan_key = f"official-upstream:{source.id}:{component_digest}"
-    if existing is not None:
-        plan_key = f"{plan_key}:{now.date().isoformat()}"
+    used_keys = {plan.idempotency_key for plan in existing_plans}
+    if plan_key in used_keys:
+        # publication_plan.idempotency_key is varchar(128); ISO millis overflows.
+        retry = now.strftime("%Y%m%dT%H%M%S")
+        plan_key = f"{plan_key}:{retry}"
+        if plan_key in used_keys:
+            plan_key = f"{plan_key}{now.microsecond // 1000:03d}"
     plan_hash = compute_plan_hash(
         actor_account_id=source.owner_account_id,
         device_id=source.actor_device_id,

@@ -1,0 +1,97 @@
+{
+  "$defs": {
+    "GitInitReason": {
+      "enum": [
+        "existing_worktree",
+        "missing_identity",
+        "git_unavailable"
+      ],
+      "type": "string"
+    },
+    "SetupGeneratorVersion": {
+      "const": "ai-stp/1",
+      "type": "string"
+    },
+    "SetupTemplateVersion": {
+      "const": "setup-scaffold/1",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-setup-scaffold-result",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Applied setup scaffold, bound to the exact preview digest.",
+  "properties": {
+    "files_written": {
+      "minimum": 6,
+      "title": "Files Written",
+      "type": "integer"
+    },
+    "generator_version": {
+      "$ref": "#/$defs/SetupGeneratorVersion",
+      "default": "ai-stp/1"
+    },
+    "git_commit": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{40,64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Git Commit"
+    },
+    "git_initialized": {
+      "title": "Git Initialized",
+      "type": "boolean"
+    },
+    "git_reason": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GitInitReason"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "output": {
+      "minLength": 1,
+      "title": "Output",
+      "type": "string"
+    },
+    "plan_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Plan Digest",
+      "type": "string"
+    },
+    "plan_id": {
+      "minLength": 1,
+      "title": "Plan Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "template_version": {
+      "$ref": "#/$defs/SetupTemplateVersion",
+      "default": "setup-scaffold/1"
+    }
+  },
+  "required": [
+    "plan_id",
+    "plan_digest",
+    "output",
+    "files_written",
+    "git_initialized"
+  ],
+  "title": "SetupScaffoldResult",
+  "type": "object"
+}

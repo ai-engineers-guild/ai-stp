@@ -89,7 +89,7 @@ def test_percent_excludes_na_and_counts_pending_planned_checks() -> None:
     assert checks_status(bindings) == "available"
 
     pending = [*bindings, {"check_id": "d", "result": "not_run", "mandatory": True}]
-    assert checks_passed_percent(pending) == 33
+    assert checks_passed_percent(pending) == 50
     assert checks_status(pending) == "pending"
 
     summary = build_checks_summary(bindings)
@@ -99,8 +99,10 @@ def test_percent_excludes_na_and_counts_pending_planned_checks() -> None:
     assert summary["not_run"] == 0
 
 
-def test_optional_not_run_is_incomplete_with_completion_percent() -> None:
-    """Missing optional engines remain incomplete while contributing to the score."""
+def test_optional_not_run_is_incomplete_without_dragging_the_score() -> None:
+    """Missing optional engines remain incomplete and stay out of the percent."""
+    from ai_stp_platform.safety.percent import is_user_facing_row
+
     bindings = [
         {"check_id": "path_denylist", "result": "passed", "mandatory": True},
         {"check_id": "secrets_heuristic", "result": "passed", "mandatory": True},
@@ -108,13 +110,17 @@ def test_optional_not_run_is_incomplete_with_completion_percent() -> None:
         {"check_id": "sca_osv", "result": "not_run", "mandatory": False},
     ]
     assert checks_status(bindings) == "incomplete"
-    assert checks_passed_percent(bindings) == 50
+    assert checks_passed_percent(bindings) == 100
     summary = build_checks_summary(bindings)
     assert summary["status"] == "incomplete"
     assert summary["coverage_complete"] is False
     assert summary["not_run"] == 2
     assert summary["passed"] == 2
-    assert summary["total_countable"] == 4
+    assert summary["total_countable"] == 2
+    assert [row["check_id"] for row in summary["checks"] if is_user_facing_row(row)] == [
+        "path_denylist",
+        "secrets_heuristic",
+    ]
 
 
 def test_checks_summary_exposes_only_sanitized_machine_reason() -> None:
@@ -706,6 +712,93 @@ def test_project_checks_summary_on_catalog_card() -> None:
     assert summary.checks[0].reason == "unsafe_path"
     assert summary.checks[0].finding_summary is not None
     assert summary.checks[0].finding_summary.rule_ids == ["credential_path"]
+    assert summary.total_countable == 5
+
+
+def test_project_checks_summary_hides_optional_unfinished_and_recomputes_percent() -> None:
+    from datetime import UTC, datetime
+
+    from ai_stp_platform.catalog_projection import project_checks_summary
+    from ai_stp_platform.catalog_read import PublicVersionRow
+
+    meta = SimpleNamespace(
+        owner_account_id="a1",
+        likes_count=0,
+        updated_at=None,
+        presentation_bio=None,
+        checks_summary={
+            "status": "incomplete",
+            "checks_passed_percent": 60,
+            "passed": 15,
+            "failed": 2,
+            "warning": 4,
+            "not_run": 3,
+            "total_countable": 25,
+            "checks": [
+                {
+                    "check_id": "path_denylist",
+                    "result": "passed",
+                    "mandatory": True,
+                    "source": "platform_safety_scan",
+                    "family": "path",
+                },
+                {
+                    "check_id": "network_intent",
+                    "result": "failed",
+                    "mandatory": False,
+                    "source": "platform_safety_scan",
+                    "family": "network_intent",
+                },
+                {
+                    "check_id": "sca_osv",
+                    "result": "not_run",
+                    "mandatory": False,
+                    "source": "platform_safety_scan",
+                    "family": "sca",
+                    "reason": "offline_db_missing",
+                },
+                {
+                    "check_id": "malware_clamav",
+                    "result": "not_run",
+                    "mandatory": True,
+                    "source": "platform_safety_scan",
+                    "family": "malware",
+                },
+            ],
+        },
+    )
+    row = PublicVersionRow(
+        metadata=meta,  # type: ignore[arg-type]
+        passport={},
+        passport_digest="sha256:" + "0" * 64,
+        published_at=datetime.now(UTC),
+        trust_lane="experimental",
+        author_verified=False,
+        component_verified=False,
+        lifecycle="active",
+        stable_id="component_x",
+        version="1.3",
+        object_kind="component",
+    )
+    public = project_checks_summary(row)
+    assert public is not None
+    assert public.checks_passed_percent == 71
+    assert public.total_countable == 21
+    assert public.not_run == 1
+    assert [check.check_id for check in public.checks] == [
+        "path_denylist",
+        "network_intent",
+        "malware_clamav",
+    ]
+    audit = project_checks_summary(row, public=False)
+    assert audit is not None
+    assert [check.check_id for check in audit.checks] == [
+        "path_denylist",
+        "network_intent",
+        "sca_osv",
+        "malware_clamav",
+    ]
+    assert audit.not_run == 3
 
 
 def test_project_checks_summary_exposes_setup_members_without_an_aggregate() -> None:

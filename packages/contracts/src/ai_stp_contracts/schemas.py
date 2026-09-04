@@ -32,7 +32,12 @@ from ai_stp_contracts.auth import (
     OAuthCallbackResult,
     SystemVersionResponse,
 )
-from ai_stp_contracts.authoring import ComponentScaffoldPlan, ComponentScaffoldResult
+from ai_stp_contracts.authoring import (
+    ComponentScaffoldPlan,
+    ComponentScaffoldResult,
+    SetupScaffoldPlan,
+    SetupScaffoldResult,
+)
 from ai_stp_contracts.catalog import (
     CatalogReactionList,
     CatalogReactionState,
@@ -440,6 +445,8 @@ CLI_MODELS: Final[dict[str, ExportedSchema]] = {
     "cli-component-scaffold": ComponentScaffoldView,
     "cli-component-scaffold-plan": ComponentScaffoldPlan,
     "cli-component-scaffold-result": ComponentScaffoldResult,
+    "cli-setup-scaffold-plan": SetupScaffoldPlan,
+    "cli-setup-scaffold-result": SetupScaffoldResult,
     "cli-store-port-discovery": StorePortDiscovery,
     "cli-store-port-inspection": StorePortInspection,
     "cli-store-port-import-plan": StorePortImportPlan,

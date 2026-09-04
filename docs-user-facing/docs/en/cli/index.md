@@ -1,76 +1,118 @@
 ---
 title: "CLI"
-description: "How a user and an agent work with the ai_stp CLI."
+description: "How a person and an agent use the ai_stp CLI: JSON envelopes, mutability, and the command groups."
 ---
 
 # CLI
 
-The CLI is the main user interface of `ai_stp` for assembling, checking and
-installing setups. The web shows the catalog and the account; it does not apply
-configuration to a harness.
+The CLI is the product's working surface. It discovers facts, records passports,
+selects a composition, and asks a harness provider to apply a plan. The website
+shows the catalog and the account. It does not write native harness state.
 
-## Commands that observe
+Every command that a person copies from this help center should be run with
+`--json`. The CLI then prints exactly one envelope on stdout and nothing else.
 
-Observing commands create nothing and change nothing:
+## How to read an envelope
 
-```bash
-ai-stp version
-ai-stp doctor --json
-ai-stp capabilities --json
-ai-stp help --agent --json
-ai-stp config show --json
-ai-stp auth status --json
-ai-stp device show --json
-```
+With `ok: true`, the result is in `data`. `warnings` may still be worth showing.
+With `ok: false`, `error.code` is a stable code from the closed registry;
+`next_actions` names a sensible next command, not a permission.
 
-On a fresh installation they return a typed state rather than quietly
-initialising a device.
+Do not guess the next step from the process exit class alone. Retry only when
+the envelope says `retryable: true`. After an unconfirmed timeout, read status
+before applying again.
 
-## Commands that change
+## Mutability and confirmation
 
-Changing commands say what they do:
+These two fields answer different questions.
 
-```bash
-ai-stp device init --json
-ai-stp passport developer init --json
-ai-stp passport developer update --json
-ai-stp passport device refresh --json
-```
+| `mutability` | Meaning |
+| --- | --- |
+| `read` | observes; creates nothing |
+| `plan` | records a checkable plan or snapshot; does not change the target |
+| `apply` | changes state |
+| `destructive` | discards identity or managed bytes; always a separate decision |
 
-Dangerous actions ask for confirmation. Resetting a device, for one, must not
-happen as a side effect of a diagnostic.
+| `confirmation` | Meaning |
+| --- | --- |
+| `none` | no extra token; this is not "safe to run unasked" |
+| `explicit_flag` | pass the flag the descriptor names, usually `--confirm` |
+| `plan_digest` | pass `--expected-plan-digest` of an unchanged plan |
 
-## Install telemetry
+A read command on a fresh install returns typed emptiness. It does not silently
+run `device init`.
 
-Off by default. After explicit consent the CLI sends one anonymous request per
-component actually installed — what it carries and why is in
-[Install telemetry](telemetry.md).
+## Machine help is the parser
 
 ```bash
-ai-stp telemetry show --json
-```
-
-## Agent Skill
-
-The Agent Skill starts with:
-
-```bash
-ai-stp doctor --json
 ai-stp help --agent --json
 ```
 
-After that the agent uses the machine list of commands from the CLI itself.
-That is what protects against stale instructions and hallucinated flags.
+Documentation groups commands so a person can find the right page. The installed
+CLI is the source of flags, schemas, and `next_actions`. If this page and the
+CLI disagree, follow the CLI.
 
-| Stage | Command | Why |
+The full list, one row per command, is the [command map](commands.md).
+
+## Command groups
+
+| Group | Page | When you open it |
 | --- | --- | --- |
-| Check the environment | `ai-stp doctor --json` | see what is available and what is broken |
-| Learn the capabilities | `ai-stp capabilities --json` | do not assume harness support |
-| Get the machine help | `ai-stp help --agent --json` | use the commands that exist now |
-| Find an object | `ai-stp registry search --json` | choose a setup or a component |
-| Read an object | `ai-stp registry show <stable_id> --json` | check the passport before deciding |
+| Observe | [Observe](observe.md) | first run, health, machine help |
+| Configuration | [Configuration](config.md) | values this install should honour |
+| Telemetry | [Install telemetry](telemetry.md) | the optional anonymous install ping |
+| Device | [Device](device.md) | identity of this installation |
+| Passports | [Passports](passport.md) | developer and device facts |
+| Sign-in | [Sign-in](auth.md) | account session and `link web` |
+| Consent | [Consent](consent.md) | unverified publishers and major lines |
+| Project | [Project](project.md) | discover, index, symbols, project passport |
+| Toolchain | [Toolchain](toolchain.md) | managed tools and harness survey |
+| Harness program | [Harness program](harness.md) | the harness binary, not the setup |
+| Agent Skill | [Agent Skill CLI](skill.md) | the CLI's own skill, not kind `skill` |
+| Registry | [Registry](registry.md) | catalog search, fetch, local ports |
+| Component | [Component commands](component.md) | discover → passport → publish |
+| Select | [Select](select.md) | eligibility, proposal, reports |
+| Install | [Install](install.md) | plan, approve, apply, recover |
+| Target | [Target](target.md) | daily status, diff, backups, named rollback |
+| Setup | [Setup commands](setup.md) | compose, import, update, publish |
+| Provider | [Provider](provider.md) | the binary that writes native state |
+| Sync | [Sync](sync.md) | private account stream |
+| Grants | [Access grants](grant.md) | major-line access |
+| Reports | [Reports](report.md) | closed report cases |
+| Owner | [Owner objects](owner.md) | server-side objects you own |
+| Publication | [Publication](publication.md) | attest, plan, confirm |
+| Eval | [Eval](eval.md) | local reference evaluation |
 
-!!! note "Commands here are a guide for people"
-    If the CLI answers with newer machine help, the agent follows that. This
-    documentation explains the model; it does not replace the CLI's executable
-    help.
+## A working loop
+
+```text
+doctor / capabilities / help --agent
+→ device + developer passport
+→ registry search / show
+→ select propose → confirm
+→ install plan → approve → apply
+→ target status
+```
+
+The agent may skip a step only when the previous envelope already made it
+unnecessary. It may not skip a mechanical check.
+
+## What the CLI never does
+
+- call a model API or ask for a model key;
+- write the harness target itself — only the public provider does;
+- put secrets, `.env` bodies, or tokens into a passport;
+- treat `author_verified` as proof that a component version is safe.
+
+## Typical refusals
+
+| What you see | What it means | What to do |
+| --- | --- | --- |
+| a mutating command without `--json` | mixed human text on stdout | add `--json` and read one envelope |
+| stale plan | the plan bytes changed | build a new plan, show it, confirm again |
+| confirmation missing | `explicit_flag` or `plan_digest` was required | read the descriptor; do not invent a flag name |
+| command absent from machine help | this install does not have it | stop; do not substitute a similar command |
+
+The first-run path in prose is [Quickstart for people](../quickstart/human.md).
+The session ritual for an agent is
+[Quickstart for agents](../quickstart/agent.md).

@@ -1,0 +1,215 @@
+{
+  "$defs": {
+    "ComponentScaffoldFile": {
+      "additionalProperties": false,
+      "description": "One exact regular file produced by a scaffold plan.",
+      "properties": {
+        "byte_length": {
+          "minimum": 0,
+          "title": "Byte Length",
+          "type": "integer"
+        },
+        "digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Digest",
+          "type": "string"
+        },
+        "mode": {
+          "const": 384,
+          "default": 384,
+          "title": "Mode",
+          "type": "integer"
+        },
+        "path": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "digest",
+        "byte_length"
+      ],
+      "title": "ComponentScaffoldFile",
+      "type": "object"
+    },
+    "ComponentType": {
+      "enum": [
+        "instruction",
+        "skill",
+        "mcp",
+        "hook",
+        "command",
+        "agent",
+        "plugin",
+        "setting"
+      ],
+      "type": "string"
+    },
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build",
+        "cursor",
+        "antigravity"
+      ],
+      "type": "string"
+    },
+    "SetupGeneratorVersion": {
+      "const": "ai-stp/1",
+      "type": "string"
+    },
+    "SetupMemberDescriptor": {
+      "additionalProperties": false,
+      "description": "One nested component named by setup scaffold.",
+      "properties": {
+        "component_type": {
+          "$ref": "#/$defs/ComponentType"
+        },
+        "language": {
+          "enum": [
+            "none",
+            "python",
+            "typescript",
+            "javascript",
+            "rust",
+            "go",
+            "dart-flutter"
+          ],
+          "title": "Language",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "component_type",
+        "name",
+        "language"
+      ],
+      "title": "SetupMemberDescriptor",
+      "type": "object"
+    },
+    "SetupTemplateDescriptor": {
+      "additionalProperties": false,
+      "description": "Exact generator choice recorded inside every setup scaffold.",
+      "properties": {
+        "generator_version": {
+          "$ref": "#/$defs/SetupGeneratorVersion",
+          "default": "ai-stp/1"
+        },
+        "harness_id": {
+          "$ref": "#/$defs/HarnessId"
+        },
+        "members": {
+          "items": {
+            "$ref": "#/$defs/SetupMemberDescriptor"
+          },
+          "title": "Members",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "setup_name": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Setup Name",
+          "type": "string"
+        },
+        "template_version": {
+          "$ref": "#/$defs/SetupTemplateVersion",
+          "default": "setup-scaffold/1"
+        }
+      },
+      "required": [
+        "harness_id",
+        "setup_name"
+      ],
+      "title": "SetupTemplateDescriptor",
+      "type": "object"
+    },
+    "SetupTemplateVersion": {
+      "const": "setup-scaffold/1",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-setup-scaffold-plan",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Content-addressed preview of a complete setup authoring directory.",
+  "properties": {
+    "descriptor": {
+      "$ref": "#/$defs/SetupTemplateDescriptor"
+    },
+    "files": {
+      "items": {
+        "$ref": "#/$defs/ComponentScaffoldFile"
+      },
+      "minItems": 6,
+      "title": "Files",
+      "type": "array"
+    },
+    "output": {
+      "minLength": 1,
+      "title": "Output",
+      "type": "string"
+    },
+    "plan_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Plan Digest",
+      "type": "string"
+    },
+    "plan_id": {
+      "pattern": "^setup_scaffold_[0-9a-f]{24}$",
+      "title": "Plan Id",
+      "type": "string"
+    },
+    "publication_ready": {
+      "const": false,
+      "default": false,
+      "title": "Publication Ready",
+      "type": "boolean"
+    },
+    "requires_exact_source_before_publication": {
+      "const": true,
+      "default": true,
+      "title": "Requires Exact Source Before Publication",
+      "type": "boolean"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "setup_name": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Setup Name",
+      "type": "string"
+    }
+  },
+  "required": [
+    "plan_id",
+    "plan_digest",
+    "output",
+    "setup_name",
+    "descriptor",
+    "files"
+  ],
+  "title": "SetupScaffoldPlan",
+  "type": "object"
+}

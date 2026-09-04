@@ -14,7 +14,7 @@ last_verified: "2026-08-03"
 | [database-migration.md](database-migration.md) | Runbook: database migration. | 2026-08-05 |
 | [deploy.md](deploy.md) | Runbook: reproducible deployment with a web tier, backups, and rollback. | 2026-08-29 |
 | [first-party-launch-publication.md](first-party-launch-publication.md) | Runbook: publishing the first-party launch corpus through the standard pipeline. | 2026-08-25 |
-| [github-repository-metrics.md](github-repository-metrics.md) | Runbook: best-effort GitHub stars cache for the public catalog. | 2026-08-12 |
+| [github-repository-metrics.md](github-repository-metrics.md) | Runbook: best-effort GitHub stars cache for the public catalog. | 2026-09-03 |
 | [installation-recovery.md](installation-recovery.md) | Runbook: installation recovery. | 2026-08-03 |
 | [macos-evidence.md](macos-evidence.md) | Collecting CLI/package evidence on a standard GitHub-hosted macOS runner. | 2026-08-18 |
 | [official-upstream-components.md](official-upstream-components.md) | Runbook: operator-managed official GitHub and package upstream component snapshots. | 2026-09-03 |
@@ -24,7 +24,7 @@ last_verified: "2026-08-03"
 | [publish-recovery.md](publish-recovery.md) | Runbook: publish recovery. | 2026-08-03 |
 | [pypi-release.md](pypi-release.md) | Build, verify, publish, yank, and recover a Python release. | 2026-09-04 |
 | [report-triage.md](report-triage.md) | Runbook: report case triage. | 2026-08-04 |
-| [safety-scan.md](safety-scan.md) | Runbook: platform safety scan for publication validation. | 2026-08-25 |
+| [safety-scan.md](safety-scan.md) | Runbook: platform safety scan for publication validation. | 2026-09-03 |
 | [security-incident.md](security-incident.md) | Runbook: security incident. | 2026-08-03 |
 | [seo-publication.md](seo-publication.md) | Runbook: server SEO revisions, sitemap, and optional LiteLLM enrichment. | 2026-08-29 |
 | [sync-conflict.md](sync-conflict.md) | Runbook: sync conflict. | 2026-08-03 |

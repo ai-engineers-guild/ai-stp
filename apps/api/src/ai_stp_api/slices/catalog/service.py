@@ -873,7 +873,7 @@ async def read_version_checks(
     )
     if row is None:
         raise CatalogNotFound
-    summary = project_checks_summary(row)
+    summary = project_checks_summary(row, public=False)
     if summary is not None:
         return summary
     return SafetyChecksSummary(

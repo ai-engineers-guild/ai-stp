@@ -1,0 +1,4 @@
+nav:
+  - Overview: index.md
+  - For people: human.md
+  - For agents: agent.md

@@ -5,6 +5,7 @@ import { componentPublicFacts } from "@/lib/projection/page-facts";
 import {
   presentCatalog,
   presentComponentDetail,
+  presentDocs,
   presentLanding,
   presentPlatformContext,
 } from "@/lib/projection/presenters";
@@ -191,6 +192,31 @@ describe("machine presenters (REQ-3609, REQ-3610, REQ-3608)", () => {
     );
     expect(text).toContain("q: hook");
     expect(text).toContain("component_type: hook");
+  });
+
+  it("nests documentation pages under section headings", () => {
+    const text = machineDocumentToText(
+      presentDocs({
+        title: "Overview",
+        description: "Help center",
+        bodyText: "Body",
+        nav: [
+          { title: "Overview", href: "/docs" },
+          {
+            title: "Quickstart",
+            href: "/docs/quickstart",
+            children: [
+              { title: "For people", href: "/docs/quickstart/human" },
+              { title: "For agents", href: "/docs/quickstart/agent" },
+            ],
+          },
+        ],
+      }),
+      "en",
+    );
+    expect(text).toContain("### Quickstart");
+    expect(text).toContain("[Quickstart](/en/ai/docs/quickstart)");
+    expect(text).toContain("[For agents](/en/ai/docs/quickstart/agent)");
   });
 
   it("builds machine paired paths", () => {

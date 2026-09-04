@@ -77,13 +77,19 @@ describe("renderMarkdownOnServer", () => {
   });
 
   it("renders only allowlisted local content illustrations", () => {
-    const safe = renderMarkdownOnServer(
-      "![Trust boundary](/content/illustrations/trust-boundary.svg)",
-    );
+    const svg = renderMarkdownOnServer("![Skill package](/content/illustrations/kind-skill.svg)");
+    const png = renderMarkdownOnServer("![Skill package](/content/illustrations/kind-skill.png)");
+    const jpg = renderMarkdownOnServer("![Skill package](/content/illustrations/kind-skill.jpg)");
     const remote = renderMarkdownOnServer("![Tracking pixel](https://example.com/pixel.svg)");
 
-    expect(safe.html).toContain(
-      '<img src="/content/illustrations/trust-boundary.svg" alt="Trust boundary"',
+    expect(svg.html).toContain(
+      '<img src="/content/illustrations/kind-skill.svg" alt="Skill package"',
+    );
+    expect(png.html).toContain(
+      '<img src="/content/illustrations/kind-skill.png" alt="Skill package"',
+    );
+    expect(jpg.html).toContain(
+      '<img src="/content/illustrations/kind-skill.jpg" alt="Skill package"',
     );
     expect(remote.html).not.toContain("<img");
     expect(remote.html).toContain("Tracking pixel");

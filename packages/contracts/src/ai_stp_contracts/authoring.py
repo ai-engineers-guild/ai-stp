@@ -51,6 +51,9 @@ type ComponentTemplateVersion = Literal[
     "component-scaffold/1", "component-scaffold/2", "component-scaffold/3"
 ]
 type ComponentGeneratorVersion = Literal["ai-stp/1", "ai-stp/2", "ai-stp/3"]
+type SetupTemplateVersion = Literal["setup-scaffold/1"]
+type SetupGeneratorVersion = Literal["ai-stp/1"]
+type GitInitReason = Literal["existing_worktree", "missing_identity", "git_unavailable"]
 
 
 class PortableHookHandler(BaseModel):
@@ -153,3 +156,65 @@ class ComponentScaffoldResult(BaseModel):
     files_written: Annotated[int, Field(ge=6)]
     template_version: ComponentTemplateVersion = "component-scaffold/3"
     generator_version: ComponentGeneratorVersion = "ai-stp/3"
+
+
+class SetupMemberDescriptor(BaseModel):
+    """One nested component named by setup scaffold."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    component_type: ComponentType
+    name: Annotated[str, Field(min_length=1, max_length=64)]
+    language: AuthoringLanguage
+
+
+class SetupTemplateDescriptor(BaseModel):
+    """Exact generator choice recorded inside every setup scaffold."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    schema_version: Literal[1] = 1
+    template_version: SetupTemplateVersion = "setup-scaffold/1"
+    generator_version: SetupGeneratorVersion = "ai-stp/1"
+    harness_id: HarnessId
+    setup_name: Annotated[str, Field(min_length=1, max_length=64)]
+    members: list[SetupMemberDescriptor] = Field(default_factory=list[SetupMemberDescriptor])
+
+
+class SetupScaffoldPlan(BaseModel):
+    """Content-addressed preview of a complete setup authoring directory."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    schema_version: Literal[1] = 1
+    plan_id: Annotated[str, Field(pattern=r"^setup_scaffold_[0-9a-f]{24}$")]
+    plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    output: Annotated[str, Field(min_length=1)]
+    setup_name: Annotated[str, Field(min_length=1, max_length=64)]
+    descriptor: SetupTemplateDescriptor
+    files: Annotated[list[ComponentScaffoldFile], Field(min_length=6)]
+    publication_ready: Literal[False] = False
+    requires_exact_source_before_publication: Literal[True] = True
+
+    @model_validator(mode="after")
+    def file_paths_are_unique(self) -> Self:
+        if len({item.path for item in self.files}) != len(self.files):
+            raise ValueError("scaffold file paths must be unique")
+        return self
+
+
+class SetupScaffoldResult(BaseModel):
+    """Applied setup scaffold, bound to the exact preview digest."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    schema_version: Literal[1] = 1
+    plan_id: Annotated[str, Field(min_length=1)]
+    plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    output: Annotated[str, Field(min_length=1)]
+    files_written: Annotated[int, Field(ge=6)]
+    template_version: SetupTemplateVersion = "setup-scaffold/1"
+    generator_version: SetupGeneratorVersion = "ai-stp/1"
+    git_initialized: bool
+    git_commit: Annotated[str, Field(pattern=r"^[0-9a-f]{40,64}$")] | None = None
+    git_reason: GitInitReason | None = None

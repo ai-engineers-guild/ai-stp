@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ai_stp_platform.logging import get_logger
 from ai_stp_platform.official_upstream.enqueue import enqueue_daily
+from ai_stp_platform.official_upstream.github import worker_github_token
 from ai_stp_platform.queue.engine import (
     DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
     DEFAULT_LEASE_TIMEOUT_SECONDS,
@@ -62,6 +63,11 @@ class Worker:
     async def run(self) -> None:
         """Run until stop is requested, then drain held jobs."""
         _log.info("worker_start", worker_id=self._worker_id)
+        if self._official_enqueue_day is not None and not worker_github_token():
+            _log.warning(
+                "official_upstream_github_unauthenticated",
+                worker_id=self._worker_id,
+            )
         active: asyncio.Task[int] | None = None
         safe_to_requeue = True
         try:

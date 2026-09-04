@@ -1,0 +1,15 @@
+nav:
+  - Overview: index.md
+  - Quickstart: quickstart
+  - Harnesses: harnesses.md
+  - Concepts: concepts
+  - Catalog: catalog
+  - CLI: cli
+  - Web: web
+  - Components: components
+  - Setups: setups
+  - Publishing: publishing
+  - Trust and safety:
+      - Overview: trust-and-safety/index.md
+      - Security checks: security-checks.md
+  - Troubleshooting: troubleshooting

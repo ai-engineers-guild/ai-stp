@@ -52,6 +52,7 @@ type CatalogLabels = {
   componentsPagination?: string;
   whyFailed?: string;
   whyWarning?: string;
+  whyOptionalFailed?: string;
   requirements?: string;
   credentialsRequired?: string;
   safetyChecks?: string;
@@ -147,6 +148,7 @@ function objectCardLabels(labels: CatalogLabels): Parameters<typeof ObjectCard>[
     safetyMandatory: labels.safetyMandatory,
     whyFailed: labels.whyFailed,
     whyWarning: labels.whyWarning,
+    whyOptionalFailed: labels.whyOptionalFailed,
     requirements: labels.requirements,
     credentialsRequired: labels.credentialsRequired,
     safetyCheckExplanation: labels.safetyCheckExplanation,

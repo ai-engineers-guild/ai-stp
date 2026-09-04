@@ -2,6 +2,15 @@ import { Badge } from "@/components/atoms/badge";
 import { DetailAccordion } from "@/components/molecules/detail-accordion";
 import type { SafetyChecksSummary as Summary } from "@/lib/api/generated/types.gen";
 import { Link } from "@/lib/i18n/navigation";
+import {
+  CHECK_IDS,
+  extraPercent,
+  gatePercent,
+  type CheckInfo,
+  checkInfoFor,
+  isUserFacingCheck,
+  policyPercent,
+} from "@/lib/safety-checks";
 import { Icon } from "@/theme";
 
 type Labels = {
@@ -22,6 +31,9 @@ type Labels = {
   resultFailed: string;
   resultWarning: string;
   resultNotRun: string;
+  resultDegraded?: string;
+  gate?: string;
+  extra?: string;
   summary?: string;
   checksComplete?: string;
   expand?: string;
@@ -32,9 +44,18 @@ type Labels = {
   rules: string;
   paths: string;
   payloadHidden: string;
+  checkInfo?: Record<string, CheckInfo>;
 };
 
 export function safetyChecksLabels(t: (key: string) => string): Labels {
+  const checkInfo: Record<string, CheckInfo> = {};
+  for (const id of CHECK_IDS) {
+    const name = t(`safetyCheck.${id}.name`);
+    const description = t(`safetyCheck.${id}.description`);
+    if (name && !name.startsWith("safetyCheck.")) {
+      checkInfo[id] = { name, description };
+    }
+  }
   return {
     title: t("safetyChecks"),
     status: t("safetyStatus"),
@@ -53,6 +74,9 @@ export function safetyChecksLabels(t: (key: string) => string): Labels {
     resultFailed: t("safetyResultFailed"),
     resultWarning: t("safetyResultWarning"),
     resultNotRun: t("safetyResultNotRun"),
+    resultDegraded: t("safetyResultDegraded"),
+    gate: t("safetyGate"),
+    extra: t("safetyExtra"),
     summary: t("safetySummary"),
     checksComplete: t("safetyChecksComplete"),
     expand: t("safetyExpand"),
@@ -63,66 +87,19 @@ export function safetyChecksLabels(t: (key: string) => string): Labels {
     rules: t("safetyRules"),
     paths: t("safetyPaths"),
     payloadHidden: t("safetyPayloadHidden"),
+    checkInfo,
   };
 }
 
-const CHECK_INFO: Record<string, { name: string; description: string }> = {
-  structure: {
-    name: "Passport structure",
-    description: "Validates the passport schema and canonical form.",
-  },
-  digest: {
-    name: "Artifact integrity",
-    description: "Recomputes the digest so changed bytes cannot pass as the published version.",
-  },
-  license: { name: "License", description: "Checks that redistribution terms are declared." },
-  tags: { name: "Catalog tags", description: "Validates required normalized catalog tags." },
-  source_repo: {
-    name: "Source provenance",
-    description: "Confirms the exact public repository, commit and path.",
-  },
-  artifact_unpack: {
-    name: "Safe unpacking",
-    description: "Unpacks the artifact within size and file-count limits.",
-  },
-  path_denylist: {
-    name: "Dangerous paths",
-    description: "Rejects secrets, credentials, device files and unsafe paths.",
-  },
-  secrets_heuristic: {
-    name: "Secret patterns",
-    description: "Looks for likely tokens, private keys and credentials.",
-  },
-  secrets_gitleaks: {
-    name: "Gitleaks secret scan",
-    description: "Runs the Gitleaks ruleset over the artifact.",
-  },
-  content_hidden: {
-    name: "Hidden content",
-    description: "Detects concealed instructions and suspicious invisible content.",
-  },
-  pi_content_pack: {
-    name: "Prompt injection",
-    description: "Looks for instructions that attempt to override the agent or exfiltrate data.",
-  },
-  sast_opengrep: {
-    name: "Static code analysis",
-    description: "Uses owned Opengrep rules to find unsafe code patterns.",
-  },
-  skill_static_gate: {
-    name: "Agent skill policy",
-    description: "Checks skill metadata, permissions and malicious instruction patterns.",
-  },
-};
-
-export function safetyCheckName(checkId: string): string {
-  return CHECK_INFO[checkId]?.name ?? checkId.replaceAll("_", " ");
+export function safetyCheckName(checkId: string, localized?: Record<string, CheckInfo>): string {
+  return checkInfoFor(checkId, localized).name;
 }
 
 function resultLabel(result: Summary["checks"][number]["result"], labels: Labels): string {
   if (result === "passed") return labels.resultPassed;
   if (result === "failed") return labels.resultFailed;
   if (result === "warning") return labels.resultWarning;
+  if (result === "degraded") return labels.resultDegraded ?? "Degraded";
   return labels.resultNotRun;
 }
 
@@ -145,6 +122,15 @@ function resultTone(result: Summary["checks"][number]["result"]): string {
   if (result === "failed") return "text-destructive";
   if (result === "warning") return "text-warning";
   return "text-muted-foreground";
+}
+
+function resultBadgeVariant(
+  result: Summary["checks"][number]["result"],
+): "success" | "destructive" | "warning" | "outline" {
+  if (result === "passed") return "success";
+  if (result === "failed") return "destructive";
+  if (result === "warning") return "warning";
+  return "outline";
 }
 
 function ResultIcon({ result }: { result: Summary["checks"][number]["result"] }) {
@@ -211,7 +197,7 @@ export function SafetyChecksSummaryView({
         <p className="text-muted-foreground text-sm">{labels.summary}</p>
       </DetailAccordion>
     );
-  const percent = summary.checks_passed_percent;
+  const percent = policyPercent(summary);
   const summaryText = labels.summary ?? "Automated checks reduce known risks.";
   const checksComplete = labels.checksComplete ?? "checks passed";
   const whyLabel = labels.why ?? "Why";
@@ -227,8 +213,8 @@ export function SafetyChecksSummaryView({
       </span>
     );
 
-  const headerSummary = `${summary.passed} / ${summary.checks.length} ${checksComplete}`;
-  const warningChecks = summary.checks.filter((check) => check.result === "warning");
+  const shown = summary.passed + summary.failed + summary.warning;
+  const headerSummary = `${summary.passed} / ${shown} ${checksComplete}`;
 
   return (
     <DetailAccordion
@@ -241,99 +227,137 @@ export function SafetyChecksSummaryView({
       }
       headerAction={help}
     >
-      <div className="space-y-5">
-        <p className="text-muted-foreground text-sm">{summaryText}</p>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <StatusTile
-            label={labels.passed}
-            value={summary.passed}
-            tone="text-success"
-            icon="check"
-          />
-          <StatusTile
-            label={labels.warning}
-            value={summary.warning}
-            tone="text-warning"
-            icon="alert"
-          />
-          <StatusTile
-            label={labels.failed}
-            value={summary.failed}
-            tone="text-destructive"
-            icon="close"
-          />
-          <StatusTile
-            label={labels.notRun}
-            value={summary.not_run}
-            tone="text-muted-foreground"
-            icon="clock"
-          />
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={statusVariant(summary.status)}>
-            {statusLabel(summary.status, labels)}
-          </Badge>
-          <span className="font-mono text-sm tabular-nums">
-            {percent === null ? "—" : `${percent}%`}
-          </span>
-        </div>
-        {warningChecks.length > 0 ? (
-          <ul className="space-y-2">
-            {warningChecks.map((check) => (
-              <li
-                key={`warn-${check.check_id}-${check.source}`}
-                className="text-warning flex gap-2 text-sm"
-              >
-                <Icon name="alert" size="sm" />
-                <span>
-                  <b>{CHECK_INFO[check.check_id]?.name ?? check.check_id}:</b>{" "}
-                  {checkReason(check, labels)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        {summary.checks.length > 0 ? (
-          <ul className="divide-border border-border divide-y rounded-sm border">
-            {summary.checks.map((check) => {
-              const info = CHECK_INFO[check.check_id] ?? {
-                name: check.check_id,
-                description: check.family,
-              };
-              const needsReason =
-                check.result !== "passed" &&
-                check.result !== "not_applicable" &&
-                check.result !== "skipped";
-              return (
-                <li key={`${check.check_id}-${check.source}`} className="px-3 py-3">
-                  <div className="flex items-start gap-3">
-                    <ResultIcon result={check.result} />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium">{info.name}</span>
-                        <Badge variant={check.result === "failed" ? "warning" : "outline"}>
-                          {resultLabel(check.result, labels)}
-                        </Badge>
-                        {check.mandatory ? (
-                          <span className="text-muted-foreground text-xs">{labels.mandatory}</span>
-                        ) : null}
-                      </div>
-                      <p className="text-muted-foreground mt-1 text-sm">{info.description}</p>
-                      <code className="text-muted-foreground mt-1 block text-[11px] break-all">
-                        {check.check_id}
-                      </code>
-                      {needsReason ? (
-                        <CheckFindingDetails check={check} labels={labels} whyLabel={whyLabel} />
+      <SafetyChecksBody
+        summary={summary}
+        labels={labels}
+        summaryText={summaryText}
+        whyLabel={whyLabel}
+        percent={percent}
+      />
+    </DetailAccordion>
+  );
+}
+
+function SafetyChecksBody({
+  summary,
+  labels,
+  summaryText,
+  whyLabel,
+  percent,
+}: {
+  summary: Summary;
+  labels: Labels;
+  summaryText: string;
+  whyLabel: string;
+  percent: number | null;
+}) {
+  const checks = summary.checks.filter(isUserFacingCheck);
+  const highlightChecks = [...checks]
+    .filter((check) => check.result === "failed" || check.result === "warning")
+    .sort((left, right) => Number(right.result === "failed") - Number(left.result === "failed"));
+  const gate = gatePercent(checks);
+  const extra = extraPercent(checks);
+  const notRun = checks.filter((check) => check.result === "not_run").length;
+  return (
+    <div className="space-y-5">
+      <p className="text-muted-foreground text-sm">{summaryText}</p>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatusTile label={labels.passed} value={summary.passed} tone="text-success" icon="check" />
+        <StatusTile
+          label={labels.warning}
+          value={summary.warning}
+          tone="text-warning"
+          icon="alert"
+        />
+        <StatusTile
+          label={labels.failed}
+          value={summary.failed}
+          tone="text-destructive"
+          icon="close"
+        />
+        <StatusTile
+          label={labels.notRun}
+          value={notRun}
+          tone="text-muted-foreground"
+          icon="clock"
+        />
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant={statusVariant(summary.status)}>{statusLabel(summary.status, labels)}</Badge>
+        <span className="font-mono text-sm tabular-nums">
+          {percent === null ? "—" : `${percent}%`}
+        </span>
+      </div>
+      {gate !== null || extra !== null ? (
+        <ul className="text-muted-foreground space-y-1 text-sm">
+          {gate !== null ? (
+            <li>
+              {labels.gate ?? "Publication gate"}:{" "}
+              <span className="text-foreground font-mono tabular-nums">{gate}%</span>
+            </li>
+          ) : null}
+          {extra !== null ? (
+            <li>
+              {labels.extra ?? "Extra scanners"}:{" "}
+              <span className="text-foreground font-mono tabular-nums">{extra}%</span>
+            </li>
+          ) : null}
+        </ul>
+      ) : null}
+      {highlightChecks.length > 0 ? (
+        <ul className="space-y-2">
+          {highlightChecks.map((check) => (
+            <li
+              key={`highlight-${check.check_id}-${check.source}`}
+              className={`${resultTone(check.result)} flex gap-2 text-sm`}
+            >
+              <ResultIcon result={check.result} />
+              <span>
+                <b>{checkInfoFor(check.check_id, labels.checkInfo).name}:</b>{" "}
+                {checkReason(check, labels)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {checks.length > 0 ? (
+        <ul className="divide-border border-border divide-y rounded-sm border">
+          {checks.map((check) => {
+            const info = checkInfoFor(check.check_id, labels.checkInfo);
+            const description = info.description || check.family;
+            const needsReason =
+              check.result !== "passed" &&
+              check.result !== "not_applicable" &&
+              check.result !== "skipped";
+            return (
+              <li key={`${check.check_id}-${check.source}`} className="px-3 py-3">
+                <div className="flex items-start gap-3">
+                  <ResultIcon result={check.result} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium">{info.name}</span>
+                      <Badge variant={resultBadgeVariant(check.result)}>
+                        {resultLabel(check.result, labels)}
+                      </Badge>
+                      {check.mandatory ? (
+                        <span className="text-muted-foreground text-xs">{labels.mandatory}</span>
                       ) : null}
                     </div>
+                    <p className="text-muted-foreground mt-1 text-sm">{description}</p>
+                    <code className="text-muted-foreground mt-1 block text-[11px] break-all">
+                      {check.check_id}
+                    </code>
+                    {needsReason ? (
+                      <CheckFindingDetails check={check} labels={labels} whyLabel={whyLabel} />
+                    ) : null}
                   </div>
-                </li>
-              );
-            })}
-          </ul>
-        ) : null}
-      </div>
-    </DetailAccordion>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+    </div>
   );
 }
 
@@ -347,9 +371,10 @@ function CheckFindingDetails({
   whyLabel: string;
 }) {
   const finding = check.finding_summary;
+  const failed = check.result === "failed";
   if (!finding)
     return (
-      <p className="text-destructive mt-2 flex gap-2 text-sm">
+      <p className={`${failed ? "text-destructive" : "text-warning"} mt-2 flex gap-2 text-sm`}>
         <Icon name="alert" size="sm" />
         <span>
           <b>{whyLabel}:</b> {checkReason(check, labels)}
@@ -357,7 +382,11 @@ function CheckFindingDetails({
       </p>
     );
   return (
-    <div className="border-warning/40 bg-warning/5 mt-3 space-y-2 rounded-sm border p-3 text-sm">
+    <div
+      className={`${
+        failed ? "border-destructive/40 bg-destructive/5" : "border-warning/40 bg-warning/5"
+      } mt-3 space-y-2 rounded-sm border p-3 text-sm`}
+    >
       <p>
         <b>{labels.findings}:</b> {finding.count}
       </p>

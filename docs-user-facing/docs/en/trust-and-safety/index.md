@@ -8,6 +8,10 @@ description: "The ai_stp trust model, its confirmations, and the limits of autom
 `ai_stp` shows provenance, confirmations and constraints. It does not promise
 that a published object is safe.
 
+What a catalog scan percent means is on
+[Security checks](../security-checks.md). How to file a closed case is on
+[Reports](../cli/report.md).
+
 ## Two axes of verified
 
 There are two independent axes:
@@ -42,6 +46,56 @@ platform-confirmed.
     not replace reading the content. Look especially carefully at `mcp`, `hook`
     and `plugin`, because they can widen permissions or change the target.
 
+## Consent: allow, revoke, list
+
+There is no configuration key that means "include all unverified objects
+forever". Consent is either a request marker for one command, or a durable
+record for one publisher or one object major line.
+
+```bash
+ai-stp consent allow --scope publisher --target <publisher_id> --json
+ai-stp consent allow --scope object_major --target <stable_id>@<major> --json
+ai-stp consent list --json
+ai-stp consent revoke --scope publisher --target <publisher_id> --json
+```
+
+`--scope` is `publisher` or `object_major`. No wider form exists. The target
+must already have registered objects: an empty fingerprint is not consent, it
+is no observation.
+
+Consent admits candidates into the `experimental` lane. It does not move an
+object to `authoritative`, create platform verification, or skip install
+checks.
+
+A record stops covering a version if that version needs new permissions,
+processes, network access, credentials, or native surfaces compared with the
+fingerprint stored at consent time. Revocation takes effect immediately for
+later requests.
+
+Search can show the experimental lane for one command without recording
+consent:
+
+```bash
+ai-stp registry search --kind component --query scanner --include-experimental --json
+```
+
+That flag is not stored. Installing still needs a durable consent if the
+object is unverified.
+
+Details: [Consent](../cli/consent.md).
+
+## Reports
+
+A problematic public object is a closed moderation case, not a comment thread.
+
+```bash
+ai-stp report preview --kind component --id <id> --version 1.0 --content-digest sha256:... --json
+ai-stp report confirm --plan-id <id> --plan-digest <digest> --confirm --json
+ai-stp report list --json
+```
+
+[Reports](../cli/report.md).
+
 ## What ai_stp does not do
 
 `ai_stp` does not call model interfaces, does not need a model key, and does
@@ -51,3 +105,13 @@ writes the harness's final state.
 The one outgoing request the CLI makes on its own behalf is an anonymous
 install ping, and it is off until you say otherwise. What it contains and how
 to turn it off is in [Install telemetry](../cli/telemetry.md).
+
+## Related pages
+
+- [Security checks](../security-checks.md) — what a catalog percent covers.
+- [Consent](../cli/consent.md) — durable records, not a search flag.
+- [Catalog](../catalog/index.md) — how to read trust on a card.
+- [Reports](../cli/report.md) — a closed case, not a comment thread.
+- [Quickstart for agents](../quickstart/agent.md) — do not install from a
+  headline percent.
+- [Publishing](../publishing/index.md) — provenance is not a safety review.

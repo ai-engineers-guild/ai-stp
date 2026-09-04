@@ -1,6 +1,6 @@
 ---
 description: "Runbook: platform safety scan for publication validation."
-last_verified: "2026-08-25"
+last_verified: "2026-09-03"
 ---
 
 # Runbook: platform safety scan
@@ -146,12 +146,16 @@ export OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY=/var/lib/ai_stp/osv
 | status | meaning |
 |--------|---------|
 | `pending` | a mandatory check is still `not_run` / `degraded` / `running` |
-| `incomplete` | optional engines are planned but missing (`not_run`); percent includes all planned checks |
+| `incomplete` | optional engines are planned but missing (`not_run`); percent uses finished verdicts only |
 | `available` | coverage is complete; percent is 0–100 over passed/failed/warning |
 | `empty` | no bindings |
 
 Fields: `coverage_complete`, `not_run`, `checks_passed_percent` (the share of
-`passed` among all planned checks except `skipped` and `not_applicable`).
+`passed` among `passed` + `failed` + `warning`). Optional unfinished checks stay
+in the stored snapshot and on `GET …/versions/{version}/checks`; the catalog
+card omits them. After a scanner-logic change without a policy bump, delete the
+matching `safety_scan_run` row (or restart the worker and wait for a new digest)
+so the in-process and persisted caches do not reuse a stale verdict.
 
 ## Setup pins
 

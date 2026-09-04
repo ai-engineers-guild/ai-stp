@@ -1,0 +1,22 @@
+nav:
+  - Обзор: index.md
+  - Главная: home.md
+  - Каталог: catalog.md
+  - Карточка компонента: catalog-component.md
+  - Карточка сетапа: catalog-setup.md
+  - Региональные сервисы: services.md
+  - Издатели: publishers.md
+  - Content: content.md
+  - Эта документация: docs.md
+  - Контакт: contact.md
+  - Правовые документы: legal.md
+  - Вход: login.md
+  - Аккаунт: account.md
+  - Профиль: profile.md
+  - Устройства: devices.md
+  - Объекты: objects.md
+  - Доступ: access.md
+  - Жалобы: reports.md
+  - Лайки: likes.md
+  - Онбординг: onboarding.md
+  - Публикация: publications.md

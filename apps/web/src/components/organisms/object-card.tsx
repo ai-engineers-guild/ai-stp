@@ -6,6 +6,7 @@ import { CatalogItemMenu } from "@/components/organisms/catalog-item-menu";
 import type { ComponentSummary, SetupSummary } from "@/lib/api/generated/types.gen";
 import { namedHarnesses } from "@/lib/catalog-harnesses";
 import { cn } from "@/lib/cn";
+import { mandatoryFailed, publicationScore } from "@/lib/safety-checks";
 import { Link } from "@/lib/i18n/navigation";
 import { UI } from "@/lib/ui-selectors";
 import { Icon } from "@/theme";
@@ -59,6 +60,7 @@ type Labels = {
   credentialsRequired?: string | undefined;
   whyFailed?: string | undefined;
   whyWarning?: string | undefined;
+  whyOptionalFailed?: string | undefined;
   safetyCheckExplanation?: string | undefined;
   like?: string | undefined;
   unlike?: string | undefined;
@@ -369,7 +371,13 @@ export function ObjectCard({
 function whyOpen(item: CatalogItem, labels: Labels, view: "cards" | "list"): string | null {
   const summary = item.latest_checks;
   if (summary && summary.failed > 0) {
-    return labels.whyFailed ?? `${summary.failed} failed checks`;
+    const gateFailed =
+      mandatoryFailed(summary.checks) ||
+      (summary.checks.length === 0 && !item.latest_trust.component_verified);
+    if (gateFailed) {
+      return labels.whyFailed ?? `${summary.failed} failed checks`;
+    }
+    return labels.whyOptionalFailed ?? labels.whyWarning ?? `${summary.failed} optional findings`;
   }
   if (summary && summary.warning > 0) {
     return labels.whyWarning ?? `${summary.warning} warnings`;
@@ -399,7 +407,8 @@ function SafetyScore({
   const explanation =
     labels.safetyCheckExplanation ??
     "Safety check: a set of automated checks that this component does not threaten the user's agent or device.";
-  if (!summary || summary.status === "empty" || summary.total_countable === 0) {
+  const computed = summary && summary.status !== "empty" ? publicationScore(summary) : null;
+  if (computed === null || !summary) {
     return (
       <p
         className="text-muted-foreground text-center text-xs"
@@ -410,11 +419,7 @@ function SafetyScore({
       </p>
     );
   }
-  const percent = summary.checks_passed_percent;
-  const derivedPercent = summary.checks.length
-    ? Math.round((100 * summary.passed) / summary.checks.length)
-    : 0;
-  const score = Math.max(0, Math.min(100, typeof percent === "number" ? percent : derivedPercent));
+  const score = Math.max(0, Math.min(100, computed));
   const accessibleName = `${explanation} ${score}%`;
   return (
     <div

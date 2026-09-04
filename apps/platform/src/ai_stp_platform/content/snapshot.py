@@ -96,6 +96,8 @@ def parse_frontmatter(source: str) -> tuple[dict[str, Any], str]:
         if keyed is None:
             raise ContentError("AI_STP_CONTENT_INVALID", "invalid frontmatter line")
         key, value = keyed.group(1), keyed.group(2).strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = value[1:-1]
         if key not in _ALLOWED_META:
             raise ContentError("AI_STP_CONTENT_INVALID", f"unknown frontmatter field: {key}")
         if key in meta:

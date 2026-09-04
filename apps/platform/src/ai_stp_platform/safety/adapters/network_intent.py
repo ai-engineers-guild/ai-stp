@@ -7,6 +7,8 @@ import re
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
+from ai_stp_platform.safety.adapters.detector_lines import is_detector_line
+from ai_stp_platform.safety.adapters.paths import is_test_path
 from ai_stp_platform.safety.policy import CheckSpec
 from ai_stp_platform.safety.types import ArtifactManifest, CheckOutcome, Finding
 
@@ -23,29 +25,36 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
         except OSError:
             manifest.record_read_error(rel)
             continue
-        if any(PIPE.search(line) and not _defensive(line) for line in text.splitlines()):
-            findings.append(
-                _finding(spec, "url_pipe_shell", "URL download is piped to shell", rel, "critical")
-            )
-        for raw in URL.findall(text):
-            findings.extend(_inspect_url(unquote(raw.rstrip(".,);]")), rel, spec))
+        for line in text.splitlines():
+            if is_detector_line(line):
+                continue
+            if PIPE.search(line):
+                findings.append(
+                    _finding(
+                        spec, "url_pipe_shell", "URL download is piped to shell", rel, "critical"
+                    )
+                )
+            for raw in URL.findall(line):
+                findings.extend(_inspect_url(unquote(raw.rstrip(".,);]")), rel, spec))
 
+    blocking = [item for item in findings if not is_test_path(item.path)]
     severity = max((item.severity for item in findings), default="info", key=_rank)
+    high = _rank(severity) >= _rank("high")
+    if findings and high and blocking:
+        result = "failed"
+    elif findings:
+        result = "warning"
+    else:
+        result = "passed"
     return CheckOutcome(
         check_id=spec.check_id,
         family=spec.family,
-        result="failed"
-        if _rank(severity) >= _rank("high")
-        else ("warning" if findings else "passed"),
+        result=result,
         mandatory=spec.mandatory,
         tool_name="network_intent",
         severity_max=severity,
         findings=findings,
     )
-
-
-def _defensive(line: str) -> bool:
-    return bool(re.search(r"(?i)\b(?:do not|don't|never|avoid|must not|forbid(?:den)?)\b", line))
 
 
 def _inspect_url(value: str, path: str, spec: CheckSpec) -> list[Finding]:

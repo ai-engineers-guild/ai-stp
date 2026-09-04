@@ -5,7 +5,7 @@
 
 const FORBIDDEN =
   /<\s*(script|style|iframe|object|embed|form|input|img|svg)\b|javascript:|data:|on\w+\s*=/i;
-const LOCAL_CONTENT_IMAGE = /^\/content\/illustrations\/[a-z0-9-]+\.svg$/;
+const LOCAL_CONTENT_IMAGE = /^\/content\/illustrations\/[a-z0-9-]+\.(svg|png|jpg)$/;
 
 export type RenderedMarkdown = {
   html: string;

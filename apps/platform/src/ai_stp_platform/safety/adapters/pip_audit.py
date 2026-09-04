@@ -9,37 +9,33 @@ from ai_stp_platform.safety.normalize import redact_message
 from ai_stp_platform.safety.policy import CheckSpec
 from ai_stp_platform.safety.types import ArtifactManifest, CheckOutcome, Finding
 
+# Bare `pip-audit` against pyproject.toml waits on an index. Only invoke when a
+# lock or pinned requirements file exists, and never ask pip to resolve.
+_REQUIREMENTS_NAME = "requirements.txt"
+_LOCK_NAMES = ("pylock.toml",)
+
 
 def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome:
-    if "python" not in manifest.languages and "manifests" not in manifest.flags:
+    del manifest
+    requirement_roots = manifest_roots(tree, _REQUIREMENTS_NAME)
+    lock_roots = manifest_roots(tree, *_LOCK_NAMES)
+    jobs: list[tuple[Path, list[str]]] = []
+    for where in requirement_roots:
+        jobs.append((where, ["pip-audit", "-r", _REQUIREMENTS_NAME, "--disable-pip"]))
+    for where in lock_roots:
+        jobs.append((where, ["pip-audit", "--locked", "--disable-pip"]))
+    if not jobs:
         return CheckOutcome(
             check_id=spec.check_id,
             family=spec.family,
             result="not_applicable",
             mandatory=spec.mandatory,
             tool_name="pip-audit",
-        )
-    # Wherever the artefact put them; a component tree keeps them under
-    # `files/`, so the old root-only test found nothing and answered
-    # `not_applicable` for every tree that had a manifest.
-    roots = manifest_roots(tree, "requirements.txt", "pyproject.toml", "Pipfile.lock")
-    if not roots and "python" not in manifest.languages:
-        return CheckOutcome(
-            check_id=spec.check_id,
-            family=spec.family,
-            result="not_applicable",
-            mandatory=spec.mandatory,
-            tool_name="pip-audit",
+            detail={"reason": "no_lockfile"},
         )
     outcomes: list[tuple[str, dict[str, object], str, str, int]] = []
-    for where in roots or (tree,):
-        code, out, err, ms = run_cli(
-            ["pip-audit", "-r", "requirements.txt"]
-            if (where / "requirements.txt").is_file()
-            else ["pip-audit"],
-            cwd=where,
-            timeout=spec.timeout_seconds,
-        )
+    for where, argv in jobs:
+        code, out, err, ms = run_cli(argv, cwd=where, timeout=spec.timeout_seconds)
         state, detail = classify_cli_exit(code, out, err)
         outcomes.append((state, detail, out, err, ms))
         if state in {"not_run", "degraded"}:

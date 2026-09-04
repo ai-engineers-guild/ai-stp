@@ -117,6 +117,24 @@ def _owner_name(source: str) -> tuple[str, str]:
     return parts[0], parts[1]
 
 
+def _is_rate_limited(response: GithubHttpResponse) -> bool:
+    if response.status_code not in {403, 429}:
+        return False
+    remaining = response.headers.get("x-ratelimit-remaining")
+    if remaining == "0":
+        return True
+    body = response.body.decode("utf-8", errors="replace").lower()
+    return "rate limit" in body
+
+
+def _require_github_ok(response: GithubHttpResponse, missing: str) -> None:
+    if response.status_code == 200:
+        return
+    if _is_rate_limited(response):
+        raise SourceError(UNAVAILABLE_SOURCE, "GitHub rate limit exceeded")
+    raise SourceError(UNAVAILABLE_SOURCE, missing)
+
+
 def _license_spdx(raw: object) -> str | None:
     if not isinstance(raw, dict):
         return None
@@ -149,8 +167,7 @@ async def resolve_git(
         token=token,
         max_bytes=65_536,
     )
-    if repo.status_code != 200:
-        raise SourceError(UNAVAILABLE_SOURCE, "GitHub repository is unavailable")
+    _require_github_ok(repo, "GitHub repository is unavailable")
     repo_body = _json_object(repo.body)
     if repo_body.get("private") is True:
         raise SourceError(UNAVAILABLE_SOURCE, "GitHub repository is unavailable")
@@ -164,8 +181,7 @@ async def resolve_git(
         token=token,
         max_bytes=MAX_JSON_BYTES,
     )
-    if commit_response.status_code != 200:
-        raise SourceError(UNAVAILABLE_SOURCE, "GitHub ref is unavailable")
+    _require_github_ok(commit_response, "GitHub ref is unavailable")
     sha = _json_object(commit_response.body).get("sha")
     if not isinstance(sha, str):
         raise SourceError(UNAVAILABLE_SOURCE, "GitHub ref did not resolve to a commit")
@@ -176,8 +192,7 @@ async def resolve_git(
         token=token,
         max_bytes=MAX_ARCHIVE_BYTES,
     )
-    if archive.status_code != 200:
-        raise SourceError(UNAVAILABLE_SOURCE, "GitHub archive is unavailable")
+    _require_github_ok(archive, "GitHub archive is unavailable")
     files = extract_component_files(archive.body, subpath=canonical.subpath)
     return SourceSnapshot(
         kind="git",

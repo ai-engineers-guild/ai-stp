@@ -244,6 +244,7 @@ _GROUP_SUMMARIES: Final[dict[tuple[str, ...], str]] = {
     ("setup", "export"): "Write a review tree of one recorded local setup.",
     ("setup", "import"): "Bring an existing configuration in as a setup.",
     ("setup", "publish"): "Publish a setup together with the components it pins.",
+    ("setup", "scaffold"): "Start a new setup from a declared harness layout.",
     ("setup", "update"): "Replace one embedded component with a confirmed exact snapshot.",
     ("skill",): "Install this CLI's own agent skill into a harness.",
     ("sync",): "Move local revisions to and from the cloud registry.",

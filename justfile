@@ -351,7 +351,7 @@ user-docs-build:
     {{py}} -m mkdocs build --strict -f {{scripts}}/user-mkdocs.en.yml
 
 user-docs-serve:
-    {{py}} -m mkdocs serve -f {{scripts}}/user-mkdocs.yml
+    {{py}} {{scripts}}/user_docs_dev.py --host 127.0.0.1 --port 8011
 
 user-docs-serve-en:
     {{py}} -m mkdocs serve -f {{scripts}}/user-mkdocs.en.yml

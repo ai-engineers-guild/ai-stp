@@ -148,7 +148,7 @@ async def test_git_resolves_branch_to_full_commit_and_records_provenance() -> No
                 {"location": f"https://codeload.github.com/acme/tool/legacy.tar.gz/{COMMIT}"},
                 url,
             )
-        if "codeload.github.com" in url:
+        if urlsplit(url).hostname == "codeload.github.com":
             assert "Authorization" not in headers
             return GithubHttpResponse(200, archive, {}, url)
         raise AssertionError(url)
@@ -217,6 +217,22 @@ async def test_git_rejects_secret_and_oversize_archive() -> None:
         await resolve_source(_git_intent(), fetch=fetch_secret)
     assert raised.value.code == UNSAFE_ARCHIVE
 
+    template = _tar({"skills/demo/.env.example": "TOKEN=\n", "skills/demo/SKILL.md": "# Demo\n"})
+
+    async def fetch_template(url: str, *, headers: dict[str, str]) -> GithubHttpResponse:
+        del headers
+        path = urlsplit(url).path
+        if path.endswith("/repos/acme/tool"):
+            return GithubHttpResponse(
+                200, json.dumps({"id": 1, "private": False, "license": None}).encode(), {}, url
+            )
+        if "/commits/" in path:
+            return GithubHttpResponse(200, json.dumps({"sha": COMMIT}).encode(), {}, url)
+        return GithubHttpResponse(200, template, {}, url)
+
+    snapshot = await resolve_source(_git_intent(), fetch=fetch_template)
+    assert snapshot.files[".env.example"] == b"TOKEN=\n"
+
     traversal = _tar({"../skills/demo/SKILL.md": "# Demo\n"}, prefix="")
 
     async def fetch_traversal(url: str, *, headers: dict[str, str]) -> GithubHttpResponse:
@@ -252,6 +268,24 @@ async def test_git_unavailable_repository_fails_closed() -> None:
     with pytest.raises(SourceError) as raised:
         await resolve_source(_git_intent(), fetch=missing)
     assert raised.value.code == UNAVAILABLE_SOURCE
+    assert raised.value.message == "GitHub repository is unavailable"
+
+
+@pytest.mark.asyncio
+async def test_git_rate_limit_is_not_reported_as_a_missing_repository() -> None:
+    async def limited(url: str, *, headers: dict[str, str]) -> GithubHttpResponse:
+        del headers
+        return GithubHttpResponse(
+            403,
+            b'{"message":"API rate limit exceeded"}',
+            {"x-ratelimit-remaining": "0"},
+            url,
+        )
+
+    with pytest.raises(SourceError) as raised:
+        await resolve_source(_git_intent(), fetch=limited)
+    assert raised.value.code == UNAVAILABLE_SOURCE
+    assert raised.value.message == "GitHub rate limit exceeded"
 
 
 @pytest.mark.asyncio

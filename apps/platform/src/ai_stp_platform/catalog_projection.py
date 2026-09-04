@@ -33,6 +33,7 @@ from ai_stp_platform.catalog_query_language import Expression, named_harness_ids
 from ai_stp_platform.catalog_query_language import matches as query_matches
 from ai_stp_platform.catalog_read import CatalogIntegrityError, PublicVersionRow
 from ai_stp_platform.catalog_support import project_support
+from ai_stp_platform.safety.percent import is_user_facing_row, verdict_percent
 
 PASSPORT_DIGEST_DOMAIN = "ai-stp:passport:v1"
 
@@ -79,13 +80,21 @@ def project_trust(row: PublicVersionRow) -> CatalogTrust:
     )
 
 
-def project_checks_summary(row: PublicVersionRow) -> SafetyChecksSummary | None:
+def project_checks_summary(
+    row: PublicVersionRow, *, public: bool = True
+) -> SafetyChecksSummary | None:
     """Return stored safety checks summary for card/detail (#270), if present.
 
     The per-member checks are not here. They are one surface's question — the
     setup detail page's — and this document is also the card that `registry
     search` returns, where the name alone broke every released client on
     2026-09-02. See `project_component_checks`.
+
+    ``public=True`` (catalog card and version page) projects finished verdicts
+    and mandatory unfinished rows. ``public=False`` is the machine audit list
+    (``GET …/versions/{version}/checks``) and keeps optional unfinished checks.
+    Percent is always ``passed / (passed + failed + warning)``, recomputed from
+    stored counts so historical snapshots do not keep an old denominator.
     """
     raw_summary = getattr(row.metadata, "checks_summary", None)
     if not isinstance(raw_summary, dict):
@@ -117,7 +126,11 @@ def project_checks_summary(row: PublicVersionRow) -> SafetyChecksSummary | None:
         # aggregate remains an internal publication gate; public clients get
         # only the exact members and each member's own checks.
         is_setup = row.object_kind == "setup"
-        percent = None if is_setup else summary.get("checks_passed_percent")
+        passed = 0 if is_setup else int(summary.get("passed") or 0)
+        failed = 0 if is_setup else int(summary.get("failed") or 0)
+        warning = 0 if is_setup else int(summary.get("warning") or 0)
+        stored_not_run = 0 if is_setup else int(summary.get("not_run") or 0)
+        percent = None if is_setup else verdict_percent(passed, failed, warning)
         status_raw = str(summary.get("status") or "empty")
         if is_setup:
             status_raw = "empty"
@@ -128,16 +141,32 @@ def project_checks_summary(row: PublicVersionRow) -> SafetyChecksSummary | None:
             coverage = status_raw == "available"
         if is_setup:
             coverage = False
+        shown = [] if is_setup else entries
+        if public and shown:
+            shown = [
+                entry
+                for entry in shown
+                if is_user_facing_row({"result": entry.result, "mandatory": entry.mandatory})
+            ]
+        if is_setup:
+            not_run = 0
+            total_countable = 0
+        elif public and entries:
+            not_run = sum(1 for entry in shown if entry.result == "not_run")
+            total_countable = passed + failed + warning
+        else:
+            not_run = stored_not_run
+            total_countable = passed + failed + warning
         return SafetyChecksSummary(
             status=status_raw,  # type: ignore[arg-type]
-            checks_passed_percent=int(percent) if isinstance(percent, int) else None,
+            checks_passed_percent=percent,
             coverage_complete=bool(coverage),
-            passed=0 if is_setup else int(summary.get("passed") or 0),
-            failed=0 if is_setup else int(summary.get("failed") or 0),
-            warning=0 if is_setup else int(summary.get("warning") or 0),
-            not_run=0 if is_setup else int(summary.get("not_run") or 0),
-            total_countable=0 if is_setup else int(summary.get("total_countable") or 0),
-            checks=[] if is_setup else entries,
+            passed=passed,
+            failed=failed,
+            warning=warning,
+            not_run=not_run,
+            total_countable=total_countable,
+            checks=shown,
         )
     except Exception:
         return None

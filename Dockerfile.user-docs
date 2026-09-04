@@ -25,12 +25,17 @@ RUN uv sync --locked --only-group docs --no-install-project --no-install-workspa
 
 COPY docs_scripts/user-mkdocs.yml ./docs_scripts/user-mkdocs.yml
 COPY docs_scripts/user-mkdocs.en.yml ./docs_scripts/user-mkdocs.en.yml
+COPY docs_scripts/user_docs_dev.py ./docs_scripts/user_docs_dev.py
 COPY docs-user-facing/docs ./docs-user-facing/docs
 
 FROM base AS dev
 ENV AI_STP_USER_DOCS_SITE_URL=http://localhost:8011/
+ENV AI_STP_USER_DOCS_EN_SITE_URL=http://localhost:8011/en/
 EXPOSE 8000
-CMD ["python", "-m", "mkdocs", "serve", "-f", "docs_scripts/user-mkdocs.yml", "-a", "0.0.0.0:8000"]
+# Dual build then static serve: English lives at /en/, same layout as prod.
+# `mkdocs serve` can host only one docs_dir, so a Russian-only live server
+# 404s the language switcher.
+CMD ["python", "docs_scripts/user_docs_dev.py", "--host", "0.0.0.0", "--port", "8000"]
 
 FROM base AS build
 ARG AI_STP_USER_DOCS_SITE_URL=https://docs.example.invalid/

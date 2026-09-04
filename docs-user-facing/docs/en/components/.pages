@@ -1,0 +1,10 @@
+nav:
+  - Overview: index.md
+  - instruction: instruction.md
+  - skill: skill.md
+  - mcp: mcp.md
+  - hook: hook.md
+  - command: command.md
+  - agent: agent.md
+  - plugin: plugin.md
+  - setting: setting.md
