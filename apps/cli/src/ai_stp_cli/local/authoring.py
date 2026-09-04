@@ -442,8 +442,8 @@ def _scaffold_files(name: str, descriptor: ComponentTemplateDescriptor) -> dict[
             f"This is a `{component_type}` authoring scaffold generated from "
             f"`{descriptor.template_version}`.\n\n"
             "## Source of truth\n\n"
-            "Edit files under `source/`. The selected language handler is runnable "
-            "with the command recorded in the source metadata.\n\n"
+            "Edit files under `source/`. Executable components include a runnable "
+            "handler and record its runtime command in the source metadata.\n\n"
             + (
                 f"`projections/{variant}/` is the exact native projection for `{variant}`. "
                 "Regenerate it after changing source; do not edit it by hand.\n\n"

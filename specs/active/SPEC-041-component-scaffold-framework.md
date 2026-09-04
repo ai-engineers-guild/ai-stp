@@ -71,6 +71,13 @@ invoke a package manager, or execute generated code.
   manifest. An OpenCode plugin is a single `plugins/<name>.js|ts` file, while a
   Pi extension is a single JS/TS package entry. Marketplace registration is not
   part of the plugin package and is modeled as a separate `setting`.
+- `REQ-4111`: The instruction source contains `AGENTS.md` as the canonical
+  rules file. A Claude Code projection contains `CLAUDE.md` importing it with
+  `@AGENTS.md` and carries the source beside it.
+- `REQ-4112`: A skill source contains valid Agent Skills frontmatter in
+  `SKILL.md`, one-level `references/`, self-contained `scripts/`, and safe
+  `assets/` examples. Concrete projections preserve the complete resource
+  tree.
 
 ## States and errors
 
@@ -111,4 +118,4 @@ against their own schema.
 | `REQ-4109` | Hook fixtures preserve the event, order, failure policy, and command; malformed source is rejected by the strict schema. |
 | `REQ-4110` | Fixtures distinguish manifest packages from single OpenCode/Pi modules; the plugin does not write marketplace settings. |
 | `REQ-4111` | Instruction source contains `AGENTS.md`; Claude projection contains `CLAUDE.md` importing `@AGENTS.md` and preserves the source beside it. |
-| `REQ-4112` | Skill source and concrete projection contain `SKILL.md`, `references/REFERENCE.md`, `scripts/validate.py`, and `assets/example-input.json`; the script runs without external dependencies. |
+| `REQ-4112` | Skill source and concrete projection contain the required skill, reference, validation script, and example asset; the script runs without external dependencies. |
