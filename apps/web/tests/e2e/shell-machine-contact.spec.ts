@@ -89,9 +89,7 @@ test("documentation root renders content instead of not-found", async ({ page })
   await expect(nav.getByRole("link", { name: "For agents" })).toBeVisible();
   await nav.getByRole("link", { name: "For agents" }).click();
   await expect(page).toHaveURL(/\/en\/docs\/quickstart\/agent/);
-  await expect(
-    page.getByRole("heading", { level: 1, name: "Quickstart for agents" }),
-  ).toBeVisible();
+  await expect(page.locator("article.prose-docs > h1").first()).toHaveText("Quickstart for agents");
 });
 
 test("machine projection screenshot", async ({ page }) => {

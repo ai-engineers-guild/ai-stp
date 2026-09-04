@@ -23,9 +23,9 @@ draft: false
 
 | Харнесс | Статус на 0.0.15 |
 | --- | --- |
-| Claude Code | основной |
-| Codex | основной |
-| Grok Build | основной |
+| Claude Code | основной поддержки |
+| Codex | основной поддержки |
+| Grok Build | основной поддержки |
 | Pi | бета |
 | OpenCode | бета |
 | Cursor | бета |
