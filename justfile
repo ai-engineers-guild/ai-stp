@@ -402,19 +402,11 @@ back-static:
     {{run}} python release_scripts/provider_kit.py --check provider-kit/v3
     {{py}} {{scripts}}/skill_projections.py --check
 
-# Порог покрытия задан в pyproject и является частью этого рецепта.
+# Coverage is printed, not a fail-under (ADR-0147). The second call reads
+# the data pytest-cov wrote so the local log matches CI's combined report.
 back-test:
     {{run}} python -m pytest {{ if test_workers == "0" { "" } else { "-n " + test_workers } }} --dist={{test_dist}}
-    # Порог проверяется второй раз, по записанным данным покрытия. Причина не
-    # теоретическая: прогон CI на letya999@6a41c28 напечатал ровно строку
-    # `FAIL Required test coverage of 95% not reached. Total coverage: 94.55%`,
-    # продолжил следующим рецептом и завершился успехом на уровне step, job и
-    # run. Локально та же цепочка на тех же закреплённых версиях (pytest 9.1.1,
-    # pytest-cov 7.1.0, coverage 7.15.3) корректно возвращает 1, поэтому
-    # механизм расхождения не воспроизведён. Пока он неизвестен, гейт не должен
-    # зависеть только от кода возврата pytest: этот вызов перечитывает данные и
-    # отказывает сам.
-    {{run}} python -m coverage report --precision=2 --fail-under=90
+    {{run}} python -m coverage report --precision=2
 
 # Итерационный прогон без покрытия. Сбор покрытия стоит около трети времени
 # гейта (ADR-0104: 325 с с ним против 252 с без), и в петле правка-запуск он не

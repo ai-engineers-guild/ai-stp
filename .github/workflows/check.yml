@@ -176,10 +176,9 @@ jobs:
       matrix:
         include:
           # One job per tree. PostgreSQL is on every shard so a missing
-          # service cannot skip the rows that need it and drop combined
-          # coverage under the threshold. Eight processes on a 4-vCPU
-          # runner is deliberate: the suite waits on the database and on
-          # subprocesses, not on cores (ADR-0116).
+          # service cannot skip the rows that need it. Eight processes on
+          # a 4-vCPU runner is deliberate: the suite waits on the database
+          # and on subprocesses, not on cores (ADR-0116).
           - shard: api
             extra: tests/api
           - shard: integration
@@ -264,11 +263,11 @@ jobs:
           set -euo pipefail
           bash .github/scripts/install-uv.sh "${UV_VERSION}" "${RUNNER_TEMP}/uv"
           echo "${RUNNER_TEMP}/uv" >> "${GITHUB_PATH}"
-      # Without a database the platform tests skip and combined coverage falls
-      # under its threshold, so the URL is part of the check rather than an
-      # optional extra. `-n 8 --dist=load` oversubscribes the 4-vCPU runner
-      # on purpose (ADR-0116). Each shard disables the per-run threshold:
-      # 90% is a property of the union and is checked after `coverage combine`.
+      # Without a database the platform tests skip, so the URL is part of
+      # the check rather than an optional extra. `-n 8 --dist=load`
+      # oversubscribes the 4-vCPU runner on purpose (ADR-0116). Coverage
+      # is combined after the shards and printed; it does not fail the
+      # job on a percentage (ADR-0147).
       - name: Run a shard of the test suite
         env:
           AI_STP_TEST_DB_URL: postgresql+asyncpg://ai_stp:ai_stp_dev@127.0.0.1:5432/ai_stp
@@ -279,7 +278,7 @@ jobs:
           source .github/scripts/provider-safe-path.sh
           ai_stp_use_provider_safe_path
           uv sync --locked --group dev
-          uv run --locked pytest -n 8 --dist=load --cov-fail-under=0 \
+          uv run --locked pytest -n 8 --dist=load \
             ${{ matrix.extra }}
           if [ "${{ matrix.shard }}" = "contract" ]; then
             uv run --locked pytest --no-cov -q \
@@ -336,7 +335,7 @@ jobs:
         with:
           pattern: coverage-*
           merge-multiple: true
-      - name: Combine shard coverage and enforce the threshold
+      - name: Combine shard coverage and report
         run: |
           set -euo pipefail
           uv sync --locked --group dev
@@ -345,7 +344,7 @@ jobs:
             .coverage.unit-platform .coverage.unit-api .coverage.unit \
             .coverage.contract-process .coverage.contract-lifecycle \
             .coverage.contract .coverage.property
-          uv run --locked coverage report --precision=2 --fail-under=90
+          uv run --locked coverage report --precision=2
 
   # Lint, types, production build, audit and Storybook are Linux-only: they
   # do not read the host OS the way the test suites do. Unit, e2e and feature

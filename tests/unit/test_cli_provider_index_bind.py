@@ -728,10 +728,12 @@ def test_the_library_verifier_supplies_the_source_commit(
             return {"sha": "d" * 40}
 
     class _Bundle:
-        attestations = [_Attestation()]
+        def __init__(self) -> None:
+            self.attestations = [_Attestation()]
 
     class _Document:
-        attestation_bundles = [_Bundle()]
+        def __init__(self) -> None:
+            self.attestation_bundles = [_Bundle()]
 
     class _Distribution:
         @staticmethod

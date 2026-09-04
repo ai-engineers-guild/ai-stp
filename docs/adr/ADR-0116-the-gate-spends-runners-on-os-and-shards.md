@@ -1,13 +1,15 @@
 ---
 description: "Decision to run CLI and web tests concurrently on three operating systems, and the server suite only on Linux, split into shards without conserving runners."
-last_verified: "2026-08-29"
+last_verified: "2026-09-04"
 ---
 
 # ADR-0116: The gate spends runners on operating systems and shards
 
 Status: accepted. Clarifies `ADR-0113` and, regarding job shape, two decisions
 that belong to private infrastructure and are not published here, specifying
-which jobs run on which operating systems and how many run concurrently.
+which jobs run on which operating systems and how many run concurrently. The
+90% fail-under consequence is superseded by `ADR-0147`. Combining Linux shards
+into one coverage report remains.
 
 ## Context
 
@@ -52,9 +54,9 @@ are checked mechanically.
 `tests/contract`. This is the only multiplicative gain for macOS that does not
 require more cores within one job.
 
-The coverage threshold remains a property of combining the Linux shards:
-`coverage` gathers the artifacts and only then checks 90%. The web and CLI
-matrices do not write coverage.
+Coverage remains a property of combining the Linux shards: `coverage`
+gathers the artifacts and then prints one total. A percentage does not
+fail the job (`ADR-0147`). The web and CLI matrices do not write coverage.
 
 The provider support matrix does not change (`ADR-0062`, `ADR-0113`): three
 operating systems in the gate prove the client surface, not installation
