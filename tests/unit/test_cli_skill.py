@@ -7,17 +7,22 @@ import pytest
 from ai_stp_cli import skill
 from ai_stp_cli.commands import skill as skill_commands
 from ai_stp_cli.errors import CliFailure
+from ai_stp_cli.local.skill_package import validate
 
 
 def test_every_declared_harness_has_a_projection_in_the_package() -> None:
-    # The defect: the projections existed in the repository and nowhere a user
-    # could reach. An installed wheel gave the agent a binary and no procedure.
     canonical = skill.available(None)
     assert "ai-stp doctor --json" in canonical
+    assert "skills/canonical/" not in canonical
     for harness in skill.HARNESSES:
         text = skill.available(harness)
         assert harness in text
+        assert "ai-stp doctor --json" in text
+        assert "skills/canonical/" not in text
         assert text != canonical
+        files = skill.package_files(harness)
+        assert "references/bootstrap.md" in files
+        assert b"ai-stp help --agent --json" in files["references/bootstrap.md"]
 
 
 def test_a_harness_with_no_projection_is_named_rather_than_guessed() -> None:
@@ -32,7 +37,10 @@ def test_installing_is_idempotent_and_owned(tmp_path: Path) -> None:
     first = skill.install(tmp_path, "claude-code")
     assert first.state == "owned"
     assert first.harness == "claude-code"
+    assert first.locale == "en"
+    assert "references/install.md" in first.files
     written = (tmp_path / skill.SKILL_FILENAME).read_bytes()
+    assert (tmp_path / "references" / "bootstrap.md").is_file()
 
     again = skill.install(tmp_path, "claude-code")
     assert again.digest == first.digest
@@ -71,6 +79,7 @@ def test_removing_takes_back_only_what_was_installed(tmp_path: Path) -> None:
     assert skill.remove(tmp_path).state == "absent"
     assert not (tmp_path / skill.SKILL_FILENAME).exists()
     assert not (tmp_path / skill.MANIFEST).exists()
+    assert not (tmp_path / "references").exists()
     # Their file is a different thing and was never ours.
     assert keepsake.read_text(encoding="utf-8") == '{"theirs": true}'
 
@@ -109,6 +118,19 @@ def test_status_creates_nothing_at_all(tmp_path: Path) -> None:
     absent = tmp_path / "never-made"
     assert skill_commands.status({"target": str(absent)}).payload.state == "absent"
     assert not absent.exists()
+
+
+def test_an_installed_package_conforms_to_the_agent_skills_specification(tmp_path: Path) -> None:
+    destination = tmp_path / "ai-stp"
+    skill.install(destination, None)
+    report = validate(destination)
+    assert report.packaged_as == "skill"
+    assert report.conforms is True, report.findings
+    russian = tmp_path / "ai-stp-ru"
+    held = skill.install(russian, "codex", "ru")
+    assert held.locale == "ru"
+    assert "Hard rules" in (russian / "SKILL.md").read_text(encoding="utf-8")
+    assert "skills/canonical/" not in (russian / "SKILL.md").read_text(encoding="utf-8")
 
 
 def test_the_skill_destination_is_declared_as_mandatory_as_it_behaves() -> None:

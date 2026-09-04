@@ -157,8 +157,8 @@ def _require_declared_flags(command: Command, parameters: Mapping[str, object]) 
         if not parameters.get(declared.name):
             raise CliFailure(
                 "AI_STP_VALIDATION_ERROR",
-                f"{command.name} requires --{declared.name}",
-                details={"command": command.name},
+                "a required option was not supplied",
+                details={"command": command.name, "option": f"--{declared.name}"},
                 next_actions=[f"{command.name} --{declared.name} {JSON_FLAG}"],
             )
 
@@ -306,8 +306,12 @@ def build_group() -> click.Group:
         if len(path) > MAXIMUM_PATH_DEPTH:
             raise CliFailure(
                 "AI_STP_INTERNAL",
-                f"command path is deeper than the contract allows: {command.name}",
-                details={"depth": str(len(path)), "maximum": str(MAXIMUM_PATH_DEPTH)},
+                "command path is deeper than the contract allows",
+                details={
+                    "command": command.name,
+                    "depth": str(len(path)),
+                    "maximum": str(MAXIMUM_PATH_DEPTH),
+                },
             )
         parent = root
         for index, step in enumerate(path[:-1]):
@@ -322,8 +326,8 @@ def build_group() -> click.Group:
             if not isinstance(existing, click.Group):
                 raise CliFailure(
                     "AI_STP_INTERNAL",
-                    f"a command and a group claim the same name: {step}",
-                    details={"command": command.name},
+                    "a command and a group claim the same name",
+                    details={"command": command.name, "name": step},
                 )
             parent = existing
         parent.add_command(_click_command(command))
@@ -499,7 +503,6 @@ def _click_failure(arguments: list[str], failure: click.ClickException) -> CliFa
         return unknown_command(failure.format_message())
 
     providers = _auth_providers()
-    choices = " or ".join(providers)
     allowed = ", ".join(providers)
     next_actions = [f"auth login --provider {name} --json" for name in providers]
 
@@ -515,13 +518,13 @@ def _click_failure(arguments: list[str], failure: click.ClickException) -> CliFa
                 return unknown_command(failure.format_message())
             return CliFailure(
                 "AI_STP_VALIDATION_ERROR",
-                f"invalid auth provider; expected {choices}",
+                "invalid auth provider",
                 details={"parameter": "provider", "allowed": allowed},
                 next_actions=next_actions,
             )
         return CliFailure(
             "AI_STP_VALIDATION_ERROR",
-            f"auth login requires --provider with {choices}",
+            "auth login requires --provider",
             details={"parameter": "provider", "allowed": allowed},
             next_actions=next_actions,
         )
@@ -529,7 +532,7 @@ def _click_failure(arguments: list[str], failure: click.ClickException) -> CliFa
     if len(command_words) >= 2 and command_words[1] in providers:
         return CliFailure(
             "AI_STP_VALIDATION_ERROR",
-            f"auth commands start with 'auth login'; choose {choices}",
+            "auth commands start with 'auth login'",
             details={"command": "auth login", "allowed": allowed},
             next_actions=next_actions,
         )

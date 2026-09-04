@@ -72,7 +72,7 @@ when portable and `projections/<harness>/` when a harness was selected,
 not the whole tree. Codex agents are TOML under `agents/`.
 
 ```text
-reviewer/                          # component-scaffold/3
+reviewer/                          # component-scaffold/6
 ├── .ai-stp-template.json
 ├── .gitignore
 ├── README.md

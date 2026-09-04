@@ -438,7 +438,7 @@ def test_the_install_command_offline_asks_the_user_rather_than_reaching_out(
 def test_the_commands_refuse_a_tool_the_profile_does_not_pin() -> None:
     from ai_stp_cli.commands import toolchain as command
 
-    with pytest.raises(CliFailure, match="pins no tool called"):
+    with pytest.raises(CliFailure, match="pins no such tool"):
         command.install_tool({"tool": "not-a-real-tool"})
     with pytest.raises(CliFailure, match="a tool id is required"):
         command.install_tool({})
@@ -622,8 +622,9 @@ def test_a_tool_pinned_only_for_another_platform_says_so(monkeypatch: pytest.Mon
     monkeypatch.setattr(manifest_module, "current_platform", lambda: "darwin-arm64")
     monkeypatch.setattr(manifest_module, "load", lambda: narrowed)
 
-    with pytest.raises(CliFailure, match="pinned, but nothing for darwin-arm64") as raised:
+    with pytest.raises(CliFailure, match="no artifact for this platform") as raised:
         command.install_tool({"tool": real.tool_id})
+    assert raised.value.details["platform"] == "darwin-arm64"
     assert raised.value.details["available"] == "linux-aarch64"
 
 

@@ -18,7 +18,11 @@ from ai_stp_contracts.owner import (
 def _required(parameters: Mapping[str, object], name: str) -> str:
     value = str(parameters.get(name) or "")
     if not value:
-        raise CliFailure("AI_STP_VALIDATION_ERROR", f"--{name} is required")
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "a required option was not supplied",
+            details={"option": f"--{name}"},
+        )
     return value
 
 

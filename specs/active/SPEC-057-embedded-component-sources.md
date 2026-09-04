@@ -62,6 +62,8 @@ the architecture and extends ADR-0051 without changing `ComponentRef`.
   component identity, builds a complete component passport, writes exact
   `ComponentRef` values to the setup passport, and uses
   `ai-stp-setup-definition/2` only when the embedded index is non-empty.
+  A local-path member whose description still carries `TODO(ai-stp-scaffold):`
+  is refused before any setup version is recorded.
 - `REQ-5706`: Definition version 2 is bounded canonical JSON containing the
   version 1 fields plus sorted embedded passport, snapshot, and base64url artifact
   records. Passport and artifact digests and sizes are independently verified;
@@ -132,8 +134,10 @@ the architecture and extends ADR-0051 without changing `ComponentRef`.
   have no invented external link.
 - `REQ-5720`: After a mixed setup is recorded locally, `setup export` writes a
   review tree of the immutable passport and definition artifact to a new unused
-  directory. The result names the local registry as storage and does not create
-  a physical harness tree or write native harness state.
+  directory. A canonical `ai-stp-setup-export/1` manifest binds the exact setup
+  identity and digest of every exported file without binding the destination
+  path. The result names the local registry as storage and does not create a
+  physical harness tree, mutate an authoring tree, or write native harness state.
 
 ## States and errors
 
@@ -168,7 +172,7 @@ version 2 bytes and published setup history.
 | `REQ-5702` | Git fixtures resolve branch/tag to commit and reject floating frozen provenance, changed repository identity, unsafe redirect, and subpath escape. |
 | `REQ-5703` | Adapter tests contact only each allowlisted endpoint, pin exact artifacts and dependency evidence, and label registry metadata as observation. |
 | `REQ-5704` | Ecosystem fixtures cover npm scripts/lock, PyPI file ambiguity/platform, crates checksum/lock, Go checksum, and pub archive/lock. |
-| `REQ-5705` | A mixed authoring fixture freezes to exact refs and a version 2 definition; a catalog-only setup remains byte-compatible version 1. |
+| `REQ-5705` | A mixed authoring fixture freezes to exact refs and a version 2 definition; a catalog-only setup remains byte-compatible version 1; a scaffold draft still containing `TODO(ai-stp-scaffold):` is refused. |
 | `REQ-5706` | Golden and negative tests verify canonical bytes, ordering, digests, bounds, collisions, mismatches, and incomplete records. |
 | `REQ-5707` | Passport tests cover all eight kinds, ownership/upstream attribution separation, dependencies, and absence from catalog search. |
 | `REQ-5708` | Private Git/package/local fixtures pass; public fixtures fail for unknown/prohibitive licenses and foreign local bytes. |
@@ -183,7 +187,7 @@ version 2 bytes and published setup history.
 | `REQ-5717` | Requester, Official-account, and database-bound transfer tests cover claim evidence, preview, audit, ownership revision, source cutoff, and immutable history. |
 | `REQ-5718` | Bounds and secret-redaction tests cover every adapter, archive, graph, document, payload, log, and fixture boundary. |
 | `REQ-5719` | Web/API tests cover projected harnesses, absence of a setup percentage, per-member checks, and catalog/Git/package/local link behavior. |
-| `REQ-5720` | Export of a recorded mixed setup writes passport and definition files to a new directory and refuses an occupied destination without writing harness state. |
+| `REQ-5720` | Export of a recorded mixed setup writes passport, definition, README, and a recomputable export manifest to a new directory; it refuses an occupied destination without mutating either authoring or harness state. |
 
 ## Required checks
 

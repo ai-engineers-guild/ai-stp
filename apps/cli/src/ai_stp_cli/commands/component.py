@@ -168,7 +168,6 @@ def scaffold_plan(parameters: Mapping[str, object]) -> Answer[ComponentScaffoldP
     name = _required(parameters, "name", "a component name is required")
     language = _required(parameters, "language", "a scaffold language is required")
     harness = _required(parameters, "harness", "a harness variant is required")
-    framework = str(parameters.get("framework", "none"))
     output = Path(_required(parameters, "output", "an output path is required")).expanduser()
     plan, _files = authoring.scaffold_plan(
         component_type=component_type,
@@ -176,7 +175,6 @@ def scaffold_plan(parameters: Mapping[str, object]) -> Answer[ComponentScaffoldP
         language=language,
         harness_variant=harness,
         output=output,
-        framework=framework,
     )
     return Answer(plan)
 
@@ -187,7 +185,6 @@ def scaffold_apply(parameters: Mapping[str, object]) -> Answer[ComponentScaffold
     name = _required(parameters, "name", "a component name is required")
     language = _required(parameters, "language", "a scaffold language is required")
     harness = _required(parameters, "harness", "a harness variant is required")
-    framework = str(parameters.get("framework", "none"))
     output = Path(_required(parameters, "output", "an output path is required")).expanduser()
     # No `--confirm` beside the digest. Creating a new directory is local and
     # reversible, so `ADR-0118` puts it inside the task's authority, and the
@@ -203,7 +200,6 @@ def scaffold_apply(parameters: Mapping[str, object]) -> Answer[ComponentScaffold
         language=language,
         harness_variant=harness,
         output=output,
-        framework=framework,
     )
     return Answer(authoring.apply_scaffold(plan, files, expected_digest=expected))
 

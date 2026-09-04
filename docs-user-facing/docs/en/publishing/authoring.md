@@ -49,7 +49,7 @@ independent native form for the type, the plan fails closed before any write.
 destination is not already inside a worktree; git is not part of the plan
 digest.
 
-The `component-scaffold/3` directory contains:
+The `component-scaffold/6` directory contains:
 
 ```text
 playwright-checks/
@@ -62,8 +62,10 @@ playwright-checks/
 └── projections/<harness>/   # only when --harness is concrete
 ```
 
-A hook also gets `source/hook.json` (event, order, blocking failure, handler)
-and a projected native manifest. Manifest-directory plugins get a product
+A hook also gets `source/hook-source.json` (event, order, blocking failure, handler).
+A portable hook writes the derived `hooks.json` and runnable handler under
+`source/`; a concrete harness projects them under `projections/<harness>/`.
+Manifest-directory plugins get a product
 manifest and a `skills/` note, not an `activate_plugin` stub. OpenCode and Pi
 plugins are a single JS/TS module, not an invented manifest. A setting
 requires a concrete harness.
@@ -75,8 +77,10 @@ authoring directory.
 `setup scaffold plan` / `apply` create a physical setup directory for one
 concrete harness: draft `setup.json`, draft `setup-passport.json`, optional
 nested `components/<member>/` sharing one git root, and empty
-`projections/<harness>/` until a later export. `setup compose` still records
-SQLite. Compose is not install.
+`projections/<harness>/` until a later export. Nested members point at their
+generated projection and name `managed_paths`. Replace every
+`TODO(ai-stp-scaffold):` marker and add tags before `setup compose`; compose
+refuses a draft. Compose records SQLite. Compose is not install.
 
 ## Passport
 
@@ -142,7 +146,7 @@ the **package** (the directory with `SKILL.md` at its root), not the whole
 authoring tree:
 
 ```bash
-ai-stp component skill validate --path ./playwright-checks/native --json
+ai-stp component skill validate --path ./playwright-checks/source --json
 ```
 
 That command is not [`ai-stp skill install`](../cli/skill.md). The latter

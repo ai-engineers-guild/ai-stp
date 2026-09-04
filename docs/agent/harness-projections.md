@@ -1,6 +1,6 @@
 ---
 description: "Differences among native Agent Skill projections for seven harnesses."
-last_verified: "2026-08-25"
+last_verified: "2026-09-04"
 ---
 
 # Harness Projections
@@ -17,4 +17,7 @@ last_verified: "2026-08-25"
 
 The native surface in this table is a delivery form, not a component type: the catalog taxonomy expresses it through `projection_kind` under `ADR-0015`.
 
-The single canonical procedure is not copied manually. A projection preserves its semantics or reports a loss. Runtime capability is confirmed separately for the exact harness version.
+The single canonical procedure is not copied manually. A projection is generated
+from that procedure (`ADR-0149`): it preserves semantics or reports a loss, and
+it carries the playbooks rather than a repository pointer. Runtime capability is
+confirmed separately for the exact harness version.

@@ -5990,6 +5990,15 @@
           "repeatable": false,
           "summary": "Install the native projection for this harness instead of the canonical skill.",
           "choices": []
+        },
+        {
+          "name": "locale",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Install the English or Russian procedure (`en` or `ru`).",
+          "choices": []
         }
       ],
       "parameter_rules": [],

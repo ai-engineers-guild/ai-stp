@@ -217,15 +217,21 @@ def pinned_for(tool_id: str) -> tuple[toolchain.Tool, toolchain.Artifact]:
     if found is None:
         raise CliFailure(
             "AI_STP_NOT_FOUND",
-            f"the managed profile pins no tool called {tool_id}",
+            "the managed profile pins no such tool",
+            details={"tool": tool_id},
             next_actions=["toolchain profile --json"],
         )
     artifact = found.artifacts.get(target)
     if artifact is None:
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED",
-            f"{tool_id} {found.version} is pinned, but nothing for {target}",
-            details={"platform": target, "available": ", ".join(sorted(found.artifacts))},
+            "the pinned tool has no artifact for this platform",
+            details={
+                "tool": tool_id,
+                "version": found.version,
+                "platform": target,
+                "available": ", ".join(sorted(found.artifacts)),
+            },
             next_actions=["toolchain profile --json"],
         )
     return found, artifact

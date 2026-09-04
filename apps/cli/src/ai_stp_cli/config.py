@@ -344,8 +344,8 @@ def _as_scalar(value: object, field: Field) -> ConfigScalar:
 def _wrong_type(field: Field, expected: str) -> CliFailure:
     return CliFailure(
         "AI_STP_VALIDATION_ERROR",
-        f"configuration value {field.path} must be {expected}",
-        details={"path": field.path},
+        "a configuration value has the wrong type",
+        details={"path": field.path, "expected": expected},
     )
 
 

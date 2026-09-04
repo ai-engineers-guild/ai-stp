@@ -26,7 +26,7 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import provider_installations as installations
 from ai_stp_cli.local.database import configured_path, open_readonly, open_registry
 from ai_stp_cli.local.passports import moment
-from ai_stp_cli.paths import redact_home
+from ai_stp_cli.paths import redact_home, write_private
 from ai_stp_cli.provider import attested_bind, release
 from ai_stp_contracts.machine_help import (
     ProviderInstallationCheck,
@@ -521,6 +521,7 @@ def _planned_or_applied(
         )
 
     outcome = _install(bound.artifact, target, current)
+    _write_bound_manifest(target, bound)
     installations.remember(
         connection,
         installations.Installation(
@@ -600,6 +601,20 @@ def _is_managed(connection: sqlite3.Connection, executable: Path) -> bool:
         digest, _size = release.artifact_identity(resolved)
         return digest == held.artifact_digest
     return False
+
+
+def _write_bound_manifest(target: Path, bound: attested_bind.BoundRelease) -> None:
+    """Keep the sibling release.json covering the exact bytes at `target`.
+
+    `provider fetch` writes that file next to the artifact. `provider update`
+    used to replace only the executable, so `provider check` then reported
+    unmanaged: the old manifest named a different digest, and the command
+    refuses to spawn an unmatched file to ask who it is.
+    """
+    write_private(
+        target.parent / attested_bind.MANIFEST_NAME,
+        release.serialize_manifest(bound.manifest),
+    )
 
 
 def _backup_path(executable: Path, digest: str) -> Path:

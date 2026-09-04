@@ -2599,7 +2599,8 @@ def _required(parameters: Mapping[str, object], name: str) -> str:
     if not given:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
-            f"the {name} must be named",
+            "a required option was not supplied",
+            details={"option": f"--{name}"},
             next_actions=[f"... --{name} <id>"],
         )
     return given

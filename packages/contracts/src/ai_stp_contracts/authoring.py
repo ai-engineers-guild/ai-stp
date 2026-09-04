@@ -15,7 +15,6 @@ AuthoringLanguage = Literal[
     "none", "python", "typescript", "javascript", "rust", "go", "dart-flutter"
 ]
 AuthoringVariant = Literal["portable"] | HarnessId
-McpFramework = Literal["none", "fastmcp"]
 AUTHORING_LANGUAGES: Final[tuple[AuthoringLanguage, ...]] = (
     "none",
     "python",
@@ -38,7 +37,10 @@ AUTHORING_TYPE_LANGUAGE_MATRIX: Final[dict[ComponentType, tuple[AuthoringLanguag
     "instruction": ("none",),
     "skill": ("none",),
     "mcp": AUTHORING_LANGUAGES[1:],
-    "hook": ("python", "typescript", "javascript", "rust", "go", "dart-flutter"),
+    # A hook handler must be directly runnable after installation. Rust and Go
+    # source need a build step, which the scaffold and provider are forbidden
+    # to invent or execute.
+    "hook": ("python", "typescript", "javascript", "dart-flutter"),
     "command": ("none",),
     "agent": ("none",),
     "plugin": AUTHORING_LANGUAGES[1:],
@@ -51,11 +53,21 @@ type ComponentTemplateVersion = Literal[
     "component-scaffold/3",
     "component-scaffold/4",
     "component-scaffold/5",
+    "component-scaffold/6",
 ]
-type ComponentGeneratorVersion = Literal["ai-stp/1", "ai-stp/2", "ai-stp/3", "ai-stp/4", "ai-stp/5"]
-type SetupTemplateVersion = Literal["setup-scaffold/1"]
-type SetupGeneratorVersion = Literal["ai-stp/1"]
+type ComponentGeneratorVersion = Literal[
+    "ai-stp/1", "ai-stp/2", "ai-stp/3", "ai-stp/4", "ai-stp/5", "ai-stp/6"
+]
+type SetupTemplateVersion = Literal[
+    "setup-scaffold/1",
+    "setup-scaffold/2",
+    "setup-scaffold/3",
+    "setup-scaffold/4",
+    "setup-scaffold/5",
+]
+type SetupGeneratorVersion = Literal["ai-stp/1", "ai-stp/2", "ai-stp/3", "ai-stp/4", "ai-stp/5"]
 type GitInitReason = Literal["existing_worktree", "missing_identity", "git_unavailable"]
+AUTHORING_DRAFT_MARKER: Final[str] = "TODO(ai-stp-scaffold):"
 
 
 class PortableHookHandler(BaseModel):
@@ -84,13 +96,12 @@ class ComponentTemplateDescriptor(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
     schema_version: Literal[1] = 1
-    template_version: ComponentTemplateVersion = "component-scaffold/5"
-    generator_version: ComponentGeneratorVersion = "ai-stp/5"
+    template_version: ComponentTemplateVersion = "component-scaffold/6"
+    generator_version: ComponentGeneratorVersion = "ai-stp/6"
     component_type: ComponentType
     language: AuthoringLanguage
     harness_variant: AuthoringVariant
     executable: bool
-    framework: McpFramework = "none"
 
     @model_validator(mode="after")
     def type_language_pair_is_meaningful(self) -> Self:
@@ -98,10 +109,6 @@ class ComponentTemplateDescriptor(BaseModel):
             raise ValueError("component type and authoring language are incompatible")
         if self.executable is (self.component_type in DECLARATIVE_COMPONENT_TYPES):
             raise ValueError("executable marker disagrees with the component type")
-        if self.framework == "fastmcp" and (
-            self.component_type != "mcp" or self.language != "python"
-        ):
-            raise ValueError("fastmcp requires component_type=mcp and language=python")
         return self
 
 
@@ -161,8 +168,11 @@ class ComponentScaffoldResult(BaseModel):
     plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
     output: Annotated[str, Field(min_length=1)]
     files_written: Annotated[int, Field(ge=6)]
-    template_version: ComponentTemplateVersion = "component-scaffold/5"
-    generator_version: ComponentGeneratorVersion = "ai-stp/5"
+    template_version: ComponentTemplateVersion = "component-scaffold/6"
+    generator_version: ComponentGeneratorVersion = "ai-stp/6"
+    git_initialized: bool
+    git_commit: Annotated[str, Field(pattern=r"^[0-9a-f]{40,64}$")] | None = None
+    git_reason: GitInitReason | None = None
 
 
 class SetupMemberDescriptor(BaseModel):
@@ -173,17 +183,6 @@ class SetupMemberDescriptor(BaseModel):
     component_type: ComponentType
     name: Annotated[str, Field(min_length=1, max_length=64)]
     language: AuthoringLanguage
-    framework: McpFramework = "none"
-
-    @model_validator(mode="after")
-    def type_language_pair_is_meaningful(self) -> Self:
-        if self.language not in AUTHORING_TYPE_LANGUAGE_MATRIX[self.component_type]:
-            raise ValueError("component type and authoring language are incompatible")
-        if self.framework == "fastmcp" and (
-            self.component_type != "mcp" or self.language != "python"
-        ):
-            raise ValueError("fastmcp requires component_type=mcp and language=python")
-        return self
 
 
 class SetupTemplateDescriptor(BaseModel):
@@ -192,8 +191,8 @@ class SetupTemplateDescriptor(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
     schema_version: Literal[1] = 1
-    template_version: SetupTemplateVersion = "setup-scaffold/1"
-    generator_version: SetupGeneratorVersion = "ai-stp/1"
+    template_version: SetupTemplateVersion = "setup-scaffold/5"
+    generator_version: SetupGeneratorVersion = "ai-stp/5"
     harness_id: HarnessId
     setup_name: Annotated[str, Field(min_length=1, max_length=64)]
     members: list[SetupMemberDescriptor] = Field(default_factory=list[SetupMemberDescriptor])
@@ -231,8 +230,8 @@ class SetupScaffoldResult(BaseModel):
     plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
     output: Annotated[str, Field(min_length=1)]
     files_written: Annotated[int, Field(ge=6)]
-    template_version: SetupTemplateVersion = "setup-scaffold/1"
-    generator_version: SetupGeneratorVersion = "ai-stp/1"
+    template_version: SetupTemplateVersion = "setup-scaffold/5"
+    generator_version: SetupGeneratorVersion = "ai-stp/5"
     git_initialized: bool
     git_commit: Annotated[str, Field(pattern=r"^[0-9a-f]{40,64}$")] | None = None
     git_reason: GitInitReason | None = None

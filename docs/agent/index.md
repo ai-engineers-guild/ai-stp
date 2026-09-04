@@ -9,8 +9,8 @@ last_verified: "2026-08-03"
 
 | Document | Description | Verified |
 | -------- | ----- | ------- |
-| [harness-projections.md](harness-projections.md) | Differences among native Agent Skill projections for seven harnesses. | 2026-08-25 |
-| [integration-skill.md](integration-skill.md) | Purpose and safeguards of the canonical ai_stp Skill. | 2026-08-09 |
+| [harness-projections.md](harness-projections.md) | Differences among native Agent Skill projections for seven harnesses. | 2026-09-04 |
+| [integration-skill.md](integration-skill.md) | Purpose and safeguards of the canonical ai_stp Skill. | 2026-09-04 |
 | [interaction-policy.md](interaction-policy.md) | Confirmations and questions in the configuration workflow. | 2026-08-09 |
 | [machine-help.md](machine-help.md) | CLI machine help as the source of available commands and schemas. | 2026-08-09 |
 

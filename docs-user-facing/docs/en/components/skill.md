@@ -74,7 +74,7 @@ when portable and `projections/<harness>/` when a harness was selected,
 not the whole tree.
 
 ```text
-playwright-checks/                 # component-scaffold/3
+playwright-checks/                 # component-scaffold/6
 ├── .ai-stp-template.json
 ├── .gitignore
 ├── README.md
@@ -124,7 +124,7 @@ format constraints.
 Validate the installed package shape, not the authoring tree:
 
 ```bash
-ai-stp component skill validate --path ./playwright-checks/native --json
+ai-stp component skill validate --path ./playwright-checks/source --json
 ```
 
 The command is read-only. It names every deviation with a `SKxxx` code. It

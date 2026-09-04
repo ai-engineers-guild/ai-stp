@@ -70,7 +70,7 @@ when portable and `projections/<harness>/` when a harness was selected,
 not the whole tree.
 
 ```text
-run-tests/                         # component-scaffold/3
+run-tests/                         # component-scaffold/6
 ├── .ai-stp-template.json
 ├── .gitignore
 ├── README.md

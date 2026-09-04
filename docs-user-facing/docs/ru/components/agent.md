@@ -74,7 +74,7 @@ reviewer/
 а не всё дерево. Агенты Codex — TOML под `agents/`.
 
 ```text
-reviewer/                          # component-scaffold/3
+reviewer/                          # component-scaffold/6
 ├── .ai-stp-template.json
 ├── .gitignore
 ├── README.md

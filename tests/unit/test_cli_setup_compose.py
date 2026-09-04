@@ -224,8 +224,13 @@ def test_export_writes_a_review_tree_and_not_a_harness_tree(tmp_path: Path) -> N
     assert result.storage == "local_registry"
     assert result.physical_target_tree_created is False
     assert result.definition_digest == applied.definition_digest
+    assert result.export_format == "ai-stp-setup-export/1"
     assert (destination / "setup-passport.json").is_file()
     assert (destination / "setup-definition.json").is_file()
+    manifest = json.loads((destination / "export-manifest.json").read_text(encoding="utf-8"))
+    assert manifest["export_digest"] == result.export_digest
+    assert manifest["definition_digest"] == applied.definition_digest
+    assert set(manifest["files"]) == {"README.md", "setup-definition.json", "setup-passport.json"}
     readme = (destination / "README.md").read_text(encoding="utf-8")
     assert "physical harness tree is not created" in readme
     assert "Native harness state is not written" in readme

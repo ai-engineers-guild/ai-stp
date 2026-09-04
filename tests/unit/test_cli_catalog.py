@@ -454,7 +454,8 @@ def test_an_out_of_range_limit_names_the_flag_a_person_typed() -> None:
         registry_commands.search({"kind": "component", "limit": 200})
     assert caught.value.code == "AI_STP_VALIDATION_ERROR"
     assert "--limit" in caught.value.message
-    assert "100" in caught.value.message
+    assert caught.value.details["maximum"] == "100"
     with pytest.raises(CliFailure) as zero:
         registry_commands.search({"kind": "component", "limit": 0})
     assert "--limit" in zero.value.message
+    assert zero.value.details["maximum"] == "100"

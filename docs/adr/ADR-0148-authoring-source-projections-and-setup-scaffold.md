@@ -1,6 +1,6 @@
 ---
 description: "Decision to scaffold components as source/ plus projections/<harness>/, initialize git as an apply side-effect, and add a physical setup authoring tree distinct from compose and install."
-last_verified: "2026-09-03"
+last_verified: "2026-09-04"
 ---
 
 # ADR-0148: Authoring trees are source and projections, and a setup is its own git project
@@ -52,24 +52,20 @@ SQLite, and keeps install as a public provider write.
 
 ## Decision
 
-1. **Component wrapper.** `component-scaffold/5` writes `README.md`,
+1. **Component wrapper.** The current writer (`component-scaffold/6`) writes `README.md`,
    `component-passport.json`, `eval-profile.json`, `.ai-stp-template.json`,
    `.gitignore`, `source/`, and, when the variant is a concrete harness,
    `projections/<harness>/`. It does not write `native/`,
-   authoring-template.md, SAFETY.md, or PUBLICATION.md. Executable MCP and
-   hook scaffolds contain runnable stdlib-based examples for Python,
-   TypeScript, JavaScript, Go, and Rust; `fastmcp` is an optional Python MCP
-   framework selected explicitly in the descriptor.
+   authoring-template.md, SAFETY.md, or PUBLICATION.md.
    `component template render` and `scaffold()` remain for SPEC-005 REQ-528.
-   Instruction sources always contain `AGENTS.md` as the canonical rules file
-   and a `CLAUDE.md` shim importing `@AGENTS.md`; a Claude projection carries
-   both files so the import resolves after installation.
 
 2. **Canon versus projection.** `source/` is what the author edits.
    `projections/<harness>/` is the native layout for one harness. Portable
    variants have no `projections/` directory. Discover and adopt transfer
    `source/` when portable and `projections/<harness>/` when a harness was
-   selected, not the whole authoring tree.
+   selected, not the whole authoring tree. A portable hook therefore writes
+   the derived closed-set manifest and runnable handler under `source/`
+   next to `hook-source.json`; `/5` left those bytes only in a projection.
 
 3. **Kind-specific native forms** follow the projection registry in
    `composition.py`, including ADR-0129 contributions into an owned file.
@@ -86,17 +82,9 @@ SQLite, and keeps install as a public provider write.
    invented descriptions and tags, keeps `NOASSERTION` with
    `redistribution_allowed: false`, and for `skill` copies the `SKILL.md`
    YAML `description`. Draft text uses the marker `TODO(ai-stp-scaffold):`.
-   Skills follow the Agent Skills directory convention: `SKILL.md` plus
-   focused `references/`, `scripts/`, and `assets/` examples. Concrete skill
-   projections preserve the complete directory tree.
-   The skill layout follows the [Agent Skills specification](https://agentskills.io/specification):
-   required YAML frontmatter in `SKILL.md`, a concise activation document, and
-   on-demand `references/`, `scripts/`, and `assets/` resources. The instruction
-   layout follows the [AGENTS.md open format](https://agents.md/); Claude's
-   `@AGENTS.md` import follows [Claude Code memory imports](https://docs.anthropic.com/en/docs/claude-code/memory).
 
-5. **Git is a setup-apply side-effect.** After the planned setup files exist,
-   setup apply runs `git init` when the destination is not already inside a worktree,
+5. **Git is an apply side-effect.** After the planned files exist, apply
+   runs `git init` when the destination is not already inside a worktree,
    writes `.gitignore` (OS junk, bytecode, `.env`; never the passport,
    `source/`, README, or `setup.json`), then `git add -A` and one commit
    `Initial ai-stp scaffold` using the user's git identity. It does not pass
@@ -113,7 +101,7 @@ SQLite, and keeps install as a public provider write.
    `.gitignore`, optional `components/<member>/` using the component wrapper
    without a nested `.git`, and `projections/<harness>/` left empty until a
    later export command. A setup requires a concrete harness. Optional
-   `--components type:name` (and `type:name:language[:framework]` for executable kinds)
+   `--components type:name` (and `type:name:language` for executable kinds)
    nests members the harness can route. `setup compose` remains SQLite.
    Compose is not install. Export is not scaffold.
 
@@ -123,11 +111,22 @@ SQLite, and keeps install as a public provider write.
 
 ## Consequences
 
-- Template version `component-scaffold/5` and generator `ai-stp/5` are
-  current for components. `setup-scaffold/1` is the first setup template.
-  Versions `1` and `2` remain validatable against their schemas.
-- `SetupScaffoldResult` reports the git initialization outcome; component
-  scaffolds remain ordinary trees and do not create a nested repository.
+- Template version `component-scaffold/6` and generator `ai-stp/6` are
+  current for components. `/5` is the last identity whose portable hook
+  `source/` held only `hook-source.json`; putting the derived handler and
+  closed-set manifest there required a new identity rather than silently
+  redefining `/5`. `/4` named the first source/projection wrapper after
+  the merge collision; remaining ADR bytes (instruction canon, refusals, draft
+  passport, plugin note, Codex agent TOML) required a new identity rather than
+  silently redefining `/4`. The merged tree had already assigned `/3` to the
+  older wrapper containing `component.json`, the safety/publication wrapper files, and
+  `adaptations/<harness>/`; those historical bytes are not silently redefined.
+  `setup-scaffold/5` embeds the `/6` component wrapper and names each nested
+  member's generated projection plus managed paths so compose can freeze a
+  canonical adaptation after draft markers are replaced. Earlier descriptor
+  versions remain validatable against their schemas.
+- `ComponentScaffoldResult` gains `git_initialized`, `git_commit`, and
+  `git_reason` because the result schema forbids extra fields.
 - User documentation, evidence slices, and discover/adopt copy paths that
   named `native/` move to `source/` or `projections/<harness>/`.
 - Tests must ignore `.git` when asserting owner-only file modes.
@@ -139,8 +138,9 @@ SQLite, and keeps install as a public provider write.
 
 - A public provider grows a Claude Code user-scope MCP surface that it owns
   inside the target, which would retire the Claude `mcp` refusal.
-- `setup export` ships, at which point empty `projections/<harness>/` in a
-  setup scaffold must start receiving bytes from that command, not from
-  scaffold.
+- A future command needs to materialize a provider-ready native review tree.
+  The current `setup export` deliberately creates a separate immutable
+  `ai-stp-setup-export/1` definition tree and never writes into the editable
+  scaffold or a harness target.
 - Git identity or default-branch policy becomes a machine contract rather
   than a side-effect report.

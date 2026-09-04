@@ -15,6 +15,7 @@ from collections.abc import Callable, Mapping, Sequence
 from typing import Final, cast
 
 from ai_stp_cli.errors import CliFailure
+from ai_stp_cli.github_token import github_api_token
 from ai_stp_cli.local import cache, content, revisions, selection, versions
 from ai_stp_cli.local.catalog_replacement import (
     CatalogMatchInput,
@@ -278,7 +279,13 @@ def default_resolve(intent: SourceIntent, *, root: str | None = None) -> SourceS
     import asyncio
     from pathlib import Path
 
-    return asyncio.run(resolve_source(intent, local_root=None if root is None else Path(root)))
+    return asyncio.run(
+        resolve_source(
+            intent,
+            local_root=None if root is None else Path(root),
+            token=github_api_token(),
+        )
+    )
 
 
 def _require_component_id(component_id: str) -> None:

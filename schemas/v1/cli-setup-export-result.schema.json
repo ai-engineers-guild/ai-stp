@@ -9,6 +9,17 @@
       "title": "Definition Digest",
       "type": "string"
     },
+    "export_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Export Digest",
+      "type": "string"
+    },
+    "export_format": {
+      "const": "ai-stp-setup-export/1",
+      "default": "ai-stp-setup-export/1",
+      "title": "Export Format",
+      "type": "string"
+    },
     "files_written": {
       "minimum": 1,
       "title": "Files Written",
@@ -64,6 +75,7 @@
     "version",
     "passport_digest",
     "definition_digest",
+    "export_digest",
     "output",
     "files_written"
   ],

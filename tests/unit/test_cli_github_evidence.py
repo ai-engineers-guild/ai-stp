@@ -76,6 +76,28 @@ def test_machine_registry_exposes_one_refresh_and_two_offline_reads() -> None:
     assert commands["component source evidence history"].mutability == "read"
 
 
+def test_refresh_sends_a_bearer_when_github_token_is_set(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "github_pat_test_api")
+    item = _materialize()
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.headers.get("Authorization", ""))
+        return httpx.Response(200, json=_response(archived=False), headers={"etag": '"one"'})
+
+    with closing(open_registry(configured_path(), create=False)) as connection:
+        github_evidence.refresh(
+            connection,
+            item.passport.stable_id,
+            item.passport.version,
+            at=AT,
+            transport=httpx.MockTransport(handler),
+        )
+    assert seen == ["Bearer github_pat_test_api"]
+
+
 def test_archived_unarchive_and_not_modified_are_append_only_with_one_request_each() -> None:
     item = _materialize()
     calls: list[httpx.Request] = []

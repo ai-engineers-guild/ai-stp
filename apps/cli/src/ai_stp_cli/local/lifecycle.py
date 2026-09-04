@@ -87,7 +87,7 @@ def declared_state(stored: revisions.StoredRevision) -> str:
     if str(held) not in DECLARED_STATES:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
-            f"a passport declares an unknown lifecycle state: {held}",
+            "a passport declares an unknown lifecycle state",
             details={"revision_id": stored.revision_id, "state": str(held)},
         )
     return str(held)
@@ -132,8 +132,8 @@ def record_overlay(
     if source_kind not in ORIGIN_KINDS:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
-            f"an overlay origin must be one of {', '.join(sorted(ORIGIN_KINDS))}",
-            details={"source_kind": source_kind},
+            "an overlay origin is not one this contract defines",
+            details={"source_kind": source_kind, "allowed": ", ".join(sorted(ORIGIN_KINDS))},
         )
     if not source_ref or not base_digest:
         raise CliFailure(

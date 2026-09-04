@@ -407,7 +407,11 @@ def _stored_artifacts(
 def _required(parameters: Mapping[str, object], name: str) -> str:
     value = parameters.get(name)
     if value is None or not str(value):
-        raise CliFailure("AI_STP_VALIDATION_ERROR", f"--{name} is required")
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "a required option was not supplied",
+            details={"option": f"--{name}"},
+        )
     return str(value)
 
 

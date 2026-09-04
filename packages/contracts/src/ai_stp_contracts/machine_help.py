@@ -1256,6 +1256,8 @@ class SetupExportResult(BaseModel):
     version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
     passport_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
     definition_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    export_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    export_format: Literal["ai-stp-setup-export/1"] = "ai-stp-setup-export/1"
     output: Annotated[str, Field(min_length=1)]
     files_written: Annotated[int, Field(ge=1)]
     result: Literal["local_setup_definition"] = "local_setup_definition"
@@ -3137,6 +3139,12 @@ class SkillDelivery(BaseModel):
 
     #: The harness projection installed, or `None` for the canonical Skill.
     harness: str | None = None
+
+    #: `en` or `ru` when this installation wrote a locale, else `None`.
+    locale: str | None = None
+
+    #: Owned relative paths of the installed package. Empty when absent.
+    files: list[str] = Field(default_factory=list[str])
 
     #: Every harness this build ships a native projection for.
     available_harnesses: list[str]

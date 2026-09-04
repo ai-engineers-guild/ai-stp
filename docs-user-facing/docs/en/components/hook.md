@@ -63,20 +63,26 @@ is `python`, `typescript`, `javascript`, or `dart-flutter`. Rust and Go
 are refused: the provider does not perform a hidden source build.
 
 The portable native layout is a `hooks.json` manifest plus a handler.
-The authoring directory also holds `source/hook.json` (event, order,
-blocking failure, handler). `discover` / `adopt` transfer `source/` when
-portable and `projections/<harness>/` when a harness was selected, not
-the whole tree.
+The authoring directory holds `source/hook-source.json` (event, order,
+blocking failure, handler). A portable scaffold also writes those derived
+bytes under `source/` so discover/adopt of `source/` sees a closed-set
+manifest. A concrete harness receives generated `hooks.json` and a handler
+under `projections/<harness>/`. `discover` / `adopt` transfer `source/`
+when portable and `projections/<harness>/` when a harness was selected,
+not the whole tree.
 
 ```text
-pre-tool-check/                    # component-scaffold/3
+pre-tool-check/                    # component-scaffold/6
 ├── .ai-stp-template.json
 ├── .gitignore
 ├── README.md
 ├── component-passport.json
 ├── eval-profile.json
-└── source/
-    ├── hook.json
+├── source/
+│   └── hook-source.json
+└── projections/codex/
+    ├── GENERATED.md
+    ├── hooks.json
     └── hooks/
         └── handler.py
 ```
@@ -85,7 +91,7 @@ pre-tool-check/                    # component-scaffold/3
 ai-stp component scaffold plan \
   --type hook \
   --language python \
-  --harness portable \
+  --harness codex \
   --name pre-tool-check \
   --output ./pre-tool-check \
   --json
@@ -93,7 +99,7 @@ ai-stp component scaffold plan \
 ai-stp component scaffold apply \
   --type hook \
   --language python \
-  --harness portable \
+  --harness codex \
   --name pre-tool-check \
   --output ./pre-tool-check \
   --expected-plan-digest <digest> \
@@ -291,9 +297,10 @@ A hook can also be an embedded member of a compose manifest. See
 
 1. Scaffold with `--type hook` and a directly runnable `--language`
    (`python`, `typescript`, `javascript`, or `dart-flutter`).
-2. Keep `hooks.json` and the handler under `source/`. Fill
-   `source/hook.json` with the event, order, blocking failure, and
-   handler.
+2. Fill `source/hook-source.json` with the event, order, blocking
+   failure, and handler command. A portable scaffold keeps the derived
+   `hooks.json` and handler under `source/`. For a concrete harness they
+   live under `projections/<harness>/`.
 3. Declare what the handler does, what it reads, and how to disable it
    in the passport. No secrets.
 4. Run `ai-stp component discover --root . --json` and read

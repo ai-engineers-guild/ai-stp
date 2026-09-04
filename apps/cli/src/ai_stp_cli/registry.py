@@ -650,12 +650,6 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 ),
             ),
             option(
-                "framework",
-                "string",
-                "Optional MCP framework; fastmcp requires a Python MCP component.",
-                choices=("none", "fastmcp"),
-            ),
-            option(
                 "harness",
                 "string",
                 "Portable base or one concrete harness variant.",
@@ -705,12 +699,6 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                     "go",
                     "dart-flutter",
                 ),
-            ),
-            option(
-                "framework",
-                "string",
-                "Optional MCP framework; fastmcp requires a Python MCP component.",
-                choices=("none", "fastmcp"),
             ),
             option(
                 "harness",
@@ -2506,8 +2494,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "components",
                 "string",
-                "Optional nested members as type:name, type:name:language, or "
-                "type:name:language:framework, comma-separated.",
+                "Optional nested members as type:name or type:name:language, comma-separated.",
             ),
         ),
         next_actions=("setup scaffold apply",),
@@ -2532,8 +2519,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "components",
                 "string",
-                "Optional nested members as type:name, type:name:language, or "
-                "type:name:language:framework, comma-separated.",
+                "Optional nested members as type:name or type:name:language, comma-separated.",
             ),
             option(
                 "expected-plan-digest",
@@ -2971,8 +2957,8 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         summary="Install the canonical Agent Skill at a named destination.",
         result_schema="urn:ai-stp:schema:v1:cli-skill-delivery",
         handler="skill:install",
-        # Writes one file and its ownership record, and refuses to replace a
-        # skill this installation did not write.
+        # Writes the Skill package and its ownership record, and refuses to
+        # replace a skill this installation did not write.
         mutability="apply",
         parameters=(
             option(
@@ -2992,6 +2978,11 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "harness",
                 "string",
                 "Install the native projection for this harness instead of the canonical skill.",
+            ),
+            option(
+                "locale",
+                "string",
+                "Install the English or Russian procedure (`en` or `ru`).",
             ),
         ),
         next_actions=("skill status",),

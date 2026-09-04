@@ -43,20 +43,26 @@ Handler hook должен быть непосредственно запуска
 Rust и Go отклоняются: provider не делает скрытую сборку исходников.
 
 Переносимый нативный layout — манифест `hooks.json` плюс handler.
-Авторский каталог также держит `source/hook.json` (событие, порядок,
-блокирующий failure, handler). `discover` / `adopt` переносят `source/`
-для portable и `projections/<harness>/` для конкретного харнесса, а не
-всё дерево.
+Авторский каталог держит `source/hook-source.json` (событие, порядок,
+блокирующий failure, handler). Portable scaffold также пишет эти
+производные байты в `source/`, чтобы discover/adopt каталога `source/`
+видел манифест из закрытого набора. Конкретный харнесс получает
+сгенерированные `hooks.json` и handler в `projections/<harness>/`.
+`discover` / `adopt` переносят `source/` для portable и
+`projections/<harness>/` для конкретного харнесса, а не всё дерево.
 
 ```text
-pre-tool-check/                    # component-scaffold/3
+pre-tool-check/                    # component-scaffold/6
 ├── .ai-stp-template.json
 ├── .gitignore
 ├── README.md
 ├── component-passport.json
 ├── eval-profile.json
-└── source/
-    ├── hook.json
+├── source/
+│   └── hook-source.json
+└── projections/codex/
+    ├── GENERATED.md
+    ├── hooks.json
     └── hooks/
         └── handler.py
 ```
@@ -65,7 +71,7 @@ pre-tool-check/                    # component-scaffold/3
 ai-stp component scaffold plan \
   --type hook \
   --language python \
-  --harness portable \
+  --harness codex \
   --name pre-tool-check \
   --output ./pre-tool-check \
   --json
@@ -73,7 +79,7 @@ ai-stp component scaffold plan \
 ai-stp component scaffold apply \
   --type hook \
   --language python \
-  --harness portable \
+  --harness codex \
   --name pre-tool-check \
   --output ./pre-tool-check \
   --expected-plan-digest <digest> \
@@ -269,8 +275,10 @@ Hook может быть embedded-членом compose-манифеста. См.
 1. Сделайте scaffold с `--type hook` и непосредственно запускаемым
    `--language` (`python`, `typescript`, `javascript` или
    `dart-flutter`).
-2. Держите `hooks.json` и handler под `source/`. Заполните
-   `source/hook.json`: событие, порядок, блокирующий failure и handler.
+2. Заполните `source/hook-source.json`: событие, порядок, блокирующий
+   failure и команда handler. Portable scaffold держит производные
+   `hooks.json` и handler в `source/`. Для конкретного харнесса они
+   живут в `projections/<harness>/`.
 3. Объявите в паспорте, что делает handler, что он читает и как его
    отключить. Секретов нет.
 4. Запустите `ai-stp component discover --root . --json` и прочитайте

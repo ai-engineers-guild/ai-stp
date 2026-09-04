@@ -954,7 +954,7 @@ def _policy(document: dict[str, object]) -> TrustPolicy:
 def _policy_failure(field: str, detail: str) -> NoReturn:
     raise CliFailure(
         "AI_STP_VALIDATION_ERROR",
-        f"the provider trust policy has an invalid {field}",
+        "the provider trust policy has an invalid field",
         details={"field": field, "detail": detail},
     )
 

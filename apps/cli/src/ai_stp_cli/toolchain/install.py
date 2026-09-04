@@ -597,7 +597,7 @@ def download(
     if answer.status_code != 200:
         raise CliFailure(
             "AI_STP_DEPENDENCY_UNAVAILABLE",
-            f"the pinned source answered {answer.status_code}",
+            "the pinned source refused the request",
             details={"source": url, "status": str(answer.status_code)},
             # A refusal that names no way forward leaves an agent guessing. The
             # cache is the offline path and the profile says what is pinned.

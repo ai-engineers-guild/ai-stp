@@ -20,16 +20,17 @@ def status(parameters: Mapping[str, object]) -> Answer[SkillDelivery]:
 
 
 def install(parameters: Mapping[str, object]) -> Answer[SkillDelivery]:
-    """Install the Skill at a destination, refusing to overwrite what is not ours.
+    """Install the Skill package at a destination, refusing to overwrite what is not ours.
 
     The destination is named rather than discovered. Where each harness looks
-    for a native Skill is a fact about that harness and differs across the five;
+    for a native Skill is a fact about that harness and differs across them;
     inventing those paths would be a guess presented as support. Discovery
     arrives with the harness detectors of `SPEC-014`.
     """
     target = _target(parameters)
     harness = _harness(parameters)
-    return Answer(_view(target, skill.install(target, harness)))
+    locale = _locale(parameters)
+    return Answer(_view(target, skill.install(target, harness, locale)))
 
 
 def remove(parameters: Mapping[str, object]) -> Answer[SkillDelivery]:
@@ -48,6 +49,8 @@ def _view(target: Path, held: skill.Installed) -> SkillDelivery:
         target=redact_home(target),
         digest=held.digest,
         harness=held.harness,
+        locale=held.locale,
+        files=list(held.files),
         available_harnesses=list(skill.HARNESSES),
     )
 
@@ -67,3 +70,8 @@ def _target(parameters: Mapping[str, object]) -> Path:
 def _harness(parameters: Mapping[str, object]) -> str | None:
     given = parameters.get("harness")
     return None if given is None else str(given)
+
+
+def _locale(parameters: Mapping[str, object]) -> str:
+    given = parameters.get("locale")
+    return "en" if given is None else str(given)

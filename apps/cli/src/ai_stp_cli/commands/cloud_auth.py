@@ -12,7 +12,8 @@ def required(purpose: str) -> session.Session:
     if held is None or held.state() == "expired":
         raise CliFailure(
             "AI_STP_AUTH_REQUIRED",
-            f"{purpose} requires an authenticated cloud session",
+            "this action requires an authenticated cloud session",
+            details={"purpose": purpose},
             next_actions=["auth login --provider github --json"],
         )
     if held.state() == "revoked":

@@ -3,7 +3,7 @@ description: "Decision to give accounts and catalog component lines unique publi
 last_verified: "2026-09-04"
 ---
 
-# ADR-0149: Public identities and owned catalog lines
+# ADR-0152: Public identities and owned catalog lines
 
 Status: proposed.
 

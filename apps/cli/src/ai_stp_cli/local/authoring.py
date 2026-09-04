@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 import re
 import stat
@@ -14,8 +13,10 @@ from typing import Final, cast
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import harness_catalog
+from ai_stp_cli.local.components import Rule
 from ai_stp_cli.paths import redact_home
 from ai_stp_contracts.authoring import (
+    AUTHORING_DRAFT_MARKER,
     AUTHORING_LANGUAGES,
     AUTHORING_TYPE_LANGUAGE_MATRIX,
     AUTHORING_VARIANTS,
@@ -55,7 +56,7 @@ _PLACEHOLDERS: Final[frozenset[str]] = frozenset(
 LANGUAGES = AUTHORING_LANGUAGES
 VARIANTS = AUTHORING_VARIANTS
 TYPE_LANGUAGE_MATRIX = AUTHORING_TYPE_LANGUAGE_MATRIX
-DRAFT: Final[str] = "TODO(ai-stp-scaffold):"
+DRAFT: Final[str] = AUTHORING_DRAFT_MARKER
 GITIGNORE: Final[bytes] = (
     b".DS_Store\n"
     b"Thumbs.db\n"
@@ -66,19 +67,6 @@ GITIGNORE: Final[bytes] = (
     b".venv/\n"
     b"venv/\n"
     b"node_modules/\n"
-    b".pytest_cache/\n"
-    b".mypy_cache/\n"
-    b".ruff_cache/\n"
-    b".coverage\n"
-    b"coverage.xml\n"
-    b"htmlcov/\n"
-    b"build/\n"
-    b"dist/\n"
-    b"target/\n"
-    b"*.exe\n"
-    b"*.pdb\n"
-    b"*.db\n"
-    b"*.sqlite3\n"
     b".env\n"
     b".env.*\n"
     b"!.env.example\n"
@@ -126,7 +114,6 @@ def scaffold_plan(
     language: str,
     harness_variant: str,
     output: Path,
-    framework: str = "none",
 ) -> tuple[ComponentScaffoldPlan, dict[str, bytes]]:
     """Preview every byte of one complete authoring scaffold."""
     if component_type not in TYPES or not _NAME.fullmatch(name):
@@ -146,7 +133,6 @@ def scaffold_plan(
         language=language,  # pyright: ignore[reportArgumentType]
         harness_variant=harness_variant,  # pyright: ignore[reportArgumentType]
         executable=not declarative,
-        framework=framework,  # pyright: ignore[reportArgumentType]
     )
     files = _scaffold_files(name, descriptor)
     entries = [
@@ -200,54 +186,16 @@ def apply_scaffold(
             "AI_STP_PRECONDITION_FAILED",
             "the scaffold bytes no longer match the exact plan",
         )
-    directories = sorted(
-        {
-            parent
-            for relative in files
-            for parent in PurePosixPath(relative).parents
-            if str(parent) != "."
-        },
-        key=lambda item: (len(item.parts), item.as_posix()),
-    )
-    created_files: list[Path] = []
-    created_directories: list[Path] = []
-    try:
-        try:
-            destination.mkdir(mode=0o700)
-        except OSError as error:
-            raise _failure("the scaffold destination could not be reserved safely") from error
-        created_directories.append(destination)
-        for relative in directories:
-            directory = destination / relative.as_posix()
-            directory.mkdir(mode=0o700)
-            created_directories.append(directory)
-        for relative, payload in files.items():
-            target = destination / relative
-            descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-            created_files.append(target)
-            try:
-                held = memoryview(payload)
-                while held:
-                    written = os.write(descriptor, held)
-                    if written == 0:
-                        raise _failure("the scaffold file could not be written completely")
-                    held = held[written:]
-                os.fsync(descriptor)
-            finally:
-                os.close(descriptor)
-    except BaseException:
-        for target in reversed(created_files):
-            with suppress(OSError):
-                target.unlink()
-        for directory in reversed(created_directories):
-            with suppress(OSError):
-                directory.rmdir()
-        raise
+    write_new_tree(destination, files)
+    git = initialize_authoring_git(destination)
     return ComponentScaffoldResult(
         plan_id=plan.plan_id,
         plan_digest=plan.plan_digest,
         output=str(destination),
         files_written=len(files),
+        git_initialized=git.initialized,
+        git_commit=git.commit,
+        git_reason=git.reason,
     )
 
 
@@ -255,12 +203,7 @@ def component_scaffold_files(
     name: str, descriptor: ComponentTemplateDescriptor
 ) -> dict[str, bytes]:
     """Compatibility wrapper for setup scaffolds embedding component trees."""
-    files = _scaffold_files(name, descriptor)
-    if descriptor.component_type == "skill":
-        projection = files.get(f"projections/{descriptor.harness_variant}/SKILL.md")
-        if projection is not None:
-            files["source/SKILL.md"] = projection
-    return files
+    return _scaffold_files(name, descriptor)
 
 
 def write_new_tree(destination: Path, files: dict[str, bytes]) -> None:
@@ -379,7 +322,7 @@ def _unused_destination(destination: Path) -> None:
 
 def _scaffold_files(name: str, descriptor: ComponentTemplateDescriptor) -> dict[str, bytes]:
     component_type = descriptor.component_type
-    native, entries, managed_paths, projection, authoring_source = _native_source(name, descriptor)
+    native, entry, managed, projection, authoring_source = _native_source(name, descriptor)
     patch_input: dict[str, JsonValue] = {
         "name": name,
         "component_type": component_type,
@@ -401,15 +344,15 @@ def _scaffold_files(name: str, descriptor: ComponentTemplateDescriptor) -> dict[
             "agents": [],
             "plugins": [],
         },
-        "managed_paths": list(managed_paths),
+        "managed_paths": [managed],
         "native_ids": [name],
-        "entry_points": list(entries),
-        "runtime_requirements": (
-            ["python-package:fastmcp>=2"] if descriptor.framework == "fastmcp" else []
-        ),
+        "entry_points": [entry],
+        "runtime_requirements": [],
         "harness_variants": [descriptor.harness_variant],
         "supported_harness_versions": [],
     }
+    if component_type == "skill":
+        patch_input["description"] = f"{DRAFT} replace with the skill description."
     if descriptor.harness_variant != "portable":
         patch_input["harness_id"] = descriptor.harness_variant
     patch = ComponentPassportPatch.model_validate(patch_input)
@@ -417,18 +360,21 @@ def _scaffold_files(name: str, descriptor: ComponentTemplateDescriptor) -> dict[
 
     variant = descriptor.harness_variant
     projection_root = f"projections/{variant}"
-    adaptation_root = f"adaptations/{variant}"
-    adaptation: dict[str, JsonValue] = {
-        "schema_version": 1,
-        "harness_variant": variant,
-        "implementation_mode": "native",
-        "logical_type": component_type,
-        "projection_kind": projection,
-    }
-    if variant != "portable":
-        adaptation["harness_id"] = variant
+    source_files = dict(authoring_source)
+    if not source_files:
+        source_files = dict(native)
+    if variant == "portable":
+        layout_help = (
+            "This portable scaffold has no `projections/` directory. "
+            "Edit `source/`. Discover and adopt copy `source/`."
+        )
+    else:
+        layout_help = (
+            f"Edit `source/`. Generated native bytes belong under `{projection_root}/` "
+            "and are never the source of truth. Discover and adopt copy that projection."
+        )
     files: dict[str, bytes] = {
-        "component.json": canonize(cast(JsonValue, descriptor.model_dump(mode="json"))),
+        ".ai-stp-template.json": canonize(cast(JsonValue, descriptor.model_dump(mode="json"))),
         ".gitignore": GITIGNORE,
         "component-passport.json": canonize(
             cast(JsonValue, patch.model_dump(mode="json", exclude_none=True))
@@ -437,34 +383,20 @@ def _scaffold_files(name: str, descriptor: ComponentTemplateDescriptor) -> dict[
             cast(JsonValue, reference_profile((component_type,)).model_dump(mode="json"))
         ),
         "README.md": (
-            f"# {name}\n\n{DRAFT} replace this draft with the component's "
-            "consumer-facing purpose.\n\n"
-            f"This is a `{component_type}` authoring scaffold generated from "
+            f"# {name}\n\n{DRAFT} replace this text with the component purpose.\n\n"
+            f"{component_type} scaffold generated from "
             f"`{descriptor.template_version}`.\n\n"
-            "## Source of truth\n\n"
-            "Edit files under `source/`. Executable components include a runnable "
-            "handler and record its runtime command in the source metadata.\n\n"
-            + (
-                f"`projections/{variant}/` is the exact native projection for `{variant}`. "
-                "Regenerate it after changing source; do not edit it by hand.\n\n"
-                if variant != "portable"
-                else "This portable scaffold has no provider projection. Choose a concrete "
-                "harness before publishing.\n\n"
-            )
-            + "## Before publication\n\n"
-            f"- Replace every `{DRAFT}` marker with reviewed behavior and metadata.\n"
-            "- Add exact public source commit/path, license, capabilities, permissions, "
-            "environment names, and harness support to the passport.\n"
-            "- Run the deterministic checks in `eval-profile.json` and the repository gate.\n"
+            f"{layout_help}\n\n"
+            "Before publication, replace every TODO marker, record exact source and license "
+            "facts in `component-passport.json`, validate the draft, release an immutable "
+            "component version, and publish that exact version.\n"
         ).encode(),
-        f"{adaptation_root}/adaptation.json": canonize(cast(JsonValue, adaptation)),
     }
-    files.update({f"source/{path}": payload for path, payload in authoring_source.items()})
+    files.update({f"source/{path}": payload for path, payload in source_files.items()})
     if variant != "portable":
         files[f"{projection_root}/GENERATED.md"] = (
             b"# Generated projection\n\n"
-            b"Native bytes in this directory are produced by `ai-stp/5` from `source/`.\n"
-            b"Do not treat them as the source of truth.\n"
+            b"These native bytes are derived from `source/`. Do not edit them in place.\n"
         )
         files.update({f"{projection_root}/{path}": payload for path, payload in native.items()})
     return files
@@ -472,352 +404,202 @@ def _scaffold_files(name: str, descriptor: ComponentTemplateDescriptor) -> dict[
 
 def _native_source(
     name: str, descriptor: ComponentTemplateDescriptor
-) -> tuple[dict[str, bytes], tuple[str, ...], tuple[str, ...], str, dict[str, bytes]]:
+) -> tuple[dict[str, bytes], str, str, str, dict[str, bytes]]:
     """Build one exact native artifact and the portable source that produced it."""
     from ai_stp_cli.local import composition
 
     component_type = descriptor.component_type
     harness = descriptor.harness_variant
-    rule = None if harness == "portable" else composition.rule_for(component_type, harness)
-    if component_type == "setting" and harness == "portable":
-        raise _failure("setting requires a concrete harness projection")
-    if harness != "portable" and rule is None:
-        raise _failure(
-            f"{component_type} cannot be projected to {harness} without losing semantics"
+    if harness == "portable":
+        if component_type == "setting":
+            raise _failure("a setting requires a concrete harness file")
+        rule = None
+    else:
+        rule = composition.rule_for(component_type, harness)
+        if rule is None:
+            raise _failure(
+                f"{component_type} cannot be projected to {harness} without losing semantics"
+            )
+    if component_type == "instruction":
+        source = {"AGENTS.md": _draft_markdown(name, "instruction")}
+        if rule is None:
+            return {}, "AGENTS.md", "instructions/AGENTS.md", "native_files", source
+        path = _instruction_native_path(rule, name)
+        return (
+            {path: source["AGENTS.md"]},
+            PurePosixPath(path).name,
+            path,
+            rule.projection_kind,
+            source,
         )
+    if component_type == "skill":
+        payload = _skill_markdown(name)
+        source = {"SKILL.md": payload}
+        if rule is None:
+            return {}, "SKILL.md", f"skills/{name}", "native_files", source
+        path = f"{rule.relative}/{name}/SKILL.md"
+        return {path: payload}, "SKILL.md", f"{rule.relative}/{name}", rule.projection_kind, source
+    if component_type in {"command", "agent"}:
+        if component_type == "agent" and harness == "codex":
+            leaf = f"{name}.toml"
+            payload = _codex_agent_toml(name)
+        else:
+            leaf = f"{name}.md"
+            payload = _draft_markdown(name, component_type)
+        source = {leaf: payload}
+        if rule is None:
+            root = "commands" if component_type == "command" else "agents"
+            return {}, leaf, f"{root}/{leaf}", "native_files", source
+        path = rule.relative if rule.shape == "file" else f"{rule.relative}/{leaf}"
+        return {path: payload}, PurePosixPath(path).name, path, rule.projection_kind, source
+    if component_type == "setting":
+        if rule is None:
+            raise _failure("a setting requires a concrete harness file")
+        leaf = PurePosixPath(rule.relative).name
+        payload = _setting_payload(leaf)
+        source = {leaf: payload}
+        return {rule.relative: payload}, leaf, rule.relative, rule.projection_kind, source
     if component_type == "plugin" and harness in {"opencode", "pi"}:
         if descriptor.language not in {"javascript", "typescript"}:
             raise _failure(f"{harness} plugins are JavaScript or TypeScript modules")
         suffix = ".js" if descriptor.language == "javascript" else ".ts"
         entry = f"{name}{suffix}"
-        native = {entry: _program(name, descriptor.language, "activate_plugin")}
+        native = {entry: _program(name, descriptor.language, "handle_request")}
         managed = f"{rule.relative}/{entry}" if rule is not None else f"plugins/{entry}"
         projection = rule.projection_kind if rule is not None else "native_files"
-        return native, (entry,), (managed,), projection, {entry: native[entry]}
+        return native, entry, managed, projection, {entry: native[entry]}
     if component_type == "plugin":
-        entry = _program_entry(name, descriptor.language)
         manifest = {
             "claude-code": ".claude-plugin/plugin.json",
             "cursor": ".cursor-plugin/plugin.json",
         }.get(harness, "plugin.json")
+        note = (
+            f"# {name} skills\n\n"
+            f"{DRAFT} add skill files this plugin ships. "
+            "Marketplace registration is a separate setting, not this plugin.\n"
+        ).encode()
         native = {
-            manifest: canonize(
-                cast(
-                    JsonValue,
-                    {
-                        "name": name,
-                        "version": "0.1.0",
-                        "description": f"Native {harness} plugin {name}",
-                    },
-                )
-            ),
-            entry: _program(name, descriptor.language, "activate_plugin"),
+            manifest: canonize(cast(JsonValue, {"name": name, "version": "0.1.0"})),
+            "skills/README.md": note,
         }
         managed = f"plugins/{name}" if rule is None else f"{rule.relative}/{name}"
         projection = "plugin" if rule is None else rule.projection_kind
-        return native, (entry,), (managed,), projection, {entry: native[entry]}
+        return native, manifest, managed, projection, dict(native)
     if component_type == "hook":
-        suffix = PurePosixPath(_program_entry(name, descriptor.language)).suffix
-        parent = PurePosixPath("hooks") if rule is None else PurePosixPath(rule.relative).parent
-        hook_root = (
-            parent / name
-            if rule is None
-            else parent / "hooks" / name
-            if rule.shape == "file"
-            else PurePosixPath(rule.relative) / name
+        entry = _program_entry(name, descriptor.language, prefix="hooks/handler")
+        native_root = "hooks" if rule is None else rule.relative
+        command_path = _hook_command_path(
+            native_root,
+            name,
+            entry,
+            rule is not None and rule.shape == "directory",
         )
-        entry = f"{hook_root.as_posix()}/handler{suffix}"
-        command_path = _command_for_file(entry, descriptor.language)
         source = PortableHookSource(
             event="PreToolUse",
             order=0,
             failure="block",
             handler=PortableHookHandler(command=command_path),
         )
-        manifest_path = (
-            f"{hook_root.as_posix()}/hooks.json"
-            if rule is None or rule.shape == "directory"
-            else rule.relative
-        )
-        manifest = canonize(
-            {
-                "hooks": {
-                    source.event: [
-                        {
-                            "matcher": "*",
-                            "hooks": [{"type": "command", "command": source.handler.command}],
-                        }
-                    ]
+        manifest = "hooks.json" if rule is None or rule.shape != "file" else rule.relative
+        native = {
+            manifest: canonize(
+                {
+                    "hooks": {
+                        source.event: [
+                            {
+                                "matcher": "*",
+                                "hooks": [{"type": "command", "command": source.handler.command}],
+                            }
+                        ]
+                    }
                 }
-            }
-        )
-        handler = _hook_program(descriptor.language)
-        native = {manifest_path: manifest, entry: handler}
-        source_files = {
-            "hook-source.json": canonize(cast(JsonValue, source.model_dump(mode="json"))),
-            entry: handler,
+            ),
+            entry: _hook_program(descriptor.language),
         }
-        if descriptor.language == "rust":
-            runner = entry.rsplit("/", 1)[0] + "/run.py"
-            native[runner] = _rust_runner(entry)
-            source_files[runner] = native[runner]
         managed = (
-            (rule.relative,)
-            if rule is not None and rule.shape == "file"
-            else (hook_root.as_posix(),)
+            "hooks.json"
+            if rule is None
+            else (rule.relative if rule.shape == "file" else f"{rule.relative}/{name}")
         )
-        if rule is not None and rule.shape == "file":
-            managed += (hook_root.as_posix(),)
         projection = "native_files" if rule is None else rule.projection_kind
-        return native, (entry,), managed, projection, source_files
-
-    if component_type in {"instruction", "command", "agent", "setting"}:
-        if component_type == "instruction":
-            entry = "AGENTS.md" if rule is None or rule.shape == "file" else f"{name}.md"
-            payload = _instruction_source(name)
-            source_files = {"AGENTS.md": payload, "CLAUDE.md": _claude_instruction_shim()}
-        elif component_type == "command":
-            entry = "command.md"
-            payload = _text_source(name, "command")
-            source_files = {entry: payload}
-        elif component_type == "agent":
-            entry = "agent.toml" if rule is not None and rule.relative == "agents" else "agent.md"
-            payload = (
-                _agent_native(name) if entry.endswith(".toml") else _text_source(name, "agent")
-            )
-            source_files = {"agent.md": _text_source(name, "agent")}
-        else:
-            assert rule is not None
-            entry = PurePosixPath(rule.relative).name
-            payload = _setting_payload(entry)
-            source_files = {"settings.json": payload}
+        authoring = {
+            "hook-source.json": canonize(cast(JsonValue, source.model_dump(mode="json"))),
+        }
         if rule is None:
-            native = {}
-            managed = (
-                ("instructions" if component_type == "instruction" else "commands") + f"/{name}.md",
-            )
-            projection = "native_files"
-        elif rule.shape == "file":
-            native = {
-                rule.relative: (
-                    _claude_instruction_shim()
-                    if component_type == "instruction" and harness == "claude-code"
-                    else payload
-                )
-            }
-            managed = (rule.relative,)
-            if component_type == "instruction" and harness == "claude-code":
-                native["AGENTS.md"] = payload
-                managed += ("AGENTS.md",)
-            projection = rule.projection_kind
-        else:
-            path = (
-                f"{rule.relative}/{name}/{entry}"
-                if component_type == "skill"
-                else f"{rule.relative}/{entry}"
-            )
-            native = {path: payload}
-            managed = (path,)
-            projection = rule.projection_kind
-        return native, (entry,), managed, projection, source_files
-
-    if component_type == "skill":
-        source_files = _skill_files(name)
-        payload = source_files["SKILL.md"]
-        if rule is None:
-            return {}, ("SKILL.md",), (f"skills/{name}",), "native_files", source_files
-        if rule.shape == "directory":
-            native = {
-                f"{rule.relative}/{name}/{path}": content for path, content in source_files.items()
-            }
-            return (
-                native,
-                ("SKILL.md",),
-                (f"{rule.relative}/{name}",),
-                rule.projection_kind,
-                source_files,
-            )
+            # Portable has no projections/. Discover/adopt copy source/, so the
+            # closed-set manifest and runnable handler have to live there.
+            authoring.update(native)
         return (
-            {rule.relative: payload},
-            (PurePosixPath(rule.relative).name,),
-            (rule.relative,),
-            rule.projection_kind,
-            source_files,
+            native,
+            entry,
+            managed,
+            projection,
+            authoring,
         )
-
     if component_type == "mcp":
-        suffix = PurePosixPath(_program_entry(name, descriptor.language)).suffix.removeprefix(".")
-        server = f"servers/{name}/server.{suffix}"
-        source_files = {server: _mcp_program(name, descriptor.language, descriptor.framework)}
-        if descriptor.language == "rust":
-            runner = f"servers/{name}/run.py"
-            source_files[runner] = _rust_runner(server)
         if rule is None:
-            return {}, (server,), (f"servers/{name}",), "native_files", source_files
-        command, args = _runtime_command(server, descriptor.language, name)
-        config = _mcp_config(name, rule.relative, rule.declared_key, command, args)
-        native = {rule.relative: config}
-        native.update(source_files)
-        managed = (rule.relative, f"servers/{name}")
-        return native, (server,), managed, rule.projection_kind, source_files
-
-    raise _failure(f"unsupported component type: {component_type}")
-
-
-def _text_source(name: str, component_type: str) -> bytes:
-    if component_type == "command":
+            entry = _program_entry(name, descriptor.language)
+            program = _program(name, descriptor.language, "handle_request")
+            return {}, entry, "mcp.json", "native_files", {entry: program}
+        if rule.shape == "file":
+            payload = _mcp_file_stub(rule.relative)
+            leaf = PurePosixPath(rule.relative).name
+            return (
+                {rule.relative: payload},
+                leaf,
+                rule.relative,
+                rule.projection_kind,
+                {leaf: payload},
+            )
+        entry = _program_entry(name, descriptor.language)
+        program = _program(name, descriptor.language, "handle_request")
+        path = f"{rule.relative}/{name}/{entry}"
         return (
-            f"# {name}\n\n{DRAFT} replace with the command's user-visible outcome.\n\n"
-            "## Purpose\n\nState the one task this command performs.\n\n"
-            "## Usage\n\nDocument the invocation, arguments, defaults, and expected output.\n\n"
-            "## Behavior\n\n"
-            "1. Validate arguments and refuse unsafe or ambiguous input.\n"
-            "2. Perform only the documented deterministic action.\n"
-            "3. Return a concise result with actionable errors.\n\n"
-            "## Exit conditions\n\nDocument success, validation failure, partial failure, "
-            "and recovery.\n"
-        ).encode()
-    if component_type == "agent":
-        return (
-            f"# {name}\n\n{DRAFT} replace with the bounded agent role and outcome.\n\n"
-            "## Role\n\nDescribe the responsibility, scope, and explicit non-goals.\n\n"
-            "## Inputs and tools\n\nList accepted inputs and the minimum "
-            "tools/permissions required.\n\n"
-            "## Workflow\n\n"
-            "1. Inspect relevant context and identify constraints.\n"
-            "2. Plan a small, reversible sequence of actions.\n"
-            "3. Validate the result and report evidence.\n\n"
-            "## Stop conditions\n\nStop on missing authority, unsafe input, conflicting "
-            "instructions, or failed validation.\n\n"
-            "## Output contract\n\nState the artifact, status, checks, and unresolved "
-            "risks the agent must report.\n"
-        ).encode()
+            {path: program},
+            entry,
+            f"{rule.relative}/{name}",
+            rule.projection_kind,
+            {entry: program},
+        )
+    raise _failure("the component type is not in the closed eight-type vocabulary")
+
+
+def _instruction_native_path(rule: Rule, name: str) -> str:
+    if rule.shape == "file":
+        return rule.relative
+    suffix = ".mdc" if rule.harness_id == "cursor" else ".md"
+    return f"{rule.relative}/{name}{suffix}"
+
+
+def _draft_markdown(name: str, kind: str) -> bytes:
+    return f"# {name}\n\n{DRAFT} replace this text with the bounded {kind} behavior.\n".encode()
+
+
+def _skill_markdown(name: str) -> bytes:
+    description = f"{DRAFT} replace with the skill description."
+    body = f"{DRAFT} replace this text with the bounded skill behavior."
     return (
-        f"# {name}\n\n{DRAFT} replace this bounded {component_type} behavior "
-        "with a tested contract.\n\n"
-        "## Scope\n\nState what this component owns and what it deliberately does not own.\n\n"
-        "## Contract\n\nDocument inputs, outputs, invariants, failure behavior, "
-        "and validation commands.\n"
+        f'---\nname: {name}\ndescription: "{description}"\n---\n\n# {name}\n\n{body}\n'
     ).encode()
 
 
-def _instruction_source(name: str) -> bytes:
+def _codex_agent_toml(name: str) -> bytes:
     return (
-        f"# {name}\n\n{DRAFT} replace the purpose with one concrete repository outcome.\n\n"
-        "## Scope and precedence\n\n"
-        "These instructions apply to the repository and its nested directories.\n"
-        "The user request wins; then the nearest applicable `AGENTS.md`; then this file.\n"
-        "Do not invent requirements when a repository file or command can answer them.\n\n"
-        "## Repository map\n\n"
-        "Record the important application, package, test, documentation, and script roots.\n"
-        "Keep ownership boundaries explicit so changes land in the smallest correct area.\n\n"
-        "## Working loop\n\n"
-        "1. Inspect the relevant code, tests, docs, and current git state.\n"
-        "2. Make the smallest reversible change that satisfies the request.\n"
-        "3. Add or update a focused test for changed behavior and failure paths.\n"
-        "4. Run the narrow checks first, then the repository gate when practical.\n"
-        "5. Review the diff for unrelated changes, secrets, generated drift, and missing docs.\n\n"
-        "## Change boundaries\n\n"
-        "- Preserve existing user changes and do not overwrite files without a plan.\n"
-        "- Keep business rules in their owning domain/module; avoid generic dumping grounds.\n"
-        "- Treat generated files as outputs: edit their source and regenerate them.\n"
-        "- Do not add dependencies, network calls, credentials, or permissions without need.\n\n"
-        "## Validation\n\n"
-        "List the exact formatter, linter, type-checker, unit, integration, and "
-        "end-to-end commands.\n"
-        "State which checks are required before commit and what evidence a failure needs.\n\n"
-        "## Security\n\n"
-        "Never expose secrets, tokens, private data, local environment files, or untrusted input.\n"
-        "Review subprocess, filesystem, network, serialization, and permission "
-        "changes explicitly.\n\n"
-        "## Definition of done\n\n"
-        "Behavior is implemented, tests are green or failures are named, docs are current,\n"
-        "generated outputs are synchronized, and the final report states files and checks.\n"
-    ).encode()
-
-
-def _claude_instruction_shim() -> bytes:
-    return b"# Claude Code instructions\n\n@AGENTS.md\n"
-
-
-def _skill_files(name: str) -> dict[str, bytes]:
-    return {
-        "SKILL.md": (
-            f"---\nname: {name}\n"
-            f"description: {DRAFT} describe what this skill does and when an agent should use it.\n"
-            "compatibility: Requires only the tools and runtime documented in this skill.\n"
-            "---\n\n"
-            f"# {name}\n\n{DRAFT} replace this with one focused, repeatable capability.\n\n"
-            "## When to use\n\n"
-            "Use this skill when the request matches the bounded task described above.\n"
-            "Do not activate it for unrelated work or when a safer standard workflow is enough.\n\n"
-            "## Inputs and preconditions\n\n"
-            "- Identify required files, arguments, permissions, and environment assumptions.\n"
-            "- Validate paths, formats, size limits, and trust boundaries before acting.\n"
-            "- Stop and report a missing or ambiguous precondition; do not guess.\n\n"
-            "## Workflow\n\n"
-            "1. Inspect the smallest relevant context and preserve unrelated changes.\n"
-            "2. Follow the deterministic steps in order.\n"
-            "3. Use `scripts/validate.py` as a starting point for local mechanical checks.\n"
-            "4. Load `references/REFERENCE.md` only when the detailed contract is needed.\n"
-            "5. Use files under `assets/` as examples, never as hidden credentials "
-            "or authority.\n\n"
-            "## Safety and failure handling\n\n"
-            "Never disclose secrets or personal data. Avoid destructive operations "
-            "without a recovery path.\n"
-            "On failure, leave the workspace recoverable, include the exact check "
-            "and cause, and stop.\n\n"
-            "## Examples\n\n"
-            "Input: a bounded task matching this skill's description.\n"
-            "Output: the requested artifact plus the checks that prove it.\n\n"
-            "## Done\n\n"
-            "Report changed files, validation commands, observed results, and any "
-            "unresolved limitation.\n"
-        ).encode(),
-        "references/REFERENCE.md": (
-            f"# {name} reference\n\n"
-            "Keep detailed, stable domain facts here so the main skill stays small.\n\n"
-            "## Contract\n\n"
-            "Document accepted inputs, output shape, invariants, and error semantics.\n\n"
-            "## Decision table\n\n"
-            "| Condition | Action | Evidence |\n"
-            "|---|---|---|\n"
-            "| Input is valid | Continue | Validation output |\n"
-            "| Input is missing or unsafe | Stop | Named error |\n"
-        ).encode(),
-        "scripts/validate.py": (
-            b'"""Validate the bundled example asset without external dependencies."""\n\n'
-            b"import json\n"
-            b"from pathlib import Path\n\n"
-            b"\n"
-            b"def main() -> int:\n"
-            b"    asset = Path(__file__).parents[1] / 'assets' / 'example-input.json'\n"
-            b"    payload = json.loads(asset.read_text(encoding='utf-8'))\n"
-            b"    if not isinstance(payload, dict) or payload.get('status') != 'ok':\n"
-            b"        print('example-input.json: expected an object with status=ok')\n"
-            b"        return 2\n"
-            b"    print('example-input.json: valid')\n"
-            b"    return 0\n\n"
-            b"\n"
-            b"if __name__ == '__main__':\n"
-            b"    raise SystemExit(main())\n"
-        ),
-        "assets/example-input.json": b'{\n  "status": "ok",\n  "items": ["replace-me"]\n}\n',
-    }
-
-
-def _agent_native(name: str) -> bytes:
-    return (
+        f"# {DRAFT} replace this draft Codex agent.\n"
         f'name = "{name}"\n'
-        f'description = "{DRAFT} replace with the concise bounded agent role."\n'
-        'prompt = """You are a bounded project agent.\n\n'
-        "Mission: perform one documented outcome within the supplied scope.\n"
-        "Before acting: inspect context, constraints, and available authority.\n"
-        "During acting: make reversible changes, preserve unrelated work, and validate inputs.\n"
-        "Stop on ambiguity, missing authority, unsafe input, or failed checks.\n"
-        "Report changed files, evidence, failures, and remaining risks.\n"
-        '"""\n'
+        f'description = "{DRAFT} replace with the agent purpose."\n'
     ).encode()
+
+
+def _mcp_file_stub(path: str) -> bytes:
+    leaf = PurePosixPath(path).name
+    if leaf.endswith((".json", ".jsonc")):
+        return canonize(cast(JsonValue, {"mcpServers": {}}))
+    if leaf.endswith(".toml"):
+        return f"# {DRAFT} add the MCP server this component owns.\n".encode()
+    if leaf.endswith(".js"):
+        return _program("mcp", "javascript", "handle_request")
+    raise _failure("the MCP surface has no supported deterministic syntax")
 
 
 def _program_entry(name: str, language: str, *, prefix: str = "src/main") -> str:
@@ -833,26 +615,22 @@ def _program_entry(name: str, language: str, *, prefix: str = "src/main") -> str
 
 
 def _program(name: str, language: str, symbol: str) -> bytes:
-    if symbol == "activate_plugin":
-        return _plugin_program(name, language)
-    return _mcp_program(name, language, "none")
-
-
-def _plugin_program(name: str, language: str) -> bytes:
-    if language in {"javascript", "typescript"}:
-        return (
-            f"const plugin = {{ name: {name!r}, activate(context = {{}}) {{\n"
-            "  return { name: context.name || this.name, status: 'ready' };\n"
-            "} };\n"
-            "module.exports = plugin;\n"
-        ).encode()
-    if language == "python":
-        return (
-            f'"""Minimal plugin entry point for {name}."""\n\n'
-            "def activate(context: dict | None = None) -> dict[str, str]:\n"
-            f"    return {{'name': {name!r}, 'status': 'ready'}}\n"
-        ).encode()
-    return _text_source(name, "plugin")
+    del name
+    stub = "STUB: replace before publication. A generated no-op is not a product."
+    symbol = {
+        "python": f"# {stub}\ndef {symbol}() -> int:\n    return 0\n",
+        "typescript": f"// {stub}\nexport const {symbol} = (): number => 0;\n",
+        "javascript": f"// {stub}\nexport const {symbol} = () => 0;\n",
+        "rust": (
+            f"// {stub}\nfn {symbol}() -> i32 {{ 0 }}\n\nfn main() {{ let _ = {symbol}(); }}\n"
+        ),
+        "go": (
+            f"package main\n\n// {stub}\nfunc {symbol}() int {{ return 0 }}\n\n"
+            f"func main() {{ _ = {symbol}() }}\n"
+        ),
+        "dart-flutter": f"// {stub}\nint {symbol}() => 0;\n",
+    }[language]
+    return symbol.encode()
 
 
 def _hook_program(language: str) -> bytes:
@@ -865,28 +643,25 @@ def _hook_program(language: str) -> bytes:
             "if __name__ == '__main__':\n    raise SystemExit(main())\n"
         ),
         "typescript": (
-            "const { readFileSync } = require('node:fs');\n"
-            "const event = JSON.parse(readFileSync(0, 'utf8'));\n"
-            "if (typeof event !== 'object' || event === null || "
-            "Array.isArray(event)) process.exit(2);\n"
+            "import { readFileSync } from 'node:fs';\n"
+            "const event: unknown = JSON.parse(readFileSync(0, 'utf8'));\n"
+            "if (typeof event !== 'object' || event === null) process.exit(2);\n"
         ),
         "javascript": (
             "import { readFileSync } from 'node:fs';\n"
             "const event = JSON.parse(readFileSync(0, 'utf8'));\n"
-            "if (typeof event !== 'object' || event === null || "
-            "Array.isArray(event)) process.exit(2);\n"
+            "if (typeof event !== 'object' || event === null) process.exit(2);\n"
         ),
         "rust": (
             "use std::io::{self, Read};\n"
             "fn main() { let mut input = String::new(); "
-            "if io::stdin().read_to_string(&mut input).is_err() { std::process::exit(2); } "
-            "let value = input.trim(); "
-            "if !(value.starts_with('{') && value.ends_with('}')) { std::process::exit(2); } }\n"
+            "io::stdin().read_to_string(&mut input).unwrap(); "
+            "if input.trim().is_empty() { std::process::exit(2); } }\n"
         ),
         "go": (
-            'package main\n\nimport (\n\t"encoding/json"\n\t"os"\n)\n\n'
+            'package main\n\nimport ("encoding/json"; "os")\n\n'
             "func main() { var event map[string]any; "
-            "if json.NewDecoder(os.Stdin).Decode(&event) != nil || event == nil { os.Exit(2) } }\n"
+            "if json.NewDecoder(os.Stdin).Decode(&event) != nil { os.Exit(2) } }\n"
         ),
         "dart-flutter": (
             "import 'dart:convert';\nimport 'dart:io';\n"
@@ -897,154 +672,20 @@ def _hook_program(language: str) -> bytes:
     return sources[language].encode()
 
 
-def _command_for_file(target: str, language: str) -> str:
+def _hook_command_path(root: str, name: str, entry: str, nested: bool) -> str:
+    target = f"{root}/{name}/{entry}" if nested else f"{PurePosixPath(root).parent}/{entry}"
+    target = target.lstrip("./")
     executable = {
         ".py": "python",
         ".js": "node",
         ".ts": "node",
-        ".rs": "python",
-        ".go": "go run",
+        ".rs": "",
+        ".go": "",
         ".dart": "dart",
-    }[PurePosixPath(target).suffix]
-    if language == "rust":
-        return f"python {PurePosixPath(target).parent.as_posix()}/run.py"
+    }[PurePosixPath(entry).suffix]
+    if not executable:
+        raise _failure("this hook language has no directly executable native handler")
     return f"{executable} {target}"
-
-
-def _runtime_command(target: str, language: str, name: str) -> tuple[str, list[str]]:
-    if language == "python":
-        return "python", [target]
-    if language in {"typescript", "javascript"}:
-        return "node", [target]
-    if language == "go":
-        return "go", ["run", target]
-    if language == "rust":
-        return "python", [f"servers/{name}/run.py"]
-    if language == "dart-flutter":
-        return "dart", [target]
-    raise _failure("the executable language has no runtime command")
-
-
-def _rust_runner(source: str) -> bytes:
-    return (
-        "import os\n"
-        "import subprocess\n"
-        "import sys\n"
-        "import tempfile\n"
-        "from pathlib import Path\n\n"
-        "source = Path(__file__).with_name(" + repr(PurePosixPath(source).name) + ")\n"
-        "suffix = '.exe' if os.name == 'nt' else ''\n"
-        "binary = Path(tempfile.gettempdir()) / ('ai-stp-' + source.stem + suffix)\n"
-        "subprocess.run(['rustc', str(source), '-O', '-o', str(binary)], check=True)\n"
-        "result = subprocess.run([str(binary), *sys.argv[1:]])\n"
-        "raise SystemExit(result.returncode)\n"
-    ).encode()
-
-
-def _mcp_config(name: str, path: str, declared_key: str, command: str, args: list[str]) -> bytes:
-    if path.endswith(".toml"):
-
-        def quoted(value: str) -> str:
-            return json.dumps(value, ensure_ascii=False)
-
-        return (
-            f"[{declared_key or 'mcp_servers'}.{name}]\n"
-            f"command = {quoted(command)}\n"
-            f"args = [{', '.join(quoted(item) for item in args)}]\n"
-        ).encode()
-    key = declared_key or "mcpServers"
-    server = (
-        {"type": "local", "command": [command, *args]}
-        if key == "mcp"
-        else {"command": command, "args": args}
-    )
-    return canonize(cast(JsonValue, {key: {name: server}}))
-
-
-def _mcp_program(name: str, language: str, framework: str) -> bytes:
-    if framework == "fastmcp":
-        return (
-            "from fastmcp import FastMCP\n\n"
-            f"mcp = FastMCP(name={name!r})\n\n"
-            "@mcp.tool\n"
-            "def echo(text: str) -> str:\n"
-            '    """Return the supplied text unchanged."""\n'
-            "    return text\n\n"
-            "if __name__ == '__main__':\n"
-            "    mcp.run()\n"
-        ).encode()
-    if language == "python":
-        return (
-            "import json\nimport sys\n\n"
-            f"SERVER_NAME = {name!r}\n"
-            "def reply(request: dict) -> dict | None:\n"
-            "    method = request.get('method')\n"
-            "    if method == 'notifications/initialized':\n"
-            "        return None\n"
-            "    request_id = request.get('id')\n"
-            "    if method == 'initialize':\n"
-            "        result = {'protocolVersion': '2024-11-05', 'capabilities': {'tools': {}}, 'serverInfo': {'name': SERVER_NAME, 'version': '0.1.0'}}\n"  # noqa: E501
-            "    elif method == 'tools/list':\n"
-            "        result = {'tools': [{'name': 'echo', 'description': 'Return text unchanged.', 'inputSchema': {'type': 'object', 'properties': {'text': {'type': 'string'}}, 'required': ['text']}}]}\n"  # noqa: E501
-            "    elif method == 'tools/call':\n"
-            "        result = {'content': [{'type': 'text', 'text': str(request.get('params', {}).get('arguments', {}).get('text', ''))}]}\n"  # noqa: E501
-            "    else:\n"
-            "        return {'jsonrpc': '2.0', 'id': request_id, 'error': {'code': -32601, 'message': 'method not found'}}\n"  # noqa: E501
-            "    return {'jsonrpc': '2.0', 'id': request_id, 'result': result}\n\n"
-            "for line in sys.stdin:\n"
-            "    try:\n"
-            "        response = reply(json.loads(line))\n"
-            "        if response is not None:\n"
-            "            print(json.dumps(response), flush=True)\n"
-            "    except (json.JSONDecodeError, AttributeError, TypeError):\n"
-            "        print(json.dumps({'jsonrpc': '2.0', 'id': None, 'error': {'code': -32700, 'message': 'parse error'}}), flush=True)\n"  # noqa: E501
-        ).encode()
-    if language in {"typescript", "javascript"}:
-        return (
-            "const readline = require('node:readline');\n"
-            f"const serverName = {name!r};\n"
-            "const rl = readline.createInterface({ input: process.stdin });\n"
-            "function reply(request) {\n"
-            "  const method = request.method;\n"
-            "  if (method === 'notifications/initialized') return null;\n"
-            "  let result;\n"
-            "  if (method === 'initialize') result = { protocolVersion: '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: serverName, version: '0.1.0' } };\n"  # noqa: E501
-            "  else if (method === 'tools/list') result = { tools: [{ name: 'echo', description: 'Return text unchanged.', inputSchema: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] } }] };\n"  # noqa: E501
-            "  else if (method === 'tools/call') result = { content: [{ type: 'text', text: String(request.params?.arguments?.text ?? '') }] };\n"  # noqa: E501
-            "  else return { jsonrpc: '2.0', id: request.id ?? null, error: { code: -32601, message: 'method not found' } };\n"  # noqa: E501
-            "  return { jsonrpc: '2.0', id: request.id ?? null, result };\n"
-            "}\n"
-            "rl.on('line', line => { try { const response = reply(JSON.parse(line)); if (response) process.stdout.write(JSON.stringify(response) + '\\n'); } catch { process.exitCode = 2; } });\n"  # noqa: E501
-        ).encode()
-    if language == "go":
-        return (
-            'package main\n\nimport ("bufio"; "encoding/json"; "fmt"; "os")\n\n'
-            f"const serverName = {json.dumps(name)}\n\n"
-            'func main() { scanner := bufio.NewScanner(os.Stdin); for scanner.Scan() { var request map[string]any; if json.Unmarshal(scanner.Bytes(), &request) != nil { os.Exit(2) }; method, _ := request["method"].(string); if method == "notifications/initialized" { continue }; id := request["id"]; var result any; switch method { case "initialize": result = map[string]any{"protocolVersion": "2024-11-05", "capabilities": map[string]any{"tools": map[string]any{}}, "serverInfo": map[string]any{"name": serverName, "version": "0.1.0"}}; case "tools/list": result = map[string]any{"tools": []any{map[string]any{"name": "echo", "description": "Return text unchanged.", "inputSchema": map[string]any{"type": "object", "properties": map[string]any{"text": map[string]any{"type": "string"}}, "required": []string{"text"}}}}}; case "tools/call": result = map[string]any{"content": []any{map[string]any{"type": "text", "text": "echo"}}}; default: result = map[string]any{"error": "method not found"} }; response := map[string]any{"jsonrpc": "2.0", "id": id, "result": result}; data, _ := json.Marshal(response); fmt.Println(string(data)) } }\n'  # noqa: E501
-        ).encode()
-    if language == "rust":
-        return (
-            "use std::io::{self, BufRead};\n\n"
-            f"fn main() {{ for line in io::stdin().lock().lines().flatten() {{ "
-            'if line.contains("notifications/initialized") { continue; } '
-            'let id = line.split("\\"id\\":").nth(1) '
-            ".and_then(|v| v.split(',').next()).unwrap_or(\"null\"); "
-            f'let body = if line.contains("initialize") {{ '
-            f'r#"{{"protocolVersion":"2024-11-05","capabilities":{{"tools":{{}}}},'
-            f'"serverInfo":{{"name":"{name}","version":"0.1.0"}}}}"#.to_string() '
-            ' } else if line.contains("tools/list") { '
-            'r#"{"tools":[{"name":"echo","description":"Return text unchanged."}]}"#.to_string() '
-            ' } else if line.contains("tools/call") { '
-            'r#"{"content":[{"type":"text","text":"echo"}]}"#.to_string() '
-            ' } else { r#"{"error":{"code":-32601,"message":"method not found"}}"#.to_string() }; '
-            'println!(r#"{{"jsonrpc":"2.0","id":{},"result":{}}}"#, id.trim(), body); } }\n'
-        ).encode()
-    if language == "dart-flutter":
-        return (
-            b"import 'dart:convert';\nimport 'dart:io';\n\n"
-            b"void main() { stdin.transform(utf8.decoder).transform(const LineSplitter()).listen((line) { final request = jsonDecode(line) as Map<String, dynamic>; if (request['method'] == 'notifications/initialized') return; stdout.writeln(jsonEncode({'jsonrpc': '2.0', 'id': request['id'], 'result': {'content': [{'type': 'text', 'text': 'echo'}]}})); }); }\n"  # noqa: E501
-        )
-    raise _failure("the executable language has no MCP runtime template")
 
 
 def _setting_payload(name: str) -> bytes:

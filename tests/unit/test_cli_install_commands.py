@@ -3056,7 +3056,7 @@ def test_a_copy_or_a_restore_without_a_setup_still_needs_the_pair(
         install.plan({"action": action, "provider": _provider(tmp_path, f"q-{action}")})
 
     assert raised.value.code == "AI_STP_VALIDATION_ERROR"
-    assert "must be named" in str(raised.value)
+    assert "a required option was not supplied" in str(raised.value)
 
 
 def test_a_rollback_without_a_backup_ref_is_refused(

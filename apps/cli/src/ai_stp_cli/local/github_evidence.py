@@ -13,6 +13,7 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from ai_stp_cli.errors import CliFailure
+from ai_stp_cli.github_token import github_api_token
 from ai_stp_cli.local import cache, component_passports, revisions, versions
 from ai_stp_contracts.github_evidence import GitHubArchiveEvidence, GitHubArchiveHistory
 from ai_stp_foundation.canonical import JsonValue
@@ -63,6 +64,9 @@ def refresh(
         "X-GitHub-Api-Version": API_VERSION,
         "User-Agent": "ai-stp-cli",
     }
+    token = github_api_token()
+    if token is not None:
+        headers["Authorization"] = f"Bearer {token}"
     if previous is not None and previous["etag"] is not None:
         headers["If-None-Match"] = str(previous["etag"])
 

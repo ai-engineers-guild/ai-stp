@@ -304,8 +304,11 @@ closed or forbade. Those findings are not re-opened here:
 | Public provider disclosure (PUB-001/002) | Owned by the setup-systems estate, not this consumer ([setup-systems#287](https://github.com/NDDev-it-com/setup-systems/issues/287)). |
 | Persist adaptation assessments (CMP-003) | Platform work, not CLI: filed as `#111`. |
 | Catalog/web per-harness matrix (CMP-004) | Platform/web work, not CLI: filed as `#112`. |
-| Scaffold v3 (SCA-001) | Done in the consumer CLI: `component-scaffold/3` writes `source/`, `adaptations/<harness>/`, and generated `projections/<harness>/`. Issue `#79` tracks remaining authoring polish. |
-| Setup export (SCA-003) | Done: `setup export` writes a review tree of the recorded passport and definition. |
+| Scaffold v5 (SCA-001) | Done: the consumer CLI preserves `/3` and `/4` as historical and emits `component-scaffold/5`: `source/AGENTS.md` canon, generated `projections/<harness>/` in the native layout, no speculative adaptation document, no invented passport tags, and one reported Git root. |
+| Portable hook handler (`#116`) | Done: `component-scaffold/6` writes the derived closed-set manifest and runnable handler under `source/` for portable hooks; `/5` remains validatable. `setup-scaffold/5` embeds `/6`. |
+| Authoring freeze (SCA-004) | Done: `setup-scaffold/5` points nested members at `projections/<harness>` with `managed_paths`; compose and `component version release` refuse `TODO(ai-stp-scaffold):` markers and freeze a content-addressed `ComponentAdaptation` on the exact provider surface. |
+| Setup export (SCA-003) | Done: `setup export` writes a separate `ai-stp-setup-export/1` review tree whose manifest binds the recorded passport, definition, and every exported file; it mutates neither authoring nor harness state. |
+| Control-plane Skill package (`#97`) | Done: `skill install` writes `SKILL.md` plus `references/` for every harness; projections carry the procedure; Russian is a generated locale; machine help still owns flags (`ADR-0149`). |
 | Rust rewrite / new component kinds | Backlog (`D-15`). Historical experiments are not current evidence. |
 
 `#100` published `ai-stp-cli==0.0.17` from candidate `33850604873`, tag `v0.0.17`,

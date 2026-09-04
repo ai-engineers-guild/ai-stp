@@ -1,4 +1,4 @@
-"""Versioned public-identity normalization (SPEC-059, ADR-0149).
+"""Versioned public-identity normalization (SPEC-059, ADR-0152).
 
 API, CLI, migrations, and PostgreSQL unique keys use this module. The
 normalization version is part of the contract so a later algorithm cannot

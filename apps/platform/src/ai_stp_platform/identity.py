@@ -1,4 +1,4 @@
-"""Account and catalog-line public identity (SPEC-059, ADR-0149)."""
+"""Account and catalog-line public identity (SPEC-059, ADR-0152)."""
 
 from __future__ import annotations
 

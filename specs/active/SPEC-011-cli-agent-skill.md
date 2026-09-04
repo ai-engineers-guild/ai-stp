@@ -1,6 +1,6 @@
 ---
 description: "SPEC-011: CLI, machine help and agent skill."
-last_verified: "2026-08-29"
+last_verified: "2026-09-04"
 ---
 
 # SPEC-011: CLI, machine help, and agent skill
@@ -26,9 +26,9 @@ Includes installation and initial setup, strict JSON, feature and schema help, p
 - `REQ-1102`: Machine output uses one strong versioned JSON object on standard output and robust completion and error classes; machine help publishes a separate `handling` for each error code, because the common exit class does not define the agent action.
 - `REQ-1103`: A sensitive change has an immutable plan and a separate apply step using an exact hash.
 - `REQ-1104`: Automatic code work does not remove confirmation from publication, release a major version, install an unverified object, escalate privileges, perform full cleanup, delete a target or backup, perform an external Git action, or deploy.
-- `REQ-1105`: One canonical agent skill creates testable native projections for seven harnesses.
-- `REQ-1106`: The skill obtains commands, schemas, and error handling from machine help, rather than copying parameters, exit codes, or error disposition manually.
-- `REQ-1107`: The control skill is not deleted or overwritten by a custom setup.
+- `REQ-1105`: One canonical agent skill creates testable native projections for seven harnesses. A projection delivers the procedure as an installed package (`SKILL.md` plus `references/`) with harness metadata; it is not a pointer at a repository path.
+- `REQ-1106`: The skill obtains parameters, schemas, and error handling from machine help, rather than copying flags, exit codes, or error disposition manually. Command **paths** that exist in the registry may be named; flags other than the bootstrap pair (`doctor --json`, `help --agent --json`) are forbidden in Skill text.
+- `REQ-1107`: The control skill is not deleted or overwritten by a custom setup. Installation, update, or removal of a user setup must not remove this package.
 - `REQ-1108`: The password, token, and privilege escalation secret are never passed to the agent, CLI arguments, standard input, environment, or log.
 - `REQ-1109`: Unknown harness and native configurations found in it are recorded as unknown observations; setup, option, target and adaptation draft are not created for them, and an attempt to apply it returns error `AI_STP_UNSUPPORTED_APPLY` with a list of supported harnesses.
 - `REQ-1110`: The actions of read, draft, add, delete, update and install a component are declared in the machine help and always go through the setup version, package and provider plan.
@@ -68,8 +68,8 @@ Machine JSON, help and skill projection have versions. Unknown optional fields a
 | `REQ-1102` | Benchmark checks for JSON, completion codes and the full error registry check standard flows, different handling for conflict/user-decision of the same class and unknown fields. |
 | `REQ-1103` | A changed or outdated plan will block application. |
 | `REQ-1104` | Interaction policy checks require a user decision for each sensitive class. |
-| `REQ-1105` | Reference projections cover Claude Code, Codex, Pi, OpenCode, Grok Build, Cursor and Antigravity. |
-| `REQ-1106` | The contract skill check receives parameters and error handling only from `help --agent --json` and does not contain a manual exit classes table. |
+| `REQ-1105` | Reference projections cover Claude Code, Codex, Pi, OpenCode, Grok Build, Cursor and Antigravity; each installed package contains the procedure and `references/`, and none points at a repository path. |
+| `REQ-1106` | The contract skill check receives parameters and error handling only from `help --agent --json` and does not contain a manual exit classes table; flags other than the bootstrap pair are absent from the package. |
 | `REQ-1107` | End-to-end check of setup switching preserves control skill. |
 | `REQ-1108` | Checks of processes and logs confirm the absence of passwords and secrets. |
 | `REQ-1109` | The unknown harness fixture does not create any managed objects and returns a typed error with a list of supported ones. |

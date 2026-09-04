@@ -1,3 +1,3 @@
 # Canonical Skills
 
-- [ai-stp/](ai-stp/SKILL.md) — passport, assembly, validation, and setup installation.
+- [ai-stp/](ai-stp/SKILL.md) — control-plane package: map plus `references/` playbooks.

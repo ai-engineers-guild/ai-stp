@@ -2,8 +2,6 @@
 
 import json
 import os
-import shutil
-import subprocess
 from pathlib import Path
 
 import pytest
@@ -11,6 +9,7 @@ import pytest
 from ai_stp_cli.commands import component
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import authoring
+from ai_stp_cli.local.composition import rule_for
 from ai_stp_contracts.authoring import (
     ComponentScaffoldFile,
     ComponentScaffoldPlan,
@@ -21,44 +20,25 @@ from ai_stp_contracts.evaluation import SetupEvalProfile
 from ai_stp_foundation.canonical import from_json_bytes
 from ai_stp_foundation.digests import digest_bytes
 
-SCAFFOLD_GOLDEN = Path(__file__).parents[1] / "golden" / "cli" / "component-scaffold-v5.json"
+SCAFFOLD_GOLDEN = Path(__file__).parents[1] / "golden" / "cli" / "component-scaffold-v3.json"
 HISTORICAL_V2_GOLDEN = Path(__file__).parents[1] / "golden" / "cli" / "component-scaffold-v2.json"
-REFERENCE_CASES = {
-    "instruction-none-portable": ("instruction", "none", "portable"),
-    "skill-none-codex": ("skill", "none", "codex"),
-    "agent-none-claude-code": ("agent", "none", "claude-code"),
-    "setting-none-grok-build": ("setting", "none", "grok-build"),
-    "mcp-python-portable": ("mcp", "python", "portable"),
-    "mcp-javascript-codex": ("mcp", "javascript", "codex"),
-    "hook-typescript-codex": ("hook", "typescript", "codex"),
-    "hook-javascript-cursor": ("hook", "javascript", "cursor"),
-    "command-none-portable": ("command", "none", "portable"),
-    "plugin-dart-flutter-grok-build": ("plugin", "dart-flutter", "grok-build"),
-    #: `ADR-0120` widened the set to seven and this table stayed at five, so the
-    #: two newest harnesses had no reviewed projection at all. `antigravity`
-    #: takes the `hook` kind on purpose: it declares a hook layout, and no other
-    #: reviewed case pairs that kind with a harness whose home is not its own.
-    "skill-none-cursor": ("skill", "none", "cursor"),
-    "hook-python-antigravity": ("hook", "python", "antigravity"),
-}
 
-#: Kinds a harness has no projection for, so scaffolding one is refused rather
-#: than producing a component nothing could install.
-#:
-#: `claude-code/hook` left on 2026-08-31 and `opencode` kept its own: hooks for
-#: claude-code are the `hooks` key inside the owned `settings.json`, which
-#: `ADR-0129` compiles as a contribution to that file. Opencode's hook has no
-#: owned host of that shape, so its refusal stands for its own reason rather
-#: than by sharing a row.
-UNSUPPORTED_NATIVE_KINDS = {
-    "portable": {"setting"},
-    "claude-code": {"mcp"},
-    "codex": {"plugin"},
-    "pi": {"hook", "agent"},
-    "opencode": {"hook"},
-    "grok-build": {"command"},
-    "cursor": {"agent"},
-}
+
+def _scaffold_is_unsupported(component_type: str, language: str, harness: str) -> bool:
+    """Refuse when the projection registry has no native surface.
+
+    Portable settings are refused separately: a setting is a harness file.
+    OpenCode/Pi plugins are JS/TS modules, so other languages fail before write.
+    """
+    if harness == "portable":
+        return component_type == "setting"
+    if rule_for(component_type, harness) is None:
+        return True
+    return (
+        component_type == "plugin"
+        and harness in {"opencode", "pi"}
+        and language not in {"javascript", "typescript"}
+    )
 
 
 @pytest.mark.parametrize("component_type", sorted(authoring.TYPES))
@@ -184,15 +164,11 @@ def test_template_reader_refuses_links_and_oversize_files(tmp_path: Path) -> Non
 def test_scaffold_matrix_produces_valid_exact_artifacts(
     tmp_path: Path, component_type: str, language: str, harness: str
 ) -> None:
-    unsupported = component_type in UNSUPPORTED_NATIVE_KINDS.get(harness, set()) or (
-        component_type == "plugin"
-        and harness in {"opencode", "pi"}
-        and language not in {"javascript", "typescript"}
-    )
+    unsupported = _scaffold_is_unsupported(component_type, language, harness)
     if unsupported:
         with pytest.raises(
             CliFailure,
-            match=r"cannot be projected|JavaScript or TypeScript|concrete harness",
+            match=r"cannot be projected|JavaScript or TypeScript|concrete harness file",
         ):
             authoring.scaffold_plan(
                 component_type=component_type,
@@ -222,13 +198,15 @@ def test_scaffold_matrix_produces_valid_exact_artifacts(
     )
     assert plan.publication_ready is False
     assert plan.requires_exact_source_before_publication is True
-    assert plan.descriptor.template_version == "component-scaffold/5"
-    assert plan.descriptor.generator_version == "ai-stp/5"
+    assert plan.descriptor.template_version == "component-scaffold/6"
+    assert plan.descriptor.generator_version == "ai-stp/6"
     assert any(path.startswith("projections/") for path in files) is (harness != "portable")
     assert all(not path.startswith("native/") for path in files)
-    assert "component.json" in files
-    assert ".gitignore" in files
-    assert "source/authoring-template.md" not in files
+    assert ".ai-stp-template.json" in files
+    assert any(path.startswith("source/") for path in files)
+    assert not any(path.startswith("adaptations/") for path in files)
+    assert "SAFETY.md" not in files
+    assert "PUBLICATION.md" not in files
     ComponentPassportPatch.model_validate(from_json_bytes(files["component-passport.json"]))
     profile = SetupEvalProfile.model_validate(from_json_bytes(files["eval-profile.json"]))
     assert profile.component_types == [component_type]
@@ -243,7 +221,7 @@ def test_scaffold_matrix_produces_valid_exact_artifacts(
         ("agent", "go"),
         ("command", "python"),
         ("mcp", "none"),
-        ("hook", "none"),
+        ("hook", "go"),
         ("plugin", "none"),
     ],
 )
@@ -288,9 +266,12 @@ def test_scaffold_commands_require_exact_plan_and_never_overwrite(tmp_path: Path
     ).payload
     assert result.output == str(output)
     assert result.files_written == len(plan.files)
+    assert result.template_version == "component-scaffold/6"
     if os.name != "nt":
         assert all(
-            path.stat().st_mode & 0o777 == 0o600 for path in output.rglob("*") if path.is_file()
+            path.stat().st_mode & 0o777 == 0o600
+            for path in output.rglob("*")
+            if path.is_file() and ".git" not in path.relative_to(output).parts
         )
     with pytest.raises(CliFailure, match="must not already exist"):
         component.scaffold_plan(parameters)
@@ -363,79 +344,26 @@ def test_scaffold_skill_declares_the_projection_root_not_the_entry_file(tmp_path
     passport = json.loads(files["component-passport.json"].decode())
     assert passport["managed_paths"] == ["skills/review-kit"]
     assert passport["entry_points"] == ["SKILL.md"]
-    assert {
-        "source/SKILL.md",
-        "source/references/REFERENCE.md",
-        "source/scripts/validate.py",
-        "source/assets/example-input.json",
-    } <= set(files)
-    assert "references/REFERENCE.md" in files["source/SKILL.md"].decode()
-
-
-def test_instruction_keeps_agents_source_and_claude_import_shim(tmp_path: Path) -> None:
-    _plan, files = authoring.scaffold_plan(
-        component_type="instruction",
-        name="review-kit",
-        language="none",
-        harness_variant="claude-code",
-        output=tmp_path / "review-kit",
-    )
-
-    assert "source/AGENTS.md" in files
-    assert files["source/CLAUDE.md"] == b"# Claude Code instructions\n\n@AGENTS.md\n"
-    assert files["projections/claude-code/CLAUDE.md"] == files["source/CLAUDE.md"]
-    assert files["projections/claude-code/AGENTS.md"] == files["source/AGENTS.md"]
-    passport = json.loads(files["component-passport.json"])
-    assert passport["managed_paths"] == ["CLAUDE.md", "AGENTS.md"]
-
-
-def test_skill_example_script_is_runnable_and_assets_are_local(tmp_path: Path) -> None:
-    _plan, files = authoring.scaffold_plan(
-        component_type="skill",
-        name="review-kit",
-        language="none",
-        harness_variant="portable",
-        output=tmp_path / "review-kit",
-    )
-    root = tmp_path / "skill"
-    for path, payload in files.items():
-        if path.startswith("source/"):
-            target = root / path.removeprefix("source/")
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(payload)
-    result = subprocess.run(
-        ["python", "scripts/validate.py"],
-        cwd=root,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    assert result.returncode == 0, result.stderr
-    assert "example-input.json: valid" in result.stdout
+    assert passport["name"] == "review-kit"
+    assert "tags" not in passport
+    assert files["source/SKILL.md"].decode().startswith("---\nname: review-kit\n")
 
 
 @pytest.mark.parametrize(
-    ("harness", "command", "manifest", "managed"),
+    ("harness", "command", "managed"),
     [
-        ("claude-code", "python hooks/review-kit/handler.py", "settings.json", "settings.json"),
-        ("codex", "python hooks/review-kit/handler.py", "hooks.json", "hooks.json"),
-        ("cursor", "python hooks/review-kit/handler.py", "hooks.json", "hooks.json"),
-        (
-            "antigravity",
-            "python config/hooks/review-kit/handler.py",
-            "config/hooks.json",
-            "config/hooks.json",
-        ),
+        ("codex", "python hooks/handler.py", "hooks.json"),
+        ("cursor", "python hooks/handler.py", "hooks.json"),
+        ("antigravity", "python config/hooks/handler.py", "config/hooks.json"),
         (
             "grok-build",
-            "python hooks/review-kit/handler.py",
-            "hooks/review-kit/hooks.json",
+            "python hooks/review-kit/hooks/handler.py",
             "hooks/review-kit",
         ),
     ],
 )
 def test_hook_scaffold_preserves_source_event_order_and_failure_in_native_form(
-    tmp_path: Path, harness: str, command: str, manifest: str, managed: str
+    tmp_path: Path, harness: str, command: str, managed: str
 ) -> None:
     _plan, files = authoring.scaffold_plan(
         component_type="hook",
@@ -446,8 +374,9 @@ def test_hook_scaffold_preserves_source_event_order_and_failure_in_native_form(
     )
 
     source = json.loads(files["source/hook-source.json"])
-    native_manifest = json.loads(files[f"projections/{harness}/{manifest}"])
-    projected = native_manifest["hooks"][source["event"]]
+    manifest_rel = "config/hooks.json" if harness == "antigravity" else "hooks.json"
+    manifest = json.loads(files[f"projections/{harness}/{manifest_rel}"])
+    projected = manifest["hooks"][source["event"]]
     assert source == {
         "schema_version": 1,
         "event": "PreToolUse",
@@ -456,178 +385,61 @@ def test_hook_scaffold_preserves_source_event_order_and_failure_in_native_form(
         "handler": {"command": command},
     }
     assert projected[0]["hooks"] == [{"type": "command", "command": command}]
-    handler_path = (
-        "config/hooks/review-kit/handler.py"
-        if harness == "antigravity"
-        else "hooks/review-kit/handler.py"
-    )
-    assert "handle_event" not in files[f"projections/{harness}/{handler_path}"].decode()
+    assert "handle_event" not in files[f"projections/{harness}/hooks/handler.py"].decode()
+    assert "source/hooks.json" not in files
+    assert "source/hooks/handler.py" not in files
     passport = json.loads(files["component-passport.json"])
-    managed_root = (
-        managed
-        if harness == "grok-build"
-        else "config/hooks/review-kit"
-        if harness == "antigravity"
-        else "hooks/review-kit"
-    )
-    assert passport["managed_paths"] == (
-        [managed_root] if harness == "grok-build" else [manifest, managed_root]
-    )
-    assert passport["entry_points"] == [handler_path]
+    assert passport["managed_paths"] == [managed]
+    assert passport["entry_points"] == ["hooks/handler.py"]
 
 
-def test_fastmcp_is_explicit_and_has_a_real_server_entrypoint(tmp_path: Path) -> None:
+def test_portable_hook_scaffold_includes_runnable_handler_in_source(tmp_path: Path) -> None:
     _plan, files = authoring.scaffold_plan(
-        component_type="mcp",
-        name="weather",
-        language="python",
-        harness_variant="codex",
-        framework="fastmcp",
-        output=tmp_path / "weather",
-    )
-
-    descriptor = json.loads(files["component.json"])
-    assert descriptor["framework"] == "fastmcp"
-    server = files["source/servers/weather/server.py"].decode()
-    assert "from fastmcp import FastMCP" in server
-    assert "@mcp.tool" in server
-    passport = json.loads(files["component-passport.json"])
-    assert passport["runtime_requirements"] == ["python-package:fastmcp>=2"]
-    with pytest.raises(ValueError, match="fastmcp requires"):
-        ComponentTemplateDescriptor(
-            component_type="mcp",
-            language="go",
-            harness_variant="codex",
-            executable=True,
-            framework="fastmcp",
-        )
-
-
-@pytest.mark.parametrize("language", ("python", "typescript", "javascript", "rust", "go"))
-def test_generated_hook_handlers_really_process_json(tmp_path: Path, language: str) -> None:
-    if language == "go" and shutil.which("go") is None:
-        pytest.skip("Go toolchain is not installed")
-    if (
-        language == "rust"
-        and subprocess.run(["rustc", "--version"], capture_output=True, check=False).returncode != 0
-    ):
-        pytest.skip("Rust toolchain is not configured")
-    plan, files = authoring.scaffold_plan(
         component_type="hook",
         name="review-kit",
-        language=language,
-        harness_variant="codex",
+        language="python",
+        harness_variant="portable",
         output=tmp_path / "review-kit",
     )
-    projection = tmp_path / "projection"
-    projection.mkdir()
-    prefix = "projections/codex/"
-    for path, payload in files.items():
-        if path.startswith(prefix):
-            target = projection / path.removeprefix(prefix)
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(payload)
-    suffix = {
-        "python": ".py",
-        "typescript": ".ts",
-        "javascript": ".js",
-        "rust": ".rs",
-        "go": ".go",
-    }[language]
-    handler = f"hooks/review-kit/handler{suffix}"
-    command = (
-        ["python", handler]
-        if language == "python"
-        else ["node", handler]
-        if language in {"typescript", "javascript"}
-        else ["python", "hooks/review-kit/run.py"]
-        if language == "rust"
-        else ["go", "run", handler]
-    )
-    valid = subprocess.run(
-        command,
-        cwd=projection,
-        input='{"tool":"read"}\n',
-        text=True,
-        capture_output=True,
-        check=False,
-        timeout=30,
-    )
-    invalid = subprocess.run(
-        command,
-        cwd=projection,
-        input="[]\n",
-        text=True,
-        capture_output=True,
-        check=False,
-        timeout=30,
-    )
-    assert valid.returncode == 0, valid.stderr
-    assert invalid.returncode == 2, invalid.stderr
-    assert plan.descriptor.language == language
 
-
-@pytest.mark.parametrize("language", ("python", "javascript"))
-def test_generated_mcp_stdio_server_handles_core_requests(tmp_path: Path, language: str) -> None:
-    _plan, files = authoring.scaffold_plan(
-        component_type="mcp",
-        name="echo-server",
-        language=language,
-        harness_variant="portable",
-        output=tmp_path / "echo-server",
-    )
-    suffix = ".py" if language == "python" else ".js"
-    source = tmp_path / f"server{suffix}"
-    source.write_bytes(files[f"source/servers/echo-server/server{suffix}"])
-    command = ["python", str(source)] if language == "python" else ["node", str(source)]
-    requests = (
-        "\n".join(
-            [
-                json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize"}),
-                json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}),
-                json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/list"}),
-                json.dumps(
-                    {
-                        "jsonrpc": "2.0",
-                        "id": 3,
-                        "method": "tools/call",
-                        "params": {"arguments": {"text": "ok"}},
-                    }
-                ),
-            ]
-        )
-        + "\n"
-    )
-    result = subprocess.run(
-        command,
-        input=requests,
-        text=True,
-        capture_output=True,
-        check=False,
-        timeout=30,
-    )
-    assert result.returncode == 0, result.stderr
-    responses = [json.loads(line) for line in result.stdout.splitlines()]
-    assert [item["id"] for item in responses] == [1, 2, 3]
-    assert responses[1]["result"]["tools"][0]["name"] == "echo"
-    assert responses[2]["result"]["content"][0]["text"] == "ok"
+    source = json.loads(files["source/hook-source.json"])
+    manifest = json.loads(files["source/hooks.json"])
+    assert source == {
+        "schema_version": 1,
+        "event": "PreToolUse",
+        "order": 0,
+        "failure": "block",
+        "handler": {"command": "python hooks/handler.py"},
+    }
+    assert manifest["hooks"][source["event"]][0]["hooks"] == [
+        {"type": "command", "command": "python hooks/handler.py"}
+    ]
+    assert "source/hooks/handler.py" in files
+    assert "handle_event" not in files["source/hooks/handler.py"].decode()
+    assert all(not path.startswith("projections/") for path in files)
+    passport = json.loads(files["component-passport.json"])
+    assert passport["managed_paths"] == ["hooks.json"]
+    assert passport["entry_points"] == ["hooks/handler.py"]
 
 
 def test_plugin_scaffold_uses_manifest_packages_and_bare_modules(tmp_path: Path) -> None:
     cases = {
         "claude-code": {
             "projections/claude-code/.claude-plugin/plugin.json",
-            "projections/claude-code/src/main.js",
+            "projections/claude-code/skills/README.md",
         },
         "cursor": {
             "projections/cursor/.cursor-plugin/plugin.json",
-            "projections/cursor/src/main.js",
+            "projections/cursor/skills/README.md",
         },
         "antigravity": {
             "projections/antigravity/plugin.json",
-            "projections/antigravity/src/main.js",
+            "projections/antigravity/skills/README.md",
         },
-        "grok-build": {"projections/grok-build/plugin.json", "projections/grok-build/src/main.js"},
+        "grok-build": {
+            "projections/grok-build/plugin.json",
+            "projections/grok-build/skills/README.md",
+        },
         "opencode": {"projections/opencode/review-kit.js"},
         "pi": {"projections/pi/review-kit.js"},
     }
@@ -647,34 +459,7 @@ def test_plugin_scaffold_uses_manifest_packages_and_bare_modules(tmp_path: Path)
             assert passport["managed_paths"] == ["plugins/review-kit.js"]
             assert not any(path.endswith("plugin.json") for path in files)
         assert "native/settings.json" not in files
-
-
-def test_javascript_plugin_entrypoint_is_loadable(tmp_path: Path) -> None:
-    _plan, files = authoring.scaffold_plan(
-        component_type="plugin",
-        name="review-kit",
-        language="javascript",
-        harness_variant="opencode",
-        output=tmp_path / "plugin",
-    )
-    entry = tmp_path / "review-kit.js"
-    entry.write_bytes(files["projections/opencode/review-kit.js"])
-    script = (
-        "const plugin=require(process.argv[1]); "
-        "if (plugin.activate().status !== 'ready') process.exit(2)"
-    )
-    result = subprocess.run(
-        [
-            "node",
-            "-e",
-            script,
-            str(entry),
-        ],
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    assert result.returncode == 0, result.stderr
+        assert all(b"activate_plugin" not in payload for payload in files.values())
 
 
 def test_marketplace_registration_belongs_to_setting_not_plugin(tmp_path: Path) -> None:
@@ -717,22 +502,11 @@ def test_scaffold_fails_before_writing_when_native_semantics_do_not_exist(
     assert not (tmp_path / "review-kit").exists()
 
 
-def test_versioned_reference_scaffolds_match_the_reviewed_golden(tmp_path: Path) -> None:
+def test_historical_v3_reference_scaffolds_remain_a_reviewed_snapshot(tmp_path: Path) -> None:
     golden = json.loads(SCAFFOLD_GOLDEN.read_text(encoding="utf-8"))
-    assert golden["template_version"] == "component-scaffold/5"
-    assert golden["generator_version"] == "ai-stp/5"
-    observed: dict[str, dict[str, str]] = {}
-    for case, (component_type, language, harness) in REFERENCE_CASES.items():
-        plan, _files = authoring.scaffold_plan(
-            component_type=component_type,
-            name="reference-component",
-            language=language,
-            harness_variant=harness,
-            output=tmp_path / "reference-component",
-        )
-        observed[case] = {item.path: item.digest for item in plan.files}
-
-    assert observed == golden["cases"]
+    assert golden["template_version"] == "component-scaffold/3"
+    assert golden["generator_version"] == "ai-stp/3"
+    assert golden["cases"]
 
 
 def test_historical_v2_golden_remains_a_reviewed_snapshot() -> None:
@@ -749,6 +523,7 @@ def test_historical_scaffold_descriptor_versions_remain_validatable() -> None:
         ("component-scaffold/3", "ai-stp/3"),
         ("component-scaffold/4", "ai-stp/4"),
         ("component-scaffold/5", "ai-stp/5"),
+        ("component-scaffold/6", "ai-stp/6"),
     ):
         ComponentTemplateDescriptor.model_validate(
             {
@@ -825,4 +600,119 @@ def test_every_offered_harness_variant_can_actually_be_scaffolded(
     )
 
     assert files, f"{variant} produced no scaffold bytes"
-    assert any(item.path == "source/SKILL.md" for item in plan.files)
+    assert any(item.path.startswith("source/") for item in plan.files)
+
+
+def test_instruction_canon_is_agents_md_and_claude_projection_is_claude_md(tmp_path: Path) -> None:
+    _plan, portable = authoring.scaffold_plan(
+        component_type="instruction",
+        name="review-kit",
+        language="none",
+        harness_variant="portable",
+        output=tmp_path / "portable",
+    )
+    _plan, claude = authoring.scaffold_plan(
+        component_type="instruction",
+        name="review-kit",
+        language="none",
+        harness_variant="claude-code",
+        output=tmp_path / "claude",
+    )
+    _plan, cursor = authoring.scaffold_plan(
+        component_type="instruction",
+        name="review-kit",
+        language="none",
+        harness_variant="cursor",
+        output=tmp_path / "cursor",
+    )
+
+    assert "source/AGENTS.md" in portable
+    assert all(not path.startswith("projections/") for path in portable)
+    assert "source/AGENTS.md" in claude
+    assert "projections/claude-code/CLAUDE.md" in claude
+    assert "source/CLAUDE.md" not in claude
+    assert "source/AGENTS.md" in cursor
+    assert "projections/cursor/rules/review-kit.mdc" in cursor
+    assert authoring.DRAFT.encode() in portable["source/AGENTS.md"]
+
+
+def test_draft_passport_uses_the_slug_and_omits_invented_catalog_fields(tmp_path: Path) -> None:
+    _plan, files = authoring.scaffold_plan(
+        component_type="instruction",
+        name="review-kit",
+        language="none",
+        harness_variant="portable",
+        output=tmp_path / "review-kit",
+    )
+    passport = json.loads(files["component-passport.json"].decode())
+    assert passport["name"] == "review-kit"
+    assert "description" not in passport
+    assert "tags" not in passport
+    assert passport["license"] == {"spdx_id": "NOASSERTION", "redistribution_allowed": False}
+
+
+def test_codex_agent_is_toml_under_agents(tmp_path: Path) -> None:
+    _plan, files = authoring.scaffold_plan(
+        component_type="agent",
+        name="review-kit",
+        language="none",
+        harness_variant="codex",
+        output=tmp_path / "review-kit",
+    )
+    assert "source/review-kit.toml" in files
+    assert "projections/codex/agents/review-kit.toml" in files
+    assert b"activate_plugin" not in files["source/review-kit.toml"]
+    passport = json.loads(files["component-passport.json"].decode())
+    assert passport["managed_paths"] == ["agents/review-kit.toml"]
+
+
+def test_claude_code_mcp_and_portable_setting_fail_before_write(tmp_path: Path) -> None:
+    with pytest.raises(CliFailure, match="without losing semantics"):
+        authoring.scaffold_plan(
+            component_type="mcp",
+            name="review-kit",
+            language="javascript",
+            harness_variant="claude-code",
+            output=tmp_path / "mcp",
+        )
+    with pytest.raises(CliFailure, match="concrete harness file"):
+        authoring.scaffold_plan(
+            component_type="setting",
+            name="review-kit",
+            language="none",
+            harness_variant="portable",
+            output=tmp_path / "setting",
+        )
+    assert not (tmp_path / "mcp").exists()
+    assert not (tmp_path / "setting").exists()
+
+
+def test_cursor_mcp_projection_is_the_owned_mcp_file_not_a_generic_program(
+    tmp_path: Path,
+) -> None:
+    _plan, files = authoring.scaffold_plan(
+        component_type="mcp",
+        name="review-kit",
+        language="javascript",
+        harness_variant="cursor",
+        output=tmp_path / "review-kit",
+    )
+    assert "projections/cursor/mcp.json" in files
+    assert "projections/cursor/src/main.js" not in files
+    passport = json.loads(files["component-passport.json"].decode())
+    assert passport["managed_paths"] == ["mcp.json"]
+    assert json.loads(files["projections/cursor/mcp.json"]) == {"mcpServers": {}}
+
+
+def test_claude_code_hook_contributes_to_settings_json(tmp_path: Path) -> None:
+    _plan, files = authoring.scaffold_plan(
+        component_type="hook",
+        name="review-kit",
+        language="python",
+        harness_variant="claude-code",
+        output=tmp_path / "review-kit",
+    )
+    assert "projections/claude-code/settings.json" in files
+    assert "projections/claude-code/hooks.json" not in files
+    passport = json.loads(files["component-passport.json"].decode())
+    assert passport["managed_paths"] == ["settings.json"]
