@@ -16,6 +16,7 @@ from ai_stp_cli.local.multi_root_orchestrator import Coordinator
 from ai_stp_cli.local.passports import moment
 from ai_stp_contracts.machine_help import MultiRootChildView, MultiRootTransactionView
 from ai_stp_foundation.digests import digest_canonical
+from ai_stp_foundation.ids import new_id
 
 _TRUST_PARAMETERS = (
     "provider-manifest",
@@ -232,39 +233,19 @@ def _compensate(
         if current.state != installation.STATE_VERIFIED:
             continue
         original = installation.plan(coordinator.connection, child.operation_id)
-        project, harness = installation.target_pair(original.target_id)
-        undo_id = child.undo_operation_id
+        undo_id = _ensure_compensation_undo(
+            coordinator,
+            transaction_id,
+            child,
+            original,
+            backup_ref=backup_ref,
+            provider=provider,
+            parameters=parameters,
+        )
         if undo_id is None:
-            rollback_parameters: dict[str, object] = {
-                "project": project,
-                "harness": harness,
-                "provider": provider,
-                "protocol-version": 3,
-                "target": original.provider_target,
-                "scope": child.scope,
-                "action": "rollback",
-                "backup-ref": backup_ref,
-            }
-            _copy_trust(parameters, rollback_parameters)
-            try:
-                rollback = install.plan(rollback_parameters).payload
-            except CliFailure:
-                return _recovery_required(
-                    coordinator, transaction_id, "provider compensation did not verify"
-                )
-            undo_id = rollback.operation_id
-            coordinator.record_undo(
-                transaction_id,
-                child.operation_id,
-                undo_operation_id=undo_id,
-                at=moment(),
+            return _recovery_required(
+                coordinator, transaction_id, "provider compensation did not verify"
             )
-            try:
-                install.approve({"operation": undo_id, "plan-digest": rollback.plan_digest})
-            except CliFailure:
-                return _recovery_required(
-                    coordinator, transaction_id, "provider compensation did not verify"
-                )
         try:
             with install.transaction_child_access():
                 current_undo = journal.get(coordinator.connection, undo_id)
@@ -290,6 +271,68 @@ def _compensate(
             transaction_id, child.operation_id, backup_ref=backup_ref, at=moment()
         )
     return _view(coordinator.finish_rolled_back(transaction_id, at=moment()))
+
+
+def _ensure_compensation_undo(
+    coordinator: Coordinator,
+    transaction_id: str,
+    child: multi_root.Child,
+    original: installation.Plan,
+    *,
+    backup_ref: str,
+    provider: str,
+    parameters: Mapping[str, object],
+) -> str | None:
+    """Bind one undo operation id before any rollback effect, and reuse it."""
+    undo_id = child.undo_operation_id
+    if undo_id is None:
+        undo_id = new_id("operation")
+        coordinator.record_undo(
+            transaction_id,
+            child.operation_id,
+            undo_operation_id=undo_id,
+            at=moment(),
+        )
+    try:
+        held = installation.plan(coordinator.connection, undo_id)
+    except CliFailure:
+        held = None
+    if held is None:
+        project, harness = installation.target_pair(original.target_id)
+        rollback_parameters: dict[str, object] = {
+            "project": project,
+            "harness": harness,
+            "provider": provider,
+            "protocol-version": 3,
+            "target": original.provider_target,
+            "scope": child.scope,
+            "action": "rollback",
+            "backup-ref": backup_ref,
+            "operation-id": undo_id,
+        }
+        _copy_trust(parameters, rollback_parameters)
+        try:
+            rollback = install.plan(rollback_parameters).payload
+        except CliFailure:
+            return None
+        if rollback.operation_id != undo_id:
+            undo_id = rollback.operation_id
+            coordinator.record_undo(
+                transaction_id,
+                child.operation_id,
+                undo_operation_id=undo_id,
+                at=moment(),
+            )
+        digest = rollback.plan_digest
+    else:
+        digest = held.digest
+    current_undo = journal.get(coordinator.connection, undo_id)
+    if current_undo is None or current_undo.state == installation.STATE_PLANNED:
+        try:
+            install.approve({"operation": undo_id, "plan-digest": digest})
+        except CliFailure:
+            return None
+    return undo_id
 
 
 def _recovery_required(
