@@ -121,6 +121,10 @@ security:
     {{bunreq}}
     cd apps/web && bun run audit
 
+# Offline check of one `ai-stp-estate-release/1` record (`docs/contracts/estate-release.md`).
+estate-validate path:
+    {{run}} python -m release_scripts.validate_estate_record "{{path}}"
+
 # Deterministic safety evidence; the script disables external CLI and network.
 safety-benchmark *args:
     {{run}} python scripts/safety/benchmark_offline.py {{args}}

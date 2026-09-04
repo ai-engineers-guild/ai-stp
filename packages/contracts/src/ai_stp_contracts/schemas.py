@@ -69,6 +69,7 @@ from ai_stp_contracts.content import (
     StaffContentUnpublishResponse,
 )
 from ai_stp_contracts.deep_links import DeepLinkView
+from ai_stp_contracts.estate_release import EstateRelease
 from ai_stp_contracts.evaluation import SetupEvalPlan, SetupEvalProfile, SetupEvalResult
 from ai_stp_contracts.federation import (
     CatalogExternalCoordinate,
@@ -454,6 +455,7 @@ CLI_MODELS: Final[dict[str, ExportedSchema]] = {
     "cli-provider-replacement-plan": ProviderReplacementPlan,
     "cli-provider-replacement-result": ProviderReplacementResult,
     "cli-provider-trust": ProviderTrust,
+    "ai-stp-estate-release": EstateRelease,
     "cli-installation": InstallationView,
     "cli-installation-status": InstallationStatus,
     "cli-multi-root-transaction": MultiRootTransactionView,

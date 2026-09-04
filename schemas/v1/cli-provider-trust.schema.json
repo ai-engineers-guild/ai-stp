@@ -107,6 +107,53 @@
       ],
       "title": "TrustedBuildAttestation",
       "type": "object"
+    },
+    "TrustedIndexPublisher": {
+      "additionalProperties": true,
+      "description": "One PyPI project whose PEP 740 publisher this machine will bind (`ADR-0141`).",
+      "properties": {
+        "environment": {
+          "minLength": 1,
+          "title": "Environment",
+          "type": "string"
+        },
+        "pypi_project": {
+          "minLength": 1,
+          "title": "Pypi Project",
+          "type": "string"
+        },
+        "repository": {
+          "minLength": 1,
+          "title": "Repository",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "verified_publisher": {
+          "default": false,
+          "title": "Verified Publisher",
+          "type": "boolean"
+        },
+        "workflow": {
+          "minLength": 1,
+          "title": "Workflow",
+          "type": "string"
+        }
+      },
+      "required": [
+        "environment",
+        "pypi_project",
+        "repository",
+        "schema_version",
+        "verified_publisher",
+        "workflow"
+      ],
+      "title": "TrustedIndexPublisher",
+      "type": "object"
     }
   },
   "$id": "urn:ai-stp:schema:v1:cli-provider-trust",
@@ -156,6 +203,14 @@
         "$ref": "#/$defs/TrustedBuildAttestation"
       },
       "title": "Build Attestations",
+      "type": "array"
+    },
+    "index_publishers": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/TrustedIndexPublisher"
+      },
+      "title": "Index Publishers",
       "type": "array"
     },
     "known_sequence": {
@@ -228,6 +283,7 @@
     "allowed_publishers",
     "allowed_repositories",
     "build_attestations",
+    "index_publishers",
     "known_sequence",
     "minimum_sequence",
     "pinned_releases",

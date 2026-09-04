@@ -1,6 +1,6 @@
 ---
 description: "SPEC-008: Providers, installation and recovery."
-last_verified: "2026-09-03"
+last_verified: "2026-09-04"
 ---
 
 # SPEC-008: Providers, installation and recovery

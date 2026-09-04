@@ -2052,6 +2052,19 @@ class TrustedBuildAttestation(BaseModel):
     verified_publisher: bool = False
 
 
+class TrustedIndexPublisher(BaseModel):
+    """One PyPI project whose PEP 740 publisher this machine will bind (`ADR-0141`)."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    pypi_project: Annotated[str, Field(min_length=1)]
+    repository: Annotated[str, Field(min_length=1)]
+    workflow: Annotated[str, Field(min_length=1)]
+    environment: Annotated[str, Field(min_length=1)]
+    verified_publisher: bool = False
+
+
 class ProviderTrust(BaseModel):
     """What this machine will accept from a provider, and why (`SPEC-008` REQ-811).
 
@@ -2087,6 +2100,10 @@ class ProviderTrust(BaseModel):
     #: repositories are trusted. Reporting the empty halves alone told an agent
     #: that nothing was installable, which was the opposite of the truth.
     build_attestations: list[TrustedBuildAttestation] = []
+
+    #: PyPI projects whose PEP 740 publisher triple may bind a wheel. Empty is
+    #: the rollback: every index-delivered provider stays `unverified`.
+    index_publishers: list[TrustedIndexPublisher] = []
 
     #: Present only when a manifest was given to check. `null` means the policy
     #: was reported and nothing was verified, which is not the same as accepted.
