@@ -50,14 +50,25 @@ export function SearchableMultiSelect({
   }
 
   return (
-    <details className="border-border bg-background relative min-w-0 rounded-sm border">
+    <details
+      name="catalog-filter"
+      onToggle={(event) => {
+        if (!event.currentTarget.open) return;
+        document
+          .querySelectorAll<HTMLDetailsElement>('details[name="catalog-filter"][open]')
+          .forEach((details) => {
+            if (details !== event.currentTarget) details.open = false;
+          });
+      }}
+      className="border-border bg-background relative min-w-0 rounded-sm border"
+    >
       <summary className="focus-visible:ring-ring flex min-h-11 min-w-0 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm marker:content-none focus-visible:ring-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
         <span className="min-w-0 truncate">
           {label}
           {checked.length > 0 ? ` (${checked.length})` : ""}
         </span>
       </summary>
-      <div className="bg-popover border-border absolute top-[calc(100%+0.375rem)] right-0 left-0 z-50 min-w-0 space-y-2 rounded-sm border p-3 shadow-md">
+      <div className="bg-popover border-border relative z-50 min-w-0 space-y-2 rounded-sm border p-3 shadow-md md:absolute md:top-[calc(100%+0.375rem)] md:right-0 md:left-0">
         <label htmlFor={id} className="sr-only">
           {searchLabel}
         </label>
