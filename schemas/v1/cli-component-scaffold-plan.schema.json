@@ -5,7 +5,8 @@
         "ai-stp/1",
         "ai-stp/2",
         "ai-stp/3",
-        "ai-stp/4"
+        "ai-stp/4",
+        "ai-stp/5"
       ],
       "type": "string"
     },
@@ -57,7 +58,7 @@
         },
         "generator_version": {
           "$ref": "#/$defs/ComponentGeneratorVersion",
-          "default": "ai-stp/4"
+          "default": "ai-stp/5"
         },
         "harness_variant": {
           "anyOf": [
@@ -92,7 +93,7 @@
         },
         "template_version": {
           "$ref": "#/$defs/ComponentTemplateVersion",
-          "default": "component-scaffold/4"
+          "default": "component-scaffold/5"
         }
       },
       "required": [
@@ -109,7 +110,8 @@
         "component-scaffold/1",
         "component-scaffold/2",
         "component-scaffold/3",
-        "component-scaffold/4"
+        "component-scaffold/4",
+        "component-scaffold/5"
       ],
       "type": "string"
     },

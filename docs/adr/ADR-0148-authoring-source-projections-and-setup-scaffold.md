@@ -1,6 +1,6 @@
 ---
 description: "Decision to scaffold components as source/ plus projections/<harness>/, initialize git as an apply side-effect, and add a physical setup authoring tree distinct from compose and install."
-last_verified: "2026-09-03"
+last_verified: "2026-09-04"
 ---
 
 # ADR-0148: Authoring trees are source and projections, and a setup is its own git project
@@ -52,7 +52,7 @@ SQLite, and keeps install as a public provider write.
 
 ## Decision
 
-1. **Component wrapper.** `component-scaffold/4` writes `README.md`,
+1. **Component wrapper.** The current writer (`component-scaffold/5`) writes `README.md`,
    `component-passport.json`, `eval-profile.json`, `.ai-stp-template.json`,
    `.gitignore`, `source/`, and, when the variant is a concrete harness,
    `projections/<harness>/`. It does not write `native/`,
@@ -109,11 +109,14 @@ SQLite, and keeps install as a public provider write.
 
 ## Consequences
 
-- Template version `component-scaffold/4` and generator `ai-stp/4` are
-  current for components. The merged tree had already assigned `/3` to the
+- Template version `component-scaffold/5` and generator `ai-stp/5` are
+  current for components. `/4` named the first source/projection wrapper after
+  the merge collision; remaining ADR bytes (instruction canon, refusals, draft
+  passport, plugin note, Codex agent TOML) required a new identity rather than
+  silently redefining `/4`. The merged tree had already assigned `/3` to the
   older wrapper containing `component.json`, the safety/publication wrapper files, and
   `adaptations/<harness>/`; those historical bytes are not silently redefined.
-  `setup-scaffold/2` embeds the `/4` component wrapper. Earlier descriptor
+  `setup-scaffold/3` embeds the `/5` component wrapper. Earlier descriptor
   versions remain validatable against their schemas.
 - `ComponentScaffoldResult` gains `git_initialized`, `git_commit`, and
   `git_reason` because the result schema forbids extra fields.

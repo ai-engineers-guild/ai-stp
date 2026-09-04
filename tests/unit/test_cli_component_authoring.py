@@ -9,6 +9,7 @@ import pytest
 from ai_stp_cli.commands import component
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import authoring
+from ai_stp_cli.local.composition import rule_for
 from ai_stp_contracts.authoring import (
     ComponentScaffoldFile,
     ComponentScaffoldPlan,
@@ -22,21 +23,22 @@ from ai_stp_foundation.digests import digest_bytes
 SCAFFOLD_GOLDEN = Path(__file__).parents[1] / "golden" / "cli" / "component-scaffold-v3.json"
 HISTORICAL_V2_GOLDEN = Path(__file__).parents[1] / "golden" / "cli" / "component-scaffold-v2.json"
 
-#: Kinds a harness has no projection for, so scaffolding one is refused rather
-#: than producing a component nothing could install.
-#:
-#: `claude-code/hook` left on 2026-08-31 and `opencode` kept its own: hooks for
-#: claude-code are the `hooks` key inside the owned `settings.json`, which
-#: `ADR-0129` compiles as a contribution to that file. Opencode's hook has no
-#: owned host of that shape, so its refusal stands for its own reason rather
-#: than by sharing a row.
-UNSUPPORTED_NATIVE_KINDS = {
-    "codex": {"plugin"},
-    "pi": {"hook", "agent"},
-    "opencode": {"hook"},
-    "grok-build": {"command"},
-    "cursor": {"agent"},
-}
+
+def _scaffold_is_unsupported(component_type: str, language: str, harness: str) -> bool:
+    """Refuse when the projection registry has no native surface.
+
+    Portable settings are refused separately: a setting is a harness file.
+    OpenCode/Pi plugins are JS/TS modules, so other languages fail before write.
+    """
+    if harness == "portable":
+        return component_type == "setting"
+    if rule_for(component_type, harness) is None:
+        return True
+    return (
+        component_type == "plugin"
+        and harness in {"opencode", "pi"}
+        and language not in {"javascript", "typescript"}
+    )
 
 
 @pytest.mark.parametrize("component_type", sorted(authoring.TYPES))
@@ -162,13 +164,12 @@ def test_template_reader_refuses_links_and_oversize_files(tmp_path: Path) -> Non
 def test_scaffold_matrix_produces_valid_exact_artifacts(
     tmp_path: Path, component_type: str, language: str, harness: str
 ) -> None:
-    unsupported = component_type in UNSUPPORTED_NATIVE_KINDS.get(harness, set()) or (
-        component_type == "plugin"
-        and harness in {"opencode", "pi"}
-        and language not in {"javascript", "typescript"}
-    )
+    unsupported = _scaffold_is_unsupported(component_type, language, harness)
     if unsupported:
-        with pytest.raises(CliFailure, match=r"cannot be projected|JavaScript or TypeScript"):
+        with pytest.raises(
+            CliFailure,
+            match=r"cannot be projected|JavaScript or TypeScript|concrete harness file",
+        ):
             authoring.scaffold_plan(
                 component_type=component_type,
                 name="review-kit",
@@ -197,8 +198,8 @@ def test_scaffold_matrix_produces_valid_exact_artifacts(
     )
     assert plan.publication_ready is False
     assert plan.requires_exact_source_before_publication is True
-    assert plan.descriptor.template_version == "component-scaffold/4"
-    assert plan.descriptor.generator_version == "ai-stp/4"
+    assert plan.descriptor.template_version == "component-scaffold/5"
+    assert plan.descriptor.generator_version == "ai-stp/5"
     assert any(path.startswith("projections/") for path in files) is (harness != "portable")
     assert all(not path.startswith("native/") for path in files)
     assert ".ai-stp-template.json" in files
@@ -265,7 +266,7 @@ def test_scaffold_commands_require_exact_plan_and_never_overwrite(tmp_path: Path
     ).payload
     assert result.output == str(output)
     assert result.files_written == len(plan.files)
-    assert result.template_version == "component-scaffold/4"
+    assert result.template_version == "component-scaffold/5"
     if os.name != "nt":
         assert all(
             path.stat().st_mode & 0o777 == 0o600
@@ -343,6 +344,9 @@ def test_scaffold_skill_declares_the_projection_root_not_the_entry_file(tmp_path
     passport = json.loads(files["component-passport.json"].decode())
     assert passport["managed_paths"] == ["skills/review-kit"]
     assert passport["entry_points"] == ["SKILL.md"]
+    assert passport["name"] == "review-kit"
+    assert "tags" not in passport
+    assert files["source/SKILL.md"].decode().startswith("---\nname: review-kit\n")
 
 
 @pytest.mark.parametrize(
@@ -370,7 +374,8 @@ def test_hook_scaffold_preserves_source_event_order_and_failure_in_native_form(
     )
 
     source = json.loads(files["source/hook-source.json"])
-    manifest = json.loads(files[f"projections/{harness}/hooks.json"])
+    manifest_rel = "config/hooks.json" if harness == "antigravity" else "hooks.json"
+    manifest = json.loads(files[f"projections/{harness}/{manifest_rel}"])
     projected = manifest["hooks"][source["event"]]
     assert source == {
         "schema_version": 1,
@@ -390,17 +395,20 @@ def test_plugin_scaffold_uses_manifest_packages_and_bare_modules(tmp_path: Path)
     cases = {
         "claude-code": {
             "projections/claude-code/.claude-plugin/plugin.json",
-            "projections/claude-code/src/main.js",
+            "projections/claude-code/skills/README.md",
         },
         "cursor": {
             "projections/cursor/.cursor-plugin/plugin.json",
-            "projections/cursor/src/main.js",
+            "projections/cursor/skills/README.md",
         },
         "antigravity": {
             "projections/antigravity/plugin.json",
-            "projections/antigravity/src/main.js",
+            "projections/antigravity/skills/README.md",
         },
-        "grok-build": {"projections/grok-build/plugin.json", "projections/grok-build/src/main.js"},
+        "grok-build": {
+            "projections/grok-build/plugin.json",
+            "projections/grok-build/skills/README.md",
+        },
         "opencode": {"projections/opencode/review-kit.js"},
         "pi": {"projections/pi/review-kit.js"},
     }
@@ -420,6 +428,7 @@ def test_plugin_scaffold_uses_manifest_packages_and_bare_modules(tmp_path: Path)
             assert passport["managed_paths"] == ["plugins/review-kit.js"]
             assert not any(path.endswith("plugin.json") for path in files)
         assert "native/settings.json" not in files
+        assert all(b"activate_plugin" not in payload for payload in files.values())
 
 
 def test_marketplace_registration_belongs_to_setting_not_plugin(tmp_path: Path) -> None:
@@ -482,6 +491,7 @@ def test_historical_scaffold_descriptor_versions_remain_validatable() -> None:
         ("component-scaffold/2", "ai-stp/2"),
         ("component-scaffold/3", "ai-stp/3"),
         ("component-scaffold/4", "ai-stp/4"),
+        ("component-scaffold/5", "ai-stp/5"),
     ):
         ComponentTemplateDescriptor.model_validate(
             {
@@ -559,3 +569,118 @@ def test_every_offered_harness_variant_can_actually_be_scaffolded(
 
     assert files, f"{variant} produced no scaffold bytes"
     assert any(item.path.startswith("source/") for item in plan.files)
+
+
+def test_instruction_canon_is_agents_md_and_claude_projection_is_claude_md(tmp_path: Path) -> None:
+    _plan, portable = authoring.scaffold_plan(
+        component_type="instruction",
+        name="review-kit",
+        language="none",
+        harness_variant="portable",
+        output=tmp_path / "portable",
+    )
+    _plan, claude = authoring.scaffold_plan(
+        component_type="instruction",
+        name="review-kit",
+        language="none",
+        harness_variant="claude-code",
+        output=tmp_path / "claude",
+    )
+    _plan, cursor = authoring.scaffold_plan(
+        component_type="instruction",
+        name="review-kit",
+        language="none",
+        harness_variant="cursor",
+        output=tmp_path / "cursor",
+    )
+
+    assert "source/AGENTS.md" in portable
+    assert all(not path.startswith("projections/") for path in portable)
+    assert "source/AGENTS.md" in claude
+    assert "projections/claude-code/CLAUDE.md" in claude
+    assert "source/CLAUDE.md" not in claude
+    assert "source/AGENTS.md" in cursor
+    assert "projections/cursor/rules/review-kit.mdc" in cursor
+    assert authoring.DRAFT.encode() in portable["source/AGENTS.md"]
+
+
+def test_draft_passport_uses_the_slug_and_omits_invented_catalog_fields(tmp_path: Path) -> None:
+    _plan, files = authoring.scaffold_plan(
+        component_type="instruction",
+        name="review-kit",
+        language="none",
+        harness_variant="portable",
+        output=tmp_path / "review-kit",
+    )
+    passport = json.loads(files["component-passport.json"].decode())
+    assert passport["name"] == "review-kit"
+    assert "description" not in passport
+    assert "tags" not in passport
+    assert passport["license"] == {"spdx_id": "NOASSERTION", "redistribution_allowed": False}
+
+
+def test_codex_agent_is_toml_under_agents(tmp_path: Path) -> None:
+    _plan, files = authoring.scaffold_plan(
+        component_type="agent",
+        name="review-kit",
+        language="none",
+        harness_variant="codex",
+        output=tmp_path / "review-kit",
+    )
+    assert "source/review-kit.toml" in files
+    assert "projections/codex/agents/review-kit.toml" in files
+    assert b"activate_plugin" not in files["source/review-kit.toml"]
+    passport = json.loads(files["component-passport.json"].decode())
+    assert passport["managed_paths"] == ["agents/review-kit.toml"]
+
+
+def test_claude_code_mcp_and_portable_setting_fail_before_write(tmp_path: Path) -> None:
+    with pytest.raises(CliFailure, match="without losing semantics"):
+        authoring.scaffold_plan(
+            component_type="mcp",
+            name="review-kit",
+            language="javascript",
+            harness_variant="claude-code",
+            output=tmp_path / "mcp",
+        )
+    with pytest.raises(CliFailure, match="concrete harness file"):
+        authoring.scaffold_plan(
+            component_type="setting",
+            name="review-kit",
+            language="none",
+            harness_variant="portable",
+            output=tmp_path / "setting",
+        )
+    assert not (tmp_path / "mcp").exists()
+    assert not (tmp_path / "setting").exists()
+
+
+def test_cursor_mcp_projection_is_the_owned_mcp_file_not_a_generic_program(
+    tmp_path: Path,
+) -> None:
+    _plan, files = authoring.scaffold_plan(
+        component_type="mcp",
+        name="review-kit",
+        language="javascript",
+        harness_variant="cursor",
+        output=tmp_path / "review-kit",
+    )
+    assert "projections/cursor/mcp.json" in files
+    assert "projections/cursor/src/main.js" not in files
+    passport = json.loads(files["component-passport.json"].decode())
+    assert passport["managed_paths"] == ["mcp.json"]
+    assert json.loads(files["projections/cursor/mcp.json"]) == {"mcpServers": {}}
+
+
+def test_claude_code_hook_contributes_to_settings_json(tmp_path: Path) -> None:
+    _plan, files = authoring.scaffold_plan(
+        component_type="hook",
+        name="review-kit",
+        language="python",
+        harness_variant="claude-code",
+        output=tmp_path / "review-kit",
+    )
+    assert "projections/claude-code/settings.json" in files
+    assert "projections/claude-code/hooks.json" not in files
+    passport = json.loads(files["component-passport.json"].decode())
+    assert passport["managed_paths"] == ["settings.json"]

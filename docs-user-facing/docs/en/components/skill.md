@@ -74,7 +74,7 @@ when portable and `projections/<harness>/` when a harness was selected,
 not the whole tree.
 
 ```text
-playwright-checks/                 # component-scaffold/3
+playwright-checks/                 # component-scaffold/5
 ├── .ai-stp-template.json
 ├── .gitignore
 ├── README.md

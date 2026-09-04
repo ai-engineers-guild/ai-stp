@@ -49,7 +49,7 @@ ai-stp component scaffold apply \
 записи. `setting` требует конкретный харнесс. Apply инициализирует git,
 если каталог ещё не внутри worktree; git не входит в digest плана.
 
-Каталог `component-scaffold/3` содержит:
+Каталог `component-scaffold/5` содержит:
 
 ```text
 playwright-checks/

@@ -65,7 +65,7 @@ concrete harness: portable is refused. Claude Code projects
 `opencode.json`.
 
 ```text
-strict-mode/                       # component-scaffold/3
+strict-mode/                       # component-scaffold/5
 ├── .ai-stp-template.json
 ├── .gitignore
 ├── README.md

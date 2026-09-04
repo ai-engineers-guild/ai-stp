@@ -69,7 +69,7 @@ portable and `projections/<harness>/` when a harness was selected, not
 the whole tree.
 
 ```text
-pre-tool-check/                    # component-scaffold/3
+pre-tool-check/                    # component-scaffold/5
 ├── .ai-stp-template.json
 ├── .gitignore
 ├── README.md

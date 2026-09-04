@@ -13,6 +13,7 @@ from typing import Final, cast
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import harness_catalog
+from ai_stp_cli.local.components import Rule
 from ai_stp_cli.paths import redact_home
 from ai_stp_contracts.authoring import (
     AUTHORING_LANGUAGES,
@@ -322,9 +323,7 @@ def _scaffold_files(name: str, descriptor: ComponentTemplateDescriptor) -> dict[
     component_type = descriptor.component_type
     native, entry, managed, projection, authoring_source = _native_source(name, descriptor)
     patch_input: dict[str, JsonValue] = {
-        "name": name.replace("-", " ").title(),
-        "description": f"Authoring draft for the {name} {component_type} component.",
-        "tags": ["devops"],
+        "name": name,
         "component_type": component_type,
         "projection_kind": projection,
         "provides_capabilities": [],
@@ -351,6 +350,8 @@ def _scaffold_files(name: str, descriptor: ComponentTemplateDescriptor) -> dict[
         "harness_variants": [descriptor.harness_variant],
         "supported_harness_versions": [],
     }
+    if component_type == "skill":
+        patch_input["description"] = f"{DRAFT} replace with the skill description."
     if descriptor.harness_variant != "portable":
         patch_input["harness_id"] = descriptor.harness_variant
     patch = ComponentPassportPatch.model_validate(patch_input)
@@ -361,6 +362,16 @@ def _scaffold_files(name: str, descriptor: ComponentTemplateDescriptor) -> dict[
     source_files = dict(authoring_source)
     if not source_files:
         source_files = dict(native)
+    if variant == "portable":
+        layout_help = (
+            "This portable scaffold has no `projections/` directory. "
+            "Edit `source/`. Discover and adopt copy `source/`."
+        )
+    else:
+        layout_help = (
+            f"Edit `source/`. Generated native bytes belong under `{projection_root}/` "
+            "and are never the source of truth. Discover and adopt copy that projection."
+        )
     files: dict[str, bytes] = {
         ".ai-stp-template.json": canonize(cast(JsonValue, descriptor.model_dump(mode="json"))),
         ".gitignore": GITIGNORE,
@@ -374,8 +385,7 @@ def _scaffold_files(name: str, descriptor: ComponentTemplateDescriptor) -> dict[
             f"# {name}\n\n{DRAFT} replace this text with the component purpose.\n\n"
             f"{component_type} scaffold generated from "
             f"`{descriptor.template_version}`.\n\n"
-            "Edit `source/`. Generated native bytes belong under "
-            f"`{projection_root}/` for a concrete harness and are never the source of truth.\n\n"
+            f"{layout_help}\n\n"
             "Before publication, replace every TODO marker, record exact source and license "
             "facts in `component-passport.json`, validate the draft, release an immutable "
             "component version, and publish that exact version.\n"
@@ -399,45 +409,83 @@ def _native_source(
 
     component_type = descriptor.component_type
     harness = descriptor.harness_variant
-    rule = None if harness == "portable" else composition.rule_for(component_type, harness)
-    if harness != "portable" and rule is None and component_type != "mcp":
-        raise _failure(
-            f"{component_type} cannot be projected to {harness} without losing semantics"
+    if harness == "portable":
+        if component_type == "setting":
+            raise _failure("a setting requires a concrete harness file")
+        rule = None
+    else:
+        rule = composition.rule_for(component_type, harness)
+        if rule is None:
+            raise _failure(
+                f"{component_type} cannot be projected to {harness} without losing semantics"
+            )
+    if component_type == "instruction":
+        source = {"AGENTS.md": _draft_markdown(name, "instruction")}
+        if rule is None:
+            return {}, "AGENTS.md", "instructions/AGENTS.md", "native_files", source
+        path = _instruction_native_path(rule, name)
+        return (
+            {path: source["AGENTS.md"]},
+            PurePosixPath(path).name,
+            path,
+            rule.projection_kind,
+            source,
         )
+    if component_type == "skill":
+        payload = _skill_markdown(name)
+        source = {"SKILL.md": payload}
+        if rule is None:
+            return {}, "SKILL.md", f"skills/{name}", "native_files", source
+        path = f"{rule.relative}/{name}/SKILL.md"
+        return {path: payload}, "SKILL.md", f"{rule.relative}/{name}", rule.projection_kind, source
+    if component_type in {"command", "agent"}:
+        if component_type == "agent" and harness == "codex":
+            leaf = f"{name}.toml"
+            payload = _codex_agent_toml(name)
+        else:
+            leaf = f"{name}.md"
+            payload = _draft_markdown(name, component_type)
+        source = {leaf: payload}
+        if rule is None:
+            root = "commands" if component_type == "command" else "agents"
+            return {}, leaf, f"{root}/{leaf}", "native_files", source
+        path = rule.relative if rule.shape == "file" else f"{rule.relative}/{leaf}"
+        return {path: payload}, PurePosixPath(path).name, path, rule.projection_kind, source
+    if component_type == "setting":
+        if rule is None:
+            raise _failure("a setting requires a concrete harness file")
+        leaf = PurePosixPath(rule.relative).name
+        payload = _setting_payload(leaf)
+        source = {leaf: payload}
+        return {rule.relative: payload}, leaf, rule.relative, rule.projection_kind, source
     if component_type == "plugin" and harness in {"opencode", "pi"}:
         if descriptor.language not in {"javascript", "typescript"}:
             raise _failure(f"{harness} plugins are JavaScript or TypeScript modules")
         suffix = ".js" if descriptor.language == "javascript" else ".ts"
         entry = f"{name}{suffix}"
-        native = {entry: _program(name, descriptor.language, "activate_plugin")}
+        native = {entry: _program(name, descriptor.language, "handle_request")}
         managed = f"{rule.relative}/{entry}" if rule is not None else f"plugins/{entry}"
         projection = rule.projection_kind if rule is not None else "native_files"
-        return native, entry, managed, projection, {}
+        return native, entry, managed, projection, {entry: native[entry]}
     if component_type == "plugin":
-        entry = _program_entry(name, descriptor.language)
         manifest = {
             "claude-code": ".claude-plugin/plugin.json",
             "cursor": ".cursor-plugin/plugin.json",
         }.get(harness, "plugin.json")
+        note = (
+            f"# {name} skills\n\n"
+            f"{DRAFT} add skill files this plugin ships. "
+            "Marketplace registration is a separate setting, not this plugin.\n"
+        ).encode()
         native = {
-            manifest: canonize(
-                cast(
-                    JsonValue,
-                    {
-                        "name": name,
-                        "version": "0.1.0",
-                        "description": f"Native {harness} plugin {name}",
-                    },
-                )
-            ),
-            entry: _program(name, descriptor.language, "activate_plugin"),
+            manifest: canonize(cast(JsonValue, {"name": name, "version": "0.1.0"})),
+            "skills/README.md": note,
         }
         managed = f"plugins/{name}" if rule is None else f"{rule.relative}/{name}"
         projection = "plugin" if rule is None else rule.projection_kind
-        return native, entry, managed, projection, {}
+        return native, manifest, managed, projection, dict(native)
     if component_type == "hook":
         entry = _program_entry(name, descriptor.language, prefix="hooks/handler")
-        manifest = "hooks.json"
         native_root = "hooks" if rule is None else rule.relative
         command_path = _hook_command_path(
             native_root,
@@ -451,6 +499,7 @@ def _native_source(
             failure="block",
             handler=PortableHookHandler(command=command_path),
         )
+        manifest = "hooks.json" if rule is None or rule.shape != "file" else rule.relative
         native = {
             manifest: canonize(
                 {
@@ -479,50 +528,70 @@ def _native_source(
             projection,
             {"hook-source.json": canonize(cast(JsonValue, source.model_dump(mode="json")))},
         )
-
-    if component_type in {"instruction", "command", "agent", "setting"}:
-        if rule is not None and rule.shape == "file":
-            entry = PurePosixPath(rule.relative).name
-            managed = rule.relative
-        else:
-            entry = "settings.json" if component_type == "setting" else f"{name}.md"
-            root = {
-                "instruction": "instructions",
-                "command": "commands",
-                "agent": "agents",
-                "setting": "settings",
-            }[component_type]
-            managed = f"{root}/{entry}" if rule is None else f"{rule.relative}/{entry}"
-        payload = (
-            _setting_payload(entry)
-            if component_type == "setting"
-            else f"# {name}\n\nDescribe the bounded {component_type} behavior.\n".encode()
+    if component_type == "mcp":
+        if rule is None:
+            entry = _program_entry(name, descriptor.language)
+            program = _program(name, descriptor.language, "handle_request")
+            return {}, entry, "mcp.json", "native_files", {entry: program}
+        if rule.shape == "file":
+            payload = _mcp_file_stub(rule.relative)
+            leaf = PurePosixPath(rule.relative).name
+            return (
+                {rule.relative: payload},
+                leaf,
+                rule.relative,
+                rule.projection_kind,
+                {leaf: payload},
+            )
+        entry = _program_entry(name, descriptor.language)
+        program = _program(name, descriptor.language, "handle_request")
+        path = f"{rule.relative}/{name}/{entry}"
+        return (
+            {path: program},
+            entry,
+            f"{rule.relative}/{name}",
+            rule.projection_kind,
+            {entry: program},
         )
-        projection = "native_files" if rule is None else rule.projection_kind
-        return {entry: payload}, entry, managed, projection, {}
-
-    entry = (
-        _program_entry(name, descriptor.language) if descriptor.language != "none" else "SKILL.md"
-    )
-    native = _generic_native_files(name, descriptor, entry)
-    if rule is None:
-        managed = "mcp.json" if component_type == "mcp" else f"skills/{name}"
-        projection = "native_files"
-    elif rule.shape == "file":
-        managed = rule.relative
-        projection = rule.projection_kind
-    else:
-        managed = f"{rule.relative}/{name}"
-        projection = rule.projection_kind
-    return native, entry, managed, projection, {}
+    raise _failure("the component type is not in the closed eight-type vocabulary")
 
 
-def _generic_native_files(
-    name: str, descriptor: ComponentTemplateDescriptor, entry: str
-) -> dict[str, bytes]:
-    if descriptor.language == "none":
-        return {entry: f"# {name}\n\nDescribe the bounded skill behavior.\n".encode()}
-    return {entry: _program(name, descriptor.language, "handle_request")}
+def _instruction_native_path(rule: Rule, name: str) -> str:
+    if rule.shape == "file":
+        return rule.relative
+    suffix = ".mdc" if rule.harness_id == "cursor" else ".md"
+    return f"{rule.relative}/{name}{suffix}"
+
+
+def _draft_markdown(name: str, kind: str) -> bytes:
+    return f"# {name}\n\n{DRAFT} replace this text with the bounded {kind} behavior.\n".encode()
+
+
+def _skill_markdown(name: str) -> bytes:
+    description = f"{DRAFT} replace with the skill description."
+    body = f"{DRAFT} replace this text with the bounded skill behavior."
+    return (
+        f'---\nname: {name}\ndescription: "{description}"\n---\n\n# {name}\n\n{body}\n'
+    ).encode()
+
+
+def _codex_agent_toml(name: str) -> bytes:
+    return (
+        f"# {DRAFT} replace this draft Codex agent.\n"
+        f'name = "{name}"\n'
+        f'description = "{DRAFT} replace with the agent purpose."\n'
+    ).encode()
+
+
+def _mcp_file_stub(path: str) -> bytes:
+    leaf = PurePosixPath(path).name
+    if leaf.endswith((".json", ".jsonc")):
+        return canonize(cast(JsonValue, {"mcpServers": {}}))
+    if leaf.endswith(".toml"):
+        return f"# {DRAFT} add the MCP server this component owns.\n".encode()
+    if leaf.endswith(".js"):
+        return _program("mcp", "javascript", "handle_request")
+    raise _failure("the MCP surface has no supported deterministic syntax")
 
 
 def _program_entry(name: str, language: str, *, prefix: str = "src/main") -> str:

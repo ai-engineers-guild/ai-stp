@@ -146,7 +146,7 @@ last_verified: "2026-08-03"
 | [ADR-0145-multi-root-installation-is-a-consumer-owned-recoverable-transaction.md](ADR-0145-multi-root-installation-is-a-consumer-owned-recoverable-transaction.md) | Decision to coordinate multiple scope-specific provider operations as one recoverable consumer transaction. | 2026-09-03 |
 | [ADR-0146-one-public-cli-distribution-acquires-its-provider.md](ADR-0146-one-public-cli-distribution-acquires-its-provider.md) | Decision to ship the user-facing CLI as one Python distribution that acquires its attested provider. | 2026-09-04 |
 | [ADR-0147-the-test-gate-does-not-fail-on-a-coverage-percentage.md](ADR-0147-the-test-gate-does-not-fail-on-a-coverage-percentage.md) | Decision that Python coverage is reported by the gate and does not fail a run on a percentage. | 2026-09-04 |
-| [ADR-0148-authoring-source-projections-and-setup-scaffold.md](ADR-0148-authoring-source-projections-and-setup-scaffold.md) | Decision to scaffold components as source/ plus projections/<harness>/, initialize git as an apply side-effect, and add a physical setup authoring tree distinct from compose and install. | 2026-09-03 |
+| [ADR-0148-authoring-source-projections-and-setup-scaffold.md](ADR-0148-authoring-source-projections-and-setup-scaffold.md) | Decision to scaffold components as source/ plus projections/<harness>/, initialize git as an apply side-effect, and add a physical setup authoring tree distinct from compose and install. | 2026-09-04 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 
 <!-- END CONTENTS -->

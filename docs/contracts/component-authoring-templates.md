@@ -32,14 +32,15 @@ because the provider does not perform a hidden source build. The variant is `por
 or one of the harnesses in the closed registry. If the selected harness has no
 independent native form for the type, the plan fails closed before any write.
 
-The current `component-scaffold/4` directory contains `.ai-stp-template.json`,
+The current `component-scaffold/5` directory contains `.ai-stp-template.json`,
 `.gitignore`, `component-passport.json`, `eval-profile.json`, README, and editable
 source under `source/`. A concrete harness also receives a generated native layout
 under `projections/<harness>/`; a portable scaffold has no projection directory.
-The `/3` descriptor remains accepted as historical data, but its old wrapper bytes
-are never emitted under the `/4` identity.
+An `instruction` canon is `source/AGENTS.md`; Claude Code projections use
+`CLAUDE.md`. The `/3` and `/4` descriptors remain accepted as historical data,
+but their old wrapper bytes are never emitted under the `/5` identity.
 The passport is a local patch: it contains
-no invented source, secrets, or permission to redistribute. The author continues via
+no invented source, secrets, tags, or permission to redistribute. The author continues via
 `component passport validate`, local registration, and publication plan commands.
 
 For a hook, canonical `source/hook-source.json` stores the event, order, blocking failure

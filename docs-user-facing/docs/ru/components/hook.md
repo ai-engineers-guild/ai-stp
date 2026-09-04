@@ -49,7 +49,7 @@ Rust и Go отклоняются: provider не делает скрытую с�
 всё дерево.
 
 ```text
-pre-tool-check/                    # component-scaffold/3
+pre-tool-check/                    # component-scaffold/5
 ├── .ai-stp-template.json
 ├── .gitignore
 ├── README.md

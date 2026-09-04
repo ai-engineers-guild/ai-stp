@@ -73,7 +73,7 @@ project-conventions/
 а не всё дерево.
 
 ```text
-project-conventions/                 # component-scaffold/3
+project-conventions/                 # component-scaffold/5
 ├── .ai-stp-template.json
 ├── .gitignore
 ├── README.md

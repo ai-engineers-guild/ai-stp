@@ -49,7 +49,7 @@ independent native form for the type, the plan fails closed before any write.
 destination is not already inside a worktree; git is not part of the plan
 digest.
 
-The `component-scaffold/3` directory contains:
+The `component-scaffold/5` directory contains:
 
 ```text
 playwright-checks/

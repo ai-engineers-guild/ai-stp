@@ -64,7 +64,7 @@ password, private key или credential, оно идёт через поддер
 `settings.json`; Codex и Grok — `config.toml`; OpenCode — `opencode.json`.
 
 ```text
-strict-mode/                       # component-scaffold/3
+strict-mode/                       # component-scaffold/5
 ├── .ai-stp-template.json
 ├── .gitignore
 ├── README.md
