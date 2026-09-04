@@ -32,10 +32,12 @@ because the provider does not perform a hidden source build. The variant is `por
 or one of the harnesses in the closed registry. If the selected harness has no
 independent native form for the type, the plan fails closed before any write.
 
-The `component-scaffold/3` version directory contains `component.json`,
-`component-passport.json`, `eval-profile.json`, README, safety declaration,
-publication checklist, portable source under `source/`, one adaptation under
-`adaptations/<harness>/`, and a generated native layout under `projections/<harness>/`.
+The current `component-scaffold/4` directory contains `.ai-stp-template.json`,
+`.gitignore`, `component-passport.json`, `eval-profile.json`, README, and editable
+source under `source/`. A concrete harness also receives a generated native layout
+under `projections/<harness>/`; a portable scaffold has no projection directory.
+The `/3` descriptor remains accepted as historical data, but its old wrapper bytes
+are never emitted under the `/4` identity.
 The passport is a local patch: it contains
 no invented source, secrets, or permission to redistribute. The author continues via
 `component passport validate`, local registration, and publication plan commands.
@@ -46,15 +48,17 @@ deterministically produces `projections/<harness>/hooks.json` and an adjacent ex
 Manifest-directory plugins receive a product manifest. OpenCode and Pi receive a
 single JS/TS module without an invented manifest. Marketplace registration is not a
 plugin package: it is a separate `setting` that owns an entire native settings file.
-A Codex agent does not exist as a standalone component and is rejected instead of
-being converted into another type.
+Unsupported type/harness combinations are rejected instead of being converted into
+another type.
 
 ## Author path
 
 1. Run `component scaffold plan`, review the descriptor, every file, and digest,
    then pass unchanged inputs to `component scaffold apply` with the exact plan
    digest.
-2. Implement the behavior and fill in only confirmed patch facts. For `required_env`,
+   Apply initializes one Git root only when the destination is not already inside a
+   worktree; Git metadata is outside the deterministic plan and is reported separately.
+2. Implement the behavior in `source/` and fill in only confirmed patch facts. For `required_env`,
    record names and purposes, but not values. Add source only after pinning a public
    GitHub commit.
 3. Place the component in a supported native layout, run `component discover` and

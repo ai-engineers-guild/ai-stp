@@ -184,54 +184,16 @@ def apply_scaffold(
             "AI_STP_PRECONDITION_FAILED",
             "the scaffold bytes no longer match the exact plan",
         )
-    directories = sorted(
-        {
-            parent
-            for relative in files
-            for parent in PurePosixPath(relative).parents
-            if str(parent) != "."
-        },
-        key=lambda item: (len(item.parts), item.as_posix()),
-    )
-    created_files: list[Path] = []
-    created_directories: list[Path] = []
-    try:
-        try:
-            destination.mkdir(mode=0o700)
-        except OSError as error:
-            raise _failure("the scaffold destination could not be reserved safely") from error
-        created_directories.append(destination)
-        for relative in directories:
-            directory = destination / relative.as_posix()
-            directory.mkdir(mode=0o700)
-            created_directories.append(directory)
-        for relative, payload in files.items():
-            target = destination / relative
-            descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-            created_files.append(target)
-            try:
-                held = memoryview(payload)
-                while held:
-                    written = os.write(descriptor, held)
-                    if written == 0:
-                        raise _failure("the scaffold file could not be written completely")
-                    held = held[written:]
-                os.fsync(descriptor)
-            finally:
-                os.close(descriptor)
-    except BaseException:
-        for target in reversed(created_files):
-            with suppress(OSError):
-                target.unlink()
-        for directory in reversed(created_directories):
-            with suppress(OSError):
-                directory.rmdir()
-        raise
+    write_new_tree(destination, files)
+    git = initialize_authoring_git(destination)
     return ComponentScaffoldResult(
         plan_id=plan.plan_id,
         plan_digest=plan.plan_digest,
         output=str(destination),
         files_written=len(files),
+        git_initialized=git.initialized,
+        git_commit=git.commit,
+        git_reason=git.reason,
     )
 
 
@@ -239,12 +201,7 @@ def component_scaffold_files(
     name: str, descriptor: ComponentTemplateDescriptor
 ) -> dict[str, bytes]:
     """Compatibility wrapper for setup scaffolds embedding component trees."""
-    files = _scaffold_files(name, descriptor)
-    if descriptor.component_type == "skill":
-        projection = files.get(f"projections/{descriptor.harness_variant}/SKILL.md")
-        if projection is not None:
-            files["source/SKILL.md"] = projection
-    return files
+    return _scaffold_files(name, descriptor)
 
 
 def write_new_tree(destination: Path, files: dict[str, bytes]) -> None:
@@ -401,19 +358,12 @@ def _scaffold_files(name: str, descriptor: ComponentTemplateDescriptor) -> dict[
 
     variant = descriptor.harness_variant
     projection_root = f"projections/{variant}"
-    adaptation_root = f"adaptations/{variant}"
-    adaptation: dict[str, JsonValue] = {
-        "schema_version": 1,
-        "harness_variant": variant,
-        "implementation_mode": "native",
-        "logical_type": component_type,
-        "projection_kind": projection,
-    }
-    if variant != "portable":
-        adaptation["harness_id"] = variant
+    source_files = dict(authoring_source)
+    if not source_files:
+        source_files = dict(native)
     files: dict[str, bytes] = {
-        "component.json": canonize(cast(JsonValue, descriptor.model_dump(mode="json"))),
-        "source/authoring-template.md": scaffold(component_type, name).encode(),
+        ".ai-stp-template.json": canonize(cast(JsonValue, descriptor.model_dump(mode="json"))),
+        ".gitignore": GITIGNORE,
         "component-passport.json": canonize(
             cast(JsonValue, patch.model_dump(mode="json", exclude_none=True))
         ),
@@ -421,31 +371,23 @@ def _scaffold_files(name: str, descriptor: ComponentTemplateDescriptor) -> dict[
             cast(JsonValue, reference_profile((component_type,)).model_dump(mode="json"))
         ),
         "README.md": (
-            f"# {name}\n\n{component_type} scaffold generated from "
+            f"# {name}\n\n{DRAFT} replace this text with the component purpose.\n\n"
+            f"{component_type} scaffold generated from "
             f"`{descriptor.template_version}`.\n\n"
-            "Authoring source lives under `source/`. Native bytes under "
-            f"`{projection_root}/` are a generated projection, not the source of truth.\n"
+            "Edit `source/`. Generated native bytes belong under "
+            f"`{projection_root}/` for a concrete harness and are never the source of truth.\n\n"
+            "Before publication, replace every TODO marker, record exact source and license "
+            "facts in `component-passport.json`, validate the draft, release an immutable "
+            "component version, and publish that exact version.\n"
         ).encode(),
-        "SAFETY.md": (
-            b"# Safety\n\nDeclare bounded filesystem, network, process, credential and "
-            b"authorization needs before evaluation.\n"
-        ),
-        "PUBLICATION.md": (
-            b"# Publication checklist\n\n- [ ] Add exact public GitHub source commit and path.\n"
-            b"- [ ] Replace NOASSERTION with a reviewed redistributable license.\n"
-            b"- [ ] Replace generated stub programs. A no-op that returns 0 is not "
-            b"publication-ready.\n"
-            b"- [ ] Run passport validation and the exact SetupEvalProfile.\n"
-        ),
-        f"{adaptation_root}/adaptation.json": canonize(cast(JsonValue, adaptation)),
-        f"{projection_root}/GENERATED.md": (
-            b"# Generated projection\n\n"
-            b"Native bytes in this directory are produced by `ai-stp/3` from `source/`.\n"
-            b"Do not treat them as the source of truth.\n"
-        ),
     }
-    files.update({f"{projection_root}/{path}": payload for path, payload in native.items()})
-    files.update({f"source/{path}": payload for path, payload in authoring_source.items()})
+    files.update({f"source/{path}": payload for path, payload in source_files.items()})
+    if variant != "portable":
+        files[f"{projection_root}/GENERATED.md"] = (
+            b"# Generated projection\n\n"
+            b"These native bytes are derived from `source/`. Do not edit them in place.\n"
+        )
+        files.update({f"{projection_root}/{path}": payload for path, payload in native.items()})
     return files
 
 

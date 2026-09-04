@@ -48,11 +48,14 @@ AUTHORING_TYPE_LANGUAGE_MATRIX: Final[dict[ComponentType, tuple[AuthoringLanguag
 }
 
 type ComponentTemplateVersion = Literal[
-    "component-scaffold/1", "component-scaffold/2", "component-scaffold/3"
+    "component-scaffold/1",
+    "component-scaffold/2",
+    "component-scaffold/3",
+    "component-scaffold/4",
 ]
-type ComponentGeneratorVersion = Literal["ai-stp/1", "ai-stp/2", "ai-stp/3"]
-type SetupTemplateVersion = Literal["setup-scaffold/1"]
-type SetupGeneratorVersion = Literal["ai-stp/1"]
+type ComponentGeneratorVersion = Literal["ai-stp/1", "ai-stp/2", "ai-stp/3", "ai-stp/4"]
+type SetupTemplateVersion = Literal["setup-scaffold/1", "setup-scaffold/2"]
+type SetupGeneratorVersion = Literal["ai-stp/1", "ai-stp/2"]
 type GitInitReason = Literal["existing_worktree", "missing_identity", "git_unavailable"]
 
 
@@ -82,8 +85,8 @@ class ComponentTemplateDescriptor(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
     schema_version: Literal[1] = 1
-    template_version: ComponentTemplateVersion = "component-scaffold/3"
-    generator_version: ComponentGeneratorVersion = "ai-stp/3"
+    template_version: ComponentTemplateVersion = "component-scaffold/4"
+    generator_version: ComponentGeneratorVersion = "ai-stp/4"
     component_type: ComponentType
     language: AuthoringLanguage
     harness_variant: AuthoringVariant
@@ -154,8 +157,11 @@ class ComponentScaffoldResult(BaseModel):
     plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
     output: Annotated[str, Field(min_length=1)]
     files_written: Annotated[int, Field(ge=6)]
-    template_version: ComponentTemplateVersion = "component-scaffold/3"
-    generator_version: ComponentGeneratorVersion = "ai-stp/3"
+    template_version: ComponentTemplateVersion = "component-scaffold/4"
+    generator_version: ComponentGeneratorVersion = "ai-stp/4"
+    git_initialized: bool
+    git_commit: Annotated[str, Field(pattern=r"^[0-9a-f]{40,64}$")] | None = None
+    git_reason: GitInitReason | None = None
 
 
 class SetupMemberDescriptor(BaseModel):
@@ -174,8 +180,8 @@ class SetupTemplateDescriptor(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
     schema_version: Literal[1] = 1
-    template_version: SetupTemplateVersion = "setup-scaffold/1"
-    generator_version: SetupGeneratorVersion = "ai-stp/1"
+    template_version: SetupTemplateVersion = "setup-scaffold/2"
+    generator_version: SetupGeneratorVersion = "ai-stp/2"
     harness_id: HarnessId
     setup_name: Annotated[str, Field(min_length=1, max_length=64)]
     members: list[SetupMemberDescriptor] = Field(default_factory=list[SetupMemberDescriptor])
@@ -213,8 +219,8 @@ class SetupScaffoldResult(BaseModel):
     plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
     output: Annotated[str, Field(min_length=1)]
     files_written: Annotated[int, Field(ge=6)]
-    template_version: SetupTemplateVersion = "setup-scaffold/1"
-    generator_version: SetupGeneratorVersion = "ai-stp/1"
+    template_version: SetupTemplateVersion = "setup-scaffold/2"
+    generator_version: SetupGeneratorVersion = "ai-stp/2"
     git_initialized: bool
     git_commit: Annotated[str, Field(pattern=r"^[0-9a-f]{40,64}$")] | None = None
     git_reason: GitInitReason | None = None

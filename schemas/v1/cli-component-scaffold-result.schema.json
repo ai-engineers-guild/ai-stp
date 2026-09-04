@@ -4,7 +4,8 @@
       "enum": [
         "ai-stp/1",
         "ai-stp/2",
-        "ai-stp/3"
+        "ai-stp/3",
+        "ai-stp/4"
       ],
       "type": "string"
     },
@@ -12,7 +13,16 @@
       "enum": [
         "component-scaffold/1",
         "component-scaffold/2",
-        "component-scaffold/3"
+        "component-scaffold/3",
+        "component-scaffold/4"
+      ],
+      "type": "string"
+    },
+    "GitInitReason": {
+      "enum": [
+        "existing_worktree",
+        "missing_identity",
+        "git_unavailable"
       ],
       "type": "string"
     }
@@ -29,7 +39,35 @@
     },
     "generator_version": {
       "$ref": "#/$defs/ComponentGeneratorVersion",
-      "default": "ai-stp/3"
+      "default": "ai-stp/4"
+    },
+    "git_commit": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{40,64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Git Commit"
+    },
+    "git_initialized": {
+      "title": "Git Initialized",
+      "type": "boolean"
+    },
+    "git_reason": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GitInitReason"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "output": {
       "minLength": 1,
@@ -54,14 +92,15 @@
     },
     "template_version": {
       "$ref": "#/$defs/ComponentTemplateVersion",
-      "default": "component-scaffold/3"
+      "default": "component-scaffold/4"
     }
   },
   "required": [
     "plan_id",
     "plan_digest",
     "output",
-    "files_written"
+    "files_written",
+    "git_initialized"
   ],
   "title": "ComponentScaffoldResult",
   "type": "object"

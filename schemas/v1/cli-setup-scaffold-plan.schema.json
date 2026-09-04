@@ -61,7 +61,10 @@
       "type": "string"
     },
     "SetupGeneratorVersion": {
-      "const": "ai-stp/1",
+      "enum": [
+        "ai-stp/1",
+        "ai-stp/2"
+      ],
       "type": "string"
     },
     "SetupMemberDescriptor": {
@@ -105,7 +108,7 @@
       "properties": {
         "generator_version": {
           "$ref": "#/$defs/SetupGeneratorVersion",
-          "default": "ai-stp/1"
+          "default": "ai-stp/2"
         },
         "harness_id": {
           "$ref": "#/$defs/HarnessId"
@@ -131,7 +134,7 @@
         },
         "template_version": {
           "$ref": "#/$defs/SetupTemplateVersion",
-          "default": "setup-scaffold/1"
+          "default": "setup-scaffold/2"
         }
       },
       "required": [
@@ -142,7 +145,10 @@
       "type": "object"
     },
     "SetupTemplateVersion": {
-      "const": "setup-scaffold/1",
+      "enum": [
+        "setup-scaffold/1",
+        "setup-scaffold/2"
+      ],
       "type": "string"
     }
   },

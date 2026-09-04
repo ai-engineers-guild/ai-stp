@@ -52,7 +52,7 @@ SQLite, and keeps install as a public provider write.
 
 ## Decision
 
-1. **Component wrapper.** `component-scaffold/3` writes `README.md`,
+1. **Component wrapper.** `component-scaffold/4` writes `README.md`,
    `component-passport.json`, `eval-profile.json`, `.ai-stp-template.json`,
    `.gitignore`, `source/`, and, when the variant is a concrete harness,
    `projections/<harness>/`. It does not write `native/`,
@@ -109,9 +109,12 @@ SQLite, and keeps install as a public provider write.
 
 ## Consequences
 
-- Template version `component-scaffold/3` and generator `ai-stp/3` are
-  current for components. `setup-scaffold/1` is the first setup template.
-  Versions `1` and `2` remain validatable against their schemas.
+- Template version `component-scaffold/4` and generator `ai-stp/4` are
+  current for components. The merged tree had already assigned `/3` to the
+  older wrapper containing `component.json`, the safety/publication wrapper files, and
+  `adaptations/<harness>/`; those historical bytes are not silently redefined.
+  `setup-scaffold/2` embeds the `/4` component wrapper. Earlier descriptor
+  versions remain validatable against their schemas.
 - `ComponentScaffoldResult` gains `git_initialized`, `git_commit`, and
   `git_reason` because the result schema forbids extra fields.
 - User documentation, evidence slices, and discover/adopt copy paths that
@@ -125,8 +128,9 @@ SQLite, and keeps install as a public provider write.
 
 - A public provider grows a Claude Code user-scope MCP surface that it owns
   inside the target, which would retire the Claude `mcp` refusal.
-- `setup export` ships, at which point empty `projections/<harness>/` in a
-  setup scaffold must start receiving bytes from that command, not from
-  scaffold.
+- A future command needs to materialize a provider-ready native review tree.
+  The current `setup export` deliberately creates a separate immutable
+  `ai-stp-setup-export/1` definition tree and never writes into the editable
+  scaffold or a harness target.
 - Git identity or default-branch policy becomes a machine contract rather
   than a side-effect report.

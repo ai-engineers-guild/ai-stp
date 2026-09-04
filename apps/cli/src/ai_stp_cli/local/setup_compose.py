@@ -387,12 +387,25 @@ def export_tree(
         "setup-definition.json": definition,
         "README.md": _EXPORT_README.encode(),
     }
+    manifest_body: dict[str, JsonValue] = {
+        "schema_id": "ai-stp-setup-export/1",
+        "setup_id": setup_id,
+        "version": recorded.version,
+        "passport_digest": recorded.passport_digest,
+        "definition_digest": passport.artifact.digest,
+        "files": {
+            path: digest_bytes(ARTIFACT_DOMAIN, payload) for path, payload in sorted(files.items())
+        },
+    }
+    export_digest = digest_bytes("ai-stp:setup-export:v1", canonize(manifest_body))
+    files["export-manifest.json"] = canonize({**manifest_body, "export_digest": export_digest})
     _write_export_tree(destination, files)
     return SetupExportResult(
         setup_id=setup_id,
         version=recorded.version,
         passport_digest=recorded.passport_digest,
         definition_digest=passport.artifact.digest,
+        export_digest=export_digest,
         output=redact_home(destination),
         files_written=len(files),
     )

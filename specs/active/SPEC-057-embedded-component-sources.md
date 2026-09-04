@@ -130,8 +130,10 @@ the architecture and extends ADR-0051 without changing `ComponentRef`.
   have no invented external link.
 - `REQ-5720`: After a mixed setup is recorded locally, `setup export` writes a
   review tree of the immutable passport and definition artifact to a new unused
-  directory. The result names the local registry as storage and does not create
-  a physical harness tree or write native harness state.
+  directory. A canonical `ai-stp-setup-export/1` manifest binds the exact setup
+  identity and digest of every exported file without binding the destination
+  path. The result names the local registry as storage and does not create a
+  physical harness tree, mutate an authoring tree, or write native harness state.
 
 ## States and errors
 
@@ -181,7 +183,7 @@ version 2 bytes and published setup history.
 | `REQ-5717` | Staff/non-staff and approve/deny tests cover claim evidence, preview, audit, ownership revision, and immutable history. |
 | `REQ-5718` | Bounds and secret-redaction tests cover every adapter, archive, graph, document, payload, log, and fixture boundary. |
 | `REQ-5719` | Web/API tests cover projected harnesses, absence of a setup percentage, per-member checks, and catalog/Git/package/local link behavior. |
-| `REQ-5720` | Export of a recorded mixed setup writes passport and definition files to a new directory and refuses an occupied destination without writing harness state. |
+| `REQ-5720` | Export of a recorded mixed setup writes passport, definition, README, and a recomputable export manifest to a new directory; it refuses an occupied destination without mutating either authoring or harness state. |
 
 ## Required checks
 

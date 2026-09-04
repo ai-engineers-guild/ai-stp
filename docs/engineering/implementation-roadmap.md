@@ -304,8 +304,8 @@ closed or forbade. Those findings are not re-opened here:
 | Public provider disclosure (PUB-001/002) | Owned by the setup-systems estate, not this consumer ([setup-systems#287](https://github.com/NDDev-it-com/setup-systems/issues/287)). |
 | Persist adaptation assessments (CMP-003) | Platform work, not CLI: filed as `#111`. |
 | Catalog/web per-harness matrix (CMP-004) | Platform/web work, not CLI: filed as `#112`. |
-| Scaffold v3 (SCA-001) | Done in the consumer CLI: `component-scaffold/3` writes `source/`, `adaptations/<harness>/`, and generated `projections/<harness>/`. Issue `#79` tracks remaining authoring polish. |
-| Setup export (SCA-003) | Done: `setup export` writes a review tree of the recorded passport and definition. |
+| Scaffold v4 (SCA-001) | The consumer CLI preserves `/3` as historical and emits `component-scaffold/4`: editable `source/`, a concrete generated `projections/<harness>/`, no speculative adaptation document, and one reported Git root. Issue `#79` tracks the end-to-end authoring/export closeout. |
+| Setup export (SCA-003) | Done: `setup export` writes a separate `ai-stp-setup-export/1` review tree whose manifest binds the recorded passport, definition, and every exported file; it mutates neither authoring nor harness state. |
 | Rust rewrite / new component kinds | Backlog (`D-15`). Historical experiments are not current evidence. |
 
 `#100` published `ai-stp-cli==0.0.17` from candidate `33850604873`, tag `v0.0.17`,

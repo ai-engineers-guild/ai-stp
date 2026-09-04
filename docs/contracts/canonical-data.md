@@ -52,6 +52,7 @@ ai-stp:revision:v1
 ai-stp:plan:v1
 ai-stp:scaffold-plan:v1
 ai-stp:setup-scaffold-plan:v1
+ai-stp:setup-export:v1
 ai-stp:multi-root-transaction:v1
 ai-stp:bundle:v1
 ai-stp:attestation:v1
