@@ -96,12 +96,15 @@ def test_no_provider_acquires_the_attested_release(
     home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     fetched = _executable(tmp_path, "fetched")
+    manifest = fetched.parent / "release.json"
+    manifest.write_text("{}", encoding="utf-8")
     from types import SimpleNamespace
 
     def fetch(**_kwargs: object) -> SimpleNamespace:
         return SimpleNamespace(
             harness_id="codex",
             artifact=fetched,
+            manifest_path=manifest,
             provider_id="codex-setup-system",
             provider_version="0.0.60",
             tag="0.0.60",
@@ -123,6 +126,8 @@ def test_a_discovered_observation_does_not_become_the_answer(
     """`provider check` records what it saw; seeing is not choosing (`#452`)."""
     place = _executable(tmp_path)
     fetched = _executable(tmp_path, "fetched")
+    manifest = fetched.parent / "release.json"
+    manifest.write_text("{}", encoding="utf-8")
     registry = configured_path()
     registry.parent.mkdir(parents=True, exist_ok=True)
     with open_registry(registry, create=True) as connection:
@@ -149,6 +154,7 @@ def test_a_discovered_observation_does_not_become_the_answer(
         return SimpleNamespace(
             harness_id="codex",
             artifact=fetched,
+            manifest_path=manifest,
             provider_id="codex-setup-system",
             provider_version="0.0.60",
             tag="0.0.60",

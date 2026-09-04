@@ -355,8 +355,8 @@ def acquire(parameters: Mapping[str, object]) -> Answer[CatalogSetupAcquisition]
         except ValueError as error:
             raise CliFailure(
                 "AI_STP_CATALOG_INTEGRITY",
-                "a component in the setup graph has no adaptation for its harness",
-                details={"stable_id": reference.stable_id},
+                "the component has no adaptation for the requested harness",
+                details={"stable_id": reference.stable_id, "code": "adaptation_unavailable"},
             ) from error
         acquired[reference.stable_id] = item
         pending.extend(item.passport.requires_components)

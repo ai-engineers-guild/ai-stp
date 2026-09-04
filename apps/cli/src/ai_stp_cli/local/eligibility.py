@@ -60,6 +60,7 @@ FAMILIES: Final[tuple[str, ...]] = (
 #: no test names and no caller can branch on.
 REFUSALS: Final[dict[str, str]] = {
     "harness_mismatch": FAMILY_COMPATIBILITY,
+    "adaptation_unavailable": FAMILY_COMPATIBILITY,
     "harness_version_unsupported": FAMILY_COMPATIBILITY,
     "harness_version_unknown": FAMILY_COMPATIBILITY,
     "os_unsupported": FAMILY_COMPATIBILITY,
@@ -206,6 +207,13 @@ class CandidateFacts:
     version: str = ""
 
     harness_id: str = ""
+
+    #: Harnesses named by immutable adaptations (`ADR-0143` / `REQ-631`). When
+    #: this is non-empty it is the compatibility set; `harness_id` is ignored
+    #: for that decision because the first supported passport form has no
+    #: component-level harness field. Empty keeps the historical single-harness
+    #: and portable readings of `harness_id`.
+    adaptation_harnesses: frozenset[str] = frozenset()
 
     #: The component kind, read because one constraint needs it: a kind the
     #: provider has no route for can never be installed on this harness. Empty
@@ -400,22 +408,52 @@ def selectable(assessments: tuple[Assessment, ...]) -> tuple[Assessment, ...]:
     return tuple(item for item in assessments if item.auto_selectable)
 
 
+def _declared_harnesses(candidate: CandidateFacts) -> frozenset[str]:
+    """The harnesses this object claims, never inferred from a provider route."""
+    if candidate.adaptation_harnesses:
+        return candidate.adaptation_harnesses
+    if candidate.harness_id:
+        return frozenset({candidate.harness_id})
+    return frozenset()
+
+
+def _fits_harness(candidate: CandidateFacts, target: Target) -> bool:
+    """Whether the object names this harness, or names none and is portable."""
+    declared = _declared_harnesses(candidate)
+    return not declared or target.harness_id in declared
+
+
 def _compatibility(candidate: CandidateFacts, target: Target) -> list[Refusal]:
     found: list[Refusal] = []
-    # A component that names no harness is portable — a repository-root
+    # Adaptations are the first-supported compatibility set (`REQ-631`). A
+    # provider route never creates one. Historical objects without adaptations
+    # keep `harness_id`: a named mismatch stays `harness_mismatch`, and a
+    # component that names no harness is portable — a repository-root
     # `AGENTS.md` is one convention four products agreed to read, not four
-    # harness-bound surfaces sharing a path — and it fits every harness whose
-    # provider declares a native surface for its kind, which `_provider`
-    # decides from the composition table (`#64`). A setup always names one
-    # harness, so an empty value never reaches here from a setup.
-    if candidate.harness_id and candidate.harness_id != target.harness_id:
-        found.append(
-            _refuse(
-                "harness_mismatch",
-                "this object is not for the harness being composed",
-                {"declared": candidate.harness_id, "target": target.harness_id},
+    # harness-bound surfaces sharing a path. `_provider` then decides from the
+    # composition table whether that kind has a surface (`#64`). A setup always
+    # names one harness, so an empty value never reaches here from a setup.
+    declared = _declared_harnesses(candidate)
+    if declared and target.harness_id not in declared:
+        if candidate.adaptation_harnesses:
+            found.append(
+                _refuse(
+                    "adaptation_unavailable",
+                    "this object has no adaptation for the harness being composed",
+                    {
+                        "declared": ", ".join(sorted(declared)),
+                        "target": target.harness_id,
+                    },
+                )
             )
-        )
+        else:
+            found.append(
+                _refuse(
+                    "harness_mismatch",
+                    "this object is not for the harness being composed",
+                    {"declared": candidate.harness_id, "target": target.harness_id},
+                )
+            )
 
     found.extend(_harness_version(candidate, target))
 
@@ -625,7 +663,7 @@ def _provider(candidate: CandidateFacts, target: Target) -> list[Refusal]:
     # less.
     if (
         candidate.component_type
-        and candidate.harness_id in {"", target.harness_id}
+        and _fits_harness(candidate, target)
         and not native_surface(candidate.component_type, target.harness_id)
     ):
         found.append(

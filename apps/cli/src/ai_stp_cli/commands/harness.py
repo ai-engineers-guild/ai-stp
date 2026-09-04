@@ -502,12 +502,16 @@ def _perform(action: str, parameters: Mapping[str, object]) -> Answer[HarnessPro
         # required here while `provider fetch` had already installed one and
         # recorded where it put it — an agent had to copy a path the system
         # could state, and a copied path goes stale silently.
-        executable = _resolve_provider(connection, harness_id, parameters)
+        from ai_stp_cli.provider import acquire
+
+        provider = acquire.provider_context(connection, harness_id, parameters)
+        executable = provider.executable
+        effective_parameters = provider.parameters
         evidence = trust.trusted_manifest(
-            connection, parameters, executable, recovery_requested=False
+            connection, effective_parameters, executable, recovery_requested=False
         )
         trusted_release = evidence.manifest
-        trust.release_required(parameters, protocol_v3.VERSION, trusted_release)
+        trust.release_required(effective_parameters, protocol_v3.VERSION, trusted_release)
 
         # The prefix is where the program goes, and the sandbox binds only the
         # target unless told otherwise. Without this the provider writes into
@@ -518,7 +522,7 @@ def _perform(action: str, parameters: Mapping[str, object]) -> Answer[HarnessPro
             str(target),
             protocol_v3.VERSION,
             writable=(prefix,),
-            unisolated_reason=trust.unisolated_reason(trusted_release, parameters),
+            unisolated_reason=trust.unisolated_reason(trusted_release, effective_parameters),
         )
         info = _object(invoke("provider-info", ()))
         capabilities = protocol_v3.parse_capabilities(dict(info))
@@ -559,7 +563,7 @@ def _perform(action: str, parameters: Mapping[str, object]) -> Answer[HarnessPro
         # executable's release identity. Once the manifest is verified the value
         # is a fact about these bytes, and for a deliberately unverified
         # provider it is the digest of the bytes themselves.
-        release_digest = _release_digest(evidence, executable, parameters)
+        release_digest = _release_digest(evidence, executable, effective_parameters)
         arguments = operation_v3.plan_operation_arguments(
             operation=operation,
             release_digest=release_digest,
@@ -623,7 +627,7 @@ def _perform(action: str, parameters: Mapping[str, object]) -> Answer[HarnessPro
         held = installation.propose(
             connection,
             action=f"software_{action}",
-            author=str(parameters.get("author") or "agent"),
+            author=str(effective_parameters.get("author") or "agent"),
             target_id=str(prefix),
             expected_target_digest=observed_target_digest,
             provider_version=capabilities.provider_version,
@@ -637,7 +641,7 @@ def _perform(action: str, parameters: Mapping[str, object]) -> Answer[HarnessPro
             provider_plan_digest=plan_digest,
             # Everything that says *which* operation this is, so a resume reads
             # it here instead of taking it again from whoever is resuming.
-            provider_release_manifest=str(parameters.get("provider-manifest") or ""),
+            provider_release_manifest=str(effective_parameters.get("provider-manifest") or ""),
             provider_release_trust=evidence.trust,
             provider_release_evidence=evidence.evidence,
             program_harness_id=harness_id,

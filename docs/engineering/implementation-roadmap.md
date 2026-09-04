@@ -1,6 +1,6 @@
 ---
 description: "Current ai_stp status and the ordered plan for remaining work."
-last_verified: "2026-09-01"
+last_verified: "2026-09-04"
 ---
 
 # Current status and plan
@@ -34,7 +34,7 @@ plans are not continued literally after the implementation changes.
 | Platform | `/v1`, PostgreSQL, object storage, queue, authentication/devices, sync, publication, grants/reports, public catalog, article, and SEO projections |
 | Web | Landing, catalog/detail, account/device/owner surfaces, content hub, machine projections, and a three-OS test matrix |
 | Providers | Seven protocol-v3 systems, native configuration layouts, backup/recovery, software lifecycle capabilities, and five complete launch capabilities |
-| Release | All six Python packages published through Trusted Publishing (the exact version is in the snapshot below); public `check` and CodeQL green on the verified main; the host pulls `deploy/prod` |
+| Release | Published line is `0.0.16` as six distributions; the next candidate is one public `ai-stp-cli` wheel (`ADR-0146`, `#100`) and is not yet on the index; public `check` and CodeQL green on the verified main; the host pulls `deploy/prod` |
 | Catalog | Seven harness families and four postures published; review tasks `#408`, `#456`, `#460`, and `#461` closed by implementation |
 
 ## Verified snapshot: 2026-09-02, updated at the 0.0.15 cut

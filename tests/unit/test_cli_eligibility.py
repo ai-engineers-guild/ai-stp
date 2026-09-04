@@ -59,6 +59,7 @@ def test_a_clean_candidate_is_admissible_and_selectable() -> None:
     ("override", "code"),
     [
         ({"harness_id": "codex"}, "harness_mismatch"),
+        ({"adaptation_harnesses": frozenset({"codex"})}, "adaptation_unavailable"),
         ({"harness_versions": ("9.0.0", "")}, "harness_version_unsupported"),
         ({"supported_os": frozenset({"darwin"})}, "os_unsupported"),
         ({"supported_arch": frozenset({"aarch64"})}, "arch_unsupported"),
@@ -560,3 +561,82 @@ def test_a_portable_component_fits_every_harness_with_a_surface_for_its_kind() -
         _candidate(harness_id="codex", component_type="instruction", owned_or_pinned=True), TARGET
     )
     assert "harness_mismatch" in _codes(foreign)
+
+
+def test_an_adaptation_set_is_the_compatibility_claim() -> None:
+    """`REQ-631`: support is the named adaptation, never a provider route.
+
+    The first supported passport has no component-level `harness_id`. Reading
+    that empty field as portability would admit a claude-only skill into every
+    harness that can host a skill. Absence of the requested adaptation is
+    `adaptation_unavailable`; presence of it is enough even when another
+    adaptation also exists.
+    """
+    from ai_stp_cli.local.composition import native_surface
+
+    assert native_surface("skill", TARGET.harness_id)
+    matching = eligibility.assess(
+        _candidate(
+            harness_id="",
+            adaptation_harnesses=frozenset({"claude-code"}),
+            component_type="skill",
+            owned_or_pinned=True,
+        ),
+        TARGET,
+    )
+    assert matching.admissible
+    assert "adaptation_unavailable" not in _codes(matching)
+    assert "harness_mismatch" not in _codes(matching)
+
+    both = eligibility.assess(
+        _candidate(
+            harness_id="",
+            adaptation_harnesses=frozenset({"claude-code", "cursor"}),
+            component_type="skill",
+            owned_or_pinned=True,
+        ),
+        TARGET,
+    )
+    assert both.admissible
+
+    missing = eligibility.assess(
+        _candidate(
+            harness_id="",
+            adaptation_harnesses=frozenset({"codex"}),
+            component_type="skill",
+            owned_or_pinned=True,
+        ),
+        TARGET,
+    )
+    assert "adaptation_unavailable" in _codes(missing)
+    assert "harness_mismatch" not in _codes(missing)
+    assert not missing.admissible
+
+    # A historical `harness_id` must not override an explicit adaptation set.
+    origin_ignored = eligibility.assess(
+        _candidate(
+            harness_id="codex",
+            adaptation_harnesses=frozenset({"claude-code"}),
+            component_type="skill",
+            owned_or_pinned=True,
+        ),
+        TARGET,
+    )
+    assert origin_ignored.admissible
+    assert "harness_mismatch" not in _codes(origin_ignored)
+
+
+def test_select_reads_adaptation_harnesses_from_the_passport() -> None:
+    from ai_stp_cli.commands import select as select_commands
+
+    held = select_commands._adaptation_harnesses(  # pyright: ignore[reportPrivateUsage]
+        {
+            "adaptations": [
+                {"harness_id": "claude-code"},
+                {"harness_id": "cursor"},
+                {"not": "an adaptation"},
+            ]
+        }
+    )
+    assert held == frozenset({"claude-code", "cursor"})
+    assert select_commands._adaptation_harnesses({}) == frozenset()  # pyright: ignore[reportPrivateUsage]

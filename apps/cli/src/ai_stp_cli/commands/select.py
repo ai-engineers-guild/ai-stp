@@ -452,6 +452,7 @@ def _candidates(
                 stable_id=stored.stable_id,
                 revision_id=stored.revision_id,
                 harness_id=str(document.get("harness_id") or _value(facts.get("harness_id")) or ""),
+                adaptation_harnesses=_adaptation_harnesses(document),
                 component_type=str(
                     document.get("component_type") or _value(facts.get("component_type")) or ""
                 ),
@@ -1303,6 +1304,16 @@ def _strings(fact: JsonValue | None) -> tuple[str, ...]:
     return tuple(str(item) for item in value) if isinstance(value, list) else ()
 
 
+def _adaptation_harnesses(document: dict[str, JsonValue]) -> frozenset[str]:
+    """Harnesses named by explicit adaptations; never inferred from a route."""
+    raw = document.get("adaptations")
+    if not isinstance(raw, list):
+        return frozenset()
+    return frozenset(
+        str(item["harness_id"]) for item in raw if isinstance(item, dict) and item.get("harness_id")
+    )
+
+
 def _document_strings(
     document: dict[str, JsonValue], facts: dict[str, JsonValue], name: str
 ) -> tuple[str, ...]:
@@ -1621,7 +1632,11 @@ def _bundle_contract(
             raise CliFailure(
                 "AI_STP_PRECONDITION_FAILED",
                 "the component has no adaptation for the requested harness",
-                details={"stable_id": node.stable_id, "harness_id": harness_id},
+                details={
+                    "stable_id": node.stable_id,
+                    "harness_id": harness_id,
+                    "code": "adaptation_unavailable",
+                },
             )
         selected = next(
             (item for item in adaptation.scope_adaptations if item.scope == scope_name), None

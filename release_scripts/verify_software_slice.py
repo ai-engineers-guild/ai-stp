@@ -105,6 +105,15 @@ def _artifact(directory: Path) -> Path:
     return found[0]
 
 
+def _acquired_artifact(home: Path, harness_id: str, tag: str) -> Path:
+    """The exact managed release a provider-free lifecycle acquired."""
+    directory = home / "data" / "ai-stp" / "providers" / harness_id / tag
+    manifest = directory / "release.json"
+    if manifest.is_symlink() or not manifest.is_file():
+        raise EvidenceError(f"{harness_id} did not retain release.json for acquired tag {tag}")
+    return _artifact(directory)
+
+
 def _stage(
     name: str,
     arguments: list[str],
@@ -145,37 +154,40 @@ def _row(
     home: Path,
     tag: str,
     python: str,
+    acquire: bool = False,
 ) -> dict[str, Any]:
     """One harness, taken through the whole program lifecycle by `ai-stp`."""
     directory = root / harness_id
     directory.mkdir()
-    try:
-        cli(
-            [
-                "provider",
-                "fetch",
-                "--harness",
-                harness_id,
-                "--tag",
-                tag,
-                "--directory",
-                str(directory),
-            ],
-            home=home,
-            python=python,
-        )
-    except EvidenceError as error:
-        # The release source, not the provider. Reported as its own outcome so
-        # a GitHub outage never reads as seven broken releases.
-        return {
-            "harness_id": harness_id,
-            "outcome": INCONCLUSIVE,
-            "reason": f"the release could not be fetched: {error}",
-            "stages": [],
-        }
-
-    executable = str(_artifact(directory))
-    manifest = str(directory / "release.json")
+    executable = ""
+    manifest = ""
+    if not acquire:
+        try:
+            cli(
+                [
+                    "provider",
+                    "fetch",
+                    "--harness",
+                    harness_id,
+                    "--tag",
+                    tag,
+                    "--directory",
+                    str(directory),
+                ],
+                home=home,
+                python=python,
+            )
+        except EvidenceError as error:
+            # The release source, not the provider. Reported as its own outcome so
+            # a GitHub outage never reads as seven broken releases.
+            return {
+                "harness_id": harness_id,
+                "outcome": INCONCLUSIVE,
+                "reason": f"the release could not be fetched: {error}",
+                "stages": [],
+            }
+        executable = str(_artifact(directory))
+        manifest = str(directory / "release.json")
     target = root / f"{harness_id}-target"
     prefix = root / f"{harness_id}-prefix"
     target.mkdir()
@@ -183,15 +195,13 @@ def _row(
     common = [
         "--harness",
         harness_id,
-        "--provider",
-        executable,
-        "--provider-manifest",
-        manifest,
         "--prefix",
         str(prefix),
         "--target",
         str(target),
     ]
+    if not acquire:
+        common[2:2] = ["--provider", executable, "--provider-manifest", manifest]
 
     install = _stage("install", ["harness", "install", *common], home=home, python=python)
     stages: list[dict[str, Any]] = [install]
@@ -212,9 +222,36 @@ def _row(
         return {
             "harness_id": harness_id,
             "outcome": install["outcome"],
-            "provider_artifact": Path(executable).name,
+            "provider_artifact": Path(executable).name if executable else "",
+            "acquisition": "transparent" if acquire else "explicit",
             "stages": stages,
         }
+    if acquire:
+        try:
+            executable = str(_acquired_artifact(home, harness_id, tag))
+        except EvidenceError as error:
+            stages.append(
+                {
+                    "stage": "acquisition",
+                    "outcome": FAILED,
+                    "reason": str(error),
+                }
+            )
+            return {
+                "harness_id": harness_id,
+                "outcome": FAILED,
+                "provider_artifact": "",
+                "acquisition": "transparent",
+                "stages": stages,
+            }
+        stages.append(
+            {
+                "stage": "acquisition",
+                "outcome": PASSED,
+                "tag": tag,
+                "provider_artifact": Path(executable).name,
+            }
+        )
 
     stages.extend(
         [
@@ -247,6 +284,7 @@ def _row(
         "harness_id": harness_id,
         "outcome": outcome,
         "provider_artifact": Path(executable).name,
+        "acquisition": "transparent" if acquire else "explicit",
         "stages": stages,
     }
 
@@ -256,6 +294,7 @@ def verify_software_slice(
     *,
     tag: str,
     python: str,
+    acquire: bool = False,
 ) -> dict[str, Any]:
     """Every named harness, one row each, with the counts remeasured from the rows."""
     rows: list[dict[str, Any]] = []
@@ -265,7 +304,16 @@ def verify_software_slice(
         (home / "config").mkdir(parents=True)
         (home / "data").mkdir(parents=True)
         for harness_id in harnesses:
-            rows.append(_row(harness_id, root=root, home=home, tag=tag, python=python))
+            rows.append(
+                _row(
+                    harness_id,
+                    root=root,
+                    home=home,
+                    tag=tag,
+                    python=python,
+                    acquire=acquire,
+                )
+            )
 
     # Counted from what is here, never carried from what was asked for. A row
     # that was never produced has to change these numbers.
@@ -278,6 +326,7 @@ def verify_software_slice(
         "schema_version": 1,
         "slice": "software",
         "tag": tag,
+        "acquisition": "transparent" if acquire else "explicit",
         "asked": list(harnesses),
         "rows": rows,
         "counts": counts,
@@ -300,6 +349,14 @@ def _parser() -> argparse.ArgumentParser:
         choices=HARNESSES,
         help="Harness to include. Repeatable. Omit for all seven.",
     )
+    parser.add_argument(
+        "--acquire",
+        action="store_true",
+        help=(
+            "Omit provider paths so harness install transparently acquires "
+            "and remembers each release."
+        ),
+    )
     parser.add_argument("--python", default=sys.executable, help="Interpreter running the CLI.")
     return parser
 
@@ -307,7 +364,12 @@ def _parser() -> argparse.ArgumentParser:
 def main(arguments: Sequence[str] | None = None) -> int:
     parsed = _parser().parse_args(arguments)
     harnesses = tuple(parsed.harness) or HARNESSES
-    report = verify_software_slice(harnesses, tag=parsed.tag, python=parsed.python)
+    report = verify_software_slice(
+        harnesses,
+        tag=parsed.tag,
+        python=parsed.python,
+        acquire=parsed.acquire,
+    )
     print(json.dumps(report, indent=2, sort_keys=True))
     return 0 if report["clean"] else 1
 
